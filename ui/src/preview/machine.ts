@@ -9,6 +9,11 @@ import type { OtherAppInfo } from "../types/generated/OtherAppInfo";
 import type { OverloadAlertInfo } from "../types/generated/OverloadAlertInfo";
 import type { ToolTreeInfo } from "../types/generated/ToolTreeInfo";
 import { PREVIEW_TOOLS } from "./tools";
+// D1: what room measures, as the backend says it at its defaults (its
+// test holds this file to `RoomThresholds::measures`).
+import roomMeasures from "../lib/fixtures/room-measures.json";
+
+const MEASURES = roomMeasures.default;
 
 export const PREVIEW_OBSERVED: ToolTreeInfo[] = [
   { root_pid: 501, session_id: null, place: "desktop", label: "Claude app", tool: PREVIEW_TOOLS[0]!.id, group: "claude-app", account_label: "Personal", cpu_pct: 14, rss_bytes: 1_600_000_000, helpers: 21, heavy_note: null, memory_estimate: true },
@@ -56,6 +61,7 @@ export function othersFillIt(base: MachineHealthInfo): MachineHealthInfo {
     summary: {
       level: "pressure",
       words: "Under pressure",
+      measures: MEASURES,
       reasons: [
         { kind: "swap", level: "pressure", words: "swap is growing — 3004 MB a minute" },
         { kind: "pressure", level: "tight", words: "macOS reports memory pressure" },
@@ -135,12 +141,12 @@ export function mockMachineHealth(fixture: MachineFixture, now = Date.now()): Ma
     volumes: [{ name: "Macintosh HD", total_bytes: 994 * GB, available_bytes: 212 * GB }],
     power: { on_battery: false, minutes_left: null, battery_low: false, low_power_mode: false },
     thermal: "nominal",
-    summary: { level: "plenty", words: "Plenty of room", reasons: [] },
+    summary: { level: "plenty", words: "Plenty of room", measures: MEASURES, reasons: [] },
     series: series(now, (i) => 14 + ((i * 7) % 9), (i) => 22 * GB + ((i * 13) % 5) * 40_000_000),
   };
   switch (fixture) {
     case "unsampled":
-      return { ...base, sampled: false, cpu_pct: null, series: [], summary: { level: "plenty", words: "Plenty of room", reasons: [] } };
+      return { ...base, sampled: false, cpu_pct: null, series: [], summary: { level: "plenty", words: "Plenty of room", measures: MEASURES, reasons: [] } };
     case "plenty":
       return base;
     case "others":
@@ -151,7 +157,7 @@ export function mockMachineHealth(fixture: MachineFixture, now = Date.now()): Ma
       return {
         ...base,
         volumes: [{ name: "Macintosh HD", total_bytes: 994 * GB, available_bytes: 3.1 * GB }],
-        summary: { level: "pressure", words: "Under pressure", reasons: [{ kind: "disk", level: "pressure", words: "Macintosh HD has only 3.1 GB free" }] },
+        summary: { level: "pressure", words: "Under pressure", measures: MEASURES, reasons: [{ kind: "disk", level: "pressure", words: "Macintosh HD has only 3.1 GB free" }] },
       };
     case "tight":
       return {
@@ -166,6 +172,7 @@ export function mockMachineHealth(fixture: MachineFixture, now = Date.now()): Ma
         summary: {
           level: "tight",
           words: "Getting tight",
+          measures: MEASURES,
           reasons: [
             { kind: "pressure", level: "tight", words: "macOS reports memory pressure" },
             { kind: "swap", level: "tight", words: "swap is growing — 140 MB a minute" },
@@ -188,6 +195,7 @@ export function mockMachineHealth(fixture: MachineFixture, now = Date.now()): Ma
         summary: {
           level: "pressure",
           words: "Under pressure",
+          measures: MEASURES,
           reasons: [
             { kind: "pressure", level: "pressure", words: "macOS reports critical memory pressure" },
             { kind: "swap", level: "pressure", words: "swap is growing — 620 MB a minute" },

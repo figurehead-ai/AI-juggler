@@ -607,6 +607,7 @@ mod tests {
                     words: "Plenty of room".into(),
                     reasons: Vec::new(),
                     cause: None,
+                    measures: juggler_supervisor::machine::RoomThresholds::default().measures(),
                 },
                 series: (0..150)
                     .map(|i| MachinePointInfo {

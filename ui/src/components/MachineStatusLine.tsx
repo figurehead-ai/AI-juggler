@@ -9,7 +9,7 @@ import { IconComputer } from "./icons-actions";
 import { useContext, type JSX } from "react";
 import { ThisMacContext, machineStatus } from "../lib/machine";
 import { PRESSURE_SHORT, underPressure } from "../lib/machine-memory";
-import { ROOM_MEASURES, THIS_MACHINE } from "../lib/machine-words";
+import { THIS_MACHINE } from "../lib/machine-words";
 
 /** The top bar's shorter words, so the bar stays one row at 1280 px with
  * the list open (0.3.2: "Under memory pressure" wrapped it); the title
@@ -45,8 +45,10 @@ export function MachineStatusLine({ minimal, onOpen, short = false }: { minimal:
   // "Under memory pressure"): a voice user says what they see (axe,
   // label-content-name-mismatch).
   const spoken = shown === words ? undefined : `${name} · ${shown}`;
-  // D1: its help says what room counts (memory pressure keeps its own).
-  const help = why ?? (level ? `${words}. ${ROOM_MEASURES}` : undefined);
+  // D1: its help says what room counts, in the backend's words from its
+  // thresholds (memory pressure keeps its own).
+  const measures = status ? info?.machine.summary.measures : undefined;
+  const help = why ?? (measures ? `${words}. ${measures}` : undefined);
   const dot = status ? status.dot : "bg-faint";
   // The level, by which the dot breathes when it changes, then rests
   // (styles.css).

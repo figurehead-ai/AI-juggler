@@ -22,4 +22,10 @@ reasons: Array<RoomReasonInfo>,
  * that names the level and its cause; `null` with plenty of room or
  * when the words already say it (the memory-pressure alert).
  */
-cause?: string | null, };
+cause?: string | null, 
+/**
+ * D1: what "room" measures, from the thresholds in force
+ * (`RoomThresholds::measures`), for the line under This Mac's level
+ * and the top bar's help.
+ */
+measures: string, };

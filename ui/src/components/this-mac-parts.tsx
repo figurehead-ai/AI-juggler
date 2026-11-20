@@ -7,7 +7,6 @@ import type { JSX } from "react";
 import { ToolMark } from "./ToolMark";
 import { useItemMenu } from "./ItemMenu";
 import { bytesWords, machineStatus, reasonSentence, type ThisMacInfo, type ToolTreeInfo } from "../lib/machine";
-import { ROOM_MEASURES } from "../lib/machine-words";
 
 /** Why a tool AI Juggler didn't start shows "about": its helpers share
  * memory, and the sum counts that once per helper. */
@@ -111,10 +110,11 @@ export function MachineState({ info, reasonsShown = 2 }: { info: ThisMacInfo; re
               {reasonSentence(reasons)}
             </span>
           )}
-          {/* D1: calm beside busy figures, it says what room counts. */}
-          {calm && (
+          {/* D1: calm beside busy figures, it says what room counts, in
+              the backend's words from its thresholds. */}
+          {calm && info.machine.summary.measures && (
             <span className="max-w-prose text-meta text-ink-2" data-testid="this-mac-room-means">
-              {ROOM_MEASURES}
+              {info.machine.summary.measures}
             </span>
           )}
         </div>

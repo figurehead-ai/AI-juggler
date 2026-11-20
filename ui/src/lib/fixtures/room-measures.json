@@ -1,0 +1,4 @@
+{
+  "note": "What RoomThresholds::measures says at its defaults (crates/juggler-supervisor/src/machine.rs). Its test holds this file to it; the design preview reads it. The app reads the words from the backend, never from here.",
+  "default": "Room is free memory, swap, the processor, heat and disk space. It turns tight only when one runs short: the processor over 90% for a full minute, swap at 90% of its size and holding 25% of your memory or more, swap growing over 100 MB a minute, under 10% of memory free, the Mac slowing down to cool off, or a disk with under 20 GB free."
+}
