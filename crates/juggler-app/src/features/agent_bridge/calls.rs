@@ -892,42 +892,49 @@ fn named_place<'r>(
 
 /// Why a session can't act in the pool it named, in words: the pool by
 /// its name, and a sealed pool's hold when that's why (the P7 walk: "isn't
-/// in the pool \"pool-default:proj-…\"" said neither).
+/// in the pool \"pool-default:proj-…\"" said neither). AJ-E3014 item 2
+/// (rc3h): a session the person put in a pool of its own on a project
+/// leaves that project's own pool (D-62's "skip held": a session moved into
+/// a pool leaves its project's), so naming the project ("web") is rightly
+/// refused; the words say which pool holds it and how to reach the other.
 fn not_in_pool(
     storage: &juggler_core::storage::Storage,
     resolution: &juggler_core::pools::Resolution,
     asked: &str,
 ) -> String {
+    use juggler_core::pools::SkipReason;
     let shown = pools::shown_pools(storage).unwrap_or_default();
     let found = shown
         .iter()
         .find(|(pool, _)| pool.id == asked)
         .or_else(|| shown.iter().find(|(_, name)| name == asked));
     let name = found.map_or(asked, |(_, name)| name.as_str());
-    let held = found.and_then(|(pool, _)| {
+    let name_of = |id: &str| {
+        shown
+            .iter()
+            .find(|(other, _)| other.id == id)
+            .map_or_else(|| id.to_owned(), |(_, name)| name.clone())
+    };
+    let why = found.and_then(|(pool, _)| {
         resolution
             .skipped
             .iter()
+            .filter(|skip| skip.pool_id == pool.id)
             .find_map(|skip| match &skip.reason {
-                juggler_core::pools::SkipReason::SealedElsewhere { sealed_pool }
-                    if skip.pool_id == pool.id =>
-                {
-                    Some(
-                        shown
-                            .iter()
-                            .find(|(other, _)| &other.id == sealed_pool)
-                            .map_or(sealed_pool.as_str(), |(_, name)| name.as_str()),
-                    )
-                }
-                _ => None,
+                SkipReason::SealedElsewhere { sealed_pool } => Some(format!(
+                    "This session isn't in the pool «{name}»: it's in «{}», which is sealed, and nothing goes out of a sealed pool. whoami lists the pools it's in.",
+                    name_of(sealed_pool)
+                )),
+                SkipReason::HeldElsewhere { by_pool } => Some(format!(
+                    "This session isn't in the pool «{name}»: the user put it in «{held}» (id {by_pool}), so it left its project's own pool. Name «{held}» for this, or ask the user to add it to «{name}» in AI Juggler.",
+                    held = name_of(by_pool)
+                )),
+                SkipReason::OutOfScope => None,
             })
     });
-    match held {
-        Some(sealed) => format!(
-            "This session isn't in the pool «{name}»: it's in «{sealed}», which is sealed, and nothing goes out of a sealed pool. whoami lists the pools it's in."
-        ),
-        None => format!("This session isn't in the pool «{name}». whoami lists the pools it's in."),
-    }
+    why.unwrap_or_else(|| {
+        format!("This session isn't in the pool «{name}». whoami lists the pools it's in.")
+    })
 }
 
 #[cfg(test)]
@@ -968,6 +975,53 @@ mod refusal_words {
         assert!(
             plain.starts_with("This session isn't in the pool «Web»."),
             "{plain}"
+        );
+    }
+
+    /// AJ-E3014 item 2 (rc3h): a session the person put in «web team» on
+    /// the project web left web's own pool (D-62's skip held), so "web" is
+    /// refused; the words name the pool that holds it and how to reach
+    /// web's (the agent read only "isn't in a pool called web").
+    #[test]
+    fn a_session_moved_out_of_its_projects_pool_is_told_where_it_is() {
+        use juggler_core::pools::Placement;
+        use juggler_core::storage::PoolRole;
+        let dir = tempfile::tempdir().unwrap();
+        let storage = Storage::open(&dir.path().join("j.sqlite")).unwrap();
+        let web = storage.pools().create_scoped("web", &Scope::Every).unwrap();
+        let team = storage
+            .pools()
+            .create_scoped("web team", &Scope::Every)
+            .unwrap();
+        let held = Resolution {
+            placements: vec![Placement {
+                pool_id: team.id.clone(),
+                member: MemberRef::Everyone,
+                role: PoolRole::Member,
+                level: None,
+                joined_at: 0,
+                sealed: false,
+                default_pool: false,
+            }],
+            skipped: vec![Skip {
+                pool_id: web.id.clone(),
+                member: MemberRef::Everyone,
+                reason: SkipReason::HeldElsewhere {
+                    by_pool: team.id.clone(),
+                },
+            }],
+            account_unknown: false,
+        };
+        let words = super::not_in_pool(&storage, &held, &web.id);
+        assert!(
+            words
+                .starts_with("This session isn't in the pool «web»: the user put it in «web team»"),
+            "{words}"
+        );
+        assert!(words.contains(&format!("(id {})", team.id)), "{words}");
+        assert!(
+            words.contains("Name «web team» for this, or ask the user to add it to «web»"),
+            "{words}"
         );
     }
 
