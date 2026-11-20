@@ -118,7 +118,7 @@ fn an_older_build_refuses_newer_data_and_offers_the_backup_from_before() {
     assert_eq!(title, "This data is from a newer AI Juggler Dev");
     assert!(text.contains("AI Juggler Dev 0.0.8 can't open"), "{text}");
     assert!(
-        text.contains("leaves out Chat's memory and conversation history"),
+        text.contains("leaves out Bot's memory and conversation history"),
         "{text}"
     );
     assert!(text.contains("nothing else changes"), "{text}");
