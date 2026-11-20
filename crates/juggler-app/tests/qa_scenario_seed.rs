@@ -146,12 +146,24 @@ fn replica(args: &[std::ffi::OsString]) -> Value {
         .unwrap();
     assert!(
         out.status.success(),
-        "replica.py {}: {}",
-        args.first()
-            .map_or_else(String::new, |verb| verb.to_string_lossy().into_owned()),
-        String::from_utf8_lossy(&out.stderr)
+        "replica.py exited with {}: its stderr is in {}",
+        out.status,
+        kept_stderr("replica", &out.stderr)
     );
     serde_json::from_slice(&out.stdout).unwrap()
+}
+
+/// A failed helper's stderr, kept in a file the failure names. It's never
+/// printed: it can carry the lab's ids (CodeQL's cleartext-logging rule).
+fn kept_stderr(what: &str, stderr: &[u8]) -> String {
+    let mut file = tempfile::Builder::new()
+        .prefix(&format!("{what}-stderr-"))
+        .suffix(".txt")
+        .tempfile()
+        .unwrap();
+    std::io::Write::write_all(&mut file, stderr).unwrap();
+    let (_, path) = file.keep().unwrap();
+    path.display().to_string()
 }
 
 /// Who started a lab session, in its tool's own words: what decides its
@@ -2817,8 +2829,9 @@ fn presence_reads(state: &Arc<AppState>, paths: &[&std::path::Path], expr: &str)
         .unwrap();
     assert!(
         out.status.success(),
-        "presence_sessions: {}",
-        String::from_utf8_lossy(&out.stderr)
+        "presence_sessions exited with {}: its stderr is in {}",
+        out.status,
+        kept_stderr("presence_sessions", &out.stderr)
     );
     serde_json::from_slice(&out.stdout).unwrap()
 }
