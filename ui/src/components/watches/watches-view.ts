@@ -7,7 +7,6 @@
  * list's search, filters and sort.
  */
 import type { InstanceInfo } from "../../types/generated/InstanceInfo";
-import type { LaunchRecipeInfo } from "../../types/generated/LaunchRecipeInfo";
 import type { AccountInfo } from "../../types/generated/AccountInfo";
 import type { CatalogueEntry } from "../../types/generated/CatalogueEntry";
 import type { LifetimeChoice } from "../../types/generated/LifetimeChoice";
@@ -32,6 +31,29 @@ export const MORE_ROWS = 20;
 /** Sessions that count as open now. */
 const OPEN = new Set(["running", "waiting_user", "stuck", "starting", "quota_blocked", "idle"]);
 
+/** An App as the Watches view needs it (an `AppModel`): its App id
+ * (`cli:<folder>`, `app:<host>:<instance>`), the one every surface uses. */
+export interface AppLike {
+  id: string;
+  kind: "cli" | "desktop";
+  name: string;
+  tool: string | null;
+  folder: { id: string } | null;
+}
+
+/** The App a session is in, by App id: the backend's rule
+ * (`sessions().pool_facts_of`): the one desktop App on its folder for a
+ * desktop session, else its folder's CLI App. */
+export function appOfSession(session: Pick<InstanceInfo, "account_id" | "kind">, apps: readonly AppLike[]): AppLike | null {
+  const folder = session.account_id;
+  if (folder === null) return null;
+  if (session.kind === "desktop") {
+    const desktop = apps.filter((app) => app.kind === "desktop" && app.folder?.id === folder);
+    if (desktop.length === 1) return desktop[0]!;
+  }
+  return apps.find((app) => app.id === `cli:${folder}`) ?? null;
+}
+
 export interface PoolLike {
   id: string;
   name: string;
@@ -43,7 +65,7 @@ export interface PoolLike {
 /** What the picker and the rows know about this Mac's targets. */
 export interface TargetSources {
   sessions: readonly InstanceInfo[];
-  apps: readonly LaunchRecipeInfo[];
+  apps: readonly AppLike[];
   projects: readonly { id: string; name: string; last_activity_ms?: number | null }[];
   pools: readonly PoolLike[];
   accounts: readonly AccountInfo[];
@@ -84,17 +106,17 @@ function projectName(sources: TargetSources, id: string | null): string | null {
 export function targetBook(sources: TargetSources): Map<string, TargetOption> {
   const book = new Map<string, TargetOption>();
   const add = (option: TargetOption) => book.set(option.key, option);
-  const appName = (id: string) => sources.apps.find((app) => app.id === id)?.name ?? null;
+
   for (const session of sources.sessions) {
     const target: WatchTarget = { kind: "session", id: session.id };
     const open = OPEN.has(session.status);
-    const parts = [appName(session.launch_recipe_id) ?? session.account_label, projectName(sources, session.project_id), open ? (STATUS_WORDS[session.status] ?? null) : "Ended"].filter(Boolean);
+    const parts = [appOfSession(session, sources.apps)?.name ?? session.account_label, projectName(sources, session.project_id), open ? (STATUS_WORDS[session.status] ?? null) : "Ended"].filter(Boolean);
     add({ target, key: targetKey(target), kind: "session", name: shortName(session, sources.now), line: parts.join(" · "), tool: session.provider, open, at: session.last_activity_ms ?? session.started_at_ms });
   }
   for (const app of sources.apps) {
     const target: WatchTarget = { kind: "app", id: app.id };
-    const last = Math.max(0, ...sources.sessions.filter((s) => s.launch_recipe_id === app.id).map((s) => s.last_activity_ms ?? s.started_at_ms));
-    add({ target, key: targetKey(target), kind: "app", name: app.name, line: `${KIND.app} · ${KIND.everySessionInIt}`, tool: app.provider, open: false, at: last });
+    const last = Math.max(0, ...sources.sessions.filter((s) => appOfSession(s, sources.apps)?.id === app.id).map((s) => s.last_activity_ms ?? s.started_at_ms));
+    add({ target, key: targetKey(target), kind: "app", name: app.name, line: `${KIND.app} · ${KIND.everySessionInIt}`, tool: app.tool, open: false, at: last });
   }
   for (const project of sources.projects) {
     const target: WatchTarget = { kind: "project", id: project.id };
@@ -109,7 +131,7 @@ export function targetBook(sources: TargetSources): Map<string, TargetOption> {
   }
   for (const account of sources.accounts) {
     const target: WatchTarget = { kind: "account", id: account.id };
-    const signIns = sources.apps.filter((app) => app.account_id === account.id).length;
+    const signIns = sources.apps.filter((app) => app.folder?.id === account.id).length;
     const last = Math.max(0, ...sources.sessions.filter((s) => s.account_id === account.id).map((s) => s.last_activity_ms ?? s.started_at_ms));
     add({ target, key: targetKey(target), kind: "account", name: account.label, line: signIns > 0 ? `${KIND.account} · ${KIND.appsSignIn(signIns)}` : `${KIND.account} · ${KIND.roomAndLimits}`, tool: null, open: false, at: last });
   }

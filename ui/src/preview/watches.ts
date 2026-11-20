@@ -21,6 +21,7 @@ import type { WatchTarget } from "../types/generated/WatchTarget";
 import type { ToolSpecInfo } from "../types/generated/ToolSpecInfo";
 import { PREVIEW_TOOLS } from "./tools";
 import type { DraftWords, WatchViewSeam } from "../lib/ipc/watch-view";
+import type { AppLike } from "../components/watches/watches-view";
 import { echoParts, joined, nextMidnight, type EchoClock, type EchoNames } from "./watch-echo";
 
 /** 19 Nov 2026, 15:00 local. */
@@ -30,13 +31,15 @@ const HOUR = 60 * MIN;
 const DAY = 24 * HOUR;
 
 const ACCOUNTS: AccountInfo[] = [
-  { id: "acct-work", provider: "claude-code", label: "Work", plan: null, login_state: "logged_in", cleanup_opt_in: false, renewal_date: null, preview_opt_in: false, in_place: false },
+  { id: "acct-work", provider: "agent-cli", label: "Work", plan: null, login_state: "logged_in", cleanup_opt_in: false, renewal_date: null, preview_opt_in: false, in_place: false },
+  { id: "acct-studio", provider: "agent-one", label: "Studio", plan: null, login_state: "logged_in", cleanup_opt_in: false, renewal_date: null, preview_opt_in: false, in_place: false },
+  { id: "acct-home", provider: "agent-two", label: "Home", plan: null, login_state: "logged_in", cleanup_opt_in: false, renewal_date: null, preview_opt_in: false, in_place: false },
 ];
 
 const APPS: LaunchRecipeInfo[] = [
   { id: "p-cli", name: "Agent CLI", account_id: "acct-work", account_label: "Work", provider: "agent-cli", model: null, default_cwd: null, restart_on_crash: null },
-  { id: "p-one", name: "Agent app one", account_id: "acct-work", account_label: "Work", provider: "agent-one", model: null, default_cwd: null, restart_on_crash: null },
-  { id: "p-two", name: "Agent app two", account_id: "acct-other", account_label: "Other", provider: "agent-two", model: null, default_cwd: null, restart_on_crash: null },
+  { id: "p-one", name: "Agent app one", account_id: "acct-studio", account_label: "Studio", provider: "agent-one", model: null, default_cwd: null, restart_on_crash: null },
+  { id: "p-two", name: "Agent app two", account_id: "acct-home", account_label: "Home", provider: "agent-two", model: null, default_cwd: null, restart_on_crash: null },
 ];
 
 function projectInfo(id: string, name: string, at: number): ProjectInfo {
@@ -91,6 +94,16 @@ const SESSIONS: InstanceInfo[] = [
   session("s-draft", "Draft the settings page", "p-two", "proj-docs", "idle", 40 * MIN),
 ];
 
+/** The Apps, by App id (each folder's CLI App, named as the mock's). */
+export const WATCHES_APPS: AppLike[] = [
+  { id: "cli:acct-work", kind: "cli", name: "Agent CLI", tool: "agent-cli", folder: { id: "acct-work" } },
+  { id: "cli:acct-studio", kind: "cli", name: "Agent app one", tool: "agent-one", folder: { id: "acct-studio" } },
+  { id: "cli:acct-home", kind: "cli", name: "Agent app two", tool: "agent-two", folder: { id: "acct-home" } },
+];
+
+/** Their stored rows, which name them (`__AIJ_STORED_APPS__`). */
+export const WATCHES_STORED_APPS = WATCHES_APPS.map((app) => ({ id: app.id, kind: "cli", tool: app.tool ?? "", host_app_id: null, label: app.name, folder_id: app.folder?.id ?? null, account_id: null, last_seen_ms: 0 }));
+
 /** The shell's fixture (`__AIJ_FIXTURE__`) the gallery opens with. */
 export const WATCHES_FIXTURE = { accounts: ACCOUNTS, profiles: APPS, sessions: SESSIONS, projects: PROJECTS };
 
@@ -109,9 +122,9 @@ const NAMES: Record<string, string> = {
   "session:s-web": "web",
   "session:s-login": "Fix the login redirect",
   "session:s-draft": "Draft the settings page",
-  "app:p-cli": "Agent CLI",
-  "app:p-one": "Agent app one",
-  "app:p-two": "Agent app two",
+  "app:cli:acct-work": "Agent CLI",
+  "app:cli:acct-studio": "Agent app one",
+  "app:cli:acct-home": "Agent app two",
   "project:proj-shop": "shop",
   "account:acct-work": "Work",
   "pool:pool-rel": "Release pool",
@@ -168,7 +181,7 @@ export const WATCHES_CATALOGUE: Record<string, CatalogueEntry[]> = {
   // Agent app two can't tell when its sessions look stuck or sit idle:
   // those cards are hidden for it (D-127).
   "session:s-draft": [C.finishes, C.ends, C.asks_you, C.fails, C.hits_limit, C.leaves_processes],
-  "app:p-two": [C.finishes, C.ends, C.asks_you, C.fails, C.hits_limit, C.leaves_processes, C.restarted, C.starts],
+  "app:cli:acct-home": [C.finishes, C.ends, C.asks_you, C.fails, C.hits_limit, C.leaves_processes, C.restarted, C.starts],
 };
 
 // ---------------------------------------------------------------------------
@@ -258,7 +271,7 @@ export function listWatches(): WatchInfo[] {
   return [
     made(d([S("s-api")], [{ code: "finishes" }, stuck15], { kind: "until_ends" }), "w-a1", { told: 1, lastAgo: 28 * MIN, lastCode: "finishes" }),
     made(d([S("s-api"), S("s-web")], [{ code: "finishes" }], { kind: "once" }, { matching: "all" }), "w-a2", {}),
-    made(d([{ kind: "app", id: "p-two" }], [{ code: "asks_you", param: { kind: "minutes", value: 10 } }], { kind: "always" }, { evenInQuietHours: true }), "w-a3", { told: 3, lastAgo: 16 * HOUR - 19 * MIN, createdAgo: 3 * DAY }),
+    made(d([{ kind: "app", id: "cli:acct-home" }], [{ code: "asks_you", param: { kind: "minutes", value: 10 } }], { kind: "always" }, { evenInQuietHours: true }), "w-a3", { told: 3, lastAgo: 16 * HOUR - 19 * MIN, createdAgo: 3 * DAY }),
     made(d([{ kind: "account", id: "acct-work" }], [{ code: "runway_below", param: { kind: "percent", value: 20 } }], { kind: "today" }), "w-a4", {}),
     made(d([{ kind: "any" }], [{ code: "hits_limit" }], { kind: "always" }), "w-a5", { told: 2, lastAgo: 2 * DAY + 4 * HOUR, createdAgo: 5 * DAY }),
     made(d([{ kind: "pool", id: "pool-rel" }], [{ code: "pool_message", param: { kind: "agent", value: "agent-reviewer" } }], { kind: "always" }), "w-a6", { state: "paused", told: 4, lastAgo: DAY, createdAgo: 4 * DAY, changedAgo: 4 * HOUR + 48 * MIN }),
@@ -272,7 +285,7 @@ export function endedWatches(): WatchInfo[] {
     made(d([S("s-login")], [{ code: "finishes" }], { kind: "once" }), "w-e2", { state: "ended", ended: "first_fire", endedAgo: 2 * HOUR, told: 1 }),
     made(d([{ kind: "account", id: "acct-work" }], [{ code: "runway_below", param: { kind: "percent", value: 20 } }], { kind: "today" }), "w-e3", { state: "ended", ended: "time_reached", endedAgo: 15 * HOUR, lifetime: { kind: "until", atMs: new Date(2026, 10, 19, 0, 0).getTime() } }),
     made(d([{ kind: "project", id: "proj-gone" }], [{ code: "task_changes", param: { kind: "task_state", value: "done" } }], { kind: "always" }), "w-e4", { state: "ended", ended: "target_gone", endedAgo: DAY + 3 * HOUR, told: 6 }),
-    made(d([{ kind: "app", id: "p-two" }], [{ code: "leaves_processes" }], { kind: "always" }), "w-e5", { state: "ended", ended: "no_longer_offered", endedAgo: 2 * DAY + 5 * HOUR, told: 1 }),
+    made(d([{ kind: "app", id: "cli:acct-home" }], [{ code: "leaves_processes" }], { kind: "always" }), "w-e5", { state: "ended", ended: "no_longer_offered", endedAgo: 2 * DAY + 5 * HOUR, told: 1 }),
   ];
 }
 
@@ -280,7 +293,7 @@ export function endedWatches(): WatchInfo[] {
 export function manyWatches(): WatchInfo[] {
   const base = listWatches();
   const out: WatchInfo[] = [...base];
-  const targets: WatchTarget[] = [S("s-web"), { kind: "app", id: "p-cli" }, { kind: "project", id: "proj-shop" }, S("s-draft"), S("s-login"), { kind: "app", id: "p-one" }];
+  const targets: WatchTarget[] = [S("s-web"), { kind: "app", id: "cli:acct-work" }, { kind: "project", id: "proj-shop" }, S("s-draft"), S("s-login"), { kind: "app", id: "cli:acct-studio" }];
   const conds: WatchDraftInfo["conditions"][] = [[{ code: "fails" }], [{ code: "leaves_processes" }], [{ code: "task_changes", param: { kind: "task_state", value: "in_review" } }], [{ code: "idle_for", param: { kind: "minutes", value: 30 } }], [{ code: "asks_you" }], [{ code: "ends" }]];
   for (let i = 0; out.length < 50; i += 1) {
     const at = i % targets.length;

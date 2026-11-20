@@ -84,3 +84,36 @@ describe("AJ-E3816 the doors", () => {
     await waitFor(() => expect(true).toBe(true));
   });
 });
+
+describe("AJ-E3816 an App by its App id", () => {
+  it("the App page's door counts watches on the App id and opens the page showing only those", async () => {
+    const { WatchDoor } = await import("./WatchDoor");
+    const { forgetSharedReads } = await import("../../lib/shared-read");
+    const { STATES } = await import("../../preview/watches");
+    forgetSharedReads();
+    window.__AIJ_WATCH_VIEW__ = { watches: structuredClone(STATES.list!.watches) };
+    const seen = vi.fn();
+    const stop = onWatchesIntent(seen);
+    render(<WatchDoor target={{ kind: "app", id: "cli:acct-home" }} name="Agent app two" />);
+    const door = await screen.findByText("Watched · 1");
+    fireEvent.click(door);
+    expect(takeWatchesIntent()).toEqual({ kind: "filter", target: { kind: "app", id: "cli:acct-home" }, name: "Agent app two" });
+    cleanup();
+    render(<WatchDoor target={{ kind: "app", id: "cli:acct-studio" }} name="Agent app one" />);
+    expect((await screen.findByTestId("watch-door")).textContent).toContain("Watch…");
+    stop();
+    Reflect.deleteProperty(window, "__AIJ_WATCH_VIEW__");
+    forgetSharedReads();
+  });
+
+  it("a session's App is its folder's CLI App, or the one desktop App on that folder", async () => {
+    const { appOfSession } = await import("./watches-view");
+    const apps = [
+      { id: "cli:f1", kind: "cli" as const, name: "Agent CLI", tool: "t", folder: { id: "f1" } },
+      { id: "app:host:/p/one", kind: "desktop" as const, name: "Agent app one", tool: "t", folder: { id: "f1" } },
+    ];
+    expect(appOfSession({ account_id: "f1", kind: "terminal" }, apps)?.id).toBe("cli:f1");
+    expect(appOfSession({ account_id: "f1", kind: "desktop" }, apps)?.id).toBe("app:host:/p/one");
+    expect(appOfSession({ account_id: "f2", kind: "terminal" }, apps)).toBeNull();
+  });
+});

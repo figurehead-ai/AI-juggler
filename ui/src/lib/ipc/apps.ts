@@ -23,6 +23,9 @@ const previewNames = new Map<string, string>();
 
 export async function appsList(): Promise<StoredAppInfo[]> {
   if (!hasLiveBackend()) {
+    // The preview's and tests' own stored Apps, when they give some.
+    const seeded: StoredAppInfo[] | undefined = Reflect.get(window, "__AIJ_STORED_APPS__");
+    if (seeded) return seeded.map((row) => ({ ...row, label: previewNames.get(row.id) ?? row.label }));
     return [...previewNames].map(([id, label]) => ({
       id,
       kind: id.startsWith("cli:") ? "cli" : "desktop",

@@ -123,9 +123,6 @@ function AppBody({
     return appItems(all, app.railKey, appByConversation(places), appByFolder(places));
   }, [sessions, conversations, projects, seen, app.railKey, places]);
   const worked = useWorkedProjects("app", app.id, items, projects);
-  // AJ-E3816: the launch settings its sessions ran on, when they are one.
-  const recipes = [...new Set(items.flatMap((item) => (item.session ? [item.session.launch_recipe_id] : [])))];
-  const watchApp = recipes.length === 1 ? recipes[0]! : null;
   // AJ-E1610: the project it worked in last, for its app's "New session in …".
   const lastProject = worked[0] ? projects.find((project) => project.id === worked[0]!.id) : undefined;
   const lastFolder = lastProject ? { name: lastProject.name, root: lastProject.root } : null;
@@ -182,8 +179,8 @@ function AppBody({
                 <AppAction app={app} restart={restart} />
                 {/* D-136: Bot, scoped to every session in this App (by id). */}
                 <AskBot scope={{ kind: "app", id: app.id, name: app.name, sessions: items.flatMap((item) => (item.session ? [item.session.id] : [])).slice(0, 200) }} />
-                {/* AJ-E3816: a watch's App is its sessions' launch settings; offered when they are one. */}
-                {watchApp && <WatchDoor target={{ kind: "app", id: watchApp }} name={app.name} />}
+                {/* AJ-E3816: watched, or Watch… in the same spot, by its App id. */}
+                <WatchDoor target={{ kind: "app", id: app.id }} name={app.name} />
                 {app.kind === "cli" && app.folder && <FolderMenu account={app.folder} sessions={sessions} onChanged={onChanged} />}
               </>
             }

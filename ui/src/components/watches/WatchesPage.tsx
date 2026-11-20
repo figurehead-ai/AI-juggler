@@ -30,7 +30,7 @@ import { LimitAlert, QuietLine, WatchesHead, type ToolbarState } from "./Watches
 import { watchesChanged } from "./WatchDoor";
 import { EndedSection, WatchingSection } from "./WatchesLists";
 import { stateFrom } from "./watch-form-state";
-import { draftOf, nextMidnight, pickerLists, quietHours, targetBook, type TargetOption, type TargetSources } from "./watches-view";
+import { appOfSession, draftOf, nextMidnight, pickerLists, quietHours, targetBook, type TargetOption, type TargetSources } from "./watches-view";
 import { PAGE, TOAST } from "./watches-words";
 
 type View = { kind: "list" } | { kind: "form"; mode: "new" | "edit"; draft: WatchDraftInfo | null; editing: WatchInfo | null };
@@ -248,7 +248,7 @@ export function WatchesPage({ sources, onGoTo, onAskBot, onQuietHours }: { sourc
   if (view.kind === "form") return <FormView view={view} book={book} quiet={quiet} count={count} limit={limit} now={now} onClose={() => go({ kind: "list" })} onSaved={refresh} remove={acts.remove} />;
   const appOf = (sessionId: string) => {
     const session = sources.sessions.find((s) => s.id === sessionId);
-    const app = session ? sources.apps.find((a) => a.id === session.launch_recipe_id) : undefined;
+    const app = session ? appOfSession(session, sources.apps) : null;
     return app ? { id: app.id, name: app.name } : null;
   };
   return (

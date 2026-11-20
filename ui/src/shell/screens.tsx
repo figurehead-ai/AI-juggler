@@ -95,7 +95,6 @@ export const SCREENS: Partial<Record<GlobalId, ScreenEntry>> = {
     <ScreenBoundary key="watches" screen="watches" label="Watches">
       <WatchesScreen
         sessions={shell.sessions}
-        apps={shell.profiles}
         projects={shell.projects}
         accounts={shell.accounts}
         now={shell.now}

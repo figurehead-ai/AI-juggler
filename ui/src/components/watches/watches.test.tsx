@@ -15,7 +15,7 @@ import { primariesIn } from "../primitives";
 import { resetToasts, toastEntries, undoToast } from "../Toast";
 import { ToastHost } from "../ToastStack";
 import { openWatches } from "../../lib/watches-open";
-import { STATES, WATCHES_CATALOGUE, WATCHES_FIXTURE, WATCHES_NOW, draftWords, made, type WatchesPreviewState } from "../../preview/watches";
+import { STATES, WATCHES_APPS, WATCHES_CATALOGUE, WATCHES_FIXTURE, WATCHES_NOW, draftWords, made, type WatchesPreviewState } from "../../preview/watches";
 import { WatchesPage } from "./WatchesPage";
 import type { TargetSources } from "./watches-view";
 import type { WatchDraftInfo } from "../../types/generated/WatchDraftInfo";
@@ -24,7 +24,7 @@ const INTERNAL = [/\bundefined\b/, /\bnull\b/, /NaN/, /\bw-[0-9a-f]+\b/, /first_
 
 const SOURCES: TargetSources = {
   sessions: WATCHES_FIXTURE.sessions,
-  apps: WATCHES_FIXTURE.profiles,
+  apps: WATCHES_APPS,
   projects: WATCHES_FIXTURE.projects,
   pools: [{ id: "pool-rel", name: "Release pool", kind: "user", project_id: "proj-shop", members: 4 }],
   accounts: WATCHES_FIXTURE.accounts,
@@ -139,6 +139,17 @@ describe("AJ-E3816 the Watches list", () => {
     fireEvent.click(screen.getAllByTestId("watch-more")[0]!);
     fireEvent.click(screen.getByTestId("watch-menu-quiet"));
     await waitFor(() => expect(calls().some(([name, args]) => name === "watches_update" && Reflect.get(Object(Reflect.get(Object(args), "draft")), "evenInQuietHours") === true)).toBe(true));
+  });
+
+  it("an App watch is on its App id: its line, and Go to opens that App's page", async () => {
+    const goTo = vi.fn();
+    await show(STATES.list!, { onGoTo: goTo });
+    await waitFor(() => expect(screen.getAllByTestId("watch-row")).toHaveLength(6));
+    const row = rowOf("w-a3");
+    expect(within(row).getByTestId("watch-target-line").textContent).toBe("App · every session in it");
+    fireEvent.click(within(row).getByTestId("watch-more"));
+    fireEvent.click(screen.getByTestId("watch-menu-goto"));
+    expect(goTo).toHaveBeenCalledWith({ kind: "app", id: "cli:acct-home" });
   });
 
   it("removes at once and Undo brings it back, by id", async () => {
