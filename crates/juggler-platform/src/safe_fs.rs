@@ -310,6 +310,10 @@ mod imp {
         }
 
         #[cfg(not(target_os = "macos"))]
+        #[allow(
+            clippy::unused_self,
+            reason = "the macOS read's shape: off a Mac there's no lock to read yet"
+        )]
         pub fn lock_holder(&self, _name: &OsStr) -> io::Result<Option<u32>> {
             Err(io::Error::new(
                 io::ErrorKind::Unsupported,
