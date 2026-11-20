@@ -21,7 +21,6 @@ import { instance } from "../test/fixtures";
 import type { AskInfo, RuntimeViewInfo } from "../lib/ipc/runtime";
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import { forgetStops } from "../lib/turn-words";
-import turnWordsSource from "../lib/turn-words.ts?raw";
 
 type Seams = { __AIJ_RUNTIME__?: Record<string, RuntimeViewInfo>; __AIJ_RUNTIME_CALLS__?: string[] };
 const seams = () => window as unknown as Seams;
@@ -326,7 +325,8 @@ describe("a turn that didn't finish, in words", () => {
   });
 
   // AJ-E2025: a tool's codes are its adapter's, never the UI's.
-  it("turn-words.ts names no tool's code", () => {
-    for (const code of [/error_during_execution/, /error_max_\w+/, /\berror_[a-z]+_[a-z_]+/]) expect(turnWordsSource).not.toMatch(code);
+  it("turn-words.ts names no tool's code", async () => {
+    const source = (await import("../lib/turn-words.ts?raw")).default;
+    for (const code of [/error_during_execution/, /error_max_\w+/, /\berror_[a-z]+_[a-z_]+/]) expect(source).not.toMatch(code);
   });
 });
