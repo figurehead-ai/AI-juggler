@@ -15,7 +15,7 @@
  */
 import { ProcessesView } from "../screens/processes/ProcessesView";
 import { useCallback, useEffect, useMemo, useRef, useState, type JSX } from "react";
-import { Card } from "./primitives";
+import { Button, Card } from "./primitives";
 import { useActionHost, useItemMenu } from "./ItemMenu";
 import { PageShell, WhenShown } from "../pages/PageShell";
 import { PageHeader, type Crumb } from "../pages/PageHeader";
@@ -143,6 +143,19 @@ function ConversationView({
     latest.current = conversation;
   }, [conversation]);
   const goTo = useCallback(() => void host.goToConversation?.(latest.current), [host]);
+  // The rc3h walk: a conversation a session of AI Juggler's runs (its
+  // "Show them") read "Started outside AI Juggler" with no way to send.
+  // It is AI Juggler's: its session's page is where you write to it.
+  const own = conversation.session_id;
+  const openOwn = useCallback(() => {
+    if (own !== null) host.openSessionById?.(own);
+  }, [host, own]);
+  const openSession = (variant: "primary" | "secondary") =>
+    own !== null && host.openSessionById ? (
+      <Button size="md" variant={variant} onClick={openOwn} title="Its page in AI Juggler, where you write to it" data-testid="conversation-open-session">
+        Open session
+      </Button>
+    ) : null;
   // 0.3.3: an ended session reopens in the app it was last open in (that
   // app started when it isn't running; Codex at the thread itself).
   const lastPlace = useLastPlace(conversation.tool, conversation.id, !conversation.live, conversation.started_in ? { account: conversation.account_id, app: conversation.started_in } : null);
@@ -194,12 +207,13 @@ function ConversationView({
             actions={
               <>
                 {conversation.live ? (
-                  host.goToConversation && <GoToButton onGo={goTo} why={null} />
+                  (openSession("primary") ?? (host.goToConversation && <GoToButton onGo={goTo} why={null} />))
                 ) : (
                   <>
                     <WhyButton size="md" variant="primary" why={refused} onClick={carryIn} data-testid="conversation-continue">
                       Continue in AI Juggler
                     </WhyButton>
+                    {openSession("secondary")}
                     <OpenOriginal refusal={conversation.resume_refusal} onOpen={host.openConversationById} size="md" />
                     <OpenInPlace place={lastPlace} accountId={conversation.account_id} conversationId={conversation.id} testId="conversation-open-in" />
                     <WhyButton size="md" variant="secondary" why={refused} onClick={() => void host.copyConversationResume?.(latest.current)} data-testid="conversation-copy-resume">
@@ -228,8 +242,8 @@ function ConversationView({
             <SessionOverview
               model={model}
               visible={visible}
-              outside
-              onGoTo={conversation.live && host.goToConversation ? goTo : undefined}
+              outside={own === null}
+              onGoTo={conversation.live && own === null && host.goToConversation ? goTo : undefined}
               onPick={onSwitch ? (recipeId, label) => onSwitch(model.switchSource, recipeId, label) : undefined}
               onCarryIn={host.continueConversation ? carryIn : undefined}
               carryInWhy={continueWhy(conversation)}

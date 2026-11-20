@@ -809,65 +809,65 @@ fn cards(state: &Arc<AppState>, pool_id: &str) -> Result<Vec<ContextCard>, Respo
 /// The pool a call names (D-62): by its id, or by its name where one of
 /// this session's pools has it (the rc27 pool pass: a Lead asked for "the
 /// pool Writer and reviewer 2" by its name and was told it wasn't a
-/// member). A name two of its pools share, or one no pool has, is refused
-/// with the true reason and the pools it's in; a pool it really isn't in
-/// is said so ([`not_in_pool`]).
+/// member), or a project's own pool by the words a person reads for it,
+/// its project's name or its card's (F-rc3g-7: "share it in the web pool"
+/// was refused, its name being "web · all sessions (in lab)"). Words two
+/// of its pools answer to, or no pool does, are refused with the true
+/// reason and the pools by name; a pool it really isn't in is said so
+/// ([`not_in_pool`]).
 fn named_place<'r>(
     storage: &juggler_core::storage::Storage,
     resolution: &'r juggler_core::pools::Resolution,
     asked: &str,
 ) -> Result<&'r juggler_core::pools::Placement, (Refusal, String)> {
+    use pools::said::Named;
     if let Some(place) = resolution.in_pool(asked) {
         return Ok(place);
     }
-    let shown = pools::shown_pools(storage).unwrap_or_default();
-    let name_of = |id: &str| {
-        shown
-            .iter()
-            .find(|(pool, _)| pool.id == id)
-            .map(|(_, name)| name.clone())
-    };
-    let wanted = asked.trim().to_lowercase();
-    let same_name = |id: &str| name_of(id).is_some_and(|name| name.trim().to_lowercase() == wanted);
-    let named: Vec<&juggler_core::pools::Placement> = resolution
-        .placements
-        .iter()
-        .filter(|place| same_name(&place.pool_id))
-        .collect();
-    let its_pools = || {
-        let listed: Vec<String> = resolution
-            .placements
+    let known = pools::said::PoolNames::read(storage).unwrap_or_default();
+    let listed = |places: &[&juggler_core::pools::Placement]| {
+        places
             .iter()
             .map(|place| {
                 format!(
                     "«{}» (id {})",
-                    name_of(&place.pool_id).unwrap_or_else(|| place.pool_id.clone()),
+                    known.name_of(&place.pool_id).unwrap_or(&place.pool_id),
                     place.pool_id
                 )
             })
-            .collect();
-        if listed.is_empty() {
+            .collect::<Vec<_>>()
+            .join(", ")
+    };
+    let its_pools = || {
+        let all: Vec<&juggler_core::pools::Placement> = resolution.placements.iter().collect();
+        if all.is_empty() {
             "This session isn't in any pool now.".to_owned()
         } else {
-            format!("Its pools: {}.", listed.join(", "))
+            format!("Its pools: {}.", listed(&all))
         }
     };
-    match named.as_slice() {
-        [one] => Ok(one),
-        [] if !shown
+    let answering = |how: Named| -> Vec<&'r juggler_core::pools::Placement> {
+        resolution
+            .placements
             .iter()
-            .any(|(pool, name)| pool.id == asked || name.trim().to_lowercase() == wanted) =>
-        {
-            Err((
+            .filter(|place| known.how(&place.pool_id, asked) == Some(how))
+            .collect()
+    };
+    let (named, said) = (answering(Named::Name), answering(Named::Said));
+    match (named.as_slice(), said.as_slice()) {
+        ([one], []) | ([], [one]) => Ok(one),
+        ([], []) => match known.answering(asked).as_slice() {
+            [] => Err((
                 Refusal::Deny,
                 format!(
                     "No pool has the id or name «{asked}»: name a pool by its id (or its name) from whoami's pools. {}",
                     its_pools()
                 ),
-            ))
-        }
-        [] => Err((Refusal::Deny, not_in_pool(storage, resolution, asked))),
-        _ => Err((
+            )),
+            [one] => Err((Refusal::Deny, not_in_pool(storage, resolution, one))),
+            _ => Err((Refusal::Deny, not_in_pool(storage, resolution, asked))),
+        },
+        (_, []) => Err((
             Refusal::Bad,
             format!(
                 "{} of this session's pools are named «{asked}»: name the one this is for by its id. {}",
@@ -875,6 +875,18 @@ fn named_place<'r>(
                 its_pools()
             ),
         )),
+        _ => {
+            let both: Vec<&juggler_core::pools::Placement> =
+                named.iter().chain(&said).copied().collect();
+            Err((
+                Refusal::Bad,
+                format!(
+                    "«{asked}» could be {} of this session's pools: {}. Name the one this is for by its name or its id.",
+                    both.len(),
+                    listed(&both)
+                ),
+            ))
+        }
     }
 }
 
@@ -1020,5 +1032,90 @@ mod refusal_words {
             "{words}"
         );
         let _ = other;
+    }
+
+    /// F-rc3g-7 (the P4 walk): the Pools screen's card read "web (project
+    /// pool)", the pool's name is "web · all sessions (in lab)" (a second
+    /// project is called web), and "share it in web" was refused. A
+    /// project's own pool is named by its project's name or its card's
+    /// words too, where only one of the session's pools answers; words two
+    /// of them answer to are refused with both by name; the team's pool it
+    /// isn't in is still named in the refusal.
+    #[test]
+    fn a_projects_own_pool_is_named_as_a_person_reads_it() {
+        use juggler_core::pools::Placement;
+        use juggler_core::storage::{PoolRole, default_pool_id};
+        use std::path::Path;
+        let dir = tempfile::tempdir().unwrap();
+        let storage = Storage::open(&dir.path().join("j.sqlite")).unwrap();
+        let web = storage
+            .projects()
+            .ensure(Path::new("/u/lab/web"))
+            .unwrap()
+            .id;
+        storage.projects().ensure(Path::new("/u/work/web")).unwrap();
+        let team = storage
+            .projects()
+            .ensure(Path::new("/u/lab/team"))
+            .unwrap()
+            .id;
+        let reviewer = storage
+            .pools()
+            .create_scoped("A reviewer for everything", &Scope::Every)
+            .unwrap();
+        let own = default_pool_id(Some(&web));
+        let place = |pool_id: &str, default_pool: bool| Placement {
+            pool_id: pool_id.to_owned(),
+            member: MemberRef::Everyone,
+            role: PoolRole::Member,
+            level: None,
+            joined_at: 0,
+            sealed: false,
+            default_pool,
+        };
+        let session = Resolution {
+            placements: vec![place(&reviewer.id, false), place(&own, true)],
+            skipped: vec![],
+            account_unknown: false,
+        };
+        for asked in [
+            "web",
+            "Web",
+            "web (project pool)",
+            "web pool",
+            "web · all sessions (in lab)",
+        ] {
+            let found = super::named_place(&storage, &session, asked).unwrap();
+            assert_eq!(found.pool_id, own, "{asked}");
+        }
+        // The team's pool, which it isn't in: named, as P4 step 4 read it.
+        let (refusal, words) = super::named_place(&storage, &session, "team").unwrap_err();
+        assert_eq!(refusal, super::Refusal::Deny);
+        assert!(
+            words.starts_with("This session isn't in the pool «team · all sessions»."),
+            "{words}"
+        );
+        assert!(!words.contains(&default_pool_id(Some(&team))), "{words}");
+        // One of its pools named "web" too: either could be meant.
+        let named_web = storage.pools().create_scoped("web", &Scope::Every).unwrap();
+        let both = Resolution {
+            placements: vec![place(&named_web.id, false), place(&own, true)],
+            skipped: vec![],
+            account_unknown: false,
+        };
+        let (refusal, words) = super::named_place(&storage, &both, "web").unwrap_err();
+        assert_eq!(refusal, super::Refusal::Bad);
+        assert!(
+            words.starts_with("«web» could be 2 of this session's pools:"),
+            "{words}"
+        );
+        assert!(
+            words.contains(&format!("«web» (id {})", named_web.id))
+                && words.contains(&format!("«web · all sessions (in lab)» (id {own})")),
+            "both by name: {words}"
+        );
+        // Its full name still picks one.
+        let found = super::named_place(&storage, &both, "web · all sessions (in lab)").unwrap();
+        assert_eq!(found.pool_id, own);
     }
 }

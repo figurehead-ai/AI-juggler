@@ -25,6 +25,7 @@ import { showToast } from "../components/Toast";
 import { useNewSessionData } from "./new-session/useNewSessionData";
 import { folderName, StatedChoice } from "./new-session/StatedChoice";
 import { MoreOptions } from "./new-session/MoreOptions";
+import { useAppPick } from "./new-session/useAppPick";
 
 const FOCUSABLE = "button:not(:disabled), a[href], input, summary, [tabindex]:not([tabindex='-1'])";
 
@@ -44,7 +45,9 @@ function codeOf(cause: unknown): string | null {
  * window becomes where it works. D-96 F: once started, a toast offers
  * "Start another: <next project>", which opens it again there, keeping the
  * App the user chose; the usual-choice rule runs again for that folder, so
- * room is checked again.
+ * room is checked again. F-rc3f-1: a folder change never moves the App
+ * unseen; the person's pick stays, a suggestion's move is said with Undo
+ * (`useAppPick`).
  */
 export function NewSessionModal({
   projects: given,
@@ -86,7 +89,9 @@ export function NewSessionModal({
   onStartAnother?: (at: { dir: string; after: StartedBefore }) => void;
 }) {
   const [directory, setDirectory] = useState<string | null>(initialDirectory);
-  const [chosenApp, setChosenApp] = useState<string | null>(initialAccount ?? null);
+  // F-rc3f-1: the App the person picked, and what a folder change did.
+  const choice = useAppPick(initialAccount ?? null);
+  const chosenApp = choice.chosen;
   const [chosenSettings, setChosenSettings] = useState<string | null>(null);
   // "Always use for web" set or cleared here, until the projects reload.
   const [defaults, setDefaults] = useState<Record<string, string | null>>({});
@@ -95,8 +100,6 @@ export function NewSessionModal({
   const [error, setError] = useState<string | null>(null);
   // AJ-E2911: a launch that failed can be reported with what it showed.
   const [failure, setFailure] = useState<Failure | null>(null);
-  const { dragging, zone } = useFolderDrop(setDirectory); // wf10: a dropped folder
-  const pack = usePack(setDirectory); // AJ-E1511: started from a saved handover
   const where = useWhere(); // AJ-E1515: or on a paired Mac
   const runtimePick = useRuntimePick(); // AJ-E2304: this session's runtime
   const sheetRef = useRef<HTMLDivElement | null>(null);
@@ -148,8 +151,11 @@ export function NewSessionModal({
   // changes it (a fresh read only updates its room and notes).
   const steady = useRef<{ folder: string | null; app: string; said: { why: AppWhy; skipped: LaunchRecipeInfo | null; passedOver: LaunchRecipeInfo | null } } | null>(null);
   const keptApp = after?.app ?? null;
+  const inputs = useMemo(
+    () => ({ recipes, project: asked?.project ?? null, folders: accounts, sessions, kept: keptApp, roomOf: data.roomOf, accountOf: data.accountKeyOf, ranHere: data.ranHere }),
+    [recipes, asked, accounts, sessions, keptApp, data],
+  );
   const app = useMemo(() => {
-    const inputs = { recipes, project: asked?.project ?? null, folders: accounts, sessions, kept: keptApp, roomOf: data.roomOf, accountOf: data.accountKeyOf, ranHere: data.ranHere };
     const held = steady.current;
     if (chosenApp === null && held && held.folder === (asked?.root ?? null)) {
       const kept = chooseApp({ ...inputs, chosen: held.app });
@@ -158,7 +164,10 @@ export function NewSessionModal({
     const fresh = chooseApp({ ...inputs, chosen: chosenApp });
     if (chosenApp === null && fresh && data.roomKnown && data.ranHereKnown) steady.current = { folder: asked?.root ?? null, app: fresh.recipe.account_id, said: { why: fresh.why, skipped: fresh.skipped, passedOver: fresh.passedOver ?? null } };
     return fresh;
-  }, [recipes, asked, accounts, chosenApp, keptApp, sessions, data]);
+  }, [inputs, asked, chosenApp, data]);
+  // What New session would suggest here when the person picked another:
+  // first in Change app, and named when their pick was carried here.
+  const suggestion = useMemo(() => (chosenApp === null ? null : chooseApp(inputs)), [chosenApp, inputs]);
   const settings = app ? recipes.filter((row) => row.account_id === app.recipe.account_id) : [];
   const recipe = settings.find((row) => row.id === chosenSettings) ?? app?.recipe ?? null;
   // No folder known: the App's own, from its launch settings.
@@ -167,6 +176,20 @@ export function NewSessionModal({
   const sessionNames = useMemo(() => new Map(sessions.map((row) => [row.id, sessionTitle(row)])), [sessions]);
   const sessionName = (id: string) => sessionNames.get(id) ?? null;
   const appName = app ? data.appNameOf(app.recipe) : null;
+  // The person's pick; the App shown picked again (F-rc3g-5) keeps the
+  // launch settings chosen for it.
+  const pickApp = (id: string) => {
+    choice.pick(id);
+    if (id !== app?.recipe.account_id) setChosenSettings(null);
+  };
+  // Change folder, a dropped folder, a saved handover's: one rule for the App.
+  const changeFolder = (root: string) => {
+    choice.moving(root === folder?.root ? null : app);
+    setDirectory(root);
+    setChosenSettings(null);
+  };
+  const { dragging, zone } = useFolderDrop(changeFolder); // wf10: a dropped folder
+  const pack = usePack(changeFolder); // AJ-E1511: started from a saved handover
 
   // "Always use for web" (or No default), from Change app: the project's
   // default App, which New session picks first ("your default here").
@@ -180,10 +203,10 @@ export function NewSessionModal({
       return setError(errorText(cause));
     }
     setDefaults((held) => ({ ...held, [project.id]: id }));
-    // Said again from the default; a cleared one keeps the App chosen in
-    // the sheet, if any.
+    // Said again from the default, and the person's if the folder changes
+    // next; a cleared one keeps the App chosen in the sheet, if any.
     steady.current = null;
-    if (id !== null) setChosenApp(null);
+    choice.bind(id);
     onProjectsChanged?.();
   };
 
@@ -298,14 +321,11 @@ export function NewSessionModal({
             projects={projects}
             handover={pack.opened !== null}
             now={now}
-            onFolder={(root) => {
-              setDirectory(root);
-              setChosenSettings(null);
-            }}
-            onApp={(id) => {
-              setChosenApp(id);
-              setChosenSettings(null);
-            }}
+            suggestion={suggestion}
+            told={choice.told}
+            acted={choice.acted}
+            onFolder={changeFolder}
+            onApp={pickApp}
             onAlways={(id) => void setDefault(id)}
             onSignIn={async (id, name) => {
               const terminal = await terminalSpawnLogin(id);

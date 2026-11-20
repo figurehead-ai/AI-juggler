@@ -134,6 +134,16 @@ file since, it removes only AI Juggler's part.
 Because a limit belongs to the account, one measured session counts for
 every app signed in to that account.
 
+### Sessions AI Juggler runs
+
+A session AI Juggler runs itself (Codex, and Claude Code without a
+terminal, a Beta) tells AI Juggler its account's limits as it works. Each
+new reading counts for the account at once, so the account's runway, its
+Out mark and its notices show it, named by where it came from: "64% left
+· from Claude Code's run in AI Juggler, 1 min ago". Only the account's
+5-hour and weekly windows count; a week on one model shows on the
+session's own page.
+
 ## How long a limit will last
 
 Each account's card on the **Usage** page shows, for its 5-hour window and

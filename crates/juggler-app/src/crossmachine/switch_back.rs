@@ -814,6 +814,8 @@ pub(crate) fn switch_back_here(
         },
         Some(resume_ref),
         "switch_back",
+        // F-rc3g-3: the original's name and pin, as here.
+        Some(crate::features::sessions::spawn::GoesOn::From(&session.id)),
     )
     .map_err(super::launch_refusal)?;
     record_back(state, peer, back, &original, &account, &instance, resume_id)

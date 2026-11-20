@@ -26,6 +26,7 @@ import { TaskTree } from "./TaskTree";
 import { TaskView } from "./TaskView";
 import { STATUS_WORDS } from "./words";
 import { SELECTED } from "../../components/controls/selected";
+import { useTaskSearch } from "./useTaskSearch";
 
 const FILTERS = ["open", "ready", "in_progress", "in_review", "blocked", "closed"] as const;
 /** "All open" is every task not done, so it holds the next ones' tasks
@@ -66,15 +67,9 @@ export function PoolTasks({ poolId, sessions, projects, now }: { poolId: string;
   const defaultAccount = projects.find((p) => p.id === pool?.project_id)?.default_account_id ?? null;
   const [filter, setFilter] = useState<string>("open");
   const [view, setView] = useState<"list" | "plan">("list");
-  const [words, setWords] = useState("");
-  const [query, setQuery] = useState("");
   const [open, setOpen] = useState<string | null>(takeFocusedTask);
   useTasksRefresh();
-  // What's typed is looked for once typing pauses.
-  useEffect(() => {
-    const timer = window.setTimeout(() => setQuery(words.trim()), words ? 200 : 0);
-    return () => window.clearTimeout(timer);
-  }, [words]);
+  const { words, setWords, query } = useTaskSearch();
   const counts = useTaskCounts(poolId);
   const list = usePagedList(`tasks:${poolId}:${filter}:${query}`, (page) => tasksList(poolId, filter, query || null, page), { pageSize: LIST_PAGE, keyOf: (task) => task.id });
   // The plan's folds.

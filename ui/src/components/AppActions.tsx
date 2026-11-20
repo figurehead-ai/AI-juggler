@@ -4,7 +4,8 @@
  * stopping it, copying its resume command, and starting a new session in
  * a project. Screens below add their own (the rail, Accounts, History).
  */
-import { useMemo, type JSX, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type JSX, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { openWatches } from "../lib/watches-open";
 import { ActionHostProvider } from "./ItemMenu";
 import { showToast } from "./Toast";
@@ -20,11 +21,17 @@ import { stillListedWords } from "../lib/archive-words";
 import { lastDesktopApp, useKnownPlaces } from "../lib/places";
 import { refreshSessionLists } from "../lib/prefetch-data";
 import { useConversations } from "../lib/conversations";
-import { CONTINUED_HERE, openPoolSheet, requestNewPool } from "../lib/pools";
+import { CONTINUED_HERE, openPoolSheet, requestNewPool, usePools } from "../lib/pools";
+import { apartPool, KEEP_APART_START } from "../lib/keep-apart";
+import { poolsList, type PoolsInfo } from "../lib/ipc/pools";
+import { lazyNamed } from "../lib/lazy";
 import { markSeen } from "../lib/seen";
 import { useProjectManage } from "./ManageWork";
 import { focusHandoverSoon } from "../lib/handover-focus";
 import { continueWhy, resumeRefusalWords, type ResumeRefusalInfo } from "../lib/resume-refusal";
+
+/** R4: "Keep it apart…"'s one sheet, loaded on first use. */
+const KeepApartSheet = lazyNamed(() => import("../screens/pools/KeepApartSheet"), "KeepApartSheet");
 
 async function copy(text: Promise<string> | string, done: string): Promise<void> {
   try {
@@ -88,6 +95,15 @@ export function AppActions({
   // and their sheets live here, not in one surface.
   const projectManage = useProjectManage(refresh);
   const manageHost = projectManage.host;
+  // R4 (main's ruling): "Keep it apart…" is one sheet; a project already
+  // kept apart opens its pool, as its Agents card's "Open it ›" does. The
+  // pools as they are when it's chosen, without remaking every action.
+  const pools = usePools();
+  const poolsNow = useRef(pools);
+  useEffect(() => {
+    poolsNow.current = pools;
+  }, [pools]);
+  const [keepingApart, setKeepingApart] = useState<ProjectInfo | null>(null);
   const host = useMemo<ActionHost>(() => {
     // The same as ⌘⇧H on the session: its switch list.
     const carry = (row: InstanceInfo) => {
@@ -99,8 +115,15 @@ export function AppActions({
       ...(openPools
         ? {
             keepProjectApart: (project: ProjectInfo) => {
-              requestNewPool({ template: "sealed-client", project: project.id });
-              openPools();
+              const decide = (known: PoolsInfo | null) => {
+                const kept = apartPool(known?.pools, project.id);
+                if (kept) selectPool(kept.id);
+                else setKeepingApart(project);
+              };
+              // Not read yet: read them first, so a project kept apart
+              // still opens its pool.
+              if (poolsNow.current) decide(poolsNow.current);
+              else void poolsList().then(decide, () => decide(null));
             },
           }
         : {}),
@@ -211,6 +234,22 @@ export function AppActions({
     <ActionHostProvider host={host}>
       {children}
       {projectManage.element}
+      {keepingApart &&
+        openPools &&
+        createPortal(
+          <KeepApartSheet
+            project={keepingApart}
+            onClose={() => setKeepingApart(null)}
+            onCustomise={() => {
+              // The full wizard, as before the sheet: New pool on its start.
+              setKeepingApart(null);
+              requestNewPool({ template: KEEP_APART_START, project: keepingApart.id });
+              openPools();
+            }}
+            onOpenPool={selectPool}
+          />,
+          document.body,
+        )}
     </ActionHostProvider>
   );
 }

@@ -114,16 +114,18 @@ pub fn limits_of(snapshot: &Value) -> LimitsSnapshot {
                 .get("windowDurationMins")
                 .and_then(Value::as_u64)
                 .and_then(|m| u32::try_from(m).ok()),
+            // A window without its use is left out, never read as 0%.
             used_pct: w
                 .get("usedPercent")
-                .and_then(Value::as_f64)
-                .unwrap_or(0.0)
+                .and_then(Value::as_f64)?
                 .clamp(0.0, 100.0),
             // app-server's `resetsAt` is epoch seconds.
             resets_at_ms: w
                 .get("resetsAt")
                 .and_then(Value::as_i64)
                 .map(|s| s.saturating_mul(1000)),
+            // Codex's default limit is the account's, on every model.
+            model: None,
         })
     };
     let mut windows: Vec<LimitWindow> = ["primary", "secondary"]

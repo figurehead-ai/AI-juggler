@@ -19,7 +19,7 @@ import { OwnArt } from "./illustrations";
 const GUIDE = `${POOLS_GUIDE}#what-agents-may-do`;
 
 /** "What does this mean?": the diagram's own tips. */
-export const OWN_TIPS: readonly string[] = [
+const OWN_TIPS: readonly string[] = [
   "It's for the sessions in this pool only, and only for AI Juggler's pool tools: messages, shared notes and tasks.",
   "Anything above it becomes an ask in Needs you: Allow once, Always allow here, or Deny.",
   "Waking starts a turn in an idle session, and each turn uses your subscription. A chain of replies pauses and asks you after a few in a row.",

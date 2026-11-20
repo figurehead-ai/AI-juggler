@@ -6,8 +6,8 @@
 use rusqlite::{OptionalExtension, params};
 
 use super::{
-    MESSAGE_COLUMNS, Message, MessageEvent, MessagesRepo, RecipientState, collect, message_of,
-    page, refs_json,
+    MESSAGE_COLUMNS, Message, MessageEvent, MessagesRepo, RecipientState, collect, event_of,
+    message_of, page, refs_json,
 };
 use crate::error::CoreError;
 use crate::model::Timestamp;
@@ -120,17 +120,7 @@ impl MessagesRepo<'_> {
                   WHERE pool_id = ?1 AND actor_ref = ?2 AND verb = ?3
                   ORDER BY at DESC, id DESC LIMIT 1",
                 params![pool_id, actor, verb],
-                |row| {
-                    Ok(MessageEvent {
-                        id: row.get(0)?,
-                        at: row.get(1)?,
-                        pool_id: row.get(2)?,
-                        actor_ref: row.get(3)?,
-                        verb: row.get(4)?,
-                        object_ref: row.get(5)?,
-                        detail: row.get(6)?,
-                    })
-                },
+                event_of,
             )
             .optional()?)
     }

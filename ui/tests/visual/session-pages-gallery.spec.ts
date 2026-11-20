@@ -179,6 +179,14 @@ async function shoot(page: Page, dir: string, name: string, theme: string, size:
 async function openConversation(page: Page, title: string) {
   await page.getByTestId("rail").locator("[data-conversation-id]").filter({ hasText: title }).first().click();
   await expect(page.getByTestId("conversation-page")).toBeVisible();
+  // The click leaves the pointer in the rail, so rows that load after it
+  // are held above with a "N new above" pill (rail-hold); whether they load
+  // before or after the click depends on the machine's load (rc3h: the
+  // gated capture flipped run to run). Settle the rail as
+  // messages-gallery does, so the capture is the page's, not the timing's.
+  const held = page.getByTestId("rail-new-above");
+  if (await held.isVisible()) await held.click();
+  await expect(held).toHaveCount(0);
 }
 
 for (const theme of ["dark", "light"] as const) {

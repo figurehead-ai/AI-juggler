@@ -223,6 +223,9 @@ fn launch_with_handover(
         &mode,
         None,
         "switch",
+        Some(crate::features::sessions::spawn::GoesOn::From(
+            &sides.source.id,
+        )),
     )
     .map_err(|error| SwitchFailure::LaunchFailed(error.to_string()))
 }

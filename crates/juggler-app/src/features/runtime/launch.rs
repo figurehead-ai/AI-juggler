@@ -33,6 +33,10 @@ pub struct Plan<'a> {
     pub profile: &'a Profile,
     /// The tool's conversation to continue, when resuming.
     pub resume: Option<String>,
+    /// The id a new conversation takes, for a tool that lets the caller
+    /// name one: a restart keeps the id of one its tool never wrote
+    /// (F-rc3f-3). `None`: a new id.
+    pub fresh_id: Option<String>,
     /// The user's choice for this session, when they made one.
     pub requested: Option<Runtime>,
     /// A conversation a new session starts with, for a tool that imports
@@ -142,7 +146,7 @@ fn try_driven(
     let launch = DrivenLaunch {
         socket: socket.clone(),
         resume: plan.resume.clone(),
-        fresh_id: fresh_uuid(),
+        fresh_id: plan.fresh_id.clone().unwrap_or_else(fresh_uuid),
         history: plan.history.clone(),
     };
     let mut spec = driven
@@ -176,6 +180,9 @@ fn try_driven(
     let session_box = match connected {
         Ok(session_box) => session_box,
         Err(why) => {
+            // Its ending says its start failed, never "stopped by you"
+            // (F-rc3f-3).
+            state.mark_failed_start(session);
             let _ = state.supervisor.stop(session, Duration::from_secs(2));
             clear_stale(&socket);
             return Err(NotDriven::After(why));
@@ -191,6 +198,7 @@ fn try_driven(
             beta: driven.maturity() == juggler_adapter::runtime::Maturity::Beta,
             socket,
             can_steer: driven.steers(),
+            resumed: plan.resume.is_some(),
         },
     );
     state.runtime.insert(held);
@@ -330,7 +338,8 @@ fn start_driven_only(
 
 /// A driven start failed after its process ran (and was stopped): its id
 /// is spent. Its history says why, and the terminal's row, `next`, is
-/// written before the terminal starts (intent before spawn).
+/// written before the terminal starts (intent before spawn), under the
+/// name and pin the person gave the spent one, if any (F-rc3g-3).
 fn spent(
     state: &Arc<AppState>,
     row: &NewSession<'_>,
@@ -345,6 +354,7 @@ fn spent(
     }
     let next_row = NewSession {
         id: next,
+        continues: Some(crate::features::sessions::spawn::GoesOn::From(row.id)),
         ..row.clone()
     };
     crate::features::sessions::spawn::write_starting(

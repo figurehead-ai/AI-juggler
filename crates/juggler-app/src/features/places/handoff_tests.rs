@@ -273,6 +273,17 @@ mod open_session_tests {
     use crate::features::conversations::goto::{Desktop, LinkSent};
     use crate::features::places::open_session;
 
+    /// Go to it for `SESSION` on Account `acct-work`, its link allowed to
+    /// ask the user when `may_ask`.
+    fn open_work(
+        state: &Arc<AppState>,
+        system: &Scripted,
+        mac: &Mac,
+        may_ask: bool,
+    ) -> crate::features::conversations::dto::GoToOutcomeInfo {
+        open_session::open(state, "acct-work", SESSION, system, mac, may_ask, quick()).unwrap()
+    }
+
     /// The profile's record of `SESSION`, as the Claude app keeps it.
     fn recorded(profile: &Path) -> PathBuf {
         let file = profile.join("claude-code-sessions/a/o/local_9f1c2a3b.json");
@@ -359,8 +370,7 @@ mod open_session_tests {
             front: Some(recorded(&profile)),
             ..Mac::default()
         };
-        let done = open_session::open(&state, "acct-work", SESSION, &system, &mac, false, quick())
-            .unwrap();
+        let done = open_work(&state, &system, &mac, false);
         assert_eq!(*system.started.lock().unwrap(), 1);
         assert_eq!(done.reached, "started");
         assert!(
@@ -392,12 +402,10 @@ mod open_session_tests {
             consent: true,
             ..Mac::default()
         };
-        let done = open_session::open(&state, "acct-work", SESSION, &system, &mac, false, quick())
-            .unwrap();
+        let done = open_work(&state, &system, &mac, false);
         assert_eq!(*system.started.lock().unwrap(), 0);
         assert_eq!(done.reached, "consent");
-        let done =
-            open_session::open(&state, "acct-work", SESSION, &system, &mac, true, quick()).unwrap();
+        let done = open_work(&state, &system, &mac, true);
         assert_eq!(done.reached, "thread");
         assert_eq!(
             done.outcome,
@@ -440,16 +448,7 @@ mod open_session_tests {
             misses: 1,
             ..Mac::default()
         };
-        let done = open_session::open(
-            &state,
-            "acct-work",
-            SESSION,
-            &Scripted::default(),
-            &mac,
-            false,
-            quick(),
-        )
-        .unwrap();
+        let done = open_work(&state, &Scripted::default(), &mac, false);
         assert_eq!(done.reached, "started");
         assert!(
             done.outcome.ends_with("and opened the session"),
@@ -471,16 +470,7 @@ mod open_session_tests {
         let (state, _, profile) = state_with_profile(root.path(), Some("acct-work"));
         recorded(&profile);
         let mac = Mac::default();
-        let done = open_session::open(
-            &state,
-            "acct-work",
-            SESSION,
-            &Scripted::default(),
-            &mac,
-            false,
-            quick(),
-        )
-        .unwrap();
+        let done = open_work(&state, &Scripted::default(), &mac, false);
         assert_eq!(done.reached, "app");
         assert!(
             done.outcome.contains("pick this one in its sidebar"),
@@ -503,16 +493,7 @@ mod open_session_tests {
             lost: true,
             ..Scripted::default()
         };
-        let done = open_session::open(
-            &state,
-            "acct-work",
-            SESSION,
-            &system,
-            &Mac::default(),
-            false,
-            quick(),
-        )
-        .unwrap();
+        let done = open_work(&state, &system, &Mac::default(), false);
         assert_eq!(done.reached, "lost");
         assert_eq!(done.place_id.as_deref(), Some(id.as_str()));
         assert_eq!(*system.started.lock().unwrap(), 0);

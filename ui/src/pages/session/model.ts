@@ -43,6 +43,9 @@ export type SessionModel = {
   model: string | null;
   /** AI Juggler started it in a tool's own desktop app (not a terminal). */
   desktop?: boolean;
+  /** AI Juggler drives it: it runs without a terminal, as AI Juggler's
+   * own child (F-rc3g-2: in AI Juggler, whatever else is known). */
+  driven?: boolean;
   /** 0.4.1: a switch just opened it in this app, not reported open yet. */
   opening?: string | null;
   /** 0.4.1: its running app lists it, with no turn running now. */
@@ -104,8 +107,10 @@ function asReported(c: ConversationInfo): SessionModel {
 }
 
 /** A session AI Juggler started; `seen` is its conversation as the tools'
- * files show it (where it's open, when it was viewed), when found. */
-export function fromInstance(s: InstanceInfo, seen?: ConversationInfo): SessionModel {
+ * files show it (where it's open, when it was viewed), when found;
+ * `reported`, the model its tool reports on the stream AI Juggler drives
+ * it on (the driver card's), until its transcript says which runs. */
+export function fromInstance(s: InstanceInfo, seen?: ConversationInfo, reported?: string | null): SessionModel {
   const tone = statusTone(s.status);
   const rail = sessionState(s);
   const live = statusLive(s.status);
@@ -129,8 +134,11 @@ export function fromInstance(s: InstanceInfo, seen?: ConversationInfo): SessionM
     places: seen?.places ?? [],
     viewedMs: seen?.viewed_ms ?? null,
     cwd: s.cwd,
-    model: s.running_model ?? s.model ?? null,
+    // The rc3g walk: its card said the model its tool reported while this
+    // row was left out ("not reported") until its transcript was read.
+    model: s.running_model ?? reported ?? s.model ?? null,
     desktop: s.kind === "desktop",
+    driven: s.runtime?.kind === "driven",
     appId: s.app_id ?? null,
     endedWhy: live ? null : (s.ending?.detail ?? null),
   };
@@ -161,13 +169,18 @@ export function sessionAppWords(model: SessionModel): AppWords {
 }
 
 /** Where a CLI session's window is: its terminal or editor ("Terminal"),
- * or AI Juggler's own terminal; `null` for a desktop App's session (its
- * window is the App) or when no place is known. */
+ * or AI Juggler's own terminal; AI Juggler for one it drives (no terminal:
+ * its process is AI Juggler's child), before its conversation is read
+ * too; `null` for a desktop App's session (its window is the App) or when
+ * no place is known. */
 export function sessionHost(model: SessionModel): string | null {
   const place = model.places[0];
   if (place && place.app !== "") return place.kind === "desktop" || isDesktopApp(place, model.tool) ? null : place.app;
   if (model.desktop) return null;
-  return model.sessionId && model.live ? "AI Juggler's terminal" : null;
+  if (!model.sessionId || !model.live) return null;
+  // The rc3g walk: a driven session said "AI Juggler's terminal" until
+  // its first turn's conversation was read.
+  return model.driven ? "AI Juggler" : "AI Juggler's terminal";
 }
 
 /** Whether a place is a tool's own desktop app (it has a sidebar of

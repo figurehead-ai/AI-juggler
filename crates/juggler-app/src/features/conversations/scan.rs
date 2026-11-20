@@ -440,6 +440,14 @@ fn changed_wake(
 }
 
 impl Scanner {
+    /// F-rc3g-4: these processes ended (AI Juggler saw them end): the next
+    /// tick looks them up again before they count (a pid file left behind
+    /// by a killed tool kept its process open for up to [`ALIVE_EVERY`]).
+    pub fn forget(&mut self, pids: &std::collections::BTreeSet<u32>) {
+        self.table.retain(|pid, _| !pids.contains(pid));
+        self.held.retain(|(pid, _), _| !pids.contains(pid));
+    }
+
     /// Reads the whole process table every tick for `window` from `now`
     /// (an app was just started).
     pub fn full_for(&mut self, now: Instant, window: Duration) {

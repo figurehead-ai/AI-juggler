@@ -447,6 +447,7 @@ mod tests {
             window_mins: None,
             used_pct,
             resets_at_ms,
+            model: None,
         };
         let limits = LimitsSnapshot {
             windows: vec![

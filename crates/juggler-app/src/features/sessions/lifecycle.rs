@@ -34,11 +34,18 @@ pub fn spawn_forwarder(state: Arc<AppState>) {
 
 /// One lifecycle event, stored with everything that follows from it.
 pub fn forward(state: &Arc<AppState>, event: LifecycleEvent) {
+    // F-rc3g-4: an ended process holds nothing open, before its ending is stored.
+    crate::features::conversations::after_exit(state, &event);
     // 0.4.1 (the rc27 P1 walk): a switch's stop is the switch's, not the
     // user's ("Stopped by you" on the original). Taken once, at its exit.
     let by_switch =
         matches!(event, LifecycleEvent::Exited { .. }) && state.take_switch_stop(event.session());
-    let stopped_by_user = by_switch || state.supervisor.was_stopped(event.session());
+    // F-rc3f-3: nor is the stop of a start without a terminal that failed.
+    let by_failed_start = matches!(event, LifecycleEvent::Exited { .. })
+        && !by_switch
+        && state.take_failed_start(event.session());
+    let stopped_by_user =
+        by_switch || by_failed_start || state.supervisor.was_stopped(event.session());
     // AJ-E2405: a helper left behind shows in the Processes view at once,
     // and the user hears of it once per session.
     if let LifecycleEvent::HelperOrphaned { session, pid } = &event {
@@ -116,6 +123,8 @@ pub fn forward(state: &Arc<AppState>, event: LifecycleEvent) {
             event,
             if by_switch {
                 Stop::BySwitch
+            } else if by_failed_start {
+                Stop::FailedStart
             } else if stopped_by_user {
                 Stop::ByYou
             } else {

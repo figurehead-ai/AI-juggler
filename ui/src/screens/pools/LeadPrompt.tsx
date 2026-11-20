@@ -4,24 +4,16 @@
  * the diagram's ready box says the same), with Copy, and where to paste
  * it. Nothing without a lead.
  */
-import { useState, type JSX } from "react";
+import type { JSX } from "react";
 
 import { Button } from "../../components/primitives";
 import { IconCopy } from "../../components/icons-actions";
-import { firstPrompt, type PoolShape } from "../../lib/pool-sentences";
+import type { PoolShape } from "../../lib/pool-sentences";
+import { CopiedNote, useFirstPrompt } from "../../pages/pool/setup/FirstPrompt";
 
 export function LeadPrompt({ shape, where, testId }: { shape: Pick<PoolShape, "members" | "leadNext">; where: string; testId: string }): JSX.Element | null {
-  const [copied, setCopied] = useState<boolean | null>(null);
-  const prompt = firstPrompt(shape, where);
+  const { prompt, copied, copy } = useFirstPrompt(shape, where);
   if (!prompt) return null;
-  const copy = async () => {
-    try {
-      await navigator.clipboard.writeText(prompt.words);
-      setCopied(true);
-    } catch {
-      setCopied(false);
-    }
-  };
   return (
     <section aria-labelledby={`${testId}-title`} className="flex flex-col gap-2.5 px-4 pb-[18px] pt-4" data-testid={testId}>
       <span className="flex items-center gap-2">
@@ -37,11 +29,7 @@ export function LeadPrompt({ shape, where, testId }: { shape: Pick<PoolShape, "m
         {prompt.words}
       </q>
       <span className="text-label text-faint">Paste it into {prompt.to}'s first session in {where}.</span>
-      {copied !== null && (
-        <output className="block text-label text-muted" data-testid={`${testId}-copied`}>
-          {copied ? "Copied: paste it into its first message." : "Couldn't copy it; select the words and copy them."}
-        </output>
-      )}
+      <CopiedNote copied={copied} testId={testId} />
     </section>
   );
 }

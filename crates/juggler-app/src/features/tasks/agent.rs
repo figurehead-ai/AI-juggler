@@ -256,15 +256,46 @@ fn assign(
             "note": "The user sees this in AI Juggler and decides. They pick the account and start the session; nothing starts by itself, and no agent picks an account.",
         }));
     }
+    let to = assignee(state, caller, &args.to)?;
     act(
         state,
         caller,
         actor,
         &Held::Assign {
             task: args.task,
-            to: args.to,
+            to,
         },
     )
+}
+
+/// F-rc3g-11: whom `to` gives the task to: "nobody", a member's
+/// `session_id`, or a member named as `pool_roster` names it (its own
+/// `session_id` then); a name more than one member answers to is refused,
+/// naming each. Anything else is left to the member check
+/// ([`member_name`]), which refuses it in words.
+fn assignee(state: &Arc<AppState>, caller: &Caller, to: &str) -> Result<String, Response> {
+    use crate::features::messages;
+    let to = to.trim();
+    if to == "nobody" {
+        return Ok(to.to_owned());
+    }
+    let roster = messages::roster(state, &caller.pool_id)
+        .map_err(|_| refuse(Refusal::Bad, "AI Juggler couldn't read the pool."))?;
+    if roster.iter().any(|member| member.session_id == to) {
+        return Ok(to.to_owned());
+    }
+    let names: Vec<&str> = roster.iter().map(|member| member.name.as_str()).collect();
+    match messages::called(&names, to).as_slice() {
+        [at] => Ok(roster[*at].session_id.clone()),
+        [] => Ok(to.to_owned()),
+        many => {
+            let each: Vec<String> = many
+                .iter()
+                .map(|&at| messages::member_words(&roster[at]))
+                .collect();
+            Err(refuse(Refusal::Bad, messages::namesake_words(to, &each)))
+        }
+    }
 }
 
 /// The decision point, as a refusal when it isn't Allow (for looking and

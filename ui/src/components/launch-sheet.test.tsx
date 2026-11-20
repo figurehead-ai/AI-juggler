@@ -146,9 +146,10 @@ describe("N2 change it, one step away", () => {
     expect(screen.queryByTestId("launch-runway")).toBeNull();
     // rc8 walk: no account named for it either (its label, or an email).
     expect(screen.getByTestId("launch-account").textContent).toBe("not signed in");
-    // rc14 walk: nor its colour (a neutral ring, as for no account).
-    const ring = within(screen.getByTestId("launch-preselected")).getAllByTestId("account-avatar").find((avatar) => avatar.title === "Not signed in");
-    expect(ring?.dataset.tone).toBe("neutral");
+    // rc14 walk: nor an Account's colour, read as a healthy state. Its
+    // line wears the App's own mark (F-rc3f-1, D-69), no Account avatar.
+    expect(within(screen.getByTestId("launch-app-line")).getByTestId("place-mark")).toBeTruthy();
+    expect(within(screen.getByTestId("launch-preselected")).queryAllByTestId("account-avatar")).toHaveLength(0);
     fireEvent.click(screen.getByTestId("sign-in-first"));
     await waitFor(() => expect(signinSpy).toHaveBeenCalledWith("claude-personal"));
     expect(screen.getByTestId("new-session-sheet")).toBeTruthy();
@@ -385,7 +386,12 @@ describe("words", () => {
     const { container } = mountSheet();
     await waitFor(() => expect(screen.getByTestId("launch-preselected").textContent).toMatch(/Account\s*Work/));
     expect(container.textContent).not.toMatch(/\bprofile\b/i);
-    // The 0.4 design review, 71: the Account's own dot on its line, in its colour.
-    await waitFor(() => expect(within(screen.getByTestId("launch-preselected")).getByTestId("account-avatar").dataset.tone).toBe("colour"));
+    // F-rc3f-1: one line shows the App and its Account. D-69: it wears the
+    // App's mark; the Account beside it is named in words, without colour.
+    const line = screen.getByTestId("launch-app-line");
+    expect(within(line).getByTestId("launch-app").textContent).toBe("App: Claude Code CLI · Work Max");
+    expect(within(line).getByTestId("launch-account").textContent).toBe("Work");
+    expect(within(line).getByTestId("place-mark")).toBeTruthy();
+    expect(within(screen.getByTestId("launch-preselected")).queryAllByTestId("account-avatar")).toHaveLength(0);
   });
 });

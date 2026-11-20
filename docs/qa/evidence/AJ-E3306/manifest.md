@@ -14,7 +14,7 @@ real names and stay out of the repo.
 |---|---|---|---|---|
 | R1 every scenario walked again on the release-candidate build, in one run | PARTIAL | **Walked on release candidates** (table below): K1–K4 (rc24/25, findings re-walked on rc25, rc26, rc30); N1–N5 (rc26, N4's fix re-walked); P1–P4 and P6–P11 (rc26 lab, rc27 live, rc29 re-walks; AJ-E3304); PM3 and PF1 (rc26, PF1's fixes re-checked on rc30); the runtime lab (rc27, rc29, rc31); X1 and X2 (rc26, rc27); OpenCode and Grok live (rc17, rc20). **Not proven:** not one run (the rows span rc17 to rc31, with fixes between); A1–A10 walked on a 0.4.1 debug build with the lab bridge (2026-11-06), not on a release candidate; FL1 (the Floor) not walked, its sheet blank; P5 never walked (tests only); P1 S9's Continue, P1S6 S2, P8 S4 and P11 S1 not walked (see AJ-E3304); NY1 steps 1–2 not recorded as walked, step 3 not reachable live (aij-test conversations never read "Done, review it"); X1 S2 (below). Several sheets (X1, NY1, PF1, PM3, P1S6, the runtime lab) carry no results in the repo: their results are only in the walk results | — | 2026-11-10 |
 | R2 X1 (a day: holds, a switch, notices, mutes, a cache clear, a crash and a restart) and X2 (a 50-member pool, 1 000+ ended sessions) | PARTIAL | **X1** (rc26 lab, rc27 live): S1, S3, S4, S5, S6 met. S2, an Account running out live and its session switched, not walked: no Account ran out during the walk; the out-of-room flow is walked only in labs (N5, P1S6 S1). **X2** (rc26): S1 opened in about 130 ms, over its 100 ms budget; fixed by the read-ahead c68fb8eb8 (`crates/juggler-app/tests/pool_open_budget.rs` `a_pool_of_fifty_opens_inside_its_budget`, 56 ms median), not re-walked on a candidate. S2, the pool's debug-log line missing: fixed in eb611a9c6 (`crates/juggler-app/tests/pool_debug_log.rs`), not re-walked on a candidate. S3 met: CPU peak 14 %, under 20 % for 2 minutes | c68fb8eb8, eb611a9c6 | rc26, rc27 |
-| R3 a summary for the maintainer: what passed, what was fixed, what's known and why | NOT DONE | `release-candidate.md` §6 "The summary" is empty, and §2–§4's result columns are blank. The walk results exist only in the release session's scratch notes | — | 2026-11-10 |
+| R3 a summary for the maintainer: what passed, what was fixed, what's known and why | PASS | `docs/qa/0.4-walks/release-candidate.md` §6, for 0.4.6's candidates rc1 to rc3h (2026-11-16..19): what passed live and in labs, each fix with its commit, the open cells with their reasons, the 17 items moved to 0.5, what waits on the maintainer, and that the run in one go is the beta soak's. §2–§4's result columns are filled from the walk sheets and the release session's Opus-checked notes | — | 2026-11-19 |
 
 ## By scenario
 
@@ -41,7 +41,7 @@ real names and stay out of the repo.
 
 - R1: A1–A10, FL1, NY1 and P5 walked on a candidate; P1 S9, P1S6 S2, P8 S4 and P11 S1 walked or moved by the maintainer; and the whole set walked on one candidate build.
 - R2: X1 S2 walked live (an Account out, its session switched); X2 S1 and S2 re-walked on a candidate.
-- R3: `release-candidate.md` §6 written.
+- R3: done: `release-candidate.md` §6 written for 0.4.6 (2026-11-19).
 
 ## Redaction checklist (tick before commit)
 

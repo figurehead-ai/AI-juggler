@@ -8,11 +8,11 @@
 import { useRef, useState, type JSX } from "react";
 
 import { Button } from "../../components/primitives";
-import { errorText } from "../../lib/bridge";
 import { poolSetSealed, poolsOfSession } from "../../lib/ipc/pool-model";
 import type { PoolInfo } from "../../lib/ipc/pools";
 import { setPools } from "../../lib/pools";
 import { useReveal } from "../../lib/reveal";
+import { useBusy } from "../../lib/use-busy";
 
 /** What sealing (or unsealing) `pool` changes, one line per session. */
 export async function sealChanges(pool: PoolInfo, members: { id: string; name: string }[]): Promise<string[]> {
@@ -32,22 +32,10 @@ export async function sealChanges(pool: PoolInfo, members: { id: string; name: s
 
 export function SealSetting({ pool, members }: { pool: PoolInfo; members: { id: string; name: string }[] }): JSX.Element {
   const [changes, setChanges] = useState<string[] | null>(null);
-  const [busy, setBusy] = useState(false);
+  const { busy, error, act } = useBusy();
   // In view in the panel, Keep it open focused (the aij-test proof).
   const confirmRef = useRef<HTMLDivElement | null>(null);
   useReveal(confirmRef, changes !== null && !busy);
-  const [error, setError] = useState<string | null>(null);
-  const act = async (work: () => Promise<void>) => {
-    setBusy(true);
-    setError(null);
-    try {
-      await work();
-    } catch (cause) {
-      setError(errorText(cause));
-    } finally {
-      setBusy(false);
-    }
-  };
   const ask = () => void act(async () => setChanges(await sealChanges(pool, members)));
   const confirm = () =>
     void act(async () => {

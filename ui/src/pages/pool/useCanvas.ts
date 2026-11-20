@@ -21,7 +21,7 @@ import { onMessagesChanged } from "../../lib/ipc/messages";
 import { onTasksChanged } from "../../lib/ipc/tasks";
 import { poolCanvas, poolCanvasPlace, poolCanvasTidy, type NodePositionInfo, type PoolCanvasInfo } from "../../lib/ipc/pool-canvas";
 import { poolMembers, type ContextCard, type PoolMemberRow } from "../../lib/ipc/pools";
-import { POOL_MEMBERS, usePoolMembers } from "../../lib/pools";
+import { POOL_MEMBERS, openInPool, usePoolMembers, usePools } from "../../lib/pools";
 import { prefetchPaged, rememberedPage } from "../../lib/paged";
 import { showToast } from "../../components/Toast";
 import { layout, type Point } from "./layout";
@@ -70,19 +70,23 @@ const rowsOf = (at: ReadonlyMap<string, Point>): NodePositionInfo[] => [...at].m
 const sameStream = (a: PoolCanvasInfo["stream"], b: PoolCanvasInfo["stream"]) => a.length === b.length && a.every((line, at) => line.at_ms === b[at]?.at_ms && line.words === b[at]?.words);
 
 /** The members the canvas draws, as they are now (`live`): the open ones
- * and those named on their own, ended or not. */
-export function drawnMembers(items: readonly PoolMemberRow[], live: ReadonlyMap<string, InstanceInfo>, total = items.length): MemberNode[] {
-  // AJ-E3008 R2: past GROUP_PAST members, a broad member's sessions are its
-  // group node (dashed, "N sessions now · new ones join"), not a node each;
-  // only the sessions named on their own, and watched ones, are drawn.
-  const grouped = total > GROUP_PAST;
-  const drawn = items
+ * and those named on their own, ended or not. `open`: how many of the
+ * pool's sessions are open now (the page's header count), when more may be
+ * open than the rows read so far. */
+export function drawnMembers(items: readonly PoolMemberRow[], live: ReadonlyMap<string, InstanceInfo>, open = 0): MemberNode[] {
+  const own = (row: PoolMemberRow) => row.via === "session" || row.via === "watched";
+  const drawable = items
     .map((row) => ({ row, session: live.get(row.session.id) ?? row.session }))
     // A session a sealed pool holds out of this one is in the List view only.
     .filter(({ row }) => !row.held_by)
-    .filter(({ row }) => !grouped || row.via === "session" || row.via === "watched")
-    .filter(({ row, session }) => isActiveStatus(session.status) || row.via === "session" || row.via === "watched")
-    .map(({ row, session }) => ({ id: row.session.id, session, card: row.card, role: row.card.role }));
+    .filter(({ row, session }) => isActiveStatus(session.status) || own(row));
+  // AJ-E3008 R2: past GROUP_PAST sessions to draw, a broad member's are its
+  // group node ("N open now · new ones join"), not a node each; only the
+  // sessions named on their own, and watched ones, are drawn. F-rc3g-8: the
+  // ended ones aren't drawn, so they don't count (88 in a pool, 85 ended,
+  // drew none of its 3 open ones: "No one has joined yet").
+  const grouped = Math.max(drawable.length, open) > GROUP_PAST;
+  const drawn = drawable.filter(({ row }) => !grouped || own(row)).map(({ row, session }) => ({ id: row.session.id, session, card: row.card, role: row.card.role }));
   return distinctNames(drawn);
 }
 
@@ -99,7 +103,7 @@ export async function prefetchPool(poolId: string): Promise<void> {
     await prefetchPaged(key, (page) => poolMembers(poolId, page));
     const page = rememberedPage<PoolMemberRow>(key);
     if (!page) return;
-    const ids = drawnMembers(page.items, new Map(), page.total ?? page.items.length)
+    const ids = drawnMembers(page.items, new Map())
       .slice(0, CANVAS_NODES)
       .map((member) => member.id);
     rememberCanvas(await poolCanvas(poolId, ids));
@@ -115,6 +119,9 @@ export async function prefetchPool(poolId: string): Promise<void> {
  * line to one comes back with the rest (round 7 #7). */
 export function useCanvas(poolId: string, sessions: InstanceInfo[], desktop: readonly string[] = []) {
   const list = usePoolMembers(poolId);
+  // Its sessions open now, as its header counts them (F-rc3g-8).
+  const pools = usePools();
+  const open = useMemo(() => openInPool(pools, sessions, poolId).length, [pools, sessions, poolId]);
   const { items, hasMore, loadingMore, loading, loadMore, refresh: refreshMembers } = list;
   // Up to the canvas's cap, a page at a time.
   useEffect(() => {
@@ -125,8 +132,7 @@ export function useCanvas(poolId: string, sessions: InstanceInfo[], desktop: rea
   // an ended session a broad member brought in (an App's pile up as they
   // end) stays in the pool and the List view, counted on the canvas's
   // "more in the List view" (the P3 walk).
-  const total = list.total ?? items.length;
-  const drawn: MemberNode[] = useMemo(() => drawnMembers(items, live, total).slice(0, CANVAS_NODES), [items, live, total]);
+  const drawn: MemberNode[] = useMemo(() => drawnMembers(items, live, open).slice(0, CANVAS_NODES), [items, live, open]);
   // Round 4 (#5): a role being changed shows at once, pending, until the
   // backend's answer reaches these rows; the adds and roles they show settle.
   const pendingRoles = usePendingRoles(poolId);

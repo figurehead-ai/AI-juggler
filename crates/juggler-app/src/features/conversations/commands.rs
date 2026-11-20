@@ -114,6 +114,7 @@ fn rows_of(
         folders,
         projects,
         sessions,
+        names,
         homes,
     } = ListInputs::read(state)?;
     // One project lookup per folder: many conversations share one.
@@ -207,20 +208,40 @@ fn rows_of(
             if let Some(entry) = &live {
                 with_live(&mut info, entry, &folders);
             }
+            named(&mut info, &names);
             info
         })
         .collect();
     Ok(rows)
 }
 
+/// F-rc3g-4: the name the person gave a session of AI Juggler's on the
+/// conversation (`names`, as [`ListInputs`] reads them) names its row,
+/// over its app's title and its transcript's.
+fn named(info: &mut ConversationInfo, names: &HashMap<String, HashMap<String, String>>) {
+    if let Some(name) = names
+        .get(info.account_id.as_str())
+        .and_then(|named| named.get(info.id.as_str()))
+    {
+        info.title = Some(name.clone());
+    }
+}
+
 /// What the list reads from storage once: each folder's name (by id and
 /// by its canonical path), the projects by root, the newest session on
-/// each conversation, and the worktree homes.
+/// each conversation, the name the person last gave a session on each,
+/// and the worktree homes.
 struct ListInputs {
     labels: HashMap<String, String>,
     folders: HashMap<std::path::PathBuf, String>,
     projects: HashMap<std::path::PathBuf, String>,
     sessions: HashMap<(String, String), juggler_core::storage::ConversationLink>,
+    /// F-rc3g-4 (the 0.4.6 rc3g walk: after Stop, g-turn's row read its
+    /// first prompt while it stood as its own row): account →
+    /// conversation → the name the person gave the newest of AI
+    /// Juggler's sessions on it that has one. Every row of it says that
+    /// name, as the cost table does, over its app's and its transcript's.
+    names: HashMap<String, HashMap<String, String>>,
     homes: Vec<juggler_core::storage::WorktreeHome>,
 }
 
@@ -271,11 +292,20 @@ impl ListInputs {
             .into_iter()
             .map(|link| ((link.account.clone(), link.conversation.clone()), link))
             .collect();
+        // Oldest first: the newest name stays in the map.
+        let mut names: HashMap<String, HashMap<String, String>> = HashMap::new();
+        for (account, conversation, label) in storage.sessions().conversation_labels()? {
+            names
+                .entry(account)
+                .or_default()
+                .insert(conversation, label);
+        }
         Ok(Self {
             labels,
             folders,
             projects,
             sessions,
+            names,
             homes,
         })
     }

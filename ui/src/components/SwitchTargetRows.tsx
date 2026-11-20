@@ -12,6 +12,7 @@
  * buttons, ↑/↓ roving focus, no nested interactives.
  */
 import { RoomChip } from "./RoomChip";
+import { runwayDetail } from "./AccountRunway";
 import { roomMarkFrom } from "../lib/room-mark";
 import { forecastWords } from "../lib/quotaWindow";
 import { useEffect, useRef, useState, type JSX } from "react";
@@ -38,7 +39,7 @@ export function SuggestedMark({ className = "" }: { className?: string }): JSX.E
 export function RoomLine({ name, room, testId = "target-room" }: { name: string; room: TargetRoom; testId?: string }): JSX.Element {
   // 0.4.1: out or low, the one mark every screen shows, whatever this
   // target is ranked (on the source's own account it can't take it).
-  const mark = room.kind !== "credits" && room.left !== null ? roomMarkFrom(room.left, room.resetsAtMs) : null;
+  const mark = room.kind !== "credits" && room.left !== null ? roomMarkFrom(room.left, room.resetsAtMs, false, undefined, room.age ?? null) : null;
   const line = roomWords(name, room, testId);
   if (!mark) return line;
   return (
@@ -77,7 +78,7 @@ function roomWords(name: string, room: TargetRoom, testId: string): JSX.Element 
   }
   return (
     <span className="text-label text-muted" data-testid={testId} data-room={room.kind}>
-      {room.resets ?? room.words}
+      {runwayDetail(room)}
     </span>
   );
 }

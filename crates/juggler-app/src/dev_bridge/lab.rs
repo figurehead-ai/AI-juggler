@@ -882,26 +882,7 @@ mod tests {
         let app_on = |id: &str, config: &Path, instance: &Path| -> String {
             std::fs::create_dir_all(config).unwrap();
             let storage = state.storage.lock().unwrap();
-            storage
-                .accounts()
-                .insert(&crate::test_support::account(
-                    id,
-                    juggler_adapters::CLAUDE_CODE_ID,
-                    id,
-                    config.to_path_buf(),
-                ))
-                .unwrap();
-            let app = storage
-                .apps()
-                .upsert_desktop(
-                    juggler_adapters::CLAUDE_CODE_ID,
-                    "claude-app",
-                    Some(&instance.to_string_lossy()),
-                    1,
-                )
-                .unwrap();
-            storage.apps().set_folder(&app, Some(id)).unwrap();
-            app
+            crate::test_support::desktop_app(&storage, id, id, config.to_path_buf(), instance)
         };
         let check = |ipc: &str, app: &str| {
             let mut args = serde_json::json!({ "appId": app });

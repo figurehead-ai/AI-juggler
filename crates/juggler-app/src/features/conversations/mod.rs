@@ -529,6 +529,44 @@ impl ConversationIndex {
             .unwrap_or_default()
     }
 
+    /// F-rc3g-4: processes AI Juggler saw end hold nothing open any more:
+    /// each place they held goes from what is open now, at once (the live
+    /// refresher's next look is up to 15 s away; meanwhile an ended
+    /// session's conversation stood as its own "Idle" row under its App).
+    /// A conversation with no place left isn't open. Returns whether one
+    /// was.
+    pub fn processes_ended(&self, pids: &std::collections::BTreeSet<u32>) -> bool {
+        // Only the entries that lose a place; one open with none (an
+        // app's own idle row) stays as it is.
+        let drop = |places: &mut Vec<scan::Place>| {
+            let before = places.len();
+            places.retain(|place| !pids.contains(&place.pid));
+            places.len() != before
+        };
+        let mut changed = false;
+        if let Ok(mut model) = self.model.lock() {
+            model.entries.retain_mut(|entry| {
+                let lost = drop(&mut entry.places);
+                changed |= lost;
+                !(lost && entry.places.is_empty())
+            });
+            model.pid_dirs.retain(|pid, _| !pids.contains(pid));
+        }
+        if let Ok(mut live) = self.live.lock() {
+            live.retain(|_, entry| {
+                let lost = drop(&mut entry.places);
+                changed |= lost;
+                !(lost && entry.places.is_empty())
+            });
+        }
+        // Its next look checks them again; one already looking (rare: a
+        // look is short) is left to finish.
+        if let Ok(mut scanner) = self.scanner.try_lock() {
+            scanner.forget(pids);
+        }
+        changed
+    }
+
     /// Test seam: what the live refresher saw.
     #[cfg(test)]
     pub(crate) fn set_live_model(&self, model: scan::LiveModel) {
@@ -668,6 +706,34 @@ pub fn titled(
         }
     }
     Ok(rows)
+}
+
+/// F-rc3g-4 (the 0.4.6 rc3g walk; Open now means running): an AI
+/// Juggler session's process ended (an `Exited` event: its `pid`, and the
+/// processes under it at the last look): whatever they held open isn't
+/// open any more, before the session's ending is stored, so no list reads
+/// its conversation as open elsewhere in between. Any tool: by process,
+/// not by its records. Any other event: nothing.
+pub fn after_exit(state: &Arc<AppState>, event: &juggler_supervisor::LifecycleEvent) {
+    let juggler_supervisor::LifecycleEvent::Exited { session, pid, .. } = event else {
+        return;
+    };
+    let mut pids = std::collections::BTreeSet::from([*pid]);
+    if let Ok(collector) = state.resources.lock() {
+        pids.extend(
+            collector
+                .rows(session)
+                .unwrap_or_default()
+                .iter()
+                .map(|row| row.pid),
+        );
+    }
+    if state.conversations.processes_ended(&pids) {
+        crate::features::relations::changed(
+            state,
+            crate::features::relations::Change::ConversationsLive,
+        );
+    }
 }
 
 /// One refresh of the files and of which conversations are live; `true`
@@ -1352,6 +1418,14 @@ pub fn continue_impl(
         crate::features::launch::resume_gate::resume_spec(state, &account, &profile, &cwd, id),
     )?;
     let session = SessionId::new(format!("sess-{}", crate::ids::unique_suffix()));
+    // F-rc3g-3: AI Juggler ran it before (a run since ended): its name and
+    // pin go on with it.
+    let before = lock_storage_arc(state)?
+        .sessions()
+        .conversation_links()?
+        .into_iter()
+        .rfind(|link| link.account == account.id.as_str() && link.conversation == id)
+        .map(|link| SessionId::new(link.session));
     // The one path: the row first (ADR-0010 §1), then the bridge (AJ-E1704,
     // D-30: continued in AI Juggler, it gets the agent tools) and the
     // account's key in the launch, under the supervisor.
@@ -1366,6 +1440,9 @@ pub fn continue_impl(
             conversation: Some(ConversationId::new(id)),
             transcript_ref: None,
             origin: "resume",
+            continues: before
+                .as_ref()
+                .map(crate::features::sessions::spawn::GoesOn::From),
         },
         match spec {
             Ok(spec) => crate::features::sessions::spawn::Runs::Terminal(spec),
@@ -1373,6 +1450,7 @@ pub fn continue_impl(
             Err(none) => crate::features::sessions::spawn::Runs::Planned {
                 profile: &profile,
                 resume: Some(id.to_owned()),
+                fresh_id: None,
                 requested: Some(juggler_adapter::Runtime::Driven),
                 terminal: Err(none),
                 history: None,

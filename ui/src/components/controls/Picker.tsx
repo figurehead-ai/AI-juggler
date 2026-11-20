@@ -92,6 +92,7 @@ export function Picker<T extends string>({
   searchLabel = "Search",
   allHeading = "All",
   label,
+  repick = false,
 }: PickerKind<T> & {
   value: T | null | undefined;
   options: readonly PickerOption<T>[];
@@ -107,6 +108,10 @@ export function Picker<T extends string>({
   /** The button's words in place of the value ("Change folder" beside a
    * stated choice); the value stays in its name and on its ✓ line. */
   label?: ReactNode;
+  /** Picking the value it shows calls `onChange` too: a pick that makes
+   * a suggestion the person's own (New session's Change app, F-rc3g-5).
+   * Off, picking it again only closes the menu. */
+  repick?: boolean;
   /** Words before the value, inside the button ("Tool:"). */
   prefix?: ReactNode;
   placeholder?: string;
@@ -145,7 +150,7 @@ export function Picker<T extends string>({
   };
   const pick = (option: PickerOption<T>) => {
     setAt(null);
-    if (option.value !== value) onChange(option.value);
+    if (repick || option.value !== value) onChange(option.value);
   };
   const why = disabled && reason ? `${base}-why` : undefined;
   // A link's own words stand in for the value: no value icon beside them.

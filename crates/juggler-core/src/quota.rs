@@ -49,6 +49,11 @@ pub enum UsageSource {
     /// (Kimi Code's `kimi web`, which asks the vendor's account service).
     /// Labelled experimental where it is shown.
     LocalServer,
+    /// The tool's own report of its account's limits to a session AI
+    /// Juggler runs (a driven session's limits update, as it works):
+    /// percent used, with the reset when the tool gives one. An update may
+    /// name only the window it is about.
+    Driven,
 }
 
 impl UsageSource {
@@ -64,6 +69,7 @@ impl UsageSource {
             UsageSource::DesktopApp => "desktop_app",
             UsageSource::UsageCache => "usage_cache",
             UsageSource::LocalServer => "local_server",
+            UsageSource::Driven => "driven",
         }
     }
 
@@ -79,13 +85,14 @@ impl UsageSource {
             "desktop_app" => Some(UsageSource::DesktopApp),
             "usage_cache" => Some(UsageSource::UsageCache),
             "local_server" => Some(UsageSource::LocalServer),
+            "driven" => Some(UsageSource::Driven),
             _ => None,
         }
     }
 
     /// True when a reading from this source names every window the plan
     /// has, so a window it leaves out isn't there (a limit hit names only
-    /// the window it hit).
+    /// the window it hit; so may a driven session's limits update).
     #[must_use]
     pub const fn names_its_windows(self) -> bool {
         matches!(

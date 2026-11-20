@@ -50,7 +50,9 @@ pub struct ThreadInfo {
     pub count: u32,
     /// Agent messages in a row since a person's word.
     pub hop: u32,
-    /// The most a thread takes in a row.
+    /// Agent messages in a row it takes before you're asked: its pool's
+    /// hop limit when the pool puts messages into sessions by itself, and
+    /// never more than a thread takes (`hop` past it is the one asked).
     pub hop_cap: u32,
     /// `open` | `paused` | `stopped`.
     pub state: String,

@@ -42,7 +42,7 @@ export function shapeOfPool(pool: Pick<PoolInfo, "access" | "sealed">, rules: Po
 }
 
 /** "Needs you", said with what it is, and a way there. */
-export function NeedsYou(): JSX.Element {
+function NeedsYou(): JSX.Element {
   const host = useActionHost();
   return (
     <>

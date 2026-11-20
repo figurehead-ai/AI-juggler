@@ -20,7 +20,7 @@ import type { InstanceInfo } from "../types/generated/InstanceInfo";
 
 const ENDED = ["finished", "stopped", "handed_over"];
 /** Ended sessions older than this are left to History (AJ-E1007). */
-export const TO_REVIEW_WINDOW_MS = 7 * 24 * 3_600_000;
+const TO_REVIEW_WINDOW_MS = 7 * 24 * 3_600_000;
 
 /** Ended this week (not handed over) and not yet marked reviewed or archived. */
 export function toReview(session: InstanceInfo, now: number): boolean {
@@ -33,7 +33,7 @@ export function toReview(session: InstanceInfo, now: number): boolean {
 }
 
 /** The backend's list of them, in the window up to now. */
-export function reviewQuery(now: number): SessionsQuery {
+function reviewQuery(now: number): SessionsQuery {
   return sessionsQuery({ which: "to_review", since_ms: now - TO_REVIEW_WINDOW_MS });
 }
 

@@ -181,6 +181,8 @@ pub fn limits_of(usage: &Value, plan: Option<String>) -> Option<LimitsSnapshot> 
             window_mins: mins.and_then(|mins| u32::try_from(mins).ok()),
             used_pct,
             resets_at_ms: resets(window),
+            // Muse's windows limit all the account's use.
+            model: None,
         });
     }
     if let Some(weekly) = usage.get("weekly")
@@ -191,6 +193,8 @@ pub fn limits_of(usage: &Value, plan: Option<String>) -> Option<LimitsSnapshot> 
             window_mins: Some(10_080),
             used_pct,
             resets_at_ms: resets(weekly),
+            // Muse's windows limit all the account's use.
+            model: None,
         });
     }
     (!windows.is_empty()).then(|| LimitsSnapshot {

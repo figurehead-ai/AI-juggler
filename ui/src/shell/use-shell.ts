@@ -168,11 +168,10 @@ export function useShell() {
   };
 }
 
-/** A pool's page title: its name, a project's own pool by its project
- * (as its card says it). */
-function poolTitle(pool: { kind: string; name: string; project_id: string | null } | undefined, projects: { id: string; name: string }[]): string {
-  if (!pool) return "Pool";
-  return pool.kind === "default" ? (projects.find((project) => project.id === pool.project_id)?.name ?? pool.name) : pool.name;
+/** A pool's page title: its name, as its card says it (F-rc3g-7: a
+ * project's own pool too, "web · all sessions (in lab)"). */
+function poolTitle(pool: { name: string } | undefined): string {
+  return pool?.name ?? "Pool";
 }
 
 /** The window's title after "AI Juggler · ": the screen, or the page's own
@@ -209,7 +208,7 @@ function titleOf(t: {
   if (t.selectedSession) return projects.find((p) => p.id === t.selectedSession!.project_id)?.name ?? "Session";
   if (t.selectedLogin) return t.selectedLogin.title;
   if (selection.kind === "none") return "Home";
-  if (selection.kind === "pool") return poolTitle(t.pools.find((pool) => pool.id === selection.id), projects);
+  if (selection.kind === "pool") return poolTitle(t.pools.find((pool) => pool.id === selection.id));
   // AJ-E1534: a session outside AI Juggler, like one of its own, by its project.
   return projects.find((p) => selection.kind === "conversation" && p.id === selection.projectId)?.name ?? "Session";
 }

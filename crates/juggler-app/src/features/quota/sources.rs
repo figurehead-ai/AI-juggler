@@ -21,7 +21,8 @@ pub fn reading_source(
 }
 
 /// A source, in words, for `spec`'s tool ("the Claude app", "Claude
-/// Code's last usage check"). `None` for a source that isn't a reading.
+/// Code's last usage check", "Codex's run in AI Juggler"). `None` for a
+/// source that isn't a reading.
 #[must_use]
 pub fn source_words(spec: &juggler_adapter::ToolSpec, source: UsageSource) -> Option<String> {
     let tool = &spec.display_name;
@@ -36,6 +37,7 @@ pub fn source_words(spec: &juggler_adapter::ToolSpec, source: UsageSource) -> Op
         UsageSource::ApiRetry => format!("{tool}, when it hit the limit"),
         // D-106: undocumented enough to say so where it shows.
         UsageSource::LocalServer => format!("{tool}'s own local server (experimental)"),
+        UsageSource::Driven => format!("{tool}'s run in AI Juggler"),
         UsageSource::Transcript | UsageSource::Sqlite => return None,
     })
 }
@@ -160,6 +162,10 @@ mod tests {
         assert_eq!(
             source_words(&with_app, UsageSource::UsageCache).as_deref(),
             Some("Tool X's last usage check")
+        );
+        assert_eq!(
+            source_words(&with_app, UsageSource::Driven).as_deref(),
+            Some("Tool X's run in AI Juggler")
         );
         assert_eq!(source_words(&with_app, UsageSource::Transcript), None);
     }

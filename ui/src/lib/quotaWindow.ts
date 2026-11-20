@@ -80,10 +80,68 @@ export function agoWords(ms: number, now: number = Date.now()): string {
 }
 
 /** When a reading was taken, with its source when the backend named one:
- * "from the Claude app, 55 min ago", else "as of 12 min ago". */
-export function readingWords(window: WindowDisplay, now: number = Date.now()): string | null {
+ * "from the Claude app, 55 min ago", else "as of 12 min ago". While this
+ * start's first read runs (`refreshing`), an old one says so too ("from
+ * the Claude app, 2 days ago, refreshing…"). */
+export function readingWords(window: WindowDisplay, now: number = Date.now(), refreshing = false): string | null {
   if (window.measured_at_ms == null) return null;
-  return window.source_words ? `from ${window.source_words}, ${agoWords(window.measured_at_ms, now)}` : asOfWords(window.measured_at_ms, now);
+  const words = window.source_words ? `from ${window.source_words}, ${agoWords(window.measured_at_ms, now)}` : asOfWords(window.measured_at_ms, now);
+  return refreshing && isOld(window.measured_at_ms, now) ? `${words}, ${REFRESHING}` : words;
+}
+
+/** F-rc3c-1 (the 0.4.6 rc3c walk: two days after the Dev build last ran,
+ * Home's runway, the app cards and the rail's marks showed two-day-old
+ * readings as current; one account read "34% left this week" though it
+ * was out, two read "Out" with room): a reading older than this says how
+ * old it is wherever a runway line or an Out mark shows it.
+ *
+ * An hour: while AI Juggler runs and an account is in use, its reading
+ * is never more than about a quarter of that old (the Claude app writes
+ * its meter about every 15 minutes and it's read within 15 s; a status
+ * line or a rollout brings one at every turn), so a younger one is
+ * current and its age would only be noise. Older, AI Juggler wasn't
+ * running or the account sat idle here, and use elsewhere (another Mac,
+ * the web) may have moved it: a 5-hour window can be a fifth through.
+ * It's also where "as of" stops counting minutes. */
+export const READING_OLD_MS = 3_600_000;
+
+/** Said after an old reading's age while this start's first read of the
+ * tools' records runs (`QuotaDisplayData.refreshing`): a newer reading
+ * may be on its way. */
+const REFRESHING = "refreshing…";
+
+function isOld(measuredAtMs: number, now: number): boolean {
+  return now - measuredAtMs >= READING_OLD_MS;
+}
+
+/** How old a reading is, said beside its figure only when it's old
+ * (`READING_OLD_MS`): "as of 2 days ago", and while this start's first
+ * read runs, "as of 2 days ago, refreshing…". `null` for a fresh one, or
+ * one with no time: a fresh reading's line reads as before. */
+export function oldReadingWords(measuredAtMs: number | null | undefined, refreshing = false, now: number = Date.now()): string | null {
+  if (measuredAtMs == null || !isOld(measuredAtMs, now)) return null;
+  return `as of ${agoWords(measuredAtMs, now)}${refreshing ? `, ${REFRESHING}` : ""}`;
+}
+
+/** A window as it stands at `now`: a reading whose window's reset has
+ * passed describes a window that's over, so it's history ("reset"), never
+ * the window now, never Out (F-rc3c-1). The backend makes the same call
+ * when it reads (`ResetSinceReading`); a screen makes it again because it
+ * keeps a reading and shows it later (a screen's first frame, between two
+ * reads). */
+export function windowNow(window: WindowDisplay | null | undefined, now: number = Date.now()): WindowDisplay | null | undefined {
+  if (window == null || window.resets_at_ms == null || window.resets_at_ms > now) return window;
+  if (window.state !== "tracking" && window.state !== "stale" && window.state !== "exhausted") return window;
+  return {
+    ...window,
+    state: "reset",
+    percentage: null,
+    projected_pct: null,
+    resets_at_ms: null,
+    reset_basis: null,
+    runway: null,
+    last_used_pct: window.state === "exhausted" ? 100 : window.percentage,
+  };
 }
 
 /** When an account runs out at this pace, with its basis — or that there
@@ -143,8 +201,10 @@ export function measured(window: WindowDisplay | null | undefined): window is Wi
 }
 
 /** One window, in words. `omitted` is the backend's reason when this
- * plan has no such window. */
-export function windowView(window: WindowDisplay | null | undefined, omitted?: string | null, now: number = Date.now()): WindowView {
+ * plan has no such window; `refreshing`, this start's first read runs
+ * (an old reading says so). */
+export function windowView(held: WindowDisplay | null | undefined, omitted?: string | null, now: number = Date.now(), refreshing = false): WindowView {
+  const window = windowNow(held, now);
   if (!window) return { left: null, words: omitted ?? "Not measured yet", tone: "none", resets: null };
   if (window.state === "learning") {
     return { left: null, words: "Measuring — shows after a little use", tone: "none", resets: null };
@@ -155,7 +215,7 @@ export function windowView(window: WindowDisplay | null | undefined, omitted?: s
       const from = window.source_words ? ` (${window.source_words})` : "";
       return {
         left: null,
-        words: `Last reading ${agoWords(window.measured_at_ms)}${from}: ${Math.round(window.last_used_pct)}% used; that window has reset since`,
+        words: `Last reading ${agoWords(window.measured_at_ms, now)}${from}: ${Math.round(window.last_used_pct)}% used; that window has reset since`,
         tone: "none",
         resets: null,
       };
@@ -163,7 +223,7 @@ export function windowView(window: WindowDisplay | null | undefined, omitted?: s
     return { left: null, words: "Not measured since the reset", tone: "none", resets: null };
   }
   const resets = resetWords(window, now);
-  const reading = readingWords(window, now);
+  const reading = readingWords(window, now, refreshing);
   const asOf = reading ? ` · ${reading}` : "";
   if (window.state === "exhausted") {
     // Claude Code's own record of hitting the limit: when, and the reset.

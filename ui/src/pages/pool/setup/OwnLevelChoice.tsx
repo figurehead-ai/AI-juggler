@@ -23,7 +23,7 @@ import { OWN_LABEL, OWN_LEVELS, OWN_SCOPE, POOLS_GUIDE, SAME_AS_POOL, asOwnLevel
 const GUIDE = `${POOLS_GUIDE}#what-agents-may-do`;
 
 /** A made pool's fourth choice: each action picked by hand. */
-export const CUSTOM = { label: "Custom", line: "You pick each action, under Custom actions." };
+const CUSTOM = { label: "Custom", line: "You pick each action, under Custom actions." };
 
 export function OwnLevelChoice({
   value,

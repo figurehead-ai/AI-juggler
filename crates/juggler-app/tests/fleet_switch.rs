@@ -1321,3 +1321,37 @@ fn each_mac_reports_what_it_used_in_the_last_day() {
         "priced as Usage prices it: {desktop:?}"
     );
 }
+
+/// F-rc3g-3 (main's call for 0.4.6: switching keeps the work's context,
+/// its name with it): the name the person gave a session, and its pin, go
+/// to the other Mac with it (sent with the work) and are the original's
+/// again when it comes back.
+#[test]
+fn a_named_pinned_session_keeps_its_name_and_pin_on_the_other_mac_and_back() {
+    let pair = setup_both("2.1.0", true, Permission::Control, Permission::Control);
+    juggler_app::manage::session_rename_impl(&pair.laptop, &pair.source, Some("checkout flow"))
+        .unwrap();
+    juggler_app::manage::session_set_pinned_impl(&pair.laptop, &pair.source, true).unwrap();
+    let marks = |state: &Arc<AppState>, id: &str| {
+        state
+            .storage
+            .lock()
+            .unwrap()
+            .sessions()
+            .marks()
+            .unwrap()
+            .remove(id)
+            .unwrap_or_default()
+    };
+    let away = switched_and_worked(&pair);
+    let (name, pinned) = marks(&pair.desktop, &away);
+    assert_eq!(name.as_deref(), Some("checkout flow"), "on the other Mac");
+    assert!(pinned.is_some(), "on the other Mac: still pinned");
+    let _ = back_plan(&pair, &away);
+    let outcome = switch_back(&pair, &away, "");
+    assert!(outcome.accepted, "{outcome:?}");
+    let back = outcome.instance_id.unwrap();
+    let (name, pinned) = marks(&pair.laptop, &back);
+    assert_eq!(name.as_deref(), Some("checkout flow"), "back on the laptop");
+    assert!(pinned.is_some(), "back on the laptop: still pinned");
+}

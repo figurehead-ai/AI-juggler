@@ -468,6 +468,25 @@ impl ToolLaunch for ClaudeCodeAdapter {
                 .to_owned()
         })
     }
+    /// `claude --session-id <id>`, in the session's own folder: Claude
+    /// Code names a new conversation by the caller's id (a UUID only).
+    fn named_launch_spec(
+        &self,
+        account: &Account,
+        profile: &Profile,
+        cwd: &Path,
+        conversation_id: &str,
+    ) -> Result<Option<LaunchSpec>, AdapterError> {
+        crate::codex::refuse_option_like(conversation_id)?;
+        if !juggler_adapter::handover::is_uuid_form(conversation_id) {
+            return Ok(None);
+        }
+        let mut spec = self.launch_spec(account, profile, cwd, &LaunchMode::Interactive)?;
+        spec.cwd = cwd.to_path_buf();
+        spec.args
+            .extend(["--session-id".to_owned(), conversation_id.to_owned()]);
+        Ok(Some(spec))
+    }
     fn launch_spec(
         &self,
         account: &Account,

@@ -496,6 +496,19 @@ fn recipient_at(row: &Row<'_>, at: usize) -> rusqlite::Result<Recipient> {
     })
 }
 
+/// An event from `id, at, pool_id, actor_ref, verb, object_ref, detail`.
+fn event_of(row: &Row<'_>) -> rusqlite::Result<MessageEvent> {
+    Ok(MessageEvent {
+        id: row.get(0)?,
+        at: row.get(1)?,
+        pool_id: row.get(2)?,
+        actor_ref: row.get(3)?,
+        verb: row.get(4)?,
+        object_ref: row.get(5)?,
+        detail: row.get(6)?,
+    })
+}
+
 fn doc_of(row: &Row<'_>) -> rusqlite::Result<Doc> {
     Ok(Doc {
         id: row.get(0)?,
@@ -1158,19 +1171,7 @@ impl MessagesRepo<'_> {
             "SELECT id, at, pool_id, actor_ref, verb, object_ref, detail FROM agent_events
               WHERE pool_id = ?1 AND (?2 IS NULL OR id < ?2) ORDER BY id DESC LIMIT ?3",
         )?;
-        collect(
-            stmt.query_map(params![pool_id, before, page(limit)], |row| {
-                Ok(MessageEvent {
-                    id: row.get(0)?,
-                    at: row.get(1)?,
-                    pool_id: row.get(2)?,
-                    actor_ref: row.get(3)?,
-                    verb: row.get(4)?,
-                    object_ref: row.get(5)?,
-                    detail: row.get(6)?,
-                })
-            })?,
-        )
+        collect(stmt.query_map(params![pool_id, before, page(limit)], event_of)?)
     }
 
     /// A pool's messages whose subject or body has every word of `query`

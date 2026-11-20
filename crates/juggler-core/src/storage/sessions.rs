@@ -149,6 +149,51 @@ impl SessionsRepo<'_> {
         super::accounts::require_changed(changed, "session", id.as_str())
     }
 
+    /// F-rc3g-3: `to` goes on with `from`'s line of work (a hand-over, a
+    /// switch, a resume, a start that fell back to its terminal): the name
+    /// the person gave `from` and its pin are `to`'s too, each unless `to`
+    /// has its own. Nothing when `from` has neither, or either isn't a
+    /// session.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::Storage`] on SQLite failures.
+    pub fn carry_marks(&self, from: &SessionId, to: &SessionId) -> Result<(), CoreError> {
+        self.conn.execute(
+            "UPDATE instances SET
+                 label = COALESCE(label, (SELECT label FROM instances WHERE id = ?1)),
+                 pinned_at = COALESCE(pinned_at, (SELECT pinned_at FROM instances WHERE id = ?1))
+             WHERE id = ?2",
+            params![from.as_str(), to.as_str()],
+        )?;
+        Ok(())
+    }
+
+    /// F-rc3g-3: `to` goes on with the work of a session on another Mac,
+    /// which sent the name the person gave it (`label`) and whether it
+    /// was pinned: `to` takes them, each unless it has its own.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::Storage`] on SQLite failures.
+    pub fn give_marks(
+        &self,
+        to: &SessionId,
+        label: Option<&str>,
+        pinned: bool,
+    ) -> Result<(), CoreError> {
+        self.conn.execute(
+            "UPDATE instances SET label = COALESCE(label, ?2), pinned_at = COALESCE(pinned_at, ?3)
+             WHERE id = ?1",
+            params![
+                to.as_str(),
+                label.filter(|label| !label.trim().is_empty()),
+                pinned.then(|| Timestamp::now().millis())
+            ],
+        )?;
+        Ok(())
+    }
+
     /// AJ-E1502: pins a session to the top of its group (now), or unpins it.
     ///
     /// # Errors
@@ -648,7 +693,8 @@ impl SessionsRepo<'_> {
     /// names a session as the rail does). By account too: a switch to
     /// another account of the same tool keeps the conversation's id there
     /// (see [`Self::conversation_links`]). Only labelled sessions: a few
-    /// rows.
+    /// rows, oldest session first (a map made from them keeps the newest
+    /// name a conversation was given, F-rc3g-4).
     ///
     /// # Errors
     ///
@@ -657,7 +703,8 @@ impl SessionsRepo<'_> {
         let mut stmt = self.conn.prepare(
             "SELECT r.account_id, i.conversation_id, i.label FROM instances i \
              JOIN launch_recipes r ON r.id = i.launch_recipe_id \
-             WHERE i.conversation_id IS NOT NULL AND i.label IS NOT NULL",
+             WHERE i.conversation_id IS NOT NULL AND i.label IS NOT NULL \
+             ORDER BY i.started_at, i.id",
         )?;
         let rows = stmt.query_map([], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)))?;
         rows.map(|row| row.map_err(CoreError::Storage)).collect()

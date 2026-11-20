@@ -33,7 +33,9 @@ count: number,
  */
 hop: number, 
 /**
- * The most a thread takes in a row.
+ * Agent messages in a row it takes before you're asked: its pool's
+ * hop limit when the pool puts messages into sessions by itself, and
+ * never more than a thread takes (`hop` past it is the one asked).
  */
 hop_cap: number, 
 /**

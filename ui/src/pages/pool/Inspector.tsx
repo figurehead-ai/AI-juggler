@@ -23,6 +23,7 @@ import { OverviewFoot, PoolProgress, RunningSummary, SetupView, type InspectorSe
 import type { SetupPhase, SetupProgress } from "./setup-progress";
 
 import type { ProjectInfo } from "../../types/generated/ProjectInfo";
+import type { InstanceInfo } from "../../types/generated/InstanceInfo";
 import type { PoolCanvasInfo } from "../../lib/ipc/pool-canvas";
 import type { PoolInfo } from "../../lib/ipc/pools";
 import type { TaskInfo } from "../../lib/ipc/tasks";
@@ -178,7 +179,7 @@ function selectionHead(input: {
 
 /** The status under the title: calm at L0 and L1, an amber word and dot
  * at L2, red with a glyph on its tint at L3 (D-117). */
-export function StatusPill({ pill }: { pill: NonNullable<InspectorHead["pill"]> }): JSX.Element {
+function StatusPill({ pill }: { pill: NonNullable<InspectorHead["pill"]> }): JSX.Element {
   const shape = "inline-flex w-fit items-center gap-1.5 rounded-full px-2 py-0.5 text-label";
   if (pill.level === 3)
     return (
@@ -231,6 +232,8 @@ export const Inspector = forwardRef<HTMLHeadingElement, {
   project: ProjectInfo | undefined;
   canvas: PoolCanvasInfo | null;
   members: MemberNode[];
+  /** Its sessions open now, as its header counts them. */
+  open: readonly InstanceInfo[];
   names: ReadonlyMap<string, string>;
   selection: Selection;
   now: number;
@@ -262,7 +265,7 @@ export const Inspector = forwardRef<HTMLHeadingElement, {
   onEdit: () => void;
   /** The App whose next session leads, by name. */
   leadNext: string | null;
-}>(function Inspector({ pool, project, canvas, members, names, selection, now, onSelect, onOpenTask, onDeleted, rules, ruleLabel, ruleTool, where, needs, setup, leadDir, setupSections, phase, progress, hidden, onHide, onEdit, leadNext }, heading): JSX.Element {
+}>(function Inspector({ pool, project, canvas, members, open, names, selection, now, onSelect, onOpenTask, onDeleted, rules, ruleLabel, ruleTool, where, needs, setup, leadDir, setupSections, phase, progress, hidden, onHide, onEdit, leadNext }, heading): JSX.Element {
   const member = selection.kind === "node" ? members.find((row) => row.id === selection.id) : undefined;
   const rule = selection.kind === "rule" ? rules.rules?.members.find((row) => row.member === selection.ref) : undefined;
   const watched = selection.kind === "rule" ? rules.watched.find((row) => row.member === selection.ref) : undefined;
@@ -273,7 +276,7 @@ export const Inspector = forwardRef<HTMLHeadingElement, {
   const head = inspectorHead(of);
   // The selected card and the inspector are linked by the same accent.
   const linked = of.kind !== "pool";
-  const overview = { pool, canvas, members, rules, ruleLabel, where, needs, now, setup, progress, onSelect };
+  const overview = { pool, canvas, members, open, rules, ruleLabel, where, needs, now, setup, progress, onSelect };
   // Setting up, the checklist's title heads the panel (the pool's own
   // title stays for screen readers and focus).
   const quietHead = selection.kind === "none" && phase === "setup";

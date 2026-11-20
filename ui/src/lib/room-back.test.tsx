@@ -5,7 +5,7 @@
  * room again only when the later window resets: every surface gives the
  * backend's one answer (`room_back`), so they all say the week's.
  */
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { runwayOf } from "../components/AccountRunway";
 import { roomMarkOf, roomMarkOfProfile } from "./room-mark";
 import { launchRoom } from "./launch-pick";
@@ -18,6 +18,16 @@ import type { SubscriptionInfo } from "./subscriptions";
 const NOW = 1_794_000_000_000;
 const FIVE = NOW + 2 * 3_600_000;
 const WEEK = NOW + 3 * 86_400_000;
+
+// The readings are a minute old at NOW: the surfaces that read the clock
+// read NOW (F-rc3c-1: a reading's reset passed is history, never out).
+beforeEach(() => {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(NOW);
+});
+afterEach(() => {
+  vi.useRealTimers();
+});
 const window = (percentage: number, resets: number | null, badge = "measured"): WindowDisplay => ({
   state: percentage >= 100 ? "exhausted" : "tracking",
   percentage,

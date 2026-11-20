@@ -350,6 +350,7 @@ fn start_again(state: &Arc<AppState>, crashed: &SessionId) -> AppResult<(Session
             },
             Some(reference),
             "restart",
+            Some(crate::features::sessions::spawn::GoesOn::From(crashed)),
         )?;
         return Ok((session, true));
     }
@@ -358,7 +359,12 @@ fn start_again(state: &Arc<AppState>, crashed: &SessionId) -> AppResult<(Session
     })?;
     let launched =
         crate::features::launch::launch_profile(state, record.profile.as_str(), Some(cwd))?;
-    Ok((SessionId::new(launched.session_id), false))
+    let session = SessionId::new(launched.session_id);
+    // F-rc3g-3: started again, it keeps the name and pin the person gave it.
+    if let Ok(storage) = state.storage.lock() {
+        let _ = storage.sessions().carry_marks(crashed, &session);
+    }
+    Ok((session, false))
 }
 
 /// It crashed again after [`TRIES`] tries in [`WINDOW_MS`]: it stays

@@ -35,9 +35,6 @@
  "crates/components/PlaceHeader.tsx": {
   "jscpd:lines": 24
  },
- "crates/components/PoolAccess.tsx": {
-  "jscpd:lines": 22
- },
  "crates/components/PoolSheet.tsx": {
   "jscpd:lines": 16
  },
@@ -158,9 +155,6 @@
  "crates/juggler-adapters/src/claude_limits/tests.rs": {
   "jscpd:lines": 11
  },
- "crates/juggler-adapters/src/claude_live.rs": {
-  "jscpd:lines": 16
- },
  "crates/juggler-adapters/src/claude_stream/codec.rs": {
   "jscpd:lines": 11
  },
@@ -210,7 +204,7 @@
   "jscpd:lines": 31
  },
  "crates/juggler-adapters/src/codex_inventory.rs": {
-  "jscpd:lines": 101
+  "jscpd:lines": 100
  },
  "crates/juggler-adapters/src/codex_subagents.rs": {
   "jscpd:lines": 41
@@ -366,7 +360,7 @@
   "jscpd:lines": 29
  },
  "crates/juggler-app/src/features/conversations/places.rs": {
-  "jscpd:lines": 54
+  "jscpd:lines": 19
  },
  "crates/juggler-app/src/features/conversations/scan.rs": {
   "jscpd:lines": 14
@@ -603,7 +597,7 @@
   "jscpd:lines": 7
  },
  "crates/juggler-core/src/storage/sessions.rs": {
-  "jscpd:lines": 48
+  "jscpd:lines": 34
  },
  "crates/juggler-core/src/storage/switch_graph.rs": {
   "jscpd:lines": 7
@@ -740,26 +734,20 @@
  "crates/pages/messages/useSessionMessages.ts": {
   "jscpd:lines": 9
  },
- "crates/pages/pool/CanvasEdges.tsx": {
-  "jscpd:lines": 7
- },
  "crates/pages/pool/CanvasNode.tsx": {
-  "jscpd:lines": 16
+  "jscpd:lines": 14
  },
  "crates/pages/pool/CompactNode.tsx": {
-  "jscpd:lines": 23
- },
- "crates/pages/pool/InspectPool.tsx": {
-  "jscpd:lines": 6
+  "jscpd:lines": 14
  },
  "crates/pages/session/OwnOverview.tsx": {
-  "jscpd:lines": 18
+  "jscpd:lines": 16
  },
  "crates/pages/session/OwnTerminalOverview.tsx": {
-  "jscpd:lines": 18
+  "jscpd:lines": 10
  },
  "crates/pages/session/OwnUsage.tsx": {
-  "jscpd:lines": 12
+  "jscpd:lines": 7
  },
  "crates/pages/session/SessionOverview.tsx": {
   "jscpd:lines": 8
@@ -775,9 +763,6 @@
  },
  "crates/pages/subscription/SubscriptionPage.tsx": {
   "jscpd:lines": 17
- },
- "crates/pages/tasks/PoolTasks.tsx": {
-  "jscpd:lines": 6
  },
  "crates/pages/tasks/TaskView.tsx": {
   "jscpd:lines": 9
@@ -808,12 +793,6 @@
  },
  "crates/screens/processes/ProcessTree.tsx": {
   "jscpd:lines": 30
- },
- "crates/screens/settings/AgentAccessPane.tsx": {
-  "jscpd:lines": 15
- },
- "crates/screens/tasks/TasksScreen.tsx": {
-  "jscpd:lines": 6
  },
  "ui/src/components/AppIcon.tsx": {
   "knip:exports": 1
@@ -908,7 +887,7 @@
   "knip:exports": 1
  },
  "ui/src/components/controls/Picker.tsx": {
-  "knip:exports": 2
+  "knip:exports": 1
  },
  "ui/src/components/controls/index.ts": {
   "knip:types": 1
@@ -930,9 +909,6 @@
  },
  "ui/src/components/rail-arrange.ts": {
   "knip:types": 1
- },
- "ui/src/components/related/useFacets.ts": {
-  "knip:exports": 1
  },
  "ui/src/components/row-details.tsx": {
   "knip:exports": 1
@@ -1027,9 +1003,6 @@
  "ui/src/lib/ipc/accounts.ts": {
   "knip:exports": 2
  },
- "ui/src/lib/ipc/agent-bridge.ts": {
-  "knip:exports": 1
- },
  "ui/src/lib/ipc/app-lifecycle.ts": {
   "knip:exports": 1
  },
@@ -1057,7 +1030,7 @@
  },
  "ui/src/lib/ipc/pool-canvas.ts": {
   "knip:exports": 3,
-  "knip:types": 2
+  "knip:types": 1
  },
  "ui/src/lib/ipc/pools.ts": {
   "knip:types": 2
@@ -1099,7 +1072,7 @@
   "knip:exports": 1
  },
  "ui/src/lib/needs-you.ts": {
-  "knip:exports": 2
+  "knip:exports": 1
  },
  "ui/src/lib/new-pool.ts": {
   "knip:exports": 2
@@ -1264,9 +1237,6 @@
   "knip:exports": 1
  },
  "ui/src/screens/new-session/MoreOptions.tsx": {
-  "knip:exports": 1
- },
- "ui/src/screens/pools/NewPoolReview.tsx": {
   "knip:exports": 1
  },
  "ui/src/screens/pools/PoolsScreen.tsx": {

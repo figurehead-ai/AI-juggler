@@ -87,7 +87,7 @@ describe("a project's agents", () => {
     );
     const apart = await view.findByTestId("project-agents-apart");
     expect(apart.textContent).toContain("Kept apart: yes");
-    expect(apart.textContent).toContain("in Client A only, its sessions are in no other pool");
+    expect(apart.textContent).toContain("in «Client A only», its sessions are in no other pool");
     expect(view.queryByTestId("project-agents-keep-apart")).toBeNull();
     fireEvent.click(view.getByTestId("project-agents-apart-open"));
     expect(opened).toEqual(["pool-client-a"]);

@@ -302,6 +302,11 @@ message TakeHandover {
   string from_native_id = 11;
   // The F-label shown to the user when they clicked.
   string fidelity_shown = 12;
+  // F-rc3g-3: the name the person gave the session it goes on from
+  // ("" for none), and whether they pinned it: the session here takes
+  // them.
+  string from_session_label = 13;
+  bool from_session_pinned = 14;
 }
 
 // Resume the original native session on this node with one summarised

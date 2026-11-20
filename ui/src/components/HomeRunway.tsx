@@ -22,7 +22,7 @@ import { signedIn } from "../lib/bridge";
 import type { AccountInfo } from "../types/generated/AccountInfo";
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import type { QuotaDisplayData } from "../lib/ipc/quota";
-import { newWorkAdvice, runwayOf } from "./AccountRunway";
+import { newWorkAdvice, runwayDetail, runwayOf } from "./AccountRunway";
 import { cliAppName } from "../lib/app-name";
 import { namedAccountApps } from "../lib/account-items";
 import { useApps, type AppModel } from "../lib/apps";
@@ -66,6 +66,8 @@ export interface RunwayLine {
   resets: string | null;
   /** A used-up window its credits carry on past (0.3.2). */
   credits?: CreditsCover | null;
+  /** How old its reading is, when it's old (F-rc3c-1). */
+  age?: string | null;
 }
 
 /** An Account's one runway: its newest measured window over every folder
@@ -127,7 +129,8 @@ export function runwayFacts(row: RunwayLine, live: number): string {
   const sessions = live > 0 ? `${live} ${live === 1 ? "session" : "sessions"} on it` : null;
   // Without a reset, the runway's words less the figure the row shows
   // ("58% left, from its latest session" → "from its latest session").
-  const when = row.resets ?? (row.words.replace(/^\d+% left,?\s*/, "") || null);
+  // F-rc3c-1: with a reset, an old reading says how old after it.
+  const when = row.resets ? runwayDetail(row) : (row.words.replace(/^\d+% left,?\s*/, "") || null);
   const lower = (part: string) => part.charAt(0).toLowerCase() + part.slice(1);
   const line = [low ? "low" : null, when && lower(when), sessions].filter(Boolean).join(" · ");
   return line.charAt(0).toUpperCase() + line.slice(1);
@@ -196,6 +199,7 @@ export function HomeRunway({ accounts, quota, quotaKnown = true, sessions }: { a
                   {row.resets && <span className="text-muted">{row.resets}</span>}
                 </span>
               ) : row.left !== null ? (
+                // F-rc3c-1: an old reading says how old after its reset.
                 <span className="text-label text-muted" data-testid="home-runway-facts">{runwayFacts(row, live)}</span>
               ) : (
                 <span className="flex flex-wrap items-baseline gap-x-2 text-label text-muted">

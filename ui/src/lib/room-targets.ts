@@ -25,6 +25,9 @@ export interface TargetRoom {
   resetsAtMs: number | null;
   /** A used-up window its credits carry on past (0.3.2). */
   credits: CreditsCover | null;
+  /** How old its reading is, when it's old ("as of 2 days ago",
+   * F-rc3c-1): in `words`; after `resets` where they stand alone. */
+  age?: string | null;
   /** D-62: whose room it is, its Account's name; unset or null for a
    * folder no Account lists (or before the accounts are read), which
    * keeps its own. */
@@ -39,7 +42,7 @@ export function roomOfProfile(profileId: string, accounts: SubscriptionInfo[] | 
   const account = accounts ? accountOfProfile(accounts, profileId) : undefined;
   const display = account ? accountDisplay(account, displays) : displays.find((d) => d.account === profileId);
   const run = runwayOf(display);
-  return { left: run.left, words: run.words, resets: run.resets, resetsAtMs: run.resetsAtMs ?? null, credits: run.credits ?? null, account: account?.account_id ? accountName(account) : null };
+  return { left: run.left, words: run.words, resets: run.resets, resetsAtMs: run.resetsAtMs ?? null, credits: run.credits ?? null, age: run.age ?? null, account: account?.account_id ? accountName(account) : null };
 }
 
 /** AJ-E3210 (D-135): the room of the Account desktop App `appId` is on

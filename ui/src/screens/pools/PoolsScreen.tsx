@@ -29,6 +29,7 @@ import { sessionState } from "../../lib/rail-items";
 import { NewPool } from "./NewPool";
 import { miniTeam, PoolMini } from "./PoolMini";
 import { DeletePool, PoolCard, RenamePool } from "./PoolCard";
+import { useVisitOrder } from "./visit-order";
 
 /** X2: how many of the first cards' pools are read ahead, and when. */
 const WARM_FIRST = 4;
@@ -93,7 +94,10 @@ function SkeletonCards(): JSX.Element {
 }
 
 /** A pool member's name on its card's thumbnail: a session's title, an
- * App's name. */
+ * App's name. A session is looked up among every session the app knows,
+ * ended ones too, as the pool's canvas names it (F-rc3f-6: once the
+ * Lead's session ended, the card, which looked among the pool's open
+ * sessions only, drew it as "sess-731993261005 · Lead"). */
 function memberNameOf(apps: readonly AppModel[] | null): (ref: string, sessions: readonly InstanceInfo[]) => string {
   return (ref, sessions) => {
     if (ref.startsWith("session:")) {
@@ -139,7 +143,8 @@ export function PoolsScreen({ sessions, projects, accounts }: { sessions: Instan
   const asksOf = (poolId: string) => poolNeedCount(poolId, messageNeeds, taskNeeds, byPool.get(poolId) ?? []);
   const asks = new Map((pools?.pools ?? []).map((pool) => [pool.id, asksOf(pool.id)]));
   const recent = new Map([...byPool].map(([id, list]) => [id, Math.max(0, ...list.map((row) => row.last_activity_ms ?? row.started_at_ms))]));
-  const ordered = cardOrder(pools?.pools ?? [], open, asks, recent);
+  // F-rc3g-14: in that order when the screen opens, then held for the visit.
+  const ordered = useVisitOrder(cardOrder(pools?.pools ?? [], open, asks, recent), pools !== null);
   const [renaming, setRenaming] = useState<PoolInfo | null>(null);
   const [deleting, setDeleting] = useState<PoolInfo | null>(null);
   const cardHost = { renamePool: setRenaming, deletePool: setDeleting };
@@ -210,15 +215,17 @@ export function PoolsScreen({ sessions, projects, accounts }: { sessions: Instan
             {visible.map((pool) => {
               const members = byPool.get(pool.id) ?? [];
               const preview = previews.get(pool.id);
-              const team = miniTeam(teams.get(pool.id) ?? null, members.slice(0, 24), (id) => roleOf(pools, id, pool.id), { apps: apps ?? [], sessions: members }, (ref) => memberName(ref, members));
-              const project = pool.project_id ? projects.find((row) => row.id === pool.project_id) : undefined;
+              const team = miniTeam(teams.get(pool.id) ?? null, members.slice(0, 24), (id) => roleOf(pools, id, pool.id), { apps: apps ?? [], sessions }, (ref) => memberName(ref, sessions));
               return (
                 <PoolCard key={pool.id} pool={pool} local={cardHost} asks={asks.get(pool.id) ?? 0} onOpen={() => host.openPool?.(pool.id)}>
                   <PoolMini lead={team.lead} members={team.members} known={teams.has(pool.id)} />
                   <span className="flex min-w-0 items-baseline gap-2 pr-6">
-                    <span className="truncate text-body font-semibold text-ink" data-testid="pool-card-name">{pool.kind === "default" ? (project?.name ?? "No project") : pool.name}</span>
+                    {/* F-rc3g-7: a pool by its one name, as its page, a session's
+                        Pools tab and the agents' tools say it ("web · all
+                        sessions (in lab)"), never "web" alone. */}
+                    <span className="truncate text-body font-semibold text-ink" data-testid="pool-card-name">{pool.name}</span>
                     <span className="min-w-0 truncate text-label text-muted" data-testid="pool-card-scope">
-                      {pool.kind === "default" ? (pool.project_id ? "(project pool)" : "sessions with no project") : scopeLabel(pool, projects)}
+                      {pool.kind === "default" ? (pool.project_id ? "Project pool" : "") : scopeLabel(pool, projects)}
                     </span>
                   </span>
                   <span className={"text-meta " + ((asks.get(pool.id) ?? 0) > 0 ? "text-warning" : "text-muted")} data-testid="pool-card-words">

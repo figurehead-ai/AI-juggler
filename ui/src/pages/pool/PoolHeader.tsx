@@ -25,20 +25,11 @@ import { SELECTED } from "../../components/controls/selected";
 export type Panel = "tasks" | "messages" | null;
 export type Mode = "canvas" | "list";
 
-/** The pool whose name is edited as soon as its page opens (New pool). */
-let nameNext: string | null = null;
-export function editNameOf(poolId: string): void {
-  nameNext = poolId;
-}
-
 function Name({ pool }: { pool: PoolInfo }): JSX.Element {
-  const [editing, setEditing] = useState(() => nameNext === pool.id);
+  const [editing, setEditing] = useState(false);
   const [words, setWords] = useState(pool.name);
   const [error, setError] = useState<string | null>(null);
   const input = useRef<HTMLInputElement | null>(null);
-  useEffect(() => {
-    if (nameNext === pool.id) nameNext = null;
-  }, [pool.id]);
   useEffect(() => {
     if (editing) input.current?.select();
   }, [editing]);

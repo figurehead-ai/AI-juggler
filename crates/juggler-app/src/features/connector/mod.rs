@@ -360,11 +360,7 @@ pub fn preview_impl(state: &Arc<AppState>, app_id: &str) -> AppResult<ConnectorP
 /// error (what was written is taken back).
 pub fn add_impl(state: &Arc<AppState>, app_id: &str) -> AppResult<ConnectorStatusInfo> {
     let target = offered(state, app_id)?;
-    let plan = plan_for(state, &target)?;
-    let _writing = WRITING
-        .lock()
-        .unwrap_or_else(std::sync::PoisonError::into_inner);
-    let mut records = load(state);
+    let (plan, _writing, mut records) = writing(state, &target)?;
     let record = connector_files::add(&target.config_dir, &plan, records.get(app_id))
         .map_err(|error| AppError::Refused(error.to_string()))?;
     records.insert(app_id.to_owned(), record);
@@ -400,13 +396,26 @@ pub fn remove_anyway_impl(state: &Arc<AppState>, app_id: &str) -> AppResult<Conn
     remove_as(state, app_id, true)
 }
 
-fn remove_as(state: &Arc<AppState>, app_id: &str, anyway: bool) -> AppResult<ConnectorRemovalInfo> {
-    let target = target(state, app_id)?;
-    let plan = plan_for(state, &target)?;
-    let _writing = WRITING
+/// What a write to `target` starts from: its plan, then the one writer
+/// (held while the guard lives) and the records it reads under it.
+fn writing(
+    state: &Arc<AppState>,
+    target: &Target,
+) -> AppResult<(
+    ConnectorPlan,
+    std::sync::MutexGuard<'static, ()>,
+    BTreeMap<String, ConnectorRecord>,
+)> {
+    let plan = plan_for(state, target)?;
+    let guard = WRITING
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
-    let mut records = load(state);
+    Ok((plan, guard, load(state)))
+}
+
+fn remove_as(state: &Arc<AppState>, app_id: &str, anyway: bool) -> AppResult<ConnectorRemovalInfo> {
+    let target = target(state, app_id)?;
+    let (plan, _writing, mut records) = writing(state, &target)?;
     let record = records.get(app_id).cloned().ok_or_else(|| {
         AppError::Refused(
             "AI Juggler has no record of adding its connector to this app, so it takes nothing out"

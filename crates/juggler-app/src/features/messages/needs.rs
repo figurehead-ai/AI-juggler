@@ -91,6 +91,18 @@ fn wants_to_message(sender: &str, to: &[String]) -> String {
     }
 }
 
+/// A thread's count against its pool's [`super::delivery::hop_cap`], as
+/// its thread view says it too (F-rc3g-10): "2 of 2 agent messages in a
+/// row without you", or for the one past it "3 agent messages in a row
+/// without you, over this pool's limit of 2".
+pub(crate) fn hops_words(hop: u32, cap: u32) -> String {
+    if hop <= cap {
+        format!("{hop} of {cap} agent messages in a row without you")
+    } else {
+        format!("{hop} agent messages in a row without you, over this pool's limit of {cap}")
+    }
+}
+
 /// The few words that say why a held ask waits on the user, as its
 /// Needs you line's second line has them ("Ask first in «Team»").
 fn reason_words(deliver: bool, talk: bool, watched: bool) -> &'static str {
@@ -191,9 +203,12 @@ pub fn needs(state: &Arc<AppState>) -> AppResult<Vec<MessageNeedInfo>> {
             title: ask.summary,
             detail: if deliver {
                 format!(
-                    "«{}» · {} agent messages in a row without you",
+                    "«{}» · {}",
                     crate::features::tasks::words::name_tasks(&storage, &message.subject),
-                    message.hop
+                    hops_words(
+                        message.hop,
+                        super::delivery::hop_cap(&storage, &message.pool_id)
+                    )
                 )
             } else if watched {
                 format!(
@@ -517,13 +532,7 @@ fn settle(
             }
             hold_watched(&repo, ask, message, &waits)?;
         }
-        (true, "deny") => repo.log(
-            &message.pool_id,
-            SENDER_USER,
-            "not_delivered",
-            &message.id,
-            None,
-        )?,
+        (true, "deny") => stop_the_chain(&repo, message)?,
         (true, _) => {
             repo.reset_hop(&message.thread_id)?;
             repo.set_thread_state(&message.thread_id, ThreadState::Open, None, SENDER_USER)?;
@@ -531,6 +540,60 @@ fn settle(
     }
     Ok(waits.into_iter().map(|(_, name)| name).collect())
 }
+
+/// "Don't deliver" on a chain paused at its pool's hop limit (the rc3h
+/// walk: nothing changed. The thread stayed "Paused", the message "Waiting
+/// in its inbox", and Needs you swapped the card for two that asked again:
+/// "Resume" the thread, and "Deliver" the very message refused). The
+/// person ended the chain there: the message's copies no session has read
+/// yet are not sent, any other ask to deliver it goes, and the thread
+/// stops, so agents can't write in it until the person resumes it. Nothing
+/// about it waits on them any more.
+fn stop_the_chain(repo: &MessagesRepo<'_>, message: &Message) -> AppResult<()> {
+    let copies: Vec<String> = repo
+        .recipients(&message.id)?
+        .into_iter()
+        .map(|r| r.recipient_ref)
+        .filter(|r| r != SENDER_USER)
+        .collect();
+    let refused = repo.set_state(
+        std::slice::from_ref(&message.id),
+        &copies,
+        &[RecipientState::Unread],
+        RecipientState::Refused,
+        Some(SENDER_USER),
+        SENDER_USER,
+        NOT_DELIVERED,
+    )?;
+    if refused == 0 {
+        repo.log(
+            &message.pool_id,
+            SENDER_USER,
+            NOT_DELIVERED,
+            &message.id,
+            None,
+        )?;
+    }
+    for other in repo.open_asks(0, 200)? {
+        if other.object_ref == message.id && other.action == AgentAction::DeliverToSession.as_str()
+        {
+            repo.close_ask(&other.id, "deny")?;
+        }
+    }
+    repo.set_thread_state(
+        &message.thread_id,
+        ThreadState::Stopped,
+        Some(&format!(
+            "you didn't deliver «{}»'s message past this pool's hop limit",
+            message.sender_name
+        )),
+        SENDER_USER,
+    )?;
+    Ok(())
+}
+
+/// The pool log's word for a hop-limit delivery the person refused.
+const NOT_DELIVERED: &str = "not_delivered";
 
 /// The Watched refs (`conversation:folder/id`) AI Juggler's own sessions
 /// have continued: those read their messages now.
@@ -642,7 +705,21 @@ fn go_on(state: &Arc<AppState>, deliver: bool, message: &Message) -> AppResult<(
 
 #[cfg(test)]
 mod line_tests {
-    use super::{brief, reason_words, wants_to_message};
+    use super::{brief, hops_words, reason_words, wants_to_message};
+
+    /// F-rc3g-10: the count reads against the pool's limit, and the one
+    /// past it (the one the person is asked about) says it's over.
+    #[test]
+    fn a_chains_count_reads_against_its_pools_limit() {
+        assert_eq!(
+            hops_words(2, 2),
+            "2 of 2 agent messages in a row without you"
+        );
+        assert_eq!(
+            hops_words(3, 2),
+            "3 agent messages in a row without you, over this pool's limit of 2"
+        );
+    }
 
     /// The rc19 walk: the rail's row was cut at "wants t…" by the
     /// sender's whole name and start time.

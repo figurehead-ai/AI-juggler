@@ -10,6 +10,11 @@ pool.
 Putting a session in a pool, giving it a role or deleting the pool never
 starts, stops or types into it.
 
+The **Pools** screen shows each pool as a card: the ones waiting on you
+first, then the most recently active, then the rest. The cards stay where
+they are while you're on the screen, so a click lands on the pool you
+aimed at; a pool made meanwhile goes at the end.
+
 ## Each project's own pool
 
 Every project has its own pool, named after it: **shop · all sessions**,
@@ -98,7 +103,7 @@ who's in make a working pool.
    other**, each a card with a drawing. It's how they work together
    through AI Juggler; what each may change in your files stays with its
    own app's settings. Under **Optional**, **Keep this pool's work
-   apart** seals it.
+   apart** seals it (see [Keep a project apart](#keep-a-project-apart)).
 
 **Finish**
 
@@ -152,6 +157,41 @@ Pool** (greyed until then): Open now shows your sessions under their
 pools, and a pool's **Open** goes to its page. The list keeps the grouping
 you chose; making a pool doesn't change it. Home stays the whole desktop:
 a pool's own view is its page.
+
+## Keep a project apart
+
+For a client's project, say. **Keep it apart…**, on the project's menu or
+its page's **Agents** card, opens one sheet that says what keeping it apart
+does:
+
+- **In this pool only**: every session in the project, now and later, is
+  in a pool of its own and in no other pool of yours.
+- **Nothing in or out**: no messages, notes or tasks pass between it and
+  your other pools through AI Juggler, and it can't be linked to another
+  pool.
+- **Still a team inside**: its agents can still message each other and
+  share notes and tasks (they may **Work together**).
+
+It doesn't tie the project to one account: sessions there can still start
+on any of your apps. It starts or stops nothing, and what each agent may
+change in your files stays with its own app's settings. Claude Code
+sessions AI Juggler starts there also leave Claude's own messages between
+sessions, from their next start, and a switch into or out of the pool asks
+first.
+
+**Keep apart** makes the pool at once, as New pool's **Sealed client
+project** would with nothing changed, named after the project: **web ·
+kept apart** (with a number when a pool already has that name), every
+session in the project as a Member, and **sealed** on its header. A
+message says so, with **Open it**. **Customise…** opens New pool on the
+same start and name instead, to change any of it first. Once a project is
+kept apart, **Keep it apart…** opens its pool, and its Agents card says
+**Kept apart: yes** (in «web · kept apart»), with **Open it ›**.
+
+To undo it, open the pool: **More settings › Kept apart › Unseal…** says
+which sessions go back into the pools they were in, then does it. Any pool
+you make can be kept apart the same way: in New pool, **Keep this pool's
+work apart** under **On their own**.
 
 ## A pool's page
 
@@ -353,7 +393,9 @@ it has any.
   sessions AI Juggler runs. Your message starts the thread's count of
   agent messages in a row from 0.
 - **Pause** and **Stop** on a thread hold it, or end it for agents;
-  **Resume** opens it again from 0. **Pause this pool's messages** holds the
+  **Resume** opens it again from 0. On a chain paused at the hop limit,
+  **Resume** doesn't send the message it paused on: that message waits for
+  its **Deliver**, as any other does. **Pause this pool's messages** holds the
   whole pool.
 
 ### What waits on you
@@ -364,7 +406,10 @@ Home's **Needs you** shows, beside your sessions' questions:
   answer: **Allow once**, **Always allow in this pool** (from the second
   time) or **Deny**. Keys 1–9 pick an answer, Enter the first;
 - a chain that reached the hop limit: **Deliver** sends that message and
-  starts the count again; a rule never lifts the hop limit;
+  starts the count again; **Don't deliver** ends the chain there: the
+  message isn't sent and the thread stops (its **Resume** opens it again
+  from 0). The same two answers are on the message in its thread; a rule
+  never lifts the hop limit;
 - a question an agent asked you (**Reply**), and messages waiting for a
   session AI Juggler runs (**Deliver**: one click for all of them);
 - a paused thread or pool (**Resume**).
@@ -373,6 +418,11 @@ Home's **Needs you** shows, beside your sessions' questions:
 
 - A thread takes at most 6 agent messages in a row without you; then it
   pauses until you resume it.
+- An open thread counts them against the number after which you're asked:
+  the pool's **Stop and ask you after** when the pool puts messages into
+  sessions by itself, never more than 6. "2 of 2 agent messages in a row
+  without you" is the last before you're asked; the agents read the same
+  count ("hop 2 of 2").
 - Each session sends at most 10 messages a minute and 100 a day, in all
   its pools together (a session in two pools gets one limit, not two),
   and the same message twice within 10 minutes goes once.

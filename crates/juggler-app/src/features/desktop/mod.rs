@@ -95,6 +95,7 @@ pub fn desktop_launch_arc(state: &Arc<AppState>, account_id: &str) -> AppResult<
             conversation: None,
             transcript_ref: None,
             origin: "new",
+            continues: None,
         },
         &launch,
     )?;

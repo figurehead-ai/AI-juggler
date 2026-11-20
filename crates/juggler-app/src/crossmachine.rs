@@ -803,6 +803,12 @@ pub async fn fleet_switch_execute_impl(
     let ids = stage_edge(&state, &request, &planned, &bundle.native_id)?;
     record_origin(&state, &request, &ids);
     let (_, account, _, _) = source_of(&state, &request.session_id)?;
+    // F-rc3g-3: the name the person gave it, and its pin, go with it.
+    let (label, pinned) = crate::commands::lock_storage_arc(&state)?
+        .sessions()
+        .marks()?
+        .remove(request.session_id.as_str())
+        .unwrap_or_default();
     let take = proto::TakeHandover {
         recipe_id: request.recipe_id.clone(),
         project_id: planned.project_id.clone(),
@@ -816,6 +822,8 @@ pub async fn fleet_switch_execute_impl(
         from_account_label: account.label,
         from_native_id: bundle.native_id.clone(),
         fidelity_shown: planned.target.fidelity.clone(),
+        from_session_label: label.unwrap_or_default(),
+        from_session_pinned: pinned.is_some(),
     };
     let build = move |total| {
         proto::control_command::Action::TakeHandover(proto::TakeHandover {

@@ -64,6 +64,25 @@ pub(crate) struct NewSession<'a> {
     pub transcript_ref: Option<TranscriptRef>,
     /// How it came to be, for usage statistics (`new`, `resume`, …).
     pub origin: &'static str,
+    /// Whose work it goes on with under a new id (a hand-over, a switch,
+    /// a resume, a start that fell back to its terminal): the name the
+    /// person gave that one and its pin are this one's, written with its
+    /// row, so no list shows it unnamed (F-rc3g-3). `None` for new work.
+    pub continues: Option<GoesOn<'a>>,
+}
+
+/// Whose work a new session goes on with (F-rc3g-3).
+#[derive(Clone, Copy, Debug)]
+pub(crate) enum GoesOn<'a> {
+    /// A session of this Mac's: its name and pin carry over.
+    From(&'a SessionId),
+    /// A session on another Mac: the name and pin it sent.
+    Sent {
+        /// The name the person gave it.
+        label: Option<&'a str>,
+        /// It was pinned.
+        pinned: bool,
+    },
 }
 
 impl NewSession<'_> {
@@ -85,6 +104,9 @@ pub(crate) enum Runs<'a> {
         profile: &'a Profile,
         /// The tool's conversation to continue, when resuming.
         resume: Option<String>,
+        /// The id a new conversation takes, where the tool lets the caller
+        /// name it (`None`: a new one).
+        fresh_id: Option<String>,
         /// The user's choice for this session, when they made one.
         requested: Option<Runtime>,
         /// The terminal launch, or why the tool has none (AJ-E1605 R3).
@@ -219,6 +241,7 @@ pub(crate) fn start_session(
         Runs::Planned {
             profile,
             resume,
+            fresh_id,
             requested,
             terminal,
             history,
@@ -229,6 +252,7 @@ pub(crate) fn start_session(
             &crate::features::runtime::launch::Plan {
                 profile,
                 resume,
+                fresh_id,
                 requested,
                 history,
             },
@@ -451,7 +475,9 @@ pub fn launched_spec(
 
 /// Step 1: `row` as a `Starting` session of `kind`. A session resumed
 /// under its own id (its turn cut off when AI Juggler stopped, AJ-E2307)
-/// has its row already: it is starting again.
+/// has its row already: it is starting again (its name stays). A new row
+/// that goes on with another session's work takes the name the person
+/// gave that one and its pin (`continues`).
 ///
 /// # Errors
 ///
@@ -491,6 +517,13 @@ pub(crate) fn write_starting(
         window: None,
         transcript_ref: row.transcript_ref.clone(),
     })?;
+    match row.continues {
+        Some(GoesOn::From(from)) => storage.sessions().carry_marks(from, row.id)?,
+        Some(GoesOn::Sent { label, pinned }) => {
+            storage.sessions().give_marks(row.id, label, pinned)?;
+        }
+        None => {}
+    }
     Ok(())
 }
 
@@ -584,6 +617,7 @@ mod tests {
             conversation: None,
             transcript_ref: None,
             origin: "new",
+            continues: None,
         }
     }
 

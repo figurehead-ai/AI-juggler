@@ -331,6 +331,33 @@ export function appWhyWords(why: AppWhy, after?: string | null): string | null {
   }
 }
 
+/** F-rc3f-1: New session chose it ("Suggested" beside it): not the
+ * person's (picked, kept from the start before) nor their default. */
+export function isSuggestion(why: AppWhy): boolean {
+  return !USERS_OWN.has(why) || why === "own-account";
+}
+
+/** F-rc3f-1: the whys that are a folder's own: named, never taken, when
+ * the person's pick is carried into a folder whose own is another. */
+export const FOLDER_OWN: ReadonlySet<AppWhy> = new Set<AppWhy>(["project-default", "own-account", "last-here", "used-here"]);
+
+/** The folder's own App, beside the one kept ("Claude Code CLI · Lab is
+ * the only account used in team"); `null`: a why not the folder's. */
+export function folderOwnWords(why: AppWhy, folder: string, app: string): string | null {
+  switch (why) {
+    case "project-default":
+      return `${folder}'s default is ${app}`;
+    case "own-account":
+      return `${app} is the only account used in ${folder}`;
+    case "last-here":
+      return `${app} is the last you used in ${folder}`;
+    case "used-here":
+      return `${app} was used in ${folder} before`;
+    default:
+      return null;
+  }
+}
+
 /** D-96 F: the project "Start another" offers after a start: the next
  * the user works in, by the order New session opens on (worked in last,
  * else used by the tool's history), never one started in this run
@@ -353,8 +380,9 @@ export function folderGroups(projects: readonly ProjectInfo[]): { label: string;
   ];
 }
 
-/** The App picker's groups before All: Suggested (the choice, and the
- * most room when that's another), then the Apps used in this project. */
+/** The App picker's groups before All: Suggested (the folder's own
+ * suggestion, and the most room when that's another), then the Apps used
+ * in this project. */
 export function appGroups(choice: AppChoice | null, ranked: ReturnType<typeof appsByRoom>, project: ProjectInfo | null): { label: string; values: string[] }[] {
   const suggested = [choice?.recipe.account_id, ranked.find((row) => row.suggested)?.recipe.account_id].filter((id, at, all): id is string => !!id && all.indexOf(id) === at);
   const used = [...(project?.accounts_used ?? [])]

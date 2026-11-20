@@ -64,7 +64,7 @@ export function coveredSessions(draft: Pick<Draft, "every" | "projects" | "membe
 /** A card's words under its title: its tool and kind ("Claude Code CLI ·
  * Terminal"; the tool left out where it is the title), then its profile
  * where the title isn't it. */
-export function appCardLines(title: string, app: AppModel): { sub: string; profile: string | null } {
+function appCardLines(title: string, app: AppModel): { sub: string; profile: string | null } {
   const sub = [app.app === title ? null : app.app, APP_KIND_WORDS[app.kind]].filter(Boolean).join(" · ");
   return { sub, profile: app.profile && app.profile !== title ? app.profile : null };
 }

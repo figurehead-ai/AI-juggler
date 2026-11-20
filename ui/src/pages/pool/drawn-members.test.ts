@@ -29,8 +29,14 @@ describe("the canvas's members", () => {
     // At 50 or fewer, each open session is drawn as before.
     const small = pool.slice(0, GROUP_PAST);
     expect(drawnMembers(small, new Map())).toHaveLength(GROUP_PAST);
-    // The pool's total decides, not the page read so far.
+    // The pool's open sessions decide, not the page read so far.
     expect(drawnMembers(small, new Map(), 120).map((m) => m.id)).toEqual(["named", "watched-one"]);
+  });
+
+  it("F-rc3g-8: ended sessions aren't drawn, so they never group the open ones (88 in a pool, 85 ended, drew none of its 3 open)", () => {
+    const pool = [...Array.from({ length: 3 }, (_, n) => row(`open-${n}`, "running", "everyone")), ...Array.from({ length: 85 }, (_, n) => row(`ended-${n}`, "finished", "everyone"))];
+    expect(drawnMembers(pool, new Map()).map((m) => m.id)).toEqual(["open-0", "open-1", "open-2"]);
+    expect(drawnMembers(pool, new Map(), 3)).toHaveLength(3);
   });
 
   it("leaves a session a sealed pool holds out of this one to the List view", () => {

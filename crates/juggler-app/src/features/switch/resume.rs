@@ -138,6 +138,10 @@ pub(crate) struct Relaunch<'a> {
     pub account: &'a juggler_core::model::Account,
     pub profile: &'a juggler_core::model::Profile,
     pub from: &'a juggler_core::model::InstanceRecord,
+    /// The session whose work it goes on with: the name the person gave
+    /// it and its pin carry over (F-rc3g-3). `from`, unless the work comes
+    /// back from another (a switch back, an undo: the session it was on).
+    pub goes_on: &'a SessionId,
     pub mode: LaunchMode,
     /// The conversation's native id.
     pub conversation: String,
@@ -157,6 +161,7 @@ impl<'a> Relaunch<'a> {
             account,
             profile,
             from,
+            goes_on: &from.id,
             mode: LaunchMode::Resume {
                 session_id: native_id.clone(),
                 delta_prompt: None,
@@ -200,6 +205,7 @@ pub(crate) fn relaunch(state: &Arc<AppState>, r: &Relaunch<'_>) -> AppResult<(Se
             )),
             transcript_ref: r.from.transcript_ref.clone(),
             origin: r.origin,
+            continues: Some(crate::features::sessions::spawn::GoesOn::From(r.goes_on)),
         },
         crate::features::sessions::spawn::Runs::Terminal(spec),
     )?;

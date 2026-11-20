@@ -83,7 +83,7 @@ export const OWN_LEVELS: readonly OwnLevelWords[] = [
   },
 ];
 
-export const ownLevel = (level: string | null | undefined): OwnLevelWords => OWN_LEVELS.find((one) => one.id === level) ?? OWN_LEVELS[1]!;
+const ownLevel = (level: string | null | undefined): OwnLevelWords => OWN_LEVELS.find((one) => one.id === level) ?? OWN_LEVELS[1]!;
 
 /** A stored level word as one of the three (Work together otherwise). */
 export const asOwnLevel = (level: string | null | undefined): OwnLevel => ownLevel(level).id;

@@ -42,7 +42,15 @@ pub enum Stop {
     ByYou,
     /// A switch stopped it (`AppState::switch_stops`).
     BySwitch,
+    /// AI Juggler stopped it because its start without a terminal failed
+    /// (`AppState::failed_starts`): its conversation went to its terminal.
+    FailedStart,
 }
+
+/// Beside the ending of a session stopped because its start without a
+/// terminal failed (F-rc3f-3: it read "stopped by you").
+pub const FAILED_START_WORDS: &str =
+    "it couldn't start without a terminal, so AI Juggler stopped it";
 
 /// [`apply_lifecycle_event`] with who stopped it: a switch's stop ends it
 /// "stopped by the switch", never "stopped by you" (the rc27 P1 walk).
@@ -143,6 +151,7 @@ pub fn ending_of_exit(
     match stop {
         Stop::ByYou => return Some((Ending::StoppedByYou, None)),
         Stop::BySwitch => return Some((Ending::Switched, None)),
+        Stop::FailedStart => return Some((Ending::Error, Some(FAILED_START_WORDS.to_owned()))),
         Stop::None => {}
     }
     Some(match kind {

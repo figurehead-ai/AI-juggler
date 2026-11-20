@@ -130,8 +130,20 @@ fn take_work(
         ),
         _ => return Err(refuse("malformed", "Unknown handover mechanism.")),
     };
+    // F-rc3g-3: the name and pin the person gave it there.
+    let sent = crate::features::sessions::spawn::GoesOn::Sent {
+        label: Some(take.from_session_label.as_str()),
+        pinned: take.from_session_pinned,
+    };
     let (session, _pid) = launch_here(
-        state, &profile, &account, &project, &mode, transcript, "handover",
+        state,
+        &profile,
+        &account,
+        &project,
+        &mode,
+        transcript,
+        "handover",
+        Some(sent),
     )
     .map_err(launch_refusal)?;
     record_taken(
@@ -267,7 +279,12 @@ fn prime_prompt(
 }
 
 /// Launches `profile` here in `project` with `mode` and tracks it as an
-/// Instance (the same bookkeeping as a local launch).
+/// Instance (the same bookkeeping as a local launch); `continues`: whose
+/// work it goes on with, whose name and pin it takes (F-rc3g-3).
+#[allow(
+    clippy::too_many_arguments,
+    reason = "a launch's own inputs, each its own"
+)]
 pub(crate) fn launch_here(
     state: &Arc<AppState>,
     profile: &juggler_core::model::LaunchRecipe,
@@ -276,6 +293,7 @@ pub(crate) fn launch_here(
     mode: &juggler_adapter::LaunchMode,
     transcript: Option<TranscriptRef>,
     moment: &str,
+    continues: Option<crate::features::sessions::spawn::GoesOn<'_>>,
 ) -> AppResult<(SessionId, u32)> {
     let launch = Launch {
         profile,
@@ -285,6 +303,7 @@ pub(crate) fn launch_here(
         transcript,
         moment,
         history: None,
+        continues,
     };
     launch_with(state, launch)
 }
@@ -312,6 +331,7 @@ pub(crate) fn import_here(
         transcript: None,
         moment,
         history: Some(history),
+        continues: None,
     };
     launch_with(state, launch)
 }
@@ -326,6 +346,8 @@ struct Launch<'a> {
     transcript: Option<TranscriptRef>,
     moment: &'a str,
     history: Option<juggler_adapter::runtime::ImportedHistory>,
+    /// Whose work it goes on with, whose name and pin it takes (F-rc3g-3).
+    continues: Option<crate::features::sessions::spawn::GoesOn<'a>>,
 }
 
 fn launch_with(state: &Arc<AppState>, launch: Launch<'_>) -> AppResult<(SessionId, u32)> {
@@ -337,6 +359,7 @@ fn launch_with(state: &Arc<AppState>, launch: Launch<'_>) -> AppResult<(SessionI
         transcript,
         moment,
         history,
+        continues,
     } = launch;
     // The profile's model goes in as `claude --model` (the adapter's
     // launch spec); settings.json is never rewritten (ADR-0018 §3).
@@ -391,6 +414,7 @@ fn launch_with(state: &Arc<AppState>, launch: Launch<'_>) -> AppResult<(SessionI
                 .map(ConversationId::new),
             transcript_ref: transcript,
             origin: "switch",
+            continues,
         },
         match (spec, history) {
             (Ok(spec), None) => crate::features::sessions::spawn::Runs::Terminal(spec),
@@ -398,6 +422,7 @@ fn launch_with(state: &Arc<AppState>, launch: Launch<'_>) -> AppResult<(SessionI
             (terminal, history) => crate::features::sessions::spawn::Runs::Planned {
                 profile,
                 resume,
+                fresh_id: None,
                 requested: Some(juggler_adapter::Runtime::Driven),
                 terminal,
                 history,

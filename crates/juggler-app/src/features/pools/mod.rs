@@ -26,6 +26,7 @@ pub mod dto;
 pub mod lead_next;
 pub mod members;
 pub mod model;
+pub mod said;
 pub mod sign_in;
 pub mod switching;
 pub mod watched;

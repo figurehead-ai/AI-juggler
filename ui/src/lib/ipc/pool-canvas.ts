@@ -34,6 +34,9 @@ export const EDGE_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
 export const MOST_NODES = 200;
 /** The most pools one cards read names (`MOST_PREVIEWS`). */
 export const MOST_PREVIEWS = 60;
+/** Lines of the live stream one read holds, newest first (the backend's
+ * `STREAM_LINES`). */
+export const STREAM_LINES = 30;
 
 /** What the preview adds to a pool's canvas. */
 export type CanvasSeed = Partial<Pick<PoolCanvasInfo, "edges" | "asks" | "stream" | "positions" | "anchors">> & { moving?: number };

@@ -102,6 +102,12 @@ export function poolIdsOf(pools: PoolsInfo | null, session: InstanceInfo): strin
   return rows.length > 0 ? rows.map((row) => row.pool_id) : [defaultPoolIdOf(session.project_id)];
 }
 
+/** A pool's sessions open now, as its page's header counts them (its
+ * canvas and its Now say the same, F-rc3g-8). */
+export function openInPool(pools: PoolsInfo | null, sessions: readonly InstanceInfo[], poolId: string): InstanceInfo[] {
+  return sessions.filter((session) => sessionState(session).state !== "ended" && poolIdsOf(pools, session).includes(poolId));
+}
+
 /** The pool a session is in: the place the pools name, else its
  * project's default pool. */
 export function poolIdOf(pools: PoolsInfo | null, session: InstanceInfo): string {
@@ -361,10 +367,6 @@ export const CLAUDE_CHANNEL_NOTE = "Claude's own messages between sessions aren'
 /** AJ-E3006 R2: what Continue in AI Juggler does to a Watched member, said
  * beside the button: a new process, the pool's tools, the same pool. */
 export const CONTINUE_WATCHED = "Starts a new process here that resumes it, with the pool's tools. It stays in this pool.";
-
-/** The rc19 walk: the canvas node's Continue said it only in a tooltip, so
- * nothing on screen said a new process starts. Its short line, always shown. */
-export const CONTINUE_WATCHED_SHORT = "Starts a new process here";
 
 /** Said once Continue in AI Juggler has started its session. */
 export const CONTINUED_HERE = "Continued in AI Juggler: a new process resumes it here.";

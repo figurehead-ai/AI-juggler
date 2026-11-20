@@ -31,8 +31,13 @@ export interface MiniMember {
 /** A member's name by its ref (a session's title, an App's name). */
 export type MiniName = (ref: string) => string;
 
-/** What a member is called when nothing names it. */
-const fallbackName = (ref: string, logo: LogoSpec): string => (ref === "all" ? "Everyone" : logo.kind === "tool" ? logo.name || "A session" : ref.slice(ref.indexOf(":") + 1));
+/** What a member of each kind is called when nothing names it. */
+const KIND_WORDS: Record<string, string> = { app: "An App", account: "An Account", tool: "A tool", mac: "A computer" };
+
+/** What a member is called when nothing names it: its tool's name, else
+ * a word for its kind, never its id (F-rc3f-6: "sess-731993261005 ·
+ * Lead" on a Pools card). */
+const fallbackName = (ref: string, logo: LogoSpec): string => (ref === "all" ? "Everyone" : logo.kind === "tool" && logo.name ? logo.name : (KIND_WORDS[ref.slice(0, ref.indexOf(":"))] ?? "A session"));
 
 /** Sessions open now as members: alike tools together (by their App's
  * name), a lead apart. */
@@ -105,7 +110,7 @@ function Chip({ member }: { member: MiniMember }): JSX.Element {
 
 /** At most this many members drawn as cards (a logo, its name and its
  * line); more, as logos with counts. */
-export const MINI_CARDS = 2;
+const MINI_CARDS = 2;
 
 /** A member's card's second line: its role, or how many are open. */
 const lineOf = (member: MiniMember): string => (member.role === "lead" ? roleCard("lead").label : member.count > 1 ? `${member.count} open · ${roleCard(member.role).label}` : roleCard(member.role).label);

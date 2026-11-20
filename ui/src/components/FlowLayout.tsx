@@ -82,7 +82,7 @@ export function FlowLayout({
   );
 }
 
-export type FlowStepState = "done" | "current" | "todo";
+type FlowStepState = "done" | "current" | "todo";
 
 export interface FlowStep {
   id: string;

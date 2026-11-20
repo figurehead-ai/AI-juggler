@@ -22,13 +22,13 @@
 import { useEffect, useRef, useState, type JSX, type ReactNode } from "react";
 
 import { Button } from "../../../components/primitives";
-import { errorText } from "../../../lib/bridge";
 import { CONNECTOR, CONNECTOR_GUIDE, changedWords, connectorChanged, previewSentence, shortPath, statusLine, useConnectorStatus } from "../../../lib/connector";
 import { Disclosure } from "../../../components/controls";
 import { connectorAdd, connectorPreview, connectorRemove, connectorRemoveAnyway, connectorStatus, type ConnectorPreviewInfo, type ConnectorRemovalInfo, type ConnectorStatusInfo } from "../../../lib/ipc/connector";
 import { trustOpen } from "../../../lib/ipc/trust";
 import { useAgentBridge, type AgentBridgeInfo } from "../../../lib/ipc/agent-bridge";
 import { useReveal } from "../../../lib/reveal";
+import { useBusy } from "../../../lib/use-busy";
 import { ConnectorFiles, RemoveFiles } from "./ConnectorFiles";
 import { ConnectorGuide } from "./ConnectorGuide";
 import { ConnectorRowState } from "./ConnectorRow";
@@ -110,21 +110,9 @@ export function ConnectorCard({
   const status = useConnectorStatus(appId);
   const bridge = useAgentBridge();
   const [phase, setPhase] = useState<Phase>({ kind: "idle" });
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { busy, error, act } = useBusy();
   // Its preview, read once at the start when its owner's button was the Add.
   const [opening, setOpening] = useState(startWith === "preview");
-  const act = async (work: () => Promise<void>) => {
-    setBusy(true);
-    setError(null);
-    try {
-      await work();
-    } catch (cause) {
-      setError(errorText(cause));
-    } finally {
-      setBusy(false);
-    }
-  };
   const actions = {
     review: () => act(async () => setPhase({ kind: "preview", preview: await connectorPreview(appId) })),
     guide: () => act(async () => setPhase({ kind: "guide", preview: await connectorPreview(appId) })),

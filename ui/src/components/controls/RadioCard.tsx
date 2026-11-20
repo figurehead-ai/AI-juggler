@@ -88,6 +88,23 @@ function useIds(reason: string | undefined, disabled: boolean, sub: ReactNode): 
   return { ...ids, describedBy };
 }
 
+/** What a card shows beside its input: the mark, the words, and why it
+ * can't be chosen now (for screen readers; the card's title says it too). */
+function CardFace({ on, shape, words, ids }: { on: boolean; shape: "round" | "square"; words: CardWords; ids: ReturnType<typeof useIds> }): JSX.Element {
+  const disabled = words.disabled ?? false;
+  return (
+    <>
+      <Mark on={on} shape={shape} />
+      <Body {...words} titleId={ids.titleId} subId={ids.subId} />
+      {disabled && words.reason && (
+        <span id={ids.whyId} className="sr-only">
+          {words.reason}
+        </span>
+      )}
+    </>
+  );
+}
+
 /** The card's own input: unseen, the control screen readers and keys use. */
 const UNSEEN = "peer sr-only";
 
@@ -163,13 +180,7 @@ export function RadioCard({ value, ...words }: CardWords & { value: string }): J
         onKeyDown={(event) => onRadioKey(event, choose)}
         className={UNSEEN}
       />
-      <Mark on={on} shape="round" />
-      <Body {...words} titleId={ids.titleId} subId={ids.subId} />
-      {disabled && words.reason && (
-        <span id={ids.whyId} className="sr-only">
-          {words.reason}
-        </span>
-      )}
+      <CardFace on={on} shape="round" words={words} ids={ids} />
     </label>
   );
 }
@@ -195,13 +206,7 @@ export function CheckCard({ checked, onChange, ...words }: CardWords & { checked
         }}
         className={UNSEEN}
       />
-      <Mark on={checked} shape="square" />
-      <Body {...words} titleId={ids.titleId} subId={ids.subId} />
-      {disabled && words.reason && (
-        <span id={ids.whyId} className="sr-only">
-          {words.reason}
-        </span>
-      )}
+      <CardFace on={checked} shape="square" words={words} ids={ids} />
     </label>
   );
 }

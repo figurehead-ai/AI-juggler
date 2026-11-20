@@ -226,17 +226,70 @@ fn recipients(
                     return Ok((vec![named(member, Some(linked))], my_role));
                 }
             }
-            Err(refuse(Refusal::Deny, not_here(state, pool_id, who)))
+            // F-rc3g-11: a member of this pool by its name, as pool_roster
+            // names it; only one that more than one answers to is refused.
+            let (anchor, to) = match by_name(&mine, desktop, who)? {
+                Some(Called::Member(member)) => (member.anchor.as_str(), named(member, None)),
+                Some(Called::Desktop(one)) => (one.member.as_str(), as_to(one)),
+                None => return Err(refuse(Refusal::Deny, not_here(state, pool_id, who))),
+            };
+            if anchor == me {
+                return Err(refuse(Refusal::Bad, "That's this session itself."));
+            }
+            Ok(vec![to])
         }
     }?;
     Ok((found, my_role))
+}
+
+/// A member a name calls: one of the pool's sessions, or one of its
+/// desktop conversations.
+enum Called<'a> {
+    Member(&'a Member),
+    Desktop(&'a DesktopConversation),
+}
+
+/// F-rc3g-11 (the P11 walk): the member of this pool `who` names as
+/// `pool_roster` names it ([`super::called`]); `None` when none does. A
+/// name more than one answers to is refused, each named with the
+/// `session_id` that names it alone.
+fn by_name<'a>(
+    mine: &'a [Member],
+    desktop: &'a [DesktopConversation],
+    who: &str,
+) -> Result<Option<Called<'a>>, Response> {
+    let listed: Vec<&str> = mine
+        .iter()
+        .map(|member| member.name.as_str())
+        .chain(desktop.iter().map(|one| one.name.as_str()))
+        .collect();
+    let of = |at: usize| {
+        mine.get(at).map_or_else(
+            || Called::Desktop(&desktop[at - mine.len()]),
+            Called::Member,
+        )
+    };
+    match super::called(&listed, who).as_slice() {
+        [] => Ok(None),
+        [at] => Ok(Some(of(*at))),
+        many => {
+            let each: Vec<String> = many
+                .iter()
+                .map(|&at| match of(at) {
+                    Called::Member(member) => super::member_words(member),
+                    Called::Desktop(one) => format!("«{}» (session_id {})", one.name, one.member),
+                })
+                .collect();
+            Err(refuse(Refusal::Bad, super::namesake_words(who, &each)))
+        }
+    }
 }
 
 /// Why `who` can't be written to from `pool_id`, in true words: a link
 /// lets a member of another pool in, but a sealed pool takes no links
 /// (D-62 decision 14; the rc27 P7 walk's refusal offered one).
 fn not_here(state: &Arc<AppState>, pool_id: &str, who: &str) -> String {
-    const NOT_IN: &str = "No one with that session_id is in this pool (see pool_roster).";
+    const NOT_IN: &str = "No one with that session_id or name is in this pool (see pool_roster).";
     let Ok(storage) = lock_storage_arc(state) else {
         return NOT_IN.to_owned();
     };

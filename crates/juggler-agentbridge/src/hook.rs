@@ -106,16 +106,22 @@ pub fn report_of(event: &str, input: &str) -> Option<HookReport> {
     })
 }
 
-/// Runs the hook: reads stdin, reports, and returns what to print (a
-/// note's JSON on [`NOTE_EVENTS`], else nothing). The exit code is always
-/// 0 (the caller's), whatever happened.
-pub fn run(event: &str, stdin: impl Read) -> Option<String> {
+/// The hook's input (at most [`INPUT_MAX`] bytes of `stdin`) as
+/// `event`'s report.
+fn read_report(event: &str, stdin: impl Read) -> Option<HookReport> {
     let mut input = String::new();
     stdin
         .take(u64::try_from(INPUT_MAX).unwrap_or(u64::MAX))
         .read_to_string(&mut input)
         .ok()?;
-    let hook = report_of(event, &input)?;
+    report_of(event, &input)
+}
+
+/// Runs the hook: reads stdin, reports, and returns what to print (a
+/// note's JSON on [`NOTE_EVENTS`], else nothing). The exit code is always
+/// 0 (the caller's), whatever happened.
+pub fn run(event: &str, stdin: impl Read) -> Option<String> {
+    let hook = read_report(event, stdin)?;
     let token = std::env::var(REPORT_TOKEN_ENV).unwrap_or_default();
     let socket = std::env::var_os(SOCKET_ENV).map(PathBuf::from)?;
     if token.is_empty() {
@@ -151,12 +157,7 @@ pub fn run_connector(event: &str, stdin: impl Read) -> Option<String> {
 
 /// [`run_connector`]'s exchange with the socket at `socket`.
 fn connector_note(event: &str, stdin: impl Read, socket: &std::path::Path) -> Option<String> {
-    let mut input = String::new();
-    stdin
-        .take(u64::try_from(INPUT_MAX).unwrap_or(u64::MAX))
-        .read_to_string(&mut input)
-        .ok()?;
-    let hook = report_of(event, &input)?;
+    let hook = read_report(event, stdin)?;
     let report = Report {
         v: VERSION,
         token: String::new(),
@@ -215,13 +216,8 @@ mod tests {
     #[test]
     fn the_connector_hook_sends_no_key_and_no_words_and_prints_the_note() {
         use std::io::{BufRead, Write};
-        use std::os::unix::fs::PermissionsExt;
         let root = tempfile::tempdir().unwrap();
-        let dir = root.path().join("agent");
-        std::fs::create_dir(&dir).unwrap();
-        std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o700)).unwrap();
-        let socket = dir.join("bridge.sock");
-        let listener = std::os::unix::net::UnixListener::bind(&socket).unwrap();
+        let (socket, listener) = crate::test_support::agent_socket(root.path());
         let app = std::thread::spawn(move || {
             let (stream, _) = listener.accept().unwrap();
             let mut line = String::new();

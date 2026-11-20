@@ -92,6 +92,12 @@ struct RoundTrip {
 }
 
 fn switch_a_to_b(work: &Path) -> RoundTrip {
+    switch_a_to_b_named(work, None)
+}
+
+/// [`switch_a_to_b`], with A named `name` and pinned by the person
+/// before it switches.
+fn switch_a_to_b_named(work: &Path, name: Option<&str>) -> RoundTrip {
     let state = app_state(work);
     let project_dir = work.join("storefront");
     std::fs::create_dir_all(&project_dir).unwrap();
@@ -149,6 +155,10 @@ fn switch_a_to_b(work: &Path) -> RoundTrip {
             native_id: Some("5e5e5e5e-0000-4000-8000-000000000005".to_owned()),
         });
         storage.sessions().update(&record).unwrap();
+    }
+    if let Some(name) = name {
+        juggler_app::manage::session_rename_impl(&state, &launched.session_id, Some(name)).unwrap();
+        juggler_app::manage::session_set_pinned_impl(&state, &launched.session_id, true).unwrap();
     }
 
     // The juggle: A → B.
@@ -637,4 +647,54 @@ fn a_failed_accounts_read_keeps_the_names_the_last_read_gave() {
     });
     assert!(list_impl(&trip.state).is_err(), "the read fails now");
     assert_eq!(folder_accounts(&trip.state), read, "the last read's names");
+}
+
+/// F-rc3g-3 (main's call for 0.4.6: switching keeps history, tasks and
+/// context, and the person's name for the work is part of it): a session
+/// named and pinned on Work Max, switched to Personal and back, goes by
+/// its name, pinned, at each step: the one it had when it moved.
+#[test]
+fn a_named_pinned_session_keeps_its_name_and_pin_through_a_switch_and_back() {
+    let work = tempfile::tempdir().unwrap();
+    let trip = switch_a_to_b_named(work.path(), Some("storefront rework"));
+    let marks = |id: &str| {
+        trip.state
+            .storage
+            .lock()
+            .unwrap()
+            .sessions()
+            .marks()
+            .unwrap()
+            .remove(id)
+            .unwrap_or_default()
+    };
+    // On Personal: its name, pinned.
+    let (name, pinned) = marks(&trip.away_session);
+    assert_eq!(name.as_deref(), Some("storefront rework"), "switched");
+    assert!(pinned.is_some(), "switched: still pinned");
+    // Renamed while away; back on Work Max under that name, pinned.
+    juggler_app::manage::session_rename_impl(
+        &trip.state,
+        &trip.away_session,
+        Some("storefront, the login fix"),
+    )
+    .unwrap();
+    let choices = vec![juggler_app::features::switch::dto::SwitchBackChoiceIn {
+        rel_path: "todos.json".to_owned(),
+        choice: "take-away".to_owned(),
+    }];
+    let returned = juggler_app::features::switch::back::switch_back_execute_impl(
+        &trip.state,
+        &trip.away_session,
+        &choices,
+        true,
+    )
+    .unwrap();
+    let (name, pinned) = marks(&returned.session_id);
+    assert_eq!(
+        name.as_deref(),
+        Some("storefront, the login fix"),
+        "switched back"
+    );
+    assert!(pinned.is_some(), "switched back: still pinned");
 }

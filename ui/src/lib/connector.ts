@@ -26,7 +26,7 @@ import type { AgentBridgeInfo } from "./ipc/agent-bridge";
 export const CONNECTOR_GUIDE = `${POOLS_GUIDE}#desktop-apps-in-a-pool`;
 
 /** How often an open guide reads the App again (only while it's open). */
-export const GUIDE_POLL_MS = 3_000;
+const GUIDE_POLL_MS = 3_000;
 
 /** What the connector is, said where it's first named (Casey's PC1 walk:
  * "connector" wasn't explained where it appeared). */

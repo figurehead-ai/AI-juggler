@@ -126,3 +126,113 @@ pub(crate) fn claude_app_host(bundle_id: Option<&str>) -> juggler_adapter::live:
         desktop: juggler_adapter::desktop_app::DesktopFacts::default(),
     }
 }
+
+/// An app state over `data` with `adapters` registered (Claude Code's,
+/// say): the state a test of a tool's own files works in.
+pub(crate) fn state_with(
+    data: std::path::PathBuf,
+    adapters: Vec<juggler_adapter::SharedAdapter>,
+) -> std::sync::Arc<crate::state::AppState> {
+    let mut registry = juggler_adapter::AdapterRegistry::new();
+    for adapter in adapters {
+        registry.register(adapter);
+    }
+    std::sync::Arc::new(crate::state::AppState::init_with_registry(data, registry).unwrap())
+}
+
+/// The terminal session `s-cli` (launch settings `rec`, "Main", on
+/// Account `acc-cli`), running in `dir/w`.
+pub(crate) fn cli_session(storage: &juggler_core::storage::Storage, dir: &std::path::Path) {
+    storage
+        .profiles()
+        .insert(&launch_settings("rec", "Main", "acc-cli"))
+        .unwrap();
+    storage
+        .sessions()
+        .insert(&instance(
+            "s-cli",
+            "rec",
+            SessionStatus::Running,
+            dir.join("w"),
+        ))
+        .unwrap();
+}
+
+/// A Claude app profile as an App: its Account `id` (Claude Code's,
+/// `label`, at `config`) and the desktop App on `instance` holding that
+/// folder. The App's id.
+pub(crate) fn desktop_app(
+    storage: &juggler_core::storage::Storage,
+    id: &str,
+    label: &str,
+    config: std::path::PathBuf,
+    instance: &std::path::Path,
+) -> String {
+    storage
+        .accounts()
+        .insert(&account(
+            id,
+            juggler_adapters::CLAUDE_CODE_ID,
+            label,
+            config,
+        ))
+        .unwrap();
+    let app = storage
+        .apps()
+        .upsert_desktop(
+            juggler_adapters::CLAUDE_CODE_ID,
+            "claude-app",
+            Some(&instance.to_string_lossy()),
+            1,
+        )
+        .unwrap();
+    storage.apps().set_folder(&app, Some(id)).unwrap();
+    app
+}
+
+/// The facts an attestation keeps for `conversation`'s Code-tab session
+/// in the profile of folder `folder`, of App `app`.
+pub(crate) fn desktop_facts(
+    app: &str,
+    folder: &str,
+    conversation: &str,
+) -> juggler_core::pools::SessionFacts {
+    juggler_core::pools::SessionFacts {
+        app: Some(app.into()),
+        tool: Some(juggler_adapters::CLAUDE_CODE_ID.into()),
+        conversation: Some((folder.into(), conversation.into())),
+        ..juggler_core::pools::SessionFacts::bare(
+            juggler_core::storage::attested::desktop_id(folder, conversation),
+            None,
+        )
+    }
+}
+
+/// What an attestation keeps in memory for that session: its App `app`,
+/// its record `local_t1`, its tool's process `tool_pid` started at
+/// `tool_start`.
+pub(crate) fn keep_desktop(
+    state: &crate::state::AppState,
+    app: &str,
+    folder: &str,
+    conversation: &str,
+    tool_pid: u32,
+    tool_start: i64,
+) {
+    state.agent_bridge.desktop.lock().unwrap().insert(
+        juggler_core::storage::attested::desktop_id(folder, conversation)
+            .as_str()
+            .to_owned(),
+        (
+            app.to_owned(),
+            juggler_adapter::peer::AttestedSession {
+                conversation: conversation.into(),
+                host_session: "local_t1".into(),
+                tool_pid,
+                tool_start,
+                cwd: None,
+                title: None,
+            },
+        ),
+    );
+}

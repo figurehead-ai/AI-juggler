@@ -88,9 +88,11 @@ A session AI Juggler starts runs one of two ways, and its page says which:
 - **In a terminal**, the tool's own screen, as when you run it yourself.
   This is how Claude Code and the other tools run.
 - **Through the tool's own app-server**, with no terminal. This is how a
-  Codex session runs by default. The page shows the conversation as it goes,
-  the session's state, and its usage limits as Codex reports them. A box at
-  the bottom sends a message, or adds to what it's doing while a turn runs.
+  Codex session runs by default. The page shows the conversation as it goes
+  (what you sent, marked **You**, then what the agent did; a message another
+  session sent says who it's from), the session's state, and its usage
+  limits as Codex reports them. A box at the bottom sends a message, or adds
+  to what it's doing while a turn runs.
 
 Either way it's your own installed tool, unmodified, signed in as you signed
 it in. AI Juggler doesn't talk to OpenAI or Anthropic itself.

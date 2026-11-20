@@ -60,7 +60,7 @@ const KIND_LINES: Partial<Record<MemberKind, string>> = {
 };
 
 /** The wider kinds, under More ways to add (everyone is the switch). */
-export const MORE_KINDS: readonly MemberKind[] = ["account", "tool", "mac"];
+const MORE_KINDS: readonly MemberKind[] = ["account", "tool", "mac"];
 const isMore = (kind: MemberKind | undefined) => kind !== undefined && MORE_KINDS.includes(kind);
 
 const GROUPS: { id: Candidate["group"]; label: string }[] = [

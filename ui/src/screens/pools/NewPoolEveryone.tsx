@@ -30,7 +30,7 @@ import { StepHead } from "./StepHead";
 const CHOOSE: readonly PoolRole[] = ["member", "reviewer", "observer"];
 
 /** What a member is, in a few words: "Desktop app · Profile Personal". */
-export function memberKindWords(member: Pick<DraftMember, "ref" | "kind">, apps: readonly AppModel[]): string {
+function memberKindWords(member: Pick<DraftMember, "ref" | "kind">, apps: readonly AppModel[]): string {
   if (member.kind === "app") {
     const app = apps.find((one) => `app:${one.id}` === member.ref);
     if (!app) return member.ref.startsWith("app:cli:") ? APP_KIND_WORDS.cli : "App";

@@ -313,19 +313,8 @@ enum AppRecord {
 /// only.
 fn app_record(instance_dir: &Path, host: &str) -> AppRecord {
     let root = crate::claude_live::app_root(instance_dir);
-    let folders = |dir: &Path| -> Vec<PathBuf> {
-        std::fs::read_dir(dir)
-            .map(|entries| {
-                entries
-                    .flatten()
-                    .filter(|entry| entry.file_type().is_ok_and(|kind| kind.is_dir()))
-                    .map(|entry| entry.path())
-                    .collect()
-            })
-            .unwrap_or_default()
-    };
-    for account in folders(&root) {
-        for org in folders(&account) {
+    for account in crate::claude_live::folders_in(&root) {
+        for org in crate::claude_live::folders_in(&account) {
             let Ok(rel) = org
                 .join(format!("{host}.json"))
                 .strip_prefix(instance_dir)
@@ -410,6 +399,22 @@ mod tests {
         ProcStep { pid, start_secs }
     }
 
+    /// The verdict on the usual chain: the MCP server (5000) under the
+    /// session's Claude Code (4242, started at [`START`]).
+    fn verdict_of(lab: &Lab) -> PeerVerdict {
+        attest(&place(lab), &[step(5000, START + 5), step(4242, START)])
+    }
+
+    /// `conv-1`'s Code-tab session, entered, recorded and attested.
+    fn attested(lab: &Lab) -> AttestedSession {
+        desktop_entry(lab, 4242, START_TEXT);
+        record(lab, "conv-1");
+        let PeerVerdict::Attested(session) = verdict_of(lab) else {
+            unreachable!("attested");
+        };
+        session
+    }
+
     #[test]
     fn the_start_text_is_the_start() {
         assert_eq!(ctime_utc_secs(START_TEXT), Some(START));
@@ -420,7 +425,7 @@ mod tests {
         let lab = lab();
         desktop_entry(&lab, 4242, START_TEXT);
         record(&lab, "conv-1");
-        let verdict = attest(&place(&lab), &[step(5000, START + 5), step(4242, START)]);
+        let verdict = verdict_of(&lab);
         assert_eq!(
             verdict,
             PeerVerdict::Attested(AttestedSession {
@@ -501,31 +506,24 @@ mod tests {
             4242,
             r#"{"pid":4242,"sessionId":"conv-1","hostSessionId":"local_abc-1","entrypoint":"claude-desktop"}"#,
         );
-        assert!(matches!(
-            attest(&place(&lab), &[step(5000, START + 5), step(4242, START)]),
-            PeerVerdict::Unattested { .. }
-        ));
+        assert!(matches!(verdict_of(&lab), PeerVerdict::Unattested { .. }));
     }
 
     #[test]
     fn the_registry_and_the_app_record_must_agree() {
         let lab = lab();
         desktop_entry(&lab, 4242, START_TEXT);
-        let chain = [step(5000, START + 5), step(4242, START)];
         assert!(
-            matches!(attest(&place(&lab), &chain), PeerVerdict::Unattested { .. }),
+            matches!(verdict_of(&lab), PeerVerdict::Unattested { .. }),
             "no app record"
         );
         record(&lab, "conv-other");
         assert!(
-            matches!(attest(&place(&lab), &chain), PeerVerdict::Unattested { .. }),
+            matches!(verdict_of(&lab), PeerVerdict::Unattested { .. }),
             "a record of another conversation (after /clear the registry is read again)"
         );
         record(&lab, "conv-1");
-        assert!(matches!(
-            attest(&place(&lab), &chain),
-            PeerVerdict::Attested(_)
-        ));
+        assert!(matches!(verdict_of(&lab), PeerVerdict::Attested(_)));
         // A terminal session of the same profile isn't the app's.
         entry(
             &lab,
@@ -534,10 +532,7 @@ mod tests {
                 r#"{{"pid":4242,"sessionId":"conv-1","procStart":"{START_TEXT}","hostSessionId":"local_abc-1","entrypoint":"cli"}}"#
             ),
         );
-        assert!(matches!(
-            attest(&place(&lab), &chain),
-            PeerVerdict::Unattested { .. }
-        ));
+        assert!(matches!(verdict_of(&lab), PeerVerdict::Unattested { .. }));
     }
 
     #[test]
@@ -550,18 +545,14 @@ mod tests {
                 r#"{{"pid":4242,"sessionId":"conv-1","procStart":"{START_TEXT}","hostSessionId":"local_../../x","entrypoint":"claude-desktop"}}"#
             ),
         );
-        let chain = [step(5000, START + 5), step(4242, START)];
-        assert!(matches!(
-            attest(&place(&lab), &chain),
-            PeerVerdict::Unattested { .. }
-        ));
+        assert!(matches!(verdict_of(&lab), PeerVerdict::Unattested { .. }));
         entry(
             &lab,
             4242,
             r#"{"pid":4243,"sessionId":"conv-1","procStart":"x","hostSessionId":"local_abc-1","entrypoint":"claude-desktop"}"#,
         );
         assert!(
-            matches!(attest(&place(&lab), &chain), PeerVerdict::Unattested { .. }),
+            matches!(verdict_of(&lab), PeerVerdict::Unattested { .. }),
             "a record naming another pid"
         );
     }
@@ -580,11 +571,7 @@ mod tests {
         .unwrap();
         std::os::unix::fs::symlink(&elsewhere, lab.config.join("sessions/4242.json")).unwrap();
         record(&lab, "conv-1");
-        let chain = [step(5000, START + 5), step(4242, START)];
-        assert!(matches!(
-            attest(&place(&lab), &chain),
-            PeerVerdict::Unattested { .. }
-        ));
+        assert!(matches!(verdict_of(&lab), PeerVerdict::Unattested { .. }));
     }
 
     #[test]
@@ -601,11 +588,7 @@ mod tests {
             use std::os::unix::fs::PermissionsExt;
             std::fs::set_permissions(&key, std::fs::Permissions::from_mode(0o000)).unwrap();
         }
-        let chain = [step(5000, START + 5), step(4242, START)];
-        assert!(matches!(
-            attest(&place(&lab), &chain),
-            PeerVerdict::Attested(_)
-        ));
+        assert!(matches!(verdict_of(&lab), PeerVerdict::Attested(_)));
         let source = include_str!("claude_peer.rs");
         let code = source.split("#[cfg(test)]").next().unwrap();
         assert!(
@@ -617,13 +600,7 @@ mod tests {
     #[test]
     fn a_kept_session_stays_current_only_while_its_registry_entry_does() {
         let lab = lab();
-        desktop_entry(&lab, 4242, START_TEXT);
-        record(&lab, "conv-1");
-        let PeerVerdict::Attested(session) =
-            attest(&place(&lab), &[step(5000, START + 5), step(4242, START)])
-        else {
-            unreachable!("attested");
-        };
+        let session = attested(&lab);
         assert!(still_current(&place(&lab), &session));
         // procStart changed: the pid now runs something else.
         desktop_entry(&lab, 4242, "Mon Oct 26 08:33:20 2026");
@@ -638,13 +615,7 @@ mod tests {
     #[test]
     fn an_archived_conversation_isnt_current_any_more() {
         let lab = lab();
-        desktop_entry(&lab, 4242, START_TEXT);
-        record(&lab, "conv-1");
-        let PeerVerdict::Attested(session) =
-            attest(&place(&lab), &[step(5000, START + 5), step(4242, START)])
-        else {
-            unreachable!("attested");
-        };
+        let session = attested(&lab);
         assert!(still_current(&place(&lab), &session));
         let file = lab
             .instance
@@ -698,10 +669,7 @@ mod tests {
             r#"{"sessionId":"local_abc-1","cliSessionId":"conv-1","isArchived":true}"#,
         )
         .unwrap();
-        assert!(matches!(
-            attest(&place(&lab), &[step(5000, START + 5), step(4242, START)]),
-            PeerVerdict::Unattested { .. }
-        ));
+        assert!(matches!(verdict_of(&lab), PeerVerdict::Unattested { .. }));
     }
 
     /// M1: the requirements pin the CLI's identifier, the app's own bundle
@@ -796,7 +764,7 @@ mod tests {
             .join("claude-code-sessions/acct/org/local_abc-1.json");
         let session = |text: &str| {
             std::fs::write(&file, text).unwrap();
-            match attest(&place(&lab), &[step(5000, START + 5), step(4242, START)]) {
+            match verdict_of(&lab) {
                 PeerVerdict::Attested(session) => session,
                 other => unreachable!("{other:?}"),
             }

@@ -10,8 +10,8 @@ import type { JSX } from "react";
 import { RowList, ToggleRow } from "../../components/controls";
 import { IconKey } from "../../components/icons-actions";
 import { Explain } from "../../components/switch/Explain";
+import { KEEP_APART_GUIDE, SEAL_CLAUDE, SEAL_TIPS } from "../../lib/keep-apart";
 import type { Draft } from "../../lib/new-pool";
-import { POOLS_GUIDE } from "../../lib/pool-words";
 import { OwnCards } from "./OwnCards";
 import { StepHead } from "./StepHead";
 
@@ -31,7 +31,7 @@ export function NewPoolOwn({ draft, onDraft, where }: { draft: Draft; onDraft: (
               title="Keep this pool's work apart"
               help={
                 <>
-                  Its sessions leave other pools. No links, and no messages or docs out through AI Juggler. Claude Code sessions AI Juggler starts here also leave Claude's own messages between sessions, from their next start.
+                  Its sessions leave other pools. No links, and no messages or docs out through AI Juggler. {SEAL_CLAUDE}
                   <span className="mt-0.5 block">Example: a client's project in {where}, kept out of your other pools.</span>
                 </>
               }
@@ -43,8 +43,8 @@ export function NewPoolOwn({ draft, onDraft, where }: { draft: Draft; onDraft: (
         </div>
         <Explain
           testId="new-pool-seal-explain"
-          guide={`${POOLS_GUIDE}#make-a-pool`}
-          tips={["A sealed pool's sessions are in no other pool, and nothing leaves it through AI Juggler.", "A switch into or out of a sealed pool asks first.", "You can unseal it later from its diagram; its sessions go back into the pools they were in."]}
+          guide={KEEP_APART_GUIDE}
+          tips={[...SEAL_TIPS]}
         />
       </section>
     </div>

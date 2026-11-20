@@ -89,7 +89,7 @@ export function PoolSentences({
 }
 
 /** One sentence: its title, its words, and its Change. */
-export function Sentence({ title, children, onChange, testId, row, compact = false }: { title: string; children: ReactNode; onChange?: () => void; testId: string; row?: string; compact?: boolean }): JSX.Element {
+function Sentence({ title, children, onChange, testId, row, compact = false }: { title: string; children: ReactNode; onChange?: () => void; testId: string; row?: string; compact?: boolean }): JSX.Element {
   const change = onChange && (
     <button type="button" onClick={onChange} className="btn-ghost rounded-md px-1.5 py-0.5 text-meta outline-none focus-visible:ring-2 focus-visible:ring-accent/60" data-testid={`${testId}-change`}>
       Change<span className="sr-only"> {title.toLowerCase()}</span>
