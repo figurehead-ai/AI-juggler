@@ -53,7 +53,9 @@ const DB_FILES: [&str; 3] = ["", "-wal", "-shm"];
 // deleted, D-60); 0.4.0 ships 46 (40, the Account and the App, to 46, the
 // Floor's areas); 0.4.1 to 0.4.5 ship 52 (47 to 52 came in together with
 // 0.4.1); 0.4.6 ships 53 (the App whose next session leads a pool,
-// AJ-E3011). The schemas no release stayed on are NEVER_SHIPPED_ALONE.
+// AJ-E3011); 0.5.0 ships 55 (54, the memory store and the AI log, and 55,
+// AJ-E3210's per-App Account, come in together, so no release stays on
+// 54). The schemas no release stayed on are NEVER_SHIPPED_ALONE.
 // Each patch on the newest schema moves its line to that patch (the P9
 // walk found 39 still naming 0.3.1).
 const SCHEMA_RELEASES: &[(i64, &str)] = &[
@@ -68,6 +70,7 @@ const SCHEMA_RELEASES: &[(i64, &str)] = &[
     (46, "0.4.0"),
     (52, "0.4.5"),
     (53, "0.4.6"),
+    (55, "0.5.0"),
 ];
 
 /// The schemas no release stayed on: each came in with a newer one in the
@@ -82,6 +85,7 @@ const NEVER_SHIPPED_ALONE: &[(std::ops::RangeInclusive<i64>, &str)] = &[
     (33..=36, "0.2.0 shipped 33 to 37 together"),
     (40..=45, "0.4.0 shipped 40 to 46 together"),
     (47..=51, "0.4.1 shipped 47 to 52 together"),
+    (54..=54, "0.5.0 ships 54 and 55 together"),
 ];
 
 /// The released version that reads `schema`, when it is known.

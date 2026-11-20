@@ -889,6 +889,7 @@ saved (it never risks it). So:
 | 0.4.0 | 46 (40–42: the Account and the App stored, with their colours; 43–44: the relation counts; 45: the pools model, D-62, with 0.3's pools moved over; 46: the Floor's areas) | yes | **no** — 0.4's notes carry the downgrade note ("Going back to 0.3 from 0.4"); 0.4 keeps a `before-v39` copy, so "Go back to an earlier version" can return to 0.3.9 |
 | 0.4.1–0.4.5 | 52 (47: Apps only the user adds, D-84; 48: pool membership kept in memory; 49: Lead is one session's role, D-92; 50: a held quota reading is one row; 51: the usage holders by number; 52: an Account named as its Apps were imported) | yes | **no** — 0.4.1's notes carry the downgrade note ("Going back to 0.4.0 from 0.4.1"); it keeps a `before-v46` copy, so "Go back to an earlier version" can return to 0.4.0 |
 | 0.4.6 | 53 (an App's next session may lead a pool, AJ-E3011) | yes | **no** — 0.4.6's notes carry the downgrade note ("Going back to 0.4.5"); it keeps a `before-v52` copy, so "Go back to an earlier version" can return to 0.4.5 |
+| 0.5.0 | 55 (54: the memory store and the AI log, ADR-0037 §1.7; 55: each App's own Account, AJ-E3210, D-135) | yes | **no** — 0.5's notes need the downgrade note ("Going back to 0.4.6"); it keeps a `before-v53` copy, so "Go back to an earlier version" can return to 0.4.6 |
 
 Tests: `cargo test -p juggler-core --test pre_migration_copy` (the copy
 holds exactly the rows the database had, two are kept, a fresh database
