@@ -139,7 +139,10 @@ mod tests {
             mask_emails_in("s…@example.com · sam@example.com's Organization"),
             "s…@example.com · s…@example.com's Organization"
         );
-        assert_eq!(mask_emails_in("a@example.com and c@example.com."), "a…@example.com and c…@example.com.");
+        assert_eq!(
+            mask_emails_in("a@example.com and c@example.com."),
+            "a…@example.com and c…@example.com."
+        );
         assert_eq!(mask_emails_in("Acme · Team"), "Acme · Team");
         assert_eq!(
             mask_emails_in("ops@localhost, @handle, x@.com"),
