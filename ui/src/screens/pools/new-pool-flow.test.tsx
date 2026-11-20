@@ -4,8 +4,11 @@
  * the first thing to tell the lead (a member's logo is
  * components/member-logo.test.tsx's).
  */
-import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+
+import { useModalsInert } from "../../lib/inert";
 
 import { MOCK_PROJECTS, MOCK_SESSIONS } from "../../preview/fixtures";
 import { resetPreviewPools } from "../../lib/ipc/pools";
@@ -68,6 +71,58 @@ describe("the steps beside the form (D-126)", () => {
     fireEvent.click(within(nav).getByRole("button", { name: STEP("Start") }));
     expect(picked).toBe(0);
     expect(within(nav).getByRole("button", { name: "Read the 2-minute guide" })).toBeTruthy();
+  });
+});
+
+// AJ-E2311 item 5's remainder (the 0.4.7 nightly walk): an accessibility
+// press on the rail's steps and on Cancel found nothing to press, while
+// Back and Next took it. Drawn in the screen that opened it, the wizard's
+// accessibility parent was the window's main column, right of the app's
+// list; a press by place left of it never reached the steps or Cancel.
+describe("over the window, the steps beside and Cancel take a press", () => {
+  /** The app around it: its list, then its main column; the modal rule on. */
+  function App({ children }: { children: ReactNode }) {
+    useModalsInert();
+    return (
+      <div className="flex">
+        <aside data-testid="app-list">
+          <button type="button">A session</button>
+        </aside>
+        <main>{children}</main>
+      </div>
+    );
+  }
+
+  it("hangs off the page's body, its steps and Cancel real buttons never inert, the rest of the app inert; Tab reaches them", async () => {
+    let closed = 0;
+    render(
+      <App>
+        <NewPool sessions={MOCK_SESSIONS} projects={MOCK_PROJECTS} accounts={[]} project="proj-ai-juggler" onClose={() => (closed += 1)} />
+      </App>,
+    );
+    const wizard = screen.getByTestId("new-pool");
+    expect(wizard.parentElement).toBe(document.body);
+    expect(wizard.closest("main")).toBeNull();
+    await waitFor(() => expect(screen.getByTestId("app-list").closest("[inert]")).not.toBeNull());
+    nextTo("who");
+    const steps = screen.getAllByTestId("flow-step");
+    const cancel = screen.getByTestId("new-pool-cancel");
+    for (const control of [...steps, cancel]) {
+      expect(control.tagName, control.dataset.step ?? "Cancel").toBe("BUTTON");
+      expect(control.closest("[inert]"), control.dataset.step ?? "Cancel").toBeNull();
+      expect(control.closest('[aria-hidden="true"]'), control.dataset.step ?? "Cancel").toBeNull();
+    }
+    expect(steps.filter((one) => !one.hasAttribute("disabled")).map((one) => one.dataset.step)).toEqual(["template", "where", "who", "lead", "everyone", "talk", "own", "tools", "review"]);
+    // The keyboard: Tab goes round from Next to the first step, and back.
+    const next = screen.getByTestId("new-pool-next");
+    expect(document.activeElement).toBe(next);
+    fireEvent.keyDown(wizard, { key: "Tab" });
+    expect(document.activeElement).toBe(steps[0]);
+    fireEvent.keyDown(wizard, { key: "Tab", shiftKey: true });
+    expect(document.activeElement).toBe(next);
+    expect(cancel.tabIndex).toBe(0);
+    fireEvent.click(cancel);
+    expect(closed).toBe(1);
   });
 });
 
