@@ -110,10 +110,10 @@ fn org_folder(folder: &Path, out: &mut BTreeSet<String>) {
     };
     for entry in entries.flatten() {
         let name = entry.file_name().to_string_lossy().into_owned();
-        let is_dir = entry.file_type().is_ok_and(|kind| kind.is_dir());
         if ignored(&name) {
             continue;
         }
+        let is_dir = entry.file_type().is_ok_and(|kind| kind.is_dir());
         let account_level = if is_dir {
             ACCOUNT_FOLDERS.contains(&name.as_str()) || name == WAITING_INPUT
         } else {
@@ -245,6 +245,14 @@ mod tests {
         std::fs::write(path, serde_json::to_vec(value).unwrap()).unwrap();
     }
 
+    /// A profile whose one org folder holds `record` as `local_b`'s.
+    fn with_b(record: &serde_json::Value) -> (tempfile::TempDir, std::path::PathBuf) {
+        let tmp = tempfile::tempdir().unwrap();
+        let org = org(tmp.path());
+        write(&org.join("local_b.json"), record);
+        (tmp, org)
+    }
+
     /// The 5.x shape seen on 2026-11-18: a side session with its start
     /// chain, the archived-sessions hint, scheduled tasks, the backlog.
     #[test]
@@ -282,10 +290,7 @@ mod tests {
 
     #[test]
     fn a_link_under_an_unknown_key_a_new_file_or_hint_format_doesnt_fit() {
-        let tmp = tempfile::tempdir().unwrap();
-        let org = org(tmp.path());
-        write(
-            &org.join("local_b.json"),
+        let (tmp, org) = with_b(
             &serde_json::json!({"sessionId": "local_b", "cliSessionId": "b", "family": {"rootRecord": "local_a"}}),
         );
         write(
@@ -310,10 +315,7 @@ mod tests {
 
     #[test]
     fn a_field_of_another_type_doesnt_fit() {
-        let tmp = tempfile::tempdir().unwrap();
-        let org = org(tmp.path());
-        write(
-            &org.join("local_b.json"),
+        let (tmp, _) = with_b(
             &serde_json::json!({"sessionId": "local_b", "cliSessionId": "b", "spawnedFrom": "local_a", "isArchived": "yes"}),
         );
         let found = app_mismatches(tmp.path());
