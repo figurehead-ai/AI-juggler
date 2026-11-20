@@ -286,7 +286,7 @@
 **Research basis**: D-116, D-66, AJ-E1905, AJ-E3006; `docs/research/desktop-pool-members.md` (to write).
 **Handover note**: —
 
-### AJ-E3014 0.4.6's deferred pool and message findings: stable grid order, the project-pool name, the hop words, setup's side panel, names, delete and the held-message flow | Status: TODO | Priority P1 | Effort M | Depends: AJ-E3013
+### AJ-E3014 0.4.6's deferred pool and message findings: stable grid order, the project-pool name, the hop words, setup's side panel, names, delete and the held-message flow | Status: TODO (0.4.7: bugs in shipped 0.4 ship as 0.4.x; built on release/0.4.7 after 0.4.6 reaches Stable, then forward-merged) | Priority P1 | Effort M | Depends: AJ-E3013
 **Deferred from 0.4.6's exit RC (rc3h), 2026-11-19 (D-114: the 0.4 line takes blockers only after beta).** The source list, with the walk rows that stay open and their reasons: [docs/research/0.4.6-deferred-to-0.5.md](../research/0.4.6-deferred-to-0.5.md). Work it as one batch (D-137): find, triage, fix together, one build.
 **Requirements**:
 1. **(rc3h item 1)** **The Pools grid still moves when a pool is made.** A new pool took slot 3 and pushed the project pool down, then moved again. 7695e15e0 holds the order only after the first move on the screen. Wanted: a stable order for the whole visit, with a new pool at the end.

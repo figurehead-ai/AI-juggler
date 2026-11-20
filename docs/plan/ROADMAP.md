@@ -124,6 +124,15 @@ D-24 blockers ship as 0.4.x.
 | Pool setup a newcomer understands: a flow in order, every choice in plain words for whom it applies, the calm levels; the canvas's selection and its inspector's title | AJ-E3011, AJ-E3012 |
 | Desktop app sessions as full pool members, through AI Juggler's connector, added with consent or guided (D-116) | AJ-E3013 |
 
+### 0.4.7 — the first patch after Stable
+
+The bugs 0.4.6's exit RC (rc3h) deferred, shipped as a 0.4.x patch (patch releases for bugs). They're built on release/0.4.7 once 0.4.6 reaches Stable (until then the soak freezes 0.4 to blockers, D-114), then forward-merged into 0.5. Worked as one batch (D-137). The source list is [docs/research/0.4.6-deferred-to-0.5.md](../research/0.4.6-deferred-to-0.5.md).
+
+| Area | Tasks |
+|---|---|
+| Pools and messages: a stable grid order, the project pool reached by its name, the hop limit in "N of 2" words and kept for every member, setup's side panel saying who joins now and later, shortened names, delete and the right panel's scroll; the held message's two presses is a question for the maintainer first (item 7) | AJ-E3014 |
+| Sessions: one row during a hand-over, New session's order steady, the Stop toast naming the session, the switch dialog whole at 1280×800, the wizard rail pressable, the recovery limits, Codex's added messages checked live, usage readings exact (a whole 1 % is 1 %, first) | AJ-E2311 |
+
 ## 0.5 — More tools and teams
 
 **Intent.** Bring the tools people use next, let work move between
@@ -164,6 +173,7 @@ under D-24.
 | Switches through another service (the `+service` pairs) validated live, or kept Beta-only by a logged choice (D-127, D-128) | AJ-E818 |
 | The sign-in surface fixes the sign-in sitting found; an ended session filed under the App whose own list shows it (D-102) | AJ-E1615, AJ-E2113 |
 | A 64-bit number reaches the window only below 2^53 (done) | AJ-E2024 |
+| Claude's turn-end codes read by its adapter, never named in the UI; a session in an external terminal placed by its own process before its conversation is indexed (0.4.6's deferred architecture items) | AJ-E2025 |
 
 **Deferred (D-120):** AJ-E3711 — not shipped by D-120's rule (ADR-0033 verdicts: 861ee2015, 1b8b7cbec, 659da7fec; D-121 point 4): written lines ship only if blind reviewers prefer them to A's excerpt with 0 FAILs, and they did not; 0.5 ships A's excerpts and no model text.
 
