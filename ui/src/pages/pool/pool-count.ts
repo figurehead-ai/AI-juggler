@@ -1,3 +1,5 @@
+import type { PoolMemberRow } from "../../lib/ipc/pools";
+import { shortName } from "../../lib/session-titles";
 import { GROUP_PAST } from "./useCanvas";
 
 /** What a pool page counts, said precisely: its members (the sessions AI
@@ -30,4 +32,38 @@ export function poolCountWords(members: number, open: number, openElsewhere: num
 export function rulesOnlyWords(hasRules: boolean, open: number): string {
   if (open > 0) return `${open} open now, each on its member's card: past ${GROUP_PAST} the diagram groups them. Every one is in the List view.`;
   return hasRules ? "Its sessions show here as they start. Click a member for its role and what it may do." : "None of its sessions is open: they show here as they start, and every one is in the List view.";
+}
+
+/** A member a sealed pool holds out of this one: its name, and that pool's. */
+export interface HeldMember {
+  id: string;
+  name: string;
+  by: string;
+}
+
+/** AJ-E3014 item 9 (P7's rc3a follow-ups): the members a sealed pool holds
+ * out of this one, from its rows (the List view shows them greyed, "in
+ * Client (sealed)"). The canvas draws none of them, so the page says so. */
+export function heldOf(rows: readonly PoolMemberRow[]): HeldMember[] {
+  return rows.flatMap((row) => (row.held_by ? [{ id: row.session.id, name: shortName(row.session), by: row.held_by }] : []));
+}
+
+/** The pools that hold them, in words: "Client (sealed)". */
+export function heldByWords(held: readonly HeldMember[]): string | null {
+  const by = [...new Set(held.map((one) => one.by))];
+  return by.length === 0 ? null : `${by.join(", ")} (sealed)`;
+}
+
+/** The header's count of them: "1 session in Client (sealed)". */
+export function heldCountWords(held: readonly HeldMember[]): string | null {
+  const by = heldByWords(held);
+  return by && `${held.length} ${held.length === 1 ? "session" : "sessions"} in ${by}`;
+}
+
+/** Under a canvas that draws none of its sessions because a sealed pool
+ * holds them (never a lone "No lead for now" as all it shows). */
+export function heldCanvasWords(held: readonly HeldMember[]): string {
+  const by = heldByWords(held) ?? "a sealed pool";
+  const who = held.length === 1 ? `${held[0]!.name} is` : `${held.length} of its sessions are`;
+  return `${who} in ${by} for now: a sealed pool keeps its sessions to itself. The List view shows ${held.length === 1 ? "it" : "them"}.`;
 }

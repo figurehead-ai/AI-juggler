@@ -36,7 +36,7 @@ export const SETUP = {
   /** The header's state pill: how far, and once every step is done, that
    * it is ("7 of 7" read as unfinished beside "Setting up", the rc3
    * baseline review); before any session joins, that it waits for one. */
-  pill: (done: number, total: number, joined: boolean) => (done < total ? `Setting up · ${done} of ${total}` : joined ? "Setup done" : "Setup done · no session yet"),
+  pill: (done: number, total: number, joined: boolean, heldBy: string | null = null) => (done < total ? `Setting up · ${done} of ${total}` : joined ? "Setup done" : heldBy ? `Setup done · its sessions in ${heldBy}` : "Setup done · no session yet"),
   foot: "Once a session joins and setup is done, this panel becomes the pool's live view.",
   hide: "Hide setup",
   settings: "All of this pool's settings",

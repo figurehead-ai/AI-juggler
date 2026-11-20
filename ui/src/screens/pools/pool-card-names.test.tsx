@@ -45,7 +45,7 @@ describe("a Pools card names its members as the canvas does", () => {
       </ActionHostProvider>,
     );
     const card = (await screen.findAllByTestId("pool-card-tile")).find((tile) => tile.dataset.pool === "pool-careful")!;
-    await waitFor(() => expect(within(card).getByTestId("pool-mini-card").textContent).toBe("PersonalMember"));
+    await waitFor(() => expect(within(card).getByTestId("pool-mini-card").textContent).toBe("PersonalAccount · Member"));
     expect(card.textContent).not.toContain("An Account");
   });
 });

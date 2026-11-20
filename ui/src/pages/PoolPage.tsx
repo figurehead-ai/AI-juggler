@@ -56,7 +56,7 @@ import { PoolPanel } from "./pool/PoolPanel";
 import { useSetupPhase, useSetupProgress } from "./pool/setup-progress";
 
 export { poolCountWords } from "./pool/pool-count";
-import { poolCountWords, rulesOnlyWords } from "./pool/pool-count";
+import { heldByWords, heldCanvasWords, heldCountWords, heldOf, poolCountWords, rulesOnlyWords } from "./pool/pool-count";
 
 /** Where a link in asked the page to open (read once, on arrival). */
 function arrival(): { panel: Panel; settings: boolean } {
@@ -204,7 +204,10 @@ function PoolCanvasPage({ poolId, sessions, projects, accounts, now, rules }: Pa
   const elsewhere = project ? liveOutside(all).filter((c) => c.project_id === project.id).length : 0;
   const scopeWords = scopeChipWords(pool, projects);
   // Round 5: a project's own pool says its scope here, not as a card.
-  const facts = [pool.kind === "default" && project ? `Every session in ${project.name} is part of this team` : null, poolCountWords(pool.members, openHere.length, elsewhere)].filter(Boolean).join(" · ");
+  // Item 9: what a sealed pool holds out of this one is counted, and said.
+  const held = heldOf(data.list.items);
+  const heldOnly = held.length > 0 && data.members.length === 0;
+  const facts = [pool.kind === "default" && project ? `Every session in ${project.name} is part of this team` : null, poolCountWords(pool.members, openHere.length, elsewhere), heldCountWords(held)].filter(Boolean).join(" · ");
   const unplaced = (data.canvas?.asks ?? []).filter((ask) => ask.session_id === null);
   // AJ-E3013: a desktop session through the connector is a recipient too.
   const members = [...data.members.map((member) => ({ session_id: member.id, name: names.get(member.id) ?? member.card.name, live: isActiveStatus(member.session.status) })), ...desktopRecipients(desktop.sessions)];
@@ -257,7 +260,7 @@ function PoolCanvasPage({ poolId, sessions, projects, accounts, now, rules }: Pa
           }}
         />
       )}
-      <PoolHeader pool={pool} facts={facts} needs={{ count: needs, at: needsPanel(pool.id, messageNeeds, taskNeeds) }} scope={scopeWords === null ? undefined : { words: scopeWords, onOpen: () => setScopeOpen(true) }} mode={mode} panel={panel} onMode={setMode} onPanel={setPanel} setup={phase === "setup" ? { ...progress, joined: pool.members > 0 } : null} onDeleted={onDeleted} />
+      <PoolHeader pool={pool} facts={facts} needs={{ count: needs, at: needsPanel(pool.id, messageNeeds, taskNeeds) }} scope={scopeWords === null ? undefined : { words: scopeWords, onOpen: () => setScopeOpen(true) }} mode={mode} panel={panel} onMode={setMode} onPanel={setPanel} setup={phase === "setup" ? { ...progress, joined: pool.members > 0, heldBy: heldByWords(held) } : null} onDeleted={onDeleted} />
       {/* D-126: no banner over the page (it held about 15 rows of the List
           view, X2 §4c): the team tools question is the setup checklist's
           last item. Only an ask that waits on you and has no node says so. */}
@@ -314,7 +317,7 @@ function PoolCanvasPage({ poolId, sessions, projects, accounts, now, rules }: Pa
                   edges={data.canvas?.edges}
                   names={names}
                   lineRules={lineRules}
-                  lead={setup.leadCard}
+                  lead={setup.leadCard && !heldOnly}
                   leadNext={setup.leadNext}
                   poolId={pool.id}
                   where={where}
@@ -324,7 +327,7 @@ function PoolCanvasPage({ poolId, sessions, projects, accounts, now, rules }: Pa
               )}
               empty={(paletteOpen, openPalette) =>
                 planned ? null : peopled ? (
-                  <RulesOnlyHint words={rulesOnlyWords(hasRules, openHere.length)} inset={paletteOpen} onTemplate={phase === "running" ? openTemplate : undefined} />
+                  <RulesOnlyHint words={heldOnly ? heldCanvasWords(held) : rulesOnlyWords(hasRules, openHere.length)} inset={paletteOpen} onTemplate={phase === "running" ? openTemplate : undefined} />
                 ) : (
                 <CanvasTeach
                   scope={scopeLabel(pool, projects)}
@@ -365,7 +368,7 @@ function PoolCanvasPage({ poolId, sessions, projects, accounts, now, rules }: Pa
           ruleTool={ruleTool}
           where={where}
           needs={needs}
-          setup={{ rows: setup.rows, onOpen: setup.open, tools: setup.tools }}
+          setup={{ rows: setup.rows, onOpen: setup.open, tools: setup.tools, held }}
           phase={phase}
           progress={progress}
           hidden={hidden}

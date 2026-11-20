@@ -24,10 +24,10 @@ import { poolRules, type PoolRulesInfo } from "../../lib/ipc/pool-model";
 import { useApps } from "../../lib/apps";
 import { shortName } from "../../lib/session-titles";
 import type { PoolInfo } from "../../lib/ipc/pools";
-import { doneNewPoolRequest, needWords, onNewPoolRequest, poolIdsOf, poolNeedCount, roleOf, scopeLabel, takeNewPoolRequest, usePools, warmPool, type NewPoolRequest } from "../../lib/pools";
+import { doneNewPoolRequest, heldOut, needWords, onNewPoolRequest, poolIdsOf, poolNeedCount, roleOf, scopeLabel, takeNewPoolRequest, usePools, warmPool, type NewPoolRequest } from "../../lib/pools";
 import { sessionState } from "../../lib/rail-items";
 import { NewPool } from "./NewPool";
-import { miniTeam, PoolMini } from "./PoolMini";
+import { miniTeam, PoolMini, withoutHeld } from "./PoolMini";
 import { useMemberLabel } from "../../pages/pool/pool-page-reads";
 import { DeletePool, PoolCard, RenamePool } from "./PoolCard";
 import { useVisitOrder } from "./visit-order";
@@ -218,7 +218,7 @@ export function PoolsScreen({ sessions, projects, accounts }: { sessions: Instan
             {visible.map((pool) => {
               const members = byPool.get(pool.id) ?? [];
               const preview = previews.get(pool.id);
-              const team = miniTeam(teams.get(pool.id) ?? null, members.slice(0, 24), (id) => roleOf(pools, id, pool.id), { apps: apps ?? [], sessions }, (ref) => memberName(ref, sessions));
+              const team = miniTeam(withoutHeld(teams.get(pool.id) ?? null, (id) => heldOut(pools, id, pool.id)), members.slice(0, 24), (id) => roleOf(pools, id, pool.id), { apps: apps ?? [], sessions }, (ref) => memberName(ref, sessions));
               return (
                 <PoolCard key={pool.id} pool={pool} local={cardHost} asks={asks.get(pool.id) ?? 0} onOpen={() => host.openPool?.(pool.id)}>
                   <PoolMini lead={team.lead} members={team.members} known={teams.has(pool.id)} />

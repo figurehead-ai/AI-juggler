@@ -26,6 +26,19 @@ export interface MiniMember {
   count: number;
   /** Its name: a session's title; alike sessions by their App's name. */
   name: string;
+  /** A member that brings sessions in (an App, an Account, a tool, a Mac):
+   * its kind in a word, so it reads as one and not as a session (item 9:
+   * "Claude Code … · Member" read as a third session beside "2 sessions"). */
+  group?: string;
+}
+
+/** A member that brings sessions in, by its kind, on its card. */
+const GROUP_WORDS: Record<string, string> = { app: "App", account: "Account", tool: "Tool", mac: "Mac" };
+
+/** Its rules less the sessions a sealed pool holds out of it (item 9: the
+ * card drew one beside "0 sessions"). */
+export function withoutHeld(rules: PoolRulesInfo | null, held: (sessionId: string) => boolean): PoolRulesInfo | null {
+  return rules && { ...rules, members: rules.members.filter((rule) => !(rule.kind === "session" && held(rule.member.slice("session:".length)))) };
 }
 
 /** A member's name by its ref (a session's title, an App's name). */
@@ -73,7 +86,7 @@ export function miniTeam(rules: PoolRulesInfo | null, open: readonly InstanceInf
   const broad = (rules?.members ?? []).filter((rule) => !named.includes(rule));
   const ruled = named.map((rule) => {
     const logo = logoOf(rule.member, sources);
-    return { ref: rule.member, logo, role: asRole(rule.role), count: rule.sessions, name: nameOf(rule.member) || fallbackName(rule.member, logo) };
+    return { ref: rule.member, logo, role: asRole(rule.role), count: rule.sessions, name: nameOf(rule.member) || fallbackName(rule.member, logo), group: GROUP_WORDS[rule.kind] };
   });
   const leading = ruled.find((one) => one.role === "lead") ?? ruled.find((one) => rules?.lead_next != null && one.ref === `app:${rules.lead_next}`);
   const covered = new Set([...named.flatMap((rule) => rule.session_ids), ...named.map((rule) => rule.member.replace(/^session:/, ""))]);
@@ -88,7 +101,7 @@ export function miniTeam(rules: PoolRulesInfo | null, open: readonly InstanceInf
       ? rest.members
       : broad.map((rule) => {
           const logo = logoOf(rule.member, sources);
-          return { ref: rule.member, logo, role: asRole(rule.role), count: rule.sessions, name: nameOf(rule.member) || fallbackName(rule.member, logo) };
+          return { ref: rule.member, logo, role: asRole(rule.role), count: rule.sessions, name: nameOf(rule.member) || fallbackName(rule.member, logo), group: GROUP_WORDS[rule.kind] };
         });
   const lead = leading ? { ...leading, role: "lead" as const } : rest.lead;
   return { lead, members: [...ruled.filter((one) => one !== leading), ...wide] };
@@ -112,8 +125,13 @@ function Chip({ member }: { member: MiniMember }): JSX.Element {
  * line); more, as logos with counts. */
 const MINI_CARDS = 2;
 
-/** A member's card's second line: its role, or how many are open. */
-const lineOf = (member: MiniMember): string => (member.role === "lead" ? roleCard("lead").label : member.count > 1 ? `${member.count} open · ${roleCard(member.role).label}` : roleCard(member.role).label);
+/** A member's card's second line: its role, how many are open, and what
+ * kind of member brings them ("App · Member"). */
+const lineOf = (member: MiniMember): string => {
+  if (member.role === "lead") return roleCard("lead").label;
+  const open = member.count > 1 || (member.group && member.count > 0) ? `${member.count} open` : null;
+  return [open, member.group, roleCard(member.role).label].filter(Boolean).join(" · ");
+};
 
 export function PoolMini({ lead, members, known = true, height = 92 }: { lead: MiniMember | null; members: readonly MiniMember[]; /** Its members are read (an empty one then says so). */ known?: boolean; height?: number }): JSX.Element {
   const cards = members.length <= MINI_CARDS;

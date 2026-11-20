@@ -102,6 +102,15 @@ export function poolIdsOf(pools: PoolsInfo | null, session: InstanceInfo): strin
   return rows.length > 0 ? rows.map((row) => row.pool_id) : [defaultPoolIdOf(session.project_id)];
 }
 
+/** Item 9 (P7's rc3a follow-ups): whether a sealed pool holds `sessionId`
+ * out of `poolId`: it's placed in a sealed pool and not in this one (the
+ * List view shows it greyed, "in Client (sealed)"; a Pools card drew it
+ * as a member beside "0 sessions"). */
+export function heldOut(pools: { pools: readonly Pick<PoolInfo, "id" | "sealed">[]; placements: readonly Pick<PoolMemberInfo, "session_id" | "pool_id">[] } | null, sessionId: string, poolId: string): boolean {
+  const rows = pools?.placements.filter((row) => row.session_id === sessionId) ?? [];
+  return !rows.some((row) => row.pool_id === poolId) && rows.some((row) => pools?.pools.find((pool) => pool.id === row.pool_id)?.sealed === true);
+}
+
 /** A pool's sessions open now, as its page's header counts them (its
  * canvas and its Now say the same, F-rc3g-8). */
 export function openInPool(pools: PoolsInfo | null, sessions: readonly InstanceInfo[], poolId: string): InstanceInfo[] {
