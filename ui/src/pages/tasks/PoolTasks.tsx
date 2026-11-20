@@ -24,6 +24,7 @@ import { focusTask, onTasksChanged, takeFocusedTask, tasksList, tasksOfSession, 
 import { TaskRow } from "./TaskRow";
 import { TaskTree } from "./TaskTree";
 import { TaskView } from "./TaskView";
+import { TaskAsk, useTaskAsks } from "../../components/TaskNeeds";
 import { STATUS_WORDS } from "./words";
 import { useTaskSearch } from "./useTaskSearch";
 
@@ -73,6 +74,8 @@ export function PoolTasks({ poolId, sessions, projects, now }: { poolId: string;
   const list = usePagedList(`tasks:${poolId}:${filter}:${query}`, (page) => tasksList(poolId, filter, query || null, page), { pageSize: LIST_PAGE, keyOf: (task) => task.id });
   // The plan's folds.
   const plan = usePagedList(`tasks-plan:${poolId}`, (page) => tasksPlan(poolId, page), { pageSize: PLAN_PAGE, keyOf: (task) => task.id });
+  // SK-14: what waits on you here; the open task's own show on its page.
+  const asks = useTaskAsks({ poolId }).filter((need) => need.task_id === null || need.task_id !== open);
   const first = list.items[0]?.id ?? null;
   useEffect(() => {
     if (first) setOpen((was) => was ?? first);
@@ -122,6 +125,13 @@ export function PoolTasks({ poolId, sessions, projects, now }: { poolId: string;
           {view === "list" && <input autoCorrect="off" autoCapitalize="off" spellCheck={false} type="search" aria-label="Find tasks" placeholder="Find tasks" value={words} onChange={(event) => setWords(event.target.value)} className="h-8 w-44 rounded-lg border border-hairline bg-surface-2 px-3 text-meta text-ink outline-none focus:border-accent/60" />}
         </div>
       </div>
+      {asks.length > 0 && (
+        <section className="flex flex-col gap-2" aria-label="Waits on you" data-testid="pool-task-asks">
+          {asks.map((need) => (
+            <TaskAsk key={need.id} need={need} />
+          ))}
+        </section>
+      )}
       <div className="grid min-w-0 gap-4 lg:grid-cols-[minmax(300px,420px)_minmax(0,1fr)]">
         <aside className="flex min-w-0 flex-col gap-2" aria-label="Tasks">
           {view === "plan" ? (

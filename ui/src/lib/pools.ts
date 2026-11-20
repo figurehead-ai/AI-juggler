@@ -150,6 +150,14 @@ export function poolNeedCount(poolId: string, messages: readonly MessageNeedInfo
   );
 }
 
+/** SK-14: where a pool's page shows what needs you, for its header's
+ * "2 need you" to open: its Tasks for a task's need, else its Messages; a
+ * session's own need is on its node (null). */
+export function needsPanel(poolId: string, messages: readonly MessageNeedInfo[], tasks: readonly TaskNeedInfo[]): "tasks" | "messages" | null {
+  if (tasks.some((need) => need.pool_id === poolId)) return "tasks";
+  return messages.some((need) => need.pool_id === poolId && (need.kind === "ask" || need.kind === "deliver" || need.kind === "question")) ? "messages" : null;
+}
+
 /** "1 needs you", "4 need you". */
 export function needWords(count: number): string {
   return `${count} ${count === 1 ? "needs" : "need"} you`;

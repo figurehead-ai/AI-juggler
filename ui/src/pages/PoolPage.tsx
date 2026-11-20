@@ -29,7 +29,7 @@ import { EmptyPoolSetup, SetupSkeleton } from "./pool/EmptyPoolSetup";
 import type { PoolRules } from "../lib/pool-rules";
 import { FOCUS_THREAD, useMessageNeeds } from "../lib/ipc/messages";
 import { FOCUS_TASK, focusTask, useTaskNeeds, type TaskInfo } from "../lib/ipc/tasks";
-import { needWords, openInPool, poolById, poolIdOf, poolIdsOf, poolNeedCount, scopeChipWords, scopeLabel, setPools, usePools } from "../lib/pools";
+import { needsPanel, openInPool, poolById, poolIdOf, poolIdsOf, poolNeedCount, scopeChipWords, scopeLabel, setPools, usePools } from "../lib/pools";
 import { drawnRules, drawsPlanned, everyoneOf, usePoolSetup } from "./pool/usePoolSetup";
 import { desktopRecipients } from "../lib/connector";
 import { useDesktopOnCanvas } from "./pool/useDesktopOnCanvas";
@@ -203,7 +203,7 @@ function PoolCanvasPage({ poolId, sessions, projects, accounts, now, rules }: Pa
   const elsewhere = project ? liveOutside(all).filter((c) => c.project_id === project.id).length : 0;
   const scopeWords = scopeChipWords(pool, projects);
   // Round 5: a project's own pool says its scope here, not as a card.
-  const facts = [pool.kind === "default" && project ? `Every session in ${project.name} is part of this team` : null, poolCountWords(pool.members, openHere.length, elsewhere), needs > 0 ? needWords(needs) : null].filter(Boolean).join(" · ");
+  const facts = [pool.kind === "default" && project ? `Every session in ${project.name} is part of this team` : null, poolCountWords(pool.members, openHere.length, elsewhere)].filter(Boolean).join(" · ");
   const unplaced = (data.canvas?.asks ?? []).filter((ask) => ask.session_id === null);
   // AJ-E3013: a desktop session through the connector is a recipient too.
   const members = [...data.members.map((member) => ({ session_id: member.id, name: names.get(member.id) ?? member.card.name, live: isActiveStatus(member.session.status) })), ...desktopRecipients(desktop.sessions)];
@@ -250,7 +250,7 @@ function PoolCanvasPage({ poolId, sessions, projects, accounts, now, rules }: Pa
           }}
         />
       )}
-      <PoolHeader pool={pool} facts={facts} scope={scopeWords === null ? undefined : { words: scopeWords, onOpen: () => setScopeOpen(true) }} mode={mode} panel={panel} onMode={setMode} onPanel={setPanel} setup={phase === "setup" ? { ...progress, joined: pool.members > 0 } : null} />
+      <PoolHeader pool={pool} facts={facts} needs={{ count: needs, at: needsPanel(pool.id, messageNeeds, taskNeeds) }} scope={scopeWords === null ? undefined : { words: scopeWords, onOpen: () => setScopeOpen(true) }} mode={mode} panel={panel} onMode={setMode} onPanel={setPanel} setup={phase === "setup" ? { ...progress, joined: pool.members > 0 } : null} />
       {/* D-126: no banner over the page (it held about 15 rows of the List
           view, X2 §4c): the team tools question is the setup checklist's
           last item. Only an ask that waits on you and has no node says so. */}

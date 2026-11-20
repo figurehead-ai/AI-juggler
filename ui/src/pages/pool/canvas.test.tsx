@@ -18,6 +18,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { MOCK_PROJECTS, MOCK_SESSIONS } from "../../preview/fixtures";
 import { scopeOf } from "../../lib/ipc/pools";
+import { resetPreviewTasks } from "../../lib/ipc/tasks";
 import { onPoolsChanged, refreshPools, defaultPoolIdOf, openPoolSheet, usePoolSheet } from "../../lib/pools";
 import { ConversationsProvider } from "../../lib/conversations";
 import { ActionHostProvider } from "../../components/ItemMenu";
@@ -232,6 +233,26 @@ describe("one count of what needs you", () => {
       </ActionHostProvider>,
     );
     await waitFor(() => expect(screen.getAllByTestId("pool-card-words").some((line) => line.textContent!.includes(header!))).toBe(true));
+  });
+});
+
+describe("SK-14: the header's \"need you\" is a door", () => {
+  it("opens the pool's Tasks, where an agent's held change is answered", async () => {
+    seedTeam();
+    resetPreviewTasks();
+    seams().__AIJ_TASKS__ = {
+      needs: [{ id: "tneed-1", kind: "ask", pool_id: "pool-team", pool_name: "Team", task_id: null, task_title: null, title: "«B» wants to add «Docs»", detail: "", offer_always: false, project_id: null, at_ms: Date.now() }],
+    };
+    try {
+      const page = await openPage();
+      fireEvent.click(await page.findByTestId("pool-header-needs"));
+      const panel = await page.findByTestId("pool-panel-tasks-open");
+      const asks = await within(panel).findByTestId("pool-task-asks");
+      expect(within(asks).getByTestId("ask-card").textContent).toContain("wants to add «Docs»");
+    } finally {
+      delete seams().__AIJ_TASKS__;
+      resetPreviewTasks();
+    }
   });
 });
 

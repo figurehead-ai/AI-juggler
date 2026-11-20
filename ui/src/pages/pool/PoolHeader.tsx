@@ -10,7 +10,7 @@ import { IconPool } from "../../components/icons-actions";
 import { IconMessage, IconTasks } from "../../components/icons-canvas";
 import { errorText } from "../../lib/bridge";
 import { poolRename, poolSetAccess, type PoolInfo } from "../../lib/ipc/pools";
-import { setPools } from "../../lib/pools";
+import { needWords, setPools } from "../../lib/pools";
 import { asOwnLevel } from "../../lib/pool-words";
 import { OwnLevelChoice } from "./setup/OwnLevelChoice";
 import { HeaderCustom } from "./HeaderCustom";
@@ -117,9 +117,20 @@ function ScopeChip({ words, onOpen }: { words: string; onOpen: () => void }): JS
   );
 }
 
+/** SK-14: "2 need you", a door to the Tasks or Messages that hold them. */
+function Needs({ count, at, onPanel }: { count: number; at: Panel; onPanel: (panel: Panel) => void }): JSX.Element {
+  if (!at) return <>{needWords(count)}</>;
+  return (
+    <button type="button" onClick={() => onPanel(at)} className="font-medium text-warning underline-offset-2 outline-none hover:underline focus-visible:ring-1 focus-visible:ring-accent/60" title={at === "tasks" ? "Show them in Tasks" : "Show them in Messages"} data-testid="pool-header-needs">
+      {needWords(count)}
+    </button>
+  );
+}
+
 export function PoolHeader({
   pool,
   facts,
+  needs = { count: 0, at: null },
   scope,
   mode,
   panel,
@@ -131,6 +142,8 @@ export function PoolHeader({
   setup?: { done: number; total: number; joined: boolean } | null;
   pool: PoolInfo;
   facts: ReactNode;
+  /** What needs you in it, and where those show. */
+  needs?: { count: number; at: Panel };
   /** A pool you made: where it works, in words, and its scope sheet. */
   scope?: { words: string; onOpen: () => void };
   mode: Mode;
@@ -180,6 +193,12 @@ export function PoolHeader({
         </div>
         <span className="truncate text-meta text-muted" data-testid="pool-page-count">
           {facts}
+          {needs.count > 0 && (
+            <>
+              {facts ? " · " : ""}
+              <Needs count={needs.count} at={needs.at} onPanel={onPanel} />
+            </>
+          )}
         </span>
       </div>
       <div className="flex flex-wrap items-center gap-1.5">
