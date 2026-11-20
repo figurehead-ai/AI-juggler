@@ -158,26 +158,35 @@ export interface PreviewPick {
 
 /** The visual review (98-pool-setup): on a short window the rows scroll,
  * and the step's own row was out of view. It's scrolled into view, in the
- * rows' box only, whenever the step changes. */
+ * rows' box only, whenever the step changes, and again whenever that row
+ * grows (a choice made on the step: "Work together and wake each other"
+ * took a second line, cut at the box's edge). */
 function useCurrentInView(box: RefObject<HTMLDivElement | null>, current: PreviewRowId | null): void {
   useLayoutEffect(() => {
-    if (current !== null) showCurrent(box.current);
+    if (current === null) return undefined;
+    showCurrent(box.current);
+    const row = box.current?.querySelector<HTMLElement>("[data-current]");
+    if (!row || typeof ResizeObserver === "undefined") return undefined;
+    const watch = new ResizeObserver(() => showCurrent(box.current));
+    watch.observe(row);
+    return () => watch.disconnect();
   }, [box, current]);
 }
 
-/** Scrolls `scroller` just enough that its current row is whole in view. */
+/** Scrolls `scroller` just enough that its current row is whole in view;
+ * the last row, to the list's very end. */
 function showCurrent(scroller: HTMLElement | null): void {
   const row = scroller?.querySelector<HTMLElement>("[data-current]");
   if (!scroller || !row) return;
   const view = scroller.getBoundingClientRect();
   const at = row.getBoundingClientRect();
-  if (at.bottom > view.bottom) scroller.scrollTop += at.bottom - view.bottom;
+  if (at.bottom > view.bottom) scroller.scrollTop = Math.max(scroller.scrollTop + at.bottom - view.bottom, row.nextElementSibling ? 0 : scroller.scrollHeight - scroller.clientHeight);
   else if (at.top < view.top) scroller.scrollTop -= view.top - at.top;
 }
 
 function PreviewRows({ rows, current, pick }: { rows: readonly PreviewRow[]; current: PreviewRowId | null; pick?: PreviewPick }): JSX.Element {
   return (
-    <dl className="flex flex-col gap-0.5 px-2 pb-2.5 pt-3" data-testid="new-pool-preview-rows">
+    <dl className="flex flex-col gap-0.5 px-2 pt-3" data-testid="new-pool-preview-rows">
       {rows.map((row) => {
         const Shape = ROW_WORDS[row.id].icon;
         const on = row.id === current;
@@ -262,6 +271,9 @@ export function NewPoolPreview({
       <div ref={box} onScroll={measure} className="min-h-0 overflow-y-auto" data-testid="new-pool-preview-scroll">
         {extra ?? <PreviewRows rows={rows} current={current} pick={pick} />}
       </div>
+      {/* The rows' bottom room, outside their box: "More below" counts
+          only a row that's hidden, never this padding (the visual review). */}
+      {!extra && <div aria-hidden="true" className="h-2.5 shrink-0" data-testid="new-pool-preview-rows-foot" />}
       {foot ? (
         <div className="flex shrink-0 items-center gap-2 border-t border-divider px-[18px] pb-3.5 pt-2.5 text-label text-faint">
           <IconInfo aria-hidden="true" width={14} height={14} className="shrink-0" />
