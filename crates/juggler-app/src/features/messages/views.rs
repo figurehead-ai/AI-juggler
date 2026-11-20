@@ -424,7 +424,8 @@ pub fn deliver_waiting(state: &Arc<AppState>, session_id: &str) -> AppResult<u32
     Ok(count)
 }
 
-/// The user pauses, stops or resumes a thread (resuming resets its hops).
+/// The user pauses, stops or resumes a thread (resuming resets its hops,
+/// and a message its chain paused on waits as any other).
 ///
 /// # Errors
 ///
@@ -452,6 +453,20 @@ pub fn set_thread(state: &Arc<AppState>, thread_id: &str, word: &str) -> AppResu
         repo.set_thread_state(thread_id, next, reason, SENDER_USER)?;
         if next == ThreadState::Open {
             repo.reset_hop(thread_id)?;
+            // A chain paused at the hop limit, resumed: its ask to deliver
+            // goes without delivering, and the message waits as any other
+            // does, for its Deliver or the session's own read (the rc3h
+            // walk: Home still said "A chain of replies paused for you"
+            // beside an open thread).
+            let deliver = juggler_core::agent_access::AgentAction::DeliverToSession.as_str();
+            for ask in repo.open_asks(0, 200)? {
+                let in_thread = repo
+                    .message(&ask.object_ref)?
+                    .is_some_and(|message| message.thread_id == thread_id);
+                if ask.action == deliver && in_thread {
+                    repo.close_ask(&ask.id, "resumed")?;
+                }
+            }
         }
         repo.thread(thread_id)?
             .map(|t| t.pool_id)

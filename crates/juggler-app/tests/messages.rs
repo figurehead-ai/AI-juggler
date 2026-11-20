@@ -792,27 +792,9 @@ fn the_hop_limit_pauses_the_chain_and_asks_and_stop_all_holds_it() {
 #[test]
 fn dont_deliver_at_the_hop_limit_ends_the_chain_and_nothing_asks_again() {
     let lab = Lab::new();
-    let (planner, a) = lab.agent("s-a", "Planner");
-    let (builder, b) = lab.driven("Builder");
-    pools::access::set_level_impl(&lab.state, &lab.pool, "full", &[]).unwrap();
-    pools::access::set_delivery_impl(&lab.state, &lab.pool, 2, false).unwrap();
-    let first = lab.say(&a, &builder, "one", None);
-    let thread = field(&first, "/thread");
-    wait_for("the first delivery", || {
-        state_for(&lab, &field(&first, "/message")) == ["delivered"]
-    });
-    wait_for("its turn to end", || {
-        delivery::between_turns(&lab.state, &builder)
-    });
-    lab.say(&b, &planner, "two", Some(&thread));
-    let third = lab.say(&a, &builder, "three", Some(&thread));
-    let third_id = field(&third, "/message");
-    let ask = needs::needs(&lab.state)
-        .unwrap()
-        .into_iter()
-        .find(|n| n.kind == "deliver")
-        .expect("the chain paused and asks");
-    needs::answer(&lab.state, ask.ask_id.as_deref().unwrap(), "deny").unwrap();
+    let chain = PausedChain::at_two(&lab);
+    let (thread, third_id, builder, a) = (&chain.thread, &chain.third, &chain.builder, &chain.a);
+    needs::answer(&lab.state, &chain.ask, "deny").unwrap();
 
     let waiting = needs::needs(&lab.state).unwrap();
     assert!(
@@ -821,8 +803,8 @@ fn dont_deliver_at_the_hop_limit_ends_the_chain_and_nothing_asks_again() {
             .all(|n| n.thread_id.as_deref() != Some(thread.as_str())),
         "nothing about the chain waits on the person: {waiting:?}"
     );
-    assert_eq!(state_for(&lab, &third_id), ["refused"], "not sent");
-    let stopped = views::thread(&lab.state, &thread, None).unwrap().thread;
+    assert_eq!(state_for(&lab, third_id), ["refused"], "not sent");
+    let stopped = views::thread(&lab.state, thread, None).unwrap().thread;
     assert_eq!(stopped.state, "stopped");
     assert!(
         stopped
@@ -837,8 +819,93 @@ fn dont_deliver_at_the_hop_limit_ends_the_chain_and_nothing_asks_again() {
         0,
         "no Deliver sends it after all"
     );
-    let again = lab.say(&a, &builder, "four", Some(&thread));
+    let again = lab.say(a, builder, "four", Some(thread));
     assert_eq!(again.refused, Some(Refusal::Deny), "{again:?}");
+}
+
+/// The rc3h walk, again: Resume on a thread paused at the hop limit opened
+/// it and left its ask, so Home still said "A chain of replies paused for
+/// you" beside an open thread. The ask goes without delivering, and the
+/// message waits as any other does: Home and the thread both offer its
+/// Deliver.
+#[test]
+fn resume_at_the_hop_limit_lets_its_message_wait_as_usual() {
+    let lab = Lab::new();
+    let chain = PausedChain::at_two(&lab);
+    views::set_thread(&lab.state, &chain.thread, "open").unwrap();
+
+    let waiting = needs::needs(&lab.state).unwrap();
+    assert!(
+        waiting.iter().all(|n| n.kind != "deliver"),
+        "no chain paused for you: {waiting:?}"
+    );
+    let card = waiting
+        .iter()
+        .find(|n| n.kind == "waiting")
+        .expect("it waits for the session, as any message does");
+    assert_eq!(card.message_id.as_deref(), Some(chain.third.as_str()));
+    assert_eq!(card.session_id.as_deref(), Some(chain.builder.as_str()));
+    std::thread::sleep(Duration::from_millis(300));
+    assert_eq!(
+        state_for(&lab, &chain.third),
+        ["unread"],
+        "never delivered by Resume"
+    );
+    let page = views::thread(&lab.state, &chain.thread, None).unwrap();
+    assert_eq!((page.thread.state.as_str(), page.thread.hop), ("open", 0));
+    let copy = &page
+        .messages
+        .iter()
+        .find(|m| m.id == chain.third)
+        .unwrap()
+        .recipients[0];
+    assert_eq!(copy.state, "unread");
+    assert!(
+        copy.deliverable,
+        "the thread offers its Deliver too: {copy:?}"
+    );
+}
+
+/// A chain in a pool at Full with a hop limit of 2: Planner → Builder
+/// (delivered), Builder → Planner, then Planner's third, paused and asked.
+struct PausedChain {
+    thread: String,
+    third: String,
+    ask: String,
+    builder: SessionId,
+    a: String,
+}
+
+impl PausedChain {
+    fn at_two(lab: &Lab) -> Self {
+        let (planner, a) = lab.agent("s-a", "Planner");
+        let (builder, b) = lab.driven("Builder");
+        pools::access::set_level_impl(&lab.state, &lab.pool, "full", &[]).unwrap();
+        pools::access::set_delivery_impl(&lab.state, &lab.pool, 2, false).unwrap();
+        let first = lab.say(&a, &builder, "one", None);
+        let thread = field(&first, "/thread");
+        wait_for("the first delivery", || {
+            state_for(lab, &field(&first, "/message")) == ["delivered"]
+        });
+        wait_for("its turn to end", || {
+            delivery::between_turns(&lab.state, &builder)
+        });
+        lab.say(&b, &planner, "two", Some(&thread));
+        let third = field(&lab.say(&a, &builder, "three", Some(&thread)), "/message");
+        let ask = needs::needs(&lab.state)
+            .unwrap()
+            .into_iter()
+            .find(|n| n.kind == "deliver")
+            .and_then(|n| n.ask_id)
+            .expect("the chain paused and asks");
+        Self {
+            thread,
+            third,
+            ask,
+            builder,
+            a,
+        }
+    }
 }
 
 fn hook(event: &str) -> juggler_agentbridge::wire::HookReport {

@@ -393,7 +393,9 @@ it has any.
   sessions AI Juggler runs. Your message starts the thread's count of
   agent messages in a row from 0.
 - **Pause** and **Stop** on a thread hold it, or end it for agents;
-  **Resume** opens it again from 0. **Pause this pool's messages** holds the
+  **Resume** opens it again from 0. On a chain paused at the hop limit,
+  **Resume** doesn't send the message it paused on: that message waits for
+  its **Deliver**, as any other does. **Pause this pool's messages** holds the
   whole pool.
 
 ### What waits on you
