@@ -45,10 +45,10 @@ export function MachineStatusLine({ minimal, onOpen, short = false }: { minimal:
   // "Under memory pressure"): a voice user says what they see (axe,
   // label-content-name-mismatch).
   const spoken = shown === words ? undefined : `${name} · ${shown}`;
-  // D1: its help says what room counts, in the backend's words from its
-  // thresholds (memory pressure keeps its own).
-  const measures = status ? info?.machine.summary.measures : undefined;
-  const help = why ?? (measures ? `${words}. ${measures}` : undefined);
+  // D1: its help says what room counts and when it turns tight, in the
+  // backend's words from its thresholds (memory pressure keeps its own).
+  const room = status && info ? [info.machine.summary.counts, info.machine.summary.measures].filter(Boolean).join(" ") : "";
+  const help = why ?? (room ? `${words}. ${room}` : undefined);
   const dot = status ? status.dot : "bg-faint";
   // The level, by which the dot breathes when it changes, then rests
   // (styles.css).

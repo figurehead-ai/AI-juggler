@@ -6,6 +6,7 @@
 import type { JSX } from "react";
 import { ToolMark } from "./ToolMark";
 import { useItemMenu } from "./ItemMenu";
+import { Disclosure } from "./controls";
 import { bytesWords, machineStatus, reasonSentence, type ThisMacInfo, type ToolTreeInfo } from "../lib/machine";
 
 /** Why a tool AI Juggler didn't start shows "about": its helpers share
@@ -110,12 +111,18 @@ export function MachineState({ info, reasonsShown = 2 }: { info: ThisMacInfo; re
               {reasonSentence(reasons)}
             </span>
           )}
-          {/* D1: calm beside busy figures, it says what room counts, in
-              the backend's words from its thresholds. */}
-          {calm && info.machine.summary.measures && (
-            <span className="max-w-prose text-meta text-ink-2" data-testid="this-mac-room-means">
-              {info.machine.summary.measures}
+          {/* D1: calm beside busy figures, one short line says what room
+              counts; when it turns tight is one press away (calm stays
+              short). Both the backend's words, from its thresholds. */}
+          {calm && info.machine.summary.counts && (
+            <span className="text-meta text-ink-2" data-testid="this-mac-room-means">
+              {info.machine.summary.counts}
             </span>
+          )}
+          {calm && info.machine.summary.measures && (
+            <Disclosure summary="When does it turn tight?" testId="this-mac-room-when">
+              <p className="mt-1 max-w-prose text-meta text-ink-2">{info.machine.summary.measures}</p>
+            </Disclosure>
           )}
         </div>
 

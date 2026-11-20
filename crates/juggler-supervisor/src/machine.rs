@@ -281,16 +281,30 @@ impl Default for RoomThresholds {
     }
 }
 
+/// What room counts, in the order [`RoomThresholds::measures`] says them;
+/// heat is macOS's own reading, the rest have thresholds here.
+const ROOM_PARTS: [&str; 5] = ["free memory", "swap", "the processor", "heat", "disk"];
+
 impl RoomThresholds {
     /// D1 (the 0.4.6 persona walk: "Nothing running — your Mac has room"
-    /// beside a busy processor and a deep swap): what "room" measures, in
-    /// plain words, built from these thresholds so the screen can never
-    /// say other figures than the ones [`summarize`] uses.
+    /// beside a busy processor and a deep swap): what "room" counts, in
+    /// one short line for a calm level ("Room counts free memory, swap,
+    /// the processor, heat and disk."); its figures are [`Self::measures`].
+    #[must_use]
+    pub fn counts(&self) -> String {
+        match ROOM_PARTS.split_last() {
+            Some((last, rest)) => format!("Room counts {} and {last}.", rest.join(", ")),
+            None => String::new(),
+        }
+    }
+
+    /// When room turns tight, in plain words, built from these thresholds
+    /// so the screen can never say other figures than the ones
+    /// [`summarize`] uses: behind This Mac's "When does it turn tight?".
     #[must_use]
     pub fn measures(&self) -> String {
         format!(
-            "Room is free memory, swap, the processor, heat and disk space. \
-             It turns tight only when one runs short: the processor over {cpu} for {span}, \
+            "It turns tight only when one runs short: the processor over {cpu} for {span}, \
              swap at {full} of its size and holding {ram} of your memory or more, \
              swap growing over {grow:.0} MB a minute, under {free} of memory free, \
              the computer slowing down to cool off, or a disk with under {disk} free.",
@@ -1033,20 +1047,27 @@ mod tests {
     const G: u64 = 1_000_000_000;
 
     /// D1: the words say the thresholds in force, and follow them when
-    /// they change; at the defaults, the words the design preview holds
+    /// they change; the short line says what room counts, no figures; at
+    /// the defaults, the words the design preview holds
     /// (`ui/src/lib/fixtures/room-measures.json`).
     #[test]
     fn room_measures_follow_the_thresholds() {
         #[derive(serde::Deserialize)]
         struct Fixture {
-            default: String,
+            counts: String,
+            measures: String,
         }
         let fixture: Fixture = serde_json::from_str(include_str!(
             "../../../ui/src/lib/fixtures/room-measures.json"
         ))
         .expect("the fixture reads");
         let defaults = RoomThresholds::default();
-        assert_eq!(defaults.measures(), fixture.default);
+        assert_eq!(defaults.counts(), fixture.counts);
+        assert_eq!(defaults.measures(), fixture.measures);
+        assert!(
+            !defaults.counts().chars().any(|c| c.is_ascii_digit()),
+            "the short line says no figures"
+        );
         let changed = RoomThresholds {
             cpu_busy_pct: 80.0,
             cpu_sustained_ms: 120_000,

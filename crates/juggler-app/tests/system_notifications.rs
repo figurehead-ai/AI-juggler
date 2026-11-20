@@ -339,6 +339,7 @@ fn this_mac_getting_tight_says_why_and_opens_this_mac() {
             }]
         },
         cause: None,
+        counts: juggler_supervisor::machine::RoomThresholds::default().counts(),
         measures: juggler_supervisor::machine::RoomThresholds::default().measures(),
     };
     notifications::this_mac_room(&state, &room("plenty", "Plenty of room", ""));

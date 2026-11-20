@@ -140,6 +140,7 @@ describe("a level says what put it there", () => {
           words: "Getting tight",
           reasons: [{ kind: "swap", level: "tight", words: "swap almost full — 39 GB of 40 GB in use" }],
           cause: "swap almost full",
+          counts: base.machine.summary.counts,
           measures: base.machine.summary.measures,
         },
       },
