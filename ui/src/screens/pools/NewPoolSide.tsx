@@ -29,6 +29,7 @@ export function sideFor({
   memberName,
   first,
   pick,
+  openNow,
 }: {
   current: SetupStep;
   draft: Draft;
@@ -44,9 +45,11 @@ export function sideFor({
   first: boolean;
   /** Going to a reached step from its preview row. */
   pick?: PreviewPick;
+  /** Each member's open sessions here now (`openNowByMember`). */
+  openNow?: ReadonlyMap<string, number>;
 }): { preview: ReactNode; summary: ReactNode } {
   const hasProject = draft.every || draft.projects.length > 0;
-  const rows = previewRows(shape, where, current, visited, hasProject);
+  const rows = previewRows(shape, where, current, visited, hasProject, openNow);
   const summary = <PreviewStrip name={name} rows={rows} />;
   if (current === "template") return { preview: <NewPoolStartSide first={first} />, summary: null };
   const reached = visited("who") || current === "who";

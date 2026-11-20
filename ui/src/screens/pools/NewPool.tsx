@@ -254,7 +254,7 @@ export function NewPool({
           at={current}
           steps={<NewPoolSteps steps={steps} step={step} furthest={furthest} valueOf={valueOf} onPick={go} />}
           {...sideFor({
-            current, draft, name, where, shape, visited, sources: { apps: apps ?? [], sessions }, memberName, first: firstPool,
+            current, draft, name, where, shape, visited, sources: { apps: apps ?? [], sessions }, memberName, first: firstPool, openNow,
             // A preview row goes to its step once that step is reached.
             pick: { go: (row) => go(steps.indexOf(row)), can: (row) => steps.indexOf(row) >= 0 && steps.indexOf(row) <= furthest },
           })}

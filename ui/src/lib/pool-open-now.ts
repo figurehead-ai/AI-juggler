@@ -17,6 +17,7 @@ import type { AppModel } from "./apps";
 import type { Draft } from "./new-pool";
 import { sessionState } from "./rail-items";
 import type { SubscriptionInfo } from "./subscriptions";
+import { listWords } from "./account-terms";
 
 /** How specific each kind of member is: the lower wins. */
 const RANK: Record<string, number> = { session: 0, app: 1, account: 2, tool: 3, mac: 4, all: 5 };
@@ -82,4 +83,21 @@ export function openNowWords(count: number, where?: string, quiet = 0): string {
   // lately are in it, drawn under its card: never "No session open yet".
   const none = quiet > 0 ? `${quiet} in the pool, quiet lately` : "No session open yet";
   return `${count > 0 ? `${count} open now` : none} · ${joins}`;
+}
+
+/** AJ-E3014 item 4: who joins now and who later, in a line, for New
+ * pool's side panel (P1's sheet: only Review said it). Now: the sessions
+ * open here now that a member brings in (`openNow`); later: the members
+ * whose new sessions join by themselves, or no one. "Now: 2 open
+ * sessions · Later: every new session in web". */
+export function joinsLine(members: readonly { ref: string; label: string; later: boolean }[], openNow: ReadonlyMap<string, number>, where: string): string {
+  const open = members.reduce((sum, member) => sum + (openNow.get(member.ref) ?? 0), 0);
+  const now = open === 0 ? "no session open" : open === 1 ? "1 open session" : `${open} open sessions`;
+  const laters = members.filter((member) => member.ref !== "all" && member.later).map((member) => member.label);
+  const later = members.some((member) => member.ref === "all")
+    ? `every new session in ${where}`
+    : laters.length > 0
+      ? `new sessions of ${listWords(laters)} in ${where}`
+      : "no one by itself: add sessions on its diagram";
+  return `Now: ${now} · Later: ${later}`;
 }

@@ -8,7 +8,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { MOCK_PROJECTS, MOCK_SESSIONS } from "../../preview/fixtures";
 import { resetPreviewAgentBridge } from "../../lib/ipc/agent-bridge";
 import { poolsList, resetPreviewPools, scopeOf, type PoolInfo } from "../../lib/ipc/pools";
-import { draftOf, type Draft } from "../../lib/new-pool";
+import { draftOf, EVERYONE, type Draft } from "../../lib/new-pool";
 import { nextLine, shapeOfDraft } from "../../lib/pool-sentences";
 import { templateById } from "../../lib/pool-templates";
 import { resetPending, settleAdds, settleRoles, usePendingAdds, usePendingRoles, withPendingAdd, withPendingRole } from "../../lib/pool-pending";
@@ -76,6 +76,16 @@ describe("AJ-E3011 round 4", () => {
     render(<NewPool sessions={MOCK_SESSIONS} projects={MOCK_PROJECTS} accounts={[]} project="proj-ai-juggler" onClose={() => undefined} />);
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(screen.getAllByTestId("flow-step")).toHaveLength(8);
+  });
+
+  it("AJ-E3014 item 4: with no lead, \"it joins\" only when a new session would", () => {
+    const base = draftOf(templateById("blank"), "p-web");
+    const words = (members: Draft["members"]) => nextLine(shapeOfDraft({ ...base, members, leadNext: null }, (_, label) => label), "web").split("; ")[0];
+    expect(words([{ ...EVERYONE, role: "member" }])).toBe("Open a session in web: it joins");
+    expect(words([app("app:cli:work", "Claude Code · Work")])).toBe("Open a session of Claude Code · Work in web: it joins");
+    // The every-new-session switch off, only a session picked: none joins.
+    const picked = { ref: "session:s1", kind: "session" as const, label: "p1-writer", role: "member" as const, level: null, reach: "full" as const, shell: null };
+    expect(words([picked])).toBe("A new session in web doesn't join by itself: add it on the diagram");
   });
 
   it("#3: what happens next, in one line, from the shared sentences: Review and the diagram alike", () => {

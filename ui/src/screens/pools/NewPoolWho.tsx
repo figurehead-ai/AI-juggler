@@ -130,6 +130,9 @@ export function NewPoolWho({
         />
       </RowList>
       <NewPoolWhoApps rows={candidates.app} draft={draft} apps={apps} sessions={sessions} where={where} onToggle={toggle} />
+      {/* Round 7 #9: how a desktop session takes part, once for the step
+          (AJ-E3014 item 4: under the Apps and again in the sessions). */}
+      <DesktopListNote notes={Object.values(candidates).flatMap((rows) => rows.map((row) => (row.blocked ? undefined : row.note)))} testId="new-pool-desktop-note" />
       <section aria-labelledby={`${ids}-open`} className="flex min-w-0 flex-col gap-2.5" data-testid="new-pool-sessions">
         <h4 className="flex items-baseline gap-2.5">
           <span id={`${ids}-open`} className="section-label">
@@ -235,8 +238,6 @@ function CandidateList({
           className="h-9 rounded-[10px] bg-fill px-3 text-meta text-ink outline-none inset-ring-1 inset-ring-hairline/75 placeholder:text-muted focus-visible:inset-ring-[1.5px] focus-visible:inset-ring-accent focus-visible:ring-4 focus-visible:ring-accent-soft"
         />
       )}
-      {/* Round 7 #9: how a desktop session takes part, once for the list. */}
-      <DesktopListNote notes={rows.map((row) => (row.blocked ? undefined : row.note))} testId="new-pool-desktop-note" />
       <div className="flex flex-col gap-4" data-testid={testId}>
         {GROUPS.map((group) => {
           const inGroup = rows.filter((row) => row.group === group.id);

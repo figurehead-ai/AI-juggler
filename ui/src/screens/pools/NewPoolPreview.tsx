@@ -41,6 +41,8 @@ export interface PreviewRow {
   id: PreviewRowId;
   label: string;
   value: string;
+  /** A second line under it (Who's in: who joins now, who later). */
+  detail?: string;
   /** Not chosen yet: the value it will have, in a quieter ink. */
   pending: boolean;
   /** Filled in for the user (a step not visited): "· prefilled". */
@@ -173,9 +175,16 @@ function PreviewRows({ rows, current, pick }: { rows: readonly PreviewRow[]; cur
                 row.label
               )}
             </dt>
-            <dd className={"min-w-0 " + (row.pending ? "text-ink-2" : "text-ink")} data-testid="new-pool-preview-value">
-              {row.value}
-              {row.prefilled && <span className="text-faint"> · prefilled</span>}
+            <dd className={"min-w-0 " + (row.pending ? "text-ink-2" : "text-ink")}>
+              <span data-testid="new-pool-preview-value">
+                {row.value}
+                {row.prefilled && <span className="text-faint"> · prefilled</span>}
+              </span>
+              {row.detail && (
+                <span className="block text-label text-ink-2" data-testid="new-pool-preview-joins">
+                  {row.detail}
+                </span>
+              )}
             </dd>
           </div>
         );
