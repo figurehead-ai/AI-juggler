@@ -8,7 +8,8 @@
     clippy::unwrap_used,
     clippy::expect_used,
     clippy::panic,
-    clippy::pedantic
+    clippy::pedantic,
+    reason = "test code: a missing fixture fails the test loudly"
 )]
 
 use std::path::Path;
