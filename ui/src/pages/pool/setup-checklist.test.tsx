@@ -34,6 +34,8 @@ describe("the header's pill", () => {
     expect(SETUP.pill(6, 7, false)).toBe("Setting up · 6 of 7");
     expect(SETUP.pill(7, 7, false)).toBe("Setup done · no session yet");
     expect(SETUP.pill(7, 7, true)).toBe("Setup done");
+    // Item 9: its session held by a sealed pool is no "no session yet".
+    expect(SETUP.pill(7, 7, false, "Client (sealed)")).toBe("Setup done · its sessions in Client (sealed)");
   });
 });
 
