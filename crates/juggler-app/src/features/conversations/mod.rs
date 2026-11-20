@@ -264,6 +264,10 @@ pub struct ConversationIndex {
     /// AJ-E805 (round 3): what the reads since the projects were last
     /// brought up to date did to the conversations' folders.
     placed: Mutex<Placed>,
+    /// AJ-E2311 item 6: the processes that ended since the live look now
+    /// running began (or while none ran): its result leaves them out, and
+    /// the next look's scanner forgets them.
+    ended: Mutex<std::collections::BTreeSet<u32>>,
 }
 
 /// What reads did to the index's folders since [`ConversationIndex::take_placed`].
@@ -536,35 +540,44 @@ impl ConversationIndex {
     /// A conversation with no place left isn't open. Returns whether one
     /// was.
     pub fn processes_ended(&self, pids: &std::collections::BTreeSet<u32>) -> bool {
-        // Only the entries that lose a place; one open with none (an
-        // app's own idle row) stays as it is.
-        let drop = |places: &mut Vec<scan::Place>| {
-            let before = places.len();
-            places.retain(|place| !pids.contains(&place.pid));
-            places.len() != before
-        };
         let mut changed = false;
         if let Ok(mut model) = self.model.lock() {
-            model.entries.retain_mut(|entry| {
-                let lost = drop(&mut entry.places);
-                changed |= lost;
-                !(lost && entry.places.is_empty())
-            });
-            model.pid_dirs.retain(|pid, _| !pids.contains(pid));
+            changed |= without_pids(&mut model, pids);
         }
         if let Ok(mut live) = self.live.lock() {
             live.retain(|_, entry| {
-                let lost = drop(&mut entry.places);
+                let lost = lose_places(entry, pids);
                 changed |= lost;
                 !(lost && entry.places.is_empty())
             });
         }
-        // Its next look checks them again; one already looking (rare: a
-        // look is short) is left to finish.
+        // AJ-E2311 item 6: a look already running (a look is short, but
+        // it read them before they ended) leaves them out of what it
+        // writes, and the next one's scanner forgets them.
+        if let Ok(mut ended) = self.ended.lock() {
+            ended.extend(pids);
+        }
         if let Ok(mut scanner) = self.scanner.try_lock() {
             scanner.forget(pids);
         }
         changed
+    }
+
+    /// A live look's result without the processes that ended while it
+    /// ran ([`Self::processes_ended`]), before it is written.
+    fn without_ended(&self, model: &mut scan::LiveModel) {
+        if let Ok(ended) = self.ended.lock() {
+            without_pids(model, &ended);
+        }
+    }
+
+    /// At a live look's start: the processes ended since the last one,
+    /// taken (its scanner forgets them).
+    fn take_ended(&self) -> std::collections::BTreeSet<u32> {
+        self.ended
+            .lock()
+            .map(|mut ended| std::mem::take(&mut *ended))
+            .unwrap_or_default()
     }
 
     /// Test seam: what the live refresher saw.
@@ -709,6 +722,27 @@ pub fn titled(
         }
     }
     Ok(rows)
+}
+
+/// `entry` without its places in processes `pids`; whether it lost one.
+fn lose_places(entry: &mut scan::LiveEntry, pids: &std::collections::BTreeSet<u32>) -> bool {
+    let before = entry.places.len();
+    entry.places.retain(|place| !pids.contains(&place.pid));
+    entry.places.len() != before
+}
+
+/// `model` without the places of processes `pids`: an entry that lost its
+/// last place isn't open (one open with none, an app's own idle row,
+/// stays as it is). Whether anything went.
+fn without_pids(model: &mut scan::LiveModel, pids: &std::collections::BTreeSet<u32>) -> bool {
+    let mut changed = false;
+    model.entries.retain_mut(|entry| {
+        let lost = lose_places(entry, pids);
+        changed |= lost;
+        !(lost && entry.places.is_empty())
+    });
+    model.pid_dirs.retain(|pid, _| !pids.contains(pid));
+    changed
 }
 
 /// A session row's own conversation: `(account, id)`.
@@ -1046,9 +1080,13 @@ pub fn live_tick_on(
         // AJ-E2101 R5: the app's scanner watches the session folders.
         scanner.use_file_events();
         scanner.remember(remembered);
+        scanner.forget(&state.conversations.take_ended());
         let model = scanner.tick(os, &adapters, &profiles, home, std::time::Instant::now());
         (model, scanner.take_apps())
     };
+    // AJ-E2311 item 6: what ended while it looked is never written back.
+    let mut model = model;
+    state.conversations.without_ended(&mut model);
     // 0.3.3: the apps and profiles running, remembered (a full scan's).
     if let Some(apps) = apps {
         crate::features::places::observe(state, &apps, &model.entries);
@@ -1469,6 +1507,49 @@ pub fn continue_impl(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// AJ-E2311 item 6 (rc3h item 13): a live look already running when a
+    /// process ends had read it open, and wrote it back as open until the
+    /// next look. Its result leaves it out, and the next look's scanner
+    /// forgets it.
+    #[test]
+    fn a_look_running_when_a_process_ends_never_writes_it_back() {
+        let index = ConversationIndex::default();
+        let open = |pid: u32, id: &str| scan::LiveEntry {
+            tool: "claude-code".into(),
+            account_id: None,
+            session_id: id.into(),
+            places: vec![scan::Place {
+                pid,
+                start: None,
+                host: None,
+                profile: None,
+                app_session: None,
+            }],
+            state: None,
+            probably: false,
+            viewed_ms: None,
+            app_title: None,
+            background: false,
+        };
+        // A look is running (it holds the scanner) when pid 42 ends.
+        let looking = index.scanner.lock().unwrap();
+        assert!(!index.processes_ended(&std::collections::BTreeSet::from([42])));
+        drop(looking);
+        // What that look read, before it ended.
+        let mut look = scan::LiveModel {
+            entries: vec![open(42, "ended"), open(7, "still-open")],
+            pid_dirs: [(42, PathBuf::from("/p")), (7, PathBuf::from("/p"))].into(),
+            ..scan::LiveModel::default()
+        };
+        index.without_ended(&mut look);
+        let ids: Vec<&str> = look.entries.iter().map(|e| e.session_id.as_str()).collect();
+        assert_eq!(ids, ["still-open"]);
+        assert_eq!(look.pid_dirs.keys().copied().collect::<Vec<_>>(), [7]);
+        // The next look takes them (its scanner forgets them), once.
+        assert_eq!(index.take_ended(), std::collections::BTreeSet::from([42]));
+        assert!(index.take_ended().is_empty());
+    }
 
     /// ADR-0027 condition 7's review: what was indexed from the adopted
     /// folder before the lab's scope held is read again, with it.
