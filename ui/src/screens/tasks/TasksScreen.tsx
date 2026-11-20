@@ -35,6 +35,7 @@ import type { AccountInfo } from "../../types/generated/AccountInfo";
 import { TaskView } from "../../pages/tasks/TaskView";
 import { Board, MORE_COLUMNS, Plan, type MoreColumn, type OpenTask } from "./TaskBoard";
 import { STATUS_WORDS } from "../../pages/tasks/words";
+import { useTaskSearch } from "../../pages/tasks/useTaskSearch";
 
 const VIEW_KEY = "aij.tasks.view";
 const MORE_KEY = "aij.tasks.more";
@@ -110,14 +111,8 @@ export function TasksScreen({ projects, sessions, accounts = NO_ACCOUNTS, now }:
     window.addEventListener(TASKS_HOLDER_EVENT, take);
     return () => window.removeEventListener(TASKS_HOLDER_EVENT, take);
   }, []);
-  const [words, setWords] = useState("");
-  const [query, setQuery] = useState("");
   const [open, setOpen] = useState<OpenTask | null>(null);
-  // What's typed is looked for once typing pauses.
-  useEffect(() => {
-    const timer = window.setTimeout(() => setQuery(words.trim()), words ? 200 : 0);
-    return () => window.clearTimeout(timer);
-  }, [words]);
+  const { words, setWords, query } = useTaskSearch();
   // The plan's epics and stories have no holder: its filter is the board's.
   const holding = view === "board" ? holder : null;
   const filter = useMemo<TasksFilterInput>(

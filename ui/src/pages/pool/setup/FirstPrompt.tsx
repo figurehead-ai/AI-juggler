@@ -8,11 +8,14 @@ import { useState, type JSX } from "react";
 
 import { firstPrompt, type PoolShape } from "../../../lib/pool-sentences";
 
-export function FirstPrompt({ shape, where, testId = "first-prompt" }: { shape: Pick<PoolShape, "members" | "leadNext">; where: string; testId?: string }): JSX.Element | null {
+/** The first thing to tell the lead (null without one), and its Copy:
+ * `copied` is null until it's tried, then whether it worked. Here and in
+ * Review's LeadPrompt. */
+export function useFirstPrompt(shape: Pick<PoolShape, "members" | "leadNext">, where: string): { prompt: ReturnType<typeof firstPrompt>; copied: boolean | null; copy: () => Promise<void> } {
   const [copied, setCopied] = useState<boolean | null>(null);
   const prompt = firstPrompt(shape, where);
-  if (!prompt) return null;
   const copy = async () => {
+    if (!prompt) return;
     try {
       await navigator.clipboard.writeText(prompt.words);
       setCopied(true);
@@ -20,6 +23,22 @@ export function FirstPrompt({ shape, where, testId = "first-prompt" }: { shape: 
       setCopied(false);
     }
   };
+  return { prompt, copied, copy };
+}
+
+/** What Copy did, said under the words. */
+export function CopiedNote({ copied, testId }: { copied: boolean | null; testId: string }): JSX.Element | null {
+  if (copied === null) return null;
+  return (
+    <output className="block text-label text-muted" data-testid={`${testId}-copied`}>
+      {copied ? "Copied: paste it into its first message." : "Couldn't copy it; select the words and copy them."}
+    </output>
+  );
+}
+
+export function FirstPrompt({ shape, where, testId = "first-prompt" }: { shape: Pick<PoolShape, "members" | "leadNext">; where: string; testId?: string }): JSX.Element | null {
+  const { prompt, copied, copy } = useFirstPrompt(shape, where);
+  if (!prompt) return null;
   return (
     <div className="flex flex-col gap-1" data-testid={testId}>
       <p className="text-meta text-ink">
@@ -28,11 +47,7 @@ export function FirstPrompt({ shape, where, testId = "first-prompt" }: { shape: 
           Copy
         </button>
       </p>
-      {copied !== null && (
-        <output className="block text-label text-muted" data-testid={`${testId}-copied`}>
-          {copied ? "Copied: paste it into its first message." : "Couldn't copy it; select the words and copy them."}
-        </output>
-      )}
+      <CopiedNote copied={copied} testId={testId} />
     </div>
   );
 }
