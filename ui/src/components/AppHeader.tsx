@@ -82,8 +82,13 @@ export function AppHeader({
         {/* AJ-E2105: This Mac's line, in the top bar (it gives way first):
             by the bar's own width, not the window's, so the list open at
             1280 px with Fleet's tab too (a paired Mac) still fits one row
-            (the 0.3 re-render found it wrapping). */}
-        <span ref={thisMac} className={"hidden shrink-0 text-muted " + (pairedCount > 0 ? "@min-[1160px]/header:flex" : "@min-[1060px]/header:flex")} data-testid="header-this-mac">
+            (the 0.3 re-render found it wrapping). From 960 px of the bar's
+            content, so 1280 with the list open (976) keeps it, as D-118's
+            mock: Bot's icon (D-136) had moved it to 1060 and it went from
+            there, This Mac's one door in the bar with it. With Bot the bar
+            still fits one row from 936 (measured, 0.5 gate triage); under
+            970 its words give way to the dot. */}
+        <span ref={thisMac} className={"hidden shrink-0 text-muted " + (pairedCount > 0 ? "@min-[1160px]/header:flex" : "@min-[960px]/header:flex")} data-testid="header-this-mac">
           <MachineStatusLine minimal={false} short onOpen={onOpenThisMac} />
         </span>
         {/* D-87: accounts out of room or low, a calm count (the bell holds the notices). */}

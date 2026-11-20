@@ -21,8 +21,10 @@ it("yields This Mac's line by the bar's width, sooner with Fleet's tab", () => {
   const alone = header(0);
   expect(alone.container.querySelector("header")!.className).toContain("@container/header");
   const line = alone.getByTestId("header-this-mac").className;
-  // D-136: Bot's icon joined the bar, so the line gives way 100 px sooner.
-  expect(line).toContain("@min-[1060px]/header:flex");
+  // From 960 px of the bar's content: 1280 with the list open (976) keeps
+  // it, as D-118's mock; with Bot's icon (D-136) the bar still fits one row
+  // from 936 (measured in the 0.5 gate triage).
+  expect(line).toContain("@min-[960px]/header:flex");
   expect(line).not.toContain("xl:flex");
   cleanup();
   const paired = header(1);

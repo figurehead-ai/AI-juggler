@@ -38,6 +38,15 @@ for (const width of [1280, 1024]) {
         return inSlot && beforeNext;
       });
       expect(clear, "the room words run into the next item").toBe(true);
+      // And the line clear of the page tabs before it: the cluster once
+      // measured only its own room and ran left over "History" (0.5 gate
+      // triage, 1280 with the list open).
+      const over = await page.getByTestId("header-this-mac").evaluate((slot) => {
+        if (getComputedStyle(slot).display === "none") return 0;
+        const tabs = document.querySelector("nav[aria-label='Main']");
+        return tabs ? tabs.getBoundingClientRect().right - slot.getBoundingClientRect().left : 0;
+      });
+      expect(over, "This Mac's line over the page tabs (px)").toBeLessThanOrEqual(0);
     });
   }
 }
