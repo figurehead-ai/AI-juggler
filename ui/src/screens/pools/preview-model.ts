@@ -11,7 +11,7 @@ import { leadValue, rolesLine, shortNames, whoLine } from "../../lib/pool-values
 import { leadNextLine, ownLabel, roleCard, STEP_WORDS, type SetupStep } from "../../lib/pool-words";
 import { ROW_WORDS } from "./rows";
 import { logoOf, type LogoSources } from "../../components/MemberLogo";
-import { joinsLine } from "../../lib/pool-open-now";
+import { joinsLine, joinsShort } from "../../lib/pool-open-now";
 import type { PreviewNode, PreviewRow, PreviewRowId } from "./NewPoolPreview";
 
 /** The drawing's cards: who leads on top, the rest below, everyone last. */
@@ -54,7 +54,7 @@ const ROW_IDS: readonly PreviewRowId[] = ["where", "who", "lead", "everyone", "t
 export function previewRows(shape: PoolShape, where: string, current: SetupStep, visited: (step: SetupStep) => boolean, hasProject: boolean, openNow?: ReadonlyMap<string, number>): PreviewRow[] {
   const whoReached = visited("who") || current === "who";
   // AJ-E3014 item 4: who joins now and who later, under Who's in.
-  const joins = whoReached && openNow && shape.members.length > 0 ? joinsLine(shape.members, openNow, where) : undefined;
+  const joins = whoReached && openNow && shape.members.length > 0 ? { short: joinsShort(shape.members, openNow), full: joinsLine(shape.members, openNow, where) } : undefined;
   const value: Record<PreviewRowId, string> = {
     where: hasProject ? where : "Pick a project",
     who: whoReached ? whoLine(shape, where) : "Next step",

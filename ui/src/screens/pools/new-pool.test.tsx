@@ -216,7 +216,12 @@ describe("AJ-E3007, AJ-E3011 the setup, start to end", () => {
     expect(screen.getByTestId("new-pool-prefilled").textContent).toBe("The rest is prefilled. You can make the pool now.");
     expect(previewValue("who")).toBe("Every new session in ai-juggler");
     // AJ-E3014 item 4: the side panel says who joins now and who later.
-    expect(screen.getByTestId("new-pool-preview-joins").textContent).toMatch(/^Now: (no session open|\d+ open sessions?) · Later: every new session in ai-juggler$/);
+    // One line, its full words its tooltip (the visual review: two lines
+    // pushed the step's own row out of view).
+    const joins = screen.getByTestId("new-pool-preview-joins");
+    expect(joins.getAttribute("title")).toMatch(/^Now: (no session open|\d+ open sessions?) · Later: every new session in ai-juggler$/);
+    expect(joins.firstChild?.textContent).toMatch(/^(None|\d+) open now · new ones join$/);
+    expect(joins.className).toContain("truncate");
     // The step says how a desktop session takes part at most once.
     expect(screen.queryAllByTestId("new-pool-desktop-note").length).toBeLessThanOrEqual(1);
     expect(previewValue("everyone")).toBe("Everyone builds (Member) · prefilled");

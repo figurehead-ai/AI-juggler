@@ -101,3 +101,19 @@ export function joinsLine(members: readonly { ref: string; label: string; later:
       : "no one by itself: add sessions on its diagram";
   return `Now: ${now} · Later: ${later}`;
 }
+
+/** The same in one short line, for the side panel's narrow column (the
+ * visual review: two lines there pushed the step's own row out of view):
+ * "1 open now · new ones join"; `joinsLine` is its full words. */
+export function joinsShort(members: readonly { ref: string; label: string; later: boolean }[], openNow: ReadonlyMap<string, number>): string {
+  const open = members.reduce((sum, member) => sum + (openNow.get(member.ref) ?? 0), 0);
+  const laters = members.filter((member) => member.ref !== "all" && member.later).map((member) => member.label);
+  const later = members.some((member) => member.ref === "all")
+    ? "new ones join"
+    : laters.length === 1
+      ? `new ones of ${laters[0]} join`
+      : laters.length > 1
+        ? `new ones of ${laters.length} apps join`
+        : "no one joins by itself";
+  return `${open === 0 ? "None open now" : `${open} open now`} · ${later}`;
+}

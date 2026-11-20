@@ -7,7 +7,7 @@
 import { describe, expect, it } from "vitest";
 import { account, instance } from "../test/fixtures";
 import type { DraftMember } from "./new-pool";
-import { joinsLine, openNowByMember, openNowWords } from "./pool-open-now";
+import { joinsLine, joinsShort, openNowByMember, openNowWords } from "./pool-open-now";
 
 const member = (ref: string, kind: DraftMember["kind"]): DraftMember => ({ ref, kind, label: ref, role: "member", level: null, reach: kind === "session" ? "full" : "later" });
 
@@ -52,5 +52,12 @@ describe("an App member's sessions now (the rc27 P1 walk)", () => {
     expect(joinsLine([one("all", "Everyone", true), one("session:a", "p1-writer", false)], new Map([["session:a", 1], ["all", 2]]), "web")).toBe("Now: 3 open sessions · Later: every new session in web");
     expect(joinsLine([one("app:cli:work", "Claude Code · Work", true)], new Map(), "web")).toBe("Now: no session open · Later: new sessions of Claude Code · Work in web");
     expect(joinsLine([one("session:a", "p1-writer", false)], new Map([["session:a", 1]]), "web")).toBe("Now: 1 open session · Later: no one by itself: add sessions on its diagram");
+  });
+
+  it("and in one short line for the side panel", () => {
+    const one = (ref: string, label: string, later: boolean) => ({ ref, label, later });
+    expect(joinsShort([one("all", "Everyone", true)], new Map([["all", 1]]))).toBe("1 open now · new ones join");
+    expect(joinsShort([one("app:cli:work", "Claude Code · Work", true)], new Map())).toBe("None open now · new ones of Claude Code · Work join");
+    expect(joinsShort([one("session:a", "p1-writer", false)], new Map([["session:a", 1]]))).toBe("1 open now · no one joins by itself");
   });
 });
