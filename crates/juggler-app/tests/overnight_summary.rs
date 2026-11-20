@@ -421,3 +421,91 @@ fn an_ended_run_says_how_it_ended_from_its_exit() {
         Some("ended: error (exit code 1)")
     );
 }
+
+/// AJ-E2311 item 1 (rc3h item 8): after Open in terminal, Home's last
+/// 12 hours listed the session twice, "h-b Finished" (its driven run,
+/// whose process ended after the hand-over) and "h-b Stopped by you" (the
+/// terminal it went on in). The handed-over run stays handed over when its
+/// process ends, and the list has the one row its conversation went on in.
+#[test]
+fn a_session_handed_over_to_its_terminal_is_one_row() {
+    use SessionStatus::*;
+    let work = tempfile::tempdir().unwrap();
+    let state = app_state(&work.path().join("a"));
+    seed(&state, work.path());
+    let record = |id: &str, started: i64, status| InstanceRecord {
+        id: SessionId::new(id),
+        conversation: Some(juggler_core::model::ConversationId::new("conv-h-b")),
+        profile: ProfileId::new("rec-work"),
+        machine: MachineId::new("this-mac"),
+        kind: InstanceKind::Terminal,
+        project: None,
+        cwd: work.path().to_path_buf(),
+        status,
+        started_at: Timestamp::from_millis(Timestamp::now().millis() - started),
+        last_activity: None,
+        usage: Default::default(),
+        attention: None,
+        running: None,
+        transcript_ref: None,
+        window: None,
+    };
+    {
+        let storage = state.storage.lock().unwrap();
+        // The driven run, handed over; the terminal it went on in, stopped.
+        let mut driven = record("h-b-driven", 60_000, Running);
+        storage.sessions().insert(&driven).unwrap();
+        driven.status = HandedOver;
+        storage.sessions().update(&driven).unwrap();
+        let mut terminal = record("h-b-terminal", 1_000, Running);
+        storage.sessions().insert(&terminal).unwrap();
+        terminal.status = Stopped;
+        storage.sessions().update(&terminal).unwrap();
+        // Another conversation's hand-over with nothing after it stays.
+        let mut alone = record("other", 30_000, Running);
+        alone.conversation = Some(juggler_core::model::ConversationId::new("conv-other"));
+        storage.sessions().insert(&alone).unwrap();
+        alone.status = HandedOver;
+        storage.sessions().update(&alone).unwrap();
+    }
+    // Its process ends after the hand-over was recorded.
+    juggler_app::features::sessions::lifecycle::forward(
+        &state,
+        juggler_supervisor::LifecycleEvent::Exited {
+            session: SessionId::new("h-b-driven"),
+            pid: 1,
+            kind: juggler_supervisor::ExitKind::Code(0),
+        },
+    );
+    let driven = state
+        .storage
+        .lock()
+        .unwrap()
+        .sessions()
+        .get(&SessionId::new("h-b-driven"))
+        .unwrap();
+    assert_eq!(
+        driven.status, HandedOver,
+        "never Finished beside its terminal"
+    );
+
+    let rows = juggler_app::features::sessions::list::instances_shared_snapshot(&state).unwrap();
+    let went = |id: &str| {
+        rows.iter()
+            .find(|row| row.id == id)
+            .unwrap()
+            .went_on_in
+            .clone()
+    };
+    assert_eq!(went("h-b-driven").as_deref(), Some("h-b-terminal"));
+    assert_eq!(went("h-b-terminal"), None);
+    assert_eq!(went("other"), None);
+    let summary = overnight::overnight_summary_impl(&state, None).unwrap();
+    let listed: Vec<&str> = summary
+        .rows
+        .iter()
+        .map(|row| row.session_id.as_str())
+        .collect();
+    assert!(listed.contains(&"h-b-terminal"), "{listed:?}");
+    assert!(!listed.contains(&"h-b-driven"), "one row: {listed:?}");
+}

@@ -167,6 +167,12 @@ pub struct InstanceInfo {
     /// page says so, with a door to it); absent when none did.
     #[ts(optional)]
     pub continues: Option<ContinuesInfo>,
+    /// AJ-E2311 item 1: a handed-over session's successor, the later one
+    /// of its account its conversation went on in (Open in terminal, Run
+    /// in AI Juggler, a resume after its limit): the lists show that one
+    /// only. Absent otherwise.
+    #[ts(optional)]
+    pub went_on_in: Option<String>,
 }
 
 /// SK-11: where a switch carried a session's conversation from.

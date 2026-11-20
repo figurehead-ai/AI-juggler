@@ -330,7 +330,7 @@ export function itemsOf({ sessions, conversations, projects, seen, snoozed = () 
   const names = new Map(projects.map((p) => [p.id, p.name]));
   const projectName = (id: string | null) => (id === null ? null : (names.get(id) ?? null));
   const items = tellFactsApart([
-    ...sessions.map((row) => sessionItem(row, projectName, snoozed(row))),
+    ...sessions.filter((row) => !row.went_on_in /* AJ-E2311 item 1: a hand-over is one row, its successor's */).map((row) => sessionItem(row, projectName, snoozed(row))),
     ...conversations
       .filter((c) => c.session_id === null)
       .map((c) => {

@@ -378,3 +378,17 @@ describe("a session's name in the rail (the rc12 walk)", () => {
     expect(sessionItem(own("f", { title: undefined, label: undefined, git_branch: "fix/limits" }), none, false).title).toContain("fix/limits");
   });
 });
+
+// AJ-E2311 item 1 (rc3h item 8): during Open in terminal the rail showed
+// the session twice, its driven run and the terminal it went on in.
+describe("a hand-over to its terminal is one row", () => {
+  it("leaves out the run whose conversation went on in a later session", () => {
+    const sessions = [
+      own("h-b-driven", { status: "handed_over", conversation_id: "c", went_on_in: "h-b-terminal" }),
+      own("h-b-terminal", { conversation_id: "c" }),
+      own("other", { status: "handed_over", conversation_id: "d" }),
+    ];
+    const keys = itemsOf({ sessions, conversations: [], projects: [], seen: {} }).map((item) => item.key);
+    expect(keys).toEqual(["s:h-b-terminal", "s:other"]);
+  });
+});

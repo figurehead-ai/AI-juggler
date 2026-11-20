@@ -237,4 +237,11 @@ ending?: EndingInfo,
  * SK-11: the session a switch carried its conversation from (its
  * page says so, with a door to it); absent when none did.
  */
-continues?: ContinuesInfo, };
+continues?: ContinuesInfo, 
+/**
+ * AJ-E2311 item 1: a handed-over session's successor, the later one
+ * of its account its conversation went on in (Open in terminal, Run
+ * in AI Juggler, a resume after its limit): the lists show that one
+ * only. Absent otherwise.
+ */
+went_on_in?: string, };

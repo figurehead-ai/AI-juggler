@@ -416,6 +416,7 @@ struct RowJoins<'a> {
     adopted_ids: &'a [juggler_core::model::SessionId],
     arrivals:
         std::collections::HashMap<juggler_core::model::SessionId, juggler_core::storage::Arrival>,
+    went_on: std::collections::HashMap<String, String>,
 }
 
 impl RowJoins<'_> {
@@ -500,7 +501,9 @@ pub(crate) fn session_infos_for(
         desktop_labels,
         adopted_ids,
         arrivals: storage.switch_graph().arrivals().unwrap_or_default(),
+        went_on: std::collections::HashMap::new(),
     };
+    joins.went_on = went_on_of(&records, &joins.recipe_index);
     Ok(records
         .into_iter()
         .map(|record| session_info_of(&mut joins, &record))
@@ -595,7 +598,42 @@ fn session_info_of(joins: &mut RowJoins<'_>, record: &SessionRecord) -> Instance
         app_id: joins.launched.remove(id),
         ending: ending_of(&joins.endings, record),
         continues: joins.continues(&record.id),
+        went_on_in: joins.went_on.remove(id),
     }
+}
+
+/// AJ-E2311 item 1: each handed-over session of `records` whose
+/// conversation went on in a later one of them on the same account (Open
+/// in terminal and back, a resume after its limit): `its id → the latest
+/// such one's`. A switch to another account isn't one (that original
+/// stays a row of its own, "Stopped by a switch").
+fn went_on_of(
+    records: &[SessionRecord],
+    recipe_index: &RecipeIndex,
+) -> std::collections::HashMap<String, String> {
+    let key = |record: &SessionRecord| {
+        let account = recipe_index.get(record.profile.as_str())?.0.clone();
+        Some((account, record.conversation.as_ref()?.as_str().to_owned()))
+    };
+    let mut latest: std::collections::HashMap<(String, String), &SessionRecord> =
+        std::collections::HashMap::new();
+    for record in records {
+        if let Some(at) = key(record) {
+            let kept = latest.entry(at).or_insert(record);
+            if record.started_at > kept.started_at {
+                *kept = record;
+            }
+        }
+    }
+    records
+        .iter()
+        .filter(|record| record.status == SessionStatus::HandedOver)
+        .filter_map(|record| {
+            let next = latest.get(&key(record)?)?;
+            (next.id != record.id && next.started_at >= record.started_at)
+                .then(|| (record.id.to_string(), next.id.to_string()))
+        })
+        .collect()
 }
 
 #[cfg(test)]
