@@ -196,6 +196,9 @@ fn at_start_the_apps_reading_lands_before_the_first_walk_is_stored() {
         .unwrap();
     }
     let shown = |setup: &Setup| {
+        // AJ-E3210: a folder's readings are its Account's, as its sign-in
+        // was last read (as `display` does).
+        juggler_app::features::subscriptions::list_impl(&setup.state).unwrap();
         let storage = setup.state.storage.lock().unwrap();
         let account = storage
             .accounts()

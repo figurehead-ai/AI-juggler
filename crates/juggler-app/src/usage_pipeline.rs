@@ -460,13 +460,20 @@ fn records_first(
         );
         marks.push((id.to_owned(), records));
     }
-    if batch.windows.is_empty() && batch.model_weeks.is_empty() {
+    if batch.windows.is_empty()
+        && batch.model_weeks.is_empty()
+        && batch.signed.windows.is_empty()
+        && batch.signed.model_weeks.is_empty()
+    {
         return;
     }
+    // As the pass stores them (`store_pass`): the signed readings too
+    // (AJ-E3210), which is where a Claude app's meter lands.
     let stored = state.storage.lock().is_ok_and(|storage| {
         let usage = storage.usage();
         usage.insert_sourced_samples(&batch.windows).is_ok()
             && usage.insert_model_week_samples(&batch.model_weeks).is_ok()
+            && usage.insert_signed_samples(&batch.signed).is_ok()
     });
     if stored {
         for (id, records) in marks {
