@@ -184,6 +184,9 @@ describe("the pool page while it's set up (D-126 §3)", () => {
     const view = await openPage();
     await waitFor(() => expect(view.getByTestId("pool-header-setup").textContent).toBe("Setting up · 6 of 7"));
     // Two sessions are in it: the door used to go once a member joined.
+    // It has an edge, as Add a member has (the visual review: a ghost read
+    // as a label in light).
+    expect(view.getByTestId("canvas-use-template").className).toBe(view.getByTestId("canvas-add-member").className);
     fireEvent.click(view.getByTestId("canvas-use-template"));
     expect(await view.findByTestId("new-pool")).toBeTruthy();
     cleanup();
@@ -191,6 +194,12 @@ describe("the pool page while it's set up (D-126 §3)", () => {
     seedTeam();
     const running = await openPage();
     await running.findByTestId("pool-running");
+    expect(running.queryByTestId("canvas-use-template")).toBeNull();
+    // Edit setup with every step done: the checklist again, still no
+    // template beside a done setup.
+    fireEvent.click(running.getByRole("button", { name: "Edit setup" }));
+    await waitFor(() => expect(running.getByTestId("pool-header-setup").textContent).toBe("Setup done"));
+    expect(running.getByTestId("canvas-add-member")).toBeTruthy();
     expect(running.queryByTestId("canvas-use-template")).toBeNull();
   });
 

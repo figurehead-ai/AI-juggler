@@ -105,7 +105,7 @@ export function Palette({
           Add a member
         </Button>
         {onTemplate && (
-          <Button size="sm" variant="ghost" onClick={onTemplate} className="bg-surface/90" data-testid="canvas-use-template">
+          <Button size="sm" variant="secondary" onClick={onTemplate} className="shadow-card" data-testid="canvas-use-template">
             Use a template
           </Button>
         )}

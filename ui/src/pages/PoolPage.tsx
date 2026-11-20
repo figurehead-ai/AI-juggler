@@ -283,8 +283,9 @@ function PoolCanvasPage({ poolId, sessions, projects, accounts, now, rules }: Pa
               paletteRequest={paletteRequest}
               paletteQuiet={phase === "running"}
               // SK-7: one click away while it's set up, once members are in
-              // too (before, the empty canvas's own lesson offers it).
-              paletteTemplate={phase === "setup" && peopled ? openTemplate : undefined}
+              // too (before, the empty canvas's own lesson offers it); gone
+              // once every step is done (beside "Setup done" it was noise).
+              paletteTemplate={phase === "setup" && peopled && progress.done < progress.total ? openTemplate : undefined}
               paletteMore={
                 <PaletteMore
                   poolId={pool.id}
