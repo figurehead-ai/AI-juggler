@@ -452,9 +452,17 @@ fn inventories_list_the_connector_as_ai_jugglers_never_a_skill_or_server_to_copy
             .any(|item| item.kind == ItemKind::Skill && item.name == "release-notes"),
         "the user's own skill is still theirs"
     );
-    for verdict in [
-        crate::claude_inventory::can_set_up(connector[0]),
-        crate::codex_inventory::can_set_up(connector[0]),
+    // Each verdict is checked, never printed: a verdict's note can be
+    // an inline secret's (`inline_secret_verdict`).
+    for (inventory, verdict) in [
+        (
+            "claude_inventory",
+            crate::claude_inventory::can_set_up(connector[0]),
+        ),
+        (
+            "codex_inventory",
+            crate::codex_inventory::can_set_up(connector[0]),
+        ),
     ] {
         assert!(
             matches!(
@@ -464,7 +472,7 @@ fn inventories_list_the_connector_as_ai_jugglers_never_a_skill_or_server_to_copy
                     ..
                 }
             ),
-            "{verdict:?}"
+            "{inventory}: the connector is turned on, never copied"
         );
     }
 
@@ -486,13 +494,10 @@ fn inventories_list_the_connector_as_ai_jugglers_never_a_skill_or_server_to_copy
     );
 }
 
-/// L6: Add is all or nothing: a failure part-way puts back every file it
-/// replaced, takes away every file and folder it made, and leaves no
-/// temporary file behind; a later Add then goes through.
-#[cfg(unix)]
 /// L6 (round 2): a link or a folder where Add writes a file first isn't
 /// AI Juggler's leftover: it's never removed, and Add is refused naming
 /// it, with nothing written; a plain leftover file there is taken away.
+#[cfg(unix)]
 #[test]
 fn something_not_ours_at_the_temporary_name_is_named_and_never_removed() {
     let root = claude_folder();
@@ -538,6 +543,10 @@ fn something_not_ours_at_the_temporary_name_is_named_and_never_removed() {
     );
 }
 
+/// L6: Add is all or nothing: a failure part-way puts back every file it
+/// replaced, takes away every file and folder it made, and leaves no
+/// temporary file behind; a later Add then goes through.
+#[cfg(unix)]
 #[test]
 fn a_failure_part_way_takes_back_everything_add_wrote() {
     use std::os::unix::fs::PermissionsExt;
