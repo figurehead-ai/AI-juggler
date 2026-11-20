@@ -87,7 +87,7 @@ afterEach(() => {
 describe("a big pool's canvas and Now agree with its header (F-rc3g-8)", () => {
   it("88 sessions, 85 ended: its 3 open ones are drawn and Now counts them; no planned team", async () => {
     await openBig(3, 85);
-    expect(screen.getByTestId("pool-page-count").textContent).toBe("3 open in AI Juggler · 88 in all");
+    expect(screen.getByTestId("pool-page-count").textContent).toBe("88 sessions in AI Juggler, 3 open");
     await waitFor(() => expect(screen.getAllByTestId("canvas-node")).toHaveLength(3));
     expect(screen.queryByTestId("planned-team")).toBeNull();
     expect(screen.queryByText("Your team is drawn. No one has joined yet.")).toBeNull();

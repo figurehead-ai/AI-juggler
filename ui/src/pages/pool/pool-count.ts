@@ -4,7 +4,8 @@ import { GROUP_PAST } from "./useCanvas";
  * Juggler runs or carried in), how many of them are open, and, beside
  * them, its project's sessions open in other apps now (the 0.2 walk: "0
  * sessions" while three were open in the Claude app; the rc26 P3 walk:
- * "6 sessions in AI Juggler" with 3 open and 3 ended). */
+ * "6 sessions in AI Juggler" with 3 open and 3 ended). SK-12: "64 sessions
+ * in AI Juggler, 4 open", never "4 open … · 64 in all". */
 export function poolCountWords(members: number, open: number, openElsewhere: number): string {
   // Empty, with nothing open elsewhere: its canvas says so, once (design
   // review #85).
@@ -18,7 +19,7 @@ export function poolCountWords(members: number, open: number, openElsewhere: num
         ? `${members} ${noun} open in AI Juggler`
         : shown === 0
           ? `${members} ${noun} in AI Juggler, none open`
-          : `${shown} open in AI Juggler · ${members} in all`;
+          : `${members} sessions in AI Juggler, ${shown} open`;
   return openElsewhere > 0 ? `${own} · ${openElsewhere} open in other apps` : own;
 }
 

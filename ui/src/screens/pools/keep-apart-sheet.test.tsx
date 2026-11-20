@@ -100,7 +100,7 @@ describe("Keep it apart… (R4)", () => {
     expect(screen.getByTestId("keep-apart-not").textContent).toContain(`It doesn't tie ${project.name} to one account`);
     // What it makes, before it does: the wizard's name for it, and how its sessions join.
     expect(screen.getByTestId("keep-apart-makes").textContent).toBe(
-      `It makes the pool «${KEPT}». New sessions in ${project.name} join as Member and may Work together. Change any of it first with Customise…, or later on its diagram.`,
+      `It makes the pool «${KEPT}». Every session in ${project.name}, now and new, is a Member and may Work together. Change any of it first with Customise…, or later on its diagram.`,
     );
     // "What does this mean?": the word its header will show first, then the guide's section.
     fireEvent.click(within(sheet).getByRole("button", { name: "What does this mean?" }));

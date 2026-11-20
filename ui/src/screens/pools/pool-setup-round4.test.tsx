@@ -185,7 +185,7 @@ describe("AJ-E3011 round 4", () => {
 describe("Sam's round-4 follow-ups", () => {
   it("Custom reads as the actions picked, counted, everywhere the sentence is", () => {
     expect(levelSentence("custom", 11)).toBe("On their own they may do the 11 things you picked, under Custom actions.");
-    expect(joinSentence("web", "member", "custom", 1)).toBe("New sessions in web join as Member and may do the 1 thing you picked.");
+    expect(joinSentence("web", "member", "custom", 1)).toBe("Every session in web, now and new, is a Member and may do the 1 thing you picked.");
     expect(memberSentence("Codex · Personal", "reviewer", null, "custom", 3)).toBe("Codex · Personal is a Reviewer and may do the 3 things you picked, as the pool.");
     const pool = { access: { level: "custom", actions: ["read_roster", "read_cards", "deliver_to_session"] } };
     expect(pickedCount(pool)).toBe(2);

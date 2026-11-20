@@ -43,6 +43,10 @@ function controlOf(section: HTMLElement): HTMLElement | null {
 
 const failed = (what: string) => (cause: unknown) => showToast({ message: `Couldn't ${what}`, detail: errorText(cause), tone: "error" });
 
+/** SK-12: how many sessions the everyone member holds now (its role
+ * changes theirs at once), or none without it. */
+const sessionsOf = (rule: PoolRuleInfo | undefined): number | null => rule?.sessions ?? null;
+
 /** The pool's role-pair talk as the table reads it. */
 function roleRule(rules: PoolRules["rules"], from: PoolRole, to: PoolRole): TalkRule {
   const row = rules?.talk.find((one) => one.from === `role:${from}` && one.to === `role:${to}`);
@@ -159,6 +163,7 @@ export function PoolSetupSections({
             where={where}
             value={(everyone ? asRole(everyone.role) : null)}
             disabled={busy || (pool.kind === "default" && !everyone)}
+            count={sessionsOf(everyone)}
             onChange={(role) =>
               run("change how new sessions join", async () => {
                 if (role === null) setPools(await poolLeave(pool.id, "all"));
