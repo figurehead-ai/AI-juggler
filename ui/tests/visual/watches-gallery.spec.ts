@@ -15,7 +15,7 @@ import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
-import { STATES, WATCHES_CATALOGUE, WATCHES_FIXTURE, WATCHES_JOBS, WATCHES_NOW, WATCHES_POOLS, watchesTools, type WatchesPreviewState } from "../../src/preview/watches";
+import { STATES, WATCHES_CATALOGUE, WATCHES_FIXTURE, WATCHES_JOBS, WATCHES_NOW, WATCHES_POOLS, WATCHES_STORED_APPS, watchesTools, type WatchesPreviewState } from "../../src/preview/watches";
 
 const OUT = process.env.AIJ_WATCHES_OUT ? resolve(process.env.AIJ_WATCHES_OUT) : null;
 
@@ -25,11 +25,12 @@ test.beforeAll(() => {
 
 async function open(page: Page, state: WatchesPreviewState, theme: "dark" | "light", width: number, extra: Record<string, unknown> = {}, height = 800): Promise<void> {
   await page.addInitScript(
-    ({ fixture, theme: t, now, watches, catalogue, jobs, pools, tools, extra: more }) => {
+    ({ fixture, theme: t, now, watches, catalogue, jobs, pools, tools, storedApps, extra: more }) => {
       const w = window as unknown as Record<string, unknown>;
       w.__AIJ_FIXTURE__ = fixture;
       w.__AIJ_TOOLS__ = tools;
       w.__AIJ_RECIPES__ = (fixture as { profiles: unknown }).profiles;
+      w.__AIJ_STORED_APPS__ = storedApps;
       w.__AIJ_WATCH_VIEW__ = { watches, catalogue, calls: [] };
       w.__AIJ_AI_JOBS__ = jobs;
       w.__AIJ_POOLS__ = pools;
@@ -42,7 +43,7 @@ async function open(page: Page, state: WatchesPreviewState, theme: "dark" | "lig
       // A steady clock that still moves (toasts and debounces count).
       Date.now = () => now + (real() - start);
     },
-    { fixture: WATCHES_FIXTURE, theme, now: WATCHES_NOW, watches: state.watches, catalogue: WATCHES_CATALOGUE, jobs: WATCHES_JOBS, pools: WATCHES_POOLS, tools: watchesTools(), extra },
+    { fixture: WATCHES_FIXTURE, theme, now: WATCHES_NOW, watches: state.watches, catalogue: WATCHES_CATALOGUE, jobs: WATCHES_JOBS, pools: WATCHES_POOLS, tools: watchesTools(), storedApps: WATCHES_STORED_APPS, extra },
   );
   await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
   await page.setViewportSize({ width, height });
@@ -185,6 +186,21 @@ for (const theme of ["dark", "light"] as const) {
       if (width === 1280) await axeClean(page, `doors ${theme}`);
       await page.getByTestId("notice-edit-watch").click();
       await expect(page.getByTestId("watch-form")).toHaveAttribute("data-mode", "edit");
+    });
+  }
+}
+
+/** The App page's door: an App watched by its App id shows "Watched · 1". */
+for (const theme of ["dark", "light"] as const) {
+  for (const width of [1280, 1024]) {
+    test(`watches app-page — ${theme} — ${width}`, async ({ page }) => {
+      await open(page, STATES.list!, theme, width);
+      await page.evaluate(() => window.dispatchEvent(new CustomEvent("aij:open-app", { detail: { id: "cli:acct-home" } })));
+      await expect(page.getByTestId("watch-door")).toHaveText(/Watched · 1/);
+      if (OUT) await page.screenshot({ path: `${OUT}/app-page-${theme}-${width}.png` });
+      if (width === 1280) await axeClean(page, `app page ${theme}`);
+      await page.getByTestId("watch-door").click();
+      await expect(page.getByTestId("watches-only")).toHaveText(/Agent app two/);
     });
   }
 }
