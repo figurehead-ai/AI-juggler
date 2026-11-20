@@ -183,7 +183,10 @@ mod imp {
             }
         }
 
-        pub fn read(&self, name: &OsStr, expect: Expect) -> io::Result<Option<Vec<u8>>> {
+        /// The entry `name` here opened to read (never through a link, never
+        /// waiting on a pipe), with what it is (`fstat` on the opened file):
+        /// `None` when absent.
+        fn open_file(&self, name: &OsStr) -> io::Result<Option<(OwnedFd, FileStat)>> {
             let flags = OFlag::O_RDONLY
                 .union(OFlag::O_NOFOLLOW)
                 .union(OFlag::O_NONBLOCK)
@@ -194,6 +197,13 @@ mod imp {
                 Err(errno) => return Err(io_of(errno)),
             };
             let stat = fstat(&fd).map_err(io_of)?;
+            Ok(Some((fd, stat)))
+        }
+
+        pub fn read(&self, name: &OsStr, expect: Expect) -> io::Result<Option<Vec<u8>>> {
+            let Some((fd, stat)) = self.open_file(name)? else {
+                return Ok(None);
+            };
             if kind(&stat) != SFlag::S_IFREG {
                 return Err(io::Error::new(
                     io::ErrorKind::InvalidData,
@@ -309,16 +319,9 @@ mod imp {
 
         #[cfg(target_os = "macos")]
         pub fn lock_holder(&self, name: &OsStr) -> io::Result<Option<u32>> {
-            let flags = OFlag::O_RDONLY
-                .union(OFlag::O_NOFOLLOW)
-                .union(OFlag::O_NONBLOCK)
-                .union(OFlag::O_CLOEXEC);
-            let fd = match openat(&self.fd, name, flags, Mode::empty()) {
-                Ok(fd) => fd,
-                Err(Errno::ENOENT) => return Ok(None),
-                Err(errno) => return Err(io_of(errno)),
+            let Some((fd, stat)) = self.open_file(name)? else {
+                return Ok(None);
             };
-            let stat = fstat(&fd).map_err(io_of)?;
             if kind(&stat) != SFlag::S_IFREG || stat.st_uid != self.owner {
                 return Err(io::Error::new(
                     io::ErrorKind::PermissionDenied,
@@ -481,13 +484,7 @@ impl Dir {
 ///
 /// As [`Dir::root`], [`Dir::walk`] and [`Dir::read`].
 pub fn read_in(root: &Path, rel: &Path, expect: Expect) -> io::Result<Option<Vec<u8>>> {
-    let parts = names(rel)?;
-    let Some((name, folders)) = parts.split_last() else {
-        return Err(io::Error::new(io::ErrorKind::InvalidInput, "no file named"));
-    };
-    let dir = Dir::root(root)?;
-    let folder = dir.0.walk(folders, false, &mut Vec::new())?;
-    folder.read(name, expect)
+    in_folder(root, rel, |folder, name| folder.read(name, expect))
 }
 
 /// AJ-E3013 (the third review's Low 1): the process holding a write lock
@@ -501,13 +498,23 @@ pub fn read_in(root: &Path, rel: &Path, expect: Expect) -> io::Result<Option<Vec
 /// A link on the way, a file that isn't a regular one of the owner's, or
 /// the system's error.
 pub fn lock_holder_in(root: &Path, rel: &Path) -> io::Result<Option<u32>> {
+    in_folder(root, rel, imp::Dir::lock_holder)
+}
+
+/// `then` on the folder holding the file `rel` under `root`, walked to
+/// without a link, and the file's name in it.
+fn in_folder<T>(
+    root: &Path,
+    rel: &Path,
+    then: impl FnOnce(&imp::Dir, &OsStr) -> io::Result<T>,
+) -> io::Result<T> {
     let parts = names(rel)?;
     let Some((name, folders)) = parts.split_last() else {
         return Err(io::Error::new(io::ErrorKind::InvalidInput, "no file named"));
     };
     let dir = Dir::root(root)?;
     let folder = dir.0.walk(folders, false, &mut Vec::new())?;
-    folder.lock_holder(name)
+    then(&folder, name)
 }
 
 /// The file at `path` (its folder reached as the system resolves it, the
@@ -728,14 +735,7 @@ mod tests {
     fn the_running_claude_app_holds_its_instances_storage_lock() {
         let home = crate::user::home().unwrap();
         let instance = home.join("Library/Application Support/Claude");
-        let out = std::process::Command::new("/usr/bin/pgrep")
-            .args(["-x", "Claude"])
-            .output()
-            .unwrap();
-        let pids: Vec<u32> = String::from_utf8_lossy(&out.stdout)
-            .lines()
-            .filter_map(|line| line.trim().parse().ok())
-            .collect();
+        let pids = crate::code_sign::tests::pids("Claude");
         let held = lock_holder_in(&instance, Path::new("Local Storage/leveldb/LOCK")).unwrap();
         assert!(
             held.is_some_and(|pid| pids.contains(&pid)),

@@ -77,7 +77,7 @@ fn check(_pid: u32, _requirement: &str) -> bool {
 }
 
 #[cfg(all(test, target_os = "macos"))]
-mod tests {
+pub(crate) mod tests {
     use super::*;
     use std::path::{Path, PathBuf};
     use std::process::{Command, Stdio};
@@ -192,22 +192,24 @@ mod tests {
         );
     }
 
+    /// The manual checks': the running processes named exactly `name`.
+    pub(crate) fn pids(name: &str) -> Vec<u32> {
+        let out = Command::new("/usr/bin/pgrep")
+            .args(["-x", name])
+            .output()
+            .unwrap();
+        String::from_utf8_lossy(&out.stdout)
+            .lines()
+            .filter_map(|line| line.trim().parse().ok())
+            .collect()
+    }
+
     /// A manual check on a Mac running the Claude app (not run by default):
     /// its main process and a Code-tab Claude Code meet the requirements
     /// the attestation pins.
     #[test]
     #[ignore = "needs the Claude app and a Code-tab session running"]
     fn the_installed_claude_app_and_its_claude_code_pass() {
-        let pids = |name: &str| -> Vec<u32> {
-            let out = Command::new("/usr/bin/pgrep")
-                .args(["-x", name])
-                .output()
-                .unwrap();
-            String::from_utf8_lossy(&out.stdout)
-                .lines()
-                .filter_map(|line| line.trim().parse().ok())
-                .collect()
-        };
         let host = "identifier \"com.anthropic.claudefordesktop\" and anchor apple generic \
                     and certificate leaf[subject.OU] = \"Q6L2SF6YDW\"";
         let tool = "identifier \"com.anthropic.claude-code\" and anchor apple generic \

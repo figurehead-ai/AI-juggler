@@ -551,6 +551,17 @@ mod tests {
             .unwrap()
     }
 
+    /// An endpoint bound once (as a crashed run leaves it), this user, and
+    /// another one.
+    fn left_behind() -> (tempfile::TempDir, std::path::PathBuf, UserId, UserId) {
+        let root = base();
+        let endpoint = root.path().join("d").join("s.sock");
+        let me = current().unwrap();
+        drop(bind(&endpoint, me).unwrap());
+        let other = UserId::from_uid(me.uid().wrapping_add(1));
+        (root, endpoint, me, other)
+    }
+
     fn mode(path: &std::path::Path) -> u32 {
         std::fs::symlink_metadata(path)
             .unwrap()
@@ -602,11 +613,7 @@ mod tests {
     /// asked for another user, this user's socket is never unlinked.
     #[test]
     fn a_stale_endpoint_of_another_user_is_never_removed() {
-        let root = base();
-        let endpoint = root.path().join("d").join("s.sock");
-        let me = current().unwrap();
-        drop(bind(&endpoint, me).unwrap());
-        let other = UserId::from_uid(me.uid().wrapping_add(1));
+        let (_root, endpoint, me, other) = left_behind();
         assert!(!endpoint_is_ours(&endpoint, other));
         remove_if_ours(&endpoint, other);
         assert!(endpoint.exists(), "not the other user's: left");
@@ -635,11 +642,7 @@ mod tests {
 
     #[test]
     fn someone_elses_or_an_open_folder_is_refused_and_left_as_it_was() {
-        let root = base();
-        let endpoint = root.path().join("d").join("s.sock");
-        let me = current().unwrap();
-        drop(bind(&endpoint, me).unwrap());
-        let stranger = UserId::from_uid(me.uid().wrapping_add(1));
+        let (root, endpoint, me, stranger) = left_behind();
         assert!(matches!(
             bind(&endpoint, stranger),
             Err(BindError::NotOurs(_))
