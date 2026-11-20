@@ -388,8 +388,14 @@ describe("a pool's page: its canvas", () => {
   it("SK-1: Delete is one obvious step: the header's ⋯, with Rename (a project's own pool has none)", async () => {
     seedTeam();
     const view = await openPage();
-    const header = view.getByTestId("pool-header");
-    fireEvent.click(within(header).getByRole("button", { name: "Actions for Team" }));
+    // At its title row's end, as a session page has it; never read as part
+    // of the agents' "On their own" choice (the visual review).
+    const door = view.getByTestId("pool-header-menu");
+    expect(door.title).toBe("Rename or delete");
+    expect(door.parentElement?.contains(view.getByTestId("page-name"))).toBe(true);
+    expect(door.className).toContain("ml-auto");
+    expect(door.parentElement?.contains(view.getByTestId("pool-header-level"))).toBe(false);
+    fireEvent.click(within(door).getByRole("button", { name: "Actions for Team" }));
     const menu = view.getByRole("menu");
     expect(within(menu).getAllByRole("menuitem").map((item) => item.textContent)).toEqual(["Rename…", "Delete…"]);
     fireEvent.click(within(menu).getByRole("menuitem", { name: "Delete…" }));
