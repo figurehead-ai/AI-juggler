@@ -400,6 +400,9 @@ impl AppState {
         {
             supervisor.set_orphan_grace("", secs);
         }
+        // SK-10: the reconciler checks this Mac's left-behind rows from
+        // earlier runs too (their sessions have no spawn context now).
+        supervisor.set_machine(juggler_app_machine_id(&storage));
         // AJ-E510: the startup recovery pass (pass2 §11.2) — BEFORE
         // reconciliation, so verified survivors get handles (stoppable
         // through the E507 path, F-3 closed) and the marker set drives

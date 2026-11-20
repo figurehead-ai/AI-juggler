@@ -481,8 +481,13 @@ pub fn kill_execute_as(
             "leftover.verify_refused",
             &[("reason", "ownership_unverified")],
         );
+        let refusal = unverified_copy(pid);
+        if refusal == KILL_GONE_COPY {
+            // SK-10: it has ended, so its row leaves the live list now.
+            record_ended(state, &rows, &[(pid, ("unknown", false))]);
+        }
         return Ok(KillExecuteInfo {
-            refusal: Some(unverified_copy(pid).to_string()),
+            refusal: Some(refusal.to_string()),
             members: vec![KillMemberOutcome {
                 pid,
                 outcome: "refused".into(),
@@ -553,6 +558,7 @@ pub fn kill_execute_as(
         let held: Vec<u16> = still_holding.iter().map(|held| held.port).collect();
         crate::usage_stats::leftover_killed(row, actor, ports_before.as_deref(), &held, rss_before);
     }
+    record_ended(state, &rows, &ended_members(&outcome));
     let members = outcome
         .members
         .iter()
@@ -570,6 +576,49 @@ pub fn kill_execute_as(
         still_holding,
         reoffer_pid,
     })
+}
+
+/// The members the ladder saw end, with how each is recorded: stopped by
+/// us, or already gone before the first signal (not ours to claim).
+fn ended_members(
+    outcome: &juggler_supervisor::tree::LadderOutcome,
+) -> Vec<(u32, (&'static str, bool))> {
+    use juggler_supervisor::tree::ProcessOutcome;
+    outcome
+        .members
+        .iter()
+        .filter_map(|(pid, result)| match result {
+            ProcessOutcome::ExitedOnTerm | ProcessOutcome::NeededKill => {
+                Some((*pid, ("stopped", true)))
+            }
+            ProcessOutcome::AlreadyGone => Some((*pid, ("unknown", false))),
+            _ => None,
+        })
+        .collect()
+}
+
+/// SK-10: a process that has ended leaves the ledger's live rows at once
+/// (`(exit kind, reaped by us)` per pid). Processes drops its row at the
+/// next tick and tells the page; before, a left-behind row stayed until
+/// AI Juggler restarted, and a second Clean up said it had already ended.
+fn record_ended(
+    state: &Arc<AppState>,
+    rows: &[juggler_core::storage::LedgerRow],
+    ended: &[(u32, (&str, bool))],
+) {
+    use juggler_supervisor::tree::LedgerStore as _;
+    let mut done: std::collections::HashSet<(u32, &str)> = std::collections::HashSet::new();
+    for (pid, (kind, reaped)) in ended {
+        for row in rows.iter().filter(|row| {
+            row.pid == Some(*pid) && (row.state == "running" || row.state == "orphaned")
+        }) {
+            if done.insert((*pid, row.boot_id.as_str()))
+                && let Err(error) = state.ledger.mark_exited(*pid, &row.boot_id, kind, *reaped)
+            {
+                tracing::warn!("an ended process's row wasn't updated: {error}");
+            }
+        }
+    }
 }
 
 /// Completes a ladder's audit row: each pid's outcome (the ones a wider

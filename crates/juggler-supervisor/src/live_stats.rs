@@ -634,7 +634,8 @@ impl LiveStatsCollector {
     }
 
     /// The tick's candidate rows: every `running|orphaned` row on
-    /// every machine with spawn contexts — fetched ONCE per tick and
+    /// every machine with spawn contexts, and on this Mac once the app
+    /// named it (SK-10: rows from earlier runs) — fetched ONCE per tick and
     /// shared by the reconciler and the listener join (a second
     /// identical query measurably stalls under disk pressure).
     fn fetch_candidates(supervisor: &Supervisor) -> Vec<juggler_core::storage::LedgerRow> {
@@ -651,6 +652,7 @@ impl LiveStatsCollector {
             contexts
                 .values()
                 .map(|ctx| ctx.machine.clone())
+                .chain(supervisor.machine())
                 .filter(|machine| seen.insert(machine.as_str().to_string()))
                 .collect()
         };
@@ -723,6 +725,14 @@ impl LiveStatsCollector {
         for (session_id, rows) in by_session {
             let session = SessionId::new(session_id.clone());
             let Some(ctx) = contexts.get(&session) else {
+                // SK-10: a session of an earlier run has no spawn context in
+                // this one. Its rows are only checked for absence: a process
+                // gone from two ticks' tables has ended, and its "left
+                // behind" row leaves Processes. Nothing else is decided
+                // without the context.
+                for row in &rows {
+                    self.note_absence(ledger.as_ref(), table, row);
+                }
                 continue;
             };
             let grace_ms = i64::try_from(supervisor.orphan_grace_for(&ctx.provider))
@@ -736,19 +746,13 @@ impl LiveStatsCollector {
 
             for row in rows {
                 let Some(pid) = row.pid else { continue };
+                if !self.note_absence(ledger.as_ref(), table, &row) {
+                    continue;
+                }
                 let key = (pid, row.boot_id.clone());
                 let Some(facts) = table.facts.get(&pid) else {
-                    // Absent from the tick's table: one agreeing tick
-                    // short of an exit patch; confirmed at two.
-                    let ticks = self.absence.entry(key).and_modify(|n| *n += 1).or_insert(1);
-                    if *ticks >= 2 {
-                        self.absence.remove(&(pid, row.boot_id.clone()));
-                        self.orphan_agree.remove(&(pid, row.boot_id.clone()));
-                        let _ = ledger.mark_exited(pid, &row.boot_id, "unknown", false);
-                    }
                     continue;
                 };
-                self.absence.remove(&key);
 
                 // (c) boot gate first (FMEA C8): a record from another
                 // boot is permanently unverifiable.
@@ -865,6 +869,34 @@ impl LiveStatsCollector {
                 }
             }
         }
+    }
+
+    /// The absence leg of the reconciler: a row whose process is absent
+    /// from the tick's table is one agreeing tick short of an exit patch,
+    /// confirmed at two. Returns whether the process is in the table.
+    fn note_absence(
+        &mut self,
+        ledger: &dyn crate::tree::LedgerStore,
+        table: &ProcessTable,
+        row: &juggler_core::storage::LedgerRow,
+    ) -> bool {
+        let Some(pid) = row.pid else { return false };
+        let key = (pid, row.boot_id.clone());
+        if table.facts.contains_key(&pid) {
+            self.absence.remove(&key);
+            return true;
+        }
+        let ticks = self
+            .absence
+            .entry(key.clone())
+            .and_modify(|n| *n += 1)
+            .or_insert(1);
+        if *ticks >= 2 {
+            self.absence.remove(&key);
+            self.orphan_agree.remove(&key);
+            let _ = ledger.mark_exited(pid, &row.boot_id, "unknown", false);
+        }
+        false
     }
 
     /// The listener join (AJ-E505 Req.2): the JOIN runs every tick on
