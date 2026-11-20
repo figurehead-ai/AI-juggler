@@ -11,27 +11,11 @@ import { IconPlus } from "../icons-actions";
 import { IconBookmark, IconEye, IconLock, IconUp } from "./bot-icons";
 import { WORDS } from "../../lib/bot-words";
 import { ask, newTopic, setDraft, useBot, widenScope } from "../../lib/bot-store";
+import { useMenuCloses } from "../../lib/use-menu-closes";
 
 function PlusMenu({ onClose }: { onClose: () => void }): JSX.Element {
   const ref = useRef<HTMLDivElement | null>(null);
-  useEffect(() => {
-    ref.current?.querySelector<HTMLElement>("[role=menuitem]")?.focus();
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        event.stopPropagation();
-        onClose();
-      }
-    };
-    const onDown = (event: MouseEvent) => {
-      if (!(event.target instanceof Node) || !ref.current?.contains(event.target)) onClose();
-    };
-    window.addEventListener("keydown", onKey, true);
-    window.addEventListener("mousedown", onDown);
-    return () => {
-      window.removeEventListener("keydown", onKey, true);
-      window.removeEventListener("mousedown", onDown);
-    };
-  }, [onClose]);
+  useMenuCloses(ref, onClose, "[role=menuitem]");
   const item = "flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-meta text-ink outline-none hover:bg-accent-soft focus-visible:bg-accent-soft";
   const pick = (run: () => void) => () => {
     onClose();

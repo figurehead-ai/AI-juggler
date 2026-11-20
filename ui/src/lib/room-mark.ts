@@ -98,15 +98,9 @@ export function roomMarkOfProfile(
  * desktop App (`app:…`) by its own sign-in's Account (none while that
  * isn't known yet, never its folder's guess); a CLI App, or an App not
  * named, by its folder (`roomMarkOfProfile`), whose Account is its CLI's. */
-export function roomMarkOfApp(
-  appId: string | null | undefined,
-  profileId: string | null | undefined,
-  accounts: readonly SubscriptionInfo[] | null,
-  displays: readonly QuotaDisplayData[],
-  sessions: readonly InstanceInfo[] = [],
-  now: number = Date.now(),
-): RoomMark | null {
-  if (!appId?.startsWith("app:") || (accounts !== null && !listsApps(accounts))) return roomMarkOfProfile(profileId, accounts, displays, sessions, now);
+export function roomMarkOfApp(appId: string | null | undefined, ...folder: Parameters<typeof roomMarkOfProfile>): RoomMark | null {
+  const [, accounts, displays, , now = Date.now()] = folder;
+  if (!appId?.startsWith("app:") || (accounts !== null && !listsApps(accounts))) return roomMarkOfProfile(...folder);
   const account = accounts ? accountOfApp(accounts, appId) : undefined;
   return account ? roomMarkOf(accountDisplay(account, [...displays]), [], now) : null;
 }

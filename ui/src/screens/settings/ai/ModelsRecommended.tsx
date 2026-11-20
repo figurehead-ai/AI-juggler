@@ -17,7 +17,7 @@ import { Button } from "../../../components/primitives";
 import { Pill } from "../../../components/Pill";
 import type { DownloadInfo, ModelsCatalog } from "../../../lib/ipc/models";
 import { IconDownload, IconRefresh, JobIcon } from "./model-icons";
-import { JobVerdictRow, ModelFacts, ModelTile, ModelsSection, Verdict } from "./ModelParts";
+import { ModelJobRow, ModelFacts, ModelTile, ModelsSection, Verdict } from "./ModelParts";
 import { betaJobs, jobsOf, verdictOf, type FitRow, type Recommended } from "./models-view";
 import { DISK, DOWNLOAD, FAILED_AFTER, FAILURES, JOB_NAMES, NOTHING, RECOMMENDED, WAITS, listWords, memoryWords } from "./models-words";
 
@@ -78,10 +78,9 @@ function JobsLine({ pick }: { pick: Recommended }): JSX.Element {
       {notYet.length > 0 && (
         <Disclosure summary={RECOMMENDED.notYet(notYet.length)} testId="models-recommended-not-yet">
           <ul className="mt-2 flex flex-col gap-2 pl-5">
-            {notYet.map((job) => {
-              const verdict = verdictOf(pick.model, job);
-              return <JobVerdictRow key={job} job={job} verdict={verdict.verdict} note={verdict.note} quiet />;
-            })}
+            {notYet.map((job) => (
+              <ModelJobRow key={job} model={pick.model} job={job} quiet />
+            ))}
           </ul>
         </Disclosure>
       )}

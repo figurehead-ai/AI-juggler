@@ -14,7 +14,7 @@ import type { ModelSpeed } from "../../../types/generated/ModelSpeed";
 import type { ModelVerdict } from "../../../types/generated/ModelVerdict";
 import { IconInfo } from "../../../components/icons-actions";
 import { IconChip, JobIcon } from "./model-icons";
-import { initials } from "./models-view";
+import { initials, verdictOf } from "./models-view";
 import { FACTS, HONESTY, JOB_NAMES, PAGE, SPEED_WORDS, VERDICT_WORDS, gb } from "./models-words";
 
 /** The guide page "How we test models" opens. */
@@ -95,6 +95,12 @@ export function ModelFacts({ model, inCard = false }: { model: CatalogModel; inC
       )}
     </div>
   );
+}
+
+/** A model's verdict for a job, as its row. */
+export function ModelJobRow({ model, job, quiet = false }: { model: CatalogModel; job: ModelJob; quiet?: boolean }): JSX.Element {
+  const verdict = verdictOf(model, job);
+  return <JobVerdictRow job={job} verdict={verdict.verdict} note={verdict.note} quiet={quiet} />;
 }
 
 /** A job with its verdict, and the list's line on why under it. */

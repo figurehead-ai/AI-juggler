@@ -64,11 +64,7 @@ function LaunchCard({ need, projects, now }: { need: TaskNeedInfo; projects: Pro
         ▶
       </span>
       <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-        <NeedByLine author={need.pool_name} place={placeOf(need, projects)} time={now === undefined ? null : minutes(need.at_ms, now)} />
-        <span className="text-body text-ink">
-          <span className="font-semibold">{need.title}</span>
-          {need.detail && <span className="text-muted"> — {need.detail}</span>}
-        </span>
+        <TaskNeedText need={need} projects={projects} now={now} />
         {need.task_id && (
           <div className="mt-1.5">
             <StartSession taskId={need.task_id} needId={need.id} defaultAccountId={project?.default_account_id ?? null} compact />
@@ -95,6 +91,19 @@ function LaunchCard({ need, projects, now }: { need: TaskNeedInfo; projects: Pro
   );
 }
 
+/** A task need's pool, place and time, then its title and detail. */
+function TaskNeedText({ need, projects, now }: { need: TaskNeedInfo; projects: ProjectInfo[]; now?: number }): JSX.Element {
+  return (
+    <>
+      <NeedByLine author={need.pool_name} place={placeOf(need, projects)} time={now === undefined ? null : minutes(need.at_ms, now)} />
+      <span className="text-body text-ink">
+        <span className="font-semibold">{need.title}</span>
+        {need.detail && <span className="text-muted"> — {need.detail}</span>}
+      </span>
+    </>
+  );
+}
+
 /** AJ-E2806 R7: a task waiting on your review; it opens beside the pool's
  * tasks, where Approve and Send back are. */
 function ReviewCard({ need, projects, now }: { need: TaskNeedInfo; projects: ProjectInfo[]; now?: number }): JSX.Element {
@@ -105,11 +114,7 @@ function ReviewCard({ need, projects, now }: { need: TaskNeedInfo; projects: Pro
         <IconCheck width={13} height={13} />
       </span>
       <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-        <NeedByLine author={need.pool_name} place={placeOf(need, projects)} time={now === undefined ? null : minutes(need.at_ms, now)} />
-        <span className="text-body text-ink">
-          <span className="font-semibold">{need.title}</span>
-          {need.detail && <span className="text-muted"> — {need.detail}</span>}
-        </span>
+        <TaskNeedText need={need} projects={projects} now={now} />
         <NeedActions>
           <Button size="sm" variant="ghost" onClick={open} data-testid="task-need-review-open">
             Review it<span className="sr-only"> — {need.task_title}</span>

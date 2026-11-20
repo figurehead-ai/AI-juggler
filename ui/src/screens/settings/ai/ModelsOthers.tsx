@@ -14,8 +14,8 @@ import { IconUpRight } from "../../../components/icons-places";
 import type { CatalogModel, ModelsCatalog } from "../../../lib/ipc/models";
 import { trustOpen } from "../../../lib/ipc/trust";
 import { IconDisk, IconDownload, IconLock, IconOffline } from "./model-icons";
-import { CARD, HonestyLine, JobVerdictRow, ModelFacts, ModelTile, ModelsSection } from "./ModelParts";
-import { jobsOf, verdictOf, type ModelTag } from "./models-view";
+import { CARD, HonestyLine, ModelJobRow, ModelFacts, ModelTile, ModelsSection } from "./ModelParts";
+import { jobsOf, type ModelTag } from "./models-view";
 import { DISK, DOWNLOAD, JOB_NAMES, OTHERS, listWords } from "./models-words";
 
 const TAG_WORDS: Record<ModelTag, string> = { smallest: OTHERS.smallest, fastest: OTHERS.fastest };
@@ -67,18 +67,16 @@ function ModelCard({
       </div>
       <ModelFacts model={model} inCard />
       <ul className="flex flex-col gap-2.5">
-        {passed.map((job) => {
-          const verdict = verdictOf(model, job);
-          return <JobVerdictRow key={job} job={job} verdict={verdict.verdict} note={verdict.note} />;
-        })}
+        {passed.map((job) => (
+          <ModelJobRow key={job} model={model} job={job} />
+        ))}
       </ul>
       {notYet.length > 0 && (
         <Disclosure summary={OTHERS.notYet(listWords(notYet.map((job) => JOB_NAMES[job].toLowerCase())))} className="pl-0.5" testId="model-not-yet">
           <ul className="mt-2 flex flex-col gap-2.5">
-            {notYet.map((job) => {
-              const verdict = verdictOf(model, job);
-              return <JobVerdictRow key={job} job={job} verdict={verdict.verdict} note={verdict.note} quiet />;
-            })}
+            {notYet.map((job) => (
+              <ModelJobRow key={job} model={model} job={job} quiet />
+            ))}
           </ul>
         </Disclosure>
       )}

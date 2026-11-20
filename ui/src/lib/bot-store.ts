@@ -10,6 +10,7 @@
  */
 import { useSyncExternalStore } from "react";
 import { readKept, keep } from "./local-store";
+import { listeners } from "./listeners";
 import { botAsk, botClear, botFind, botNewTopic, botPage, previewScope, type BotTopicInfo, type BotTurnInfo } from "./ipc/bot";
 import { errorText } from "./bridge";
 import type { BotScope } from "../types/generated/BotScope";
@@ -79,16 +80,11 @@ const INITIAL: BotState = {
 };
 
 let state: BotState = { ...INITIAL, width: keptWidth() };
-const listeners = new Set<() => void>();
+const { subscribe, notify } = listeners();
 
 function set(next: Partial<BotState>): void {
   state = { ...state, ...next };
-  for (const listener of listeners) listener();
-}
-
-function subscribe(listener: () => void): () => void {
-  listeners.add(listener);
-  return () => listeners.delete(listener);
+  notify();
 }
 
 /** The state now (tests, non-React callers). */
@@ -104,7 +100,7 @@ export function useBot(): BotState {
 /** Back to nothing open and nothing read (tests). */
 export function resetBot(): void {
   state = { ...INITIAL, width: keptWidth() };
-  for (const listener of listeners) listener();
+  notify();
 }
 
 function merge(older: BotTopicInfo[], newer: BotTopicInfo[]): BotTopicInfo[] {

@@ -18,6 +18,7 @@ import { closeBot, closeFind, expandBot, findWords, newTopic, openFind, stepMatc
 import { aiBetaSet, type AiJobInfo } from "../../lib/ipc/ai";
 import { botCount } from "../../lib/ipc/bot";
 import { useMemories } from "../../lib/bot-memory";
+import { useMenuCloses } from "../../lib/use-menu-closes";
 
 const ICON_BUTTON = "grid size-[30px] place-items-center rounded-lg text-muted outline-none hover:bg-surface-2 hover:text-ink focus-visible:ring-2 focus-visible:ring-accent/60";
 
@@ -30,24 +31,7 @@ export function BotMenu({ job, onClose, onClear, onMemories, at = "right-2.5 top
   const nav = useBotNav();
   const memories = useMemories();
   const ref = useRef<HTMLDivElement | null>(null);
-  useEffect(() => {
-    ref.current?.querySelector<HTMLElement>("[role^=menuitem]")?.focus();
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        event.stopPropagation();
-        onClose();
-      }
-    };
-    const onDown = (event: MouseEvent) => {
-      if (!(event.target instanceof Node) || !ref.current?.contains(event.target)) onClose();
-    };
-    window.addEventListener("keydown", onKey, true);
-    window.addEventListener("mousedown", onDown);
-    return () => {
-      window.removeEventListener("keydown", onKey, true);
-      window.removeEventListener("mousedown", onDown);
-    };
-  }, [onClose]);
+  useMenuCloses(ref, onClose, "[role^=menuitem]");
   const item = "flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-meta text-ink outline-none hover:bg-surface-3/70 focus-visible:bg-accent-soft";
   const pick = (run: () => void) => () => {
     onClose();
