@@ -70,7 +70,7 @@
 
 ## Step 2 — labs that gate the rules
 
-### AJ-E3002 Labs: talk enforced per session, Claude's own channel, OpenCode and Grok tools per launch | Status: TODO | Priority P0 | Effort M | Depends: AJ-E3001
+### AJ-E3002 Labs: talk enforced per session, Claude's own channel, OpenCode and Grok tools per launch | Status: DONE (2026-11-19: R1–R4 PASS in `docs/qa/evidence/AJ-E3002/manifest.md`; the record is `docs/qa/pools-lab.md` §1–§3, its live OpenCode and Grok part from rc17 to rc33) | Priority P0 | Effort M | Depends: AJ-E3001
 **Goal**: Know, from live runs, which of the approved rules AI Juggler can actually enforce, before building them.
 **User story**: As the maintainer, I read a yes or no per rule with its evidence, so nothing on the canvas promises what the tools won't do.
 **Requirements**:

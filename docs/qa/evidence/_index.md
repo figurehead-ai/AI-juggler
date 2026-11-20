@@ -227,7 +227,7 @@
 | AJ-E2911 | PASS5 | 2026-11-06 | [manifest](AJ-E2911/manifest.md) |
 | AJ-E2912 | PASS5 | 2026-11-06 | [manifest](AJ-E2912/manifest.md) |
 | AJ-E3001 | PASS5 | 2026-10-30 | [manifest](AJ-E3001/manifest.md) |
-| AJ-E3002 | PASS3 | 2026-11-16 | [manifest](AJ-E3002/manifest.md) |
+| AJ-E3002 | PASS4 | 2026-11-19 | [manifest](AJ-E3002/manifest.md) |
 | AJ-E3003 | PASS4 | 2026-11-06 | [manifest](AJ-E3003/manifest.md) |
 | AJ-E3004 | PASS4 | 2026-11-06 | [manifest](AJ-E3004/manifest.md) |
 | AJ-E3005 | PASS5 | 2026-11-09 | [manifest](AJ-E3005/manifest.md) |
