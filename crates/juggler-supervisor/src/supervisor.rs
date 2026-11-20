@@ -182,11 +182,11 @@ pub struct Supervisor {
     table: Mutex<Option<std::sync::Arc<ProcessTable>>>,
     /// This Mac's id, as the app knows it: the reconciler reads its ledger
     /// rows even when nothing was started in this run (SK-10).
-    machine: Mutex<Option<juggler_core::model::MachineId>>,
+    pub(crate) machine: Mutex<Option<juggler_core::model::MachineId>>,
     /// Orphan grace per Provider, seconds (AJ-E504 Req.3). The `""`
     /// key overrides the default; lookup falls back to
     /// [`DEFAULT_ORPHAN_GRACE_SECS`].
-    orphan_grace_secs: Mutex<HashMap<String, u64>>,
+    pub(crate) orphan_grace_secs: Mutex<HashMap<String, u64>>,
     /// Sessions with fresh output since the last drain (throttled per
     /// session) — the recovery signal (AJ-E405 Req.5, <300 ms).
     activity_tx: std::sync::mpsc::SyncSender<SessionId>,
@@ -1017,44 +1017,6 @@ impl Supervisor {
     #[must_use]
     pub fn snapshot_table(&self) -> Option<std::sync::Arc<ProcessTable>> {
         self.table.lock().ok().and_then(|slot| slot.clone())
-    }
-
-    /// Names this Mac (the app's own machine id). The reconciler then
-    /// checks this Mac's left-behind rows from earlier runs too, whose
-    /// sessions have no spawn context in this one (SK-10).
-    pub fn set_machine(&self, machine: juggler_core::model::MachineId) {
-        if let Ok(mut slot) = self.machine.lock() {
-            *slot = Some(machine);
-        }
-    }
-
-    /// This Mac's id, once the app named it.
-    #[must_use]
-    pub fn machine(&self) -> Option<juggler_core::model::MachineId> {
-        self.machine.lock().ok().and_then(|slot| slot.clone())
-    }
-
-    /// Sets the orphan grace for one Provider (seconds); the `""` key
-    /// overrides the default for every Provider without its own entry
-    /// (AJ-E504 Req.3 — per-Provider tunable, stored in settings by
-    /// the app at startup).
-    pub fn set_orphan_grace(&self, provider: &str, secs: u64) {
-        if let Ok(mut graces) = self.orphan_grace_secs.lock() {
-            graces.insert(provider.to_string(), secs.max(1));
-        }
-    }
-
-    /// The effective orphan grace for `provider` (seconds): its own
-    /// entry, else the `""` default override, else
-    /// [`DEFAULT_ORPHAN_GRACE_SECS`] (30 — the false-alert budget;
-    /// never lowered for demos).
-    #[must_use]
-    pub fn orphan_grace_for(&self, provider: &str) -> u64 {
-        self.orphan_grace_secs
-            .lock()
-            .ok()
-            .and_then(|graces| graces.get(provider).or_else(|| graces.get("")).copied())
-            .unwrap_or(DEFAULT_ORPHAN_GRACE_SECS)
     }
 
     /// Feeds keyboard input to a PTY session's process.
