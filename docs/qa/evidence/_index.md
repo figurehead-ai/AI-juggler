@@ -270,6 +270,7 @@
 | AJ-E3207 | PASS5 | 2026-11-06 | [manifest](AJ-E3207/manifest.md) |
 | AJ-E3208 | PASS6 | 2026-11-07 | [manifest](AJ-E3208/manifest.md) |
 | AJ-E3209 | PASS5 | 2026-11-07 | [manifest](AJ-E3209/manifest.md) |
+| AJ-E3210 | (no claims yet) | 2026-11-20 | [manifest](AJ-E3210/manifest.md) |
 | AJ-E3301 | PASS6 | 2026-11-06 | [manifest](AJ-E3301/manifest.md) |
 | AJ-E3302 | PASS5 | 2026-11-06 | [manifest](AJ-E3302/manifest.md) |
 | AJ-E3303 | PASS5 | 2026-11-07 | [manifest](AJ-E3303/manifest.md) |
@@ -300,14 +301,22 @@
 | AJ-E3520 | PASS6 | 2026-11-06 | [manifest](AJ-E3520/manifest.md) |
 | AJ-E3521 | PASS8 | 2026-11-06 | [manifest](AJ-E3521/manifest.md) |
 | AJ-E3601 | PASS12 | 2026-11-14 | [manifest](AJ-E3601/manifest.md) |
-| AJ-E3603 | PASS6 | 2026-11-18 | [manifest](AJ-E3603/manifest.md) |
+| AJ-E3603 | PASS13 | 2026-11-03 | [manifest](AJ-E3603/manifest.md) |
 | AJ-E3618 | (directory without manifest — add one) | — | — |
 | AJ-E3701 | PASS7 | 2026-11-14 | [manifest](AJ-E3701/manifest.md) |
 | AJ-E3702 | PASS13 | 2026-11-15 | [manifest](AJ-E3702/manifest.md) |
 | AJ-E3709 | FAIL4 PASS12 UNPROVEN5 | 2026-11-16 | [manifest](AJ-E3709/manifest.md) |
+| AJ-E3712 | (no claims yet) | 2026-11-20 | [manifest](AJ-E3712/manifest.md) |
 | AJ-E3801 | PASS5 | 2026-11-16 | [manifest](AJ-E3801/manifest.md) |
+| AJ-E3804 | (no claims yet) | 2026-11-20 | [manifest](AJ-E3804/manifest.md) |
+| AJ-E3805 | (no claims yet) | 2026-11-20 | [manifest](AJ-E3805/manifest.md) |
+| AJ-E3808 | (no claims yet) | 2026-11-20 | [manifest](AJ-E3808/manifest.md) |
 | AJ-E3810 | PASS12 | 2026-11-18 | [manifest](AJ-E3810/manifest.md) |
 | AJ-E3811 | PASS3 | 2026-11-18 | [manifest](AJ-E3811/manifest.md) |
+| AJ-E3812 | (no claims yet) | 2026-11-20 | [manifest](AJ-E3812/manifest.md) |
+| AJ-E3813 | (no claims yet) | 2026-11-20 | [manifest](AJ-E3813/manifest.md) |
+| AJ-E3816 | (no claims yet) | 2026-11-20 | [manifest](AJ-E3816/manifest.md) |
+| AJ-E3817 | (no claims yet) | 2026-11-20 | [manifest](AJ-E3817/manifest.md) |
 | AJ-E401 | PASS9 | 2026-10-13 | [manifest](AJ-E401/manifest.md) |
 | AJ-E402 | PASS11 | 2026-10-13 | [manifest](AJ-E402/manifest.md) |
 | AJ-E403 | PASS10 | 2026-10-13 | [manifest](AJ-E403/manifest.md) |

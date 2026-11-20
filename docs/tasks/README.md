@@ -60,7 +60,7 @@
 | [E35-the-floor.md](E35-the-floor.md) | The Floor: the whole company as a live office in its own native window (0.4, D-67, D-68; 0.4.1 findings AJ-E3515-E3521, D-90) | AJ-E3501-E3521 |
 | [E36-calm-attention.md](E36-calm-attention.md) | Calm attention: only what needs you is loud, on every screen (0.5, D-117) | AJ-E3601-E3619 |
 | [E37-home-activity-feed.md](E37-home-activity-feed.md) | Home as an activity feed: what happened, what needs you, your apps and runway (0.5, D-118) | AJ-E3701-E3712 |
-| [E38-chat.md](E38-chat.md) | AI jobs through one router, and Chat (read-only) (0.5, D-121) | AJ-E3801-E3819 |
+| [E38-chat.md](E38-chat.md) | AI jobs through one router, and Chat (read-only) (0.5, D-121) | AJ-E3801-E3820 |
 | [CRITIC-CHECKS.md](CRITIC-CHECKS.md) | Cross-epic audit of this system | — |
 
 ## Task format (every task, no exceptions)

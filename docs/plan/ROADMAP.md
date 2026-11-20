@@ -166,6 +166,7 @@ under D-24.
 | Watches: a typed, deterministic rule over the event stream, created and edited by talking to Chat with confirmation, a Watches view, alerts through the notification path, and the harness for the digest and watch parsing (D-132, D-130) | AJ-E3814, AJ-E3815, AJ-E3816, AJ-E3817, AJ-E3818 |
 | The Models area: a `models` section of the remote config, a recommendation for this Mac, Settings > AI > Models, downloads with size, free-disk check and hash, and the disk rules of AJ-E3803 (D-131) | AJ-E3803, AJ-E3810, AJ-E3811, AJ-E3812, AJ-E3813 |
 | Chat memory, short and long term, with context budgets (D-133, ADR-0037) | AJ-E3819 |
+| The turn review: the code-only review and the model's Beta lines (D-131; found missing by the pre-push walk, F-02) | AJ-E3820 |
 | Feed summaries: A's excerpts built in the apps; B's research and its evaluation are done and its design is ADR-0033 (Proposed); B's build is not shipped | AJ-E3708, AJ-E3709, AJ-E3710, AJ-E3711 |
 | The signed remote configuration: the crate and its trust rules (step 1 built and reviewed, ADR-0035), the compat section and its publish workflow, then flags and notices with their screens; hosted on the website, on by default (D-129). Params and endpoints and the account layer (ADR-0035 order, steps 3 and 4) come with the features that need them, in later releases | AJ-E2021, AJ-E2022, AJ-E2023 |
 | The lab-Mac compatibility run on the installed tool versions (D-128) | AJ-E819 |
