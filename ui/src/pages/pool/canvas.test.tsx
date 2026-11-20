@@ -388,14 +388,21 @@ describe("a pool's page: its canvas", () => {
   it("SK-1: Delete is one obvious step: the header's ⋯, with Rename (a project's own pool has none)", async () => {
     seedTeam();
     const view = await openPage();
-    // At its title row's end, as a session page has it; never read as part
-    // of the agents' "On their own" choice (the visual review).
+    // At its title row's right end, as a session page has it: the header's
+    // last control, after the view's (the 0.4.7 nightly walk: it sat after
+    // the name's chips, mid-header); never read as part of the agents' "On
+    // their own" choice (the visual review): a rule of its own between.
+    const header = view.getByTestId("pool-header");
     const door = view.getByTestId("pool-header-menu");
     expect(door.title).toBe("Rename or delete");
-    expect(door.parentElement?.contains(view.getByTestId("page-name"))).toBe(true);
+    expect(door.parentElement).toBe(header);
     expect(door.className).toContain("ml-auto");
-    expect(door.parentElement?.contains(view.getByTestId("pool-header-level"))).toBe(false);
-    fireEvent.click(within(door).getByRole("button", { name: "Actions for Team" }));
+    const button = within(door).getByRole("button", { name: "Actions for Team" });
+    expect([...header.querySelectorAll("button")].at(-1)).toBe(button);
+    expect(door.contains(view.getByTestId("pool-header-level"))).toBe(false);
+    expect(door.querySelector('[aria-hidden="true"].w-px')).not.toBeNull();
+    expect(view.getByTestId("page-name").closest("div")?.contains(door)).toBe(false);
+    fireEvent.click(button);
     const menu = view.getByRole("menu");
     expect(within(menu).getAllByRole("menuitem").map((item) => item.textContent)).toEqual(["Rename…", "Delete…"]);
     fireEvent.click(within(menu).getByRole("menuitem", { name: "Delete…" }));

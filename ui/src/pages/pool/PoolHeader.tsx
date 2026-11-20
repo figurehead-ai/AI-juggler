@@ -194,13 +194,6 @@ export function PoolHeader({
               <Chip tone="danger">sealed</Chip>
             </span>
           )}
-          {/* SK-1 (the visual review): the page's ⋯ at its title row's end,
-              as a session page has it, apart from the agents' choice. */}
-          {pool.kind === "user" && (
-            <span className="ml-auto flex shrink-0 pl-2" title="Rename or delete" data-testid="pool-header-menu">
-              <PoolHeaderMenu pool={pool} onDeleted={onDeleted} />
-            </span>
-          )}
         </div>
         <span className="truncate text-meta text-muted" data-testid="pool-page-count">
           {facts}
@@ -255,6 +248,16 @@ export function PoolHeader({
           {custom && <HeaderCustom pool={pool} onClose={closeCustom} />}
         </span>
       </div>
+      {/* SK-1: the page's ⋯ at its title row's right end, as a session
+          page has it (the 0.4.7 nightly walk: it sat after the name's
+          chips, mid-header); a rule keeps it apart from the agents'
+          choice. Where the controls go down a line, it ends theirs. */}
+      {pool.kind === "user" && (
+        <span className="ml-auto flex shrink-0 items-center gap-4" title="Rename or delete" data-testid="pool-header-menu">
+          <span className="h-5 w-px bg-hairline" aria-hidden="true" />
+          <PoolHeaderMenu pool={pool} onDeleted={onDeleted} />
+        </span>
+      )}
       {error && (
         <p className="w-full text-label text-danger" role="alert">
           {error}
