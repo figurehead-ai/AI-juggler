@@ -7,10 +7,10 @@ import type { JSX } from "react";
 
 export function ListSkeleton({ label, rows }: { label: string; rows: number }): JSX.Element {
   return (
-    <div className="flex flex-col gap-2" role="status" aria-label={label}>
+    <output className="flex flex-col gap-2" aria-label={label}>
       {Array.from({ length: rows }, (_, n) => (
         <span key={n} className="h-16 rounded-lg bg-skeleton motion-safe:animate-pulse" />
       ))}
-    </div>
+    </output>
   );
 }

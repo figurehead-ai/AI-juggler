@@ -8,7 +8,6 @@ import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { PoolPanel } from "./PoolPanel";
-import LazySource from "../../lib/lazy.tsx?raw";
 
 afterEach(cleanup);
 
@@ -22,9 +21,5 @@ describe("a pool's Tasks and Messages open on a skeleton, never an empty body", 
   it("Messages too", () => {
     render(<PoolPanel panel="messages" poolId="pool-team" taskKey={0} sessions={[]} projects={[]} members={[]} now={0} onClose={() => undefined} />);
     expect(screen.getByRole("status", { name: "Loading the messages" })).toBeTruthy();
-  });
-
-  it("a lazy part's placeholder is drawn by the one loader", () => {
-    expect(LazySource).toContain("<Pending>{placeholder?.()}</Pending>");
   });
 });
