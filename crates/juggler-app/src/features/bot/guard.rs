@@ -725,6 +725,22 @@ const ROLE_TAGS: &[&str] = &[
     "hinweis",
 ];
 
+// The bytes the tag scan reads, counted in tests only: I3's test proves
+// the scan linear by counting its work, not by timing it (a clock fails
+// on a slower runner: the 0.5 release PR's tests 2/6).
+#[cfg(test)]
+thread_local! {
+    static SCANNED: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+}
+
+#[cfg(test)]
+fn scanned(bytes: usize) {
+    SCANNED.with(|n| n.set(n.get() + bytes));
+}
+
+#[cfg(not(test))]
+const fn scanned(_: usize) {}
+
 /// Markup spans that hold an order (`<tag>…</tag>`, `[INST]…[/INST]`),
 /// replaced by the mark; the removed spans.
 fn tag_spans(text: &str) -> (String, Vec<String>) {
@@ -737,10 +753,10 @@ fn tag_spans(text: &str) -> (String, Vec<String>) {
     let lower = text.to_ascii_lowercase();
     let bytes = text.as_bytes();
     let next_of = |from: usize, ch: u8| {
-        bytes
-            .get(from..)
-            .and_then(|tail| tail.iter().position(|&b| b == ch))
-            .map(|i| from + i)
+        let tail = bytes.get(from..)?;
+        let found = tail.iter().position(|&b| b == ch);
+        scanned(found.map_or(tail.len(), |i| i + 1));
+        found.map(|i| from + i)
     };
     let mut out = String::new();
     let mut removed = Vec::new();
@@ -767,6 +783,7 @@ fn tag_spans(text: &str) -> (String, Vec<String>) {
         let end_rel = bytes[start + 1..head_end]
             .iter()
             .position(|&b| b == close_ch as u8);
+        scanned(end_rel.map_or(head_end - (start + 1), |i| i + 1));
         let span = end_rel.and_then(|end_rel| {
             let head = text.get(start + 1..start + 1 + end_rel)?.trim();
             let tag: String = head
@@ -788,6 +805,7 @@ fn tag_spans(text: &str) -> (String, Vec<String>) {
             while !text.is_char_boundary(window_end) {
                 window_end -= 1;
             }
+            scanned(window_end.saturating_sub(body_start));
             let body_len = lower.get(body_start..window_end)?.find(&closing)?;
             Some((
                 tag,
@@ -987,19 +1005,37 @@ mod tests {
         }
     }
 
-    /// I3: linear in the text, however many `<` and `[` it holds.
+    /// The bytes the tag scan reads for `text`.
+    fn scan_cost(text: &str) -> usize {
+        SCANNED.with(|n| n.set(0));
+        let _ = tag_spans(text);
+        SCANNED.with(std::cell::Cell::get)
+    }
+
+    /// I3: linear in the text, however many `<` and `[` it holds. Work is
+    /// counted, not timed: twice the text reads at most about twice the
+    /// bytes (a quadratic scan reads four times as many), and no byte is
+    /// read more than the tag windows allow.
     #[test]
     fn the_guard_is_linear_in_open_tags() {
-        let many = "<instruction>".repeat(6_000) + &"[INST]".repeat(6_000);
-        let started = std::time::Instant::now();
-        let _ = guard(&many);
-        let plain = "word ".repeat(20_000);
-        let _ = guard(&plain);
-        assert!(
-            started.elapsed() < std::time::Duration::from_secs(2),
-            "{:?}",
-            started.elapsed()
-        );
+        let open = |n: usize| "<instruction>".repeat(n) + &"[INST]".repeat(n);
+        let words = |n: usize| "word ".repeat(n);
+        for (small, large) in [(open(3_000), open(6_000)), (words(10_000), words(20_000))] {
+            let (a, b) = (scan_cost(&small), scan_cost(&large));
+            assert!(
+                a > 0 && b * 10 <= a * 21,
+                "{a} bytes, then {b} for twice the text"
+            );
+            // Each byte at most once per search, plus one head and one
+            // body window per tag opened.
+            assert!(
+                b <= large.len() * (3 + 64 + 1_600 + 40),
+                "{b} for {}",
+                large.len()
+            );
+        }
+        // And the whole guard still answers on such a text.
+        let _ = guard(&open(6_000));
     }
 
     #[test]

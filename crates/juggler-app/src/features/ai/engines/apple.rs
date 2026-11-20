@@ -400,10 +400,14 @@ fn draft(answer: &serde_json::Value) -> Result<Draft, EngineError> {
     match answer["error"].as_str() {
         None => Ok(Draft {
             text: answer["text"].as_str().unwrap_or_default().to_owned(),
-            finish: if answer["finish"].as_str() == Some("length") {
-                Finish::Length
-            } else {
+            // Only a measured "stop" is finished: "length", "unmeasured"
+            // (a plain answer on macOS 26, whose tokens the helper can't
+            // count) or anything else is possibly cut, and the job's gate
+            // rejects it. Never fail open.
+            finish: if answer["finish"].as_str() == Some("stop") {
                 Finish::Stop
+            } else {
+                Finish::Length
             },
         }),
         Some("refused") => Err(EngineError::Refused),

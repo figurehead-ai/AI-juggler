@@ -282,6 +282,19 @@ fn a_refusal_and_a_cut_answer_reach_the_job_as_such() {
     engine.probe();
     let draft = engine.respond("m", &request(), &soon()).unwrap();
     assert_eq!(draft.finish, crate::features::ai::engine::Finish::Length);
+    // A plain answer the helper couldn't count (macOS 26) is possibly cut,
+    // never finished.
+    let unmeasured = r#"{"id":ID,"text":"maybe whole","finish":"unmeasured","error":null}"#;
+    let engine = Apple::with_program(Some(fake(
+        dir.path(),
+        "unmeasured",
+        &hello("available"),
+        unmeasured,
+        0,
+    )));
+    engine.probe();
+    let draft = engine.respond("m", &request(), &soon()).unwrap();
+    assert_eq!(draft.finish, crate::features::ai::engine::Finish::Length);
 }
 
 #[test]

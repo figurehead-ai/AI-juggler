@@ -15,7 +15,8 @@
 //   out first: {"hello":true,"protocol":2,"available":<state>,"context_size":<int>}
 //     state: available | device_not_eligible | apple_intelligence_not_enabled | model_not_ready | not_this_os | unknown
 //   in:  {"id":<int>,"op":"respond","instructions":<text>,"prompt":<text>,"max_tokens":<int>,"schema":<shape>?}
-//   out: {"id":<int>,"text":<text>,"finish":"stop"|"length","error":null|"refused"|"too_long"|"unavailable"|"failed"}
+//   out: {"id":<int>,"text":<text>,"finish":"stop"|"length"|"unmeasured","error":null|"refused"|"too_long"|"unavailable"|"failed"}
+//     unmeasured: a plain answer whose tokens this SDK or OS can't count (macOS 26); the app treats it as possibly cut.
 //   in:  {"id":<int>,"op":"network"}   (any macOS: the network path, for the model download's pause, AJ-E3813)
 //   out: {"id":<int>,"satisfied":<bool>,"expensive":<bool>,"constrained":<bool>,"error":null|"unknown"}
 //   in:  {"op":"quit"}
@@ -91,14 +92,13 @@ func shape(_ json: [String: Any], _ name: String) -> DynamicGenerationSchema {
 }
 
 @available(macOS 26.0, *)
-func generate(_ request: [String: Any], permissive: Bool) async throws -> (String, Bool) {
+func generate(_ request: [String: Any], permissive: Bool) async throws -> (String, String) {
     let model = permissive ? SystemLanguageModel(guardrails: .permissiveContentTransformations) : SystemLanguageModel.default
     let session = LanguageModelSession(model: model, instructions: request["instructions"] as? String ?? "")
     let limit = max(1, request["max_tokens"] as? Int ?? 60)
-    // The label is `samplingMode:` in macOS 27's SDK (Swift 6.4) and
-    // `sampling:` in macOS 26's, which CI's runners build with: the same
-    // greedy sampling either way.
-    #if compiler(>=6.4)
+    // Built against both SDKs: FoundationModels 2.x (macOS 27's SDK) calls it `samplingMode:`, 1.x (macOS 26's, which
+    // CI's runners build with) `sampling:`. The same greedy sampling either way, and either build runs on macOS 26.
+    #if canImport(FoundationModels, _version: 2.0)
     let options = GenerationOptions(samplingMode: .greedy, temperature: 0, maximumResponseTokens: limit)
     #else
     let options = GenerationOptions(sampling: .greedy, temperature: 0, maximumResponseTokens: limit)
@@ -107,12 +107,23 @@ func generate(_ request: [String: Any], permissive: Bool) async throws -> (Strin
     if let root = request["schema"] as? [String: Any] {
         let schema = try GenerationSchema(root: shape(root, root["name"] as? String ?? "Answer"), dependencies: [])
         let response = try await session.respond(to: prompt, schema: schema, includeSchemaInPrompt: true, options: options)
-        return (response.content.jsonString, false)
+        // Guided output that decoded is whole: a cut one fails to decode (decodingFailure, sent as "length").
+        return (response.content.jsonString, "stop")
     }
     let response = try await session.respond(to: prompt, options: options)
-    var cut = false
-    if #available(macOS 27.0, *) { cut = response.usage.output.totalTokenCount >= limit }
-    return (response.content, cut)
+    return (response.content, finish(response, limit: limit))
+}
+
+/// How a plain answer ended: "length" at the token limit, "stop" before it, "unmeasured" where its tokens can't be
+/// counted (the usage counts are FoundationModels 2.x, macOS 27): never "stop" without a count.
+@available(macOS 26.0, *)
+func finish(_ response: LanguageModelSession.Response<String>, limit: Int) -> String {
+    #if canImport(FoundationModels, _version: 2.0)
+    if #available(macOS 27.0, *) {
+        return response.usage.output.totalTokenCount >= limit ? "length" : "stop"
+    }
+    #endif
+    return "unmeasured"
 }
 
 /// The protocol's error word for `error`, and whether a permissive retry may help.
@@ -135,9 +146,9 @@ func answer(_ request: [String: Any]) async -> [String: Any] {
     var reply: [String: Any] = ["id": request["id"] ?? NSNull(), "text": "", "finish": "stop", "error": NSNull()]
     for permissive in [false, true] {
         do {
-            let (text, cut) = try await generate(request, permissive: permissive)
+            let (text, ended) = try await generate(request, permissive: permissive)
             reply["text"] = text
-            reply["finish"] = cut ? "length" : "stop"
+            reply["finish"] = ended
             reply["error"] = NSNull()
             return reply
         } catch {
