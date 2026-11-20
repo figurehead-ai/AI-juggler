@@ -273,22 +273,38 @@ mod open_session_tests {
     use crate::features::conversations::goto::{Desktop, LinkSent};
     use crate::features::places::open_session;
 
+    /// Go to it for `SESSION` on Account `acct-work`, its link allowed to
+    /// ask the user when `may_ask`.
+    fn open_work(
+        state: &Arc<AppState>,
+        system: &Scripted,
+        mac: &Mac,
+        may_ask: bool,
+    ) -> crate::features::conversations::dto::GoToOutcomeInfo {
+        open_session::open(state, "acct-work", SESSION, system, mac, may_ask, quick()).unwrap()
+    }
+
     /// The profile's record of `SESSION`, as the Claude app keeps it.
-    fn recorded(profile: &Path) {
+    fn recorded(profile: &Path) -> PathBuf {
         let file = profile.join("claude-code-sessions/a/o/local_9f1c2a3b.json");
         std::fs::create_dir_all(file.parent().unwrap()).unwrap();
         std::fs::write(
             &file,
-            format!(r#"{{"cliSessionId":"{SESSION}","title":"AWS migration planning"}}"#),
+            format!(r#"{{"cliSessionId":"{SESSION}","title":"AWS migration planning","lastFocusedAt":1}}"#),
         )
         .unwrap();
+        file
     }
 
     /// The Mac: what was asked to come forward and what was sent where.
+    /// The app brings the session in front (its record says so) once it
+    /// has missed `misses` links (`front`: the record; none: it never does).
     #[derive(Default)]
     struct Mac {
         consent: bool,
         log: Mutex<Vec<String>>,
+        front: Option<PathBuf>,
+        misses: u32,
     }
 
     impl crate::activation::Front for Mac {
@@ -323,12 +339,25 @@ mod open_session_tests {
             None
         }
         fn send_link_to(&self, pid: u32, link: &str, may_ask: bool) -> LinkSent {
-            self.log.lock().unwrap().push(format!("send {pid} {link}"));
+            let mut log = self.log.lock().unwrap();
+            log.push(format!("send {pid} {link}"));
             if self.consent && !may_ask {
-                LinkSent::NeedsConsent
-            } else {
-                LinkSent::Sent
+                return LinkSent::NeedsConsent;
             }
+            let sends = log.iter().filter(|line| line.starts_with("send")).count();
+            if let Some(record) = &self.front
+                && u32::try_from(sends).unwrap() > self.misses
+            {
+                std::fs::write(
+                    record,
+                    format!(
+                        r#"{{"cliSessionId":"{SESSION}","lastFocusedAt":{}}}"#,
+                        crate::commands::now_millis()
+                    ),
+                )
+                .unwrap();
+            }
+            LinkSent::Sent
         }
     }
 
@@ -336,11 +365,12 @@ mod open_session_tests {
     fn a_closed_profile_is_started_then_the_session_itself_opens_in_it_alone() {
         let root = tempfile::tempdir().unwrap();
         let (state, _, profile) = state_with_profile(root.path(), Some("acct-work"));
-        recorded(&profile);
         let system = Scripted::default();
-        let mac = Mac::default();
-        let done = open_session::open(&state, "acct-work", SESSION, &system, &mac, false, quick())
-            .unwrap();
+        let mac = Mac {
+            front: Some(recorded(&profile)),
+            ..Mac::default()
+        };
+        let done = open_work(&state, &system, &mac, false);
         assert_eq!(*system.started.lock().unwrap(), 1);
         assert_eq!(done.reached, "started");
         assert!(
@@ -372,12 +402,10 @@ mod open_session_tests {
             consent: true,
             ..Mac::default()
         };
-        let done = open_session::open(&state, "acct-work", SESSION, &system, &mac, false, quick())
-            .unwrap();
+        let done = open_work(&state, &system, &mac, false);
         assert_eq!(*system.started.lock().unwrap(), 0);
         assert_eq!(done.reached, "consent");
-        let done =
-            open_session::open(&state, "acct-work", SESSION, &system, &mac, true, quick()).unwrap();
+        let done = open_work(&state, &system, &mac, true);
         assert_eq!(done.reached, "thread");
         assert_eq!(
             done.outcome,
@@ -407,6 +435,54 @@ mod open_session_tests {
         );
     }
 
+    /// 0.4.6 (the rc2 walk): a profile just started missed the link and
+    /// restored the session it last had open (another "Echo lab"), while Go
+    /// to it said it opened this one. The link goes again until the app's
+    /// own record of this session says it's in front.
+    #[test]
+    fn a_profile_just_started_gets_the_link_again_until_its_record_says_the_session_is_in_front() {
+        let root = tempfile::tempdir().unwrap();
+        let (state, _, profile) = state_with_profile(root.path(), Some("acct-work"));
+        let mac = Mac {
+            front: Some(recorded(&profile)),
+            misses: 1,
+            ..Mac::default()
+        };
+        let done = open_work(&state, &Scripted::default(), &mac, false);
+        assert_eq!(done.reached, "started");
+        assert!(
+            done.outcome.ends_with("and opened the session"),
+            "{}",
+            done.outcome
+        );
+        let link = "send 77 claude://claude.ai/epitaxy/local_9f1c2a3b";
+        assert_eq!(
+            *mac.log.lock().unwrap(),
+            ["forward 77", link, link],
+            "sent again, to it alone"
+        );
+    }
+
+    /// One that never brings it in front: Go to it never says it opened.
+    #[test]
+    fn a_profile_just_started_that_never_brings_the_session_in_front_never_reads_as_opened() {
+        let root = tempfile::tempdir().unwrap();
+        let (state, _, profile) = state_with_profile(root.path(), Some("acct-work"));
+        recorded(&profile);
+        let mac = Mac::default();
+        let done = open_work(&state, &Scripted::default(), &mac, false);
+        assert_eq!(done.reached, "app");
+        assert!(
+            done.outcome.contains("pick this one in its sidebar"),
+            "{}",
+            done.outcome
+        );
+        assert!(
+            mac.log.lock().unwrap().len() > 2,
+            "sent again while it waited"
+        );
+    }
+
     #[test]
     fn a_profile_that_lost_its_window_offers_its_restart_and_is_never_started_beside_itself() {
         let root = tempfile::tempdir().unwrap();
@@ -417,16 +493,7 @@ mod open_session_tests {
             lost: true,
             ..Scripted::default()
         };
-        let done = open_session::open(
-            &state,
-            "acct-work",
-            SESSION,
-            &system,
-            &Mac::default(),
-            false,
-            quick(),
-        )
-        .unwrap();
+        let done = open_work(&state, &system, &Mac::default(), false);
         assert_eq!(done.reached, "lost");
         assert_eq!(done.place_id.as_deref(), Some(id.as_str()));
         assert_eq!(*system.started.lock().unwrap(), 0);

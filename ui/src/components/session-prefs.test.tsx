@@ -38,8 +38,8 @@ describe("AJ-E1505 Settings › Sessions", () => {
     expect((stuck as HTMLInputElement).value).toBe("5");
     expect(stuck.getAttribute("aria-describedby")).toBeTruthy();
     expect(document.getElementById(stuck.getAttribute("aria-describedby")!)!.textContent).toContain("Looks stuck");
-    const terminal = screen.getByTestId("settings-terminal") as HTMLDetailsElement;
-    expect(terminal.open).toBe(false);
+    const terminal = screen.getByTestId("settings-terminal");
+    expect(terminal.hasAttribute("data-open")).toBe(false);
     expect((screen.getByLabelText("Font size") as HTMLInputElement).value).toBe("12.5");
     expect((screen.getByLabelText("Scrollback") as HTMLInputElement).value).toBe("5000");
     // At the defaults, no Reset.

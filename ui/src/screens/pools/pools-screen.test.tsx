@@ -2,6 +2,7 @@
  * AJ-E2807: the Pools screen's order, a card's menu (Open its canvas,
  * Rename…, Delete… saying what happens to its members) and its empty text.
  */
+import { asInput } from "../../test/fixtures";
 import { act, cleanup, fireEvent, render, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
 
@@ -13,6 +14,7 @@ import { resetPreviewPools, scopeOf } from "../../lib/ipc/pools";
 import { forgetPaged } from "../../lib/paged";
 import { refreshPools, resetPools, setPools } from "../../lib/pools";
 import { cardOrder, PoolsScreen } from "./PoolsScreen";
+import { visitOrder } from "./visit-order";
 
 const first: InstanceInfo = MOCK_SESSIONS[0]!;
 const second: InstanceInfo = MOCK_SESSIONS[1]!;
@@ -80,6 +82,59 @@ describe("the Pools screen (AJ-E2807)", () => {
     expect(order.map((row) => row.id)).toEqual(["asking", "busy", "quiet", "mine"]);
   });
 
+  // F-rc3g-14: the cards swapped places as their sessions worked, so a
+  // click aimed at A opened B. The order holds from your first move; a
+  // pool made meanwhile goes at the end.
+  it("keeps its cards in place while you're on it, a new pool at the end", async () => {
+    seed({
+      pools: [
+        { id: "pool-a", name: "A", rules: [] },
+        { id: "pool-b", name: "B", rules: [] },
+      ],
+      members: [
+        { session_id: first.id, pool_id: "pool-a", role: "member" },
+        { session_id: second.id, pool_id: "pool-b", role: "member" },
+      ],
+    });
+    await act(async () => {
+      await refreshPools();
+    });
+    const at = (a: number, b: number) => [
+      { ...first, status: "running" as const, last_activity_ms: a },
+      { ...second, status: "running" as const, last_activity_ms: b },
+    ];
+    const screen = (sessions: InstanceInfo[]) => <PoolsScreen sessions={sessions} projects={MOCK_PROJECTS} accounts={[]} />;
+    const view = render(screen(at(1_000, 2_000)));
+    const mine = () =>
+      view
+        .queryAllByTestId("pool-card-tile")
+        .map((tile) => tile.dataset.pool ?? "")
+        .filter((id) => ["pool-a", "pool-b", "pool-c"].includes(id));
+    await waitFor(() => expect(mine()).toEqual(["pool-b", "pool-a"]));
+    // The person moves toward a card; A's session then works.
+    fireEvent.pointerMove(window);
+    view.rerender(screen(at(3_000, 2_000)));
+    expect(mine()).toEqual(["pool-b", "pool-a"]);
+    resetPreviewPools();
+    seed({
+      pools: [
+        { id: "pool-c", name: "C", rules: [] },
+        { id: "pool-a", name: "A", rules: [] },
+        { id: "pool-b", name: "B", rules: [] },
+      ],
+      members: [
+        { session_id: first.id, pool_id: "pool-a", role: "member" },
+        { session_id: second.id, pool_id: "pool-b", role: "member" },
+      ],
+    });
+    await act(async () => {
+      await refreshPools();
+    });
+    await waitFor(() => expect(mine()).toEqual(["pool-b", "pool-a", "pool-c"]));
+    expect(visitOrder(["b", "a", "gone"], ["c", "a", "b"])).toEqual(["b", "a", "c"]);
+    expect(visitOrder(null, ["c", "a"]), "before the order holds").toEqual(["c", "a"]);
+  });
+
   it("gives a card its menu: open, rename, and delete saying what happens to its members (R4)", async () => {
     seed({
       pools: [{ id: "pool-team", name: "Team", rules: [] }],
@@ -105,14 +160,19 @@ describe("the Pools screen (AJ-E2807)", () => {
     expect(view.getByTestId("pools-cards").style.gridTemplateColumns).toContain("auto-fill");
     fireEvent.contextMenu(box, { clientX: 30, clientY: 30, button: 2 });
     const menu = view.getByRole("menu");
-    expect(within(menu).getAllByRole("menuitem").map((item) => item.textContent)).toEqual(["Open its canvas", "Rename…", "Delete…"]);
+    expect(within(menu).getAllByRole("menuitem").map((item) => item.textContent)).toEqual(["Open its diagram", "Rename…", "Delete…"]);
     for (const item of within(menu).getAllByRole("menuitem")) expect(item.querySelector("svg"), item.textContent ?? "").toBeTruthy();
-    fireEvent.click(within(menu).getByRole("menuitem", { name: "Open its canvas" }));
+    fireEvent.click(within(menu).getByRole("menuitem", { name: "Open its diagram" }));
     expect(opened).toEqual(["pool-team"]);
     // Rename… from its ⋯ button
     fireEvent.click(within(box).getByTestId("pool-card-menu"));
     fireEvent.click(within(view.getByRole("menu")).getByRole("menuitem", { name: "Rename…" }));
-    fireEvent.change(view.getByTestId("pool-rename-input"), { target: { value: "Checkout team" } });
+    // The one rename sheet: its name selected on open, so typing replaces
+    // it (the 0.4.6 RC walk A8: "Work" + "Acme" saved "WorkAcme").
+    const field = asInput(view.getByTestId("pool-rename-name"));
+    expect(document.activeElement).toBe(field);
+    expect([field.selectionStart, field.selectionEnd]).toEqual([0, "Team".length]);
+    fireEvent.change(field, { target: { value: "Checkout team" } });
     fireEvent.click(view.getByTestId("pool-rename-save"));
     await waitFor(() => expect(names().some((words) => words.includes("Checkout team"))).toBe(true));
     // Delete… asks first, saying where its sessions go
@@ -133,11 +193,28 @@ describe("the Pools screen (AJ-E2807)", () => {
       </ActionHostProvider>,
     );
     const tiles = await view.findAllByTestId("pool-card-tile");
-    const project = tiles.find((tile) => within(tile).getByTestId("pool-card-scope").textContent === "(project pool)")!;
+    const project = tiles.find((tile) => within(tile).getByTestId("pool-card-scope").textContent === "Project pool")!;
     fireEvent.contextMenu(project.parentElement!, { clientX: 30, clientY: 30, button: 2 });
     const rename = within(view.getByRole("menu")).getByRole("menuitem", { name: /Rename…/ });
     expect(rename.hasAttribute("disabled") || rename.getAttribute("aria-disabled") === "true").toBe(true);
     expect(view.getByRole("menu").textContent).toContain("A project's own pool goes with its project");
+  });
+
+  it("F-rc3g-7: a project's own pool's card says its one name, the one its page, a session's Pools tab and the agents' tools use", async () => {
+    await act(async () => {
+      await refreshPools();
+    });
+    const view = render(
+      <ActionHostProvider host={{ openPool: () => undefined }}>
+        <PoolsScreen sessions={MOCK_SESSIONS} projects={MOCK_PROJECTS} accounts={[]} />
+      </ActionHostProvider>,
+    );
+    const tiles = await view.findAllByTestId("pool-card-tile");
+    const own = tiles.filter((tile) => within(tile).getByTestId("pool-card-scope").textContent === "Project pool");
+    expect(own.length).toBeGreaterThan(0);
+    for (const tile of own) expect(within(tile).getByTestId("pool-card-name").textContent).toMatch(/^.+ · all sessions$/);
+    // Never the project's name alone, which no agent's tool took (the P4 walk: "web").
+    expect(own.map((tile) => within(tile).getByTestId("pool-card-name").textContent)).not.toContain(MOCK_PROJECTS[0]!.name);
   });
 
   it("with no project yet, says pools come with it (R5)", async () => {

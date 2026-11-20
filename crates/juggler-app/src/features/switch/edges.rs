@@ -62,6 +62,7 @@ pub(crate) fn make_launch_hook<'a>(
                     native_id: Some(native_id),
                 }),
                 origin: "switch",
+                continues: Some(crate::features::sessions::spawn::GoesOn::From(&source.id)),
             },
             crate::features::sessions::spawn::Runs::Terminal(spec),
         )

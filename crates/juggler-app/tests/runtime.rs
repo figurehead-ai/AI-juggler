@@ -195,6 +195,11 @@ fn a_driven_session_is_exact_and_answered_only_by_the_user() {
             .iter()
             .any(|item| item.text == "you chose once")
     });
+    // F-rc3g-9: what the person sent is theirs in the view, once.
+    assert_eq!(
+        view_lines(&state, &session, "user_message"),
+        ["ask: rm -rf build"]
+    );
 
     // A question, with a reply.
     runtime::send_impl(&state, &session, "question: which colour?").unwrap();
@@ -317,6 +322,105 @@ fn codex_runs_through_its_own_app_server_by_default() {
     stop(&state, &session);
 }
 
+/// The account (folder) `session` runs on, and how its limits show now.
+fn quota_of(
+    state: &Arc<AppState>,
+    session: &str,
+) -> juggler_app::features::quota::QuotaDisplayInfo {
+    let storage = state.storage.lock().unwrap();
+    let record = storage.sessions().get(&SessionId::new(session)).unwrap();
+    let recipe = storage.profiles().get(&record.profile).unwrap();
+    let account = storage.accounts().get(&recipe.account).unwrap();
+    let now = juggler_core::model::Timestamp::now().millis();
+    juggler_app::features::quota::quota_display_inner(&storage, &account, now)
+}
+
+/// The account's stored 5-hour readings, each with its source.
+fn five_hour_rows(
+    state: &Arc<AppState>,
+    session: &str,
+) -> Vec<(
+    juggler_core::quota::QuotaSample,
+    Option<juggler_core::quota::UsageSource>,
+)> {
+    let account = quota_of(state, session).account;
+    state
+        .storage
+        .lock()
+        .unwrap()
+        .usage()
+        .sourced_samples_since(&account, juggler_core::quota::WindowKind::FiveHour, 0)
+        .unwrap()
+}
+
+fn replies(state: &Arc<AppState>, session: &str) -> usize {
+    runtime::get_impl(state, session)
+        .unwrap()
+        .unwrap()
+        .items
+        .iter()
+        .filter(|item| item.text == "done")
+        .count()
+}
+
+/// F-rc3g-1 (the 0.4.6 rc3f walk: a driven session's panel said "5 hours:
+/// 36% used" while its account's runway on the same page said "100% left,
+/// from the Claude app, 1 h ago", and the account ran out two hours on):
+/// a driven session's limits update is its account's reading, named as
+/// its own, and the same update again writes nothing.
+#[test]
+fn a_driven_sessions_limits_are_its_accounts_reading() {
+    let work = tempfile::tempdir().unwrap();
+    let state = app_state(work.path(), None);
+    let profile = new_profile(&state, CODEX_ID, work.path());
+    let session = juggler_app::features::launch::launch_profile(&state, &profile, None)
+        .unwrap()
+        .session_id;
+    assert!(state.runtime.is_driven(&SessionId::new(session.as_str())));
+    let five_hour_pct = || {
+        quota_of(&state, &session)
+            .five_hour
+            .and_then(|window| window.percentage)
+    };
+
+    // fake-codex reads its limits at the start: 12% of the 5 hours, 40% of
+    // the week, both with their resets.
+    wait_for("the start's reading", || five_hour_pct() == Some(12.0));
+    let shown = quota_of(&state, &session);
+    let five_hour = shown.five_hour.unwrap();
+    assert_eq!(five_hour.source.as_deref(), Some("driven"));
+    assert_eq!(
+        five_hour.source_words.as_deref(),
+        Some("Codex's run in AI Juggler")
+    );
+    assert!(five_hour.resets_at_ms.is_some());
+    let weekly = shown.weekly.unwrap();
+    assert_eq!(weekly.percentage, Some(40.0));
+    assert_eq!(weekly.source.as_deref(), Some("driven"));
+
+    // A turn's update (13%) is the reading now.
+    runtime::send_impl(&state, &session, "hello").unwrap();
+    wait_for("the turn's reading", || five_hour_pct() == Some(13.0));
+    let kept = five_hour_rows(&state, &session);
+    assert!(
+        kept.iter()
+            .all(|(_, source)| *source == Some(juggler_core::quota::UsageSource::Driven))
+    );
+
+    // Two more turns, each ending with the same update: nothing is written
+    // (events are taken in order, so the third turn's reply comes after
+    // the second's update was).
+    for (turn, said) in [(2, "again"), (3, "once more")] {
+        replied(&state, &session);
+        runtime::send_impl(&state, &session, said).unwrap();
+        wait_for("the reply", || replies(&state, &session) == turn);
+    }
+    assert_eq!(five_hour_rows(&state, &session), kept);
+    assert_eq!(five_hour_pct(), Some(13.0));
+
+    stop(&state, &session);
+}
+
 #[test]
 fn open_in_terminal_hands_the_thread_over_and_back() {
     use juggler_app::features::runtime::commands::{Toward, handover_impl};
@@ -327,9 +431,10 @@ fn open_in_terminal_hands_the_thread_over_and_back() {
         .unwrap()
         .session_id;
     runtime::send_impl(&state, &session, "hello").unwrap();
-    wait_for("the turn's end", || {
-        row(&state, &session).runtime.unwrap().state.as_deref() == Some("idle")
-    });
+    // The turn's own reply, then its end: the state read "idle" before the
+    // turn began too, and a handover taken then found no conversation
+    // written yet.
+    replied(&state, &session);
     let thread = state
         .runtime
         .driver(&session)
@@ -724,8 +829,13 @@ fn alive(pid: &str) -> bool {
 /// waits for the tool's server to end with it. Returns the session and
 /// its thread.
 fn kill_core_at(work: &Path, stage: &str) -> (String, String) {
+    kill_core(work, "app_core_in_a_child", stage)
+}
+
+/// [`kill_core_at`] for the child test `child`.
+fn kill_core(work: &Path, child: &str, stage: &str) -> (String, String) {
     let mut core = std::process::Command::new(std::env::current_exe().unwrap())
-        .args(["--exact", "app_core_in_a_child", "--ignored", "--nocapture"])
+        .args(["--exact", child, "--ignored", "--nocapture"])
         .env(CORE_DATA, work)
         .env(CORE_STAGE, stage)
         .stdout(std::process::Stdio::null())
@@ -943,6 +1053,480 @@ fn a_cut_off_session_can_be_ended_and_a_stopped_one_never_comes_back() {
     assert!(state.runtime.driver(&stopped).is_none());
     assert_ne!(status_of(&state, &stopped), "starting");
     assert!(state.runtime.info(&stopped).is_none());
+}
+
+/// An app core with Claude Code (`fake-claude`), as the child and its
+/// reopen both build it.
+fn claude_state(dir: &Path) -> Arc<AppState> {
+    claude_state_with(dir, fake_claude_bin())
+}
+
+/// [`claude_state`] with `bin` as Claude Code.
+fn claude_state_with(dir: &Path, bin: PathBuf) -> Arc<AppState> {
+    use juggler_adapters::ClaudeCodeAdapter;
+    let mut registry = AdapterRegistry::new();
+    registry.register(Arc::new(ClaudeCodeAdapter::with_bin(bin)));
+    Arc::new(AppState::init_with_registry(dir.join("app-data"), registry).unwrap())
+}
+
+/// `fake-claude` behind a script: `body` runs with `$FAKE` the fake and
+/// the launch's own arguments in `"$@"`.
+fn claude_with(dir: &Path, body: &str) -> PathBuf {
+    let path = dir.join("claude-wrapper");
+    std::fs::write(
+        &path,
+        format!("#!/bin/sh\nFAKE={:?}\n{body}\n", fake_claude_bin()),
+    )
+    .unwrap();
+    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755)).unwrap();
+    path
+}
+
+/// A Claude Code profile on `work/lab` that may run without a terminal:
+/// the Beta on and the folder trusted, as Claude Code records it (beside
+/// set_up's first run).
+fn trusted_claude_profile(state: &Arc<AppState>, work: &Path) -> String {
+    use juggler_adapters::CLAUDE_CODE_ID;
+    let project = work.canonicalize().unwrap().join("lab");
+    std::fs::create_dir_all(&project).unwrap();
+    let profile = new_profile(state, CLAUDE_CODE_ID, &project);
+    runtime::beta_impl(state, true).unwrap();
+    let state_dir = {
+        let storage = state.storage.lock().unwrap();
+        let recipe = storage
+            .profiles()
+            .get(&juggler_core::model::ProfileId::new(profile.as_str()))
+            .unwrap();
+        storage.accounts().get(&recipe.account).unwrap().state_dir
+    };
+    let file = state_dir.join(".claude.json");
+    let mut config: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(&file).unwrap()).unwrap();
+    config["projects"] =
+        serde_json::json!({ project.to_string_lossy(): {"hasTrustDialogAccepted": true} });
+    std::fs::write(&file, config.to_string()).unwrap();
+    profile
+}
+
+/// A Claude Code session started without a terminal on `profile`.
+fn launch_driven(
+    state: &Arc<AppState>,
+    profile: &str,
+) -> juggler_app::features::launch::dto::LaunchResult {
+    juggler_app::features::launch::launch_profile_as(state, profile, None, Some(Runtime::Driven))
+        .unwrap()
+}
+
+/// F-rc3g-1, as it was found: Claude Code without a terminal. Its
+/// rate_limit_event (27% of the 5 hours) is its account's reading, named
+/// as Claude Code's run in AI Juggler.
+#[test]
+fn claude_without_a_terminal_keeps_its_limits_as_its_accounts_reading() {
+    let work = tempfile::tempdir().unwrap();
+    let state = claude_state(work.path());
+    let profile = trusted_claude_profile(&state, work.path());
+    let session = launch_driven(&state, &profile).session_id;
+    runtime::send_impl(&state, &session, "hello").unwrap();
+    wait_for("the reading", || {
+        !five_hour_rows(&state, &session).is_empty()
+    });
+    let rows = five_hour_rows(&state, &session);
+    assert_eq!(rows.len(), 1);
+    assert!((rows[0].0.used_pct - 27.0).abs() < 1e-9);
+    assert_eq!(rows[0].0.resets_at, Some(1_761_397_200_000));
+    assert_eq!(rows[0].1, Some(juggler_core::quota::UsageSource::Driven));
+    // The fake's reset is long past, so the account shows it as history,
+    // still named by where it came from.
+    let five_hour = quota_of(&state, &session).five_hour.unwrap();
+    assert_eq!(five_hour.last_used_pct, Some(27.0));
+    assert_eq!(
+        five_hour.source_words.as_deref(),
+        Some("Claude Code's run in AI Juggler")
+    );
+    stop(&state, &session);
+}
+
+/// The view's lines of `kind`, in order.
+fn view_lines(state: &Arc<AppState>, session: &str, kind: &str) -> Vec<String> {
+    runtime::get_impl(state, session)
+        .unwrap()
+        .unwrap()
+        .items
+        .into_iter()
+        .filter(|item| item.kind == kind)
+        .map(|item| item.text)
+        .collect()
+}
+
+/// F-rc3g-9 (the rc3g walk: a Claude Code session's view showed only what
+/// the agent did; the prompt that started a turn was nowhere): what the
+/// person sent is in the view as theirs, once each, in order, before the
+/// reply to it.
+#[test]
+fn claude_without_a_terminal_shows_what_the_person_sent() {
+    let work = tempfile::tempdir().unwrap();
+    let state = claude_state(work.path());
+    let profile = trusted_claude_profile(&state, work.path());
+    let session = launch_driven(&state, &profile).session_id;
+    runtime::send_impl(&state, &session, "hello").unwrap();
+    replied(&state, &session);
+    runtime::send_impl(&state, &session, "and once more").unwrap();
+    wait_for("the second turn's end", || {
+        let snap = state.runtime.driver(&session).unwrap().snapshot();
+        !snap.turn_running
+            && snap
+                .items
+                .iter()
+                .filter(|item| item.kind == "user_message")
+                .count()
+                == 2
+    });
+    assert_eq!(
+        view_lines(&state, &session, "user_message"),
+        ["hello", "and once more"]
+    );
+    let kinds: Vec<String> = runtime::get_impl(&state, &session)
+        .unwrap()
+        .unwrap()
+        .items
+        .into_iter()
+        .map(|item| item.kind)
+        .collect();
+    assert_eq!(kinds[0], "user_message", "{kinds:?}");
+    assert!(
+        kinds[1..].contains(&"agent_message".to_owned()),
+        "{kinds:?}"
+    );
+    stop(&state, &session);
+}
+
+/// F-rc3g-9 for a tool that echoes what it's sent (Codex's `userMessage`
+/// item, before and after): the person's message once, never twice.
+#[test]
+fn codexs_own_echo_shows_the_persons_message_once() {
+    let work = tempfile::tempdir().unwrap();
+    let state = app_state(work.path(), None);
+    let profile = new_profile(&state, CODEX_ID, work.path());
+    let session = juggler_app::features::launch::launch_profile(&state, &profile, None)
+        .unwrap()
+        .session_id;
+    runtime::send_impl(&state, &session, "hello").unwrap();
+    replied(&state, &session);
+    assert_eq!(view_lines(&state, &session, "user_message"), ["hello"]);
+    stop(&state, &session);
+}
+
+/// The app core, in a child: a Claude Code session started without a
+/// terminal (the Beta on, its folder trusted) that is given no turn, as a
+/// pool member waits for its first message; its ids written down, then it
+/// waits to be killed.
+#[test]
+#[ignore = "run by the pickup tests below, in a child process"]
+fn claude_core_in_a_child() {
+    let work = PathBuf::from(std::env::var(CORE_DATA).unwrap());
+    let state = claude_state(&work);
+    let profile = trusted_claude_profile(&state, &work);
+    let launched = launch_driven(&state, &profile);
+    let session = launched.session_id;
+    let conversation = state
+        .runtime
+        .driver(&session)
+        .expect("driven, as picked")
+        .snapshot()
+        .native_id
+        .unwrap();
+    let marks = || juggler_app::features::runtime::pickup::marks(&state.storage.lock().unwrap());
+    wait_for("its mark", || {
+        marks()
+            .get(&session)
+            .is_some_and(|mark| mark.native_id == conversation && !mark.in_turn)
+    });
+    let partial = work.join("core-ready.tmp");
+    std::fs::write(
+        &partial,
+        format!("{session} {conversation} {}", launched.pid),
+    )
+    .unwrap();
+    std::fs::rename(&partial, work.join("core-ready")).unwrap();
+    std::thread::sleep(Duration::from_secs(60));
+}
+
+/// F-rc3f-3 (the 0.4.6 rc3f walk): four Claude Code sessions run without
+/// a terminal in one pool, all idle, and AI Juggler quit and reopened. The
+/// two that had taken a turn came back driven. The two that hadn't (one
+/// with a message waiting in its inbox) were resumed by a conversation id
+/// Claude Code had never written ("No conversation found"): handed over
+/// to a terminal (`…-t`) that failed the same way, exit 1, in Needs you.
+/// One with no turn yet comes back the way it ran: driven, under its own
+/// id and conversation id, and its first turn writes that conversation.
+#[test]
+fn a_driven_session_that_never_took_a_turn_comes_back_driven_after_a_restart() {
+    use juggler_app::features::runtime::pickup;
+    let work = tempfile::tempdir().unwrap();
+    let (session, conversation) = kill_core(work.path(), "claude_core_in_a_child", "fresh");
+
+    let state = claude_state(work.path());
+    assert_eq!(
+        status_of(&state, &session),
+        "starting",
+        "kept for the pickup"
+    );
+    pickup::after_restart(&state);
+    wait_for("the session to come back or end", || {
+        state.runtime.driver(&session).is_some()
+            || ["stopped", "handed_over", "failed"].contains(&status_of(&state, &session).as_str())
+    });
+    let driver = state
+        .runtime
+        .driver(&session)
+        .unwrap_or_else(|| panic!("it came back driven, not {}", status_of(&state, &session)));
+    assert_eq!(
+        driver.snapshot().native_id.as_deref(),
+        Some(conversation.as_str()),
+        "under its own conversation id"
+    );
+    let record = |id: &str| {
+        state
+            .storage
+            .lock()
+            .unwrap()
+            .sessions()
+            .get(&SessionId::new(id))
+    };
+    assert!(
+        record(&format!("{session}-t")).is_err(),
+        "no terminal took its place"
+    );
+    wait_for("its row to name its conversation again", || {
+        record(&session)
+            .unwrap()
+            .conversation
+            .map(|id| id.to_string())
+            == Some(conversation.clone())
+    });
+
+    // Its first turn (a pool message, or the user's) writes the
+    // conversation, under the id it always had; from then on a restart
+    // resumes it.
+    runtime::send_impl(&state, &session, "hello").unwrap();
+    replied(&state, &session);
+    wait_for("its conversation's file", || {
+        record(&session).unwrap().transcript_ref.is_some()
+    });
+    wait_for("its mark to say the conversation is written", || {
+        pickup::marks(&state.storage.lock().unwrap())
+            .get(&session)
+            .is_some_and(|mark| mark.written && !mark.in_turn)
+    });
+    let file = record(&session).unwrap().transcript_ref.unwrap().path;
+    assert_eq!(
+        file.file_stem().and_then(|stem| stem.to_str()),
+        Some(conversation.as_str())
+    );
+    stop(&state, &session);
+    assert!(pickup::marks(&state.storage.lock().unwrap()).is_empty());
+}
+
+/// The launches a `claude_with` log holds that ran in a terminal (no
+/// `-p`, not the version check).
+fn terminal_launches(log: &Path) -> Vec<String> {
+    std::fs::read_to_string(log)
+        .unwrap_or_default()
+        .lines()
+        .filter(|line| {
+            !line
+                .split_whitespace()
+                .any(|arg| arg == "-p" || arg == "--version")
+        })
+        .map(str::to_owned)
+        .collect()
+}
+
+/// The session's history, oldest first.
+fn history(state: &Arc<AppState>, session: &str) -> Vec<String> {
+    state
+        .storage
+        .lock()
+        .unwrap()
+        .sessions()
+        .lifecycle_events(&SessionId::new(session))
+        .unwrap()
+        .into_iter()
+        .map(|(event, _)| event)
+        .collect()
+}
+
+/// F-rc3f-3, Open in terminal: a Claude Code session run without a
+/// terminal that hadn't taken a turn yet was handed to `claude --resume
+/// <id>`, which Claude Code refuses for a conversation it never wrote
+/// (exit 1, in Needs you). Its terminal starts it fresh under the same id,
+/// once the driven process has ended (one writer).
+#[test]
+fn open_in_terminal_before_the_first_turn_starts_it_under_the_same_id() {
+    use juggler_app::features::runtime::commands::{Toward, handover_impl};
+    let work = tempfile::tempdir().unwrap();
+    let log = work.path().join("claude-args.log");
+    // Its terminal, stood in for by the fake run headless on it: it runs
+    // until its terminal closes, and refuses what Claude Code refuses.
+    let bin = claude_with(
+        work.path(),
+        &format!(
+            "echo \"$*\" >> {log:?}\n\
+             case \" $* \" in *\" -p \"*|*\" --version \"*) exec \"$FAKE\" \"$@\";; esac\n\
+             exec \"$FAKE\" -p --verbose \"$@\""
+        ),
+    );
+    let state = claude_state_with(work.path(), bin);
+    let profile = trusted_claude_profile(&state, work.path());
+    let session = launch_driven(&state, &profile).session_id;
+    let conversation = state
+        .runtime
+        .driver(&session)
+        .expect("driven, as picked")
+        .snapshot()
+        .native_id
+        .unwrap();
+
+    let terminal = handover_impl(None, &state, &session, Toward::Terminal).unwrap();
+    assert_eq!(status_of(&state, &session), "handed_over");
+    assert!(
+        state
+            .supervisor
+            .is_finished(&SessionId::new(session.as_str())),
+        "one writer: its driven process ended first"
+    );
+    wait_for("its terminal's launch", || {
+        !terminal_launches(&log).is_empty()
+    });
+    let opened = terminal_launches(&log).remove(0);
+    assert!(
+        opened.contains(&format!("--session-id {conversation}")) && !opened.contains("--resume"),
+        "{opened}"
+    );
+    std::thread::sleep(Duration::from_millis(500));
+    assert!(
+        !state
+            .supervisor
+            .is_finished(&SessionId::new(terminal.session_id.as_str())),
+        "its terminal runs: {}",
+        status_of(&state, &terminal.session_id)
+    );
+    let record = state
+        .storage
+        .lock()
+        .unwrap()
+        .sessions()
+        .get(&SessionId::new(terminal.session_id.as_str()))
+        .unwrap();
+    assert_eq!(
+        record.conversation.map(|id| id.to_string()),
+        Some(conversation),
+        "the same conversation id"
+    );
+    stop(&state, &terminal.session_id);
+}
+
+/// F-rc3f-3: a tool that names its own conversations (Codex) can't take
+/// the id of one it never wrote. Open in terminal before the first turn
+/// starts a new conversation, never `resume` of nothing, and its history
+/// says so.
+#[test]
+fn open_in_terminal_before_the_first_turn_of_a_tool_that_names_its_own_says_so() {
+    use juggler_app::features::runtime::commands::{Toward, handover_impl};
+    let work = tempfile::tempdir().unwrap();
+    let log = work.path().join("codex-args.log");
+    let state = app_state(
+        work.path(),
+        Some(codex_with(
+            work.path(),
+            &format!("FAKE_CODEX_ARGS_LOG={}", log.display()),
+        )),
+    );
+    let profile = new_profile(&state, CODEX_ID, work.path());
+    let session = juggler_app::features::launch::launch_profile(&state, &profile, None)
+        .unwrap()
+        .session_id;
+    wait_for("its thread", || {
+        state
+            .runtime
+            .driver(&session)
+            .and_then(|driver| driver.snapshot().native_id)
+            .is_some()
+    });
+
+    let terminal = handover_impl(None, &state, &session, Toward::Terminal).unwrap();
+    assert_eq!(status_of(&state, &session), "handed_over");
+    let said = history(&state, &terminal.session_id);
+    assert!(
+        said.iter()
+            .any(|event| event.contains("a new conversation: Codex names its own")),
+        "{said:?}"
+    );
+    let record = state
+        .storage
+        .lock()
+        .unwrap()
+        .sessions()
+        .get(&SessionId::new(terminal.session_id.as_str()))
+        .unwrap();
+    assert_eq!(record.conversation, None, "Codex names it");
+    wait_for("the terminal to end", || {
+        state
+            .supervisor
+            .is_finished(&SessionId::new(terminal.session_id.as_str()))
+    });
+    assert!(
+        launches_with(&log, " resume ").is_empty(),
+        "{:?}",
+        std::fs::read_to_string(&log)
+    );
+}
+
+/// F-rc3f-3: a start without a terminal that failed after its process ran
+/// read "ended: stopped by you", though nobody stopped it. Its ending
+/// says what happened; its conversation went to its terminal.
+#[test]
+fn a_failed_start_without_a_terminal_never_reads_stopped_by_you() {
+    use juggler_core::model::Ending;
+    let work = tempfile::tempdir().unwrap();
+    // A Claude Code that never answers headless: its output closes, and it
+    // waits (30 s at most) until it is stopped.
+    let bin = claude_with(
+        work.path(),
+        "case \" $* \" in *\" -p \"*) exec 1>&-; exec sleep 30;; esac\nexec \"$FAKE\" \"$@\"",
+    );
+    let state = claude_state_with(work.path(), bin);
+    juggler_app::features::sessions::lifecycle::spawn_forwarder(Arc::clone(&state));
+    let profile = trusted_claude_profile(&state, work.path());
+    let launched = launch_driven(&state, &profile);
+    let spent = launched
+        .session_id
+        .strip_suffix("-t")
+        .expect("its id spent, its terminal under a new one")
+        .to_owned();
+    let ending = || {
+        state
+            .storage
+            .lock()
+            .unwrap()
+            .sessions()
+            .endings()
+            .unwrap()
+            .remove(&spent)
+    };
+    wait_for("its ending", || ending().is_some());
+    assert_eq!(
+        ending(),
+        Some((
+            Ending::Error,
+            Some("it couldn't start without a terminal, so AI Juggler stopped it".to_owned())
+        ))
+    );
+    let said = history(&state, &spent);
+    assert!(
+        !said.iter().any(|event| event.contains("stopped by you")),
+        "{said:?}"
+    );
 }
 
 // ---------------------------------------------------------------------
@@ -1173,4 +1757,159 @@ fn the_quit_sheet_names_each_session_and_quit_anyway_keeps_its_word() {
     juggler_app::quit::keep_the_sheets_word_with(&state, test_run);
     assert!(!marks().contains_key(&session), "{:?}", marks());
     stop(&state, &session);
+}
+
+// ---------------------------------------------------------------------
+// F-rc3g-3: the name the person gave a session goes on with its work.
+
+/// The name the person gave `session`, as storage keeps it.
+fn given_name(state: &Arc<AppState>, session: &str) -> Option<String> {
+    state
+        .storage
+        .lock()
+        .unwrap()
+        .sessions()
+        .marks()
+        .unwrap()
+        .get(session)
+        .and_then(|(label, _)| label.clone())
+}
+
+/// F-rc3g-3 (the 0.4.6 rc3g walk): a session run without a terminal,
+/// renamed "g-quiet" before its first turn, then Open in terminal: its
+/// terminal went on under a new session row, and the sidebar, the page
+/// and the pool pickers named it "team · started 12:32 PM". The name
+/// goes on with each hand-over: into its terminal, back with Run in AI
+/// Juggler, and into the terminal a failed driven start falls back to
+/// (`…-t`: its conversation was never written, so the resume fails).
+#[test]
+fn a_name_given_before_the_first_turn_goes_on_with_each_hand_over() {
+    use juggler_app::features::runtime::commands::{Toward, handover_impl};
+    let work = tempfile::tempdir().unwrap();
+    // Its terminal, stood in for by the fake run headless on it (as in
+    // `open_in_terminal_before_the_first_turn_starts_it_under_the_same_id`).
+    let bin = claude_with(
+        work.path(),
+        "case \" $* \" in *\" -p \"*|*\" --version \"*) exec \"$FAKE\" \"$@\";; esac\n\
+         exec \"$FAKE\" -p --verbose \"$@\"",
+    );
+    let state = claude_state_with(work.path(), bin);
+    let profile = trusted_claude_profile(&state, work.path());
+    let session = launch_driven(&state, &profile).session_id;
+    juggler_app::manage::session_rename_impl(&state, &session, Some("g-quiet")).unwrap();
+
+    // Open in terminal: a new row, named as the person named the work.
+    let terminal = handover_impl(None, &state, &session, Toward::Terminal).unwrap();
+    assert_ne!(terminal.session_id, session);
+    assert_eq!(status_of(&state, &session), "handed_over");
+    assert_eq!(
+        row(&state, &terminal.session_id).label.as_deref(),
+        Some("g-quiet"),
+        "its terminal's row, as the sidebar and the pickers read it"
+    );
+    assert_eq!(given_name(&state, &session).as_deref(), Some("g-quiet"));
+
+    // Run in AI Juggler, once the terminal has ended: the conversation
+    // was never written, so the driven resume fails after its process
+    // ran and its terminal takes over under `…-t`; both rows named.
+    stop(&state, &terminal.session_id);
+    let back = handover_impl(None, &state, &terminal.session_id, Toward::Driven).unwrap();
+    let spent = back
+        .session_id
+        .strip_suffix("-t")
+        .expect("its terminal took over: the new session's id ends in -t");
+    assert_eq!(given_name(&state, spent).as_deref(), Some("g-quiet"));
+    assert_eq!(
+        given_name(&state, &back.session_id).as_deref(),
+        Some("g-quiet")
+    );
+    wait_for("its terminal to end", || {
+        state
+            .supervisor
+            .is_finished(&SessionId::new(back.session_id.as_str()))
+    });
+}
+
+/// F-rc3g-3: the restart pickup brings a session back under its own id
+/// (its name stays); one whose driven start fails after its process ran
+/// goes on in its terminal under a new id (`…-t`), and that row is named
+/// as the person named the session too.
+#[test]
+fn a_name_goes_on_into_the_terminal_a_restart_pickup_falls_back_to() {
+    use juggler_app::features::runtime::pickup;
+    use juggler_core::model::{
+        ConversationId, InstanceKind, InstanceRecord, ProfileId, SessionStatus, Timestamp,
+        UsageSnapshot,
+    };
+    let work = tempfile::tempdir().unwrap();
+    // A Claude Code that never answers headless (its output closes), and
+    // whose terminal ends at once.
+    let bin = claude_with(
+        work.path(),
+        "case \" $* \" in *\" -p \"*) exec 1>&-; exec sleep 30;; esac\nexec \"$FAKE\" \"$@\"",
+    );
+    let state = claude_state_with(work.path(), bin);
+    let profile = trusted_claude_profile(&state, work.path());
+    let cwd = work.path().canonicalize().unwrap().join("lab");
+    // A session run without a terminal, named, between turns when AI
+    // Juggler stopped: its row and its mark, as the start finds them.
+    let session = SessionId::new("sess-named-pickup");
+    let conversation = "0a1b2c3d-0000-4000-8000-0000000000aa";
+    // Read before the store is held (it locks the store itself).
+    let machine = juggler_app::commands::local_machine_id(&state);
+    {
+        let storage = state.storage.lock().unwrap();
+        storage
+            .sessions()
+            .insert(&InstanceRecord {
+                id: session.clone(),
+                conversation: Some(ConversationId::new(conversation)),
+                profile: ProfileId::new(profile.as_str()),
+                machine,
+                kind: InstanceKind::Terminal,
+                project: None,
+                cwd,
+                status: SessionStatus::Starting,
+                started_at: Timestamp::now(),
+                last_activity: None,
+                usage: UsageSnapshot::default(),
+                attention: None,
+                running: None,
+                window: None,
+                transcript_ref: None,
+            })
+            .unwrap();
+        pickup::note(
+            &storage,
+            &session,
+            Some(pickup::Mark {
+                native_id: conversation.to_owned(),
+                in_turn: false,
+                written: true,
+            }),
+        );
+    }
+    juggler_app::manage::session_rename_impl(&state, session.as_str(), Some("g-turn")).unwrap();
+
+    pickup::after_restart(&state);
+    let terminal = format!("{session}-t");
+    wait_for("its terminal's row", || {
+        state
+            .storage
+            .lock()
+            .unwrap()
+            .sessions()
+            .get(&SessionId::new(terminal.as_str()))
+            .is_ok()
+    });
+    assert_eq!(given_name(&state, &terminal).as_deref(), Some("g-turn"));
+    assert_eq!(
+        given_name(&state, session.as_str()).as_deref(),
+        Some("g-turn")
+    );
+    wait_for("its terminal to end", || {
+        state
+            .supervisor
+            .is_finished(&SessionId::new(terminal.as_str()))
+    });
 }

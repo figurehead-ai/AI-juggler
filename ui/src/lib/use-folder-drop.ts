@@ -28,15 +28,19 @@ export function droppedPath(data: Pick<DataTransfer, "getData"> | null): string 
 
 export function useFolderDrop(onFolder: (path: string) => void) {
   const [dragging, setDragging] = useState(false);
+  // The sheet's latest: New session's weighs the App shown when it lands
+  // (F-rc3f-1), so the one listener calls whichever is current.
+  const latest = useRef(onFolder);
+  useEffect(() => {
+    latest.current = onFolder;
+  });
   // The app's own drop: while the sheet is open, its folder.
   useEffect(
     () =>
       onFolderDropped((path) => {
         setDragging(false);
-        onFolder(path);
+        latest.current(path);
       }),
-    // The sheet's setter is stable for its life.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [],
   );
   return {

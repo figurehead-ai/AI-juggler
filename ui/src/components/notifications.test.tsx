@@ -138,7 +138,8 @@ describe("§2 Toast", () => {
       for (const n of [1, 2, 3, 4]) showToast({ id: `t${n}`, message: `Toast ${n}` });
     });
     const stack = screen.getByTestId("toast-stack");
-    expect(stack.className).toContain("bottom-4");
+    // 16 px from the foot (above a footer of main buttons, when there is one: round 6).
+    expect(stack.style.bottom).toBe("16px");
     expect(stack.className).toContain("right-4");
     expect(within(stack).getAllByTestId("toast").map((t) => t.getAttribute("aria-label"))).toEqual(["Toast 2", "Toast 3", "Toast 4"]);
     expect(within(stack).getAllByTestId("toast-time")).toHaveLength(3);

@@ -14,10 +14,15 @@ It compares three things, touching nothing:
 
 It fails when a running App of the user's is missing from Open now, when
 Open now names a desktop App that isn't running, when an App is in both
-sections, or when Inactive apps says "Running". 0.4.3: and when what an
+sections, or when Inactive apps says "Running". 0.4.6 (the rc2 walk): and
+when a Claude app profile runs a session of its own (its `claude` under
+its main process, interactive by its pid file) that Open now doesn't show
+open under it: a conversation continued in AI Juggler's terminal, stopped,
+then opened in its profile read "nothing open" there. 0.4.3: and when what an
 App unfolds to, its session counts or its Out mark disagree with the apps'
 own records and the Accounts' readings, or a lab run wrote into a real
-profile's folder (`presence_sessions.py`); (D-102) when the Codex app's and
+profile's folder (`presence_sessions.py`; 0.4.6: any folder but the Dev
+build's own Lab App folder, as its database names it); (D-102) when the Codex app's and
 Codex CLI's counts aren't the Codex store's listed threads. Run it with the rail grouped by
 App, Open now unfolded and every App in it unfolded. 0.4.4 (D-103.10): it
 prints what the one-time pass that gives past limit hits back to the
@@ -102,6 +107,16 @@ def other_home(home: Path) -> bool:
     return os.path.realpath(home) != os.path.realpath(own)
 
 
+def claude_app_id(args: str, claude_default: Path = CLAUDE_DEFAULT) -> str | None:
+    """The App id of a Claude app main process (by its `--user-data-dir`,
+    else the default instance), as the backend keys it; `None` for any
+    other process."""
+    if not (args == CLAUDE_MAIN or args.startswith(CLAUDE_MAIN + " ")):
+        return None
+    m = re.search(r"--user-data-dir[= ](.+?)(?= --|$)", args)
+    return f"app:claude-app:{m.group(1) if m else claude_default}"
+
+
 def running_ids(claude_default: Path = CLAUDE_DEFAULT, rows: list[tuple[int, int, str]] | None = None) -> set[str]:
     """The App ids of the desktop apps running (in `rows`, else every
     process), as the backend keys them (`claude_default`: the Claude app's
@@ -110,10 +125,67 @@ def running_ids(claude_default: Path = CLAUDE_DEFAULT, rows: list[tuple[int, int
     for _, _, args in processes() if rows is None else rows:
         if args == CHATGPT_MAIN or args.startswith(CHATGPT_MAIN + " "):
             ids.add("app:codex-app:")
-        elif args == CLAUDE_MAIN or args.startswith(CLAUDE_MAIN + " "):
-            m = re.search(r"--user-data-dir[= ](.+?)(?= --|$)", args)
-            ids.add(f"app:claude-app:{m.group(1) if m else claude_default}")
+        elif app := claude_app_id(args, claude_default):
+            ids.add(app)
     return ids
+
+
+# A Claude Code session's program, at the start of its command line (the
+# Claude app runs its bundled `claude.app/Contents/MacOS/claude`; a
+# terminal, `claude` itself). Not a wrapper that names it after `--`.
+CLAUDE_SESSION = re.compile(r"^(/(?:(?! -)[^\n])*?/(?:MacOS/)?claude)(?: |$)")
+
+
+def open_in_apps(rows: list[tuple[int, int, str]], folders: list[Path], claude_default: Path = CLAUDE_DEFAULT) -> dict[str, set[str]]:
+    """The sessions each Claude app profile runs now (0.4.6, the rc2 walk):
+    App id → the conversation ids its own `claude` processes run. A session
+    is the outermost `claude` on its chain whose chain reaches the profile's
+    main process, named by its pid file (`<folder>/sessions/<pid>.json`, in
+    one of `folders`, the build's Claude Code folders: only its `sessionId`
+    and `kind` are read) as interactive. One with no pid file there, or a
+    headless run, isn't counted: the rail shows neither in Open now."""
+    by_pid = {pid: (ppid, args) for pid, ppid, args in rows}
+    out: dict[str, set[str]] = {}
+    for pid, ppid, args in rows:
+        if not CLAUDE_SESSION.match(args) or (ppid in by_pid and CLAUDE_SESSION.match(by_pid[ppid][1])):
+            continue
+        app, at = None, ppid
+        for _ in range(64):
+            if at not in by_pid:
+                break
+            parent, parent_args = by_pid[at]
+            if app := claude_app_id(parent_args, claude_default):
+                break
+            at = parent
+        if app is None:
+            continue
+        for folder in folders:
+            try:
+                said = json.loads((folder / "sessions" / f"{pid}.json").read_text())
+            except (OSError, ValueError):
+                continue
+            if said.get("pid") == pid and said.get("sessionId") and said.get("kind", "interactive") == "interactive":
+                out.setdefault(app, set()).add(str(said["sessionId"]))
+            break
+    return out
+
+
+def open_problems(live: dict[str, set[str]], mine: dict[str, str], drawn: list[presence_sessions.RailApp]) -> tuple[list[str], list[str]]:
+    """Each of the user's Claude app profiles that runs sessions of its own
+    (`live`, [`open_in_apps`]) against what Open now says under it: at
+    least that many open, never "nothing open"."""
+    lines: list[str] = []
+    problems: list[str] = []
+    for app_id, sessions in sorted(live.items()):
+        name = mine.get(app_id)
+        if name is None:
+            continue
+        shown = next((app for app in drawn if app.section == "open" and app.name == name), None)
+        said = "not in Open now" if shown is None else ("nothing open" if shown.nothing_open else f"{shown.open_count} open")
+        lines.append(f"  live: {name}: {len(sessions)} open in its app (ps), the rail says {said}")
+        if shown is not None and (shown.nothing_open or shown.open_count < len(sessions)):
+            problems.append(f"runs {len(sessions)} session(s) in its app, Open now says {said}: {name}")
+    return lines, problems
 
 
 def users_apps(data: Path, claude_default: Path = CLAUDE_DEFAULT) -> dict[str, str]:
@@ -207,7 +279,7 @@ def recorded(lines, running, want_open, shown_open, inactive, counts, names) -> 
         f"your running Apps: {len(want_open)}",
         f"Open now shows: {len(shown_open)} desktop App(s), counted {counts.get('open', '?')}",
         f"Inactive apps shows: {len(inactive)} named on screen",
-    ] + [line for line in lines if line.startswith(("FAIL", "PASS", "(", "  open: ", "  idle: ", "  codex store: ", PAST_HITS))]
+    ] + [line for line in lines if line.startswith(("FAIL", "PASS", "(", "  open: ", "  idle: ", "  live: ", "  codex store: ", PAST_HITS))]
     return anonymize("\n".join(out), names) + "\n"
 
 
@@ -247,8 +319,52 @@ def selftest() -> int:
         "app:claude-app:/tmp/aij-lab-z1/Library/Application Support/ClaudeProfiles/work"
     }
     assert running_ids(Path("/x"), rows) >= {"app:codex-app:"}, "on the user's own home, every process"
+    selftest_open_in_apps()
+    # What each App unfolds to and counts, and the lab-run gate (CI runs
+    # this selftest only).
+    presence_sessions.selftest()
     print("presence_check: selftest passed")
     return 0
+
+
+def selftest_open_in_apps() -> None:
+    """The 0.4.6 rc2 walk: the aij-test profile ran a conversation it had
+    reopened after AI Juggler's terminal run of it was stopped, and Open now
+    said "nothing open" under it. A profile's own interactive sessions,
+    from `ps` and their pid files, must show open under it."""
+    import tempfile
+
+    with tempfile.TemporaryDirectory() as tmp:
+        folder, other = Path(tmp) / "config", Path(tmp) / "elsewhere"
+        (folder / "sessions").mkdir(parents=True)
+        profile = "/Users/you/Library/Application Support/ClaudeProfiles/aij-test"
+        bundled = f"{profile}/claude-code/2.1.325/x/claude.app/Contents/MacOS/claude"
+        rows = [
+            (1, 0, "/sbin/launchd"),
+            (100, 1, f"{CLAUDE_MAIN} --user-data-dir={profile}"),
+            (101, 100, f"/Applications/Claude.app/Contents/Helpers/disclaimer --pgroup -- {bundled} --output-format stream-json --resume=c-1"),
+            (102, 101, f"{bundled} --output-format stream-json --resume=c-1"),
+            (103, 102, "/bin/zsh -c make"),
+            (104, 101, f"{bundled} --output-format stream-json"),
+            (105, 100, f"{bundled} --resume=c-3"),
+            (200, 1, "/opt/homebrew/bin/claude --resume c-9"),
+        ]
+        for pid, said in ((102, {"sessionId": "c-1", "kind": "interactive"}), (104, {"sessionId": "c-2", "kind": "sdk-ts"}), (200, {"sessionId": "c-9"})):
+            (folder / "sessions" / f"{pid}.json").write_text(json.dumps({"pid": pid, **said}))
+        app = f"app:claude-app:{profile}"
+        # c-1 only: c-2 is headless, c-3 has no pid file, c-9 runs in a terminal.
+        assert open_in_apps(rows, [other, folder]) == {app: {"c-1"}}, open_in_apps(rows, [other, folder])
+        assert not CLAUDE_SESSION.match(rows[2][2]), "the wrapper isn't the session"
+        mine = {app: "Claude app · aij-test"}
+
+        def rail(header: str) -> list[presence_sessions.RailApp]:
+            return presence_sessions.parse_rail([("AXButton", "Open now 1", ""), ("AXButton", header, "")])
+
+        _, problems = open_problems({app: {"c-1"}}, mine, rail("Claude app · aij-test, nothing open"))
+        assert problems == ["runs 1 session(s) in its app, Open now says nothing open: Claude app · aij-test"], problems
+        lines, problems = open_problems({app: {"c-1"}}, mine, rail("Claude app · aij-test, 1 open"))
+        assert problems == [] and lines == ["  live: Claude app · aij-test: 1 open in its app (ps), the rail says 1 open"], (lines, problems)
+        assert open_problems({app: {"c-1"}}, {}, rail("Claude app · aij-test, nothing open")) == ([], []), "not one of your Apps"
 
 
 def main() -> int:
@@ -308,9 +424,17 @@ def main() -> int:
         problems.append("Open now is folded or not drawn: unfold it and run again")
     # 0.4.3: what each unfolds to, its counts and its Out mark.
     db = sqlite3.connect(f"file:{args.data / 'juggler.sqlite'}?mode=ro", uri=True)
-    known = presence_sessions.known_apps(db, mine)
+    known = presence_sessions.known_apps(db, mine, claude_default)
     since = time.mktime(time.strptime(args.since, "%Y-%m-%d")) if args.since else 0.0
-    leftovers = presence_sessions.lab_leftovers([app.state_dir for app in known if app.state_dir], since)
+    # 0.4.6: the Dev build's Lab App folder is where our lab runs belong
+    # (ADR-0027 7b); exactly it, by its resolved path. Every other folder
+    # is checked.
+    lab_app = presence_sessions.lab_app_folder(home)
+    folders = [app.state_dir for app in known if app.state_dir]
+    leftovers = presence_sessions.lab_leftovers(folders, since, lab_app)
+    if lab_app is not None:
+        ours = presence_sessions.lab_leftovers([lab_app], since)
+        lines.append(f"(lab runs: {ours} in the Dev build's Lab App folder, ours by ADR-0027 7b; every other folder checked)")
     # 0.4.3 (D-102): each Codex home's listed threads, read-only from its store.
     homes = {app.folder: app.state_dir for app in known if app.tool == "codex" and app.folder and app.state_dir}
     codex = {folder: presence_sessions.codex_listed(home) for folder, home in homes.items()}
@@ -319,12 +443,17 @@ def main() -> int:
     )
     lines += ["each App as drawn:", *shown]
     problems += more
+    # 0.4.6 (the rc2 walk): what each Claude app profile runs is open under it.
+    claude_folders = [app.state_dir for app in known if app.tool == "claude-code" and app.state_dir] + [home / ".claude"]
+    live_lines, live_problems = open_problems(open_in_apps(rows, list(dict.fromkeys(claude_folders)), claude_default), mine, drawn)
+    lines += live_lines
+    problems += live_problems
     hits_line, hits_wrong = past_hits(db)
     lines.append(hits_line)
     if hits_wrong:
         problems.append(f"{hits_wrong} limit hit(s) still on an Account they didn't happen on after the one-time pass (D-103.10)")
     lines += [f"FAIL {p}" for p in problems] or [
-        "PASS Open now is exactly your running Apps; none is in two sections; each unfolds to its own records; every Out Account marked; no lab run in a real profile; Codex counts are the store's listed threads; no past limit hit left on the wrong Account"
+        "PASS Open now is exactly your running Apps; none is in two sections; what each runs is open under it; each unfolds to its own records; every Out Account marked; no lab run in a real profile; Codex counts are the store's listed threads; no past limit hit left on the wrong Account"
     ]
     report = "\n".join(lines)
     print(report)

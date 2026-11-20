@@ -4,14 +4,16 @@
 # Juggler's dialogs. They're compiled only into debug builds
 # (`launch_alert::seams`); this checks the built binary itself. Also the
 # Floor's harness and its test input (`floor-harness`, never shipped:
-# its own check, floor_harness_check).
+# its own check, floor_harness_check). And (AJ-E3013) juggler-agent's lab
+# probe (`--mcp --probe`, `--probe-shell`), compiled only into debug
+# builds: its marker AIJ_PROBE_V1.
 #
 # Usage: scripts/release_seams_check.sh <release binary>
 #        scripts/release_seams_check.sh --selftest <debug binary>
 #   (the self-test: the debug binary must contain them, so the check
 #   can see them when they're there)
 set -euo pipefail
-SEAMS='AIJ_NO_DIALOGS|AIJ_DIALOG_ANSWER|AIJ_WATCHDOG|AIJ_TEST_LAUNCH|AIJ_FLOOR_HARNESS|AIJ_FLOOR_INPUT'
+SEAMS='AIJ_NO_DIALOGS|AIJ_DIALOG_ANSWER|AIJ_WATCHDOG|AIJ_TEST_LAUNCH|AIJ_FLOOR_HARNESS|AIJ_FLOOR_INPUT|AIJ_PROBE_V1'
 if [ "${1:-}" = "--selftest" ]; then
   bin=${2:?a debug binary}
   if strings -a "$bin" | grep -E "$SEAMS" >/dev/null; then

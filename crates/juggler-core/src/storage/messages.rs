@@ -26,6 +26,10 @@ use rusqlite::{Connection, OptionalExtension, Row, params};
 use crate::error::CoreError;
 use crate::model::Timestamp;
 
+/// D-119 item 6: what a resumed member missed.
+mod missed;
+pub use missed::Missed;
+
 /// v34: the E18 tables.
 pub(super) const MIGRATION: &str = "
 CREATE TABLE agent_threads (
@@ -489,6 +493,19 @@ fn recipient_at(row: &Row<'_>, at: usize) -> rusqlite::Result<Recipient> {
         state: RecipientState::parse(&row.get::<_, String>(at + 3)?),
         state_at: row.get(at + 4)?,
         via: row.get(at + 5)?,
+    })
+}
+
+/// An event from `id, at, pool_id, actor_ref, verb, object_ref, detail`.
+fn event_of(row: &Row<'_>) -> rusqlite::Result<MessageEvent> {
+    Ok(MessageEvent {
+        id: row.get(0)?,
+        at: row.get(1)?,
+        pool_id: row.get(2)?,
+        actor_ref: row.get(3)?,
+        verb: row.get(4)?,
+        object_ref: row.get(5)?,
+        detail: row.get(6)?,
     })
 }
 
@@ -1154,19 +1171,7 @@ impl MessagesRepo<'_> {
             "SELECT id, at, pool_id, actor_ref, verb, object_ref, detail FROM agent_events
               WHERE pool_id = ?1 AND (?2 IS NULL OR id < ?2) ORDER BY id DESC LIMIT ?3",
         )?;
-        collect(
-            stmt.query_map(params![pool_id, before, page(limit)], |row| {
-                Ok(MessageEvent {
-                    id: row.get(0)?,
-                    at: row.get(1)?,
-                    pool_id: row.get(2)?,
-                    actor_ref: row.get(3)?,
-                    verb: row.get(4)?,
-                    object_ref: row.get(5)?,
-                    detail: row.get(6)?,
-                })
-            })?,
-        )
+        collect(stmt.query_map(params![pool_id, before, page(limit)], event_of)?)
     }
 
     /// A pool's messages whose subject or body has every word of `query`

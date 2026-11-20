@@ -22,7 +22,7 @@ import type { FleetPermission } from "../lib/ipc/fleet-remote";
 import type { FleetSelfInfo } from "../types/generated/FleetSelfInfo";
 import { MachineUsageCard } from "../components/MachineUsage";
 import { ThisMacCard } from "../components/FleetThisMac";
-import { Radio } from "../components/controls";
+import { Disclosure, Radio } from "../components/controls";
 
 /**
  * Fleet (beta) — AJ-E702: this Mac's machine identity and the machines
@@ -215,10 +215,9 @@ export function FleetScreen({
             trusting any of them. Nothing connects until you reset trust and pair again.
           </p>
           {self.trust_reason && (
-            <details className="text-label text-muted">
-              <summary className="cursor-pointer">Details</summary>
+            <Disclosure className="text-label text-muted" summary="Details">
               <p className="mt-1">{self.trust_reason}</p>
-            </details>
+            </Disclosure>
           )}
           <Button
             size="sm"

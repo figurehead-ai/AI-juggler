@@ -13,6 +13,7 @@
  */
 import { useEffect, useId, useState, type JSX, type ReactNode } from "react";
 import { Button } from "./primitives";
+import { Disclosure } from "./controls";
 import { Modal } from "./form";
 import { errorText } from "../lib/bridge";
 import { packsOpenPreview } from "../lib/ipc/packs";
@@ -85,12 +86,11 @@ export function HandoverRows({ data, whereNote }: { data: HandoverRowsData; wher
       <Row label="Withheld">
         <span data-testid="pack-withheld">{withheldWords(data.withheld, data.kept)}</span>
       </Row>
-      <details className="text-label">
-        <summary className="cursor-pointer text-muted">The handover's brief</summary>
+      <Disclosure className="text-label" summary="The handover's brief">
         <pre className="mt-1 max-h-48 overflow-auto whitespace-pre-wrap rounded bg-canvas p-2 font-mono text-label text-ink" aria-label="The handover's brief (read-only)" tabIndex={0}>
           {data.brief}
         </pre>
-      </details>
+      </Disclosure>
     </>
   );
 }

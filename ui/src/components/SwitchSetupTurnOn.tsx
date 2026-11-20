@@ -29,14 +29,34 @@ export function TurnOnSteps({
   getIt,
   name,
   onCheckAgain,
+  onOpen,
+  startOpen = false,
 }: {
   getIt: GetItInfo;
   /** What it's for ("computer-use"), for the controls' names. */
   name: string;
   /** Reads the account again; resolves to what it found, in words. */
   onCheckAgain?: () => Promise<string>;
+  /** The steps shown or hidden (AJ-E3013: the connector's guide checks
+   * for its completion only while they're shown). */
+  onOpen?: (open: boolean) => void;
+  /** Shown at first (a guide opened on purpose). */
+  startOpen?: boolean;
 }): JSX.Element {
-  const [open, setOpen] = useState(false);
+  const [open, setOpenState] = useState(startOpen);
+  const toggle = () => {
+    setOpenState(!open);
+    onOpen?.(!open);
+  };
+  const [copied, setCopied] = useState<"yes" | "no" | null>(null);
+  const copy = async (command: string) => {
+    try {
+      await navigator.clipboard.writeText(command);
+      setCopied("yes");
+    } catch {
+      setCopied("no");
+    }
+  };
   const [status, setStatus] = useState<string | null>(null);
   const [checking, setChecking] = useState(false);
   const panel = useId();
@@ -69,7 +89,7 @@ export function TurnOnSteps({
           aria-expanded={open}
           aria-controls={panel}
           aria-label={`Show me how to turn on ${name}`}
-          onClick={() => setOpen((now) => !now)}
+          onClick={toggle}
         >
           Show me how {open ? "▾" : "▸"}
         </button>
@@ -102,6 +122,21 @@ export function TurnOnSteps({
               <li key={step}>{step}</li>
             ))}
           </ol>
+          {getIt.command && (
+            <div className="flex items-start gap-2">
+              <pre className="min-w-0 flex-1 whitespace-pre-wrap break-words rounded-lg bg-surface-2 px-3 py-2 font-mono text-meta text-ink" data-testid="turn-on-command">
+                {getIt.command}
+              </pre>
+              <button type="button" className={BUTTON} onClick={() => void copy(getIt.command!)} aria-label={`Copy the command for ${name}`} data-testid="turn-on-copy">
+                Copy
+              </button>
+            </div>
+          )}
+          {copied && (
+            <output className="block text-meta text-ink-2" data-testid="turn-on-copied">
+              {copied === "yes" ? "Copied: paste it where the step says." : "Couldn't copy it; select the command and copy it yourself."}
+            </output>
+          )}
           {getIt.then && <p className="text-meta text-ink">{getIt.then}</p>}
         </div>
       )}

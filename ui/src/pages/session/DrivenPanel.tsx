@@ -24,6 +24,7 @@ import { runtimeEnd, runtimeHandover, runtimeInterrupt, runtimeResume, runtimeSe
 import { useFolderTrust } from "../../components/FolderTrustAsk";
 import { messagesTyping } from "../../lib/ipc/messages";
 import { resetsWords } from "../../lib/time-words";
+import { noteStop, turnNotes } from "../../lib/turn-words";
 
 const ITEM_WORDS: Record<string, string> = {
   user_message: "You",
@@ -44,8 +45,19 @@ const STATE_WORDS: Record<string, string> = {
   ended: "Ended",
 };
 
-export function DrivenPanel({ session, onOpenSession }: { session: InstanceInfo; onOpenSession?: (id: string) => void }): JSX.Element {
-  const view = useRuntimeView(session.id);
+export function DrivenPanel({
+  session,
+  onOpenSession,
+  view: given,
+}: {
+  session: InstanceInfo;
+  onOpenSession?: (id: string) => void;
+  /** Its runtime as its page reads it (one read for the page and this
+   * card: they say the same model); read here when not given. */
+  view?: RuntimeViewInfo | null;
+}): JSX.Element {
+  const own = useRuntimeView(given === undefined ? session.id : null);
+  const view = given === undefined ? own : given;
   const host = useActionHost();
   const runtime = view?.runtime ?? session.runtime ?? null;
   const [text, setText] = useState("");
@@ -64,6 +76,9 @@ export function DrivenPanel({ session, onOpenSession }: { session: InstanceInfo;
       },
     );
   };
+  // F-rc3f-5: notes and the turn's error in words, never a tool's code;
+  // the line under the box only while nothing came after it.
+  const notes = turnNotes(session.id, runtime, view?.items ?? []);
   const cutOff = runtime?.cut_off ?? null;
   const state = cutOff ? "cut_off" : runtime?.state ?? null;
   // Ended, or cut off: nothing to send to until Resume.
@@ -83,7 +98,20 @@ export function DrivenPanel({ session, onOpenSession }: { session: InstanceInfo;
         </div>
         <div className="flex items-center gap-1.5">
           {state === "working" && (
-            <Button size="sm" variant="secondary" disabled={busy !== null} onClick={() => act("interrupt", () => runtimeInterrupt(session.id))}>
+            <Button
+              size="sm"
+              variant="secondary"
+              disabled={busy !== null}
+              onClick={() =>
+                act("interrupt", () => {
+                  const undo = noteStop(session.id, "interrupt");
+                  return runtimeInterrupt(session.id).catch((cause: unknown) => {
+                    undo();
+                    throw cause;
+                  });
+                })
+              }
+            >
               Interrupt
             </Button>
           )}
@@ -129,10 +157,12 @@ export function DrivenPanel({ session, onOpenSession }: { session: InstanceInfo;
       {(runtime?.asks ?? []).map((ask) => (
         <AskCard key={ask.id} ask={ask} />
       ))}
-      <DrivenItems items={view?.items ?? []} streaming={view?.streaming ?? null} />
-      {(view?.items ?? []).length === 0 && !view?.streaming && session.conversation_id && host.openConversationById && (
+      <DrivenItems items={notes.items} streaming={view?.streaming ?? null} />
+      {view?.written === true && view.items.length === 0 && !view.streaming && session.conversation_id && host.openConversationById && (
         // The RC walk: a conversation continued here (Run in AI Juggler,
         // Resume) showed a blank page; its earlier turns are the tool's.
+        // Only once its tool has written it (the rc3h walk: offered before
+        // any turn, it opened a conversation with nothing in it).
         <p className="text-meta text-ink-2" data-testid="driven-earlier">
           Earlier turns are in its conversation.{" "}
           <button type="button" className="font-medium text-accent-hi underline-offset-2 hover:underline" onClick={() => host.openConversationById?.(session.account_id ?? "", session.conversation_id!, session.project_id ?? null)}>
@@ -168,7 +198,11 @@ export function DrivenPanel({ session, onOpenSession }: { session: InstanceInfo;
           </Button>
         </form>
       )}
-      {runtime?.error && <p className="text-label text-warning">{runtime.error}</p>}
+      {notes.standing && (
+        <p className={"text-label " + (notes.standing.yours ? "text-muted" : "text-warning")} data-testid="runtime-error">
+          {notes.standing.text}
+        </p>
+      )}
       {trust.element}
       {error && (
         <p role="alert" className="text-label text-danger">

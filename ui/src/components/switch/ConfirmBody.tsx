@@ -47,6 +47,7 @@ export function needsYouCount(setup: SetupCheckInfo | null): number {
 export function ConfirmBody({
   preflight,
   target,
+  targetFolder,
   room = null,
   freeze,
   onFreeze,
@@ -65,6 +66,9 @@ export function ConfirmBody({
 }: {
   preflight: PreflightInfoData;
   target: string;
+  /** The target's folder (its desktop app is offered AI Juggler's
+   * connector, AJ-E3013). */
+  targetFolder?: string;
   /** The target's room (the one runway); a warning when out or low. */
   room?: TargetRoom | null;
   freeze: FreezeChoice;
@@ -159,7 +163,7 @@ export function ConfirmBody({
           )}
           {extra}
           {stoppable && <SwitchFreezeChoice sourceLive value={freeze} onChange={onFreeze} />}
-          {setup && offers > 0 && <SwitchSetupList check={setup} picked={picked} onToggle={onToggle} onCheckAgain={onCheckAgain} titled={false} />}
+          {setup && offers > 0 && <SwitchSetupList check={setup} picked={picked} onToggle={onToggle} onCheckAgain={onCheckAgain} titled={false} toFolder={targetFolder} />}
         </section>
       )}
 

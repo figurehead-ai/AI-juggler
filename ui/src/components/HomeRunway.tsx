@@ -19,13 +19,15 @@ import { signedIn } from "../lib/bridge";
 import type { AccountInfo } from "../types/generated/AccountInfo";
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import type { QuotaDisplayData } from "../lib/ipc/quota";
-import { newWorkAdvice, runwayOf } from "./AccountRunway";
+import { newWorkAdvice, runwayDetail, runwayOf } from "./AccountRunway";
 import { cliAppName } from "../lib/app-name";
 import { namedAccountApps } from "../lib/account-items";
 import { useApps, type AppModel } from "../lib/apps";
 import type { CreditsCover } from "../lib/credits";
 import { accountDisplay, accountLine, accountName, useSubscriptions, type SubscriptionInfo } from "../lib/subscriptions";
 import { openAccount } from "../lib/accounts-page";
+import { roomTone } from "../lib/attention";
+import { liveOn } from "../lib/needs-you";
 
 export interface AccountGroup {
   key: string;
@@ -60,6 +62,8 @@ export interface RunwayLine {
   resets: string | null;
   /** A used-up window its credits carry on past (0.3.2). */
   credits?: CreditsCover | null;
+  /** How old its reading is, when it's old (F-rc3c-1). */
+  age?: string | null;
 }
 
 /** An Account's one runway: its newest measured window over every folder
@@ -105,7 +109,9 @@ export function HomeRunway({ accounts, quota, quotaKnown = true, sessions }: { a
         {accountGroups(accounts, subscriptions).map((group) => {
           const first = group.profiles[0]!;
           const row = lineOf(group);
-          const low = row.left !== null && row.left <= 25;
+          // D-126: amber only when a live session is on it at 10 % or
+          // less (L2); low room nothing live needs is a plain fact.
+          const tone = roomTone(row.left, group.profiles.some((profile) => liveOn(sessions, profile.id)) ? 1 : 0);
           // 0.3.2: used up, but its credits carry its work on.
           const credits = row.credits != null;
           return (
@@ -133,7 +139,7 @@ export function HomeRunway({ accounts, quota, quotaKnown = true, sessions }: { a
                 {!credits && row.left !== null && row.left <= 0 ? (
                   <RoomChip mark={roomMarkFrom(row.left, null)} size="md" testId="home-runway-out" />
                 ) : (credits || row.left !== null) && (
-                  <span className={"shrink-0 text-body font-semibold tabular-nums " + (low ? "text-warning" : "text-ink")}>
+                  <span className={"shrink-0 text-body font-semibold tabular-nums " + tone.text}>
                     {credits ? "On credits" : `${row.left}% left`}
                   </span>
                 )}
@@ -143,7 +149,7 @@ export function HomeRunway({ accounts, quota, quotaKnown = true, sessions }: { a
               {!quotaKnown && row.left === null && <div className="h-1.5 rounded-full bg-surface-3" aria-hidden="true" data-testid="home-runway-meter-pending" />}
               {row.left !== null && (
                 <div className="h-1.5 overflow-hidden rounded-full bg-surface-3" role="meter" aria-valuemin={0} aria-valuemax={100} aria-valuenow={row.left} aria-label={`${group.name}: ${row.words}`}>
-                  <div className={"h-full rounded-full " + (low ? "bg-warning" : "bg-accent")} style={{ width: `${row.left}%` }} />
+                  <div className={"h-full rounded-full " + tone.bar} style={{ width: `${row.left}%` }} />
                 </div>
               )}
               <RunwayApps named={appsOn(group, apps)} />
@@ -153,7 +159,8 @@ export function HomeRunway({ accounts, quota, quotaKnown = true, sessions }: { a
                   {row.resets && <span className="text-muted">{row.resets}</span>}
                 </span>
               ) : row.left !== null ? (
-                <span className="text-label text-muted">{row.resets ?? row.words}</span>
+                // F-rc3c-1: an old reading says how old after its reset.
+                <span className="text-label text-muted" data-testid="home-runway-detail">{runwayDetail(row)}</span>
               ) : (
                 <span className="flex flex-wrap items-baseline gap-x-2 text-label text-muted">
                 {row.words}

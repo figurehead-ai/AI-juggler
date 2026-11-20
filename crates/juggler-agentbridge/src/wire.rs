@@ -375,7 +375,9 @@ pub struct Args {
 pub struct Request {
     /// [`VERSION`].
     pub v: u32,
-    /// The session's key, from the bridge's own environment.
+    /// The session's key, from the bridge's own environment. Empty
+    /// (AJ-E3013): a desktop app's session, which the app attests from
+    /// the system on every call, or refuses.
     pub token: String,
     /// What it asks for.
     pub call: Call,
@@ -481,6 +483,34 @@ pub struct Report {
     pub hook: HookReport,
 }
 
+/// D-119 (AJ-E3013): AI Juggler's connector in a desktop app's session
+/// asks to be told when a pool message should wake that session. A shape
+/// of its own (never an agent's call); always keyless: the app attests
+/// the caller, waits at most [`WAIT_MAX_SECS`], and answers
+/// `{"wake": <a facts-only notice> | null}`.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Wait {
+    /// [`VERSION`].
+    pub v: u32,
+    /// Always empty: the caller is attested, never keyed.
+    pub token: String,
+    /// How long it waits, seconds (the app keeps it to [`WAIT_MAX_SECS`]).
+    pub wait_secs: u32,
+}
+
+/// The longest a wake wait is held open.
+pub const WAIT_MAX_SECS: u32 = 110;
+
+/// The session's own inbox socket, in its process's environment (Claude
+/// Code's cross-session messaging): where the connector posts a wake.
+pub const MESSAGING_SOCKET_ENV: &str = "CLAUDE_CODE_MESSAGING_SOCKET";
+
+/// The token for that socket's auth line, when the session gave its
+/// child one. Read by the connector from its own environment only, sent
+/// only to that socket, never to AI Juggler and never written anywhere.
+pub const MESSAGING_TOKEN_ENV: &str = "CLAUDE_CODE_MESSAGING_TOKEN";
+
 /// Why a call was refused.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -500,6 +530,14 @@ pub enum Refusal {
     Limit,
     /// A request the app can't read.
     Bad,
+    /// AJ-E3013 (ADR-0020's D-116 addendum): a call with no key whose
+    /// caller couldn't be attested as a desktop app's session.
+    Unattested,
+    /// AJ-E3013 (the review's global-cap finding): every keyless line
+    /// together is at its cap now (a flood from processes attested in no
+    /// recent call): the caller's own allowance isn't spent; try again in
+    /// a few seconds, without backing off further.
+    Busy,
 }
 
 /// The app's answer.

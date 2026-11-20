@@ -5,7 +5,7 @@
  * puts under it (A1: a Claude app profile's page has only its own).
  */
 import { describe, expect, it } from "vitest";
-import { appIdOfRailKey, appsOf } from "./apps";
+import { appIdOfRailKey, appsOf, targetApp } from "./apps";
 import { appItems, appProjects } from "./app-items";
 import { appByConversation } from "./rail-apps";
 import { conversationItem } from "./rail-items";
@@ -136,5 +136,26 @@ describe("D-62 an App's page lists only its own sessions (A1)", () => {
       ["storefront", 2],
       ["docs", 1],
     ]);
+  });
+});
+
+describe("the 0.4.6 RC walks A8 and K3: a launch or switch target's App", () => {
+  const places = [known("Work Max", { account_id: "app-work" })];
+  const target = (id: string, label: string) => ({ folder: id, tool: "claude-code", label });
+
+  it("a Claude app profile's folder with no CLI App on it is that profile's", () => {
+    const listed = { stored: [stored("cli:cc-work", { folder_id: "cc-work" })], places, listed: true };
+    expect(targetApp(target("app-work", "Work Max"), listed)).toMatchObject({ kind: "desktop", name: "Claude app · Work Max", mark: { app: "Claude app", profile: "Work Max" } });
+    expect(targetApp(target("cc-work", "work"), listed)).toEqual({ kind: "cli", name: "Claude Code CLI · work", mark: null });
+  });
+
+  it("once it is a CLI App (a terminal session ran there, or you named it), it's that, by your name", () => {
+    const named = { stored: [stored("cli:app-work", { folder_id: "app-work", label: "Work terminal" })], places, listed: true };
+    expect(targetApp(target("app-work", "Work Max"), named)).toEqual({ kind: "cli", name: "Work terminal", mark: null });
+  });
+
+  it("without the backend's list, every folder is its CLI App, as before; a target with no tool is its label", () => {
+    expect(targetApp(target("app-work", "Work Max"), { stored: [], places, listed: false }).name).toBe("Claude Code CLI · Work Max");
+    expect(targetApp({ folder: "x", tool: null, label: "Old laptop" }, { stored: [], places: [], listed: true }).name).toBe("Old laptop");
   });
 });

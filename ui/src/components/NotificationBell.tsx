@@ -4,12 +4,18 @@
  * badge and the menu-bar item (the notification model's open needs), and
  * the notification centre it opens (or ⌥⌘N). The centre loads when it
  * first opens.
+ *
+ * F-rc3f-2 (0.4.6 rc3f): the centre opens on the body, fixed under the
+ * bell, as your menu's does: placed in the top bar, it painted under a
+ * page's own panels (a pool's Tasks) that come later at the same level.
  */
-import type { JSX } from "react";
+import { useRef, type JSX } from "react";
+import { createPortal } from "react-dom";
 import { IconBell } from "./icons-actions";
 import { lazyNamed } from "../lib/lazy";
 import { setCentreOpen, toggleCentre, useCentreOpen, useNoticeSummary } from "../lib/notices-store";
 import { bellLabel } from "../lib/notice-words";
+import { useBackendNeeds } from "../lib/needs-you";
 import { useKeys } from "../lib/use-keys";
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
 
@@ -19,9 +25,12 @@ export function NotificationBell({ sessions }: { sessions: InstanceInfo[] }): JS
   const keys = useKeys("notifications");
   const summary = useNoticeSummary();
   const open = useCentreOpen();
-  const count = summary?.count ?? 0;
+  // NY1 (0.4.6 rc3a): the rows Needs you lists, counted (one source): the
+  // summary's own count said 1 over "You're all caught up" for 50 s.
+  const count = useBackendNeeds().count;
+  const anchor = useRef<HTMLDivElement | null>(null);
   return (
-    <div className="relative" data-notification-bell>
+    <div ref={anchor} className="relative" data-notification-bell>
       <button
         type="button"
         onClick={toggleCentre}
@@ -40,7 +49,7 @@ export function NotificationBell({ sessions }: { sessions: InstanceInfo[] }): JS
           </span>
         )}
       </button>
-      {open && <NotificationCentre summary={summary} sessions={sessions} onClose={() => setCentreOpen(false)} />}
+      {open && createPortal(<NotificationCentre summary={summary} sessions={sessions} anchor={anchor} onClose={() => setCentreOpen(false)} />, document.body)}
     </div>
   );
 }

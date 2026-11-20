@@ -25,6 +25,11 @@ const EXACT = new Set(["thread", "tab", "folder"]);
  * warning. */
 export function goToTone(outcome: string, reached?: string): "success" | "warning" | "error" {
   if (reached === "none") return "error";
+  // 0.4.6 (the rc3d walk): a start that opened the session itself, once
+  // the app's own record said it came in front ("Started Claude app ·
+  // aij-test and opened the session"). A start the window still follows
+  // carries its place and is never said here (go-to.ts).
+  if (reached === "started") return partialGoTo(outcome) ? "warning" : "success";
   if ((reached !== undefined && EXACT.has(reached)) || outcome === FOCUSED) return partialGoTo(outcome) ? "warning" : "success";
   return "warning";
 }

@@ -25,7 +25,10 @@ const HIT_TINT_MS = 2_400;
  * folded away (Notifications' quiet hours) is shown. */
 function openFolds(row: HTMLElement, section: HTMLElement): void {
   for (let at: HTMLElement | null = row; at && at !== section; at = at.parentElement) {
-    if (at instanceof HTMLDetailsElement && !at.open && at !== row) at.open = true;
+    if (at === row) continue;
+    // The app's Disclosure (a button, round 7), every fold's (the
+    // native-controls lint keeps <details> out): pressed open.
+    if (at.matches("[data-disclosure]:not([data-open])")) at.querySelector<HTMLElement>(":scope > button[aria-expanded]")?.click();
   }
 }
 

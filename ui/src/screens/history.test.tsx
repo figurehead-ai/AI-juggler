@@ -101,6 +101,16 @@ afterEach(() => {
   cleanup();
   delete w().__AIJ_FIXTURE__;
 });
+// History groups sessions by day from the real clock (History.tsx), and the
+// fixtures sit at a fixed T: "now" is pinned beside them, so no day word
+// changes as the calendar moves on. Only Date is faked.
+beforeEach(() => {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(T + 2 * 3_600_000);
+});
+afterEach(() => {
+  vi.useRealTimers();
+});
 beforeEach(() => {
   for (const key of ["__AIJ_HISTORY_CALLS__", "__AIJ_TRANSCRIPT_HITS__", "__AIJ_REPLAY__", "__AIJ_DELETE_PREVIEW__", "__AIJ_ACCOUNT_STORAGE__", "__AIJ_RETENTION_PREVIEW__"]) {
     delete w()[key];

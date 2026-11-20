@@ -158,7 +158,22 @@ function appRows(apps: readonly AppModel[], items: readonly RailItem[], byConver
         lastCwd: newestCwd(mine),
       };
     })
-    .sort((a, b) => Number(b.sessions > 0) - Number(a.sessions > 0) || b.open - a.open || b.lastMs - a.lastMs || a.app.name.localeCompare(b.app.name));
+    .sort(busyFirst);
+}
+
+/** Busy Apps first (with sessions, then open ones), then the most recent. */
+function busyFirst(a: AccountApp, b: AccountApp): number {
+  return Number(b.sessions > 0) - Number(a.sessions > 0) || b.open - a.open || b.lastMs - a.lastMs || a.app.name.localeCompare(b.app.name);
+}
+
+/** Walk K1 (0.4.6 RC): each App's sessions as the backend's relation cache
+ * counts them (`counts`, by App id: a page's `useRelatedCounts(…, "app")`),
+ * not the newest few hundred the app holds ("Its apps" said 67 of an App's
+ * 333). Unchanged while `counts` is read (`undefined`), and in the design
+ * preview; an App the cache doesn't name keeps its own count. */
+export function withCounts(rows: readonly AccountApp[], counts: ReadonlyMap<string, number> | undefined): AccountApp[] {
+  if (!counts) return [...rows];
+  return rows.map((row) => ({ ...row, sessions: counts.get(row.app.id) ?? row.sessions })).sort(busyFirst);
 }
 
 /** What [`newestCwd`] reads of a `RailItem`. */

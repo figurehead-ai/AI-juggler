@@ -7,10 +7,14 @@
  * branch, else its facts — its project and when it started (the review of
  * 0.1.5; D-96, D-103.8) — and no two rows ever read the same. Each opens
  * its page; Mark reviewed takes it off. E31 (AJ-E3103): each is the one
- * session row (`row/SessionRow`), as in the rail and on every page.
+ * session row (`row/SessionRow`), as in the rail and on every page. The
+ * 0.4.6 RC walk K2 (F-K2-7a): its count is every one to review, not the
+ * ones the app holds, and Show all pages every one (`lib/home-review`).
  */
 import { useKeys } from "../lib/use-keys";
 import type { JSX } from "react";
+import type { PagedList as Paged } from "../lib/paged";
+import { PagedList } from "./PagedList";
 import { SectionTitle } from "./SectionTitle";
 import { IconCheck } from "./icons-controls";
 import { SessionRow } from "./row/SessionRow";
@@ -51,6 +55,8 @@ export function recentRows(recent: InstanceInfo[], projects: ProjectInfo[], now:
 export function HomeRecent({
   recent,
   total,
+  counted = true,
+  paged = null,
   shown,
   showAll,
   onShowAll,
@@ -62,7 +68,12 @@ export function HomeRecent({
   onReviewAll,
 }: {
   recent: InstanceInfo[];
+  /** How many to review: every one once counted, else the ones held. */
   total: number;
+  /** `total` is every one (the backend's count): only then is it said. */
+  counted?: boolean;
+  /** Every one, a page at a time, when shown (the app holds only some). */
+  paged?: Paged<InstanceInfo> | null;
   shown: number;
   showAll: boolean;
   onShowAll: () => void;
@@ -75,55 +86,67 @@ export function HomeRecent({
   onReviewAll?: () => void;
 }): JSX.Element | null {
   const actionKeys = useKeys("home-action");
-  if (recent.length === 0) return null;
+  // The working set's rows until every one's first page is read.
+  const pagedShown = paged !== null && (paged.items.length > 0 || (paged.loading && recent.length === 0));
+  if (recent.length === 0 && !pagedShown) return null;
+  const row = (session: InstanceInfo, title: string) => {
+    const project = projects.find((one) => one.id === session.project_id)?.name ?? null;
+    return (
+      <SessionRow
+        item={sessionItem(session, () => project, false)}
+        density="list"
+        now={now}
+        onSelect={onOpen}
+        title={title}
+        slim
+        data={{ "data-home-item": "", "data-testid": "home-recent-item", "data-session-id": session.id, "data-ended": "yes", "data-has-conversation": session.conversation_id ? "yes" : undefined }}
+        buttonData={{ "data-home-row": "" }}
+        stateSlot={
+          // AJ-E1005 Req.4: it leaves this list only when you say so.
+          // Every row here has ended: it stands where "Ended" would.
+          <button
+            type="button"
+            data-home-action
+            aria-keyshortcuts={actionKeys.aria}
+            disabled={busy === session.id}
+            onClick={() => onReviewed(session)}
+            title={`Mark reviewed (${actionKeys.words})`}
+            className="pointer-events-auto relative z-10 -my-1 -mr-1.5 flex min-h-6 shrink-0 items-center gap-1 rounded px-1.5 text-meta leading-[18px] text-muted outline-none hover:text-ink hover:underline focus-visible:ring-2 focus-visible:ring-accent/60 disabled:opacity-60"
+          >
+            {/* A narrow column (Home's beside Runway) keeps its mark;
+                a wide one says it too (the 0.4 review). */}
+            <IconCheck width={13} height={13} aria-hidden="true" className="@[36rem]:hidden" />
+            <span className="sr-only @[36rem]:not-sr-only">Mark reviewed</span>
+            <span className="sr-only"> — {title}</span>
+          </button>
+        }
+      />
+    );
+  };
+  const titled = (sessions: InstanceInfo[]) => new Map(recentRows(sessions, projects, now).map(({ session, title }) => [session.id, title]));
+  const pagedTitles = pagedShown ? titled(paged.items) : null;
   return (
     <section aria-labelledby="home-recent" className="flex flex-col gap-2.5" data-testid="home-recent">
       <div className="flex items-center justify-between gap-2">
         <SectionTitle id="home-recent">Pick up where you left off</SectionTitle>
         {onReviewAll && total > 1 && (
           <button type="button" onClick={onReviewAll} disabled={busy !== null} className="text-meta text-muted hover:text-ink hover:underline disabled:opacity-60" data-testid="home-review-all">
-            Mark all {total} reviewed
+            {counted ? `Mark all ${total} reviewed` : "Mark all reviewed"}
           </button>
         )}
       </div>
-      <ul className="overflow-hidden rounded-card border border-hairline bg-surface shadow-card">
-        {recentRows(recent, projects, now).map(({ session, title }) => {
-          const project = projects.find((one) => one.id === session.project_id)?.name ?? null;
-          return (
+      {pagedShown && pagedTitles ? (
+        // Every one, a page at a time, in a box of its own (never all at once).
+        <PagedList list={paged} keyOf={(session) => session.id} renderRow={(session) => row(session, pagedTitles.get(session.id) ?? "")} rowHeight={52} label="Sessions to pick up" empty={null} maxHeight="min(32rem, 60vh)" plain className="overflow-hidden rounded-card border border-hairline bg-surface shadow-card" testId="home-recent-paged" />
+      ) : (
+        <ul className="overflow-hidden rounded-card border border-hairline bg-surface shadow-card">
+          {recentRows(recent, projects, now).map(({ session, title }) => (
             <li key={session.id} className="border-t border-hairline/60 first:border-t-0">
-              <SessionRow
-                item={sessionItem(session, () => project, false)}
-                density="list"
-                now={now}
-                onSelect={onOpen}
-                title={title}
-                slim
-                data={{ "data-home-item": "", "data-testid": "home-recent-item", "data-session-id": session.id, "data-ended": "yes", "data-has-conversation": session.conversation_id ? "yes" : undefined }}
-                buttonData={{ "data-home-row": "" }}
-                stateSlot={
-                  // AJ-E1005 Req.4: it leaves this list only when you say so.
-                  // Every row here has ended: it stands where "Ended" would.
-                  <button
-                    type="button"
-                    data-home-action
-                    aria-keyshortcuts={actionKeys.aria}
-                    disabled={busy === session.id}
-                    onClick={() => onReviewed(session)}
-                    title={`Mark reviewed (${actionKeys.words})`}
-                    className="pointer-events-auto relative z-10 -my-1 -mr-1.5 flex min-h-6 shrink-0 items-center gap-1 rounded px-1.5 text-meta leading-[18px] text-muted outline-none hover:text-ink hover:underline focus-visible:ring-2 focus-visible:ring-accent/60 disabled:opacity-60"
-                  >
-                    {/* A narrow column (Home's beside Runway) keeps its mark;
-                        a wide one says it too (the 0.4 review). */}
-                    <IconCheck width={13} height={13} aria-hidden="true" className="@[36rem]:hidden" />
-                    <span className="sr-only @[36rem]:not-sr-only">Mark reviewed</span>
-                    <span className="sr-only"> — {title}</span>
-                  </button>
-                }
-              />
+              {row(session, title)}
             </li>
-          );
-        })}
-      </ul>
+          ))}
+        </ul>
+      )}
       {total > shown && (
         <button
           type="button"
@@ -132,7 +155,7 @@ export function HomeRecent({
           onClick={onShowAll}
           data-testid="home-recent-all"
         >
-          {showAll ? "Show fewer" : `Show all ${total}`}
+          {showAll ? "Show fewer" : counted ? `Show all ${total}` : "Show all"}
         </button>
       )}
     </section>

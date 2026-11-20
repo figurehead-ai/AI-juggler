@@ -68,7 +68,7 @@ for (const theme of ["dark", "light"] as const) {
     // its label saying where it runs now.
     const more = page.getByTestId("new-session-more");
     await expect(page.getByTestId("new-session-more-values")).toContainText("on this computer");
-    await more.locator("summary").click();
+    await page.getByTestId("new-session-more-toggle").click();
     await more.getByTestId("machine-picker").getByRole("radio", { name: "Mac mini" }).click();
     const sheet = page.getByTestId("remote-session-sheet");
     await expect(sheet.getByRole("heading")).toHaveText("New session on Mac mini");

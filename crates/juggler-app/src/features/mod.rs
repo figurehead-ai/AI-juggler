@@ -12,6 +12,7 @@ pub mod apps;
 pub mod budgets;
 pub mod cache;
 pub mod cleanup;
+pub mod connector;
 pub mod conversations;
 pub mod cost;
 pub mod dashboard;

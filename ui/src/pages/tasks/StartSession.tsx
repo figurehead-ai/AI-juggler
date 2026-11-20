@@ -5,6 +5,7 @@
  * you is your project's own default account, when you set one. An agent
  * can ask for a session; only this click starts one.
  */
+import { useCliRecipes } from "../../lib/apps";
 import { useEffect, useId, useState, type JSX } from "react";
 import { Button } from "../../components/primitives";
 import { errorText } from "../../lib/bridge";
@@ -34,8 +35,13 @@ export function StartSession({
   compact?: boolean;
 }): JSX.Element {
   const id = useId();
-  const [profiles, setProfiles] = useState<LaunchRecipeInfo[] | null>(null);
-  const [chosen, setChosen] = useState("");
+  const [all, setProfiles] = useState<LaunchRecipeInfo[] | null>(null);
+  // A CLI App's launch settings only (the 0.4.6 RC walks A8 and K4: a
+  // Claude app profile's folder read "Claude Code CLI · Work Max").
+  const profiles = useCliRecipes(all);
+  const [picked, setChosen] = useState("");
+  // Yours, else the only one offered.
+  const chosen = profiles?.some((profile) => profile.id === picked) ? picked : profiles?.length === 1 ? profiles[0]!.id : "";
   const suggested = useSuggested("launch_settings", (profiles ?? []).map((profile) => profile.id));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);

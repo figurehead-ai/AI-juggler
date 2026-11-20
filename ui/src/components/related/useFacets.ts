@@ -1,11 +1,12 @@
 /**
- * E31 (AJ-E3103) — what a related list's filters offer, read only once
- * its filters show (a list past 8 rows): the projects, Apps, Accounts and
- * Macs its rows are on, each with how many rows it shows (the backend's
- * `sessions_facets`, the same rows the list pages through; the design
- * preview counts its own rows). Each value is named the way the rest of
- * AI Juggler names it: a project by its name, an App by its name (D-62),
- * an Account by its name, a Mac by its Fleet label.
+ * E31 (AJ-E3103) — what a list's filters offer (History's and every
+ * related list's), read only once its filters show: the projects, Apps,
+ * Accounts, Macs and tools its rows are on, each with how many rows it
+ * shows with the other filters as chosen (the backend's `sessions_facets`,
+ * the same rows the list pages through; the design preview counts its own
+ * rows the same way). Each value is named the way the rest of AI Juggler
+ * names it: a project by its name, an App by its name (D-62), an Account
+ * by its name, a Mac by its Fleet label, a tool by its name.
  */
 import { useEffect, useMemo, useState } from "react";
 import { fleetPeers, fleetSelf } from "../../lib/ipc/fleet";
@@ -15,8 +16,9 @@ import type { ProjectInfo } from "../../types/generated/ProjectInfo";
 import { sessionsCounts, sessionsFacets, type SessionsQuery } from "../../lib/ipc/sessions";
 import { useApps } from "../../lib/apps";
 import { accountName, useSubscriptions } from "../../lib/subscriptions";
-import { RECENT_MS, facetsOf, type Belongs, type Facet, type FacetKind, type StateFilter } from "./order";
+import { FACET_KINDS, RECENT_MS, facetFilters, narrowedFacets, type Belongs, type Facet, type FacetKind, type Filters, type StateFilter } from "./order";
 import { THIS_MACHINE } from "../../lib/machine-words";
+import { providerDisplayName } from "../../lib/providers";
 
 export type FacetsByKind = Record<FacetKind, Facet[]>;
 
@@ -69,21 +71,30 @@ export function useStateCounts(key: string, base: SessionsQuery, opened: number,
   return counts?.key === full ? counts.value : null;
 }
 
-/** The values, `null` until read; `wanted` false reads nothing. */
-export function useFacets(key: string, query: SessionsQuery, local: () => Belongs[], wanted: boolean, version: number): FacetsByKind | null {
+/** The chosen values in a key ("*" for none; "" is "No project"). */
+export function chosenKey(filters: Filters): string {
+  return FACET_KINDS.map((kind) => filters[kind] ?? "*").join("|");
+}
+
+/** The values over `scope` (the list's own entity, state and search),
+ * each kind's counted with the other kinds' choices in `filters` (the
+ * 0.4.6 RC walk K2, F-K2-5: App = Codex CLI chosen, Tool still offered
+ * Claude Code); `local(filters)`: the preview's rows those choices show.
+ * `null` until read; `wanted` false reads nothing. */
+export function useFacets(key: string, scope: SessionsQuery, filters: Filters, local: (filters: Filters) => Belongs[], wanted: boolean, version: number): FacetsByKind | null {
   const live = hasLiveBackend();
   const [facets, setFacets] = useState<{ key: string; value: FacetsByKind } | null>(null);
-  const full = `${key}#${version}`;
+  const full = `${key}|${chosenKey(filters)}#${version}`;
   useEffect(() => {
     if (!wanted) return;
     if (!live) {
-      setFacets({ key: full, value: facetsOf(local()) });
+      setFacets({ key: full, value: narrowedFacets(local, filters) });
       return;
     }
     let alive = true;
     let pending = read.get(full);
     if (!pending) {
-      pending = sessionsFacets(query).then((info) => ({ project: info.projects, app: info.apps, account: info.subscriptions, machine: info.machines }));
+      pending = sessionsFacets(scope, facetFilters(filters)).then((info) => ({ project: info.projects, app: info.apps, account: info.subscriptions, machine: info.machines, tool: info.tools }));
       read.set(full, pending);
       pending.catch(() => read.delete(full));
     }
@@ -135,6 +146,8 @@ export function useFacetNames(folders: readonly AccountInfo[], projects: readonl
           return appNames.get(id) ?? id.replace(/^(cli|app):/, "");
         case "account":
           return id === "" ? "No account" : (accountNames.get(id) ?? "An Account");
+        case "tool":
+          return providerDisplayName(id);
         default:
           return macs.get(id) ?? (id === "this-mac" ? THIS_MACHINE : id);
       }

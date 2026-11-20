@@ -10,13 +10,16 @@
  * A message held for your OK has its answers on it (Allow once, Always
  * allow here from the second time, Deny), the same command the canvas
  * card and Needs you answer with (the rc19 walk: it only said "Waits on
- * your OK").
+ * your OK"). One a chain paused at the hop limit has Deliver and Don't
+ * deliver, as Home's card does (the rc3h walk: the thread only offered
+ * Resume).
  *
  * The header pauses, stops or resumes the thread (resuming resets its
  * count of agent messages in a row). Earlier messages load a page at a
  * time; a reply goes at the bottom.
  */
 import { useEffect, useState, type JSX } from "react";
+import { loadingPart } from "../../lib/lazy";
 import { Button } from "../../components/primitives";
 import { Pill } from "../../components/Pill";
 import { errorText } from "../../lib/bridge";
@@ -43,15 +46,15 @@ function HeldAnswers({ asks, busy, onAnswer }: { asks: MessageNeedInfo[]; busy: 
       {asks.map((ask) => (
         <fieldset key={ask.key} className="m-0 flex flex-wrap items-center gap-1.5 border-0 p-0" aria-label={`Answer: ${ask.title}`} data-testid="message-held-answers">
           <Button size="sm" variant="secondary" disabled={busy} onClick={() => ask.ask_id && onAnswer(ask.ask_id, "once")} data-testid="message-allow-once">
-            Allow once
+            {ask.kind === "deliver" ? "Deliver" : "Allow once"}
           </Button>
-          {ask.offer_always && (
+          {ask.offer_always && ask.kind !== "deliver" && (
             <Button size="sm" variant="ghost" disabled={busy} onClick={() => ask.ask_id && onAnswer(ask.ask_id, "always")} data-testid="message-allow-always">
               Always allow here
             </Button>
           )}
           <Button size="sm" variant="ghost" disabled={busy} onClick={() => ask.ask_id && onAnswer(ask.ask_id, "deny")} data-testid="message-deny">
-            Deny
+            {ask.kind === "deliver" ? "Don't deliver" : "Deny"}
           </Button>
         </fieldset>
       ))}
@@ -122,8 +125,9 @@ export function ThreadView({ threadId, poolId, members, now }: { threadId: strin
     let alive = true;
     setPage(null);
     setEarlier([]);
-    const read = () =>
-      void messagesThread(threadId).then(
+    // Its first read is a loading part (lib/lazy): a capture waits for it.
+    const read = (first = false) =>
+      void (first ? loadingPart(messagesThread(threadId)) : messagesThread(threadId)).then(
         (next) => {
           if (!alive) return;
           setPage(next);
@@ -132,8 +136,8 @@ export function ThreadView({ threadId, poolId, members, now }: { threadId: strin
         (cause) => alive && setError(errorText(cause)),
       );
     setMore(null);
-    read();
-    const off = onMessagesChanged(read);
+    read(true);
+    const off = onMessagesChanged(() => read());
     return () => {
       alive = false;
       off();
@@ -165,7 +169,7 @@ export function ThreadView({ threadId, poolId, members, now }: { threadId: strin
       },
     );
   };
-  const asksOf = (messageId: string) => needs.filter((need) => need.kind === "ask" && need.ask_id !== null && need.message_id === messageId);
+  const asksOf = (messageId: string) => needs.filter((need) => (need.kind === "ask" || need.kind === "deliver") && need.ask_id !== null && need.message_id === messageId);
   const loadEarlier = () => {
     if (!more) return;
     void messagesThread(threadId, more).then((older) => {

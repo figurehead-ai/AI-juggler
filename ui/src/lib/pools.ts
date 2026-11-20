@@ -19,6 +19,7 @@ import { refreshPaged, usePagedList, type PagedList } from "./paged";
 import type { MessageNeedInfo } from "./ipc/messages";
 import type { TaskNeedInfo } from "./ipc/tasks";
 import { sessionState } from "./rail-items";
+import { OWN_LEVELS } from "./pool-words";
 
 export { NO_PROJECT_POOL_ID, defaultPoolIdOf };
 export type { PoolRole };
@@ -54,16 +55,12 @@ export function leadHint(kindOrRef: string): string | null {
   return word ? `Lead is one session; pick one of this ${word}'s sessions to lead.` : null;
 }
 
-/** D-28: what agents may do in a pool, set by you in the app only. */
+/** D-28: what sessions in a pool may do on their own, set by you in the
+ * app only. 0.4.6 (AJ-E3011): "Level" is gone; the three are Look only,
+ * Work together, and Work together and wake each other (one vocabulary,
+ * `pool-words.ts`); Custom stays for picking each action. */
 export const LEVELS: { id: string; label: string; words: string }[] = [
-  { id: "read", label: "Read", words: "See who's here, what each one is doing, and the tasks." },
-  {
-    id: "work_together",
-    label: "Work together",
-    words:
-      "Read, and post messages, share documents, work on tasks and get a new session ready for you to start. A message for a session that's waiting goes in when you click.",
-  },
-  { id: "full", label: "Full", words: "Work together, and put messages straight into each other's sessions, until a chain of replies is long enough to pause and ask you." },
+  ...OWN_LEVELS.map((one) => ({ id: one.id, label: one.label, words: one.line })),
   { id: "custom", label: "Custom", words: "You pick each action." },
 ];
 
@@ -85,7 +82,7 @@ export const ACTION_WORDS: Record<string, string> = {
 };
 
 export function levelLabel(level: string): string {
-  return LEVELS.find((entry) => entry.id === level)?.label ?? "Read";
+  return LEVELS.find((entry) => entry.id === level)?.label ?? "Look only";
 }
 
 export function roleLabel(role: string): string {
@@ -103,6 +100,12 @@ function placed(pools: PoolsInfo | null, sessionId: string): PoolMemberInfo | un
 export function poolIdsOf(pools: PoolsInfo | null, session: InstanceInfo): string[] {
   const rows = pools?.placements.filter((row) => row.session_id === session.id) ?? [];
   return rows.length > 0 ? rows.map((row) => row.pool_id) : [defaultPoolIdOf(session.project_id)];
+}
+
+/** A pool's sessions open now, as its page's header counts them (its
+ * canvas and its Now say the same, F-rc3g-8). */
+export function openInPool(pools: PoolsInfo | null, sessions: readonly InstanceInfo[], poolId: string): InstanceInfo[] {
+  return sessions.filter((session) => sessionState(session).state !== "ended" && poolIdsOf(pools, session).includes(poolId));
 }
 
 /** The pool a session is in: the place the pools name, else its
@@ -354,32 +357,7 @@ export function shortPoolName(pool: PoolInfo): string {
   return pool.kind === "default" && pool.name.endsWith(ALL_SESSIONS) ? pool.name.slice(0, -ALL_SESSIONS.length) : pool.name;
 }
 
-/** A new pool to set up from elsewhere (the 0.4.1 persona walk: a
- * project's "Keep it apart…" opens the sealed template on it): the Pools
- * screen takes it once and opens its wizard. */
-export interface NewPoolRequest {
-  template: string;
-  project: string | null;
-}
-let newPoolRequest: NewPoolRequest | null = null;
-const newPoolListeners = new Set<() => void>();
-
-export function requestNewPool(request: NewPoolRequest): void {
-  newPoolRequest = request;
-  for (const listener of newPoolListeners) listener();
-}
-
-/** The waiting request, taken (so it opens once). */
-export function takeNewPoolRequest(): NewPoolRequest | null {
-  const request = newPoolRequest;
-  newPoolRequest = null;
-  return request;
-}
-
-export function onNewPoolRequest(listener: () => void): () => void {
-  newPoolListeners.add(listener);
-  return () => newPoolListeners.delete(listener);
-}
+export { doneNewPoolRequest, onNewPoolRequest, requestNewPool, takeNewPoolRequest, type NewPoolRequest } from "./new-pool-request";
 
 /** D-95: where talk is set, the one thing it can't hold. Claude's own
  * channel is set per receiving session, not per pair, so only a sealed pool
@@ -389,10 +367,6 @@ export const CLAUDE_CHANNEL_NOTE = "Claude's own messages between sessions aren'
 /** AJ-E3006 R2: what Continue in AI Juggler does to a Watched member, said
  * beside the button: a new process, the pool's tools, the same pool. */
 export const CONTINUE_WATCHED = "Starts a new process here that resumes it, with the pool's tools. It stays in this pool.";
-
-/** The rc19 walk: the canvas node's Continue said it only in a tooltip, so
- * nothing on screen said a new process starts. Its short line, always shown. */
-export const CONTINUE_WATCHED_SHORT = "Starts a new process here";
 
 /** Said once Continue in AI Juggler has started its session. */
 export const CONTINUED_HERE = "Continued in AI Juggler: a new process resumes it here.";

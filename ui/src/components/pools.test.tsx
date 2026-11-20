@@ -234,8 +234,8 @@ describe("agent access", () => {
     const pools = await loaded();
     const pool = pools.pools[0]!;
     const { getByTestId, rerender, queryByText } = render(<PoolAccessPanel pool={pool} />);
-    expect((within(getByTestId("pool-level-work_together")).getByRole("radio") as HTMLInputElement).checked).toBe(true);
-    fireEvent.click(within(getByTestId("pool-level-custom")).getByRole("radio"));
+    expect(getByTestId("pool-access-level-choice-work_together")).toHaveProperty("checked", true);
+    fireEvent.click(getByTestId("pool-access-level-choice-custom"));
     await waitFor(() => expect(calls()[0]).toMatch(/^access:pool-default:proj-ai-juggler:custom:/));
     rerender(<PoolAccessPanel pool={(await poolsList()).pools[0]!} />);
     expect(getByTestId("pool-custom")).toBeTruthy();

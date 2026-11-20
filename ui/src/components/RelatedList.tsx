@@ -31,9 +31,10 @@ import { useRelationCounts } from "../lib/relation-counts";
 import type { EntityKind } from "../lib/ipc/relations";
 import { PagedSessions, type Row } from "../pages/SessionsList";
 import { FilterChip } from "./related/FilterChip";
+import { FacetChips } from "./related/FacetChips";
 import { NO_FILTERS, STATE_WORDS, filtersOn, stateQuery, type FacetKind, type Filters, type StateFilter } from "./related/order";
 import { localRows, useBelongs } from "./related/local";
-import { useFacetNames, useFacets, useStateCounts } from "./related/useFacets";
+import { chosenKey, useFacetNames, useFacets, useStateCounts } from "./related/useFacets";
 import { NothingMatches, RelatedEmpty, type Teach } from "./related/RelatedEmpty";
 
 /** Past this many rows a list has a search and its filters (QUALITY.md
@@ -55,14 +56,11 @@ function anchorKind(anchor: Anchor): { kind: EntityKind; id: string; own: FacetK
   return { kind: "all", id: "", own: null };
 }
 
-/** The chip's value for "No project" and "No account" (`""` to the backend). */
-const NONE = "(none)";
-
-const CHIPS: { kind: FacetKind; label: string; all: string }[] = [
-  { kind: "app", label: "App", all: "All" },
-  { kind: "account", label: "Account", all: "All" },
-  { kind: "project", label: "Project", all: "All" },
-  { kind: "machine", label: "Mac", all: "All" },
+const CHIPS: { kind: FacetKind; label: string }[] = [
+  { kind: "app", label: "App" },
+  { kind: "account", label: "Account" },
+  { kind: "project", label: "Project" },
+  { kind: "machine", label: "Mac" },
 ];
 
 export interface RelatedListProps {
@@ -117,16 +115,19 @@ export function RelatedList(props: RelatedListProps): JSX.Element {
     app_id: filters.app ?? scoped.app_id ?? null,
     subscription_id: filters.account ?? scoped.subscription_id ?? null,
     machine_id: filters.machine,
+    tool_id: filters.tool ?? scoped.tool_id ?? null,
   };
   // Every filter in the key, "*" for none ("" is "No project").
-  const key = [listKey, filters.state, filters.project ?? "*", filters.app ?? "*", filters.account ?? "*", filters.machine ?? "*", searched].join("|");
+  const key = [listKey, filters.state, chosenKey(filters), searched].join("|");
   const localShown = (rows: Row[]) => localRows(rows, belongs, filters, searched, opened);
-  // The filters' values, over the list in its state and search.
-  const facets = useFacets(`${listKey}|${filters.state}|${searched}`, scoped, () => localRows(props.local(), belongs, { ...NO_FILTERS, state: filters.state }, searched, opened).map(belongs), findable, counts?.sessions.all ?? 0);
+  // The filters' values, over the list in its state and search, each
+  // kind's with the other kinds' choices (F-K2-5).
+  const facets = useFacets(`${listKey}|${filters.state}|${searched}`, scoped, filters, (chosen) => localRows(props.local(), belongs, chosen, searched, opened).map(belongs), findable, counts?.sessions.all ?? 0);
   const nameOf = useFacetNames(props.folders, props.projects, facets);
-  // Walk K2: the State filter says how many each value shows too.
-  const stateCounts = useStateCounts(`${listKey}|${searched}`, scoped, opened, () => {
-    const count = (only: StateFilter) => localRows(props.local(), belongs, { ...NO_FILTERS, state: only }, searched, opened).length;
+  // Walk K2: the State filter says how many each value shows too, with
+  // the other filters as chosen.
+  const stateCounts = useStateCounts(`${listKey}|${chosenKey(filters)}|${searched}`, query, opened, () => {
+    const count = (only: StateFilter) => localRows(props.local(), belongs, { ...filters, state: only }, searched, opened).length;
     return { open: count("open"), recent: count("recent"), ended: count("ended") };
   }, findable, counts?.sessions.all ?? 0);
   const set = (kind: FacetKind, value: string | null) => setFilters((now) => ({ ...now, [kind]: value }));
@@ -163,24 +164,7 @@ export function RelatedList(props: RelatedListProps): JSX.Element {
             onChange={(next) => setFilters((now) => ({ ...now, state: (next as StateFilter | null) ?? "all" }))}
             testId="related-filter-state"
           />
-          {CHIPS.filter((chip) => chip.kind !== entity.own).map((chip) => {
-            const values = facets?.[chip.kind] ?? [];
-            // A Mac only when its sessions ran on more than one.
-            if (chip.kind === "machine" && values.length < 2 && filters.machine === null) return null;
-            // "No project" and "No account" are `""` to the backend, and All's value to the chip.
-            const value = filters[chip.kind];
-            return (
-              <FilterChip
-                key={chip.kind}
-                label={chip.label}
-                all={chip.all}
-                value={value === "" ? NONE : value}
-                options={values.map((facet) => ({ id: facet.id || NONE, label: nameOf(chip.kind, facet.id), count: facet.count }))}
-                onChange={(next) => set(chip.kind, next === NONE ? "" : next)}
-                testId={`related-filter-${chip.kind}`}
-              />
-            );
-          })}
+          <FacetChips chips={CHIPS.filter((chip) => chip.kind !== entity.own)} facets={facets} filters={filters} nameOf={nameOf} onChange={set} testIdOf={(kind) => `related-filter-${kind}`} />
           {narrowed && (
             <button type="button" onClick={clear} className="h-8 rounded-full px-2.5 text-meta text-accent-hi outline-none hover:underline focus-visible:ring-2 focus-visible:ring-accent/60" data-testid="related-filter-clear">
               Clear filters

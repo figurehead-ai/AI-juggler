@@ -40,7 +40,7 @@ export interface WindowDisplay {
    * reading of a window that hasn't reset). */
   runway?: RunwayDisplay | null;
   /** Where the reading behind it came from (`statusline`, `rollout`,
-   * `desktop_app`, `usage_cache`, `api_retry`), when known. */
+   * `desktop_app`, `usage_cache`, `api_retry`, `driven`), when known. */
   source?: string | null;
   /** That source in words, from the tool's spec ("the Claude app"). */
   source_words?: string | null;
@@ -89,6 +89,10 @@ export interface QuotaDisplayData {
   /** The first read of the tools' history is still running: what isn't
    * measured may only not be read yet (the 0.2 walk, F6). */
   history_reading?: boolean;
+  /** F-rc3c-1: this start's first read of the tools' records hasn't
+   * finished: an old reading may be about to be replaced, and says so
+   * ("as of 2 days ago, refreshing…"). Absent from an older backend. */
+  refreshing?: boolean;
   account: string;
   five_hour: WindowDisplay | null;
   five_hour_omitted_reason: string | null;

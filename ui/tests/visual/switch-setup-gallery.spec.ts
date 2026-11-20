@@ -92,7 +92,7 @@ for (const theme of ["dark", "light"] as const) {
     const list = page.getByTestId("switch-setup");
     await list.getByRole("button", { name: "Show me how to turn on computer-use" }).click();
     await expect(list.getByTestId("turn-on-steps")).toContainText("Sign in to claude.ai as Personal.");
-    await expect(list.getByTestId("switch-setup-unused")).not.toHaveAttribute("open", "");
+    await expect(list.getByTestId("switch-setup-unused")).not.toHaveAttribute("data-open", "true");
     await list.screenshot({ path: resolve(OUT, `turn-on-${theme}.png`) });
     await axeClean(page, "the list, steps open");
   });
@@ -112,7 +112,7 @@ for (const theme of ["dark", "light"] as const) {
     // short); Details says the target has it all.
     await expect(page.getByTestId("switch-setup")).toHaveCount(0);
     const details = page.getByTestId("switch-details");
-    if ((await details.getAttribute("open")) === null) await details.locator(":scope > summary").click();
+    if ((await details.getAttribute("data-open")) === null) await page.getByTestId("switch-details-toggle").click();
     await expect(details).toContainText("Personal already has 3 of the 3 things this app has set up.");
     await page.getByTestId("switch-oneclick").screenshot({ path: resolve(OUT, `nothing-missing-${theme}.png`) });
     await axeClean(page, "nothing missing");
@@ -130,7 +130,7 @@ const FROM_DESKTOP = {
   source_keeps_running: true,
   source_outside: true,
   source_app: "Claude",
-  experimental_copy: "Beta, not proven yet: the whole session is carried over, with its subagents and file history. The source stays resumable.",
+  experimental_copy: "Beta: the whole session is carried over, with its subagents and file history. The source stays resumable.",
   destinations: EXAMPLE_DESTINATIONS_DESKTOP,
 };
 const NOTES_ONLY = { ...EXAMPLE_SETUP_NOTES, offers: EXAMPLE_SETUP_NOTES.offers.filter((offer) => offer.kind === "memory").map((offer) => ({ ...offer, note: null })) };
@@ -154,11 +154,11 @@ for (const theme of ["dark", "light"] as const) {
     await expect(page.getByTestId("switch-step-confirm")).toBeVisible();
     await expect(page.getByRole("radio", { name: /^Desktop/ })).toBeChecked();
     await expect(page.getByTestId("switch-confirm")).toHaveText("Switch to Desktop");
-    await expect(page.getByTestId("switch-details")).not.toHaveAttribute("open", "");
+    await expect(page.getByTestId("switch-details")).not.toHaveAttribute("data-open", "true");
     await page.mouse.move(0, 0);
     await page.getByTestId("switch-flow").screenshot({ path: resolve(OUT, `where-desktop-${theme}.png`) });
     await axeClean(page, "the last step, Desktop");
-    await page.getByTestId("switch-carry-summary").locator(":scope > summary").click();
+    await page.getByTestId("switch-carry-summary-toggle").click();
     await page.getByTestId("switch-carry-summary").screenshot({ path: resolve(OUT, `where-carry-open-${theme}.png`) });
     await axeClean(page, "what goes along, open");
   });

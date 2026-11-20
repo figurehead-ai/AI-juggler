@@ -123,12 +123,12 @@ pub fn tools(looks: &Value, writes: &Value) -> Value {
         {
             "name": "task_assign",
             "title": "Give a task to someone (the lead's)",
-            "description": "The pool's lead gives a task to a member (its session_id from pool_roster) or to nobody. With new_session, it asks the user for a new session for it: the user decides, picks the account and starts it; nothing starts by itself. Giving tasks waits on the user's OK unless the user allowed it for this pool.",
+            "description": "The pool's lead gives a task to a member (its session_id or its name, from pool_roster) or to nobody. With new_session, it asks the user for a new session for it: the user decides, picks the account and starts it; nothing starts by itself. Giving tasks waits on the user's OK unless the user allowed it for this pool.",
             "inputSchema": {
                 "type": "object",
                 "properties": {
                     "task": task,
-                    "to": {"type": "string", "description": "A member's session_id, \"nobody\" or \"new_session\"."},
+                    "to": {"type": "string", "description": "A member's session_id or its name as pool_roster gives it, \"nobody\" or \"new_session\"."},
                     "note": {"type": "string", "maxLength": NOTE_MAX, "description": "With new_session: what the new session should know."},
                 },
                 "required": ["task", "to"],

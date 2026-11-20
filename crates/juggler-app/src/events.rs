@@ -76,11 +76,14 @@ pub enum AppEvent {
     FloorUnavailable,
     /// The Floor's window is asked to open.
     FloorOpenRequest,
+    /// What a Go to it or an Open did, after it said it was still on it
+    /// (0.4.6, the rc3c walk; carries its `GoToOutcomeInfo` and ticket).
+    GoToLate,
 }
 
 impl AppEvent {
     /// Every event, in declaration order.
-    pub const ALL: [Self; 30] = [
+    pub const ALL: [Self; 31] = [
         Self::AppReady,
         Self::SessionsUpdated,
         Self::SessionsResources,
@@ -111,6 +114,7 @@ impl AppEvent {
         Self::FloorChanged,
         Self::FloorUnavailable,
         Self::FloorOpenRequest,
+        Self::GoToLate,
     ];
 
     /// The wire name the UI listens to.
@@ -147,6 +151,7 @@ impl AppEvent {
             Self::FloorChanged => "floor://changed",
             Self::FloorUnavailable => "floor://unavailable",
             Self::FloorOpenRequest => "floor://open-request",
+            Self::GoToLate => "go-to://late",
         }
     }
 }

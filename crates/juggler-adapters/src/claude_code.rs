@@ -456,6 +456,25 @@ impl ToolLaunch for ClaudeCodeAdapter {
                 .to_owned()
         })
     }
+    /// `claude --session-id <id>`, in the session's own folder: Claude
+    /// Code names a new conversation by the caller's id (a UUID only).
+    fn named_launch_spec(
+        &self,
+        account: &Account,
+        profile: &Profile,
+        cwd: &Path,
+        conversation_id: &str,
+    ) -> Result<Option<LaunchSpec>, AdapterError> {
+        crate::codex::refuse_option_like(conversation_id)?;
+        if !juggler_adapter::handover::is_uuid_form(conversation_id) {
+            return Ok(None);
+        }
+        let mut spec = self.launch_spec(account, profile, cwd, &LaunchMode::Interactive)?;
+        spec.cwd = cwd.to_path_buf();
+        spec.args
+            .extend(["--session-id".to_owned(), conversation_id.to_owned()]);
+        Ok(Some(spec))
+    }
     fn launch_spec(
         &self,
         account: &Account,
@@ -888,6 +907,15 @@ impl ToolRuntime for ClaudeCodeAdapter {
         Some(juggler_adapter::runtime::typed::TypedPrompt::bracketed(
             text,
         ))
+    }
+    /// AJ-E3013: a Claude app profile's Code-tab sessions, attested from
+    /// Claude Code's own registry and the app's own record.
+    fn desktop_peer(&self) -> Option<&dyn juggler_adapter::peer::DesktopPeer> {
+        Some(&crate::claude_peer::ClaudeAppPeer)
+    }
+    /// AJ-E3013: the plugin folder `skills/ai-juggler/` (Route A).
+    fn desktop_connector(&self) -> Option<&dyn juggler_adapter::connector::DesktopConnector> {
+        Some(&crate::claude_connector::ClaudeAppConnector)
     }
 }
 
@@ -1360,6 +1388,9 @@ pub fn claude_code_spec() -> juggler_adapter::ToolSpec {
         release_feed: Some(juggler_adapter::ReleaseFeed::Npm {
             package: "@anthropic-ai/claude-code".to_owned(),
         }),
+        // D-128: read only, by the release flow's gate watch.
+        version_probes: vec![juggler_adapter::VersionProbe::Command { program: "claude".to_owned() }, juggler_adapter::VersionProbe::DesktopApp { name: "Claude".to_owned() }],
+        more_release_feeds: Vec::new(),
         update_command: Some("claude update".to_owned()),
         // The Floor: a warm workshop for the CLI, a pale studio for the
         // Claude app (SPEC §9.7).

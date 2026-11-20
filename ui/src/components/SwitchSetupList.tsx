@@ -21,6 +21,8 @@ import {
 import { Meaning, TurnOnSteps } from "./SwitchSetupTurnOn";
 import { SecretSteps } from "./switch/SecretSteps";
 import { IN_HANDOVER, NOTES_KIND, NotesRow } from "./switch/NotesRow";
+import { ConnectorOfferRow } from "./switch/ConnectorOfferRow";
+import { CONNECTOR_OFFER } from "../lib/ipc/switchSetup";
 import { Checkbox, Disclosure } from "./controls";
 
 const KIND_WORDS: Record<string, string> = {
@@ -111,7 +113,8 @@ function meaning(offer: OfferInfo, check: SetupCheckInfo): { text: string; examp
 export function setupSummary(check: SetupCheckInfo, picked: ReadonlySet<string>): string {
   // This project's notes (D-51) are no conversation's: their row asks for
   // itself, and the count is of what was set up.
-  const offers = check.offers.filter((offer) => offer.kind !== NOTES_KIND);
+  // AJ-E3013: AI Juggler's connector is its own, not a thing it lacks.
+  const offers = check.offers.filter((offer) => offer.kind !== NOTES_KIND && offer.verdict !== CONNECTOR_OFFER);
   // What will be set up before the switch: notes quoted in the handover
   // aren't set up anywhere.
   const setUpCount = [...picked].filter((id) => !check.offers.some((offer) => offer.id === id && offer.verdict === IN_HANDOVER)).length;
@@ -236,7 +239,11 @@ export function SwitchSetupList({
   onCheckAgain,
   bare = false,
   titled = true,
+  toFolder,
 }: {
+  /** The target's folder: its desktop app is offered AI Juggler's
+   * connector on its own card (AJ-E3013). */
+  toFolder?: string;
   check: SetupCheckInfo;
   picked: ReadonlySet<string>;
   onToggle: (id: string) => void;
@@ -266,6 +273,8 @@ export function SwitchSetupList({
     // D-51: this project's notes, one row for all of them.
     offer.kind === NOTES_KIND ? (
       <NotesRow key={offer.id} offer={offer} check={check} picked={picked} onToggle={onToggle} />
+    ) : offer.verdict === CONNECTOR_OFFER ? (
+      <ConnectorOfferRow key={offer.id} offer={offer} check={check} toFolder={toFolder} />
     ) : (
       <SetupRow key={offer.id} offer={offer} check={check} picked={picked} onToggle={onToggle} onCheckAgain={onCheckAgain} />
     );

@@ -110,13 +110,6 @@ export function ThisMacValue({ info, children }: { info: ThisMacInfo | null; chi
   return createElement(ThisMacStoreContext.Provider, { value: store }, createElement(ThisMacContext.Provider, { value: info }, children));
 }
 
-/** This Mac as given (a test, the preview), else the app's one
- * subscription (AJ-E805). */
-export function useThisMacInfo(given?: ThisMacInfo | null): ThisMacInfo | null {
-  const shown = useContext(ThisMacContext);
-  return given === undefined ? shown : given;
-}
-
 /** The app's one This Mac subscription, given to what reads it. AJ-E805:
  * it was the shell's state, so each 5 s reading (while an AI tool runs)
  * drew the whole app again, the rail included; now only what reads This
@@ -149,6 +142,22 @@ export function machineStatus(
   // never said without what put it there (D1 on rc29).
   const cause = level === "plenty" ? null : (summary.cause ?? null);
   return { level, words: summary.words, cause, calm: level === "plenty", ...look };
+}
+
+/** This Mac's summary level alone ("plenty", "tight", "pressure"; `null`
+ * before the first reading), from `given` (a test, the preview) or the
+ * app's one subscription. AJ-E813: Home reads only this, yet it drew
+ * itself again on every 5 s reading; its reader draws again only when the
+ * level changes. */
+export function useMachineLevel(given?: ThisMacInfo | null): string | null {
+  const store = useContext(ThisMacStoreContext);
+  const level = () => levelOf(store.get());
+  const fromStore = useSyncExternalStore(store.subscribe, level, level);
+  return given === undefined ? fromStore : levelOf(given);
+}
+
+function levelOf(info: ThisMacInfo | null | undefined): string | null {
+  return info?.machine.summary.level ?? null;
 }
 
 /** A session's heavy note ("CPU 95%", "3.2 GB"), only while it's heavy.

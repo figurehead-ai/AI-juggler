@@ -28,8 +28,8 @@ function backend(all: () => Row[]) {
   return { asked, fetchPage, release };
 }
 
-function Probe({ listKey, fetchPage, pageSize, out }: { listKey: string | null; fetchPage: FetchPage<Row>; pageSize?: number; out: { list?: Paged<Row> } }) {
-  out.list = usePagedList(listKey, fetchPage, { pageSize, keyOf: (row) => row.id });
+function Probe({ listKey, fetchPage, pageSize, shared, out }: { listKey: string | null; fetchPage: FetchPage<Row>; pageSize?: number; shared?: boolean; out: { list?: Paged<Row> } }) {
+  out.list = usePagedList(listKey, fetchPage, { pageSize, keyOf: (row) => row.id, shared });
   return null;
 }
 
@@ -113,6 +113,45 @@ describe("usePagedList", () => {
     await prefetchPaged("usage:rows", fetchPage, 30);
     expect(fetchPage).toHaveBeenCalledTimes(1);
     expect(rememberedPage<Row>("usage:rows")!.items).toHaveLength(30);
+  });
+
+  // NY1 (0.4.6 rc3a): Home, opened, read a need back while the rail and
+  // the bell, read before under the same key, never showed it.
+  it("a shared list shows what another under its key read, the newest read winning; one not shared keeps its own", async () => {
+    let all = rows(1, "old");
+    const answers: (() => void)[] = [];
+    const fetchPage: FetchPage<Row> = (request) => {
+      const page = pageOf(all, request);
+      return new Promise((resolve) => answers.push(() => resolve(page)));
+    };
+    const rail: { list?: Paged<Row> } = {};
+    const own: { list?: Paged<Row> } = {};
+    const view = render(
+      <>
+        <Probe listKey="notices:needs" fetchPage={fetchPage} shared out={rail} />
+        <Probe listKey="notices:needs" fetchPage={fetchPage} out={own} />
+      </>,
+    );
+    await act(async () => answers.splice(0).forEach((answer) => answer()));
+    expect(rail.list!.items.map((r) => r.id)).toEqual(["old0"]);
+    // The rail reads again (an older read), then Home opens (a newer one);
+    // the newer answers first.
+    act(() => rail.list!.refresh());
+    all = rows(2, "new");
+    const home: { list?: Paged<Row> } = {};
+    view.rerender(
+      <>
+        <Probe listKey="notices:needs" fetchPage={fetchPage} shared out={rail} />
+        <Probe listKey="notices:needs" fetchPage={fetchPage} out={own} />
+        <Probe listKey="notices:needs" fetchPage={fetchPage} shared out={home} />
+      </>,
+    );
+    const [older, newer] = answers.splice(0);
+    await act(async () => newer!());
+    await act(async () => older!());
+    expect(home.list!.items.map((r) => r.id)).toEqual(["new0", "new1"]);
+    expect(rail.list!.items.map((r) => r.id)).toEqual(["new0", "new1"]);
+    expect(own.list!.items.map((r) => r.id)).toEqual(["old0"]);
   });
 });
 

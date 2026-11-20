@@ -16,6 +16,9 @@ export const RANGES: { id: RangeId; label: string; before: string; spoken: strin
   { id: "all", label: "All", before: "the same span before", spoken: "all your usage" },
 ];
 
+/** The ranges as a segmented control's choices. */
+export const RANGE_SEGMENTS: { value: RangeId; label: string }[] = RANGES.map(({ id, label }) => ({ value: id, label }));
+
 export type Cut = { edges: number[]; step: Step };
 
 const DAY = 86_400_000;

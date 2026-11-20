@@ -25,8 +25,7 @@ vi.mock("../lib/ipc/switch-move", async (original) => {
 
 const OFFER: MoveOfferInfo = {
   applies: true,
-  offered: true,
-  why_not: [],
+  blocks: [],
   members: [
     { title: "Refunds API", archived: false, side: "moves", folder_missing: false },
     { title: "Webhook tests", archived: false, side: "moves", folder_missing: false },
@@ -130,16 +129,40 @@ describe("Move to account", () => {
     await waitFor(() => expect(view.getByTestId("switch-moved-undo-said").textContent).toContain("Undone"));
   });
 
-  it("can't be chosen while something works, says why, and checks again", async () => {
-    window.__AIJ_MOVE_OFFER__ = { ...OFFER, offered: false, why_not: ["Claude app · Work has 2 sessions working: a move restarts it, which would stop them. Let them finish first"] };
+  it("can't be chosen while something works, says how it clears, and checks again", async () => {
+    window.__AIJ_MOVE_OFFER__ = {
+      ...OFFER,
+      blocks: [{ kind: "user_can_clear", words: "2 sessions are working in Claude app · Work; Move becomes available once they finish" }],
+    };
     const view = mount();
     await waitFor(() => expect(view.getByTestId("switch-how")).toBeTruthy());
-    expect(view.getByTestId("switch-how-move")).toHaveProperty("disabled", true);
-    expect(view.getByTestId("switch-how").textContent).toContain("2 sessions working");
+    expect(view.getByRole("radio", { name: /Move to account/ })).toHaveProperty("disabled", true);
+    expect(view.getByTestId("switch-how").textContent).toContain(
+      "2 sessions are working in Claude app · Work; Move becomes available once they finish.",
+    );
     expect(view.getByTestId("switch-confirm")).toBeTruthy();
     window.__AIJ_MOVE_OFFER__ = OFFER;
     fireEvent.click(view.getByTestId("switch-how-again"));
     await waitFor(() => expect(view.getByTestId("switch-move")).toBeTruthy());
+  });
+
+  // D-127 (the maintainer, 2026-11-18: Move greyed out with "proven for
+  // version 4.x; this one is 5.11492.5"): what the user can't change hides
+  // Move. Copy is the switch then, alone, with no word about it.
+  it("isn't shown at all when the user can't clear what stands in its way", async () => {
+    window.__AIJ_MOVE_OFFER__ = {
+      ...OFFER,
+      blocks: [
+        { kind: "setup", words: "this version of the Claude app keeps its sessions in a way AI Juggler doesn't know yet" },
+        { kind: "user_can_clear", words: "1 session is working in Claude app · Work; Move becomes available once it finishes" },
+      ],
+    };
+    const view = mount();
+    await waitFor(() => expect(view.getByTestId("switch-confirm")).toBeTruthy());
+    expect(view.queryByTestId("switch-how")).toBeNull();
+    expect(view.queryByRole("radio", { name: /Move to account/ })).toBeNull();
+    expect(view.queryByTestId("switch-move")).toBeNull();
+    expect(view.getByTestId("switch-flow").textContent).not.toMatch(/Move to account|doesn't know|version 5/i);
   });
 
   it("asks about the project's notes only when the two accounts' differ", async () => {

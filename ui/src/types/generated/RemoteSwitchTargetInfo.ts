@@ -51,7 +51,8 @@ blockers: Array<string>,
  */
 fidelity: string, 
 /**
- * The badge text (`Same conversation, another app · Not proven yet`) — never colour alone.
+ * The badge text (`Same conversation, another app · Beta`) — never
+ * colour alone, never "proven" (D-127).
  */
 badge: string, 
 /**

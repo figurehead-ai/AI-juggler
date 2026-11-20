@@ -61,7 +61,7 @@ import type { DiscoveredInfo } from "../types/generated/DiscoveredInfo";
 import type { OsAccessInfo } from "../types/generated/OsAccessInfo";
 import type { SourceInspectInfo } from "../types/generated/SourceInspectInfo";
 import { byteSize } from "../lib/compact";
-import { Radio } from "../components/controls";
+import { Disclosure, Radio } from "../components/controls";
 import { lazyNamed } from "../lib/lazy";
 
 // The sign-in terminal shows in the step itself (0.4.1: it opened behind
@@ -728,7 +728,7 @@ function SigninStep({
 }: {
   provider: string;
   queue: Signin[];
-  openLoginTerminal: (id: string, title: string, options?: { select?: boolean }) => void;
+  openLoginTerminal: (id: string, title: string, options?: { select?: boolean; account?: string }) => void;
   onDone: () => void;
 }): JSX.Element {
   const [terminals, setTerminals] = useState<Record<string, string>>({});
@@ -747,7 +747,7 @@ function SigninStep({
           setTerminals((current) => ({ ...current, [entry.accountId]: terminal.id }));
           // Known to the window too (it stays reachable after this flow
           // closes), but not shown there: two views would fight its size.
-          openLoginTerminal(terminal.id, `Sign in · ${entry.label}`, { select: false });
+          openLoginTerminal(terminal.id, `Sign in · ${entry.label}`, { select: false, account: entry.accountId });
         },
         (cause) => setError(errorText(cause)),
       );
@@ -952,10 +952,7 @@ function FolderStep({
               </span>
             )}
             {inspect.folders.length > 0 && (
-              <details className="text-xs text-muted">
-                <summary className="cursor-pointer outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60">
-                  What's in it
-                </summary>
+              <Disclosure className="text-xs text-muted" summary="What's in it">
                 <ul className="mt-2 flex flex-col gap-0.5" data-testid="source-breakdown">
                   {inspect.folders.slice(0, 5).map((entry) => (
                     <li key={entry.name} className="flex max-w-md items-center justify-between gap-4">
@@ -964,7 +961,7 @@ function FolderStep({
                     </li>
                   ))}
                 </ul>
-              </details>
+              </Disclosure>
             )}
           </>
         )}
@@ -1057,7 +1054,7 @@ export function FirstRun({
   startAt?: "found" | "fresh";
   /** An account was created or brought in (the caller refreshes). */
   onAccountsChanged?: () => void;
-  openLoginTerminal: (id: string, title: string, options?: { select?: boolean }) => void;
+  openLoginTerminal: (id: string, title: string, options?: { select?: boolean; account?: string }) => void;
   /** Back after Reopen AI Juggler: start at the access step. */
   resumeAtAccess?: boolean;
 }): JSX.Element {

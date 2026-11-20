@@ -1103,6 +1103,8 @@ fn resume_original_with_delta(
             account: &account_a,
             profile: &profile_a,
             from: &original_session,
+            // Back from the away session: the name it went on under.
+            goes_on: &lineage.away_session.id,
             mode,
             conversation: resume_id.clone(),
             origin: "switch",

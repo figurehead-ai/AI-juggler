@@ -250,6 +250,8 @@ describe("wireframe 26 — the policies the user owns", () => {
   it("notifications: quiet hours 22–07 by default, changeable, and an Account can leave the digest", async () => {
     const { findByTestId, getByTestId, findAllByTestId } = render(<SettingsScreen focusSection="notifications" />);
     const start = await findByTestId("quiet-start");
+    // Quiet hours and the digest are folded under More (opened as a person does).
+    fireEvent.click(getByTestId("notifications-more-toggle"));
     await waitFor(() => expect(start.getAttribute("data-value")).toBe("22"));
     expect(getByTestId("quiet-end").getAttribute("data-value")).toBe("7");
     fireEvent.click(getByTestId("quiet-start"));

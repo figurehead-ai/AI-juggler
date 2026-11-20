@@ -6,7 +6,8 @@
 //!
 //! Sessions other apps run count when their transcripts on this Mac carry
 //! token counts; the ones whose tool keeps none are counted as not
-//! measured, never guessed.
+//! measured, never guessed, and so are AI Juggler's own sessions no
+//! transcript this Mac reads stands for.
 
 pub mod commands;
 pub mod cuts;
@@ -75,8 +76,29 @@ pub fn checked(input: &UsageQueryInput) -> AppResult<()> {
 struct Scope {
     lookups: Lookups,
     profiles: Vec<String>,
-    /// Conversations in scope: (start, last activity, measured).
+    /// Conversations in scope: (start, last activity, measured), and AI
+    /// Juggler's own sessions no conversation in the index stands for.
     conversations: Vec<(Option<i64>, Option<i64>, bool)>,
+}
+
+/// Is AI Juggler's session `record` (on folder `folder`) one no
+/// conversation the index read stands for: none links it (`linked`, by
+/// session id) and its own conversation, if it learned one, isn't read
+/// (`read`, by folder and conversation id)? Its tool wrote nothing this
+/// Mac reads, so it has no token counts: counted as not measured (the
+/// 0.4.6 RC walk K2, F-K2-7b: 1 000 such sessions read "Sessions 0").
+fn unread(
+    record: &juggler_core::model::SessionRecord,
+    folder: Option<&str>,
+    linked: &std::collections::HashSet<String>,
+    read: &std::collections::HashSet<(String, String)>,
+) -> bool {
+    !linked.contains(record.id.as_str())
+        && !record
+            .conversation
+            .as_ref()
+            .zip(folder)
+            .is_some_and(|(id, folder)| read.contains(&(folder.to_owned(), id.to_string())))
 }
 
 fn scope_of(state: &Arc<AppState>, input: &UsageQueryInput) -> AppResult<Scope> {
@@ -107,6 +129,34 @@ fn scope_of(state: &Arc<AppState>, input: &UsageQueryInput) -> AppResult<Scope> 
                 .is_none_or(|only| project == Some(only))
     };
     let mut in_scope = Vec::new();
+    let linked: std::collections::HashSet<String> = conversations
+        .iter()
+        .filter_map(|conversation| conversation.session_id.clone())
+        .collect();
+    let read: std::collections::HashSet<(String, String)> = conversations
+        .iter()
+        .map(|conversation| (conversation.account_id.clone(), conversation.id.clone()))
+        .collect();
+    let (accounts, recipes) =
+        crate::features::sessions::read_model::session_join_indexes(&storage)?;
+    for record in storage.sessions().list(None)? {
+        let (folder, ..) = crate::features::sessions::read_model::resolved_join(
+            &recipes,
+            &accounts,
+            record.profile.as_str(),
+        );
+        let project = record.project.as_ref().map(ToString::to_string);
+        if wanted(folder.as_deref().unwrap_or_default(), project.as_ref())
+            && unread(&record, folder.as_deref(), &linked, &read)
+        {
+            let last = record.last_activity.as_ref().map(|at| at.millis());
+            in_scope.push((
+                Some(record.started_at.millis()),
+                last.or(Some(record.started_at.millis())),
+                false,
+            ));
+        }
+    }
     for conversation in conversations {
         if wanted(&conversation.account_id, conversation.project_id.as_ref()) {
             let measured = conversation.tokens.is_some_and(|t| t.input + t.output > 0);

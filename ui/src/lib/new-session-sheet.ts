@@ -2,7 +2,8 @@
  * The New session sheet's state: whether it's open, and the folder and
  * account it opens on. `aij:new-session` opens it from anywhere; 0.3.4: its
  * `detail.accountId` names the account (a switch target's "Start a session
- * on it", an inactive CLI app's New session). D-96 F: opened from "Start
+ * on it", an inactive CLI app's New session), and `detail.dir` the folder
+ * (a pool's "Start one now", AJ-E3011 round 2). D-96 F: opened from "Start
  * another", it also holds the starts just before (`after`).
  */
 import { useLayoutEffect, useState } from "react";
@@ -84,8 +85,9 @@ export function useNewSessionSheet(): NewSessionSheet {
   const show = (at: Opening = {}) => setState(opening(at));
   useLayoutEffect(() => {
     const on = (event: Event) => {
-      const accountId = (event as CustomEvent<{ accountId?: unknown } | null>).detail?.accountId;
-      setState(opening({ account: typeof accountId === "string" ? accountId : null }));
+      const detail = (event as CustomEvent<{ accountId?: unknown; dir?: unknown } | null>).detail;
+      // AJ-E3011 round 2: a pool's "Start one now" names the folder too.
+      setState(opening({ account: typeof detail?.accountId === "string" ? detail.accountId : null, dir: typeof detail?.dir === "string" ? detail.dir : null }));
     };
     window.addEventListener("aij:new-session", on);
     return () => window.removeEventListener("aij:new-session", on);

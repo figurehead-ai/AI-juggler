@@ -257,6 +257,7 @@ pub struct NoticeSummaryInfo {
     /// The day so far.
     pub digest: NoticeDigestInfo,
     /// Changes whenever any list does: the window reads its lists again.
+    /// Within JavaScript's exact integers (below 2^53), as it reads it.
     #[ts(type = "number")]
     pub version: i64,
 }
@@ -646,37 +647,37 @@ pub fn summary(storage: &Storage, clock: Clock) -> AppResult<NoticeSummaryInfo> 
     })
 }
 
+/// The version's bits the window keeps: it reads numbers as JavaScript
+/// does (an f64), exact only below 2^53.
+const WINDOW_EXACT: u64 = (1 << 53) - 1;
+
 /// A number that changes whenever a notice, a mute or a snooze does (a
-/// snooze ending included).
+/// snooze ending included): one hash of them all, within the window's
+/// exact integers. AJ-E1612 (dry run 2): a sum of them past 2^53 lost its
+/// last bits in the window, so a need ending (the count one less, nothing
+/// else) left it the same there; the bell's count followed, but no list
+/// was read again, and the rail kept three ended sign-ins (12 while Home,
+/// opened again, said 9).
 fn version_of(storage: &Storage, now: i64) -> i64 {
+    use std::hash::{Hash, Hasher};
     let repo = storage.notices();
-    let latest = repo
-        .open_needs()
+    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+    repo.open_needs()
         .unwrap_or_default()
         .iter()
         .map(|row| row.updated_at.max(row.read_at.unwrap_or(0)))
         .max()
-        .unwrap_or(0);
-    let held = {
-        use std::hash::{Hash, Hasher};
-        let mut hasher = std::collections::hash_map::DefaultHasher::new();
-        repo.snoozes(now).unwrap_or_default().hash(&mut hasher);
-        i64::from_ne_bytes(hasher.finish().to_ne_bytes())
-    };
-    let earlier = repo
-        .earlier(None, 1)
+        .unwrap_or(0)
+        .hash(&mut hasher);
+    repo.open_count().unwrap_or(0).hash(&mut hasher);
+    repo.snoozes(now).unwrap_or_default().hash(&mut hasher);
+    repo.earlier(None, 1)
         .ok()
         .and_then(|rows| rows.first().map(|row| row.id))
-        .unwrap_or(0);
-    let mutes = repo.mutes().map_or(0, |all| all.len());
-    latest
-        .wrapping_mul(31)
-        .wrapping_add(earlier)
-        .wrapping_mul(31)
-        .wrapping_add(i64::try_from(mutes).unwrap_or(0))
-        .wrapping_add(i64::try_from(repo.open_count().unwrap_or(0)).unwrap_or(0))
-        .wrapping_mul(31)
-        .wrapping_add(held)
+        .unwrap_or(0)
+        .hash(&mut hasher);
+    repo.mutes().map_or(0, |all| all.len()).hash(&mut hasher);
+    i64::try_from(hasher.finish() & WINDOW_EXACT).unwrap_or(0)
 }
 
 /// A section of the centre: `needs` (Needs action, oldest first),

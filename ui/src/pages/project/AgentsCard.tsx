@@ -3,14 +3,25 @@
  * page. Every project has its own pool, holding all its sessions (D-33);
  * its Tasks, Messages and Agent access are that pool's page's tabs. Before
  * this, they opened only from a Needs you card, or from a pool you made.
+ *
+ * R4 (Priya, "make sure nothing from Client A's work can reach the
+ * others"; main's rulings): she looked here and never found "Keep it
+ * apart…", which only the project's "…" menu had; and "on their own: Work
+ * together" read as the opposite of what she wanted. The card says first
+ * whether the project is kept apart, with the way to do it, then what's
+ * true of its agents, the level's name second.
  */
 import type { JSX } from "react";
 import { Section } from "../../components/charts/ChartCard";
 import { useActionHost } from "../../components/ItemMenu";
+import { Button } from "../../components/primitives";
 import { IconLayers } from "../../components/usage/controls";
-import { levelLabel, usePools } from "../../lib/pools";
+import { apartPool } from "../../lib/keep-apart";
+import { usePools } from "../../lib/pools";
+import { agentsHereLine } from "../../lib/pool-words";
 import { rememberTab, type PageTabId } from "../registry";
 import type { PoolInfo } from "../../lib/ipc/pools";
+import type { ProjectInfo } from "../../types/generated/ProjectInfo";
 
 /** The project's own pool, once the pools are read. */
 export function projectPool(pools: readonly PoolInfo[] | undefined, projectId: string): PoolInfo | null {
@@ -23,17 +34,37 @@ const LINKS: { tab: PageTabId; label: string; words: string }[] = [
   { tab: "access", label: "Agent access", words: "what they may do" },
 ];
 
-export function ProjectAgentsCard({ projectId }: { projectId: string }): JSX.Element | null {
+export function ProjectAgentsCard({ project }: { project: ProjectInfo }): JSX.Element | null {
   const pools = usePools();
   const host = useActionHost();
-  const pool = projectPool(pools?.pools, projectId);
+  const pool = projectPool(pools?.pools, project.id);
   if (!pool || !host.openPool) return null;
+  const apart = apartPool(pools?.pools, project.id);
   const open = (tab: PageTabId) => {
     rememberTab("pool", tab);
     host.openPool!(pool.id);
   };
   return (
-    <Section title="Agents" icon={<IconLayers />} sub={`its own pool · agents may: ${levelLabel(pool.access.level)}`} testId="project-agents">
+    <Section title="Agents" icon={<IconLayers />} sub={agentsHereLine(pool)} testId="project-agents">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 pb-1" data-testid="project-agents-apart" data-apart={apart ? "yes" : "no"}>
+        <p className="min-w-0 flex-1 text-body text-ink">
+          <span className="font-medium">Kept apart: {apart ? "yes" : "no"}</span>
+          <span className="text-meta text-muted">
+            {apart ? ` · in «${apart.name}», its sessions are in no other pool, and nothing leaves it through AI Juggler` : " · its sessions can be in your other pools too"}
+          </span>
+        </p>
+        {apart ? (
+          <Button size="sm" variant="secondary" onClick={() => host.openPool!(apart.id)} data-testid="project-agents-apart-open">
+            Open it ›
+          </Button>
+        ) : (
+          host.keepProjectApart && (
+            <Button size="sm" variant="secondary" onClick={() => host.keepProjectApart!(project)} data-testid="project-agents-keep-apart">
+              Keep it apart…
+            </Button>
+          )
+        )}
+      </div>
       <ul className="flex flex-col gap-1.5">
         {LINKS.map((link) => (
           <li key={link.tab}>

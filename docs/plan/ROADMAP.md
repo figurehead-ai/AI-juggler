@@ -121,6 +121,8 @@ D-24 blockers ship as 0.4.x.
 |---|---|
 | Idle CPU's open ends: the web content's and GPU's brief spikes traced, Home drawing only on a change, a fully covered window measured | AJ-E812, AJ-E813, AJ-E814 |
 | A speed test that fails under load: the relation counts proven cached by the work done, the timing moved to a benchmark that is not a gate | AJ-E815 |
+| Pool setup a newcomer understands: a flow in order, every choice in plain words for whom it applies, the calm levels; the canvas's selection and its inspector's title | AJ-E3011, AJ-E3012 |
+| Desktop app sessions as full pool members, through AI Juggler's connector, added with consent or guided (D-116) | AJ-E3013 |
 
 ## 0.5 — More tools and teams
 

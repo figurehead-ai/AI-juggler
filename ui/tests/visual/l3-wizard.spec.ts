@@ -4,22 +4,24 @@
  * of template, scope, member kind, capability, role, level, a member's own
  * level, a pair's rule, sealing, theme and width is walked at least once.
  *
- * Each row: Pools › New pool › the template (or Set up by hand, which
- * opens the canvas to set up there); Where (every project, one, several,
- * or sessions with no project); Who: a member of the row's kind (a whole
- * App, Account, Tool, Mac or everyone joins later) and, beside it, a
- * session of the row's capability (full tools, shell only, watched); "not
- * matched": a session the pool can't take as it is shows greyed, with its
- * reason and its fix. Roles and talk: the member's role and its own level
- * (or the pool's), the pool's level, one talk cell changed ("one-pair"),
- * sealed or not. The review says it; Make makes it with the user's own
- * calls and opens its canvas; a "custom" level is set there, in the
- * header (the wizard offers Read, Work together and Full). A pair of two
+ * Each row walks the setup in its order (AJ-E3011, D-126): How to start
+ * (the template, or Start from scratch for the table's "by hand"); Where
+ * (every project, one, several, or sessions with no project, each a
+ * card); Who's in: a member of the row's kind (a whole App, Account, Tool
+ * or Mac; or every new session, its switch) and, beside it, a session of
+ * the row's capability (full tools, shell only, watched); "not matched":
+ * a session the pool can't take as it is shows greyed, with its reason and
+ * its fix; Who leads (a session, an App's next session, or none); Who
+ * builds, who checks: the member's role and its own choice (or the
+ * pool's); Who may message whom: one cell changed ("one-pair"); What they
+ * may do on their own, and the seal. The review says it; Make makes it
+ * with the user's own calls and opens its canvas; a "custom" choice is set
+ * there, in the header (the setup offers the three). A pair of two
  * members set apart is the canvas table's (`canvas.csv`, edge overridden).
  * Every click's feedback is timed (≤ 100 ms), written to
  * `docs/qa/evidence/l3/wizard.json`.
  */
-import { type Page } from "@playwright/test";
+import { type Locator, type Page } from "@playwright/test";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { expect, test } from "./axe-gallery";
@@ -36,10 +38,14 @@ const ROWS = readFileSync(resolve(process.cwd(), "../docs/qa/pairwise/wizard.csv
 
 /** The table's template names, as the wizard's cards are keyed. */
 const TEMPLATE: Record<string, string> = { "writer-and-reviewer": "writer-reviewer" };
-const KIND: Record<string, RegExp> = { session: /^Sessions/, app: /^Apps/, account: /^Accounts/, tool: /^Tools/, mac: /^Macs/, "everyone-in-scope": /^Everyone/ };
-const REACH: Record<string, string> = { full: "full tools", shell: "shell only", watched: "watched" };
-const ROLE: Record<string, string> = { lead: "Lead", member: "Member", reviewer: "Reviewer", observer: "Observer" };
-const LEVEL: Record<string, string> = { read: "Read", "work-together": "Work together", full: "Full", custom: "Work together" };
+// D-126: everyone in scope is Who's in's switch, not a kind.
+// A row's reach, as its data-reach says it (a session another member
+// brings in says "In, with …" where its reach would be).
+const REACH: Record<string, string> = { full: "full", shell: "shell", watched: "watched" };
+// AJ-E3011: the words for what sessions may do on their own ("Level" is gone).
+const LEVEL: Record<string, string> = { read: "Look only", "work-together": "Work together", full: "Work together and wake each other", custom: "Work together" };
+/** D-126: each of them a card, by its level's id. */
+const LEVEL_ID: Record<string, string> = { read: "read", "work-together": "work_together", full: "full", custom: "work_together" };
 
 const folder = (id: string, provider: string, label: string) => ({ id, provider, label, plan: null, login_state: "logged_in", cleanup_opt_in: false, renewal_date: null, preview_opt_in: false, in_place: false });
 const project = (id: string, name: string) => ({ id, root: `/Users/you/Dev/${name}`, name, last_activity_ms: T0 - 60_000, active_instance: null, accounts_used: [], instance_count: 2, history_sessions: 2, history_last_used_ms: null, repo: null, missing: false, pinned: false });
@@ -90,15 +96,40 @@ test.afterAll(() => {
   writeFileSync(resolve(out, "wizard.json"), JSON.stringify({ table: "docs/qa/pairwise/wizard.csv", rows: ROWS.length, clicks: all.length, feedback_p95_ms: p95, feedback_max_ms: all.at(-1) ?? null, budget_ms: 100, per_row_ms: times }, null, 2) + "\n");
 });
 
-/** Picks the first row that can join, of the kind shown, whose reach says `reach` (any when null). */
-async function pick(page: Page, reach: string | null): Promise<string> {
-  const rows = page.getByTestId("new-pool-candidate").filter({ has: page.locator("button[role=checkbox]:not([disabled])") });
-  const row = reach ? rows.filter({ hasText: reach }).first() : rows.first();
-  await expect(row).toBeVisible();
-  const label = (await row.locator("button span.flex-1 span").first().textContent()) ?? "";
-  await row.getByRole("checkbox").click();
-  await expect(row.getByRole("checkbox")).toHaveAttribute("aria-checked", "true");
-  return label.trim();
+/** The rc3 critique: no kind switch. Apps are Your apps' cards; sessions
+ * the ones open now, with the earlier ones and other projects' in a fold
+ * (opened here); Accounts, Tools and Macs under More ways to add (opened
+ * here). Where that kind's rows are. */
+async function chooseKind(page: Page, member: string): Promise<Locator> {
+  if (member === "app") return page.getByTestId("new-pool-apps");
+  const fold = page.getByTestId(member === "session" ? "new-pool-sessions-other-toggle" : "new-pool-more-toggle");
+  if ((await fold.count()) > 0 && (await fold.getAttribute("aria-expanded")) !== "true") await fold.click();
+  return page.getByTestId(member === "session" ? "new-pool-sessions" : `new-pool-kind-${member}`);
+}
+
+/** Picks the first row in `scope` that can join, whose reach is `reach`
+ * (any when null): its ref, and its name (an App's card names it in two
+ * lines, so its name is read where Who leads offers it). */
+async function pick(scope: Locator, reach: string | null): Promise<{ ref: string; label: string }> {
+  // D-126: an App is a logo card (a checkbox in its label); the other
+  // kinds are rows (a checkbox button).
+  const page = scope.page();
+  const rows = (reach ? scope.locator(`[data-testid="new-pool-candidate"][data-reach="${reach}"]`) : scope.getByTestId("new-pool-candidate")).filter({ has: page.locator("button[role=checkbox]:not([disabled]), input[type=checkbox]:not([disabled])") });
+  const row = rows.first();
+  const target = row.locator("label, button[role=checkbox]").first();
+  await expect(target).toBeVisible();
+  const ref = (await row.getAttribute("data-ref")) ?? "";
+  const card = (await row.locator("label").count()) > 0;
+  const label = card ? "" : ((await row.locator("button span.flex-1 span").first().textContent()) ?? "");
+  if (!(await row.getByRole("checkbox").isChecked())) await target.click();
+  await expect(row.getByRole("checkbox")).toBeChecked();
+  return { ref, label: label.trim() };
+}
+
+/** A choice card (a checkbox in its label) set on or off. */
+async function setCard(card: Locator, on: boolean): Promise<void> {
+  if ((await card.getByRole("checkbox").isChecked()) !== on) await card.click();
+  await expect(card.getByRole("checkbox")).toBeChecked({ checked: on });
 }
 
 for (const r of ROWS) {
@@ -124,92 +155,156 @@ for (const r of ROWS) {
     const wizard = page.getByTestId("new-pool");
     await expect(wizard).toBeVisible();
 
-    // By hand: the canvas, to set it up there (its own table's).
-    if (r.template === "by-hand") {
-      await page.getByTestId("new-pool-by-hand").click();
-      await expect(wizard).toHaveCount(0);
-      await expect(page.getByTestId("pool-canvas")).toBeVisible();
-      times[r.row] = (await walkSteps(page)).map((ms) => Math.round(ms));
-      return;
-    }
-
-    // 1. The template.
-    await wizard.locator(`[data-testid=new-pool-template][data-template="${TEMPLATE[r.template] ?? r.template}"]`).click();
+    // AJ-E3011: "Set up by hand" became Start from scratch, the first card.
+    const template = r.template === "by-hand" ? "blank" : (TEMPLATE[r.template] ?? r.template);
+    // 1. How to start.
+    await wizard.locator(`[data-testid=new-pool-template][data-template="${template}"]`).click();
     await page.getByTestId("new-pool-next").click();
 
-    // 2. Where.
+    // 2. Where. D-126: each project a card (checked when it's in), then
+    // Sessions with no project and Every project.
     const where = page.getByTestId("new-pool-where");
-    if (r.scope === "every-project") await where.getByText("Every project").click();
+    const every = where.getByTestId("new-pool-project-every");
+    if (r.scope === "every-project") await setCard(every, true);
     else {
-      await where.getByText("These projects").click();
-      const chips = page.getByTestId("new-pool-projects").getByRole("button", { name: /^Take .* out$/ });
-      while ((await chips.count()) > 0) await chips.first().click();
-      const add = async (name: string) => {
-        await page.getByTestId("new-pool-add-project").click();
-        await page.getByRole("menu").last().getByText(name, { exact: true }).click();
-      };
-      if (r.scope === "one-project") await add("ai-juggler");
+      await setCard(every, false);
+      // Start empty: the project a template starts in comes out first.
+      const chosen = where.locator('[data-testid="new-pool-project"]:has(input:checked), [data-testid="new-pool-project-none"]:has(input:checked)');
+      while ((await chosen.count()) > 0) await chosen.first().click();
+      const project = (name: string) => where.getByTestId("new-pool-project").filter({ hasText: name });
+      if (r.scope === "one-project") await setCard(project("ai-juggler"), true);
       else if (r.scope === "several-projects") {
-        await add("ai-juggler");
-        await add("payments-api");
-      } else await add("Sessions with no project");
+        await setCard(project("ai-juggler"), true);
+        await setCard(project("payments-api"), true);
+      } else await setCard(where.getByTestId("new-pool-project-none"), true);
     }
-    const side = page.getByTestId("new-pool-side");
-    await expect(side).toContainText(r.scope === "every-project" ? "Every project" : r.scope === "one-project" ? "ai-juggler" : r.scope === "several-projects" ? "payments-api" : /no project/i);
+    // The preview beside says where, as the steps will.
+    const previewValue = (row: string) => page.locator(`[data-testid="new-pool-preview-row"][data-row="${row}"] [data-testid="new-pool-preview-value"]`);
+    await expect(previewValue("where")).toContainText(r.scope === "every-project" ? "every project" : r.scope === "one-project" ? "ai-juggler" : r.scope === "several-projects" ? "payments-api" : /no project/i);
+    await page.getByTestId("new-pool-next").click();
 
     // Who: the row's kind; then a session of the row's capability.
-    const kinds = page.getByTestId("new-pool-kind");
     let label = "";
+    let member = { ref: "", label: "" };
     if (r.member === "not-matched") {
       // A session it can't take as it is: greyed, its reason and its fix.
-      await kinds.getByRole("radio", { name: KIND.session! }).click();
-      const blocked = page.getByTestId("new-pool-candidate").filter({ has: page.locator("button[role=checkbox][disabled]") });
+      const sessions = await chooseKind(page, "session");
+      const blocked = sessions.getByTestId("new-pool-candidate").filter({ has: page.locator("button[role=checkbox][disabled]") });
       await expect(blocked.first()).toBeVisible();
       await expect(blocked.first()).toContainText(/Ended|not in this pool's projects|sealed/);
       await expect(blocked.first().getByTestId("new-pool-fix")).toBeVisible();
+    } else if (r.member === "everyone-in-scope") {
+      // D-126: every new session in its projects is Who's in's switch.
+      const all = page.getByTestId("new-pool-everyone-switch");
+      if ((await all.getAttribute("aria-checked")) !== "true") await all.click();
+      await expect(all).toHaveAttribute("aria-checked", "true");
     } else if (r.member !== "session") {
-      await kinds.getByRole("radio", { name: KIND[r.member]! }).click();
-      label = await pick(page, "new ones join");
+      member = await pick(await chooseKind(page, r.member), r.member === "app" ? null : "later");
+      label = member.label;
     }
-    await kinds.getByRole("radio", { name: KIND.session! }).click();
-    const reachLabel = await pick(page, REACH[r.capability]!);
+    const session = await pick(await chooseKind(page, "session"), REACH[r.capability]!);
+    const reachLabel = session.label;
     if (r.member === "session" || r.member === "not-matched") label = reachLabel;
-    await expect(side.getByText(new RegExp(`^${r.capability === "full" ? "\\d+ full" : r.capability === "shell" ? "\\d+ shell only" : "\\d+ watched"}$`))).toBeVisible();
+    // Round 2 (#6, #7): the preview beside names who's in, in words.
+    await expect(previewValue("who")).toContainText(reachLabel.split(" · ")[0]!);
     await page.getByTestId("new-pool-next").click();
 
-    // 3. Roles and talk.
-    const roles = page.getByTestId("new-pool-roles").locator("li").filter({ hasText: label }).first();
-    await roles.getByRole("radio", { name: ROLE[r.role]!, exact: true }).click();
-    await expect(roles.getByRole("radio", { name: ROLE[r.role]!, exact: true })).toHaveAttribute("aria-checked", "true");
-    await page.getByTestId("new-pool-level").getByRole("radio", { name: LEVEL[r.level]!, exact: true }).click();
-    if (r.own_level === "member") {
-      const own = r.level === "full" ? "Level: Read" : "Level: Full";
-      await roles.getByRole("button", { name: `${label}'s level` }).click();
-      await page.getByRole("menu").last().getByText(own, { exact: true }).click();
-      await expect(roles.getByRole("button", { name: `${label}'s level` })).toContainText(own.replace("Level: ", ""));
+    // 3. Who leads. D-92: one session leads; an App leads from its next
+    // session (AJ-E3011), and an Account, Tool, Mac or everyone can't.
+    // D-126: each choice a card, its value the choice's own.
+    await expect(page.getByTestId("new-pool-step-lead")).toBeVisible();
+    const broad = r.member !== "session" && r.member !== "not-matched";
+    const nextLead = r.role === "lead" && r.member === "app";
+    const leadCard = (value: string) => page.locator(`[data-testid="new-pool-lead-option"][data-value="${value}"]`);
+    if (r.member === "app") {
+      // The App's name, as its next session's card says it (the card's title names its radio).
+      const title = await leadCard(`next|${member.ref}`).getByRole("radio").getAttribute("aria-labelledby");
+      label = ((await page.locator(`[id="${title}"]`).textContent()) ?? "").replace(/'s next session$/, "");
+      expect(label.length).toBeGreaterThan(0);
     }
+    if (nextLead) {
+      await leadCard(`next|${member.ref}`).click();
+      await expect(page.getByTestId("new-pool-lead-sentence")).toContainText(`${label} takes charge as soon as one of its sessions starts`);
+    } else if (!broad && r.role === "lead") {
+      await leadCard(`session|${session.ref}`).click();
+      await expect(page.getByTestId("new-pool-lead-sentence")).toContainText(`${reachLabel} leads`);
+    } else if (!broad) {
+      // A template may have made it the lead; this row's role is another.
+      const its = leadCard(`session|${session.ref}`);
+      if ((await its.count()) > 0 && (await its.getByRole("radio").isChecked())) await leadCard("none").click();
+    } else if (r.role === "lead" && member.ref) {
+      // A wider group can't lead: no card offers it.
+      await expect(page.locator(`[data-testid="new-pool-lead-option"][data-value$="|${member.ref}"]`)).toHaveCount(0);
+    }
+    await page.getByTestId("new-pool-next").click();
+
+    // 4. Who builds, who checks: the member's role and its own choice.
+    // D-126: the role is a segmented control (Member, Reviewer, Observer);
+    // who leads is Who leads' own.
+    const everyone = r.member === "everyone-in-scope";
+    const roles = everyone ? page.locator('[data-testid="new-pool-member-row"][data-everyone]') : page.getByTestId("new-pool-member-row").filter({ hasText: label }).first();
+    const role = broad && r.role === "lead" ? "member" : r.role;
+    if (role === "lead") {
+      // The session chosen in Who leads: said, no control here.
+      await expect(roles.getByTestId("new-pool-member-line")).toContainText("Leads the team");
+      await expect(roles.getByTestId("new-pool-member-role")).toHaveCount(0);
+    } else {
+      // Neither everyone nor a wider group is offered Lead.
+      await expect(roles.getByTestId("new-pool-member-role-lead")).toHaveCount(0);
+      // Round 3 (#1): an App's Lead is its next session's; its control sets its other sessions'.
+      if (nextLead) await expect(roles).toHaveAttribute("data-leads-next", "true");
+      await roles.getByTestId(`new-pool-member-role-${role}`).click();
+      await expect(roles.getByTestId(`new-pool-member-role-${role}`)).toHaveAttribute("aria-checked", "true");
+    }
+    // Everyone in scope follows the pool's own choice (no own picker for it).
+    if (r.own_level === "member" && !everyone) {
+      const own = r.level === "full" ? "Look only" : "Work together and wake each other";
+      const fold = page.getByTestId("new-pool-own-fold-toggle");
+      if ((await fold.getAttribute("aria-expanded")) !== "true") await fold.click();
+      const level = page.getByTestId("new-pool-own-fold").locator("li").filter({ hasText: label }).first().getByTestId("new-pool-member-level");
+      await level.click();
+      await page.getByRole("menuitemradio", { name: new RegExp(`^${own}`) }).click();
+      await expect(level).toContainText(own);
+    }
+    await page.getByTestId("new-pool-next").click();
+
+    // 5. Who may message whom.
     let changed: string | null = null;
     if (r.pair_override === "one-pair") {
       const cell = page.locator('[data-testid=new-pool-talk-cell][data-pair="member>member"]');
-      const before = (await cell.textContent()) ?? "";
+      const before = (await cell.getAttribute("data-rule")) ?? "";
       await cell.click();
-      changed = (await cell.textContent()) ?? "";
+      changed = (await cell.getAttribute("data-rule")) ?? "";
       expect(changed).not.toBe(before);
-    }
-    if (r.sealed === "on") {
-      await page.getByTestId("new-pool-seal").getByRole("checkbox").check();
-      await expect(page.getByTestId("new-pool-seal").getByRole("checkbox")).toBeChecked();
+      changed = changed === "ask" ? "Ask first" : changed === "blocked" ? "Blocked" : "Allowed";
     }
     await page.getByTestId("new-pool-next").click();
 
+    // 6. What they may do on their own (D-126: a card each), then the
+    // seal (a switch under Optional).
+    await page.getByTestId(`new-pool-level-choice-${LEVEL_ID[r.level]!}`).click();
+    await expect(page.getByTestId("new-pool-level").getByRole("radio", { name: LEVEL[r.level]!, exact: true })).toBeChecked();
+    if (r.sealed === "on") {
+      const seal = page.getByTestId("new-pool-seal-switch");
+      if ((await seal.getAttribute("aria-checked")) !== "true") await seal.click();
+      await expect(seal).toHaveAttribute("aria-checked", "true");
+    }
+    await page.getByTestId("new-pool-next").click();
+    // D-30's question, its own step while unanswered (round 4): left for later.
+    if (await page.getByTestId("new-pool-step-tools").isVisible()) await page.getByTestId("new-pool-next").click();
+
     // 4. The review says it; Make makes it with the user's own calls.
+    // Every rule in full, one click away (962e6f617: Review says each in
+    // one short sentence; the canvas's own words are under this).
+    await page.getByTestId("new-pool-review-full-toggle").click();
     const review = page.getByTestId("new-pool-review");
     await expect(review).toBeVisible();
     // The changed cell, in the review's words: named as an exception, or
     // summed up when it makes every pair the same ("Everyone may message
     // everyone").
     if (changed) await expect(review).toContainText(new RegExp(`Member to Member: ${changed.toLowerCase()}|Everyone may message everyone|No one may message|asks you first`, "i"));
-    const name = await page.getByTestId("new-pool-name").inputValue();
+    // The name: typed, or the one Review says it gets.
+    const name = ((await review.textContent()) ?? "").match(/«([^»]+)»/)?.[1] ?? "";
     expect(name.trim().length).toBeGreaterThan(0);
     await page.getByTestId("new-pool-next").click();
     await expect(wizard).toHaveCount(0);
@@ -219,7 +314,8 @@ for (const r of ROWS) {
     const id = made.find((call) => call.startsWith("scope:"))?.split(":")[1] ?? "";
     expect(made.some((call) => call.startsWith(`scope:${id}:`) && (r.scope === "every-project" ? call.endsWith(":every") : !call.endsWith(":every")))).toBe(true);
     expect(made.filter((call) => call.startsWith(`join:${id}:`)).length).toBeGreaterThanOrEqual(r.member === "session" || r.member === "not-matched" ? 1 : 2);
-    expect(made.some((call) => call.startsWith(`join:${id}:`) && call.includes(`:${r.role}:`))).toBe(true);
+    expect(made.some((call) => call.startsWith(`join:${id}:`) && call.includes(`:${role}:`))).toBe(true);
+    if (nextLead) expect(made.some((call) => call.startsWith(`lead_next:${id}:`) && !call.endsWith(":clear"))).toBe(true);
     if (r.sealed === "on") expect(made).toContain(`sealed:${id}:true`);
     if (changed) expect(made.some((call) => call.startsWith(`talk:${id}:`))).toBe(true);
 

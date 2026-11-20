@@ -31,12 +31,19 @@ describe("rc33: a user's Stop is never undone", () => {
   it("Stop says it's stopping while held, and the Resume in its place doesn't take the next press", async () => {
     vi.useFakeTimers();
     render(<ToastHost />);
-    const stop = (session: InstanceInfo) => holdStop({ id: session.id, label: "r3-tools · Grok · R3" });
+    const stop = vi.fn((session: InstanceInfo) => holdStop({ id: session.id, label: "r3-tools · Grok · R3" }));
     const running = render(<InspectorStop session={grok("running")} onStop={stop} />);
+    screen.getByTestId("inspector-stop").focus();
     fireEvent.click(screen.getByTestId("inspector-stop"));
     const held = screen.getByTestId("inspector-stop");
     expect(held.textContent).toBe("Stopping…");
-    expect(held.hasAttribute("disabled")).toBe(true);
+    // Held, it takes no press but keeps focus (0.4.6: `disabled` dropped a
+    // keyboard user's place to the page's start).
+    expect(held.getAttribute("aria-disabled")).toBe("true");
+    expect(held.hasAttribute("disabled")).toBe(false);
+    expect(document.activeElement).toBe(held);
+    fireEvent.click(held);
+    expect(stop).toHaveBeenCalledTimes(1);
     await act(async () => {
       vi.advanceTimersByTime(STOP_HOLD_SECONDS * 1000);
     });

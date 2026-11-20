@@ -63,7 +63,7 @@ export function ShellOverlays({ shell }: { shell: Shell }): JSX.Element {
 
       {/* AJ-E709: "Ask each time" — a paired machine waits for this Mac's user. */}
       <FleetPromptDialog />
-      <IdentityMismatchDialog />
+      <IdentityMismatchDialog recipes={shell.profiles} />
       <IsolationOfferDialog />
       <GoToPalette
         open={shell.goToOpen}

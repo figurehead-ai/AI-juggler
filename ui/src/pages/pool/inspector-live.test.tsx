@@ -17,6 +17,8 @@ const LEFT = "«Untitled session · web» left: its account is now Other";
 
 async function openEmpty() {
   seams().__AIJ_POOLS__ = { pools: [{ id: "pool-careful", name: "Careful", rules: [] }], members: [] };
+  // Round 5: an empty pool opens in its guided setup; its diagram, shown.
+  localStorage.setItem("aij.pool.diagram.pool-careful", "1");
   await act(async () => {
     await refreshPools();
   });

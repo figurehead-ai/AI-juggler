@@ -12,24 +12,10 @@
  * surface, both themes); figures in tabular numbers.
  */
 import type { JSX } from "react";
+import { Disclosure } from "./controls";
 import { memoryBasisWords } from "./this-mac-parts";
 import { bytesWords, type ThisMacInfo } from "../lib/machine";
 import { memoryParts, otherAppBytes, PRESSURE_MORE, PRESSURE_SHORT, underPressure } from "../lib/machine-memory";
-
-/** The rail's fold chevron: one look for every disclosure. */
-export function FoldChevron({ group = "group" }: { group?: "group" | "group/more" }): JSX.Element {
-  return (
-    <svg
-      aria-hidden="true"
-      width="12"
-      height="12"
-      viewBox="0 0 10 10"
-      className={`shrink-0 text-muted transition-transform motion-reduce:transition-none ${group === "group" ? "group-open:rotate-90" : "group-open/more:rotate-90"}`}
-    >
-      <path d="M3.5 2 L7 5 L3.5 8" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
 
 /** Each part's look: a colour and, for compressed memory, stripes, so no
  * part is told by colour alone. */
@@ -50,13 +36,9 @@ export function PressureNote({ info, more }: { info: ThisMacInfo; more: boolean 
     <div className="flex flex-col gap-1 text-body text-muted" data-testid="this-mac-pressure-note">
       <p>{PRESSURE_SHORT}</p>
       {more && (
-        <details className="group/more">
-          <summary className="flex w-fit cursor-pointer list-none items-center gap-1.5 rounded-md text-meta text-ink outline-none hover:underline focus-visible:ring-1 focus-visible:ring-accent/60">
-            <FoldChevron group="group/more" />
-            What it means
-          </summary>
+        <Disclosure summary="What it means" testId="this-mac-pressure-more">
           <p className="mt-1 max-w-prose pl-[18px]">{PRESSURE_MORE}</p>
-        </details>
+        </Disclosure>
       )}
     </div>
   );
@@ -135,6 +117,11 @@ export function MemoryMeter({ info, more = false }: { info: ThisMacInfo; more?: 
   );
 }
 
+/** A This Mac group's fold, as wide as its row (its figures at the end),
+ * on Disclosure's button: its `w-full` and gaps follow the button's own
+ * `w-fit` and `gap-1.5` in the stylesheet, so they hold. */
+export const ROW_FOLD = "w-full flex-wrap gap-x-3 gap-y-1 py-3";
+
 /** The This Mac page's other apps (the 0.1.4 review): what isn't an AI
  * tool, folded; the biggest by name only (never a path or an argument),
  * and nothing to click (D-08). */
@@ -144,15 +131,20 @@ export function OtherAppsGroup({ info }: { info: ThisMacInfo }): JSX.Element | n
   if (apps.length === 0 && used === null) return null;
   const figure = used !== null ? bytesWords(other) : `about ${bytesWords(apps.reduce((sum, app) => sum + app.rss_bytes, 0))}`;
   return (
-    <details className="group border-t border-hairline/60 first:border-t-0" data-testid="this-mac-other-apps">
-      <summary className="flex cursor-pointer list-none flex-wrap items-center gap-x-3 gap-y-1 rounded-lg py-3 outline-none focus-visible:ring-1 focus-visible:ring-accent/60">
-        <FoldChevron />
-        <span className="flex min-w-0 flex-1 basis-40 items-baseline gap-2 text-body font-medium text-ink">
-          <span className="truncate">{info.tools.count > 0 ? "Other apps and macOS" : "Apps and macOS"}</span>
-          <span className="shrink-0 text-meta font-normal text-muted">not AI tools</span>
-        </span>
-        <span className="ml-auto shrink-0 text-body tabular-nums text-ink">{figure}</span>
-      </summary>
+    <Disclosure
+      className="border-t border-hairline/60 first:border-t-0"
+      summaryClassName={ROW_FOLD}
+      summary={
+        <>
+          <span className="flex min-w-0 flex-1 basis-40 items-baseline gap-2 text-body font-medium text-ink">
+            <span className="truncate">{info.tools.count > 0 ? "Other apps and macOS" : "Apps and macOS"}</span>
+            <span className="shrink-0 text-meta font-normal text-muted">not AI tools</span>
+          </span>
+          <span className="ml-auto shrink-0 text-body tabular-nums text-ink">{figure}</span>
+        </>
+      }
+      testId="this-mac-other-apps"
+    >
       <div className="mb-3 ml-[22px] flex flex-col gap-2">
         {apps.length > 0 && (
           <ul className="flex flex-col" aria-label="Other apps, biggest first">
@@ -173,6 +165,6 @@ export function OtherAppsGroup({ info }: { info: ThisMacInfo }): JSX.Element | n
           these, and never stops them.
         </p>
       </div>
-    </details>
+    </Disclosure>
   );
 }

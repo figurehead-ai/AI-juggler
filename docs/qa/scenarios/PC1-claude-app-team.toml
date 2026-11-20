@@ -1,0 +1,51 @@
+# AJ-E3011's done-gate (0.4.6), the second persona: someone who has only
+# used the Claude app (two profiles), never a terminal, makes the two a team
+# in New pool; AJ-E3013's newcomer walk extended to adding a desktop App
+# (the connector's consent card and its preview). Setup only: no session is
+# started (AJ-E3307 R7 covers "see it work" on the RC).
+id = "PC1"
+title = "Persona Casey: make my two Claude app profiles a team"
+epic = "E30"
+decisions = ["D-116", "D-119", "D-30"]
+layers = ["L4"]
+exercises = ["New pool", "the connector's consent card", "D-30's question"]
+needs = ["replica"]
+
+[setup]
+projects = ["web"]
+
+[[setup.apps]]
+id = "app-work"
+tool = "claude-desktop"
+account = "Work"
+profile = "Work Max"
+running = true
+
+[[setup.apps]]
+id = "app-side"
+tool = "claude-desktop"
+account = "Personal"
+profile = "Side"
+running = true
+
+[[setup.sessions]]
+id = "a1"
+app = "app-work"
+project = "web"
+state = "idle"
+
+[[setup.sessions]]
+id = "a2"
+app = "app-side"
+project = "web"
+state = "idle"
+
+[[steps]]
+do = "New pool, from scratch: web, both Claude app profiles"
+expect = "Each desktop App shows the connector's consent card, with its preview before Add"
+measure = "every screen answers \"do I know what this does and who it affects?\" yes"
+
+[[steps]]
+do = "Pick who leads, who checks, what they may do on their own; answer the team-tools question"
+expect = "Review reads back the pool in sentences; Make pool"
+measure = "ease ≥ 6/7, value ≥ 5/7 (AJ-E3011's done-gate)"

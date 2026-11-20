@@ -1,4 +1,5 @@
 import { focusHandover } from "../lib/handover-focus";
+import { useCliRecipes } from "../lib/apps";
 import { processRunning, statusLive } from "../lib/session-process";
 import { SessionNotices } from "./SessionNotices";
 import { ToolChip } from "./ToolMark";
@@ -43,8 +44,10 @@ import { fromInstance } from "../pages/session/model";
 import { OwnTerminalOverview } from "../pages/session/OwnTerminalOverview";
 import { SessionTerminal } from "../pages/session/SessionTerminal";
 import { RemoteTabBody, type RemoteContext } from "./RemoteTabs";
+import { useRuntimeView } from "../lib/ipc/runtime";
 import { launchSettingsName } from "../lib/account-words";
 import { memorySize } from "../lib/compact";
+import { Disclosure } from "./controls";
 
 /**
  * RightInspector — the page of a session, a project, an account or a
@@ -370,9 +373,23 @@ function InstanceOverview(props: PanelProps) {
     () => localStorage.getItem("aij.a11y-explainer.dismissed") === "1",
   );
   const { kind, data, sessions, accounts, profiles, terminalTitle } = props;
+  // A project's "Launch with another app": a CLI start, a CLI App's launch
+  // settings only (the 0.4.6 RC walks A8 and K4).
+  const launchable = useCliRecipes(profiles) ?? [];
+  // A session AI Juggler drives: its runtime, read once for its card and
+  // this page, so both say the same model (the rc3g walk: the card said
+  // it, the page "Model: not reported" until its transcript was read).
+  const drivenId = kind === "instance" && data.instance?.runtime?.kind === "driven" ? data.instance.id : null;
+  const read = useRuntimeView(drivenId);
+  // Its own, by its id: never the session shown before it, for a moment.
+  const runtimeView = read !== null && read.session_id === drivenId ? read : null;
 
   if (kind === "instance" && data.instance) {
     const session = data.instance;
+    // The model it runs: its transcript's once read, else what its tool
+    // reports to AI Juggler, else the one it was launched with.
+    const reported = runtimeView?.model ?? null;
+    const running = session.running_model ?? reported;
     // AJ-E413: a desktop Instance has no terminal — the desktop surface
     // replaces the terminal card, and `Open / Focus window` is primary.
     const isDesktop = session.kind === "desktop";
@@ -407,19 +424,22 @@ function InstanceOverview(props: PanelProps) {
           // AJ-E412 Req.3/5: the observed running model line — drift
           // shown in full, unobservable providers named honestly.
           const drift =
-            session.running_model !== null &&
+            running !== null &&
             session.launch_model !== null &&
-            session.running_model !== session.launch_model
-              ? `Launched with ${session.launch_model} - now running ${session.running_model}`
+            running !== session.launch_model
+              ? `Launched with ${session.launch_model} - now running ${running}`
               : null;
           if (drift) {
             return (
               <p data-testid="instance-model-line" className="text-label text-ink">
-                {drift} <span className="text-muted">(observed in transcript)</span>
+                {drift}{" "}
+                <span className="text-muted">
+                  {session.running_model !== null ? "(observed in transcript)" : `(as ${providerDisplayName(session.provider)} reports it)`}
+                </span>
               </p>
             );
           }
-          if (session.running_model === null && session.launch_model === null) {
+          if (running === null && session.launch_model === null) {
             return (
               <p data-testid="instance-model-line" className="text-label text-muted">
                 Model: not reported by {providerDisplayName(session.provider)}
@@ -429,19 +449,24 @@ function InstanceOverview(props: PanelProps) {
           return null;
         })()}
         <SessionNotes session={session} live={live} now={props.now} />
-        <details className="group text-meta" data-testid="instance-details">
-          {/* Says what's inside (the review of 0.1.4: an empty strip). */}
-          <summary className="w-fit cursor-pointer select-none rounded text-muted outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60">
-            Details <span className="text-muted">· launch settings and session id</span>
-          </summary>
+        <Disclosure
+          className="text-meta"
+          // Says what's inside (the review of 0.1.4: an empty strip).
+          summary={
+            <span>
+              Details <span className="text-muted">· launch settings and session id</span>
+            </span>
+          }
+          testId="instance-details"
+        >
           <div className="mt-2 flex flex-col gap-2">
         <div className="flex flex-wrap items-center gap-1.5">
           <ToolChip tool={session.provider} />
           <Chip tone="neutral">
             {props.profiles.find((r) => r.id === session.launch_recipe_id)?.name ?? "launch settings"}
           </Chip>
-          <Chip tone="accent">{session.model ?? "default model"}</Chip>
-          {session.model_source === "launch" && session.launch_model !== null && (
+          <Chip tone="accent">{running ?? session.model ?? "default model"}</Chip>
+          {session.model_source === "launch" && session.launch_model !== null && reported === null && (
             <Chip tone="warning">not verified live</Chip>
           )}
         </div>
@@ -483,7 +508,7 @@ function InstanceOverview(props: PanelProps) {
           </span>
         </div>
           </div>
-        </details>
+        </Disclosure>
       </div>
     );
     // A terminal's session: the page every session has (its terminal the
@@ -503,11 +528,12 @@ function InstanceOverview(props: PanelProps) {
           switchBackSuggestions={props.switchBackSuggestions}
           onSwitchBack={props.onSwitchBack}
           onHandover={props.onHandover}
+          reportedModel={reported}
           terminal={
             // AJ-E2302: a driven session's conversation is its main pane;
             // a terminal one says why it isn't driven, when it fell back.
             session.runtime?.kind === "driven" ? (
-              <DrivenPanel session={session} onOpenSession={props.onOpenSession} />
+              <DrivenPanel session={session} view={runtimeView} onOpenSession={props.onOpenSession} />
             ) : (
               <div className="flex min-h-0 flex-1 flex-col gap-2">
                 {session.runtime?.fell_back && <p className="text-meta text-ink-2" data-testid="runtime-fell-back">{`In its terminal: ${session.runtime.fell_back}.`}</p>}
@@ -709,7 +735,7 @@ function InstanceOverview(props: PanelProps) {
               Launch with another app
             </p>
             <div className="flex flex-col gap-1.5">
-              {profiles.slice(0, 5).map((recipe) => {
+              {launchable.slice(0, 5).map((recipe) => {
                 const ready = signedIn(accounts.find((a) => a.id === recipe.account_id)?.login_state);
                 return (
                   <button
@@ -732,7 +758,7 @@ function InstanceOverview(props: PanelProps) {
                   </button>
                 );
               })}
-              {profiles.length === 0 && (
+              {launchable.length === 0 && (
                 <p className="text-xs text-ink-2">No launch settings yet — add an app first.</p>
               )}
             </div>

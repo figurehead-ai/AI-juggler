@@ -5,7 +5,8 @@
                                          from the release tags on stdin
   release_version.py stamp X.Y.Z         write X.Y.Z into the workspace
                                          Cargo.toml, every crate's internal
-                                         dependencies and tauri.conf.json
+                                         dependencies, tauri.conf.json and
+                                         the Claude Code plugin's plugin.json
                                          (CI checkout only, never committed)
   release_version.py --selftest
 
@@ -34,6 +35,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 CARGO = Path("Cargo.toml")
 TAURI = Path("crates/juggler-app/tauri.conf.json")
+# AJ-E1905: the plugin is released with the app and says which version.
+PLUGIN = Path("plugins/claude-code/ai-juggler/.claude-plugin/plugin.json")
 WORKSPACE_VERSION = re.compile(r'^(version\s*=\s*")(\d+)\.(\d+)\.(\d+)(")', re.M)
 # An internal dependency: `{ version = "X.Y.Z", path = "../crate" }`, in
 # either order. Its requirement must follow the stamped version, or Cargo
@@ -112,6 +115,11 @@ def stamp(root: Path, version: str) -> None:
     conf = json.loads(tauri.read_text())
     conf["version"] = version
     tauri.write_text(json.dumps(conf, indent=2) + "\n")
+    plugin = root / PLUGIN
+    if plugin.exists():
+        manifest = json.loads(plugin.read_text())
+        manifest["version"] = version
+        plugin.write_text(json.dumps(manifest, indent=2) + "\n")
 
 
 def selftest() -> int:
@@ -120,6 +128,8 @@ def selftest() -> int:
         (root / TAURI).parent.mkdir(parents=True)
         (root / CARGO).write_text('[workspace]\nmembers = []\n\n[workspace.package]\nversion = "0.3.1"\nedition = "2024"\n')
         (root / TAURI).write_text(json.dumps({"productName": "AI Juggler", "version": "0.3.1"}))
+        (root / PLUGIN).parent.mkdir(parents=True)
+        (root / PLUGIN).write_text(json.dumps({"name": "ai-juggler", "version": "0.3.1"}))
         (root / "crates/app").mkdir(parents=True)
         (root / "crates/app/Cargo.toml").write_text(
             '[package]\nname = "app"\nversion.workspace = true\n\n[dependencies]\n'
@@ -154,6 +164,7 @@ def selftest() -> int:
         assert 'serde = { version = "1.0.200"' in app, "a registry dependency is left alone"
         assert json.loads((root / TAURI).read_text())["version"] == "0.3.57"
         assert json.loads((root / TAURI).read_text())["productName"] == "AI Juggler"
+        assert json.loads((root / PLUGIN).read_text()) == {"name": "ai-juggler", "version": "0.3.57"}, "the plugin says the release it came with"
         for bad in ("0.3", "v0.3.1", "0.3.1-beta"):
             try:
                 stamp(root, bad)

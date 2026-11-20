@@ -25,6 +25,7 @@
 //! data on this Mac.
 
 pub mod agent;
+pub mod catch_up;
 pub mod commands;
 pub mod delivery;
 pub mod docs;
@@ -156,6 +157,9 @@ pub(crate) struct Member {
     pub anchor: String,
     /// Its role in the pool (`lead`, `member`, `reviewer`, `observer`).
     pub role: String,
+    /// Its session runs now (D-119 item 6: a pool-wide message is copied
+    /// to it only then).
+    pub open: bool,
 }
 
 /// A pool's members, by their cards (names, tools, roles).
@@ -171,6 +175,7 @@ pub(crate) fn roster(state: &Arc<AppState>, pool_id: &str) -> AppResult<Vec<Memb
             let session = SessionId::new(card.session_id.as_str());
             Member {
                 anchor: MemberRef::of_session(&session, works.get(&session)).to_wire(),
+                open: SessionStatus::parse(&card.state).is_some_and(is_live),
                 session_id: card.session_id,
                 name: card.name,
                 tool: card.tool,
@@ -178,6 +183,52 @@ pub(crate) fn roster(state: &Arc<AppState>, pool_id: &str) -> AppResult<Vec<Memb
             }
         })
         .collect())
+}
+
+/// F-rc3g-11 (the P11 walk): which of a pool's `names` (as `pool_roster`
+/// names its members) `who` names: its name there, case and spacing aside,
+/// else the name namesakes share before they're told apart ("p4-api1" for
+/// "p4-api1 · started 12:51 PM"). An agent wrote "p11-a" and was told no
+/// one with that `session_id` was in the pool. More than one is for the
+/// caller to refuse, naming each.
+pub(crate) fn called(names: &[&str], who: &str) -> Vec<usize> {
+    use crate::features::pools::{cards::untold, said::plain};
+    let wanted = plain(who);
+    let matching = |name_of: fn(&str) -> &str| -> Vec<usize> {
+        names
+            .iter()
+            .enumerate()
+            .filter(|(_, name)| plain(name_of(name)) == wanted)
+            .map(|(at, _)| at)
+            .collect()
+    };
+    let exact = matching(|name| name);
+    if exact.is_empty() {
+        matching(untold)
+    } else {
+        exact
+    }
+}
+
+/// F-rc3g-11: the refusal of a name more than one member answers to,
+/// listing `each` ([`member_words`]).
+pub(crate) fn namesake_words(who: &str, each: &[String]) -> String {
+    format!(
+        "«{who}» could be {} members of this pool: {}. Name the one this is for by its session_id.",
+        each.len(),
+        each.join(", ")
+    )
+}
+
+/// One member as [`namesake_words`] lists it: its name, the `session_id`
+/// that names it alone, and whether it's open.
+pub(crate) fn member_words(member: &Member) -> String {
+    format!(
+        "«{}» (session_id {}, {})",
+        member.name,
+        member.session_id,
+        if member.open { "open now" } else { "not open" }
+    )
 }
 
 /// Every ref a session's messages may be addressed to: its member ref
@@ -260,6 +311,34 @@ pub(crate) fn live_session_of(storage: &Storage, member_ref: &str) -> Option<Ses
         .collect();
     live.sort_by_key(|record| std::cmp::Reverse(record.started_at.millis()));
     live.into_iter().next().map(|record| record.id)
+}
+
+/// The session a member ref stands for now, for who it is and whether it
+/// runs (Tasks' holder, a message's sender and recipients): its Work
+/// item's newest running session AI Juggler runs, else (AJ-E3013, the
+/// aij-test proof run 3) a desktop conversation's attested session while
+/// its facts are fresh. Delivery asks [`live_session_of`] instead: a
+/// desktop session isn't typed into.
+pub(crate) fn session_now(storage: &Storage, member_ref: &str) -> Option<SessionId> {
+    live_session_of(storage, member_ref).or_else(|| {
+        let Some(MemberRef::Conversation { folder, id }) = MemberRef::parse(member_ref) else {
+            return None;
+        };
+        let session = juggler_core::storage::attested::desktop_id(&folder, &id);
+        storage.attested().get(&session).map(|_| session)
+    })
+}
+
+/// The session a message's sender ref stands for, for the decisions made
+/// as that sender (`allowed(deliver_to_session)` and the rest): a session
+/// or a Work item's live session, or (AJ-E3013) a desktop conversation's
+/// attested session. One rule for the delivery worker, Needs you's
+/// release and waking a desktop member (D-119).
+pub(crate) fn sender_session(storage: &Storage, sender: &str) -> Option<SessionId> {
+    if let Some(MemberRef::Conversation { folder, id }) = MemberRef::parse(sender) {
+        return Some(juggler_core::storage::attested::desktop_id(&folder, &id));
+    }
+    live_session_of(storage, sender)
 }
 
 /// A pool's name as the app shows it.

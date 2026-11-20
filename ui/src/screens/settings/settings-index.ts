@@ -38,6 +38,7 @@ export const SETTINGS_INDEX: readonly IndexEntry[] = [
   { pane: "accounts", anchor: "tools", title: "Tools on this computer", words: "claude code codex cli installed version update tool" },
   { pane: "sessions", anchor: "sessions", title: "Sessions AI Juggler starts", words: "launch settings terminal driven model permissions start restart crashed keep awake" },
   { pane: "switching", anchor: "packs", title: "Handovers and keys", words: "switch continue in another app handover keys secrets passwords hide strip notes" },
+  { pane: "switching", anchor: "beta", title: "Beta", words: "beta switches still being tested untested show more switches experimental" },
   { pane: "agent-access", anchor: "agent-pools", title: "Pools", words: "pool access level agents messages tasks seal" },
   { pane: "agent-access", anchor: "agent-rules", title: "Rules you made", words: "rules pool allow deny agent" },
   { pane: "agent-access", anchor: "agent-tools", title: "Agent tools in sessions", words: "mcp agent tools bridge messages tasks off" },

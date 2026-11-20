@@ -4,6 +4,9 @@
  * what happens to the original, that both profiles restart, and that
  * anything running in them stops and must be started again. Copy stays
  * as it always was (the rest of the switch screen).
+ * D-127: Move is never shown when something the user can't change stands
+ * in its way (its kind is `setup`): Copy is the switch then, alone. It is
+ * shown waiting only for what the user can clear, saying how.
  */
 import { useEffect, useRef, useState, type JSX } from "react";
 import { switchMoveExecute, switchMoveOffer, switchMoves, type MoveDoneInfo, type MoveOfferInfo } from "../../lib/ipc/switch-move";
@@ -16,9 +19,20 @@ import { IconCarryIn, IconCopy } from "../icons-actions";
 
 export type How = "move" | "copy";
 
+/** D-127: the offer as the switch screen shows it: none when anything
+ * the user can't clear stands in Move's way. */
+function shownOffer(offer: MoveOfferInfo | null): MoveOfferInfo | null {
+  return offer && offer.applies && !offer.blocks.some((block) => block.kind === "setup") ? offer : null;
+}
+
+/** What the user can clear before Move can happen, each saying how. */
+function waits(offer: MoveOfferInfo): string[] {
+  return offer.blocks.filter((block) => block.kind === "user_can_clear").map((block) => block.words);
+}
+
 /** Move when it can, else Copy. */
 function defaultHow(offer: MoveOfferInfo | null): How {
-  return offer?.offered ? "move" : "copy";
+  return offer && offer.blocks.length === 0 ? "move" : "copy";
 }
 
 /** What the move is doing, once the user clicked Move. */
@@ -61,7 +75,7 @@ export function useMoveFlow(sessionId: string, targetProfileId: string, attempt:
       void switchMoveOffer(sessionId, targetProfileId)
         .catch(() => null)
         .then((found) => {
-          if (alive) setOffer(found);
+          if (alive) setOffer(shownOffer(found));
         });
     return () => {
       alive = false;
@@ -192,6 +206,8 @@ function MoveChoice({
   /** Reads the offer again (Move waits on something that may be done now). */
   onCheckAgain?: () => void;
 }): JSX.Element {
+  const ready = offer.blocks.length === 0;
+  const how = waits(offer);
   return (
     <div className="flex flex-col gap-2" data-testid="switch-how">
       <span id="switch-how-legend" className="text-meta font-medium text-ink">
@@ -206,12 +222,12 @@ function MoveChoice({
           label={
             <>
               Move to account
-              {offer.offered && <span className="ml-1.5 rounded-full border border-success/30 bg-success-soft px-1.5 py-px text-label font-medium text-success">Recommended</span>}
+              {ready && <span className="ml-1.5 rounded-full border border-success/30 bg-success-soft px-1.5 py-px text-label font-medium text-success">Recommended</span>}
             </>
           }
           hint={`The same conversation continues on ${target}; ${source} no longer has it.`}
-          reason={offer.why_not[0] && sentence(offer.why_not[0])}
-          disabled={!offer.offered}
+          reason={how[0] && sentence(how[0])}
+          disabled={!ready}
           checked={value === "move"}
           onChange={() => onChange("move")}
           data-testid="switch-how-move"
@@ -230,14 +246,14 @@ function MoveChoice({
           data-testid="switch-how-copy"
         />
       </div>
-      {!offer.offered && offer.why_not.length > 1 && (
+      {!ready && how.length > 1 && (
         <ul className="ml-4 list-disc text-label text-muted" data-testid="switch-how-why">
-          {offer.why_not.slice(1).map((why) => (
+          {how.slice(1).map((why) => (
             <li key={why}>{sentence(why)}</li>
           ))}
         </ul>
       )}
-      {!offer.offered && onCheckAgain && (
+      {!ready && onCheckAgain && (
         <button type="button" onClick={onCheckAgain} className="w-fit text-label text-accent-hi underline-offset-2 hover:underline" data-testid="switch-how-again">
           Check again
         </button>

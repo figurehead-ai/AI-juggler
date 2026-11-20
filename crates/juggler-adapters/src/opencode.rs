@@ -878,6 +878,11 @@ pub fn opencode_spec() -> juggler_adapter::ToolSpec {
         release_feed: Some(juggler_adapter::ReleaseFeed::Npm {
             package: "opencode-ai".to_owned(),
         }),
+        // D-128: read only, by the release flow's gate watch.
+        version_probes: vec![juggler_adapter::VersionProbe::Command {
+            program: "opencode".to_owned(),
+        }],
+        more_release_feeds: Vec::new(),
         update_command: Some("opencode upgrade".to_owned()),
         floor: juggler_adapter::FloorFamilies::all("maker-garage"),
     }

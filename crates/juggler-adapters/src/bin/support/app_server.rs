@@ -197,6 +197,16 @@ impl Conn {
             "turn": {"id": turn, "status": "inProgress", "items": []}}),
         );
         self.status("active", &[]);
+        // Codex echoes the turn's input as its first item (research
+        // session-runtime.md: a turn's items begin with `userMessage`).
+        let given = json!({"type": "userMessage", "id": format!("user-{}", self.count),
+            "content": [{"type": "text", "text": prompt, "text_elements": []}]});
+        for method in ["item/started", "item/completed"] {
+            self.notify(
+                method,
+                &json!({"threadId": thread, "turnId": turn, "item": given}),
+            );
+        }
         // As a rollout records it (`response_item` messages with content).
         self.record(
             &json!({"type": "response_item", "payload": {"type": "message", "role": "user",

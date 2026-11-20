@@ -26,4 +26,11 @@ streaming: string | null,
 /**
  * The model, when the tool said.
  */
-model: string | null, };
+model: string | null, 
+/**
+ * The tool has written its conversation (it was resumed, or a turn
+ * began in it): with no turns held here, its earlier ones are in its
+ * file. Before, none are anywhere (the rc3h walk: "Show them" on a
+ * session with no turn yet opened a conversation with nothing in it).
+ */
+written: boolean, };

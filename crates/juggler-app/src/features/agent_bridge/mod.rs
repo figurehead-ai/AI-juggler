@@ -18,9 +18,15 @@
 //!
 //! Nothing here starts, stops or types into a session.
 
+pub mod attest;
+#[cfg(test)]
+mod attest_tests;
 pub mod calls;
 pub mod commands;
+pub mod desktop;
 pub mod dto;
+#[cfg(test)]
+mod flood_tests;
 pub mod server;
 pub mod settings;
 
@@ -70,6 +76,39 @@ struct Epoch {
     scope: String,
 }
 
+/// Why the bridge program can't run (AJ-E3013: the window says which).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Unavailable {
+    /// Nothing runnable beside AI Juggler.
+    Missing,
+    /// It's there, but this folder (or file) on its way belongs to another
+    /// user or others can write it, so it's never run.
+    UnsafeLocation(PathBuf),
+}
+
+impl Unavailable {
+    /// Its word on the wire (`missing`, `unsafe_location`).
+    #[must_use]
+    pub const fn word(&self) -> &'static str {
+        match self {
+            Self::Missing => "missing",
+            Self::UnsafeLocation(_) => "unsafe_location",
+        }
+    }
+
+    /// The folder that failed the check, the home folder written `~`.
+    #[must_use]
+    pub fn shown_folder(&self, home: Option<&Path>) -> Option<String> {
+        match self {
+            Self::Missing => None,
+            Self::UnsafeLocation(entry) => Some(home.map_or_else(
+                || entry.display().to_string(),
+                |home| crate::features::places::profiles::shown(entry, home),
+            )),
+        }
+    }
+}
+
 /// The scope of a report key (AJ-E2306).
 pub const REPORTS: &str = "reports";
 
@@ -87,6 +126,19 @@ pub struct Bridge {
     pub(crate) serving: Mutex<Option<PathBuf>>,
     /// The program, when set (tests); else beside AI Juggler's own.
     program: Mutex<Option<PathBuf>>,
+    /// AJ-E3013 (H3): each attested desktop session kept now, by its id:
+    /// its App and what its tool's registry named, re-checked on every
+    /// attested call and the live view's tick ([`attest::sweep`]).
+    pub(crate) desktop: Mutex<HashMap<String, (String, juggler_adapter::peer::AttestedSession)>>,
+    /// Run 3: a kept desktop session went (its process ended) since the
+    /// live view's last tick told the window ([`attest::sweep_now`]).
+    pub(crate) desktop_went: std::sync::atomic::AtomicBool,
+    /// D-119 (M2): the connectors' wake waits held now.
+    pub(crate) waits: desktop::Waits,
+    /// The review's global-cap finding: each process attested recently,
+    /// by pid: its pid version, when ([`calls::ATTESTED_FOR`]), and the
+    /// session it's charged to (the fifth finding).
+    pub(crate) attested_peers: Mutex<HashMap<u32, calls::Kept>>,
 }
 
 /// The socket for the app's data folder (per edition: each edition has
@@ -129,15 +181,35 @@ impl Bridge {
     /// are: nothing is trusted then.
     #[must_use]
     pub fn program(&self) -> Option<PathBuf> {
+        self.program_or_why().ok()
+    }
+
+    /// [`Self::program`], or why there's none to run: nothing there (or
+    /// not a program), or (AJ-E3013) the folder on its way that another
+    /// user owns or can write, the one that failed the check.
+    ///
+    /// # Errors
+    ///
+    /// [`Unavailable`].
+    pub fn program_or_why(&self) -> Result<PathBuf, Unavailable> {
         let chosen = self.program.lock().ok().and_then(|slot| slot.clone());
-        let path = chosen.or_else(|| {
-            std::env::current_exe()
-                .ok()?
-                .parent()
-                .map(|dir| dir.join(wire::PROGRAM))
-        })?;
-        let me = juggler_platform::user::current().ok()?;
-        juggler_platform::file_trust::trusted_executable(&path, me)
+        let path = chosen
+            .or_else(|| {
+                std::env::current_exe()
+                    .ok()?
+                    .parent()
+                    .map(|dir| dir.join(wire::PROGRAM))
+            })
+            .ok_or(Unavailable::Missing)?;
+        let me = juggler_platform::user::current().map_err(|_| Unavailable::Missing)?;
+        juggler_platform::file_trust::executable_trust(&path, me).map_err(|why| match why {
+            juggler_platform::file_trust::Untrusted::Missing
+            | juggler_platform::file_trust::Untrusted::NotRunnable => Unavailable::Missing,
+            juggler_platform::file_trust::Untrusted::Owner(entry)
+            | juggler_platform::file_trust::Untrusted::Writable(entry) => {
+                Unavailable::UnsafeLocation(entry)
+            }
+        })
     }
 
     /// The status line a member set, if it did.
@@ -230,9 +302,14 @@ impl Bridge {
     }
 
     /// Whether `session` holds a key for the agent tools now (E18: only
-    /// then is it told about its messages).
+    /// then is it told about its messages). AJ-E3013: an attested desktop
+    /// session (`desktop:…`) has the tools by its attestation, which is the
+    /// only way such an id reaches the app.
     #[must_use]
     pub fn has_tools_key(&self, data_dir: &Path, session: &str) -> bool {
+        if juggler_core::storage::attested::is_desktop_id(session) {
+            return true;
+        }
         let Ok(mut epochs) = self.epochs.lock() else {
             return false;
         };

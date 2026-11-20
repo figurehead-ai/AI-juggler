@@ -120,6 +120,23 @@ describe("AJ-E2109 the Accounts screen", () => {
     expect(screen.getByTestId("accounts-definition").textContent).toContain("one account can serve several apps.");
   });
 
+  it("a card's name takes the room it needs; what follows it wraps as one group (the 0.4.6 RC walk A9; measured in tests/visual/fits-its-room.spec.ts)", async () => {
+    vi.spyOn(bridgeAccounts, "accountsList").mockResolvedValue([profile("w1", "Work"), profile("w2", "Work 2")]);
+    vi.spyOn(subs, "subscriptionsList").mockResolvedValue([account("work", ["w1", "w2"], { email: "w…@example.invalid", plan: null })]);
+    render(<ProfilesScreen openTerminal={() => {}} onAddAccounts={() => {}} onInspectAccount={() => {}} />);
+    const [card] = await screen.findAllByTestId("account-card");
+    const name = within(card!).getByTestId("account-name");
+    const aside = within(card!).getByTestId("account-card-aside");
+    // Its mark and name are one item, sized from their own width (flex-1's
+    // zero basis kept the chips beside it and cut "w…@exam…").
+    const item = [...(aside.parentElement?.children ?? [])].find((child) => child.contains(name));
+    expect(item?.className.split(" ")).toEqual(expect.arrayContaining(["flex-auto", "min-w-0"]));
+    expect(item?.className.split(" ")).not.toContain("flex-1");
+    expect(item?.querySelector("[aria-hidden='true'].rounded-full")).not.toBeNull();
+    // The rest wraps together, under it on the right.
+    expect(within(aside).getByTestId("account-profiles-count").textContent).toBe("2 apps share this account");
+  });
+
   it("an Account card's Rename renames the Account, and an App row's renames the App, each saying which (the 0.4.1 persona walk, Priya)", async () => {
     vi.spyOn(bridgeAccounts, "accountsList").mockResolvedValue([profile("w1", "Acme Corp")]);
     vi.spyOn(subs, "subscriptionsList").mockResolvedValue([account("work", ["w1"], { account_id: "acct-1" })]);

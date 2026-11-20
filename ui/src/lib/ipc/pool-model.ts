@@ -12,6 +12,7 @@
 import { call } from "./transport";
 import { hasLiveBackend, refused } from "../bridge";
 import { previewPlaceSession, previewPoolToChange, previewPoolsInfo, type PoolRole, type PoolsInfo } from "./pools";
+import { previewAnchorOf } from "./pool-canvas";
 import type { PoolRuleInfo } from "../../types/generated/PoolRuleInfo";
 import type { PoolRulesInfo } from "../../types/generated/PoolRulesInfo";
 import type { PoolTalkInfo } from "../../types/generated/PoolTalkInfo";
@@ -33,8 +34,18 @@ export type TalkRule = "allowed" | "ask" | "blocked";
 /** A member rule's stored ref: `everyone` is `all`. */
 export const memberRef = (kind: MemberKind, id = ""): string => (kind === "everyone" ? "all" : `${kind}:${id}`);
 
-// Specs may seed a pool's talk rules (`__AIJ_POOL_RULES__`, by pool id).
-type Seams = { __AIJ_POOL_CALLS__?: string[]; __AIJ_POOL_RULES__?: Record<string, { talk?: PoolTalkInfo[] }> };
+// Specs may seed a pool's talk rules, its member rules and the wait for
+// an App's next session to lead (`__AIJ_POOL_RULES__`, by pool id).
+type Seams = {
+  __AIJ_POOL_CALLS__?: string[];
+  __AIJ_POOL_RULES__?: Record<string, { talk?: PoolTalkInfo[]; lead_next?: string | null; members?: PoolRuleInfo[] }>;
+  /** A Watched member's title, tool and account, by its ref (what the
+   * conversation index says of it live). */
+  __AIJ_POOL_WATCHED__?: Record<string, Partial<WatchedMemberInfo>>;
+  /** Members a join answers for but doesn't keep (round 6: Casey's run,
+   * where two Apps were dropped without a word). */
+  __AIJ_POOL_JOIN_DROPS__?: string[];
+};
 const seams = () => globalThis as unknown as Seams;
 const record = (called: string) => (seams().__AIJ_POOL_CALLS__ ??= []).push(called);
 
@@ -46,7 +57,8 @@ const rulesOf = (poolId: string): PoolRulesInfo => {
   const pool = previewPoolToChange(poolId);
   // A role pair's own rule a spec seeded, as the wizard's grid would set it.
   const seeded = seams().__AIJ_POOL_RULES__?.[poolId];
-  const made: PoolRulesInfo = { pool_id: poolId, members: pool.kind === "default" ? [{ member: "all", kind: "everyone", role: "member", level: null, joined_at: 0, sessions: 0, session_ids: [] }] : [], talk: [...(seeded?.talk ?? [])] };
+  const everyone: PoolRuleInfo[] = pool.kind === "default" ? [{ member: "all", kind: "everyone", role: "member", level: null, joined_at: 0, sessions: 0, session_ids: [] }] : [];
+  const made: PoolRulesInfo = { pool_id: poolId, members: [...(seeded?.members ?? everyone)], talk: [...(seeded?.talk ?? [])], lead_next: seeded?.lead_next ?? null };
   previewRules.set(poolId, made);
   return made;
 };
@@ -61,9 +73,12 @@ export async function poolJoin(poolId: string, member: string, role: PoolRole, l
   if (!hasLiveBackend()) {
     const rules = rulesOf(poolId);
     record(`join:${poolId}:${member}:${role}:${level ?? ""}`);
+    if (seams().__AIJ_POOL_JOIN_DROPS__?.includes(member)) return previewPoolsInfo();
     const row = rules.members.find((one) => one.member === member);
     if (row) Object.assign(row, { role, level });
     else rules.members.push({ member, kind: kindOf(member), role, level, joined_at: Date.now(), sessions: 0, session_ids: [] });
+    // AJ-E3011: a Lead picked by hand ends the wait for a next one.
+    if (role === "lead") rules.lead_next = null;
     if (member.startsWith("session:")) previewPlaceSession(member.slice("session:".length), poolId, role);
     return previewPoolsInfo();
   }
@@ -77,6 +92,7 @@ export async function poolLeave(poolId: string, member: string): Promise<PoolsIn
     if (previewPoolToChange(poolId).kind === "default" && member === "all") throw refused("A project's own pool always holds everyone in its project.");
     record(`leave:${poolId}:${member}`);
     rules.members = rules.members.filter((one) => one.member !== member);
+    if (member === `app:${rules.lead_next}`) rules.lead_next = null;
     return previewPoolsInfo();
   }
   return call("pools_leave", { poolId, member });
@@ -136,6 +152,25 @@ export async function poolSetTalk(poolId: string, from: string, to: string, rule
   return changed;
 }
 
+/** AJ-E3011 (D-92 holds): the App (its id) whose next session in the
+ * pool leads it, while it has no Lead; `null` clears the wait. The App
+ * must be a member, and the pool without a Lead. */
+export async function poolSetLeadNext(poolId: string, app: string | null): Promise<string | null> {
+  let waits: string | null;
+  if (!hasLiveBackend()) {
+    const rules = rulesOf(poolId);
+    if (app !== null && !rules.members.some((row) => row.member === `app:${app}`)) throw refused("Add the App to the pool first: its next session leads once it's in.");
+    if (app !== null && rules.members.some((row) => row.role === "lead")) throw refused("This pool has a Lead. Make it a Member first, then pick who leads next.");
+    record(`lead_next:${poolId}:${app ?? "clear"}`);
+    rules.lead_next = app;
+    waits = app;
+  } else {
+    waits = await call("pools_set_lead_next", { poolId, app });
+  }
+  window.dispatchEvent(new CustomEvent(POOL_RULES_CHANGED, { detail: poolId }));
+  return waits;
+}
+
 /** A pool's rules changed here (its id in `detail`). */
 export const POOL_RULES_CHANGED = "aij:pool-rules-changed";
 
@@ -171,14 +206,21 @@ export async function poolsOfSession(sessionId: string): Promise<SessionPoolsInf
 
 /** The rule along one line between two sessions: its own, else its
  * roles' pair's. */
+/** A line's end as a member ref: a session's (`session:<id>`), or a
+ * desktop session's own `conversation:<folder>/<id>` (round 7 #7: its
+ * line keys it by that ref). */
+export const lineEndRef = (id: string): string => (id.startsWith("conversation:") ? id : `session:${id}`);
+
 export async function poolEdgeTalk(poolId: string, from: string, to: string): Promise<EdgeTalkInfo> {
   if (!hasLiveBackend()) {
     const rules = rulesOf(poolId);
-    const role = (id: string) => rules.members.find((row) => row.member === `session:${id}`)?.role ?? "member";
-    const own = rules.talk.find((row) => row.from === `session:${from}` && row.to === `session:${to}`);
-    const pair = rules.talk.find((row) => row.from === `role:${role(from)}` && row.to === `role:${role(to)}`);
+    // By each end's anchor, as the backend matches its talk rows.
+    const [a, b] = [previewAnchorOf(poolId, from), previewAnchorOf(poolId, to)];
+    const role = (anchor: string) => rules.members.find((row) => row.member === anchor)?.role ?? "member";
+    const own = rules.talk.find((row) => row.from === a && row.to === b);
+    const pair = rules.talk.find((row) => row.from === `role:${role(a)}` && row.to === `role:${role(b)}`);
     const pairRule = pair?.rule ?? "allowed";
-    return { rule: own?.rule ?? pairRule, pair_rule: pairRule, own: !!own, from_role: role(from), to_role: role(to) };
+    return { rule: own?.rule ?? pairRule, pair_rule: pairRule, own: !!own, from_role: role(a), to_role: role(b) };
   }
   return call("pools_edge_talk", { poolId, from, to });
 }
@@ -198,7 +240,7 @@ export async function poolWatched(poolId: string): Promise<WatchedMemberInfo[]> 
       .members.filter((row) => row.member.startsWith("conversation:"))
       .map((row) => {
         const [folder = "", id = ""] = row.member.slice("conversation:".length).split("/");
-        return { member: row.member, folder, conversation_id: id, title: null, tool: null, account_label: null, project_id: null, role: row.role, continued_session: null };
+        return { member: row.member, folder, conversation_id: id, title: null, tool: null, account_label: null, project_id: null, role: row.role, continued_session: null, ...seams().__AIJ_POOL_WATCHED__?.[row.member] };
       });
   }
   return call("pools_watched", { poolId });

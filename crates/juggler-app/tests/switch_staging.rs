@@ -55,10 +55,16 @@ fn app_state(dir: &Path) -> (Arc<AppState>, PathBuf) {
     let claude = Arc::new(ClaudeCodeAdapter::with_bin(&stub));
     registry.register(claude.clone());
     registry.register_handover(claude);
-    (
-        Arc::new(AppState::init_with_registry(dir.join("app-data"), registry).unwrap()),
-        runs,
+    let state = Arc::new(AppState::init_with_registry(dir.join("app-data"), registry).unwrap());
+    // D-127: these rows are about ranking and readiness, not about which
+    // switches are tested yet: beta switches are on, so every route lists.
+    juggler_app::settings_policy::app_setting_set_impl(
+        &state,
+        juggler_app::features::validation::BETA_SWITCHES_KEY,
+        "1",
     )
+    .unwrap();
+    (state, runs)
 }
 
 fn transcript_body(cwd: &str, turns: usize, words: usize) -> String {

@@ -477,7 +477,7 @@ fn a_driven_survivor_is_not_picked_up_and_a_gone_adopted_one_stops() {
     pickup::note(
         &state1.storage.lock().unwrap(),
         &driven,
-        pickup::mark_of(Some("thread-1"), false, false),
+        pickup::mark_of(Some("thread-1"), false, true, false),
     );
     drop(state1);
 
@@ -501,7 +501,7 @@ fn a_driven_survivor_is_not_picked_up_and_a_gone_adopted_one_stops() {
         .expect("summary pending");
     assert_eq!(summary.adopted, 1, "only the terminal one: {summary:?}");
 
-    // The adopted one ends while AI Juggler runs: no wait thread sees it.
+    // The adopted one ends while AI Juggler runs: its watch records it.
     kill9(spawned_plain.pid);
     let deadline = std::time::Instant::now() + Duration::from_secs(5);
     while alive(spawned_plain.pid) && std::time::Instant::now() < deadline {
@@ -522,6 +522,96 @@ fn a_driven_survivor_is_not_picked_up_and_a_gone_adopted_one_stops() {
     live_record(&state2, dir.path(), "sess-ghost");
     juggler_app::features::sessions::commands::stop_impl(&state2, "sess-ghost").unwrap();
     assert_eq!(status_of(&state2, "sess-ghost"), "stopped");
+}
+
+/// Waits up to 5 s for session `id` to leave `running`; its status then.
+/// Reads storage only: nothing that would look at the processes.
+fn status_after_running(state: &Arc<AppState>, id: &str) -> String {
+    let deadline = std::time::Instant::now() + Duration::from_secs(5);
+    while status_of(state, id) == "running" && std::time::Instant::now() < deadline {
+        std::thread::sleep(Duration::from_millis(100));
+    }
+    status_of(state, id)
+}
+
+/// The rc3a walk (X1 5a): a session picked up again after a restart was
+/// killed while AI Juggler ran and read Working, "4 open" and its bell
+/// until the next restart: its root isn't AI Juggler's child, so no wait
+/// thread saw it end, and a Stop on one took the ladder's 5 s and left it
+/// Working too. Each end is seen within seconds and ends the session as
+/// an own one's does.
+#[test]
+fn a_picked_up_session_that_ends_while_the_app_runs_ends_in_seconds() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut reaper = fixtures::Reaper::default();
+    let data = dir.path().join("app-data");
+    let state1 =
+        Arc::new(AppState::init_with_registry(data.clone(), AdapterRegistry::new()).unwrap());
+    let killed = juggler_core::model::SessionId::new("sess-killed");
+    let stopped = juggler_core::model::SessionId::new("sess-stopped");
+    let mut roots = Vec::new();
+    for session in [&killed, &stopped] {
+        let spawned = state1
+            .supervisor
+            .spawn(session, &sh_spec("sleep 300", dir.path()), &ctx(&state1))
+            .unwrap();
+        reaper.group(spawned.pid);
+        live_record(&state1, dir.path(), session.as_str());
+        roots.push(spawned.pid);
+    }
+    // Quit anyway: both outlive the quit, and the reopen picks them up.
+    drop(state1);
+    let state2 = Arc::new(AppState::init_with_registry(data, AdapterRegistry::new()).unwrap());
+    let adopted = state2.supervisor.alive_adopted_sessions();
+    assert!(
+        adopted.contains(&killed) && adopted.contains(&stopped),
+        "both picked up again: {adopted:?}"
+    );
+    juggler_app::features::sessions::lifecycle::spawn_forwarder(Arc::clone(&state2));
+
+    // Killed from outside while the app runs, with nothing reading it.
+    kill9(roots[0]);
+    assert_eq!(
+        status_after_running(&state2, "sess-killed"),
+        "stopped",
+        "its end was seen while the app ran"
+    );
+    // A crash, as an own session's kill reads; how it ended isn't known.
+    let ending = ending_of(&state2, "sess-killed");
+    assert_eq!(
+        (ending.how.as_str(), ending.detail.as_deref()),
+        (
+            "crashed",
+            Some(juggler_app::features::sessions::attention::UNKNOWN_EXIT_WORDS)
+        )
+    );
+    assert!(
+        !state2.supervisor.alive_adopted_sessions().contains(&killed),
+        "no longer picked up"
+    );
+
+    // Stop on the live one: it ends, as stopped by you, without the
+    // ladder's wait.
+    let asked = std::time::Instant::now();
+    juggler_app::features::sessions::commands::stop_impl(&state2, "sess-stopped").unwrap();
+    assert!(
+        asked.elapsed() < Duration::from_secs(3),
+        "the stop saw its end: {:?}",
+        asked.elapsed()
+    );
+    assert!(!alive(roots[1]), "its process was stopped");
+    assert_eq!(status_after_running(&state2, "sess-stopped"), "stopped");
+    assert_eq!(ending_of(&state2, "sess-stopped").how, "stopped");
+}
+
+/// How session `id` ended, as its row says.
+fn ending_of(state: &Arc<AppState>, id: &str) -> juggler_app::features::sessions::dto::EndingInfo {
+    juggler_app::features::sessions::list::instances_shared_snapshot(state)
+        .unwrap()
+        .into_iter()
+        .find(|row| row.id == id)
+        .and_then(|row| row.ending)
+        .expect("it says how it ended")
 }
 
 /// rc30: a session that ran when AI Juggler quit read "Ended with AI

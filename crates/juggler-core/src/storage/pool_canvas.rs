@@ -98,6 +98,26 @@ pub struct PendingMessage {
     pub at: i64,
 }
 
+/// What a message's line in the stream quotes (F-rc3g-12: a reply's line
+/// quoted the subject its thread started with, "«lab ping from a»" for a
+/// reply that said "pong"): its subject when it started its thread or gave
+/// one of its own, else its body's first line, as a subject is made from
+/// a body.
+fn message_quote(subject: &str, body: &str, own_subject: bool) -> String {
+    if own_subject {
+        return subject.to_owned();
+    }
+    let line = body.lines().find(|line| !line.trim().is_empty());
+    line.map_or_else(
+        || subject.to_owned(),
+        |line| crate::messaging::subject_from(line, QUOTE_MAX),
+    )
+}
+
+/// The longest quote of a reply's body in the stream, in characters (as a
+/// subject made from a body).
+const QUOTE_MAX: usize = 60;
+
 /// One line of a pool's live stream.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct StreamEntry {
@@ -115,7 +135,9 @@ pub struct StreamEntry {
     pub to: Vec<(String, String)>,
     /// A message's kind, or a task event's verb.
     pub verb: String,
-    /// The message's subject, or the task's title.
+    /// A message's own words (its subject when it started its thread or
+    /// gave one of its own, else its body's first line), or the task's
+    /// title.
     pub title: String,
     /// The event's detail (a task's new holder, a status change).
     pub detail: Option<String>,
@@ -321,15 +343,22 @@ impl PoolCanvasRepo<'_> {
     /// Returns [`CoreError::Storage`] on SQLite failures.
     pub fn stream(&self, pool_id: &str, limit: u32) -> Result<Vec<StreamEntry>, CoreError> {
         let limit = i64::from(limit.clamp(1, 100));
+        // A message's own subject: it started its thread, or it isn't the
+        // one its thread started with.
         let mut messages = self.conn.prepare(
             "SELECT m.created_at, m.sender_ref, m.sender_name, m.kind, m.subject,
                     (SELECT json_group_array(json_array(r.recipient_ref, r.recipient_name))
-                       FROM agent_recipients r WHERE r.message_id = m.id)
+                       FROM agent_recipients r WHERE r.message_id = m.id),
+                    m.body,
+                    m.seq = (SELECT MIN(f.seq) FROM agent_messages f WHERE f.thread_id = m.thread_id)
+                      OR m.subject IS NOT (SELECT t.subject FROM agent_threads t WHERE t.id = m.thread_id)
                FROM agent_messages m WHERE m.pool_id = ?1
               ORDER BY m.created_at DESC, m.seq DESC LIMIT ?2",
         )?;
         let mut out = collect(messages.query_map(params![pool_id, limit], |row| {
             let to: String = row.get(5)?;
+            let subject: String = row.get(4)?;
+            let body: String = row.get(6)?;
             Ok(StreamEntry {
                 at: row.get(0)?,
                 source: "message",
@@ -337,7 +366,7 @@ impl PoolCanvasRepo<'_> {
                 actor_name: row.get(2)?,
                 to: serde_json::from_str::<Vec<(String, String)>>(&to).unwrap_or_default(),
                 verb: row.get(3)?,
-                title: row.get(4)?,
+                title: message_quote(&subject, &body, row.get(7)?),
                 detail: None,
             })
         })?)?;

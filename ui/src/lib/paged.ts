@@ -38,6 +38,12 @@ type Entry<T> = {
 const memory = new Map<string, Entry<unknown>>();
 /** Shown lists, by key: each one's "read again". */
 const shown = new Map<string, Set<() => void>>();
+/** Shared lists shown (`shared`), by key: each one's "show this read". */
+const sharing = new Map<string, Map<object, () => void>>();
+/** Shared lists' first-page reads, by key: the last one asked for, and
+ * the newest one shown (an older answer landing after it is dropped). */
+const asked = new Map<string, number>();
+const landed = new Map<string, number>();
 /** Keeps the memory small: the lists opened most recently. */
 const KEPT = 40;
 
@@ -55,6 +61,8 @@ export function rememberedPage<T>(key: string): Entry<T> | undefined {
 /** Forgets every remembered list (tests; a sign-out). */
 export function forgetPaged(): void {
   memory.clear();
+  asked.clear();
+  landed.clear();
 }
 
 /** Reads `key`'s first page into memory now, if it isn't there: call it
@@ -109,6 +117,11 @@ export function usePagedList<T>(
     /** The first page when the rows are already in memory (a list the UI
      * holds): shown in the first render, then read as usual. */
     seed?: (pageSize: number) => Page<T> | null;
+    /** NY1 (0.4.6 rc3a): one list wherever it's shown. A first page read
+     * by any list under the key is shown by every shared one under it at
+     * once, the newest read winning (Home, opened, read a need back that
+     * the rail and the bell, read before, never showed). */
+    shared?: boolean;
   } = {},
 ): PagedList<T> {
   const pageSize = Math.min(Math.max(options.pageSize ?? PAGE_SIZE, 1), MAX_PAGE);
@@ -138,10 +151,15 @@ export function usePagedList<T>(
   const entryRef = useRef<Entry<T> | null>(current.entry);
   entryRef.current = current.entry;
   const busyMore = useRef(false);
+  const shared = options.shared === true;
+  // This list, among the shared ones under its key.
+  const [self] = useState(() => ({}));
 
   const readFirst = useCallback(() => {
     if (key === null) return;
     const mine = ++generation.current;
+    const order = shared ? (asked.get(key) ?? 0) + 1 : 0;
+    if (shared) asked.set(key, order);
     busyMore.current = false;
     // Read again as many rows as are shown (within the backend's ceiling),
     // so a refresh doesn't shrink a list scrolled far.
@@ -151,16 +169,35 @@ export function usePagedList<T>(
     fetchRef.current({ cursor: null, limit }).then(
       (page) => {
         if (generation.current !== mine) return;
+        // A newer read under the key is shown already: this one is older.
+        if (shared && order < (landed.get(key) ?? 0)) return;
         const entry: Entry<T> = { items: page.items, nextCursor: page.next_cursor, total: page.total, at: Date.now() };
         remember(key, entry);
         setState({ key, entry, stale: false, loadingMore: false, error: null });
+        if (!shared) return;
+        landed.set(key, order);
+        // The newest read asked for shows itself in the others (in a burst
+        // of reads, one each, theirs land too: one render, not one a read).
+        if (order === asked.get(key)) for (const [who, show] of sharing.get(key) ?? []) if (who !== self) show();
       },
       (error: unknown) => {
         if (generation.current !== mine) return;
         setState((now) => (now.key === key ? { ...now, stale: false, error } : now));
       },
     );
-  }, [key, pageSize]);
+  }, [key, pageSize, shared, self]);
+
+  // Another shared list under the key read it: shown here too, unless this
+  // one shows more rows than that read did (then it reads its own).
+  const showRead = useCallback(() => {
+    const entry = key === null ? undefined : rememberedPage<T>(key);
+    if (!entry) return;
+    if (entry.nextCursor !== null && entry.items.length < (entryRef.current?.items.length ?? 0)) {
+      readFirst();
+      return;
+    }
+    setState((now) => (now.key === key ? { ...now, entry, stale: false, error: null } : now));
+  }, [key, readFirst]);
 
   const loadMore = useCallback(() => {
     const entry = entryRef.current;
@@ -202,6 +239,17 @@ export function usePagedList<T>(
       if (listeners.size === 0) shown.delete(key);
     };
   }, [key, readFirst]);
+
+  useEffect(() => {
+    if (key === null || !shared) return undefined;
+    const lists = sharing.get(key) ?? new Map<object, () => void>();
+    lists.set(self, showRead);
+    sharing.set(key, lists);
+    return () => {
+      lists.delete(self);
+      if (lists.size === 0) sharing.delete(key);
+    };
+  }, [key, shared, self, showRead]);
 
   const entry = current.entry;
   return {

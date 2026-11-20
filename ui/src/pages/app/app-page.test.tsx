@@ -179,6 +179,24 @@ describe("D-62 the App page", () => {
     expect(screen.getAllByRole("tab").some((tab) => tab.textContent?.startsWith("Launch settings"))).toBe(false);
   });
 
+  it("its Launch settings sit on the page's column, never pulled past the tab panel's edges (the 0.4.6 RC walk A8: the page scrolled sideways)", async () => {
+    seams().__AIJ_RECIPES__ = [{ id: "rec-deep", name: "Deep work", account_id: "claude-work", model: "opus", default_cwd: null, settings_overlay: {} }];
+    page("cli:claude-work");
+    await waitFor(() => expect(screen.getAllByRole("tab").map((tab) => tab.textContent)).toContain("Launch settings 1"));
+    fireEvent.click(screen.getAllByRole("tab").find((tab) => tab.textContent?.startsWith("Launch settings"))!);
+    const list = await screen.findByTestId("profile-launch-settings");
+    const panel = list.closest("[role='tabpanel']");
+    expect(panel).not.toBeNull();
+    // The panel scrolls (overflow-y: auto makes x auto too): a negative
+    // side margin anywhere between it and the list widens it past its edge.
+    const pulled: string[] = [];
+    for (let at: Element | null = list; at && at !== panel; at = at.parentElement) {
+      for (const token of at.classList) if (/^-m[xlrse]?-/.test(token)) pulled.push(`${at.getAttribute("data-testid") ?? at.tagName}: ${token}`);
+    }
+    expect(pulled).toEqual([]);
+    delete seams().__AIJ_RECIPES__;
+  });
+
   it("a CLI App that's signed out says so, and where to sign in; with no Account, its folder keeps its own renewal", async () => {
     page("cli:z-out");
     expect((await screen.findAllByTestId("app-signed-out")).length).toBeGreaterThan(0);

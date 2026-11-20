@@ -21,4 +21,8 @@ subscriptions: Array<FacetInfo>,
 /**
  * The Macs they ran on.
  */
-machines: Array<FacetInfo>, };
+machines: Array<FacetInfo>, 
+/**
+ * Their tools, by adapter id.
+ */
+tools: Array<FacetInfo>, };

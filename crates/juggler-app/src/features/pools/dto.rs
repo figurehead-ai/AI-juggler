@@ -163,6 +163,9 @@ pub struct PoolRulesInfo {
     pub members: Vec<PoolRuleInfo>,
     /// Its talk settings (anything unset is allowed).
     pub talk: Vec<PoolTalkInfo>,
+    /// AJ-E3011: the App (its id) whose next session leads, while the
+    /// pool waits for one (D-92: one session leads); `null` otherwise.
+    pub lead_next: Option<String>,
 }
 
 /// One pool a session is in, and how (its Pools tab).
@@ -385,6 +388,12 @@ pub struct PoolCanvasInfo {
     /// Edges count from here, epoch ms.
     #[ts(type = "number")]
     pub since_ms: i64,
+    /// Round 7 #7: each shown node's anchor, by its id as the canvas was
+    /// asked for it: the ref `pools_set_talk` stores for it and the pool's
+    /// talk rows name it by (`work:<id>` for a session in a Work item,
+    /// else `session:<id>`; a desktop session's own `conversation:` ref).
+    /// A line's own rule is the talk row whose ends are its two anchors.
+    pub anchors: std::collections::BTreeMap<String, String>,
 }
 
 /// Where the user put one member on the canvas.

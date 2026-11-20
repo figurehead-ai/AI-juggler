@@ -11,7 +11,8 @@
  * App's own folder from its launch settings, else none.
  *
  * The App (a CLI tool on a config folder; one per folder, its first
- * launch settings unless the user picks others):
+ * launch settings unless the user picks others; only a folder that is a
+ * CLI App, `lib/apps`' `cliRecipes`):
  * 1. the one the user chose (in the sheet, or the door that opened it);
  * 2. this project's default (the user's "Always use for <project>", in
  *    Change app, on the project page or offered in the sheet); else its
@@ -202,9 +203,19 @@ export function chooseApp(inputs: AppInputs): AppChoice | null {
   const apps = appRecipes(inputs.recipes);
   if (apps.length === 0) return null;
   const ranked = appsByRoom(inputs);
-  const of = (id: string | null | undefined) => (id ? apps.find((recipe) => recipe.account_id === id) : undefined);
   const startable = apps.filter((recipe) => canStart(inputs.folders, recipe.account_id));
   const accountOf = inputs.accountOf ?? ((id: string) => id);
+  // The 0.4.6 RC walk A8: a door or a binding may name a folder that isn't
+  // a CLI App (a Claude app profile's, `cliRecipes`: the Account page's
+  // first folder, a project bound to it before): its Account's own CLI App
+  // stands for it, one that can start first, never another Account's.
+  const of = (id: string | null | undefined) => {
+    if (!id) return undefined;
+    const own = apps.find((recipe) => recipe.account_id === id);
+    if (own) return own;
+    const mine = apps.filter((recipe) => accountOf(recipe.account_id) === accountOf(id));
+    return mine.find((recipe) => canStart(inputs.folders, recipe.account_id)) ?? mine[0];
+  };
   const own = ownApp(apps, { ...inputs, accountOf, canStart: (id) => canStart(inputs.folders, id) });
   const candidates: Array<[LaunchRecipeInfo | undefined, AppWhy]> = [
     [of(inputs.chosen), "chosen"],
@@ -320,6 +331,33 @@ export function appWhyWords(why: AppWhy, after?: string | null): string | null {
   }
 }
 
+/** F-rc3f-1: New session chose it ("Suggested" beside it): not the
+ * person's (picked, kept from the start before) nor their default. */
+export function isSuggestion(why: AppWhy): boolean {
+  return !USERS_OWN.has(why) || why === "own-account";
+}
+
+/** F-rc3f-1: the whys that are a folder's own: named, never taken, when
+ * the person's pick is carried into a folder whose own is another. */
+export const FOLDER_OWN: ReadonlySet<AppWhy> = new Set<AppWhy>(["project-default", "own-account", "last-here", "used-here"]);
+
+/** The folder's own App, beside the one kept ("Claude Code CLI · Lab is
+ * the only account used in team"); `null`: a why not the folder's. */
+export function folderOwnWords(why: AppWhy, folder: string, app: string): string | null {
+  switch (why) {
+    case "project-default":
+      return `${folder}'s default is ${app}`;
+    case "own-account":
+      return `${app} is the only account used in ${folder}`;
+    case "last-here":
+      return `${app} is the last you used in ${folder}`;
+    case "used-here":
+      return `${app} was used in ${folder} before`;
+    default:
+      return null;
+  }
+}
+
 /** D-96 F: the project "Start another" offers after a start: the next
  * the user works in, by the order New session opens on (worked in last,
  * else used by the tool's history), never one started in this run
@@ -342,8 +380,9 @@ export function folderGroups(projects: readonly ProjectInfo[]): { label: string;
   ];
 }
 
-/** The App picker's groups before All: Suggested (the choice, and the
- * most room when that's another), then the Apps used in this project. */
+/** The App picker's groups before All: Suggested (the folder's own
+ * suggestion, and the most room when that's another), then the Apps used
+ * in this project. */
 export function appGroups(choice: AppChoice | null, ranked: ReturnType<typeof appsByRoom>, project: ProjectInfo | null): { label: string; values: string[] }[] {
   const suggested = [choice?.recipe.account_id, ranked.find((row) => row.suggested)?.recipe.account_id].filter((id, at, all): id is string => !!id && all.indexOf(id) === at);
   const used = [...(project?.accounts_used ?? [])]

@@ -287,6 +287,20 @@ fn recorded_messages_make_the_right_events_and_answers() {
     assert!(codec.unknown >= 2);
 }
 
+/// F-rc3g-1: a driven session's limits are kept as the account's reading,
+/// so a window Codex sent without its use is left out, never read as 0%.
+#[test]
+fn a_window_without_its_use_is_left_out() {
+    use juggler_adapters::codex_appserver::codec::limits_of;
+    let limits = limits_of(&json!({
+        "primary": {"windowDurationMins": 300, "resetsAt": 1_761_397_200},
+        "secondary": {"usedPercent": 5, "windowDurationMins": 10_080}}));
+    assert_eq!(limits.windows.len(), 1);
+    assert_eq!(limits.windows[0].window_mins, Some(10_080));
+    assert!((limits.windows[0].used_pct - 5.0).abs() < 1e-9);
+    assert_eq!(limits.windows[0].model, None, "the account's own window");
+}
+
 #[test]
 fn answers_are_codexs_shapes_and_only_to_open_asks() {
     let mut codec = Codec::default();

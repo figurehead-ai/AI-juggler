@@ -58,24 +58,25 @@ export function BetaMatrix(): JSX.Element {
   if (rows === null) {
     return (
       <Card className="p-4 text-xs text-muted" data-testid="beta-matrix-loading">
-        Loading which switches are proven…
+        Loading which switches are tested…
       </Card>
     );
   }
-  const proven = rows.filter((row) => row.validated).length;
+  const tested = rows.filter((row) => row.validated).length;
   return (
     <Card className="flex flex-col gap-3 p-4" data-testid="beta-matrix">
       <div>
-        <p className="text-section font-semibold text-ink">Proven switches</p>
+        <p className="text-section font-semibold text-ink">Tested switches</p>
         <p className="mt-1 text-xs text-ink-2" data-testid="beta-matrix-summary">
-          {proven === 0
-            ? `None of the ${rows.length} switches is proven yet; all are in beta. `
-            : `${proven} of ${rows.length} switches proven; ${rows.length - proven} still in beta. `}
-          Each says what carries, never more. A switch is proven once its automatic tests pass with the real
-          tools and it has been tried by hand.
+          {tested === 0
+            ? `None of the ${rows.length} switches is tested in every part yet; all are in beta. `
+            : `${tested} of ${rows.length} switches tested; ${rows.length - tested} still in beta. `}
+          Each says what carries, never more. A switch is tested once its automatic tests pass with the real
+          tools and every part of it was tried with them. Only tested switches are offered; the others show
+          when you turn on switches still in beta in Settings › Switching.
         </p>
       </div>
-      <div className="overflow-x-auto" tabIndex={0} role="region" aria-label="Proven switches">
+      <div className="overflow-x-auto" tabIndex={0} role="region" aria-label="Tested switches">
         <table className="w-full text-left text-label" data-testid="beta-matrix-table">
           <thead>
             <tr className="border-b border-hairline text-muted">
@@ -108,7 +109,7 @@ export function BetaMatrix(): JSX.Element {
                   <HandCheckCell row={row} />
                 </td>
                 <td className="py-1.5 text-muted">
-                  <span className="block">{row.validated ? "Proven ✓" : "Beta — not proven yet"}</span>
+                  <span className="block">{row.validated ? "Tested ✓" : "Beta: still being tested"}</span>
                   <span className="block text-label text-muted">{row.status}</span>
                   {row.notes.length > 0 && (
                     <span className="block text-label text-muted">{row.notes.join(" · ")}</span>

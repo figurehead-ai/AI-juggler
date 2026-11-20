@@ -47,8 +47,10 @@ per-session socket that never passes through AI Juggler.
   - The wizard says so.
 - **Live on rc2 (2026-11-07):** a team session's own SendMessage into the sealed client session was refused ("isn't accepting cross-session messages"), and the client ran nothing. The client had no ListAgents or SendMessage; AI Juggler's pool tools still worked inside the pool.
 - **Pair rules other than sealed:** Ask first or Blocked between two members can't be set on Claude's channel per pair, because the setting covers the whole session. Pair rules hold on AI Juggler's channel only.
+- **`hold`, live in the terminal (2026-11-10, verified by Opus; evidence `docs/qa/evidence/AJ-E3002/manifest.md` §"Claude Code's own `crossSessionInbound: \"hold\"`"):** two Claude Code 2.1.310 sessions in `~/lab/web` on the Lab App folder, R with `claude --settings '{"crossSessionInbound":"hold"}'`, S plain. S's SendMessage to R was answered "Cross-session message held by the receiving session … Claude in that session hasn't seen it." R showed one line, "Held peer message … not delivered to Claude (1 held). Your "crossSessionInbound" setting is "hold"; set it to "accept" to deliver held messages.", with no dialog and no way to approve in place; after ~90 s it was still held, and Claude in R had seen nothing. So `hold` holds per session; the only release is changing the setting.
+- **`hold`, live in the Claude app's Code tab (2026-11-10, verified by Opus; same manifest, §"the Claude desktop app's Code tab"):** on the sanctioned aij-test profile, its `settings.json` set to `{"crossSessionInbound":"hold"}` and restored byte for byte after (SHA-256 `ca3d163b…` before and after). A message sent to the app's session on Claude's own channel was told "held"; the Code tab showed one dashed in-line notice, "held - waiting for approval in that session's terminal … Claude has not seen it", with no dialog and no button, and the message wasn't delivered in ~5 minutes. That matches the documented "the Code tab can't show the hold dialog": a held message waits and isn't delivered, so AI Juggler offers `refuse` (sealed), never `hold`, on Claude's channel (D-95).
 
-## 3. OpenCode and Grok Build tools per launch — YES at load (no sign-in); the live part is on rc17
+## 3. OpenCode and Grok Build tools per launch — YES, at load (no sign-in) and live
 
 Lab of 2026-11-09:
 - OpenCode 1.19.5 and Grok Build 1.0.77, as installed.
@@ -66,5 +68,23 @@ Lab of 2026-11-09:
   - Probe with the real bridge (throwaway homes, no sign-in):
     - OpenCode: `opencode mcp list` printed "✓ juggler connected", and `opencode debug config` showed the model kept and exactly the 14 allows.
     - Grok: `grok mcp doctor juggler` printed "handshake OK", "14 tools discovered" and "1 healthy, 0 failing", the same for a launch without the tools, where each call says the session wasn't started with them.
-- **Left for the live walk** (`docs/qa/0.4-walks/E3002-R3.md`, rc17, a signed-in test account of each): an agent sees the 14 tools and calls one with no prompt; messages and holds work; and a launch without the tools shows no broken server.
+- **Live, on 0.4.1's release candidates (rc17 to rc33), 2026-11-09..11.** The walk followed the sheet `docs/qa/0.4-walks/E3002-R3.md`: AI Juggler Dev on the real HOME under ADR-0027 7b, a signed-in test account of each tool in an App AI Juggler made for it, and the pool "R3 tools" on `~/lab/r3-tools` with the Lab App as Lead. The release session's Opus-checked walk results aren't in the repository, so this is written from what they left in it: the evidence manifest (`docs/qa/evidence/AJ-E3002/manifest.md`, R3), AJ-E3304's P8 row, and the commits that fixed what the walk found.
+  - **The tools, with no prompt (steps 5 and 6, rc17 and rc20):** in each session, "list the tools you have from the juggler server", then `whoami`. OpenCode and Grok Build both got AI Juggler's 14 agent tools, with no permission prompt and no approval card.
+  - **Again on rc27** (P8 step 1, `docs/qa/evidence/AJ-E3304/manifest.md`): the OpenCode and Grok scouts called `send_message` and `share_doc` with no prompt.
+  - **Messages and holds (step 8):** Member → Lead on Ask first, Grok sends the Lead "echo lab"; then Lead → Grok the same way. Delivered both ways after Allow once. Seen on rc19, while the message was held:
+    - The rail's Needs you row read "«Untitled session · r3-tools started 01:15 PM» wants t…", with its reason cut off. Fixed in b441abbf5: "«r3-tools» wants to message «web»", with "Ask first in «Team»" under it.
+    - The Messages page only said "Waits on your OK"; only the canvas card could answer. Fixed in 0bc92bbba: Allow once and Deny are on the Messages page too.
+    - A line exists only after a first message, so its own rule can be set only after one got through. That is AJ-E3010, planned for 0.5.
+  - **A launch without the tools (step 12):** Agent tools off for `~/lab/r3-tools`, then a Grok session.
+    - On rc18, Grok still listed the juggler server its home keeps, and `whoami` raised Grok's approval card. A FAIL.
+    - Fixed in 149d0e34f: such a launch passes `--deny MCPTool(juggler__*)`, and `--rules` saying the session wasn't started with AI Juggler's agent tools (Grok 1.0.77 can't leave one configured server out per launch).
+    - Walked again: Grok is denied the tools and shows no card.
+    - On rc32 the deny came back as Grok's own rule string. Since 13113d5b2 the `--rules` words give the reason and tell the agent to say in plain words that the tools are off and where to turn them on.
+  - **Found on the other steps and fixed:**
+    - rc17, step 2: OpenCode's `auth login` with a pasted key wrote an `api` entry. The sign-in row kept waiting on "Finish signing in below", and Needs you kept asking it to sign in. Fixed in 56614838e: "Signed in with an API key".
+    - rc18, step 1: `grok --version` printed "grok 1.0.77 (50ca579fa996)", and Add an app said "Found; couldn't check its version". Fixed in bd431c24d.
+    - rc18: an OpenCode session idle at its prompt after its turn read "Probably stuck" in the rail and the pool. Fixed in 1ab7cfc59 (each tool says its own end of turn), and in 8e48d8938 for Codex and Grok Build.
+    - rc32, step 10: Resume started a new session that no member matched, and the original's node stayed "Stopped by you". Fixed in e1135059c: a resumed session keeps the pools it was put in.
+    - rc33: a "Grok · R3" terminal session came back on its conversation 6 s after its Stop: once the Stop landed, Resume took its place, and the next press there resumed it. Fixed in 5b7970e0e: Stop reads "Stopping…", and the Resume in its place takes no press for 2 s.
+  - **Not in the records:** the agents' own words for steps 5 and 6, and the results of steps 4, 7, 9 and 11. Steps 1, 10 and 11 are AJ-E1612's checklist (found, resume, usage) and stay open there.
 - Kimi Code stays on its shell.

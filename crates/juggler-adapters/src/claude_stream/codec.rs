@@ -8,6 +8,10 @@
 //!   approval, or `AskUserQuestion`'s questions), anything else refused.
 //! - Out: `user` turns, `control_request`s (`initialize`, `interrupt`,
 //!   `set_model`) and `control_response`s carrying the user's own answer.
+//!   Claude Code echoes no turn it is sent (only with
+//!   `--replay-user-messages`, which isn't asked for), so each turn's text is
+//!   reported here as it is sent: the conversation shows what it was given
+//!   (F-rc3g-9).
 
 use std::collections::HashMap;
 
@@ -62,12 +66,17 @@ fn state(status: LiveStatusWord) -> RuntimeEvent {
     RuntimeEvent::State { status }
 }
 
-/// A window's length from its name.
-fn window_mins(name: &str) -> Option<u32> {
+/// A window's length from its name, and the one model it limits when it
+/// is a week on one model only (`seven_day_opus`).
+fn window_of(name: &str) -> (Option<u32>, Option<String>) {
     match name {
-        "five_hour" => Some(300),
-        "seven_day" | "seven_day_opus" | "seven_day_sonnet" => Some(10_080),
-        _ => None,
+        "five_hour" => (Some(300), None),
+        "seven_day" => (Some(10_080), None),
+        "seven_day_opus" | "seven_day_sonnet" => (
+            Some(10_080),
+            name.strip_prefix("seven_day_").map(str::to_owned),
+        ),
+        _ => (None, None),
     }
 }
 
@@ -91,36 +100,47 @@ fn percent(value: &Value) -> Option<f64> {
     Some(if used <= 1.0 { used * 100.0 } else { used }.clamp(0.0, 100.0))
 }
 
+/// One window of a `rate_limit_event`: its use as the tool gave it, or
+/// all of it when the tool says this window's limit is reached (`hit`);
+/// `None` when the tool didn't say how much is used (F-rc3g-1: never read
+/// as 0% used, which reads as all of it left).
+fn window(name: &str, window: &Value, hit: bool) -> Option<LimitWindow> {
+    let used_pct = window
+        .get("utilization")
+        .and_then(percent)
+        .or(hit.then_some(100.0))?;
+    let (window_mins, model) = window_of(name);
+    Some(LimitWindow {
+        id: name.to_owned(),
+        window_mins,
+        used_pct,
+        resets_at_ms: window.get("resetsAt").and_then(epoch_ms),
+        model,
+    })
+}
+
 /// A `rate_limit_event`'s windows, as Claude Code named them.
 #[must_use]
 pub fn limits_of(info: &Value) -> LimitsSnapshot {
+    let reached = text(info, "/status").as_deref() == Some("rejected");
+    let hit_window = text(info, "/rateLimitType").filter(|_| reached);
     let mut windows: Vec<LimitWindow> = info
         .get("unifiedWindows")
         .and_then(Value::as_object)
         .into_iter()
         .flatten()
-        .map(|(name, window)| LimitWindow {
-            id: name.clone(),
-            window_mins: window_mins(name),
-            used_pct: window.get("utilization").and_then(percent).unwrap_or(0.0),
-            resets_at_ms: window.get("resetsAt").and_then(epoch_ms),
-        })
+        .filter_map(|(name, value)| window(name, value, hit_window.as_ref() == Some(name)))
         .collect();
     if windows.is_empty()
         && let Some(name) = text(info, "/rateLimitType")
     {
-        windows.push(LimitWindow {
-            window_mins: window_mins(&name),
-            id: name,
-            used_pct: info.get("utilization").and_then(percent).unwrap_or(0.0),
-            resets_at_ms: info.get("resetsAt").and_then(epoch_ms),
-        });
+        windows.extend(window(&name, info, reached));
     }
     windows.sort_by_key(|w| w.window_mins.unwrap_or(u32::MAX));
     LimitsSnapshot {
         windows,
         plan: None,
-        reached: text(info, "/status").as_deref() == Some("rejected"),
+        reached,
     }
 }
 
@@ -270,11 +290,16 @@ impl Codec {
         if let Some(session) = &self.session {
             line["session_id"] = json!(session);
         }
+        let given = ItemSummary {
+            kind: ItemKind::UserMessage,
+            text: bounded(&input.text),
+        };
         let events = vec![
             RuntimeEvent::TurnStarted {
                 turn: None,
                 origin: Some(input.origin),
             },
+            RuntimeEvent::Item { item: given },
             state(LiveStatusWord::Busy),
         ];
         Ok((line, events))
@@ -628,6 +653,71 @@ mod words {
         assert_eq!(
             suggestion_words(&rule, Some(home)).0,
             "Always allow Bash(echo lab *), in this project (your local settings)"
+        );
+    }
+}
+
+/// F-rc3g-1: a driven session's limits are kept as the account's reading,
+/// so a window says only what Claude Code said: no 0% for a use it didn't
+/// give, and a week on one model only never reads as the account's week.
+#[cfg(test)]
+mod limits {
+    use super::limits_of;
+    use serde_json::json;
+
+    #[test]
+    fn a_window_without_its_use_is_left_out_never_read_as_none_used() {
+        // Claude Code's own shape when it gives no utilization.
+        let quiet = json!({"status": "allowed", "rateLimitType": "five_hour",
+            "resetsAt": 1_761_397_200, "overageStatus": "rejected"});
+        assert!(limits_of(&quiet).windows.is_empty());
+        let unified = json!({"status": "allowed", "unifiedWindows": {
+            "five_hour": {"resetsAt": 1_761_397_200},
+            "seven_day": {"utilization": 0.05, "resetsAt": 1_761_900_000}}});
+        let limits = limits_of(&unified);
+        assert_eq!(limits.windows.len(), 1);
+        assert_eq!(limits.windows[0].id, "seven_day");
+        assert!((limits.windows[0].used_pct - 5.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn a_limit_reached_is_all_used_even_without_its_use() {
+        let hit = json!({"status": "rejected", "rateLimitType": "five_hour",
+            "resetsAt": 1_761_397_200});
+        let limits = limits_of(&hit);
+        assert!(limits.reached);
+        assert_eq!(limits.windows.len(), 1);
+        assert!((limits.windows[0].used_pct - 100.0).abs() < 1e-9);
+        assert_eq!(limits.windows[0].resets_at_ms, Some(1_761_397_200_000));
+        // Only the window that was hit: the other's use isn't known.
+        let unified = json!({"status": "rejected", "rateLimitType": "seven_day",
+            "unifiedWindows": {"five_hour": {"resetsAt": 1}, "seven_day": {"resetsAt": 2}}});
+        let ids: Vec<String> = limits_of(&unified)
+            .windows
+            .into_iter()
+            .map(|w| format!("{}={}", w.id, w.used_pct))
+            .collect();
+        assert_eq!(ids, ["seven_day=100"]);
+    }
+
+    #[test]
+    fn a_week_on_one_model_names_its_model() {
+        let info = json!({"status": "allowed", "unifiedWindows": {
+            "five_hour": {"utilization": 0.36, "resetsAt": 1_761_397_200},
+            "seven_day": {"utilization": 0.05},
+            "seven_day_opus": {"utilization": 0.4}}});
+        let windows = limits_of(&info).windows;
+        let models: Vec<(&str, Option<u32>, Option<&str>)> = windows
+            .iter()
+            .map(|w| (w.id.as_str(), w.window_mins, w.model.as_deref()))
+            .collect();
+        assert_eq!(
+            models,
+            [
+                ("five_hour", Some(300), None),
+                ("seven_day", Some(10_080), None),
+                ("seven_day_opus", Some(10_080), Some("opus")),
+            ]
         );
     }
 }

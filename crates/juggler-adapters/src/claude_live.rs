@@ -153,24 +153,27 @@ pub fn app_root(instance_dir: &Path) -> PathBuf {
     instance_dir.join("claude-code-sessions")
 }
 
+/// The folders right in `dir` (none when it doesn't read): the records'
+/// `<account>/` and `<org>/` levels.
+pub(crate) fn folders_in(dir: &Path) -> Vec<PathBuf> {
+    std::fs::read_dir(dir)
+        .map(|entries| {
+            entries
+                .flatten()
+                .filter(|entry| entry.file_type().is_ok_and(|kind| kind.is_dir()))
+                .map(|entry| entry.path())
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
 /// The app session files of one Claude app instance.
 #[must_use]
 pub fn app_files(instance_dir: &Path) -> Vec<PathBuf> {
     let root = app_root(instance_dir);
     let mut out = Vec::new();
-    let dirs = |dir: &Path| -> Vec<PathBuf> {
-        std::fs::read_dir(dir)
-            .map(|entries| {
-                entries
-                    .flatten()
-                    .filter(|entry| entry.file_type().is_ok_and(|kind| kind.is_dir()))
-                    .map(|entry| entry.path())
-                    .collect()
-            })
-            .unwrap_or_default()
-    };
-    for account in dirs(&root) {
-        for org in dirs(&account) {
+    for account in folders_in(&root) {
+        for org in folders_in(&account) {
             let Ok(entries) = std::fs::read_dir(&org) else {
                 continue;
             };
@@ -269,11 +272,15 @@ mod tests {
 
     const SECRET: &str = "SUMMARY-TEXT-NEVER-KEPT";
 
-    fn pid_file(dir: &Path, pid: u32, body: &str) -> PathBuf {
-        let path = sessions_dir(dir).join(format!("{pid}.json"));
+    /// `body` written at `path`, its folders made.
+    fn written(path: PathBuf, body: &str) -> PathBuf {
         std::fs::create_dir_all(path.parent().unwrap()).unwrap();
         std::fs::write(&path, body).unwrap();
         path
+    }
+
+    fn pid_file(dir: &Path, pid: u32, body: &str) -> PathBuf {
+        written(sessions_dir(dir).join(format!("{pid}.json")), body)
     }
 
     #[test]
@@ -344,12 +351,12 @@ mod tests {
     }
 
     fn app_file(instance: &Path, id: &str, body: &str) -> PathBuf {
-        let path = instance
-            .join("claude-code-sessions/acct/org")
-            .join(format!("{id}.json"));
-        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
-        std::fs::write(&path, body).unwrap();
-        path
+        written(
+            instance
+                .join("claude-code-sessions/acct/org")
+                .join(format!("{id}.json")),
+            body,
+        )
     }
 
     #[test]

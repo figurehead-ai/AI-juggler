@@ -131,7 +131,7 @@ for (const r of ROWS) {
 
     // A rare option changed, for this session only (N3).
     if (r.rare_changed !== "no") {
-      await page.getByTestId("new-session-more").locator("summary").click();
+      await page.getByTestId("new-session-more-toggle").click();
       await page.getByRole("button", { name: "How it runs" }).click();
       await page.getByRole("menu").getByText("Start in terminal", { exact: true }).click();
       await expect(page.getByTestId("new-session-more-values")).toContainText("runs in its terminal");

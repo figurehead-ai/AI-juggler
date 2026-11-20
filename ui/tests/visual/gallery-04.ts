@@ -58,9 +58,12 @@ export async function axe(page: Page, what: string): Promise<void> {
   ).toEqual([]);
 }
 
-/** A settled capture of the page into `dir`, then axe on it. */
-export async function shot(page: Page, dir: string, name: string): Promise<void> {
-  await page.mouse.move(0, 0);
+/** A settled capture of the page into `dir`, then axe on it. The pointer
+ * moves off the page first, unless the state is one the pointer makes
+ * (`hovering`: a row's "Asks" line at the Floor list's foot, which leaving
+ * the row hides; moving away made that capture race the hide). */
+export async function shot(page: Page, dir: string, name: string, options: { hovering?: boolean } = {}): Promise<void> {
+  if (!options.hovering) await page.mouse.move(0, 0);
   await settle(page);
   await page.screenshot({ path: resolve(dir, `${name}.png`) });
   await axe(page, name);

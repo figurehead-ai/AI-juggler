@@ -343,9 +343,10 @@ pub fn start_impl(
         ),
         read_dirs: file.parent().map(Path::to_path_buf).into_iter().collect(),
     };
-    let (session, _pid) =
-        crate::crossmachine::launch_here(state, &profile, &account, &project, &mode, None, "pack")
-            .inspect_err(|error| failed(state, &edge, FailureStage::Launch, &error.to_string()))?;
+    let (session, _pid) = crate::crossmachine::launch_here(
+        state, &profile, &account, &project, &mode, None, "pack", None,
+    )
+    .inspect_err(|error| failed(state, &edge, FailureStage::Launch, &error.to_string()))?;
     let storage = crate::commands::lock_storage_arc(state)?;
     let graph = storage.switch_graph();
     let to_epoch = EpochId::new(format!("ep-{}", crate::ids::unique_suffix()));

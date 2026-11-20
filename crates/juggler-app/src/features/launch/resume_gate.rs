@@ -97,6 +97,55 @@ pub fn resume_spec(
     launch_spec(adapter.as_ref(), account, profile, cwd, &mode)
 }
 
+/// The terminal launch that starts `conversation_id` again, fresh: a
+/// driven session whose tool never wrote it (no turn yet) has nothing to
+/// resume (F-rc3f-3).
+pub struct FreshStart {
+    /// The launch, in the session's own folder.
+    pub spec: LaunchSpec,
+    /// It keeps `conversation_id` (the tool takes the caller's id); else
+    /// it is a new conversation the tool names itself.
+    pub kept: bool,
+}
+
+/// The launch that starts `conversation_id` again in its terminal, in
+/// `cwd`: under the same id where the tool takes the caller's
+/// (`ToolLaunch::named_launch_spec`), else a new conversation, its
+/// launch as a new session's in the session's own folder (its work goes
+/// on there, as a resume's does).
+///
+/// # Errors
+///
+/// The adapter's launch errors; an unknown tool.
+pub fn fresh_spec(
+    state: &Arc<AppState>,
+    account: &Account,
+    profile: &Profile,
+    cwd: &Path,
+    conversation_id: &str,
+) -> AppResult<FreshStart> {
+    let adapter = adapter_of(state, account)?;
+    if let Some(spec) = adapter.named_launch_spec(account, profile, cwd, conversation_id)? {
+        return Ok(FreshStart { spec, kept: true });
+    }
+    let mut spec = adapter.launch_spec(account, profile, cwd, &LaunchMode::Interactive)?;
+    spec.cwd = cwd.to_path_buf();
+    Ok(FreshStart { spec, kept: false })
+}
+
+/// What a session's history says when its tool started a new
+/// conversation in place of one it never wrote.
+#[must_use]
+pub fn new_conversation_words(state: &Arc<AppState>, account: &Account) -> String {
+    let tool = adapter_of(state, account).map_or_else(
+        |_| "its tool".to_owned(),
+        |adapter| adapter.spec().display_name,
+    );
+    format!(
+        "a new conversation: {tool} names its own, and the one it had held nothing yet (no turn)"
+    )
+}
+
 fn adapter_of(
     state: &Arc<AppState>,
     account: &Account,

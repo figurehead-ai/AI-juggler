@@ -82,6 +82,7 @@ describe("this project's notes", () => {
     const meaning = within(row).getByTestId("setup-meaning");
     expect(meaning.textContent).toContain("A note Personal has with other words is kept as it is.");
     expect(meaning.textContent).toContain("For example: a note that the project's codename is Bluebird is copied");
+    fireEvent.click(within(meaning).getByRole("button", { name: "What does this mean?" }));
     fireEvent.click(within(meaning).getByRole("button", { name: /switching guide/ }));
     expect((window as never as Seams).__AIJ_OPENED__).toEqual([{ kind: "guide", id: "switching#this-projects-notes" }]);
   });

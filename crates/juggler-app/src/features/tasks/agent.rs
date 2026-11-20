@@ -116,7 +116,8 @@ fn refusal_of(error: &AppError) -> Response {
     }
 }
 
-/// The caller as an actor: its name from the roster, its refs.
+/// The caller as an actor: its name from the roster (AJ-E3013, run 3: a
+/// desktop session's as the diagram names it), its refs.
 pub(crate) fn actor_of(state: &Arc<AppState>, caller: &Caller) -> Actor {
     let name = crate::features::messages::roster(state, &caller.pool_id)
         .ok()
@@ -125,7 +126,18 @@ pub(crate) fn actor_of(state: &Arc<AppState>, caller: &Caller) -> Actor {
                 .into_iter()
                 .find(|m| m.session_id == caller.session.as_str())
         })
-        .map_or_else(|| "An agent".to_owned(), |member| member.name);
+        .map(|member| member.name)
+        .or_else(|| {
+            crate::features::connector::reach::of_pool(state, &caller.pool_id)
+                .ok()?
+                .into_iter()
+                .find(|one| {
+                    one.member == caller.member_ref
+                        || one.session.as_deref() == Some(caller.session.as_str())
+                })
+                .map(|one| one.name)
+        })
+        .unwrap_or_else(|| "An agent".to_owned());
     let refs = lock_storage_arc(state).map_or_else(
         |_| vec![format!("session:{}", caller.session.as_str())],
         |storage| crate::features::messages::refs_of(&storage, &caller.session),
@@ -244,15 +256,46 @@ fn assign(
             "note": "The user sees this in AI Juggler and decides. They pick the account and start the session; nothing starts by itself, and no agent picks an account.",
         }));
     }
+    let to = assignee(state, caller, &args.to)?;
     act(
         state,
         caller,
         actor,
         &Held::Assign {
             task: args.task,
-            to: args.to,
+            to,
         },
     )
+}
+
+/// F-rc3g-11: whom `to` gives the task to: "nobody", a member's
+/// `session_id`, or a member named as `pool_roster` names it (its own
+/// `session_id` then); a name more than one member answers to is refused,
+/// naming each. Anything else is left to the member check
+/// ([`member_name`]), which refuses it in words.
+fn assignee(state: &Arc<AppState>, caller: &Caller, to: &str) -> Result<String, Response> {
+    use crate::features::messages;
+    let to = to.trim();
+    if to == "nobody" {
+        return Ok(to.to_owned());
+    }
+    let roster = messages::roster(state, &caller.pool_id)
+        .map_err(|_| refuse(Refusal::Bad, "AI Juggler couldn't read the pool."))?;
+    if roster.iter().any(|member| member.session_id == to) {
+        return Ok(to.to_owned());
+    }
+    let names: Vec<&str> = roster.iter().map(|member| member.name.as_str()).collect();
+    match messages::called(&names, to).as_slice() {
+        [at] => Ok(roster[*at].session_id.clone()),
+        [] => Ok(to.to_owned()),
+        many => {
+            let each: Vec<String> = many
+                .iter()
+                .map(|&at| messages::member_words(&roster[at]))
+                .collect();
+            Err(refuse(Refusal::Bad, messages::namesake_words(to, &each)))
+        }
+    }
 }
 
 /// The decision point, as a refusal when it isn't Allow (for looking and

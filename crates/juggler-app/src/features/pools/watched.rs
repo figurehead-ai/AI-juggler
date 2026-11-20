@@ -22,6 +22,9 @@ fn continued(storage: &Storage) -> AppResult<HashMap<String, String>> {
         .sessions()
         .pool_facts()?
         .into_iter()
+        // AJ-E3013: an attested desktop session isn't continued in AI
+        // Juggler: its conversation stays its member (connected).
+        .filter(|facts| !juggler_core::storage::attested::is_desktop_id(facts.session.as_str()))
         .filter_map(|facts| {
             let (folder, id) = facts.conversation?;
             Some((format!("{folder}/{id}"), facts.session.as_str().to_owned()))
@@ -37,10 +40,31 @@ fn continued(storage: &Storage) -> AppResult<HashMap<String, String>> {
 /// Storage failures.
 pub fn counts(storage: &Storage) -> AppResult<HashMap<String, u32>> {
     let done: HashSet<String> = continued(storage)?.into_keys().collect();
+    // AJ-E3013: a desktop conversation whose session is attested now is
+    // counted with the sessions (`members::Tally`), in each pool it's in.
+    let memberships = super::members::memberships(storage)?;
+    let counted: HashSet<(String, String)> = storage
+        .attested()
+        .fresh()
+        .iter()
+        .filter_map(|facts| {
+            let (folder, id) = facts.conversation.clone()?;
+            let key = format!("{folder}/{id}");
+            Some(
+                memberships
+                    .resolve(facts)
+                    .placements
+                    .into_iter()
+                    .map(move |place| (place.pool_id, key.clone())),
+            )
+        })
+        .flatten()
+        .collect();
     let mut out: HashMap<String, u32> = HashMap::new();
     for row in storage.pools().members()? {
         if let MemberRef::Conversation { folder, id } = &row.member
             && !done.contains(&format!("{folder}/{id}"))
+            && !counted.contains(&(row.pool_id.clone(), format!("{folder}/{id}")))
         {
             *out.entry(row.pool_id).or_default() += 1;
         }

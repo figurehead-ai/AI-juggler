@@ -207,7 +207,12 @@ pub(super) fn owner(
 
 /// Continues `native_id` as a new session of `from`'s, in `runtime`: the
 /// old one is marked handed over, the new one recorded (never two writers:
-/// the old one's process has ended first).
+/// the old one's process has ended first) under the name the person gave
+/// the old one, if any (F-rc3g-3). A conversation its tool never
+/// wrote (`written` false: a driven session with no turn yet) has nothing
+/// to resume: it starts again, fresh, under the same id where the tool
+/// takes the caller's, else as a new conversation that its history names
+/// (F-rc3f-3).
 fn continue_as(
     state: &Arc<AppState>,
     from: &juggler_core::model::SessionRecord,
@@ -215,10 +220,19 @@ fn continue_as(
     account: &juggler_core::model::Account,
     native_id: &str,
     runtime: Runtime,
+    written: bool,
 ) -> AppResult<HandoverInfo> {
-    let terminal = crate::features::launch::resume_gate::resume_spec(
-        state, account, profile, &from.cwd, native_id,
-    )?;
+    let (terminal, resume, fresh_id, kept) = if written {
+        let terminal = crate::features::launch::resume_gate::resume_spec(
+            state, account, profile, &from.cwd, native_id,
+        )?;
+        (terminal, Some(native_id.to_owned()), None, true)
+    } else {
+        let fresh = crate::features::launch::resume_gate::fresh_spec(
+            state, account, profile, &from.cwd, native_id,
+        )?;
+        (fresh.spec, None, Some(native_id.to_owned()), fresh.kept)
+    };
     // The one path: its row first, then the runtime asked for.
     let session = SessionId::new(format!("sess-{}", crate::ids::unique_suffix()));
     let started = crate::features::sessions::spawn::start_session(
@@ -229,17 +243,31 @@ fn continue_as(
             profile: &profile.id,
             project: from.project.clone(),
             cwd: from.cwd.clone(),
-            conversation: Some(juggler_core::model::ConversationId::new(native_id)),
-            transcript_ref: from.transcript_ref.clone(),
+            conversation: kept.then(|| juggler_core::model::ConversationId::new(native_id)),
+            transcript_ref: from.transcript_ref.clone().filter(|_| written),
             origin: "resume",
+            // The name the person gave it goes on with it (F-rc3g-3).
+            continues: Some(crate::features::sessions::spawn::GoesOn::From(&from.id)),
         },
         crate::features::sessions::spawn::Runs::Planned {
             profile,
-            resume: Some(native_id.to_owned()),
+            resume,
+            fresh_id,
             requested: Some(runtime),
             terminal,
         },
     )?;
+    if !kept {
+        let words = format!(
+            "it went on in {}",
+            crate::features::launch::resume_gate::new_conversation_words(state, account)
+        );
+        if let Ok(storage) = state.storage.lock() {
+            let _ = storage
+                .sessions()
+                .record_lifecycle(&started.session, &words);
+        }
+    }
     record_continuation(state, from, &started.session)?;
     Ok(HandoverInfo {
         session_id: started.session.to_string(),
@@ -314,6 +342,7 @@ pub fn handover_impl(
             &account,
             &native_id,
             Runtime::Driven,
+            true,
         );
     }
     let driver = driver(state, session)?;
@@ -359,6 +388,9 @@ pub fn handover_impl(
             if !state.supervisor.is_finished(&id) {
                 let _ = state.supervisor.stop(&id, Duration::from_secs(2));
             }
+            // Read once the driver let go: a turn that began before then
+            // wrote the conversation (F-rc3f-3).
+            let written = driver.snapshot().written;
             state.runtime.forget(session);
             continue_as(
                 state,
@@ -367,6 +399,7 @@ pub fn handover_impl(
                 &account,
                 &native_id,
                 Runtime::Terminal,
+                written,
             )
         }
     }

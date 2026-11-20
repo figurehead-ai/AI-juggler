@@ -27,6 +27,7 @@ import { pickDirectory } from "../lib/ipc/project-folders";
 import type { AccountInfo } from "../types/generated/AccountInfo";
 import type { LaunchRecipeInfo } from "../types/generated/LaunchRecipeInfo";
 import { errorText } from "../lib/bridge";
+import { Disclosure } from "../components/controls";
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
 
 export { placementWords } from "./accounts/UseOriginal";
@@ -72,7 +73,7 @@ export function ProfilesScreen({
   /** D-97 (3): the empty page's Find my apps: first run's scan and found
    * step (absent: Add an app's flow). */
   onFindApps?: () => void;
-  openTerminal: (id: string, title: string) => void;
+  openTerminal: (id: string, title: string, options?: { account?: string }) => void;
   /** D-25: what runs where (open counts, runway fallback). */
   sessions?: InstanceInfo[];
   onInspectAccount?: (id: string) => void;
@@ -223,7 +224,7 @@ export function ProfilesScreen({
       )}
 
       {/* D-25: the pack-secrets policy lives in Settings; the matrix of
-          proven switches is one click away, not on every visit. */}
+          tested switches is one click away, not on every visit. */}
       <p className="text-xs text-ink-2">
         What happens to keys and passwords in a conversation you carry to another app is in{" "}
         <button
@@ -236,14 +237,11 @@ export function ProfilesScreen({
         </button>
         .
       </p>
-      <details className="group" data-testid="accounts-beta-matrix">
-        <summary className="cursor-pointer text-xs text-muted outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60">
-          Which switches between apps are proven
-        </summary>
+      <Disclosure summary="Which switches between apps are tested" testId="accounts-beta-matrix">
         <div className="mt-3">
           <BetaMatrix />
         </div>
-      </details>
+      </Disclosure>
 
       {newProfileFor && (
         <NewProfileModal

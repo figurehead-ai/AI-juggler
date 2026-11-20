@@ -272,7 +272,7 @@ read_routes! {
     "sessions_resume_command" => async_result features::sessions::commands::sessions_resume_command(state; session_id: String);
     "sessions_page" => async_result features::sessions::commands::sessions_page(state; query: features::sessions::rows::SessionsQuery, page: crate::paging::PageRequest);
     "sessions_counts" => async_result features::sessions::commands::sessions_counts(state; query: features::sessions::rows::SessionsQuery);
-    "sessions_facets" => async_result features::sessions::commands::sessions_facets(state; query: features::sessions::rows::SessionsQuery);
+    "sessions_facets" => async_result features::sessions::commands::sessions_facets(state; query: features::sessions::rows::SessionsQuery, filters: Option<features::sessions::facets::FacetFilters>);
     "relations_counts" => async_result features::relations::commands::relations_counts(state; entities: Vec<features::relations::EntityRef>);
     "relations_related" => async_result features::relations::commands::relations_related(state; entity: features::relations::EntityRef, of: features::relations::EntityKind);
     "sessions_get" => async_result features::sessions::commands::sessions_get(state; ids: Vec<String>);
@@ -337,6 +337,12 @@ read_routes! {
     "messages_links" => async_result features::messages::commands::messages_links(state; pool_id: String);
     // E17 and E23: the agent tools' settings, and the runtimes' reads.
     "agent_bridge_get" => async_result features::agent_bridge::commands::agent_bridge_get(state);
+    // AJ-E3013: the connector's preview and status, and a pool's desktop
+    // members (reads only; Add and Remove are the window's alone).
+    "connector_preview" => async_result features::connector::commands::connector_preview(state; app_id: String);
+    "connector_status" => async_result features::connector::commands::connector_status(state; app_id: String);
+    "connector_desktop_members" => async_result features::connector::commands::connector_desktop_members(state; pool_id: String);
+    "connector_desktop_sessions" => async_result features::connector::commands::connector_desktop_sessions(state; pool_id: String);
     "runtime_get" => async_result features::runtime::commands::runtime_get(state; session_id: String);
     "runtime_asks" => async_result features::runtime::commands::runtime_asks(state; offset: Option<u32>, limit: Option<u32>);
     "runtime_trust" => async_result features::runtime::trust::runtime_trust(state; profile_id: String, cwd: Option<String>);

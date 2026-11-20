@@ -9,6 +9,7 @@
 pub mod alert_words;
 pub mod capture;
 pub mod commands;
+pub mod driven;
 pub mod past_hits;
 pub mod probe;
 pub(crate) mod records;
@@ -81,7 +82,8 @@ pub struct WindowDisplay {
     /// without a Measured reading of a window that hasn't reset.
     pub runway: Option<RunwayDisplay>,
     /// Where the reading behind this window came from (`statusline`,
-    /// `rollout`, `desktop_app`, `usage_cache`, `api_retry`), when known.
+    /// `rollout`, `desktop_app`, `usage_cache`, `api_retry`, `driven`),
+    /// when known.
     pub source: Option<String>,
     /// That source in words, from the tool's spec ("the Claude app").
     pub source_words: Option<String>,
@@ -253,6 +255,11 @@ pub struct QuotaDisplayInfo {
     /// isn't measured may only not be read yet (the 0.2 walk, F6). Set
     /// by the commands that show it.
     pub history_reading: bool,
+    /// F-rc3c-1 (the 0.4.6 rc3c walk): this start's first read of the
+    /// tools' files hasn't finished, so a reading kept from an earlier
+    /// run may be about to be replaced: an old one says so ("as of 2
+    /// days ago, refreshing…"). Set by the commands that show it.
+    pub refreshing: bool,
     /// 0.4.4: out of room, when it has room again: the latest reset among
     /// its used-up windows ([`juggler_core::quota::room_back`]), the one
     /// time every surface gives. `None` when no window is used up.
@@ -465,6 +472,7 @@ pub fn shown(
 ) -> QuotaDisplayInfo {
     let mut display = quota_display_inner(storage, account, now_ms);
     display.history_reading = state.usage_reading.so_far().is_some();
+    display.refreshing = state.usage_reading.refreshing();
     display
 }
 
@@ -877,6 +885,7 @@ pub fn quota_display_inner(
         credits: credits_of(storage, account, now_ms),
         model_weeks,
         history_reading: false,
+        refreshing: false,
     }
 }
 

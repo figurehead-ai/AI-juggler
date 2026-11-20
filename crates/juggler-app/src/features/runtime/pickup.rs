@@ -11,7 +11,11 @@
 //! on this Mac:
 //! - **between turns** is resumed at once under the same id, in the same
 //!   runtime (the tool resumes its own conversation; no turn is sent). That
-//!   is coming back as it was (ADR-0003 point 5), never new work;
+//!   is coming back as it was (ADR-0003 point 5), never new work. One whose
+//!   tool hasn't written its conversation yet (no turn so far: Claude Code
+//!   writes it at the first) has nothing to resume, so it starts again,
+//!   fresh, in the same runtime and under the same id (F-rc3f-3: resumed,
+//!   such a session failed, and so did the terminal it was handed to);
 //! - **mid-turn** starts nothing: it says its turn was cut off, needs the
 //!   user, and [`resume_impl`] (their click on Resume) resumes it, sending
 //!   nothing either.
@@ -45,6 +49,18 @@ pub struct Mark {
     pub native_id: String,
     /// A turn runs (or waits on an answer).
     pub in_turn: bool,
+    /// The tool has written the conversation: it was resumed, or a turn
+    /// began in it. Until then there is nothing to resume (Claude Code
+    /// writes a conversation at its first turn), and a restart starts it
+    /// again under the same id (F-rc3f-3). A mark from before has none,
+    /// and resumes as it did.
+    #[serde(default = "written_before")]
+    pub written: bool,
+}
+
+/// A mark from before [`Mark::written`]: resumed, as it was then.
+const fn written_before() -> bool {
+    true
 }
 
 /// How a cut-off session's runtime is named until it is resumed.
@@ -86,16 +102,18 @@ pub fn note(storage: &Storage, session: &SessionId, mark: Option<Mark>) {
     let _ = storage.app_settings().set(KEY, &text);
 }
 
-/// The mark a driver's state calls for: its conversation and whether a
-/// turn runs, or none once it ended (or before the tool named it).
+/// The mark a driver's state calls for: its conversation, whether a turn
+/// runs and whether the tool has written the conversation yet, or none
+/// once it ended (or before the tool named it).
 #[must_use]
-pub fn mark_of(native_id: Option<&str>, in_turn: bool, ended: bool) -> Option<Mark> {
+pub fn mark_of(native_id: Option<&str>, in_turn: bool, written: bool, ended: bool) -> Option<Mark> {
     if ended {
         return None;
     }
     native_id.map(|native_id| Mark {
         native_id: native_id.to_owned(),
         in_turn,
+        written,
     })
 }
 
@@ -152,7 +170,7 @@ pub fn after_restart(state: &Arc<AppState>) {
                     let _ = come_back(
                         &state,
                         &session,
-                        &mark.native_id,
+                        &mark,
                         "came back after AI Juggler restarted",
                     );
                 });
@@ -255,25 +273,35 @@ pub(crate) fn end(state: &Arc<AppState>, session: &SessionId, why: &str) {
     state.runtime.notify(session.as_str(), true);
 }
 
-/// Resumes `native_id` under `session`'s own id, in its runtime (the
-/// terminal, with the reason, when it can't be driven). Returns the
-/// session that holds the conversation now: the same one, or a new one
-/// when a driven start failed after its process ran (that id is spent).
+/// Brings `session` back under its own id, in its runtime (the terminal,
+/// with the reason, when it can't be driven): its conversation resumed,
+/// or, when its tool never wrote it, started again fresh under the same
+/// id. Returns the session that holds the conversation now: the same one,
+/// or a new one when a driven start failed after its process ran (that id
+/// is spent).
 fn come_back(
     state: &Arc<AppState>,
     session: &SessionId,
-    native_id: &str,
+    mark: &Mark,
     how: &str,
 ) -> AppResult<SessionId> {
+    let native_id = mark.native_id.as_str();
     let started = (|| {
         let (record, profile, account) = super::commands::owner(state, session.as_str())?;
-        let terminal = crate::features::launch::resume_gate::resume_spec(
-            state,
-            &account,
-            &profile,
-            &record.cwd,
-            native_id,
-        )?;
+        // `kept`: its terminal, if it runs there, keeps the conversation id.
+        let (terminal, resume, fresh_id, kept) = if mark.written {
+            let terminal = crate::features::launch::resume_gate::resume_spec(
+                state,
+                &account,
+                &profile,
+                &record.cwd,
+                native_id,
+            )?;
+            (terminal, Some(native_id.to_owned()), None, true)
+        } else {
+            let fresh = fresh_start(state, session, &account, &profile, &record.cwd, native_id)?;
+            (fresh.spec, None, Some(native_id.to_owned()), fresh.kept)
+        };
         // The one path: its own row is starting again before its process
         // does (intent before spawn), then the runtime.
         let started = crate::features::sessions::spawn::start_session(
@@ -284,13 +312,17 @@ fn come_back(
                 profile: &profile.id,
                 project: record.project.clone(),
                 cwd: record.cwd.clone(),
-                conversation: Some(juggler_core::model::ConversationId::new(native_id)),
-                transcript_ref: record.transcript_ref.clone(),
+                conversation: kept.then(|| juggler_core::model::ConversationId::new(native_id)),
+                transcript_ref: record.transcript_ref.clone().filter(|_| mark.written),
                 origin: "resume",
+                // Its own row: its name stays (a terminal that takes over
+                // under a new id carries it: `runtime::launch::spent`).
+                continues: None,
             },
             crate::features::sessions::spawn::Runs::Planned {
                 profile: &profile,
-                resume: Some(native_id.to_owned()),
+                resume,
+                fresh_id,
                 requested: Some(Runtime::Driven),
                 terminal,
             },
@@ -298,9 +330,11 @@ fn come_back(
         if started.session != *session {
             super::commands::record_continuation(state, &record, &started.session)?;
         }
-        Ok::<_, AppError>(started)
+        let new_conversation = (!kept)
+            .then(|| crate::features::launch::resume_gate::new_conversation_words(state, &account));
+        Ok::<_, AppError>((started, new_conversation))
     })();
-    let started = match started {
+    let (started, new_conversation) = match started {
         Ok(started) => started,
         Err(error) => {
             let why = format!("couldn't come back: {}", error.wire().user_message);
@@ -314,9 +348,14 @@ fn come_back(
             // Its conversation went on under a new id: the old one is done.
             note(&storage, session, None);
         }
-        let words = match started.runtime {
-            Runtime::Driven => format!("{how}: its conversation resumed"),
-            Runtime::Terminal => format!("{how}: its conversation resumed in its terminal"),
+        let words = match (mark.written, started.runtime) {
+            (true, Runtime::Driven) => format!("{how}: its conversation resumed"),
+            (true, Runtime::Terminal) => format!("{how}: its conversation resumed in its terminal"),
+            (false, Runtime::Driven) => format!("{how}: it started again, as it had no turn yet"),
+            (false, Runtime::Terminal) => match &new_conversation {
+                None => format!("{how}: it started again in its terminal, as it had no turn yet"),
+                Some(words) => format!("{how}: it started again in its terminal, in {words}"),
+            },
         };
         let _ = storage
             .sessions()
@@ -324,6 +363,28 @@ fn come_back(
     }
     state.runtime.notify(session.as_str(), true);
     Ok(started.session)
+}
+
+/// The terminal launch for `session` starting `native_id` again fresh (its
+/// tool never wrote it): under the same id where the tool takes the
+/// caller's. Its row forgets the id until the tool names it at its start
+/// (the same id, for a tool that takes the caller's).
+fn fresh_start(
+    state: &Arc<AppState>,
+    session: &SessionId,
+    account: &juggler_core::model::Account,
+    profile: &juggler_core::model::Profile,
+    cwd: &std::path::Path,
+    native_id: &str,
+) -> AppResult<crate::features::launch::resume_gate::FreshStart> {
+    let terminal =
+        crate::features::launch::resume_gate::fresh_spec(state, account, profile, cwd, native_id)?;
+    let storage = state.storage.lock().map_err(|_| AppError::StatePoisoned)?;
+    let mut record = storage.sessions().get(session)?;
+    record.conversation = None;
+    record.transcript_ref = None;
+    storage.sessions().update(&record)?;
+    Ok(terminal)
 }
 
 /// The user's Resume on a session whose turn was cut off: its
@@ -343,14 +404,14 @@ pub fn resume_impl(
         ));
     }
     let id = SessionId::new(session);
-    let native_id = {
+    let mark = {
         let storage = state.storage.lock().map_err(|_| AppError::StatePoisoned)?;
         marks(&storage)
             .get(session)
-            .map(|mark| mark.native_id.clone())
+            .cloned()
             .ok_or_else(|| AppError::Refused("its conversation isn't known".into()))?
     };
-    let now = come_back(state, &id, &native_id, "resumed after its turn was cut off")?;
+    let now = come_back(state, &id, &mark, "resumed after its turn was cut off")?;
     Ok(super::commands::HandoverInfo {
         session_id: now.to_string(),
     })
@@ -418,20 +479,24 @@ mod tests {
         let storage = Storage::open(&dir.path().join("s.sqlite")).unwrap();
         let session = SessionId::new("sess-1");
         assert!(marks(&storage).is_empty());
-        note(&storage, &session, mark_of(Some("thread-1"), false, false));
+        note(
+            &storage,
+            &session,
+            mark_of(Some("thread-1"), false, false, false),
+        );
         note(
             &storage,
             &SessionId::new("sess-2"),
-            mark_of(Some("thread-2"), true, false),
+            mark_of(Some("thread-2"), true, true, false),
         );
         let text = storage.app_settings().get(KEY).unwrap().unwrap();
         assert_eq!(
             text,
-            r#"{"sess-1":{"native_id":"thread-1","in_turn":false},"sess-2":{"native_id":"thread-2","in_turn":true}}"#
+            r#"{"sess-1":{"native_id":"thread-1","in_turn":false,"written":false},"sess-2":{"native_id":"thread-2","in_turn":true,"written":true}}"#
         );
         // Ended, or not named yet: no mark.
-        assert_eq!(mark_of(Some("thread-1"), true, true), None);
-        assert_eq!(mark_of(None, true, false), None);
+        assert_eq!(mark_of(Some("thread-1"), true, true, true), None);
+        assert_eq!(mark_of(None, true, true, false), None);
         note(&storage, &session, None);
         note(&storage, &SessionId::new("sess-2"), None);
         assert_eq!(
@@ -439,5 +504,19 @@ mod tests {
             None,
             "the key goes with the last"
         );
+    }
+
+    #[test]
+    fn a_mark_from_before_written_was_kept_resumes_as_it_did() {
+        let dir = tempfile::tempdir().unwrap();
+        let storage = Storage::open(&dir.path().join("s.sqlite")).unwrap();
+        storage
+            .app_settings()
+            .set(
+                KEY,
+                r#"{"sess-1":{"native_id":"thread-1","in_turn":false}}"#,
+            )
+            .unwrap();
+        assert!(marks(&storage)["sess-1"].written);
     }
 }

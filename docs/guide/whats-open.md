@@ -38,6 +38,12 @@ The same holds for an OpenCode or Grok Build app you use where it is
 wrote a conversation, so one you started yourself in that folder can't be
 told from AI Juggler's, and both rows stay.
 
+A conversation shows open where it's open. One you continued in AI
+Juggler and stopped there, then opened again in its Claude app profile
+(**Open in Claude app**), is open under that profile while the app runs
+it; the run you stopped stays under its CLI app, ended. Once the app's
+session ends, the conversation is that run's again.
+
 The list has three parts:
 
 - **Needs you:** sessions that ask you something, and anything else waiting

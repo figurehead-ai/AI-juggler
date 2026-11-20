@@ -39,5 +39,11 @@ pub mod client;
 pub mod hook;
 pub mod mcp;
 pub mod plugin;
+// AJ-E3013 (lab proofs C2, C3): the probe, in debug builds only.
+#[cfg(all(debug_assertions, unix))]
+pub mod probe;
 pub mod task_tools;
+#[cfg(all(test, unix))]
+mod test_support;
+pub mod waker;
 pub mod wire;

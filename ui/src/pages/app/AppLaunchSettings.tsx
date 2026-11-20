@@ -29,7 +29,7 @@ export function AppLaunchSettings({ folder, sessions, recipes, reload }: { folde
     );
   }
   return (
-    <div className="-mx-5" data-testid="app-launch-settings">
+    <div data-testid="app-launch-settings">
       <LaunchSettingsList
         account={folder}
         recipes={recipes}

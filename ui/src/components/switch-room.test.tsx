@@ -30,7 +30,9 @@ import { CarryList, withSetup } from "./switch/CarryList";
 import { appGroups, appsByRoom, appWhyWords, chooseApp } from "../lib/new-session-choice";
 import { resetToasts } from "./Toast";
 
-const RESET = new Date(2026, 9, 29, 8, 0).getTime();
+// A week ahead of the clock the test runs at: a reading whose reset has
+// passed is history, never out (F-rc3c-1), so a fixed date ran out.
+const RESET = Date.now() + 7 * 86_400_000;
 
 /** A profile's display with `left`% of its week left (`null`: not measured). */
 const display = (account: string, left: number | null): QuotaDisplayData =>

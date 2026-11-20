@@ -22,6 +22,7 @@ use juggler_handover::pack::{
     ConversationMode, IrRole, IrTurn, PackArtifacts, PackFidelity, PackGit, PackInput, PackLineage,
     PackProject, PackQuota, PackSource, TurnTokens, generate_pack,
 };
+use juggler_handover::register::{self, Register};
 use juggler_handover::validation::{
     DogfoodCell, DogfoodVerdict, advertised_badge, pair_cell, validation_matrix, with_dogfood,
 };
@@ -134,8 +135,34 @@ fn every_pair_is_enumerated_exercised_and_honestly_labelled() {
         .find(|row| row.from == "claude-code" && row.to == "claude-code")
         .unwrap();
     assert!(claude_row.ci_green, "the one real-adapter row today");
-    assert!(!claude_row.validated(), "no live cell recorded yet");
+    // D-127: validated once every area of the pair is decided live in the
+    // AJ-E808 register. Claude → Claude got there with the c2c suite
+    // (2026-11-18, file history the last cell); the label follows the
+    // register, never the other way round.
+    assert!(
+        register::embedded().pair_validated("claude-code", "claude-code"),
+        "the register records Claude → Claude live in every area"
+    );
+    assert!(claude_row.validated(), "so the matrix offers it");
     for row in &rows {
+        // Honest labels: a row is validated exactly when its real CI row
+        // is green and the register decides every area live (no live cell
+        // is recorded in the static matrix); a fake-harness row never is.
+        assert_eq!(
+            row.validated(),
+            row.ci_green && register::embedded().pair_validated(&row.from, &row.to),
+            "{}→{} validated only by the register",
+            row.from,
+            row.to
+        );
+        if !row.ci_green {
+            assert!(
+                !row.validated(),
+                "{}→{} fake-only, never validated",
+                row.from,
+                row.to
+            );
+        }
         // Mechanism fixtures run for EVERY row — nothing skipped.
         assert!(
             row.mechanism_green,
@@ -245,16 +272,19 @@ fn dogfood_cells_drive_the_advertised_badge_per_the_rules() {
             continuity_note: "target answered the pre-switch question".to_owned(),
         },
     };
-    // Pass on the real-CI row: still Beta until every area of the pair
-    // is PASS in the AJ-E808 fidelity register (none is yet). The
-    // register's own tests cover the graduation itself.
+    // Pass on the real-CI row validates nothing by itself: with no area
+    // of the pair decided in the AJ-E808 register, it stays Beta.
     let claude = pair_cell("claude-code", "claude-code").unwrap();
     let validated = with_dogfood(claude.clone(), pass.clone());
-    assert!(!validated.validated());
-    assert_eq!(validated.badge(), "Same conversation, another app · Beta");
+    let undecided = Register::parse(r#"{"schema":1,"note":"","pairs":[]}"#).unwrap();
+    assert!(!validated.validated_against(&undecided));
+    // With the register deciding every area live (Claude → Claude since
+    // the c2c suite, 2026-11-18, D-127), the pair is offered, no Beta.
+    assert!(validated.validated());
+    assert_eq!(validated.badge(), "Same conversation, another app");
     assert_eq!(
         advertised_badge("claude-code", "claude-code", Some(&pass)),
-        "Same conversation, another app · Beta"
+        "Same conversation, another app"
     );
 
     // The SAME pass on a fake-only row never validates it.
@@ -284,14 +314,14 @@ fn dogfood_cells_drive_the_advertised_badge_per_the_rules() {
         "Same conversation, another app (a check failed) · Beta"
     );
 
-    // A later PASS replaces the fail (fixed and re-run) — the ceiling
-    // recovers (validation still waits on the register).
+    // A later PASS replaces the fail (fixed and re-run): the ceiling
+    // recovers, and with the register deciding the pair, Beta goes again.
     fail.verdict = DogfoodVerdict::Pass {
         continuity_note: "fixed; target answered".to_owned(),
     };
     fail.at = "2026-10-17".to_owned();
     assert_eq!(
         advertised_badge("claude-code", "claude-code", Some(&fail)),
-        "Same conversation, another app · Beta"
+        "Same conversation, another app"
     );
 }

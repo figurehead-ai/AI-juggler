@@ -251,6 +251,7 @@ jobs:
           python3 scripts/promotion_rules.py --selftest
           python3 scripts/stats_config_check.py --selftest
           python3 scripts/release_scope.py --selftest
+          python3 scripts/gate_watch.py --selftest
           python3 scripts/release_scope.py report 0.4 >/dev/null
           python3 scripts/signoff_record.py --selftest
           python3 scripts/apple_retry.py --selftest
@@ -263,6 +264,10 @@ jobs:
         run: |
           python3 scripts/ci_parity.py --selftest
           python3 scripts/ci_parity.py
+      - name: Every visual spec is run by a CI job, or says why not (D-117, D-118)
+        run: |
+          python3 scripts/visual_specs_check.py --selftest
+          python3 scripts/visual_specs_check.py
       # Report only (D-99): a release's scope is open while it is built and
       # tried on nightly and beta; only the Stable promotion fails on it
       # (promote.yml).

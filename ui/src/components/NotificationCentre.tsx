@@ -9,7 +9,8 @@
  * when. A labelled dialog: focus moves in, Tab stays inside, Esc closes
  * and focus goes back to the bell. Nothing here acts by itself.
  */
-import { useEffect, useId, useRef, useState, type JSX } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState, type JSX, type RefObject } from "react";
+import { useInertOutside } from "../lib/inert";
 import { keepTabInside } from "./form";
 import { NoticeRow } from "./NoticeRow";
 import { RowPlaceholders } from "./Placeholder";
@@ -23,9 +24,30 @@ import type { InstanceInfo } from "../types/generated/InstanceInfo";
 /** Earlier notices read at a time. */
 const EARLIER_PAGE = 20;
 
-export function NotificationCentre({ summary, sessions, onClose }: { summary: NoticeSummaryInfo | null; sessions: InstanceInfo[]; onClose: () => void }): JSX.Element {
+/** Puts the centre under `anchor` (the bell), its right edge on the
+ * bell's, 8 px below it, and keeps it there as the window resizes. Fixed
+ * on the body (F-rc3f-2), so no page's panel paints over it. */
+function usePlaceUnder(ref: RefObject<HTMLElement | null>, anchor: RefObject<HTMLElement | null> | undefined): void {
+  useLayoutEffect(() => {
+    const place = () => {
+      const box = anchor?.current?.getBoundingClientRect();
+      const panel = ref.current;
+      if (!box || !panel) return;
+      panel.style.top = `${box.bottom + 8}px`;
+      panel.style.right = `${Math.max(0, document.documentElement.clientWidth - box.right)}px`;
+    };
+    place();
+    window.addEventListener("resize", place);
+    return () => window.removeEventListener("resize", place);
+  }, [ref, anchor]);
+}
+
+export function NotificationCentre({ summary, sessions, anchor, onClose }: { summary: NoticeSummaryInfo | null; sessions: InstanceInfo[]; /** The bell it opens under. */ anchor?: RefObject<HTMLElement | null>; onClose: () => void }): JSX.Element {
   const titleId = useId();
   const ref = useRef<HTMLDivElement | null>(null);
+  usePlaceUnder(ref, anchor);
+  // AJ-E3011 round 4: the page under it is inert while it's open.
+  useInertOutside(ref);
   const all = useNoticeActions(sessions);
   // A notice's primary opens what it's about (a page, the limit's
   // choices, a sign-in): the centre steps aside for it (walk K3: it stayed
@@ -38,7 +60,9 @@ export function NotificationCentre({ summary, sessions, onClose }: { summary: No
       onClose();
     },
   };
-  const needs = usePagedList<NoticeInfo>("notices:needs", (request) => notificationsPage("needs", request), { keyOf: (row) => String(row.id), pageSize: 200 });
+  // NY1 (0.4.6 rc3a): the one needs list the bell counts and the rail
+  // shows (`shared`): its read is theirs too.
+  const needs = usePagedList<NoticeInfo>("notices:needs", (request) => notificationsPage("needs", request), { keyOf: (row) => String(row.id), pageSize: 200, shared: true });
   const earlier = usePagedList<NoticeInfo>("notices:earlier", (request) => notificationsPage("earlier", request), { keyOf: (row) => String(row.id), pageSize: EARLIER_PAGE });
   const [showSnoozed, setShowSnoozed] = useState(false);
   const [now] = useState(() => Date.now());
@@ -83,7 +107,8 @@ export function NotificationCentre({ summary, sessions, onClose }: { summary: No
         }
         keepTabInside(ref.current, event);
       }}
-      className="absolute right-0 top-full z-40 mt-2 flex max-h-[min(640px,calc(100vh-9rem))] w-[min(440px,calc(100vw-2rem))] flex-col overflow-hidden rounded-xl border border-hairline bg-surface-2 shadow-card outline-none"
+      // Above every page's own panels (≤ z-40), as your menu is (z-50).
+      className="fixed right-4 top-16 z-50 flex max-h-[min(640px,calc(100vh-9rem))] w-[min(440px,calc(100vw-2rem))] flex-col overflow-hidden rounded-xl border border-hairline bg-surface-2 shadow-card outline-none"
     >
       <div className="flex items-center gap-2 border-b border-hairline px-3.5 py-3">
         <h2 id={titleId} className="text-section font-semibold text-ink">

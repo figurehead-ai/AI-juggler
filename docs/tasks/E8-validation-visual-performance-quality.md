@@ -210,7 +210,7 @@
 **Files to touch**: `scripts/visual_sweep.sh`, `scripts/visual_sweep_diff.mjs`, `scripts/visual_gate.sh` (`--full-sweep` hand-off), `justfile`, `.github/workflows/visual-sweep.yml`, `docs/plan/QUALITY.md`, `docs/internal/MAINTAINER-STEPS.md`, `CONTRIBUTING.md`.
 **Handover note**: The sweep reports, it does not block; an unexpected changed state is a regression to fix or a missing core baseline to add, never a reason to stop running the core check.
 
-### AJ-E812 Idle CPU: the web content's and GPU's brief spikes traced | Status: TODO | Priority P1 | Effort M | Depends: AJ-E805
+### AJ-E812 Idle CPU: the web content's and GPU's brief spikes traced | Status: DONE (2026-11-16; evidence docs/qa/evidence/AJ-E812/manifest.md) | Priority P1 | Effort M | Depends: AJ-E805
 **Goal**: Find what makes the web content and GPU process jump to 3–8 % of a core for part of a minute while nothing changes on screen, and stop it at its cause.
 **User story**: As someone who leaves AI Juggler open all day, I want it to stay quiet minute after minute, not most minutes.
 **Requirements**:
@@ -222,7 +222,7 @@
 **Files to touch**: found by the trace.
 **Handover note**: Found in 0.4.5's round 5 (AJ-E805); both builds showed them under load, so they predate the one-reader work.
 
-### AJ-E813 Home draws again only when what it shows changes, not on every This Mac reading | Status: TODO | Priority P1 | Effort S | Depends: AJ-E805
+### AJ-E813 Home draws again only when what it shows changes, not on every This Mac reading | Status: DONE (2026-11-16; evidence docs/qa/evidence/AJ-E813/manifest.md) | Priority P1 | Effort S | Depends: AJ-E805
 **Goal**: Home reads only the machine's summary level from This Mac's 5 s reading, but redraws all of itself on each one.
 **User story**: As someone with Home open, I want it to cost nothing while nothing on it changes.
 **Requirements**:
@@ -233,7 +233,7 @@
 **Files to touch**: `ui/src/screens/Home.tsx` (inside its size budget), `ui/src/lib/machine.ts`.
 **Handover note**: Round 5 wrote such a selector and reverted it once the bar was met; this makes it a task, not a margin.
 
-### AJ-E814 Idle CPU measured with the window fully covered | Status: TODO | Priority P2 | Effort S | Depends: AJ-E805
+### AJ-E814 Idle CPU measured with the window fully covered | Status: DONE (2026-11-16; evidence docs/qa/evidence/AJ-E814/manifest.md) | Priority P2 | Effort S | Depends: AJ-E805
 **Goal**: Measure AI Juggler's idle cost when its window is shown but fully covered by other windows, the state WebKit treats as hidden.
 **User story**: As someone whose AI Juggler sits behind an editor, I want it to cost what a hidden window costs.
 **Requirements**:
@@ -244,7 +244,7 @@
 **Files to touch**: the measurement tools only, unless a cause is found.
 **Handover note**: 0.4.5's rounds couldn't cover the window without activating another app (`open -j` left it 100 % uncovered).
 
-### AJ-E815 The relation counts' speed test measures the work, not the clock | Status: TODO | Priority P1 | Effort S | Depends: AJ-E3102
+### AJ-E815 The relation counts' speed test measures the work, not the clock | Status: DONE-EVIDENCED (2026-11-15) | Priority P1 | Effort S | Depends: AJ-E3102
 **Goal**: `ten_thousand_sessions_count_cold_within_a_second_and_cached_within_5_ms` (`crates/juggler-app/tests/relations.rs`) gates on wall-clock bars of 5 ms; under load it fails with nothing wrong. Make it prove the cache works by what it does, and move the timing out of the gate.
 **User story**: As a maintainer, I want a red test to mean a real regression, never a busy Mac or a loaded CI runner.
 **Requirements**:
@@ -255,4 +255,4 @@
 **Quality gates**: The test passes under a CPU load of several busy cores (a bounded, self-cleaning load generator; `pgrep -x yes` is 0 afterwards), and fails when the cache is bypassed (a scratch change that rebuilds on every count).
 **Evidence/validation proof**: the loaded run and the failing scratch run, named in the commit.
 **Files to touch**: `crates/juggler-app/tests/relations.rs`, the relations cache's counters (`crates/juggler-app/src/features/relations/`) if a rows-read counter is missing, a bench target.
-**Handover note**: 0.4.5's light preflight on b694d08e3 failed it once at a load average of 20–29 (the slowest of 540 cached counts 97 ms against 5 ms; the cold rebuild 561 ms against 1 s); the same test passed three times alone right after.
+**Handover note**: 0.4.5's light preflight on b694d08e3 failed it once at a load average of 20–29 (the slowest of 540 cached counts 97 ms against 5 ms; the cold rebuild 561 ms against 1 s); the same test passed three times alone right after. Done 2026-11-15: the gate checks `relations.builds()` (540 cached counts and one ask build nothing; the cold build exactly the two parts, bound 10 s); `relation_counts_timings` is the ignored benchmark; the bridge's 50 ms test gates the median (slowest < 500 ms); the terminal echo's median-of-best-round bar kept. Evidence: `docs/qa/evidence/AJ-E815/manifest.md`.

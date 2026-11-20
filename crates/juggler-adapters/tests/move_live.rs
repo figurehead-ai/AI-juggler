@@ -15,6 +15,13 @@
 //!
 //! Every path must be one of the two sanctioned profiles' folders. Nothing
 //! sends a model prompt; `link` only opens the conversation by its id.
+//! Start each profile through `scripts/qa/lab_env.sh` (never `open`), with
+//! `--user-data-dir=…` last, and check every process of it by `ps -E`.
+//!
+//! D-128 (2026-11-18, the Claude app 5.x): the seeded side sessions carry
+//! the app's own `spawnedFrom.taskId` (they nest by it) and the 5.x start
+//! chain (`startChain`, its first record); the plan's shape check is
+//! printed, and no version number gates it.
 
 #![allow(
     clippy::unwrap_used,
@@ -199,7 +206,13 @@ fn seed(s: &Sides) {
             "fromCliTranscript": true,
         });
         if let Some(p) = parents[n] {
-            record["spawnedFrom"] = serde_json::json!({"sessionId": format!("local_{}", ids[p]), "sideSession": true, "name": titles[n]});
+            record["spawnedFrom"] = serde_json::json!({"sessionId": format!("local_{}", ids[p]), "sideSession": true, "name": titles[n], "taskId": format!("task_{n}")});
+            if p == 0 {
+                // 5.x: a side session started from the top one names it
+                // as its chain's first record (seen on real 5.x records).
+                record["startChain"] =
+                    serde_json::json!({"depth": 1, "firstSessionId": format!("local_{}", ids[0])});
+            }
         }
         std::fs::write(
             folder.join(format!("local_{id}.json")),
@@ -238,11 +251,13 @@ fn do_move(s: &Sides) {
     quit_first(s);
     let plan = ClaudeMove.plan(&s.request).unwrap();
     println!(
-        "plan: {} members, {} steps, notes {:?}, refusals {:?}",
+        "plan: {} members, {} steps, notes {:?}, refusals {:?}, shape {:?}, app {}",
         plan.members.len(),
         plan.steps.len(),
         plan.notes,
-        plan.refusals
+        plan.refusals,
+        plan.shape,
+        version()
     );
     assert!(plan.can_move());
     let id = format!("live-{}", std::process::id());

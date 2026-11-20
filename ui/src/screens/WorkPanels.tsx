@@ -59,7 +59,7 @@ export function SessionPanel({
 }: {
   session: InstanceInfo | null;
   project: ProjectInfo | null;
-  loginTerminal?: { id: string; title: string; ended: boolean } | null;
+  loginTerminal?: { id: string; title: string; ended: boolean; account?: string } | null;
   profiles: LaunchRecipeInfo[];
   accounts: AccountInfo[];
   onOpenProject: (id: string) => void;
@@ -72,6 +72,8 @@ export function SessionPanel({
   const view = status ? statusTone(status) : null;
   const terminalId = loginTerminal?.id ?? session?.id;
   const live = session ? processRunning(session) : Boolean(loginTerminal && !loginTerminal.ended);
+  // The App this sign-in is for: its tool's own name, from its adapter.
+  const signInFor = loginTerminal?.account ? accounts.find((row) => row.id === loginTerminal.account) : undefined;
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-4">
@@ -125,11 +127,11 @@ export function SessionPanel({
         )}
       </Card>
 
-      {isLoginTerminal && !live && (
-        <Card className="flex items-center gap-3 p-3">
+      {isLoginTerminal && !live && signInFor && (
+        <Card className="flex items-center gap-3 p-3" data-testid="sign-in-footer">
           <span className="dot-live size-1.5 rounded-full bg-live" />
           <p className="text-label leading-relaxed text-muted">
-            Complete Anthropic's sign-in above, then check the app again
+            Complete {providerDisplayName(signInFor.provider)}'s sign-in above, then check the app again
             from <span className="text-ink">Accounts</span> — it flips to
             ready.
           </p>

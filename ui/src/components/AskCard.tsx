@@ -17,6 +17,7 @@ import { useState, type JSX, type KeyboardEvent } from "react";
 import { Button } from "./primitives";
 import { errorText } from "../lib/bridge";
 import { runtimeAnswer, useOpenAsks, type AskInfo } from "../lib/ipc/runtime";
+import { noteStop } from "../lib/turn-words";
 import type { AskOptionInfo } from "../types/generated/AskOptionInfo";
 
 /** The option's button style: the first allow is the primary. */
@@ -147,6 +148,10 @@ export function AskCard({ ask, title, kindLabel, answer, onAnswered, plain = fal
   const send = (reply: Parameters<typeof runtimeAnswer>[2]) => {
     setBusy(true);
     setError(null);
+    // F-rc3f-5: the turn a tool's Deny and stop ends then says so in
+    // words (the tool's own code for it was "error_during_execution").
+    const stops = !answer && ask.options.find((option) => option.id === reply.option)?.effect === "deny_and_stop";
+    const undo = stops ? noteStop(ask.session_id, "deny_and_stop") : null;
     const sent = answer && reply.option ? answer(reply.option) : runtimeAnswer(ask.session_id, ask.id, reply);
     void sent.then(
       () => {
@@ -154,6 +159,7 @@ export function AskCard({ ask, title, kindLabel, answer, onAnswered, plain = fal
         onAnswered?.();
       },
       (cause) => {
+        undo?.();
         setBusy(false);
         setError(errorText(cause));
       },

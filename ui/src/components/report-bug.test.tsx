@@ -61,14 +61,14 @@ describe("design review 28/33/38/56 — the parts fold to one line", () => {
   it("one closed line names what goes with it; unticking a part drops it from the line", async () => {
     const { findByTestId, getByTestId, getAllByTestId } = render(<ReportBugHost />);
     act(() => openReportBug({ from: "switch", words: "The switch stopped" }));
-    const fold = (await findByTestId("report-parts")) as HTMLDetailsElement;
-    expect(fold.open).toBe(false);
-    const line = fold.querySelector("summary")!;
+    const fold = (await findByTestId("report-parts"));
+    expect(fold.hasAttribute("data-open")).toBe(false);
+    const line = fold.querySelector("button[aria-expanded]")!;
     expect(line.textContent).toBe("Goes with it: what AI Juggler showed, AI Juggler and this computer, the last switch, recent errors · Change");
     // Plain rows: no bordered card and no "Show" per part; the row is the fold.
     for (const part of getAllByTestId("report-part")) {
       expect(part.className).not.toContain("border");
-      const row = part.querySelector("details summary")!;
+      const row = part.querySelector("button[aria-expanded]")!;
       expect(row.textContent).not.toMatch(/\bShow\b/);
       expect(row.textContent).toContain(" · ");
     }

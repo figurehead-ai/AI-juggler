@@ -284,7 +284,7 @@ export const DOOR_WIZARD = {
   zombies: [],
   diff_snapshotted: true,
   source_live: true,
-  experimental_copy: "Beta, not proven yet: the whole session moves, with its subagents and file history. The source stays resumable.",
+  experimental_copy: "Beta: the whole session moves, with its subagents and file history. The source stays resumable.",
   door: "wizard" as const,
   wizard_steps: ["Target", "What's carried", "Confirm"],
   wizard_reasons: ["This isn't the usual account for this project."],
@@ -461,7 +461,7 @@ export async function terminalDrawn(page: import("@playwright/test").Page): Prom
  * already (the limit hit), else Switch account…'s dialog (0.3.2). */
 export async function openSwitch(page: import("@playwright/test").Page): Promise<void> {
   const section = page.getByTestId("handover-section");
-  if (await section.evaluate((node) => (node as HTMLDetailsElement).open).catch(() => false)) return;
+  if (await section.evaluate((node) => node.hasAttribute("data-open")).catch(() => false)) return;
   await page.getByTestId("header-switch").click();
   await expect(page.getByTestId("continue-dialog")).toBeVisible();
 }

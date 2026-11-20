@@ -304,7 +304,7 @@ const switchTarget = (account_id: string, account_label: string, provider: strin
   provider,
   account_id,
   account_label,
-  badge: provider === "claude-code" ? "Continues exactly · Proven" : "Full story, fresh start · Beta",
+  badge: provider === "claude-code" ? "Continues exactly" : "Full story, fresh start · Beta",
   validated: provider === "claude-code",
   cross_provider: provider !== "claude-code",
   drops: provider === "claude-code" ? [] : ["Subagents' work"],

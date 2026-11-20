@@ -68,10 +68,13 @@ describe("AJ-E1524 the welcome", () => {
     expect(onFreshAccount).toHaveBeenCalledOnce();
     expect(container.querySelectorAll("h1")).toHaveLength(1);
     expect(container.querySelector(".welcome-rise")?.getAttribute("aria-hidden")).toBe("true");
-    const how = screen.getByTestId("welcome-how") as HTMLDetailsElement;
-    expect(how.tagName).toBe("DETAILS");
-    expect(how.open).toBe(false);
+    // The app's disclosure, a button an accessibility press opens.
+    const how = screen.getByTestId("welcome-how");
+    const fold = screen.getByRole("button", { name: "How it works" });
+    expect(fold.getAttribute("aria-expanded")).toBe("false");
     expect(how.querySelectorAll("ol > li")).toHaveLength(3);
+    fireEvent.click(fold);
+    expect(fold.getAttribute("aria-expanded")).toBe("true");
     expect(container.querySelectorAll("ul > li")).toHaveLength(4);
     expect(screen.getByTestId("welcome-trust").textContent).toContain("never stores your passwords or keys");
     // The reading order: the headline, then the found line, then the actions.

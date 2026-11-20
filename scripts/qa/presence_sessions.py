@@ -14,8 +14,15 @@ lab runs. This reads the same accessibility lines and checks, read-only:
    (`<instance>/claude-code-sessions/*/*/local_*.json`, by `cliSessionId`,
    with a transcript in its folder): the rows and counts the rail shows
    for it come from them, nothing else. A Claude Code CLI App's are its
-   folder's transcripts no desktop entrypoint started and no profile's
-   records hold.
+   folder's transcripts no profile's records hold, no script ran and, when
+   one profile holds the folder, no desktop entrypoint started. 0.4.6: as
+   the app's one order has it (`places::app_of`,
+   `ui/src/lib/fixtures/session-apps.json`): each AI Juggler session is a
+   row in the App it ran in (two on one transcript are two), and a
+   transcript one is on is that session, not a profile's record too; a
+   desktop-started transcript on a folder no profile holds is its CLI
+   App's (`claude --resume` lists it: its first entrypoint isn't a
+   script's).
 3. **Out marks.** Every App whose Account is out (its latest measured
    five-hour or weekly reading at 100%) says so in its name on the rail
    (the header's, the Inactive row's), and none whose Account has room.
@@ -24,15 +31,20 @@ lab runs. This reads the same accessibility lines and checks, read-only:
    `~/Dev/aij-`), however old: our tests and walks use the sanctioned test
    profile and the Dev build's Lab CLI App only. On 2026-11-12 the
    maintainer moved the 62 our labs had left out of two profiles; one more
-   is a failed gate.
+   is a failed gate. 0.4.6: the Lab App's folder is exactly the one the
+   Dev build's own database names ([`lab_app_folder`]), by its resolved
+   path; every other folder, another Dev-managed one too, is checked.
 5. **Scripts' runs and Codex (0.4.3, D-102).** A script's run (`claude -p`:
    first entrypoint `sdk-cli` or `sdk-py`; `codex exec`) is in no App's
    count, as neither tool's own picker lists it. Each Codex thread a Codex
    surface lists (`state_5.sqlite`: source `cli` or `vscode`, not
    archived) is in one App by its originator: the Codex app's count plus
    Codex CLI's is the store's listed total, and Codex CLI's is the
-   threads no desktop originator started. The store is opened read-only
-   (or a copy is read); nothing in it is written.
+   threads no desktop originator started. 0.4.6 (the rc3 presence run):
+   as a Claude Code CLI App's, AI Juggler's own runs on the folder are
+   rows of their own (two on one thread two, one that never made a thread
+   one), and a thread one of them is on isn't counted again. The store is
+   opened read-only (or a copy is read); nothing in it is written.
 
 Nothing here clicks, types or writes outside the report.
 """
@@ -41,13 +53,17 @@ from __future__ import annotations
 
 import json
 import mmap
+import os
 import re
 import shutil
 import sqlite3
 import subprocess
 import tempfile
-from dataclasses import dataclass, field
+import time
+from dataclasses import dataclass, field, replace
 from pathlib import Path
+from types import SimpleNamespace
+from unittest import mock
 
 HOME = Path.home()
 DESKTOP_ENTRYPOINTS = (b'"entrypoint":"claude-desktop"', b'"entrypoint":"sdk-ts"')
@@ -56,8 +72,11 @@ SCRIPT_ENTRYPOINTS = ("sdk-cli", "sdk-py")
 # D-102: the sources of a Codex thread a Codex surface lists.
 CODEX_LISTED_SOURCES = ("cli", "vscode")
 LAB_ROOTS = (str(HOME / "lab") + "/", str(HOME / "Dev/aij-"))
-# The folders our tests may use: the sanctioned test profile's.
+# The folders our tests may use: the sanctioned test profile's (and the
+# Dev build's Lab App folder, [`lab_app_folder`]).
 SANCTIONED = ("aij-test",)
+# The Dev build's data folder, under a HOME.
+DEV_DATA = "Library/Application Support/AI Juggler Dev"
 ROW = re.compile(r"^(?:Probably )?(Asks you|Working|Idle|Done|Ended|Starting|Stopped|Failed|Finished)\b.*?, ")
 
 
@@ -152,9 +171,12 @@ def transcripts(state_dir: Path) -> dict[str, Path]:
     return out
 
 
-def desktop_records(instance_dir: Path, state_dir: Path) -> tuple[Records, set[str]]:
+def desktop_records(instance_dir: Path, state_dir: Path, linked: frozenset[str] | set[str] = frozenset()) -> tuple[Records, set[str]]:
     """A Claude app profile's Code tab records with a transcript, and the
-    ids they hold."""
+    ids they hold. 0.4.6: one an AI Juggler session on its folder is on
+    (`linked`) is that session, counted in the App it ran in (the app's
+    order: AI Juggler's own session is never placed by a profile's
+    records), so it's left out here: never in two Apps."""
     newest: dict[str, tuple[int, bool]] = {}
     for path in (instance_dir / "claude-code-sessions").glob("*/*/local_*.json"):
         try:
@@ -168,7 +190,7 @@ def desktop_records(instance_dir: Path, state_dir: Path) -> tuple[Records, set[s
         if sid not in newest or at >= newest[sid][0]:
             newest[sid] = (at, bool(record.get("isArchived")))
     have = transcripts(state_dir)
-    ids = {sid for sid in newest if sid in have}
+    ids = {sid for sid in newest if sid in have and sid not in linked}
     return Records(listed=len(ids), shown=sum(1 for sid in ids if not newest[sid][1])), set(newest)
 
 
@@ -195,18 +217,25 @@ def first_entrypoint(path: Path) -> str | None:
     return None
 
 
-def cli_records(state_dir: Path, held: set[str], own: dict[str, str | None]) -> Records:
-    """A Claude Code CLI App's sessions: its folder's transcripts no desktop
-    app started, no profile's records hold and no script ran (D-102), and
-    AI Juggler's own sessions on its folder that no such transcript is
-    (`own`: session id → its conversation's id; AI Juggler's runs are
-    `sdk-cli` too, and counted as its sessions)."""
-    terminal = {
+def cli_records(state_dir: Path, held: set[str], own: dict[str, str | None], *, held_folder: bool = True) -> Records:
+    """A Claude Code CLI App's sessions, as the app's one order counts
+    them (`places::app_of`): every AI Juggler session on its folder that
+    ran in no desktop App (`own`: session id → its conversation's id; AI
+    Juggler's runs are `sdk-cli` too, and each is a row, two on one
+    transcript two), and its folder's transcripts no such session is on,
+    no profile's records hold and no script ran (D-102); one a desktop app
+    started only when no profile holds the folder (`held_folder`: one
+    does, and its records leave out the rest)."""
+    linked = {conversation for conversation in own.values() if conversation}
+    outside = {
         sid
         for sid, path in transcripts(state_dir).items()
-        if sid not in held and not started_by_desktop(path) and first_entrypoint(path) not in SCRIPT_ENTRYPOINTS
+        if sid not in held
+        and sid not in linked
+        and first_entrypoint(path) not in SCRIPT_ENTRYPOINTS
+        and not (held_folder and started_by_desktop(path))
     }
-    n = len(terminal) + sum(1 for conversation in own.values() if conversation not in terminal)
+    n = len(own) + len(outside)
     return Records(listed=n, shown=n)
 
 
@@ -237,15 +266,15 @@ def codex_store(home: Path) -> Path | None:
     return found[-1] if found else None
 
 
-def codex_threads(store: Path) -> list[tuple[str | None, str]]:
-    """Each listed thread's originator (`None` when the table has none) and
-    rollout path, read-only: the store opened `mode=ro`, else (a closed WAL
-    store has no shared memory to read through) a copy of it."""
+def codex_threads(store: Path) -> list[tuple[str, str | None, str]]:
+    """Each listed thread's id, originator (`None` when the table has none)
+    and rollout path, read-only: the store opened `mode=ro`, else (a closed
+    WAL store has no shared memory to read through) a copy of it."""
     has = "select name from pragma_table_info('threads') where name = 'originator'"
-    query = "select {originator}, rollout_path from threads where source in ({sources}) and archived = 0"
+    query = "select id, {originator}, rollout_path from threads where source in ({sources}) and archived = 0"
     sources = ", ".join(f"'{source}'" for source in CODEX_LISTED_SOURCES)
 
-    def read(db: sqlite3.Connection) -> list[tuple[str | None, str]]:
+    def read(db: sqlite3.Connection) -> list[tuple[str, str | None, str]]:
         originator = "originator" if db.execute(has).fetchone() else "null"
         return list(db.execute(query.format(originator=originator, sources=sources)))
 
@@ -269,23 +298,24 @@ def codex_threads(store: Path) -> list[tuple[str | None, str]]:
             db.close()
 
 
-def codex_listed(home: Path) -> tuple[int, int]:
+def codex_listed(home: Path) -> tuple[frozenset[str], frozenset[str]]:
     """0.4.3 (D-102): the threads a Codex surface lists (source `cli` or
-    `vscode`, not archived; a subagent's has another source), as (the Codex
-    app's: an originator naming desktop, the rest: Codex CLI's), from the
-    `threads` table's originator, else each rollout's first line."""
+    `vscode`, not archived; a subagent's has another source), by id, as
+    (the Codex app's: an originator naming desktop, the rest: Codex CLI's),
+    from the `threads` table's originator, else each rollout's first line."""
     store = codex_store(home)
     if store is None:
-        return 0, 0
-    desktop = other = 0
-    for originator, rollout in codex_threads(store):
+        return frozenset(), frozenset()
+    desktop: set[str] = set()
+    other: set[str] = set()
+    for thread, originator, rollout in codex_threads(store):
         if originator is None:
             originator = rollout_originator(Path(rollout))
         if "desktop" in (originator or "").lower():
-            desktop += 1
+            desktop.add(thread)
         else:
-            other += 1
-    return desktop, other
+            other.add(thread)
+    return frozenset(desktop), frozenset(other)
 
 
 def own_sessions(db: sqlite3.Connection) -> dict[str, dict[str, str | None]]:
@@ -320,17 +350,58 @@ def out_accounts(db: sqlite3.Connection, now_ms: int) -> set[str]:
 TERMINAL_ENTRYPOINTS = ("cli", "sdk-cli")
 
 
-def lab_leftovers(state_dirs: list[Path], since: float = 0.0) -> int:
+def lab_app_folder(home: Path) -> Path | None:
+    """The Dev build's Lab App folder (ADR-0027 7b: "the 'Lab' Claude Code
+    App", `docs/qa/0.4-walks/7b-live-claude.md`), its path resolved: the
+    one Claude Code Account the Dev build's own database (under `home`)
+    calls Lab that is a copy of its own (not in place, not removed),
+    inside its own `accounts/` folder. Any other, or two, or none: `None`,
+    and nothing is exempt. The installed AI Juggler's data is never read."""
+    data = home / DEV_DATA
+    try:
+        db = sqlite3.connect(f"{(data / 'juggler.sqlite').as_uri()}?mode=ro", uri=True)
+        try:
+            rows = db.execute(
+                "select state_dir from accounts where provider_id = 'claude-code' and label = 'Lab' and in_place = 0 and removed_at is null"
+            ).fetchall()
+        finally:
+            db.close()
+    except sqlite3.Error:
+        return None
+    own = os.path.realpath(data / "accounts") + os.sep
+    found = {os.path.realpath(state) for (state,) in rows}
+    if len(rows) != 1 or not all(path.startswith(own) for path in found):
+        return None
+    return Path(found.pop())
+
+
+def made_at(stat: os.stat_result) -> float:
+    """When a file was made (epoch s): its creation time where the OS keeps
+    one in `os.stat` (`st_birthtime`: macOS, the BSDs, Windows), else its
+    last write (`st_mtime`: Linux, the CI runners). A file is written only
+    after it's made, so on Linux one made before a time and written after
+    it counts as made after it: a `since` there counts more, never fewer,
+    and the gate can only fail more. (Setting a file's times back moves
+    macOS's creation time with them, so both read it as old.)"""
+    return getattr(stat, "st_birthtime", stat.st_mtime)
+
+
+def lab_leftovers(state_dirs: list[Path], since: float = 0.0, sanctioned: Path | None = None) -> int:
     """Terminal transcripts (`cli`, `sdk-cli`) in a real profile's folder
     that run in a lab folder: our tests on a real Account. `since` (epoch
-    s, default always) counts only those made after it."""
+    s, default always) counts only those made after it ([`made_at`]). Each
+    folder once, by its resolved path; `sanctioned` ([`lab_app_folder`]) is
+    ours."""
     count = 0
+    seen: set[str] = set()
     for state_dir in state_dirs:
-        if state_dir.name in SANCTIONED:
+        real = os.path.realpath(state_dir)
+        if state_dir.name in SANCTIONED or real in seen or (sanctioned is not None and real == str(sanctioned)):
             continue
+        seen.add(real)
         for path in transcripts(state_dir).values():
             try:
-                if path.stat().st_birthtime < since:
+                if made_at(path.stat()) < since:
                     continue
                 cwd = entry = None
                 with path.open(errors="replace") as handle:
@@ -359,11 +430,33 @@ class KnownApp:
     folder: str | None
     instance: Path | None
     state_dir: Path | None
+    # Its app's default instance (the Claude app with no `--user-data-dir`).
+    default: bool = False
 
 
-def known_apps(db: sqlite3.Connection, desktop_names: dict[str, str]) -> list[KnownApp]:
+def sole_holders(apps: list[KnownApp]) -> dict[str, str]:
+    """Each Claude Code folder one desktop App holds → that App's name, as
+    the app's `places::sole_holders`: one profile on it, else the one of
+    them that's its app's default instance; two others: none."""
+    held: dict[str, list[KnownApp]] = {}
+    for app in apps:
+        if app.kind == "desktop" and app.tool == "claude-code" and app.state_dir:
+            on = held.setdefault(str(app.state_dir), [])
+            if all(one.name != app.name for one in on):
+                on.append(app)
+    out = {}
+    for folder, on in held.items():
+        defaults = [app for app in on if app.default]
+        one = on if len(on) == 1 else defaults
+        if len(one) == 1:
+            out[folder] = one[0].name
+    return out
+
+
+def known_apps(db: sqlite3.Connection, desktop_names: dict[str, str], claude_default: Path | None = None) -> list[KnownApp]:
     """Every App of the database by its rail name (`desktop_names`:
-    presence_check's desktop App names by id)."""
+    presence_check's desktop App names by id; `claude_default`: the Claude
+    app's default instance folder)."""
     folders = {fid: (label, Path(state)) for fid, label, state in db.execute("select id, label, state_dir from accounts where removed_at is null")}
     out = []
     for app_id, kind, tool, instance, folder in db.execute("select id, kind, tool, instance_dir, folder_id from apps"):
@@ -375,7 +468,8 @@ def known_apps(db: sqlite3.Connection, desktop_names: dict[str, str]) -> list[Kn
         else:
             word = "Codex CLI" if tool == "codex" else "Claude Code CLI"
             name = f"{word} · {label}" if label else word
-        out.append(KnownApp(name=name, kind=kind, tool=tool, folder=folder, instance=Path(instance) if instance else None, state_dir=state))
+        default = bool(instance) and claude_default is not None and Path(instance) == claude_default
+        out.append(KnownApp(name=name, kind=kind, tool=tool, folder=folder, instance=Path(instance) if instance else None, state_dir=state, default=default))
     return out
 
 
@@ -395,24 +489,45 @@ def drawn_count(app: RailApp) -> int | None:
     return app.rows
 
 
-def codex_problems(rail: list[RailApp], apps: list[KnownApp], codex: dict[str, tuple[int, int]]) -> tuple[list[str], list[str]]:
+Listed = tuple[frozenset[str], frozenset[str]]
+
+
+def codex_problems(
+    rail: list[RailApp],
+    apps: list[KnownApp],
+    codex: dict[str, Listed],
+    own: dict[str, dict[str, str | None]] | None = None,
+) -> tuple[list[str], list[str]]:
     """D-102: each Codex home's listed threads (`codex`: folder → (the
-    Codex app's, the rest)) against the rail: the Codex app's count plus
+    Codex app's ids, the rest)) against the rail: the Codex app's count plus
     Codex CLI's Inactive "N sessions" is the total, Codex CLI's the rest
-    (alone when the Codex app's count isn't drawn)."""
+    (alone when the Codex app's count isn't drawn). 0.4.6: AI Juggler's own
+    runs on the folder (`own`: session id → its thread) are Codex CLI's
+    rows, each one, and a thread one is on is theirs, not counted again
+    (`cli_records`'s rule, `features::relations::build`)."""
     lines: list[str] = []
     problems: list[str] = []
-    for folder, (desktop, other) in sorted(codex.items()):
+    for folder, (desktop_ids, other_ids) in sorted(codex.items()):
+        runs = (own or {}).get(folder, {})
+        ran = {thread for thread in runs.values() if thread}
+        desktop = len(desktop_ids - ran)
+        other = len(runs) + len(other_ids - ran)
+        total = desktop + other
         named = {(app.kind, app.name) for app in apps if app.tool == "codex" and app.folder == folder}
         app = next((one for one in rail if ("desktop", one.name) in named), None)
         cli = next((one for one in rail if ("cli", one.name) in named and one.section == "idle"), None)
         app_count = drawn_count(app) if app else None
         cli_count = (cli.sessions or 0) if cli else None
-        lines.append(f"  codex store: {desktop} by the Codex app + {other} others = {desktop + other} listed; rail: app={app_count} cli={cli_count}")
+        listed = len(desktop_ids) + len(other_ids)
+        lines.append(
+            f"  codex store: {len(desktop_ids)} by the Codex app + {len(other_ids)} others = {listed} listed;"
+            f" AI Juggler's runs: {len(runs)}, on {len(ran & (desktop_ids | other_ids))} of them;"
+            f" so app={desktop} cli={other}; rail: app={app_count} cli={cli_count}"
+        )
         if cli_count is not None and cli_count != other:
-            problems.append(f"Codex CLI says {cli_count} sessions, the Codex store lists {other} not the Codex app's: {cli.name}")  # type: ignore[union-attr]
-        if app_count is not None and cli_count is not None and app_count + cli_count != desktop + other:
-            problems.append(f"the Codex app's {app_count} and Codex CLI's {cli_count} aren't the store's {desktop + other} listed threads")
+            problems.append(f"Codex CLI says {cli_count} sessions, its runs and the store's threads not the Codex app's are {other}: {cli.name}")  # type: ignore[union-attr]
+        if app_count is not None and cli_count is not None and app_count + cli_count != total:
+            problems.append(f"the Codex app's {app_count} and Codex CLI's {cli_count} aren't the {total} of the store's threads and AI Juggler's runs")
     return lines, problems
 
 
@@ -422,23 +537,31 @@ def check(
     out: set[str],
     leftovers: int,
     own: dict[str, dict[str, str | None]] | None = None,
-    codex: dict[str, tuple[int, int]] | None = None,
+    codex: dict[str, Listed] | None = None,
 ) -> tuple[list[str], list[str]]:
     """The lines to print and the problems: unfold, records, Out marks,
     labs, and (D-102) each Codex home's listed threads (`codex`, from
     [`codex_listed`] by folder)."""
     by_name = {app.name: app for app in apps}
     # A profile's records hold its own folder's copy only: a switch copies
-    # a conversation into another folder under the same id.
+    # a conversation into another folder under the same id. 0.4.6: one AI
+    # Juggler's session on that folder is on is that session's.
     held: dict[str, set[str]] = {}
     records: dict[str, Records] = {}
+    holders = sole_holders(apps)
     for app in apps:
         if app.kind == "desktop" and app.tool == "claude-code" and app.instance and app.state_dir:
-            records[app.name], ids = desktop_records(app.instance, app.state_dir)
+            linked = {conversation for conversation in (own or {}).get(app.folder or "", {}).values() if conversation}
+            records[app.name], ids = desktop_records(app.instance, app.state_dir, linked)
             held.setdefault(str(app.state_dir), set()).update(ids)
     for app in apps:
         if app.kind == "cli" and app.tool == "claude-code" and app.state_dir:
-            records[app.name] = cli_records(app.state_dir, held.get(str(app.state_dir), set()), (own or {}).get(app.folder or "", {}))
+            records[app.name] = cli_records(
+                app.state_dir,
+                held.get(str(app.state_dir), set()),
+                (own or {}).get(app.folder or "", {}),
+                held_folder=str(app.state_dir) in holders,
+            )
     lines: list[str] = []
     problems: list[str] = []
     for shown in rail:
@@ -471,7 +594,7 @@ def check(
                 problems.append(f"All N sessions says {shown.show_all}, its records hold {mine.listed}: {shown.name}")
     if leftovers:
         problems.append(f"{leftovers} new transcript(s) of a lab run in a real profile's folder")
-    more_lines, more = codex_problems(rail, apps, codex or {})
+    more_lines, more = codex_problems(rail, apps, codex or {}, own)
     return lines + more_lines, problems + more
 
 
@@ -505,7 +628,125 @@ def selftest() -> None:
     _, problems = check(parse_rail(old), [east], {"f-east"}, 2)
     assert any("no Out mark" in p for p in problems) and any("lab run" in p for p in problems), problems
     selftest_d102()
+    selftest_046()
     print("presence_sessions: selftest passed")
+
+
+def _transcript(folder: Path, sid: str, entry: str, cwd: str = "/w") -> None:
+    (folder / "projects/-w").mkdir(parents=True, exist_ok=True)
+    (folder / f"projects/-w/{sid}.jsonl").write_text(json.dumps({"type": "user", "sessionId": sid, "entrypoint": entry, "cwd": cwd}, separators=(",", ":")) + "\n")
+
+
+def selftest_046() -> None:
+    """The 0.4.6 RC's three failures, each a case the check counted
+    against the app's one order (`places::app_of`,
+    `ui/src/lib/fixtures/session-apps.json`): two AI Juggler sessions on
+    one terminal transcript are two rows; a desktop-started transcript on
+    a folder no profile holds is its CLI App's (`claude --resume` lists
+    it); a profile's record that an AI Juggler terminal session resumed is
+    that session, in its CLI App, never in both. And the Dev build's Lab
+    App folder, exactly, is where our lab runs belong: every other
+    folder, another Dev-managed one too, still fails."""
+    with tempfile.TemporaryDirectory() as tmp:
+        lab, prof, inst = Path(tmp) / "lab", Path(tmp) / "prof", Path(tmp) / "inst"
+        for sid, entry in (("t-term", "cli"), ("t-twice", "cli"), ("t-desk", "claude-desktop"), ("t-run", "sdk-cli")):
+            _transcript(lab, sid, entry)
+        for sid, entry in (("p-rec", "claude-desktop"), ("p-res", "cli"), ("p-loose", "claude-desktop"), ("p-term", "cli")):
+            _transcript(prof, sid, entry)
+        (inst / "claude-code-sessions/a/o").mkdir(parents=True)
+        for record, sid in (("local_r1", "p-rec"), ("local_p-res", "p-res")):
+            (inst / f"claude-code-sessions/a/o/{record}.json").write_text(json.dumps({"cliSessionId": sid, "lastActivityAt": 1}))
+        apps = [
+            KnownApp("Claude Code CLI · Lab", "cli", "claude-code", "f-lab", None, lab),
+            KnownApp("Claude app · P", "desktop", "claude-code", "f-prof", inst, prof),
+            KnownApp("Claude Code CLI · P", "cli", "claude-code", "f-prof", None, prof),
+        ]
+        own = {"f-lab": {"s-1": "t-twice", "s-2": "t-twice", "s-3": "gone"}, "f-prof": {"s-9": "p-res"}}
+
+        def idle(lab_n: int, app_n: int, cli_n: int) -> list[RailApp]:
+            return parse_rail([
+                ("AXButton", "Inactive apps 3", ""),
+                ("AXButton", f"Claude Code CLI · Lab, CLI app, 2 d ago · {lab_n} sessions", ""),
+                ("AXButton", f"Claude app · P, Desktop app, 3 d ago · {app_n} sessions", ""),
+                ("AXButton", f"Claude Code CLI · P, CLI app, 4 d ago · {cli_n} sessions", ""),
+            ])
+
+        # The Lab CLI App: t-term, t-twice's two sessions, t-desk, s-3 (no
+        # transcript); not t-run. The profile: p-rec; p-loose is in no
+        # App (its records leave it out). Its CLI App: s-9 and p-term.
+        lines, problems = check(idle(5, 1, 2), apps, set(), 0, own)
+        assert problems == [], (problems, lines)
+        _, problems = check(idle(3, 2, 2), apps, set(), 0, own)
+        assert any("says 3 sessions, its records hold 5" in p for p in problems), problems
+        assert any("says 2 sessions, its records hold 1: Claude app · P" in p for p in problems), problems
+        # Two profiles on one folder, neither its app's default: neither
+        # holds it, so a desktop-started transcript there is its CLI App's;
+        # one of them the default instance: that one holds it.
+        other = KnownApp("Claude app · Q", "desktop", "claude-code", "f-prof", Path(tmp) / "inst-q", prof)
+        assert sole_holders([apps[1], other]) == {}
+        assert sole_holders([apps[1], replace(other, default=True)]) == {str(prof): "Claude app · Q"}
+        assert sole_holders(apps) == {str(prof): "Claude app · P"}
+        assert cli_records(prof, {"p-rec", "p-res"}, {}, held_folder=False).listed == 2, "p-loose and p-term"
+        selftest_lab_app(Path(tmp))
+
+
+def selftest_lab_app(tmp: Path) -> None:
+    """FAIL 3 of the 0.4.6 RC: the Dev build's Lab App folder (ADR-0027
+    7b, `docs/qa/0.4-walks/7b-live-claude.md`) is found in the Dev build's
+    own database by what it is, its path resolved, and only it is ours."""
+    home = tmp / "home"
+    dev, installed = home / DEV_DATA, home / "Library/Application Support/AI Juggler"
+    lab_dir, other_dir = dev / "accounts/claude-code/claude-code-1", dev / "accounts/claude-code/claude-code-2"
+    real_dir, installed_dir = home / "Library/Application Support/ClaudeCodeProfiles/b-east", installed / "accounts/claude-code/claude-code-3"
+    run = str(HOME / "lab/web")
+    for folder in (lab_dir, other_dir, real_dir, installed_dir):
+        _transcript(folder, "lab-run", "cli", run)
+        _transcript(folder, "own-cwd", "cli", "/elsewhere")
+
+    def database(data: Path, rows: list[tuple[str, str, str, Path, int, int | None]]) -> None:
+        data.mkdir(parents=True, exist_ok=True)
+        (data / "juggler.sqlite").unlink(missing_ok=True)
+        db = sqlite3.connect(data / "juggler.sqlite")
+        db.execute("create table accounts (id text, provider_id text, label text, state_dir text, in_place integer, removed_at integer)")
+        db.executemany("insert into accounts values (?, ?, ?, ?, ?, ?)", [(i, p, label, str(d), place, gone) for i, p, label, d, place, gone in rows])
+        db.commit()
+        db.close()
+
+    lab_row = ("claude-code-1", "claude-code", "Lab", lab_dir, 0, None)
+    database(installed, [("claude-code-3", "claude-code", "Lab", installed_dir, 0, None)])
+    database(dev, [lab_row, ("claude-code-2", "claude-code", "R3", other_dir, 0, None), ("claude-code-9", "claude-code", "Lab", real_dir, 1, None)])
+    found = lab_app_folder(home)
+    assert found == Path(os.path.realpath(lab_dir)), found
+    folders = [lab_dir, other_dir, real_dir, installed_dir]
+    assert lab_leftovers(folders) == 4, "nothing exempt unless named"
+    assert lab_leftovers(folders, sanctioned=found) == 3, "only the Lab App's folder: another Dev-managed one, a real profile's and the installed app's still fail"
+    link = tmp / "lab-link"
+    link.symlink_to(lab_dir)
+    assert lab_leftovers([link, other_dir, other_dir], sanctioned=found) == 1, "by its resolved path; a folder counted once"
+    # `since` counts only the runs made after it ([`made_at`]), read as this
+    # OS reads it and as Linux does (no creation time: the last write): an
+    # old one in the real profile's folder drops out, none is made after a
+    # time to come, and without `since` all count.
+    os.utime(real_dir / "projects/-w/lab-run.jsonl", (1000, 1000))
+    real = made_at
+
+    def as_linux(stat: os.stat_result) -> float:
+        return real(SimpleNamespace(st_mtime=stat.st_mtime))
+
+    for reading, made in (("this OS", real), ("Linux", as_linux)):
+        with mock.patch.dict(globals(), {"made_at": made}):
+            assert lab_leftovers(folders, since=2000) == 3, reading
+            assert lab_leftovers(folders, since=time.time() + 3600) == 0, reading
+            assert lab_leftovers(folders) == 4, reading
+    assert made_at(SimpleNamespace(st_birthtime=3.0, st_mtime=7.0)) == 3.0, "its creation time where the OS keeps one"
+    assert made_at(SimpleNamespace(st_mtime=7.0)) == 7.0, "else (Linux) its last write"
+    # Not found (none exempt): two Lab App copies, or none of Dev's own.
+    database(dev, [lab_row, ("claude-code-4", "claude-code", "Lab", other_dir, 0, None)])
+    assert lab_app_folder(home) is None
+    for gone in (("claude-code-1", "claude-code", "Lab", lab_dir, 0, 5), ("claude-code-1", "codex", "Lab", lab_dir, 0, None), ("claude-code-1", "claude-code", "Lab", real_dir, 0, None)):
+        database(dev, [gone])
+        assert lab_app_folder(home) is None, gone
+    assert lab_app_folder(tmp / "nowhere") is None, "no Dev build here"
 
 
 def selftest_d102() -> None:
@@ -534,8 +775,9 @@ def selftest_d102() -> None:
             # As Codex leaves it closed: no shared memory to read through.
             for suffix in ("-wal", "-shm"):
                 Path(f"{home}/state_5.sqlite{suffix}").unlink(missing_ok=True)
-            assert codex_listed(home) == (2, 2), (with_column, codex_listed(home))
-        assert codex_listed(Path(tmp)) == (0, 0), "no store"
+            listed = codex_listed(home)
+            assert listed == (frozenset({"t0", "t1"}), frozenset({"t2", "t3"})), (with_column, listed)
+        assert codex_listed(Path(tmp)) == (frozenset(), frozenset()), "no store"
         folder = Path(tmp) / "claude"
         (folder / "projects/-w").mkdir(parents=True)
         for sid, entry in (("term", "cli"), ("run", "sdk-cli"), ("py", "sdk-py"), ("ours", "sdk-cli")):
@@ -552,13 +794,27 @@ def selftest_d102() -> None:
             ("AXButton", f"Codex CLI · Codex home, CLI app, 2 d ago · {cli_sessions} sessions", ""),
         ])
 
-    store = {"f-codex": (15, 33)}
+    store = {"f-codex": (frozenset(f"d{n}" for n in range(15)), frozenset(f"o{n}" for n in range(33)))}
     assert not check(rail(33, False), codex_apps, set(), 0, None, store)[1]
     _, problems = check(rail(92, False), codex_apps, set(), 0, None, store)
-    assert len(problems) == 2 and "says 92 sessions" in problems[0] and "aren't the store's 48" in problems[1], problems
+    assert len(problems) == 2 and "says 92 sessions" in problems[0] and "aren't the 48 of" in problems[1], problems
     _, problems = check(rail(92, True), codex_apps, set(), 0, None, store)
     assert len(problems) == 1 and "says 92 sessions" in problems[0], "the app's count not drawn: Codex CLI's alone"
     assert not check(rail(33, True), codex_apps, set(), 0, None, store)[1]
+    # 0.4.6 (the rc3 presence run): AI Juggler's runs are Codex CLI's rows,
+    # each one: two on one thread two, one that made no thread one, one on
+    # a thread the store doesn't list one; the thread they're on isn't
+    # counted again.
+    runs = {"f-codex": {"s-1": "o0", "s-2": "o0", "s-3": None, "s-4": "gone"}}
+    assert not check(rail(36, False), codex_apps, set(), 0, runs, store)[1], "4 runs + 32 threads"
+    _, problems = check(rail(33, True), codex_apps, set(), 0, runs, store)
+    assert len(problems) == 1 and "says 33 sessions" in problems[0] and "are 36" in problems[0], problems
+    # A run on a thread the Codex app started is Codex CLI's row: the app
+    # lists one fewer.
+    runs = {"f-codex": {"s-5": "d0"}}
+    assert not check(rail(34, True), codex_apps, set(), 0, runs, store)[1]
+    _, problems = check(rail(34, False), codex_apps, set(), 0, runs, store)
+    assert len(problems) == 1 and "the Codex app's 15 and Codex CLI's 34 aren't the 48" in problems[0], problems
 
 
 if __name__ == "__main__":

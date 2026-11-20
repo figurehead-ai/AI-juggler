@@ -2,7 +2,8 @@
 //!
 //! - Its manifests are what Claude Code reads: the plugin's name and
 //!   version, one MCP server run from the plugin's own folder, a skill
-//!   with its name and description, and a marketplace that lists it. No
+//!   with its name and description, and the repository's marketplace
+//!   (`.claude-plugin/` at its root) that lists it. No
 //!   key, socket or account appears anywhere in it.
 //! - Copied into a fixture home as an install puts it, its server runs
 //!   the real `juggler-agent`: in a session AI Juggler started (a key in
@@ -122,8 +123,15 @@ fn the_plugins_manifests_are_what_claude_code_reads_and_hold_no_secret() {
         env!("CARGO_PKG_VERSION"),
         "released with the app"
     );
-    let market = json(&root.join(".claude-plugin/marketplace.json"));
-    assert_eq!(market["plugins"][0]["source"], "./ai-juggler");
+    // The marketplace is at the repository's root, where
+    // `/plugin marketplace add figurehead-ai/AI-juggler` reads it.
+    let market = json(&root.join("../../.claude-plugin/marketplace.json"));
+    assert_eq!(market["name"], "ai-juggler");
+    assert_eq!(market["plugins"][0]["name"], "ai-juggler");
+    assert_eq!(
+        market["plugins"][0]["source"],
+        "./plugins/claude-code/ai-juggler"
+    );
     let mcp = json(&root.join("ai-juggler/.mcp.json"));
     let servers = mcp["mcpServers"].as_object().unwrap();
     assert_eq!(servers.len(), 1);
@@ -206,4 +214,49 @@ fn installed_in_a_fixture_home_it_runs_the_bridge_and_says_why_not() {
     assert!(replies.is_empty());
     assert_eq!(code, Some(1));
     assert!(stderr.contains("AI Juggler isn't installed"), "{stderr}");
+}
+
+/// AJ-E3013: the plugin's inbox hooks run its launcher as
+/// `hook <event> --connector`; with no AI Juggler answering, each prints
+/// nothing and exits 0 (a hook never holds its tool up or fails it).
+#[test]
+fn the_inbox_hooks_are_silent_and_never_fail_without_ai_juggler() {
+    let home = tempfile::tempdir().unwrap();
+    let root = install(home.path());
+    let hooks = json(&root.join("hooks/hooks.json"));
+    for event in ["SessionStart", "UserPromptSubmit"] {
+        let command = hooks["hooks"][event][0]["hooks"][0]["command"]
+            .as_str()
+            .unwrap()
+            .replace("${CLAUDE_PLUGIN_ROOT}", &root.to_string_lossy());
+        assert!(
+            command.ends_with(&format!("hook {event} --connector")),
+            "{command}"
+        );
+        for agent in [BRIDGE, "/nonexistent/juggler-agent"] {
+            let mut child = Command::new("/bin/sh")
+                .args(["-c", &command])
+                .env_clear()
+                .env("HOME", home.path())
+                .env("PATH", "/usr/bin:/bin")
+                .env("JUGGLER_APPS", home.path().join("none"))
+                .env("JUGGLER_AGENT", agent)
+                .stdin(Stdio::piped())
+                .stdout(Stdio::piped())
+                .stderr(Stdio::piped())
+                .spawn()
+                .unwrap();
+            child
+                .stdin
+                .take()
+                .unwrap()
+                .write_all(
+                    br#"{"session_id":"s","hook_event_name":"UserPromptSubmit","prompt":"hi"}"#,
+                )
+                .unwrap();
+            let out = child.wait_with_output().unwrap();
+            assert_eq!(out.status.code(), Some(0), "{event} with {agent}");
+            assert!(out.stdout.is_empty(), "{event}: nothing printed");
+        }
+    }
 }

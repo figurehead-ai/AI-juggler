@@ -8,7 +8,7 @@
  */
 import AxeBuilder from "@axe-core/playwright";
 import { type Page } from "@playwright/test";
-import { expect, gate, test } from "./axe-gallery";
+import { expect, gate, settle, test } from "./axe-gallery";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 
@@ -28,6 +28,10 @@ async function open(page: Page, theme: "dark" | "light" = "dark") {
   await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.goto("/");
+  // The rail whole before the click: a row arriving above the chosen one
+  // after it kept that row in place and said "1 new above", in some runs
+  // and not others (the 0.4.6 gate, terminal-tools' captures).
+  await settle(page);
   // AJ-E2104: an AI Juggler session's row, under AI Juggler's place: a
   // click opens its page, on its terminal: its Overview (AJ-E1533).
   // On its title, not its middle: Linux's font puts the row's project

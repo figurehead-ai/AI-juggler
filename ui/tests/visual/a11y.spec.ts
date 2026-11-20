@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import { allStatuses, honestEmpty, type FixtureSet, goTo, openFilters, openSwitch, expectRail, openRailList, settingsPane, onlyMac, projectBoardByDefault, switchRows, openRailSession } from "./fixtures";
 import { HOME_OUT_USE, showHomeOut } from "./fixtures/home-out";
+import { canvasSeed } from "./fixtures/pool-canvas";
 
 // AJ-E2104: these galleries read the project board, every status drawn.
 projectBoardByDefault(test);
@@ -252,8 +253,10 @@ for (const theme of ["dark", "light"] as const) {
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto("/");
     await goTo(page, "Accounts");
-    // AJ-E2109: a profile's page opens from its row.
+    // AJ-E2109: a profile's page opens from its row; the toggles are in
+    // its Settings tab (an App's page has tabs).
     await page.getByTestId("profile-open").first().click();
+    await page.getByRole("tablist", { name: "App tabs" }).getByRole("tab", { name: "Settings", exact: true }).click();
     await expect(page.getByTestId("account-tier-toggles")).toBeVisible();
     const results = await new AxeBuilder({ page })
       .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])
@@ -623,7 +626,7 @@ const DOOR_WIZARD_FIXTURE = {
   zombies: [],
   diff_snapshotted: true,
   source_live: true,
-  experimental_copy: "Beta, not proven yet: the whole session moves, with its subagents and file history. The source stays resumable.",
+  experimental_copy: "Beta: the whole session moves, with its subagents and file history. The source stays resumable.",
   door: "wizard" as const,
   wizard_steps: ["Target", "What's carried", "Confirm"],
   wizard_reasons: ["This move hasn't been proven on a real setup yet."],
@@ -1051,7 +1054,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/");
     await goTo(page, "Accounts");
-    await page.getByTestId("accounts-beta-matrix").locator("summary").click(); // D-25: behind a disclosure
+    await page.getByTestId("accounts-beta-matrix-toggle").click(); // D-25: behind a disclosure
     await expect(page.getByTestId("beta-matrix-table")).toBeVisible();
     // Real table semantics: scoped column + row headers.
     await expect(page.getByTestId("beta-matrix-table").locator("th[scope='col']").first()).toBeVisible();
@@ -1059,7 +1062,7 @@ for (const theme of ["dark", "light"] as const) {
     await expect(rowHeader).toContainText("→");
     // Status in text, never colour-only.
     await expect(page.getByTestId("beta-matrix-row").first()).toContainText(
-      "Beta — not proven yet",
+      "Beta: still being tested",
     );
     const scan = await new AxeBuilder({ page })
       .include("[data-testid='beta-matrix']")
@@ -1396,7 +1399,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.goto("/");
     await goTo(page, "Fleet");
     // 0.1.5: the fingerprint folds away while Link is off; open it to check it.
-    const fold = page.locator("#fleet-fingerprint-label");
+    const fold = page.getByRole("button", { name: "Fingerprint, to check when you pair" });
     if (!(await page.getByLabel("Machine fingerprint").isVisible())) await fold.click();
     const fingerprint = page.getByLabel("Machine fingerprint");
     await expect(fingerprint).toBeVisible();
@@ -1770,7 +1773,7 @@ for (const theme of ["dark", "light"] as const) {
           machine_id: "machine-mini", machine_label: "Mac mini", recipe_id: "rec-mini", recipe_name: "Main",
           account_label: "Team", provider: "claude-code", mechanism: "transplant", readiness: "needs_mapping",
           blockers: ["ai-juggler isn't at the same path on Mac mini — pick its copy there (you confirm the mapping) or use “Full story, fresh start”."],
-          fidelity: "F3", badge: "Same conversation, another app · Not proven yet", validated: false, carried: ["The whole conversation"], regenerated: [],
+          fidelity: "F3", badge: "Same conversation, another app · Beta", validated: false, carried: ["The whole conversation"], regenerated: [],
           dropped: ["The task list"], same_path_project: null,
           projects: [{ project_id: "proj-m1", name: "ai-juggler", same_path: false, same_name: true }],
           replay_available: true, version_here: "2.1.0", version_there: "2.1.0",
@@ -2163,8 +2166,8 @@ for (const theme of ["dark", "light"] as const) {
       if (name === "going-back") {
         // Keyboard only: open the disclosure, choose, confirm is focused,
         // Cancel returns to the choice.
-        const summary = page.getByText("Go back to an earlier version", { exact: true });
-        await summary.focus();
+        const fold = page.getByRole("button", { name: "Go back to an earlier version" });
+        await fold.focus();
         await page.keyboard.press("Enter");
         await page.getByTestId("going-back-27").focus();
         await page.keyboard.press("Enter");
@@ -2507,7 +2510,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.goto("/");
     await goTo(page, "Settings");
     await await settingsPane(page, "Sessions");
-    const terminal = page.getByTestId("settings-terminal").locator("summary");
+    const terminal = page.getByTestId("settings-terminal-toggle");
     await terminal.focus();
     await page.keyboard.press("Enter");
     for (const label of ["Stuck after", "Font size", "Scrollback"]) {
@@ -2547,4 +2550,86 @@ test.describe("room marks on Home's narrowest app cards", () => {
       expect(await scanSeriousWithConfirm(page), theme).toHaveLength(0);
     }
   });
+});
+
+// 0.4.6 (AJ-E3011, AJ-E3012): the pool setup and the canvas's selection.
+// Every control in every step has a name a screen reader says; the chosen
+// template, the current step and the selected card say so (aria-checked,
+// aria-current); the inspector's heading names the selection. Axe 0
+// critical/serious on each step, both themes.
+test.describe("the pool setup and the canvas's selection", () => {
+  async function openPools(page: import("@playwright/test").Page, theme: "dark" | "light", seed: Record<string, unknown> | null) {
+    await page.addInitScript(
+      ({ t, seed }) => {
+        if (seed) Object.assign(window, seed);
+        localStorage.setItem("aij.theme", t);
+        localStorage.setItem("aij.onboarding.dismissed", "1");
+        localStorage.setItem("aij.smoother.dismissed", JSON.stringify(["all"]));
+        sessionStorage.setItem("aij.ready.skipped", "1");
+      },
+      { t: theme, seed },
+    );
+    await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto("/");
+    await expect(page.getByTestId("rail")).toBeVisible();
+    await goTo(page, "Pools");
+    await expect(page.getByTestId("pools-screen")).toBeVisible();
+  }
+
+  /** Controls in `scope` a screen reader would announce with no name. */
+  async function unnamed(scope: import("@playwright/test").Locator): Promise<string[]> {
+    return scope.locator("button, input, select, textarea, [role=radio], [role=checkbox], [role=radiogroup]").evaluateAll((all) =>
+      all.flatMap((el) => {
+        const labelledBy = el.getAttribute("aria-labelledby");
+        const named =
+          (el.getAttribute("aria-label") ?? "").trim() ||
+          (labelledBy ? labelledBy.split(" ").map((id) => document.getElementById(id)?.textContent ?? "").join("").trim() : "") ||
+          (el instanceof HTMLInputElement && el.labels && [...el.labels].map((l) => l.textContent ?? "").join("").trim()) ||
+          (el.textContent ?? "").trim() ||
+          (el.getAttribute("title") ?? "").trim();
+        return named ? [] : [el.outerHTML.slice(0, 120)];
+      }),
+    );
+  }
+
+  for (const theme of ["dark", "light"] as const) {
+    test(`every setup step: each control named, the current step said — ${theme}`, async ({ page }) => {
+      await openPools(page, theme, null);
+      await page.getByTestId("pools-new").click();
+      const wizard = page.getByTestId("new-pool");
+      // D-126: How to start's choices are cards, a radio in each.
+      await expect(wizard.locator('[data-template="blank"]').getByRole("radio")).toBeChecked();
+      for (const step of ["template", "where", "who", "lead", "everyone", "talk", "own", "tools", "review"]) {
+        if (step === "tools" && (await page.getByTestId("new-pool-step-tools").count()) === 0) continue;
+        await expect(page.getByTestId(`new-pool-step-${step}`)).toBeVisible();
+        // D-126: the steps beside are the kit's FlowSteps.
+        await expect(wizard.locator(`[data-testid=new-pool-steps] [data-testid=flow-step][data-step="${step}"]`)).toHaveAttribute("aria-current", "step");
+        await expect(page.getByTestId("new-pool-step-title")).not.toBeEmpty();
+        expect(await unnamed(wizard), step).toEqual([]);
+        expect(await scanSeriousWithConfirm(page), `${step} ${theme}`).toHaveLength(0);
+        // An App is a logo card (its checkbox in its label); the rc3 critique:
+        // Your apps first, the sessions open now their own section.
+        if (step === "who") await page.getByTestId("new-pool-apps").getByTestId("new-pool-candidate").first().locator("label").first().click();
+        if (step !== "review") await page.getByTestId("new-pool-next").click();
+      }
+    });
+
+    test(`the canvas: the selected card says so, the inspector's heading names it — ${theme}`, async ({ page }) => {
+      await openPools(page, theme, canvasSeed(T0));
+      await page.getByTestId("pool-card-tile").filter({ hasText: "Checkout team" }).click();
+      await expect(page.getByTestId("pool-canvas")).toBeVisible();
+      const heading = page.locator("#pool-inspector-title");
+      await expect(heading).toHaveText("Checkout team");
+      await expect(page.getByRole("complementary").filter({ has: heading })).toHaveAccessibleName("Checkout team");
+      const name = page.locator('[data-node-name="s-plan"]');
+      await name.click();
+      await expect(heading).toHaveText("Planner");
+      await expect(page.locator('[data-node="s-plan"]')).toHaveAttribute("aria-current", "true");
+      await expect(name).toHaveAttribute("aria-pressed", "true");
+      await expect(page.locator('[data-node="s-cart"]')).not.toHaveAttribute("aria-current", "true");
+      expect(await unnamed(page.getByTestId("pool-inspector"))).toEqual([]);
+      expect(await scanSeriousWithConfirm(page), theme).toHaveLength(0);
+    });
+  }
 });

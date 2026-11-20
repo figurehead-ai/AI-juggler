@@ -10,13 +10,15 @@ import type { JSX } from "react";
 import { PoolCardRows } from "../../components/PoolCards";
 import type { InstanceInfo } from "../../types/generated/InstanceInfo";
 import type { PoolCanvasInfo } from "../../lib/ipc/pool-canvas";
+import type { PoolInfo } from "../../lib/ipc/pools";
+import { MemberLevel } from "./MemberLevel";
 import { agoWords } from "../../lib/time-words";
 import { PendingChip, edgeWords } from "./CanvasEdges";
 import type { Selection } from "./Canvas";
 import type { CanvasData } from "./useCanvas";
 import { edgeKey } from "./useCanvas";
 
-export function MemberList({ data, canvas, sessions, names, now, onSelect }: { data: CanvasData; canvas: PoolCanvasInfo | null; sessions: InstanceInfo[]; names: ReadonlyMap<string, string>; now: number; onSelect: (selection: Selection) => void }): JSX.Element {
+export function MemberList({ pool, data, canvas, sessions, names, now, onSelect }: { pool: PoolInfo; data: CanvasData; canvas: PoolCanvasInfo | null; sessions: InstanceInfo[]; names: ReadonlyMap<string, string>; now: number; onSelect: (selection: Selection) => void }): JSX.Element {
   const edges = canvas?.edges ?? [];
   return (
     <div className="h-full min-h-0 overflow-y-auto p-5" data-canvas-scroll data-testid="pool-list">
@@ -26,7 +28,9 @@ export function MemberList({ data, canvas, sessions, names, now, onSelect }: { d
             Members
           </h3>
           <div className="rounded-card border border-hairline bg-surface">
-            <PoolCardRows list={data.list} sessions={sessions} now={now} />
+            {/* Each row's own choice here, behind its disclosure (the rc2
+                walk P5: reachable from the row, as from its node). */}
+            <PoolCardRows list={data.list} sessions={sessions} now={now} renderOwn={(row, name) => <MemberLevel pool={pool} sessionId={row.session.id} memberRole={row.card.role} name={name} look="row" />} />
           </div>
         </section>
         <section aria-labelledby="pool-list-edges" className="flex flex-col gap-2">

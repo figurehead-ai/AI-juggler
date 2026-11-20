@@ -6,7 +6,9 @@
 //!   folder of ours (`agent/`), and is made `0600`.
 //! - Every connection's peer user is checked (`getpeereid`, through
 //!   tokio's `peer_cred`); anything that isn't this user is dropped
-//!   unanswered. Then the key decides who is calling.
+//!   unanswered. Then the key decides who is calling, or, for a call with
+//!   no key (AJ-E3013), the peer's pid and the time of the accept are
+//!   attested ([`super::attest`]).
 //! - One request per connection, at most [`wire::MAX_REQUEST`] bytes,
 //!   read within [`READ_WAIT`]; at most [`MAX_OPEN`] at once.
 //! - A stale socket is removed only when `lstat` shows it is a socket we
@@ -68,8 +70,7 @@ pub fn ensure_serving(state: &Arc<AppState>) -> std::io::Result<PathBuf> {
                 continue; // too many at once: dropped, the caller retries
             };
             tauri::async_runtime::spawn(async move {
-                answer(stream, state).await;
-                drop(permit);
+                answer(stream, state, permit).await;
             });
         }
     });
@@ -79,8 +80,14 @@ pub fn ensure_serving(state: &Arc<AppState>) -> std::io::Result<PathBuf> {
 
 /// One connection (already known to be this user's): one request, one
 /// answer.
-async fn answer(mut stream: local_ipc::Stream, state: Arc<AppState>) {
-    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+async fn answer(
+    mut stream: local_ipc::Stream,
+    state: Arc<AppState>,
+    permit: tokio::sync::OwnedSemaphorePermit,
+) {
+    use tokio::io::AsyncReadExt;
+    // AJ-E3013: who connected and when, for a keyless call's attestation.
+    let peer = stream.peer();
     let mut request = Vec::new();
     let mut chunk = [0_u8; 4096];
     let read = tokio::time::timeout(READ_WAIT, async {
@@ -102,16 +109,33 @@ async fn answer(mut stream: local_ipc::Stream, state: Arc<AppState>) {
     let response = match read {
         Ok(Ok(true)) => {
             let line = String::from_utf8_lossy(&request).into_owned();
-            tauri::async_runtime::spawn_blocking(move || super::calls::handle_line(&state, &line))
-                .await
-                .unwrap_or_else(|_| {
-                    wire::Response::refused(wire::Refusal::Bad, "AI Juggler couldn't answer that")
-                })
+            if let Ok(wait) = serde_json::from_str::<wire::Wait>(line.trim()) {
+                // D-119: a wake wait is held open, but never in one of the
+                // calls' slots (its own, few, in `desktop::wait`).
+                drop(permit);
+                let response = super::desktop::wait(state, wait, peer).await;
+                send(&mut stream, &response).await;
+                return;
+            }
+            tauri::async_runtime::spawn_blocking(move || {
+                super::calls::handle_line_from(&state, &line, Some(peer))
+            })
+            .await
+            .unwrap_or_else(|_| {
+                wire::Response::refused(wire::Refusal::Bad, "AI Juggler couldn't answer that")
+            })
         }
         Ok(Ok(false)) => wire::Response::refused(wire::Refusal::Limit, "That request is too long."),
         _ => return,
     };
-    let mut line = serde_json::to_string(&response).unwrap_or_default();
+    send(&mut stream, &response).await;
+    drop(permit);
+}
+
+/// Writes `response` as one line and closes the connection.
+async fn send(stream: &mut local_ipc::Stream, response: &wire::Response) {
+    use tokio::io::AsyncWriteExt;
+    let mut line = serde_json::to_string(response).unwrap_or_default();
     line.push('\n');
     let _ = stream.write_all(line.as_bytes()).await;
     let _ = stream.shutdown().await;

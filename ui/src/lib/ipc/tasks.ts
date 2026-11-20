@@ -347,6 +347,22 @@ export function useTaskNeeds(): TaskNeedInfo[] {
   return needs;
 }
 
+/** A pool's task counts, kept current (its Tasks tab, its live view). */
+export function useTaskCounts(poolId: string): TaskCounts | null {
+  const [counts, setCounts] = useState<TaskCounts | null>(null);
+  useEffect(() => {
+    let alive = true;
+    const read = () => void tasksCounts(poolId).then((next) => alive && setCounts(next), () => undefined);
+    read();
+    const off = onTasksChanged(read);
+    return () => {
+      alive = false;
+      off();
+    };
+  }, [poolId]);
+  return counts;
+}
+
 let focused: string | null = null;
 /** The task a pool's Tasks tab opens on next (from Needs you or a
  * session's page). */

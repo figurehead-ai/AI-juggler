@@ -1,9 +1,11 @@
 /** The 0.4.1 persona walk (Priya, R4): a project's menu has a door to
- * keeping it apart, and it opens the sealed template on that project. */
+ * keeping it apart. It opens one sheet (screens/pools/keep-apart-sheet.test);
+ * the sheet's Customise… hands the Pools screen New pool's sealed start. */
 import { describe, expect, it, vi } from "vitest";
 
 import { PROJECT } from "./action-specs-setup";
-import { onNewPoolRequest, requestNewPool, takeNewPoolRequest } from "./pools";
+import { KEEP_APART_START } from "./keep-apart";
+import { doneNewPoolRequest, onNewPoolRequest, requestNewPool, takeNewPoolRequest } from "./pools";
 import { project as fixtureProject } from "../test/fixtures";
 
 describe("Keep it apart…", () => {
@@ -18,12 +20,14 @@ describe("Keep it apart…", () => {
     expect(keep).toHaveBeenCalledWith(project);
   });
 
-  it("hands the Pools screen one request, once", () => {
+  it("hands the Pools screen one request, kept until its setup closes (round 6: a screen mounted again still opens it)", () => {
     const heard = vi.fn();
     const stop = onNewPoolRequest(heard);
-    requestNewPool({ template: "sealed-client", project: "p1" });
+    requestNewPool({ template: KEEP_APART_START, project: "p1" });
     expect(heard).toHaveBeenCalledOnce();
     expect(takeNewPoolRequest()).toEqual({ template: "sealed-client", project: "p1" });
+    expect(takeNewPoolRequest()).toEqual({ template: "sealed-client", project: "p1" });
+    doneNewPoolRequest();
     expect(takeNewPoolRequest()).toBeNull();
     stop();
   });

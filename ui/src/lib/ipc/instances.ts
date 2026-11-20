@@ -46,11 +46,17 @@ export async function dashboardStats(): Promise<StatsInfo> {
   return call("dashboard_stats");
 }
 
+/** The preview's "the sessions changed" (no backend sends one there). */
+export const PREVIEW_SESSIONS_UPDATED = "aij:preview-sessions-updated";
+
 /** The sessions changed (no payload: read the lists again); not heard
  * while the window is hidden, read again once when it shows (AJ-E805). */
 export function onSessionsUpdated(handler: () => void): () => void {
   if (!hasBackend) {
-    return () => {};
+    // The preview and the specs' seam (round 7 #6): a session started or
+    // ended in a fixture says so.
+    window.addEventListener(PREVIEW_SESSIONS_UPDATED, handler);
+    return () => window.removeEventListener(PREVIEW_SESSIONS_UPDATED, handler);
   }
   return listenWhileShown<null>(EVENTS.sessionsUpdated, () => handler(), handler);
 }

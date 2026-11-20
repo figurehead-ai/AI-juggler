@@ -8,6 +8,7 @@
  */
 import type { JSX, ReactNode } from "react";
 import { ToolMark } from "../components/ToolMark";
+import { Disclosure } from "../components/controls";
 import { useTools } from "../lib/tools";
 import claims from "../lib/trust-claims.json";
 import { trustOpen, type TrustLink } from "../lib/ipc/trust";
@@ -41,14 +42,9 @@ function Section({ id, title, children }: { id: string; title: string; children:
 function ClaimRow({ text, tests }: { text: string; tests: string[] }): JSX.Element {
   return (
     <li className="border-t border-hairline/60 py-2.5 first:border-t-0" data-testid="privacy-claim">
-      <details className="group">
-        <summary className="flex cursor-pointer list-none items-start [&::-webkit-details-marker]:hidden gap-2.5 rounded-lg text-body text-ink outline-none focus-visible:ring-1 focus-visible:ring-accent/60">
-          {/* The rail's fold chevron: one look for every disclosure. */}
-          <svg aria-hidden="true" width="10" height="10" viewBox="0 0 10 10" className="mt-1.5 shrink-0 text-muted transition-transform group-open:rotate-90 motion-reduce:transition-none">
-            <path d="M3.5 2 L7 5 L3.5 8" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-          <span className="flex-1">{text}</span>
-        </summary>
+      {/* The app's disclosure: a button an accessibility press opens. A
+          long line wraps beside its chevron, both at the top. */}
+      <Disclosure summary={<span className="text-body text-ink">{text}</span>} summaryClassName="items-start">
         <div className="ml-5 mt-1.5 flex flex-col gap-1 text-meta text-muted" data-testid="privacy-tests">
           <span>{tests.length === 1 ? "Checked by this test:" : `Checked by these ${tests.length} tests:`}</span>
           <ul className="flex flex-col gap-0.5">
@@ -65,7 +61,7 @@ function ClaimRow({ text, tests }: { text: string; tests: string[] }): JSX.Eleme
             })}
           </ul>
         </div>
-      </details>
+      </Disclosure>
     </li>
   );
 }

@@ -106,12 +106,26 @@ describe("an open session at its limit", () => {
     const running = { ...atLimit("limit_hit"), status: "running", attention: null } as InstanceInfo;
     const onHandover = vi.fn();
     const { rerender } = render(<HandoverSection session={running} onHandover={onHandover} />);
-    const section = screen.getByTestId("handover-section") as HTMLDetailsElement;
-    expect(section.open).toBe(false);
+    // The app's disclosure, a button an accessibility press opens.
+    const fold = screen.getByRole("button", { name: "Continue in another app" });
+    expect(fold.getAttribute("aria-expanded")).toBe("false");
     rerender(<HandoverSection session={atLimit("limit_hit")} onHandover={onHandover} />);
-    await waitFor(() => expect((screen.getByTestId("handover-section") as HTMLDetailsElement).open).toBe(true));
+    await waitFor(() => expect(fold.getAttribute("aria-expanded")).toBe("true"));
     // Opening the list hands nothing over by itself.
     expect(onHandover).not.toHaveBeenCalled();
+  });
+
+  it("a suggested return opens the list by itself, and a press still folds it (the 0.4.6 rc2 walk P9)", async () => {
+    w().__AIJ_SWITCH_TARGETS__ = [];
+    const running = { ...atLimit("limit_hit"), status: "running", attention: null } as InstanceInfo;
+    const back = [{ session_id: running.id, original_account: "Work", away_account: "Home", copy: "Work has room again." }];
+    const view = render(<HandoverSection session={running} switchBackSuggestions={back} onHandover={vi.fn()} />);
+    const fold = within(view.container).getByRole("button", { name: "Continue in another app" });
+    expect(fold.getAttribute("aria-expanded")).toBe("true");
+    fireEvent.click(fold);
+    expect(fold.getAttribute("aria-expanded")).toBe("false");
+    fireEvent.click(fold);
+    expect(fold.getAttribute("aria-expanded")).toBe("true");
   });
 });
 

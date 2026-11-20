@@ -10,6 +10,7 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { useEffect, useRef, useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { Checkbox, ChoiceOption, Disclosure, Picker, Radio, Segmented } from ".";
+import { SELECTED } from "./selected";
 import { Modal } from "../form";
 import { anchoredEdge, anchoredSpan, menuEdge, menuPoint, type MenuAt } from "../RowMenu";
 
@@ -252,15 +253,28 @@ describe("Segmented", () => {
 });
 
 describe("Disclosure", () => {
-  it("is a details with the app's chevron, not the browser's triangle", () => {
+  // Round 7 (AJ-E3011): a button with aria-expanded, not <details>: a
+  // flex <summary> isn't a disclosure to WebKit's accessibility, so an
+  // accessibility press (the aij-test driver's) did nothing.
+  it("is a button with aria-expanded and the app's chevron; a press opens and closes it, its body kept in the page", () => {
     render(
       <Disclosure summary="Terminal" testId="d">
         <p>Inside</p>
       </Disclosure>,
     );
-    const summary = screen.getByText("Terminal").closest("summary")!;
-    expect(summary.className).toContain("list-none");
-    expect(summary.querySelector("svg")).not.toBeNull();
+    const toggle = screen.getByRole("button", { name: "Terminal" });
+    expect(toggle.getAttribute("type")).toBe("button");
+    expect(toggle.getAttribute("aria-expanded")).toBe("false");
+    expect(toggle.querySelector("svg")).not.toBeNull();
+    const body = document.getElementById(toggle.getAttribute("aria-controls")!)!;
+    expect(body.hidden).toBe(true);
+    expect(body.textContent).toBe("Inside");
+    fireEvent.click(toggle);
+    expect(toggle.getAttribute("aria-expanded")).toBe("true");
+    expect(body.hidden).toBe(false);
+    expect(screen.getByTestId("d").hasAttribute("data-open")).toBe(true);
+    fireEvent.click(toggle);
+    expect(toggle.getAttribute("aria-expanded")).toBe("false");
   });
 });
 
@@ -275,14 +289,42 @@ describe("Segmented, sized by its words (the 0.3 re-render)", () => {
     }
   });
 
-  it("marks the chosen one with the accent's tint and ink, never a grey that dark can't tell apart (0.4 design review, 32)", () => {
+  // D-126 (one look): the chosen one is 0.5's SELECTED, a 3:1 neutral
+  // edge with the raised fill and semibold ink, never a grey alone (0.4
+  // design review, 32) and never the accent (actions and focus).
+  it("marks the chosen one with SELECTED's edge and fill, never the accent nor a grey alone", () => {
     const view = render(
       <Segmented label="Group sessions by" value="project" onChange={() => {}} segments={[{ value: "place", label: "App" }, { value: "project", label: "Project" }]} />,
     );
     const [app, project] = view.getAllByRole("radio");
-    expect(project!.className).toContain("bg-accent-soft");
-    expect(project!.className).toContain("text-accent-hi");
-    expect(project!.className).not.toContain("bg-surface-3");
-    expect(app!.className).not.toContain("bg-accent-soft");
+    for (const part of SELECTED.split(" ")) expect(project!.className).toContain(part);
+    expect(project!.className).not.toContain("bg-accent-soft");
+    expect(app!.className).not.toContain("bg-selected");
+  });
+});
+
+describe("Segmented, one look (D-126)", () => {
+  it("draws every control the same, filled with a hairline edge; the usage pages' copy is gone", async () => {
+    const view = render(<Segmented label="Range" value="7d" onChange={() => {}} segments={[{ value: "24h", label: "24 h" }, { value: "7d", label: "7 days" }]} />);
+    const group = view.getByRole("radiogroup", { name: "Range" });
+    expect(group.className).toContain("bg-fill");
+    expect(group.className).toContain("inset-ring-hairline/75");
+    const usage = (await import("../usage/controls")) as Record<string, unknown>;
+    expect(usage.Segmented).toBeUndefined();
+  });
+
+  it("has two sizes, md by default (the kit's 28 px), sm where room is tight", () => {
+    const md = render(<Segmented label="View" value="a" onChange={() => {}} segments={[{ value: "a", label: "Diagram" }, { value: "b", label: "List" }]} />);
+    expect(md.getByRole("radio", { name: "Diagram" }).className).toContain("h-7");
+    cleanup();
+    const sm = render(<Segmented label="View" size="sm" value="a" onChange={() => {}} segments={[{ value: "a", label: "Diagram" }, { value: "b", label: "List" }]} />);
+    expect(sm.getByRole("radio", { name: "Diagram" }).className).toContain("h-6");
+  });
+
+  it("draws a segment's icon before its word, its name still the word", () => {
+    const Icon = (props: React.SVGProps<SVGSVGElement>) => <svg data-testid="icon" {...props} />;
+    render(<Segmented label="Role" value="member" onChange={() => {}} segments={[{ value: "member", label: "Member", icon: Icon }, { value: "reviewer", label: "Reviewer", icon: Icon }]} />);
+    const member = screen.getByRole("radio", { name: "Member" });
+    expect(member.querySelector("[data-testid='icon']")?.getAttribute("aria-hidden")).toBe("true");
   });
 });

@@ -11,10 +11,10 @@ use juggler_adapter::runtime::book::{AskBook, drain_turn};
 use juggler_adapter::runtime::lines::{Lines, Next, write_json};
 use juggler_adapter::runtime::{
     Approval, ApprovalKind, AskAnswer, AskId, AskOption, Choice, Connection, DrivenLaunch,
-    DrivenRuntime, DrivenSession, DrivenSpec, ErrorCategory, LimitWindow, LimitsSnapshot,
-    LiveStatusWord, Maturity, OptionEffect, Question, QuestionPart, Release, ReleaseOutcome,
-    Runtime, RuntimeEvent, TerminalView, Transport, TurnEnd, TurnInput, TurnOrigin, TurnUsage,
-    ViewOf, events::bounded,
+    DrivenRuntime, DrivenSession, DrivenSpec, ErrorCategory, ItemKind, ItemSummary, LimitWindow,
+    LimitsSnapshot, LiveStatusWord, Maturity, OptionEffect, Question, QuestionPart, Release,
+    ReleaseOutcome, Runtime, RuntimeEvent, TerminalView, Transport, TurnEnd, TurnInput, TurnOrigin,
+    TurnUsage, ViewOf, events::bounded,
 };
 use juggler_adapter::{AdapterError, LaunchMode};
 use juggler_core::model::{Account, Profile};
@@ -96,6 +96,7 @@ impl DrivenRuntime for FakeHarnessAdapter {
             book: AskBook::default(),
             turn_running: false,
             origin: None,
+            given: None,
             limits: None,
             exited: false,
         }))
@@ -126,6 +127,9 @@ pub struct FakeDrivenSession {
     book: AskBook,
     turn_running: bool,
     origin: Option<TurnOrigin>,
+    /// The text of the turn sent, reported once the fake starts it (the
+    /// fake echoes no turn: [`ItemKind::UserMessage`]).
+    given: Option<String>,
     limits: Option<LimitsSnapshot>,
     exited: bool,
 }
@@ -229,13 +233,18 @@ impl FakeDrivenSession {
             }
             "turn_started" => {
                 self.turn_running = true;
-                vec![
-                    RuntimeEvent::TurnStarted {
-                        turn: message.get("turn").map(Value::to_string),
-                        origin: self.origin.take(),
+                let mut events = vec![RuntimeEvent::TurnStarted {
+                    turn: message.get("turn").map(Value::to_string),
+                    origin: self.origin.take(),
+                }];
+                events.extend(self.given.take().map(|text| RuntimeEvent::Item {
+                    item: ItemSummary {
+                        kind: ItemKind::UserMessage,
+                        text: bounded(&text),
                     },
-                    state(LiveStatusWord::Busy),
-                ]
+                }));
+                events.push(state(LiveStatusWord::Busy));
+                events
             }
             "text" => vec![RuntimeEvent::TextDelta {
                 text: bounded(&word(message, "text")),
@@ -278,6 +287,7 @@ impl FakeDrivenSession {
                             .and_then(|mins| u32::try_from(mins).ok()),
                         used_pct: message.get("used").and_then(Value::as_f64).unwrap_or(0.0),
                         resets_at_ms: message.get("resets_at").and_then(Value::as_i64),
+                        model: None,
                     }],
                     plan: None,
                     reached: false,
@@ -338,6 +348,7 @@ impl DrivenSession for FakeDrivenSession {
             ));
         }
         self.origin = Some(input.origin);
+        self.given = Some(input.text.clone());
         self.send(&json!({"op": "turn", "text": input.text}))
     }
 

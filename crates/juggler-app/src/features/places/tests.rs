@@ -78,6 +78,7 @@ fn open_starts_a_profile_that_isnt_running_with_only_its_folder() {
         Some("s-1"),
         Arc::new(FakeDesktop::opening_links()),
         starter.clone(),
+        None,
     )
     .unwrap();
     assert_eq!(said.reached, "started");
@@ -109,7 +110,15 @@ fn open_in_codex_opens_the_thread_by_its_link_and_starts_nothing_else() {
     let (state, _, chat) = state_with_places(root.path());
     let starter = Arc::new(Recorder::default());
     let links = Arc::new(FakeDesktop::opening_links());
-    let said = open(&state, &chat, Some("t-1"), links.clone(), starter.clone()).unwrap();
+    let said = open(
+        &state,
+        &chat,
+        Some("t-1"),
+        links.clone(),
+        starter.clone(),
+        None,
+    )
+    .unwrap();
     assert_eq!(said.reached, "thread");
     assert_eq!(*links.links.lock().unwrap(), ["codex://threads/t-1"]);
     assert!(starter.starts.lock().unwrap().is_empty());
@@ -159,6 +168,7 @@ fn keep_alive_starts_a_stopped_place_behind_then_pauses_after_three() {
         None,
         Arc::new(FakeDesktop::opening_links()),
         Arc::new(Recorder::default()),
+        None,
     )
     .unwrap();
     let paused = with_book(&state, |book| book.places[&work].paused.clone()).unwrap();
@@ -317,6 +327,7 @@ fn open_on_a_profile_that_lost_its_window_asks_to_restart_it() {
         None,
         Arc::new(FakeDesktop::lost()),
         starter.clone(),
+        None,
     )
     .unwrap();
     assert_eq!(

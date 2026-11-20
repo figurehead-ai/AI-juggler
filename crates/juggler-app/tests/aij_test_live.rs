@@ -121,6 +121,7 @@ fn every_lifecycle_path_on_aij_test() {
             None,
             Arc::new(goto::MacDesktop),
             Arc::new(places::start::System),
+            None,
         )
         .unwrap();
         let answered = clicked.elapsed();
@@ -158,6 +159,7 @@ fn every_lifecycle_path_on_aij_test() {
             None,
             Arc::new(goto::MacDesktop),
             Arc::new(places::start::System),
+            None,
         );
         assert!(refused.is_err(), "an offer can't be opened");
         assert!(
@@ -180,6 +182,7 @@ fn every_lifecycle_path_on_aij_test() {
             None,
             Arc::new(goto::MacDesktop),
             Arc::new(places::start::System),
+            None,
         )
         .unwrap();
         println!(

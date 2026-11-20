@@ -33,7 +33,9 @@ describe("a pool read ahead", () => {
     expect(result.current.members.map((member) => member.role)).toEqual(["lead", "member"]);
     expect(result.current.canvas?.pool_id).toBe("pool-team");
     expect(result.current.list.loading).toBe(false);
-    expect((seams().__AIJ_POOL_CANVAS_CALLS__ ?? []).length).toBe(reads);
+    // Nothing waited for; a pool never laid out keeps its tidy places
+    // once (the rc3 critique), its one call besides.
+    expect((seams().__AIJ_POOL_CANVAS_CALLS__ ?? []).filter((call) => !call.startsWith("place:")).length).toBe(reads);
   });
 
   it("is read once, however often its card is pointed at", async () => {

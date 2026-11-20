@@ -10,6 +10,7 @@
 import { useState, type JSX } from "react";
 
 import { SwitchSetupResults } from "../SwitchSetupList";
+import { Disclosure } from "../controls";
 import { openReportBug } from "../../lib/report-bug";
 import type { AppliedInfo } from "../../lib/ipc/switchSetup";
 
@@ -63,10 +64,9 @@ export function FailedStep({ target, message, cause, results }: { target: string
         )}
       </div>
       {detail && (
-        <details className="text-meta text-ink-2" data-testid="switch-details">
-          <summary className="cursor-pointer select-none outline-none focus-visible:ring-2 focus-visible:ring-accent/60">What Copy details copies</summary>
+        <Disclosure className="text-meta text-ink-2" summary="What Copy details copies" testId="switch-details">
           <p className="mt-1 select-text break-words rounded-lg bg-surface-2 px-2.5 py-1.5 font-mono text-label text-ink">{detail}</p>
-        </details>
+        </Disclosure>
       )}
       {/* What was set up before the switch failed stays undoable. */}
       <SwitchSetupResults target={target} results={results} />

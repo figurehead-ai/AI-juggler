@@ -26,6 +26,15 @@ pub const EVENT_TERMINAL_OUTPUT: &str = AppEvent::TerminalOutput.name();
 /// Event: a terminal's process exited.
 pub const EVENT_TERMINAL_EXIT: &str = AppEvent::TerminalExit.name();
 
+/// A sign-in terminal's id begins so (`login-<suffix>`).
+pub const LOGIN_TERMINAL_PREFIX: &str = "login-";
+
+/// Whether terminal `id` is a sign-in's ([`spawn_login_terminal_impl`]).
+#[must_use]
+pub fn is_login_terminal(id: &str) -> bool {
+    id.starts_with(LOGIN_TERMINAL_PREFIX)
+}
+
 /// How long the forwarder waits before flushing a partial batch (the UI
 /// frame budget; also bounds idle wakeups).
 const FLUSH_INTERVAL: Duration = Duration::from_millis(16);
@@ -66,7 +75,7 @@ pub fn spawn_login_terminal_impl(
         .get(&account.harness)
         .ok_or_else(|| AppError::UnknownHarness(account.harness.as_str().to_string()))?;
     let spec = adapter.login_spec(&account.state_dir)?;
-    let id = SessionId::new(format!("login-{}", unique_suffix()));
+    let id = SessionId::new(format!("{LOGIN_TERMINAL_PREFIX}{}", unique_suffix()));
     state.supervisor.spawn(
         &id,
         &spec,
@@ -182,6 +191,11 @@ fn forward_loop(
 fn emit_exit(app: &AppHandle, state: &Arc<AppState>, id: &SessionId) {
     if let Ok(mut taps) = state.terminal_taps.lock() {
         taps.remove(id.as_str());
+    }
+    // AJ-E1612: a sign-in ended: its App's sign-in is read again now, so
+    // Needs you drops "needs its sign-in" before the window hears of it.
+    if is_login_terminal(id.as_str()) {
+        crate::features::notifications::needs::sign_in_ended(state);
     }
     app.emit_event(
         AppEvent::TerminalExit,

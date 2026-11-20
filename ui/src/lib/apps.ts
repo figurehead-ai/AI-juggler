@@ -10,7 +10,7 @@
  * Each App knows its rail key, so its page lists the very sessions the
  * rail puts under it (lib/rail-apps.ts decides that, once).
  */
-import { useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import { sharedRead, useSharedRead, whenForgotten, type SharedRead } from "./shared-read";
 import type { AccountInfo } from "../types/generated/AccountInfo";
 import { appName, cliAppId, cliAppKey, cliAppWord, desktopProfile } from "./app-name";
@@ -18,7 +18,8 @@ import { appOfTool } from "./app-of";
 import { APPS_CHANGED, appsList, type StoredAppInfo } from "./ipc/apps";
 import type { KnownPlaceInfo } from "./ipc/places";
 import { useKnownPlaces } from "./places";
-import { knownAppWord, knownKey } from "./rail-apps";
+import { knownAppWord, knownKey, knownPlaceMark } from "./rail-apps";
+import type { RailPlace } from "./rail-items";
 
 import { hasLiveBackend } from "./bridge";
 import { appSlot } from "./marks";
@@ -61,8 +62,81 @@ export interface AppModel {
  * every folder is one there. */
 function cliFolders(folders: readonly AccountInfo[], places: readonly KnownPlaceInfo[], stored: ReadonlyMap<string, StoredAppInfo>, listed: boolean | undefined): readonly AccountInfo[] {
   if (listed !== true) return folders;
-  const profiles = new Set(places.flatMap((place) => (place.account_id ? [place.account_id] : [])));
-  return folders.filter((folder) => !profiles.has(folder.id) || stored.has(cliAppId(folder.id)));
+  const profiles = heldFolders(places);
+  return folders.filter((folder) => isCliFolder(folder.id, profiles, stored));
+}
+
+/** The folders a desktop profile's place holds (its sessions' config folder). */
+function heldFolders(places: readonly KnownPlaceInfo[]): ReadonlySet<string> {
+  return new Set(places.flatMap((place) => (place.account_id ? [place.account_id] : [])));
+}
+
+/** `cliFolders`' rule for one folder, with the backend's list. */
+function isCliFolder(id: string, held: ReadonlySet<string>, stored: ReadonlyMap<string, StoredAppInfo>): boolean {
+  return !held.has(id) || stored.has(cliAppId(id));
+}
+
+/** A CLI App's words: its tool's CLI word and folder, the user's name first. */
+function cliWords(tool: string, label: string | null, row: StoredAppInfo | undefined): { app: string; defaultName: string; name: string } {
+  // ADR-0032: a CLI App says so ("Claude Code CLI · Work").
+  const app = cliAppWord(tool);
+  const defaultName = appName(app, label);
+  return { app, defaultName, name: row?.label ?? defaultName };
+}
+
+/** A desktop App's words: its app and profile, the user's name first. */
+function desktopWords(place: KnownPlaceInfo, row: StoredAppInfo | undefined): { app: string; profile: string | null; defaultName: string; name: string } {
+  const app = knownAppWord(place);
+  const profile = desktopProfile(place.instance, place.profile);
+  const defaultName = appName(app, profile);
+  return { app, profile, defaultName, name: row?.label ?? defaultName };
+}
+
+/** A launch or switch target: a folder, its tool and its label. */
+export interface FolderTarget {
+  folder: string;
+  tool: string | null | undefined;
+  label: string;
+}
+
+/** D-62 (the 0.4.6 RC walks A8, K3): the App a launch or switch target is
+ * reached through, named as the Apps list names it, for a surface that
+ * holds the target's folder but not the folders list: the folder's CLI
+ * App ("Claude Code CLI · work", or your name for it) while it is one
+ * (`cliFolders`' rule); a folder a Claude app profile holds with no CLI App
+ * on it is that profile's ("Claude app · Work Max": a switch continues in
+ * it), never "Claude Code CLI · Work Max", an App that isn't one. Without
+ * the backend's list (the preview, or not read yet) every folder is its
+ * CLI App, as before. A target with no tool is its label. */
+export function targetApp(target: FolderTarget, { stored, places, listed }: { stored: readonly StoredAppInfo[]; places: readonly KnownPlaceInfo[]; listed: boolean }): TargetApp {
+  const byId = new Map(stored.map((row) => [row.id, row]));
+  const place = listed ? places.find((one) => one.account_id === target.folder) : undefined;
+  if (place && !isCliFolder(target.folder, heldFolders(places), byId)) return { kind: "desktop", name: desktopWords(place, byId.get(place.id)).name, mark: knownPlaceMark(place) };
+  if (!target.tool) return { kind: "cli", name: target.label, mark: null };
+  return { kind: "cli", name: cliWords(target.tool, target.label, byId.get(cliAppId(target.folder))).name, mark: null };
+}
+
+/** D-62, D-84 (the 0.4.6 RC walks A8, K4): the launch settings a CLI
+ * start may be offered with, a CLI App's (`cliFolders`' rule). Every
+ * folder has launch settings, a Claude app profile's too, but that folder
+ * is the profile's until a terminal session ran there or the user named
+ * its CLI App: offered anyway, a start read "Claude Code CLI · Work Max",
+ * an App that isn't one, and ran the CLI on the profile's folder. Without
+ * the backend's list, all of them, as before. */
+export function cliRecipes<T extends { account_id: string }>(recipes: readonly T[], { stored, places, listed }: { stored: readonly StoredAppInfo[]; places: readonly KnownPlaceInfo[]; listed: boolean }): readonly T[] {
+  if (!listed) return recipes;
+  const byId = new Map(stored.map((row) => [row.id, row]));
+  const held = heldFolders(places);
+  const offered = recipes.filter((recipe) => isCliFolder(recipe.account_id, held, byId));
+  return offered.length === recipes.length ? recipes : offered;
+}
+
+/** A target's App: its kind, its name, and a desktop App's mark (a CLI
+ * App's is its tool's on the folder, `CliAppMark`). */
+export interface TargetApp {
+  kind: "cli" | "desktop";
+  name: string;
+  mark: RailPlace | null;
 }
 
 /** The Apps: CLI ones in the folders' order, then the desktop ones as
@@ -85,9 +159,7 @@ export function appsOf({
   for (const folder of cliFolders(folders, places, byId, listed)) {
     const id = cliAppId(folder.id);
     const row = byId.get(id);
-    // ADR-0032: a CLI App says so ("Claude Code CLI · Work").
-    const app = cliAppWord(folder.provider);
-    const defaultName = appName(app, folder.label);
+    const { app, defaultName, name } = cliWords(folder.provider, folder.label, row);
     out.push({
       id,
       kind: "cli",
@@ -95,7 +167,7 @@ export function appsOf({
       appId: appOfTool(folder.provider).appId,
       app,
       profile: folder.label,
-      name: row?.label ?? defaultName,
+      name,
       defaultName,
       named: Boolean(row?.label),
       railKey: cliAppKey(folder.provider, folder.id, folder.label),
@@ -107,9 +179,7 @@ export function appsOf({
   }
   for (const place of places) {
     const row = byId.get(place.id);
-    const app = knownAppWord(place);
-    const profile = desktopProfile(place.instance, place.profile);
-    const defaultName = appName(app, profile);
+    const { app, profile, defaultName, name } = desktopWords(place, row);
     const folderId = row?.folder_id ?? place.account_id;
     out.push({
       id: place.id,
@@ -118,7 +188,7 @@ export function appsOf({
       appId: place.app_id,
       app,
       profile,
-      name: row?.label ?? defaultName,
+      name,
       defaultName,
       named: Boolean(row?.label),
       railKey: knownKey(place),
@@ -177,6 +247,27 @@ export function useApps(folders: readonly AccountInfo[] = NO_FOLDERS): AppModel[
     () => (places === null ? null : appsOf({ stored: stored ?? [], places, folders, listed: hasLiveBackend() })),
     [stored, places, folders],
   );
+}
+
+/** The Apps as read now, for `targetApp` and `cliRecipes`: the backend's
+ * list only once both the stored Apps and the places are read. */
+function useAppsRead(): { stored: readonly StoredAppInfo[]; places: readonly KnownPlaceInfo[]; listed: boolean } {
+  const stored = useStoredApps();
+  const places = useKnownPlaces();
+  return useMemo(() => ({ stored: stored ?? [], places: places ?? [], listed: stored !== null && places !== null && hasLiveBackend() }), [stored, places]);
+}
+
+/** `targetApp` over the Apps as read now (every folder is its CLI App
+ * until they are). */
+export function useTargetApp(): (target: FolderTarget) => TargetApp {
+  const read = useAppsRead();
+  return useCallback((target: FolderTarget) => targetApp(target, read), [read]);
+}
+
+/** `cliRecipes` over the Apps as read now (`null` stays `null`). */
+export function useCliRecipes<T extends { account_id: string }>(recipes: readonly T[] | null): readonly T[] | null {
+  const read = useAppsRead();
+  return useMemo(() => (recipes === null ? null : cliRecipes(recipes, read)), [recipes, read]);
 }
 
 /** D-100: the Apps list's CLI Apps (the rail's Inactive apps lists each

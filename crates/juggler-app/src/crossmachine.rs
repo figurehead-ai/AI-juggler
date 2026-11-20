@@ -194,7 +194,8 @@ pub struct RemoteSwitchTargetInfo {
     pub blockers: Vec<String>,
     /// The F-label the switch would carry.
     pub fidelity: String,
-    /// The badge text (`Same conversation, another app · Not proven yet`) — never colour alone.
+    /// The badge text (`Same conversation, another app · Beta`) — never
+    /// colour alone, never "proven" (D-127).
     pub badge: String,
     /// Validated for this machine pair (D-04: false until a live
     /// two-machine dogfood passes).
@@ -306,7 +307,7 @@ pub(crate) fn assess(
                 readiness: readiness.to_owned(),
                 blockers,
                 fidelity: fidelity.as_str().to_owned(),
-                badge: format!("{} · Not proven yet", fidelity.user_label()),
+                badge: format!("{} · Beta", fidelity.user_label()),
                 validated: false,
                 carried: carry.carried,
                 regenerated: carry.regenerated,
@@ -407,6 +408,13 @@ pub fn fleet_switch_targets_impl(
         root_digest: &digest,
         project_name: &project_name,
     };
+    // D-127: no switch to another Mac is validated yet (D-04), so none is
+    // offered unless the user turned on beta switches.
+    let beta = crate::commands::lock_storage_arc(state)
+        .is_ok_and(|storage| crate::features::validation::beta_switches_on(&storage));
+    if !beta {
+        return Ok(Vec::new());
+    }
     let peers = crate::fleet::fleet_peers_impl(state)?;
     let views: HashMap<String, crate::remote::TargetView> =
         crate::remote::target_views(&state.link.remote)
@@ -795,6 +803,12 @@ pub async fn fleet_switch_execute_impl(
     let ids = stage_edge(&state, &request, &planned, &bundle.native_id)?;
     record_origin(&state, &request, &ids);
     let (_, account, _, _) = source_of(&state, &request.session_id)?;
+    // F-rc3g-3: the name the person gave it, and its pin, go with it.
+    let (label, pinned) = crate::commands::lock_storage_arc(&state)?
+        .sessions()
+        .marks()?
+        .remove(request.session_id.as_str())
+        .unwrap_or_default();
     let take = proto::TakeHandover {
         recipe_id: request.recipe_id.clone(),
         project_id: planned.project_id.clone(),
@@ -808,6 +822,8 @@ pub async fn fleet_switch_execute_impl(
         from_account_label: account.label,
         from_native_id: bundle.native_id.clone(),
         fidelity_shown: planned.target.fidelity.clone(),
+        from_session_label: label.unwrap_or_default(),
+        from_session_pinned: pinned.is_some(),
     };
     let build = move |total| {
         proto::control_command::Action::TakeHandover(proto::TakeHandover {

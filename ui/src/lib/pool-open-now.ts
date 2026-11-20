@@ -66,8 +66,20 @@ export function openNowByMember(draft: Pick<Draft, "every" | "projects" | "membe
   return counts;
 }
 
-/** A broad member's open sessions now, as Review and its canvas card say
- * it: "1 open now · new ones join", "none open now · new ones join". */
-export function openNowWords(count: number): string {
-  return `${count > 0 ? `${count} open now` : "none open now"} · new ones join`;
+/** Everyone in scope's card (round 3, #6): "Every new session in web joins
+ * here, now and later", then its open ones. */
+export function everyoneJoins(count: number, where?: string): string {
+  const place = !where ? "these projects" : where === "every project" ? "any project" : where;
+  return `Every new session in ${place} joins here, now and later${count > 0 ? ` · ${count} open now` : ""}`;
+}
+
+/** A broad member's open sessions now, as Review and its diagram card say
+ * it: "1 open now · new ones in web join", "No session open yet · new ones
+ * in web join" (round 2, #15: "none open now" read as broken). */
+export function openNowWords(count: number, where?: string, quiet = 0): string {
+  const joins = !where ? "new ones join" : where === "every project" ? "new ones in any project join" : `new ones in ${where} join`;
+  // AJ-E3013: a desktop App's sessions in the pool that haven't called
+  // lately are in it, drawn under its card: never "No session open yet".
+  const none = quiet > 0 ? `${quiet} in the pool, quiet lately` : "No session open yet";
+  return `${count > 0 ? `${count} open now` : none} · ${joins}`;
 }

@@ -4,6 +4,7 @@
  * that are all off until chosen, each one shown as a chip to take off.
  */
 import { useEffect, useRef, useState, type JSX } from "react";
+import { useInertOutside } from "../../lib/inert";
 import { Button } from "../../components/primitives";
 import { Checkbox, Picker } from "../../components/controls";
 import { IconSliders } from "../../components/icons-actions";
@@ -72,7 +73,7 @@ export function ViewTabs({ view, counts, onView, embedded = false, history = tru
               if (event.key === "ArrowLeft") move(at - 1);
             }}
             data-testid={`process-view-${item.id}`}
-            className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-body font-medium transition-colors ${selected ? "bg-surface text-ink shadow-card" : "text-muted hover:text-ink"}`}
+            className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-body font-medium ${selected ? "bg-surface text-ink shadow-card" : "text-muted hover:text-ink"}`}
           >
             {item.label}
             {count !== undefined && count > 0 && <span className={`rounded-full px-1.5 text-label tabular-nums ${item.id === "attention" ? "bg-warning-soft text-warning" : "bg-surface-3 text-muted"}`}>{count}</span>}
@@ -121,6 +122,9 @@ export function filterCount(filters: Filters): number {
 export function FiltersButton({ filters, onChange, apps, accounts, projects }: { filters: Filters; onChange: (next: Filters) => void; apps: Choice[]; accounts: Choice[]; projects: Choice[] }): JSX.Element {
   const [open, setOpen] = useState(false);
   const box = useRef<HTMLDivElement | null>(null);
+  const panel = useRef<HTMLDivElement | null>(null);
+  // AJ-E3011 round 4: the page under the filters is inert while they're open.
+  useInertOutside(panel, open);
   useEffect(() => {
     if (!open) return;
     const down = (event: MouseEvent) => {
@@ -143,7 +147,7 @@ export function FiltersButton({ filters, onChange, apps, accounts, projects }: {
         Filters{count > 0 ? ` (${count})` : ""}
       </Button>
       {open && (
-        <div role="dialog" aria-label="Filters" className="absolute right-0 top-11 z-30 flex max-h-[min(36rem,70vh)] w-72 flex-col gap-1 overflow-y-auto rounded-card border border-hairline bg-surface p-2 shadow-card" data-testid="process-filters-panel">
+        <div ref={panel} role="dialog" aria-label="Filters" className="absolute right-0 top-11 z-30 flex max-h-[min(36rem,70vh)] w-72 flex-col gap-1 overflow-y-auto rounded-card border border-hairline bg-surface p-2 shadow-card" data-testid="process-filters-panel">
           <p className="px-2 pt-1 text-label font-medium text-muted">State</p>
           {STATE_FILTERS.map((word) => (
             <Check key={word} on={filters.states.includes(word)} label={processState(word).label} onChange={(on) => toggleState(word, on)} testId={`filter-state-${word}`} />

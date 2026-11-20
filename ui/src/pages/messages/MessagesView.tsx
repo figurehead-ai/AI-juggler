@@ -61,13 +61,7 @@ function ThreadRow({ thread, selected, now, onOpen }: { thread: ThreadInfo; sele
   );
 }
 
-export function MessagesView({
-  poolId,
-  sessionId,
-  members,
-  now,
-  composeTo,
-}: {
+type ViewProps = {
   /** The pool whose messages these are (and where you write). */
   poolId: string;
   /** Only this session's threads (its page). */
@@ -76,11 +70,35 @@ export function MessagesView({
   now: number;
   /** A session's page writes to that session only. */
   composeTo?: string;
-}): JSX.Element {
+};
+
+/** F-rc3g-13: the open thread, its list, search and draft belong to one
+ * pool's or one session's page. A page opened in place of another (the
+ * same page component, another session) starts afresh, never showing the
+ * thread the page before had open beside a list that doesn't hold it. */
+export function MessagesView(props: ViewProps): JSX.Element {
+  return <ScopedMessages key={`${props.poolId}|${props.sessionId ?? ""}`} {...props} />;
+}
+
+/** The thread a page shows from its list: the open one while the list
+ * holds it (or it was asked for by name: a Needs you card, a task, the
+ * one you just wrote, which a list may not hold yet), else the newest. */
+export function threadToShow(open: string | null, listed: readonly ThreadInfo[], asked: string | null): string | null {
+  if (open !== null && (open === asked || listed.some((thread) => thread.id === open))) return open;
+  return listed[0]?.id ?? null;
+}
+
+function ScopedMessages({ poolId, sessionId, members, now, composeTo }: ViewProps): JSX.Element {
   const [page, setPage] = useState<ThreadsPage | null>(null);
   const [more, setMore] = useState<ThreadInfo[]>([]);
   const [next, setNext] = useState<string | null>(null);
   const [open, setOpen] = useState<string | null>(takeFocusedThread);
+  // The thread asked for by name, shown even before a list holds it.
+  const [asked, setAsked] = useState(open);
+  const ask = (thread: string) => {
+    setAsked(thread);
+    setOpen(thread);
+  };
   const [writing, setWriting] = useState(false);
   const [query, setQuery] = useState("");
   const [found, setFound] = useState<MessageInfo[] | null>(null);
@@ -96,7 +114,6 @@ export function MessagesView({
           setPage(first);
           // Pages shown beyond the first stay; their cursor stays too.
           setNext((was) => was ?? first.next);
-          setOpen((was) => was ?? first.threads[0]?.id ?? null);
         },
         (cause) => alive && setError(errorText(cause)),
       );
@@ -109,14 +126,26 @@ export function MessagesView({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [poolId, sessionId]);
 
-  // E19: a task's thread, asked for while this tab is already open.
+  // E19: a task's thread, asked for while this tab is already open. Taken
+  // a moment later, once a link that also opens another page has: that
+  // page's own Messages starts on it then, and this one never takes it.
   useEffect(() => {
+    let timer = 0;
     const take = () => {
-      const thread = takeFocusedThread();
-      if (thread) (setOpen(thread), setWriting(false));
+      window.clearTimeout(timer);
+      timer = window.setTimeout(() => {
+        const thread = takeFocusedThread();
+        if (!thread) return;
+        setAsked(thread);
+        setOpen(thread);
+        setWriting(false);
+      }, 0);
     };
     window.addEventListener(FOCUS_THREAD, take);
-    return () => window.removeEventListener(FOCUS_THREAD, take);
+    return () => {
+      window.clearTimeout(timer);
+      window.removeEventListener(FOCUS_THREAD, take);
+    };
   }, []);
 
   useEffect(() => {
@@ -134,6 +163,11 @@ export function MessagesView({
   }, [query, poolId]);
 
   const threads = [...(page?.threads ?? []), ...more.filter((t) => !page?.threads.some((p) => p.id === t.id))];
+  // Once its list is read, the open thread is one it holds.
+  const selected = page ? threadToShow(open, threads, asked) : open;
+  useEffect(() => {
+    if (selected !== open) setOpen(selected);
+  }, [selected, open]);
   const shown = found ? threads.filter((t) => found.some((m) => m.thread_id === t.id)) : threads;
   const paused = page?.paused ?? null;
   return (
@@ -176,7 +210,7 @@ export function MessagesView({
           ) : (
             <ul className="flex flex-col gap-0.5" data-testid="thread-list">
               {shown.map((thread) => (
-                <ThreadRow key={thread.id} thread={thread} now={now} selected={!writing && thread.id === open} onOpen={() => (setOpen(thread.id), setWriting(false))} />
+                <ThreadRow key={thread.id} thread={thread} now={now} selected={!writing && thread.id === selected} onOpen={() => (setOpen(thread.id), setWriting(false))} />
               ))}
             </ul>
           )}
@@ -197,7 +231,7 @@ export function MessagesView({
           )}
         </aside>
         <div className="min-w-0 rounded-xl border border-hairline bg-surface p-4">
-          {writing || (open === null && page !== null) ? (
+          {writing || (selected === null && page !== null) ? (
             <div className="flex flex-col gap-3">
               <h3 className="text-[16px] font-semibold text-ink">New message</h3>
               <Compose
@@ -206,13 +240,13 @@ export function MessagesView({
                 to={composeTo}
                 onSent={(sent) => {
                   setWriting(false);
-                  setOpen(sent.thread.id);
+                  ask(sent.thread.id);
                 }}
-                onCancel={open ? () => setWriting(false) : undefined}
+                onCancel={selected ? () => setWriting(false) : undefined}
               />
             </div>
-          ) : open ? (
-            <ThreadView key={open} threadId={open} poolId={poolId} members={members} now={now} />
+          ) : selected ? (
+            <ThreadView key={selected} threadId={selected} poolId={poolId} members={members} now={now} />
           ) : null}
         </div>
       </div>

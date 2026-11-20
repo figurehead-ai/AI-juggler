@@ -6,7 +6,7 @@
  * technical reason behind Details and offers Try again; "Restart to
  * update" waits with its reason until it is safe and is never forced.
  */
-import { act, cleanup, fireEvent, render, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { UpdatesCard } from "./UpdatesCard";
 import { channelLabel, shownChannel } from "./ChannelChip";
@@ -103,8 +103,8 @@ describe("AJ-E1010 updates", () => {
     expect(failed.getAttribute("role")).toBe("alert");
     expect(failed.textContent).toContain("Not installed — the download didn't check out");
     expect(failed.textContent).toContain("0.1.0 is untouched");
-    const details = container.querySelector<HTMLDetailsElement>("[data-testid='update-failed-details']")!;
-    expect(details.open).toBe(false);
+    const details = container.querySelector("[data-testid='update-failed-details']")!;
+    expect(screen.getByRole("button", { name: "Details" }).getAttribute("aria-expanded")).toBe("false");
     expect(details.textContent).toContain("Invalid signature");
     // The new version and its notes stay readable next to the failure.
     expect(container.querySelector("[data-testid='update-notes']")!.textContent).toContain("History");
@@ -327,13 +327,28 @@ describe("AJ-E1010 going back to an earlier version", () => {
     expect(container.querySelector("[data-testid='going-back']")).toBeNull();
   });
 
+  it("opens on a press: a button that says it's folded, then the choices (the 0.4.6 rc2 walk P9)", async () => {
+    // An accessibility press (VoiceOver's, the walk's) on a native
+    // <summary> never opened it: the app's disclosure is a button.
+    w().__AIJ_UPDATE_STATUS__ = base;
+    w().__AIJ_GOING_BACK__ = [{ schema: 27, version: "0.0.7", kept_at_ms: 1_800_000_000_000 }];
+    render(<UpdatesCard />);
+    const fold = await screen.findByRole("button", { name: "Go back to an earlier version" });
+    expect(fold.getAttribute("aria-expanded")).toBe("false");
+    expect(screen.queryByRole("button", { name: "Prepare to go back to 0.0.7" })).toBeNull();
+    fireEvent.click(fold);
+    expect(fold.getAttribute("aria-expanded")).toBe("true");
+    expect(screen.getByRole("button", { name: "Prepare to go back to 0.0.7" })).toBeTruthy();
+  });
+
   it("says what is lost and kept, asks once, and only then goes back", async () => {
     w().__AIJ_UPDATE_STATUS__ = base;
     w().__AIJ_GOING_BACK__ = [{ schema: 27, version: "0.0.7", kept_at_ms: 1_800_000_000_000 }];
     const { container } = render(<UpdatesCard />);
     await waitFor(() => expect(container.querySelector("[data-testid='going-back']")).not.toBeNull());
-    const details = container.querySelector<HTMLDetailsElement>("[data-testid='going-back']")!;
-    expect(details.open, "behind a disclosure").toBe(false);
+    const fold = screen.getByRole("button", { name: "Go back to an earlier version" });
+    expect(fold.getAttribute("aria-expanded"), "behind a disclosure").toBe("false");
+    fireEvent.click(fold);
     const prepare = container.querySelector<HTMLButtonElement>("[data-testid='going-back-27']")!;
     expect(prepare.textContent).toBe("Prepare to go back to 0.0.7");
     fireEvent.click(prepare);

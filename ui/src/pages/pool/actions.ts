@@ -7,9 +7,10 @@
 import { errorText } from "../../lib/bridge";
 import type { InstanceInfo } from "../../types/generated/InstanceInfo";
 import { poolMove, poolSetRole, type PoolInfo } from "../../lib/ipc/pools";
-import { memberRef, poolJoin, poolLeave } from "../../lib/ipc/pool-model";
+import { withPendingAdd, withPendingRole } from "../../lib/pool-pending";
+import { POOL_RULES_CHANGED, memberRef, poolJoin, poolLeave } from "../../lib/ipc/pool-model";
 import { defaultPoolIdOf, setPools, type PoolRole } from "../../lib/pools";
-import { showToast } from "../../components/Toast";
+import { holdAction, showToast } from "../../components/Toast";
 import { shortName } from "../../lib/session-titles";
 import type { Point } from "./layout";
 import type { MemberNode } from "./useCanvas";
@@ -45,8 +46,9 @@ export async function addToPool(pool: PoolInfo, session: InstanceInfo, at: Point
   }
   const ref = memberRef("session", session.id);
   try {
-    if (pool.sealed) setPools(await poolMove(session.id, pool.id));
-    else setPools(await poolJoin(pool.id, ref, "member"));
+    // Round 4 (#5): shown as being added at once; settles when the canvas has it.
+    const join = () => (pool.sealed ? poolMove(session.id, pool.id) : poolJoin(pool.id, ref, "member"));
+    setPools(await withPendingAdd({ poolId: pool.id, ref: `session:${session.id}`, label: nameOf(session), kind: "session" }, join));
     if (at) await place([{ session_id: session.id, x: at.x, y: at.y }]);
     const moved = pool.sealed && from !== null && from !== pool.id;
     showToast({
@@ -69,28 +71,42 @@ export function cannotRemove(pool: PoolInfo): string | null {
   return pool.kind === "default" ? "Every session of its project is in this pool unless you put it in another one." : null;
 }
 
-/** Takes a member out (back to its project's own pool). Undo puts it
- * back with its role and its place. */
-export async function removeFromPool(pool: PoolInfo, member: MemberNode, at: Point | undefined, place: Place): Promise<void> {
+/** How long a take-out waits for Undo before it's done, in seconds. */
+const TAKE_OUT_HOLD_SECONDS = 5;
+
+/** Takes a member out (back to its project's own pool) through the held
+ * action, like Stop (AJ-E3011 round 4): it waits for Undo first, so a
+ * misfire (VoiceOver, automation, a slip) costs nothing. */
+export function removeFromPool(pool: PoolInfo, member: MemberNode): void {
   if (cannotRemove(pool)) return;
   const name = member.name;
-  try {
-    setPools(await poolMove(member.id, defaultPoolIdOf(member.session.project_id)));
-    showToast({
-      message: `${name} left ${pool.name}`,
-      detail: "It's back in its project's own pool.",
-      testId: "canvas-removed",
-      undo: {
-        onUndo: async () => {
-          setPools(await poolMove(member.id, pool.id));
-          if (member.role !== "member") setPools(await poolSetRole(member.id, member.role as PoolRole, pool.id));
-          if (at) await place([{ session_id: member.id, x: at.x, y: at.y }]);
-        },
-      },
-    });
-  } catch (cause) {
-    failed(`Couldn't take ${name} out`)(cause);
-  }
+  holdAction({
+    id: `take-out:${pool.id}:${member.id}`,
+    message: `Taking ${name} out of ${pool.name}.`,
+    detail: "Undo keeps it in the pool.",
+    seconds: TAKE_OUT_HOLD_SECONDS,
+    testId: "canvas-removed",
+    undone: `${name} stays in ${pool.name}.`,
+    failed: (cause) => `Couldn't take ${name} out: ${cause}`,
+    run: async () => setPools(await poolMove(member.id, defaultPoolIdOf(member.session.project_id))),
+  });
+}
+
+/** The same for a wider member (an App, Account, Tool, Mac, everyone). */
+export function takeOutMember(pool: PoolInfo, member: string, name: string): void {
+  holdAction({
+    id: `take-out:${pool.id}:${member}`,
+    message: `Taking ${name} out of ${pool.name}.`,
+    detail: "Undo keeps it in the pool.",
+    seconds: TAKE_OUT_HOLD_SECONDS,
+    testId: "pool-take-out",
+    undone: `${name} stays in ${pool.name}.`,
+    failed: (cause) => `Couldn't take ${name} out: ${cause}`,
+    run: async () => {
+      setPools(await poolLeave(pool.id, member));
+      window.dispatchEvent(new CustomEvent(POOL_RULES_CHANGED, { detail: pool.id }));
+    },
+  });
 }
 
 /** Makes a member the pool's lead; the lead it had becomes a member.
@@ -100,7 +116,7 @@ export async function makeLead(pool: PoolInfo, member: MemberNode, members: Memb
   const was = member.role as PoolRole;
   try {
     for (const lead of before) await poolSetRole(lead.id, "member", pool.id);
-    setPools(await poolSetRole(member.id, "lead", pool.id));
+    setPools(await withPendingRole({ poolId: pool.id, ref: member.id, role: "lead" }, () => poolSetRole(member.id, "lead", pool.id)));
     showToast({
       message: `${member.name} leads now`,
       detail: before.length > 0 ? `${before.map((lead) => nameOf(lead.session)).join(", ")} ${before.length === 1 ? "is a member" : "are members"} again.` : undefined,
@@ -119,7 +135,7 @@ export async function makeLead(pool: PoolInfo, member: MemberNode, members: Memb
 /** Sets a member's role in `pool` (member, reviewer or observer). */
 export async function setRole(pool: PoolInfo, member: MemberNode, role: PoolRole): Promise<void> {
   try {
-    setPools(await poolSetRole(member.id, role, pool.id));
+    setPools(await withPendingRole({ poolId: pool.id, ref: member.id, role }, () => poolSetRole(member.id, role, pool.id)));
   } catch (cause) {
     failed("Couldn't change its role")(cause);
   }

@@ -109,6 +109,7 @@ pub(crate) fn outcome(text: String, reached: &str) -> GoToOutcomeInfo {
         outcome: text,
         reached: reached.to_owned(),
         place_id: None,
+        ticket: None,
     }
 }
 
@@ -121,6 +122,7 @@ pub fn lost(name: &str, place_id: Option<String>) -> GoToOutcomeInfo {
         outcome: lost_words(name),
         reached: "lost".to_owned(),
         place_id,
+        ticket: None,
     }
 }
 
@@ -400,6 +402,90 @@ pub fn within<T: Send + 'static>(
     receive.recv_timeout(limit).ok()
 }
 
+/// 0.4.6 (the rc3c walk): where an answer that comes after [`LIMIT`]
+/// goes. "Open in Claude app" on a closed profile always took longer (a
+/// start), so its toast stayed on "Starting … the session opens once it's
+/// up" for good, even after the app had quit, and the answer the 0.4.6
+/// rc2 fix waits up to 30 s for (opened, or "pick it in its sidebar")
+/// was never seen.
+pub type Late = Arc<dyn Fn(GoToOutcomeInfo) + Send + Sync>;
+
+/// The window's [`Late`]: the answer as `go-to://late`, which the toast
+/// waiting on its ticket becomes.
+#[must_use]
+pub fn tell_window(app: tauri::AppHandle) -> Late {
+    use crate::events::{AppEvent, EmitEvent};
+    Arc::new(move |answer| app.emit_event(AppEvent::GoToLate, answer))
+}
+
+/// Where [`answer_within`]'s body is.
+enum Slot {
+    Running,
+    Answered(GoToOutcomeInfo),
+    /// Past the limit: the answer goes to [`Late`].
+    Late,
+}
+
+/// `body`'s answer within `limit`; past it, `pending` now, and with
+/// `late` the answer when it comes, under a ticket the pending one
+/// carries too. Without `late`, as [`within`].
+pub fn answer_within(
+    limit: Duration,
+    pending: GoToOutcomeInfo,
+    late: Option<Late>,
+    body: impl FnOnce() -> GoToOutcomeInfo + Send + 'static,
+) -> GoToOutcomeInfo {
+    static TICKETS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
+    let ticket = late.as_ref().map(|_| {
+        format!(
+            "go-{}",
+            TICKETS.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+        )
+    });
+    let slot = Arc::new((
+        std::sync::Mutex::new(Slot::Running),
+        std::sync::Condvar::new(),
+    ));
+    let worker = Arc::clone(&slot);
+    let tag = ticket.clone();
+    let spawned = std::thread::Builder::new()
+        .name("go-to".to_owned())
+        .spawn(move || {
+            let answer = body();
+            let (lock, ready) = &*worker;
+            let Ok(mut now) = lock.lock() else {
+                return;
+            };
+            if matches!(*now, Slot::Late) {
+                drop(now);
+                if let Some(late) = late {
+                    late(GoToOutcomeInfo {
+                        ticket: tag,
+                        ..answer
+                    });
+                }
+                return;
+            }
+            *now = Slot::Answered(answer);
+            ready.notify_all();
+        });
+    if spawned.is_err() {
+        return pending;
+    }
+    let (lock, ready) = &*slot;
+    let Ok(now) = lock.lock() else {
+        return pending;
+    };
+    let Ok((mut now, _)) = ready.wait_timeout_while(now, limit, |now| matches!(now, Slot::Running))
+    else {
+        return pending;
+    };
+    match std::mem::replace(&mut *now, Slot::Late) {
+        Slot::Answered(answer) => answer,
+        Slot::Running | Slot::Late => GoToOutcomeInfo { ticket, ..pending },
+    }
+}
+
 /// Go to it for one of the user's conversations, open now: at the place
 /// with process `pid`, else its first place.
 ///
@@ -414,6 +500,7 @@ pub fn go_to_impl(
     pid: Option<u32>,
     links_may_ask: bool,
     desktop: Arc<dyn Desktop>,
+    late: Option<Late>,
 ) -> AppResult<GoToOutcomeInfo> {
     let conversation = state
         .conversations
@@ -432,6 +519,7 @@ pub fn go_to_impl(
             conversation_id,
             links_may_ask,
             desktop,
+            late,
         ));
     };
     let place = pid
@@ -455,10 +543,12 @@ pub fn go_to_impl(
     };
     let hosts = HostRegistry::of(&state.registry);
     let still = target.place.host.as_ref().map_or_else(String::new, label);
-    Ok(
-        within(LIMIT, move || go(&target, &hosts, desktop.as_ref(), gates))
-            .unwrap_or_else(|| outcome(format!("Still bringing {still} forward…"), "pending")),
-    )
+    Ok(answer_within(
+        LIMIT,
+        outcome(format!("Still bringing {still} forward…"), "pending"),
+        late,
+        move || go(&target, &hosts, desktop.as_ref(), gates),
+    ))
 }
 
 /// 0.4.1: Go to it for a session that isn't open now: in the desktop
@@ -472,6 +562,7 @@ fn closed(
     conversation_id: &str,
     links_may_ask: bool,
     desktop: Arc<dyn Desktop>,
+    late: Option<Late>,
 ) -> GoToOutcomeInfo {
     use crate::features::places::{handoff, open_session};
     let Some((_, place, _)) = open_session::keeping(state, account_id, conversation_id) else {
@@ -483,24 +574,26 @@ fn closed(
         account_id.to_owned(),
         conversation_id.to_owned(),
     );
-    within(LIMIT, move || {
-        open_session::open(
-            &state,
-            &account_id,
-            &conversation_id,
-            &handoff::Real,
-            desktop.as_ref(),
-            links_may_ask,
-            handoff::Waits::default(),
-        )
-    })
-    .flatten()
-    .unwrap_or_else(|| {
+    answer_within(
+        LIMIT,
         outcome(
             format!("Starting {name}… the session opens once it's up"),
             "pending",
-        )
-    })
+        ),
+        late,
+        move || {
+            open_session::open(
+                &state,
+                &account_id,
+                &conversation_id,
+                &handoff::Real,
+                desktop.as_ref(),
+                links_may_ask,
+                handoff::Waits::default(),
+            )
+            .unwrap_or_else(|| outcome("It isn't open now".to_owned(), "none"))
+        },
+    )
 }
 
 /// AJ-E2104: a place's Open. Brings forward the app whose process is
@@ -514,6 +607,7 @@ pub fn bring_forward_impl(
     state: &Arc<AppState>,
     app_pid: u32,
     desktop: Arc<dyn Desktop>,
+    late: Option<Late>,
 ) -> AppResult<GoToOutcomeInfo> {
     let host = state
         .conversations
@@ -530,10 +624,12 @@ pub fn bring_forward_impl(
         return Ok(outcome("That app isn't open now".to_owned(), "none"));
     };
     let still = label(&host);
-    Ok(
-        within(LIMIT, move || bring_forward(&host, desktop.as_ref()))
-            .unwrap_or_else(|| outcome(format!("Still bringing {still} forward…"), "pending")),
-    )
+    Ok(answer_within(
+        LIMIT,
+        outcome(format!("Still bringing {still} forward…"), "pending"),
+        late,
+        move || bring_forward(&host, desktop.as_ref()),
+    ))
 }
 
 /// Brings `host` forward by its process, when it's still the one seen,

@@ -67,6 +67,8 @@ use juggler_app::features::switch_fidelity::facts::{Fact, Kind, Score};
 use juggler_app::state::AppState;
 use serde_json::{Value, json};
 
+#[path = "switch_lab/c2c.rs"]
+mod c2c;
 #[path = "switch_lab/fidelity.rs"]
 mod fidelity;
 #[path = "switch_lab/notes.rs"]
@@ -1104,6 +1106,23 @@ fn switch_lab_live() {
 #[ignore = "the live switching lab's notes suite; needs AIJ_LAB_* and real, agreed accounts"]
 fn switch_lab_notes_live() {
     notes::journey();
+}
+
+/// D-127's suite: Claude → Claude, Copy and Move, every area checked with
+/// no model call on the target (`switch_lab/c2c.rs`).
+#[test]
+#[ignore = "the live switching lab's Claude → Claude suite; needs AIJ_LAB_* and real, agreed accounts"]
+fn switch_lab_c2c_live() {
+    c2c::journey();
+}
+
+/// D-127's "the target answers", the other way round: an existing
+/// conversation copied to an Account with room, which answers from it
+/// (`switch_lab/c2c.rs`, `answer_journey`).
+#[test]
+#[ignore = "the live switching lab's Claude → Claude answer check; needs AIJ_LAB_* and real, agreed accounts"]
+fn switch_lab_c2c_answer_live() {
+    c2c::answer_journey();
 }
 
 /// The three accounts the main journey brought in.

@@ -5,13 +5,14 @@
  * says first what it changes ("c1 leaves web", "c1 goes back into web"),
  * read from the sessions' own pools, then asks.
  */
-import { useState, type JSX } from "react";
+import { useRef, useState, type JSX } from "react";
 
 import { Button } from "../../components/primitives";
-import { errorText } from "../../lib/bridge";
 import { poolSetSealed, poolsOfSession } from "../../lib/ipc/pool-model";
 import type { PoolInfo } from "../../lib/ipc/pools";
 import { setPools } from "../../lib/pools";
+import { useReveal } from "../../lib/reveal";
+import { useBusy } from "../../lib/use-busy";
 
 /** What sealing (or unsealing) `pool` changes, one line per session. */
 export async function sealChanges(pool: PoolInfo, members: { id: string; name: string }[]): Promise<string[]> {
@@ -31,19 +32,10 @@ export async function sealChanges(pool: PoolInfo, members: { id: string; name: s
 
 export function SealSetting({ pool, members }: { pool: PoolInfo; members: { id: string; name: string }[] }): JSX.Element {
   const [changes, setChanges] = useState<string[] | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const act = async (work: () => Promise<void>) => {
-    setBusy(true);
-    setError(null);
-    try {
-      await work();
-    } catch (cause) {
-      setError(errorText(cause));
-    } finally {
-      setBusy(false);
-    }
-  };
+  const { busy, error, act } = useBusy();
+  // In view in the panel, Keep it open focused (the aij-test proof).
+  const confirmRef = useRef<HTMLDivElement | null>(null);
+  useReveal(confirmRef, changes !== null && !busy);
   const ask = () => void act(async () => setChanges(await sealChanges(pool, members)));
   const confirm = () =>
     void act(async () => {
@@ -64,7 +56,7 @@ export function SealSetting({ pool, members }: { pool: PoolInfo; members: { id: 
           </Button>
         </span>
       ) : (
-        <div className={"flex flex-col gap-2 rounded-lg border p-2.5 " + (pool.sealed ? "border-hairline bg-surface-2" : "border-warning/40 bg-warning-soft")} role="group" aria-label={pool.sealed ? "Unseal this pool?" : "Seal this pool?"} data-testid="pool-seal-confirm">
+        <div ref={confirmRef} className={"flex flex-col gap-2 rounded-lg border p-2.5 " + (pool.sealed ? "border-hairline bg-surface-2" : "border-warning/40 bg-warning-soft")} role="group" aria-label={pool.sealed ? "Unseal this pool?" : "Seal this pool?"} data-testid="pool-seal-confirm">
           <span className="text-meta font-semibold text-ink">{pool.sealed ? `Unseal «${pool.name}»?` : `Seal «${pool.name}»?`}</span>
           {changes.length > 0 ? (
             <ul className="flex flex-col gap-0.5 text-meta text-ink" data-testid="pool-seal-changes">
@@ -79,7 +71,7 @@ export function SealSetting({ pool, members }: { pool: PoolInfo; members: { id: 
             <Button size="sm" variant={pool.sealed ? "secondary" : "danger"} disabled={busy} onClick={confirm} data-testid="pool-seal-yes">
               {pool.sealed ? "Unseal" : "Seal it"}
             </Button>
-            <Button size="sm" variant="ghost" disabled={busy} onClick={() => setChanges(null)}>
+            <Button size="sm" variant="ghost" disabled={busy} onClick={() => setChanges(null)} data-autofocus data-testid="pool-seal-no">
               {pool.sealed ? "Keep it sealed" : "Keep it open"}
             </Button>
           </span>

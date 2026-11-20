@@ -33,6 +33,9 @@ import type { CleanupTierSettings } from "./CleanupTierSettings";
 import type { CloudBackupInfo } from "./CloudBackupInfo";
 import type { CloudBackupStatusInfo } from "./CloudBackupStatusInfo";
 import type { ComposeInput } from "./ComposeInput";
+import type { ConnectorPreviewInfo } from "./ConnectorPreviewInfo";
+import type { ConnectorRemovalInfo } from "./ConnectorRemovalInfo";
+import type { ConnectorStatusInfo } from "./ConnectorStatusInfo";
 import type { ConversationDeltaInfo } from "./ConversationDeltaInfo";
 import type { ConversationInfo } from "./ConversationInfo";
 import type { ConversationSnapshotInfo } from "./ConversationSnapshotInfo";
@@ -42,6 +45,8 @@ import type { CrashInfo } from "./CrashInfo";
 import type { DebugModeInfo } from "./DebugModeInfo";
 import type { DeletePreviewInfo } from "./DeletePreviewInfo";
 import type { DesktopLaunchInfo } from "./DesktopLaunchInfo";
+import type { DesktopMemberInfo } from "./DesktopMemberInfo";
+import type { DesktopSessionInfo } from "./DesktopSessionInfo";
 import type { DiagnosticsPreviewInfo } from "./DiagnosticsPreviewInfo";
 import type { DiagnosticsSavedInfo } from "./DiagnosticsSavedInfo";
 import type { DiscoveredInfo } from "./DiscoveredInfo";
@@ -55,6 +60,7 @@ import type { EditorChoicesInfo } from "./EditorChoicesInfo";
 import type { EntityKind } from "./EntityKind";
 import type { EntityRef } from "./EntityRef";
 import type { ExpertSetupInfo } from "./ExpertSetupInfo";
+import type { FacetFilters } from "./FacetFilters";
 import type { FigureheadStatusInfo } from "./FigureheadStatusInfo";
 import type { FindProfilesInfo } from "./FindProfilesInfo";
 import type { FleetPeerInfo } from "./FleetPeerInfo";
@@ -161,6 +167,7 @@ import type { ResetQueueInfo } from "./ResetQueueInfo";
 import type { RestorePlanInfo } from "./RestorePlanInfo";
 import type { RestoreResultInfo } from "./RestoreResultInfo";
 import type { RetentionPreviewInfo } from "./RetentionPreviewInfo";
+import type { ReviewedAllInfo } from "./ReviewedAllInfo";
 import type { RulePreviewInfo } from "./RulePreviewInfo";
 import type { RulesDiffInfo } from "./RulesDiffInfo";
 import type { RulesSyncInfo } from "./RulesSyncInfo";
@@ -389,6 +396,20 @@ export interface Commands {
   cloud_backup_set_schedule: { args: { schedule: string }; result: CloudBackupStatusInfo };
   /** Write cloud_backup::cloud_backup_status */
   cloud_backup_status: { args: Record<string, never>; result: CloudBackupStatusInfo };
+  /** Write features::connector::commands::connector_add */
+  connector_add: { args: { appId: string }; result: ConnectorStatusInfo };
+  /** Read features::connector::commands::connector_desktop_members */
+  connector_desktop_members: { args: { poolId: string }; result: DesktopMemberInfo[] };
+  /** Read features::connector::commands::connector_desktop_sessions */
+  connector_desktop_sessions: { args: { poolId: string }; result: DesktopSessionInfo[] };
+  /** Read features::connector::commands::connector_preview */
+  connector_preview: { args: { appId: string }; result: ConnectorPreviewInfo };
+  /** Write features::connector::commands::connector_remove */
+  connector_remove: { args: { appId: string }; result: ConnectorRemovalInfo };
+  /** Write features::connector::commands::connector_remove_anyway */
+  connector_remove_anyway: { args: { appId: string }; result: ConnectorRemovalInfo };
+  /** Read features::connector::commands::connector_status */
+  connector_status: { args: { appId: string }; result: ConnectorStatusInfo };
   /** Write features::conversations::archive::conversations_archive */
   conversations_archive: { args: { accountId: string; conversationId: string; archived: boolean }; result: void };
   /** Write features::conversations::commands::conversations_bring_forward */
@@ -799,6 +820,8 @@ export interface Commands {
   pools_set_access: { args: { poolId: string; level: string; actions: string[] }; result: PoolsInfo };
   /** Write features::pools::commands::pools_set_delivery */
   pools_set_delivery: { args: { poolId: string; hopLimit: number; stopped: boolean }; result: PoolsInfo };
+  /** Write features::pools::commands::pools_set_lead_next */
+  pools_set_lead_next: { args: { poolId: string; app?: string | null }; result: string | null };
   /** Write features::pools::commands::pools_set_role */
   pools_set_role: { args: { sessionId: string; role: string; poolId?: string | null }; result: PoolsInfo };
   /** Write features::pools::commands::pools_set_scope */
@@ -996,19 +1019,23 @@ export interface Commands {
   /** Read features::sessions::commands::sessions_counts */
   sessions_counts: { args: { query: SessionsQuery }; result: SessionsCountsInfo };
   /** Read features::sessions::commands::sessions_facets */
-  sessions_facets: { args: { query: SessionsQuery }; result: SessionsFacetsInfo };
+  sessions_facets: { args: { query: SessionsQuery; filters?: FacetFilters | null }; result: SessionsFacetsInfo };
   /** Read features::sessions::commands::sessions_get */
   sessions_get: { args: { ids: string[] }; result: InstanceInfo[] };
   /** Read features::sessions::commands::sessions_history */
   sessions_history: { args: { sessionId: string; page: PageRequest }; result: Page<SessionEventInfo> };
   /** Read features::sessions::commands::sessions_list_alias */
   sessions_list_alias: { args: Record<string, never>; result: InstanceInfo[] };
+  /** Write lifecycle::sessions_mark_reviewed */
+  sessions_mark_reviewed: { args: { query: SessionsQuery }; result: ReviewedAllInfo };
   /** Read features::sessions::commands::sessions_page */
   sessions_page: { args: { query: SessionsQuery; page: PageRequest }; result: Page<SessionRowInfo> };
   /** Write features::sessions::commands::sessions_restart_choice_set */
   sessions_restart_choice_set: { args: { recipeId: string; restart?: boolean | null }; result: void };
   /** Read features::sessions::commands::sessions_resume_command */
   sessions_resume_command: { args: { sessionId: string }; result: string };
+  /** Write lifecycle::sessions_unmark_reviewed */
+  sessions_unmark_reviewed: { args: { atMs: number }; result: number };
   /** Write features::account::commands::source_inspect */
   source_inspect: { args: { harness: string; sourcePath: string }; result: SourceInspectInfo };
   /** Read features::staging::staging_ready */

@@ -162,6 +162,92 @@ fn an_app_only_team_seat_is_measured_from_the_apps_meter_with_its_source_and_age
     assert!(info.model_weeks.is_empty());
 }
 
+/// F-rc3c-1 (the 0.4.6 rc3c walk): two days away, the Claude apps'
+/// readings came in minutes after the start, when the first walk of every
+/// transcript was stored, and until then the screens showed the old ones
+/// as current. The apps' own records go in first: a screen has the app's
+/// reading before the transcripts are in, and until that walk is stored,
+/// the display says it's refreshing.
+#[test]
+fn at_start_the_apps_reading_lands_before_the_first_walk_is_stored() {
+    use juggler_core::quota::WindowKind;
+    const CONVERSATIONS: usize = 4;
+    const CALLS: usize = 2_500;
+    let dir = tempfile::tempdir().unwrap();
+    let setup = setup(dir.path());
+    meter(&setup.instance, &[(now() - 2 * MIN, 42.0, None)]);
+    // A long first walk: four conversations of 2,500 calls each.
+    let at = iso(now() - HOUR);
+    for s in 0..CONVERSATIONS {
+        let lines: String = (0..CALLS)
+            .map(|n| {
+                format!(
+                    "{{\"type\":\"assistant\",\"sessionId\":\"s-{s}\",\"timestamp\":\"{at}\",\"requestId\":\"req-{s}-{n}\",\"uuid\":\"u-{s}-{n}\",\"message\":{{\"id\":\"msg-{s}-{n}\",\"role\":\"assistant\",\"content\":\"PLANTED\",\"usage\":{{\"input_tokens\":10,\"output_tokens\":2}}}}}}\n"
+                )
+            })
+            .collect();
+        std::fs::write(
+            setup.profile.join(format!("projects/-w-p/s-{s}.jsonl")),
+            lines,
+        )
+        .unwrap();
+    }
+    let shown = |setup: &Setup| {
+        let storage = setup.state.storage.lock().unwrap();
+        let account = storage
+            .accounts()
+            .get(&juggler_core::model::AccountId::new(setup.account.as_str()))
+            .unwrap();
+        juggler_app::features::quota::shown(&setup.state, &storage, &account, now())
+    };
+    assert!(shown(&setup).refreshing, "nothing read since the start");
+    // A screen asking while the pass runs: how many calls were stored when
+    // the app's reading first showed.
+    let (asking, asked) = std::sync::mpsc::channel();
+    let screen = {
+        let state = Arc::clone(&setup.state);
+        let account = setup.account.clone();
+        std::thread::spawn(move || {
+            asking.send(()).unwrap();
+            loop {
+                {
+                    let storage = state.storage.lock().unwrap();
+                    let usage = storage.usage();
+                    if !usage
+                        .samples_for_account(&account, WindowKind::FiveHour)
+                        .unwrap()
+                        .is_empty()
+                    {
+                        return usage.events_for_account(&account, 0).unwrap().len();
+                    }
+                }
+                std::thread::sleep(std::time::Duration::from_millis(1));
+            }
+        })
+    };
+    asked.recv().unwrap();
+    usage_pipeline::ingest_pass(&setup.state, 1);
+    let calls_first = screen.join().unwrap();
+    let total = CONVERSATIONS * CALLS;
+    assert!(
+        calls_first < total,
+        "the app's reading waited for the walk: all {total} calls were stored first"
+    );
+    let after = shown(&setup);
+    assert!(!after.refreshing, "the first walk is stored");
+    assert_eq!(after.five_hour.unwrap().percentage, Some(42.0));
+    let stored = setup
+        .state
+        .storage
+        .lock()
+        .unwrap()
+        .usage()
+        .events_for_account(&setup.account, 0)
+        .unwrap()
+        .len();
+    assert_eq!(stored, total, "the walk stored every call");
+}
+
 /// The maintainer's report (0.1.6): "Claude runway 5 hour seems to be
 /// showing, but not the 7 day one". A team seat's week is on one model
 /// (`weekly_scoped`, "Fable"), with no all-models week: shown as that

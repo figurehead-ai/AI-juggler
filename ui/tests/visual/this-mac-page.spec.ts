@@ -76,9 +76,11 @@ for (const theme of ["dark", "light"] as const) {
       // The windows of a tool AI Juggler didn't start: behind the
       // disclosure, every one listed, none with a control.
       const theirs = page_.locator('[data-testid="this-mac-group"][data-ours="false"]');
-      await theirs.locator("summary").click();
+      await theirs.getByRole("button", { expanded: false }).click();
       await expect(theirs.getByTestId("this-mac-tree")).toHaveCount(6);
-      await expect(theirs.getByRole("button")).toHaveCount(0);
+      // Its fold is its one button.
+      await expect(theirs.getByRole("button")).toHaveCount(1);
+      await expect(theirs.getByTestId("this-mac-tree").getByRole("button")).toHaveCount(0);
       await page.mouse.move(0, 0);
       await page.screenshot({ path: resolve(OUT, `page-1280x800-${theme}-${density}.png`), fullPage: true });
       await axe(page, `This Mac ${theme} ${density}`);
@@ -100,10 +102,10 @@ for (const theme of ["dark", "light"] as const) {
     await note.getByText("What it means").click();
     await expect(note).toContainText("Pressure can be high while some memory still looks free");
     const others = page_.getByTestId("this-mac-other-apps");
-    await others.locator("summary").click();
+    await others.getByTestId("this-mac-other-apps-toggle").click();
     await expect(others.getByTestId("this-mac-other-app")).toHaveCount(6);
     await expect(others.getByTestId("this-mac-other-app").first()).toContainText("next-server");
-    await expect(others.getByRole("button")).toHaveCount(0);
+    await expect(others.getByRole("button")).toHaveCount(1); // its fold only
     await expect(page_.getByTestId("this-mac-alert").first()).toContainText("Other apps are using most of the memory");
     await page.mouse.move(0, 0);
     await page.screenshot({ path: resolve(OUT, `page-other-apps-1280x800-${theme}.png`), fullPage: true });

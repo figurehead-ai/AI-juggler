@@ -12,7 +12,10 @@
 //! Like Claude Code 2.1.302 it refuses stream-json without `--verbose`
 //! ("When using --print, --output-format=stream-json requires --verbose",
 //! the lab of 2026-10-25), and it refuses `--bare` and the permission
-//! bypasses outright, so a launch carrying one fails its test.
+//! bypasses outright, so a launch carrying one fails its test. As Claude
+//! Code does, it opens with `--resume` only a conversation already written
+//! ("No conversation found with session ID: …", exit 1, in its terminal
+//! too) and names with `--session-id` only a new one.
 //!
 //! On stdin: `control_request`s (`initialize`, `interrupt`, `set_model`),
 //! `user` turns and `control_response`s. A turn whose text holds `ask:`
@@ -60,11 +63,27 @@ fn main() -> ExitCode {
         eprintln!("Error: When using --print, --output-format=stream-json requires --verbose");
         return ExitCode::from(1);
     }
+    let value_of = |flag: &str| args.windows(2).find(|w| w[0] == flag).map(|w| w[1].clone());
+    // As Claude Code, headless or in its terminal: a conversation is
+    // written at its first turn, `--resume` opens only a written one, and
+    // `--session-id` names only a new one (F-rc3f-3).
+    let config = stream::config_dir();
+    if let Some(id) = value_of("--resume")
+        && !stream::written(&config, &id)
+    {
+        eprintln!("No conversation found with session ID: {id}");
+        return ExitCode::from(1);
+    }
+    if let Some(id) = value_of("--session-id")
+        && stream::written(&config, &id)
+    {
+        eprintln!("Error: Session ID {id} is already in use.");
+        return ExitCode::from(1);
+    }
     if !has("-p") {
         eprintln!("fake-claude: only the headless stream-json mode is faked");
         return ExitCode::from(2);
     }
-    let value_of = |flag: &str| args.windows(2).find(|w| w[0] == flag).map(|w| w[1].clone());
     let id = value_of("--resume")
         .or_else(|| value_of("--session-id"))
         .unwrap_or_else(|| "fake-claude-session".to_owned());

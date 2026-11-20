@@ -1,0 +1,19 @@
+#!/bin/sh
+# AJ-E3013: the Claude app driver for lab proofs (see app_drive.swift and
+# docs/qa/claude-app-drive.md). Compiled once per source (the cache is
+# keyed by the source's hash, so another worktree's copy is never run),
+# then run.
+set -eu
+here=$(cd "$(dirname "$0")" && pwd)
+src="$here/app_drive.swift"
+cache="${TMPDIR:-/tmp}/aij-app-drive"
+sum=$(shasum -a 256 "$src" | cut -c1-16)
+bin="$cache/app_drive-$sum"
+if [ ! -x "$bin" ]; then
+  mkdir -p "$cache"
+  swiftc -O "$src" -o "$bin.$$" 2>"$cache/build.log" || { cat "$cache/build.log" >&2; rm -f "$bin.$$"; exit 2; }
+  mv -f "$bin.$$" "$bin"
+  # older builds of other sources (a running one keeps its file open)
+  find "$cache" -maxdepth 1 -name 'app_drive-*' ! -name "app_drive-$sum" -mtime +1 -delete 2>/dev/null || true
+fi
+exec "$bin" "$@"

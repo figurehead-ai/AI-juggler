@@ -11,7 +11,7 @@ import type { CarryItemData } from "../../lib/ipc/switch-preflight";
 import type { SetupCheckInfo } from "../../lib/ipc/switchSetup";
 import { IconAlert } from "../icons";
 import { IconCheck } from "../icons-controls";
-import { FoldChevron } from "../this-mac-memory";
+import { Disclosure } from "../controls";
 import { CarryList, withSetup } from "./CarryList";
 
 /** "Everything goes along · 8 items", or what doesn't: "7 go along · 1
@@ -58,22 +58,20 @@ export function CarrySummary({
   const { words, warn } = carryWords(items, setup, target, tool, picked, turnsLeftOut);
   const Mark = warn ? IconAlert : IconCheck;
   return (
-    // Its own group name: the folds inside it ("What does this mean?")
-    // turn their chevrons by their own state, not this one's.
-    <details className="group/more" data-testid="switch-carry-summary">
-      <summary
-        className={
-          "inline-flex min-h-7 cursor-pointer list-none items-center gap-1.5 rounded-full border px-2.5 text-meta font-medium outline-none focus-visible:ring-2 focus-visible:ring-accent/60 [&::-webkit-details-marker]:hidden " +
-          (warn ? "border-warning/30 bg-warning-soft text-warning" : "border-success/30 bg-success-soft text-success")
-        }
-      >
-        <Mark aria-hidden="true" width={14} height={14} className="shrink-0" />
-        <span data-testid="switch-carry-words">{words}</span>
-        <FoldChevron group="group/more" />
-      </summary>
+    // The app's disclosure, a button an accessibility press opens (the
+    // 0.4.6 rc2 walk P9): its chevron, then the tinted line.
+    <Disclosure
+      summary={
+        <span className={"inline-flex min-h-7 items-center gap-1.5 rounded-full border px-2.5 font-medium " + (warn ? "border-warning/30 bg-warning-soft text-warning" : "border-success/30 bg-success-soft text-success")}>
+          <Mark aria-hidden="true" width={14} height={14} className="shrink-0" />
+          <span data-testid="switch-carry-words">{words}</span>
+        </span>
+      }
+      testId="switch-carry-summary"
+    >
       <div className="mt-3">
         <CarryList items={items} target={target} tool={tool} setup={setup} picked={picked} />
       </div>
-    </details>
+    </Disclosure>
   );
 }

@@ -76,6 +76,9 @@ pub struct NeedSources {
     pub tasks: Vec<TaskNeedInfo>,
     /// The words a tool uses for its own sign-in, by tool id.
     pub sign_in_words: HashMap<String, String>,
+    /// Each tool's name, by tool id ("OpenCode"): a sign-in whose folder
+    /// label another one shares is named by its whole App.
+    pub tool_names: HashMap<String, String>,
     /// 0.4: the folders a desktop app profile signs in for (a Claude app
     /// profile used in its Code tab). You sign in inside that app, never
     /// in a terminal, so their terminal tool not being signed in isn't a
@@ -446,7 +449,7 @@ pub fn work_out<S: std::hash::BuildHasher>(
                 .or_default() += 1;
         }
     }
-    for account in sources
+    let signing_in: Vec<&AccountInfo> = sources
         .accounts
         .iter()
         // A key it holds is its sign-in (the UI's `signedIn`, the same rule).
@@ -457,7 +460,33 @@ pub fn work_out<S: std::hash::BuildHasher>(
             )
         })
         .filter(|account| !sources.through_app.contains(&account.id))
-    {
+        .collect();
+    for account in signing_in.iter().copied() {
+        // Short, by its label ("lab A needs its sign-in"), unless another
+        // one reads the same: then by its whole App, as the Apps list names
+        // it (the 0.4.6 RC walk P8: OpenCode's and Kimi Code's both read
+        // "default needs its sign-in" on Home, the rail and the bell).
+        let shared = signing_in
+            .iter()
+            .filter(|other| other.label == account.label)
+            .count()
+            > 1;
+        let name = match sources.tool_names.get(&account.provider) {
+            Some(tool) if shared => {
+                crate::features::presence::identity(crate::features::presence::Naming {
+                    id: "",
+                    desktop: false,
+                    app: tool,
+                    instance_dir: None,
+                    default_instance: false,
+                    folder_label: Some(&account.label),
+                    folder_shared: false,
+                    named: None,
+                })
+                .label
+            }
+            _ => account.label.clone(),
+        };
         let own = sources
             .sign_in_words
             .get(&account.provider)
@@ -466,7 +495,7 @@ pub fn work_out<S: std::hash::BuildHasher>(
         needs.push(NeedInput {
             key: format!("signin:{}", account.id),
             kind: "signin".to_owned(),
-            title: format!("{} needs its sign-in", account.label),
+            title: format!("{name} needs its sign-in"),
             detail: format!("{own}, in a terminal here — about thirty seconds. AI Juggler never sees your password."),
             target: NoticeTarget {
                 account_id: Some(account.id.clone()),
@@ -756,6 +785,9 @@ fn read_sources(state: &Arc<AppState>, now: i64) -> NeedSources {
     for id in state.registry.ids() {
         if let Some(adapter) = state.registry.get(&id) {
             let spec = adapter.spec();
+            sources
+                .tool_names
+                .insert(spec.id.clone(), spec.display_name.clone());
             sources.sign_in_words.insert(spec.id, spec.sign_in.own);
         }
     }
@@ -800,6 +832,15 @@ pub fn refresh(state: &Arc<AppState>) -> bool {
     let now = crate::commands::now_millis();
     let sources = read_sources(state, now);
     refresh_from(state, &sources, now)
+}
+
+/// AJ-E1612: a sign-in's terminal ended. Its App's sign-in is read again
+/// at once (the adapters read files only), not when the last check ages
+/// out, and Needs you is worked out from it: Home, the rail and the bell
+/// follow on the change event, with no polling. `true` when it changed.
+pub fn sign_in_ended(state: &Arc<AppState>) -> bool {
+    state.notifier.forget_sign_ins();
+    refresh(state)
 }
 
 /// [`refresh`] from sources already read (the tests drive it).

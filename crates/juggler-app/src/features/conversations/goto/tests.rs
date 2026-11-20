@@ -371,6 +371,67 @@ fn a_slow_step_answers_within_the_limit() {
     assert_eq!(within(LIMIT, || 2), Some(2));
 }
 
+/// 0.4.6 (the rc3c walk): "Open in Claude app" on a closed profile said
+/// "Starting … the session opens once it's up" and nothing after, even
+/// once the app had quit: what it did came after the limit and was lost.
+/// Now that answer reaches the window under the pending answer's ticket.
+#[test]
+fn an_answer_after_the_limit_reaches_the_window_under_the_pending_ones_ticket() {
+    let told: Arc<Mutex<Vec<GoToOutcomeInfo>>> = Arc::default();
+    let heard = Arc::clone(&told);
+    let late: Late = Arc::new(move |answer| heard.lock().unwrap().push(answer));
+    let pending = || {
+        outcome(
+            "Starting Claude app · Work… the session opens once it's up".to_owned(),
+            "pending",
+        )
+    };
+    let said = answer_within(
+        Duration::from_millis(50),
+        pending(),
+        Some(Arc::clone(&late)),
+        || {
+            // poll: a start stood in for, bounded at 300 ms.
+            std::thread::sleep(Duration::from_millis(300));
+            outcome(
+                "Opened the session in Claude app · Work".to_owned(),
+                "thread",
+            )
+        },
+    );
+    assert_eq!(said.reached, "pending");
+    let ticket = said
+        .ticket
+        .clone()
+        .expect("a pending answer the window can wait on");
+    // poll: the start's end, bounded at 3 s.
+    let deadline = std::time::Instant::now() + Duration::from_secs(3);
+    while told.lock().unwrap().is_empty() && std::time::Instant::now() < deadline {
+        std::thread::sleep(Duration::from_millis(20));
+    }
+    let told = told.lock().unwrap();
+    assert_eq!(told.len(), 1, "told once");
+    assert_eq!(told[0].reached, "thread");
+    assert_eq!(told[0].ticket.as_deref(), Some(ticket.as_str()));
+    // In time: the answer itself, no ticket, nothing told later.
+    let quick = answer_within(LIMIT, pending(), Some(late), || {
+        outcome("Focused window".to_owned(), "app")
+    });
+    assert_eq!((quick.reached.as_str(), quick.ticket), ("app", None));
+    // Nowhere to tell it: as `within`, the pending answer, no ticket.
+    let alone = answer_within(Duration::from_millis(20), pending(), None, || {
+        std::thread::sleep(Duration::from_millis(100));
+        outcome("Opened".to_owned(), "thread")
+    });
+    assert_eq!((alone.reached.as_str(), alone.ticket), ("pending", None));
+    // Two pending answers never share a ticket.
+    let other = answer_within(Duration::ZERO, pending(), Some(Arc::new(|_| {})), || {
+        std::thread::sleep(Duration::from_millis(50));
+        outcome("Opened".to_owned(), "thread")
+    });
+    assert_ne!(other.ticket.as_deref(), Some(ticket.as_str()));
+}
+
 #[test]
 fn a_places_open_brings_its_running_app_forward_and_never_a_reused_pid() {
     let place = target(

@@ -20,9 +20,11 @@ import ComposeSource from "./Compose.tsx?raw";
 import SharedDocsSource from "./SharedDocs.tsx?raw";
 import PoolLinksSource from "./PoolLinks.tsx?raw";
 import MessageNeedsSource from "../../components/MessageNeeds.tsx?raw";
-import { MessagesView } from "./MessagesView";
+import { MessagesView, threadToShow } from "./MessagesView";
+import { hopWords } from "./words";
 import { SharedDocs } from "./SharedDocs";
 import { MessageNeeds } from "../../components/MessageNeeds";
+import { desktopRecipients } from "../../lib/connector";
 import { resetPreviewMessages, type MessageInfo, type MessageNeedInfo, type MessagesSeed, type ThreadInfo } from "../../lib/ipc/messages";
 
 type Seams = { __AIJ_MESSAGES__?: MessagesSeed; __AIJ_MESSAGES_CALLS__?: string[] };
@@ -150,6 +152,76 @@ describe("a pool's messages", () => {
     fireEvent.change(within(form).getByTestId("compose-body"), { target: { value: "Pause; review first." } });
     fireEvent.keyDown(within(form).getByTestId("compose-body"), { key: "Enter", metaKey: true });
     await waitFor(() => expect(calls()).toContain("send:pool:true"));
+  });
+
+  // AJ-E3013 (f1b9bd354): a desktop session through AI Juggler's
+  // connector is a recipient of its own, by its member ref, named with
+  // its place; one whose call is fresh is under Open now.
+  it("a desktop session is a recipient beside the sessions AI Juggler runs", async () => {
+    const desktop = desktopRecipients([
+      { member: "conversation:claude-work/c1", session_id: "desktop:claude-work/c1", name: "Fix sign-in copy", place: "Claude app · Work", tool: "Claude Code", account: "Work", role: "member", app_id: "app-claude-work", via: "app", wake: "next_turn" },
+      { member: "conversation:claude-work/c2", session_id: null, name: "A session in another app", place: null, tool: null, account: null, role: "member", app_id: null, via: "app", wake: "next_turn" },
+    ]);
+    expect(desktop).toEqual([
+      { session_id: "conversation:claude-work/c1", name: "Fix sign-in copy · Claude app · Work", live: true },
+      { session_id: "conversation:claude-work/c2", name: "A session in another app", live: false },
+    ]);
+    const { findByTestId, getAllByTestId, getByTestId } = render(<MessagesView poolId="pool-team" members={[...members, ...desktop]} now={NOW} />);
+    fireEvent.click(await findByTestId("messages-new"));
+    const form = getAllByTestId("message-compose").find((f) => f.getAttribute("aria-label") === "New message")!;
+    fireEvent.click(within(form).getByTestId("compose-to"));
+    fireEvent.click(getByTestId("compose-to-conversation:claude-work/c1"));
+    expect(within(form).getByTestId("compose-to").getAttribute("data-value")).toBe("conversation:claude-work/c1");
+    // D-119 (5): Deliver wakes it whatever the pool's level, and says so.
+    expect(within(form).getByLabelText("Deliver to their sessions").closest("label")!.getAttribute("title")).toContain("a desktop app's session with AI Juggler's connector is woken to read it, whatever the pool's level");
+    fireEvent.change(within(form).getByTestId("compose-body"), { target: { value: "Check the copy." } });
+    fireEvent.keyDown(within(form).getByTestId("compose-body"), { key: "Enter", metaKey: true });
+    await waitFor(() => expect(calls()).toContain("send:conversation:claude-work/c1:true"));
+  });
+
+  // The rc3h walk: a chain paused at the hop limit could only be answered
+  // on Home; its thread offered Resume alone. Its message has Home's
+  // answers: Deliver and Don't deliver.
+  it("a chain paused at the hop limit has Deliver and Don't deliver on its message", async () => {
+    seams().__AIJ_MESSAGES__!.threads![0] = thread({ state: "paused", state_reason: "it reached this pool's hop limit", hop: 3, hop_cap: 2 });
+    seams().__AIJ_MESSAGES__!.needs = [need({ kind: "deliver", key: "ask:hop", ask_id: "ask-hop", title: "«Planner»'s message would start «Builder»'s next turn" })];
+    const { findByTestId, getByTestId } = render(<MessagesView poolId="pool-team" members={members} now={NOW} />);
+    const answers = await findByTestId("message-held-answers");
+    expect(getByTestId("thread-resume")).toBeTruthy();
+    expect(within(answers).getAllByRole("button").map((button) => button.textContent)).toEqual(["Deliver", "Don't deliver"]);
+    fireEvent.click(within(answers).getByRole("button", { name: "Don't deliver" }));
+    await waitFor(() => expect(calls()).toContain("answer:ask-hop:deny"));
+  });
+
+  // F-rc3g-10: the count reads against the pool's own limit (the thread's
+  // hop_cap), the way its pause counts: "2 of 2" is the last before you're
+  // asked, and the one past it says it's over.
+  it("counts a thread's agent messages against its pool's limit", async () => {
+    seams().__AIJ_MESSAGES__!.threads![0] = thread({ hop: 2, hop_cap: 2 });
+    const { findByTestId } = render(<MessagesView poolId="pool-team" members={members} now={NOW} />);
+    expect((await findByTestId("thread-hops")).textContent).toBe("2 of 2 agent messages in a row without you");
+    expect(hopWords(3, 2)).toBe("3 agent messages in a row without you, over this pool's limit of 2");
+    expect(hopWords(1, 1), "at a limit of 1, the first is the last").toBe("1 of 1 agent messages in a row without you");
+    expect(hopWords(1, 5)).toBeNull();
+  });
+
+  // F-rc3g-13: on p11-b's Messages tab the list held only its own thread,
+  // while the right pane still showed the thread p11-a's page had open.
+  it("another session's page never keeps the thread the page before had open", async () => {
+    const view = render(<MessagesView poolId="pool-team" sessionId="sess-live-1" members={members} now={NOW} />);
+    fireEvent.click((await view.findAllByTestId("thread-row"))[1]!);
+    expect(await view.findByText("Can you look?", { selector: "p" })).toBeTruthy();
+    view.rerender(<MessagesView poolId="pool-team" sessionId="sess-done-1" members={members.slice(1)} composeTo="sess-done-1" now={NOW} />);
+    // Never the thread the page before had open: at once, nor once its own
+    // list is read. Its own thread then shows (read after the list, so
+    // waited for: a check made at once raced its load).
+    expect(view.queryByText("Can you look?", { selector: "p" })).toBeNull();
+    await waitFor(() => expect(view.getAllByTestId("thread-row").map((row) => row.textContent)).toEqual([expect.stringContaining("Start on the API")]));
+    expect(view.queryByText("Can you look?", { selector: "p" })).toBeNull();
+    await waitFor(() => expect(view.getByTestId("thread-view").textContent).toContain("Start on the API"));
+    expect(view.queryByText("Can you look?", { selector: "p" })).toBeNull();
+    expect(threadToShow("thr-2", [thread({})], null), "a list that doesn't hold it").toBe("thr-1");
+    expect(threadToShow("thr-9", [thread({})], "thr-9"), "asked for by name").toBe("thr-9");
   });
 
   it("a session's page shows its own threads only", async () => {

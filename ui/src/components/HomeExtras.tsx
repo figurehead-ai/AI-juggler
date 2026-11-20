@@ -32,7 +32,7 @@ export function HomeExtras({ shown, needs, more, pending = false }: { shown: boo
       {extras.map((extra, index) => (
         <span key={extra.key} className="flex items-center gap-1.5">
           {index > 0 && <span aria-hidden="true" className="text-muted">·</span>}
-          <button type="button" onClick={() => revealNeed(extra.target)} className="flex items-center gap-1.5 rounded outline-none hover:underline focus-visible:ring-1 focus-visible:ring-accent/60">
+          <button type="button" onClick={() => revealNeed(extra.target)} aria-label={extra.name} className="flex items-center gap-1.5 rounded outline-none hover:underline focus-visible:ring-1 focus-visible:ring-accent/60">
             <span aria-hidden="true" className="size-1.5 shrink-0 rounded-full bg-warning" />
             {extra.words}
           </button>

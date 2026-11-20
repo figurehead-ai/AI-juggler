@@ -9,7 +9,7 @@
  */
 import AxeBuilder from "@axe-core/playwright";
 import { type Page } from "@playwright/test";
-import { expect, gate, test } from "./axe-gallery";
+import { expect, gate, settle, test } from "./axe-gallery";
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { allStatuses, goTo, openRailList, terminalDrawn } from "./fixtures";
@@ -177,8 +177,20 @@ async function shoot(page: Page, dir: string, name: string, theme: string, size:
 /** An outside session's page, from its row in the list (a click opens it
  * here; its ↗ goes to its app). */
 async function openConversation(page: Page, title: string) {
+  // The rail whole before the click. Its Needs you (6 here) fills in from
+  // the backend's count after the first paint, and lines landing above the
+  // row under the pointer are held there (rail-hold): clicked before they
+  // landed, the list kept "6 new above", and pressing it showed the list
+  // from its first new row; landing during the click, the list stopped
+  // with the clicked row at its top. One gated cell, three rails, by the
+  // machine's load (rc3h; #237's CI run). Folded (below 1100 px), the
+  // rail has no Needs you list.
+  if ((page.viewportSize()?.width ?? 0) >= 1100) await expect(page.getByTestId("rail-needs-you")).toContainText(/Needs you\s*6/);
+  await settle(page);
   await page.getByTestId("rail").locator("[data-conversation-id]").filter({ hasText: title }).first().click();
   await expect(page.getByTestId("conversation-page")).toBeVisible();
+  // Nothing new arrives above it now: a pill here is a change to look at.
+  await expect(page.getByTestId("rail-new-above")).toHaveCount(0);
 }
 
 for (const theme of ["dark", "light"] as const) {

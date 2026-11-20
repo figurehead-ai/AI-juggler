@@ -1,0 +1,92 @@
+<!-- captures: cfcb6dc4078b -->
+# 99-desktop-connector: desktop apps in a pool through AI Juggler's connector (AJ-E3013)
+
+Design critique (D-57, AJ-E2814) against 99-pool-selection (the canvas and inspector around it), 92-agent-tools (the team tools card, the same card shape) and the calm UI round 2 rules. The Checkout team pool with a Claude app profile as an App member (no connector), a Claude app session connected, another Watched, and a ChatGPT (Codex app) thread; dark and light, 1280×800. Fixtures only: nothing is written or run.
+
+## Checklist
+
+| Check | Finding |
+|---|---|
+| Grid | The consent card sits in the inspector's 340 px column on its 16 px gutter, the same card as the team tools question (surface-2, 12 px radius, card shadow); in New pool it sits under "In this pool" in the side column. |
+| Hierarchy | Card title (14 px semibold, ink) → consequence and example (ink-2) → the guide's link (accent) → Add (the card's one filled button) and "Add it yourself instead" (ghost). The preview's file lines are ink, their text folds behind "Its text". |
+| Spacing | 8 px inside the card, 12 px between the inspector's sections; the canvas column keeps its 12 px between cards. |
+| Icons | None added: the file lines are words ("Creates ~/…"), the fold uses the app's chevron. |
+| Shared controls | One ConnectorCard (inspector, New pool, the switch's set-up list); the guide is the switch's own Show me how, now with the command's Copy; Remove's confirm is the danger button. |
+| Disabled reasons | The ChatGPT thread has no Add: its line says why ("Its app can't take AI Juggler's connector yet; it can't be woken"). |
+| Plain words | "Watched: its app has no AI Juggler connector", "Reads messages on its next turn", "Creates ~/Profiles/Work/claude-code/skills/ai-juggler/.claude-plugin/plugin.json", "Add to Claude app · Work Max", "Watching for it while these steps are open." No "MCP", "plugin dir" or "attested" on screen. |
+| Type sizes | 12 px floor (the file text in the fold, the card's chips). |
+| Both themes | Checked dark and light: Add's fill, the accent Add on the canvas cards and the file text's surface read in both. |
+| 1280×800 | The canvas column scrolls (the ChatGPT card is below the fold); the preview's confirm stays in view with the text folded. |
+
+## Captures
+
+- members: the column: Claude app · Work Max (App, Member), "Watched: its app has no AI Juggler connector" with Add under it; Plan the trip notes app (Reviewer), "Claude app · Reads messages on its next turn", no Watched chip; Migrate the billing webhooks, Watched with why and Add; the ChatGPT thread below the fold. The old "can't reply" and the card's "Continue in AI Juggler" are gone. Pass.
+- card: the App selected: its inspector says Watched and why, then the consent card: "Add AI Juggler's connector to Claude app · Work Max so its sessions can talk in this pool", what it writes and what it never touches, the example, "How desktop apps join a pool ↗", Add and "Add it yourself instead". Pass.
+- preview: "What AI Juggler writes into Claude app · Work Max", "Only these files…", the two files ("Creates …/plugin.json", "Creates …/SKILL.md"), each with "Its text", then "Add to Claude app · Work Max" and Cancel. preview-text: the manifest's text open (the bridge's path and socket, the two hooks; no secret). Pass.
+- guide: "Add AI Juggler's connector to Claude app · Work Max yourself": the four steps, the command with Copy, what shows it's done, and "Watching for it while these steps are open." Pass.
+- connected: the connected session selected: "Session · Claude app · Reviewer", its pill "Reads messages on its next turn", "It talks in this pool through AI Juggler's connector.", and "AI Juggler's connector is in this app. Remove". Pass.
+- new-pool: Who's in with Claude app · Work Max ticked: the side shows who's in, then the same consent card. Pass.
+
+## Weak
+
+- The App card's Add sits under the card (like Start one now), so the column grows by a row per Watched App.
+- At 1280×800 the column holds three desktop cards before it scrolls; the ChatGPT thread's card is below the fold in every capture.
+- New pool's desktop candidates all read "with AI Juggler's connector in it (added with your OK) its sessions talk in the pool; without it they're Watched", ChatGPT too, which can't take it yet; its card says so once it's in.
+- The guide's "Show me how" button keeps the switch list's plain outlined style, a step down from the card's buttons.
+
+## Round 5 (Casey's PC1 walk)
+
+- card: under its title, what the connector is ("AI Juggler's connector is a small helper AI Juggler adds to an app so its sessions can read and send the pool's messages, notes and tasks."); "Show me how to add it by hand" in place of "Add it yourself instead". The inspector's Watched sentence says the same meaning. Pass.
+- preview: opens with "This adds a small helper to your Claude app (Work Max) so its sessions can talk in this pool: 2 new files in its own settings folder; nothing of yours changes.", then "Nothing is written until you add it.", the files under a closed "Show the files", and Add to Claude app · Work Max with Cancel, all in view. preview-text: "Show the files" open, the manifest's text open. Pass.
+- guide: "Add AI Juggler's connector to Claude app · Work Max by hand". Pass.
+- All: the inspector is 380 px.
+
+## The aij-test proof's follow-ups
+
+- guide: the card's step now opens in view in the panel (the list scrolls to it), its Cancel focused; so do the preview and Remove, and the pool's delete and seal confirmations (a browser test at 1761×1348, 1280×800 and 1024×768). Pass.
+- After Remove, a member's words follow the connector: Watched with the reason, never "Wakes on new messages" (unit-tested; no capture).
+
+## The backend's round (desktop sessions, Remove anyway, reason codes, D-119)
+
+Checked by eye, dark and light:
+
+- sessions (new): the Claude app · Work Max App with the connector, its two sessions in the pool drawn under its card on a hairline: "Tidy the checkout tests" (a green dot: active lately) and "Fix the coupon rounding" (a grey dot: quiet lately), each name at the row's width, then "Member · reads messages on its next turn" / "Reviewer · …". The App card reads "1 open now" (never "No session open yet" over its own sessions). Pass.
+- recipients (new): New message's To list has each desktop session by name and place, "Tidy the checkout tests · Claude app · Work Max" under Open now and "Fix the coupon rounding · Claude app · Work Max" under All. Pass.
+- remove-anyway (new): a file in the Work App's connector changed: its card says Watched with "Fix" (as a session's card says it, was Add); its inspector's Remove step lists what it deletes, the changed SKILL.md in the warning colour, then "SKILL.md changed since AI Juggler added it, so Remove takes nothing out. Remove anyway takes the connector out whole, deleting that file too.", the danger button "Remove anyway (also deletes SKILL.md)" and Cancel, focused. The danger tint is lighter on this card so its red clears AA (4.87:1 in dark). Pass.
+- connected: the connected session's line adds "A message you send with Deliver wakes it, whatever the pool's level." (D-119 5); Messages' Deliver says the same. Pass.
+- members: the pool's checklist stays open with "Can't work yet" (the Claude app App has no connector yet), never "This pool is ready" (round 6 #2). Pass.
+- Every reason a connector can't be added is worded (missing, unsafe location with its folder, not offered, unknown app, no folder, no connector); never the backend's own text (unit-tested; the ChatGPT card's line is unchanged).
+- Weak: the danger button and Cancel don't fit one row in the 380 px inspector, so Cancel wraps under it.
+- Weak: a desktop session's node isn't selectable on its own; its App's card is its door (role and level are the App's).
+
+## Section titles fixed (2026-11-16)
+
+Section titles re-rendered (6db085536): a colour token named like a type size (`--color-section` beside `--text-section`) had Tailwind build `.text-section` as a colour only, so every section title in the captures from 56f98a514 on was about 13 px regular grey. Re-captured and checked by eye against the earlier captures:
+
+- Every capture: the inspector's title, the card titles ("Set up this pool", the consent card's) and New pool's "Who's in" are semibold ink again; remove-anyway's danger button has the lighter tint everywhere now (the Button's own, d26547319; the card's override is gone). Wording, controls and states are unchanged. Pass.
+
+## Round 7 (AJ-E3011: Casey's worst moment, the round-6 done-gate)
+
+Checked by eye, dark and light:
+
+- new-pool: Who's in with Claude app · Work Max ticked: its own row says "Watched: can't talk in the pool yet." (warning colour), then what's missing in words, "AI Juggler's connector (a small helper AI Juggler adds to an app so its sessions can read and send the pool's messages, notes and tasks) isn't in it.", with Add and "Show me how to add it by hand", before Next. The card beside the list is gone: the row is where the eye already is. Review keeps its warning as the backstop. Pass.
+- new-pool-added (new): after Add (the consent card's own preview, then "Add to Claude app · Work Max"), the row holds "AI Juggler's connector is in Claude app · Work Max", "Added. A running session picks it up at its next start." and when its sessions pick it up. Pass.
+- preview-text: "Show the files" and "Its text" are buttons with aria-expanded (the aij-test driver's accessibility press did nothing on the old `<summary>`); the fold's text sits 2 px further from its chevron. Pass.
+- Weak (unchanged): the ChatGPT row's note still says "with AI Juggler's connector in it … its sessions talk in the pool", though the Codex app can't take it yet; ticked, its row says why.
+- The other captures re-rendered with under 60 px of noise and were left as committed.
+
+## Round 7, items 6–9 (aij-test run 3)
+
+Checked by eye, dark and light:
+
+- new-pool, new-pool-added: Who's in says once, under its kind line, "Sessions in a desktop app talk in the pool once AI Juggler's connector (a small helper, added with your OK) is in their app; until then they're Watched: shown and counted, without the pool's tools."; each unticked desktop row says only where it stands, "Watched" (amber: ChatGPT) or "Can talk" (green: Claude app · Personal), beside "new ones join". The ticked row keeps its own consent line and Add. Pass.
+- add-a-session (new): Add a session's More: Apps 4 has the same sentence once over the list; the ChatGPT row says "Watched" beside its Add, no row repeats the paragraph. Pass.
+- remove-anyway: the refusal is titled "Nothing was taken out of Claude app · Work Max", then "SKILL.md changed since AI Juggler added it, so Remove leaves the connector as it is.", then "Remove anyway would delete:" with both files (the changed one in amber, said so), Remove anyway and Cancel. No "Deletes …" line says Remove will. Pass.
+- desktop-line (new): Planner and the Work App's "Tidy the checkout tests" messaged each other; two lines run from the session's row to Planner's node, each way, with "2 messages" and "1 message" on labels kept apart. Pass.
+- desktop-line-selected (new): the "2 messages" line selected (accent): the inspector reads "Planner → Tidy the checkout tests", its Talk rule set to Ask first, "This line has its own rule; the role pair Member → Member says Allowed…", and the label reads "2 messages · Ask first here" (wrapped in two lines between the node and the row). Pass.
+- The pool page following sessions live (round 7 #6) has no capture: a unit test drives a session's start and end events with no navigation.
+- Weak: at 33 % the line from Planner's node runs close to the "1 waiting" chip; the labels sit on the lines' straight middle.
+
+## The inspector's scroll edge (2026-11-16)
+
+- guide, preview, preview-text, remove-anyway (both themes): the inspector's body is scrolled to the step, so a hairline with a soft shadow now runs under the title, kind and status pill (the app's scroll edge, as the rail's list has). The section sliding under it reads as more above, not as a clipped line. Nothing else moved. Pass.

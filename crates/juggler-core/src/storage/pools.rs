@@ -180,6 +180,23 @@ BEGIN
 END;
 ";
 
+/// v53 (0.4.6, AJ-E3011): who leads next. D-92 keeps Lead one session's
+/// role, so a pool of Apps with no session open had no Lead to pick (the
+/// newcomer walks' dead end). A pool may now wait for an App's next
+/// session: `app_id` is an App's id (`apps.id`, as a session's pool facts
+/// name it). When a session of that App joins the pool and the pool has
+/// no Lead, it joins as a session member with Lead and the row goes
+/// ([`PoolsRepo::claim_lead_next`]). One row per pool; no row: nobody
+/// waits. Made with `IF NOT EXISTS`, so the step is safe to run again.
+pub(super) const LEAD_NEXT_MIGRATION: &str = "
+CREATE TABLE IF NOT EXISTS pool_lead_next (
+    pool_id TEXT PRIMARY KEY REFERENCES pools(id),
+    app_id  TEXT NOT NULL,
+    set_at  INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_pool_lead_next_app ON pool_lead_next(app_id);
+";
+
 /// The default pool of the sessions that have no project.
 pub const NO_PROJECT_POOL_ID: &str = "pool-default:none";
 
@@ -953,6 +970,111 @@ impl PoolsRepo<'_> {
         }
         tx.commit()?;
         Ok(ended)
+    }
+
+    /// The App whose next session leads `pool_id` (AJ-E3011), if it waits
+    /// for one.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::Storage`] on SQLite failures.
+    pub fn lead_next(&self, pool_id: &str) -> Result<Option<String>, CoreError> {
+        Ok(self
+            .conn
+            .query_row(
+                "SELECT app_id FROM pool_lead_next WHERE pool_id = ?1",
+                params![pool_id],
+                |row| row.get(0),
+            )
+            .optional()?)
+    }
+
+    /// Sets the App whose next session leads `pool_id`, or clears it
+    /// (`None`).
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::Storage`] on SQLite failures.
+    pub fn set_lead_next(&self, pool_id: &str, app: Option<&str>) -> Result<(), CoreError> {
+        match app {
+            Some(app) => self.conn.execute(
+                "INSERT INTO pool_lead_next (pool_id, app_id, set_at) VALUES (?1, ?2, ?3)
+                 ON CONFLICT(pool_id) DO UPDATE SET app_id = excluded.app_id, set_at = excluded.set_at",
+                params![pool_id, app, Timestamp::now().millis()],
+            )?,
+            None => self.conn.execute(
+                "DELETE FROM pool_lead_next WHERE pool_id = ?1",
+                params![pool_id],
+            )?,
+        };
+        Ok(())
+    }
+
+    /// The pools (not deleted) that wait for `app`'s next session to lead.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::Storage`] on SQLite failures.
+    pub fn waiting_for_lead(&self, app: &str) -> Result<Vec<String>, CoreError> {
+        let mut stmt = self.conn.prepare(
+            "SELECT l.pool_id FROM pool_lead_next l
+               JOIN pools p ON p.id = l.pool_id AND p.deleted_at IS NULL
+              WHERE l.app_id = ?1 ORDER BY l.set_at, l.pool_id",
+        )?;
+        let rows = stmt.query_map(params![app], |row| row.get::<_, String>(0))?;
+        rows.map(|row| row.map_err(CoreError::Storage)).collect()
+    }
+
+    /// AJ-E3011 (D-92 holds): `member`, a session of `app`, takes `pool_id`'s
+    /// Lead when the pool still waits for `app`'s next session and has no
+    /// Lead; the wait ends with it. In one write transaction, so of two
+    /// sessions joining at once only the first leads (the second finds
+    /// the wait gone). Whether it took the Lead.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::Storage`] on SQLite failures.
+    pub fn claim_lead_next(
+        &self,
+        pool_id: &str,
+        app: &str,
+        member: &MemberRef,
+    ) -> Result<bool, CoreError> {
+        let tx = crate::storage::write_transaction(self.conn)?;
+        let waits: bool = tx.query_row(
+            "SELECT EXISTS (SELECT 1 FROM pool_lead_next l
+                              JOIN pools p ON p.id = l.pool_id AND p.deleted_at IS NULL
+                             WHERE l.pool_id = ?1 AND l.app_id = ?2)",
+            params![pool_id, app],
+            |row| row.get(0),
+        )?;
+        let led: bool = tx.query_row(
+            "SELECT EXISTS (SELECT 1 FROM pool_members
+                             WHERE pool_id = ?1 AND role = 'lead' AND left_at IS NULL)",
+            params![pool_id],
+            |row| row.get(0),
+        )?;
+        if !waits || led {
+            return Ok(false);
+        }
+        let now = Timestamp::now().millis();
+        let changed = tx.execute(
+            "UPDATE pool_members SET role = 'lead'
+              WHERE pool_id = ?1 AND member_ref = ?2 AND left_at IS NULL",
+            params![pool_id, member.to_wire()],
+        )?;
+        if changed == 0 {
+            tx.execute(
+                "INSERT INTO pool_members (pool_id, member_ref, role, joined_at) VALUES (?1, ?2, 'lead', ?3)",
+                params![pool_id, member.to_wire(), now],
+            )?;
+        }
+        tx.execute(
+            "DELETE FROM pool_lead_next WHERE pool_id = ?1",
+            params![pool_id],
+        )?;
+        tx.commit()?;
+        Ok(true)
     }
 
     /// Every pool's talk settings: `(pool, key, rule)`.

@@ -57,14 +57,19 @@ describe("a rail row", () => {
 });
 
 describe("a pool's node", () => {
-  it("says the facts once, and numbers two of one minute", async () => {
+  // D-126 §4a (the rc1 X2 lab: fifty nodes read "web · started 5:16 P…"):
+  // a node leads with its own title, else its folder told apart, and says
+  // when it started second, on its own line, once.
+  it("leads with its folder, numbers two of one minute, and says the time once", async () => {
     seedTeam();
     const view = await openPage("pool-team", [untitled(first), untitled(second, { started_at_ms: AT + 20_000 })]);
     await act(async () => {});
-    const facts = `billing · started ${clock(AT)}`;
-    await waitFor(() => expect(view.container.querySelector(`[data-node-name="${first.id}"]`)?.textContent).toBe(`${facts} (1)`));
-    expect(view.container.querySelector(`[data-node-name="${second.id}"]`)?.textContent).toBe(`${facts} (2)`);
-    // Never "started" twice (the canvas adds a time only to a name without one).
+    await waitFor(() => expect(view.container.querySelector(`[data-node-name="${first.id}"]`)?.textContent).toBe("billing (1)"));
+    expect(view.container.querySelector(`[data-node-name="${second.id}"]`)?.textContent).toBe("billing (2)");
+    const node = (id: string) => view.container.querySelector(`[data-node-name="${id}"]`)?.closest("[data-testid='canvas-node'], [data-node]") ?? view.container;
+    expect(node(first.id).querySelectorAll("[data-testid='node-when']").length).toBeLessThanOrEqual(1);
+    // Never "started" twice in a node, nor the time in its name.
     expect(view.container.textContent).not.toMatch(/started [^·(]* · started/);
+    expect(view.container.querySelector(`[data-node-name="${first.id}"]`)?.textContent).not.toContain(clock(AT));
   });
 });

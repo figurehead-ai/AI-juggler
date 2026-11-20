@@ -11,7 +11,10 @@ use crate::state::AppState;
 
 /// The model a transcript line records for its turn — top-level
 /// `model` or nested `message.model` (both shapes ship in the wild), or
-/// a Codex rollout's `turn_context` payload (AJ-E1303).
+/// a Codex rollout's `turn_context` payload (AJ-E1303). A line the tool
+/// wrote itself names no model (Claude Code's `<synthetic>` on a limit
+/// hit or an interruption, the rc3g walk's "Model: <synthetic>"), so the
+/// newest real model stands.
 pub(crate) fn line_model(value: &serde_json::Value) -> Option<String> {
     value
         .get("model")
@@ -27,7 +30,27 @@ pub(crate) fn line_model(value: &serde_json::Value) -> Option<String> {
                 .then(|| value.get("payload")?.get("model")?.as_str())
                 .flatten()
         })
+        .filter(|model| *model != juggler_adapters::claude_limits::SYNTHETIC_MODEL)
         .map(str::to_string)
+}
+
+#[cfg(test)]
+mod line_model_tests {
+    use super::line_model;
+
+    #[test]
+    fn a_line_the_tool_wrote_itself_names_no_model() {
+        let real =
+            serde_json::json!({"type": "assistant", "message": {"model": "claude-opus-5-5"}});
+        let synthetic =
+            serde_json::json!({"type": "assistant", "message": {"model": "<synthetic>"}});
+        assert_eq!(line_model(&real).as_deref(), Some("claude-opus-5-5"));
+        assert_eq!(
+            line_model(&synthetic),
+            None,
+            "a limit hit's own line is not a model"
+        );
+    }
 }
 
 /// AJ-E1303: one Codex rollout line's contribution to the quality scan —

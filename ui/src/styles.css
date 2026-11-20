@@ -49,6 +49,40 @@
   --color-danger: #f87171;
   --color-danger-soft: #f871711a;
 
+  /* 0.5 (D-117) — calm surroundings. Agreed names: 0.4.6's pools use
+     them exactly, so never rename. A colour's name never repeats a
+     --text-* size's: Tailwind makes both `text-<name>`, and the colour
+     wins (--color-section turned all 101 `text-section` titles into
+     grey 13 px words; theme-namespaces.test.ts guards it).
+     section-label: section labels (Needs you, Open now; 12 px / 500, capitals),
+       between ink-2 and muted (8.82–11.71:1, Lc 70–74).
+     fill: a filled control in place of its outline (search, segments).
+     divider: the one hairline left, the rail/main split (decorative).
+     count / count-ink: the neutral count badge (13.5:1);
+     count-alarm / -ink: the count badge at L3 only (8.2:1). */
+  --color-section-label: #c3cad5;
+  --color-fill: #181d27;
+  --color-divider: #232a36;
+  --color-count: #d2d8e1;
+  --color-count-ink: #0b0e14;
+  --color-count-alarm: #ff8578;
+  --color-count-alarm-ink: #0b0e14;
+
+  /* 0.5 (D-117) — what is selected, chosen or current: one look
+     everywhere (a segment, a tab, a chip, the rail's current row, a
+     chosen card), unmistakable at a glance yet never loud. A raised
+     fill (selected), its words semibold in ink (selected-ink) and a
+     solid edge (selected-ring) that stands ≥ 3:1 off the unselected
+     items around it (WCAG 1.4.11): 4.94–6.56:1 dark (surface-3 →
+     canvas), 5.73:1 on the filled control (fill). The surface-3 fill
+     alone was 1.16:1 on fill: a lighter grey nobody could read at a
+     glance (the 0.4 review's 32). Neutral, not the accent: the accent
+     stays for actions and keyboard focus, so focus never looks like
+     selection. Agreed names with 0.4.6's pools: never rename. */
+  --color-selected: #242935;
+  --color-selected-ink: #f3f5f9;
+  --color-selected-ring: #8e97a6;
+
   /* Type: native stack, mono for identifiers */
   --font-sans:
     -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", "Segoe UI",
@@ -103,6 +137,27 @@
   --shadow-edge: 0 2px 6px -1px rgba(0, 0, 0, 0.55);
 }
 
+/*
+ * 0.5 (D-117) — the attention levels and the App tone, as plain custom
+ * properties (no utilities of their own). attentionLevel() (lib/attention)
+ * says a thing's level; these say its colour:
+ *   L3 Broken     --level-3       (danger)
+ *   L2 Needs you  --level-2       (warning)
+ *   L1 Note       --level-1-done  (success: to review)
+ *                 --level-1-live  (live: a calm working mark)
+ *   L0 Calm       the four text levels, no hue
+ * An App's icon and mark are muted at rest (--tone-*) and in full colour
+ * when it is at L2/L3, selected or current, hovered or focused (.app-tone).
+ */
+:root {
+  --level-3: var(--color-danger);
+  --level-2: var(--color-warning);
+  --level-1-done: var(--color-success);
+  --level-1-live: var(--color-live);
+  --tone-saturate: 0.25;
+  --tone-opacity: 0.78;
+}
+
 /* Ambient canvas: layered wash instead of flat black. */
 body {
   @apply bg-canvas text-ink font-sans antialiased;
@@ -153,6 +208,21 @@ body {
      clears AA (≥ 4.7:1) on every surface it sits on. */
   --color-danger: #b91c1c;
   --color-danger-soft: #b91c1c14;
+
+  /* 0.5 (D-117): section 7.80–9.66:1; count 12.7:1; count-alarm 6.5:1. */
+  --color-section-label: #3d4553;
+  --color-fill: #ffffff;
+  --color-divider: #e2e6ed;
+  --color-count: #2c3341;
+  --color-count-ink: #ffffff;
+  --color-count-alarm: #b91c1c;
+  --color-count-alarm-ink: #ffffff;
+  /* Selected: the edge 4.59–5.69:1 (canvas-hi → surface), 5.69:1 on the
+     filled control; ink on the fill 15.4:1 (13.3:1 dark). */
+  --color-selected: #e6e9ef;
+  --color-selected-ink: #0e1219;
+  --color-selected-ring: #5f6777;
+  --tone-opacity: 0.72;
 }
 
 [data-theme="light"] body {
@@ -160,6 +230,25 @@ body {
     radial-gradient(1100px 700px at 12% -12%, #5b5bf00a, transparent 60%),
     radial-gradient(900px 600px at 95% 8%, #0891b206, transparent 55%),
     linear-gradient(180deg, var(--color-canvas-hi), var(--color-canvas) 40%);
+}
+
+/*
+ * macOS Increase Contrast (prefers-contrast: more), with no setting of
+ * our own: the one divider rises to the hairline, ghost buttons take a
+ * border, section labels rise to ink-2 and Apps' icons keep half their
+ * colour at full opacity. (0.4.6 takes 0.5's new tokens only; the
+ * hairline's own rise is 0.5's app-wide pass.)
+ */
+@media (prefers-contrast: more) {
+  :root {
+    --color-divider: var(--color-hairline);
+    --tone-saturate: 0.5;
+    --tone-opacity: 1;
+  }
+  :root,
+  [data-theme="light"] {
+    --color-section-label: var(--color-ink-2);
+  }
 }
 
 ::selection {
@@ -240,6 +329,125 @@ body {
  * the window to no endless animation at rest. */
 .dot-live {
   animation: breathe 2.4s var(--ease-out-soft) 3;
+}
+
+/*
+ * 0.5 (D-117) — the calm grammar's own classes (the rail, Home's marks;
+ * 0.4.6's pools reuse the tokens). Kept here, not as utilities, so the
+ * one hidden comparison look (attention-classic.css, 0.5 betas only) can
+ * put the old look back over them. In the components layer, so a
+ * utility on the element still wins (a ghost button's own text colour).
+ */
+@layer components {
+  /*
+   * 0.4.6 (D-126) — the type scale's three steps, one class each, so a
+   * heading never picks its own size, weight and colour:
+   *   .type-title     22 px semibold ink — a page's (or a step's) name
+   *   .type-section   15 px semibold ink — a section's heading
+   *   .section-label  12 px capitals     — a label over a group (below)
+   * and the two text styles under them: body is `text-body text-ink`
+   * (14 px), help is `.type-help` (13 px, muted, two lines at most).
+   * Classes, not theme keys: a `--text-*` beside a `--color-*` of the
+   * same name breaks the size (theme-namespaces.test.ts).
+   */
+  .type-title {
+    color: var(--color-ink);
+    font-size: var(--text-title);
+    line-height: var(--text-title--line-height);
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+  .type-section {
+    color: var(--color-ink);
+    font-size: var(--text-section);
+    line-height: var(--text-section--line-height);
+    font-weight: 600;
+  }
+  .type-help {
+    color: var(--color-muted);
+    font-size: var(--text-meta);
+    line-height: var(--text-meta--line-height);
+  }
+  /* A section's label: Needs you, Open now, Inactive apps, Your apps. */
+  .section-label {
+    color: var(--color-section-label);
+    font-size: var(--text-label);
+    line-height: var(--text-label--line-height);
+    font-weight: 500;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+  }
+  /* A section head's icon belongs to the old look only (Open now's window,
+     Needs you's ⚠): the label says it; attention-classic.css shows it. */
+  .section-icon {
+    display: none;
+  }
+  /* An App's icon or mark at rest: muted, its own shape kept (saturate,
+     never a tint, so no App's colour lands on another). Lit — at L2/L3,
+     selected or current, hovered or focused — it is in full colour. The
+     filter is on the image only; a profile's dot takes the class itself. */
+  .app-tone {
+    filter: saturate(var(--tone-saturate));
+    opacity: var(--tone-opacity);
+    transition:
+      filter 150ms,
+      opacity 150ms;
+  }
+  .app-tone.is-lit,
+  .tone-host:hover .app-tone,
+  .tone-host:focus-within .app-tone,
+  .tone-host[data-lit="true"] .app-tone {
+    filter: none;
+    opacity: 1;
+  }
+  /* A ghost button: words in ink-2, a fill on hover, a border only on
+     focus (and under Increase Contrast, above). */
+  .btn-ghost {
+    border: 1px solid transparent;
+    color: var(--color-ink-2);
+    background: transparent;
+  }
+  .btn-ghost:hover {
+    background: var(--color-surface-3);
+    color: var(--color-ink);
+  }
+  @media (prefers-contrast: more) {
+    .btn-ghost {
+      border-color: var(--color-faint);
+    }
+    /* A filled control keeps an outline under Increase Contrast. */
+    .seg-fill {
+      box-shadow: inset 0 0 0 1px var(--color-hairline);
+    }
+  }
+  /* A count that carries its level (Needs you's head): its glyph before
+     the number, ⚠ at L2 and ✕ at L3 (the shape tells them apart, never
+     the hue alone). */
+  .level-count[data-level="2"]::before {
+    content: "⚠";
+  }
+  .level-count[data-level="3"]::before {
+    content: "✕";
+  }
+  /* A level's mark: a 6 px dot (L2 filled, a hollow ring when inferred),
+     in the level's colour. */
+  .level-mark {
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    flex-shrink: 0;
+    border-radius: 9999px;
+  }
+  .level-mark[data-level="3"] {
+    background: var(--level-3);
+  }
+  .level-mark[data-level="2"] {
+    background: var(--level-2);
+  }
+  .level-mark[data-level="2"][data-probably="true"] {
+    background: transparent;
+    box-shadow: inset 0 0 0 1.5px var(--level-2);
+  }
 }
 
 /*
@@ -387,6 +595,9 @@ main::-webkit-scrollbar-track {
   }
   .dot-live, .animate-breathe, .welcome-rise {
     animation: none !important;
+  }
+  .app-tone {
+    transition: none !important;
   }
 }
 

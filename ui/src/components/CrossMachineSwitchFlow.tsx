@@ -121,7 +121,8 @@ export function CrossMachineSwitchFlow({
   const machine = target.machine_label;
   const projectName = target.projects.find((project) => project.project_id === projectId)?.name ?? "the project";
   const cancel = <CancelButton onClick={close} testId="cross-switch-cancel" />;
-  const badge = mechanism === "transplant" ? target.badge : "Full story, fresh start · Not proven yet";
+  // D-127: a switch to another Mac is listed only with beta switches on.
+  const badge = mechanism === "transplant" ? target.badge : "Full story, fresh start · Beta";
 
   const header = phase.kind === "wizard" && <StepMarks steps={steps} step={step} testId="cross-switch-steps" />;
 

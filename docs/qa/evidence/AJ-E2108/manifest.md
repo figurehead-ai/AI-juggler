@@ -74,6 +74,17 @@ None added; cited: `_gallery/92-session-pages/outside-asks-1280x800-dark.png`,
 `account-menu-open-1280x800-light.png`, `last-messages-off-1280x800-*.png`
 (captured 2026-11-01, a7d543b10).
 
+## Correction (2026-11-16)
+
+The Gate row says `session-pages-gallery.spec.ts` "runs in CI / the gallery
+gate". It didn't: the family wasn't in the gate's GALLERY_SPECS until 0.4.6
+(468e81513), and the gate runs only its `@gate` states (a session another
+app runs that asks you, 1280x800 dark; Accounts with one profile, dark), so
+the rest of the spec still isn't run by CI; scripts/visual_specs_check.py
+(432999cd2) now keeps that visible. Re-run by hand on 468e81513 (2026-11-16,
+the whole spec): 38 passed. The two gate states are compared in CI from
+a2cd59931.
+
 ## Redaction checklist (tick before commit)
 
 - [x] No credentials, tokens, or keys in any file here

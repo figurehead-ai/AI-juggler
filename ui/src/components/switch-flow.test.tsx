@@ -39,7 +39,7 @@ const ONECLICK: PreflightInfoData = {
   source_live: true,
   source_keeps_running: false,
   experimental_copy:
-    "Beta, not proven yet: the whole session moves, with its subagents and file history. The source stays resumable.",
+    "Beta: the whole session moves, with its subagents and file history. The source stays resumable.",
   door: "one-click",
   wizard_steps: [],
   wizard_reasons: [],
@@ -72,7 +72,7 @@ const WIZARD: PreflightInfoData = {
   fidelity_words: "Same conversation, another app",
   door: "wizard",
   wizard_steps: ["Target", "What's carried", "Confirm"],
-  wizard_reasons: ["This switch hasn't been proven on a real setup yet."],
+  wizard_reasons: ["This switch is in beta: AI Juggler is still testing it with these tools."],
   usual_account: false,
   carry: {
     carried: ["The whole conversation"],

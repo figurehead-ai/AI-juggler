@@ -32,7 +32,7 @@ pub(crate) fn info(storage: &Storage, task: &Task) -> TaskInfo {
     let holder_session_id = task
         .assignee_ref
         .as_deref()
-        .and_then(|holder| crate::features::messages::live_session_of(storage, holder))
+        .and_then(|holder| crate::features::messages::session_now(storage, holder))
         .map(|session| session.to_string());
     let you = |who: &str, name: &str| {
         if who == TASK_USER {
@@ -377,7 +377,7 @@ fn sessions_of(
     task_id: &str,
     names: &HashMap<String, String>,
 ) -> AppResult<Vec<TaskSessionInfo>> {
-    let live: std::collections::HashSet<String> = storage
+    let mut live: std::collections::HashSet<String> = storage
         .sessions()
         .live()
         .unwrap_or_default()
@@ -385,6 +385,14 @@ fn sessions_of(
         .filter(|r| crate::features::messages::is_live(r.status))
         .map(|r| r.id.to_string())
         .collect();
+    // AJ-E3013 (run 3): a desktop session runs while it's attested.
+    live.extend(
+        storage
+            .attested()
+            .fresh()
+            .into_iter()
+            .map(|facts| facts.session.as_str().to_owned()),
+    );
     Ok(storage
         .tasks()
         .sessions_of(task_id)?
@@ -466,10 +474,18 @@ pub fn detail(state: &Arc<AppState>, task_id: &str, cursor: Option<&str>) -> App
             .get(task_id)?
             .map(|t| t.pool_id)
             .ok_or_else(|| AppError::Refused("That task isn't there any more".to_owned()))?;
+        // AJ-E3013 (run 3): and its desktop sessions, named as the
+        // diagram names them.
+        let desktop = crate::features::connector::reach::of_pool(state, &pool).unwrap_or_default();
         crate::features::messages::roster(state, &pool)
             .unwrap_or_default()
             .into_iter()
             .map(|m| (m.session_id, m.name))
+            .chain(
+                desktop
+                    .into_iter()
+                    .filter_map(|one| Some((one.session?, one.name))),
+            )
             .collect()
     };
     let storage = lock_storage_arc(state)?;

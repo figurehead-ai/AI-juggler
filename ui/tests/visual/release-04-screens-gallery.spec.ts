@@ -47,7 +47,7 @@ for (const theme of THEMES) {
       await page.getByTestId("switch-continue").click();
       await expect(page.getByTestId("switch-step-confirm")).toBeVisible();
       await expect(carry).toBeVisible();
-      await carry.locator("summary").click();
+      await page.getByTestId("switch-carry-choice-toggle").click();
       await page.getByTestId("carry-last").check();
       await expect(page.getByTestId("carry-loses")).toBeVisible();
       await carry.scrollIntoViewIfNeeded();

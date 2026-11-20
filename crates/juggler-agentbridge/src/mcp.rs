@@ -153,7 +153,7 @@ fn with_pool(tools: &mut Value) {
     let pool = json!({
         "type": "string",
         "maxLength": 200,
-        "description": "Which of your pools this is for: its id or its name, from whoami's pools. Leave it out when you're in one pool; name it on a write when you're in several.",
+        "description": "Which of your pools this is for: its id or its name, from whoami's pools; a project's own pool also by its project's name (\"web\"). Leave it out when you're in one pool; name it on a write when you're in several.",
     });
     for tool in tools.as_array_mut().into_iter().flatten() {
         if let Some(properties) = tool
@@ -217,11 +217,11 @@ fn message_tools(looks: &Value, writes: &Value) -> Value {
         {
             "name": "send_message",
             "title": "Message the pool",
-            "description": format!("Writes to one member of this session's pool (its session_id from pool_roster), to the whole pool (\"pool\") or to the user (\"user\"). It lands in their inbox; whether it is also put into their session is the user's choice in AI Juggler. At most {BODY_MAX} characters. Answer in the same thread by passing its id. Loops are capped: a thread pauses after 6 agent messages in a row without the user. Use this for anything meant for the pool or the user, rather than another way of messaging: only a message sent here reaches the pool's inboxes."),
+            "description": format!("Writes to one member of this session's pool (its session_id or its name, from pool_roster), to the whole pool (\"pool\") or to the user (\"user\"). It lands in their inbox; whether it is also put into their session is the user's choice in AI Juggler. At most {BODY_MAX} characters. Answer in the same thread by passing its id. Loops are capped: a thread pauses after 6 agent messages in a row without the user. Use this for anything meant for the pool or the user, rather than another way of messaging: only a message sent here reaches the pool's inboxes."),
             "inputSchema": {
                 "type": "object",
                 "properties": {
-                    "to": {"type": "string", "description": "A member's session_id, \"pool\" or \"user\"."},
+                    "to": {"type": "string", "description": "A member's session_id or its name as pool_roster gives it, \"pool\" or \"user\"."},
                     "body": {"type": "string", "maxLength": BODY_MAX},
                     "subject": {"type": "string", "maxLength": SUBJECT_MAX, "description": "One line; a new thread's subject."},
                     "kind": {"type": "string", "enum": ["note", "question", "answer", "handoff", "review_request", "status"]},

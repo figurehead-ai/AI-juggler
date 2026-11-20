@@ -119,7 +119,7 @@ describe("design review 25/34 — a result lands on its row", () => {
     const { getByTestId, findByTestId } = render(<NotificationsPane anchor={hit.rowAnchor} />);
     const row = await findByTestId("quiet-hours");
     await waitFor(() => expect(row.hasAttribute("data-settings-hit")).toBe(true));
-    expect((getByTestId("notifications-more") as HTMLDetailsElement).open).toBe(true);
+    expect(getByTestId("notifications-more").hasAttribute("data-open")).toBe(true);
     expect(document.activeElement?.id).toBe("settings-notifications-title");
     const title = document.getElementById("settings-notifications-title")!;
     expect(title.className).toContain("w-fit");

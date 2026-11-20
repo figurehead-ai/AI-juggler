@@ -1,0 +1,16 @@
+# Evidence manifest — AJ-E812
+
+Task: `docs/tasks/E8-validation-visual-performance-quality.md` AJ-E812,
+the web content's and GPU process's brief spikes traced. Record:
+[`docs/qa/evidence/AJ-E805/idle-0.4.6.md`](../AJ-E805/idle-0.4.6.md).
+Built on release/0.4.6, 2026-11-16; verified by Opus (claude-opus),
+every reading checked against its CSV and the app's own log. No
+debugger or profiler was attached to any process.
+
+| Req | Result | Evidence |
+|---|---|---|
+| R1 | PASS | Reproduced on the AJ-E805 lab (PD3 + replica, imported; 10 working; window shown): this round's run 2 (a measurement build of 078fe682f, the current code) read 2.71, 3.65 and 3.09 % at load 48–95 with nothing new on the page, against 1.3–1.9 % at load 9–27; round 5's two builds (0.4.5's code before and after the one reader, `idle-0.4.5.md`) spiked the same way at load 19–40. The cause was found from what the page and the app did in those minutes, read from inside the page (a counted-renders probe: commits, renders, rAF, timers, animations, DOM writes, events, commands, each second) and from the app's own system log, with `ps` by pid: no animation, rAF or timer of the page's own ran; the page's routine work (19–30 commits, 4–8 seconds with a DOM write, ~45 events a minute) cost the web content and GPU process 5–10× more under real contention; outside events (display reconfigurations, the app made active, the window moved or closed from outside) made the rest. A 0.4.4 build wasn't run: 0.4.4 still had the endless This Mac dot (22 % shown, `idle-0.4.5.md` round 1), so its readings can't show a spike. |
+| R2 | PASS | Fixed where it is, each with a test that fails without it: c003c0c75, `processes://counts` told only when the top bar's count moves (`tests/processes.rs::counts_the_top_bar_doesnt_show_tell_the_window_nothing`; on the old rule it fails at tick 1); be1e423f6, an App's icon, profile badge and kind mark draw only when their own props change (`components/leaf-draws.test.tsx`; without `memo` "expected 14 to be 4"). No interval was raised; readings were dropped only by the system-log rule, each listed with its reason in the record. b11d39e1b makes `idle_renders.mjs`'s counts exact (the known-renders check in its message). |
+| R3 | PASS | The bar holds with the fixes: the after build (078fe682f + c003c0c75 + be1e423f6), shown with ten working, 60 s readings at low load 1.45 1.71 1.64 1.78 1.58 1.31, median **1.61 %**, none over 3 %, none over 2 % (`idle_run.sh`, seven launches each of before and after, alternating, 2026-11-16). The share over 2 %, low load: before 2 of 5 (1.42 2.20 2.03 1.55 1.48, median 1.55), after 0 of 6; with the pair taken at load 67–78: before 3 of 6 (7.10 at load 73), after 1 of 7 (2.33). Hidden medians 0.83 and 0.80. At low load the fixes' own CPU is inside the readings' spread (pairs differ by −0.23 to +0.49, the larger where the before reading had the higher load); the record says so. Dropped readings are listed with their system-log causes |
+
+Quality gates: five kept 60 s runs (six), shown with ten working, none over 3 %, the median under 2 % (1.61 %; the first five 1.64 %). Tests: `cargo test -p juggler-app --test processes` 5/5 and the lib's processes tests 40/40; vitest `leaf-draws`, `app-icon`, `app-kind-badge`, `palette-evidence`, `RowView` 35/35; tsc; ui-lint (no new finding in these files); rustfmt.

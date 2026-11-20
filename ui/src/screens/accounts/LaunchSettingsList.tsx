@@ -51,7 +51,10 @@ export function liveWords(live: number): string | null {
 }
 
 /** A profile's launch settings: each with its model, folder and options,
- * Launch, and a new set. */
+ * Launch, and a new set. Where it sits is its host's: the profile row
+ * sets it in from the row's edges, a CLI App page's tab puts it on the
+ * page's column (the 0.4.6 RC walk A8: a negative margin there undoing
+ * this one's made the page scroll sideways). */
 export function LaunchSettingsList(props: LaunchSettingsProps): JSX.Element {
   // D-60: deleting asks first (one click used to delete them and their sessions).
   const [deleting, setDeleting] = useState<LaunchRecipeInfo | null>(null);
@@ -60,7 +63,7 @@ export function LaunchSettingsList(props: LaunchSettingsProps): JSX.Element {
   const envFor = props.setEnvFor ? (props.envFor ?? null) : ownEnvFor;
   const setEnvFor = props.setEnvFor ?? setOwnEnvFor;
   return (
-    <div className="mx-5 mb-3 divide-y divide-hairline rounded-xl border border-hairline bg-surface-2/40" data-testid="profile-launch-settings">
+    <div className="divide-y divide-hairline rounded-xl border border-hairline bg-surface-2/40" data-testid="profile-launch-settings">
       <div className="flex items-center justify-between px-4 py-2">
         <span className="text-meta font-semibold text-ink">Launch settings <span className="font-normal text-muted">· used when this app starts</span></span>
         <span className="flex items-center gap-1">

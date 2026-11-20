@@ -39,5 +39,6 @@ banners: number,
 digest: NoticeDigestInfo, 
 /**
  * Changes whenever any list does: the window reads its lists again.
+ * Within JavaScript's exact integers (below 2^53), as it reads it.
  */
 version: number, };

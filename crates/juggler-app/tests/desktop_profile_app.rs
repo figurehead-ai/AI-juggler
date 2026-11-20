@@ -680,7 +680,8 @@ fn a_desktop_profiles_sessions_are_exactly_its_own_records() {
     assert_eq!(page(of_app(&cli)), ["term-1", "term-2"]);
     // History lists all 9; its App filter offers each App with its own count.
     assert_eq!(page(SessionsQuery::default()).len(), 9);
-    let facets = sessions_facets_impl(&state, &SessionsQuery::default()).unwrap();
+    let facets =
+        sessions_facets_impl(&state, &SessionsQuery::default(), &Default::default()).unwrap();
     let apps: Vec<(String, u64)> = facets
         .apps
         .into_iter()

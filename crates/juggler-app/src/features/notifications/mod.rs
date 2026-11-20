@@ -105,6 +105,9 @@ pub struct Notifier {
     kept_rows: Mutex<Option<needs::KeptRows>>,
     /// How many times Needs you read those rows from storage.
     rows_read: std::sync::atomic::AtomicU64,
+    /// NY1 (0.4.6 rc3a): the views are told one change at a time
+    /// ([`views::refresh_on`]), in the order each was worked out.
+    telling: Mutex<()>,
 }
 
 impl Default for Notifier {
@@ -126,6 +129,7 @@ impl Default for Notifier {
             needs_signature: Mutex::new(None),
             kept_rows: Mutex::new(None),
             rows_read: std::sync::atomic::AtomicU64::new(0),
+            telling: Mutex::new(()),
         }
     }
 }
@@ -212,6 +216,14 @@ impl Notifier {
         accounts
     }
 
+    /// AJ-E1612: forgets the accounts' sign-ins as last checked, so the
+    /// next [`Self::sign_ins`] checks them again (a sign-in just ended).
+    pub fn forget_sign_ins(&self) {
+        if let Ok(mut cached) = self.sign_ins.lock() {
+            *cached = None;
+        }
+    }
+
     /// D-49: the session rows Needs you kept, when still `fresh`; else
     /// `read` reads them, and they are kept.
     pub fn session_rows(
@@ -238,6 +250,15 @@ impl Notifier {
     #[must_use]
     pub fn session_rows_read(&self) -> u64 {
         self.rows_read.load(Ordering::Relaxed)
+    }
+
+    /// NY1 (0.4.6 rc3a): held while the views are told of a change, so
+    /// two told at once (a command's, the tick's) reach them in the order
+    /// they were worked out. A poisoned one still tells.
+    pub(crate) fn telling(&self) -> std::sync::MutexGuard<'_, ()> {
+        self.telling
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
     }
 
     /// D-49: records what Needs you is now; `true` when it is what it was.

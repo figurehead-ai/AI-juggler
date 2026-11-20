@@ -11,12 +11,14 @@ description = "Audited process listing shim (D-110): every process's pid, parent
 # baseline, made like D-17's juggler-scap-init, D-26's juggler-login-item,
 # D-27's juggler-vm-stats and ADR-0026's juggler-window-events. By NOT
 # inheriting `[lints] workspace = true`, `unsafe_code = "forbid"` does not
-# apply here; every other crate keeps it. The crate holds exactly five
+# apply here; every other crate keeps it. The crate holds exactly seven
 # `unsafe` blocks (the `sysctl(KERN_PROC_ALL)` asking how much room the
 # records take, and the one reading them into a byte buffer; zeroing one
-# `proc_taskinfo`, and `proc_pidinfo` filling it; and, once per run,
+# `proc_taskinfo`, and `proc_pidinfo` filling it; zeroing one
+# `proc_uniqidentifierinfo`, and `proc_pidinfo` filling it, for a pid's
+# version (AJ-E3013 L4, 2026-11-15); and, once per run,
 # `mach_timebase_info`, the ratio the record's CPU times are counted in),
-# each with its SAFETY note, behind two safe functions.
+# each with its SAFETY note, behind three safe functions.
 # macOS-only: elsewhere the crate is a safe stub that lists nothing (its
 # callers read the process table as before).
 [target.'cfg(target_os = "macos")'.dependencies]

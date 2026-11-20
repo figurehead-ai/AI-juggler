@@ -80,7 +80,8 @@ headroom_tokens: number | null,
 runway: RunwayDisplay | null, 
 /**
  * Where the reading behind this window came from (`statusline`,
- * `rollout`, `desktop_app`, `usage_cache`, `api_retry`), when known.
+ * `rollout`, `desktop_app`, `usage_cache`, `api_retry`, `driven`),
+ * when known.
  */
 source: string | null, 
 /**

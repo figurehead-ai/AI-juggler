@@ -1,0 +1,135 @@
+<!-- captures: 2c4fde4a784d -->
+# 98-pool-setup: the pool setup a newcomer understands (AJ-E3011)
+
+Design critique (D-57, AJ-E2814) against the reference screens: Settings' choice lines, the switch dialog's "What does this mean?", and the calm UI round 2 mocks (levels, section labels, surface tone). Every step of New pool, empty (the first pool: the intro full, nothing chosen, the defaults filled in) and filled (a name, two Apps, an App's next session leading, a Reviewer, a pair blocked, waking, the seal), dark and light, 1280×800. Fixture names only.
+
+## Checklist
+
+| Check | Finding |
+|---|---|
+| Grid | The step list (240 px) and one content column (max 768 px for a form, the Who's in list with its side panel) on the page's 24 px gutter; the foot spans the window. |
+| Hierarchy | Step title (15 px semibold) → its why-line (ink-2) → labels (13 px medium, ink) → read-back sentences (ink) → hints (muted). Section labels are the calm small capitals (`section-label`). |
+| Spacing | One scale: 20 px between a step's groups, 8 px inside a group, 2 px between list lines (no dividers). |
+| Icons | The roles carry their own icons (Lead's crown, Member's list, Reviewer's tick, Observer's eye); Start from scratch its plus. No icon on a section label. |
+| Shared controls | Picker (join as, a member's Role: and On its own:, More kinds, Add a project), the calm Segmented (where, Apps / Sessions / More), ChoiceOption (the lead picker, what they may do on their own, the seal), the app's disclosure (the intro, "What does this mean?"), the Button primitive (Review's Turn on). |
+| Disabled reasons | Lead on an App's role picker is greyed with its reason ("Lead is one session…"); Make pool shows only once Who's in is reached. |
+| Plain words | No "Level", no "From ↓ · To →", no "Blank", no "talk: allowed", no "full / shell only / watched": Look only / Work together / Work together and wake each other; "Lead can message…"; "Start from scratch"; "everyone may message", "kept apart"; "2 apps, and every new session in storefront"; each choice read back as a sentence. |
+| Type sizes | 12 px floor (the role cards' holders line, segment words); body 14, meta 13. |
+| Both themes | Checked dark and light: the selected segment's edge (0.5's selected-ring) reads in both; the talk table's amber Ask first and red Blocked keep AA. |
+| 1280×800 | Every step fits without scrolling except Review filled, which scrolls inside its column (its Change buttons keep it keyboard-reachable). |
+
+## Good
+
+- The order is visible on every step (the side list with ticks) and the foot always says what the rest is filled in with, so "Make pool" from Who's in on is safe.
+- Who leads is never empty: sessions open now, each App's next session, or "No lead for now" with what a lead adds.
+- Colour only where it means something: the talk table's one exception stands out (amber dot, red ⊘), Allowed is muted text.
+- The intro is three lines and a small diagram on the first pool, a one-line fold afterwards.
+
+## Weak
+
+- The Everyone else step reads its join line twice (the labelled picker, then the sentence under it); kept, since the sentence is the read-back the spec asks for, but it is the one repeat on the screens.
+- The lead picker's radios sit at the right edge (the shared choice line's layout); a long list of open sessions puts them far from the names on a wide window.
+- Who's in's Sessions segment counts every session it could add (8: open and recent), while the App rows count open ones ("5 open now"); both true, but read side by side.
+- On their own's legend ("What sessions in this pool may do on their own") repeats the step's title above it.
+
+## Fixed
+
+- (The coordinator's check) Start from scratch let an Observer message everyone, against its role card ("Watches and reads. Changes nothing.") and every template; its sends are blocked by default now, its own row calm, and the review says "an Observer only reads".
+- (The coordinator's check, follow-up) The foot under Who's in to On their own still said "Everyone may message everyone." while the table blocked an Observer; it reuses the Review's sentence now ("…; an Observer only reads."), so table, foot and Review agree.
+
+- (This branch) The step heading lacked weight against its why-line; semibold now.
+- (This branch) Review's long filled column had nothing to focus in it (axe: a scrolling region); each sentence now has its Change, back to that step.
+- (This branch) "Everyone in this pool's projects" named by its scope: "Everyone in storefront".
+
+## Round 2 (AJ-E3011, after the two newcomer walks): every step, both themes
+
+Checked by eye, dark and light, empty and filled, against the calm rules (L0 surroundings, colour only where it means something, surface tone over borders, one selection ring) and the checklist above.
+
+| Step | What changed, and the check |
+|---|---|
+| How to start | The intro's first line defines a pool ("a team of your AI sessions working on the same projects"); each template's chips in plain words ("everyone may message", "members ask before messaging each other", "look only", "kept apart"), muted 12 px. Cards surface-toned, Start from scratch with the one ring. Pass, both themes. |
+| Where | Unchanged. Pass. |
+| Who's in | One line above the kinds says what adding brings ("Add whole apps — every session they start here joins — or single sessions open now"); Apps and Sessions are segments, Accounts, Tools, Macs and Everyone under More. The side panel says who's in, in words ("2 apps, and every new session in storefront"), each by name with its kind, "Everyone in storefront" saying what it is; no jargon counters. Pass; one weak point above (the Sessions count). |
+| Who leads | The why-line makes leaving it a choice ("Pick one to be in charge, or leave it for now"); an App's row says it leads from its next session in storefront and that Start one now comes on its card once the pool is made; the read-back says "(none is open now)" when that's so. The No lead group sits a group gap (12 px) below the App rows, as a separate choice. Pass. |
+| Everyone else | The roles are a plain reference ("What each role does": icon, name, line, who holds it; no surface, edge or hover). Each member's pickers are labelled (Role:, On its own:); the App whose next session leads is one row, "Leads next" with its crown, "Its others: Member", and its sentence ("its next session leads; its others join as Member…"). Pass, both themes. |
+| Who may message whom | Unchanged since the Observer fix; the Observer's row calm ⊘ Blocked, the sentence says "an Observer only reads". Pass. |
+| On their own | Radios, each with its consequence; a line under the label says what it covers and what stays with each app; waking's example shows at once under it (and the chosen one's). The chosen line has the shared selected fill. Pass; the legend repeats the title (weak). |
+| Review | A Team tools line: "Off: they can't message yet." with what they give, the cost, "asked once" and a link to Settings › Agent access, and Turn on in the Change column; "On: …" once on. The leading App reads as one member. Pass. |
+
+- Moved by round 2 (all 32 captures): the foot's and steps' words, the chips, the kinds row and side panel, the role reference, the labelled pickers, the radios on On their own, Review's Team tools line.
+
+## Round 3 (AJ-E3011): one control per setting, both paths
+
+New pool and the diagram now share every control and sentence (the lead control with its read-back, the team tools card, On their own, the summary); `paths-parity.test.tsx` fails if they drift. On these screens, dark and light:
+
+- Who leads: the read-back is the lead control's own; the note "Once the pool is made, Start one now on its App's card starts that session." sits under it (only a made pool can start one). Pass.
+- Everyone else: an App's role picker reads "Role: Lead: its next session leads" when its next session leads (chosen here or in Who leads); a wider group says why it can't lead, beside its picker. Pass.
+- Who may message whom: the line above the table says what Needs you is ("the list of things waiting for your OK, on Home"). Pass.
+- Review: the Team tools sentence, then the full team tools card (the diagram's own) in place of round 2's extra line. Pass.
+
+## Round 4 (AJ-E3011): the team tools asked once, defaults count, what happens next, "takes charge"
+
+Checked by eye, dark and light, empty and filled (the container's baselines and the evidence captures):
+
+- setup-tools-empty (new): D-30's one question is New pool's own step 8, "Team tools", while it's unanswered (the empty path; the filled seed has answered, so it has 8 steps). The card is the pool page's own (one component): the question as its title, what they get, "It costs nothing extra…", "You can switch it off per project or app in Settings." with Settings as a link, then the filled primary "Yes, let them work together" and a secondary "Not now". The step's why-line says it's asked once. Pass, both themes; the card's 768 px column matches the other steps.
+- Every empty step: the side list reads 1-9 with Team tools before Review; On their own's foot says "Next: Team tools".
+- Who leads (filled) and Everyone else (filled): an App's next session "takes charge as soon as one of its sessions starts in storefront"; its role reads "Lead, once one of its sessions starts" with the badge "Lead when a session starts". Pass.
+- Review: Team tools is one line (with Turn on while unanswered; "On: …" once answered), the card having its own step; under the sentences, "What happens next: Open a session in ai-juggler: it joins; their messages show here." from the shared sentences (the diagram's ready box says the same). Pass.
+- Weak: Review filled at 1280×800 puts What each member can do and What happens next below the fold (the column scrolls; Make pool stays in the foot).
+- Weak: while unanswered, Review's Team tools row offers Turn on right after the step that asked; both are the same action, said once each.
+
+## Sam's round-4 follow-ups
+
+- setup-tools-empty: the question's scope line reads "This is for every pool you make; you can switch it off for a project or an app in Settings." (was "You can switch it off per project or app in Settings."). Checked dark and light. Pass.
+
+## Round 5 (AJ-E3011, Sam's diagram path and Casey's PC1 walk)
+
+Checked by eye, dark and light:
+
+- empty-pool-setup (new): an empty pool's page is New pool's own flow in place: "Set up Docs crew", the same steps and template cards inside the pool page's card, "Show the diagram" quiet at the top right, Next in the foot and no Cancel. Pass.
+- setup-talk (empty and filled): "Click a cell to change it." above the table, and each cell is a button that looks like one (surface-2 with a hairline edge). Pass.
+- setup-everyone: "New sessions in storefront join as:" with its picker. Pass.
+- setup-tools-empty: the card says "It costs nothing extra. Your assistants use their own turns only when they act." and "This is a setting in AI Juggler; it changes nothing in your apps." Pass.
+- Weak: the template grid's last row is cut at the empty pool's 800 px height (it scrolls inside the step).
+
+## Round 6 (AJ-E3011)
+
+Checked by eye, dark and light:
+
+- setup-everyone-filled: each member's name has its row's width ("Claude Code CLI · Work Max", "Lead when a session starts" under it), its Role and On its own pickers on the next line, then its sentence; the hint above reads "Its role, and On its own: what this member may do without asking, if different from the pool." (round 6 #8, #9). Pass.
+- Not in these captures (unit- and browser-tested): Review lists what can't work yet (a desktop App without the connector, with its reason in words) and never says ready then; it ends with the first prompt to give, with Copy; from a project's own pool the templates sit under a closed "Or start from a template"; Apps the pool couldn't take are named in a toast with why, never dropped silently; Who leads says why a desktop App can't lead; New pool's footer is never under a toast; the empty pool shows a skeleton while its rules load.
+- empty-pool-setup re-rendered with under 50 px of noise and was left as committed.
+
+## Section titles fixed (2026-11-16)
+
+Section titles re-rendered (6db085536): a colour token named like a type size (`--color-section` beside `--text-section`) had Tailwind build `.text-section` as a colour only, so every section title in the captures from 56f98a514 on was about 13 px regular grey. Re-captured and checked by eye against the earlier captures:
+
+- Every capture: the step's title is 15 px semibold ink again, above its why-line, as Hierarchy says (round 2's "semibold now" held in the code but the captures showed it grey and regular); the step's content sits 3-4 px higher, so Review (filled) shows the top of "What each member can do here"'s card at its foot. Wording, controls and states are unchanged. Pass.
+
+## Round 7 (AJ-E3011, after the round-6 done-gate walks)
+
+Checked by eye, dark and light:
+
+- Every capture: the side list's step 5 reads "Who builds, who checks" (Sam missed that "Everyone else" is where the reviewer is picked).
+- setup-everyone (empty, filled): the step's title is "Who builds, who checks", its line "Each member's role, and how new sessions join." Pass.
+- setup-lead: the footer's "Next: Who builds, who checks". setup-review: the row "Who builds, who checks" (two lines in its label column, like "Who may message whom"). Pass.
+- setup-template-filled and empty-pool-setup: the closed "What a pool is" no longer keeps an empty 8 px gap (the app's Disclosure is a button now), so How to start and the templates sit 8 px higher. Pass.
+- Who's in asking for the connector on a desktop App's own row is in 99-desktop-connector/new-pool (these captures' Apps are CLI ones).
+
+## 0.4.6 rc3: the setup redesigned to the mock-ups (D-126, 2026-11-18)
+
+Checked side by side with `d126-rich-ui` who and review in both themes. The coordinator approved round 2.
+
+- **setup-who-* (Who's in):** the order the mock has.
+  - The "Every new session in <where>" card, then "Your apps" as logo cards.
+  - Each card leads with the App's own short name ("Work Max", "Personal"), the preview's name, with "Claude Code CLI · Terminal" under it.
+  - Then "Sessions open now in <where> N" with each row's check, and "More ways to add: a Mac, an account or a tool" as a closed fold.
+  - The Apps/Sessions/More switch is gone (5340bf42f). Pass.
+- **setup-review-*:** opens at its top: its heading, then the state card, then one short sentence a row (49f802c69; the gallery checks each step's title is in view as it opens). The rules in full are one click away. Pass.
+- **All steps:** a step's visible text breaks where its accessible name does (number, step, value; 63a1f9cb3). The step list draws as before. Pass.
+- **setup-lead-filled, setup-own-filled, setup-talk-filled:** captured after the walk clicks a control low on the step, so they show it scrolled to that control. Their titles were in view when each step opened. Pass.
+- **Kept deviations from the mock:**
+  - The storefront fixture has two Claude Code CLI Apps, so there is no connector notice on Who's in.
+  - Logos are generic in the gate's container, because installed apps' icons are read at run time (D-38).
+  - Review adds "What each member can do here" (parity with the canvas).
+  - The step count follows the fixture: Team tools is asked only where it isn't answered (8 or 9 steps).

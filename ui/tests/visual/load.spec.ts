@@ -233,6 +233,55 @@ test("the board scrolls to its last Instance in under 300 ms", async ({ page }) 
   record("rail: scroll the board to its last Instance", 300, runs);
 });
 
+/** In the page: click `click`, then wait for `done` and the frame that
+ * paints it (no Playwright round trip inside the timing). */
+async function clickToPaint(page: Page, click: string, done: string): Promise<number> {
+  return page.evaluate(
+    async ({ click, done }) => {
+      const start = performance.now();
+      document.querySelector<HTMLElement>(click)!.click();
+      await new Promise<void>((resolve) => {
+        const check = () => {
+          if (!document.querySelector(done)) return false;
+          observer.disconnect();
+          requestAnimationFrame(() => resolve());
+          return true;
+        };
+        const observer = new MutationObserver(check);
+        observer.observe(document.body, { childList: true, subtree: true, attributes: true });
+        check();
+      });
+      return performance.now() - start;
+    },
+    { click, done },
+  );
+}
+
+// AJ-E3011 round 4: New pool opens, and steps forward and back, within
+// 100 ms at scale (the walk: each Next felt slow). Read once on open; a
+// step never reads the backend again.
+test("New pool opens, and steps Next and Back, in under 100 ms", async ({ page }) => {
+  await open(page);
+  await goTo(page, "Pools");
+  await expect(page.getByTestId("pools-new")).toBeVisible();
+  const opens: number[] = [];
+  const nexts: number[] = [];
+  const backs: number[] = [];
+  for (let i = 0; i < 5; i++) {
+    opens.push(await clickToPaint(page, '[data-testid="pools-new"]', '[data-testid="new-pool-step-template"]'));
+    // D-126: the steps beside are the kit's FlowSteps (in groups), each by its id.
+    const steps = await page.locator('[data-testid="new-pool-steps"] [data-testid="flow-step"]').evaluateAll((all) => all.map((one) => one.getAttribute("data-step") ?? ""));
+    const current = (step: string) => `[data-testid="new-pool-steps"] [data-testid="flow-step"][data-step="${step}"][aria-current="step"]`;
+    for (let at = 1; at < steps.length; at++) nexts.push(await clickToPaint(page, '[data-testid="new-pool-next"]', current(steps[at]!)));
+    for (let at = steps.length - 2; at >= 0; at--) backs.push(await clickToPaint(page, '[data-testid="new-pool-back"]', current(steps[at]!)));
+    await page.keyboard.press("Escape");
+    await expect(page.getByTestId("new-pool")).toHaveCount(0);
+  }
+  record("pools: New pool opens to its first step", 100, opens);
+  record("pools: New pool's Next to the next step", 100, nexts);
+  record("pools: New pool's Back to the step before", 100, backs);
+});
+
 for (const theme of ["dark", "light"] as const) {
   for (const [width, height] of [
     [1440, 900],

@@ -396,6 +396,23 @@ pub async fn pools_set_talk(
     .await
 }
 
+/// AJ-E3011: the App whose next session leads the pool (`None`: clear).
+///
+/// # Errors
+///
+/// As [`super::lead_next::set_impl`].
+#[tauri::command]
+pub async fn pools_set_lead_next(
+    state: tauri::State<'_, Arc<AppState>>,
+    pool_id: String,
+    app: Option<String>,
+) -> AppResult<Option<String>> {
+    crate::ipc::blocking(state.inner(), "the pool", move |state| {
+        super::lead_next::set_impl(state, &pool_id, app.as_deref())
+    })
+    .await
+}
+
 /// A pool's member rules and talk settings.
 ///
 /// # Errors

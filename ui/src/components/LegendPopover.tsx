@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, useState } from "react";
+import { useInertOutside } from "../lib/inert";
 import { createPortal } from "react-dom";
 import { IndicatorLegend } from "./indicator";
 
@@ -19,6 +20,8 @@ export function LegendPopover({
   const [place, setPlace] = useState<{ left: number; top?: number; bottom?: number; maxHeight: number } | null>(null);
   const buttonRef = useRef<HTMLButtonElement | null>(null);
   const panelRef = useRef<HTMLDivElement | null>(null);
+  // AJ-E3011 round 4: the page under it is inert while it's open.
+  useInertOutside(panelRef, open && place !== null);
   const toggle = () => {
     if (open) {
       setOpen(false);
@@ -61,6 +64,7 @@ export function LegendPopover({
         ref={buttonRef}
         type="button"
         aria-expanded={open}
+        aria-haspopup="dialog"
         aria-controls={panelId}
         aria-label="Indicator legend"
         onClick={toggle}

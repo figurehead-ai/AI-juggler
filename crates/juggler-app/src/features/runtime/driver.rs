@@ -59,6 +59,9 @@ pub struct Snapshot {
     pub ended: bool,
     /// A turn runs.
     pub turn_running: bool,
+    /// The tool has written the conversation: it was resumed, or a turn
+    /// began (AJ-E2310: what a restart can resume).
+    pub written: bool,
     /// The open asks, oldest first.
     pub asks: Vec<AskInfo>,
     /// The recent conversation.
@@ -71,6 +74,10 @@ pub struct Snapshot {
     pub limits: Option<LimitsSnapshot>,
     /// The last error.
     pub error: Option<String>,
+    /// Who sent the delivered message that started the running turn, while
+    /// the tool hasn't reported its text yet (F-rc3g-9: that text is never
+    /// the person's own).
+    delivered_unseen: Option<String>,
 }
 
 /// A driven session, as the app holds it.
@@ -234,15 +241,27 @@ impl Snapshot {
             }
             RuntimeEvent::TurnStarted { origin, .. } => {
                 self.turn_running = true;
+                self.written = true;
                 self.streaming.clear();
                 // D-29: a delivered turn says what started it.
+                self.delivered_unseen = None;
                 if let Some(TurnOrigin::Delivered { sender }) = origin {
                     self.push("delivered", format!("Started by a message from {sender}"));
+                    self.delivered_unseen = Some(sender.clone());
+                }
+                false
+            }
+            // F-rc3g-9: what the turn was given. A delivered message is
+            // said by its own line above; the rest is the person's.
+            RuntimeEvent::Item { item } if item.kind == ItemKind::UserMessage => {
+                if self.delivered_unseen.take().is_none() {
+                    self.push(kind_word(item.kind), item.text.clone());
                 }
                 false
             }
             RuntimeEvent::TurnEnded { .. } => {
                 self.turn_running = false;
+                self.delivered_unseen = None;
                 let text = std::mem::take(&mut self.streaming);
                 if self.items.back().is_none_or(|last| last.text != text) {
                     self.push("agent_message", text);
@@ -316,6 +335,7 @@ impl Driver {
         let (tx, rx) = std::sync::mpsc::channel();
         let snapshot = Arc::new(Mutex::new(Snapshot {
             native_id: tool.native_id(),
+            written: meta.resumed,
             ..Snapshot::default()
         }));
         let socket = meta.socket.clone();
@@ -392,6 +412,7 @@ impl Driver {
             items: snapshot.items.iter().cloned().collect(),
             streaming: Some(snapshot.streaming.clone()).filter(|s| !s.is_empty()),
             model: snapshot.model,
+            written: snapshot.written,
         }
     }
 
@@ -504,6 +525,8 @@ pub struct Meta {
     pub socket: Option<PathBuf>,
     /// The tool can add to a running turn.
     pub can_steer: bool,
+    /// It resumed a conversation (so the tool has written it).
+    pub resumed: bool,
 }
 
 fn words(error: &AdapterError) -> String {
@@ -705,6 +728,51 @@ const fn at_a_boundary(event: &RuntimeEvent) -> bool {
     )
 }
 
+/// What waits for the session's record (it is written just after the
+/// start): the conversation to link, and the tool's last limits update to
+/// keep as its account's reading (F-rc3g-1).
+#[derive(Default)]
+struct Unstored {
+    link: Option<(String, Option<String>)>,
+    limits: Option<LimitsSnapshot>,
+}
+
+impl Unstored {
+    /// Takes what `event` brings to store (before the snapshot takes it).
+    fn take(&mut self, event: &RuntimeEvent, snapshot: &Mutex<Snapshot>) {
+        match event {
+            RuntimeEvent::Started {
+                native_id, path, ..
+            } => self.link = Some((native_id.clone(), path.clone())),
+            RuntimeEvent::Transcript { path } => {
+                if let Some(native_id) = snapshot.lock().ok().and_then(|s| s.native_id.clone()) {
+                    self.link = Some((native_id, Some(path.clone())));
+                }
+            }
+            RuntimeEvent::LimitsUpdated { limits } => self.limits = Some(limits.clone()),
+            _ => {}
+        }
+    }
+
+    /// Stores what can be stored now; the rest waits.
+    fn store(&mut self, state: &std::sync::Weak<AppState>, session: &SessionId) {
+        if self.link.is_none() && self.limits.is_none() {
+            return;
+        }
+        let Some(state) = state.upgrade() else { return };
+        if let Some((native_id, path)) = &self.link
+            && link(&state, session, native_id, path.as_deref())
+        {
+            self.link = None;
+        }
+        if let Some(limits) = &self.limits
+            && crate::features::quota::driven::note(&state, session, limits).is_some()
+        {
+            self.limits = None;
+        }
+    }
+}
+
 fn run(
     state: &std::sync::Weak<AppState>,
     session: &SessionId,
@@ -712,12 +780,16 @@ fn run(
     commands: &Receiver<Command>,
     snapshot: &Arc<Mutex<Snapshot>>,
 ) {
-    // The conversation to link, once the session's record exists.
-    let mut unlinked: Option<(String, Option<String>)> = None;
+    let mut unstored = Unstored::default();
     // AJ-E2310: the mark that brings the session back after a restart.
     let mark = |state: &Arc<AppState>| {
         let now = snapshot.lock().ok().and_then(|snap| {
-            super::pickup::mark_of(snap.native_id.as_deref(), snap.turn_running, snap.ended)
+            super::pickup::mark_of(
+                snap.native_id.as_deref(),
+                snap.turn_running,
+                snap.written,
+                snap.ended,
+            )
         });
         super::pickup::follow(state, session, now);
     };
@@ -730,12 +802,7 @@ fn run(
         mark(&state);
     }
     loop {
-        if let Some((native_id, path)) = &unlinked
-            && let Some(state) = state.upgrade()
-            && link(&state, session, native_id, path.as_deref())
-        {
-            unlinked = None;
-        }
+        unstored.store(state, session);
         // The user's commands first, so an answer never waits on events.
         loop {
             match commands.try_recv() {
@@ -765,17 +832,7 @@ fn run(
         let Some(state) = state.upgrade() else { return };
         match driven.next_event(POLL) {
             Ok(Some(event)) => {
-                if let RuntimeEvent::Started {
-                    native_id, path, ..
-                } = &event
-                {
-                    unlinked = Some((native_id.clone(), path.clone()));
-                }
-                if let RuntimeEvent::Transcript { path } = &event
-                    && let Some(native_id) = snapshot.lock().ok().and_then(|s| s.native_id.clone())
-                {
-                    unlinked = Some((native_id, Some(path.clone())));
-                }
+                unstored.take(&event, snapshot);
                 note_command(&state, session, &event);
                 let (stored, ended) = snapshot.lock().map_or((false, false), |mut snap| {
                     (snap.apply(session, &event), snap.ended)
@@ -903,5 +960,73 @@ mod labels {
         let held = state.processes.labels_of("s-codex");
         assert_eq!(held.len(), 40);
         assert_eq!(held.last().unwrap(), "Bash: run 59");
+    }
+}
+
+/// F-rc3g-9 (the rc3g walk: a Claude Code session's view showed what the
+/// agent did, never what the person sent): what each turn was given is in
+/// the view, the person's as theirs; a delivered message only as the line
+/// that names its sender.
+#[cfg(test)]
+mod given {
+    use super::Snapshot;
+    use juggler_adapter::runtime::{ItemKind, ItemSummary, RuntimeEvent, TurnEnd, TurnOrigin};
+    use juggler_core::model::SessionId;
+
+    fn given(text: &str) -> RuntimeEvent {
+        RuntimeEvent::Item {
+            item: ItemSummary {
+                kind: ItemKind::UserMessage,
+                text: text.to_owned(),
+            },
+        }
+    }
+
+    fn turn(origin: TurnOrigin) -> RuntimeEvent {
+        RuntimeEvent::TurnStarted {
+            turn: None,
+            origin: Some(origin),
+        }
+    }
+
+    const END: RuntimeEvent = RuntimeEvent::TurnEnded {
+        outcome: TurnEnd::Completed,
+        usage: None,
+    };
+
+    #[test]
+    fn the_persons_messages_are_theirs_and_a_delivered_one_names_its_sender() {
+        let mut snapshot = Snapshot::default();
+        let session = SessionId::new("s");
+        for event in [
+            turn(TurnOrigin::User),
+            given("hello"),
+            END,
+            turn(TurnOrigin::Delivered {
+                sender: "Planner".into(),
+            }),
+            given("[pool message framing] Start on the API"),
+            // Added to that turn by the person: theirs.
+            given("and the tests"),
+            END,
+            turn(TurnOrigin::User),
+            given("thanks"),
+        ] {
+            snapshot.apply(&session, &event);
+        }
+        let lines: Vec<(&str, &str)> = snapshot
+            .items
+            .iter()
+            .map(|item| (item.kind.as_str(), item.text.as_str()))
+            .collect();
+        assert_eq!(
+            lines,
+            [
+                ("user_message", "hello"),
+                ("delivered", "Started by a message from Planner"),
+                ("user_message", "and the tests"),
+                ("user_message", "thanks"),
+            ]
+        );
     }
 }

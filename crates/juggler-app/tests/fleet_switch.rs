@@ -129,6 +129,16 @@ fn setup_both(desktop_version: &str, same_path: bool, grant: Permission, back: P
     let desktop = app_state(&work.path().join("desktop"), desktop_version);
     fleet::fleet_set_label_impl(&desktop, "Studio Mac").unwrap();
     fleet::fleet_set_label_impl(&laptop, "Laptop").unwrap();
+    // D-127: no switch to another Mac is validated yet; these tests are
+    // about one the user turned on (Settings › Switching › Beta).
+    for state in [&laptop, &desktop] {
+        juggler_app::settings_policy::app_setting_set_impl(
+            state,
+            juggler_app::features::validation::BETA_SWITCHES_KEY,
+            "1",
+        )
+        .unwrap();
+    }
 
     // The laptop's work in `storefront`.
     let project_dir = work.path().join("storefront");
@@ -293,6 +303,26 @@ fn sha(path: &Path) -> String {
     juggler_adapter::handover::sha256_hex(&std::fs::read(path).unwrap())
 }
 
+/// D-127: with beta switches off (the default), another Mac isn't offered
+/// as a destination at all: no switch to another Mac is validated yet.
+#[test]
+fn another_mac_is_not_offered_until_beta_switches_are_on() {
+    let pair = setup("2.1.0", true, Permission::Control);
+    let row = target(&pair, "t2_ready");
+    assert_eq!(row.machine_label, "Studio Mac");
+    juggler_app::settings_policy::app_setting_set_impl(
+        &pair.laptop,
+        juggler_app::features::validation::BETA_SWITCHES_KEY,
+        "",
+    )
+    .unwrap();
+    assert!(
+        crossmachine::fleet_switch_targets_impl(&pair.laptop, &pair.source)
+            .unwrap()
+            .is_empty()
+    );
+}
+
 #[test]
 fn t2_at_the_same_path_switches_to_the_other_mac_with_shared_lineage() {
     let pair = setup("2.1.0", true, Permission::Control);
@@ -300,7 +330,7 @@ fn t2_at_the_same_path_switches_to_the_other_mac_with_shared_lineage() {
     assert_eq!(row.machine_label, "Studio Mac");
     assert_eq!(row.account_label, "Desktop Max");
     assert_eq!(row.mechanism, "transplant");
-    assert!(row.badge.ends_with("· Not proven yet"), "{}", row.badge);
+    assert!(row.badge.ends_with("· Beta"), "{}", row.badge);
     assert!(!row.validated);
     assert_eq!(
         row.same_path_project.as_deref(),
@@ -1290,4 +1320,38 @@ fn each_mac_reports_what_it_used_in_the_last_day() {
         desktop.usd_est.is_some_and(|usd| usd > 0.0),
         "priced as Usage prices it: {desktop:?}"
     );
+}
+
+/// F-rc3g-3 (main's call for 0.4.6: switching keeps the work's context,
+/// its name with it): the name the person gave a session, and its pin, go
+/// to the other Mac with it (sent with the work) and are the original's
+/// again when it comes back.
+#[test]
+fn a_named_pinned_session_keeps_its_name_and_pin_on_the_other_mac_and_back() {
+    let pair = setup_both("2.1.0", true, Permission::Control, Permission::Control);
+    juggler_app::manage::session_rename_impl(&pair.laptop, &pair.source, Some("checkout flow"))
+        .unwrap();
+    juggler_app::manage::session_set_pinned_impl(&pair.laptop, &pair.source, true).unwrap();
+    let marks = |state: &Arc<AppState>, id: &str| {
+        state
+            .storage
+            .lock()
+            .unwrap()
+            .sessions()
+            .marks()
+            .unwrap()
+            .remove(id)
+            .unwrap_or_default()
+    };
+    let away = switched_and_worked(&pair);
+    let (name, pinned) = marks(&pair.desktop, &away);
+    assert_eq!(name.as_deref(), Some("checkout flow"), "on the other Mac");
+    assert!(pinned.is_some(), "on the other Mac: still pinned");
+    let _ = back_plan(&pair, &away);
+    let outcome = switch_back(&pair, &away, "");
+    assert!(outcome.accepted, "{outcome:?}");
+    let back = outcome.instance_id.unwrap();
+    let (name, pinned) = marks(&pair.laptop, &back);
+    assert_eq!(name.as_deref(), Some("checkout flow"), "back on the laptop");
+    assert!(pinned.is_some(), "back on the laptop: still pinned");
 }

@@ -367,6 +367,9 @@
 | AJ-E3008 | Set up by hand: the canvas that teaches, member group nodes, the add palette with reasons, an edge's rule | E30-pools-redesign.md | P0 | L | AJ-E3005 |
 | AJ-E3009 | Pools fit everything else: the switch check, notices, mutes, the Tasks filter, usage per pool | E30-pools-redesign.md | P1 | M | AJ-E3005 |
 | AJ-E3010 | A line's own talk rule set before its first message, from the member | E30-pools-redesign.md | P2 | S | AJ-E3008 |
+| AJ-E3011 | Pool setup a newcomer understands: a flow in order, every choice said in plain words for whom it applies | E30-pools-redesign.md | P0 | L | AJ-E3007, AJ-E3008 |
+| AJ-E3012 | The canvas's selection: one clear treatment, and the inspector always titled by what is selected | E30-pools-redesign.md | P1 | M | AJ-E3008 |
+| AJ-E3013 | Desktop app sessions as full pool members through AI Juggler's connector, added with consent or guided (D-116) | E30-pools-redesign.md | P0 | L | AJ-E3006, AJ-E1902 |
 | AJ-E3101 | What relates to what: the map, each page's tabs, and one list for all of them | E31-everything-links.md | P0 | M | — |
 | AJ-E3102 | Relations made cheap: instance and conversation indexes, and a relation-count cache | E31-everything-links.md | P0 | M | AJ-E3202 |
 | AJ-E3103 | One related-items list and one row, everywhere | E31-everything-links.md | P0 | L | AJ-E3102 |
@@ -416,5 +419,5 @@
 | AJ-E3519 | The View menu, top right | E35-the-floor.md | P1 | S | AJ-E3515 |
 | AJ-E3520 | Day and night from the Mac's clock | E35-the-floor.md | P1 | S | AJ-E3521 |
 | AJ-E3521 | The reworked look: light, shadow, occlusion and grade | E35-the-floor.md | P0 | M | — |
-Total: 414 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
+Total: 417 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
 Status of every task at generation: TODO. The epic files are canonical; this catalog is an index, never edited to claim progress.

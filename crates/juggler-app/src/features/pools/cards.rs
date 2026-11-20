@@ -266,6 +266,19 @@ fn tell_apart(cards: &mut [(i64, PoolRole, ContextCard)], utc_offset_hours: Opti
     }
 }
 
+/// A card's name before [`tell_apart`] told it from a namesake's: "p4-api1"
+/// for "p4-api1 · started 12:51 PM" or "p4-api1 (2)"; any other name as
+/// it is.
+pub(crate) fn untold(name: &str) -> &str {
+    if let Some((base, _)) = name.rsplit_once(" · started ") {
+        return base;
+    }
+    name.strip_suffix(')')
+        .and_then(|rest| rest.rsplit_once(" ("))
+        .filter(|(_, n)| !n.is_empty() && n.bytes().all(|b| b.is_ascii_digit()))
+        .map_or(name, |(base, _)| base)
+}
+
 /// A start time on the local clock, as the pool canvas writes it ("01:49 PM").
 fn clock_words(epoch_ms: i64, utc_offset_hours: i64) -> String {
     let minutes = (epoch_ms.div_euclid(60_000) + utc_offset_hours * 60).rem_euclid(24 * 60);

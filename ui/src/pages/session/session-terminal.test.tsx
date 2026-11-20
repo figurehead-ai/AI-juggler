@@ -7,7 +7,7 @@
  */
 import { cleanup, fireEvent, render } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { SessionTerminal } from "./SessionTerminal";
+import { SessionTerminal, forgetKept } from "./SessionTerminal";
 import type { InstanceInfo } from "../../types/generated/InstanceInfo";
 
 const NOW = 1_800_000_000_000;
@@ -20,6 +20,7 @@ function keep(ids: string[] | undefined): void {
 afterEach(() => {
   cleanup();
   keep(undefined);
+  forgetKept();
 });
 
 function ended(over: Partial<InstanceInfo> = {}): InstanceInfo {
@@ -67,11 +68,28 @@ describe("an ended terminal session's main pane (P2)", () => {
     window.removeEventListener("aij:open-screen", listen);
   });
 
-  it("while it's asked, the terminal stays and claims nothing", () => {
+  // The 0.4.6 RC walk K2 (F-K2-6): opened ended, the pane was a blank
+  // black terminal for about a second while that was asked.
+  it("opened ended, while it's asked: a skeleton at once, never a blank terminal, and claims nothing", () => {
     const view = render(<SessionTerminal session={ended()} live={false} terminal={terminal} now={NOW} />);
-    expect(view.getByTestId("ended-terminal-asking")).toBeTruthy();
-    expect(view.getByTestId("instance-terminal")).toBeTruthy();
+    const asking = view.getByTestId("ended-terminal-asking");
+    expect(view.getByRole("status", { name: "Reading what its terminal kept" })).toBeTruthy();
+    expect(asking.querySelectorAll(".bg-skeleton").length).toBeGreaterThan(0);
+    expect(view.queryByTestId("instance-terminal")).toBeNull();
     expect(view.container.textContent).toBe("");
+  });
+
+  it("opened again, what it kept shows at once (the answer is kept)", async () => {
+    const first = render(<SessionTerminal session={ended({ conversation_id: "c-login" })} live={false} terminal={terminal} now={NOW} />);
+    await first.findByTestId("ended-terminal-conversation");
+    first.unmount();
+    const again = render(<SessionTerminal session={ended({ conversation_id: "c-login" })} live={false} terminal={terminal} now={NOW} />);
+    expect(again.getByTestId("ended-terminal-conversation")).toBeTruthy();
+    expect(again.queryByTestId("ended-terminal-asking")).toBeNull();
+    // Run again since (its last activity moved): asked again.
+    again.unmount();
+    const ranAgain = render(<SessionTerminal session={ended({ conversation_id: "c-login", last_activity_ms: NOW - 60_000 })} live={false} terminal={terminal} now={NOW} />);
+    expect(ranAgain.getByTestId("ended-terminal-asking")).toBeTruthy();
   });
 
   it("running, its terminal alone; ending as you watch, the same terminal stays (never rebuilt)", async () => {

@@ -30,7 +30,9 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use juggler_adapter::moving::{MemberSide, MovePlan, MoveRequest, MoveSide, NotesChoice};
+use juggler_adapter::moving::{
+    MemberSide, MovePlan, MoveRequest, MoveSide, NotesChoice, Refusal, RefusalKind,
+};
 use juggler_core::model::Account;
 use juggler_handover::moving::{Lock, MoveError, Phase, Recovery, Stopped, Transaction};
 
@@ -63,17 +65,52 @@ pub struct MoveMemberInfo {
     pub folder_missing: bool,
 }
 
+/// Whether the user can clear what stands in Move's way (D-127).
+#[derive(Clone, Copy, PartialEq, Eq, Debug, serde::Serialize, ts_rs::TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
+#[serde(rename_all = "snake_case")]
+pub enum MoveBlockKind {
+    /// The user can: work to finish, a session to end, a profile to sign
+    /// in to, room to free. Move is shown, waiting, with the how.
+    UserCanClear,
+    /// The user can't (the tool's data in a shape the move doesn't know,
+    /// the disks, the kinds of the two sides, one folder for both): Move
+    /// isn't shown, and Copy is the switch.
+    Setup,
+}
+
+/// One thing in Move's way.
+#[derive(Clone, PartialEq, Eq, Debug, serde::Serialize, ts_rs::TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
+pub struct MoveBlockInfo {
+    /// Whether the user can clear it.
+    pub kind: MoveBlockKind,
+    /// In words; for one the user can clear, what to do ("…; Move becomes
+    /// available once they finish").
+    pub words: String,
+}
+
+impl From<Refusal> for MoveBlockInfo {
+    fn from(refusal: Refusal) -> Self {
+        Self {
+            kind: match refusal.kind {
+                RefusalKind::UserCanClear => MoveBlockKind::UserCanClear,
+                RefusalKind::Setup => MoveBlockKind::Setup,
+            },
+            words: refusal.words,
+        }
+    }
+}
+
 /// Whether and how a conversation can be moved, for the switch screen.
 #[derive(Clone, PartialEq, Eq, Debug, Default, serde::Serialize, ts_rs::TS)]
 #[ts(export, export_to = "../../../ui/src/types/generated/")]
 pub struct MoveOfferInfo {
-    /// The tool can move between these two accounts at all (both sides of
-    /// a kind it proved): Move is shown.
+    /// The tool can plan a move between these two accounts at all.
     pub applies: bool,
-    /// It can move now: Move is the default.
-    pub offered: bool,
-    /// Why not, in words (empty when offered).
-    pub why_not: Vec<String>,
+    /// What stands in the way now (empty: Move can happen, the default).
+    /// A `setup` one hides Move; one the user can clear shows it waiting.
+    pub blocks: Vec<MoveBlockInfo>,
     /// The family, the moved conversation first.
     pub members: Vec<MoveMemberInfo>,
     /// The profiles that quit and start again ("Claude app · Work").
@@ -357,29 +394,33 @@ fn place_name(state: &Arc<AppState>, place: &KnownPlace) -> String {
 
 /// Why the move can't happen now because something is working: a turn
 /// running in either profile, or (terminal folders) the conversation
-/// open in a session.
-fn busy(state: &Arc<AppState>, sides: &Sides, system: &dyn MoveSystem) -> Vec<String> {
+/// open in a session. Each the user's to clear (D-127).
+fn busy(state: &Arc<AppState>, sides: &Sides, system: &dyn MoveSystem) -> Vec<Refusal> {
     let places: Vec<(String, KnownPlace)> = [&sides.source_place, &sides.target_place]
         .into_iter()
         .flatten()
         .cloned()
         .collect();
-    let mut out = quiet(state, &places, &sides.accounts, system);
+    let mut out = quiet(state, &places, &sides.accounts, system, "Move");
     if sides.source_place.is_none() && sides.source_live && out.is_empty() {
-        out.push("the conversation is open in a session: end it first, then move it".to_owned());
+        out.push(Refusal::user_can_clear(
+            "the conversation is open in a session; Move becomes available once you end it",
+        ));
     }
     out
 }
 
-/// Why the folders of `places` and `accounts` aren't quiet enough to
-/// change: a turn running in either profile, or a session of either
-/// account open outside them (a terminal writes the same folder).
+/// Why the folders of `places` and `accounts` aren't quiet enough for
+/// `action` (Move, Undo) to change them: a turn running in either
+/// profile, or a session of either account open outside them (a terminal
+/// writes the same folder). Each says how it clears.
 fn quiet(
     state: &Arc<AppState>,
     places: &[(String, KnownPlace)],
     accounts: &[String],
     system: &dyn MoveSystem,
-) -> Vec<String> {
+    action: &str,
+) -> Vec<Refusal> {
     let mut out = Vec::new();
     let mut hosts = Vec::new();
     for (id, place) in places {
@@ -387,25 +428,27 @@ fn quiet(
             hosts.push(pid);
             let working = system.working(state, pid);
             if working > 0 {
-                out.push(format!(
-                    "{} has {working} session{} working: a move restarts it, which would stop {}. Let {} finish first",
+                let one = working == 1;
+                out.push(Refusal::user_can_clear(format!(
+                    "{working} session{} {} working in {}; {action} becomes available once {} {}",
+                    if one { "" } else { "s" },
+                    if one { "is" } else { "are" },
                     place_name(state, place),
-                    if working == 1 { "" } else { "s" },
-                    if working == 1 { "it" } else { "them" },
-                    if working == 1 { "it" } else { "them" },
-                ));
+                    if one { "it" } else { "they" },
+                    if one { "finishes" } else { "finish" },
+                )));
             }
         }
     }
     let elsewhere = system.open_elsewhere(state, accounts, &hosts);
     if elsewhere > 0 {
-        out.push(format!(
-            "{elsewhere} session{} of these accounts {} open outside the app (in a terminal, say), and {} the same folders: end {} first",
-            if elsewhere == 1 { "" } else { "s" },
-            if elsewhere == 1 { "is" } else { "are" },
-            if elsewhere == 1 { "writes" } else { "write" },
-            if elsewhere == 1 { "it" } else { "them" },
-        ));
+        let one = elsewhere == 1;
+        out.push(Refusal::user_can_clear(format!(
+            "{elsewhere} session{} of these accounts {} open outside the app (in a terminal, say); {action} becomes available once you end {}",
+            if one { "" } else { "s" },
+            if one { "is" } else { "are" },
+            if one { "it" } else { "them" },
+        )));
     }
     out
 }
@@ -452,13 +495,57 @@ fn plan_of(sides: &Sides) -> AppResult<MovePlan> {
         .map_err(|error| refused(error.to_string()))
 }
 
-/// Whether the plan's refusals are about the kind of sides (Move doesn't
-/// apply here at all) rather than about now.
-fn applies(plan: &MovePlan) -> bool {
-    !plan
-        .refusals
-        .iter()
-        .any(|r| r.contains("isn't proven yet") || r.contains("same Claude Code folder"))
+/// Where AI Juggler keeps what a shape check found (D-128), for the gate
+/// watch (`scripts/gate_watch.py`) to list.
+pub const SHAPE_FILE: &str = "compat/shape-mismatches.json";
+/// How many it keeps.
+const SHAPE_KEPT: usize = 64;
+
+/// D-128: keeps what didn't fit the move's shape check, with the tool and
+/// its version, one entry per tool, version and what (the newest kept).
+/// Best effort: a note that can't be written changes nothing else.
+fn note_shape(state: &Arc<AppState>, sides: &Sides, plan: &MovePlan) {
+    if plan.shape.is_empty() {
+        return;
+    }
+    let path = state.data_dir.join(SHAPE_FILE);
+    let mut seen: Vec<serde_json::Value> = std::fs::read(&path)
+        .ok()
+        .and_then(|bytes| serde_json::from_slice::<serde_json::Value>(&bytes).ok())
+        .and_then(|v| v.get("seen").and_then(serde_json::Value::as_array).cloned())
+        .unwrap_or_default();
+    let now = juggler_core::model::Timestamp::now().millis();
+    let app = sides.source_place.is_some();
+    let mut versions: Vec<String> = [&sides.request.source, &sides.request.target]
+        .into_iter()
+        .map(|side| side.version.clone().unwrap_or_default())
+        .collect();
+    versions.dedup();
+    for version in versions {
+        for what in &plan.shape {
+            seen.retain(|entry| {
+                !(entry["tool"] == sides.tool.as_str()
+                    && entry["app"] == app
+                    && entry["version"] == version.as_str()
+                    && entry["what"] == what.as_str())
+            });
+            seen.push(serde_json::json!({
+                "tool": sides.tool, "app": app, "version": version,
+                "feature": "move", "what": what, "at_ms": now,
+            }));
+        }
+    }
+    let excess = seen.len().saturating_sub(SHAPE_KEPT);
+    seen.drain(..excess);
+    let body = serde_json::json!({"v": 1, "seen": seen});
+    if let Some(dir) = path.parent()
+        && std::fs::create_dir_all(dir).is_ok()
+    {
+        let tmp = path.with_extension("json.part");
+        if std::fs::write(&tmp, body.to_string()).is_ok() {
+            let _ = std::fs::rename(&tmp, &path);
+        }
+    }
 }
 
 /// The switch screen's Move offer for `session_id` to `target_profile_id`.
@@ -484,30 +571,39 @@ pub(crate) fn offer_with(
     let Ok(sides) = sides(state, session_id, target_profile_id) else {
         return MoveOfferInfo::default();
     };
+    offer_of(state, &sides, system)
+}
+
+/// The offer for resolved `sides` (D-127: each block says whether the
+/// user can clear it; D-128: what didn't fit is kept for the gate watch).
+fn offer_of(state: &Arc<AppState>, sides: &Sides, system: &dyn MoveSystem) -> MoveOfferInfo {
     if sides.adapter.in_place_move().is_none() {
         return MoveOfferInfo::default();
     }
-    let plan = match plan_of(&sides) {
+    let plan = match plan_of(sides) {
         Ok(plan) => plan,
         Err(error) => {
             return MoveOfferInfo {
                 applies: true,
-                why_not: vec![error.to_string()],
+                blocks: vec![MoveBlockInfo {
+                    kind: MoveBlockKind::Setup,
+                    words: error.to_string(),
+                }],
                 ..MoveOfferInfo::default()
             };
         }
     };
-    let mut why_not = juggler_handover::moving::preflight(&plan, &moves_dir(state));
-    why_not.extend(busy(state, &sides, system));
+    note_shape(state, sides, &plan);
+    let mut blocks = juggler_handover::moving::preflight(&plan, &moves_dir(state));
+    blocks.extend(busy(state, sides, system));
     let restarts = [&sides.source_place, &sides.target_place]
         .into_iter()
         .flatten()
         .map(|(_, place)| place_name(state, place))
         .collect();
     MoveOfferInfo {
-        applies: applies(&plan),
-        offered: why_not.is_empty(),
-        why_not,
+        applies: true,
+        blocks: blocks.into_iter().map(MoveBlockInfo::from).collect(),
         members: plan
             .members
             .iter()
@@ -683,7 +779,7 @@ fn run(state: &Arc<AppState>, sides: &Sides, system: &dyn MoveSystem) -> AppResu
     let mut why_not = juggler_handover::moving::preflight(&plan, &folder);
     why_not.extend(busy(state, sides, system));
     if !why_not.is_empty() {
-        return Err(refused(why_not.join("; ")));
+        return Err(refused(juggler_handover::moving::words(&why_not)));
     }
     let places: Vec<(String, KnownPlace)> = [&sides.source_place, &sides.target_place]
         .into_iter()
@@ -939,9 +1035,9 @@ pub(crate) fn undo_with(
     let _lock = Lock::take(&txn.manifest.plan.roots).map_err(engine)?;
     let _hold = crate::features::places::MoveHold::take(state, &txn.manifest.places)
         .ok_or_else(|| refused("another move of these profiles is running"))?;
-    let why_not = quiet(state, &places, &txn.manifest.accounts, system);
+    let why_not = quiet(state, &places, &txn.manifest.accounts, system, "Undo");
     if !why_not.is_empty() {
-        return Err(refused(why_not.join("; ")));
+        return Err(refused(juggler_handover::moving::words(&why_not)));
     }
     let stopped_places = stop_places(state, &places, system)?;
     if let Err(started) = still_down(state, &stopped_places, system) {

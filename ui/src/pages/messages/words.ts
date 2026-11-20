@@ -38,9 +38,14 @@ export const THREAD_WORDS: Record<string, string> = {
   stopped: "Stopped",
 };
 
-/** "3 agent messages in a row of 6" — only when it is getting close. */
+/** A thread's count against its cap (F-rc3g-10: its pool's hop limit when
+ * the pool puts messages into sessions, never more than 6), as Needs you
+ * says it: "2 of 2 agent messages in a row without you" is the last one
+ * before you're asked; the one past it says it's over. Only when it is
+ * getting close. */
 export function hopWords(hop: number, cap: number): string | null {
-  if (hop < 2) return null;
+  if (hop < 2 && hop < cap) return null;
+  if (hop > cap) return `${hop} agent messages in a row without you, over this pool's limit of ${cap}`;
   return `${hop} of ${cap} agent messages in a row without you`;
 }
 

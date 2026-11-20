@@ -12,10 +12,11 @@
 //! applies the plan with backups, a journal and checks, the same for every
 //! tool. No tool's name appears outside its adapter.
 //!
-//! A move is offered only where it is proven (`in_place_move`,
-//! [`crate::switching::SwitchCapability::InPlaceMove`]); anything the
-//! adapter can't plan exactly is a refusal in words, and the user still
-//! has Copy.
+//! A move is offered only where the tool supports it (`in_place_move`,
+//! [`crate::switching::SwitchCapability::InPlaceMove`]) and the data it
+//! rewrites has the shape the adapter knows, on any version (D-128);
+//! anything the adapter can't plan exactly is a [`Refusal`] that says
+//! whether the user can clear it (D-127), and the user still has Copy.
 
 use std::path::{Path, PathBuf};
 
@@ -31,7 +32,8 @@ pub struct MoveSide {
     /// this side is an app profile.
     pub host_dir: Option<PathBuf>,
     /// The installed version of the app (or, without one, the tool) on
-    /// this side, for the adapter's proven-version gate.
+    /// this side: never a gate by itself (D-128); named with what didn't
+    /// fit when a shape check fails.
     pub version: Option<String>,
 }
 
@@ -114,6 +116,9 @@ pub enum HoldWhy {
     /// The target's project notes, replaced by the conversation's (the
     /// user chose it).
     ReplacedNotes,
+    /// A list the app keeps beside its records and makes again from them
+    /// (it loads without one), which the move would leave out of date.
+    AppHint,
 }
 
 /// One step of a plan. The engine journals, applies and checks each, and
@@ -186,6 +191,57 @@ pub struct Retained {
     pub why: String,
 }
 
+/// Whether the user can clear a refusal themselves (D-127). The switch
+/// screen hides a move refused for a reason the user can't clear, and
+/// shows it waiting, with the how, only for one they can.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RefusalKind {
+    /// Something the user can finish, end, quit or sign in to (work
+    /// running in a profile, a session open elsewhere, a full disk): the
+    /// words say what, and that the move is there once it's done.
+    UserCanClear,
+    /// The setup can't move (the tool's version, the disks, the kinds of
+    /// the two sides, one folder for both, records the adapter can't read
+    /// exactly): the move isn't offered at all.
+    Setup,
+}
+
+/// Why a plan can't be applied, and whether the user can clear it.
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct Refusal {
+    /// Whether the user can clear it.
+    pub kind: RefusalKind,
+    /// In words; for [`RefusalKind::UserCanClear`], what to do.
+    pub words: String,
+}
+
+impl Refusal {
+    /// A refusal the user can't clear.
+    #[must_use]
+    pub fn setup(words: impl Into<String>) -> Self {
+        Self {
+            kind: RefusalKind::Setup,
+            words: words.into(),
+        }
+    }
+
+    /// A refusal the user can clear, its words saying how.
+    #[must_use]
+    pub fn user_can_clear(words: impl Into<String>) -> Self {
+        Self {
+            kind: RefusalKind::UserCanClear,
+            words: words.into(),
+        }
+    }
+
+    /// Whether the user can clear it.
+    #[must_use]
+    pub fn clearable(&self) -> bool {
+        self.kind == RefusalKind::UserCanClear
+    }
+}
+
 /// A read-only plan: everything a move will do, worked out before
 /// anything changes.
 #[derive(Clone, Debug, Default, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -208,8 +264,14 @@ pub struct MovePlan {
     pub notes: Vec<String>,
     /// The project notes differ on the two sides (the user may choose).
     pub notes_conflict: Option<String>,
-    /// Why it can't move, in words. A plan with any is never applied.
-    pub refusals: Vec<String>,
+    /// Why it can't move, each with whether the user can clear it. A
+    /// plan with any is never applied.
+    pub refusals: Vec<Refusal>,
+    /// D-128: what the move relies on that isn't shaped as the adapter
+    /// knows it on the installed version, in words (each also refuses).
+    /// The gate watch lists them with the tool's version.
+    #[serde(default)]
+    pub shape: Vec<String>,
 }
 
 impl MovePlan {
@@ -331,6 +393,32 @@ mod tests {
         assert!(!contained(Path::new("/a/profile/../other/x"), &roots));
     }
 
+    /// D-127: a refusal carries whether the user can clear it, on the
+    /// wire too (the switch screen hides a move it can't clear).
+    #[test]
+    fn a_refusal_says_whether_the_user_can_clear_it() {
+        let busy = Refusal::user_can_clear("2 sessions are working");
+        let setup = Refusal::setup("another disk");
+        assert!(busy.clearable());
+        assert!(!setup.clearable());
+        assert_eq!(
+            serde_json::to_value(&busy).unwrap(),
+            serde_json::json!({"kind": "user_can_clear", "words": "2 sessions are working"})
+        );
+        assert_eq!(
+            serde_json::to_value(&setup).unwrap()["kind"],
+            serde_json::json!("setup")
+        );
+        // A manifest of an applied move (no refusals) still reads.
+        let plan: MovePlan = serde_json::from_value(serde_json::json!({
+            "conversation": "c", "resume": "c", "members": [], "steps": [],
+            "retained": [], "roots": [], "notes": [], "notes_conflict": null,
+            "refusals": []
+        }))
+        .unwrap();
+        assert!(plan.refusals.is_empty());
+    }
+
     #[test]
     fn a_plans_shape_names_members_and_paths_not_contents() {
         let mut plan = MovePlan {
@@ -360,7 +448,7 @@ mod tests {
         };
         assert_eq!(plan.shape(), before);
         assert!(plan.can_move());
-        plan.refusals.push("no".into());
+        plan.refusals.push(Refusal::setup("no"));
         assert!(!plan.can_move());
     }
 }
