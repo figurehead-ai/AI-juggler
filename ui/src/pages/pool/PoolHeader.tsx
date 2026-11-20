@@ -1,8 +1,8 @@
 /**
  * A pool page's header: its name (yours rename in place; a project's own
  * pool keeps its project's), what it is in one line, and its controls —
- * the canvas or the list, Tasks and Messages over the canvas, and what
- * agents may do, changed right here.
+ * the canvas or the list, Tasks and Messages over the canvas, what
+ * agents may do, changed right here, and its ⋯ (Rename…, Delete…).
  */
 import { useCallback, useEffect, useRef, useState, type JSX, type ReactNode } from "react";
 
@@ -20,6 +20,7 @@ import { StatePill } from "../../components/Pill";
 import { IconProjects } from "../../components/icons";
 import { SETUP } from "./setup-words";
 import { CrumbButton } from "../PageHeader";
+import { PoolHeaderMenu } from "../../screens/pools/PoolCard";
 
 export type Panel = "tasks" | "messages" | null;
 export type Mode = "canvas" | "list";
@@ -137,7 +138,10 @@ export function PoolHeader({
   onMode,
   onPanel,
   setup = null,
+  onDeleted,
 }: {
+  /** SK-1: after its ⋯'s Delete. */
+  onDeleted: () => void;
   /** D-126 §3: while it's being set up, how far ("Setting up · 5 of 7"). */
   setup?: { done: number; total: number; joined: boolean } | null;
   pool: PoolInfo;
@@ -243,6 +247,7 @@ export function PoolHeader({
           />
           {custom && <HeaderCustom pool={pool} onClose={closeCustom} />}
         </span>
+        <PoolHeaderMenu pool={pool} onDeleted={onDeleted} />
       </div>
       {error && (
         <p className="w-full text-label text-danger" role="alert">

@@ -188,7 +188,7 @@ describe("Sam's round-4 follow-ups", () => {
     // As the backend sends it: Work together's actions listed.
     const pool = (await poolsList()).pools.find((one) => one.id === "pool-x")!;
     expect(pool.access.level).toBe("work_together");
-    render(<PoolHeader pool={pool} facts={null} mode="canvas" panel={null} onMode={() => undefined} onPanel={() => undefined} />);
+    render(<PoolHeader pool={pool} facts={null} mode="canvas" panel={null} onMode={() => undefined} onPanel={() => undefined} onDeleted={() => undefined} />);
     fireEvent.click(screen.getByTestId("pool-header-level"));
     await act(async () => fireEvent.click(screen.getByRole("menuitemradio", { name: /^Custom/ })));
     const list = await screen.findByTestId("pool-header-custom");

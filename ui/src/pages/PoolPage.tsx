@@ -233,6 +233,12 @@ function PoolCanvasPage({ poolId, sessions, projects, accounts, now, rules }: Pa
   // has joined and the setup is done, or Hide setup; then the calm view.
   const progress = useSetupProgress({ pool, rows: setup.rows, places: setup.tools, rules, ruleLabel });
   const { phase, hidden, hide, edit } = useSetupPhase(pool.id, pool.members > 0, progress.complete);
+  const onDeleted = () => {
+    showToast({ message: `Deleted ${pool.name}`, detail: "Its sessions are back in their projects' own pools." });
+    // To the Pools screen (Home when there is none).
+    if (globalId("pools")) window.dispatchEvent(new CustomEvent("aij:open-screen", { detail: { id: "pools" } }));
+    else host.openHome?.();
+  };
   const openProjects = new Set(sessions.filter((session) => sessionState(session).state !== "ended" && session.project_id).map((session) => session.project_id!));
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-card border border-hairline bg-surface" data-testid="pool-page">
@@ -250,7 +256,7 @@ function PoolCanvasPage({ poolId, sessions, projects, accounts, now, rules }: Pa
           }}
         />
       )}
-      <PoolHeader pool={pool} facts={facts} needs={{ count: needs, at: needsPanel(pool.id, messageNeeds, taskNeeds) }} scope={scopeWords === null ? undefined : { words: scopeWords, onOpen: () => setScopeOpen(true) }} mode={mode} panel={panel} onMode={setMode} onPanel={setPanel} setup={phase === "setup" ? { ...progress, joined: pool.members > 0 } : null} />
+      <PoolHeader pool={pool} facts={facts} needs={{ count: needs, at: needsPanel(pool.id, messageNeeds, taskNeeds) }} scope={scopeWords === null ? undefined : { words: scopeWords, onOpen: () => setScopeOpen(true) }} mode={mode} panel={panel} onMode={setMode} onPanel={setPanel} setup={phase === "setup" ? { ...progress, joined: pool.members > 0 } : null} onDeleted={onDeleted} />
       {/* D-126: no banner over the page (it held about 15 rows of the List
           view, X2 §4c): the team tools question is the setup checklist's
           last item. Only an ask that waits on you and has no node says so. */}
@@ -382,12 +388,7 @@ function PoolCanvasPage({ poolId, sessions, projects, accounts, now, rules }: Pa
               leadDir={setup.leadDir}
             />
           }
-          onDeleted={() => {
-            showToast({ message: `Deleted ${pool.name}`, detail: "Its sessions are back in their projects' own pools." });
-            // To the Pools screen (Home when there is none).
-            if (globalId("pools")) window.dispatchEvent(new CustomEvent("aij:open-screen", { detail: { id: "pools" } }));
-            else host.openHome?.();
-          }}
+          onDeleted={onDeleted}
         />
         </div>
       </div>

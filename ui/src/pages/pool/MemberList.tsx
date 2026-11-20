@@ -21,7 +21,7 @@ import { edgeKey } from "./useCanvas";
 export function MemberList({ pool, data, canvas, sessions, names, now, onSelect }: { pool: PoolInfo; data: CanvasData; canvas: PoolCanvasInfo | null; sessions: InstanceInfo[]; names: ReadonlyMap<string, string>; now: number; onSelect: (selection: Selection) => void }): JSX.Element {
   const edges = canvas?.edges ?? [];
   return (
-    <div className="h-full min-h-0 overflow-y-auto p-5" data-canvas-scroll data-testid="pool-list">
+    <div className="absolute inset-0 overflow-y-auto p-5" data-canvas-scroll data-testid="pool-list">
       <div className="mx-auto flex max-w-[960px] flex-col gap-6">
         <section aria-labelledby="pool-list-members" className="flex flex-col gap-2">
           <h3 id="pool-list-members" className="text-section text-ink">

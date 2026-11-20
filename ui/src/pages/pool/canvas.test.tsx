@@ -385,6 +385,32 @@ describe("a pool's page: its canvas", () => {
     expect(seams().__AIJ_POOL_CALLS__).not.toContain("delete:pool-team");
   });
 
+  it("SK-1: Delete is one obvious step: the header's ⋯, with Rename (a project's own pool has none)", async () => {
+    seedTeam();
+    const view = await openPage();
+    const header = view.getByTestId("pool-header");
+    fireEvent.click(within(header).getByRole("button", { name: "Actions for Team" }));
+    const menu = view.getByRole("menu");
+    expect(within(menu).getAllByRole("menuitem").map((item) => item.textContent)).toEqual(["Rename…", "Delete…"]);
+    fireEvent.click(within(menu).getByRole("menuitem", { name: "Delete…" }));
+    expect(view.getByTestId("pool-delete-words").textContent).toContain("Its 2 sessions go back to their projects' own pools");
+    fireEvent.click(view.getByTestId("pool-delete-confirm"));
+    await waitFor(() => expect(seams().__AIJ_POOL_CALLS__).toContain("delete:pool-team"));
+    await waitFor(() => expect(view.getByRole("status").textContent ?? "").toContain("Deleted Team"));
+    cleanup();
+    const project = await openPage(defaultPoolIdOf(third.project_id));
+    expect(within(project.getByTestId("pool-header")).queryByTestId("header-menu")).toBeNull();
+  });
+
+  it("SK-1: the side panel is stretched to the page, never a percentage of it, and the List fills its cell (so each scrolls by wheel)", async () => {
+    seedTeam();
+    const view = await openPage();
+    expect(view.getByTestId("pool-inspector").className).not.toMatch(/\bh-full\b/);
+    expect(view.getByTestId("pool-inspector").className).toContain("self-stretch");
+    fireEvent.click(within(view.getByTestId("pool-mode")).getByRole("radio", { name: "List" }));
+    expect((await view.findByTestId("pool-list")).className).toContain("absolute inset-0 overflow-y-auto");
+  });
+
   it("deleting a pool updates the pools everywhere, so it leaves the list (the P11 walk)", async () => {
     seedTeam();
     const view = await openPage();

@@ -164,7 +164,9 @@ describe("the Pools screen (AJ-E2807)", () => {
     for (const item of within(menu).getAllByRole("menuitem")) expect(item.querySelector("svg"), item.textContent ?? "").toBeTruthy();
     fireEvent.click(within(menu).getByRole("menuitem", { name: "Open its diagram" }));
     expect(opened).toEqual(["pool-team"]);
-    // Rename… from its ⋯ button
+    // Rename… from its ⋯ button, always in sight (SK-1: it was there only
+    // on hover, so no picture showed a way to delete a pool).
+    expect(within(box).getByTestId("pool-card-menu").className).not.toContain("opacity-0");
     fireEvent.click(within(box).getByTestId("pool-card-menu"));
     fireEvent.click(within(view.getByRole("menu")).getByRole("menuitem", { name: "Rename…" }));
     // The one rename sheet: its name selected on open, so typing replaces
