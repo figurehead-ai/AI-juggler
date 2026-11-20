@@ -132,7 +132,15 @@ export function useModalsInert(): void {
         if (lost(was)) top.querySelector<HTMLElement>(FOCUSABLE)?.focus({ preventScroll: true });
         return;
       }
-      if (lost(was)) again(opener)?.focus({ preventScroll: true });
+      if (lost(was)) {
+        // A toast shown as this dialog closed asked for the focus (its
+        // Undo, after a 1-click switch): it, not the opener.
+        const asked = document.querySelector<HTMLElement>(`[${FOCUS_WHEN_FREE}]`);
+        if (asked) {
+          asked.focus({ preventScroll: true });
+          asked.removeAttribute(FOCUS_WHEN_FREE);
+        } else again(opener)?.focus({ preventScroll: true });
+      }
       opener = null;
     };
     let queued = false;
@@ -154,6 +162,10 @@ export function useModalsInert(): void {
     };
   }, []);
 }
+
+/** A toast's control that takes the focus a closing dialog leaves
+ * (ToastStack's `focusWhenFree`, shown while a dialog still held it). */
+export const FOCUS_WHEN_FREE = "data-focus-when-free";
 
 /** The opener, or the element that took its place: a dialog's own close
  * hands focus to its trigger while the page is still inert (that fails),
