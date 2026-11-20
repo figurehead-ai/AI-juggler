@@ -1,7 +1,7 @@
 [package]
 name = "juggler-local-ai"
 description = "AI Juggler's local-model helper (ADR-0033 §4.2, D-131): runs one downloaded GGUF file with llama.cpp, out of the app's process, sandboxed, with no network."
-version = "0.4.0"
+version = "0.5.0"
 edition = "2024"
 rust-version = "1.99"
 license = "MIT"
@@ -31,7 +31,7 @@ llama-cpp-sys-2 = { version = "=0.1.146", default-features = false }
 encoding_rs = "0.8.35"
 # The chat messages handed to the template (already the protocol's).
 serde_json = "1.0.154"
-juggler-local-ai-protocol = { version = "0.4.0", path = "../juggler-local-ai-protocol" }
+juggler-local-ai-protocol = { version = "0.5.0", path = "../juggler-local-ai-protocol" }
 # O_NOFOLLOW for opening the model file (a constant; no `unsafe` here).
 # Already in this lock (llama-cpp-sys-2's build).
 libc = "0.2.191"

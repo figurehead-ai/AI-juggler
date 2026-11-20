@@ -42,36 +42,36 @@ workspace = true
 
 [dependencies]
 # D-26: open at login (a safe stub off macOS).
-juggler-login-item = { version = "0.4.0", path = "../juggler-login-item" }
+juggler-login-item = { version = "0.5.0", path = "../juggler-login-item" }
 base64 = { workspace = true }
 dirs = "7.0.0"
 flate2 = { workspace = true }
 # D-38: apps' icons are kept as PNGs (already in the tree through tauri).
 png = { workspace = true }
-juggler-adapter = { version = "0.4.0", path = "../juggler-adapter" }
-juggler-account = { version = "0.4.0", path = "../juggler-account" }
+juggler-adapter = { version = "0.5.0", path = "../juggler-adapter" }
+juggler-account = { version = "0.5.0", path = "../juggler-account" }
 # ADR-0035: the signed remote configuration (fetched over juggler-account's client).
-juggler-remote-config = { version = "0.4.0", path = "../juggler-remote-config" }
-juggler-agentbridge = { version = "0.4.0", path = "../juggler-agentbridge" }
-juggler-adapters = { version = "0.4.0", path = "../juggler-adapters" }
-juggler-core = { version = "0.4.0", path = "../juggler-core", features = ["ts"] }
-juggler-floor = { version = "0.4.0", path = "../juggler-floor" }
-juggler-floor-render = { version = "0.4.0", path = "../juggler-floor-render" }
-juggler-window-events = { version = "0.4.0", path = "../juggler-window-events" }
-juggler-handover = { version = "0.4.0", path = "../juggler-handover" }
-juggler-link = { version = "0.4.0", path = "../juggler-link" }
+juggler-remote-config = { version = "0.5.0", path = "../juggler-remote-config" }
+juggler-agentbridge = { version = "0.5.0", path = "../juggler-agentbridge" }
+juggler-adapters = { version = "0.5.0", path = "../juggler-adapters" }
+juggler-core = { version = "0.5.0", path = "../juggler-core", features = ["ts"] }
+juggler-floor = { version = "0.5.0", path = "../juggler-floor" }
+juggler-floor-render = { version = "0.5.0", path = "../juggler-floor-render" }
+juggler-window-events = { version = "0.5.0", path = "../juggler-window-events" }
+juggler-handover = { version = "0.5.0", path = "../juggler-handover" }
+juggler-link = { version = "0.5.0", path = "../juggler-link" }
 # ADR-0033 §4.2 (D-131): the local-model helper's protocol and bounds,
 # shared with the helper itself (crates/juggler-local-ai, its own workspace).
-juggler-local-ai-protocol = { version = "0.4.0", path = "../juggler-local-ai-protocol" }
+juggler-local-ai-protocol = { version = "0.5.0", path = "../juggler-local-ai-protocol" }
 # The OS seams: owner-only folders and files, local sockets, who we are.
-juggler-platform = { version = "0.4.0", path = "../juggler-platform" }
+juggler-platform = { version = "0.5.0", path = "../juggler-platform" }
 # D-110 (AJ-E805): the process table listed cheaply; arguments read once.
-juggler-proc-list = { version = "0.4.0", path = "../juggler-proc-list" }
+juggler-proc-list = { version = "0.5.0", path = "../juggler-proc-list" }
 # AJ-E1102: opt-in usage statistics; leave it out with --no-default-features.
-juggler-stats = { version = "0.4.0", path = "../juggler-stats", optional = true }
+juggler-stats = { version = "0.5.0", path = "../juggler-stats", optional = true }
 # AJ-E1108: the usage-stats tick (and any puzzle it solves) runs at low priority.
 thread-priority = { version = "3.1.1", optional = true }
-juggler-supervisor = { version = "0.4.0", path = "../juggler-supervisor" }
+juggler-supervisor = { version = "0.5.0", path = "../juggler-supervisor" }
 getrandom = { workspace = true }
 # D-108 (AJ-E1107 R5): crash reports go to Sentry through its SDK. No
 # default features: no transport (reports go over the app's own HTTPS
@@ -132,10 +132,10 @@ tauri-build = { version = "2.7.2", features = [] }
 syn = { version = "2.0.119", features = ["full"] }
 quote = "1.0.47"
 # The usage-stats integration tests seed the store directly.
-juggler-stats = { version = "0.4.0", path = "../juggler-stats" }
+juggler-stats = { version = "0.5.0", path = "../juggler-stats" }
 # Timing budgets measured as thread CPU time (AJ-E806 ledger).
 cpu-time = { workspace = true }
-juggler-handover = { version = "0.4.0", path = "../juggler-handover" }
+juggler-handover = { version = "0.5.0", path = "../juggler-handover" }
 tempfile = { workspace = true }
 # ADR-0032: presence checked over generated process snapshots.
 proptest = { workspace = true }
@@ -150,7 +150,7 @@ ed25519-dalek = { workspace = true }
 rusqlite = { workspace = true }
 # AJ-E3814: the watches' tests write through the store's own gate with a
 # test writer (ADR-0037 §1.1: a build can't mint one; only tests can).
-juggler-core = { version = "0.4.0", path = "../juggler-core", features = ["ts", "test-writers"] }
+juggler-core = { version = "0.5.0", path = "../juggler-core", features = ["ts", "test-writers"] }
 
 [target.'cfg(target_os = "macos")'.dependencies]
 # AJ-E415: ScreenCaptureKit mirror — macOS-only; the preview driver
@@ -158,7 +158,7 @@ juggler-core = { version = "0.4.0", path = "../juggler-core", features = ["ts", 
 # everywhere against a scripted capture source.
 screencapturekit = { workspace = true, features = ["macos_14_0"] }
 # D-17: the audited init shim (one unsafe call, isolated crate).
-juggler-scap-init = { version = "0.4.0", path = "../juggler-scap-init" }
+juggler-scap-init = { version = "0.5.0", path = "../juggler-scap-init" }
 # D-25: the first-run OS access step — safe wrappers (their FFI stays in
 # their own crates; ours keep `unsafe_code = "forbid"`): Screen Recording
 # preflight/request, and the Accessibility check with the system prompt

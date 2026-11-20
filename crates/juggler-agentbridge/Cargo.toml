@@ -29,9 +29,9 @@ serde_json = { workspace = true }
 [dev-dependencies]
 # The end-to-end test: a fake tool speaks MCP to the real binary, which
 # talks to the real app core over its socket (fixtures and temp dirs only).
-juggler-adapter = { version = "0.4.0", path = "../juggler-adapter" }
-juggler-adapters = { version = "0.4.0", path = "../juggler-adapters" }
-juggler-app = { version = "0.4.0", path = "../juggler-app" }
-juggler-core = { version = "0.4.0", path = "../juggler-core" }
-juggler-supervisor = { version = "0.4.0", path = "../juggler-supervisor" }
+juggler-adapter = { version = "0.5.0", path = "../juggler-adapter" }
+juggler-adapters = { version = "0.5.0", path = "../juggler-adapters" }
+juggler-app = { version = "0.5.0", path = "../juggler-app" }
+juggler-core = { version = "0.5.0", path = "../juggler-core" }
+juggler-supervisor = { version = "0.5.0", path = "../juggler-supervisor" }
 tempfile = { workspace = true }

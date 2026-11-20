@@ -12,11 +12,11 @@ workspace = true
 
 [dependencies]
 bitflags = "2.13.2"
-juggler-core = { version = "0.4.0", path = "../juggler-core" }
+juggler-core = { version = "0.5.0", path = "../juggler-core" }
 # Whether a system tool is safe to run (file_trust).
-juggler-platform = { version = "0.4.0", path = "../juggler-platform" }
+juggler-platform = { version = "0.5.0", path = "../juggler-platform" }
 # D-128, ADR-0035: the compat section's controls and the gate's values.
-juggler-remote-config = { version = "0.4.0", path = "../juggler-remote-config" }
+juggler-remote-config = { version = "0.5.0", path = "../juggler-remote-config" }
 # A large transcript's marker lines, found without parsing every line.
 memchr = { workspace = true }
 serde = { workspace = true, features = ["derive"] }

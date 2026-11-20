@@ -2870,7 +2870,7 @@ dependencies = [
 
 [[package]]
 name = "juggler-account"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "chacha20poly1305",
  "cpu-time",
@@ -2890,7 +2890,7 @@ dependencies = [
 
 [[package]]
 name = "juggler-adapter"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "bitflags 2.13.2",
  "juggler-core",
@@ -2906,7 +2906,7 @@ dependencies = [
 
 [[package]]
 name = "juggler-adapters"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "getrandom 0.4.3",
  "juggler-adapter",
@@ -2929,7 +2929,7 @@ dependencies = [
 
 [[package]]
 name = "juggler-agentbridge"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "juggler-adapter",
  "juggler-adapters",
@@ -2943,7 +2943,7 @@ dependencies = [
 
 [[package]]
 name = "juggler-app"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "base64 0.23.1",
  "bytes",
@@ -3017,7 +3017,7 @@ dependencies = [
 
 [[package]]
 name = "juggler-core"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "flate2",
  "proptest",
@@ -3034,7 +3034,7 @@ dependencies = [
 
 [[package]]
 name = "juggler-floor"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "bytemuck",
  "proptest",
@@ -3045,7 +3045,7 @@ dependencies = [
 
 [[package]]
 name = "juggler-floor-render"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "bytemuck",
  "juggler-floor",
@@ -3056,7 +3056,7 @@ dependencies = [
 
 [[package]]
 name = "juggler-handover"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "cpu-time",
  "juggler-adapter",
@@ -3073,7 +3073,7 @@ dependencies = [
 
 [[package]]
 name = "juggler-link"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "base64 0.23.1",
  "cpu-time",
@@ -3106,7 +3106,7 @@ dependencies = [
 
 [[package]]
 name = "juggler-local-ai-protocol"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -3114,7 +3114,7 @@ dependencies = [
 
 [[package]]
 name = "juggler-login-item"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "objc2",
  "objc2-foundation",
@@ -3123,7 +3123,7 @@ dependencies = [
 
 [[package]]
 name = "juggler-platform"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "core-foundation 0.10.1",
  "nix 0.31.3",
@@ -3141,14 +3141,14 @@ dependencies = [
 
 [[package]]
 name = "juggler-proc-list"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "libc",
 ]
 
 [[package]]
 name = "juggler-remote-config"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "base64 0.23.1",
  "curve25519-dalek 5.0.0",
@@ -3165,14 +3165,14 @@ dependencies = [
 
 [[package]]
 name = "juggler-scap-init"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "screencapturekit",
 ]
 
 [[package]]
 name = "juggler-stats"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "cpu-time",
  "flate2",
@@ -3188,7 +3188,7 @@ dependencies = [
 
 [[package]]
 name = "juggler-supervisor"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "block2",
  "cpu-time",
@@ -3213,14 +3213,14 @@ dependencies = [
 
 [[package]]
 name = "juggler-vm-stats"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "libc",
 ]
 
 [[package]]
 name = "juggler-window-events"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "block2",
  "objc2",
