@@ -22,10 +22,13 @@ struct Lab {
 
 fn lab() -> Lab {
     let dir = tempfile::tempdir().unwrap();
-    let mut registry = juggler_adapter::AdapterRegistry::new();
-    registry.register(Arc::new(juggler_adapters::ClaudeCodeAdapter::new()));
-    registry.register(Arc::new(juggler_adapters::CodexAdapter::new()));
-    let state = Arc::new(AppState::init_with_registry(dir.path().join("data"), registry).unwrap());
+    let state = crate::test_support::state_with(
+        dir.path().join("data"),
+        vec![
+            Arc::new(juggler_adapters::ClaudeCodeAdapter::new()),
+            Arc::new(juggler_adapters::CodexAdapter::new()),
+        ],
+    );
     // Any program of root's stands in for juggler-agent (never run here).
     state
         .agent_bridge

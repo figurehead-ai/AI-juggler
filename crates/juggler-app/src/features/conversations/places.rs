@@ -365,6 +365,26 @@ mod tests {
         )
     }
 
+    /// launchd (1), the Claude app on profile `profile` (10) and its
+    /// disclaimer helper (11), given `helper_args`.
+    fn claude_on(profile: &str, helper_args: &[&str]) -> [(u32, Proc); 3] {
+        [
+            proc(1, 0, "/sbin/launchd", &[]),
+            proc(
+                10,
+                1,
+                CLAUDE_APP,
+                &[CLAUDE_APP, &format!("--user-data-dir={profile}")],
+            ),
+            proc(
+                11,
+                10,
+                "/Applications/Claude.app/Contents/Helpers/disclaimer",
+                helper_args,
+            ),
+        ]
+    }
+
     fn hosts() -> HostRegistry {
         HostRegistry::new(vec![crate::test_support::claude_app_host(Some(
             "com.anthropic.claudefordesktop",
@@ -388,42 +408,30 @@ mod tests {
     fn a_desktop_session_is_in_its_claude_instance_by_its_argument() {
         let home = Path::new("/Users/you");
         let profile = "/Users/you/Library/Application Support/ClaudeProfiles/b-work";
-        let table: Table = [
-            proc(1, 0, "/sbin/launchd", &[]),
-            proc(
-                10,
-                1,
-                CLAUDE_APP,
-                &[CLAUDE_APP, &format!("--user-data-dir={profile}")],
-            ),
-            proc(
-                11,
-                10,
-                "/Applications/Claude.app/Contents/Helpers/disclaimer",
-                &["disclaimer"],
-            ),
-            proc(
-                12,
-                11,
-                &format!("{profile}/claude-code/2.1/abc/claude.app/Contents/MacOS/claude"),
-                &["claude", "--resume=s-1"],
-            ),
-            proc(20, 1, CLAUDE_APP, &[CLAUDE_APP]),
-            proc(
-                21,
-                20,
-                "/Applications/Claude.app/Contents/Helpers/disclaimer",
-                &[],
-            ),
-            proc(
-                22,
-                21,
-                "/Users/you/Library/Application Support/Claude/claude-code/c/claude",
-                &["claude"],
-            ),
-        ]
-        .into_iter()
-        .collect();
+        let table: Table = claude_on(profile, &["disclaimer"])
+            .into_iter()
+            .chain([
+                proc(
+                    12,
+                    11,
+                    &format!("{profile}/claude-code/2.1/abc/claude.app/Contents/MacOS/claude"),
+                    &["claude", "--resume=s-1"],
+                ),
+                proc(20, 1, CLAUDE_APP, &[CLAUDE_APP]),
+                proc(
+                    21,
+                    20,
+                    "/Applications/Claude.app/Contents/Helpers/disclaimer",
+                    &[],
+                ),
+                proc(
+                    22,
+                    21,
+                    "/Users/you/Library/Application Support/Claude/claude-code/c/claude",
+                    &["claude"],
+                ),
+            ])
+            .collect();
         let host = host_of(12, &table, &hosts(), home).unwrap();
         assert_eq!(host.app_id.as_deref(), Some("claude-app"));
         assert_eq!(host.name, "Claude");
@@ -452,30 +460,18 @@ mod tests {
         let home = Path::new("/Users/you");
         let profile = "/Users/you/Library/Application Support/ClaudeProfiles/b-work";
         let cli = format!("{profile}/claude-code/2.1/abc/claude.app/Contents/MacOS/claude");
-        let table: Table = [
-            proc(1, 0, "/sbin/launchd", &[]),
-            proc(
-                10,
-                1,
-                CLAUDE_APP,
-                &[CLAUDE_APP, &format!("--user-data-dir={profile}")],
-            ),
-            proc(
-                11,
-                10,
-                "/Applications/Claude.app/Contents/Helpers/disclaimer",
-                &["disclaimer"],
-            ),
-            proc(12, 11, &cli, &["claude", "--resume=s-1"]),
-            proc(13, 12, "/opt/homebrew/bin/codex", &["codex", "app-server"]),
-            // A terminal nobody knows still names its place, not the tool
-            // bundled inside it.
-            proc(20, 1, "/Applications/Some Term.app/Contents/MacOS/st", &[]),
-            proc(21, 20, &cli, &["claude"]),
-            proc(22, 21, "/opt/homebrew/bin/codex", &["codex"]),
-        ]
-        .into_iter()
-        .collect();
+        let table: Table = claude_on(profile, &["disclaimer"])
+            .into_iter()
+            .chain([
+                proc(12, 11, &cli, &["claude", "--resume=s-1"]),
+                proc(13, 12, "/opt/homebrew/bin/codex", &["codex", "app-server"]),
+                // A terminal nobody knows still names its place, not the tool
+                // bundled inside it.
+                proc(20, 1, "/Applications/Some Term.app/Contents/MacOS/st", &[]),
+                proc(21, 20, &cli, &["claude"]),
+                proc(22, 21, "/opt/homebrew/bin/codex", &["codex"]),
+            ])
+            .collect();
         let host = host_of(13, &table, &hosts(), home).unwrap();
         assert_eq!(host.app_id.as_deref(), Some("claude-app"));
         assert_eq!(host.pid, 10);
@@ -501,55 +497,43 @@ mod tests {
         let code_tab = format!("{profile}/claude-code/2.1/abc/claude.app/Contents/MacOS/claude");
         let ours = "/Users/you/Applications/AI Juggler Dev.app/Contents/MacOS/juggler-app";
         let other = "/Users/you/Library/Application Support/ClaudeProfiles/b-main";
-        let table: Table = [
-            proc(1, 0, "/sbin/launchd", &[]),
-            proc(
-                10,
-                1,
-                CLAUDE_APP,
-                &[CLAUDE_APP, &format!("--user-data-dir={profile}")],
-            ),
-            proc(
-                11,
-                10,
-                "/Applications/Claude.app/Contents/Helpers/disclaimer",
-                &[],
-            ),
-            proc(12, 11, &code_tab, &["claude"]),
-            proc(13, 12, "/bin/zsh", &["/bin/zsh", "-c", "lab_env.sh"]),
-            // AI Juggler, the shell's child until the shell ends.
-            proc(70, 13, ours, &[ours]),
-            // A session it drives, and one in its terminal.
-            proc(
-                71,
-                70,
-                "/Users/you/.local/bin/claude",
-                &["claude", "-p", "--resume", "c-1"],
-            ),
-            proc(72, 70, "/bin/zsh", &["-zsh"]),
-            proc(73, 72, "/Users/you/.local/bin/claude", &["claude"]),
-            // A Claude app profile it started itself, and a session there.
-            proc(
-                80,
-                70,
-                CLAUDE_APP,
-                &[CLAUDE_APP, &format!("--user-data-dir={other}")],
-            ),
-            proc(
-                81,
-                80,
-                "/Applications/Claude.app/Contents/Helpers/disclaimer",
-                &[],
-            ),
-            proc(
-                82,
-                81,
-                &format!("{other}/claude-code/2.1/abc/claude.app/Contents/MacOS/claude"),
-                &["claude"],
-            ),
-        ]
-        .into_iter()
-        .collect();
+        let table: Table = claude_on(profile, &[])
+            .into_iter()
+            .chain([
+                proc(12, 11, &code_tab, &["claude"]),
+                proc(13, 12, "/bin/zsh", &["/bin/zsh", "-c", "lab_env.sh"]),
+                // AI Juggler, the shell's child until the shell ends.
+                proc(70, 13, ours, &[ours]),
+                // A session it drives, and one in its terminal.
+                proc(
+                    71,
+                    70,
+                    "/Users/you/.local/bin/claude",
+                    &["claude", "-p", "--resume", "c-1"],
+                ),
+                proc(72, 70, "/bin/zsh", &["-zsh"]),
+                proc(73, 72, "/Users/you/.local/bin/claude", &["claude"]),
+                // A Claude app profile it started itself, and a session there.
+                proc(
+                    80,
+                    70,
+                    CLAUDE_APP,
+                    &[CLAUDE_APP, &format!("--user-data-dir={other}")],
+                ),
+                proc(
+                    81,
+                    80,
+                    "/Applications/Claude.app/Contents/Helpers/disclaimer",
+                    &[],
+                ),
+                proc(
+                    82,
+                    81,
+                    &format!("{other}/claude-code/2.1/abc/claude.app/Contents/MacOS/claude"),
+                    &["claude"],
+                ),
+            ])
+            .collect();
         let registry = hosts().with_own(Some((70, 700)));
         for session in [71, 73] {
             let host = host_of(session, &table, &registry, home).unwrap();

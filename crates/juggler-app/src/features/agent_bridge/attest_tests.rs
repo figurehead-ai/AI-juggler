@@ -8,10 +8,10 @@ use std::sync::Arc;
 
 use juggler_agentbridge::wire::{Args, Call, Refusal, Request};
 use juggler_core::agent_access::{AccessLevel, AgentAction};
-use juggler_core::model::{SessionId, SessionStatus};
+use juggler_core::model::SessionId;
 use juggler_core::pools::SessionFacts;
 use juggler_core::storage::attested::desktop_id;
-use juggler_core::storage::{MemberRef, PoolRole};
+use juggler_core::storage::{MemberRef, PoolRole, Storage};
 
 use crate::state::AppState;
 
@@ -36,24 +36,10 @@ pub(super) fn lab(dir: &Path) -> (Arc<AppState>, String) {
                 ))
                 .unwrap();
         }
-        storage
-            .profiles()
-            .insert(&crate::test_support::launch_settings(
-                "rec", "Main", "acc-cli",
-            ))
-            .unwrap();
-        storage
-            .sessions()
-            .insert(&crate::test_support::instance(
-                "s-cli",
-                "rec",
-                SessionStatus::Running,
-                dir.join("w"),
-            ))
-            .unwrap();
+        crate::test_support::cli_session(&storage, dir);
         let pool = storage.pools().create("Team", None).unwrap().id;
-        let pools = storage.pools();
-        pools
+        storage
+            .pools()
             .join(
                 &pool,
                 &MemberRef::Session(SessionId::new("s-cli")),
@@ -62,30 +48,142 @@ pub(super) fn lab(dir: &Path) -> (Arc<AppState>, String) {
                 None,
             )
             .unwrap();
-        pools
-            .join(
-                &pool,
-                &MemberRef::Conversation {
-                    folder: FOLDER.into(),
-                    id: CONVERSATION.into(),
-                },
-                &[],
-                PoolRole::Member,
-                None,
-            )
-            .unwrap();
+        join_desktop(&storage, &pool, CONVERSATION.into());
         pool
     };
     (state, pool)
 }
 
-fn desktop_facts() -> SessionFacts {
-    SessionFacts {
-        app: Some("app:claude-app:/x".into()),
-        tool: Some(juggler_adapters::CLAUDE_CODE_ID.into()),
-        conversation: Some((FOLDER.into(), CONVERSATION.into())),
-        ..SessionFacts::bare(desktop_id(FOLDER, CONVERSATION), None)
+/// The desktop folder's `conversation` joins `pool`.
+fn join_desktop(storage: &Storage, pool: &str, conversation: String) {
+    storage
+        .pools()
+        .join(
+            pool,
+            &MemberRef::Conversation {
+                folder: FOLDER.into(),
+                id: conversation,
+            },
+            &[],
+            PoolRole::Member,
+            None,
+        )
+        .unwrap();
+}
+
+/// Desktop members `members` (see [`conversation`]) in `pool`, each
+/// attested.
+pub(super) fn desktop_members(
+    storage: &Storage,
+    pool: &str,
+    members: impl IntoIterator<Item = u32>,
+) {
+    for n in members {
+        join_desktop(storage, pool, conversation(n));
+        storage.attested().put(facts_of(n));
     }
+}
+
+/// The lab at Full, with desktop members `members` in its pool.
+pub(super) fn full_lab(
+    dir: &Path,
+    members: impl IntoIterator<Item = u32>,
+) -> (Arc<AppState>, String) {
+    let (state, pool) = lab(dir);
+    {
+        let storage = state.storage.lock().unwrap();
+        storage
+            .agent_access()
+            .set_level(&pool, AccessLevel::Full, &std::collections::BTreeSet::new())
+            .unwrap();
+        desktop_members(&storage, &pool, members);
+    }
+    (state, pool)
+}
+
+/// The lab, its desktop member's facts kept as an attestation keeps them.
+fn attested_lab(dir: &Path) -> (Arc<AppState>, String) {
+    let (state, pool) = lab(dir);
+    state
+        .storage
+        .lock()
+        .unwrap()
+        .attested()
+        .put(desktop_facts());
+    (state, pool)
+}
+
+fn desktop_facts() -> SessionFacts {
+    crate::test_support::desktop_facts("app:claude-app:/x", FOLDER, CONVERSATION)
+}
+
+/// Desktop member `n` as its attestation answers: its tool's process
+/// `tool_pid`, started at `tool_start`.
+pub(super) fn caller(n: u32, tool_pid: u32, tool_start: i64) -> super::attest::DesktopCaller {
+    super::attest::DesktopCaller {
+        session: desktop_id(FOLDER, &conversation(n)),
+        app_id: "app:claude-app:/x".into(),
+        folder: FOLDER.into(),
+        conversation: conversation(n),
+        tool_pid,
+        tool_start,
+        can_wake: true,
+        facts: facts_of(n),
+    }
+}
+
+/// A connection from process `pid` (version 1), now.
+pub(super) fn peer(pid: u32) -> juggler_platform::local_ipc::Peer {
+    juggler_platform::local_ipc::Peer {
+        pid: Some(pid),
+        pid_version: Some(1),
+        accepted: std::time::SystemTime::now(),
+    }
+}
+
+/// A connector's keyless wait of `secs` seconds.
+pub(super) fn wait_of(secs: u32) -> juggler_agentbridge::wire::Wait {
+    juggler_agentbridge::wire::Wait {
+        v: juggler_agentbridge::wire::VERSION,
+        token: String::new(),
+        wait_secs: secs,
+    }
+}
+
+/// A state that knows Claude Code, its agent tools turned on.
+fn claude_state(dir: &Path) -> Arc<AppState> {
+    let state = crate::test_support::state_with(
+        dir.join("data"),
+        vec![Arc::new(juggler_adapters::ClaudeCodeAdapter::new())],
+    );
+    crate::features::agent_bridge::settings::answer_impl(&state, true).unwrap();
+    state
+}
+
+/// This test's parent process, standing in for the Code tab's Claude
+/// Code: its registry entry in `config` (`fields`: its status and such),
+/// and its pid and start (seconds).
+fn stand_in(config: &Path, fields: &str) -> (u32, i64) {
+    let me = std::process::id();
+    let table = juggler_proc_list::list().unwrap();
+    let parent = table.iter().find(|p| p.pid == me).unwrap().ppid;
+    let start = table.iter().find(|p| p.pid == parent).unwrap().start_secs;
+    let start = i64::try_from(start).unwrap();
+    registry_entry(
+        config,
+        parent,
+        &format!(
+            r#"{{"pid":{parent},"sessionId":"{CONVERSATION}",{fields},"procStart":"{}","hostSessionId":"local_t1","entrypoint":"claude-desktop"}}"#,
+            ctime(start)
+        ),
+    );
+    (parent, start)
+}
+
+/// Claude Code's registry entry for process `pid`, in `config`.
+fn registry_entry(config: &Path, pid: u32, body: &str) {
+    std::fs::create_dir_all(config.join("sessions")).unwrap();
+    std::fs::write(config.join(format!("sessions/{pid}.json")), body).unwrap();
 }
 
 #[test]
@@ -198,16 +296,7 @@ fn ctime(secs: i64) -> String {
     ];
     let days = secs.div_euclid(86_400);
     let rest = secs.rem_euclid(86_400);
-    // Howard Hinnant's civil_from_days.
-    let z = days + 719_468;
-    let era = z.div_euclid(146_097);
-    let doe = z - era * 146_097;
-    let yoe = (doe - doe / 1460 + doe / 36_524 - doe / 146_096) / 365;
-    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
-    let mp = (5 * doy + 2) / 153;
-    let day = doy - (153 * mp + 2) / 5 + 1;
-    let month = if mp < 10 { mp + 3 } else { mp - 9 };
-    let year = yoe + era * 400 + i64::from(month <= 2);
+    let (year, month, day) = crate::features::app::diagnostics::zip::civil_day(days);
     format!(
         "{} {} {:2} {:02}:{:02}:{:02} {}",
         DAYS[usize::try_from(days.rem_euclid(7)).unwrap()],
@@ -233,28 +322,12 @@ fn ctime_reads_back_as_the_same_second() {
 #[cfg(target_os = "macos")]
 #[test]
 fn this_processs_own_chain_is_attested_end_to_end_and_its_call_is_answered() {
-    use juggler_core::model::HarnessId;
     let dir = tempfile::tempdir().unwrap();
-    let mut registry = juggler_adapter::AdapterRegistry::new();
-    registry.register(Arc::new(juggler_adapters::ClaudeCodeAdapter::new()));
-    let state = Arc::new(AppState::init_with_registry(dir.path().join("data"), registry).unwrap());
-    crate::features::agent_bridge::settings::answer_impl(&state, true).unwrap();
+    let state = claude_state(dir.path());
     let config = dir.path().join("config");
     let instance = dir.path().join("instance");
-    // This test's parent stands in for the Code tab's Claude Code process.
     let me = std::process::id();
-    let table = juggler_proc_list::list().unwrap();
-    let parent = table.iter().find(|p| p.pid == me).unwrap().ppid;
-    let parent_start = table.iter().find(|p| p.pid == parent).unwrap().start_secs;
-    std::fs::create_dir_all(config.join("sessions")).unwrap();
-    std::fs::write(
-        config.join(format!("sessions/{parent}.json")),
-        format!(
-            r#"{{"pid":{parent},"sessionId":"{CONVERSATION}","status":"idle","procStart":"{}","hostSessionId":"local_t1","entrypoint":"claude-desktop","kind":"interactive"}}"#,
-            ctime(i64::try_from(parent_start).unwrap())
-        ),
-    )
-    .unwrap();
+    let (parent, parent_start) = stand_in(&config, r#""status":"idle","kind":"interactive""#);
     std::fs::create_dir_all(instance.join("claude-code-sessions/a/o")).unwrap();
     std::fs::write(
         instance.join("claude-code-sessions/a/o/local_t1.json"),
@@ -263,39 +336,9 @@ fn this_processs_own_chain_is_attested_end_to_end_and_its_call_is_answered() {
     .unwrap();
     let pool = {
         let storage = state.storage.lock().unwrap();
-        storage
-            .accounts()
-            .insert(&crate::test_support::account(
-                FOLDER,
-                HarnessId::new(juggler_adapters::CLAUDE_CODE_ID).as_str(),
-                "Desk",
-                config.clone(),
-            ))
-            .unwrap();
-        let app = storage
-            .apps()
-            .upsert_desktop(
-                juggler_adapters::CLAUDE_CODE_ID,
-                "claude-app",
-                Some(&instance.to_string_lossy()),
-                1,
-            )
-            .unwrap();
-        storage.apps().set_folder(&app, Some(FOLDER)).unwrap();
+        crate::test_support::desktop_app(&storage, FOLDER, "Desk", config.clone(), &instance);
         let pool = storage.pools().create("Team", None).unwrap().id;
-        storage
-            .pools()
-            .join(
-                &pool,
-                &MemberRef::Conversation {
-                    folder: FOLDER.into(),
-                    id: CONVERSATION.into(),
-                },
-                &[],
-                PoolRole::Member,
-                None,
-            )
-            .unwrap();
+        join_desktop(&storage, &pool, CONVERSATION.into());
         pool
     };
     let peer = juggler_platform::local_ipc::Peer {
@@ -327,14 +370,14 @@ fn this_processs_own_chain_is_attested_end_to_end_and_its_call_is_answered() {
     );
     // The registry going stale (pid reused) refuses the next call and
     // drops what was kept.
-    std::fs::write(
-        config.join(format!("sessions/{parent}.json")),
-        format!(
+    registry_entry(
+        &config,
+        parent,
+        &format!(
             r#"{{"pid":{parent},"sessionId":"{CONVERSATION}","procStart":"{}","hostSessionId":"local_t1","entrypoint":"claude-desktop"}}"#,
-            ctime(i64::try_from(parent_start).unwrap() - 3600)
+            ctime(parent_start - 3600)
         ),
-    )
-    .unwrap();
+    );
     let refused = super::calls::handle_line_from(&state, &line, Some(peer));
     assert_eq!(refused.refused, Some(Refusal::Unattested));
     assert!(
@@ -357,29 +400,14 @@ fn this_processs_own_chain_is_attested_end_to_end_and_its_call_is_answered() {
 /// title and its App by its profile folder's name.
 #[test]
 fn the_first_call_finds_the_sessions_project_and_name_before_any_index() {
-    use juggler_core::model::HarnessId;
     let dir = tempfile::tempdir().unwrap();
-    let mut registry = juggler_adapter::AdapterRegistry::new();
-    registry.register(Arc::new(juggler_adapters::ClaudeCodeAdapter::new()));
-    let state = Arc::new(AppState::init_with_registry(dir.path().join("data"), registry).unwrap());
-    crate::features::agent_bridge::settings::answer_impl(&state, true).unwrap();
+    let state = claude_state(dir.path());
     let config = dir.path().join("config");
     let instance = dir.path().join("aij-test");
     let web = dir.path().join("lab/web");
     std::fs::create_dir_all(&web).unwrap();
     let me = std::process::id();
-    let table = juggler_proc_list::list().unwrap();
-    let parent = table.iter().find(|p| p.pid == me).unwrap().ppid;
-    let parent_start = table.iter().find(|p| p.pid == parent).unwrap().start_secs;
-    std::fs::create_dir_all(config.join("sessions")).unwrap();
-    std::fs::write(
-        config.join(format!("sessions/{parent}.json")),
-        format!(
-            r#"{{"pid":{parent},"sessionId":"{CONVERSATION}","status":"busy","procStart":"{}","hostSessionId":"local_t1","entrypoint":"claude-desktop"}}"#,
-            ctime(i64::try_from(parent_start).unwrap())
-        ),
-    )
-    .unwrap();
+    stand_in(&config, r#""status":"busy""#);
     std::fs::create_dir_all(instance.join("claude-code-sessions/a/o")).unwrap();
     let record = |cwd: Option<&Path>| {
         let cwd = cwd.map_or_else(String::new, |cwd| format!(r#","cwd":"{}""#, cwd.display()));
@@ -393,25 +421,8 @@ fn the_first_call_finds_the_sessions_project_and_name_before_any_index() {
     };
     let (pool, project) = {
         let storage = state.storage.lock().unwrap();
-        storage
-            .accounts()
-            .insert(&crate::test_support::account(
-                FOLDER,
-                HarnessId::new(juggler_adapters::CLAUDE_CODE_ID).as_str(),
-                "Desk",
-                config.clone(),
-            ))
-            .unwrap();
-        let app = storage
-            .apps()
-            .upsert_desktop(
-                juggler_adapters::CLAUDE_CODE_ID,
-                "claude-app",
-                Some(&instance.to_string_lossy()),
-                1,
-            )
-            .unwrap();
-        storage.apps().set_folder(&app, Some(FOLDER)).unwrap();
+        let app =
+            crate::test_support::desktop_app(&storage, FOLDER, "Desk", config.clone(), &instance);
         let project = storage.projects().ensure(&web).unwrap().id;
         let pool = storage.pools().create("aij46 run2", None).unwrap().id;
         storage
@@ -543,13 +554,7 @@ fn message(state: &Arc<AppState>, pool: &str, id: &str, sender: &str, kind: &str
 #[test]
 fn a_wake_needs_the_pools_waking_rule_and_keeps_to_its_budget() {
     let dir = tempfile::tempdir().unwrap();
-    let (state, pool) = lab(dir.path());
-    state
-        .storage
-        .lock()
-        .unwrap()
-        .attested()
-        .put(desktop_facts());
+    let (state, pool) = attested_lab(dir.path());
     let desk = desktop_id(FOLDER, CONVERSATION);
     // Nothing yet, and nothing before this point counts.
     assert_eq!(super::desktop::wake_for(&state, &desk), None);
@@ -579,13 +584,7 @@ fn a_wake_needs_the_pools_waking_rule_and_keeps_to_its_budget() {
 #[test]
 fn a_persons_message_or_a_paused_pool_never_wakes() {
     let dir = tempfile::tempdir().unwrap();
-    let (state, pool) = lab(dir.path());
-    state
-        .storage
-        .lock()
-        .unwrap()
-        .attested()
-        .put(desktop_facts());
+    let (state, pool) = attested_lab(dir.path());
     state
         .storage
         .lock()
@@ -622,13 +621,7 @@ fn a_persons_message_or_a_paused_pool_never_wakes() {
 #[test]
 fn a_call_carries_its_own_attested_facts() {
     let dir = tempfile::tempdir().unwrap();
-    let (state, _) = lab(dir.path());
-    state
-        .storage
-        .lock()
-        .unwrap()
-        .attested()
-        .put(desktop_facts());
+    let (state, _) = attested_lab(dir.path());
     let storage = state.storage.lock().unwrap();
     let desk = desktop_id(FOLDER, CONVERSATION);
     assert!(super::calls::whose(&storage, &desk, None).is_err());
@@ -662,37 +655,22 @@ struct Kept {
 
 impl Kept {
     fn new(dir: &Path, pid: u32, start: i64) -> Self {
-        let mut registry = juggler_adapter::AdapterRegistry::new();
-        registry.register(Arc::new(juggler_adapters::ClaudeCodeAdapter::new()));
-        let state = Arc::new(AppState::init_with_registry(dir.join("data"), registry).unwrap());
+        let state = crate::test_support::state_with(
+            dir.join("data"),
+            vec![Arc::new(juggler_adapters::ClaudeCodeAdapter::new())],
+        );
         let config = dir.join("config");
         let instance = dir.join("instance");
         std::fs::create_dir_all(config.join("sessions")).unwrap();
         let records = instance.join("claude-code-sessions/acct/org");
         std::fs::create_dir_all(&records).unwrap();
-        let app = {
-            let storage = state.storage.lock().unwrap();
-            storage
-                .accounts()
-                .insert(&crate::test_support::account(
-                    FOLDER,
-                    juggler_adapters::CLAUDE_CODE_ID,
-                    "Desk",
-                    config.clone(),
-                ))
-                .unwrap();
-            let app = storage
-                .apps()
-                .upsert_desktop(
-                    juggler_adapters::CLAUDE_CODE_ID,
-                    "claude-app",
-                    Some(&instance.to_string_lossy()),
-                    1,
-                )
-                .unwrap();
-            storage.apps().set_folder(&app, Some(FOLDER)).unwrap();
-            app
-        };
+        let app = crate::test_support::desktop_app(
+            &state.storage.lock().unwrap(),
+            FOLDER,
+            "Desk",
+            config.clone(),
+            &instance,
+        );
         let kept = Self {
             state,
             app,
@@ -741,19 +719,13 @@ impl Kept {
             .unwrap()
             .attested()
             .put(desktop_facts());
-        self.state.agent_bridge.desktop.lock().unwrap().insert(
-            desktop_id(FOLDER, CONVERSATION).as_str().to_owned(),
-            (
-                self.app.clone(),
-                juggler_adapter::peer::AttestedSession {
-                    conversation: CONVERSATION.into(),
-                    host_session: "local_t1".into(),
-                    tool_pid: self.pid,
-                    tool_start: self.start,
-                    cwd: None,
-                    title: None,
-                },
-            ),
+        crate::test_support::keep_desktop(
+            &self.state,
+            &self.app,
+            FOLDER,
+            CONVERSATION,
+            self.pid,
+            self.start,
         );
     }
 
@@ -877,28 +849,11 @@ fn a_desktop_session_stops_counting_as_open_when_its_registry_entry_goes() {
 #[test]
 fn the_persons_deliver_wakes_a_desktop_member_even_after_a_refused_start() {
     use crate::features::messages::send::{self, Author, Outgoing};
-    use juggler_agentbridge::wire::Wait;
     use std::sync::atomic::{AtomicBool, Ordering};
     use std::time::Duration;
     let dir = tempfile::tempdir().unwrap();
     let (state, pool) = lab(dir.path());
-    {
-        let storage = state.storage.lock().unwrap();
-        storage
-            .pools()
-            .join(
-                &pool,
-                &MemberRef::Conversation {
-                    folder: FOLDER.into(),
-                    id: conversation(60),
-                },
-                &[],
-                PoolRole::Member,
-                None,
-            )
-            .unwrap();
-        storage.attested().put(facts_of(60));
-    }
+    desktop_members(&state.storage.lock().unwrap(), &pool, [60]);
     let started = juggler_core::model::Timestamp::now().millis() / 1_000 - 60;
     let ready = Arc::new(AtomicBool::new(false));
     let attestor: super::desktop::Attestor = {
@@ -910,31 +865,14 @@ fn the_persons_deliver_wakes_a_desktop_member_even_after_a_refused_start() {
                         .to_owned(),
                 );
             }
-            Ok(super::attest::DesktopCaller {
-                session: desktop_id(FOLDER, &conversation(60)),
-                app_id: "app:claude-app:/x".into(),
-                folder: FOLDER.into(),
-                conversation: conversation(60),
-                tool_pid: u32::MAX,
-                tool_start: started,
-                can_wake: true,
-                facts: facts_of(60),
-            })
+            Ok(caller(60, u32::MAX, started))
         })
     };
-    let peer = juggler_platform::local_ipc::Peer {
-        pid: Some(6_060),
-        pid_version: Some(1),
-        accepted: std::time::SystemTime::now(),
-    };
+    let peer = peer(6_060);
     let wait = |state: &Arc<AppState>, attestor: &super::desktop::Attestor| {
         tauri::async_runtime::block_on(super::desktop::wait_with(
             Arc::clone(state),
-            Wait {
-                v: juggler_agentbridge::wire::VERSION,
-                token: String::new(),
-                wait_secs: 1,
-            },
+            wait_of(1),
             peer,
             Arc::clone(attestor),
             Duration::from_millis(50),
@@ -1003,59 +941,19 @@ fn the_persons_deliver_wakes_a_desktop_member_even_after_a_refused_start() {
 /// wait (since its Claude Code started, not since that wait).
 #[test]
 fn a_message_from_before_the_first_answered_wait_still_wakes() {
-    use juggler_agentbridge::wire::Wait;
     use std::time::Duration;
     let dir = tempfile::tempdir().unwrap();
-    let (state, pool) = lab(dir.path());
-    {
-        let storage = state.storage.lock().unwrap();
-        storage
-            .agent_access()
-            .set_level(&pool, AccessLevel::Full, &std::collections::BTreeSet::new())
-            .unwrap();
-        storage
-            .pools()
-            .join(
-                &pool,
-                &MemberRef::Conversation {
-                    folder: FOLDER.into(),
-                    id: conversation(61),
-                },
-                &[],
-                PoolRole::Member,
-                None,
-            )
-            .unwrap();
-        storage.attested().put(facts_of(61));
-    }
+    let (state, pool) = full_lab(dir.path(), [61]);
     let started = juggler_core::model::Timestamp::now().millis() / 1_000 - 60;
     // The message comes before any wait was answered.
     message_for(&state, &pool, "m-61", &conversation(61));
     std::thread::sleep(Duration::from_millis(20));
-    let attestor: super::desktop::Attestor = Arc::new(move |_state, _peer| {
-        Ok(super::attest::DesktopCaller {
-            session: desktop_id(FOLDER, &conversation(61)),
-            app_id: "app:claude-app:/x".into(),
-            folder: FOLDER.into(),
-            conversation: conversation(61),
-            tool_pid: u32::MAX,
-            tool_start: started,
-            can_wake: true,
-            facts: facts_of(61),
-        })
-    });
+    let attestor: super::desktop::Attestor =
+        Arc::new(move |_state, _peer| Ok(caller(61, u32::MAX, started)));
     let woke = tauri::async_runtime::block_on(super::desktop::wait_with(
         Arc::clone(&state),
-        Wait {
-            v: juggler_agentbridge::wire::VERSION,
-            token: String::new(),
-            wait_secs: 1,
-        },
-        juggler_platform::local_ipc::Peer {
-            pid: Some(6_061),
-            pid_version: Some(1),
-            accepted: std::time::SystemTime::now(),
-        },
+        wait_of(1),
+        peer(6_061),
         attestor,
         Duration::from_millis(50),
     ));
@@ -1117,34 +1015,10 @@ pub(super) fn message_for(state: &Arc<AppState>, pool: &str, id: &str, conversat
 /// messages stay due and its wake budget is unspent.
 #[test]
 fn a_notice_is_dropped_when_the_conversation_changed_during_the_wait() {
-    use juggler_agentbridge::wire::Wait;
     use std::sync::atomic::{AtomicUsize, Ordering};
     use std::time::Duration;
     let dir = tempfile::tempdir().unwrap();
-    let (state, pool) = lab(dir.path());
-    {
-        let storage = state.storage.lock().unwrap();
-        storage
-            .agent_access()
-            .set_level(&pool, AccessLevel::Full, &std::collections::BTreeSet::new())
-            .unwrap();
-        for n in 0..4 {
-            storage
-                .pools()
-                .join(
-                    &pool,
-                    &MemberRef::Conversation {
-                        folder: FOLDER.into(),
-                        id: conversation(n),
-                    },
-                    &[],
-                    PoolRole::Member,
-                    None,
-                )
-                .unwrap();
-            storage.attested().put(facts_of(n));
-        }
-    }
+    let (state, pool) = full_lab(dir.path(), 0..4);
     let run = |changes: bool| {
         let calls = Arc::new(AtomicUsize::new(0));
         let attestor: super::desktop::Attestor = {
@@ -1158,28 +1032,15 @@ fn a_notice_is_dropped_when_the_conversation_changed_during_the_wait() {
                     (true, true) => 2,
                     (true, false) => 3,
                 };
-                Ok(super::attest::DesktopCaller {
-                    session: desktop_id(FOLDER, &conversation(n)),
-                    app_id: "app:claude-app:/x".into(),
-                    folder: FOLDER.into(),
-                    conversation: conversation(n),
-                    tool_pid: 1,
-                    tool_start: juggler_core::model::Timestamp::now().millis() / 1_000,
-                    can_wake: true,
-                    facts: facts_of(n),
-                })
+                Ok(caller(
+                    n,
+                    1,
+                    juggler_core::model::Timestamp::now().millis() / 1_000,
+                ))
             })
         };
-        let peer = juggler_platform::local_ipc::Peer {
-            pid: Some(if changes { 2_001 } else { 2_002 }),
-            pid_version: Some(1),
-            accepted: std::time::SystemTime::now(),
-        };
-        let wait = Wait {
-            v: juggler_agentbridge::wire::VERSION,
-            token: String::new(),
-            wait_secs: 3,
-        };
+        let peer = peer(if changes { 2_001 } else { 2_002 });
+        let wait = wait_of(3);
         let state = Arc::clone(&state);
         let pool = pool.clone();
         tauri::async_runtime::block_on(async move {

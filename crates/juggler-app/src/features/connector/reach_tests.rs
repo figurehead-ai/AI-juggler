@@ -8,8 +8,7 @@ use std::sync::Arc;
 
 use juggler_agentbridge::wire::Response;
 use juggler_core::agent_access::AccessLevel;
-use juggler_core::model::{SessionId, SessionStatus};
-use juggler_core::pools::SessionFacts;
+use juggler_core::model::SessionId;
 use juggler_core::storage::attested::desktop_id;
 use juggler_core::storage::{MemberRef, PoolRole, RecipientState};
 
@@ -32,9 +31,10 @@ struct Lab {
 /// conversation `conv-1` in it.
 fn lab() -> Lab {
     let dir = tempfile::tempdir().unwrap();
-    let mut registry = juggler_adapter::AdapterRegistry::new();
-    registry.register(Arc::new(juggler_adapters::ClaudeCodeAdapter::new()));
-    let state = Arc::new(AppState::init_with_registry(dir.path().join("data"), registry).unwrap());
+    let state = crate::test_support::state_with(
+        dir.path().join("data"),
+        vec![Arc::new(juggler_adapters::ClaudeCodeAdapter::new())],
+    );
     // Any program of root's stands in for juggler-agent (never run here).
     state
         .agent_bridge
@@ -53,21 +53,7 @@ fn lab() -> Lab {
                 ))
                 .unwrap();
         }
-        storage
-            .profiles()
-            .insert(&crate::test_support::launch_settings(
-                "rec", "Main", "acc-cli",
-            ))
-            .unwrap();
-        storage
-            .sessions()
-            .insert(&crate::test_support::instance(
-                "s-cli",
-                "rec",
-                SessionStatus::Running,
-                dir.path().join("w"),
-            ))
-            .unwrap();
+        crate::test_support::cli_session(&storage, dir.path());
         let apps = storage.apps();
         let app = apps
             .upsert_desktop(
@@ -105,13 +91,11 @@ impl Lab {
     /// Keeps the facts an attestation of `conv-1`'s session would keep.
     fn attest(&self) {
         let storage = self.state.storage.lock().unwrap();
-        let attested = storage.attested();
-        attested.put(SessionFacts {
-            app: Some(self.app.clone()),
-            tool: Some(juggler_adapters::CLAUDE_CODE_ID.into()),
-            conversation: Some((FOLDER.into(), CONVERSATION.into())),
-            ..SessionFacts::bare(desktop_id(FOLDER, CONVERSATION), None)
-        });
+        storage.attested().put(crate::test_support::desktop_facts(
+            &self.app,
+            FOLDER,
+            CONVERSATION,
+        ));
     }
 
     fn full(&self) {
@@ -167,19 +151,13 @@ impl Lab {
     /// `conv-1`'s session as its tool's process started at `start` keeps
     /// it (what an attestation keeps in memory).
     fn process(&self, start: i64) {
-        self.state.agent_bridge.desktop.lock().unwrap().insert(
-            desktop_id(FOLDER, CONVERSATION).as_str().to_owned(),
-            (
-                self.app.clone(),
-                juggler_adapter::peer::AttestedSession {
-                    conversation: CONVERSATION.into(),
-                    host_session: "local_t1".into(),
-                    tool_pid: 4242,
-                    tool_start: start,
-                    cwd: None,
-                    title: None,
-                },
-            ),
+        crate::test_support::keep_desktop(
+            &self.state,
+            &self.app,
+            FOLDER,
+            CONVERSATION,
+            4242,
+            start,
         );
     }
 
