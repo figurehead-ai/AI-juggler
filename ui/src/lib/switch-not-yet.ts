@@ -11,6 +11,16 @@
  */
 import { useSyncExternalStore } from "react";
 
+/** SK-2 (the 0.4.6 soak, A5): why one of AI Juggler's sessions can't
+ * switch yet, before any switch list has asked: it has no conversation
+ * to carry. The one rule for every door that offers its switch (its menu,
+ * ⌘⇧H, an Account's "What this affects", Home's and the bell's "Continue
+ * in another app…"), so one never offers what another greys. `null`:
+ * it can. */
+export function cantSwitchYet(row: { conversation_id: string | null }): string | null {
+  return row.conversation_id ? null : "It has no conversation to carry over yet";
+}
+
 /** By the switch source key (AI Juggler's session id, or another app's
  * session's key): why it can't switch yet, or null once it can. */
 const notYet = new Map<string, string | null>();

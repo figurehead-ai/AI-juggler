@@ -153,7 +153,8 @@ describe("a switch request goes to the session it names, never the page on scree
 });
 
 describe("F16 an out-of-room account's banner", () => {
-  const session = (overrides: Partial<InstanceInfo>) => ({ id: "s-1", account_id: "f", status: "running", started_at_ms: 1, last_activity_ms: 5, ...overrides }) as unknown as InstanceInfo;
+  // SK-2: one with a conversation, so it can switch (`cantSwitchYet`).
+  const session = (overrides: Partial<InstanceInfo>) => ({ id: "s-1", account_id: "f", status: "running", started_at_ms: 1, last_activity_ms: 5, conversation_id: "conv-s-1", ...overrides }) as unknown as InstanceInfo;
 
   it("continues its open session in another app (the walk's case), the newest one when several", () => {
     expect(openOnAccount("f", [], [conversation()])).toEqual({ conversation: conversation() });
@@ -166,5 +167,7 @@ describe("F16 an out-of-room account's banner", () => {
     expect(openOnAccount("f", [session({ status: "finished" })], [conversation({ live: false })])).toBeNull();
     // AI Juggler's own copy of a conversation is its session, not counted twice.
     expect(openOnAccount("f", [], [conversation({ session_id: "s-9" })])).toBeNull();
+    // SK-2: nor one of AI Juggler's with nothing to carry yet.
+    expect(openOnAccount("f", [session({ conversation_id: null })], [])).toBeNull();
   });
 });
