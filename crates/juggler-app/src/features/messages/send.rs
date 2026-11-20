@@ -846,6 +846,8 @@ pub(crate) fn route(
 
 /// Where one recipient's copy goes.
 enum Target {
+    /// The person, in AI Juggler's messages.
+    You,
     /// Into its inbox, or (a session AI Juggler runs) its next turn.
     Inbox(&'static str, Option<SessionId>),
     /// A connected desktop member: its ref, whether the pool wakes it, and
@@ -872,7 +874,7 @@ fn route_with(
     for recipient in &recipients {
         let name = recipient.recipient_name.clone();
         if recipient.recipient_ref == SENDER_USER {
-            targets.push((name, Target::Inbox("in your messages", None)));
+            targets.push((name, Target::You));
             continue;
         }
         if let Some(one) = desktop
@@ -894,9 +896,30 @@ fn route_with(
         targets.push((name, Target::Inbox("in its inbox", session)));
     }
     drop(storage);
+    // AJ-E3014 item 3: past the pool's hop limit, the chain pauses for every
+    // recipient, not only the ones AI Juggler would wake.
+    let past = match from {
+        Author::Agent {
+            session: sender, ..
+        } => super::delivery::past_hop_limit(state, message, sender),
+        Author::User => false,
+    };
     let mut routes = Vec::new();
     for (name, target) in targets {
+        if past && matches!(target, Target::Desktop(..) | Target::Inbox(_, None)) {
+            super::delivery::pause_at_hop_limit(
+                state,
+                message,
+                &format!(
+                    "«{}»'s message would go on to «{name}» past this pool's hop limit",
+                    message.sender_name
+                ),
+            );
+            routes.push((name, super::delivery::AT_HOP_LIMIT));
+            continue;
+        }
         let (inbox, session) = match target {
+            Target::You => ("in your messages", None),
             // AJ-E3013 (the A9 lab walk): the person's compose with
             // Deliver queues its copy (their click), which wakes it.
             Target::Desktop(member, _, can_wake) if matches!(from, Author::User) && deliver => {

@@ -41,11 +41,13 @@ export const THREAD_WORDS: Record<string, string> = {
 /** A thread's count against its cap (F-rc3g-10: its pool's hop limit when
  * the pool puts messages into sessions, never more than 6), as Needs you
  * says it: "2 of 2 agent messages in a row without you" is the last one
- * before you're asked; the one past it says it's over. Only when it is
+ * before you're asked; past it, one more waits for you. Only when it is
  * getting close. */
 export function hopWords(hop: number, cap: number): string | null {
   if (hop < 2 && hop < cap) return null;
-  if (hop > cap) return `${hop} agent messages in a row without you, over this pool's limit of ${cap}`;
+  // AJ-E3014 item 3: past the limit, counted as the limit ("N of 2"), as
+  // Needs you and the agents say it.
+  if (hop > cap) return `${cap} of ${cap} agent messages in a row without you; one more waits for you`;
   return `${hop} of ${cap} agent messages in a row without you`;
 }
 

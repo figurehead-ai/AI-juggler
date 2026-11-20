@@ -180,43 +180,87 @@ pub(crate) fn decide(
                 .lock()
                 .is_ok_and(|storage| pool_delivers(&storage, &message.pool_id)) =>
         {
-            if let Ok(storage) = state.storage.lock() {
-                let repo = storage.messages();
-                let to = repo
+            let to = state.storage.lock().ok().and_then(|storage| {
+                storage
+                    .messages()
                     .recipients(&message.id)
                     .unwrap_or_default()
                     .into_iter()
                     .find(|r| {
                         super::live_session_of(&storage, &r.recipient_ref).as_ref() == Some(session)
                     })
-                    .map_or_else(
-                        || "another session".to_owned(),
-                        |r| format!("«{}»", r.recipient_name),
-                    );
-                let _ = repo.set_thread_state(
-                    &message.thread_id,
-                    ThreadState::Paused,
-                    Some(PAUSED_AT_HOP_LIMIT),
-                    "system",
-                );
-                let _ = repo.hold(&HeldAsk {
-                    id: new_id("ask"),
-                    pool_id: message.pool_id.clone(),
-                    actor_ref: message.sender_ref.clone(),
-                    actor_name: message.sender_name.clone(),
-                    action: AgentAction::DeliverToSession.as_str().to_owned(),
-                    object_ref: message.id.clone(),
-                    summary: format!(
-                        "«{}»'s message would start {to}'s next turn",
-                        message.sender_name
-                    ),
-                    created_at: Timestamp::now().millis(),
-                });
-            }
+                    .map(|r| format!("«{}»", r.recipient_name))
+            });
+            pause_at_hop_limit(
+                state,
+                message,
+                &format!(
+                    "«{}»'s message would start {}'s next turn",
+                    message.sender_name,
+                    to.as_deref().unwrap_or("another session")
+                ),
+            );
             AT_HOP_LIMIT
         }
         Decision::Ask { .. } => "in its inbox (the user can deliver it)",
         Decision::Deny => "in its inbox (delivery is stopped in this pool)",
+    }
+}
+
+/// AJ-E3014 item 3: whether an agent's `message` goes past its pool's hop
+/// limit: the pool puts its agents' messages into sessions by itself, and
+/// this one would be a hop past the limit. The same for every recipient,
+/// one AI Juggler wakes or not (a desktop member, a terminal it can't type
+/// into): before, the limit only stopped the waking, and those chains went
+/// on.
+pub(crate) fn past_hop_limit(state: &Arc<AppState>, message: &Message, sender: &SessionId) -> bool {
+    let taken = message.hop.saturating_sub(1);
+    matches!(
+        crate::features::pools::access::allowed(
+            state,
+            sender.as_str(),
+            &message.pool_id,
+            AgentAction::DeliverToSession,
+            Some(taken),
+        ),
+        Decision::Ask { .. }
+    ) && state
+        .storage
+        .lock()
+        .is_ok_and(|storage| pool_delivers(&storage, &message.pool_id))
+}
+
+/// A chain at its pool's hop limit: its thread pauses and the person is
+/// asked, once a message (`summary` says what a yes does).
+pub(crate) fn pause_at_hop_limit(state: &Arc<AppState>, message: &Message, summary: &str) {
+    let Ok(storage) = state.storage.lock() else {
+        return;
+    };
+    let repo = storage.messages();
+    let _ = repo.set_thread_state(
+        &message.thread_id,
+        ThreadState::Paused,
+        Some(PAUSED_AT_HOP_LIMIT),
+        "system",
+    );
+    let asked = repo
+        .open_asks(0, 200)
+        .unwrap_or_default()
+        .iter()
+        .any(|ask| {
+            ask.object_ref == message.id && ask.action == AgentAction::DeliverToSession.as_str()
+        });
+    if !asked {
+        let _ = repo.hold(&HeldAsk {
+            id: new_id("ask"),
+            pool_id: message.pool_id.clone(),
+            actor_ref: message.sender_ref.clone(),
+            actor_name: message.sender_name.clone(),
+            action: AgentAction::DeliverToSession.as_str().to_owned(),
+            object_ref: message.id.clone(),
+            summary: summary.to_owned(),
+            created_at: Timestamp::now().millis(),
+        });
     }
 }
 

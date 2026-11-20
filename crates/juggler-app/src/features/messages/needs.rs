@@ -93,13 +93,14 @@ fn wants_to_message(sender: &str, to: &[String]) -> String {
 
 /// A thread's count against its pool's [`super::delivery::hop_cap`], as
 /// its thread view says it too (F-rc3g-10): "2 of 2 agent messages in a
-/// row without you", or for the one past it "3 agent messages in a row
-/// without you, over this pool's limit of 2".
+/// row without you"; past it (AJ-E3014 item 3: the person reads "N of 2",
+/// never "3 …, over this pool's limit of 2") "2 of 2 agent messages in a
+/// row without you; one more waits for you".
 pub(crate) fn hops_words(hop: u32, cap: u32) -> String {
     if hop <= cap {
         format!("{hop} of {cap} agent messages in a row without you")
     } else {
-        format!("{hop} agent messages in a row without you, over this pool's limit of {cap}")
+        format!("{cap} of {cap} agent messages in a row without you; one more waits for you")
     }
 }
 
@@ -758,34 +759,23 @@ fn person_delivers(state: &Arc<AppState>, storage: &Storage, message: &Message) 
 }
 
 /// After a yes: a released message goes where it would have (the pool's
-/// level and the hop limit decide its delivery); a hop-limit delivery is
-/// queued as the user's click.
+/// level and the hop limit decide its delivery); a hop-limit delivery goes
+/// in as the person's click, to every recipient it can (AJ-E3014 item 3: a
+/// desktop member is woken; a terminal AI Juggler can't type into reads it
+/// on its next turn).
 fn go_on(state: &Arc<AppState>, deliver: bool, message: &Message) -> AppResult<()> {
-    if !deliver {
-        let sender = super::sender_session(&*lock_storage_arc(state)?, &message.sender_ref);
-        if let Some(session) = sender {
-            let from = Author::Agent {
-                session,
-                member_ref: message.sender_ref.clone(),
-                name: message.sender_name.clone(),
-                tool: String::new(),
-            };
-            route(state, message, &from, false);
-        }
-        return Ok(());
+    if deliver {
+        return deliver_for_person(state, message);
     }
-    let recipients = lock_storage_arc(state)?
-        .messages()
-        .recipients(&message.id)?;
-    for recipient in recipients {
-        let session = {
-            let storage = lock_storage_arc(state)?;
-            super::live_session_of(&storage, &recipient.recipient_ref)
-                .filter(|s| super::reachable(state, &storage, s))
+    let sender = super::sender_session(&*lock_storage_arc(state)?, &message.sender_ref);
+    if let Some(session) = sender {
+        let from = Author::Agent {
+            session,
+            member_ref: message.sender_ref.clone(),
+            name: message.sender_name.clone(),
+            tool: String::new(),
         };
-        if let Some(session) = session {
-            super::delivery::queue(state, &message.id, &session);
-        }
+        route(state, message, &from, false);
     }
     Ok(())
 }
@@ -804,7 +794,7 @@ mod line_tests {
         );
         assert_eq!(
             hops_words(3, 2),
-            "3 agent messages in a row without you, over this pool's limit of 2"
+            "2 of 2 agent messages in a row without you; one more waits for you"
         );
     }
 

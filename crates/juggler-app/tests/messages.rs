@@ -773,7 +773,7 @@ fn the_hop_limit_pauses_the_chain_and_asks_and_stop_all_holds_it() {
     // thread's cap (lab 2026-10-26, finding 3).
     assert_eq!(field(&third, "/hop"), "3");
     assert_eq!(field(&third, "/hop_limit"), "2");
-    assert!(field(&third, "/paused").contains("hop limit, 2"));
+    assert!(field(&third, "/paused").contains("hop limit: 2 of 2"));
     assert_eq!(field(&first, "/paused"), "null", "only when it paused");
     let waiting = needs::needs(&lab.state).unwrap();
     // One message, one card (finding 4): the ask, and no "waiting" card
@@ -889,6 +889,49 @@ fn a_woken_agent_writing_in_a_new_thread_counts_on_from_its_chain() {
     });
     let fresh = lab.say(&a, &b_id, "a new topic", None);
     assert_eq!(field(&fresh, "/hop"), "1", "{fresh:?}");
+}
+
+/// AJ-E3014 item 3 (rc3h): a pool that delivers by itself didn't pause at
+/// its hop limit when the recipient was a session AI Juggler can't type
+/// into (or a desktop member): it only stopped waking it, and the chain
+/// went on. The limit holds for every recipient: the thread pauses, the
+/// person is asked, and the count reads "2 of 2" everywhere.
+#[test]
+fn the_hop_limit_holds_for_a_recipient_ai_juggler_cant_wake() {
+    let lab = Lab::new();
+    let (planner, a) = lab.agent("s-a", "Planner");
+    let (builder, b) = lab.agent("s-b", "Builder");
+    pools::access::set_level_impl(&lab.state, &lab.pool, "full", &[]).unwrap();
+    pools::access::set_delivery_impl(&lab.state, &lab.pool, 2, false).unwrap();
+    let first = lab.say(&a, &builder, "one", None);
+    assert_eq!(field(&first, "/to/0/gets_it"), "in its inbox");
+    let thread = field(&first, "/thread");
+    lab.say(&b, &planner, "two", Some(&thread));
+    let third = lab.say(&a, &builder, "three", Some(&thread));
+    assert_eq!(
+        field(&third, "/to/0/gets_it"),
+        "when the user says (the chain reached the hop limit)"
+    );
+    assert!(
+        field(&third, "/paused").contains("2 of 2 agent messages in a row"),
+        "{third:?}"
+    );
+    let paused = views::thread(&lab.state, &thread, None).unwrap().thread;
+    assert_eq!(paused.state, "paused");
+    let ask = needs::needs(&lab.state)
+        .unwrap()
+        .into_iter()
+        .find(|n| n.kind == "deliver")
+        .expect("the person is asked");
+    assert!(
+        ask.detail
+            .ends_with("2 of 2 agent messages in a row without you; one more waits for you"),
+        "{}",
+        ask.detail
+    );
+    // The chain doesn't go on in its thread.
+    let (why, _) = refusal(&lab.say(&b, &planner, "four", Some(&thread)));
+    assert_eq!(why, Some(Refusal::Limit));
 }
 
 /// The rc3h walk: "Don't deliver" on a chain paused at the hop limit

@@ -360,24 +360,25 @@ fn two_pools_chains_through_one_session_each_pause_at_their_own_hop_limit() {
     let refused = lab.say(&a, &builder, "Team four", Some(&team));
     assert_eq!(refused.refused, Some(Refusal::Limit), "{refused:?}");
 
-    // Second's goes on to its own limit (3), through the same session.
+    // Second's goes on to its own limit (3), through the same session. Its
+    // fourth goes to Client, a terminal AI Juggler can't type into: the
+    // limit holds there too (AJ-E3014 item 3; before, the chain went on).
     let second_3 = lab.say(&c, &builder, "Second three", Some(&other));
     assert_eq!(field(&second_3, "/hop"), "3");
     delivered(&second_3);
-    builder_says(&second, &client, "Second four", &other);
-    let second_5 = lab.say(&c, &builder, "Second five", Some(&other));
+    let second_4 = builder_says(&second, &client, "Second four", &other);
     assert_eq!(
-        field(&second_5, "/to/0/gets_it"),
+        field(&second_4, "/to/0/gets_it"),
         "when the user says (the chain reached the hop limit)"
     );
-    assert_eq!(field(&second_5, "/hop_limit"), "3");
+    assert_eq!(field(&second_4, "/hop_limit"), "3");
     assert_eq!(thread_state(&other), "paused");
     let asks: Vec<_> = needs::needs(&lab.state)
         .unwrap()
         .into_iter()
         .filter(|need| need.kind == "deliver")
         .collect();
-    // Needs you counts the same way: the one it asks about is past 2.
+    // Needs you counts the same way: 2 of 2, and the one it asks about waits.
     let team_ask = asks
         .iter()
         .find(|need| need.thread_id.as_deref() == Some(team.as_str()))
@@ -385,7 +386,7 @@ fn two_pools_chains_through_one_session_each_pause_at_their_own_hop_limit() {
     assert!(
         team_ask
             .detail
-            .ends_with("3 agent messages in a row without you, over this pool's limit of 2"),
+            .ends_with("2 of 2 agent messages in a row without you; one more waits for you"),
         "{}",
         team_ask.detail
     );
@@ -414,5 +415,5 @@ fn two_pools_chains_through_one_session_each_pause_at_their_own_hop_limit() {
     delivered(&woken);
     std::thread::sleep(std::time::Duration::from_millis(300));
     assert_eq!(state_of(&held), ["unread"], "Second's stop holds its own");
-    assert_eq!(state_of(&field(&second_5, "/message")), ["unread"]);
+    assert_eq!(state_of(&field(&second_4, "/message")), ["unread"]);
 }

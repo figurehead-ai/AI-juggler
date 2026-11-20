@@ -390,7 +390,10 @@ it has any.
   its messages itself. For a session that isn't running, Deliver gives it
   the message as its next prompt when you resume it.
 - **Without your click**, a message goes into a session only in a pool at
-  **Full**, or by a rule you made, and only up to the pool's hop limit.
+  **Full**, or by a rule you made, and only up to the pool's hop limit. At
+  the limit the chain pauses and asks you, whoever it's to: a session AI
+  Juggler wakes, a desktop member, or one in a terminal that reads its
+  messages itself.
 - **New message** writes to one member or to everyone in the pool.
   **Deliver to their sessions** (on by default) also puts it into the
   sessions AI Juggler runs. Your message starts the thread's count of

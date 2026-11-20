@@ -202,7 +202,8 @@ describe("a pool's messages", () => {
     seams().__AIJ_MESSAGES__!.threads![0] = thread({ hop: 2, hop_cap: 2 });
     const { findByTestId } = render(<MessagesView poolId="pool-team" members={members} now={NOW} />);
     expect((await findByTestId("thread-hops")).textContent).toBe("2 of 2 agent messages in a row without you");
-    expect(hopWords(3, 2)).toBe("3 agent messages in a row without you, over this pool's limit of 2");
+    // AJ-E3014 item 3: past the limit, still "N of 2", as Needs you says it.
+    expect(hopWords(3, 2)).toBe("2 of 2 agent messages in a row without you; one more waits for you");
     expect(hopWords(1, 1), "at a limit of 1, the first is the last").toBe("1 of 1 agent messages in a row without you");
     expect(hopWords(1, 5)).toBeNull();
   });
