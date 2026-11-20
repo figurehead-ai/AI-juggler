@@ -164,6 +164,14 @@ mod tests {
         hex(&Sha256::digest(bytes))
     }
 
+    /// A model file of `bytes` in `dir`, named by its hash; the hash.
+    fn model_file(dir: &std::path::Path, bytes: &[u8]) -> (std::path::PathBuf, String) {
+        let sum = sha(bytes);
+        let path = dir.join(format!("{sum}.gguf"));
+        std::fs::write(&path, bytes).unwrap();
+        (path, sum)
+    }
+
     fn soon() -> Stop {
         Stop::at(Instant::now() + Duration::from_secs(10))
     }
@@ -171,10 +179,7 @@ mod tests {
     #[test]
     fn a_file_is_hashed_once_then_known_by_its_stamp_until_it_changes() {
         let dir = tempfile::tempdir().unwrap();
-        let bytes = b"GGUF model bytes".to_vec();
-        let sum = sha(&bytes);
-        let path = dir.path().join(format!("{sum}.gguf"));
-        std::fs::write(&path, &bytes).unwrap();
+        let (path, sum) = model_file(dir.path(), b"GGUF model bytes");
         let verified = Verified::default();
         verified.check(&path, &sum, 16, &soon()).unwrap();
         assert!(verified.stamp(&sum).is_some());
@@ -195,10 +200,7 @@ mod tests {
     #[test]
     fn a_wrong_size_a_wrong_hash_a_link_or_no_file_is_never_fit() {
         let dir = tempfile::tempdir().unwrap();
-        let bytes = b"abc".to_vec();
-        let sum = sha(&bytes);
-        let path = dir.path().join(format!("{sum}.gguf"));
-        std::fs::write(&path, &bytes).unwrap();
+        let (path, sum) = model_file(dir.path(), b"abc");
         let verified = Verified::default();
         let unfit = Err(EngineError::NotHere(Reason::Unknown));
         assert_eq!(verified.check(&path, &sum, 4, &soon()), unfit);
@@ -223,9 +225,7 @@ mod tests {
     fn hashing_stops_with_the_job() {
         let dir = tempfile::tempdir().unwrap();
         let bytes = vec![7_u8; 3 * CHUNK];
-        let sum = sha(&bytes);
-        let path = dir.path().join(format!("{sum}.gguf"));
-        std::fs::write(&path, &bytes).unwrap();
+        let (path, sum) = model_file(dir.path(), &bytes);
         let verified = Verified::default();
         let stop = soon();
         stop.stop();

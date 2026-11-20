@@ -24,7 +24,7 @@ use serde::Serialize;
 use super::dto::{BotMemoryInfo, BotRowKind};
 use super::world::World;
 use crate::error::{AppError, AppResult};
-use crate::features::ai::memory::{FORGET_AND_BACKUPS, RedactionSecrets};
+use crate::features::ai::memory::{FORGET_AND_BACKUPS, RedactionSecrets, memory_error};
 use crate::state::AppState;
 
 /// What "What Bot remembers" shows.
@@ -224,20 +224,6 @@ pub fn info_of(record: &Record, versions: u32) -> BotMemoryInfo {
         at_ms: record.as_of_ms,
         used: u32::try_from(record.use_count).unwrap_or(0),
         versions,
-    }
-}
-
-fn memory_error(error: MemoryError) -> AppError {
-    match error {
-        MemoryError::Core(core) => AppError::from(core),
-        MemoryError::Refused(refusal) => AppError::Validation {
-            subject: "memory",
-            message: refusal.code().to_owned(),
-        },
-        other => AppError::Validation {
-            subject: "memory",
-            message: other.to_string(),
-        },
     }
 }
 

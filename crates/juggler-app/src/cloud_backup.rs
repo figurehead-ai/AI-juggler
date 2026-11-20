@@ -91,12 +91,7 @@ pub struct CloudBackupInfo {
 }
 
 fn setting(state: &Arc<AppState>, key: &str) -> Option<String> {
-    state
-        .storage
-        .lock()
-        .ok()
-        .and_then(|storage| storage.app_settings().get(key).ok().flatten())
-        .filter(|value| !value.is_empty())
+    state.app_setting(key).filter(|value| !value.is_empty())
 }
 
 fn last(state: &Arc<AppState>) -> Option<LastBackupInfo> {

@@ -5,45 +5,14 @@
 
 use std::sync::{Arc, Mutex};
 
-use juggler_core::model::SessionStatus;
-
 use super::batch::{BATCH_MS, Opens};
 use super::{Outgoing, prefs, session_status, show_due_at};
 use crate::state::AppState;
 
-const NAMES: [&str; 7] = ["api", "web", "docs", "infra", "ui", "db", "cli"];
-
 /// A state with an account, an App and seven running sessions, each in a
 /// folder named for it (`s1` is api … `s7` is cli); every kind on.
 fn lab(dir: &std::path::Path) -> Arc<AppState> {
-    let state = crate::test_support::bare_state(dir.join("data"));
-    {
-        let storage = state.storage.lock().unwrap();
-        storage
-            .accounts()
-            .insert(&crate::test_support::account(
-                "acct-1",
-                "claude-code",
-                "Lab",
-                dir.join("acct"),
-            ))
-            .unwrap();
-        storage
-            .profiles()
-            .insert(&crate::test_support::launch_settings("p1", "Lab", "acct-1"))
-            .unwrap();
-        for (i, name) in NAMES.iter().enumerate() {
-            storage
-                .sessions()
-                .insert(&crate::test_support::instance(
-                    &format!("s{}", i + 1),
-                    "p1",
-                    SessionStatus::Running,
-                    dir.join(name),
-                ))
-                .unwrap();
-        }
-    }
+    let state = crate::test_support::seven_sessions(dir);
     // A wait is news at once here (AJ-E2904's threshold is the user's).
     state
         .storage
@@ -67,6 +36,13 @@ fn lab(dir: &std::path::Path) -> Arc<AppState> {
     state
 }
 
+/// Now, seen as noon local time (no quiet hours).
+fn at_noon(state: &AppState) -> i64 {
+    let base = crate::commands::now_millis();
+    state.notifier.local_hour_seen(Some(12), base);
+    base
+}
+
 fn sink(state: &AppState) -> Arc<Mutex<Vec<Outgoing>>> {
     let list = Arc::new(Mutex::new(Vec::new()));
     let into = Arc::clone(&list);
@@ -80,8 +56,7 @@ fn sink(state: &AppState) -> Arc<Mutex<Vec<Outgoing>>> {
 fn seven_finishes_in_a_minute_reach_the_system_as_one_notification() {
     let dir = tempfile::tempdir().unwrap();
     let state = lab(dir.path());
-    let base = crate::commands::now_millis();
-    state.notifier.local_hour_seen(Some(12), base);
+    let base = at_noon(&state);
     // Statuses first (no sink yet: due, not sent), then the path runs on
     // the test's clock.
     for i in 1..=7 {
@@ -110,9 +85,8 @@ fn seven_finishes_in_a_minute_reach_the_system_as_one_notification() {
 fn a_need_goes_at_once_and_quiet_hours_release_what_they_held_as_one() {
     let dir = tempfile::tempdir().unwrap();
     let state = lab(dir.path());
-    let base = crate::commands::now_millis();
     let list = sink(&state);
-    state.notifier.local_hour_seen(Some(12), base);
+    let base = at_noon(&state);
     session_status(&state, "s1", "waiting_user");
     show_due_at(&state, base);
     assert_eq!(list.lock().unwrap().len(), 1, "the first need at once");
@@ -136,9 +110,8 @@ fn a_need_goes_at_once_and_quiet_hours_release_what_they_held_as_one() {
 fn nothing_goes_out_while_ai_juggler_is_in_front() {
     let dir = tempfile::tempdir().unwrap();
     let state = lab(dir.path());
-    let base = crate::commands::now_millis();
     let list = sink(&state);
-    state.notifier.local_hour_seen(Some(12), base);
+    let base = at_noon(&state);
     state.notifier.set_in_front(true);
     session_status(&state, "s1", "waiting_user");
     session_status(&state, "s2", "finished");

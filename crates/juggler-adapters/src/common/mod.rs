@@ -5,6 +5,7 @@
 //! - [`child`]: a tool's process AI Juggler starts, ended and reaped.
 //! - [`driven`]: the terminal launch a driven runtime starts from and
 //!   resumes in.
+//! - [`file_time`]: when a file changed or was made.
 //! - [`home`]: scanning, inspecting, copying and adopting a config home.
 //! - [`jsonl`]: reading a file one bounded line at a time.
 //! - [`launch`]: the folder a launch runs in; a running tool's command.
@@ -17,6 +18,7 @@
 pub(crate) mod bridge_sample;
 pub(crate) mod child;
 pub(crate) mod driven;
+pub(crate) mod file_time;
 pub(crate) mod home;
 #[cfg(test)]
 pub(crate) mod inventory_sample;

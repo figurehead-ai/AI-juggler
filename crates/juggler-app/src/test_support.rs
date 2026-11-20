@@ -236,3 +236,81 @@ pub(crate) fn keep_desktop(
         ),
     );
 }
+
+/// `text` written to `path` as an executable script (a stand-in helper
+/// or tool); `path` back.
+#[cfg(unix)]
+pub(crate) fn script(path: &std::path::Path, text: &str) -> std::path::PathBuf {
+    use std::os::unix::fs::PermissionsExt as _;
+    std::fs::write(path, text).unwrap();
+    std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o755)).unwrap();
+    path.to_path_buf()
+}
+
+/// The files in `dir` (the database, its WAL) that hold `canary`.
+pub(crate) fn holding(dir: &std::path::Path, canary: &str) -> Vec<std::path::PathBuf> {
+    files_under(dir)
+        .into_iter()
+        .filter(|path| {
+            std::fs::read(path)
+                .unwrap_or_default()
+                .windows(canary.len())
+                .any(|w| w == canary.as_bytes())
+        })
+        .collect()
+}
+
+/// The Rust sources under `dir`.
+pub(crate) fn rust_files(dir: &std::path::Path) -> Vec<std::path::PathBuf> {
+    files_under(dir)
+        .into_iter()
+        .filter(|path| path.extension().is_some_and(|ext| ext == "rs"))
+        .collect()
+}
+
+/// Every file under `dir`, at any depth.
+fn files_under(dir: &std::path::Path) -> Vec<std::path::PathBuf> {
+    let mut stack = vec![dir.to_path_buf()];
+    let mut out = Vec::new();
+    while let Some(at) = stack.pop() {
+        for entry in std::fs::read_dir(&at).unwrap().flatten() {
+            let path = entry.path();
+            if path.is_dir() {
+                stack.push(path);
+            } else {
+                out.push(path);
+            }
+        }
+    }
+    out
+}
+
+/// A state over `dir/data` with an account, an App and seven running
+/// sessions, each in a folder named for it (`s1` is api … `s7` is cli).
+pub(crate) fn seven_sessions(dir: &std::path::Path) -> std::sync::Arc<crate::state::AppState> {
+    const NAMES: [&str; 7] = ["api", "web", "docs", "infra", "ui", "db", "cli"];
+    let state = bare_state(dir.join("data"));
+    {
+        let storage = state.storage.lock().unwrap();
+        storage
+            .accounts()
+            .insert(&account("acct-1", "claude-code", "Lab", dir.join("acct")))
+            .unwrap();
+        storage
+            .profiles()
+            .insert(&launch_settings("p1", "Lab", "acct-1"))
+            .unwrap();
+        for (i, name) in NAMES.iter().enumerate() {
+            storage
+                .sessions()
+                .insert(&instance(
+                    &format!("s{}", i + 1),
+                    "p1",
+                    SessionStatus::Running,
+                    dir.join(name),
+                ))
+                .unwrap();
+        }
+    }
+    state
+}

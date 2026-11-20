@@ -9,6 +9,7 @@
 use std::io::{BufRead, BufReader, Read as _, Write as _};
 use std::path::Path;
 use std::process::{Child, ChildStdin, Command, Stdio};
+use std::sync::Mutex;
 use std::sync::mpsc::{Receiver, RecvTimeoutError, channel};
 use std::time::{Duration, Instant};
 
@@ -23,6 +24,67 @@ pub const MAX_LINE_BYTES: u64 = juggler_local_ai_protocol::MAX_ANSWER_BYTES as u
 
 /// How often a wait looks at the job's stop.
 const STOP_POLL: Duration = Duration::from_millis(50);
+
+/// ADR-0033 §3's health rule: this many failures within [`HEALTH_WINDOW`]
+/// mark an engine unhealthy until the next probe that finds it fine.
+const HEALTH_FAILURES: usize = 3;
+const HEALTH_WINDOW: Duration = Duration::from_secs(3_600);
+
+/// What an engine knows of its helper: what it last saw, and its recent
+/// failures, for the health rule.
+#[derive(Debug)]
+pub struct Health<S> {
+    seen: Mutex<S>,
+    failures: Mutex<Vec<Instant>>,
+}
+
+impl<S: Copy> Health<S> {
+    /// Nothing seen yet (`seen`), and no failures.
+    pub const fn new(seen: S) -> Self {
+        Self {
+            seen: Mutex::new(seen),
+            failures: Mutex::new(Vec::new()),
+        }
+    }
+
+    /// What it last saw; `poisoned` when its lock is poisoned.
+    pub fn seen(&self, poisoned: S) -> S {
+        self.seen.lock().map_or(poisoned, |seen| *seen)
+    }
+
+    /// What it sees now.
+    pub fn see(&self, seen: S) {
+        if let Ok(mut slot) = self.seen.lock() {
+            *slot = seen;
+        }
+    }
+
+    /// Too many failures within the window.
+    pub fn unhealthy(&self) -> bool {
+        self.failures.lock().is_ok_and(|failures| {
+            failures
+                .iter()
+                .filter(|at| at.elapsed() < HEALTH_WINDOW)
+                .count()
+                >= HEALTH_FAILURES
+        })
+    }
+
+    /// One more failure, now.
+    pub fn failed(&self) {
+        if let Ok(mut failures) = self.failures.lock() {
+            failures.retain(|at| at.elapsed() < HEALTH_WINDOW);
+            failures.push(Instant::now());
+        }
+    }
+
+    /// A probe found the engine fine: its failures are forgotten.
+    pub fn healed(&self) {
+        if let Ok(mut failures) = self.failures.lock() {
+            failures.clear();
+        }
+    }
+}
 
 /// A running helper.
 #[derive(Debug)]

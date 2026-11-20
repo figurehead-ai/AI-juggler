@@ -89,9 +89,18 @@ fn local_without_helper(models: &[ModelEntry]) -> Vec<Card> {
         size_bytes: 1,
         installed_at_ms: 0,
     };
-    let engine = Local::with(Setup {
-        program: Some(nowhere.clone()),
-        models: Some((nowhere, vec![installed])),
+    let engine = roomy_local(nowhere.clone(), (nowhere, vec![installed]));
+    engine.probe();
+    engine.cards(1, models)
+}
+
+/// The engine sets of the matrix, by name.
+/// The local engine on a roomy Apple-silicon Mac at ease, with this
+/// helper and these models, unsandboxed (a stand-in helper).
+fn roomy_local(program: std::path::PathBuf, models: (std::path::PathBuf, Vec<Installed>)) -> Local {
+    Local::with(Setup {
+        program: Some(program),
+        models: Some(models),
         host: Some(Host {
             macos: true,
             apple_silicon: true,
@@ -100,12 +109,9 @@ fn local_without_helper(models: &[ModelEntry]) -> Vec<Card> {
         pressure: Some(|| false),
         unsandboxed: true,
         sandbox_tool: None,
-    });
-    engine.probe();
-    engine.cards(1, models)
+    })
 }
 
-/// The engine sets of the matrix, by name.
 fn engine_sets(models: &[ModelEntry]) -> Vec<(&'static str, Vec<Card>)> {
     let no_helper = local_without_helper(models);
     let removed = Readiness::NotHere(Reason::TurnedOff);
@@ -158,13 +164,15 @@ fn words(route: Route, cards: &[Card]) -> String {
     }
 }
 
-fn table() -> String {
-    let mut out = String::from("engines | job | verdict | beta | flag -> route\n");
+/// Every verdict (both models have it) with every engine set: `each`
+/// hears the verdict, the set's name and the router's inputs (no picks,
+/// no Automatic).
+fn each_case(mut each: impl FnMut((Verdict, &str), &str, &Inputs<'_>)) {
     let none = BTreeMap::new();
-    for (verdict, verdict_name) in VERDICTS {
+    for case in VERDICTS {
         let models = [
-            entry(SYSTEM, Engine::AppleBuiltin, verdict),
-            entry(LOCAL, Engine::GgufLocal, verdict),
+            entry(SYSTEM, Engine::AppleBuiltin, case.0),
+            entry(LOCAL, Engine::GgufLocal, case.0),
         ];
         for (set, cards) in engine_sets(&models) {
             let inputs = Inputs {
@@ -173,23 +181,30 @@ fn table() -> String {
                 automatic: None,
                 picks: &none,
             };
-            for spec in jobs::JOBS {
-                for beta in [false, true] {
-                    for on in [true, false] {
-                        let got = route(spec, Switches { on, beta }, &inputs);
-                        let _ = writeln!(
-                            out,
-                            "{set} | {} | {verdict_name} | {} | {} -> {}",
-                            spec.job.name(),
-                            if beta { "on" } else { "off" },
-                            if on { "on" } else { "off" },
-                            words(got, &cards),
-                        );
-                    }
+            each(case, set, &inputs);
+        }
+    }
+}
+
+fn table() -> String {
+    let mut out = String::from("engines | job | verdict | beta | flag -> route\n");
+    each_case(|(_, verdict_name), set, inputs| {
+        for spec in jobs::JOBS {
+            for beta in [false, true] {
+                for on in [true, false] {
+                    let got = route(spec, Switches { on, beta }, inputs);
+                    let _ = writeln!(
+                        out,
+                        "{set} | {} | {verdict_name} | {} | {} -> {}",
+                        spec.job.name(),
+                        if beta { "on" } else { "off" },
+                        if on { "on" } else { "off" },
+                        words(got, inputs.cards),
+                    );
                 }
             }
         }
-    }
+    });
     out
 }
 
@@ -211,61 +226,49 @@ fn the_matrix_is_the_recorded_one() {
 /// Every row, checked against the rules rather than the record.
 #[test]
 fn every_row_keeps_the_rules() {
-    let none = BTreeMap::new();
-    for (verdict, _) in VERDICTS {
-        let models = [
-            entry(SYSTEM, Engine::AppleBuiltin, verdict),
-            entry(LOCAL, Engine::GgufLocal, verdict),
-        ];
-        for (set, cards) in engine_sets(&models) {
-            let inputs = Inputs {
-                cards: &cards,
-                models: &models,
-                automatic: None,
-                picks: &none,
-            };
-            let any_ready = cards.iter().any(|c| c.ready == Readiness::Ready);
-            let any_here = cards
-                .iter()
-                .any(|c| !matches!(c.ready, Readiness::NotHere(_)));
-            for spec in jobs::JOBS {
-                for beta in [false, true] {
-                    let off = route(spec, Switches { on: false, beta }, &inputs);
-                    assert_eq!(off, Route::Off, "a job whose flag is off doesn't exist");
-                    let got = route(spec, Switches { on: true, beta }, &inputs);
-                    let what = format!("{set} {:?} {verdict:?} beta {beta}", spec.job);
-                    if !verdict.passed() || !any_here {
-                        assert!(matches!(got, Route::NoEngine(_)), "{what}: {got:?}");
-                    } else if verdict == Verdict::Beta && !beta {
-                        assert_eq!(got, Route::BetaOff, "{what}");
-                    } else if any_ready {
-                        let Route::Run {
-                            card,
-                            beta: as_beta,
-                            ..
-                        } = got
-                        else {
-                            panic!("{what}: {got:?}");
-                        };
-                        assert_eq!(as_beta, verdict == Verdict::Beta, "{what}");
-                        assert_eq!(cards[card].ready, Readiness::Ready, "{what}");
-                        if cards
-                            .iter()
-                            .any(|c| c.model == SYSTEM && c.ready == Readiness::Ready)
-                        {
-                            assert_eq!(cards[card].model, SYSTEM, "{what}: no download first");
-                        }
-                    } else {
-                        assert!(matches!(got, Route::Waiting { .. }), "{what}: {got:?}");
+    each_case(|(verdict, _), set, inputs| {
+        let cards = inputs.cards;
+        let any_ready = cards.iter().any(|c| c.ready == Readiness::Ready);
+        let any_here = cards
+            .iter()
+            .any(|c| !matches!(c.ready, Readiness::NotHere(_)));
+        for spec in jobs::JOBS {
+            for beta in [false, true] {
+                let off = route(spec, Switches { on: false, beta }, inputs);
+                assert_eq!(off, Route::Off, "a job whose flag is off doesn't exist");
+                let got = route(spec, Switches { on: true, beta }, inputs);
+                let what = format!("{set} {:?} {verdict:?} beta {beta}", spec.job);
+                if !verdict.passed() || !any_here {
+                    assert!(matches!(got, Route::NoEngine(_)), "{what}: {got:?}");
+                } else if verdict == Verdict::Beta && !beta {
+                    assert_eq!(got, Route::BetaOff, "{what}");
+                } else if any_ready {
+                    let Route::Run {
+                        card,
+                        beta: as_beta,
+                        ..
+                    } = got
+                    else {
+                        panic!("{what}: {got:?}");
+                    };
+                    assert_eq!(as_beta, verdict == Verdict::Beta, "{what}");
+                    assert_eq!(cards[card].ready, Readiness::Ready, "{what}");
+                    if cards
+                        .iter()
+                        .any(|c| c.model == SYSTEM && c.ready == Readiness::Ready)
+                    {
+                        assert_eq!(cards[card].model, SYSTEM, "{what}: no download first");
                     }
-                    assert_eq!(
-                        got.shown(),
-                        matches!(got, Route::Run { .. } | Route::Waiting { .. })
-                    );
+                } else {
+                    assert!(matches!(got, Route::Waiting { .. }), "{what}: {got:?}");
                 }
+                assert_eq!(
+                    got.shown(),
+                    matches!(got, Route::Run { .. } | Route::Waiting { .. })
+                );
             }
         }
-    }
+    });
 }
 
 #[test]
@@ -551,8 +554,6 @@ fn the_jobs_flags_are_declared_and_off_only() {
 #[cfg(unix)]
 #[test]
 fn the_local_engine_serves_its_installed_model_and_automatic_picks_it() {
-    use std::os::unix::fs::PermissionsExt as _;
-
     use super::dto::{AiJob, AiJobState, AiJobWhy};
     use super::engines::Registry;
     use super::engines::apple::Apple;
@@ -562,12 +563,10 @@ fn the_local_engine_serves_its_installed_model_and_automatic_picks_it() {
 
     let dir = tempfile::tempdir().unwrap();
     let program = dir.path().join("juggler-local-ai");
-    std::fs::write(
+    crate::test_support::script(
         &program,
         "#!/bin/sh\necho '{\"kind\":\"hello\",\"protocol\":3,\"gpu\":true,\"sandboxed\":false}'\ncat > /dev/null\n",
-    )
-    .unwrap();
-    std::fs::set_permissions(&program, std::fs::Permissions::from_mode(0o755)).unwrap();
+    );
     let local_entry = entry(LOCAL, Engine::GgufLocal, Verdict::Beta);
     let installed = Installed {
         entry: local_entry.clone(),
@@ -575,18 +574,7 @@ fn the_local_engine_serves_its_installed_model_and_automatic_picks_it() {
         size_bytes: 1,
         installed_at_ms: 0,
     };
-    let local = Local::with(Setup {
-        program: Some(program),
-        models: Some((dir.path().to_path_buf(), vec![installed])),
-        host: Some(Host {
-            macos: true,
-            apple_silicon: true,
-            memory_gb: 32,
-        }),
-        pressure: Some(|| false),
-        unsandboxed: true,
-        sandbox_tool: None,
-    });
+    let local = roomy_local(program, (dir.path().to_path_buf(), vec![installed]));
     let apple = Apple::with_program(Some(dir.path().join("no-apple-helper")));
     let engines = Registry::with(apple, local);
     engines.probe();

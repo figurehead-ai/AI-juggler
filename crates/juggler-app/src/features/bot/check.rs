@@ -552,8 +552,9 @@ const VOCAB: &[&str] = &[
     "prozent",
 ];
 
-/// A record's name fields, each as written.
-fn names_of(row: &BotRowInfo) -> Vec<&str> {
+/// A record's names, each as written: its own, its project's, its App's
+/// and pool's, its holder's and branch (none empty).
+pub(super) fn names_of(row: &BotRowInfo) -> impl Iterator<Item = &str> {
     [
         Some(&row.title),
         row.project.as_ref(),
@@ -566,7 +567,6 @@ fn names_of(row: &BotRowInfo) -> Vec<&str> {
     .flatten()
     .map(String::as_str)
     .filter(|n| !n.is_empty())
-    .collect()
 }
 
 /// The numbers a row holds as measured facts (never from a name: L2).

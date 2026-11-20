@@ -141,9 +141,7 @@ mod tests {
     use std::path::PathBuf;
 
     use juggler_adapter::AdapterRegistry;
-    use juggler_core::model::{
-        InstanceKind, InstanceRecord, MachineId, ProfileId, SessionId, SessionStatus, Timestamp,
-    };
+    use juggler_core::model::{InstanceRecord, SessionId, SessionStatus, Timestamp};
     use juggler_core::storage::{NewTask, TASK_USER};
     use juggler_core::tasks::{Priority, TaskKind, TaskStatus};
 
@@ -151,21 +149,14 @@ mod tests {
 
     fn session(id: &str) -> InstanceRecord {
         InstanceRecord {
-            id: SessionId::new(id),
-            conversation: None,
-            profile: ProfileId::new("rec"),
-            machine: MachineId::new("this-mac"),
-            kind: InstanceKind::Terminal,
-            project: None,
-            cwd: PathBuf::from("/nowhere/app"),
-            status: SessionStatus::Running,
             started_at: Timestamp::now(),
             last_activity: None,
-            usage: Default::default(),
-            attention: None,
-            running: None,
-            transcript_ref: None,
-            window: None,
+            ..crate::test_support::instance(
+                id,
+                "rec",
+                SessionStatus::Running,
+                PathBuf::from("/nowhere/app"),
+            )
         }
     }
 

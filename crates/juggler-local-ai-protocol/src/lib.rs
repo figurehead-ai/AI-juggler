@@ -463,11 +463,9 @@ pub fn is_model_file_name(name: &str) -> bool {
     name.strip_suffix(".gguf").is_some_and(is_sha256)
 }
 
+/// 64 lower-case hex digits.
 fn is_sha256(text: &str) -> bool {
-    text.len() == 64
-        && text
-            .bytes()
-            .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+    text.len() == 64 && text.bytes().all(|b| matches!(b, b'0'..=b'9' | b'a'..=b'f'))
 }
 
 #[cfg(test)]

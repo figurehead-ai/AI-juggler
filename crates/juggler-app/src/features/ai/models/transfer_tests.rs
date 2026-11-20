@@ -40,10 +40,7 @@ pub(super) mod stub {
     impl Hit {
         /// A header's value.
         pub fn header(&self, name: &str) -> Option<&str> {
-            self.headers
-                .iter()
-                .find(|(key, _)| key == name)
-                .map(|(_, value)| value.as_str())
+            juggler_account::transport::header_named(&self.headers, name)
         }
     }
 
@@ -585,26 +582,22 @@ fn a_redirect_off_the_list_ends_it_unfollowed() {
 #[test]
 fn three_redirects_are_followed_and_a_fourth_ends_it() {
     let hop = |n: u32| format!("https://cdn-lfs-us-1.hf.co/hop{n}");
-    // Three hops, then the file.
-    let bench = Bench::new();
     let file = bytes(20_000, 1);
     let model = entry("qwen-test", &file);
-    bench
-        .server
-        .route(&pinned("qwen-test"), Reply::Redirect(hop(1)));
-    bench.server.route(&hop(1), Reply::Redirect(hop(2)));
-    bench.server.route(&hop(2), Reply::Redirect(hop(3)));
-    bench.server.route(&hop(3), Reply::File(File::plain(&file)));
-    assert!(bench.run(&model).is_ok());
-    // Four hops.
-    let bench = Bench::new();
-    bench
-        .server
-        .route(&pinned("qwen-test"), Reply::Redirect(hop(1)));
-    bench.server.route(&hop(1), Reply::Redirect(hop(2)));
-    bench.server.route(&hop(2), Reply::Redirect(hop(3)));
-    bench.server.route(&hop(3), Reply::Redirect(hop(4)));
-    bench.server.route(&hop(4), Reply::File(File::plain(&file)));
+    // `n` hops, then the file.
+    let hops = |n: u32| {
+        let bench = Bench::new();
+        bench
+            .server
+            .route(&pinned("qwen-test"), Reply::Redirect(hop(1)));
+        for at in 1..n {
+            bench.server.route(&hop(at), Reply::Redirect(hop(at + 1)));
+        }
+        bench.server.route(&hop(n), Reply::File(File::plain(&file)));
+        bench
+    };
+    assert!(hops(3).run(&model).is_ok());
+    let bench = hops(4);
     assert_eq!(bench.run(&model), Err(Failure::TooManyRedirects));
     assert!(bench.server.hits().iter().all(|hit| hit.path != "/hop4"));
     assert_eq!(files(bench.dir.path()), Vec::<String>::new());

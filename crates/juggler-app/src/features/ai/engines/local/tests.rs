@@ -94,7 +94,6 @@ fn models(dir: &Path, min_memory_gb: u64, bytes: &[u8]) -> (PathBuf, Vec<Install
 /// - `hang`: never answers.
 #[cfg(unix)]
 fn fake(dir: &Path, mode: &str, hello: &str) -> PathBuf {
-    use std::os::unix::fs::PermissionsExt as _;
     let path = dir.join(format!("helper-{mode}"));
     let log = dir.join("requests.log");
     let script = format!(
@@ -126,9 +125,7 @@ done
         env = dir.join("env.log").display(),
         log = log.display(),
     );
-    std::fs::write(&path, script).unwrap();
-    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755)).unwrap();
-    path
+    crate::test_support::script(&path, &script)
 }
 
 const HELLO: &str = r#"{"kind":"hello","protocol":3,"gpu":true,"sandboxed":false}"#;
@@ -142,15 +139,24 @@ fn critical_now() -> bool {
     CRITICAL.load(std::sync::atomic::Ordering::SeqCst)
 }
 
-fn engine(dir: &Path, mode: &str, min_memory_gb: u64) -> Local {
-    Local::with(Setup {
-        program: Some(fake(dir, mode, HELLO)),
-        models: Some(models(dir, min_memory_gb, BYTES)),
+/// A fake helper `program` and these `models`, on a Mac with room,
+/// unsandboxed.
+fn setup(program: PathBuf, models: (PathBuf, Vec<Installed>)) -> Setup {
+    Setup {
+        program: Some(program),
+        models: Some(models),
         host: Some(MAC),
         pressure: Some(critical_now),
         unsandboxed: true,
         sandbox_tool: None,
-    })
+    }
+}
+
+fn engine(dir: &Path, mode: &str, min_memory_gb: u64) -> Local {
+    Local::with(setup(
+        fake(dir, mode, HELLO),
+        models(dir, min_memory_gb, BYTES),
+    ))
 }
 
 fn request() -> Request {
@@ -176,6 +182,16 @@ fn lines(dir: &Path) -> Vec<Value> {
         .lines()
         .map(|line| serde_json::from_str(line).unwrap())
         .collect()
+}
+
+/// The job is refused for `why`, and the helper was asked to load
+/// nothing.
+fn refused_unloaded(engine: &Local, dir: &Path, why: Reason) {
+    assert_eq!(
+        engine.respond(MODEL, &request(), &soon()),
+        Err(EngineError::NotHere(why))
+    );
+    assert_eq!(ops(dir), Vec::<String>::new(), "nothing was loaded");
 }
 
 fn ops(dir: &Path) -> Vec<String> {
@@ -263,14 +279,10 @@ fn readiness_needs_a_mac_with_apple_silicon_the_memory_and_the_helper() {
 #[test]
 fn with_no_model_installed_there_is_no_card_and_nothing_is_started() {
     let dir = tempfile::tempdir().unwrap();
-    let engine = Local::with(Setup {
-        program: Some(dir.path().join("never-run")),
-        models: Some((dir.path().to_path_buf(), Vec::new())),
-        host: Some(MAC),
-        pressure: Some(critical_now),
-        unsandboxed: true,
-        sandbox_tool: None,
-    });
+    let engine = Local::with(setup(
+        dir.path().join("never-run"),
+        (dir.path().to_path_buf(), Vec::new()),
+    ));
     engine.probe();
     assert_eq!(engine.seen(), Seen::NotAsked);
     assert!(engine.cards(1, &[entry(16)]).is_empty());
@@ -283,14 +295,10 @@ fn with_no_model_installed_there_is_no_card_and_nothing_is_started() {
 #[test]
 fn a_missing_helper_hides_the_card_with_its_reason() {
     let dir = tempfile::tempdir().unwrap();
-    let engine = Local::with(Setup {
-        program: Some(dir.path().join("not-built")),
-        models: Some(models(dir.path(), 16, BYTES)),
-        host: Some(MAC),
-        pressure: Some(critical_now),
-        unsandboxed: true,
-        sandbox_tool: None,
-    });
+    let engine = Local::with(setup(
+        dir.path().join("not-built"),
+        models(dir.path(), 16, BYTES),
+    ));
     engine.probe();
     assert_eq!(engine.seen(), Seen::Missing);
     assert_eq!(
@@ -423,14 +431,10 @@ fn a_helper_on_another_protocol_is_never_used() {
         r#"{"hello":true,"protocol":2,"available":"available"}"#,
         "not json",
     ] {
-        let engine = Local::with(Setup {
-            program: Some(fake(dir.path(), "ok", hello)),
-            models: Some(models(dir.path(), 16, BYTES)),
-            host: Some(MAC),
-            pressure: Some(critical_now),
-            unsandboxed: true,
-            sandbox_tool: None,
-        });
+        let engine = Local::with(setup(
+            fake(dir.path(), "ok", hello),
+            models(dir.path(), 16, BYTES),
+        ));
         engine.probe();
         assert_eq!(engine.seen(), Seen::Failed, "{hello}");
         assert_eq!(card(&engine).ready, Readiness::NotHere(Reason::Unknown));
@@ -520,21 +524,13 @@ fn a_helper_past_its_deadline_that_doesnt_stop_is_stopped() {
 fn a_file_that_fails_its_hash_is_never_loaded() {
     let dir = tempfile::tempdir().unwrap();
     let program = fake(dir.path(), "ok", HELLO);
-    let engine = Local::with(Setup {
-        program: Some(program),
-        // The same size, other bytes: the name's hash doesn't match.
-        models: Some(models(dir.path(), 16, b"GGUF not a real modeL")),
-        host: Some(MAC),
-        pressure: Some(critical_now),
-        unsandboxed: true,
-        sandbox_tool: None,
-    });
+    // The same size, other bytes: the name's hash doesn't match.
+    let engine = Local::with(setup(
+        program,
+        models(dir.path(), 16, b"GGUF not a real modeL"),
+    ));
     engine.probe();
-    assert_eq!(
-        engine.respond(MODEL, &request(), &soon()),
-        Err(EngineError::NotHere(Reason::Unknown))
-    );
-    assert_eq!(ops(dir.path()), Vec::<String>::new(), "no load was asked");
+    refused_unloaded(&engine, dir.path(), Reason::Unknown);
     assert!(!card(&engine).running);
 }
 
@@ -548,11 +544,7 @@ fn a_mac_below_the_models_memory_never_starts_it() {
         engine.cards(1, &[entry(64)])[0].ready,
         Readiness::NotHere(Reason::NotThisComputer)
     );
-    assert_eq!(
-        engine.respond(MODEL, &request(), &soon()),
-        Err(EngineError::NotHere(Reason::NotThisComputer))
-    );
-    assert_eq!(ops(dir.path()), Vec::<String>::new());
+    refused_unloaded(&engine, dir.path(), Reason::NotThisComputer);
 }
 
 /// The section's sampling bounds and the protocol's are the same: a value
@@ -684,16 +676,13 @@ fn the_helper_starts_sandboxed_then_capped_and_in_its_folder() {
 /// applying anything (what N3 guards against).
 #[cfg(unix)]
 fn fake_sandbox_tool(dir: &Path, mode: &str) -> PathBuf {
-    use std::os::unix::fs::PermissionsExt as _;
     let path = dir.join(format!("sandbox-{mode}"));
     let script = match mode {
         "refuses" => "#!/bin/sh\nexit 65\n".to_owned(),
         _ => "#!/bin/sh\nwhile [ \"$1\" = -p ] || [ \"$1\" = -D ]; do shift 2; done\nexec \"$@\"\n"
             .to_owned(),
     };
-    std::fs::write(&path, script).unwrap();
-    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755)).unwrap();
-    path
+    crate::test_support::script(&path, &script)
 }
 
 /// The re-review's N3, through the engine: a missing sandbox tool, a
@@ -715,12 +704,9 @@ fn a_sandbox_that_can_t_be_applied_hides_the_jobs_and_says_why() {
             _ => fake_sandbox_tool(dir.path(), mode),
         };
         let engine = Local::with(Setup {
-            program: Some(fake(dir.path(), "ok", HELLO)),
-            models: Some(models(dir.path(), 16, BYTES)),
-            host: Some(MAC),
-            pressure: Some(critical_now),
             unsandboxed: false,
             sandbox_tool: Some(tool),
+            ..setup(fake(dir.path(), "ok", HELLO), models(dir.path(), 16, BYTES))
         });
         engine.probe();
         assert_eq!(engine.seen(), want, "{mode}");
@@ -777,11 +763,7 @@ fn critical_memory_pressure_never_starts_a_model_and_stops_one_running() {
     let engine = engine(dir.path(), "hang", 16);
     engine.probe();
     CRITICAL.store(true, std::sync::atomic::Ordering::SeqCst);
-    assert_eq!(
-        engine.respond(MODEL, &request(), &soon()),
-        Err(EngineError::NotHere(Reason::Unknown))
-    );
-    assert_eq!(ops(dir.path()), Vec::<String>::new(), "nothing loaded");
+    refused_unloaded(&engine, dir.path(), Reason::Unknown);
     CRITICAL.store(false, std::sync::atomic::Ordering::SeqCst);
     let later = std::thread::spawn(|| {
         std::thread::sleep(Duration::from_millis(400));

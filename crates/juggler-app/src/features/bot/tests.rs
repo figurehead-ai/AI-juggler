@@ -429,27 +429,6 @@ fn seed_session(state: &Arc<AppState>, dir: &std::path::Path, id: &str, name: &s
         .unwrap();
 }
 
-/// The files in `dir` (the database, its WAL) that hold `canary`.
-fn holding(dir: &std::path::Path, canary: &str) -> Vec<std::path::PathBuf> {
-    let mut stack = vec![dir.to_path_buf()];
-    let mut out = Vec::new();
-    while let Some(at) = stack.pop() {
-        for entry in std::fs::read_dir(&at).unwrap().flatten() {
-            let path = entry.path();
-            if path.is_dir() {
-                stack.push(path);
-            } else if std::fs::read(&path)
-                .unwrap_or_default()
-                .windows(canary.len())
-                .any(|w| w == canary.as_bytes())
-            {
-                out.push(path);
-            }
-        }
-    }
-    out
-}
-
 /// The Bot review's H1: a forgotten memory's words are gone from every
 /// turn (the one it came from and each later one that used it), from the
 /// database file and its WAL while open, and after a restart.
@@ -491,14 +470,14 @@ fn forget_reaches_every_turn_the_memory_was_said_or_used_in() {
         "the turns it came from and was used in are cleared"
     );
     assert!(
-        holding(&data, NAME).is_empty(),
+        crate::test_support::holding(&data, NAME).is_empty(),
         "on disk while open: {:?}",
-        holding(&data, NAME)
+        crate::test_support::holding(&data, NAME)
     );
     assert!(
-        holding(&data, NOTE).is_empty(),
+        crate::test_support::holding(&data, NOTE).is_empty(),
         "on disk while open: {:?}",
-        holding(&data, NOTE)
+        crate::test_support::holding(&data, NOTE)
     );
     drop(state);
     let again = crate::test_support::bare_state(data.clone());

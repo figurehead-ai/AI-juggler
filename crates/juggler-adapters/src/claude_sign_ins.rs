@@ -16,6 +16,7 @@
 use std::io::{Read as _, Seek as _, SeekFrom};
 use std::path::{Path, PathBuf};
 
+use crate::common::file_time::modified_ms;
 use juggler_adapter::{SignInNames, SignInWriter};
 
 /// The `entrypoint`s of the Claude app's runs: its Code tab, and its own
@@ -78,11 +79,6 @@ fn newest_record_ms(dir: &Path) -> i64 {
             .max()
             .unwrap_or(0)
     })
-}
-
-fn modified_ms(path: &Path) -> Option<i64> {
-    let at = std::fs::metadata(path).ok()?.modified().ok()?;
-    i64::try_from(at.duration_since(std::time::UNIX_EPOCH).ok()?.as_millis()).ok()
 }
 
 /// The last `entrypoint` a transcript names, from its last

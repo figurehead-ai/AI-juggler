@@ -111,15 +111,12 @@ fn it_serves_only_the_built_in_entry_and_nothing_without_it() {
 /// (`ID` replaced by the request's id), after `pause` seconds.
 #[cfg(unix)]
 fn fake(dir: &Path, name: &str, hello: &str, reply: &str, pause: u32) -> PathBuf {
-    use std::os::unix::fs::PermissionsExt as _;
     let path = dir.join(name);
     let script = format!(
         "#!/bin/sh\necho '{hello}'\nwhile read line; do\n  case \"$line\" in *'\"op\":\"quit\"'*) exit 0;; esac\n  \
          sleep {pause}\n  id=$(echo \"$line\" | sed 's/.*\"id\":\\([0-9]*\\).*/\\1/')\n  echo '{reply}' | sed \"s/ID/$id/\"\ndone\n"
     );
-    std::fs::write(&path, script).unwrap();
-    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755)).unwrap();
-    path
+    crate::test_support::script(&path, &script)
 }
 
 fn hello(available: &str) -> String {

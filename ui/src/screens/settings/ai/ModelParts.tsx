@@ -104,7 +104,7 @@ export function ModelJobRow({ model, job, quiet = false }: { model: CatalogModel
 }
 
 /** A job with its verdict, and the list's line on why under it. */
-export function JobVerdictRow({ job, verdict, note, quiet = false }: { job: ModelJob; verdict: ModelVerdict; note: string | null; quiet?: boolean }): JSX.Element {
+function JobVerdictRow({ job, verdict, note, quiet = false }: { job: ModelJob; verdict: ModelVerdict; note: string | null; quiet?: boolean }): JSX.Element {
   return (
     <li className="grid grid-cols-[20px_1fr_auto] items-center gap-x-2 gap-y-px" data-testid={`verdict-${job}`}>
       <span className="text-faint">

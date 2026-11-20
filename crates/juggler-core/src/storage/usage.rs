@@ -60,6 +60,14 @@ impl SignedInAs<'_> {
     }
 }
 
+/// A reading `q`, with its source `s` and the Account it was read under
+/// `g` (AJ-E3210), for a query's `FROM`.
+const READINGS: &str = "quota_samples q
+     LEFT JOIN quota_sample_sources s
+       ON s.account = q.account AND s.window = q.window AND s.ts = q.ts
+     LEFT JOIN quota_sample_sign_ins g
+       ON g.account = q.account AND g.window = q.window AND g.ts = q.ts";
+
 /// AJ-E3210: readings that carry the Account they were read under
 /// ([`UsageRepo::insert_signed_samples`]).
 #[derive(Clone, Debug, Default, PartialEq)]
@@ -472,15 +480,13 @@ impl UsageRepo<'_> {
         let newest = self
             .conn
             .query_row(
-                "SELECT q.ts, q.used_pct, q.resets_at, q.confidence, s.source,
-                        COALESCE(q.last_seen, q.ts)
-                 FROM quota_samples q
-                 LEFT JOIN quota_sample_sources s
-                   ON s.account = q.account AND s.window = q.window AND s.ts = q.ts
-                 LEFT JOIN quota_sample_sign_ins g
-                   ON g.account = q.account AND g.window = q.window AND g.ts = q.ts
-                 WHERE q.account = ?1 AND q.window = ?2 AND g.signed_in_as IS ?3
-                 ORDER BY q.ts DESC LIMIT 1",
+                &format!(
+                    "SELECT q.ts, q.used_pct, q.resets_at, q.confidence, s.source,
+                            COALESCE(q.last_seen, q.ts)
+                     FROM {READINGS}
+                     WHERE q.account = ?1 AND q.window = ?2 AND g.signed_in_as IS ?3
+                     ORDER BY q.ts DESC LIMIT 1"
+                ),
                 params![account, window, signed_in_as],
                 |row| {
                     Ok((
@@ -691,11 +697,7 @@ impl UsageRepo<'_> {
         let prefix = crate::quota::MODEL_WEEK_PREFIX;
         let mut stmt = self.conn.prepare(&format!(
             "SELECT q.window, q.ts, q.used_pct, q.resets_at, q.confidence, s.source, q.last_seen
-             FROM quota_samples q
-             LEFT JOIN quota_sample_sources s
-               ON s.account = q.account AND s.window = q.window AND s.ts = q.ts
-             LEFT JOIN quota_sample_sign_ins g
-               ON g.account = q.account AND g.window = q.window AND g.ts = q.ts
+             FROM {READINGS}
              WHERE q.account = ?1 AND substr(q.window, 1, ?2) = ?3 AND {}
              ORDER BY q.window, q.ts",
             SignedInAs::CLAUSE
@@ -768,11 +770,7 @@ impl UsageRepo<'_> {
         let clause = SignedInAs::CLAUSE;
         let mut stmt = self.conn.prepare(&format!(
             "SELECT q.ts, q.used_pct, q.resets_at, q.confidence, s.source, q.last_seen
-             FROM quota_samples q
-             LEFT JOIN quota_sample_sources s
-               ON s.account = q.account AND s.window = q.window AND s.ts = q.ts
-             LEFT JOIN quota_sample_sign_ins g
-               ON g.account = q.account AND g.window = q.window AND g.ts = q.ts
+             FROM {READINGS}
              WHERE q.account = ?1 AND q.window = ?2 AND {clause}
                AND q.ts >= COALESCE(
                  (SELECT MAX(q.ts) FROM quota_samples q

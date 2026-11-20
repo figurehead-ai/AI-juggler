@@ -896,17 +896,22 @@ fn base_name(name: &str) -> &str {
         .unwrap_or(name)
 }
 
+/// The entries of `dir`, each with its name (none when it can't be read).
+fn named_entries(dir: &Path) -> impl Iterator<Item = (String, std::fs::DirEntry)> {
+    std::fs::read_dir(dir)
+        .into_iter()
+        .flatten()
+        .flatten()
+        .map(|entry| (entry.file_name().to_string_lossy().into_owned(), entry))
+}
+
 /// At start (the re-review's N3 and L5): what a crash or a quit left
 /// behind goes. The work folders of a backup or a restore (an unscrubbed
 /// snapshot, a staged backup) are removed; every database copy AI Juggler
 /// keeps is emptied of memory ([`juggler_core::storage::memory::backup::scrub_copy`]),
 /// then removed once past its age.
 pub fn sweep_kept_copies(data_dir: &Path, now_ms: i64) {
-    let Ok(entries) = std::fs::read_dir(data_dir) else {
-        return;
-    };
-    for entry in entries.flatten() {
-        let name = entry.file_name().to_string_lossy().into_owned();
+    for (name, entry) in named_entries(data_dir) {
         let path = entry.path();
         if path.is_dir() && WORK_DIRS.iter().any(|dir| name.starts_with(dir)) {
             let _ = std::fs::remove_dir_all(&path);
@@ -925,11 +930,7 @@ pub fn sweep_kept_copies(data_dir: &Path, now_ms: i64) {
 /// Removes each kept database copy once it is older than its keep (by the
 /// stamp its name ends with); a failed restore's copy stays.
 pub fn prune_aged_copies(data_dir: &Path, now_ms: i64) {
-    let Ok(entries) = std::fs::read_dir(data_dir) else {
-        return;
-    };
-    for entry in entries.flatten() {
-        let name = entry.file_name().to_string_lossy().into_owned();
+    for (name, entry) in named_entries(data_dir) {
         let base = base_name(&name);
         let Some(keep) = KEPT_COPIES
             .iter()
@@ -1027,6 +1028,13 @@ mod tests {
 
     const CANARY: &str = "qzxwvrestorecanary";
 
+    /// The live database in `data`, holding the canary.
+    fn canary_store(data: &Path) -> Storage {
+        let live = Storage::open(&data.join("juggler.sqlite")).unwrap();
+        canary_note(&live);
+        live
+    }
+
     /// A note holding [`CANARY`], written as the store writes it.
     fn canary_note(storage: &Storage) {
         storage
@@ -1111,8 +1119,7 @@ mod tests {
     fn the_sweep_at_start_leaves_no_unscrubbed_copy_or_work_folder() {
         let dir = tempfile::tempdir().unwrap();
         let data = dir.path();
-        let live = Storage::open(&data.join("juggler.sqlite")).unwrap();
-        canary_note(&live);
+        let live = canary_store(data);
         let now = 100 * 86_400_000;
         // A crashed restore's copy, unscrubbed; a crashed backup's and a
         // verified-but-never-confirmed restore's folders.
@@ -1165,8 +1172,7 @@ mod tests {
     fn the_sweep_scrubs_and_keeps_the_going_back_copies() {
         let dir = tempfile::tempdir().unwrap();
         let data = dir.path();
-        let live = Storage::open(&data.join("juggler.sqlite")).unwrap();
-        canary_note(&live);
+        let live = canary_store(data);
         let now = 100 * 86_400_000;
         let copies = [
             data.join(format!("juggler.sqlite.from-v54-{now}")),
@@ -1199,14 +1205,8 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let out = tempfile::tempdir().unwrap();
         let data = dir.path().to_path_buf();
-        let state = Arc::new(
-            AppState::init_with_registry(data.clone(), juggler_adapter::AdapterRegistry::new())
-                .unwrap(),
-        );
-        {
-            let storage = state.storage.lock().unwrap();
-            canary_note(&storage);
-        }
+        let state = crate::test_support::bare_state(data.clone());
+        canary_note(&state.storage.lock().unwrap());
         let archive = out.path().join("before.ajbackup");
         backup_export_impl(&state, &archive, &mut |_, _| {}).unwrap();
         // Verify stages it; the confirmation is set as verify sets it.
@@ -1252,22 +1252,7 @@ mod tests {
                 .query_row("PRAGMA wal_checkpoint(TRUNCATE)", [], |_| Ok(()))
                 .unwrap();
         }
-        let mut stack = vec![data.clone()];
-        let mut holding = Vec::new();
-        while let Some(at) = stack.pop() {
-            for entry in std::fs::read_dir(&at).unwrap().flatten() {
-                let path = entry.path();
-                if path.is_dir() {
-                    stack.push(path);
-                } else if std::fs::read(&path)
-                    .unwrap_or_default()
-                    .windows(CANARY.len())
-                    .any(|w| w == CANARY.as_bytes())
-                {
-                    holding.push(path);
-                }
-            }
-        }
+        let holding = crate::test_support::holding(&data, CANARY);
         assert!(holding.is_empty(), "these still hold it: {holding:?}");
     }
 

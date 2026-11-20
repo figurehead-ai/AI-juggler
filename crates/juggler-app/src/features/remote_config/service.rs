@@ -92,7 +92,7 @@ pub fn spawn(app: tauri::AppHandle, state: Arc<AppState>) {
         KeyRing::default()
     });
     let run = Run {
-        checking: setting(&state, CHECK_KEY).as_deref() != Some("off"),
+        checking: state.app_setting(CHECK_KEY).as_deref() != Some("off"),
         keys_pinned: !keys.keys().is_empty(),
     };
     // The compiled values, in effect from the start (no I/O beyond the
@@ -222,14 +222,6 @@ const fn channel(channel: crate::updates::Channel) -> Channel {
     }
 }
 
-fn setting(state: &Arc<AppState>, key: &str) -> Option<String> {
-    state
-        .storage
-        .lock()
-        .ok()
-        .and_then(|storage| storage.app_settings().get(key).ok().flatten())
-}
-
 /// The tools' versions as already read (never read here), for targeting.
 fn tool_versions(state: &Arc<AppState>) -> BTreeMap<String, Version> {
     state
@@ -249,7 +241,11 @@ fn tool_versions(state: &Arc<AppState>) -> BTreeMap<String, Version> {
 
 /// This install's random id, made once and kept in the app's settings.
 fn install_id(state: &Arc<AppState>) -> InstallId {
-    if let Some(id) = setting(state, INSTALL_ID_KEY).as_deref().and_then(from_hex) {
+    if let Some(id) = state
+        .app_setting(INSTALL_ID_KEY)
+        .as_deref()
+        .and_then(from_hex)
+    {
         return InstallId::from_bytes(id);
     }
     let id = InstallId::generate().unwrap_or_else(|e| {

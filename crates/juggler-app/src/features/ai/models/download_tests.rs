@@ -50,6 +50,19 @@ impl Bench {
         }
     }
 
+    /// Downloads on this bench's store, slowed to 50 kB/s on a busy Mac.
+    fn slow(&self) -> Downloads {
+        let mut tuning = quick();
+        tuning.rate = Some(50_000);
+        self.mac.busy.store(true, Ordering::Relaxed);
+        Downloads::new(
+            Arc::clone(self.downloads.store()),
+            Arc::clone(&self.fetch) as Arc<dyn Fetch>,
+            Arc::clone(&self.mac) as Arc<dyn Machine>,
+            tuning,
+        )
+    }
+
     fn notify(&self) -> Notify {
         let events = Arc::clone(&self.events);
         Arc::new(move |event| events.lock().unwrap().push(event))
@@ -198,15 +211,7 @@ fn the_second_model_needs_an_approval_every_time() {
 #[test]
 fn cancel_leaves_no_partial_file_and_frees_the_slot_at_once() {
     let bench = Bench::new();
-    let mut tuning = quick();
-    tuning.rate = Some(50_000);
-    bench.mac.busy.store(true, Ordering::Relaxed);
-    let slow = Downloads::new(
-        Arc::clone(bench.downloads.store()),
-        Arc::clone(&bench.fetch) as Arc<dyn Fetch>,
-        Arc::clone(&bench.mac) as Arc<dyn Machine>,
-        tuning,
-    );
+    let slow = bench.slow();
     let file = bytes(500_000, 5);
     let model = entry("model-a", &file);
     bench.serve(&model, &file);
@@ -262,15 +267,7 @@ fn a_failed_download_says_why_and_leaves_nothing() {
 #[test]
 fn one_download_at_a_time() {
     let bench = Bench::new();
-    let mut tuning = quick();
-    tuning.rate = Some(50_000);
-    bench.mac.busy.store(true, Ordering::Relaxed);
-    let slow = Downloads::new(
-        Arc::clone(bench.downloads.store()),
-        Arc::clone(&bench.fetch) as Arc<dyn Fetch>,
-        Arc::clone(&bench.mac) as Arc<dyn Machine>,
-        tuning,
-    );
+    let slow = bench.slow();
     let file = bytes(300_000, 8);
     let a = entry("model-a", &file);
     let b = entry("model-b", &bytes(1_000, 9));

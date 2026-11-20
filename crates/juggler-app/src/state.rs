@@ -271,6 +271,16 @@ struct NoWatch;
 impl juggler_core::storage::OpenWatch for NoWatch {}
 
 impl AppState {
+    /// An app setting's value; `None` when unset or the store can't be
+    /// read.
+    #[must_use]
+    pub fn app_setting(&self, key: &str) -> Option<String> {
+        self.storage
+            .lock()
+            .ok()
+            .and_then(|storage| storage.app_settings().get(key).ok().flatten())
+    }
+
     /// Marks `session` as stopped by a switch: its exit, when it comes,
     /// ends it "stopped by the switch" (`sessions::lifecycle::forward`).
     pub fn mark_switch_stop(&self, session: &SessionId) {

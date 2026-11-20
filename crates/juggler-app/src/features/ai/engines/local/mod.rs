@@ -59,7 +59,7 @@ use juggler_local_ai_protocol::{
     model_file_name,
 };
 
-use super::helper::Helper;
+use super::helper::{Health, Helper};
 use crate::features::ai::engine::{
     AiEngine, Card, Draft, EngineError, Finish, Readiness, Reason, Request, Stop, Tier,
 };
@@ -80,10 +80,6 @@ pub const CANCEL_GRACE: Duration = Duration::from_secs(2);
 /// The context a model runs with when its entry names none (ADR-0033
 /// §4.2: 4 K).
 const DEFAULT_CONTEXT: u32 = 4_096;
-
-/// ADR-0033 §3's health rule.
-const HEALTH_FAILURES: usize = 3;
-const HEALTH_WINDOW: Duration = Duration::from_secs(3_600);
 
 /// The helper's quality of service and memory cap: the system's own tool
 /// clamps it to utility and gives it a memory limit (review L3).
@@ -232,10 +228,9 @@ struct Running {
 #[derive(Debug)]
 pub struct Local {
     setup: Setup,
-    seen: Mutex<Seen>,
     running: Mutex<Option<Running>>,
     verified: verify::Verified,
-    failures: Mutex<Vec<Instant>>,
+    health: Health<Seen>,
     next_id: AtomicU64,
 }
 
@@ -341,10 +336,9 @@ impl Local {
     pub fn with(setup: Setup) -> Self {
         Self {
             setup,
-            seen: Mutex::new(Seen::NotAsked),
             running: Mutex::new(None),
             verified: verify::Verified::default(),
-            failures: Mutex::new(Vec::new()),
+            health: Health::new(Seen::NotAsked),
             next_id: AtomicU64::new(0),
         }
     }
@@ -352,13 +346,7 @@ impl Local {
     /// What the last probe saw.
     #[must_use]
     pub fn seen(&self) -> Seen {
-        self.seen.lock().map_or(Seen::Failed, |seen| *seen)
-    }
-
-    fn set_seen(&self, seen: Seen) {
-        if let Ok(mut slot) = self.seen.lock() {
-            *slot = seen;
-        }
+        self.health.seen(Seen::Failed)
     }
 
     fn host(&self) -> Host {
@@ -464,7 +452,7 @@ impl Local {
                 "local models are off: {why}; the helper is never run without its sandbox"
             );
         }
-        self.set_seen(seen);
+        self.health.see(seen);
     }
 
     /// Starts the helper and checks its hello: this protocol, and (when it
@@ -491,7 +479,7 @@ impl Local {
                     self.sandbox_fault(Seen::SandboxRejected);
                     return Err(missing);
                 }
-                self.set_seen(Seen::Failed);
+                self.health.see(Seen::Failed);
                 return Err(error);
             }
         };
@@ -502,32 +490,15 @@ impl Local {
             ..
         }) = protocol::parse_answer(&hello)
         else {
-            self.set_seen(Seen::Failed);
+            self.health.see(Seen::Failed);
             return Err(EngineError::Crashed);
         };
         if tool.is_some() && !sandboxed {
             self.sandbox_fault(Seen::NotSandboxed);
             return Err(missing);
         }
-        self.set_seen(Seen::Ready);
+        self.health.see(Seen::Ready);
         Ok(helper)
-    }
-
-    fn unhealthy(&self) -> bool {
-        self.failures.lock().is_ok_and(|failures| {
-            failures
-                .iter()
-                .filter(|at| at.elapsed() < HEALTH_WINDOW)
-                .count()
-                >= HEALTH_FAILURES
-        })
-    }
-
-    fn failed(&self) {
-        if let Ok(mut failures) = self.failures.lock() {
-            failures.retain(|at| at.elapsed() < HEALTH_WINDOW);
-            failures.push(Instant::now());
-        }
     }
 
     fn next_id(&self) -> u64 {
@@ -700,7 +671,7 @@ impl AiEngine for Local {
         let installed = self.installed();
         let host = self.host();
         let seen = self.seen();
-        let unhealthy = self.unhealthy();
+        let unhealthy = self.health.unhealthy();
         models
             .iter()
             .filter(|m| m.engine == ModelEngine::GgufLocal)
@@ -744,7 +715,7 @@ impl AiEngine for Local {
             return;
         }
         let Some(program) = self.program() else {
-            self.set_seen(Seen::Missing);
+            self.health.see(Seen::Missing);
             return;
         };
         if self.seen() == Seen::Ready {
@@ -755,9 +726,7 @@ impl AiEngine for Local {
         };
         // `start` records what it found (Ready, Failed or a sandbox fault).
         if let Ok(helper) = self.start(&program, &dir, BARE_CAP_MIB) {
-            if let Ok(mut failures) = self.failures.lock() {
-                failures.clear();
-            }
+            self.health.healed();
             drop(helper);
         }
     }
@@ -772,7 +741,7 @@ impl AiEngine for Local {
             self.host(),
             mine.entry.min_memory_gb,
             Seen::Ready,
-            self.unhealthy(),
+            self.health.unhealthy(),
         ) {
             return Err(EngineError::NotHere(why));
         }
@@ -800,7 +769,7 @@ impl AiEngine for Local {
             *slot = None;
             let helper = self
                 .start(&program, &dir, cap)
-                .inspect_err(|_| self.failed())?;
+                .inspect_err(|_| self.health.failed())?;
             *slot = Some(Running {
                 helper,
                 loaded: None,
@@ -823,14 +792,14 @@ impl AiEngine for Local {
                 Ok(()) => {}
                 Err(EngineError::NotHere(why)) => {
                     running.used = Instant::now();
-                    self.failed();
+                    self.health.failed();
                     return Err(EngineError::NotHere(why));
                 }
                 Err(error) => {
                     // A load that didn't answer can't be cancelled: stop it.
                     *slot = None;
                     if error == EngineError::Crashed {
-                        self.failed();
+                        self.health.failed();
                     }
                     return Err(error);
                 }
@@ -847,7 +816,7 @@ impl AiEngine for Local {
             Err(error) => {
                 *slot = None;
                 if error == EngineError::Crashed {
-                    self.failed();
+                    self.health.failed();
                 }
                 Err(error)
             }

@@ -66,10 +66,7 @@ impl Answer {
     /// A header by (lower-case) name.
     #[must_use]
     pub fn header(&self, name: &str) -> Option<&str> {
-        self.headers
-            .iter()
-            .find(|(key, _)| key == name)
-            .map(|(_, value)| value.as_str())
+        juggler_account::transport::header_named(&self.headers, name)
     }
 }
 
@@ -515,6 +512,18 @@ pub struct Run<'a> {
     pub tuning: &'a Tuning,
 }
 
+impl Run<'_> {
+    /// Whether it may fetch the `remaining` bytes now ([`hold`]): `None`
+    /// goes on, `Some` waits for that.
+    fn waits(&self, remaining: u64) -> Result<Option<Wait>, Failure> {
+        match hold(self.machine, self.dir, remaining, self.plan.margin_bytes) {
+            Hold::Go => Ok(None),
+            Hold::Stop => Err(Failure::DiskFull),
+            Hold::Wait(why) => Ok(Some(why)),
+        }
+    }
+}
+
 /// Fetches `run.plan`'s file into `run.dir` as `<sha256>.gguf`, reporting
 /// progress to `report`; the file's path once verified.
 ///
@@ -588,25 +597,16 @@ fn transfer(
         if partial.done == size {
             break;
         }
-        match hold(
-            run.machine,
-            run.dir,
-            size - partial.done,
-            run.plan.margin_bytes,
-        ) {
-            Hold::Go => {}
-            Hold::Stop => return Err(Failure::DiskFull),
-            Hold::Wait(why) => {
-                report(Progress {
-                    done: partial.done,
-                    size,
-                    phase: Phase::Waiting(why),
-                });
-                if run.control.wait(run.tuning.pause_poll) {
-                    return Err(Failure::Cancelled);
-                }
-                continue;
+        if let Some(why) = run.waits(size - partial.done)? {
+            report(Progress {
+                done: partial.done,
+                size,
+                phase: Phase::Waiting(why),
+            });
+            if run.control.wait(run.tuning.pause_poll) {
+                return Err(Failure::Cancelled);
             }
+            continue;
         }
         let use_mirror = failures >= run.tuning.mirror_after && run.plan.sources.len() > 1;
         let (url, source) = &run.plan.sources[usize::from(use_mirror)];
@@ -841,15 +841,8 @@ fn stream(
                 this_stream = 0;
             }
             capped = busy;
-            match hold(
-                run.machine,
-                run.dir,
-                size - partial.done,
-                run.plan.margin_bytes,
-            ) {
-                Hold::Go => {}
-                Hold::Stop => return Err(Failure::DiskFull),
-                Hold::Wait(_) => return Ok(Streamed::Paused),
+            if run.waits(size - partial.done)?.is_some() {
+                return Ok(Streamed::Paused);
             }
         }
         if reported.elapsed() >= run.tuning.report_every {

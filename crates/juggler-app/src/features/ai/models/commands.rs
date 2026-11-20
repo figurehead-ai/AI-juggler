@@ -31,6 +31,20 @@ fn checked(model_id: &str) -> AppResult<()> {
     Ok(())
 }
 
+/// A command on one model: its id checked, then `body` run off the
+/// window's thread with it.
+async fn on_model<T: Send + 'static>(
+    state: tauri::State<'_, Arc<AppState>>,
+    model_id: String,
+    body: impl FnOnce(&Arc<AppState>, String) -> AppResult<T> + Send + 'static,
+) -> AppResult<T> {
+    checked(&model_id)?;
+    crate::ipc::blocking(state.inner(), "the AI models", move |state| {
+        body(state, model_id)
+    })
+    .await
+}
+
 fn listing() -> Listing {
     super::listing(&crate::features::remote_config::current().lists)
 }
@@ -205,8 +219,7 @@ pub async fn ai_model_download_start(
     model_id: String,
     approval: Option<String>,
 ) -> AppResult<StartInfo> {
-    checked(&model_id)?;
-    let info = crate::ipc::blocking(state.inner(), "the AI models", move |state| {
+    let info = on_model(state, model_id, move |state, model_id| {
         let Some(entry) = offered(&listing(), &model_id) else {
             return Ok(StartInfo::refused(&Refusal::NotOffered));
         };
@@ -233,8 +246,7 @@ pub async fn ai_model_download_cancel(
     state: tauri::State<'_, Arc<AppState>>,
     model_id: String,
 ) -> AppResult<ModelsInfo> {
-    checked(&model_id)?;
-    crate::ipc::blocking(state.inner(), "the AI models", move |state| {
+    on_model(state, model_id, move |state, model_id| {
         if let Some(downloads) = download::shared_if_made() {
             downloads.cancel(&model_id);
         }
@@ -256,8 +268,7 @@ pub async fn ai_model_remove(
     state: tauri::State<'_, Arc<AppState>>,
     model_id: String,
 ) -> AppResult<ModelsInfo> {
-    checked(&model_id)?;
-    crate::ipc::blocking(state.inner(), "the AI models", move |state| {
+    on_model(state, model_id, move |state, model_id| {
         let removed = store::shared(&state.data_dir)
             .remove(&model_id)
             .map_err(|error| AppError::Io {
@@ -291,8 +302,7 @@ pub async fn ai_model_approve_extra(
     state: tauri::State<'_, Arc<AppState>>,
     model_id: String,
 ) -> AppResult<ApprovalInfo> {
-    checked(&model_id)?;
-    crate::ipc::blocking(state.inner(), "the AI models", move |state| {
+    on_model(state, model_id, move |state, model_id| {
         let entry = offered(&listing(), &model_id).ok_or_else(|| AppError::NotFound {
             entity: "model",
             id: model_id.clone(),
@@ -328,8 +338,7 @@ pub async fn ai_model_decline_extra(
     state: tauri::State<'_, Arc<AppState>>,
     model_id: String,
 ) -> AppResult<ModelsInfo> {
-    checked(&model_id)?;
-    crate::ipc::blocking(state.inner(), "the AI models", move |state| {
+    on_model(state, model_id, move |state, model_id| {
         store::shared(&state.data_dir).decline(&model_id);
         app.emit_event(AppEvent::AiModelsChanged, ());
         Ok(info_now(state))

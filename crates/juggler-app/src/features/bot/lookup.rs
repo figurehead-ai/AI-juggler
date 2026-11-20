@@ -72,21 +72,9 @@ fn word_matches(asked: &str, name: &str) -> bool {
             && (name.starts_with(asked) || asked.starts_with(name)))
 }
 
-/// The names a row is known by: its own, its project's, its App's and
-/// pool's, its holder's and branch.
+/// The words of the names a row is known by ([`super::check::names_of`]).
 fn names_of(row: &BotRowInfo) -> Vec<String> {
-    [
-        Some(&row.title),
-        row.project.as_ref(),
-        row.app_label.as_ref(),
-        row.pool.as_ref(),
-        row.holder.as_ref(),
-        row.branch.as_ref(),
-    ]
-    .into_iter()
-    .flatten()
-    .flat_map(|name| name_words(name))
-    .collect()
+    super::check::names_of(row).flat_map(name_words).collect()
 }
 
 /// Whether the row holds every subject word in its names.

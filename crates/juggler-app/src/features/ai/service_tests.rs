@@ -20,14 +20,21 @@ use crate::features::remote_config::snapshot_fixtures::{facts, file, registry};
 
 #[cfg(unix)]
 fn helper(dir: &Path, available: &str) -> std::path::PathBuf {
-    use std::os::unix::fs::PermissionsExt as _;
     let path = dir.join("helper");
     let script = format!(
         "#!/bin/sh\necho '{{\"hello\":true,\"protocol\":2,\"available\":\"{available}\",\"context_size\":8192}}'\ncat > /dev/null\n"
     );
-    std::fs::write(&path, script).unwrap();
-    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755)).unwrap();
-    path
+    crate::test_support::script(&path, &script)
+}
+
+/// The engines with Apple's helper (Apple Intelligence available) and
+/// the local engine's own, nothing installed.
+#[cfg(unix)]
+fn apple_only(dir: &Path) -> Registry {
+    Registry::with(
+        Apple::with_program(Some(helper(dir, "available"))),
+        Local::default(),
+    )
 }
 
 fn state_of(jobs: &[AiJobInfo], job: AiJob) -> (AiJobState, bool, Option<AiJobWhy>) {
@@ -43,10 +50,7 @@ fn beta_for(on: &'static [Job]) -> impl Fn(Job) -> bool {
 #[test]
 fn on_a_mac_with_apple_intelligence_review_and_chat_wait_for_their_beta() {
     let dir = tempfile::tempdir().unwrap();
-    let service = Service::new(Registry::with(
-        Apple::with_program(Some(helper(dir.path(), "available"))),
-        Local::default(),
-    ));
+    let service = Service::new(apple_only(dir.path()));
     let compiled = Snapshot::default();
     let (jobs, changed) = service.answer(
         &compiled,
@@ -109,10 +113,7 @@ fn on_a_mac_with_apple_intelligence_review_and_chat_wait_for_their_beta() {
 #[test]
 fn apple_intelligence_turned_off_mid_session_hides_the_jobs_with_the_reason() {
     let dir = tempfile::tempdir().unwrap();
-    let service = Service::new(Registry::with(
-        Apple::with_program(Some(helper(dir.path(), "available"))),
-        Local::default(),
-    ));
+    let service = Service::new(apple_only(dir.path()));
     let compiled = Snapshot::default();
     let beta = beta_for(&[Job::Review, Job::Bot]);
     let (jobs, _) = service.answer(&compiled, &beta, &BTreeMap::new(), dir.path(), Probe::Now);
@@ -138,10 +139,7 @@ fn apple_intelligence_turned_off_mid_session_hides_the_jobs_with_the_reason() {
 #[test]
 fn a_remote_kill_and_a_narrowed_verdict_each_hide_a_job() {
     let dir = tempfile::tempdir().unwrap();
-    let service = Service::new(Registry::with(
-        Apple::with_program(Some(helper(dir.path(), "available"))),
-        Local::default(),
-    ));
+    let service = Service::new(apple_only(dir.path()));
     let beta = beta_for(&[Job::Review, Job::Bot]);
     let killed = Snapshot::build(
         &registry(),
@@ -219,16 +217,13 @@ fn a_remote_kill_and_a_narrowed_verdict_each_hide_a_job() {
 #[cfg(unix)]
 #[test]
 fn nothing_is_started_before_a_query_asks() {
-    use std::os::unix::fs::PermissionsExt as _;
     let dir = tempfile::tempdir().unwrap();
     let marker = dir.path().join("started");
     let program = dir.path().join("helper");
-    std::fs::write(
+    crate::test_support::script(
         &program,
-        format!("#!/bin/sh\ntouch '{}'\n", marker.display()),
-    )
-    .unwrap();
-    std::fs::set_permissions(&program, std::fs::Permissions::from_mode(0o755)).unwrap();
+        &format!("#!/bin/sh\ntouch '{}'\n", marker.display()),
+    );
     let service = Service::new(Registry::with(
         Apple::with_program(Some(program)),
         Local::default(),
@@ -263,10 +258,7 @@ fn nothing_is_started_before_a_query_asks() {
 #[test]
 fn the_recommendation_is_the_automatic_default() {
     let dir = tempfile::tempdir().unwrap();
-    let engines = Registry::with(
-        Apple::with_program(Some(helper(dir.path(), "available"))),
-        Local::default(),
-    );
+    let engines = apple_only(dir.path());
     engines.probe();
     let mac = |apple_ai| MacFacts {
         chip: HostChip::Apple(Chip::M4),
@@ -304,10 +296,7 @@ fn the_recommendation_is_the_automatic_default() {
 #[test]
 fn a_pick_wins_and_only_a_model_that_passed_may_be_picked() {
     let dir = tempfile::tempdir().unwrap();
-    let engines = Registry::with(
-        Apple::with_program(Some(helper(dir.path(), "available"))),
-        Local::default(),
-    );
+    let engines = apple_only(dir.path());
     engines.probe();
     let off = MacFacts {
         chip: HostChip::Apple(Chip::M4),

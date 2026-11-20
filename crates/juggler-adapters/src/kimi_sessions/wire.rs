@@ -66,6 +66,7 @@ use juggler_adapter::live::{LimitHit, LiveSession, LiveStatus, TailTurn};
 use juggler_core::model::{Confidence, TokenCounts};
 use juggler_core::quota::{QuotaSample, UsageEvent, UsageSource, WindowKind};
 
+use crate::common::file_time::modified_ms;
 use crate::transcript_tail::{TailLog, TranscriptTail};
 
 /// A session's agents' folder (`<session>/agents/<agent>/`).
@@ -639,12 +640,6 @@ pub fn logs(home: &Path) -> Vec<PathBuf> {
         .collect();
     out.sort();
     out
-}
-
-/// When a file last changed, epoch ms.
-fn modified_ms(path: &Path) -> Option<i64> {
-    let at = std::fs::metadata(path).ok()?.modified().ok()?;
-    i64::try_from(at.duration_since(std::time::UNIX_EPOCH).ok()?.as_millis()).ok()
 }
 
 /// The key of one model call's usage. A record copied into another

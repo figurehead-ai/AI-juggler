@@ -103,6 +103,22 @@ fn issued() -> Option<Writers> {
     Writers::issue()
 }
 
+/// A memory store's error as the app's: a refusal by its code, under
+/// "memory".
+pub(crate) fn memory_error(error: MemoryError) -> AppError {
+    match error {
+        MemoryError::Core(core) => AppError::from(core),
+        MemoryError::Refused(refusal) => AppError::Validation {
+            subject: "memory",
+            message: refusal.code().to_owned(),
+        },
+        other => AppError::Validation {
+            subject: "memory",
+            message: other.to_string(),
+        },
+    }
+}
+
 /// The app's one way to forget a subject (step 4's surfaces call it): the
 /// store's forget, then, in the same storage hold, the backup a verify
 /// staged is dropped, so no copy made before the forget outlives it in the
@@ -114,21 +130,10 @@ fn issued() -> Option<Writers> {
 pub fn forget(state: &Arc<AppState>, subject_key: &str, actor: &Actor) -> AppResult<Forgotten> {
     let storage = crate::commands::lock_storage_arc(state)?;
     let now = juggler_core::model::Timestamp::now().millis();
-    let forgotten =
-        storage
-            .memory()
-            .forget(subject_key, actor, now)
-            .map_err(|error| match error {
-                MemoryError::Core(core) => AppError::from(core),
-                MemoryError::Refused(refusal) => AppError::Validation {
-                    subject: "memory",
-                    message: refusal.code().to_owned(),
-                },
-                other => AppError::Validation {
-                    subject: "memory",
-                    message: other.to_string(),
-                },
-            })?;
+    let forgotten = storage
+        .memory()
+        .forget(subject_key, actor, now)
+        .map_err(memory_error)?;
     crate::backup::drop_staged(&storage, &state.data_dir)?;
     Ok(forgotten)
 }
@@ -183,10 +188,7 @@ mod tests {
         const CANARY: &str = "qzxwvstagedcanary";
         let dir = tempfile::tempdir().unwrap();
         let data = dir.path().to_path_buf();
-        let state = Arc::new(
-            AppState::init_with_registry(data.clone(), juggler_adapter::AdapterRegistry::new())
-                .unwrap(),
-        );
+        let state = crate::test_support::bare_state(data.clone());
         {
             let storage = state.storage.lock().unwrap();
             storage
@@ -227,22 +229,7 @@ mod tests {
             .query_row("PRAGMA wal_checkpoint(TRUNCATE)", [], |_| Ok(()))
             .unwrap();
         drop(storage);
-        let mut stack = vec![data];
-        let mut holding = Vec::new();
-        while let Some(at) = stack.pop() {
-            for entry in std::fs::read_dir(&at).unwrap().flatten() {
-                let path = entry.path();
-                if path.is_dir() {
-                    stack.push(path);
-                } else if std::fs::read(&path)
-                    .unwrap_or_default()
-                    .windows(CANARY.len())
-                    .any(|w| w == CANARY.as_bytes())
-                {
-                    holding.push(path);
-                }
-            }
-        }
+        let holding = crate::test_support::holding(&data, CANARY);
         assert!(holding.is_empty(), "these still hold it: {holding:?}");
     }
 

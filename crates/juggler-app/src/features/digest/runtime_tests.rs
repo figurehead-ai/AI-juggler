@@ -6,7 +6,6 @@
 use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex};
 
-use juggler_core::model::SessionStatus;
 use juggler_core::storage::memory::Writers;
 
 use super::*;
@@ -16,40 +15,6 @@ use crate::features::notifications::batch::BATCH_MS;
 use crate::features::notifications::{Outgoing, prefs, session_status, show_due_at};
 use crate::features::observe::EndKind;
 use crate::paging::PageRequest;
-
-const NAMES: [&str; 7] = ["api", "web", "docs", "infra", "ui", "db", "cli"];
-
-fn lab(dir: &std::path::Path) -> Arc<AppState> {
-    let state = crate::test_support::bare_state(dir.join("data"));
-    {
-        let storage = state.storage.lock().unwrap();
-        storage
-            .accounts()
-            .insert(&crate::test_support::account(
-                "acct-1",
-                "claude-code",
-                "Lab",
-                dir.join("acct"),
-            ))
-            .unwrap();
-        storage
-            .profiles()
-            .insert(&crate::test_support::launch_settings("p1", "Lab", "acct-1"))
-            .unwrap();
-        for (i, name) in NAMES.iter().enumerate() {
-            storage
-                .sessions()
-                .insert(&crate::test_support::instance(
-                    &format!("s{}", i + 1),
-                    "p1",
-                    SessionStatus::Running,
-                    dir.join(name),
-                ))
-                .unwrap();
-        }
-    }
-    state
-}
 
 fn finished(at: i64) -> Vec<(i64, Observed)> {
     vec![
@@ -93,7 +58,7 @@ fn digests_in_feed(
 #[test]
 fn a_digest_is_kept_and_shown_in_the_feed_needs_first_every_agent_counted() {
     let dir = tempfile::tempdir().unwrap();
-    let state = lab(dir.path());
+    let state = crate::test_support::seven_sessions(dir.path());
     let writers = Writers::for_tests();
     let now = crate::commands::now_millis();
     let mut events = BTreeMap::new();
@@ -160,7 +125,7 @@ fn a_digest_is_kept_and_shown_in_the_feed_needs_first_every_agent_counted() {
 #[test]
 fn seven_finishes_with_the_digest_on_are_one_notification() {
     let dir = tempfile::tempdir().unwrap();
-    let state = lab(dir.path());
+    let state = crate::test_support::seven_sessions(dir.path());
     let writers = Writers::for_tests();
     prefs::notifications_set_impl(
         &state,
@@ -204,7 +169,7 @@ fn seven_finishes_with_the_digest_on_are_one_notification() {
 #[test]
 fn the_switch_off_makes_no_digest() {
     let dir = tempfile::tempdir().unwrap();
-    let state = lab(dir.path());
+    let state = crate::test_support::seven_sessions(dir.path());
     let writers = Writers::for_tests();
     state
         .storage
@@ -228,7 +193,7 @@ fn the_switch_off_makes_no_digest() {
 #[test]
 fn nothing_heard_nothing_scheduled_and_a_heard_burst_is_one_due_digest() {
     let dir = tempfile::tempdir().unwrap();
-    let state = lab(dir.path());
+    let state = crate::test_support::seven_sessions(dir.path());
     assert_eq!(state.digests.due_at(), None, "quiet: no timer");
     let now = crate::commands::now_millis();
     let obs = |session: &str| Observation {
@@ -250,7 +215,7 @@ fn nothing_heard_nothing_scheduled_and_a_heard_burst_is_one_due_digest() {
     );
     // Replayed observations are the watches' alone.
     let dir2 = tempfile::tempdir().unwrap();
-    let other = lab(dir2.path());
+    let other = crate::test_support::seven_sessions(dir2.path());
     let mut replayed = obs("s1");
     replayed.replayed = true;
     heard(&other, &[replayed]);

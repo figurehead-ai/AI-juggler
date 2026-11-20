@@ -65,11 +65,32 @@ impl HttpResponse {
     /// A header value by (lower-case) name.
     #[must_use]
     pub fn header(&self, name: &str) -> Option<&str> {
-        self.headers
-            .iter()
-            .find(|(key, _)| key == name)
-            .map(|(_, value)| value.as_str())
+        header_named(&self.headers, name)
     }
+}
+
+/// A header's value by (lower-case) name, from headers with lower-case
+/// names.
+#[must_use]
+pub fn header_named<'a>(headers: &'a [(String, String)], name: &str) -> Option<&'a str> {
+    headers
+        .iter()
+        .find(|(key, _)| key == name)
+        .map(|(_, value)| value.as_str())
+}
+
+/// A response's headers, names lower-cased (a value that isn't text is
+/// empty).
+fn lowercase_headers(headers: &ureq::http::HeaderMap) -> Vec<(String, String)> {
+    headers
+        .iter()
+        .map(|(name, value)| {
+            (
+                name.as_str().to_ascii_lowercase(),
+                value.to_str().unwrap_or_default().to_owned(),
+            )
+        })
+        .collect()
 }
 
 /// A network failure (no HTTP status was received).
@@ -169,16 +190,7 @@ impl Transport for UreqTransport {
         }
         .map_err(|e| NetworkError(e.to_string()))?;
         let status = response.status().as_u16();
-        let headers = response
-            .headers()
-            .iter()
-            .map(|(name, value)| {
-                (
-                    name.as_str().to_ascii_lowercase(),
-                    value.to_str().unwrap_or_default().to_owned(),
-                )
-            })
-            .collect();
+        let headers = lowercase_headers(response.headers());
         let body = response
             .body_mut()
             .with_config()
@@ -227,10 +239,7 @@ impl StreamResponse {
     /// A header value by (lower-case) name.
     #[must_use]
     pub fn header(&self, name: &str) -> Option<&str> {
-        self.headers
-            .iter()
-            .find(|(key, _)| key == name)
-            .map(|(_, value)| value.as_str())
+        header_named(&self.headers, name)
     }
 }
 
@@ -273,16 +282,7 @@ impl UreqTransport {
             .run(configured)
             .map_err(|e| NetworkError(e.to_string()))?;
         let status = response.status().as_u16();
-        let headers = response
-            .headers()
-            .iter()
-            .map(|(name, value)| {
-                (
-                    name.as_str().to_ascii_lowercase(),
-                    value.to_str().unwrap_or_default().to_owned(),
-                )
-            })
-            .collect();
+        let headers = lowercase_headers(response.headers());
         // Unlimited here: the caller counts every byte against the size
         // it expects and stops at the first one past it.
         let body = response.into_body().into_reader();

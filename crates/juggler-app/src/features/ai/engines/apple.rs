@@ -25,12 +25,11 @@ use std::time::{Duration, Instant};
 
 use juggler_platform::ai::SystemModel;
 
-use super::helper::Helper;
-use crate::features::ai::engine::{
-    AiEngine, Card, Draft, EngineError, Finish, Readiness, Reason, Request, Stop, Tier,
+use super::helper::{Health, Helper};
+use crate::features::ai::{
+    engine::{AiEngine, Card, Draft, EngineError, Finish, Readiness, Reason, Request, Stop, Tier},
+    models::{Engine as ModelEngine, ModelEntry, recommend::AppleAi},
 };
-use crate::features::ai::models::recommend::AppleAi;
-use crate::features::ai::models::{Engine as ModelEngine, ModelEntry};
 
 /// The helper's file name, beside AI Juggler's own executable.
 pub const PROGRAM: &str = "juggler-apple-ai";
@@ -84,11 +83,6 @@ pub fn network_path(program: Option<PathBuf>) -> Option<NetworkPath> {
 
 /// How long a starting helper may take to say hello.
 const HELLO_WAIT: Duration = Duration::from_secs(5);
-
-/// ADR-0033 §3's health rule: this many failures within [`HEALTH_WINDOW`]
-/// mark the engine unhealthy until the next probe that finds it fine.
-const HEALTH_FAILURES: usize = 3;
-const HEALTH_WINDOW: Duration = Duration::from_secs(3_600);
 
 /// The context the model is assumed to have when the helper doesn't say
 /// (macOS 26's figure).
@@ -214,9 +208,8 @@ impl Seen {
 pub struct Apple {
     /// The helper, when a test names it; otherwise beside the app.
     program: Option<PathBuf>,
-    seen: Mutex<Seen>,
     helper: Mutex<Option<Helper>>,
-    failures: Mutex<Vec<Instant>>,
+    health: Health<Seen>,
     next_id: Mutex<u64>,
 }
 
@@ -232,9 +225,8 @@ impl Apple {
     pub fn with_program(program: Option<PathBuf>) -> Self {
         Self {
             program,
-            seen: Mutex::new(Seen::NotAsked),
             helper: Mutex::new(None),
-            failures: Mutex::new(Vec::new()),
+            health: Health::new(Seen::NotAsked),
             next_id: Mutex::new(0),
         }
     }
@@ -242,13 +234,7 @@ impl Apple {
     /// What it last saw.
     #[must_use]
     pub fn seen(&self) -> Seen {
-        self.seen.lock().map_or(Seen::Failed, |seen| *seen)
-    }
-
-    fn set_seen(&self, seen: Seen) {
-        if let Ok(mut slot) = self.seen.lock() {
-            *slot = seen;
-        }
+        self.health.seen(Seen::Failed)
     }
 
     /// The helper to run: a test's, or the app's own through the one
@@ -268,7 +254,7 @@ impl Apple {
         let helper = Helper::start(program, HELLO_WAIT)?;
         let hello = &helper.hello;
         if hello["protocol"].as_u64() != Some(PROTOCOL) {
-            self.set_seen(Seen::Failed);
+            self.health.see(Seen::Failed);
             return Err(EngineError::Crashed);
         }
         let availability = Availability::from_word(hello["available"].as_str().unwrap_or(""));
@@ -276,28 +262,11 @@ impl Apple {
             .as_u64()
             .and_then(|n| u32::try_from(n).ok())
             .unwrap_or(0);
-        self.set_seen(Seen::Model {
+        self.health.see(Seen::Model {
             availability,
             context_tokens,
         });
         Ok(helper)
-    }
-
-    fn unhealthy(&self) -> bool {
-        self.failures.lock().is_ok_and(|failures| {
-            failures
-                .iter()
-                .filter(|at| at.elapsed() < HEALTH_WINDOW)
-                .count()
-                >= HEALTH_FAILURES
-        })
-    }
-
-    fn failed(&self) {
-        if let Ok(mut failures) = self.failures.lock() {
-            failures.retain(|at| at.elapsed() < HEALTH_WINDOW);
-            failures.push(Instant::now());
-        }
     }
 
     fn running(&self) -> bool {
@@ -323,7 +292,7 @@ impl AiEngine for Apple {
         };
         let seen = self.seen();
         let ready = match seen.readiness() {
-            Readiness::Ready if self.unhealthy() => Readiness::NotHere(Reason::Unhealthy),
+            Readiness::Ready if self.health.unhealthy() => Readiness::NotHere(Reason::Unhealthy),
             ready => ready,
         };
         vec![Card {
@@ -341,23 +310,21 @@ impl AiEngine for Apple {
     fn probe(&self) {
         let os = juggler_platform::ai::system_model();
         if os != SystemModel::MayHave && self.program.is_none() {
-            self.set_seen(Seen::Os(os));
+            self.health.see(Seen::Os(os));
             return;
         }
         let Some(program) = self.program() else {
-            self.set_seen(Seen::Missing);
+            self.health.see(Seen::Missing);
             return;
         };
         match self.start(&program) {
             Ok(helper) => {
-                if self.seen().readiness() == Readiness::Ready
-                    && let Ok(mut failures) = self.failures.lock()
-                {
-                    failures.clear();
+                if self.seen().readiness() == Readiness::Ready {
+                    self.health.healed();
                 }
                 drop(helper);
             }
-            Err(_) => self.set_seen(Seen::Failed),
+            Err(_) => self.health.see(Seen::Failed),
         }
     }
 
@@ -366,7 +333,7 @@ impl AiEngine for Apple {
         if model.is_empty() {
             return Err(EngineError::Unsupported);
         }
-        if self.unhealthy() {
+        if self.health.unhealthy() {
             return Err(EngineError::NotHere(Reason::Unhealthy));
         }
         if let Readiness::NotHere(why) | Readiness::Preparing(why) = self.seen().readiness() {
@@ -377,7 +344,7 @@ impl AiEngine for Apple {
             .ok_or(EngineError::NotHere(Reason::HelperMissing))?;
         let mut slot = self.helper.lock().map_err(|_| EngineError::Crashed)?;
         if !slot.as_mut().is_some_and(Helper::alive) {
-            *slot = Some(self.start(&program).inspect_err(|_| self.failed())?);
+            *slot = Some(self.start(&program).inspect_err(|_| self.health.failed())?);
         }
         if let Readiness::NotHere(why) | Readiness::Preparing(why) = self.seen().readiness() {
             *slot = None;
@@ -404,7 +371,7 @@ impl AiEngine for Apple {
             Ok(answer) if answer["id"].as_u64() == Some(id) => answer,
             Ok(_) | Err(EngineError::Crashed) => {
                 *slot = None;
-                self.failed();
+                self.health.failed();
                 return Err(EngineError::Crashed);
             }
             Err(error) => {
@@ -416,7 +383,7 @@ impl AiEngine for Apple {
         draft(&answer).inspect_err(|error| {
             if *error == EngineError::NotHere(Reason::Unknown) {
                 *slot = None;
-                self.set_seen(Seen::Failed);
+                self.health.see(Seen::Failed);
             }
         })
     }

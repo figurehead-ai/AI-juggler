@@ -212,19 +212,8 @@ mod tests {
     /// they move over).
     #[test]
     fn nothing_emits_by_a_bare_name() {
-        fn walk(dir: &std::path::Path, out: &mut Vec<std::path::PathBuf>) {
-            for entry in std::fs::read_dir(dir).unwrap().flatten() {
-                let path = entry.path();
-                if path.is_dir() {
-                    walk(&path, out);
-                } else if path.extension().is_some_and(|ext| ext == "rs") {
-                    out.push(path);
-                }
-            }
-        }
         let src = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src");
-        let mut files = Vec::new();
-        walk(&src, &mut files);
+        let files = crate::test_support::rust_files(&src);
         let mut bare = Vec::new();
         for file in files {
             let rel = file
