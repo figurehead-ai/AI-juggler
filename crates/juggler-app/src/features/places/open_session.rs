@@ -54,18 +54,30 @@ pub fn app_session_in(
     place: &KnownPlace,
     conversation_id: &str,
 ) -> Option<String> {
+    in_records(state, place, |adapter, files| {
+        files.into_iter().find_map(|path| {
+            adapter
+                .read_app_session(&path)
+                .filter(|session| session.session_id.as_deref() == Some(conversation_id))
+                .map(|session| session.host_session_id)
+        })
+    })
+}
+
+/// The first answer `find` gives for an adapter that reads profile
+/// `place`'s app, given that adapter and the profile's session record files.
+fn in_records<T>(
+    state: &Arc<AppState>,
+    place: &KnownPlace,
+    mut find: impl FnMut(&juggler_adapter::SharedAdapter, Vec<PathBuf>) -> Option<T>,
+) -> Option<T> {
     let dir = place.instance_dir.as_deref()?;
     state.registry.ids().into_iter().find_map(|adapter_id| {
         let adapter = state.registry.get(&adapter_id)?;
         if !adapter.host_apps().iter().any(|app| app.id == place.app_id) {
             return None;
         }
-        adapter.app_session_files(dir).into_iter().find_map(|path| {
-            adapter
-                .read_app_session(&path)
-                .filter(|session| session.session_id.as_deref() == Some(conversation_id))
-                .map(|session| session.host_session_id)
-        })
+        find(&adapter, adapter.app_session_files(dir))
     })
 }
 
@@ -215,17 +227,12 @@ fn record_of(
     place: &KnownPlace,
     record: &str,
 ) -> Option<(juggler_adapter::SharedAdapter, PathBuf)> {
-    let dir = place.instance_dir.as_deref()?;
-    state.registry.ids().into_iter().find_map(|adapter_id| {
-        let adapter = state.registry.get(&adapter_id)?;
-        if !adapter.host_apps().iter().any(|app| app.id == place.app_id) {
-            return None;
-        }
-        let path = adapter.app_session_files(dir).into_iter().find(|path| {
+    in_records(state, place, |adapter, files| {
+        let path = files.into_iter().find(|path| {
             path.file_stem()
                 .is_some_and(|stem| stem.to_string_lossy() == record)
         })?;
-        Some((adapter, path))
+        Some((Arc::clone(adapter), path))
     })
 }
 

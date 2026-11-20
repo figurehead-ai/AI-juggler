@@ -85,7 +85,7 @@ async fn answer(
     state: Arc<AppState>,
     permit: tokio::sync::OwnedSemaphorePermit,
 ) {
-    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    use tokio::io::AsyncReadExt;
     // AJ-E3013: who connected and when, for a keyless call's attestation.
     let peer = stream.peer();
     let mut request = Vec::new();
@@ -114,10 +114,7 @@ async fn answer(
                 // calls' slots (its own, few, in `desktop::wait`).
                 drop(permit);
                 let response = super::desktop::wait(state, wait, peer).await;
-                let mut line = serde_json::to_string(&response).unwrap_or_default();
-                line.push('\n');
-                let _ = stream.write_all(line.as_bytes()).await;
-                let _ = stream.shutdown().await;
+                send(&mut stream, &response).await;
                 return;
             }
             tauri::async_runtime::spawn_blocking(move || {
@@ -131,9 +128,15 @@ async fn answer(
         Ok(Ok(false)) => wire::Response::refused(wire::Refusal::Limit, "That request is too long."),
         _ => return,
     };
-    let mut line = serde_json::to_string(&response).unwrap_or_default();
+    send(&mut stream, &response).await;
+    drop(permit);
+}
+
+/// Writes `response` as one line and closes the connection.
+async fn send(stream: &mut local_ipc::Stream, response: &wire::Response) {
+    use tokio::io::AsyncWriteExt;
+    let mut line = serde_json::to_string(response).unwrap_or_default();
     line.push('\n');
     let _ = stream.write_all(line.as_bytes()).await;
     let _ = stream.shutdown().await;
-    drop(permit);
 }
