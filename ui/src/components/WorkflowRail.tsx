@@ -673,11 +673,7 @@ function BoardRow({
       )}
       <RailRow session={row} showProject={showProject} selected={selected} onSelect={onSelect} density={density} now={now} freshness={freshness} trailing={where !== null && needs} />
       {where !== null && menu.goTo({ where, shown: needs, className: "absolute right-1 top-1/2 -translate-y-1/2" })}
-      {/* I-03: a model that drifted from its launch settings is worth a
-          glance (cost and behaviour differ) — beside the row, focusable,
-          a calm note (level 1, never an amber pill; AJ-E3603 R2),
-          clear of the tool's mark and the avatar. Compact rows
-          have no room beside the time; the session view says it there. */}
+      {/* I-03: a drifted model, a calm focusable note beside the row (level 1, never amber; AJ-E3603 R2); compact rows say it in the session view. */}
       {density === "comfortable" && modelDrift(row) && (
         <span
           title={modelDrift(row)!}
