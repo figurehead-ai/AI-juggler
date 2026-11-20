@@ -217,7 +217,7 @@ fn records_are_targeted_here_and_capped_in_number() {
         ["tool"],
         "a when this app can't read never matches"
     );
-    // The rollout bucket is salted by section and id, and stable.
+    // The rollout bucket is keyed by section and id, and stable.
     let bucket = facts().install.bucket("messages.r");
     let rule =
         json!([{ "id": "r", "when": {"buckets": [bucket, bucket]}, "kind": "low", "title": "t" }]);

@@ -92,17 +92,18 @@ impl InstallId {
         self.0
     }
 
-    /// This install's bucket, `0..BUCKETS`, for the rollout named `salt`.
+    /// This install's bucket, `0..BUCKETS`, for the rollout named
+    /// `rollout`.
     ///
-    /// Each rollout salts the hash with its own name, so the same installs
+    /// Each rollout's name goes into the hash, so the same installs
     /// aren't first in line for every rollout; one rollout's bucket is
     /// stable across launches and versions.
     #[must_use]
-    pub fn bucket(&self, salt: &str) -> u8 {
+    pub fn bucket(&self, rollout: &str) -> u8 {
         let digest = Sha256::new()
             .chain_update(BUCKET_CONTEXT)
             .chain_update(self.0)
-            .chain_update(salt.as_bytes())
+            .chain_update(rollout.as_bytes())
             .finalize();
         let mut head = [0u8; 8];
         head.copy_from_slice(&digest[..8]);
@@ -202,9 +203,9 @@ impl When {
         Ok(Self::Target(Box::new(target)))
     }
 
-    /// Whether the rule applies to `facts`; `salt` names the rollout.
+    /// Whether the rule applies to `facts`; `rollout` names the rollout.
     #[must_use]
-    pub fn matches(&self, facts: &Facts, salt: &str) -> bool {
+    pub fn matches(&self, facts: &Facts, rollout: &str) -> bool {
         let target = match self {
             Self::Always => return true,
             Self::Unknown => return false,
@@ -238,7 +239,7 @@ impl When {
         });
         let bucket = target
             .buckets
-            .is_none_or(|[first, last]| (first..=last).contains(&facts.install.bucket(salt)));
+            .is_none_or(|[first, last]| (first..=last).contains(&facts.install.bucket(rollout)));
         app && channel && os && os_version && tools && bucket
     }
 
@@ -266,7 +267,7 @@ mod tests {
     }
 
     #[test]
-    fn bucket_is_stable_and_salted() {
+    fn bucket_is_stable_and_differs_by_rollout() {
         let id = InstallId::from_bytes([42; 16]);
         assert_eq!(id.bucket("flags.x"), id.bucket("flags.x"));
         assert_eq!(
@@ -276,10 +277,13 @@ mod tests {
         // A golden, so a change to the hash (which would reshuffle every
         // rollout) is a deliberate one.
         assert_eq!(id.bucket("flags.x"), GOLDEN_BUCKET);
-        let salts: std::collections::BTreeSet<u8> = (0..50)
+        let buckets: std::collections::BTreeSet<u8> = (0..50)
             .map(|i| id.bucket(&format!("rollout-{i}")))
             .collect();
-        assert!(salts.len() > 20, "salts should spread one install around");
+        assert!(
+            buckets.len() > 20,
+            "rollouts should spread one install around"
+        );
     }
 
     const GOLDEN_BUCKET: u8 = 37;

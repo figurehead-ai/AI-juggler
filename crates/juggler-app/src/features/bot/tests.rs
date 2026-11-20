@@ -494,12 +494,17 @@ fn forget_reaches_every_turn_the_memory_was_said_or_used_in() {
 #[test]
 fn a_key_after_remember_is_refused_not_kept_masked() {
     let (_dir, state) = state();
-    for secret in [
+    // Named by their place, never printed: a key in a failure message is
+    // a key in the log (CodeQL's cleartext-logging rule).
+    for (case, secret) in [
         "sk-ant-api03-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
         "ghp_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
-    ] {
+    ]
+    .into_iter()
+    .enumerate()
+    {
         let turn = ask(&state, &format!("Remember: my key is {secret}"));
-        assert_eq!(turn.outcome, BotOutcome::Refused, "{secret}");
+        assert_eq!(turn.outcome, BotOutcome::Refused, "key {case}");
         assert!(turn.memory.is_none());
     }
     let listed = super::memory::list(&state).unwrap();

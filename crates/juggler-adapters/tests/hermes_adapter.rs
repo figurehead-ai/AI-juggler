@@ -458,7 +458,9 @@ fn a_store_in_another_format_is_refused_whole() {
     drop(conn);
     let error =
         juggler_adapters::hermes_sessions::sessions(&hermes_fixture::store(&dir)).unwrap_err();
-    assert!(error.contains("schema 32"), "{error}");
+    // The error names the store's path: not printed (CodeQL's
+    // cleartext-logging rule), only checked.
+    assert!(error.contains("schema 32"), "the older schema isn't named");
     let newer = kit.accounts.join("newer");
     let conn = hermes_fixture::create_with(&newer, 40);
     conn.execute_batch("ALTER TABLE sessions DROP COLUMN cwd")
@@ -466,7 +468,10 @@ fn a_store_in_another_format_is_refused_whole() {
     drop(conn);
     let error =
         juggler_adapters::hermes_sessions::sessions(&hermes_fixture::store(&newer)).unwrap_err();
-    assert!(error.contains("lacks cwd"), "{error}");
+    assert!(
+        error.contains("lacks cwd"),
+        "the missing column isn't named"
+    );
 }
 
 #[test]

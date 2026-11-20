@@ -35,7 +35,7 @@
 //!
 //! Every record has an `id` (`[a-z0-9_-]`, at most 64 characters, unique
 //! in the list) and may have a `when`, the same targeting a rule uses
-//! ([`crate::target`]), evaluated here; its rollout bucket is salted with
+//! ([`crate::target`]), evaluated here; its rollout bucket is keyed by
 //! `section.id`.
 //!
 //! # Tolerant by record (an old app meets a new file)

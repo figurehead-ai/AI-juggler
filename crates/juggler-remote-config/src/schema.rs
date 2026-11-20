@@ -407,8 +407,8 @@ impl SettingKey {
         }
     }
 
-    /// `section.control`, the rollout salt.
-    fn salt(&self) -> String {
+    /// `section.control`, the rollout's name for its bucket.
+    fn rollout(&self) -> String {
         format!("{}.{}", self.section, self.control)
     }
 }
@@ -675,7 +675,8 @@ impl Registry {
                     continue;
                 };
                 let key = SettingKey::new(name, control_name);
-                let (setting, problem) = resolve_entry(control, entry, facts, &key.salt(), reading);
+                let (setting, problem) =
+                    resolve_entry(control, entry, facts, &key.rollout(), reading);
                 match problem {
                     Some(Problem::Dropped(reason)) => {
                         tracing::warn!(section = %name, control = %control_name, %reason,
@@ -794,7 +795,7 @@ fn resolve_entry(
     control: &Control,
     entry: &Value,
     facts: &Facts,
-    salt: &str,
+    rollout: &str,
     reading: Reading,
 ) -> (Option<Setting>, Option<Problem>) {
     let plain = [(When::Always, Some(entry))];
@@ -811,7 +812,7 @@ fn resolve_entry(
     };
     let mut problem: Option<Unreadable> = None;
     for (when, value) in rules {
-        if !when.matches(facts, salt) {
+        if !when.matches(facts, rollout) {
             continue;
         }
         let read = value

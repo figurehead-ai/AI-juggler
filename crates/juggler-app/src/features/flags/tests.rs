@@ -91,7 +91,7 @@ fn a_rollout_turns_on_only_for_its_buckets() {
         &with(json!({ "test_rollout": true }), 1).effective,
         &ROLLOUT
     ));
-    // The bucket is the crate's, salted with `flags.<name>`, from the
+    // The bucket is the crate's, keyed by `flags.<name>`, from the
     // install's own random id.
     let bucket = facts(1).install.bucket("flags.test_rollout");
     let only_mine = json!({ "test_rollout": { "rules": [{ "when": { "buckets": [bucket, bucket] }, "value": true }] } });
