@@ -675,7 +675,7 @@ function BoardRow({
       {where !== null && menu.goTo({ where, shown: needs, className: "absolute right-1 top-1/2 -translate-y-1/2" })}
       {/* I-03: a model that drifted from its launch settings is worth a
           glance (cost and behaviour differ) — beside the row, focusable,
-          a calm note (AJ-E3603: L1, never an amber pill),
+          a calm note (level 1, never an amber pill; AJ-E3603 R2),
           clear of the tool's mark and the avatar. Compact rows
           have no room beside the time; the session view says it there. */}
       {density === "comfortable" && modelDrift(row) && (
