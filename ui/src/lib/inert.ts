@@ -133,8 +133,8 @@ export function useModalsInert(): void {
         // only at its next drawing: a dialog that sets no first focus,
         // opened from a focused terminal, left it on the page, the caret
         // spec): inside. A dialog's own first focus, set after, still wins.
-        const active = document.activeElement;
-        if (lost(was) || (active instanceof HTMLElement && active !== document.body && !top.contains(active))) {
+        const focusNow = document.activeElement;
+        if (lost(was) || (focusNow instanceof HTMLElement && focusNow !== document.body && !top.contains(focusNow))) {
           top.querySelector<HTMLElement>(FOCUSABLE)?.focus({ preventScroll: true });
         }
         return;

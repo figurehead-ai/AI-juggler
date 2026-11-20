@@ -21,7 +21,9 @@ export function LegendPopover({
   const buttonRef = useRef<HTMLButtonElement | null>(null);
   const panelRef = useRef<HTMLDivElement | null>(null);
   // AJ-E3011 round 4: the page under it is inert while it's open.
-  useInertOutside(panelRef, open && place !== null);
+  // Open and placed: the panel is on the page.
+  const shown = open && place !== null;
+  useInertOutside(panelRef, shown);
   const toggle = () => {
     if (open) {
       setOpen(false);
@@ -40,7 +42,7 @@ export function LegendPopover({
     setOpen(true);
   };
   useEffect(() => {
-    if (!open) return;
+    if (!shown) return;
     const onDown = (event: MouseEvent) => {
       const target = event.target as Node;
       if (!panelRef.current?.contains(target) && !buttonRef.current?.contains(target)) setOpen(false);
@@ -62,7 +64,7 @@ export function LegendPopover({
       window.removeEventListener("mousedown", onDown);
       window.removeEventListener("keydown", onKey);
     };
-  }, [open, place]);
+  }, [shown]);
   return (
     <span className={className}>
       <button
