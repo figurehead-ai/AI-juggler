@@ -404,7 +404,10 @@ Home's **Needs you** shows, beside your sessions' questions:
   answer: **Allow once**, **Always allow in this pool** (from the second
   time) or **Deny**. Keys 1–9 pick an answer, Enter the first;
 - a chain that reached the hop limit: **Deliver** sends that message and
-  starts the count again; a rule never lifts the hop limit;
+  starts the count again; **Don't deliver** ends the chain there: the
+  message isn't sent and the thread stops (its **Resume** opens it again
+  from 0). The same two answers are on the message in its thread; a rule
+  never lifts the hop limit;
 - a question an agent asked you (**Reply**), and messages waiting for a
   session AI Juggler runs (**Deliver**: one click for all of them);
 - a paused thread or pool (**Resume**).

@@ -179,6 +179,20 @@ describe("a pool's messages", () => {
     await waitFor(() => expect(calls()).toContain("send:conversation:claude-work/c1:true"));
   });
 
+  // The rc3h walk: a chain paused at the hop limit could only be answered
+  // on Home; its thread offered Resume alone. Its message has Home's
+  // answers: Deliver and Don't deliver.
+  it("a chain paused at the hop limit has Deliver and Don't deliver on its message", async () => {
+    seams().__AIJ_MESSAGES__!.threads![0] = thread({ state: "paused", state_reason: "it reached this pool's hop limit", hop: 3, hop_cap: 2 });
+    seams().__AIJ_MESSAGES__!.needs = [need({ kind: "deliver", key: "ask:hop", ask_id: "ask-hop", title: "«Planner»'s message would start «Builder»'s next turn" })];
+    const { findByTestId, getByTestId } = render(<MessagesView poolId="pool-team" members={members} now={NOW} />);
+    const answers = await findByTestId("message-held-answers");
+    expect(getByTestId("thread-resume")).toBeTruthy();
+    expect(within(answers).getAllByRole("button").map((button) => button.textContent)).toEqual(["Deliver", "Don't deliver"]);
+    fireEvent.click(within(answers).getByRole("button", { name: "Don't deliver" }));
+    await waitFor(() => expect(calls()).toContain("answer:ask-hop:deny"));
+  });
+
   // F-rc3g-10: the count reads against the pool's own limit (the thread's
   // hop_cap), the way its pause counts: "2 of 2" is the last before you're
   // asked, and the one past it says it's over.

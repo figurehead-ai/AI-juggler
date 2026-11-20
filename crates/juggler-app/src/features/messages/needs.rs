@@ -511,13 +511,7 @@ fn settle(
             }
             hold_watched(&repo, ask, message, &waits)?;
         }
-        (true, "deny") => repo.log(
-            &message.pool_id,
-            SENDER_USER,
-            "not_delivered",
-            &message.id,
-            None,
-        )?,
+        (true, "deny") => stop_the_chain(&repo, message)?,
         (true, _) => {
             repo.reset_hop(&message.thread_id)?;
             repo.set_thread_state(&message.thread_id, ThreadState::Open, None, SENDER_USER)?;
@@ -525,6 +519,60 @@ fn settle(
     }
     Ok(waits.into_iter().map(|(_, name)| name).collect())
 }
+
+/// "Don't deliver" on a chain paused at its pool's hop limit (the rc3h
+/// walk: nothing changed. The thread stayed "Paused", the message "Waiting
+/// in its inbox", and Needs you swapped the card for two that asked again:
+/// "Resume" the thread, and "Deliver" the very message refused). The
+/// person ended the chain there: the message's copies no session has read
+/// yet are not sent, any other ask to deliver it goes, and the thread
+/// stops, so agents can't write in it until the person resumes it. Nothing
+/// about it waits on them any more.
+fn stop_the_chain(repo: &MessagesRepo<'_>, message: &Message) -> AppResult<()> {
+    let copies: Vec<String> = repo
+        .recipients(&message.id)?
+        .into_iter()
+        .map(|r| r.recipient_ref)
+        .filter(|r| r != SENDER_USER)
+        .collect();
+    let refused = repo.set_state(
+        std::slice::from_ref(&message.id),
+        &copies,
+        &[RecipientState::Unread],
+        RecipientState::Refused,
+        Some(SENDER_USER),
+        SENDER_USER,
+        NOT_DELIVERED,
+    )?;
+    if refused == 0 {
+        repo.log(
+            &message.pool_id,
+            SENDER_USER,
+            NOT_DELIVERED,
+            &message.id,
+            None,
+        )?;
+    }
+    for other in repo.open_asks(0, 200)? {
+        if other.object_ref == message.id && other.action == AgentAction::DeliverToSession.as_str()
+        {
+            repo.close_ask(&other.id, "deny")?;
+        }
+    }
+    repo.set_thread_state(
+        &message.thread_id,
+        ThreadState::Stopped,
+        Some(&format!(
+            "you didn't deliver «{}»'s message past this pool's hop limit",
+            message.sender_name
+        )),
+        SENDER_USER,
+    )?;
+    Ok(())
+}
+
+/// The pool log's word for a hop-limit delivery the person refused.
+const NOT_DELIVERED: &str = "not_delivered";
 
 /// The Watched refs (`conversation:folder/id`) AI Juggler's own sessions
 /// have continued: those read their messages now.

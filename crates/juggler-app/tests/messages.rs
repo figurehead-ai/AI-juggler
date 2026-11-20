@@ -783,6 +783,64 @@ fn the_hop_limit_pauses_the_chain_and_asks_and_stop_all_holds_it() {
     assert_eq!(state_for(&lab, &field(&held, "/message")), ["unread"]);
 }
 
+/// The rc3h walk: "Don't deliver" on a chain paused at the hop limit
+/// changed nothing in sight. The thread stayed "Paused", the message
+/// "Waiting in its inbox", and Needs you swapped the card for two that
+/// asked again (Resume the thread; Deliver the very message refused). It
+/// ends the chain: the message isn't sent, the thread stops, agents can't
+/// write in it, and nothing about it waits on the person.
+#[test]
+fn dont_deliver_at_the_hop_limit_ends_the_chain_and_nothing_asks_again() {
+    let lab = Lab::new();
+    let (planner, a) = lab.agent("s-a", "Planner");
+    let (builder, b) = lab.driven("Builder");
+    pools::access::set_level_impl(&lab.state, &lab.pool, "full", &[]).unwrap();
+    pools::access::set_delivery_impl(&lab.state, &lab.pool, 2, false).unwrap();
+    let first = lab.say(&a, &builder, "one", None);
+    let thread = field(&first, "/thread");
+    wait_for("the first delivery", || {
+        state_for(&lab, &field(&first, "/message")) == ["delivered"]
+    });
+    wait_for("its turn to end", || {
+        delivery::between_turns(&lab.state, &builder)
+    });
+    lab.say(&b, &planner, "two", Some(&thread));
+    let third = lab.say(&a, &builder, "three", Some(&thread));
+    let third_id = field(&third, "/message");
+    let ask = needs::needs(&lab.state)
+        .unwrap()
+        .into_iter()
+        .find(|n| n.kind == "deliver")
+        .expect("the chain paused and asks");
+    needs::answer(&lab.state, ask.ask_id.as_deref().unwrap(), "deny").unwrap();
+
+    let waiting = needs::needs(&lab.state).unwrap();
+    assert!(
+        waiting
+            .iter()
+            .all(|n| n.thread_id.as_deref() != Some(thread.as_str())),
+        "nothing about the chain waits on the person: {waiting:?}"
+    );
+    assert_eq!(state_for(&lab, &third_id), ["refused"], "not sent");
+    let stopped = views::thread(&lab.state, &thread, None).unwrap().thread;
+    assert_eq!(stopped.state, "stopped");
+    assert!(
+        stopped
+            .state_reason
+            .as_deref()
+            .is_some_and(|why| why.contains("hop limit")),
+        "{:?}",
+        stopped.state_reason
+    );
+    assert_eq!(
+        views::deliver_waiting(&lab.state, builder.as_str()).unwrap(),
+        0,
+        "no Deliver sends it after all"
+    );
+    let again = lab.say(&a, &builder, "four", Some(&thread));
+    assert_eq!(again.refused, Some(Refusal::Deny), "{again:?}");
+}
+
 fn hook(event: &str) -> juggler_agentbridge::wire::HookReport {
     juggler_agentbridge::wire::HookReport {
         event: event.to_owned(),
