@@ -30,14 +30,26 @@
  *
  * Each screen's calm pass (AJ-E3604…) adds its fixtures and areas here.
  *
+ * AJ-E3603 (R3–R5, the rail and the header, calm): a fourth fixture,
+ * L3-heavy (four sessions that stopped with an error, one limit, two that
+ * ask), and (x) on every fixture, both themes and all three rail
+ * densities (Comfortable, Compact, Minimal): the rail's and the header's
+ * words are calm. Only Needs you's count (the folded rail's too) is
+ * painted amber or red; every need's level is its small mark beside
+ * words in calm ink, never a whole loud line, on every page (Settings
+ * too); no amber fill, no tinted row, no filled badge; and axe finds no
+ * critical or serious problem (colour contrast among them) in the rail
+ * or the header.
+ *
  * D-118 (AJ-E3701, Home's calm pass): Home's loud copy of a need is its
  * pinned zone ("Needs you now"), whose count carries the level as the
  * rail's does; the feed under it is quiet (ix): an item about a need is a
  * history line, never amber or red, whatever its level was; and Home's
  * folds keep their chevrons too (vii).
  */
+import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
-import { allStatuses, expectRail } from "./fixtures";
+import { allStatuses, expectRail, goTo } from "./fixtures";
 import { placesConversations } from "../../src/preview/places";
 import { attentionLevel } from "../../src/lib/attention";
 
@@ -59,23 +71,29 @@ function own(id: string, over: Record<string, unknown> = {}) {
 
 const waits = (n: number) => Array.from({ length: n }, (_, i) => own(`wait-${i}`, { status: "waiting_user", needs_attention: "waiting_user", last_activity_ms: T0 - (i + 1) * 120_000 }));
 
+const broke = (n: number) => Array.from({ length: n }, (_, i) => own(`broke-${i}`, { status: "failed", needs_attention: "failed", title: ["Port the settings parser", "Migrate the billing webhooks", "Rename the photo exports", "Fix the flaky login test"][i % 4], last_activity_ms: T0 - (i + 1) * 300_000 }));
+
 const FIXTURES = {
   "all-statuses": allStatuses,
   typical: { accounts: ACCOUNTS, projects: PROJECTS, sessions: [own("sess-1")], conversations: placesConversations(T0) },
   flood: { accounts: ACCOUNTS, projects: PROJECTS, sessions: [...waits(6), own("crash", { status: "failed", needs_attention: "failed" }), own("busy")], conversations: placesConversations(T0, 12) },
+  // AJ-E3603 R5: a bad morning: four stopped with an error, one at its
+  // limit, two that ask, one still working.
+  "l3-heavy": { accounts: ACCOUNTS, projects: PROJECTS, sessions: [...broke(4), own("limit", { status: "quota_blocked", needs_attention: "quota_blocked", title: "Tidy the blog's images" }), ...waits(2), own("busy", { title: "Refactor the read model" })], conversations: placesConversations(T0) },
 } as const;
 
-async function open(page: Page, fixture: keyof typeof FIXTURES, theme: "dark" | "light") {
+async function open(page: Page, fixture: keyof typeof FIXTURES, theme: "dark" | "light", density: "comfortable" | "compact" | "minimal" = "comfortable") {
   await page.addInitScript(
-    ({ set, theme: t, t0 }) => {
+    ({ set, theme: t, t0, density: d }) => {
       const w = window as unknown as Record<string, unknown>;
       w.__AIJ_FIXTURE__ = set;
       localStorage.setItem("aij.theme", t);
+      localStorage.setItem("aij.density", d);
       localStorage.setItem("aij.onboarding.dismissed", "1");
       sessionStorage.setItem("aij.ready.skipped", "1");
       Date.now = () => t0;
     },
-    { set: FIXTURES[fixture], theme, t0: T0 },
+    { set: FIXTURES[fixture], theme, t0: T0, density },
   );
   // Motion allowed: the reduced-motion rule would hide what loops.
   await page.emulateMedia({ reducedMotion: "no-preference", colorScheme: theme });
@@ -84,6 +102,29 @@ async function open(page: Page, fixture: keyof typeof FIXTURES, theme: "dark" | 
   await expectRail(page);
   await expect(page.getByTestId("home-heading")).not.toHaveText(/Checking/);
   await expect(page.locator("[data-testid='rail'] [data-level]").first()).toBeVisible();
+}
+
+/** (x) The words in an area painted amber or red, but for Needs you's
+ * count (the rail's, the folded rail's): each "tag "words"". */
+function loudWords(page: Page, selector: string): Promise<string[]> {
+  return page.evaluate((sel) => {
+    const area = document.querySelector(sel);
+    const probe = document.createElement("span");
+    document.body.appendChild(probe);
+    const colour = (value: string) => {
+      probe.style.color = value;
+      return getComputedStyle(probe).color;
+    };
+    const loud = [colour("var(--color-warning)"), colour("var(--color-danger)")];
+    probe.remove();
+    if (!area) return [];
+    const COUNT = "[data-testid='rail-needs-you'] [data-testid='section-count'], [data-testid='rail-folded-needs-you']";
+    return [...area.querySelectorAll<HTMLElement>("*")]
+      .filter((element) => [...element.childNodes].some((node) => node.nodeType === Node.TEXT_NODE && (node.textContent ?? "").trim() !== ""))
+      .filter((element) => element.getBoundingClientRect().width > 0 && loud.includes(getComputedStyle(element).color))
+      .filter((element) => !element.closest(COUNT))
+      .map((element) => `${element.tagName.toLowerCase()} "${(element.textContent ?? "").trim().slice(0, 40)}"`);
+  }, selector);
 }
 
 const AREAS = { header: "header", rail: "[data-testid='rail']", home: "[data-testid='home']" } as const;
@@ -169,7 +210,7 @@ for (const theme of ["dark", "light"] as const) {
         // (ii) no amber fills.
         expect(m.amberFills, `${name}: amber fills`).toEqual([]);
         // (iii) at most one L3 tint block (the L3 rows sit together on top).
-        expect(m.dangerBlocks, `${name}: danger-soft blocks`).toBeLessThanOrEqual(fixture === "flood" || fixture === "all-statuses" ? 1 : 0);
+        expect(m.dangerBlocks, `${name}: danger-soft blocks`).toBeLessThanOrEqual(fixture === "typical" ? 0 : 1);
       }
       // (iv) one filled accent button per view, at most.
       const filled = await page.evaluate(() => {
@@ -246,6 +287,36 @@ for (const theme of ["dark", "light"] as const) {
       expect(rows.length).toBeGreaterThan(0);
       for (const row of rows) expect(row.level, JSON.stringify(row)).toBe(attentionLevel({ need: row.need, state: row.state }));
     });
+  }
+
+  // (x) AJ-E3603 R3–R5: the rail and the header in every density, on
+  // every fixture: calm words, the level on its mark, axe clean; on Home
+  // and on Settings (R5: "on every page, Settings included").
+  for (const density of ["comfortable", "compact", "minimal"] as const) {
+    for (const fixture of Object.keys(FIXTURES) as (keyof typeof FIXTURES)[]) {
+      test(`the rail and the header are calm: ${fixture}, ${density} — ${theme}`, async ({ page }) => {
+        await open(page, fixture, theme, density);
+        await expect(page.getByTestId("rail")).toHaveAttribute("data-density", density);
+        for (const where of ["Home", "Settings"] as const) {
+          if (where === "Settings") {
+            await goTo(page, "Settings");
+            await expect(page.getByRole("navigation", { name: "Settings" })).toBeVisible();
+          }
+          for (const [name, selector] of [["rail", AREAS.rail], ["header", AREAS.header]] as const) {
+            expect(await loudWords(page, selector), `${where}, ${name}: amber or red words other than Needs you's count`).toEqual([]);
+            const m = await measure(page, selector);
+            expect(m.amberFills, `${where}, ${name}: amber fills`).toEqual([]);
+            expect(m.dangerBlocks, `${where}, ${name}: tinted rows`).toBe(0);
+          }
+          // Every need in the rail carries its level's mark (the words are calm).
+          const unmarked = await page.locator("[data-testid='rail'] [data-level='2'][data-rail-row], [data-testid='rail'] [data-level='3'][data-rail-row]").evaluateAll((rows) => rows.filter((row) => !row.querySelector(".level-mark")).map((row) => (row.textContent ?? "").trim().slice(0, 40)));
+          expect(unmarked, `${where}: a need's row without its level's mark`).toEqual([]);
+          const axe = await new AxeBuilder({ page }).include(AREAS.rail).include(AREAS.header).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"]).analyze();
+          const bad = axe.violations.filter((v) => v.impact === "critical" || v.impact === "serious");
+          expect(bad.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(" ")).slice(0, 3).join(", ")}`), `${where}: axe on the rail and the header`).toEqual([]);
+        }
+      });
+    }
   }
 
   // (vii) D-117 point 3: every collapsible keeps its chevron (D-118:
