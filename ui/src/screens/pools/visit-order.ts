@@ -6,8 +6,27 @@
  * never moves under a click: the rc3g walk aimed at pool A and opened B,
  * the two swapped by their sessions' activity. A pool made meanwhile goes
  * at the end; one gone leaves its place.
+ *
+ * AJ-E3014 item 1: a pool made from here opens its own page, and the
+ * screen came back with the new pool in slot 3 (an idle project pool
+ * pushed down), which then moved again as its sessions joined. So the
+ * pools a visit showed when it opened are kept for the app's run: on the
+ * next visit, a pool that wasn't among them (made since) comes after them
+ * all, however its sessions move. The visit after takes it in as any.
  */
 import { useEffect, useRef, useState } from "react";
+import { whenForgotten } from "../../lib/shared-read";
+
+/** The pools the last visit showed when it opened (null before the first). */
+let lastOpened: ReadonlySet<string> | null = null;
+whenForgotten(() => (lastOpened = null));
+
+/** `live` with the pools the last visit didn't show after the ones it did,
+ * each part in its own order. */
+export function afterShown(shown: ReadonlySet<string> | null, live: readonly string[]): string[] {
+  if (!shown) return [...live];
+  return [...live.filter((id) => shown.has(id)), ...live.filter((id) => !shown.has(id))];
+}
 
 /** How long the order may still follow what's read (needs, sessions)
  * after the cards first show, when you haven't moved yet. */
@@ -29,10 +48,16 @@ export function visitOrder(kept: readonly string[] | null, live: readonly string
  * `ready` (the cards show) and you move, or after [`SETTLE_MS`]. */
 export function useVisitOrder<T extends { id: string }>(live: readonly T[], ready: boolean): T[] {
   const [kept, setKept] = useState<string[] | null>(null);
+  // The last visit's, read once as this one opens.
+  const [before] = useState(() => lastOpened);
+  const opened = useRef(false);
   const shown = useRef<readonly string[]>([]);
-  const ids = visitOrder(kept, live.map((item) => item.id));
+  const ids = visitOrder(kept, afterShown(before, live.map((item) => item.id)));
   useEffect(() => {
     shown.current = ids;
+    if (!ready || opened.current) return;
+    opened.current = true;
+    lastOpened = new Set(ids);
   });
   const holding = ready && kept === null;
   useEffect(() => {

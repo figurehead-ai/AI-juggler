@@ -135,6 +135,44 @@ describe("the Pools screen (AJ-E2807)", () => {
     expect(visitOrder(null, ["c", "a"]), "before the order holds").toEqual(["c", "a"]);
   });
 
+  // AJ-E3014 item 1: made from here, a pool opens its page; back on the
+  // screen it took slot 3, then moved again as its sessions joined.
+  it("a pool made since the last visit comes after the others on the next, however its sessions move", async () => {
+    const third: InstanceInfo = MOCK_SESSIONS[2]!;
+    const members = [
+      { session_id: first.id, pool_id: "pool-a", role: "member" },
+      { session_id: second.id, pool_id: "pool-b", role: "member" },
+    ];
+    seed({ pools: [{ id: "pool-a", name: "A", rules: [] }, { id: "pool-b", name: "B", rules: [] }], members });
+    await act(async () => {
+      await refreshPools();
+    });
+    const busy = (a: number, b: number, c: number) => [
+      { ...first, status: "running" as const, last_activity_ms: a },
+      { ...second, status: "running" as const, last_activity_ms: b },
+      { ...third, status: "running" as const, last_activity_ms: c },
+    ];
+    const screen = (sessions: InstanceInfo[]) => <PoolsScreen sessions={sessions} projects={MOCK_PROJECTS} accounts={[]} />;
+    const mine = (view: ReturnType<typeof render>) =>
+      view
+        .queryAllByTestId("pool-card-tile")
+        .map((tile) => tile.dataset.pool ?? "")
+        .filter((id) => ["pool-a", "pool-b", "pool-c"].includes(id));
+    const one = render(screen(busy(1_000, 2_000, 0)));
+    await waitFor(() => expect(mine(one)).toEqual(["pool-b", "pool-a"]));
+    one.unmount();
+    // Made meanwhile (on its own page), its session the latest active.
+    resetPreviewPools();
+    seed({ pools: [{ id: "pool-c", name: "C", rules: [] }, { id: "pool-a", name: "A", rules: [] }, { id: "pool-b", name: "B", rules: [] }], members: [...members, { session_id: third.id, pool_id: "pool-c", role: "member" }] });
+    await act(async () => {
+      await refreshPools();
+    });
+    const two = render(screen(busy(1_000, 2_000, 5_000)));
+    await waitFor(() => expect(mine(two)).toEqual(["pool-b", "pool-a", "pool-c"]));
+    two.rerender(screen(busy(1_000, 2_000, 9_000)));
+    expect(mine(two)).toEqual(["pool-b", "pool-a", "pool-c"]);
+  });
+
   it("gives a card its menu: open, rename, and delete saying what happens to its members (R4)", async () => {
     seed({
       pools: [{ id: "pool-team", name: "Team", rules: [] }],
