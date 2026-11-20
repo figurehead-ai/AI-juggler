@@ -15,7 +15,6 @@ import { act, cleanup, fireEvent, render, waitFor, within } from "@testing-libra
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { poolCanvasPlace } from "../../lib/ipc/pool-canvas";
-import type { MessagesSeed } from "../../lib/ipc/messages";
 import { asElement } from "../../test/fixtures";
 import { defaultPoolIdOf } from "../../lib/pools";
 import { CanvasEdges, edgeWords, ownLineRules } from "./CanvasEdges";
@@ -42,9 +41,7 @@ describe("an agent's ask on its node", () => {
   // D-139: a held message it can put into a session: one press approves
   // and delivers it; the second choice leaves it for its next turn.
   it("a held message's first answer is Allow and deliver", async () => {
-    seedTeam();
-    const seed = seams().__AIJ_MESSAGES__ as MessagesSeed;
-    seed.needs = (seed.needs ?? []).map((need) => ({ ...need, delivers_now: true }));
+    seedTeam(false, true);
     const view = await openPage();
     const asker = asElement(view.container.querySelector(`[data-node="${second.id}"]`));
     const deliver = await within(asker).findByTestId("node-ask-deliver");

@@ -36,8 +36,9 @@ function nth(index: number): InstanceInfo {
 export const [first, second, third] = [nth(0), nth(1), nth(2)];
 
 /** A two-member pool whose second member's agent asks to message the
- * first; `offerAlways` offers "Always allow here" on that ask. */
-export function seedTeam(offerAlways = false): void {
+ * first; `offerAlways` offers "Always allow here" on that ask, and
+ * `deliversNow` its "Allow and deliver" (D-139). */
+export function seedTeam(offerAlways = false, deliversNow = false): void {
   seams().__AIJ_POOLS__ = {
     pools: [{ id: "pool-team", name: "Team", rules: [{ id: 7, pool_id: "pool-team", action: "claim_task", created_at: Date.now() - 60_000, made_by: "user" }] }],
     members: [
@@ -53,7 +54,7 @@ export function seedTeam(offerAlways = false): void {
         { id: "m-1", thread_id: "thr-1", from_name: "B", from_kind: "agent", from_session_id: second.id, kind: "note", subject: "Totals", body: "May I?", hop: 1, redacted: 0, to_all: false, at_ms: at, recipients: [{ id: `session:${first.id}`, name: "A", session_id: first.id, state: "held", via: null, deliverable: false, how: "" }] },
       ],
     },
-    needs: [{ key: "ask:ask-1", kind: "ask", pool_id: "pool-team", pool_name: "Team", thread_id: "thr-1", message_id: "m-1", session_id: null, ask_id: "ask-1", offer_always: offerAlways, title: "B wants to message A", detail: "", preview: "May I?", at_ms: at }],
+    needs: [{ key: "ask:ask-1", kind: "ask", pool_id: "pool-team", pool_name: "Team", thread_id: "thr-1", message_id: "m-1", session_id: null, ask_id: "ask-1", offer_always: offerAlways, delivers_now: deliversNow, title: "B wants to message A", detail: "", preview: "May I?", at_ms: at }],
   };
 }
 
