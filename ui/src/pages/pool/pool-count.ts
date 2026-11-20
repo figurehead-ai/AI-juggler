@@ -67,3 +67,12 @@ export function heldCanvasWords(held: readonly HeldMember[]): string {
   const who = held.length === 1 ? `${held[0]!.name} is` : `${held.length} of its sessions are`;
   return `${who} in ${by} for now: a sealed pool keeps its sessions to itself. The List view shows ${held.length === 1 ? "it" : "them"}.`;
 }
+
+/** A sealed pool holds every session it has, so the canvas draws none. */
+export const heldOnly = (held: readonly HeldMember[], drawn: number): boolean => held.length > 0 && drawn === 0;
+
+/** Under a canvas that draws no member: where its sessions are, when a
+ * sealed pool holds them all, else what `rulesOnlyWords` says. */
+export function canvasHintWords(held: readonly HeldMember[], drawn: number, hasRules: boolean, open: number): string {
+  return heldOnly(held, drawn) ? heldCanvasWords(held) : rulesOnlyWords(hasRules, open);
+}

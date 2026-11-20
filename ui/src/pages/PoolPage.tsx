@@ -56,7 +56,7 @@ import { PoolPanel } from "./pool/PoolPanel";
 import { useSetupPhase, useSetupProgress } from "./pool/setup-progress";
 
 export { poolCountWords } from "./pool/pool-count";
-import { heldByWords, heldCanvasWords, heldCountWords, heldOf, poolCountWords, rulesOnlyWords } from "./pool/pool-count";
+import { canvasHintWords, heldByWords, heldCountWords, heldOf, heldOnly, poolCountWords } from "./pool/pool-count";
 
 /** Where a link in asked the page to open (read once, on arrival). */
 function arrival(): { panel: Panel; settings: boolean } {
@@ -206,7 +206,6 @@ function PoolCanvasPage({ poolId, sessions, projects, accounts, now, rules }: Pa
   // Round 5: a project's own pool says its scope here, not as a card.
   // Item 9: what a sealed pool holds out of this one is counted, and said.
   const held = heldOf(data.list.items);
-  const heldOnly = held.length > 0 && data.members.length === 0;
   const facts = [pool.kind === "default" && project ? `Every session in ${project.name} is part of this team` : null, poolCountWords(pool.members, openHere.length, elsewhere), heldCountWords(held)].filter(Boolean).join(" · ");
   const unplaced = (data.canvas?.asks ?? []).filter((ask) => ask.session_id === null);
   // AJ-E3013: a desktop session through the connector is a recipient too.
@@ -318,7 +317,7 @@ function PoolCanvasPage({ poolId, sessions, projects, accounts, now, rules }: Pa
                   edges={data.canvas?.edges}
                   names={names}
                   lineRules={lineRules}
-                  lead={setup.leadCard && !heldOnly}
+                  lead={setup.leadCard && !heldOnly(held, data.members.length)}
                   leadNext={setup.leadNext}
                   poolId={pool.id}
                   where={where}
@@ -328,7 +327,7 @@ function PoolCanvasPage({ poolId, sessions, projects, accounts, now, rules }: Pa
               )}
               empty={(paletteOpen, openPalette) =>
                 planned ? null : peopled ? (
-                  <RulesOnlyHint words={heldOnly ? heldCanvasWords(held) : rulesOnlyWords(hasRules, openHere.length)} inset={paletteOpen} onTemplate={phase === "running" ? openTemplate : undefined} />
+                  <RulesOnlyHint words={canvasHintWords(held, data.members.length, hasRules, openHere.length)} inset={paletteOpen} onTemplate={phase === "running" ? openTemplate : undefined} />
                 ) : (
                 <CanvasTeach
                   scope={scopeLabel(pool, projects)}
