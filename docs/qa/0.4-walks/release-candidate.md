@@ -129,6 +129,12 @@ What no agent can walk, and the maintainer's calibration covers: the installer, 
 - Not in this run, already deferred or waiting: Codex→Codex cells (D-91, a second Codex account); the second Mac (D-89, after the release); AJ-E808's Claude→Claude file history (a second Claude profile sanctioned for switching).
 - AJ-E1907's live start of a task's session: there's no task-start command on the lab write list. It needs either the maintainer's approval to add one (lab-only, with refusal tests), or a sitting.
 
+## 7. On beta: the soak (D-114)
+
+- **0.4.6 on beta, 2026-11-20.** Release PR figurehead-ai/AI-juggler#237 merged as 130fd935a; the Nightly built 0.4.6 from it (run 44732100274); Promote to beta, run 44736649566, approved by the maintainer and succeeded. Its sign-off record job is skipped for beta by design: it runs only for Stable, whose approval is the release's sign-off (D-109).
+- **The beta feed** (`beta-channel` › `latest.json`) serves 0.4.6 for both Mac architectures (pub_date 2026-11-20T12:30:59Z), and the update archive's signature verifies against the app's public key, bound to version 0.4.6 (`scripts/updater_sig_check.py`).
+- **The soak:** 7 days on beta from 2026-11-20, so Stable is due **2026-11-27 at the earliest** (D-114). Its walks, on the beta build: AJ-E3306 R1/R2 "in one run", AJ-E3304 P1 steps 4–5 (aij-test's CLI), AJ-E3307 Maya and Devon and the R6 report, and P1 step 9's first half on a throwaway lab. The "ran out" cells (P1 step 6, X1 step 2) stay open while their ruling is with the maintainer.
+
 ## 6. The summary (0.4.6, written 2026-11-19)
 
 What passed, what was fixed (with its commit), what's known and why, and what waits on a decision.
