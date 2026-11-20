@@ -118,6 +118,8 @@ def selftest():
     assert not uses_target("123 cargo build CARGO_TARGET_DIR=/tmp/other", real)
     assert not uses_target("123 vim notes.txt CARGO_TARGET_DIR=/tmp/aij-t", real)
     assert free_gb() > 0
+    with tempfile.TemporaryDirectory() as t:
+        assert main([t, "--min-age-hours", "1"]) == 0, "the hours' value is not a second target"
     print("trim-target selftest: OK")
 
 
@@ -126,13 +128,16 @@ def main(argv):
         selftest(); return 0
     if "--free" in argv:
         print(f"{free_gb():.0f}"); return 0
-    args = [a for a in argv if not a.startswith("--")]
+    hours = 3.0
+    rest = list(argv)
+    if "--min-age-hours" in rest:
+        i = rest.index("--min-age-hours")
+        hours = float(rest[i + 1])
+        del rest[i:i + 2]
+    args = [a for a in rest if not a.startswith("--")]
     if len(args) != 1 or not os.path.isdir(args[0]):
         print(__doc__.split("\n\n")[1]); return 2
     target = args[0]
-    hours = 3.0
-    if "--min-age-hours" in argv:
-        hours = float(argv[argv.index("--min-age-hours") + 1])
     stale, incremental = plan(target, min_age_s=hours * 3600)
     gb = (sum(s for _, s in stale) + sum(s for _, s in incremental)) / 1e9
     name = os.path.basename(os.path.normpath(target))
