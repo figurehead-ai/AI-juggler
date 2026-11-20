@@ -34,7 +34,7 @@ const CHOOSE = "choose";
 const ALWAYS = "always:set";
 const NO_DEFAULT = "always:clear";
 
-export function FolderPicker({ projects, root, onPick, now }: { projects: readonly ProjectInfo[]; root: string | null; onPick: (root: string) => void; now: number }): JSX.Element {
+export function FolderPicker({ projects, recent, root, onPick, now }: { projects: readonly ProjectInfo[]; recent?: readonly string[]; root: string | null; onPick: (root: string) => void; now: number }): JSX.Element {
   const offered = offeredProjects(projects);
   const byId = new Map(offered.map((project) => [project.id, project.root]));
   const options: PickerOption[] = [
@@ -51,7 +51,7 @@ export function FolderPicker({ projects, root, onPick, now }: { projects: readon
     }),
   ];
   if (root && !offered.some((project) => project.root === root)) options.push({ value: root, label: root.split("/").pop() || root, hint: homeRelative(root), icon: IconProjects });
-  const groups = folderGroups(projects).map((group) => ({ label: group.label, values: group.values.map((id) => byId.get(id)!).filter(Boolean) }));
+  const groups = folderGroups(projects, recent).map((group) => ({ label: group.label, values: group.values.map((id) => byId.get(id)!).filter(Boolean) }));
   return (
     <Picker
       value={root}

@@ -52,6 +52,7 @@ export function StatedChoice({
   data,
   ranked,
   projects,
+  recent,
   handover,
   now,
   onFolder,
@@ -77,6 +78,8 @@ export function StatedChoice({
   data: NewSessionData;
   ranked: ReturnType<typeof appsByRoom>;
   projects: readonly ProjectInfo[];
+  /** Recent's order, as the sheet holds it (`steadyRecent`). */
+  recent?: readonly string[];
   /** Started from a saved handover. */
   handover: boolean;
   now: number;
@@ -117,7 +120,7 @@ export function StatedChoice({
         )}
       </p>
       <div className="mt-3 flex flex-col gap-1">
-        <Line icon={<IconProjects width={13} height={13} />} term="Folder" change={<FolderPicker projects={projects} root={folder?.root ?? null} onPick={onFolder} now={now} />}>
+        <Line icon={<IconProjects width={13} height={13} />} term="Folder" change={<FolderPicker projects={projects} recent={recent} root={folder?.root ?? null} onPick={onFolder} now={now} />}>
           {folder ? (
             <>
               <span className="font-mono text-label text-ink">{homeRelative(folder.root)}</span>
