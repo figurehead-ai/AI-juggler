@@ -1817,7 +1817,7 @@ fn a_name_given_before_the_first_turn_goes_on_with_each_hand_over() {
     let spent = back
         .session_id
         .strip_suffix("-t")
-        .unwrap_or_else(|| panic!("its terminal took over: {}", back.session_id));
+        .expect("its terminal took over: the new session's id ends in -t");
     assert_eq!(given_name(&state, spent).as_deref(), Some("g-quiet"));
     assert_eq!(
         given_name(&state, &back.session_id).as_deref(),
