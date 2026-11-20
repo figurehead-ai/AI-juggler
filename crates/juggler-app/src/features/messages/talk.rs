@@ -82,6 +82,8 @@ pub fn rule(
     let sender = MemberRef::parse(from.0);
     let mut kept = Vec::new();
     let mut refused = Vec::new();
+    // The first refusal in the rule's own words (the soak's P4).
+    let mut why_first: Option<String> = None;
     for (at, receiver) in to.iter().enumerate() {
         let (Some(sender), Some(anchor)) = (sender.as_ref(), MemberRef::parse(receiver.anchor))
         else {
@@ -107,14 +109,21 @@ pub fn rule(
         match decided {
             Talk::Deliver { .. } => kept.push((at, None)),
             Talk::Hold(why) => kept.push((at, Some(why))),
-            Talk::Refuse(why) => refused.push(why.words()),
+            Talk::Refuse(why) => {
+                refused.push(why.words());
+                if why_first.is_none() {
+                    why_first = Some(match why {
+                        RefuseReason::Blocked => {
+                            talk::blocked_words(&rules, (sender, from.1), (&anchor, receiver.role))
+                        }
+                        RefuseReason::Sealed => why.words().to_owned(),
+                    });
+                }
+            }
         }
     }
     if kept.is_empty() {
-        let why = refused
-            .first()
-            .copied()
-            .unwrap_or(RefuseReason::Blocked.words());
+        let why = why_first.unwrap_or_else(|| RefuseReason::Blocked.words().to_owned());
         return Err(Response::refused(Refusal::Deny, why));
     }
     Ok(Ruled { kept, refused })

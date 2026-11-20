@@ -482,12 +482,28 @@ fn a_pools_talk_rules_hold_or_refuse_an_agents_message_d62() {
     let (why, words) = refusal(&lab.say(&a, &b_id, "Again?", None));
     assert_eq!(why, Some(Refusal::Deny));
     assert!(
-        words.contains("doesn't let you message that member"),
+        words.starts_with("Messages from you to that member are blocked in this pool"),
+        "{words}"
+    );
+
+    // The soak's P4: a pair's rule is named as the pair's.
+    pools::model::set_talk_impl(&lab.state, &lab.pool, "session:s-a", "session:s-b", None).unwrap();
+    pools::model::set_talk_impl(
+        &lab.state,
+        &lab.pool,
+        "role:member",
+        "role:member",
+        Some("blocked"),
+    )
+    .unwrap();
+    let (why, words) = refusal(&lab.say(&a, &b_id, "And now?", None));
+    assert_eq!(why, Some(Refusal::Deny));
+    assert!(
+        words.starts_with("Member to Member messages are blocked in this pool"),
         "{words}"
     );
 
     // Cleared: back to the pair's ask first; cleared too: allowed.
-    pools::model::set_talk_impl(&lab.state, &lab.pool, "session:s-a", "session:s-b", None).unwrap();
     pools::model::set_talk_impl(&lab.state, &lab.pool, "role:member", "role:member", None).unwrap();
     let sent = lab.say(&a, &b_id, "Plain again", None);
     assert!(sent.refused.is_none(), "{sent:?}");
