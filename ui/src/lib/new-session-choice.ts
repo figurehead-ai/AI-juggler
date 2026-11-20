@@ -253,14 +253,14 @@ export function appWhyWords(why: AppWhy, after?: string | null): string | null {
 
 /** F-rc3f-1: New session chose it ("Suggested" beside it): not the
  * person's (picked, kept from the start before) nor their default. */
-export function isSuggestion(why: AppWhy): boolean {
+function isSuggestion(why: AppWhy): boolean {
   return !USERS_OWN.has(why) || why === "own-account";
 }
 
 /** SK-6: whether an App in this room can start a session that goes on
  * now: not out of room (its note: "a session there would stop at its
  * limit at once"), and signed in. */
-export function canRunNow(kind: RoomKind): boolean {
+function canRunNow(kind: RoomKind): boolean {
   return kind !== "out" && kind !== "blocked";
 }
 
