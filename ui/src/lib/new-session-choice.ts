@@ -1,14 +1,8 @@
 /**
- * D-62 (AJ-E3207) — New session's usual choice: the folder and the App it
- * opens on, each with a short why, and the pickers' top groups. Pure, so
- * the tests pin every case (principles 2–4 and 10, `docs/design/
- * PRINCIPLES.md`).
- *
- * The folder: the one it was opened for (a project's page, a drop, a
- * handover), else the project worked in last (here or in the tool's own
- * history), else, with no time on any, a project the user has (walk N4,
- * rc26: one without history once opened on a temporary folder), else the
- * App's own folder from its launch settings, else none.
+ * D-62 (AJ-E3207) — New session's usual choice: the App it opens on,
+ * with a short why, and the App picker's top groups (the folder's are
+ * `lib/new-session-folder`). Pure, so the tests pin every case
+ * (principles 2–4 and 10, `docs/design/PRINCIPLES.md`).
  *
  * The App (a CLI tool on a config folder; one per folder, its first
  * launch settings unless the user picks others; only a folder that is a
@@ -49,21 +43,10 @@ import { signedIn } from "./bridge";
 import type { AccountInfo } from "../types/generated/AccountInfo";
 import type { LaunchRecipeInfo } from "../types/generated/LaunchRecipeInfo";
 import type { ProjectInfo } from "../types/generated/ProjectInfo";
-import { recentProjects, TOP } from "./pickers";
+import { TOP } from "./pickers";
 import { lastAnywhere, lastHere, ownApp, usedHere, type UsedSession } from "./new-session-history";
 import { GIVE_WAY_LEFT, outOfRoomWords, rankByRoom, roomKind, type RoomKind } from "./room";
 import { whenWords } from "./time-words";
-
-/** `used-before`: no time, but the tool's history has sessions there;
- * `yours` / `one-of-yours`: no history at all, the only project or one of
- * several (never said as work in it: adding a folder isn't). */
-export type FolderWhy = "asked" | "latest" | "used-before" | "yours" | "one-of-yours" | "app-folder";
-
-export interface FolderChoice {
-  root: string;
-  project: ProjectInfo | null;
-  why: FolderWhy;
-}
 
 export type AppWhy = "chosen" | "project-default" | "own-account" | "kept" | "your-default" | "last-here" | "used-here" | "last-anywhere" | "most-room" | "only" | "first";
 
@@ -119,59 +102,6 @@ export interface AppInputs {
   /** The Accounts (`accountOf`'s keys) that ever ran in the project
    * (`accountsRanHere`); its own when there's one (D-103.7). */
   ranHere?: readonly string[] | null;
-}
-
-/** When a project was last worked in, here or in the tool's history. */
-export function workedAt(project: ProjectInfo): number {
-  return Math.max(project.last_activity_ms ?? 0, project.history_last_used_ms ?? 0);
-}
-
-/** The projects New session offers: neither moved nor forgotten. */
-export function offeredProjects(projects: readonly ProjectInfo[]): ProjectInfo[] {
-  return projects.filter((project) => !project.missing && !project.forgotten);
-}
-
-/** The folder it opens on (`null`: none known; the App's own folder is
- * the caller's, once the App is chosen). */
-export function chooseFolder(projects: readonly ProjectInfo[], asked: string | null): FolderChoice | null {
-  if (asked) return { root: asked, project: projects.find((project) => project.root === asked) ?? null, why: "asked" };
-  const offered = offeredProjects(projects);
-  const latest = recentProjects(offered)[0];
-  const project = projects.find((row) => row.id === latest);
-  if (project) return { root: project.root, project, why: "latest" };
-  return firstFolder(offered);
-}
-
-/** With no project worked in at any known time (walk N4, rc26: since the
- * backfill stopped stamping every found folder "now", 1e51970b0, a
- * newcomer's project has no time and New session opened on a temporary
- * folder): the project the tool's history used most, said as "used here
- * before"; else a project the user added (pinned first, then by name),
- * said as theirs. Nothing here claims a time. */
-function firstFolder(offered: readonly ProjectInfo[]): FolderChoice | null {
-  const used = offered.filter((row) => row.history_sessions > 0 || row.instance_count > 0 || row.accounts_used.length > 0);
-  const byName = (a: ProjectInfo, b: ProjectInfo) => a.name.localeCompare(b.name);
-  const best = [...used].sort((a, b) => b.history_sessions + b.instance_count - (a.history_sessions + a.instance_count) || byName(a, b))[0];
-  if (best) return { root: best.root, project: best, why: "used-before" };
-  const mine = [...offered].sort((a, b) => Number(!!b.pinned) - Number(!!a.pinned) || byName(a, b))[0];
-  if (!mine) return null;
-  return { root: mine.root, project: mine, why: offered.length === 1 ? "yours" : "one-of-yours" };
-}
-
-/** Why it's the folder, after its path, when no time says it. */
-export function folderWhyWords(why: FolderWhy): string | null {
-  switch (why) {
-    case "used-before":
-      return "used here before";
-    case "yours":
-      return "your project";
-    case "one-of-yours":
-      return "one of your projects";
-    case "app-folder":
-      return "its launch settings' folder";
-    default:
-      return null;
-  }
 }
 
 /** One launch settings per App (its first), in the backend's order. */
@@ -290,16 +220,6 @@ export function passedOverWords(name: string): string {
   return `${name} isn't signed in`;
 }
 
-/** The project a pool's page opens New session on (the existing order's
- * "the one it was opened for"): a project's own pool's, else its scope's
- * only project; `null` for a pool over several, none or every project. */
-export function poolProject(pool: { project_id: string | null; scope: readonly (string | null)[]; scope_all: boolean } | null | undefined): string | null {
-  if (!pool) return null;
-  if (pool.project_id) return pool.project_id;
-  if (pool.scope_all || pool.scope.length !== 1) return null;
-  return pool.scope[0] ?? null;
-}
-
 /** Why it's the App, in a few words after the sentence's dash; `after`:
  * the folder of the start just before, for a kept App. */
 export function appWhyWords(why: AppWhy, after?: string | null): string | null {
@@ -337,6 +257,30 @@ export function isSuggestion(why: AppWhy): boolean {
   return !USERS_OWN.has(why) || why === "own-account";
 }
 
+/** SK-6: whether an App in this room can start a session that goes on
+ * now: not out of room (its note: "a session there would stop at its
+ * limit at once"), and signed in. */
+export function canRunNow(kind: RoomKind): boolean {
+  return kind !== "out" && kind !== "blocked";
+}
+
+/** SK-6 (the 0.4.6 soak, N5): the App New session marks "Suggested" (its
+ * folder id), never one that can't run now: New session's own choice
+ * (`isSuggestion`) when it can; when it can't, the App it offers instead
+ * (`roomier`) if that one has room; else none (the person's own pick
+ * is theirs, not a suggestion). */
+export function suggestedMarkOn(choice: AppChoice | null, ranked: ReturnType<typeof appsByRoom>): string | null {
+  if (!choice) return null;
+  if (canRunNow(choice.kind)) return isSuggestion(choice.why) ? choice.recipe.account_id : null;
+  return roomierWithRoom(choice, ranked);
+}
+
+/** The App offered in place of one that can't run now, when it has room. */
+function roomierWithRoom(choice: AppChoice, ranked: ReturnType<typeof appsByRoom>): string | null {
+  const id = choice.roomier?.account_id;
+  return id !== undefined && ranked.some((row) => row.recipe.account_id === id && row.kind === "room") ? id : null;
+}
+
 /** F-rc3f-1: the whys that are a folder's own: named, never taken, when
  * the person's pick is carried into a folder whose own is another. */
 export const FOLDER_OWN: ReadonlySet<AppWhy> = new Set<AppWhy>(["project-default", "own-account", "last-here", "used-here"]);
@@ -358,33 +302,13 @@ export function folderOwnWords(why: AppWhy, folder: string, app: string): string
   }
 }
 
-/** D-96 F: the project "Start another" offers after a start: the next
- * the user works in, by the order New session opens on (worked in last,
- * else used by the tool's history), never one started in this run
- * (`started`, their roots) and never a guess (a project without work in
- * it); `null` when none is left. */
-export function nextFolder(projects: readonly ProjectInfo[], started: readonly string[]): FolderChoice | null {
-  const left = projects.filter((project) => !started.includes(project.root));
-  const next = chooseFolder(left, null);
-  return next && (next.why === "latest" || next.why === "used-before") ? next : null;
-}
-
-/** The folder picker's groups before All: worked in lately, then pinned. */
-export function folderGroups(projects: readonly ProjectInfo[]): { label: string; values: string[] }[] {
-  const offered = offeredProjects(projects);
-  const recent = recentProjects(offered);
-  const pinned = offered.filter((project) => project.pinned && !recent.includes(project.id)).map((project) => project.id);
-  return [
-    { label: "Recent", values: recent },
-    { label: "Pinned", values: pinned },
-  ];
-}
-
 /** The App picker's groups before All: Suggested (the folder's own
- * suggestion, and the most room when that's another), then the Apps used
- * in this project. */
+ * suggestion, or the App offered for it when it can't run now, and the
+ * most room when that's another), then the Apps used in this project. */
 export function appGroups(choice: AppChoice | null, ranked: ReturnType<typeof appsByRoom>, project: ProjectInfo | null): { label: string; values: string[] }[] {
-  const suggested = [choice?.recipe.account_id, ranked.find((row) => row.suggested)?.recipe.account_id].filter((id, at, all): id is string => !!id && all.indexOf(id) === at);
+  // SK-6: one that can't run now isn't Suggested: the App offered for it is.
+  const first = choice === null ? null : canRunNow(choice.kind) ? choice.recipe.account_id : roomierWithRoom(choice, ranked);
+  const suggested = [first, ranked.find((row) => row.suggested)?.recipe.account_id].filter((id, at, all): id is string => !!id && all.indexOf(id) === at);
   const used = [...(project?.accounts_used ?? [])]
     .reverse()
     .map((label) => ranked.find((row) => row.recipe.account_label === label)?.recipe.account_id)

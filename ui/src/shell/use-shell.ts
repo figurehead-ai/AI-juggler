@@ -27,7 +27,7 @@ import { useDialogs, useRemoteMachines } from "./use-dialogs";
 import { useNavigation } from "./use-navigation";
 import { useNow, useRailDensity } from "./use-rail";
 import { usePools } from "../lib/pools";
-import { poolProject } from "../lib/new-session-choice";
+import { poolProject } from "../lib/new-session-folder";
 import { offerFollows } from "../lib/new-session-sheet";
 
 export type Shell = ReturnType<typeof useShell>;

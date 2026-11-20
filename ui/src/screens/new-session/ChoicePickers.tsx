@@ -21,7 +21,8 @@ import { homeRelative } from "../../lib/project-words";
 import { agoWords } from "../../lib/time-words";
 import { outOfRoomWords } from "../../lib/room";
 import { roomMarkOf } from "../../lib/room-mark";
-import { appGroups, folderGroups, isSuggestion, offeredProjects, workedAt, type AppChoice, type appsByRoom } from "../../lib/new-session-choice";
+import { appGroups, suggestedMarkOn, type AppChoice, type appsByRoom } from "../../lib/new-session-choice";
+import { folderGroups, offeredProjects, workedAt } from "../../lib/new-session-folder";
 import type { NewSessionData } from "./useNewSessionData";
 
 /** The picker's "Choose another folder…" line (a project's value is its
@@ -103,7 +104,8 @@ export function AppPicker({
   const first = groups.flatMap((group) => group.values);
   const ordered = [...first.flatMap((id) => ranked.filter((row) => row.recipe.account_id === id)), ...ranked.filter((row) => !first.includes(row.recipe.account_id))];
   // Under its heading from six on; above that, its hint says so.
-  const tip = suggested && isSuggestion(suggested.why) && ranked.length < GROUPS_FROM ? suggested.recipe.account_id : null;
+  // SK-6: never on an App that can't run now (the one offered instead).
+  const tip = ranked.length < GROUPS_FROM ? suggestedMarkOn(suggested, ranked) : null;
   const options: PickerOption[] = ordered.map(({ recipe, kind }) => {
     const account = data.accountNameOf(recipe.account_id);
     // 0.4.1: out or low in the one mark's words ("Out · resets 9:06 PM"),
