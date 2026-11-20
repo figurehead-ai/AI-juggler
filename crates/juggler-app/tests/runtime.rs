@@ -1913,3 +1913,95 @@ fn a_name_goes_on_into_the_terminal_a_restart_pickup_falls_back_to() {
             .is_finished(&SessionId::new(terminal.as_str()))
     });
 }
+
+/// AJ-E2311 item 6 (rc3h item 13): a session run without a terminal whose
+/// conversation's file was deleted while AI Juggler was closed was resumed
+/// at the next start, failed, and so did the terminal it was handed to
+/// (`…-t`, exit 1). With nothing to resume it starts again, driven, under
+/// its own id, and its history says why.
+#[test]
+fn a_driven_session_whose_conversation_file_is_gone_starts_again_after_a_restart() {
+    use juggler_app::features::runtime::pickup;
+    use juggler_core::model::{
+        ConversationId, InstanceKind, InstanceRecord, ProfileId, SessionStatus, Timestamp,
+        TranscriptRef, UsageSnapshot,
+    };
+    let work = tempfile::tempdir().unwrap();
+    let state = claude_state(work.path());
+    let profile = trusted_claude_profile(&state, work.path());
+    let cwd = work.path().canonicalize().unwrap().join("lab");
+    let session = SessionId::new("sess-file-gone");
+    let conversation = "0a1b2c3d-0000-4000-8000-0000000000bb";
+    let machine = juggler_app::commands::local_machine_id(&state);
+    {
+        let storage = state.storage.lock().unwrap();
+        storage
+            .sessions()
+            .insert(&InstanceRecord {
+                id: session.clone(),
+                conversation: Some(ConversationId::new(conversation)),
+                profile: ProfileId::new(profile.as_str()),
+                machine,
+                kind: InstanceKind::Terminal,
+                project: None,
+                cwd: cwd.clone(),
+                status: SessionStatus::Starting,
+                started_at: Timestamp::now(),
+                last_activity: None,
+                usage: UsageSnapshot::default(),
+                attention: None,
+                running: None,
+                window: None,
+                // Written once (a turn ended), deleted since.
+                transcript_ref: Some(TranscriptRef {
+                    path: work.path().join(format!("{conversation}.jsonl")),
+                    native_id: Some(conversation.to_owned()),
+                }),
+            })
+            .unwrap();
+        pickup::note(
+            &storage,
+            &session,
+            Some(pickup::Mark {
+                native_id: conversation.to_owned(),
+                in_turn: false,
+                written: true,
+            }),
+        );
+    }
+    pickup::after_restart(&state);
+    wait_for("the session to come back or end", || {
+        state.runtime.driver(session.as_str()).is_some()
+            || ["stopped", "handed_over", "failed"]
+                .contains(&status_of(&state, session.as_str()).as_str())
+    });
+    let driver = state.runtime.driver(session.as_str()).unwrap_or_else(|| {
+        panic!(
+            "it came back driven, not {}",
+            status_of(&state, session.as_str())
+        )
+    });
+    assert_eq!(
+        driver.snapshot().native_id.as_deref(),
+        Some(conversation),
+        "under its own conversation id"
+    );
+    assert!(
+        state
+            .storage
+            .lock()
+            .unwrap()
+            .sessions()
+            .get(&SessionId::new(format!("{session}-t")))
+            .is_err(),
+        "no terminal took its place"
+    );
+    assert!(
+        history(&state, session.as_str())
+            .iter()
+            .any(|event| event.contains("its conversation's file was gone")),
+        "{:?}",
+        history(&state, session.as_str())
+    );
+    stop(&state, session.as_str());
+}

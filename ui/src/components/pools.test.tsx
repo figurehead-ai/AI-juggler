@@ -393,7 +393,7 @@ describe("the pool page's count (the 0.2 walk: \"0 sessions\" beside three open 
   // sessions in AI Juggler" with 3 open and 3 ended.
   it("says how many of them are open, never counting an ended one as open", async () => {
     const { poolCountWords } = await import("../pages/PoolPage");
-    expect(poolCountWords(6, 3, 0)).toBe("3 open in AI Juggler · 6 in all");
+    expect(poolCountWords(6, 3, 0)).toBe("6 sessions in AI Juggler, 3 open");
     expect(poolCountWords(2, 0, 0)).toBe("2 sessions in AI Juggler, none open");
     expect(poolCountWords(3, 3, 1)).toBe("3 sessions open in AI Juggler · 1 open in other apps");
   });

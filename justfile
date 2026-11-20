@@ -19,6 +19,12 @@ verify:
 # Preflight runs these first and stops at a failure (they took minutes
 # to find what a 55-minute run found, #198).
 # The checks that run no test, cheapest first: lints, fmt, clippy ×3, rustdoc, cargo-deny.
+# Every line of a gate, carrying on past failures, then every failure listed
+# (nested `just X` lines expanded too): `just keep-going verify-static`.
+# Use it whenever a gate may hold more than one problem (D-137).
+keep-going recipe:
+    python3 scripts/keep_going.py {{recipe}}
+
 verify-static:
     ./scripts/ensure_swift_runtime.sh > /dev/null
     just evidence
@@ -122,6 +128,7 @@ hooks:
 # only runs them for real once a night.
 release-selftest:
     python3 scripts/gate_passed.py --selftest
+    python3 scripts/keep_going.py --selftest
     python3 scripts/affected_crates.py --selftest
     python3 scripts/ci_scope.py --selftest
     python3 scripts/ci_scope.py --check

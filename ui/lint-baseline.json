@@ -2066,7 +2066,7 @@
  },
  "src/pages/tasks/PoolTasks.tsx": {
   "eslint(complexity)": 1,
-  "jsx-a11y(prefer-tag-over-role)": 4,
+  "jsx-a11y(prefer-tag-over-role)": 3,
   "react(set-state-in-effect)": 1
  },
  "src/pages/tasks/TaskView.tsx": {

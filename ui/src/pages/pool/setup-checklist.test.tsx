@@ -34,6 +34,8 @@ describe("the header's pill", () => {
     expect(SETUP.pill(6, 7, false)).toBe("Setting up · 6 of 7");
     expect(SETUP.pill(7, 7, false)).toBe("Setup done · no session yet");
     expect(SETUP.pill(7, 7, true)).toBe("Setup done");
+    // Item 9: its session held by a sealed pool is no "no session yet".
+    expect(SETUP.pill(7, 7, false, "Client (sealed)")).toBe("Setup done · its sessions in Client (sealed)");
   });
 });
 
@@ -174,6 +176,31 @@ describe("the pool page while it's set up (D-126 §3)", () => {
     expect(view.getByTestId("pool-setup-hidden").textContent).toBe("Setup hidden: 6 of 7 done.");
     fireEvent.click(view.getByRole("button", { name: "Edit setup" }));
     expect(await view.findByTestId("pool-checklist")).toBeTruthy();
+  });
+
+  it("SK-7: \"Use a template\" stays one click away while it's set up, members in or not; gone once it runs", async () => {
+    bridge({ asked: false, on: false });
+    seedTeam();
+    const view = await openPage();
+    await waitFor(() => expect(view.getByTestId("pool-header-setup").textContent).toBe("Setting up · 6 of 7"));
+    // Two sessions are in it: the door used to go once a member joined.
+    // It has an edge, as Add a member has (the visual review: a ghost read
+    // as a label in light).
+    expect(view.getByTestId("canvas-use-template").className).toBe(view.getByTestId("canvas-add-member").className);
+    fireEvent.click(view.getByTestId("canvas-use-template"));
+    expect(await view.findByTestId("new-pool")).toBeTruthy();
+    cleanup();
+    bridge({ asked: true, on: true });
+    seedTeam();
+    const running = await openPage();
+    await running.findByTestId("pool-running");
+    expect(running.queryByTestId("canvas-use-template")).toBeNull();
+    // Edit setup with every step done: the checklist again, still no
+    // template beside a done setup.
+    fireEvent.click(running.getByRole("button", { name: "Edit setup" }));
+    await waitFor(() => expect(running.getByTestId("pool-header-setup").textContent).toBe("Setup done"));
+    expect(running.getByTestId("canvas-add-member")).toBeTruthy();
+    expect(running.queryByTestId("canvas-use-template")).toBeNull();
   });
 
   it("a session in it and every step done (the team tools on): the calm view, on its own", async () => {

@@ -86,6 +86,38 @@ pub enum TurnEnd {
     Failed,
 }
 
+/// Why a turn ended before it finished, when the tool named that only by
+/// a code of its own: each adapter maps its codes to these, so the app
+/// says it in its own words and never shows a tool's code (AJ-E2025).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum TurnStop {
+    /// Stopped before it finished: an interrupt, or a "Deny and stop".
+    Stopped,
+    /// It reached the most turns it may take.
+    TurnLimit,
+    /// It reached its spending limit.
+    SpendLimit,
+    /// It couldn't give its answer in the form asked for.
+    AnswerForm,
+    /// Another error the tool gave no words for.
+    Failed,
+}
+
+impl TurnStop {
+    /// Its name on the wire (`stopped`, `turn_limit`, …).
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Stopped => "stopped",
+            Self::TurnLimit => "turn_limit",
+            Self::SpendLimit => "spend_limit",
+            Self::AnswerForm => "answer_form",
+            Self::Failed => "failed",
+        }
+    }
+}
+
 /// Tokens, as the tool reports them for a turn or the session.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TurnUsage {
@@ -114,10 +146,10 @@ pub struct LimitWindow {
     pub used_pct: f64,
     /// When it resets, epoch ms, when the tool says.
     pub resets_at_ms: Option<i64>,
-    /// The one model it limits, in the tool's own word (`opus`), when it
-    /// limits one model only (a weekly limit on one model); `None` when it
-    /// limits all the account's use. Only an all-models window is kept as
-    /// the account's reading.
+    /// The one model it limits, by the name people know it by (`Opus`),
+    /// when it limits one model only (a weekly limit on one model); `None`
+    /// when it limits all the account's use. Only an all-models window is
+    /// kept as the account's reading.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub model: Option<String>,
 }
@@ -419,6 +451,11 @@ pub enum RuntimeEvent {
         message: String,
         /// The tool retries on its own.
         will_retry: bool,
+        /// Why it ended the turn, when the tool named that only by a code
+        /// (`message` is then that code, never shown); `None` when the
+        /// tool's words say it.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        turn_end: Option<TurnStop>,
     },
     /// The conversation's file, once the tool has written it (for a tool
     /// that names it only then). The app links it only when it lies in the

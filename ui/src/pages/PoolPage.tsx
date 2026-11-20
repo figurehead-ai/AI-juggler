@@ -17,7 +17,7 @@ import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import type { ProjectInfo } from "../types/generated/ProjectInfo";
 import { usePoolRules } from "../lib/pool-rules";
 import { poolSetScope } from "../lib/ipc/pool-model";
-import { CanvasTeach, hasWhoIsIn } from "./pool/CanvasTeach";
+import { CanvasTeach, RulesOnlyHint, hasWhoIsIn } from "./pool/CanvasTeach";
 import { PaletteMore } from "./pool/PaletteMore";
 import { RuleNodes } from "./pool/RuleNodes";
 import { startNextLead } from "../lib/start-lead";
@@ -29,7 +29,7 @@ import { EmptyPoolSetup, SetupSkeleton } from "./pool/EmptyPoolSetup";
 import type { PoolRules } from "../lib/pool-rules";
 import { FOCUS_THREAD, useMessageNeeds } from "../lib/ipc/messages";
 import { FOCUS_TASK, focusTask, useTaskNeeds, type TaskInfo } from "../lib/ipc/tasks";
-import { needWords, openInPool, poolById, poolIdOf, poolIdsOf, poolNeedCount, scopeChipWords, scopeLabel, setPools, usePools } from "../lib/pools";
+import { needsPanel, openInPool, poolById, poolIdOf, poolIdsOf, poolNeedCount, scopeChipWords, scopeLabel, setPools, usePools } from "../lib/pools";
 import { drawnRules, drawsPlanned, everyoneOf, usePoolSetup } from "./pool/usePoolSetup";
 import { desktopRecipients } from "../lib/connector";
 import { useDesktopOnCanvas } from "./pool/useDesktopOnCanvas";
@@ -56,7 +56,7 @@ import { PoolPanel } from "./pool/PoolPanel";
 import { useSetupPhase, useSetupProgress } from "./pool/setup-progress";
 
 export { poolCountWords } from "./pool/pool-count";
-import { poolCountWords, rulesOnlyWords } from "./pool/pool-count";
+import { canvasHintWords, heldByWords, heldCountWords, heldOf, heldOnly, poolCountWords } from "./pool/pool-count";
 
 /** Where a link in asked the page to open (read once, on arrival). */
 function arrival(): { panel: Panel; settings: boolean } {
@@ -137,6 +137,7 @@ function PoolCanvasPage({ poolId, sessions, projects, accounts, now, rules }: Pa
     }
   };
   const [template, setTemplate] = useState(false);
+  const openTemplate = useCallback(() => setTemplate(true), []);
   const [paletteRequest, setPaletteRequest] = useState(0);
   const first = useMemo(arrival, []);
   const [panel, setPanelState] = useState<Panel>(first.panel);
@@ -203,7 +204,9 @@ function PoolCanvasPage({ poolId, sessions, projects, accounts, now, rules }: Pa
   const elsewhere = project ? liveOutside(all).filter((c) => c.project_id === project.id).length : 0;
   const scopeWords = scopeChipWords(pool, projects);
   // Round 5: a project's own pool says its scope here, not as a card.
-  const facts = [pool.kind === "default" && project ? `Every session in ${project.name} is part of this team` : null, poolCountWords(pool.members, openHere.length, elsewhere), needs > 0 ? needWords(needs) : null].filter(Boolean).join(" · ");
+  // Item 9: what a sealed pool holds out of this one is counted, and said.
+  const held = heldOf(data.list.items);
+  const facts = [pool.kind === "default" && project ? `Every session in ${project.name} is part of this team` : null, poolCountWords(pool.members, openHere.length, elsewhere), heldCountWords(held)].filter(Boolean).join(" · ");
   const unplaced = (data.canvas?.asks ?? []).filter((ask) => ask.session_id === null);
   // AJ-E3013: a desktop session through the connector is a recipient too.
   const members = [...data.members.map((member) => ({ session_id: member.id, name: names.get(member.id) ?? member.card.name, live: isActiveStatus(member.session.status) })), ...desktopRecipients(desktop.sessions)];
@@ -228,11 +231,17 @@ function PoolCanvasPage({ poolId, sessions, projects, accounts, now, rules }: Pa
   const { where } = setup;
   // D-126 §3: before any session joins, the canvas draws the planned team.
   const broad = drawnRules(pool, memberRules).filter((rule) => rule.kind !== "session" && !rule.member.startsWith("conversation:"));
-  const planned = drawsPlanned(pool, data.members.length + desktop.refs.length, broad.length);
+  const planned = drawsPlanned(pool, data.members.length + desktop.refs.length, broad.length, openHere.length);
   // D-126 §3: setting up (its checklist, the planned team) until a session
   // has joined and the setup is done, or Hide setup; then the calm view.
   const progress = useSetupProgress({ pool, rows: setup.rows, places: setup.tools, rules, ruleLabel });
   const { phase, hidden, hide, edit } = useSetupPhase(pool.id, pool.members > 0, progress.complete);
+  const onDeleted = () => {
+    showToast({ message: `Deleted ${pool.name}`, detail: "Its sessions are back in their projects' own pools." });
+    // To the Pools screen (Home when there is none).
+    if (globalId("pools")) window.dispatchEvent(new CustomEvent("aij:open-screen", { detail: { id: "pools" } }));
+    else host.openHome?.();
+  };
   const openProjects = new Set(sessions.filter((session) => sessionState(session).state !== "ended" && session.project_id).map((session) => session.project_id!));
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-card border border-hairline bg-surface" data-testid="pool-page">
@@ -250,7 +259,7 @@ function PoolCanvasPage({ poolId, sessions, projects, accounts, now, rules }: Pa
           }}
         />
       )}
-      <PoolHeader pool={pool} facts={facts} scope={scopeWords === null ? undefined : { words: scopeWords, onOpen: () => setScopeOpen(true) }} mode={mode} panel={panel} onMode={setMode} onPanel={setPanel} setup={phase === "setup" ? { ...progress, joined: pool.members > 0 } : null} />
+      <PoolHeader pool={pool} facts={facts} needs={{ count: needs, at: needsPanel(pool.id, messageNeeds, taskNeeds) }} scope={scopeWords === null ? undefined : { words: scopeWords, onOpen: () => setScopeOpen(true) }} mode={mode} panel={panel} onMode={setMode} onPanel={setPanel} setup={phase === "setup" ? { ...progress, joined: pool.members > 0, heldBy: heldByWords(held) } : null} onDeleted={onDeleted} />
       {/* D-126: no banner over the page (it held about 15 rows of the List
           view, X2 §4c): the team tools question is the setup checklist's
           last item. Only an ask that waits on you and has no node says so. */}
@@ -272,6 +281,10 @@ function PoolCanvasPage({ poolId, sessions, projects, accounts, now, rules }: Pa
               onAdd={add}
               paletteRequest={paletteRequest}
               paletteQuiet={phase === "running"}
+              // SK-7: one click away while it's set up, once members are in
+              // too (before, the empty canvas's own lesson offers it); gone
+              // once every step is done (beside "Setup done" it was noise).
+              paletteTemplate={phase === "setup" && peopled && progress.done < progress.total ? openTemplate : undefined}
               paletteMore={
                 <PaletteMore
                   poolId={pool.id}
@@ -291,7 +304,7 @@ function PoolCanvasPage({ poolId, sessions, projects, accounts, now, rules }: Pa
               lineRules={lineRules}
               overlay={(placeOf, view) =>
                 planned ? (
-                  <PlannedTeam poolId={pool.id} rules={broad} labelOf={ruleLabel} logos={logos} leadNext={setup.leadNext?.ref ?? null} noLead={setup.leadCard} where={where} view={view} selection={selection} onSelect={(next) => select(next, true)} onStartLead={(member) => startNextLead(member, setup.leadDir)} talk={rules.rules?.talk} />
+                  <PlannedTeam poolId={pool.id} joined={pool.members} rules={broad} labelOf={ruleLabel} logos={logos} leadNext={setup.leadNext?.ref ?? null} noLead={setup.leadCard} where={where} view={view} selection={selection} onSelect={(next) => select(next, true)} onStartLead={(member) => startNextLead(member, setup.leadDir)} talk={rules.rules?.talk} />
                 ) : (
                 <RuleNodes
                   rules={drawnRules(pool, memberRules)}
@@ -304,7 +317,7 @@ function PoolCanvasPage({ poolId, sessions, projects, accounts, now, rules }: Pa
                   edges={data.canvas?.edges}
                   names={names}
                   lineRules={lineRules}
-                  lead={setup.leadCard}
+                  lead={setup.leadCard && !heldOnly(held, data.members.length)}
                   leadNext={setup.leadNext}
                   poolId={pool.id}
                   where={where}
@@ -314,13 +327,7 @@ function PoolCanvasPage({ poolId, sessions, projects, accounts, now, rules }: Pa
               )}
               empty={(paletteOpen, openPalette) =>
                 planned ? null : peopled ? (
-                  <p className={"pointer-events-none absolute inset-x-0 bottom-16 text-center text-meta text-ink-2" + (paletteOpen ? " pl-[16.5rem]" : "")} data-testid="canvas-rules-only">
-                    {/* Walk K1: sessions in it, none open (no member to click). */}
-                    {rulesOnlyWords(hasRules, openHere.length)}{" "}
-                    <button type="button" onClick={() => setTemplate(true)} className="pointer-events-auto font-medium text-accent-hi underline-offset-2 hover:underline" data-testid="canvas-rules-template">
-                      Use a template
-                    </button>
-                  </p>
+                  <RulesOnlyHint words={canvasHintWords(held, data.members.length, hasRules, openHere.length)} inset={paletteOpen} onTemplate={phase === "running" ? openTemplate : undefined} />
                 ) : (
                 <CanvasTeach
                   scope={scopeLabel(pool, projects)}
@@ -361,7 +368,7 @@ function PoolCanvasPage({ poolId, sessions, projects, accounts, now, rules }: Pa
           ruleTool={ruleTool}
           where={where}
           needs={needs}
-          setup={{ rows: setup.rows, onOpen: setup.open, tools: setup.tools }}
+          setup={{ rows: setup.rows, onOpen: setup.open, tools: setup.tools, held }}
           phase={phase}
           progress={progress}
           hidden={hidden}
@@ -382,12 +389,7 @@ function PoolCanvasPage({ poolId, sessions, projects, accounts, now, rules }: Pa
               leadDir={setup.leadDir}
             />
           }
-          onDeleted={() => {
-            showToast({ message: `Deleted ${pool.name}`, detail: "Its sessions are back in their projects' own pools." });
-            // To the Pools screen (Home when there is none).
-            if (globalId("pools")) window.dispatchEvent(new CustomEvent("aij:open-screen", { detail: { id: "pools" } }));
-            else host.openHome?.();
-          }}
+          onDeleted={onDeleted}
         />
         </div>
       </div>

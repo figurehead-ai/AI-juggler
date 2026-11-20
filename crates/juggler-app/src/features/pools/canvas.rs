@@ -220,6 +220,7 @@ fn edges_of(
 /// The agents' asks in the pool that wait on the user (a hop-limit hold
 /// is its edge's), each on the member that asked, oldest first.
 fn asks_of(
+    state: &Arc<AppState>,
     storage: &Storage,
     pool_id: &str,
     refs: &Refs,
@@ -244,6 +245,15 @@ fn asks_of(
             id: ask.id.clone(),
             title: ask.summary.clone(),
             offer_always: offer(&ask.action),
+            // D-139: Allow and deliver where it can go into a session.
+            delivers_now: storage
+                .messages()
+                .message(&ask.object_ref)
+                .ok()
+                .flatten()
+                .and_then(|message| {
+                    crate::features::messages::needs::delivers_now(state, storage, ask, &message)
+                }),
             at_ms: ask.created_at,
         })
         .collect();
@@ -257,6 +267,7 @@ fn asks_of(
                 session_id: refs.session_of(&need.actor_ref),
                 source: "task".to_owned(),
                 offer_always: offer(&need.action),
+                delivers_now: None,
                 id: need.id,
                 title: need.summary,
                 at_ms: need.created_at,
@@ -278,6 +289,7 @@ pub fn canvas_impl(
     session_ids: Vec<String>,
 ) -> AppResult<PoolCanvasInfo> {
     let session_ids = checked(session_ids, MOST_NODES, "sessions")?;
+    let now = crate::features::messages::NamesNow::read(state);
     let storage = lock_storage_arc(state)?;
     super::live_pool(&storage, pool_id)?;
     let refs = Refs::new(&storage, &session_ids)?;
@@ -291,11 +303,18 @@ pub fn canvas_impl(
         .filter(|ask| ask.pool_id == pool_id)
         .collect();
     let edges = edges_of(state, &storage, pool_id, &refs, &asks, since)?;
-    let node_asks = asks_of(&storage, pool_id, &refs, &asks)?;
+    let node_asks = asks_of(state, &storage, pool_id, &refs, &asks)?;
     let stream = canvas
         .stream(pool_id, STREAM_LINES)?
         .into_iter()
-        .map(|entry| super::canvas_words::line(&entry, |r| refs.session_of(r)))
+        .map(|mut entry| {
+            // SK-18: who did it and to whom, by the names they go by now.
+            entry.actor_name = now.of(&entry.actor_ref, &entry.actor_name);
+            for (to, name) in &mut entry.to {
+                *name = now.of(to, name);
+            }
+            super::canvas_words::line(&entry, |r| refs.session_of(r))
+        })
         .collect();
     Ok(PoolCanvasInfo {
         pool_id: pool_id.to_owned(),

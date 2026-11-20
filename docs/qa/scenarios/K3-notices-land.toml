@@ -9,6 +9,15 @@ needs = ["lab"]
 [setup]
 projects = ["web", "api"]
 ended_sessions = 1000
+# 0.4.7 (the soak's persona runs, M2 and D2): the session that asks you is
+# one the lab's AI Juggler starts, so its terminal is AI Juggler's: the
+# lab's stand-in for Claude Code, which asks at once to run `npm test`
+# and says so through the hooks AI Juggler gave it, as Claude Code does
+# (Asks you, "Bash: npm test"). After `open`, start it from New session
+# on a Claude Code App (web is the project no other K3 session runs in).
+# A seeded one runs in no terminal AI Juggler can show: its page was
+# blank.
+standin = "asks"
 
 [[setup.apps]]
 id = "cc-work"
@@ -50,13 +59,8 @@ template = "project"
 scope = "web"
 
 # One of each notice kind a lab can raise (a session working the Mac
-# hard comes from a lab launch; Codex has no sign-in).
-[[setup.sessions]]
-id = "asks"
-app = "cc-work"
-project = "web"
-state = "needs-you"
-
+# hard comes from a lab launch; Codex has no sign-in; the one that asks
+# you is started after open, above).
 [[setup.sessions]]
 id = "stuck"
 app = "cc-personal"

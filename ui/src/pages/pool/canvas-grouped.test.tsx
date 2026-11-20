@@ -87,17 +87,23 @@ afterEach(() => {
 describe("a big pool's canvas and Now agree with its header (F-rc3g-8)", () => {
   it("88 sessions, 85 ended: its 3 open ones are drawn and Now counts them; no planned team", async () => {
     await openBig(3, 85);
-    expect(screen.getByTestId("pool-page-count").textContent).toBe("3 open in AI Juggler · 88 in all");
+    expect(screen.getByTestId("pool-page-count").textContent).toBe("88 sessions in AI Juggler, 3 open");
     await waitFor(() => expect(screen.getAllByTestId("canvas-node")).toHaveLength(3));
     expect(screen.queryByTestId("planned-team")).toBeNull();
     expect(screen.queryByText("Your team is drawn. No one has joined yet.")).toBeNull();
     await waitFor(() => expect(now()).toMatch(/^3 /));
   });
 
-  it("88 sessions, none open: it says they show as they start, never that no one has joined", async () => {
+  // SK-3: right after Make, a new pool whose everyone member took in 60
+  // ended sessions drew its members as a column at the canvas's right
+  // edge, two thirds of it empty. With none open, its team is drawn
+  // centred, as before any session joined, saying none is open.
+  it("88 sessions, none open: its team drawn centred, saying none is open, never that no one has joined", async () => {
     await openBig(0, 88);
-    await waitFor(() => expect(screen.getByTestId("canvas-rules-only").textContent).toContain("Its sessions show here as they start"));
-    expect(screen.queryByTestId("planned-team")).toBeNull();
+    expect(await screen.findByTestId("planned-team")).toBeTruthy();
+    expect(screen.queryByTestId("canvas-rules-only")).toBeNull();
+    expect(screen.getByTestId("planned-team-next").textContent).toContain("Your team is drawn. None of its sessions is open.");
+    expect(screen.queryByText("Your team is drawn. No one has joined yet.")).toBeNull();
     expect(now()).toBe("Nothing open now");
   });
 

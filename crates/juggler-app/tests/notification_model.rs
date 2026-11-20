@@ -726,6 +726,7 @@ fn every_source(state: &Arc<AppState>, dir: &Path) -> needs::NeedSources {
             session_id: Some("s-run".to_owned()),
             ask_id: Some("ask-1".to_owned()),
             offer_always: false,
+            delivers_now: Some(false),
             title: "An agent asks to read the roster".to_owned(),
             detail: "From reviewer".to_owned(),
             preview: None,

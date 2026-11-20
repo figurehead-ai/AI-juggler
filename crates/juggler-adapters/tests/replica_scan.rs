@@ -37,11 +37,17 @@ fn the_scans_find_every_replica_account() {
         .arg(&home)
         .output()
         .expect("python3 runs the replica generator");
-    assert!(
-        built.status.success(),
-        "the replica builds: {}",
-        String::from_utf8_lossy(&built.stderr)
-    );
+    if !built.status.success() {
+        // Its stderr can carry the replica's ids: kept in a file, never
+        // printed (CodeQL's cleartext-logging rule).
+        let kept = dir.keep().join("replica-stderr.txt");
+        std::fs::write(&kept, &built.stderr).unwrap();
+        panic!(
+            "the replica didn't build ({}): its stderr is in {}",
+            built.status,
+            kept.display()
+        );
+    }
     let truth: serde_json::Value =
         serde_json::from_str(&std::fs::read_to_string(home.join(".replica/truth.json")).unwrap())
             .unwrap();

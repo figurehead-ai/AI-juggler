@@ -263,6 +263,63 @@ fn processes_command_reports_tree_and_the_sheet_stops_what_was_left() {
     assert_eq!(rows[0].actor, "user:kill_sheet");
 }
 
+/// SK-10: a left-behind process the sheet stopped leaves Processes at
+/// the next tick. Before, its row stayed "Left behind" until AI Juggler
+/// restarted, and Clean up then said it had already ended.
+#[test]
+fn a_stopped_left_behind_process_leaves_processes_at_the_next_tick() {
+    use juggler_app::features::processes::model::ProcState;
+    use juggler_supervisor::tree::LedgerStore as _;
+    let dir = tempfile::tempdir().unwrap();
+    let state = seeded_state(dir.path(), false);
+    let (session, child_pid) = drive_orphan_fixture(&state, dir.path(), "sess-sk10");
+    // The reconciler's verdict, as an earlier run left it.
+    let boot = state.ledger.boot_id().to_owned();
+    state.ledger.mark_orphaned(child_pid, &boot).unwrap();
+    let node_state = |state: &Arc<AppState>| {
+        state
+            .processes
+            .graph()
+            .apps
+            .iter()
+            .flat_map(|app| app.sessions.iter())
+            .flat_map(|session| session.processes.iter())
+            .find(|node| node.pid == child_pid)
+            .map(|node| node.state)
+    };
+    juggler_app::features::processes::tick(&state);
+    assert_eq!(node_state(&state), Some(ProcState::LeftBehind));
+
+    let cancel = Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let outcome = juggler_app::features::kill::kill_execute_audited(
+        &state,
+        state.audit.as_ref(),
+        session.as_str(),
+        child_pid,
+        "pid",
+        &cancel,
+        None,
+    )
+    .unwrap();
+    assert!(outcome.all_succeeded, "the child went: {outcome:?}");
+
+    // Its row ended with the stop: reaped by us, "stopped".
+    let row = state
+        .ledger
+        .rows_for_session(&session)
+        .unwrap()
+        .into_iter()
+        .find(|row| row.pid == Some(child_pid))
+        .unwrap();
+    assert_eq!(row.state, "exited");
+    assert_eq!(row.exit_kind.as_deref(), Some("stopped"));
+    assert_eq!(row.reaped_by_us, Some(true));
+    // The next tick drops it and tells the page.
+    let change = juggler_app::features::processes::tick(&state);
+    assert!(change.is_some(), "the page hears of it");
+    assert_eq!(node_state(&state), None, "no longer listed");
+}
+
 #[test]
 fn the_sheet_refuses_a_pid_the_ledger_never_recorded() {
     let dir = tempfile::tempdir().unwrap();

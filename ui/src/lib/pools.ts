@@ -102,6 +102,15 @@ export function poolIdsOf(pools: PoolsInfo | null, session: InstanceInfo): strin
   return rows.length > 0 ? rows.map((row) => row.pool_id) : [defaultPoolIdOf(session.project_id)];
 }
 
+/** Item 9 (P7's rc3a follow-ups): whether a sealed pool holds `sessionId`
+ * out of `poolId`: it's placed in a sealed pool and not in this one (the
+ * List view shows it greyed, "in Client (sealed)"; a Pools card drew it
+ * as a member beside "0 sessions"). */
+export function heldOut(pools: { pools: readonly Pick<PoolInfo, "id" | "sealed">[]; placements: readonly Pick<PoolMemberInfo, "session_id" | "pool_id">[] } | null, sessionId: string, poolId: string): boolean {
+  const rows = pools?.placements.filter((row) => row.session_id === sessionId) ?? [];
+  return !rows.some((row) => row.pool_id === poolId) && rows.some((row) => pools?.pools.find((pool) => pool.id === row.pool_id)?.sealed === true);
+}
+
 /** A pool's sessions open now, as its page's header counts them (its
  * canvas and its Now say the same, F-rc3g-8). */
 export function openInPool(pools: PoolsInfo | null, sessions: readonly InstanceInfo[], poolId: string): InstanceInfo[] {
@@ -148,6 +157,14 @@ export function poolNeedCount(poolId: string, messages: readonly MessageNeedInfo
     tasks.filter((need) => need.pool_id === poolId).length +
     open.filter((session) => sessionState(session).needs).length
   );
+}
+
+/** SK-14: where a pool's page shows what needs you, for its header's
+ * "2 need you" to open: its Tasks for a task's need, else its Messages; a
+ * session's own need is on its node (null). */
+export function needsPanel(poolId: string, messages: readonly MessageNeedInfo[], tasks: readonly TaskNeedInfo[]): "tasks" | "messages" | null {
+  if (tasks.some((need) => need.pool_id === poolId)) return "tasks";
+  return messages.some((need) => need.pool_id === poolId && (need.kind === "ask" || need.kind === "deliver" || need.kind === "question")) ? "messages" : null;
 }
 
 /** "1 needs you", "4 need you". */
@@ -352,9 +369,15 @@ export function scopeChipWords(pool: PoolInfo, projects: readonly ProjectInfo[])
 }
 
 /** A pool's name where a heading already says it's a project's own pool:
- * "web", not "web · all sessions" (design review #60). */
-export function shortPoolName(pool: PoolInfo): string {
-  return pool.kind === "default" && pool.name.endsWith(ALL_SESSIONS) ? pool.name.slice(0, -ALL_SESSIONS.length) : pool.name;
+ * "web", not "web · all sessions" (design review #60). A name told apart
+ * from another project's of the same name keeps what tells it apart:
+ * "web (in lab)", from "web · all sessions (in lab)" (AJ-E3014 item 5). */
+export function shortPoolName(pool: Pick<PoolInfo, "kind" | "name">): string {
+  if (pool.kind !== "default") return pool.name;
+  const at = pool.name.lastIndexOf(ALL_SESSIONS);
+  if (at <= 0) return pool.name;
+  const rest = pool.name.slice(at + ALL_SESSIONS.length);
+  return rest === "" || /^ \(in .+\)$/.test(rest) ? pool.name.slice(0, at) + rest : pool.name;
 }
 
 export { doneNewPoolRequest, onNewPoolRequest, requestNewPool, takeNewPoolRequest, type NewPoolRequest } from "./new-pool-request";

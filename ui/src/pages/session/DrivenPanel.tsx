@@ -20,6 +20,7 @@ import { Button, Card } from "../../components/primitives";
 import { AskCard } from "../../components/AskCard";
 import { errorText } from "../../lib/bridge";
 import type { InstanceInfo } from "../../types/generated/InstanceInfo";
+import type { LimitWindowInfo } from "../../types/generated/LimitWindowInfo";
 import { runtimeEnd, runtimeHandover, runtimeInterrupt, runtimeResume, runtimeSend, useRuntimeView } from "../../lib/ipc/runtime";
 import { useFolderTrust } from "../../components/FolderTrustAsk";
 import { messagesTyping } from "../../lib/ipc/messages";
@@ -44,6 +45,14 @@ const STATE_WORDS: Record<string, string> = {
   cut_off: "Cut off",
   ended: "Ended",
 };
+
+/** A limit window's name: its length, and its model when it is a week on
+ * one model only ("Weekly (Opus)", as Claude's own usage page writes it),
+ * never read as the account's week (AJ-E2311 item 8). */
+function windowName(w: LimitWindowInfo): string {
+  const length = w.window_mins === 300 ? "5 hours" : w.window_mins === 10080 ? "Weekly" : w.window_mins ? `${w.window_mins} min` : w.id;
+  return w.model ? `${length} (${w.model})` : length;
+}
 
 export function DrivenPanel({
   session,
@@ -149,7 +158,7 @@ export function DrivenPanel({
       {runtime?.limits && runtime.limits.length > 0 && (
         <p className="text-label text-muted" data-testid="runtime-limits">
           {runtime.limits
-            .map((w) => `${w.window_mins === 300 ? "5 hours" : w.window_mins === 10080 ? "Weekly" : w.window_mins ? `${w.window_mins} min` : w.id}: ${Math.round(w.used_pct)}% used${w.resets_at_ms ? `, ${resetsWords(w.resets_at_ms)}` : ""}`)
+            .map((w) => `${windowName(w)}: ${Math.round(w.used_pct)}% used${w.resets_at_ms ? `, ${resetsWords(w.resets_at_ms)}` : ""}`)
             .join(" · ")}
           {!runtime.limits.some((w) => w.window_mins === 300) && " · no 5-hour limit reported"}
         </p>

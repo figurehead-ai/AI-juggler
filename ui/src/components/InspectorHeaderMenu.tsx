@@ -13,7 +13,7 @@ import type { ProjectInfo } from "../types/generated/ProjectInfo";
 import { toolSpec } from "../lib/tools";
 import { useAccountManage } from "../screens/AccountManage";
 
-function HeaderMenu<K extends ItemKind>({ kind, item, heading, local }: { kind: K; item: ItemOf[K]; heading: string; local: ActionHost }): JSX.Element {
+export function HeaderMenu<K extends ItemKind>({ kind, item, heading, local }: { kind: K; item: ItemOf[K]; heading: string; local: ActionHost }): JSX.Element {
   const menu = useItemMenu(kind, item, heading, { ...local, ...ON_ITS_PAGE });
   return (
     <span className="contents" {...menu.triggerProps}>

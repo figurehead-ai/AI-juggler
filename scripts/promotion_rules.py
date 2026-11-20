@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""D-24 channel requirements, as D-99 and D-114 amend them: whether a
-version may be promoted.
+"""D-24 channel requirements, as D-99, D-114 and D-138 amend them: whether
+a version may be promoted.
 
   promotion_rules.py check beta|stable FACTS.json   exit 0 = may promote
   promotion_rules.py --selftest
@@ -17,12 +17,16 @@ live in one tested place:
   also a deliberate act: the maintainer runs and approves it, and the
   approval is the release's sign-off, D-109; promote.yml checks the
   CHANGELOG section and the roadmap scope.)
-- **A blocker fix** (D-114) on a frozen line: a patch that fixes blocker
+- **A blocker fix** (D-114) on a soaked base: a patch that fixes blocker
   issues (`blocker_fix`, each a closed issue labelled `blocker`) needs
   BLOCKER_FIX_MIN_DAYS (3) on its own beta tag, not the whole 7, and the
   Stable candidate it fixes (promote.yml's `candidate` input; its
   annotated beta tag's date is `line_beta_at`) at least STABLE_MIN_DAYS
   on beta, so the line's soak is never skipped.
+- **Which version** (D-138): promotions are periodic, not per version. At
+  each promotion point the latest version that's been tested long enough
+  is the one promoted; the ones in between are skipped. These rules judge
+  that one version.
 
 A failed rule can be overridden only with a written reason, which is
 printed with the result and kept in the channel tag's message.
@@ -75,8 +79,8 @@ def failures(channel: str, facts: dict) -> list[str]:
 
 
 def _stable(facts: dict, now: dt.datetime) -> list[str]:
-    """Stable's soak: 7 days on beta, or, for a blocker fix on a frozen
-    line, 3 on its own tag with its line's first candidate 7 on beta."""
+    """Stable's soak: 7 days on beta, or, for a blocker fix on a soaked
+    base, 3 on its own tag with its line's first candidate 7 on beta."""
     on_beta = _when(facts.get("beta_at"))
     if on_beta is None:
         return ["no record of when it reached beta — promote it to beta first"]

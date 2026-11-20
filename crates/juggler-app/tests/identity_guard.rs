@@ -205,6 +205,68 @@ fn a_matched_account_launches_and_a_mismatched_one_is_blocked_with_nothing_run()
     );
 }
 
+/// SK-16: a personal Claude organisation is named after its email. The
+/// session's "Signed in as" never shows that email in full: not from a
+/// launch now, nor from a label recorded or remembered before 0.4.7.
+#[test]
+fn an_organisation_named_after_its_email_never_shows_the_email_in_full() {
+    let work = tempfile::tempdir().unwrap();
+    let state = app_state(work.path());
+    let cwd = work.path().to_string_lossy().into_owned();
+    let account = set_up::set_up(
+        &state,
+        juggler_app::features::account::create_account(&state, CLAUDE_CODE_ID, "Personal", None)
+            .unwrap(),
+    );
+    let recipe =
+        juggler_app::features::profile::create_profile(&state, &account.id, "Main", None, None)
+            .unwrap();
+    let dir = config_dir(&state, &account.id);
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::write(
+        dir.join(".claude.json"),
+        r#"{"numStartups":2,"hasCompletedOnboarding":true,"oauthAccount":{"accountUuid":"acct-p","emailAddress":"sam@home.example","organizationName":"sam@home.example's Organization"}}"#,
+    )
+    .unwrap();
+    let masked = "s…@home.example · s…@home.example's Organization";
+    let launched =
+        juggler_app::features::launch::launch_profile(&state, &recipe.id, Some(cwd)).unwrap();
+    assert_eq!(
+        row(&state, &launched.session_id).identity_label.as_deref(),
+        Some(masked)
+    );
+
+    // What an earlier build recorded and remembered: the name in full.
+    let raw = "s…@home.example · sam@home.example's Organization";
+    {
+        let storage = state.storage.lock().unwrap();
+        storage
+            .identity()
+            .record(&juggler_core::storage::IdentityAssertion {
+                session_id: launched.session_id.clone(),
+                account_id: account.id.to_string(),
+                state: "verified".into(),
+                label: Some(raw.into()),
+                at_ms: 1,
+                moment: "launch".into(),
+            })
+            .unwrap();
+        let pins = format!(
+            r#"{{"{}":{{"subject":"acct-p","label":"{raw}","pinned_at_ms":1}}}}"#,
+            account.id
+        );
+        storage.app_settings().set("identity_pins", &pins).unwrap();
+    }
+    assert_eq!(
+        row(&state, &launched.session_id).identity_label.as_deref(),
+        Some(masked)
+    );
+    let check = identity::identity_check_impl(&state, &recipe.id).unwrap();
+    assert_eq!(check.state, "verified");
+    assert_eq!(check.expected.as_deref(), Some(masked));
+    assert_eq!(check.detected.as_deref(), Some(masked));
+}
+
 #[test]
 fn a_signed_out_dir_launches_honestly_and_forgetting_relearns() {
     let work = tempfile::tempdir().unwrap();

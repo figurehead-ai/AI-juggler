@@ -87,6 +87,29 @@ describe("A5 an out-of-room Account's page: what it affects", () => {
     expect(screen.queryByTestId("account-open")).toBeNull();
   });
 
+  it("SK-2: a session with nothing to carry yet greys its switch and says why on screen; a press only shows why", async () => {
+    const continueSession = vi.fn();
+    const fresh = { ...session, conversation_id: null };
+    page({ sessions: [fresh], conversations: [], host: { continueSession } });
+    const block = await screen.findByTestId("account-affects");
+    const item = (await within(block).findAllByTestId("account-affects-item"))[0]!;
+    const button = within(item).getByTestId("account-affects-switch");
+    expect(button.getAttribute("aria-disabled")).toBe("true");
+    expect(button.getAttribute("aria-description")).toBe("It has no conversation to carry over yet");
+    expect(within(item).getByTestId("account-affects-why").textContent).toBe("It has no conversation to carry over yet.");
+    fireEvent.click(button);
+    expect(continueSession).not.toHaveBeenCalled();
+    expect(await screen.findByTestId("account-affects-switch-tip")).toBeTruthy();
+  });
+
+  it("SK-2: a session that can switch shows no why", async () => {
+    page({ sessions: [session], conversations: [], host: { continueSession: vi.fn() } });
+    const block = await screen.findByTestId("account-affects");
+    await within(block).findAllByTestId("account-affects-item");
+    expect(within(block).queryByTestId("account-affects-why")).toBeNull();
+    expect(within(block).getByTestId("account-affects-switch").getAttribute("aria-disabled")).toBeNull();
+  });
+
   it("with nothing open, says so plainly, with when it resets", async () => {
     page({ sessions: [], conversations: [], host: { continueSession: vi.fn() } });
     const none = await screen.findByTestId("account-affects-none");

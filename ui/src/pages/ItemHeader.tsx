@@ -37,7 +37,7 @@ import type { ConversationInfo } from "../lib/ipc/conversations";
 import { accountOfProfile, useSubscriptions } from "../lib/subscriptions";
 import { GoToButton, SessionChips, SessionMark, SessionWhere } from "./session/SessionHead";
 import { fromInstance, sessionAppName } from "./session/model";
-import { Dot, MacDoor, SessionPoolChip, SessionToolChip } from "./session/HeaderDoors";
+import { Dot, MacDoor, SessionContinuesDoor, SessionPoolChip, SessionToolChip } from "./session/HeaderDoors";
 import { ProjectChips } from "./project/ProjectChips";
 
 function KindIcon({ kind }: { kind: InspectorKind }) {
@@ -236,6 +236,8 @@ export function InspectorHeader({
           </>
         )}
         {model && <SessionPoolChip sessionId={instance.id} />}
+        {/* SK-11: a switch's copy says what it continues, a door to it. */}
+        <SessionContinuesDoor session={instance} lead={<Dot />} />
       </>
     ) : kind === "project" && data.project ? (
       <ProjectFacts project={data.project} sessions={sessions} folders={accounts} />

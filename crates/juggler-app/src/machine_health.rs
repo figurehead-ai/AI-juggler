@@ -61,6 +61,13 @@ pub struct RoomSummaryInfo {
     /// when the words already say it (the memory-pressure alert).
     #[ts(optional = nullable)]
     pub cause: Option<String>,
+    /// D1: what "room" counts, one short line with no figures
+    /// (`RoomThresholds::counts`), under This Mac's calm level.
+    pub counts: String,
+    /// D1: when it turns tight, from the thresholds in force
+    /// (`RoomThresholds::measures`): behind This Mac's "When does it turn
+    /// tight?", and in the top bar's help.
+    pub measures: String,
 }
 
 /// One point of the 5-minute series.
@@ -238,6 +245,8 @@ pub fn health_of(snapshot: &MachineSnapshot, thresholds: &RoomThresholds) -> Mac
             level: level_key(summary.level).to_string(),
             words: summary.words.to_string(),
             cause: summary.cause().map(str::to_owned),
+            counts: thresholds.counts(),
+            measures: thresholds.measures(),
             reasons: summary
                 .reasons
                 .into_iter()
@@ -2228,6 +2237,8 @@ mod live {
                 words: "macOS reports memory pressure".into(),
             }],
             cause: Some("memory pressure".into()),
+            counts: juggler_supervisor::machine::RoomThresholds::default().counts(),
+            measures: juggler_supervisor::machine::RoomThresholds::default().measures(),
         };
         let mut before = tight();
         crate::machine_health::align_with_alerts(&mut before, &[]);

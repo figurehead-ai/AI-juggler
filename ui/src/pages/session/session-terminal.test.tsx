@@ -8,6 +8,8 @@
 import { cleanup, fireEvent, render } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { SessionTerminal, forgetKept } from "./SessionTerminal";
+import { endedCause } from "../../lib/ended-how";
+import { pastWhen } from "../../lib/time-words";
 import type { InstanceInfo } from "../../types/generated/InstanceInfo";
 
 const NOW = 1_800_000_000_000;
@@ -101,5 +103,51 @@ describe("an ended terminal session's main pane (P2)", () => {
     await view.findByTestId("ended-terminal-kept");
     expect(view.getByTestId("instance-terminal")).toBe(shown);
     expect(view.container.textContent).toContain("scrollback replayed");
+  });
+});
+
+// SK-5 (the 0.4.6 soak, K3): an errored session's page said only "Error
+// 8:35 AM" and "No output was kept…".
+describe("an errored session says why it stopped (SK-5)", () => {
+  const at = pastWhen(NOW - 3 * 86_400_000 + 600_000, NOW);
+
+  it("its exit code and when, in words, and Start again opens New session in its folder on its App", async () => {
+    const asked = vi.fn();
+    const listen = (event: Event) => asked(event instanceof CustomEvent ? event.detail : null);
+    window.addEventListener("aij:new-session", listen);
+    const view = render(<SessionTerminal session={ended({ status: "failed", ending: { how: "error", detail: "exit code 1" } })} live={false} terminal={terminal} now={NOW} />);
+    const card = await view.findByTestId("ended-terminal-none");
+    expect(card.textContent).toContain("It stopped with an error");
+    expect(view.getByTestId("ended-why").textContent).toBe(`Claude Code exited with code 1, at ${at}.`);
+    expect(card.textContent).toContain("Start it again in the same folder");
+    fireEvent.click(view.getByTestId("ended-start-again"));
+    expect(asked).toHaveBeenCalledWith({ accountId: "lab", dir: "/w/api" });
+    window.removeEventListener("aij:new-session", listen);
+  });
+
+  it("with no detail, when, and that its tool didn't say", async () => {
+    const view = render(<SessionTerminal session={ended({ status: "failed", ending: { how: "error", detail: null } })} live={false} terminal={terminal} now={NOW} />);
+    await view.findByTestId("ended-terminal-none");
+    expect(view.getByTestId("ended-why").textContent).toBe(`It stopped at ${at}; Claude Code didn't say why.`);
+  });
+
+  it("with its conversation shown, the why is the line above it", async () => {
+    const view = render(<SessionTerminal session={ended({ conversation_id: "c-1", ending: { how: "crashed", detail: "signal 9" } })} live={false} terminal={terminal} now={NOW} />);
+    await view.findByTestId("ended-terminal-conversation");
+    expect(view.getByTestId("ended-why").textContent).toBe(`Claude Code was killed (signal 9), at ${at}.`);
+  });
+
+  it("one that finished says nothing of the sort", async () => {
+    const view = render(<SessionTerminal session={ended({ ending: { how: "finished", detail: null } })} live={false} terminal={terminal} now={NOW} />);
+    await view.findByTestId("ended-terminal-none");
+    expect(view.queryByTestId("ended-why")).toBeNull();
+    expect(view.queryByTestId("ended-start-again")).toBeNull();
+  });
+
+  it("the words for codes and signals", () => {
+    expect(endedCause("exit code 127", "Codex")).toBe("Codex exited with code 127 (its command wasn't found)");
+    expect(endedCause("signal 15", "Codex")).toBe("Codex was asked to quit (signal 15)");
+    expect(endedCause("signal 31", "Codex")).toBe("Codex was stopped (signal 31)");
+    expect(endedCause(null, "Codex")).toBeNull();
   });
 });

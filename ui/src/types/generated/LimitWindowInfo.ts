@@ -19,4 +19,9 @@ used_pct: number,
 /**
  * When it resets, epoch ms, when the tool says.
  */
-resets_at_ms: number | null, };
+resets_at_ms: number | null, 
+/**
+ * The one model it limits (`Opus`) when it is a week on one model
+ * only; `null` when it limits all the account's use.
+ */
+model: string | null, };

@@ -19,7 +19,7 @@ import { focusRailSearch } from "../lib/rail-view";
 import { showTasksHeldBy } from "../lib/tasks-holder";
 import { useWindowTitle } from "../lib/window-title";
 import { providerDisplayName } from "../lib/providers";
-import { holdStop, sessionLabel } from "../lib/stop";
+import { holdStop, stopOf } from "../lib/stop";
 import { useWindowFolderDrop } from "../lib/use-folder-drop";
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import { useAppData } from "./use-app-data";
@@ -27,7 +27,7 @@ import { useDialogs, useRemoteMachines } from "./use-dialogs";
 import { useNavigation } from "./use-navigation";
 import { useNow, useRailDensity } from "./use-rail";
 import { usePools } from "../lib/pools";
-import { poolProject } from "../lib/new-session-choice";
+import { hereProject } from "../lib/new-session-folder";
 import { offerFollows } from "../lib/new-session-sheet";
 
 export type Shell = ReturnType<typeof useShell>;
@@ -44,14 +44,11 @@ export function useShell() {
   // A pool's page is titled by its name, as a project's is (the E28 walk);
   // its New session starts in its project (the rc27 walk).
   const pools = usePools();
-  const hereDir = useMemo(() => {
-    if (selection.kind !== "pool") return null;
-    const id = poolProject(pools?.pools.find((pool) => pool.id === selection.id));
-    return projects.find((project) => project.id === id)?.root ?? null;
-  }, [selection, pools, projects]);
-  /** New session from the header, the rail or ⌘N: on a pool's page, in
-   * its project (the existing order's "the one it was opened for"). */
-  const newSessionHere = useCallback(() => newSheet.show({ dir: hereDir }), [newSheet, hereDir]);
+  const hereDir = useMemo(() => hereProject(global === null ? selection : { kind: "none" }, { pools: pools?.pools ?? [], projects, sessions }), [global, selection, pools, projects, sessions]);
+  /** New session from the header, the rail or ⌘N: in the project of the
+   * page you're on (a pool's, a project's, a session's; the existing
+   * order's "the one it was opened for"), unless "Start another" stands. */
+  const newSessionHere = useCallback(() => newSheet.show({ here: hereDir }), [newSheet, hereDir]);
 
   // Inspector action events (AJ-E408): Add-account / sign-in cards and
   // the Start-first-session CTA route to the real surfaces.
@@ -112,7 +109,7 @@ export function useShell() {
   // AJ-E1503 Req.2: Stop is held 5 s with Undo, then sent. The ref keeps
   // ⌘. on the session selected now (the key listener is set up once).
   const stopSession = useCallback(
-    (session: InstanceInfo) => holdStop({ id: session.id, label: sessionLabel(session, projects) }, () => void refresh()),
+    (session: InstanceInfo) => holdStop(stopOf(session, projects), () => void refresh()),
     [projects, refresh],
   );
   const stopSelectedRef = useRef<() => void>(() => {});

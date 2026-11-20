@@ -85,7 +85,9 @@ pub const BODY_MAX: usize = 4_000;
 pub const DOC_MAX: usize = 64 * 1024;
 /// The longest doc name, in characters.
 pub const DOC_NAME_MAX: usize = 80;
-/// Agent messages a thread takes in a row before it pauses for the user.
+/// Agent messages a chain takes in a row before it pauses for the user
+/// (D-140: a chain runs across threads; a turn an agent's message woke
+/// counts on from it).
 pub const MAX_THREAD_HOPS: u32 = 6;
 /// Messages a sender may send a minute in one pool.
 pub const PER_MINUTE: usize = 10;
@@ -212,8 +214,10 @@ pub fn rate_limit(sent_at: &[i64], now: i64) -> Option<Limit> {
     None
 }
 
-/// A thread's hop after one more message: an agent's adds one, a
-/// person's resets it (D-29: a person's prompt, click or reply).
+/// A chain's hop after one more message: an agent's adds one, a
+/// person's resets it (D-29: a person's prompt, click or reply). D-140:
+/// `hop` is the chain's count behind the sender (its thread's, or the
+/// message that woke its turn), not only its thread's.
 #[must_use]
 pub const fn next_hop(hop: u32, from_a_person: bool) -> u32 {
     if from_a_person {
@@ -241,14 +245,16 @@ pub fn hop_cap(pool_hop_limit: Option<u32>) -> u32 {
     pool_hop_limit.map_or(MAX_THREAD_HOPS, |limit| limit.min(MAX_THREAD_HOPS))
 }
 
-/// A message's hop as an agent reads it: "hop 2 of 5", or "hop 3, over
-/// this pool's limit of 2" for one past `cap` (the person let it in).
+/// A message's hop as an agent reads it: "hop 2 of 5"; one past `cap`
+/// (the person let it through) is counted as the person counts it (AJ-E3014
+/// item 3: "N of 2", never "3, over 2"): "hop 2 of 2 and one more the user
+/// let through".
 #[must_use]
 pub fn hop_words(hop: u32, cap: u32) -> String {
     if hop <= cap {
         format!("hop {hop} of {cap}")
     } else {
-        format!("hop {hop}, over this pool's limit of {cap}")
+        format!("hop {cap} of {cap} and one more the user let through")
     }
 }
 
@@ -529,7 +535,10 @@ mod tests {
         assert_eq!(hop_cap(Some(5)), 5);
         assert_eq!(hop_cap(Some(20)), MAX_THREAD_HOPS);
         assert_eq!(hop_words(2, 2), "hop 2 of 2");
-        assert_eq!(hop_words(3, 2), "hop 3, over this pool's limit of 2");
+        assert_eq!(
+            hop_words(3, 2),
+            "hop 2 of 2 and one more the user let through"
+        );
     }
 
     #[test]

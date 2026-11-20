@@ -152,6 +152,8 @@ pub fn send_impl(state: &Arc<AppState>, session: &str, text: &str) -> AppResult<
     }
     let driver = driver(state, session)?;
     let input = TurnInput::from_user(text);
+    // D-140: the person's prompt starts the count of agent messages again.
+    state.messages.chains.person(session);
     if driver.info().can_steer {
         driver.steer(input)
     } else {

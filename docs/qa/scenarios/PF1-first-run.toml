@@ -9,7 +9,8 @@ needs = ["lab"]
 # The persona walks' first run (M1, D1, R1): no AI Juggler data; the
 # tools' folders where they keep them, with lab sign-ins (nothing signs
 # anything in): ~/.claude (Personal), ~/.claude-work (Work), ~/.codex (not
-# signed in), the Claude app's "Work Max" profile.
+# signed in), the Claude app's "Work Max" profile; a session running in
+# each Claude Code setup.
 [setup]
 first_run = true
 projects = ["shop", "billing"]
@@ -36,6 +37,23 @@ id = "app-work"
 tool = "claude-desktop"
 account = "Work"
 profile = "Work Max"
+
+# 0.4.7 (the soak's first-run personas found "No sessions on this Mac
+# yet"): one session running in each Claude Code setup, outside AI
+# Juggler, in a project folder: the lab's stand-in at its prompt, recorded
+# in its setup's folder as Claude Code records one, so Open now lists
+# both once "Find my apps" and "Bring in" have brought the setups in.
+[[setup.sessions]]
+id = "shop-personal"
+app = "cc-personal"
+project = "shop"
+state = "working"
+
+[[setup.sessions]]
+id = "billing-work"
+app = "cc-work"
+project = "billing"
+state = "working"
 
 [[steps]]
 do = "I just installed this. Set it up so it knows my accounts and shows what I've got running."

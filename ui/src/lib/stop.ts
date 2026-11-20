@@ -12,6 +12,7 @@ import { terminalKill } from "./ipc/terminal-io";
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import type { ProjectInfo } from "../types/generated/ProjectInfo";
 import { cliAppName } from "./app-name";
+import { shortName } from "./session-titles";
 
 /** The undo window for a held stop, in seconds. */
 export const STOP_HOLD_SECONDS = 5;
@@ -24,13 +25,22 @@ export function sessionLabel(session: InstanceInfo, projects: ProjectInfo[]): st
   return project ? `${project} · ${app}` : app;
 }
 
+/** AJ-E2311 item 3 (the 0.4.6 walks: "Stopping web · Claude Code CLI ·
+ * aij-test" named the folder, not the session): what a Stop says of one
+ * session: its name as the rail says it (`shortName`), then where it
+ * runs ("web · Claude Code CLI · aij-test"). */
+export function stopOf(session: InstanceInfo, projects: ProjectInfo[]): { id: string; label: string; where: string } {
+  return { id: session.id, label: shortName(session), where: sessionLabel(session, projects) };
+}
+
 /** Holds the stop of one session; `after` runs once it is sent. `send`
- * replaces this Mac's own stop (a paired Mac's session is stopped there). */
-export function holdStop(session: { id: string; label: string; send?: () => Promise<unknown> }, after?: () => void): void {
+ * replaces this Mac's own stop (a paired Mac's session is stopped there).
+ * `where` says where it runs, before Undo's line. */
+export function holdStop(session: { id: string; label: string; where?: string; send?: () => Promise<unknown> }, after?: () => void): void {
   holdAction({
     id: `stop:${session.id}`,
     message: `Stopping ${session.label}.`,
-    detail: "Undo keeps it running.",
+    detail: session.where ? `${session.where}. Undo keeps it running.` : "Undo keeps it running.",
     seconds: STOP_HOLD_SECONDS,
     testId: "stop-undo",
     undone: `${session.label} keeps running.`,

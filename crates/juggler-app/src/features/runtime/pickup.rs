@@ -286,10 +286,15 @@ fn come_back(
     how: &str,
 ) -> AppResult<SessionId> {
     let native_id = mark.native_id.as_str();
+    // AJ-E2311 item 6: its conversation's file, known once written, is
+    // gone (deleted since): nothing to resume, so it starts again too.
+    let mut gone = false;
     let started = (|| {
         let (record, profile, account) = super::commands::owner(state, session.as_str())?;
+        gone = mark.written && file_gone(record.transcript_ref.as_ref());
+        let written = mark.written && !gone;
         // `kept`: its terminal, if it runs there, keeps the conversation id.
-        let (terminal, resume, fresh_id, kept) = if mark.written {
+        let (terminal, resume, fresh_id, kept) = if written {
             let terminal = crate::features::sessions::spawn::planned_terminal(
                 crate::features::launch::resume_gate::adapter_of(state, &account)?.as_ref(),
                 &record.cwd,
@@ -318,7 +323,7 @@ fn come_back(
                 project: record.project.clone(),
                 cwd: record.cwd.clone(),
                 conversation: kept.then(|| juggler_core::model::ConversationId::new(native_id)),
-                transcript_ref: record.transcript_ref.clone().filter(|_| mark.written),
+                transcript_ref: record.transcript_ref.clone().filter(|_| written),
                 origin: "resume",
                 // Its own row: its name stays (a terminal that takes over
                 // under a new id carries it: `runtime::launch::spent`).
@@ -354,7 +359,10 @@ fn come_back(
             // Its conversation went on under a new id: the old one is done.
             note(&storage, session, None);
         }
-        let words = match (mark.written, started.runtime) {
+        let words = match (mark.written && !gone, started.runtime) {
+            (false, _) if gone => {
+                format!("{how}: its conversation's file was gone, so it started again")
+            }
             (true, Runtime::Driven) => format!("{how}: its conversation resumed"),
             (true, Runtime::Terminal) => format!("{how}: its conversation resumed in its terminal"),
             (false, Runtime::Driven) => format!("{how}: it started again, as it had no turn yet"),
@@ -369,6 +377,12 @@ fn come_back(
     }
     state.runtime.notify(session.as_str(), true);
     Ok(started.session)
+}
+
+/// Whether a conversation's file, as the session recorded it, isn't there
+/// any more (deleted since). Unknown is never gone.
+fn file_gone(transcript: Option<&juggler_core::model::TranscriptRef>) -> bool {
+    transcript.is_some_and(|transcript| !transcript.path.exists())
 }
 
 /// The terminal launch for `session` starting `native_id` again fresh (its

@@ -60,3 +60,22 @@ export function CanvasTeach({
     </div>
   );
 }
+
+/** Walk K1: sessions in it, none drawn (no member to click): its words,
+ * and "Use a template" once it runs (SK-7: while it's set up, that door is
+ * beside Add a member, in one place). */
+export function RulesOnlyHint({ words, inset, onTemplate }: { words: string; inset: boolean; onTemplate?: () => void }): JSX.Element {
+  return (
+    <p className={"pointer-events-none absolute inset-x-0 bottom-16 text-center text-meta text-ink-2" + (inset ? " pl-[16.5rem]" : "")} data-testid="canvas-rules-only">
+      {words}
+      {onTemplate && (
+        <>
+          {" "}
+          <button type="button" onClick={onTemplate} className="pointer-events-auto font-medium text-accent-hi underline-offset-2 hover:underline" data-testid="canvas-rules-template">
+            Use a template
+          </button>
+        </>
+      )}
+    </p>
+  );
+}

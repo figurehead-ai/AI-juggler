@@ -16,12 +16,30 @@ import { NewPoolTalk } from "./NewPoolTalk";
 import { NewPoolOwn } from "./NewPoolOwn";
 import { NewPoolTools } from "./NewPoolTools";
 import { NewPoolReview } from "./NewPoolReview";
+import { NewPoolSteps } from "./NewPoolSteps";
 
 beforeEach(() => resetPreviewAgentBridge());
 afterEach(cleanup);
 
 const app = (ref: string, label: string, role: "member" | "reviewer" = "member") => ({ ref, kind: "app" as const, label, role, level: null, reach: "later" as const });
 const NO_LOGOS = { apps: [], sessions: [] };
+
+// AJ-E2311 item 5: the wizard's steps couldn't be pressed from its rail,
+// and a step not yet open said nothing.
+describe("the steps' rail", () => {
+  it("the next step is one press away, as Next is; one further says after which", () => {
+    const steps = ["template", "where", "who", "lead", "everyone", "talk", "own", "review"] as const;
+    const picked: number[] = [];
+    render(<NewPoolSteps steps={steps} step={0} furthest={0} valueOf={() => null} onPick={(at) => picked.push(at)} />);
+    const rail = screen.getAllByTestId("flow-step");
+    const at = (id: string) => rail.find((one) => one.dataset.step === id)!;
+    fireEvent.click(at("where"));
+    expect(picked).toEqual([1]);
+    expect(at("lead").hasAttribute("disabled")).toBe(true);
+    expect(at("lead").getAttribute("title")).toBe("After Where");
+    expect(screen.getByRole("button", { name: /Who leads.*After Where/ })).toBe(at("lead"));
+  });
+});
 
 describe("Who may message whom (D-126 presets)", () => {
   it("three ways as cards set the whole table; a cell changed by hand is its own mix, no way chosen", () => {

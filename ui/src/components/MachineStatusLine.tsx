@@ -29,6 +29,14 @@ function levelWords(status: Status): { full: string; brief: string } {
   return { full: `${status.words}: ${status.cause}`, brief: `${SHORT_LEVEL[status.level] ?? status.words}: ${status.cause}` };
 }
 
+/** D1: the line's help says what room counts and when it turns tight,
+ * in the backend's words from its thresholds (memory pressure keeps its
+ * own, `PRESSURE_SHORT`); none before the first sample. */
+function roomHelp(info: React.ContextType<typeof ThisMacContext> | null, words: string): string | undefined {
+  const room = info ? [info.machine.summary.counts, info.machine.summary.measures].filter(Boolean).join(" ") : "";
+  return room ? `${words}. ${room}` : undefined;
+}
+
 export function MachineStatusLine({ minimal, onOpen, short = false }: { minimal: boolean; onOpen?: () => void; short?: boolean }): JSX.Element {
   const info = useContext(ThisMacContext);
   const status = machineStatus(info);
@@ -45,6 +53,7 @@ export function MachineStatusLine({ minimal, onOpen, short = false }: { minimal:
   // "Under memory pressure"): a voice user says what they see (axe,
   // label-content-name-mismatch).
   const spoken = shown === words ? undefined : `${name} · ${shown}`;
+  const help = why ?? roomHelp(status ? info : null, words);
   // D-117: calm (plenty of room) is a neutral faint dot; amber when
   // tight (L2), red under pressure (L3).
   const dot = status && !status.calm ? status.dot : "bg-faint";
@@ -90,11 +99,11 @@ export function MachineStatusLine({ minimal, onOpen, short = false }: { minimal:
     </>
   );
   return onOpen ? (
-    <button type="button" onClick={onOpen} title={why ?? (shown !== words || short ? words : undefined)} aria-label={spoken} className={"flex min-h-6 items-center rounded-md text-left text-muted outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60 " + (short ? "shrink-0 " : "min-w-0 shrink ") + gap} data-testid="machine-status" data-level={breath}>
+    <button type="button" onClick={onOpen} title={help ?? (shown !== words || short ? words : undefined)} aria-label={spoken} className={"flex min-h-6 items-center rounded-md text-left text-muted outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60 " + (short ? "shrink-0 " : "min-w-0 shrink ") + gap} data-testid="machine-status" data-level={breath}>
       {line}
     </button>
   ) : (
-    <span className={"flex min-w-0 shrink items-center text-muted " + gap} title={why} data-testid="machine-status" data-level={breath}>
+    <span className={"flex min-w-0 shrink items-center text-muted " + gap} title={help} data-testid="machine-status" data-level={breath}>
       {line}
     </span>
   );

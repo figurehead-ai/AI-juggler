@@ -242,8 +242,10 @@ export async function messagesNeeds(): Promise<MessageNeedInfo[]> {
   return call("messages_needs");
 }
 
-/** Your answer to a held ask: once, always (a rule in this pool) or deny. */
-export async function messagesAnswer(askId: string, answer: "once" | "always" | "deny"): Promise<void> {
+/** Your answer to a held ask: deliver (D-139: allowed and put into its
+ * sessions at once), once (allowed, for their next turn), always (a rule in
+ * this pool) or deny. On a chain paused at the hop limit, once is Deliver. */
+export async function messagesAnswer(askId: string, answer: "deliver" | "once" | "always" | "deny"): Promise<void> {
   if (!hasLiveBackend()) {
     record(`answer:${askId}:${answer}`);
     preview().needs = preview().needs.filter((n) => n.ask_id !== askId);

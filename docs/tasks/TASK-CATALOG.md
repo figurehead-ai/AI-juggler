@@ -267,7 +267,7 @@
 | AJ-E2022 | Remote configuration, steps 2–3: the compat section, the app's wiring and the Publish config workflow (ADR-0035, D-128 point 3, D-129) | E20-engineering-and-security.md | P0 | L | AJ-E2021 |
 | AJ-E2023 | Remote configuration, step 4: flags (remote: OffOnly, OnOff or Rollout) and notices, with their UI through the D-126 Alert (ADR-0035, D-129) | E20-engineering-and-security.md | P1 | M | AJ-E2021 |
 | AJ-E2024 | Numbers the window can't hold: a 64-bit value reaches the UI only below 2^53 | E20-engineering-and-security.md | P1 | S | — |
-| AJ-E2025 | 0.4.6's deferred architecture findings: turn-end codes into the adapter; an external-terminal session placed by its process | E20-engineering-and-security.md | P1 | M | AJ-E2024 |
+| AJ-E2025 | 0.4.6's deferred architecture findings: turn-end codes into the adapter; an external-terminal session placed by its process | E20-engineering-and-security.md | P1 | M | — |
 | AJ-E2101 | Live sessions from the apps' own files | E21-desktop-first.md | P0 | L | — |
 | AJ-E2102 | Go to it | E21-desktop-first.md | P0 | M | AJ-E2101 |
 | AJ-E2103 | Open first: the rail's order | E21-desktop-first.md | P0 | S | AJ-E2101 |

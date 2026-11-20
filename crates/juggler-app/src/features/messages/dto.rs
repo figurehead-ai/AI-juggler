@@ -229,6 +229,11 @@ pub struct MessageNeedInfo {
     pub ask_id: Option<String>,
     /// Offer "Always allow in this pool" (from the second approval).
     pub offer_always: bool,
+    /// For `ask`: whether "Allow and deliver" (D-139) can put it into a
+    /// session it's held for (else only "Allow once" is offered, D-127).
+    /// `None` for the other kinds.
+    #[ts(optional)]
+    pub delivers_now: Option<bool>,
     /// In one line.
     pub title: String,
     /// Where, or why.

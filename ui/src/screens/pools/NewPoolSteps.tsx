@@ -2,9 +2,11 @@
  * 0.4.6 (D-126): New pool's steps down the side, in three groups (The
  * basics; How they work, "prefilled" until it's reached; Finish), each
  * step's value under its name: what it's set to once walked, and what it
- * will be for the prefilled ones. The steps up to the furthest reached
- * are a click away; from Who's in on, every one is (a name and its
- * projects make a working pool). The guide's link at the foot.
+ * will be for the prefilled ones. The steps up to the furthest reached,
+ * and the one after it (as Next goes), are a click away; from Who's in
+ * on, every one is (a name and its projects make a working pool). One
+ * not yet says after which (AJ-E2311 item 5: the rail's steps couldn't be
+ * pressed, and said nothing). The guide's link at the foot.
  */
 import type { JSX } from "react";
 
@@ -35,12 +37,13 @@ export function NewPoolSteps({
   onPick: (at: number) => void;
 }): JSX.Element {
   const open = furthest >= steps.indexOf(OPEN_FROM);
+  const next = steps[furthest + 1];
   const rows: FlowStep[] = steps.map((id, at) => {
     const state = at === step ? "current" : at < step || at <= furthest ? "done" : "todo";
     // The basics say nothing until walked; the rest say what they're
     // filled in with.
     const value = state === "done" || (state === "todo" && GROUP_OF[id] !== "basics") ? valueOf(id, state === "done") : null;
-    return { id, label: navOf(id), value: value ?? undefined, state, group: GROUP_OF[id], disabled: !(at <= furthest || open) };
+    return { id, label: navOf(id), value: value ?? undefined, state, group: GROUP_OF[id], disabled: !(at <= furthest + 1 || open), reason: next ? `After ${navOf(next)}` : undefined };
   });
   const groups = WIZARD_GROUPS.map((group) => (group.id === "how" && step <= steps.indexOf(OPEN_FROM) ? { ...group, tag: PREFILLED } : group));
   return (

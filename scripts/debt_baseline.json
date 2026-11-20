@@ -386,9 +386,6 @@
  "crates/juggler-app/src/features/messages/mod.rs": {
   "jscpd:lines": 32
  },
- "crates/juggler-app/src/features/messages/needs.rs": {
-  "jscpd:lines": 8
- },
  "crates/juggler-app/src/features/notifications/mod.rs": {
   "jscpd:lines": 14
  },
@@ -476,29 +473,14 @@
  "crates/juggler-app/src/features/switch_space/mod.rs": {
   "jscpd:lines": 7
  },
- "crates/juggler-app/src/features/tasks/across.rs": {
-  "jscpd:lines": 7
- },
  "crates/juggler-app/src/features/tasks/agent.rs": {
   "jscpd:lines": 28
- },
- "crates/juggler-app/src/features/tasks/apply.rs": {
-  "jscpd:lines": 8
  },
  "crates/juggler-app/src/features/tasks/issues.rs": {
   "jscpd:lines": 7
  },
  "crates/juggler-app/src/features/tasks/mod.rs": {
   "jscpd:lines": 32
- },
- "crates/juggler-app/src/features/tasks/needs.rs": {
-  "jscpd:lines": 8
- },
- "crates/juggler-app/src/features/tasks/oversight.rs": {
-  "jscpd:lines": 8
- },
- "crates/juggler-app/src/features/tasks/views.rs": {
-  "jscpd:lines": 7
  },
  "crates/juggler-app/src/features/tasks/words.rs": {
   "jscpd:lines": 12

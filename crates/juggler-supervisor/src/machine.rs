@@ -281,6 +281,63 @@ impl Default for RoomThresholds {
     }
 }
 
+/// What room counts, in the order [`RoomThresholds::measures`] says them;
+/// heat is macOS's own reading, the rest have thresholds here.
+const ROOM_PARTS: [&str; 5] = ["free memory", "swap", "the processor", "heat", "disk"];
+
+impl RoomThresholds {
+    /// D1 (the 0.4.6 persona walk: "Nothing running — your Mac has room"
+    /// beside a busy processor and a deep swap): what "room" counts, in
+    /// one short line for a calm level ("Room counts free memory, swap,
+    /// the processor, heat and disk."); its figures are [`Self::measures`].
+    #[must_use]
+    pub fn counts(&self) -> String {
+        match ROOM_PARTS.split_last() {
+            Some((last, rest)) => format!("Room counts {} and {last}.", rest.join(", ")),
+            None => String::new(),
+        }
+    }
+
+    /// When room turns tight, in plain words, built from these thresholds
+    /// so the screen can never say other figures than the ones
+    /// [`summarize`] uses: behind This Mac's "When does it turn tight?".
+    #[must_use]
+    pub fn measures(&self) -> String {
+        format!(
+            "It turns tight only when one runs short: the processor over {cpu} for {span}, \
+             swap at {full} of its size and holding {ram} of your memory or more, \
+             swap growing over {grow:.0} MB a minute, under {free} of memory free, \
+             the computer slowing down to cool off, or a disk with under {disk} free.",
+            cpu = percent_words(self.cpu_busy_pct),
+            span = span_words(self.cpu_sustained_ms),
+            full = share_words(self.swap_full_share),
+            ram = share_words(self.swap_full_ram_share),
+            grow = self.swap_tight_mb_per_min,
+            free = share_words(self.memory_tight_share),
+            disk = bytes_words(self.disk_tight_bytes),
+        )
+    }
+}
+
+/// A share as a whole percent ("90%").
+fn share_words(share: f64) -> String {
+    percent_words(share * 100.0)
+}
+
+/// A percent, whole ("90%").
+fn percent_words(percent: f64) -> String {
+    format!("{percent:.0}%")
+}
+
+/// A span in words: "a full minute", "2 minutes", "45 seconds".
+fn span_words(ms: i64) -> String {
+    match ms {
+        60_000 => "a full minute".to_string(),
+        ms if ms % 60_000 == 0 => format!("{} minutes", ms / 60_000),
+        ms => format!("{} seconds", ms / 1_000),
+    }
+}
+
 const GB: u64 = 1_000_000_000;
 const MB: f64 = 1_000_000.0;
 
@@ -988,6 +1045,56 @@ mod tests {
     use super::*;
 
     const G: u64 = 1_000_000_000;
+
+    /// D1: the words say the thresholds in force, and follow them when
+    /// they change; the short line says what room counts, no figures; at
+    /// the defaults, the words the design preview holds
+    /// (`ui/src/lib/fixtures/room-measures.json`).
+    #[test]
+    fn room_measures_follow_the_thresholds() {
+        #[derive(serde::Deserialize)]
+        struct Fixture {
+            counts: String,
+            measures: String,
+        }
+        let fixture: Fixture = serde_json::from_str(include_str!(
+            "../../../ui/src/lib/fixtures/room-measures.json"
+        ))
+        .expect("the fixture reads");
+        let defaults = RoomThresholds::default();
+        assert_eq!(defaults.counts(), fixture.counts);
+        assert_eq!(defaults.measures(), fixture.measures);
+        assert!(
+            !defaults.counts().chars().any(|c| c.is_ascii_digit()),
+            "the short line says no figures"
+        );
+        let changed = RoomThresholds {
+            cpu_busy_pct: 80.0,
+            cpu_sustained_ms: 120_000,
+            swap_full_share: 0.95,
+            swap_full_ram_share: 0.5,
+            swap_tight_mb_per_min: 250.0,
+            memory_tight_share: 0.15,
+            disk_tight_bytes: 50 * G,
+            ..defaults
+        };
+        let words = changed.measures();
+        for part in [
+            "the processor over 80% for 2 minutes",
+            "swap at 95% of its size and holding 50% of your memory",
+            "swap growing over 250 MB a minute",
+            "under 15% of memory free",
+            "a disk with under 50 GB free",
+        ] {
+            assert!(words.contains(part), "{part:?} in {words:?}");
+        }
+        assert!(!words.contains("90%"), "no default figure left: {words:?}");
+        let quick = RoomThresholds {
+            cpu_sustained_ms: 45_000,
+            ..defaults
+        };
+        assert!(quick.measures().contains("over 90% for 45 seconds"));
+    }
 
     fn sample(at_ms: i64, cpu: Option<f64>, available: u64, swap_used: u64) -> MachineSample {
         MachineSample {

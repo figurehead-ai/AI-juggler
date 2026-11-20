@@ -80,10 +80,6 @@ export function useBackendNeeds(): BackendNeeds {
   }, [list.items, list.loading, list.hasMore, summary?.count, archived, known]);
 }
 
-/** The busiest live session on an account (a hand-over starts there). */
-function liveOn(sessions: InstanceInfo[], accountId: string | null | undefined): InstanceInfo | undefined {
-  return sessions.find((s) => s.account_id === accountId && (s.status === "running" || s.status === "waiting_user" || s.status === "stuck"));
-}
 
 /** Home's rows for the backend's list: a session's need shows its rail
  * item (its place, its words); the rest say what the backend said. Caps,
@@ -119,8 +115,7 @@ export function homeNeedsOf(rows: NoticeInfo[], items: RailItem[], accounts: Acc
       detail: row.kind === "quota" ? quotaDetail(row, now) : row.detail,
       severe: kind === "mac" && macLevel === "pressure",
       account,
-      sessionId: row.kind === "quota" ? liveOn(sessions, row.target.account_id)?.id : (row.target.session_id ?? undefined),
-      conversation: row.kind === "quota" ? openElsewhere(items, row.target.account_id) : undefined,
+      ...(row.kind === "quota" ? continueOn(items, sessions, row.target.account_id) : { sessionId: row.target.session_id ?? undefined }),
       level,
     });
   }
@@ -131,10 +126,13 @@ export function homeNeedsOf(rows: NoticeInfo[], items: RailItem[], accounts: Acc
   return out.sort((a, b) => HOME_ORDER.indexOf(a.kind) - HOME_ORDER.indexOf(b.kind) || rank(a) - rank(b) || since(a) - since(b));
 }
 
-/** An account's newest session open in another app (the rail's items). */
-function openElsewhere(items: RailItem[], accountId: string | null): ConversationInfo | undefined {
-  const found = openOnAccount(accountId, [], items.flatMap((item) => (item.conversation ? [item.conversation] : [])));
-  return found && "conversation" in found ? found.conversation : undefined;
+/** SK-2: what an account's card continues, by the rule the bell and the
+ * rail use (`openOnAccount`): its newest open session that can switch,
+ * AI Juggler's or another app's (the rail's items); none, its account. */
+function continueOn(items: RailItem[], sessions: InstanceInfo[], accountId: string | null): { sessionId?: string; conversation?: ConversationInfo } {
+  const found = openOnAccount(accountId, sessions, items.flatMap((item) => (item.conversation ? [item.conversation] : [])));
+  if (!found) return {};
+  return "session" in found ? { sessionId: found.session.id } : { conversation: found.conversation };
 }
 
 function stateOf(rows: NeedSnoozeInfo[]): SnoozeState {

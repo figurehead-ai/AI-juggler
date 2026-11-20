@@ -24,6 +24,26 @@ fn a_signed_in_config_dir_reports_its_account_masked() {
     );
 }
 
+/// SK-16: a personal Claude organisation is named after its email; the
+/// label never shows that email in full beside its masked form.
+#[test]
+fn an_organisation_named_after_its_email_is_masked_too() {
+    let dir = tempfile::tempdir().unwrap();
+    std::fs::write(
+        dir.path().join(".claude.json"),
+        r#"{"oauthAccount":{"accountUuid":"acct-1","emailAddress":"sam@example.com","organizationName":"sam@example.com's Organization"}}"#,
+    )
+    .unwrap();
+    let label = match probe_claude_identity(dir.path()) {
+        IdentityProbe::SignedIn { label, .. } => Some(label),
+        _ => None,
+    };
+    assert_eq!(
+        label.as_deref(),
+        Some("s…@example.com · s…@example.com's Organization")
+    );
+}
+
 #[test]
 fn no_state_file_or_no_account_is_signed_out_and_garbage_is_unverifiable() {
     let dir = tempfile::tempdir().unwrap();

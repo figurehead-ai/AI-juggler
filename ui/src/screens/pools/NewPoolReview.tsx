@@ -222,7 +222,7 @@ export function NewPoolReview({
         <ol className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
           {[
             { title: "The pool is made", line: team ? `Its diagram opens with ${team}.` : "Its diagram opens, ready for its members." },
-            { title: lead ? "Start the lead" : "Open a session", line: `${upper(first!)}.` },
+            { title: lead ? "Start the lead" : shape.members.some((member) => member.ref === "all" || member.later) ? "Open a session" : "Add its sessions", line: `${upper(first!)}.` },
             { title: "Tell it the goal", line: `${upper(rest.join("; "))}.` },
           ].map((card, at) => (
             <li key={card.title} className="flex flex-col gap-1.5 rounded-xl bg-surface-2 p-3.5" data-testid="new-pool-review-next-step">

@@ -91,6 +91,12 @@ if [ -f "$lab/standins/env.sh" ]; then
   # shellcheck source=/dev/null
   . "$lab/standins/env.sh"
 fi
+# The lab's stand-ins for `claude` and `codex`, when its setup put them
+# there (`.aij-lab-bin`): what AI Juggler runs for them (its own test
+# overrides). Not `standins`, the --standins switch above.
+standin_bins=(env)
+[ -x "$lab/.aij-lab-bin/claude" ] && standin_bins+=("AI_JUGGLER_CLAUDE_BIN=$lab/.aij-lab-bin/claude")
+[ -x "$lab/.aij-lab-bin/codex" ] && standin_bins+=("AI_JUGGLER_CODEX_BIN=$lab/.aij-lab-bin/codex")
 
 case "$cmd" in
   setup)
@@ -108,6 +114,15 @@ case "$cmd" in
     # The lab is this user's alone (ADR-0027: the write mode refuses a lab
     # others can write in).
     chmod 700 "$lab"
+    # 0.4.7: the tools' stand-ins (lab_standin.sh) as `claude` and `codex`,
+    # unless the scenario runs the real ones (live-claude, live-codex): a
+    # session started in the lab runs a stand-in, never a real tool.
+    if ! python3 -I "$root/scripts/qa/scenario.py" list | grep -E "^$id " | grep -q 'live-'; then
+      mkdir -p "$lab/.aij-lab-bin"
+      for tool in claude codex; do cp "$root/scripts/qa/lab_standin.sh" "$lab/.aij-lab-bin/$tool"; chmod 755 "$lab/.aij-lab-bin/$tool"; done
+      # `standin = "asks"` (K3): a session started in the lab asks at once.
+      if echo "$seed_json" | grep -q '"standin": "asks"'; then touch "$lab/.aij-lab-bin/asks-at-start"; fi
+    fi
     # Every program the lab runs gets only the lab's environment
     # (lab_env.sh): never this shell's tool folders (CLAUDE_CONFIG_DIR…).
     if [ "$import" = 1 ]; then
@@ -187,9 +202,10 @@ json.dump(seed, open(path, "w"), indent=2)' "$lab/scenario-seed.json" "$hermes"
       codesign --force --deep --sign - "$app" >/dev/null 2>&1 || true
       codesign --verify --strict "$app" || { echo "lab-scenario: $app doesn't verify after an ad-hoc signature" >&2; exit 1; }
     fi
-    # Its own HOME: the data folder, the vendors' folders and the sign-ins are the lab's.
+    # Its own HOME: the data folder, the vendors' folders and the sign-ins are the lab's;
+    # its `claude` and `codex` are the lab's stand-ins when `setup` put them there.
     # Its log in the lab, so this command returns (and a pipe after it ends).
-    HOME="$lab" "$root/scripts/qa/lab_env.sh" "$app/Contents/MacOS/$(defaults read "$app/Contents/Info" CFBundleExecutable)" > "$lab/dev.log" 2>&1 &
+    HOME="$lab" "${standin_bins[@]}" "$root/scripts/qa/lab_env.sh" "$app/Contents/MacOS/$(defaults read "$app/Contents/Info" CFBundleExecutable)" > "$lab/dev.log" 2>&1 &
     pid=$!
     # AI Juggler Dev runs once per Mac: a second one hands over to the
     # running copy and quits. Still running after 8 s, it is the lab's.
@@ -199,12 +215,15 @@ json.dump(seed, open(path, "w"), indent=2)' "$lab/scenario-seed.json" "$hermes"
       exit 1
     fi
     echo "lab-scenario: AI Juggler Dev on $lab (pid $pid; drive it by this pid only; its log: $lab/dev.log)"
+    if [ -e "$lab/.aij-lab-bin/asks-at-start" ]; then
+      echo "lab-scenario: a session started here asks at once (its stand-in): start the one that asks you from New session"
+    fi
     ;;
   bridge)
     [ -d "$data" ] || { echo "lab-scenario: $lab isn't set up" >&2; exit 1; }
     # The Dev backend (a debug build is always Dev) on the lab's HOME, with
     # the read-only bridge; its page needs the UI on localhost:5173.
-    (cd "$root" && HOME="$lab" AIJ_DEV_BRIDGE=1 "$root/scripts/qa/lab_env.sh" cargo run -q --offline -p juggler-app ${AIJ_LAB_PROFILE:+--profile "$AIJ_LAB_PROFILE"} --features dev-bridge) &
+    (cd "$root" && HOME="$lab" AIJ_DEV_BRIDGE=1 "${standin_bins[@]}" "$root/scripts/qa/lab_env.sh" cargo run -q --offline -p juggler-app ${AIJ_LAB_PROFILE:+--profile "$AIJ_LAB_PROFILE"} --features dev-bridge) &
     echo "lab-scenario: the lab's backend is starting (pid $!); its page: HOME=$lab python3 scripts/dev_bridge_url.py"
     ;;
   lab-bridge)
@@ -216,7 +235,7 @@ json.dump(seed, open(path, "w"), indent=2)' "$lab/scenario-seed.json" "$hermes"
     # executable, so it is built for the same profile first (0.4.6: a walk
     # build without it read as "not in this build").
     (cd "$root" && "$root/scripts/qa/lab_env.sh" cargo build -q --offline -p juggler-agentbridge --bin juggler-agent ${AIJ_LAB_PROFILE:+--profile "$AIJ_LAB_PROFILE"}) || { echo "lab-scenario: juggler-agent didn't build" >&2; exit 1; }
-    (cd "$root" && HOME="$lab" AIJ_DEV_BRIDGE=1 AIJ_LAB_BRIDGE=1 "$root/scripts/qa/lab_env.sh" cargo run -q --offline -p juggler-app ${AIJ_LAB_PROFILE:+--profile "$AIJ_LAB_PROFILE"} --features lab-bridge) &
+    (cd "$root" && HOME="$lab" AIJ_DEV_BRIDGE=1 AIJ_LAB_BRIDGE=1 "${standin_bins[@]}" "$root/scripts/qa/lab_env.sh" cargo run -q --offline -p juggler-app ${AIJ_LAB_PROFILE:+--profile "$AIJ_LAB_PROFILE"} --features lab-bridge) &
     echo "lab-scenario: the lab's backend (LAB WRITE MODE) is starting (pid $!); its page: HOME=$lab python3 scripts/dev_bridge_url.py"
     ;;
   start-apps)

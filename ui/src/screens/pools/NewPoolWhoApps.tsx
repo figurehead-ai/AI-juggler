@@ -31,7 +31,7 @@ import { APP_KIND_WORDS } from "../../lib/pool-words";
 import { sessionState } from "../../lib/rail-items";
 import type { InstanceInfo } from "../../types/generated/InstanceInfo";
 import { ConnectorNotice } from "../../pages/pool/connector/ConnectorNotice";
-import { DesktopListNote, DesktopReachTag } from "../../pages/pool/connector/DesktopReach";
+import { DesktopReachTag } from "../../pages/pool/connector/DesktopReach";
 import { logoOf, MemberLogo } from "../../components/MemberLogo";
 
 /** App cards shown at first; Show all adds the rest (instant and paged). */
@@ -159,8 +159,6 @@ export function NewPoolWhoApps({
           Show all {order.length} apps
         </Button>
       )}
-      {/* Round 7 #9: how a desktop session takes part, once for the list. */}
-      <DesktopListNote notes={rows.map((row) => (row.blocked ? undefined : row.note))} testId="new-pool-desktop-note" />
     </section>
   );
 }

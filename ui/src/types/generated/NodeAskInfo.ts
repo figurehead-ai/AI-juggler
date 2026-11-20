@@ -26,6 +26,11 @@ title: string,
  */
 offer_always: boolean, 
 /**
+ * A held message's: whether "Allow and deliver" (D-139) can put it
+ * into a session now (else "Allow once", D-127). `None` for a task's.
+ */
+delivers_now?: boolean, 
+/**
  * Since when, epoch ms.
  */
 at_ms: number, };

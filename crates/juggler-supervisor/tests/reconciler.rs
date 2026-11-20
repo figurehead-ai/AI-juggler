@@ -243,6 +243,87 @@ fn helper_exiting_inside_grace_never_surfaces() {
     assert_eq!(helper.exit_kind.as_deref(), Some("unknown"));
 }
 
+/// SK-10: a left-behind row from an earlier run (its session has no spawn
+/// context in this one) whose process is gone is exited within two ticks;
+/// one whose process lives stays left behind.
+#[test]
+fn an_orphan_of_an_earlier_run_that_ended_is_exited_within_two_ticks() {
+    let _serial = serial();
+    let dir = tempfile::tempdir().unwrap();
+    let repo = ProcessLedgerRepo::open(&dir.path().join("reconciler-sk10.sqlite")).unwrap();
+    let store = Arc::new(CoreLedgerStore::new(repo));
+    let supervisor = Supervisor::new().with_ledger(store.clone());
+    supervisor.set_machine(MachineId::new("machine-reconciler"));
+    let boot = store.boot_id().to_string();
+
+    // One process that has ended, one that lives on.
+    let mut gone = std::process::Command::new("/usr/bin/true").spawn().unwrap();
+    let gone_pid = gone.id();
+    gone.wait().unwrap();
+    let mut alive = std::process::Command::new("/bin/sleep")
+        .arg("60")
+        .spawn()
+        .unwrap();
+    let alive_pid = alive.id();
+
+    let row = |pid: u32| juggler_core::storage::LedgerRow {
+        pid: Some(pid),
+        pgid: None,
+        started_at: None,
+        exe_path: "/bin/sleep".into(),
+        cmdline_hash: format!("h-{pid}"),
+        cmdline_trunc: "sleep 60".into(),
+        boot_id: boot.clone(),
+        session_id: "sess-earlier-run".into(),
+        instance_id: None,
+        provider: "claude-code".into(),
+        account_id: None,
+        project_id: None,
+        machine_id: "machine-reconciler".into(),
+        root_pid: None,
+        parent_pid: None,
+        depth: 1,
+        role: "helper".into(),
+        state: STATE_RUNNING.into(),
+        listens_on: None,
+        cwd: "/tmp".into(),
+        peak_rss: None,
+        peak_cpu: None,
+        exit_kind: None,
+        reaped_by_us: None,
+        escaped_group: false,
+        down_period: true,
+        first_seen: now_ms(),
+        last_seen: now_ms(),
+    };
+    let session = SessionId::new("sess-earlier-run");
+    store
+        .upsert_helpers(&session, &[row(gone_pid), row(alive_pid)])
+        .unwrap();
+    store.mark_orphaned_down(gone_pid, &boot).unwrap();
+    store.mark_orphaned_down(alive_pid, &boot).unwrap();
+    let state_of = |pid: u32| {
+        store
+            .session_rows(&session)
+            .unwrap()
+            .into_iter()
+            .find(|row| row.pid == Some(pid))
+            .map(|row| row.state)
+            .unwrap()
+    };
+    assert_eq!(state_of(gone_pid), STATE_ORPHANED);
+
+    let mut collector = LiveStatsCollector::new();
+    collector.tick(&supervisor, now_ms());
+    assert_eq!(state_of(gone_pid), STATE_ORPHANED, "one tick is not enough");
+    collector.tick(&supervisor, now_ms());
+    assert_eq!(state_of(gone_pid), "exited", "two agreeing ticks end it");
+    assert_eq!(state_of(alive_pid), STATE_ORPHANED, "a live one stays");
+
+    alive.kill().unwrap();
+    alive.wait().unwrap();
+}
+
 /// Evidence (c) + the quality gate: 50-instance soak — per-tick wall
 /// time and self CPU% logged; and the System-construction regression
 /// (a tick plus its queries adds ZERO constructions in steady state;

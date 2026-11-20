@@ -9,6 +9,7 @@ import type { JSX, ReactNode } from "react";
 import { Button } from "../../components/primitives";
 import { Alert } from "../../components/Alert";
 import { MachineAdviceLine } from "../../components/MachineAdvice";
+import { SuggestedMark } from "../../components/SwitchTargetRows";
 import { lowRoomWords, outOfRoomWords } from "../../lib/room";
 import { creditsConsequence } from "../../lib/credits";
 import { roomMarkOf } from "../../lib/room-mark";
@@ -100,6 +101,7 @@ export function Told({
 export function Notes({
   app,
   appName,
+  offerSuggested = false,
   data,
   now,
   onApp,
@@ -108,6 +110,9 @@ export function Notes({
 }: {
   app: AppChoice;
   appName: string;
+  /** SK-6: the App offered is the one New session suggests (the shown one
+   * can't run now). */
+  offerSuggested?: boolean;
   data: NewSessionData;
   now: number;
   onApp: (folderId: string) => void;
@@ -119,7 +124,10 @@ export function Notes({
   const verdict = app.kind === "room" || app.kind === "unknown" ? data.verdictOf(id) : undefined;
   const advice = data.adviceOf(app.recipe.id);
   const offer = app.roomier ? (
-    <OfferButton other={data.appNameOf(app.roomier)} left={data.roomOf(app.roomier.account_id).left} onUse={() => onApp(app.roomier!.account_id)} />
+    <>
+      <OfferButton other={data.appNameOf(app.roomier)} left={data.roomOf(app.roomier.account_id).left} onUse={() => onApp(app.roomier!.account_id)} />
+      {offerSuggested && <SuggestedMark className="ml-1.5 align-baseline" />}
+    </>
   ) : null;
   const lines: JSX.Element[] = [];
   if (app.kind === "out")

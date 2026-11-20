@@ -1325,8 +1325,13 @@ pub fn probe_claude_identity(state_dir: &Path) -> juggler_adapter::IdentityProbe
         || "signed in".to_owned(),
         juggler_adapter::identity::mask_email,
     );
+    // SK-16: a personal organisation is named after its email, so any
+    // email in its name is masked too.
     if let Some(org) = text("organizationName") {
-        label = format!("{label} · {org}");
+        label = format!(
+            "{label} · {}",
+            juggler_adapter::identity::mask_emails_in(&org)
+        );
     }
     IdentityProbe::SignedIn {
         subject,

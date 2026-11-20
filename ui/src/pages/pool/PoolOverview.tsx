@@ -38,12 +38,24 @@ import { PoolChecklist } from "./setup/PoolChecklist";
 import type { SetupPhase, SetupProgress } from "./setup-progress";
 import { SETUP } from "./setup-words";
 import { edgeKey, type MemberNode } from "./useCanvas";
+import type { HeldMember } from "./pool-count";
 
 type Step = (typeof SETUP_STEPS)[number];
 
 /** The setup's checklist, opening one of its steps, and where the team
  * tools are switched (its projects and CLI Apps). */
-export type InspectorSetup = { rows: readonly SetupRow[]; onOpen: (step: Step) => void; tools: { projects: readonly ToolsPlace[]; apps: readonly ToolsPlace[] } };
+export type InspectorSetup = {
+  rows: readonly SetupRow[];
+  onOpen: (step: Step) => void;
+  tools: { projects: readonly ToolsPlace[]; apps: readonly ToolsPlace[] };
+  /** Item 9: its sessions a sealed pool holds (Who's in names them). */
+  held?: readonly HeldMember[];
+};
+
+/** The members its sentences name: the drawn ones, then the ones a sealed
+ * pool holds, said so: "client (in Client, sealed)" (a value names a
+ * member by its name's head, so what's held goes with it). */
+const withHeld = (members: readonly MemberNode[], held: readonly HeldMember[] = []) => [...members, ...held.map((one) => ({ id: one.id, name: `${one.name.split(" · ")[0]} (in ${one.by}, sealed)`, role: "member" }))];
 
 type OverviewProps = {
   pool: PoolInfo;
@@ -65,7 +77,7 @@ type OverviewProps = {
 /** The pool's own settings: its summary in sentences, and the checklist
  * as one line while the setup isn't done. */
 export function PoolProgress({ pool, rules, members, ruleLabel, where, needs, setup, progress }: OverviewProps): JSX.Element {
-  const shape = shapeOfPool(pool, rules.rules, members, ruleLabel);
+  const shape = shapeOfPool(pool, rules.rules, withHeld(members, setup.held), ruleLabel);
   return (
     <>
       <PoolSummary shape={shape} where={where} needs={needs} tools={setup.tools} onOpen={setup.onOpen} />
@@ -77,7 +89,7 @@ export function PoolProgress({ pool, rules, members, ruleLabel, where, needs, se
 /** Setting up: the one checklist, and Live once it says something. */
 export function SetupView(props: OverviewProps): JSX.Element {
   const { pool, rules, members, ruleLabel, where, setup, progress } = props;
-  const shape = shapeOfPool(pool, rules.rules, members, ruleLabel);
+  const shape = shapeOfPool(pool, rules.rules, withHeld(members, setup.held), ruleLabel);
   return (
     <>
       <PoolChecklist

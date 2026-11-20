@@ -18,6 +18,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { MOCK_PROJECTS, MOCK_SESSIONS } from "../../preview/fixtures";
 import { scopeOf } from "../../lib/ipc/pools";
+import { resetPreviewTasks } from "../../lib/ipc/tasks";
 import { onPoolsChanged, refreshPools, defaultPoolIdOf, openPoolSheet, usePoolSheet } from "../../lib/pools";
 import { ConversationsProvider } from "../../lib/conversations";
 import { ActionHostProvider } from "../../components/ItemMenu";
@@ -235,6 +236,26 @@ describe("one count of what needs you", () => {
   });
 });
 
+describe("SK-14: the header's \"need you\" is a door", () => {
+  it("opens the pool's Tasks, where an agent's held change is answered", async () => {
+    seedTeam();
+    resetPreviewTasks();
+    seams().__AIJ_TASKS__ = {
+      needs: [{ id: "tneed-1", kind: "ask", pool_id: "pool-team", pool_name: "Team", task_id: null, task_title: null, title: "«B» wants to add «Docs»", detail: "", offer_always: false, project_id: null, at_ms: Date.now() }],
+    };
+    try {
+      const page = await openPage();
+      fireEvent.click(await page.findByTestId("pool-header-needs"));
+      const panel = await page.findByTestId("pool-panel-tasks-open");
+      const asks = await within(panel).findByTestId("pool-task-asks");
+      expect(within(asks).getByTestId("ask-card").textContent).toContain("wants to add «Docs»");
+    } finally {
+      delete seams().__AIJ_TASKS__;
+      resetPreviewTasks();
+    }
+  });
+});
+
 describe("a pool's page: its canvas", () => {
   it("a member's App opens its page from the node (design review #14)", async () => {
     seedTeam();
@@ -362,6 +383,38 @@ describe("a pool's page: its canvas", () => {
     fireEvent.click(view.getByTestId("pool-delete"));
     expect(view.getByRole("group", { name: "Delete this pool?" }).textContent).toContain("Its sessions go back to their projects' own pools");
     expect(seams().__AIJ_POOL_CALLS__).not.toContain("delete:pool-team");
+  });
+
+  it("SK-1: Delete is one obvious step: the header's ⋯, with Rename (a project's own pool has none)", async () => {
+    seedTeam();
+    const view = await openPage();
+    // At its title row's end, as a session page has it; never read as part
+    // of the agents' "On their own" choice (the visual review).
+    const door = view.getByTestId("pool-header-menu");
+    expect(door.title).toBe("Rename or delete");
+    expect(door.parentElement?.contains(view.getByTestId("page-name"))).toBe(true);
+    expect(door.className).toContain("ml-auto");
+    expect(door.parentElement?.contains(view.getByTestId("pool-header-level"))).toBe(false);
+    fireEvent.click(within(door).getByRole("button", { name: "Actions for Team" }));
+    const menu = view.getByRole("menu");
+    expect(within(menu).getAllByRole("menuitem").map((item) => item.textContent)).toEqual(["Rename…", "Delete…"]);
+    fireEvent.click(within(menu).getByRole("menuitem", { name: "Delete…" }));
+    expect(view.getByTestId("pool-delete-words").textContent).toContain("Its 2 sessions go back to their projects' own pools");
+    fireEvent.click(view.getByTestId("pool-delete-confirm"));
+    await waitFor(() => expect(seams().__AIJ_POOL_CALLS__).toContain("delete:pool-team"));
+    await waitFor(() => expect(view.getByRole("status").textContent ?? "").toContain("Deleted Team"));
+    cleanup();
+    const project = await openPage(defaultPoolIdOf(third.project_id));
+    expect(within(project.getByTestId("pool-header")).queryByTestId("header-menu")).toBeNull();
+  });
+
+  it("SK-1: the side panel is stretched to the page, never a percentage of it, and the List fills its cell (so each scrolls by wheel)", async () => {
+    seedTeam();
+    const view = await openPage();
+    expect(view.getByTestId("pool-inspector").className).not.toMatch(/\bh-full\b/);
+    expect(view.getByTestId("pool-inspector").className).toContain("self-stretch");
+    fireEvent.click(within(view.getByTestId("pool-mode")).getByRole("radio", { name: "List" }));
+    expect((await view.findByTestId("pool-list")).className).toContain("absolute inset-0 overflow-y-auto");
   });
 
   it("deleting a pool updates the pools everywhere, so it leaves the list (the P11 walk)", async () => {

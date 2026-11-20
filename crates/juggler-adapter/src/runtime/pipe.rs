@@ -139,6 +139,7 @@ mod tests {
             category: ErrorCategory::Other,
             message: "no".into(),
             will_retry: false,
+            turn_end: None,
         };
         pipe.take(vec![error], &[serde_json::json!({"ok": true})])
             .expect("take");

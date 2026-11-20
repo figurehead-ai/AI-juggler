@@ -271,6 +271,7 @@ mod tests {
                         category: ErrorCategory::Other,
                         message: "refused".into(),
                         will_retry: false,
+                        turn_end: None,
                     };
                     return (vec![error], Vec::new());
                 }

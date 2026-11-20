@@ -5,7 +5,7 @@
  * the rest is fetched in idle time ([`prefetchLazy`]), so opening a
  * screen doesn't wait.
  */
-import { lazy, Suspense, useEffect, useState, type ComponentProps, type ComponentType, type JSX } from "react";
+import { lazy, Suspense, useEffect, useState, type ComponentProps, type ComponentType, type JSX, type ReactNode } from "react";
 
 const loaders: { load: () => Promise<unknown>; first: boolean }[] = [];
 
@@ -33,12 +33,12 @@ function counted<M>(loader: () => Promise<M>): () => Promise<M> {
  * selection-line: the pool line's conversation empty in some renders).
  * Its count ends in the same flush as the revealed part's first effects,
  * so a part that then reads its data (`loadingPart`) leaves no gap. */
-function Pending(): null {
+function Pending({ children }: { children?: ReactNode }): JSX.Element | null {
   useEffect(() => {
     add(1);
     return () => add(-1);
   }, []);
-  return null;
+  return children === undefined ? null : <>{children}</>;
 }
 
 /** A part's first data, counted like its code: while it loads, the part
@@ -55,8 +55,9 @@ export function loadingPart<T>(work: Promise<T>): Promise<T> {
  * often right after start). Once its code is here (that prefetch, or an
  * earlier use) it renders at once: a first open never goes through
  * Suspense, whose reveal React holds for 300 ms (a blank main area on
- * the first open of Projects, Usage, History or Tasks). */
-export function lazyNamed<M, K extends keyof M>(loader: () => Promise<M>, name: K, first = false): M[K] {
+ * the first open of Projects, Usage, History or Tasks). `placeholder` is
+ * drawn while its code loads (SK-8: a skeleton, never an empty box). */
+export function lazyNamed<M, K extends keyof M>(loader: () => Promise<M>, name: K, first = false, placeholder?: () => ReactNode): M[K] {
   type C = ComponentType<Record<string, unknown>>;
   let ready: C | null = null;
   const counting = counted(loader);
@@ -76,7 +77,7 @@ export function lazyNamed<M, K extends keyof M>(loader: () => Promise<M>, name: 
       return <Ready {...props} />;
     }
     return (
-      <Suspense fallback={<Pending />}>
+      <Suspense fallback={<Pending>{placeholder?.()}</Pending>}>
         <Lazy {...props} />
       </Suspense>
     );

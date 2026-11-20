@@ -269,6 +269,7 @@ fn a_driven_session_is_marked_by_its_runtime_and_cleared_by_its_next_turn() {
         category,
         message: "words".into(),
         will_retry,
+        turn_end: None,
     };
     assert!(!limits::driven(
         &state,

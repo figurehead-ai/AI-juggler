@@ -6,6 +6,10 @@
  *   1–9, Enter for the first;
  * - an agent's request for a new session for a task (D-31): you pick the
  *   launch settings and start it here, one click once picked, or leave it.
+ *
+ * SK-14: the approval card is one component, `TaskAsk`, drawn wherever a
+ * held change is named: here, on its task's page, and in its pool's Tasks
+ * (the rail's and the bell's rows open the task, which offered no answer).
  */
 import { useState, type JSX } from "react";
 import { Button } from "./primitives";
@@ -13,7 +17,7 @@ import { IconCheck } from "./icons-controls";
 import { AskCard } from "./AskCard";
 import { useActionHost } from "./ItemMenu";
 import { rememberTab } from "../pages/registry";
-import { focusTask, tasksAnswer, tasksDismiss, type TaskNeedInfo } from "../lib/ipc/tasks";
+import { focusTask, tasksAnswer, tasksDismiss, useTaskNeeds, type TaskNeedInfo } from "../lib/ipc/tasks";
 import type { AskInfo } from "../lib/ipc/runtime";
 import type { ProjectInfo } from "../types/generated/ProjectInfo";
 import { StartSession } from "../pages/tasks/StartSession";
@@ -36,6 +40,19 @@ function asAsk(need: TaskNeedInfo): AskInfo {
     parts: [],
     asked_at_ms: need.at_ms,
   };
+}
+
+/** An agent's held change about a task, as the same approval card as every
+ * agent's ask: Allow once, Always allow in this pool (from the second
+ * time), Deny. */
+export function TaskAsk({ need }: { need: TaskNeedInfo }): JSX.Element {
+  return <AskCard ask={asAsk(need)} kindLabel="An agent asks about a task" title={need.pool_name} answer={(option) => tasksAnswer(need.id, option as "once" | "always" | "deny")} />;
+}
+
+/** The held changes that wait on you, kept current: a pool's, or the ones
+ * naming one task. */
+export function useTaskAsks(where: { poolId?: string; taskId?: string }): TaskNeedInfo[] {
+  return useTaskNeeds().filter((need) => need.kind === "ask" && (where.poolId === undefined || need.pool_id === where.poolId) && (where.taskId === undefined || need.task_id === where.taskId));
 }
 
 /** Opens a task need's task, beside its pool's tasks. */
@@ -145,7 +162,7 @@ export function TaskNeeds({ needs, projects }: { needs: TaskNeedInfo[]; projects
   return (
     <div className="flex flex-col gap-2" data-testid="task-needs">
       {asks.map((need) => (
-        <AskCard key={need.id} ask={asAsk(need)} kindLabel="An agent asks about a task" title={need.pool_name} answer={(option) => tasksAnswer(need.id, option as "once" | "always" | "deny")} />
+        <TaskAsk key={need.id} need={need} />
       ))}
       {rest.length > 0 && <ul className="flex flex-col gap-2">{rest.map((need) => <TaskNeedCard key={need.id} need={need} projects={projects} />)}</ul>}
     </div>

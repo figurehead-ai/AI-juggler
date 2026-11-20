@@ -305,7 +305,9 @@ pub fn overnight_summary_impl(
         .map(|project| (project.id.to_string(), project.name))
         .collect();
     let mut out = Vec::new();
-    for row in rows {
+    // AJ-E2311 item 1: one row for a conversation that went on in a later
+    // session of its account (Open in terminal): that session's.
+    for row in rows.into_iter().filter(|row| row.went_on_in.is_none()) {
         let (group, words, rank) = group_of_row(&row);
         let at_ms = entered_ms(&row, rank);
         if !in_window(rank, changed.contains(&row.id), at_ms, since) {

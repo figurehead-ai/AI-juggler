@@ -9,6 +9,7 @@ import type { ActionHost } from "./action-host";
 import type { ActionSpec } from "./action-types";
 import { continueWhy, resumeRefusalWords } from "./resume-refusal";
 import { processRunning } from "./session-process";
+import { cantSwitchYet } from "./switch-not-yet";
 
 /** A session whose process still runs (one that ended at its limit has
  * nothing to stop: the terminal's own rule, lib/session-process). */
@@ -67,7 +68,7 @@ export const SESSION: ActionSpec<"session">[] = [
     rank: 10,
     shortcut: "handover",
     applies: (_, h) => has(h.continueSession),
-    blocked: (row) => (row.conversation_id ? null : "It has no conversation to carry over yet"),
+    blocked: cantSwitchYet,
     run: (row, h) => h.continueSession!(row),
   },
   { id: "rename", label: "Rename…", icon: "rename", group: "work", rank: 30, applies: (_, h) => has(h.renameSession), run: (row, h) => h.renameSession!(row) },

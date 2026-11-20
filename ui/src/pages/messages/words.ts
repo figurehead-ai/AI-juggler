@@ -41,12 +41,38 @@ export const THREAD_WORDS: Record<string, string> = {
 /** A thread's count against its cap (F-rc3g-10: its pool's hop limit when
  * the pool puts messages into sessions, never more than 6), as Needs you
  * says it: "2 of 2 agent messages in a row without you" is the last one
- * before you're asked; the one past it says it's over. Only when it is
+ * before you're asked; past it, one more waits for you. Only when it is
  * getting close. */
 export function hopWords(hop: number, cap: number): string | null {
   if (hop < 2 && hop < cap) return null;
-  if (hop > cap) return `${hop} agent messages in a row without you, over this pool's limit of ${cap}`;
+  // AJ-E3014 item 3: past the limit, counted as the limit ("N of 2"), as
+  // Needs you and the agents say it.
+  if (hop > cap) return `${cap} of ${cap} agent messages in a row without you; one more waits for you`;
   return `${hop} of ${cap} agent messages in a row without you`;
+}
+
+/** An answer to a held message (`deliver`: approved and put into its
+ * recipients' sessions at once; `once`: approved for their next turn). */
+export type HeldAnswer = "deliver" | "once" | "always" | "deny";
+
+/** D-139: a held message's answers, one list for every surface that
+ * offers them (Needs you, its thread, the pool's diagram). One press
+ * approves and delivers it, "Allow and deliver"; "Allow, deliver later"
+ * leaves it in the recipient's inbox for its next turn. Where it can't go
+ * into a session now (D-127: a terminal AI Juggler can't type into, or
+ * another app's session), "Allow once" stands for both. "Always allow"
+ * from the second time; "Deny". */
+export function heldChoices(
+  need: { delivers_now?: boolean | null; offer_always: boolean },
+  always = "Always allow in this pool",
+): { id: HeldAnswer; label: string }[] {
+  const allow: { id: HeldAnswer; label: string }[] = need.delivers_now
+    ? [
+        { id: "deliver", label: "Allow and deliver" },
+        { id: "once", label: "Allow, deliver later" },
+      ]
+    : [{ id: "once", label: "Allow once" }];
+  return [...allow, ...(need.offer_always ? [{ id: "always" as const, label: always }] : []), { id: "deny", label: "Deny" }];
 }
 
 /** A message's time: today's as a clock, older ones with the day. */

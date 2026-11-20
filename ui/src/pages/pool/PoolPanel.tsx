@@ -10,10 +10,13 @@ import type { JSX } from "react";
 import type { InstanceInfo } from "../../types/generated/InstanceInfo";
 import type { ProjectInfo } from "../../types/generated/ProjectInfo";
 import { lazyNamed } from "../../lib/lazy";
+import { ListSkeleton } from "../../components/ListSkeleton";
 import type { Panel } from "./PoolHeader";
 
-const PoolMessages = lazyNamed(() => import("../messages/PoolMessages"), "PoolMessages");
-const PoolTasks = lazyNamed(() => import("../tasks/PoolTasks"), "PoolTasks");
+// SK-8: a skeleton while their code loads (Tasks opened on an empty body
+// for ~7 s on a busy Mac), as their lists show while read.
+const PoolMessages = lazyNamed(() => import("../messages/PoolMessages"), "PoolMessages", false, () => <ListSkeleton label="Loading the messages" rows={4} />);
+const PoolTasks = lazyNamed(() => import("../tasks/PoolTasks"), "PoolTasks", false, () => <ListSkeleton label="Loading the tasks" rows={4} />);
 
 export function PoolPanel({
   panel,

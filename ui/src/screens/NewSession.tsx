@@ -19,7 +19,8 @@ import { useFolderDrop } from "../lib/use-folder-drop";
 import { PackPicker, usePack } from "../components/OpenPack";
 import { RemoteSessionSheet, useWhere } from "../components/RemoteLaunch";
 import { useRuntimePick } from "../components/RuntimePick";
-import { appsByRoom, chooseApp, chooseFolder, nextFolder, type AppWhy, type FolderChoice } from "../lib/new-session-choice";
+import { appsByRoom, chooseApp, type AppWhy } from "../lib/new-session-choice";
+import { chooseFolder, nextFolder, recentFolders, steadyRecent, type FolderChoice } from "../lib/new-session-folder";
 import { standingOffer, standOffer, withdrawOffer, type StartedBefore } from "../lib/new-session-sheet";
 import { showToast } from "../components/Toast";
 import { useNewSessionData } from "./new-session/useNewSessionData";
@@ -142,7 +143,14 @@ export function NewSessionModal({
     };
   }, []);
 
-  const asked = useMemo(() => chooseFolder(projects, directory), [projects, directory]);
+  // AJ-E2311 item 2: Recent (and the folder it opens on) by the starts
+  // made here first; held in the order it first showed while the sheet is
+  // open, so the tools' histories moving behind it never reshuffle it.
+  const recentNow = useMemo(() => recentFolders(projects, sessions), [projects, sessions]);
+  const [heldRecent, holdRecent] = useState<string[] | null>(null);
+  const recent = useMemo(() => steadyRecent(heldRecent, recentNow, projects), [heldRecent, recentNow, projects]);
+  if (recent.join("|") !== (heldRecent ?? []).join("|")) holdRecent(recent);
+  const asked = useMemo(() => chooseFolder(projects, directory, recent), [projects, directory, recent]);
   const data = useNewSessionData({ folders: accounts, sessions, kept, project: asked?.project ?? null });
   const recipes = useMemo(() => data.recipes ?? [], [data.recipes]);
   const ranked = useMemo(() => appsByRoom({ recipes, folders: accounts, roomOf: data.roomOf }), [recipes, accounts, data]);
@@ -218,7 +226,7 @@ export function NewSessionModal({
   const offerAnother = (cwd: string, sessionId: string | null) => {
     if (!onStartAnother || !folder) return;
     const roots = [...(after?.roots ?? []), cwd];
-    const next = nextFolder(projects, roots);
+    const next = nextFolder(projects, roots, sessions);
     if (!next) return;
     const name = folderName(next);
     const carry = chosenApp ?? (app?.why === "kept" ? app.recipe.account_id : null);
@@ -293,7 +301,10 @@ export function NewSessionModal({
       aria-modal="true"
       aria-label="New session"
       data-testid="new-session-sheet"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6 backdrop-blur-sm"
+      // AJ-E2311 item 2: held at the top, not centred, so a line that
+      // comes in a read later grows it downward and never moves the
+      // choice under the pointer.
+      className="fixed inset-0 z-50 flex items-start justify-center bg-black/60 p-6 pt-[8vh] backdrop-blur-sm"
     >
       <Card className="flex max-h-[86vh] w-full max-w-xl flex-col overflow-hidden p-0">
         <div className="flex items-center gap-3 border-b border-hairline/60 px-6 py-4">
@@ -319,6 +330,7 @@ export function NewSessionModal({
             data={data}
             ranked={ranked}
             projects={projects}
+            recent={recent}
             handover={pack.opened !== null}
             now={now}
             suggestion={suggestion}

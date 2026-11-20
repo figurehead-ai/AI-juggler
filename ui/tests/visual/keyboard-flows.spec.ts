@@ -177,6 +177,9 @@ test("page tab walk — arrow keys move across the session page's tabs", async (
 test("rail — Skip to page first; the list is one stop, ↓ moves in it; a page opened puts the keyboard on it", async ({ page }) => {
   await open(page);
   const stops: Stop[] = [];
+  // Under load the first Tab could land before the shell had drawn its skip
+  // link (the 0.4.7 gate's one failure, never alone): wait for it first.
+  await expect(page.getByRole("button", { name: "Skip to page" })).toBeAttached();
   await page.locator("body").focus();
   // deep/11 §9: the skip link is the first stop and goes to the page.
   await page.keyboard.press("Tab");

@@ -281,7 +281,10 @@ export const Inspector = forwardRef<HTMLHeadingElement, {
   // title stays for screen readers and focus).
   const quietHead = selection.kind === "none" && phase === "setup";
   return (
-    <aside id="pool-inspector" aria-labelledby="pool-inspector-title" style={{ width }} className="relative flex h-full min-h-0 shrink-0 flex-col bg-surface-2/40 shadow-[inset_1px_0_0_var(--color-divider)]" data-testid="pool-inspector" data-selected={of.kind}>
+    // SK-1: stretched to the page's row, never a percentage of it: a
+    // height WebKit can read as "its content" under the slot's
+    // `display: contents`, and then its body never scrolls (the List view).
+    <aside id="pool-inspector" aria-labelledby="pool-inspector-title" style={{ width }} className="relative flex min-h-0 shrink-0 flex-col self-stretch bg-surface-2/40 shadow-[inset_1px_0_0_var(--color-divider)]" data-testid="pool-inspector" data-selected={of.kind}>
       {/* Round 5 (under D-55): wider, and resizable; its width is kept. */}
       <Splitter edge={INSPECTOR_EDGE} width={width} onWidth={setWidth} controls="pool-inspector" />
       <HeadOfInspector head={head} member={member} kind={selection.kind} quiet={quietHead} linked={linked} heading={heading} onBack={() => onSelect({ kind: "none" })} />

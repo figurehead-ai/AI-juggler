@@ -66,7 +66,10 @@ export function PlannedTeam({
   onSelect,
   onStartLead,
   talk = [],
+  joined = 0,
 }: {
+  /** Its sessions in it already, none open (SK-3): not "No one has joined". */
+  joined?: number;
   poolId: string;
   /** Its broad members (an App, Account, Tool, Mac, everyone). */
   rules: readonly PoolRuleInfo[];
@@ -206,7 +209,7 @@ export function PlannedTeam({
         ))}
       </div>
       <div ref={caption} className={"pointer-events-none absolute inset-x-0 flex flex-col items-center gap-2 px-6 text-center" + (captionFits ? "" : " invisible")} style={{ top: captionTop }} aria-hidden={captionFits ? undefined : true} data-testid="planned-team-next" data-fits={captionFits || undefined}>
-        <p className="type-section">{PLANNED.title}</p>
+        <p className="type-section">{joined > 0 ? PLANNED.titleNoneOpen : PLANNED.title}</p>
         <p className="max-w-[26rem] text-meta text-ink-2">{PLANNED.line(where)}</p>
       </div>
     </>

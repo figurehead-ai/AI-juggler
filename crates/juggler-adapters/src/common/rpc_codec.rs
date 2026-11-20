@@ -57,6 +57,8 @@ pub(crate) fn error(category: ErrorCategory, message: &str) -> RuntimeEvent {
         category,
         message: bounded(message),
         will_retry: false,
+        // The tool's own words, not a bare code (AJ-E2025).
+        turn_end: None,
     }
 }
 

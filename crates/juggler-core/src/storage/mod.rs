@@ -100,7 +100,7 @@ pub use sightings::{
     MarkKind, ProcessMark, SIGHTING_COLUMNS, SIGHTING_DAYS, SIGHTING_KEEP_MS, Sighting,
     SightingsRepo,
 };
-pub use switch_graph::{SwitchGraphRepo, WorkGraph};
+pub use switch_graph::{Arrival, SwitchGraphRepo, WorkGraph};
 pub use tasks::{
     Claim, External, NewTask, TASK_USER, Task, TaskChange, TaskEvent, TaskKey, TaskLink, TaskNeed,
     TaskQuery, TaskSession, TasksRepo,
