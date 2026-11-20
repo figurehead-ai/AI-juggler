@@ -398,8 +398,9 @@ it has any.
 - **Pause** and **Stop** on a thread hold it, or end it for agents;
   **Resume** opens it again from 0. On a chain paused at the hop limit,
   **Resume** doesn't send the message it paused on: that message waits for
-  its **Deliver**, as any other does. **Pause this pool's messages** holds the
-  whole pool.
+  its **Deliver**, as any other does; **Pause** or **Stop** takes its
+  question off Needs you, and nothing is delivered in that thread until you
+  resume it. **Pause this pool's messages** holds the whole pool.
 
 ### What waits on you
 

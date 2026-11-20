@@ -974,6 +974,50 @@ fn resume_at_the_hop_limit_lets_its_message_wait_as_usual() {
     );
 }
 
+/// AJ-E3014 item 8 (rc3h): Pause or Stop on a thread whose chain waits at
+/// the hop limit left its ask on Home, and its Deliver opened the thread
+/// again. The ask goes when the person holds the thread, and no Deliver
+/// opens a thread they paused or stopped.
+#[test]
+fn pause_or_stop_at_the_hop_limit_takes_the_ask_off_home_and_deliver_never_reopens() {
+    for word in ["paused", "stopped"] {
+        let lab = Lab::new();
+        let chain = PausedChain::at_two(&lab);
+        views::set_thread(&lab.state, &chain.thread, word).unwrap();
+
+        let waiting = needs::needs(&lab.state).unwrap();
+        assert!(
+            waiting.iter().all(|n| n.kind != "deliver"),
+            "{word}: no chain asks about it: {waiting:?}"
+        );
+        // A card left open in a window: its Deliver says why not, and the
+        // thread stays as the person left it.
+        assert!(needs::answer(&lab.state, &chain.ask, "once").is_err());
+        let page = views::thread(&lab.state, &chain.thread, None).unwrap();
+        let copy = page
+            .messages
+            .iter()
+            .find(|m| m.id == chain.third)
+            .unwrap()
+            .recipients[0]
+            .id
+            .clone();
+        let refused = views::deliver(&lab.state, &chain.third, &copy);
+        let why = format!("{:?}", refused.err());
+        assert!(why.contains(&format!("thread is {word}")), "{word}: {why}");
+        let thread = views::thread(&lab.state, &chain.thread, None)
+            .unwrap()
+            .thread;
+        assert_eq!(thread.state, word, "the person's hold stands");
+        std::thread::sleep(Duration::from_millis(300));
+        assert_eq!(
+            state_for(&lab, &chain.third),
+            ["unread"],
+            "{word}: not delivered"
+        );
+    }
+}
+
 /// A chain in a pool at Full with a hop limit of 2: Planner → Builder
 /// (delivered), Builder → Planner, then Planner's third, paused and asked.
 struct PausedChain {

@@ -159,6 +159,15 @@ pub fn needs(state: &Arc<AppState>) -> AppResult<Vec<MessageNeedInfo>> {
             continue;
         };
         let deliver = ask.action == AgentAction::DeliverToSession.as_str();
+        // AJ-E3014 item 8: no chain's ask about a thread the person paused
+        // or stopped since.
+        if deliver
+            && repo
+                .thread(&message.thread_id)?
+                .is_some_and(|thread| super::delivery::held_by_person(&thread))
+        {
+            continue;
+        }
         let talk = ask.action == super::talk::TALK_ASK;
         let watched = ask.action == super::talk::WATCHED_ASK;
         let offer_always = !deliver
@@ -402,6 +411,22 @@ pub fn answer(state: &Arc<AppState>, ask_id: &str, answer: &str) -> AppResult<()
         (ask, message)
     };
     let deliver = ask.action == AgentAction::DeliverToSession.as_str();
+    // AJ-E3014 item 8: Deliver never opens a thread the person paused or
+    // stopped since the chain asked.
+    if deliver
+        && let Some(thread) = lock_storage_arc(state)?
+            .messages()
+            .thread(&message.thread_id)?
+            .filter(super::delivery::held_by_person)
+    {
+        let storage = lock_storage_arc(state)?;
+        storage.messages().close_ask(&ask.id, "held")?;
+        drop(storage);
+        state.messages.notify(&message.pool_id);
+        return Err(AppError::Refused(
+            super::views::held_words(thread.state).to_owned(),
+        ));
+    }
     if deliver && answer == "always" {
         return Err(AppError::Refused(
             "A hop limit is never lifted by a rule: Deliver once, or change the pool's hop limit"

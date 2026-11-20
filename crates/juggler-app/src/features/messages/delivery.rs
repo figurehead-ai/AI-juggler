@@ -138,6 +138,16 @@ pub(crate) fn may_deliver_now(storage: &Storage, message: &Message) -> bool {
     !paused && thread_open && !stopped
 }
 
+/// Why a thread paused at its pool's hop limit, as the thread says it.
+pub(crate) const PAUSED_AT_HOP_LIMIT: &str = "it reached this pool's hop limit";
+
+/// Whether `thread` is held: paused or stopped by the person (or at a
+/// thread's own cap), not by the pool's hop limit (a chain paused there is
+/// its ask's to answer).
+pub(crate) fn held_by_person(thread: &juggler_core::storage::Thread) -> bool {
+    thread.state != ThreadState::Open && thread.state_reason.as_deref() != Some(PAUSED_AT_HOP_LIMIT)
+}
+
 /// How a message reaches a session when its chain is paused at the pool's
 /// hop limit (the sender's answer names the limit beside it).
 pub(crate) const AT_HOP_LIMIT: &str = "when the user says (the chain reached the hop limit)";
@@ -186,7 +196,7 @@ pub(crate) fn decide(
                 let _ = repo.set_thread_state(
                     &message.thread_id,
                     ThreadState::Paused,
-                    Some("it reached this pool's hop limit"),
+                    Some(PAUSED_AT_HOP_LIMIT),
                     "system",
                 );
                 let _ = repo.hold(&HeldAsk {

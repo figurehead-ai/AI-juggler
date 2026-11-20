@@ -374,6 +374,13 @@ pub(crate) fn queue_for_person(
     recipient: &str,
 ) -> AppResult<Option<SessionId>> {
     let repo = storage.messages();
+    // AJ-E3014 item 8: a Deliver never opens a thread the person paused or
+    // stopped (one paused at the hop limit is its ask's to answer).
+    if let Some(thread) = repo.thread(&message.thread_id)?
+        && super::delivery::held_by_person(&thread)
+    {
+        return Err(AppError::Refused(held_words(thread.state).to_owned()));
+    }
     let session = super::live_session_of(storage, recipient);
     if let Some(session) = &session
         && !super::reachable(state, storage, session)
@@ -403,6 +410,15 @@ pub(crate) fn queue_for_person(
         }
     }
     Ok(session)
+}
+
+/// Why a Deliver doesn't go in a thread the person held.
+pub(crate) fn held_words(state: ThreadState) -> &'static str {
+    if state == ThreadState::Stopped {
+        "That thread is stopped: resume it first, then deliver"
+    } else {
+        "That thread is paused: resume it first, then deliver"
+    }
 }
 
 /// The user's Deliver for every message waiting for a session run in AI
@@ -482,19 +498,26 @@ pub fn set_thread(state: &Arc<AppState>, thread_id: &str, word: &str) -> AppResu
         repo.set_thread_state(thread_id, next, reason, SENDER_USER)?;
         if next == ThreadState::Open {
             repo.reset_hop(thread_id)?;
-            // A chain paused at the hop limit, resumed: its ask to deliver
-            // goes without delivering, and the message waits as any other
-            // does, for its Deliver or the session's own read (the rc3h
-            // walk: Home still said "A chain of replies paused for you"
-            // beside an open thread).
-            let deliver = juggler_core::agent_access::AgentAction::DeliverToSession.as_str();
-            for ask in repo.open_asks(0, 200)? {
-                let in_thread = repo
-                    .message(&ask.object_ref)?
-                    .is_some_and(|message| message.thread_id == thread_id);
-                if ask.action == deliver && in_thread {
-                    repo.close_ask(&ask.id, "resumed")?;
-                }
+        }
+        // A chain paused at the hop limit, resumed: its ask to deliver goes
+        // without delivering, and the message waits as any other does, for
+        // its Deliver or the session's own read (the rc3h walk: Home still
+        // said "A chain of replies paused for you" beside an open thread).
+        // Paused or stopped by the person (AJ-E3014 item 8): the ask goes
+        // too, so Home doesn't ask about a thread they held, and no Deliver
+        // there opens it again.
+        let word = match next {
+            ThreadState::Open => "resumed",
+            ThreadState::Paused => "paused",
+            ThreadState::Stopped => "stopped",
+        };
+        let deliver = juggler_core::agent_access::AgentAction::DeliverToSession.as_str();
+        for ask in repo.open_asks(0, 200)? {
+            let in_thread = repo
+                .message(&ask.object_ref)?
+                .is_some_and(|message| message.thread_id == thread_id);
+            if ask.action == deliver && in_thread {
+                repo.close_ask(&ask.id, word)?;
             }
         }
         repo.thread(thread_id)?
