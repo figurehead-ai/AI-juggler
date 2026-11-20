@@ -33,6 +33,39 @@ export function endedWords(how: string | null | undefined, detail: string | null
   return detail ? `${endedWord(how)} · ${detail}` : endedWord(how);
 }
 
+/** SK-5: what a few exit codes mean, as shells use them. */
+const EXIT_MEANING: Record<number, string> = {
+  126: "its command couldn't run",
+  127: "its command wasn't found",
+  130: "it was interrupted",
+};
+
+/** SK-5: what a few signals did, in plain words. */
+const SIGNAL_DID: Record<number, string> = {
+  1: "hung up (its terminal closed)",
+  2: "interrupted",
+  6: "aborted",
+  9: "killed",
+  11: "crashed (a memory fault)",
+  15: "asked to quit",
+};
+
+/** SK-5 (the 0.4.6 soak, K3): why an ended run stopped, in plain words,
+ * from its ending's detail (`exit code 1`, `signal 9`): "Claude Code
+ * exited with code 1", "Claude Code was killed (signal 9)"; `null` when
+ * nothing said why. */
+export function endedCause(detail: string | null | undefined, tool: string): string | null {
+  if (!detail) return null;
+  const exit = /^exit code (-?\d+)$/.exec(detail);
+  if (exit) {
+    const meaning = EXIT_MEANING[Number(exit[1])];
+    return `${tool} exited with code ${exit[1]}${meaning ? ` (${meaning})` : ""}`;
+  }
+  const signal = /^signal (\d+)$/.exec(detail);
+  if (signal) return `${tool} was ${SIGNAL_DID[Number(signal[1])] ?? "stopped"} (signal ${signal[1]})`;
+  return `${tool} ended: ${detail}`;
+}
+
 /** D-96 C: the groups an ended run lands in, as the headline counts them
  * ("60 ended: 57 finished, 2 errors, 1 crashed"). */
 const ENDED_PARTS: Array<{ id: string; one: string; many: string }> = [
