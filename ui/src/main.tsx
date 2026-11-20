@@ -13,6 +13,7 @@ import { lazyNamed } from "./lib/lazy";
 import { guardContextMenu } from "./lib/context-menu";
 import { guardCaretMark } from "./lib/caret-leaves";
 import { guardModalFocus } from "./lib/modal-focus";
+import { trackInputModality } from "./lib/input-modality";
 import { fetchAppInfo } from "./lib/ipc/app-lifecycle";
 import { loadPreview } from "./lib/preview-hooks";
 
@@ -27,6 +28,8 @@ guardContextMenu(() => devBuild);
 guardCaretMark();
 // rc26 K1: a dialog takes focus from a field behind it (and so the ⊖).
 guardModalFocus();
+// AJ-E3603: a script's focus target shows its ring only after a key.
+trackInputModality();
 
 // QA: a Dev window opened at ?open=<conversation id> opens that session.
 if (import.meta.env.DEV) {

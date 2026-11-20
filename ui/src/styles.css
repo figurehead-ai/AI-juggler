@@ -266,9 +266,11 @@ body {
    layered utility whenever the browser counted a scripted focus as
    visible, and an accent line ran down the main pane's left edge after
    a navigation. The focus still moves there (a screen reader hears the
-   page); only the ring goes. A target that wants its ring (Settings'
-   pane titles, where a link lands) leaves `outline-none` off. */
-[tabindex="-1"].outline-none:focus-visible {
+   page); its ring shows only when a key brought it there (Skip to page,
+   ↩ on a row: lib/input-modality, WCAG 2.4.7). A target that always
+   wants its ring (Settings' pane titles, where a link lands) leaves
+   `outline-none` off. */
+:root:not([data-input="keyboard"]) [tabindex="-1"].outline-none:focus-visible {
   outline: none;
 }
 

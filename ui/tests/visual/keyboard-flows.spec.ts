@@ -140,7 +140,8 @@ test("page tab walk — arrow keys move across the session page's tabs", async (
   // "Work Max" match now lands on Home's ended-review row (D-96), and an
   // ended session's terminal takes no focus (K1).
   await tabToEl(page, stops, "[data-testid='rail-list'] [data-rail-item], [data-testid='rail-list'] [data-rail-nav]");
-  await arrowTo(page, stops, /^button: Working,.*Work Max/);
+  // sess-2, Work Max's running session, by its title (a stop's name is cut at 60 characters).
+  await arrowTo(page, stops, /^button: Working, Fix the flaky login test,/);
   await page.keyboard.press("Enter");
   // Selecting a live Instance focuses its terminal, which keeps Tab for the
   // shell; Ctrl+Shift+Tab leaves it (no keyboard trap, WCAG 2.1.2).
@@ -272,7 +273,7 @@ test("launch keys — ⌘N New session, ⌘⇧N New project, ⌥⌘N notificatio
 async function toSwitchRow(page: Page, stops: Stop[]): Promise<Stop> {
   await page.locator("body").focus();
   await tabToEl(page, stops, "[data-testid='rail-list'] [data-rail-item], [data-testid='rail-list'] [data-rail-nav]");
-  await arrowTo(page, stops, /\bon Work Max\b/);
+  await arrowTo(page, stops, /^button: Working, Fix the flaky login test,/); // sess-2, on Work Max
   await page.keyboard.press("Enter");
   await leaveTerminalIfFocused(page, stops);
   const opener = await focused(page);
