@@ -12,3 +12,12 @@ Build: Dev release .app from release/0.5 at 75a5aaca6, lab K2 (generic fixtures:
 | "3 not yet" fold | pressed it | lists feed, digest, watches with reasons | Opens; plain words | WORKS | captures/models-2-use-apple.jpg |
 | Per-job override to a downloaded model | needs a downloaded model | | no model could be installed | NOT WALKED | |
 | Low-disk messaging | skipped on purpose (do not fill the disk) | | 136 GB free on this Mac | SKIPPED | |
+
+## Second walk (2026-11-20, Sonnet; Opus to verify)
+
+Build: Dev **debug lab-bridge** .app of release/0.5 at 9d15cc578 (`scripts/build_dev_app.sh lab`), run from `~/Library/Caches/aij-walk-05/` (copied out of /tmp: from /tmp the Apple helper's sandbox extension is refused, so no Apple model shows and Bot/Models read as "no model"; walk-kit note W-02). Lab K2 (`lab_scenario.sh setup K2`, generic fixtures), driven by `lab_drive` by pid, never the pointer. Whole list: ../0.5-prepush-walk.md, "Second walk".
+
+| Req | Step (exact) | Threshold | Observed | Verdict | Captures |
+|---|---|---|---|---|---|
+| F-02 Turn reviews | Models with Apple's model, Use it; Jobs | "Not yet"; no card lists "Turn reviews · Beta" | the Apple card lists only "Bot answers · Beta" and "4 not yet"; Each job uses shows Turn reviews "Not yet", with no switch | FIXED, confirmed | captures/w2-1-models-apple-f02.jpg, captures/w2-2-jobs-turn-reviews-not-yet.jpg |
+| Apple's model absent when the app runs from /tmp | first launch from /tmp/aij-lab-dev | the card as in the first walk | "Nothing to recommend", no Installed row: dev.log said the sandbox extension was refused; copied to ~/Library/Caches it is offered (walk kit W-02, not an app bug) | NOTE | |
