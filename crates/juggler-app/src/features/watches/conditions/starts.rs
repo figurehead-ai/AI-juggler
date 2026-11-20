@@ -1,36 +1,30 @@
 //! `starts`: a new session starts (ADR-0036 §2.2).
 
-use juggler_adapter::Observes;
-
-use super::{ConditionRule, Memo, Verdict};
-use crate::features::observe::{Observation, Observed};
-use crate::features::watches::model::{Param, TargetKind};
-use crate::features::watches::words::{self, CondWords};
+use super::{
+    About, ConditionRule, Memo, Observation, Observed, Observes, Param, TargetKind, Verdict, words,
+};
 
 /// The rule.
-pub struct Rule;
+pub struct Starts;
 
-/// The registered rule.
-pub const RULE: Rule = Rule;
+static ABOUT: About = About {
+    code: "starts",
+    targets: &[TargetKind::App, TargetKind::Project, TargetKind::Any],
+    needs: Observes::LIFECYCLE,
+    param: None,
+    told_as: None,
+    words: &words::STARTS,
+};
 
-impl ConditionRule for Rule {
-    fn code(&self) -> &'static str {
-        "starts"
-    }
-    fn targets(&self) -> &'static [TargetKind] {
-        &[TargetKind::App, TargetKind::Project, TargetKind::Any]
-    }
-    fn needs(&self) -> Observes {
-        Observes::LIFECYCLE
-    }
-    fn words(&self) -> &'static CondWords {
-        &words::STARTS
-    }
+impl ConditionRule for Starts {
     fn on(&self, _param: Option<&Param>, _memo: &mut Memo, obs: &Observation) -> Verdict {
         if matches!(obs.event, Observed::Started) {
             Verdict::Met
         } else {
             Verdict::Ignore
         }
+    }
+    fn about(&self) -> &'static About {
+        &ABOUT
     }
 }

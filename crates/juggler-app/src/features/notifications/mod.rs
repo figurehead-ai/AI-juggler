@@ -829,20 +829,9 @@ pub(super) struct About {
 /// A session as its row names it: its conversation's title, else its
 /// folder; where it runs, and on which account.
 pub(super) fn describe(state: &Arc<AppState>, session_id: &str) -> About {
-    let info = {
-        let rows = state
-            .storage
-            .lock()
-            .ok()
-            .and_then(|storage| {
-                crate::features::sessions::read_model::session_infos_snapshot(&storage).ok()
-            })
-            .unwrap_or_default();
-        crate::features::conversations::titled(state, rows)
-            .unwrap_or_default()
-            .into_iter()
-            .find(|row| row.id == session_id)
-    };
+    let info = crate::features::conversations::titled_snapshot(state)
+        .into_iter()
+        .find(|row| row.id == session_id);
     let Some(info) = info else {
         return About {
             name: "A session".to_owned(),

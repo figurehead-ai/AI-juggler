@@ -1,41 +1,30 @@
 //! `ends`: the session closes, however it ended (ADR-0036 §2.2).
 
-use juggler_adapter::Observes;
-
-use super::{ConditionRule, Memo, Verdict};
-use crate::features::observe::{Observation, Observed};
-use crate::features::watches::model::{Param, TargetKind};
-use crate::features::watches::words::{self, CondWords};
+use super::{
+    About, ConditionRule, Memo, Observation, Observed, Observes, Param, Verdict, WORK, words,
+};
 
 /// The rule.
-pub struct Rule;
+pub struct Ends;
 
-/// The registered rule.
-pub const RULE: Rule = Rule;
+static ABOUT: About = About {
+    code: "ends",
+    targets: WORK,
+    needs: Observes::LIFECYCLE,
+    param: None,
+    told_as: None,
+    words: &words::ENDS,
+};
 
-impl ConditionRule for Rule {
-    fn code(&self) -> &'static str {
-        "ends"
-    }
-    fn targets(&self) -> &'static [TargetKind] {
-        &[
-            TargetKind::Session,
-            TargetKind::App,
-            TargetKind::Project,
-            TargetKind::Any,
-        ]
-    }
-    fn needs(&self) -> Observes {
-        Observes::LIFECYCLE
-    }
-    fn words(&self) -> &'static CondWords {
-        &words::ENDS
-    }
+impl ConditionRule for Ends {
     fn on(&self, _param: Option<&Param>, _memo: &mut Memo, obs: &Observation) -> Verdict {
         if matches!(obs.event, Observed::Ended { .. }) {
             Verdict::Met
         } else {
             Verdict::Ignore
         }
+    }
+    fn about(&self) -> &'static About {
+        &ABOUT
     }
 }

@@ -673,6 +673,21 @@ fn merged(conversations: impl Iterator<Item = Conversation>) -> Vec<Conversation
     by_id.into_values().collect()
 }
 
+/// Every session's row as the store has it now, titled ([`titled`]);
+/// none when a lock is poisoned.
+#[must_use]
+pub fn titled_snapshot(state: &Arc<AppState>) -> Vec<crate::features::sessions::dto::InstanceInfo> {
+    let rows = state
+        .storage
+        .lock()
+        .ok()
+        .and_then(|storage| {
+            crate::features::sessions::read_model::session_infos_snapshot(&storage).ok()
+        })
+        .unwrap_or_default();
+    titled(state, rows).unwrap_or_default()
+}
+
 /// AJ-E1536: AI Juggler's sessions with their conversations' titles (the
 /// tool's summary, else the first thing asked), so a session reads as
 /// what it was about wherever it shows, as one started outside does.

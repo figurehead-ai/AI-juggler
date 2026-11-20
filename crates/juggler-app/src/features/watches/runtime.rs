@@ -16,8 +16,7 @@
 //! store's lock can publish.
 
 use std::collections::VecDeque;
-use std::sync::{Arc, Condvar, Mutex, OnceLock, Weak};
-use std::time::Duration;
+use std::sync::{Arc, OnceLock, Weak};
 
 use juggler_adapter::Observes;
 use juggler_core::model::{ProfileId, SessionId};
@@ -30,6 +29,7 @@ use super::conditions::Registry;
 use super::engine::{EndReason, Engine, Expiry, Outcome};
 use super::model::{Watch, WatchTarget};
 use super::store::{Stored, WatchStore};
+use crate::features::observe::bell::Bell;
 use crate::features::observe::{Observation, Pending, Subject};
 use crate::state::AppState;
 
@@ -48,11 +48,7 @@ struct Inner {
     closed: bool,
 }
 
-#[derive(Default)]
-struct Shared {
-    inner: Mutex<Inner>,
-    wake: Condvar,
-}
+type Shared = Bell<Inner>;
 
 /// The watches' run-time state, held by the app's state.
 #[derive(Default)]
@@ -64,10 +60,7 @@ pub struct Watches {
 
 impl Drop for Watches {
     fn drop(&mut self) {
-        if let Ok(mut inner) = self.shared.inner.lock() {
-            inner.closed = true;
-        }
-        self.shared.wake.notify_all();
+        self.shared.close(|inner| inner.closed = true);
     }
 }
 
@@ -90,7 +83,6 @@ impl Watches {
     #[must_use]
     pub fn hearing(&self) -> usize {
         self.shared
-            .inner
             .lock()
             .map_or(0, |inner| inner.engine.as_ref().map_or(0, Engine::len))
     }
@@ -435,13 +427,13 @@ fn migrate_app_targets(
 pub fn hear(state: &Arc<AppState>, pending: Pending) {
     let watches = &state.watches;
     start_thread(state);
-    if let Ok(mut inner) = watches.shared.inner.lock() {
+    if let Ok(mut inner) = watches.shared.lock() {
         if inner.queue.len() >= QUEUE_KEPT {
             inner.queue.pop_front();
         }
         inner.queue.push_back(pending);
     }
-    watches.shared.wake.notify_all();
+    watches.shared.ring();
 }
 
 /// Starts the watches at the app's start: their thread loads the stored
@@ -454,7 +446,7 @@ pub fn start(state: &Arc<AppState>) {
 /// The engine changed (a command): the thread recomputes its next wake.
 pub fn changed(state: &Arc<AppState>) {
     start_thread(state);
-    state.watches.shared.wake.notify_all();
+    state.watches.shared.ring();
 }
 
 /// Runs `f` on the loaded engine.
@@ -465,11 +457,11 @@ pub fn with_engine<T>(
 ) -> Option<T> {
     let registry = Registry::shipped();
     let loaded = {
-        let inner = state.watches.shared.inner.lock().ok()?;
+        let inner = state.watches.shared.lock().ok()?;
         inner.engine.is_some()
     };
     let fresh = (!loaded).then(|| load(state, &registry, now_ms));
-    let mut inner = state.watches.shared.inner.lock().ok()?;
+    let mut inner = state.watches.shared.lock().ok()?;
     if inner.engine.is_none() {
         inner.engine = fresh;
     }
@@ -500,7 +492,7 @@ fn run(shared: &Shared, state: &Weak<AppState>) {
     }
     loop {
         let batch: Vec<Pending> = {
-            let Ok(mut inner) = shared.inner.lock() else {
+            let Ok(mut inner) = shared.lock() else {
                 return;
             };
             loop {
@@ -514,15 +506,8 @@ fn run(shared: &Shared, state: &Weak<AppState>) {
                 let wake = inner.engine.as_ref().and_then(Engine::next_wake);
                 match wake {
                     Some(at) if at <= now => break,
-                    Some(at) => {
-                        let wait = Duration::from_millis(u64::try_from(at - now).unwrap_or(0));
-                        let Ok((next, _)) = shared.wake.wait_timeout(inner, wait) else {
-                            return;
-                        };
-                        inner = next;
-                    }
-                    None => {
-                        let Ok(next) = shared.wake.wait(inner) else {
+                    wake => {
+                        let Some(next) = shared.sleep(inner, wake, now) else {
                             return;
                         };
                         inner = next;
@@ -556,15 +541,8 @@ fn step(state: &Arc<AppState>, batch: Vec<Pending>) {
     crate::features::digest::runtime::heard(state, &observations);
     let now = crate::commands::now_millis();
     let outcome = with_engine(state, now, |engine| {
-        let mut out = Outcome::default();
-        for obs in &observations {
-            let step = engine.observe(obs);
-            out.fires.extend(step.fires);
-            out.ended.extend(step.ended);
-        }
-        let due = engine.tick(now);
-        out.fires.extend(due.fires);
-        out.ended.extend(due.ended);
+        let mut out = engine.observe_all(&observations);
+        out.merge(engine.tick(now));
         out
     })
     .unwrap_or_default();
@@ -665,16 +643,8 @@ fn replay(state: &Arc<AppState>) {
     if observations.is_empty() {
         return;
     }
-    let outcome = with_engine(state, now, |engine| {
-        let mut out = Outcome::default();
-        for obs in &observations {
-            let step = engine.observe(obs);
-            out.fires.extend(step.fires);
-            out.ended.extend(step.ended);
-        }
-        out
-    })
-    .unwrap_or_default();
+    let outcome =
+        with_engine(state, now, |engine| engine.observe_all(&observations)).unwrap_or_default();
     record(state, &outcome);
 }
 

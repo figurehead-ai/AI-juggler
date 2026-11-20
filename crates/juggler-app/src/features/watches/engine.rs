@@ -100,7 +100,8 @@ pub struct Outcome {
 }
 
 impl Outcome {
-    fn merge(&mut self, other: Self) {
+    /// This, then `other`.
+    pub fn merge(&mut self, other: Self) {
         self.fires.extend(other.fires);
         self.ended.extend(other.ended);
     }
@@ -441,6 +442,15 @@ impl Engine {
                 at_ms,
             });
         }
+    }
+
+    /// Hears these observations in order ([`Self::observe`]).
+    pub fn observe_all(&mut self, observations: &[Observation]) -> Outcome {
+        let mut out = Outcome::default();
+        for obs in observations {
+            out.merge(self.observe(obs));
+        }
+        out
     }
 
     /// Hears one observation: first what fell due before it, then the

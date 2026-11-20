@@ -1,40 +1,23 @@
 //! `finishes`: a turn ends cleanly and the agent waits idle (ADR-0036 §2.2).
 
-use juggler_adapter::Observes;
-
-use super::{ConditionRule, Memo, Verdict};
-use crate::features::observe::{Observation, Observed, SessionState, TurnOutcome};
-use crate::features::watches::model::{Param, TargetKind};
-use crate::features::watches::words::{self, CondWords};
+use super::{
+    About, ConditionRule, EVERY, Memo, Observation, Observed, Observes, Param, Verdict, words,
+};
+use crate::features::observe::{SessionState, TurnOutcome};
 
 /// The rule.
-pub struct Rule;
+pub struct Finishes;
 
-/// The registered rule.
-pub const RULE: Rule = Rule;
+static ABOUT: About = About {
+    code: "finishes",
+    targets: EVERY,
+    needs: Observes::TURN_ENDS.union(Observes::STATES),
+    param: None,
+    told_as: Some("finished"),
+    words: &words::FINISHES,
+};
 
-impl ConditionRule for Rule {
-    fn code(&self) -> &'static str {
-        "finishes"
-    }
-    fn targets(&self) -> &'static [TargetKind] {
-        &[
-            TargetKind::Session,
-            TargetKind::App,
-            TargetKind::Project,
-            TargetKind::Pool,
-            TargetKind::Any,
-        ]
-    }
-    fn needs(&self) -> Observes {
-        Observes::TURN_ENDS.union(Observes::STATES)
-    }
-    fn told_as(&self) -> Option<&'static str> {
-        Some("finished")
-    }
-    fn words(&self) -> &'static CondWords {
-        &words::FINISHES
-    }
+impl ConditionRule for Finishes {
     fn on(&self, _param: Option<&Param>, _memo: &mut Memo, obs: &Observation) -> Verdict {
         match obs.event {
             Observed::TurnEnded {
@@ -45,5 +28,8 @@ impl ConditionRule for Rule {
             } => Verdict::Met,
             _ => Verdict::Ignore,
         }
+    }
+    fn about(&self) -> &'static About {
+        &ABOUT
     }
 }

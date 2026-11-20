@@ -1,39 +1,28 @@
 //! `hits_limit`: it reaches a usage limit (ADR-0036 §2.2).
 
-use juggler_adapter::Observes;
-
-use super::{ConditionRule, Memo, Verdict};
-use crate::features::observe::{Observation, Observed, SessionState};
-use crate::features::watches::model::{Param, TargetKind};
-use crate::features::watches::words::{self, CondWords};
+use super::{
+    About, ConditionRule, Memo, Observation, Observed, Observes, Param, TargetKind, Verdict, words,
+};
+use crate::features::observe::SessionState;
 
 /// The rule.
-pub struct Rule;
+pub struct HitsLimit;
 
-/// The registered rule.
-pub const RULE: Rule = Rule;
+static ABOUT: About = About {
+    code: "hits_limit",
+    targets: &[
+        TargetKind::Session,
+        TargetKind::App,
+        TargetKind::Account,
+        TargetKind::Any,
+    ],
+    needs: Observes::LIMIT_HITS,
+    param: None,
+    told_as: Some("limit"),
+    words: &words::HITS_LIMIT,
+};
 
-impl ConditionRule for Rule {
-    fn code(&self) -> &'static str {
-        "hits_limit"
-    }
-    fn targets(&self) -> &'static [TargetKind] {
-        &[
-            TargetKind::Session,
-            TargetKind::App,
-            TargetKind::Account,
-            TargetKind::Any,
-        ]
-    }
-    fn needs(&self) -> Observes {
-        Observes::LIMIT_HITS
-    }
-    fn told_as(&self) -> Option<&'static str> {
-        Some("limit")
-    }
-    fn words(&self) -> &'static CondWords {
-        &words::HITS_LIMIT
-    }
+impl ConditionRule for HitsLimit {
     fn on(&self, _param: Option<&Param>, _memo: &mut Memo, obs: &Observation) -> Verdict {
         if matches!(
             obs.event,
@@ -45,5 +34,8 @@ impl ConditionRule for Rule {
         } else {
             Verdict::Ignore
         }
+    }
+    fn about(&self) -> &'static About {
+        &ABOUT
     }
 }

@@ -9,7 +9,7 @@ use std::sync::Arc;
 use juggler_adapter::{Capabilities, Observes, ToolKind, ToolObserves};
 
 use super::catalogue::{catalogue, check_offered};
-use super::conditions::{ConditionRule, Memo, Registry, SHIPPED, Verdict};
+use super::conditions::{About, ConditionRule, Memo, Registry, SHIPPED, Verdict};
 use super::echo::{LocalClock, Names, Unnamed, echo};
 use super::engine::{EndReason, Engine, Outcome};
 use super::model::{
@@ -926,13 +926,31 @@ fn clock() -> LocalClock {
     }
 }
 
+/// The names an echo marks, in order.
+fn named(parts: &super::echo::EchoParts) -> Vec<&str> {
+    parts
+        .head
+        .iter()
+        .filter(|s| s.name)
+        .map(|s| s.text.as_str())
+        .collect()
+}
+
+/// A watch on "api" or "web": finishes, or looks stuck for 10 minutes.
+fn api_or_web_done_or_stuck(id: &str, lifetime: Lifetime) -> Watch {
+    watch(
+        id,
+        vec![session("api"), session("web")],
+        vec![cond("finishes"), cond_p("stuck", Param::Minutes(10))],
+        lifetime,
+    )
+}
+
 #[test]
 fn the_echo_says_the_watch_in_english() {
     let r = Registry::shipped();
-    let mut w = watch(
+    let mut w = api_or_web_done_or_stuck(
         "w-e2",
-        vec![session("api"), session("web")],
-        vec![cond("finishes"), cond_p("stuck", Param::Minutes(10))],
         Lifetime::Until {
             at_ms: clock().next_midnight(),
         },
@@ -1004,22 +1022,12 @@ fn the_echo_parts_join_to_the_echo_and_mark_the_names() {
         }
     }
     let r = Registry::shipped();
-    let mut w = watch(
-        "w-e9",
-        vec![session("api"), session("web")],
-        vec![cond("finishes"), cond_p("stuck", Param::Minutes(10))],
-        Lifetime::UntilEnds,
-    );
+    let mut w = api_or_web_done_or_stuck("w-e9", Lifetime::UntilEnds);
     w.matching = Matching::All;
     w.even_in_quiet_hours = true;
     let parts = echo_parts(&r, &w, &Agents, Lang::En, clock());
     assert_eq!(parts.joined(), echo(&r, &w, &Agents, Lang::En, clock()));
-    let names: Vec<&str> = parts
-        .head
-        .iter()
-        .filter(|s| s.name)
-        .map(|s| s.text.as_str())
-        .collect();
+    let names = named(&parts);
     assert_eq!(names, ["“api”", "“web”"]);
     assert_eq!(parts.lifetime, "Until they end.");
     assert_eq!(parts.quiet.as_deref(), Some("Even during quiet hours."));
@@ -1031,12 +1039,7 @@ fn the_echo_parts_join_to_the_echo_and_mark_the_names() {
     );
     let parts = echo_parts(&r, &pool, &Agents, Lang::De, clock());
     assert_eq!(parts.joined(), echo(&r, &pool, &Agents, Lang::De, clock()));
-    let names: Vec<&str> = parts
-        .head
-        .iter()
-        .filter(|s| s.name)
-        .map(|s| s.text.as_str())
-        .collect();
+    let names = named(&parts);
     assert_eq!(names, ["“Release pool”", "“reviewer”"]);
     assert_eq!(parts.quiet, None);
     assert!(
@@ -1104,10 +1107,8 @@ fn the_echo_says_the_shared_cases_word_for_word() {
 #[test]
 fn the_echo_says_the_watch_in_german() {
     let r = Registry::shipped();
-    let mut w = watch(
+    let mut w = api_or_web_done_or_stuck(
         "w-e6",
-        vec![session("api"), session("web")],
-        vec![cond("finishes"), cond_p("stuck", Param::Minutes(10))],
         Lifetime::Until {
             at_ms: clock().next_midnight(),
         },
@@ -1195,20 +1196,18 @@ fn every_condition_has_words_in_both_languages() {
 /// A test-only condition: an ask answered. Nothing in the engine knows it.
 struct Answered;
 
-static ANSWERED_WORDS: CondWords = words::ENDS;
+static ANSWERED_ABOUT: About = About {
+    code: "test_answered",
+    targets: &[TargetKind::Session],
+    needs: Observes::ASKS,
+    param: None,
+    told_as: None,
+    words: &words::ENDS,
+};
 
 impl ConditionRule for Answered {
-    fn code(&self) -> &'static str {
-        "test_answered"
-    }
-    fn targets(&self) -> &'static [TargetKind] {
-        &[TargetKind::Session]
-    }
-    fn needs(&self) -> Observes {
-        Observes::ASKS
-    }
-    fn words(&self) -> &'static CondWords {
-        &ANSWERED_WORDS
+    fn about(&self) -> &'static About {
+        &ANSWERED_ABOUT
     }
     fn on(&self, _param: Option<&Param>, _memo: &mut Memo, obs: &Observation) -> Verdict {
         if obs.event == Observed::AskResolved {

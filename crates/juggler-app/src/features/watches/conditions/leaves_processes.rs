@@ -1,43 +1,29 @@
 //! `leaves_processes`: a session ends and leaves processes running (ADR-0036 §2.2).
 
-use juggler_adapter::Observes;
-
-use super::{ConditionRule, Memo, Verdict};
-use crate::features::observe::{Observation, Observed};
-use crate::features::watches::model::{Param, TargetKind};
-use crate::features::watches::words::{self, CondWords};
+use super::{
+    About, ConditionRule, Memo, Observation, Observed, Observes, Param, Verdict, WORK, words,
+};
 
 /// The rule.
-pub struct Rule;
+pub struct LeavesProcesses;
 
-/// The registered rule.
-pub const RULE: Rule = Rule;
+static ABOUT: About = About {
+    code: "leaves_processes",
+    targets: WORK,
+    needs: Observes::PROCESSES,
+    param: None,
+    told_as: Some("leftovers"),
+    words: &words::LEAVES_PROCESSES,
+};
 
-impl ConditionRule for Rule {
-    fn code(&self) -> &'static str {
-        "leaves_processes"
-    }
-    fn targets(&self) -> &'static [TargetKind] {
-        &[
-            TargetKind::Session,
-            TargetKind::App,
-            TargetKind::Project,
-            TargetKind::Any,
-        ]
-    }
-    fn needs(&self) -> Observes {
-        Observes::PROCESSES
-    }
-    fn told_as(&self) -> Option<&'static str> {
-        Some("leftovers")
-    }
-    fn words(&self) -> &'static CondWords {
-        &words::LEAVES_PROCESSES
-    }
+impl ConditionRule for LeavesProcesses {
     fn on(&self, _param: Option<&Param>, _memo: &mut Memo, obs: &Observation) -> Verdict {
         match obs.event {
             Observed::ProcessesLeft { count } if count > 0 => Verdict::Met,
             _ => Verdict::Ignore,
         }
+    }
+    fn about(&self) -> &'static About {
+        &ABOUT
     }
 }

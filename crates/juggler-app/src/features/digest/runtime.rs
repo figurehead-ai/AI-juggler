@@ -12,8 +12,7 @@
 //! machine's; never with the store's.
 
 use std::collections::BTreeMap;
-use std::sync::{Arc, Condvar, Mutex, OnceLock, Weak};
-use std::time::Duration;
+use std::sync::{Arc, OnceLock, Weak};
 
 use juggler_core::storage::Storage;
 use juggler_core::storage::memory::KindWriter;
@@ -23,6 +22,7 @@ use super::scheduler::{Due, Scheduler};
 use super::store::{self, Why};
 use crate::features::notifications::batch::Item;
 use crate::features::notifications::engine::{Kind, Target};
+use crate::features::observe::bell::Bell;
 use crate::features::observe::{Observation, Observed, SessionState};
 use crate::state::AppState;
 
@@ -47,11 +47,7 @@ struct Inner {
     closed: bool,
 }
 
-#[derive(Default)]
-struct Shared {
-    inner: Mutex<Inner>,
-    wake: Condvar,
-}
+type Shared = Bell<Inner>;
 
 /// The digest's run-time state, held by the app's state.
 #[derive(Default)]
@@ -63,10 +59,7 @@ pub struct Digests {
 
 impl Drop for Digests {
     fn drop(&mut self) {
-        if let Ok(mut inner) = self.shared.inner.lock() {
-            inner.closed = true;
-        }
-        self.shared.wake.notify_all();
+        self.shared.close(|inner| inner.closed = true);
     }
 }
 
@@ -87,14 +80,13 @@ impl Digests {
     /// Digests made since the app started.
     #[must_use]
     pub fn made(&self) -> u64 {
-        self.shared.inner.lock().map_or(0, |inner| inner.made)
+        self.shared.lock().map_or(0, |inner| inner.made)
     }
 
     /// When the next digest is due, if one is.
     #[must_use]
     pub fn due_at(&self) -> Option<i64> {
         self.shared
-            .inner
             .lock()
             .ok()
             .and_then(|inner| inner.scheduler.due_at())
@@ -121,7 +113,7 @@ const fn notable(event: &Observed) -> bool {
 /// from the journals on start is the watches' alone.
 pub fn heard(state: &Arc<AppState>, observations: &[Observation]) {
     let mut any = false;
-    if let Ok(mut inner) = state.digests.shared.inner.lock() {
+    if let Ok(mut inner) = state.digests.shared.lock() {
         for obs in observations.iter().filter(|obs| !obs.replayed) {
             let Some(session) = obs.subject.session.as_deref() else {
                 continue;
@@ -139,7 +131,7 @@ pub fn heard(state: &Arc<AppState>, observations: &[Observation]) {
     }
     if any {
         start_thread(state);
-        state.digests.shared.wake.notify_all();
+        state.digests.shared.ring();
     }
 }
 
@@ -147,7 +139,7 @@ pub fn heard(state: &Arc<AppState>, observations: &[Observation]) {
 /// digest due at once.
 pub fn presence_changed(state: &Arc<AppState>) {
     if state.digests.thread.get().is_some() {
-        state.digests.shared.wake.notify_all();
+        state.digests.shared.ring();
     }
 }
 
@@ -180,7 +172,7 @@ type Taken = (Due, BTreeMap<String, Vec<(i64, Observed)>>);
 fn run(shared: &Shared, state: &Weak<AppState>) {
     loop {
         let taken: Taken = {
-            let Ok(mut inner) = shared.inner.lock() else {
+            let Ok(mut inner) = shared.lock() else {
                 return;
             };
             loop {
@@ -210,17 +202,9 @@ fn run(shared: &Shared, state: &Weak<AppState>) {
                             .collect();
                         break (due, events);
                     }
-                    Some(at) => {
+                    due => {
                         drop(app);
-                        let wait = Duration::from_millis(u64::try_from(at - now).unwrap_or(0));
-                        let Ok((next, _)) = shared.wake.wait_timeout(inner, wait) else {
-                            return;
-                        };
-                        inner = next;
-                    }
-                    None => {
-                        drop(app);
-                        let Ok(next) = shared.wake.wait(inner) else {
+                        let Some(next) = shared.sleep(inner, due, now) else {
                             return;
                         };
                         inner = next;
@@ -232,7 +216,7 @@ fn run(shared: &Shared, state: &Weak<AppState>) {
             return;
         };
         if make(&state, &taken.0, taken.1)
-            && let Ok(mut inner) = shared.inner.lock()
+            && let Ok(mut inner) = shared.lock()
         {
             inner.made += 1;
         }
@@ -255,15 +239,7 @@ pub fn gather(
     state: &Arc<AppState>,
     events: BTreeMap<String, Vec<(i64, Observed)>>,
 ) -> (Vec<AgentFacts>, u32) {
-    let rows = state
-        .storage
-        .lock()
-        .ok()
-        .and_then(|storage| {
-            crate::features::sessions::read_model::session_infos_snapshot(&storage).ok()
-        })
-        .unwrap_or_default();
-    let rows = crate::features::conversations::titled(state, rows).unwrap_or_default();
+    let rows = crate::features::conversations::titled_snapshot(state);
     let quiet = rows
         .iter()
         .filter(|row| {

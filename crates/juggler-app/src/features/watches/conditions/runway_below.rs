@@ -1,38 +1,27 @@
 //! `runway_below`: an account's room crosses below `percent` (ADR-0036 §2.2).
 
-use juggler_adapter::Observes;
-
-use super::{ConditionRule, Memo, ParamKind, ParamSpec, Verdict};
-use crate::features::observe::{Observation, Observed};
-use crate::features::watches::model::{Param, TargetKind};
-use crate::features::watches::words::{self, CondWords};
+use super::{
+    About, ConditionRule, Memo, Observation, Observed, Observes, Param, ParamKind, ParamSpec,
+    TargetKind, Verdict, words,
+};
 
 /// The rule.
-pub struct Rule;
+pub struct RunwayBelow;
 
-/// The registered rule.
-pub const RULE: Rule = Rule;
+static ABOUT: About = About {
+    code: "runway_below",
+    targets: &[TargetKind::Account, TargetKind::App, TargetKind::Any],
+    needs: Observes::RUNWAY,
+    param: Some(ParamSpec {
+        name: "percent",
+        kind: ParamKind::Percent { min: 5, max: 95 },
+        required: true,
+    }),
+    told_as: None,
+    words: &words::RUNWAY_BELOW,
+};
 
-impl ConditionRule for Rule {
-    fn code(&self) -> &'static str {
-        "runway_below"
-    }
-    fn targets(&self) -> &'static [TargetKind] {
-        &[TargetKind::Account, TargetKind::App, TargetKind::Any]
-    }
-    fn needs(&self) -> Observes {
-        Observes::RUNWAY
-    }
-    fn param(&self) -> Option<ParamSpec> {
-        Some(ParamSpec {
-            name: "percent",
-            kind: ParamKind::Percent { min: 5, max: 95 },
-            required: true,
-        })
-    }
-    fn words(&self) -> &'static CondWords {
-        &words::RUNWAY_BELOW
-    }
+impl ConditionRule for RunwayBelow {
     /// Met when the share left crosses below the bound: a first reading
     /// already below it is told once too (the user asked to know), and a
     /// reading back above re-arms it.
@@ -48,5 +37,8 @@ impl ConditionRule for Rule {
         } else {
             Verdict::Ignore
         }
+    }
+    fn about(&self) -> &'static About {
+        &ABOUT
     }
 }

@@ -1,38 +1,27 @@
 //! `pool_message`: a pool gets a message, from one agent with `from` (ADR-0036 §2.2).
 
-use juggler_adapter::Observes;
-
-use super::{ConditionRule, Memo, ParamKind, ParamSpec, Verdict};
-use crate::features::observe::{Observation, Observed};
-use crate::features::watches::model::{Param, TargetKind};
-use crate::features::watches::words::{self, CondWords};
+use super::{
+    About, ConditionRule, Memo, Observation, Observed, Observes, Param, ParamKind, ParamSpec,
+    TargetKind, Verdict, words,
+};
 
 /// The rule.
-pub struct Rule;
+pub struct PoolMessage;
 
-/// The registered rule.
-pub const RULE: Rule = Rule;
+static ABOUT: About = About {
+    code: "pool_message",
+    targets: &[TargetKind::Pool],
+    needs: Observes::POOL_MESSAGES,
+    param: Some(ParamSpec {
+        name: "from",
+        kind: ParamKind::Agent,
+        required: false,
+    }),
+    told_as: None,
+    words: &words::POOL_MESSAGE,
+};
 
-impl ConditionRule for Rule {
-    fn code(&self) -> &'static str {
-        "pool_message"
-    }
-    fn targets(&self) -> &'static [TargetKind] {
-        &[TargetKind::Pool]
-    }
-    fn needs(&self) -> Observes {
-        Observes::POOL_MESSAGES
-    }
-    fn param(&self) -> Option<ParamSpec> {
-        Some(ParamSpec {
-            name: "from",
-            kind: ParamKind::Agent,
-            required: false,
-        })
-    }
-    fn words(&self) -> &'static CondWords {
-        &words::POOL_MESSAGE
-    }
+impl ConditionRule for PoolMessage {
     fn on(&self, param: Option<&Param>, _memo: &mut Memo, obs: &Observation) -> Verdict {
         let Observed::PoolMessage { from } = &obs.event else {
             return Verdict::Ignore;
@@ -43,5 +32,8 @@ impl ConditionRule for Rule {
             }
             _ => Verdict::Met,
         }
+    }
+    fn about(&self) -> &'static About {
+        &ABOUT
     }
 }

@@ -12,8 +12,8 @@ use std::sync::{Arc, OnceLock};
 use juggler_adapter::Observes;
 
 use super::model::{Param, TargetKind};
-use super::words::CondWords;
-use crate::features::observe::Observation;
+use super::words::{self, CondWords};
+use crate::features::observe::{Observation, Observed};
 
 mod asks_you;
 mod commits;
@@ -90,35 +90,80 @@ pub struct Memo {
     pub value: Option<i64>,
 }
 
-/// One condition of the closed set.
-pub trait ConditionRule: Send + Sync {
+/// What a condition is, apart from how it judges: the facts the
+/// catalogue, validation and the words read.
+#[derive(Debug)]
+pub struct About {
     /// Its code (`finishes`), stored in a watch.
-    fn code(&self) -> &'static str;
+    pub code: &'static str,
     /// The target kinds it is offered on.
-    fn targets(&self) -> &'static [TargetKind];
+    pub targets: &'static [TargetKind],
     /// The observations it can be met from: offered for a target only
     /// when the target's Apps report one of them (D-127).
-    fn needs(&self) -> Observes;
+    pub needs: Observes,
     /// Its parameter, when it takes one.
-    fn param(&self) -> Option<ParamSpec> {
-        None
-    }
-    /// Its words.
-    fn words(&self) -> &'static CondWords;
-    /// What `obs` does to it, for one member of a target.
-    fn on(&self, param: Option<&Param>, memo: &mut Memo, obs: &Observation) -> Verdict;
+    pub param: Option<ParamSpec>,
     /// AJ-E3817: the need or state its event is also told as, by its
     /// notice kind (`asks`, `failed`, `stuck`, `limit`, `finished`,
     /// `leftovers`, `restarted`, `reset`), so a watch on something a need
     /// already tells is one notification with it, and takes its level.
     /// `None`: only the watch tells it.
-    fn told_as(&self) -> Option<&'static str> {
-        None
-    }
+    pub told_as: Option<&'static str>,
+    /// Its words.
+    pub words: &'static CondWords,
+}
+
+/// Every target kind a session's work reaches, pools included.
+pub(super) const EVERY: &[TargetKind] = &[
+    TargetKind::Session,
+    TargetKind::App,
+    TargetKind::Project,
+    TargetKind::Pool,
+    TargetKind::Any,
+];
+
+/// A session's work, by session, App or project (not a pool's).
+pub(super) const WORK: &[TargetKind] = &[
+    TargetKind::Session,
+    TargetKind::App,
+    TargetKind::Project,
+    TargetKind::Any,
+];
+
+/// One condition of the closed set.
+pub trait ConditionRule: Send + Sync {
+    /// What it is.
+    fn about(&self) -> &'static About;
+    /// What `obs` does to it, for one member of a target.
+    fn on(&self, param: Option<&Param>, memo: &mut Memo, obs: &Observation) -> Verdict;
     /// What the watch's start does, for a session target known at once
     /// (idle for N minutes counts from the start).
     fn on_start(&self, _param: Option<&Param>, _now_ms: i64) -> Verdict {
         Verdict::Ignore
+    }
+    /// Its code.
+    fn code(&self) -> &'static str {
+        self.about().code
+    }
+    /// The target kinds it is offered on.
+    fn targets(&self) -> &'static [TargetKind] {
+        self.about().targets
+    }
+    /// The observations it can be met from.
+    fn needs(&self) -> Observes {
+        self.about().needs
+    }
+    /// Its parameter, when it takes one.
+    fn param(&self) -> Option<ParamSpec> {
+        self.about().param
+    }
+    /// Its words.
+    fn words(&self) -> &'static CondWords {
+        self.about().words
+    }
+    /// What its event is also told as ([`About::told_as`]).
+    fn told_as(&self) -> Option<&'static str> {
+        self.about().told_as
     }
 }
 
@@ -142,21 +187,21 @@ pub(super) fn after(param: Option<&Param>, at_ms: i64) -> Verdict {
 
 /// The conditions AI Juggler ships, in the order the catalogue offers them.
 pub const SHIPPED: &[&dyn ConditionRule] = &[
-    &finishes::RULE,
-    &asks_you::RULE,
-    &fails::RULE,
-    &stuck::RULE,
-    &ends::RULE,
-    &idle_for::RULE,
-    &hits_limit::RULE,
-    &runway_below::RULE,
-    &runway_resets::RULE,
-    &leaves_processes::RULE,
-    &restarted::RULE,
-    &starts::RULE,
-    &pool_message::RULE,
-    &task_changes::RULE,
-    &commits::RULE,
+    &finishes::Finishes,
+    &asks_you::AsksYou,
+    &fails::Fails,
+    &stuck::Stuck,
+    &ends::Ends,
+    &idle_for::IdleFor,
+    &hits_limit::HitsLimit,
+    &runway_below::RunwayBelow,
+    &runway_resets::RunwayResets,
+    &leaves_processes::LeavesProcesses,
+    &restarted::Restarted,
+    &starts::Starts,
+    &pool_message::PoolMessage,
+    &task_changes::TaskChanges,
+    &commits::Commits,
 ];
 
 /// The rules, by code.

@@ -22,6 +22,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::state::AppState;
 
+pub mod bell;
+
 /// What an observation is about, resolved when it is published.
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -93,9 +95,7 @@ pub enum EndKind {
 }
 
 /// A task's state, as a watch names it.
-#[derive(
-    Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, ts_rs::TS,
-)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, ts_rs::TS)]
 #[serde(rename_all = "snake_case")]
 #[ts(export, export_to = "../../../ui/src/types/generated/")]
 pub enum TaskState {

@@ -1,43 +1,27 @@
 //! `idle_for`: no activity for `min` minutes while it's open (ADR-0036 §2.2).
 
-use juggler_adapter::Observes;
-
-use super::{ConditionRule, Memo, ParamKind, ParamSpec, Verdict, after};
-use crate::features::observe::{Observation, Observed};
-use crate::features::watches::model::{Param, TargetKind};
-use crate::features::watches::words::{self, CondWords};
+use super::{
+    About, ConditionRule, Memo, Observation, Observed, Observes, Param, ParamKind, ParamSpec,
+    Verdict, WORK, after, words,
+};
 
 /// The rule.
-pub struct Rule;
+pub struct IdleFor;
 
-/// The registered rule.
-pub const RULE: Rule = Rule;
+static ABOUT: About = About {
+    code: "idle_for",
+    targets: WORK,
+    needs: Observes::STATES.union(Observes::TURN_ENDS),
+    param: Some(ParamSpec {
+        name: "min",
+        kind: ParamKind::Minutes { min: 5, max: 480 },
+        required: true,
+    }),
+    told_as: None,
+    words: &words::IDLE_FOR,
+};
 
-impl ConditionRule for Rule {
-    fn code(&self) -> &'static str {
-        "idle_for"
-    }
-    fn targets(&self) -> &'static [TargetKind] {
-        &[
-            TargetKind::Session,
-            TargetKind::App,
-            TargetKind::Project,
-            TargetKind::Any,
-        ]
-    }
-    fn needs(&self) -> Observes {
-        Observes::STATES.union(Observes::TURN_ENDS)
-    }
-    fn param(&self) -> Option<ParamSpec> {
-        Some(ParamSpec {
-            name: "min",
-            kind: ParamKind::Minutes { min: 5, max: 480 },
-            required: true,
-        })
-    }
-    fn words(&self) -> &'static CondWords {
-        &words::IDLE_FOR
-    }
+impl ConditionRule for IdleFor {
     fn on(&self, param: Option<&Param>, _memo: &mut Memo, obs: &Observation) -> Verdict {
         match obs.event {
             // Ended: nothing is open to be idle.
@@ -49,5 +33,8 @@ impl ConditionRule for Rule {
     }
     fn on_start(&self, param: Option<&Param>, now_ms: i64) -> Verdict {
         after(param, now_ms)
+    }
+    fn about(&self) -> &'static About {
+        &ABOUT
     }
 }
