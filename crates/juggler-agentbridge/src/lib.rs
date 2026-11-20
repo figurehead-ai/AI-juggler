@@ -43,5 +43,7 @@ pub mod plugin;
 #[cfg(all(debug_assertions, unix))]
 pub mod probe;
 pub mod task_tools;
+#[cfg(all(test, unix))]
+mod test_support;
 pub mod waker;
 pub mod wire;

@@ -308,22 +308,9 @@ mod tests {
     #[cfg(unix)]
     #[test]
     fn an_answer_at_once_never_makes_a_busy_loop() {
-        use std::io::{BufRead, Write as _};
-        use std::os::unix::fs::PermissionsExt;
         let root = tempfile::tempdir().unwrap();
-        let dir = root.path().join("agent");
-        std::fs::create_dir(&dir).unwrap();
-        std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o700)).unwrap();
-        let socket = dir.join("bridge.sock");
-        let listener = std::os::unix::net::UnixListener::bind(&socket).unwrap();
-        std::thread::spawn(move || {
-            for stream in listener.incoming().flatten() {
-                let mut line = String::new();
-                let _ = std::io::BufReader::new(&stream).read_line(&mut line);
-                let mut stream = stream;
-                let _ = stream.write_all(b"{\"result\":{\"wake\":null}}\n");
-            }
-        });
+        let (socket, listener) = crate::test_support::agent_socket(root.path());
+        crate::test_support::answer_each(listener, b"{\"result\":{\"wake\":null}}\n");
         let inbox = Inbox {
             socket: root.path().join("no-inbox.sock"),
             token: None,
@@ -344,23 +331,10 @@ mod tests {
     #[cfg(unix)]
     #[test]
     fn busy_is_tried_again_after_the_least_pause_and_other_refusals_back_off() {
-        use std::io::{BufRead, Write as _};
-        use std::os::unix::fs::PermissionsExt;
         let asked_in_a_second = |answer: &'static [u8], start_grace: Duration| {
             let root = tempfile::tempdir().unwrap();
-            let dir = root.path().join("agent");
-            std::fs::create_dir(&dir).unwrap();
-            std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o700)).unwrap();
-            let socket = dir.join("bridge.sock");
-            let listener = std::os::unix::net::UnixListener::bind(&socket).unwrap();
-            std::thread::spawn(move || {
-                for stream in listener.incoming().flatten() {
-                    let mut line = String::new();
-                    let _ = std::io::BufReader::new(&stream).read_line(&mut line);
-                    let mut stream = stream;
-                    let _ = stream.write_all(answer);
-                }
-            });
+            let (socket, listener) = crate::test_support::agent_socket(root.path());
+            crate::test_support::answer_each(listener, answer);
             let inbox = Inbox {
                 socket: root.path().join("no-inbox.sock"),
                 token: None,
