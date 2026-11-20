@@ -293,7 +293,7 @@ impl RoomThresholds {
              It turns tight only when one runs short: the processor over {cpu} for {span}, \
              swap at {full} of its size and holding {ram} of your memory or more, \
              swap growing over {grow:.0} MB a minute, under {free} of memory free, \
-             the Mac slowing down to cool off, or a disk with under {disk} free.",
+             the computer slowing down to cool off, or a disk with under {disk} free.",
             cpu = percent_words(self.cpu_busy_pct),
             span = span_words(self.cpu_sustained_ms),
             full = share_words(self.swap_full_share),
