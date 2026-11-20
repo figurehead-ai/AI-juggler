@@ -89,6 +89,7 @@ for (const theme of ["dark", "light"] as const) {
             await settled(page);
             await expect(page.getByRole("main")).toContainText(state.expect);
             if (state.name !== "no-accounts") await expect(page.getByTestId("home-apps-section")).toBeAttached();
+            // Stable names: a rename unpairs Happo's baseline (tests/visual/happo.ts).
             await happoScreenshot(page.locator("body"), { component: "Home", variant: `${state.name}-${theme}-${target.name}`, targets: [target.name] });
           }
         }

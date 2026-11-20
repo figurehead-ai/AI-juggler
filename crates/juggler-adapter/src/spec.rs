@@ -50,6 +50,13 @@ pub struct ToolFlags {
     /// The tool a fresh account or a folder import is for when nothing
     /// else says (one tool holds this).
     pub primary: bool,
+    /// The evidence (a repository path) that the tool was walked live end
+    /// to end with a signed-in account: sessions started, read and
+    /// answered through AI Juggler. `None` until such a walk passes; a
+    /// built adapter proven on fixtures only isn't live verified. Words
+    /// that claim support (the welcome's "runs your … sessions") name
+    /// only tools that have it; import still offers every built one.
+    pub live_verified: Option<&'static str>,
 }
 
 /// The Floor's style family for a tool's Apps (SPEC §9.7, D-67), by word:

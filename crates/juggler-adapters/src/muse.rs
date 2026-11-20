@@ -992,6 +992,8 @@ pub fn muse_spec() -> juggler_adapter::ToolSpec {
         flags: ToolFlags {
             first_run: true,
             primary: false,
+            // Fixtures and stand-ins only until its live check (AJ-E1612).
+            live_verified: None,
         },
         // Meta Model API Terms of Service (updated 2026-10-09), read
         // 2026-11-13, recorded in AJ-E1518's register.

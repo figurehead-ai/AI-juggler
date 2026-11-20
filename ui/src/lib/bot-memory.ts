@@ -6,15 +6,15 @@
  */
 import { useEffect, useState } from "react";
 import { botForget, botMemories, type BotMemoriesInfo } from "./ipc/bot";
-import { botState, openBot, setDraft } from "./bot-store";
+import { MEMORY_CHANGED, botState, openBot, setDraft } from "./bot-store";
 import { errorText } from "./bridge";
 import type { BotMemoryInfo } from "../types/generated/BotMemoryInfo";
 import type { BotTurnInfo } from "../types/generated/BotTurnInfo";
 
 /** The event the forget sheet listens for. */
 export const FORGET_EVENT = "aij:bot-forget";
-/** The event that says the memory list changed. */
-export const MEMORY_CHANGED = "aij:bot-memory-changed";
+/** The event that says the memory list changed (defined in bot-store). */
+export { MEMORY_CHANGED };
 
 /** Asks to forget `memory` (the sheet confirms). */
 export function askForget(memory: BotMemoryInfo): void {

@@ -825,6 +825,8 @@ pub fn opencode_spec() -> juggler_adapter::ToolSpec {
         flags: ToolFlags {
             first_run: true,
             primary: false,
+            // §3, live on 0.4.1 rc17–rc33.
+            live_verified: Some("docs/qa/pools-lab.md"),
         },
         // Research `opencode.md` §7 (accessed 2026-10-21), recorded in
         // AJ-E1518's register.

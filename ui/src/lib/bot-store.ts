@@ -198,6 +198,10 @@ export function setAnchor(anchor: string | null): void {
 }
 
 /** Asks the draft (or `question`), with the chip riding on it. */
+/** The event that says Bot's memory list changed (kept here, where a
+ * turn that remembers lands; lib/bot-memory re-exports it). */
+export const MEMORY_CHANGED = "aij:bot-memory-changed";
+
 export async function ask(question?: string): Promise<BotTurnInfo | null> {
   const words = (question ?? state.draft).trim();
   if (!words || state.asking) return null;
@@ -205,6 +209,9 @@ export async function ask(question?: string): Promise<BotTurnInfo | null> {
   try {
     const turn = await botAsk({ question: words, scope: state.scope });
     set({ turns: [...state.turns, turn], asking: false, loaded: true });
+    // "What Bot remembers" reads again at once (the 0.5 walk's N-03: it
+    // said 0 beside a note just kept until the tab was opened).
+    if (turn.memory) window.dispatchEvent(new Event(MEMORY_CHANGED));
     return turn;
   } catch (cause) {
     set({ asking: false, error: errorText(cause), draft: question === undefined ? words : state.draft });

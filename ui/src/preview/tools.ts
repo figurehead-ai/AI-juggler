@@ -30,7 +30,7 @@ export const PREVIEW_TOOLS: ToolSpecInfo[] = [
       { id: "other", title: "Other Claude setups", path_contains: null, origin: null, shows_install: false },
     ],
     default_label: "Default",
-    flow: { first_run: true, primary: true },
+    flow: { first_run: true, primary: true, live_verified: true },
     terms: {
       name: "Anthropic's Consumer Terms",
       url: "https://www.anthropic.com/legal/consumer-terms",
@@ -66,7 +66,7 @@ export const PREVIEW_TOOLS: ToolSpecInfo[] = [
     scan_hint: "Your default setup and anything else that looks like one. Nothing is changed.",
     setup_groups: [{ id: "codex", title: "Codex", path_contains: null, origin: null, shows_install: true }],
     default_label: "Codex",
-    flow: { first_run: true, primary: false },
+    flow: { first_run: true, primary: false, live_verified: true },
     terms: {
       name: "OpenAI's Terms of Use",
       url: "https://openai.com/policies/terms-of-use/",
@@ -100,7 +100,7 @@ export const PREVIEW_TOOLS: ToolSpecInfo[] = [
     scan_hint: "Your default setup and anything else that looks like one. Nothing is changed.",
     setup_groups: [{ id: "opencode", title: "OpenCode", path_contains: null, origin: null, shows_install: true }],
     default_label: "OpenCode",
-    flow: { first_run: true, primary: false },
+    flow: { first_run: true, primary: false, live_verified: true },
     terms: {
       name: "OpenCode's Terms of Service",
       url: "https://opencode.ai/legal/terms-of-service",
@@ -137,7 +137,7 @@ export const PREVIEW_TOOLS: ToolSpecInfo[] = [
     scan_hint: "Your default setup and anything else that looks like one. Nothing is changed.",
     setup_groups: [{ id: "kimi-code", title: "Kimi Code", path_contains: null, origin: null, shows_install: true }],
     default_label: "Kimi Code",
-    flow: { first_run: true, primary: false },
+    flow: { first_run: true, primary: false, live_verified: false },
     terms: {
       name: "Kimi's Terms of Service",
       url: "https://www.kimi.ai/user/agreement/modelUse",
@@ -166,7 +166,7 @@ export const PREVIEW_TOOLS: ToolSpecInfo[] = [
     scan_hint: "Your default setup and anything else that looks like one. Nothing is changed.",
     setup_groups: [{ id: "grok-build", title: "Grok Build", path_contains: null, origin: null, shows_install: true }],
     default_label: "Grok",
-    flow: { first_run: true, primary: false },
+    flow: { first_run: true, primary: false, live_verified: true },
     terms: {
       name: "xAI's Terms of Service",
       url: "https://x.ai/legal/terms-of-service",
@@ -208,7 +208,7 @@ export const PREVIEW_TOOLS: ToolSpecInfo[] = [
     scan_hint: "Looks for ZCode on this computer. Nothing is changed.",
     setup_groups: [{ id: "zcode", title: "ZCode", path_contains: null, origin: null, shows_install: true }],
     default_label: "ZCode",
-    flow: { first_run: true, primary: false },
+    flow: { first_run: true, primary: false, live_verified: false },
     terms: {
       name: "ZCode's User Agreement",
       url: "https://zcode.z.ai/cn/terms",
@@ -250,7 +250,7 @@ export const PREVIEW_TOOLS: ToolSpecInfo[] = [
     scan_hint: "Looks for your own Muse Code setup. Nothing is changed.",
     setup_groups: [{ id: "muse-code", title: "Muse Code", path_contains: null, origin: null, shows_install: true }],
     default_label: "Muse Code",
-    flow: { first_run: true, primary: false },
+    flow: { first_run: true, primary: false, live_verified: false },
     terms: {
       name: "Meta Model API Terms of Service",
       url: "https://dev.meta.ai/legal/terms-of-service",
@@ -296,7 +296,7 @@ export const PREVIEW_TOOLS: ToolSpecInfo[] = [
     scan_hint: "Your own Hermes home and its profiles. Nothing is changed.",
     setup_groups: [{ id: "hermes-agent", title: "Hermes Agent", path_contains: null, origin: null, shows_install: true }],
     default_label: "Hermes",
-    flow: { first_run: true, primary: false },
+    flow: { first_run: true, primary: false, live_verified: false },
     terms: {
       name: "Nous Portal Terms of Service",
       url: "https://portal.nousresearch.com/terms",

@@ -1385,6 +1385,8 @@ pub fn claude_code_spec() -> juggler_adapter::ToolSpec {
         flags: ToolFlags {
             first_run: true,
             primary: true,
+            // P2, live with the Lab App (2026-11-07).
+            live_verified: Some("docs/qa/0.4-walks/P2.md"),
         },
         // Checked against the terms on 2026-10-23 (AJ-E1518's register).
         terms: Some(ToolTerms {

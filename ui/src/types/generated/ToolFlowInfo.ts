@@ -11,4 +11,9 @@ first_run: boolean,
 /**
  * The tool a fresh account is for when nothing else says.
  */
-primary: boolean, };
+primary: boolean, 
+/**
+ * Walked live end to end with a signed-in account (its adapter names
+ * the evidence): only these are named where support is claimed.
+ */
+live_verified: boolean, };

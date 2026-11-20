@@ -639,6 +639,8 @@ pub fn kimi_code_spec() -> juggler_adapter::ToolSpec {
         flags: ToolFlags {
             first_run: true,
             primary: false,
+            // Fixtures and stand-ins only until its live check (AJ-E1612).
+            live_verified: None,
         },
         // Research `kimi.md` §7 (accessed 2026-10-21), recorded in
         // AJ-E1518's register.

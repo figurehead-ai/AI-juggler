@@ -103,6 +103,7 @@ pub fn spec_info(adapter: &dyn HarnessAdapter) -> ToolSpecInfo {
         flow: ToolFlowInfo {
             first_run: spec.flags.first_run,
             primary: spec.flags.primary,
+            live_verified: spec.flags.live_verified.is_some(),
         },
         terms: spec.terms.map(|terms| ToolTermsInfo {
             name: terms.name,
