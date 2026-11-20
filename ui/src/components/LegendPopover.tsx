@@ -51,13 +51,18 @@ export function LegendPopover({
         buttonRef.current?.focus();
       }
     };
+    // The page under it is inert, its "?" too, and the legend has no
+    // control of its own: focus moves onto the legend itself (WAI-ARIA's
+    // dialog pattern), never left on the page's body; Escape closes it and
+    // puts focus back on the "?".
+    panelRef.current?.focus();
     window.addEventListener("mousedown", onDown);
     window.addEventListener("keydown", onKey);
     return () => {
       window.removeEventListener("mousedown", onDown);
       window.removeEventListener("keydown", onKey);
     };
-  }, [open]);
+  }, [open, place]);
   return (
     <span className={className}>
       <button
@@ -81,9 +86,10 @@ export function LegendPopover({
           id={panelId}
           role="dialog"
           aria-label="What the icons mean"
+          tabIndex={-1}
           data-testid="indicator-legend"
           style={{ left: place.left, top: place.top, bottom: place.bottom, maxHeight: place.maxHeight }}
-          className="fixed z-50 w-80 overflow-y-auto rounded-xl border border-hairline bg-surface p-3 shadow-card"
+          className="fixed z-50 w-80 overflow-y-auto rounded-xl border border-hairline bg-surface p-3 shadow-card outline-none"
         >
           <IndicatorLegend />
         </div>,
