@@ -170,9 +170,7 @@ export function RailProjectHeader({
           {children}
           <HeadNeeds needs={needs.needsHere} level={needs.level} probably={needs.probably} />
           {accounts.length > 0 && (
-            <span className={"flex " + appTone(lit)}>
-              <AppStack apps={accounts} />
-            </span>
+            <AppStack apps={accounts} tone={appTone(lit)} />
           )}
           <span className="text-label font-normal text-muted">{count}</span>
         </span>

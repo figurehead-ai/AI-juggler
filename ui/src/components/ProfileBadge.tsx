@@ -75,18 +75,20 @@ export const ProfileBadge = memo(function ProfileBadge({
 /** Up to `max` Apps' dots, the Apps that worked somewhere, barely
  * overlapping (each a whole dot: the 0.4 review saw slivers), then "+N" for the rest: a project's
  * header in the rail. One serving a live session there is ringed in the
- * live colour, as sessions are. */
-export function AppStack({ apps, max = 3, size = 8 }: { apps: { id: string | null; label: string; live?: boolean; app?: string }[]; max?: number; size?: number }): JSX.Element | null {
+ * live colour, as sessions are. `tone` (`appTone`) goes on the dots only. */
+export function AppStack({ apps, max = 3, size = 8, tone = "" }: { apps: { id: string | null; label: string; live?: boolean; app?: string }[]; max?: number; size?: number; tone?: string }): JSX.Element | null {
   if (apps.length === 0) return null;
   const shown = apps.slice(0, max);
   const more = apps.length - shown.length;
   return (
     <span aria-hidden="true" className="flex shrink-0 items-center" data-testid="app-stack">
       {shown.map((app, index) => (
-        <span key={app.app ?? app.id ?? app.label} className="flex" data-live={app.live ? "true" : undefined} style={{ marginLeft: index === 0 ? 0 : -Math.max(1, Math.round(size / 6)), zIndex: shown.length - index }}>
+        <span key={app.app ?? app.id ?? app.label} className={"flex " + tone} data-live={app.live ? "true" : undefined} style={{ marginLeft: index === 0 ? 0 : -Math.max(1, Math.round(size / 6)), zIndex: shown.length - index }}>
           <ProfileBadge app={app.app ?? (app.id ? cliAppId(app.id) : `folder:${app.label}`)} name={app.label} size={size} ring={app.live ? "var(--color-live)" : "var(--color-surface)"} />
         </span>
       ))}
+      {/* "+N" is words: never under the dots' tone (D-117's muted Apps), whose
+          opacity put it at 3.36:1 on the light canvas (axe color-contrast). */}
       {more > 0 && <span className="ml-1 text-label font-medium tabular-nums text-muted">+{more}</span>}
     </span>
   );
