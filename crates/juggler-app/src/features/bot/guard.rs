@@ -728,62 +728,85 @@ const ROLE_TAGS: &[&str] = &[
 /// Markup spans that hold an order (`<tag>…</tag>`, `[INST]…[/INST]`),
 /// replaced by the mark; the removed spans.
 fn tag_spans(text: &str) -> (String, Vec<String>) {
+    // Linear in the text (the Bot review's I3): the text is lower-cased
+    // once (ASCII only, so every index stays a char boundary), the next
+    // `<` and `[` are found once each and kept until passed, and a tag's
+    // head and body are looked for within their bounds only.
+    const HEAD_MAX: usize = 64;
+    const BODY_MAX: usize = 1_600;
+    let lower = text.to_ascii_lowercase();
+    let bytes = text.as_bytes();
+    let next_of = |from: usize, ch: u8| {
+        bytes
+            .get(from..)
+            .and_then(|tail| tail.iter().position(|&b| b == ch))
+            .map(|i| from + i)
+    };
     let mut out = String::new();
     let mut removed = Vec::new();
-    let mut rest = text;
+    let mut at = 0;
+    let mut next_angle = next_of(0, b'<');
+    let mut next_square = next_of(0, b'[');
     loop {
-        let angle = rest.find('<');
-        let square = rest.find('[');
-        let Some(start) = [angle, square].into_iter().flatten().min() else {
-            out.push_str(rest);
+        if next_angle.is_some_and(|i| i < at) {
+            next_angle = next_of(at, b'<');
+        }
+        if next_square.is_some_and(|i| i < at) {
+            next_square = next_of(at, b'[');
+        }
+        let Some(start) = [next_angle, next_square].into_iter().flatten().min() else {
+            out.push_str(&text[at..]);
             break;
         };
-        let (open, close_ch) = if rest[start..].starts_with('<') {
+        let (open, close_ch) = if bytes[start] == b'<' {
             ('<', '>')
         } else {
             ('[', ']')
         };
-        let after = &rest[start + 1..];
-        let Some(end_rel) = after.find(close_ch) else {
-            out.push_str(rest);
-            break;
-        };
-        let head = after[..end_rel].trim();
-        let tag: String = head
-            .chars()
-            .take_while(|c| c.is_alphanumeric() || matches!(c, '-' | '_'))
-            .collect::<String>()
-            .to_lowercase();
-        let is_tag = !tag.is_empty()
-            && tag.len() <= 31
-            && (open == '<' || matches!(tag.as_str(), "inst" | "sys" | "system"));
-        let closing = format!("{open}/{tag}{close_ch}");
-        let body_start = start + 1 + end_rel + 1;
-        let found = if is_tag {
-            rest[body_start..].to_lowercase().find(&closing)
+        let head_end = (start + 1 + HEAD_MAX).min(text.len());
+        let end_rel = bytes[start + 1..head_end]
+            .iter()
+            .position(|&b| b == close_ch as u8);
+        let span = end_rel.and_then(|end_rel| {
+            let head = text.get(start + 1..start + 1 + end_rel)?.trim();
+            let tag: String = head
+                .chars()
+                .take_while(|c| c.is_alphanumeric() || matches!(c, '-' | '_'))
+                .collect::<String>()
+                .to_lowercase();
+            let is_tag = !tag.is_empty()
+                && tag.len() <= 31
+                && (open == '<' || matches!(tag.as_str(), "inst" | "sys" | "system"));
+            if !is_tag {
+                return None;
+            }
+            let closing = format!("{open}/{tag}{close_ch}");
+            let body_start = start + 1 + end_rel + 1;
+            let window_end = (body_start + BODY_MAX + closing.len()).min(text.len());
+            let body_len = lower.get(body_start..window_end)?.find(&closing)?;
+            Some((
+                tag,
+                body_start,
+                body_len,
+                body_start + body_len + closing.len(),
+            ))
+        });
+        if let Some((tag, body_start, body_len, span_end)) = span {
+            let inner = &text[body_start..body_start + body_len];
+            let order = ROLE_TAGS.contains(&tag.as_str())
+                || caught(inner)
+                || sentences(inner.trim()).iter().any(|s| caught(s));
+            out.push_str(&text[at..start]);
+            if order {
+                removed.push(text[start..span_end].trim().to_owned());
+                out.push_str(REMOVED_MARK);
+            } else {
+                out.push_str(&text[start..span_end]);
+            }
+            at = span_end;
         } else {
-            None
-        };
-        match found {
-            Some(body_len) if body_len <= 1_600 => {
-                let inner = &rest[body_start..body_start + body_len];
-                let span_end = body_start + body_len + closing.len();
-                let order = ROLE_TAGS.contains(&tag.as_str())
-                    || caught(inner)
-                    || sentences(inner.trim()).iter().any(|s| caught(s));
-                out.push_str(&rest[..start]);
-                if order {
-                    removed.push(rest[start..span_end].trim().to_owned());
-                    out.push_str(REMOVED_MARK);
-                } else {
-                    out.push_str(&rest[start..span_end]);
-                }
-                rest = &rest[span_end..];
-            }
-            _ => {
-                out.push_str(&rest[..=start]);
-                rest = &rest[start + 1..];
-            }
+            out.push_str(&text[at..=start]);
+            at = start + 1;
         }
     }
     (out, removed)
@@ -885,9 +908,11 @@ mod tests {
 
     use super::*;
 
-    const FIXTURE: &str = include_str!(
-        "../../../../../docs/qa/evidence/AJ-E3709/harness/v5/fixtures/guard-phrases.json"
-    );
+    /// The harness's shared fixture (`docs/qa/evidence/AJ-E3709/harness/v5/
+    /// fixtures/guard-phrases.json`), copied into the crate's own test data
+    /// so shipped code never reads an evidence file; `scripts/guard_fixture_same.py`
+    /// (in `just verify-static`) fails when the two differ.
+    const FIXTURE: &str = include_str!("fixtures/guard-phrases.json");
 
     /// AJ-E3806 Req 6: every `must_catch: true` sentence removed, every
     /// `must_catch: false` one kept, English and German.
@@ -936,6 +961,21 @@ mod tests {
         assert_eq!(
             guard_name("Fix the login redirect").cleaned,
             "Fix the login redirect"
+        );
+    }
+
+    /// I3: linear in the text, however many `<` and `[` it holds.
+    #[test]
+    fn the_guard_is_linear_in_open_tags() {
+        let many = "<instruction>".repeat(6_000) + &"[INST]".repeat(6_000);
+        let started = std::time::Instant::now();
+        let _ = guard(&many);
+        let plain = "word ".repeat(20_000);
+        let _ = guard(&plain);
+        assert!(
+            started.elapsed() < std::time::Duration::from_secs(2),
+            "{:?}",
+            started.elapsed()
         );
     }
 

@@ -34,6 +34,9 @@ pub struct World {
     pub removed: Vec<String>,
 }
 
+/// The longest name a row keeps, in characters.
+pub const NAME_MAX: usize = 300;
+
 /// The most tasks read for one question.
 const TASKS_READ: u32 = 400;
 
@@ -112,7 +115,10 @@ fn empty_row(kind: BotRowKind, id: String, title: String) -> BotRowInfo {
 /// A name through the guard: the cleaned words, and whether it was all
 /// an order; what was removed goes to `removed`.
 fn guarded_into(name: &str, removed: &mut Vec<String>) -> (String, bool) {
-    let guarded = guard_name(name);
+    // A name is cut to what a row shows before the guard reads it (the Bot
+    // review's I3: no long text is read twice under the storage lock).
+    let name: String = name.chars().take(NAME_MAX).collect();
+    let guarded = guard_name(&name);
     let hidden = !guarded.removed.is_empty() && guarded.cleaned.is_empty();
     removed.extend(guarded.removed);
     (guarded.cleaned, hidden)
@@ -157,7 +163,7 @@ pub fn session_row<S: BuildHasher>(
         started_ms: Some(row.started_at_ms),
         provider: Some(row.provider.clone()),
         app_id: row.app_id.clone(),
-        app_label: Some(row.account_label.clone()).filter(|l| !l.is_empty()),
+        app_label: Some(guarded_into(&row.account_label, removed).0).filter(|l| !l.is_empty()),
         desktop: row.kind == "desktop",
         project: row
             .project_id
@@ -168,7 +174,13 @@ pub fn session_row<S: BuildHasher>(
             .git_dirty_count
             .and_then(|n| u32::try_from(n).ok())
             .filter(|&n| n > 0),
-        branch: row.git_branch.clone().filter(|b| !b.is_empty()),
+        // Every string from a record passes the guard, names included: an
+        // agent can name a branch (the Bot review's M1).
+        branch: row
+            .git_branch
+            .as_deref()
+            .map(|b| guarded_into(b, removed).0)
+            .filter(|b| !b.is_empty()),
         ..empty_row(BotRowKind::Session, row.id.clone(), title)
     }
 }
@@ -186,30 +198,41 @@ pub fn gather(state: &Arc<AppState>) -> AppResult<World> {
         crate::features::sessions::read_model::session_infos_snapshot(&storage).unwrap_or_default()
     };
     let rows = crate::features::conversations::titled(state, rows).unwrap_or_default();
-    let storage = state.storage.lock().map_err(|_| AppError::StatePoisoned)?;
-    let projects: HashMap<String, String> = storage
-        .projects()
-        .list()
-        .unwrap_or_default()
-        .into_iter()
-        .map(|p| (p.id.to_string(), p.name))
-        .collect();
-    let pools: HashMap<String, (String, Option<String>)> = storage
-        .pools()
-        .list()
-        .unwrap_or_default()
-        .into_iter()
-        .map(|p| (p.id, (p.name, p.project.map(|id| id.to_string()))))
-        .collect();
+    // Read under the lock, guarded after it (I3).
+    let (projects, pools, tasks, accounts) = {
+        let storage = state.storage.lock().map_err(|_| AppError::StatePoisoned)?;
+        (
+            storage.projects().list().unwrap_or_default(),
+            storage.pools().list().unwrap_or_default(),
+            storage
+                .tasks()
+                .list(&TaskQuery::default(), TASKS_READ)
+                .unwrap_or_default(),
+            accounts(state, &storage, now_ms),
+        )
+    };
     let mut removed = Vec::new();
+    let projects: HashMap<String, String> = projects
+        .into_iter()
+        .map(|p| (p.id.to_string(), guarded_into(&p.name, &mut removed).0))
+        .collect();
+    let pools: HashMap<String, (String, Option<String>)> = pools
+        .into_iter()
+        .map(|p| {
+            (
+                p.id,
+                (
+                    guarded_into(&p.name, &mut removed).0,
+                    p.project.map(|id| id.to_string()),
+                ),
+            )
+        })
+        .collect();
     let sessions = rows
         .iter()
         .map(|row| session_row(row, &projects, &mut removed))
         .collect();
-    let tasks = storage
-        .tasks()
-        .list(&TaskQuery::default(), TASKS_READ)
-        .unwrap_or_default()
+    let tasks = tasks
         .into_iter()
         .map(|task| {
             let (title, name_hidden) = guarded_into(&task.title, &mut removed);
@@ -233,7 +256,13 @@ pub fn gather(state: &Arc<AppState>) -> AppResult<World> {
             }
         })
         .collect();
-    let accounts = accounts(state, &storage, now_ms);
+    let accounts = accounts
+        .into_iter()
+        .map(|row| BotRowInfo {
+            title: guarded_into(&row.title, &mut removed).0,
+            ..row
+        })
+        .collect();
     Ok(World {
         now_ms,
         offset_hours: clock.utc_offset_hours.unwrap_or(0),
