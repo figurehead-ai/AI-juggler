@@ -126,12 +126,12 @@ function BotRow({ row, n, now, find, onWatch, alias }: { row: BotRowInfo; n?: nu
       )}
       <span className={"absolute top-[7px] right-2 z-[1] items-center gap-0.5 " + (row.gone ? "hidden" : "pointer-events-none flex opacity-0 group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100")}>
         {onWatch && row.kind === "session" && (
-          <button type="button" className="grid size-[30px] place-items-center rounded-lg text-muted outline-none hover:bg-surface-3 hover:text-ink focus-visible:ring-2 focus-visible:ring-accent/60" title={WORDS.watch} aria-label={`${WORDS.watch} ${row.title}`} onClick={() => onWatch(row)} data-testid="bot-row-watch">
+          <button type="button" className="grid size-[30px] place-items-center rounded-lg text-muted outline-none hover:bg-surface-3 hover:text-ink focus-visible:ring-2 focus-visible:ring-accent/60" title={WORDS.watch} aria-label={`${WORDS.watch} ${rowLabel(row, now)}`} onClick={() => onWatch(row)} data-testid="bot-row-watch">
             <IconEye width={15} height={15} aria-hidden="true" />
           </button>
         )}
         {live && nav.goTo && (
-          <button type="button" className="inline-flex h-7 items-center gap-1.5 rounded-lg px-2 text-meta font-medium text-ink-2 outline-none hover:bg-surface-3 focus-visible:ring-2 focus-visible:ring-accent/60" onClick={() => nav.goTo?.(row)} aria-label={`${WORDS.goTo}: ${row.title}`} data-testid="bot-row-goto">
+          <button type="button" className="inline-flex h-7 items-center gap-1.5 rounded-lg px-2 text-meta font-medium text-ink-2 outline-none hover:bg-surface-3 focus-visible:ring-2 focus-visible:ring-accent/60" onClick={() => nav.goTo?.(row)} aria-label={`${WORDS.goTo}: ${rowLabel(row, now)}`} data-testid="bot-row-goto">
             {WORDS.goTo}
             <IconArrowRight width={13} height={13} aria-hidden="true" />
           </button>

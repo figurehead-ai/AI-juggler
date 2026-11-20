@@ -47,10 +47,9 @@ export function WatchingSection(props: {
         </h3>
         <span className="text-meta text-muted">{PAGE.watchingLine(props.counts.watching, props.counts.paused)}</span>
         {props.only && (
-          <button type="button" onClick={props.onClearOnly} className="ml-1 inline-flex h-6 items-center gap-1 rounded-full bg-accent-soft px-2 text-label font-medium text-accent-hi outline-none focus-visible:ring-2 focus-visible:ring-accent/60" data-testid="watches-only">
+          <button type="button" onClick={props.onClearOnly} className="ml-1 inline-flex h-6 items-center gap-1 rounded-full bg-accent-soft px-2 text-label font-medium text-accent-hi outline-none focus-visible:ring-2 focus-visible:ring-accent/60" aria-label={`${props.only.name}: show every watch`} data-testid="watches-only">
             {props.only.name}
             <IconCross width={11} height={11} aria-hidden="true" />
-            <span className="sr-only">: show every watch</span>
           </button>
         )}
       </div>

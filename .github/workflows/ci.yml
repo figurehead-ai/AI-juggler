@@ -505,9 +505,14 @@ jobs:
           tar -xzf "$RUNNER_TEMP/$NEXTEST" -C "$HOME/.local/bin"
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
       # Some tests read the dependency graph (`cargo metadata --offline`,
-      # trust.rs): the crates, as locked, without building them.
+      # trust.rs): the crates, as locked, without building them. The
+      # local-model helper's own workspace too: trust.rs holds it to the
+      # same network list through its own lock (D-131), and offline it
+      # can't resolve a crate the cache doesn't hold.
       - name: Crates, exactly as locked
-        run: cargo fetch --locked
+        run: |
+          cargo fetch --locked
+          cargo fetch --locked --manifest-path crates/juggler-local-ai/Cargo.toml
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: nextest-archive

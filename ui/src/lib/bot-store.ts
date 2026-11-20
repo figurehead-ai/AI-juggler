@@ -176,6 +176,12 @@ export function setDraft(draft: string): void {
   set({ draft });
 }
 
+/** Starts the question with `draft` ("Remember: ") and puts the cursor
+ * after it, so the words typed next land in the box (the 0.5 walk's N-04). */
+export function startDraft(draft: string): void {
+  set({ draft, focusKey: state.focusKey + 1 });
+}
+
 /** × on the chip: ask about everything. */
 export function widenScope(): void {
   set({ scope: null, focusKey: state.focusKey + 1 });

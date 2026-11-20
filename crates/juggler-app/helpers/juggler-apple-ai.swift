@@ -95,7 +95,14 @@ func generate(_ request: [String: Any], permissive: Bool) async throws -> (Strin
     let model = permissive ? SystemLanguageModel(guardrails: .permissiveContentTransformations) : SystemLanguageModel.default
     let session = LanguageModelSession(model: model, instructions: request["instructions"] as? String ?? "")
     let limit = max(1, request["max_tokens"] as? Int ?? 60)
+    // The label is `samplingMode:` in macOS 27's SDK (Swift 6.4) and
+    // `sampling:` in macOS 26's, which CI's runners build with: the same
+    // greedy sampling either way.
+    #if compiler(>=6.4)
     let options = GenerationOptions(samplingMode: .greedy, temperature: 0, maximumResponseTokens: limit)
+    #else
+    let options = GenerationOptions(sampling: .greedy, temperature: 0, maximumResponseTokens: limit)
+    #endif
     let prompt = request["prompt"] as? String ?? ""
     if let root = request["schema"] as? [String: Any] {
         let schema = try GenerationSchema(root: shape(root, root["name"] as? String ?? "Answer"), dependencies: [])

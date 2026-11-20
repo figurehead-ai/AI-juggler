@@ -14,7 +14,7 @@ import { watchesSummary } from "../lib/ipc/watch-view";
 import { DOORS } from "./watches/watches-words";
 import { Card } from "./primitives";
 import { SettingSwitch } from "./SettingSwitch";
-import { NoAccounts, Status, accountName } from "./SettingsSections";
+import { NoAccounts, Status, useAccountName } from "./SettingsSections";
 import { errorText } from "../lib/bridge";
 import { appSettingGet, appSettingSet, notificationPrefsGet, notificationPrefsSet } from "../lib/ipc/settings";
 import type { AccountInfo } from "../types/generated/AccountInfo";
@@ -236,6 +236,7 @@ function WhenToTell({
 }
 
 export function NotificationSettingsCard({ accounts }: { accounts: AccountInfo[] }): JSX.Element {
+  const accountName = useAccountName();
   const [prefs, setPrefs] = useState<NotificationPrefsInfo | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);

@@ -139,8 +139,10 @@ const HELLO: &str = r#"{"kind":"hello","protocol":3,"gpu":true,"sandboxed":false
 /// switch, so a plain `cargo test` running the module's tests in parallel
 /// threads can't see another test's pressure (nextest's own processes
 /// hid it; the 0.5 pre-push run met it as "garbage: NotHere(Unknown)").
+#[cfg(target_os = "macos")]
 static CRITICAL: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 
+#[cfg(target_os = "macos")]
 fn critical_now() -> bool {
     CRITICAL.load(std::sync::atomic::Ordering::SeqCst)
 }

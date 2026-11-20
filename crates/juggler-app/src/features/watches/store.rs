@@ -258,6 +258,16 @@ impl<'a> WatchStore<'a> {
         Ok((rows, next))
     }
 
+    /// How many watches the user has (every one not removed): what Bot's
+    /// clear sheet and "What Bot remembers" count, from the Watches page's
+    /// own source (the 0.5 walk's N-02: counting the memory records
+    /// counted removed watches too). 0 when the store can't be read.
+    #[must_use]
+    pub fn kept(&self) -> u32 {
+        self.list()
+            .map_or(0, |all| u32::try_from(all.len()).unwrap_or(u32::MAX))
+    }
+
     /// Every watch the user hasn't removed, newest change first, read a
     /// page at a time.
     ///

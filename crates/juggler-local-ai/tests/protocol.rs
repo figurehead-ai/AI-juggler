@@ -412,10 +412,38 @@ fn sandboxed(program: &Path, models: &Path, cache: &Path) -> Command {
     capped(program, models, cache, 4_096)
 }
 
+/// A virtual Mac (`kern.hv_vmm_present`), as CI's macOS runners are.
+#[cfg(target_os = "macos")]
+fn in_a_virtual_mac() -> bool {
+    Command::new("/usr/sbin/sysctl")
+        .args(["-n", "kern.hv_vmm_present"])
+        .output()
+        .is_ok_and(|out| out.stdout.trim_ascii() == b"1")
+}
+
 /// Review M1: the helper runs its whole model path under its profile.
+///
+/// Not on a virtual Mac: its GPU is the hypervisor's, not Apple silicon's
+/// (`AGXAccelerator`), the one the profile lets Metal open, so the load
+/// fails there by design (CI's runners, 0.5's release PR: unsandboxed the
+/// same load passes). The profile isn't widened for it: local models are
+/// for Apple silicon Macs (ADR-0033 §4.2), and this runs on every real
+/// Mac's preflight and before a release.
 #[cfg(target_os = "macos")]
 #[test]
 fn under_its_sandbox_the_helper_still_loads_and_runs_a_model() {
+    if in_a_virtual_mac() {
+        // The evidence for the skip, in the log: whether this Mac has the
+        // GPU class the profile allows.
+        let agx = Command::new("/usr/sbin/ioreg")
+            .args(["-r", "-c", "AGXAccelerator", "-d", "1"])
+            .output()
+            .is_ok_and(|out| !out.stdout.is_empty());
+        eprintln!(
+            "skipped on a virtual Mac (AGXAccelerator present: {agx}): its GPU isn't the one the sandbox allows"
+        );
+        return;
+    }
     let dir = TempDir::new();
     let models = dir.path().join("models");
     let cache = dir.path().join("cache");

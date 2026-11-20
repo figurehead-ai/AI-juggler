@@ -377,9 +377,7 @@ pub fn list(state: &Arc<AppState>) -> AppResult<BotMemoriesInfo> {
         }
     }
     items.sort_by_key(|(at, _)| std::cmp::Reverse(*at));
-    let watches = store
-        .current_of_kind(Kind::StandingRequest, None, 10_000)
-        .map_or(0, |rows| u32::try_from(rows.len()).unwrap_or(u32::MAX));
+    let watches = super::commands::kept_watches(&storage);
     let questions = storage.chat().count().map_or(0, |c| c.turns);
     Ok(BotMemoriesInfo {
         items: items.into_iter().map(|(_, info)| info).collect(),

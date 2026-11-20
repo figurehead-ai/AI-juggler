@@ -10,7 +10,7 @@ import { IconClose } from "../icons-controls";
 import { IconPlus } from "../icons-actions";
 import { IconBookmark, IconEye, IconLock, IconUp } from "./bot-icons";
 import { WORDS } from "../../lib/bot-words";
-import { ask, newTopic, setDraft, useBot, widenScope } from "../../lib/bot-store";
+import { ask, newTopic, setDraft, startDraft, useBot, widenScope } from "../../lib/bot-store";
 import { useMenuCloses } from "../../lib/use-menu-closes";
 
 function PlusMenu({ onClose }: { onClose: () => void }): JSX.Element {
@@ -23,7 +23,7 @@ function PlusMenu({ onClose }: { onClose: () => void }): JSX.Element {
   };
   return (
     <div ref={ref} role="menu" aria-label={WORDS.plusLabel} className="absolute bottom-[calc(100%+6px)] left-0 z-20 flex w-[268px] flex-col gap-px rounded-xl bg-surface p-1.5 shadow-[0_18px_48px_-12px_rgba(0,0,0,.45),0_2px_6px_rgba(0,0,0,.2)] inset-ring-1 inset-ring-hairline/75 [[data-theme=dark]_&]:bg-surface-2" data-testid="bot-plus-menu">
-      <button type="button" role="menuitem" className={item} onClick={pick(() => setDraft("Remember: "))}>
+      <button type="button" role="menuitem" className={item} onClick={pick(() => startDraft("Remember: "))}>
         <IconBookmark width={15} height={15} aria-hidden="true" className="shrink-0 text-muted" />
         <span className="flex flex-col">
           <span>{WORDS.remember}</span>
@@ -51,7 +51,11 @@ export function BotComposer({ footnote }: { footnote?: string }): JSX.Element {
   const box = useRef<HTMLTextAreaElement | null>(null);
   const [plus, setPlus] = useState(false);
   useEffect(() => {
-    if (bot.focusKey > 0) box.current?.focus();
+    const el = box.current;
+    if (bot.focusKey === 0 || !el) return;
+    el.focus();
+    // After what's already there ("Remember: "), not before it.
+    el.setSelectionRange(el.value.length, el.value.length);
   }, [bot.focusKey]);
   const typed = bot.draft.trim().length > 0;
   const placeholder = bot.scope ? WORDS.placeholderAbout(bot.scope.name) : WORDS.placeholder;

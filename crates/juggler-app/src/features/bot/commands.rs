@@ -271,6 +271,12 @@ pub fn bot_find_impl(state: &Arc<AppState>, words: &str) -> AppResult<Vec<BotFou
         .collect())
 }
 
+/// The watches the user has, as the Watches page counts them.
+pub(super) fn kept_watches(storage: &juggler_core::storage::Storage) -> u32 {
+    let registry = crate::features::watches::conditions::Registry::shipped();
+    crate::features::watches::store::WatchStore::new(storage, &registry).kept()
+}
+
 /// What the clear sheet says: the questions that go, the notes and
 /// watches that stay.
 ///
@@ -291,7 +297,7 @@ pub fn bot_count_impl(state: &Arc<AppState>) -> AppResult<BotCountInfo> {
         since_ms: count.since_ms,
         memories: of(juggler_core::storage::memory::Kind::Preference)
             + of(juggler_core::storage::memory::Kind::Note),
-        watches: of(juggler_core::storage::memory::Kind::StandingRequest),
+        watches: kept_watches(&storage),
     })
 }
 

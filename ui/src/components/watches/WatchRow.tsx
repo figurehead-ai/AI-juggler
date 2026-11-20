@@ -150,17 +150,15 @@ export function WatchRow({ info, book, now, compact, actions, quietTo }: { info:
       <StateCell {...state} />
       <div className="flex items-center justify-end gap-0.5">
         {paused ? (
-          <button type="button" className={GHOST} onClick={() => actions.pause(info, false)} data-testid="watch-resume">
+          <button type="button" className={GHOST} onClick={() => actions.pause(info, false)} aria-label={`${ROW.resume}: ${info.words}`} data-testid="watch-resume">
             <IconPlay width={14} height={14} aria-hidden="true" />
             {ROW.resume}
-            <span className="sr-only">: {info.words}</span>
           </button>
         ) : (
           <>
-            <button type="button" className={GHOST} onClick={() => actions.edit(info)} data-testid="watch-edit">
+            <button type="button" className={GHOST} onClick={() => actions.edit(info)} aria-label={`${ROW.edit}: ${info.words}`} data-testid="watch-edit">
               <IconPencil width={14} height={14} aria-hidden="true" />
               {ROW.edit}
-              <span className="sr-only">: {info.words}</span>
             </button>
             <button type="button" className={ICON_BUTTON} onClick={() => actions.pause(info, true)} aria-label={`${ROW.pause}: ${info.words}`} title={ROW.pause} data-testid="watch-pause">
               <IconPause width={14} height={14} aria-hidden="true" />
