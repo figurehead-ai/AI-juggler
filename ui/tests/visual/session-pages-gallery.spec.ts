@@ -260,7 +260,7 @@ for (const theme of ["dark", "light"] as const) {
 
   test(`AI Juggler's own session on its Overview — ${theme}`, async ({ page }) => {
     await seed(page, PAGE_FIXTURE, theme);
-    await page.getByTestId("rail").getByRole("button", { name: "Working, feat/read-model, ai-juggler · 1 h ago" }).click();
+    await page.getByTestId("rail").getByRole("button", { name: "Working, Fix the flaky login test, ai-juggler · 1 h ago" }).click();
     // Its terminal is its Overview (the conversation), the side column beside it.
     await expect(page.getByTestId("page-tab-terminal")).toHaveText("Overview");
     await page.getByTestId("page-tab-terminal").click();

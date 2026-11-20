@@ -25,6 +25,24 @@ const baseProfiles = [
 // full AJ-E401 read model: nulls where a real row would have no source
 // (never zeros), quota/token/resource data only where measured.
 const T0 = 1_728_800_000_000; // pinned clock base (deterministic)
+/** AJ-E3603: each session's own title, as the tool names a session from
+ * its first prompt, so captures read like a real day ("Fix the flaky
+ * login test"), never "Session started 8:30 AM" in every row. A spec that
+ * tests the untitled fallback (D-96) clears `title` on the rows it means. */
+export const SESSION_TITLES = [
+  "Set up the billing webhooks",
+  "Fix the flaky login test",
+  "Draft the migration plan",
+  "Refactor the read model",
+  "Tidy the blog's images",
+  "Add retries to the sync job",
+  "Plan the trip notes app",
+  "Port the settings parser",
+  "Write the onboarding copy",
+  "Sketch the pricing page",
+  "Summarise the support inbox",
+  "Rename the photo exports",
+] as const;
 const mk = (n: number, status: InstanceInfo["status"], label: string): InstanceInfo => {
   const work = label === "Work Max";
   const active = !["finished", "stopped", "failed", "handed_over"].includes(status);
@@ -46,6 +64,7 @@ const mk = (n: number, status: InstanceInfo["status"], label: string): InstanceI
         : null;
   return {
     id: `sess-${n}`,
+    title: SESSION_TITLES[(n - 1) % SESSION_TITLES.length],
     launch_recipe_id: work ? "p-1" : "p-2",
     provider: "claude-code",
     // AJ-E510: false by default; the recovery captures flip it per row.

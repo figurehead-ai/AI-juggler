@@ -134,6 +134,8 @@ export const MOCK_STATS: StatsInfo =
 export const MOCK_SESSIONS: InstanceInfo[] = seeded.sessions ?? [
   {
     id: "sess-live-1",
+    // AJ-E3603: a title as the tool gives one, so the preview reads like a real day.
+    title: "Fix the flaky login test",
     adopted: false,
     launch_recipe_id: "p-1",
     provider: "claude-code",
@@ -169,6 +171,7 @@ export const MOCK_SESSIONS: InstanceInfo[] = seeded.sessions ?? [
   },
   {
     id: "sess-done-1",
+    title: "Migrate the billing webhooks",
     adopted: false,
     launch_recipe_id: "p-3",
     provider: "claude-code",
@@ -200,6 +203,7 @@ export const MOCK_SESSIONS: InstanceInfo[] = seeded.sessions ?? [
   },
   {
     id: "sess-done-2",
+    title: "Add retries to the payment sync",
     adopted: false,
     launch_recipe_id: "p-2",
     provider: "claude-code",

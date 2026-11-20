@@ -81,7 +81,7 @@ for (const theme of ["dark", "light"] as const) {
     await expect(page.getByTestId("rail-needs-you")).toBeVisible();
     const row = page.locator('[data-instance-id="sess-2"]');
     await row.hover();
-    await page.getByRole("button", { name: "Session actions for feat/read-model" }).first().click();
+    await page.getByRole("button", { name: "Session actions for Fix the flaky login test" }).first().click();
     const menu = page.getByRole("menu");
     // AJ-E2106: getting there first (Go to it only while it runs), each
     // with its row key: ⌘↩ goes to it, ↩ opens its page.

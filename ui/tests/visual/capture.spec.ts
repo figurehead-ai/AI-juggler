@@ -1676,7 +1676,7 @@ function adoptedMac() {
     for (const app of mac.apps)
       for (const session of app.sessions)
         if (session.session_id === "s-web") {
-          Object.assign(session, { session_id: "sess-2", key: "s:ours:sess-2", title: "feat/read-model", project_id: "proj-1" });
+          Object.assign(session, { session_id: "sess-2", key: "s:ours:sess-2", title: "Fix the flaky login test", project_id: "proj-1" });
           session.processes = session.processes.map((node, index) => (index === 0 ? { ...node, state: "picked_up" } : node));
         }
     return mac;
