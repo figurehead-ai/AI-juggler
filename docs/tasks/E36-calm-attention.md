@@ -101,7 +101,7 @@
 **Research basis**: `docs/research/calm-attention/proposal.md` §(a) rules 4–5, §(d) "The one change that needs a ruling"; D-47; D-117 point 5.
 **Handover note**: the tray reads its count in Rust; compute the level there from the same rules (one table, tested against the TypeScript one with a shared fixture) rather than a second mapping that can drift.
 
-### AJ-E3603 The rail and the header, calm | Status: IN-PROGRESS (fix 8 built: one quiet mark per need; audit, densities, persona walk and review page left: docs/qa/evidence/AJ-E3603/manifest.md) | Priority P0 | Effort M | Depends: AJ-E3601, AJ-E3602
+### AJ-E3603 The rail and the header, calm | Status: IN-PROGRESS (the audit, the calm pass on every page and density, R5 and the budget gate built 2026-11-19; the persona walk and the review page left: docs/qa/evidence/AJ-E3603/manifest.md) | Priority P0 | Effort M | Depends: AJ-E3601, AJ-E3602
 **Goal**: The rail is calmer than the content, and the header spends no colour on chrome.
 **User story**: As someone with the rail open all day, I see my sessions in quiet rows and only the ones that need me stand out.
 **Requirements**:
