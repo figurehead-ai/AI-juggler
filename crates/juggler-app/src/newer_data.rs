@@ -40,12 +40,17 @@ const DB_FILES: [&str; 3] = ["", "-wal", "-shm"];
 /// `docs/RELEASING.md` § Database changes): going back offers to install
 /// it, so it names the last patch on that schema, not the first. A schema
 /// not listed is named by number.
-// 29 shipped in 0.0.9 and 30 in 0.0.13; 0.1.0 shipped 32 (31, AJ-E1502,
-// and 32, AJ-E1519, came in together, so no release stays on 31); 0.2.0
-// ships 37 (33, pools, AJ-E1702, to 37 came in together); 0.3.0 ships 38
-// (the pool canvas's positions); 0.3.1 to 0.3.9 ship 39 (launch settings
-// removed, not deleted, D-60). Each patch on the newest schema moves its
-// line to that patch (the P9 walk found 39 still naming 0.3.1).
+// From the release tags: 0.0.4 to 0.0.7 shipped 27, 29 shipped in 0.0.9
+// and 30 in 0.0.13; 0.1.0 shipped 32 (31, AJ-E1502, and 32, AJ-E1519, came
+// in together, so no release stays on 31); 0.2.0 ships 37 (33, pools,
+// AJ-E1702, to 37 came in together); 0.3.0 ships 38 (the pool canvas's
+// positions); 0.3.1 to 0.3.9 ship 39 (launch settings removed, not
+// deleted, D-60); 0.4.0 ships 46 (40, the Account and the App, to 46, the
+// Floor's areas); 0.4.1 to 0.4.5 ship 52 (47 to 52 came in together with
+// 0.4.1); 0.4.6 ships 53 (the App whose next session leads a pool,
+// AJ-E3011). The schemas no release stayed on are NEVER_SHIPPED_ALONE.
+// Each patch on the newest schema moves its line to that patch (the P9
+// walk found 39 still naming 0.3.1).
 const SCHEMA_RELEASES: &[(i64, &str)] = &[
     (27, "0.0.7"),
     (28, "0.0.8"),
@@ -55,6 +60,23 @@ const SCHEMA_RELEASES: &[(i64, &str)] = &[
     (37, "0.2.0"),
     (38, "0.3.0"),
     (39, "0.3.9"),
+    (46, "0.4.0"),
+    (52, "0.4.5"),
+    (53, "0.4.6"),
+];
+
+/// The schemas no release stayed on: each came in with a newer one in the
+/// same release, so no one goes back to it, and [`SCHEMA_RELEASES`] has no
+/// line for it. Every migration is in one list or the other (the test
+/// below); a release that brings in more than one migration adds the
+/// others here.
+#[cfg(test)]
+const NEVER_SHIPPED_ALONE: &[(std::ops::RangeInclusive<i64>, &str)] = &[
+    (1..=26, "0.0.4, the first release, shipped 27"),
+    (31..=31, "0.1.0 shipped 31 and 32 together"),
+    (33..=36, "0.2.0 shipped 33 to 37 together"),
+    (40..=45, "0.4.0 shipped 40 to 46 together"),
+    (47..=51, "0.4.1 shipped 47 to 52 together"),
 ];
 
 /// The released version that reads `schema`, when it is known.
@@ -688,4 +710,54 @@ pub fn cannot_start(reason: &str) {
         reason,
         &["Quit"],
     );
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{NEVER_SHIPPED_ALONE, SCHEMA_RELEASES, version_reading};
+    use juggler_core::storage::Storage;
+
+    fn marked(schema: i64) -> bool {
+        NEVER_SHIPPED_ALONE
+            .iter()
+            .any(|(schemas, _)| schemas.contains(&schema))
+    }
+
+    /// Going back names the release to install by its schema: a schema the
+    /// migrations reach with neither a release nor a mark read "schema 52"
+    /// where it meant 0.4.5 (0.4.0 to 0.4.6 had no line).
+    #[test]
+    fn every_schema_names_its_release_or_is_marked_never_shipped_alone() {
+        let current = Storage::schema_version();
+        let unnamed: Vec<i64> = (1..=current)
+            .filter(|schema| version_reading(*schema).is_none() && !marked(*schema))
+            .collect();
+        assert!(
+            unnamed.is_empty(),
+            "schemas with no release and no never-shipped-alone mark: {unnamed:?}"
+        );
+        let both: Vec<i64> = SCHEMA_RELEASES
+            .iter()
+            .map(|(schema, _)| *schema)
+            .filter(|schema| marked(*schema))
+            .collect();
+        assert!(
+            both.is_empty(),
+            "named and marked never shipped alone: {both:?}"
+        );
+        let ahead: Vec<i64> = SCHEMA_RELEASES
+            .iter()
+            .map(|(schema, _)| *schema)
+            .chain(
+                NEVER_SHIPPED_ALONE
+                    .iter()
+                    .map(|(schemas, _)| *schemas.end()),
+            )
+            .filter(|schema| *schema > current)
+            .collect();
+        assert!(
+            ahead.is_empty(),
+            "past the migrations ({current}): {ahead:?}"
+        );
+    }
 }

@@ -777,7 +777,10 @@ saved (it never risks it). So:
   `SCHEMA_RELEASES` in `crates/juggler-app/src/newer_data.rs` (it names the
   version in "Prepare to go back to …" and "Install … from the releases
   page", so it's the newest release on that schema: a patch release on
-  the newest schema moves that line to itself).
+  the newest schema moves that line to itself). A schema no release stays
+  on, because it came in with a newer one in the same release, goes in
+  `NEVER_SHIPPED_ALONE` beside it instead; `newer_data::tests` fails while
+  a migration is in neither list.
 
 | Version | Schema | Opens the previous version's data | The previous version opens its data |
 |---|---|---|---|
@@ -789,7 +792,9 @@ saved (it never risks it). So:
 | 0.2.x | 37 (33: pools, AJ-E1702; 34: messages between agents, E18; 35: other apps' processes, D-41; 36: tasks shared by pools, E19; 37: the notification model's history and mutes, AJ-E2501) | yes | **no** — 0.2's notes need the downgrade note ("Going back to 0.1.0 or earlier…"); 0.2 keeps a `before-v32` copy, so "Go back to an earlier version" can return to 0.1.0 |
 | 0.3.0 | 38 (the pool canvas: where you put each member on a pool's canvas, and an index for a pool's task events) | yes | **no** — 0.3's notes need the downgrade note ("Going back to 0.2.x or earlier…"); 0.3 keeps a `before-v37` copy, so "Go back to an earlier version" can return to 0.2 |
 | 0.3.1–0.3.9 | 39 (launch settings removed, not deleted, D-60) | yes | **no** — 0.3.1's notes need the downgrade note; it keeps a `before-v38` copy, so "Go back to an earlier version" can return to 0.3.0 |
-| 0.4.x | 46 (40–42: the Account and the App stored, with their colours; 43–44: the relation counts; 45: the pools model, D-62, with 0.3's pools moved over; 46: the Floor's areas) | yes | **no** — 0.4's notes carry the downgrade note ("Going back to 0.3 from 0.4"); 0.4 keeps a `before-v39` copy, so "Go back to an earlier version" can return to 0.3.9 |
+| 0.4.0 | 46 (40–42: the Account and the App stored, with their colours; 43–44: the relation counts; 45: the pools model, D-62, with 0.3's pools moved over; 46: the Floor's areas) | yes | **no** — 0.4's notes carry the downgrade note ("Going back to 0.3 from 0.4"); 0.4 keeps a `before-v39` copy, so "Go back to an earlier version" can return to 0.3.9 |
+| 0.4.1–0.4.5 | 52 (47: Apps only the user adds, D-84; 48: pool membership kept in memory; 49: Lead is one session's role, D-92; 50: a held quota reading is one row; 51: the usage holders by number; 52: an Account named as its Apps were imported) | yes | **no** — 0.4.1's notes carry the downgrade note ("Going back to 0.4.0 from 0.4.1"); it keeps a `before-v46` copy, so "Go back to an earlier version" can return to 0.4.0 |
+| 0.4.6 | 53 (an App's next session may lead a pool, AJ-E3011) | yes | **no** — 0.4.6's notes carry the downgrade note ("Going back to 0.4.5"); it keeps a `before-v52` copy, so "Go back to an earlier version" can return to 0.4.5 |
 
 Tests: `cargo test -p juggler-core --test pre_migration_copy` (the copy
 holds exactly the rows the database had, two are kept, a fresh database
