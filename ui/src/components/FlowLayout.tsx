@@ -94,6 +94,8 @@ export interface FlowStep {
   group?: string;
   /** Not reachable yet. */
   disabled?: boolean;
+  /** Why not, said with it (D-127): its tooltip and part of its name. */
+  reason?: string;
 }
 
 /** One step's dot: ✓ when done, its number otherwise, the current one
@@ -151,10 +153,11 @@ export function FlowSteps({
                     type="button"
                     onClick={() => onPick(step.id)}
                     disabled={step.disabled}
+                    title={step.disabled ? step.reason : undefined}
                     aria-current={step.state === "current" ? "step" : undefined}
                     // WCAG 2.5.3: its name holds what it shows, the step and
                     // its value ("Who's in, Claude and Codex"), not the step alone.
-                    aria-labelledby={`${id}-num ${id}-name ${id}-more`}
+                    aria-labelledby={`${id}-num ${id}-name ${id}-more` + (step.disabled && step.reason ? ` ${id}-why` : "")}
                     className={"flex w-full items-start gap-3 rounded-[10px] px-2.5 py-2 text-left outline-none focus-visible:ring-2 focus-visible:ring-accent/60 disabled:cursor-default " + (step.state === "current" ? "bg-surface-2" : "hover:bg-surface-2 disabled:hover:bg-transparent")}
                     data-testid="flow-step"
                     data-step={step.id}
@@ -174,6 +177,11 @@ export function FlowSteps({
                         {/* Part of its name: "Where web, done" (a leading space would be dropped). */}
                         {step.state === "done" && <span className="sr-only">{step.value ? ", done" : "done"}</span>}
                       </span>
+                      {step.disabled && step.reason && (
+                        <span id={`${id}-why`} className="sr-only">
+                          {step.reason}
+                        </span>
+                      )}
                     </span>
                   </button>
                 </li>
