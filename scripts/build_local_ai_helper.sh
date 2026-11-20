@@ -114,8 +114,15 @@ if cargo auditable --version > /dev/null 2>&1; then build=(cargo auditable build
     "${build[@]}" --offline --locked --release --target aarch64-apple-darwin
 )
 built="$target/aarch64-apple-darwin/release/juggler-local-ai"
-rm -f "$out/juggler-local-ai"
-cp "$built" "$out/juggler-local-ai"
+[ -f "$built" ] || fail "cargo built no helper at $built"
+# The release workflow's out-dir on arm64 (target/aarch64-apple-darwin/
+# release) is cargo's own output folder: the built file is already there.
+# Removing "the old copy" first deleted the build itself (0.5's release
+# PR, rehearse aarch64: "cp: … No such file or directory").
+if [ "$(cd "$(dirname "$built")" && pwd -P)" != "$(cd "$out" && pwd -P)" ]; then
+  rm -f "$out/juggler-local-ai"
+  cp "$built" "$out/juggler-local-ai"
+fi
 chmod 0755 "$out/juggler-local-ai"
 sign_ad_hoc "$out/juggler-local-ai"
 check "$out/juggler-local-ai"
