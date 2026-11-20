@@ -1377,19 +1377,47 @@ pub async fn this_mac(state: tauri::State<'_, Arc<AppState>>) -> AppResult<ThisM
 /// The most ended alerts kept between two ticks (one of each kind fits).
 const ENDED_KEPT: usize = 16;
 
-/// What was last emitted: the machine's level and how many AI tools ran.
-static LAST_EMITTED: std::sync::Mutex<Option<(String, u32)>> = std::sync::Mutex::new(None);
+/// What an idle This Mac is told again for: the machine's level, how many
+/// AI tools run, and the left-behind processes and the ports they hold.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct Told {
+    /// The machine's level (`plenty`, `tight`, `pressure`).
+    pub level: String,
+    /// How many AI tools run.
+    pub tools: u32,
+    /// Processes left running after their session closed.
+    pub leftovers: u32,
+    /// Ports those hold.
+    pub ports: u32,
+}
+
+impl Told {
+    /// What `info` would tell.
+    #[must_use]
+    pub fn of(info: &ThisMacInfo) -> Self {
+        Self {
+            level: info.machine.summary.level.clone(),
+            tools: info.tools.count,
+            leftovers: info.leftover_processes,
+            ports: info.leftover_ports,
+        }
+    }
+}
+
+/// What was last emitted.
+static LAST_EMITTED: std::sync::Mutex<Option<Told>> = std::sync::Mutex::new(None);
 
 /// Pure: whether This Mac goes out this tick. Always while an AI tool
-/// runs; otherwise only when something changed — the level, or the count
+/// runs; otherwise only when something changed — the level, the count
 /// (so the step from one tool to none is told, and Home never keeps a
-/// stale "1 running").
+/// stale "1 running"), or the left-behind count (SK-10b: a stopped
+/// leftover stayed on the Overview while nothing ran, as nothing was told).
 #[must_use]
-pub fn should_emit(last: &mut Option<(String, u32)>, level: &str, tools: u32) -> bool {
-    let now = (level.to_string(), tools);
+pub fn should_emit(last: &mut Option<Told>, now: Told) -> bool {
     let changed = last.as_ref() != Some(&now);
+    let running = now.tools > 0;
     *last = Some(now);
-    tools > 0 || changed
+    running || changed
 }
 
 /// Emits This Mac on the 5 s resource cadence (`machine://this-mac`), so
@@ -1416,13 +1444,9 @@ pub fn emit_this_mac(app: &tauri::AppHandle, state: &Arc<AppState>) -> AppResult
     crate::features::notifications::this_mac_room(state, &payload.machine.summary);
     // D-49: Needs you reads This Mac on the same tick, window or not.
     state.notifier.set_this_mac(payload.clone());
-    let emit = LAST_EMITTED.lock().map_or(true, |mut last| {
-        should_emit(
-            &mut last,
-            &payload.machine.summary.level,
-            payload.tools.count,
-        )
-    });
+    let emit = LAST_EMITTED
+        .lock()
+        .map_or(true, |mut last| should_emit(&mut last, Told::of(&payload)));
     if !emit {
         return Ok(());
     }
@@ -1871,24 +1895,52 @@ mod tests {
         assert!(!info.ours.memory_estimate);
     }
 
+    fn told(level: &str, tools: u32, leftovers: u32) -> Told {
+        Told {
+            level: level.to_string(),
+            tools,
+            leftovers,
+            ports: 0,
+        }
+    }
+
     #[test]
     fn going_from_one_tool_to_none_is_told() {
         let mut last = None;
-        assert!(should_emit(&mut last, "plenty", 1));
+        assert!(should_emit(&mut last, told("plenty", 1, 0)));
         assert!(
-            should_emit(&mut last, "plenty", 1),
+            should_emit(&mut last, told("plenty", 1, 0)),
             "always while a tool runs"
         );
         assert!(
-            should_emit(&mut last, "plenty", 0),
+            should_emit(&mut last, told("plenty", 0, 0)),
             "the step to zero is told"
         );
         assert!(
-            !should_emit(&mut last, "plenty", 0),
+            !should_emit(&mut last, told("plenty", 0, 0)),
             "then an idle app is quiet"
         );
-        assert!(should_emit(&mut last, "tight", 0), "a level change is told");
-        assert!(!should_emit(&mut last, "tight", 0));
+        assert!(
+            should_emit(&mut last, told("tight", 0, 0)),
+            "a level change is told"
+        );
+        assert!(!should_emit(&mut last, told("tight", 0, 0)));
+    }
+
+    /// SK-10b: with nothing running, a stopped leftover still leaves the
+    /// Overview: the step from one left behind to none is told.
+    #[test]
+    fn a_stopped_leftover_is_told_while_nothing_runs() {
+        let mut last = None;
+        assert!(should_emit(&mut last, told("plenty", 0, 1)));
+        assert!(!should_emit(&mut last, told("plenty", 0, 1)), "quiet");
+        assert!(
+            should_emit(&mut last, told("plenty", 0, 0)),
+            "the stop is told"
+        );
+        let mut ports = told("plenty", 0, 1);
+        ports.ports = 1;
+        assert!(should_emit(&mut last, ports), "a port held is told");
     }
 
     #[test]
