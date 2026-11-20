@@ -421,6 +421,10 @@ export async function railViewAs(page: import("@playwright/test").Page, view: Re
   await page.evaluate((value) => localStorage.setItem("aij.rail.view.v1", JSON.stringify(value)), view);
   await page.reload();
   await expect(page.getByTestId("rail")).toBeVisible();
+  // The reload draws the rail's History projects before its sessions
+  // load (their rows wait behind "Loading sessions"): a spec that took
+  // the first project's ⋯ then got History's (marks-gallery, 0.5 triage).
+  await expect(page.getByTestId("rail").getByRole("status", { name: "Loading sessions" })).toHaveCount(0);
 }
 
 /**
