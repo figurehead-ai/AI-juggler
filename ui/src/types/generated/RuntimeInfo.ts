@@ -40,6 +40,12 @@ fell_back: string | null,
  */
 error: string | null, 
 /**
+ * Why that error ended its turn, when the tool named it only by a
+ * code (`error` is then that code, never shown): `stopped`,
+ * `turn_limit`, `spend_limit`, `answer_form` or `failed`.
+ */
+error_end?: string, 
+/**
  * The account's limits as this session's tool last reported them.
  */
 limits: Array<LimitWindowInfo>, 

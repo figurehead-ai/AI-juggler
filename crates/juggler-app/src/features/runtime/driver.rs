@@ -13,7 +13,7 @@ use std::time::Duration;
 use juggler_adapter::AdapterError;
 use juggler_adapter::runtime::{
     AskAnswer, AskId, DrivenSession, ItemKind, LimitsSnapshot, LiveStatusWord, OptionEffect,
-    Release, ReleaseOutcome, RuntimeEvent, TurnInput, TurnOrigin,
+    Release, ReleaseOutcome, RuntimeEvent, TurnInput, TurnOrigin, TurnStop,
 };
 use juggler_core::model::{AttentionReason, SessionId, SessionStatus, Timestamp};
 
@@ -74,6 +74,9 @@ pub struct Snapshot {
     pub limits: Option<LimitsSnapshot>,
     /// The last error.
     pub error: Option<String>,
+    /// Why the last error ended its turn, when the tool named that only
+    /// by a code (AJ-E2025: a neutral kind, never the code).
+    pub error_end: Option<&'static str>,
     /// Who sent the delivered message that started the running turn, while
     /// the tool hasn't reported its text yet (F-rc3g-9: that text is never
     /// the person's own).
@@ -211,13 +214,19 @@ fn ask_info(session: &SessionId, event: &RuntimeEvent) -> Option<AskInfo> {
 
 impl Snapshot {
     fn push(&mut self, kind: &str, text: String) {
-        if text.trim().is_empty() {
+        self.push_ended(kind, text, None);
+    }
+
+    /// A line, with why its turn ended when it is a note that says so.
+    fn push_ended(&mut self, kind: &str, text: String, turn_end: Option<&'static str>) {
+        if text.trim().is_empty() && turn_end.is_none() {
             return;
         }
         self.items.push_back(ConversationItemInfo {
             kind: kind.to_owned(),
             text,
             at_ms: Timestamp::now().millis(),
+            turn_end: turn_end.map(str::to_owned),
         });
         while self.items.len() > ITEMS_KEPT {
             self.items.pop_front();
@@ -301,9 +310,13 @@ impl Snapshot {
                 self.model = Some(model.clone());
                 false
             }
-            RuntimeEvent::Error { message, .. } => {
+            RuntimeEvent::Error {
+                message, turn_end, ..
+            } => {
+                let turn_end = turn_end.map(TurnStop::as_str);
                 self.error = Some(message.clone());
-                self.push("note", message.clone());
+                self.error_end = turn_end;
+                self.push_ended("note", message.clone(), turn_end);
                 false
             }
             RuntimeEvent::Exited => {
@@ -384,6 +397,7 @@ impl Driver {
             fell_back: None,
             cut_off: None,
             error: snapshot.error.clone(),
+            error_end: snapshot.error_end.map(str::to_owned),
             limits: snapshot
                 .limits
                 .map(|limits| {
@@ -1029,5 +1043,42 @@ mod given {
                 ("user_message", "thanks"),
             ]
         );
+    }
+}
+
+/// AJ-E2025 item 1: a turn its tool named only by a code ends with a note
+/// that carries the adapter's neutral kind, and so does the session's
+/// last error; a tool's own words carry none.
+#[cfg(test)]
+mod turn_end {
+    use super::Snapshot;
+    use juggler_adapter::runtime::{ErrorCategory, RuntimeEvent, TurnStop};
+    use juggler_core::model::SessionId;
+
+    fn error(message: &str, turn_end: Option<TurnStop>) -> RuntimeEvent {
+        RuntimeEvent::Error {
+            category: ErrorCategory::Other,
+            message: message.to_owned(),
+            will_retry: false,
+            turn_end,
+        }
+    }
+
+    #[test]
+    fn the_note_and_the_error_carry_the_kind_never_a_word_of_the_tools() {
+        let mut snapshot = Snapshot::default();
+        let session = SessionId::new("s");
+        snapshot.apply(&session, &error("code", Some(TurnStop::Stopped)));
+        let note = snapshot.items.back().unwrap();
+        assert_eq!(
+            (note.kind.as_str(), note.turn_end.as_deref()),
+            ("note", Some("stopped"))
+        );
+        assert_eq!(snapshot.error_end, Some("stopped"));
+        snapshot.apply(&session, &error("Credit balance is too low", None));
+        let note = snapshot.items.back().unwrap();
+        assert_eq!(note.turn_end, None);
+        assert_eq!(snapshot.error_end, None);
+        assert_eq!(snapshot.error.as_deref(), Some("Credit balance is too low"));
     }
 }

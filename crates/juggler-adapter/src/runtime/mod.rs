@@ -38,7 +38,8 @@ use crate::model::{Account, Profile};
 pub use events::{
     Approval, ApprovalKind, AskAnswer, AskId, AskOption, Choice, ErrorCategory, ItemKind,
     ItemSummary, LimitWindow, LimitsSnapshot, LiveStatusWord, ModelChoice, OptionEffect,
-    PartAnswer, Question, QuestionPart, RuntimeEvent, TurnEnd, TurnInput, TurnOrigin, TurnUsage,
+    PartAnswer, Question, QuestionPart, RuntimeEvent, TurnEnd, TurnInput, TurnOrigin, TurnStop,
+    TurnUsage,
 };
 
 /// How one session runs. Chosen per launch from what its adapter

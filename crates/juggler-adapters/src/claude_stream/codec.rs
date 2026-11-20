@@ -21,7 +21,7 @@ use juggler_adapter::runtime::events::bounded;
 use juggler_adapter::runtime::{
     Approval, ApprovalKind, AskAnswer, AskId, AskOption, Choice, ErrorCategory, ItemKind,
     ItemSummary, LimitWindow, LimitsSnapshot, LiveStatusWord, OptionEffect, Question, QuestionPart,
-    RuntimeEvent, TurnEnd, TurnInput, TurnUsage,
+    RuntimeEvent, TurnEnd, TurnInput, TurnStop, TurnUsage,
 };
 use serde_json::{Value, json};
 
@@ -145,6 +145,19 @@ pub fn limits_of(info: &Value) -> LimitsSnapshot {
         windows,
         plan: None,
         reached,
+    }
+}
+
+/// A `result`'s subtype (Claude Code names a turn that ended early only
+/// by it) as why the turn ended: `error_during_execution` is a turn
+/// stopped before it finished (an interrupt, or "Deny and stop").
+fn turn_stop(subtype: &str) -> TurnStop {
+    match subtype {
+        "error_during_execution" => TurnStop::Stopped,
+        "error_max_turns" => TurnStop::TurnLimit,
+        "error_max_budget_usd" => TurnStop::SpendLimit,
+        "error_max_structured_output_retries" => TurnStop::AnswerForm,
+        _ => TurnStop::Failed,
     }
 }
 
@@ -500,7 +513,10 @@ impl Codec {
             || subtype != "success";
         let mut events = Vec::new();
         if failed {
-            let words = text(message, "/result").unwrap_or_else(|| subtype.clone());
+            let said = text(message, "/result");
+            // Only its code: the app says why in its own words.
+            let turn_end = said.is_none().then(|| turn_stop(&subtype));
+            let words = said.unwrap_or_else(|| subtype.clone());
             let category = if words.contains("limit") {
                 ErrorCategory::RateLimit
             } else if words.contains("billing") || words.contains("credit") {
@@ -514,6 +530,7 @@ impl Codec {
                 category,
                 message: bounded(&words),
                 will_retry: false,
+                turn_end,
             });
         }
         let outcome = if !failed {
@@ -600,6 +617,7 @@ impl Codec {
                         category: ErrorCategory::Other,
                         message: bounded(&text(&message, "/response/error").unwrap_or_default()),
                         will_retry: false,
+                        turn_end: None,
                     }],
                     _ => Vec::new(),
                 }
@@ -756,5 +774,55 @@ mod limits {
             );
         }
         assert_eq!(used(json!("0.5")), None, "not a number: no reading");
+    }
+}
+
+/// AJ-E2025 item 1: a turn Claude Code names only by its `result`
+/// subtype ends with a neutral kind on its error, so the app says why in
+/// its own words; a turn the tool put in words keeps them, with no kind.
+#[cfg(test)]
+mod turn_end {
+    use super::{Codec, RuntimeEvent, TurnStop};
+    use serde_json::json;
+
+    fn ended(result: &serde_json::Value) -> Option<(String, Option<TurnStop>)> {
+        let mut codec = Codec::default();
+        let (events, _) = codec.incoming(&result.to_string());
+        events.into_iter().find_map(|event| match event {
+            RuntimeEvent::Error {
+                message, turn_end, ..
+            } => Some((message, turn_end)),
+            _ => None,
+        })
+    }
+
+    #[test]
+    fn each_code_is_a_kind_and_words_stay_words() {
+        let kinds = [
+            ("error_during_execution", TurnStop::Stopped),
+            ("error_max_turns", TurnStop::TurnLimit),
+            ("error_max_budget_usd", TurnStop::SpendLimit),
+            ("error_max_structured_output_retries", TurnStop::AnswerForm),
+            ("error_some_new_code", TurnStop::Failed),
+        ];
+        for (code, kind) in kinds {
+            // The recorded shape: an empty `result` beside the subtype.
+            let result = json!({"type": "result", "subtype": code, "is_error": true, "result": ""});
+            assert_eq!(
+                ended(&result).and_then(|(_, end)| end),
+                Some(kind),
+                "{code}"
+            );
+        }
+        let said = json!({"type": "result", "subtype": "success", "is_error": true,
+            "result": "Credit balance is too low"});
+        assert_eq!(
+            ended(&said),
+            Some(("Credit balance is too low".to_owned(), None))
+        );
+        let fine =
+            json!({"type": "result", "subtype": "success", "is_error": false, "result": "Done"});
+        assert_eq!(ended(&fine), None);
+        assert_eq!(TurnStop::TurnLimit.as_str(), "turn_limit");
     }
 }

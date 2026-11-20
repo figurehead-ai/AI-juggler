@@ -24,6 +24,12 @@ pub struct RuntimeInfo {
     pub fell_back: Option<String>,
     /// The last error the tool reported, in its words.
     pub error: Option<String>,
+    /// Why that error ended its turn, when the tool named it only by a
+    /// code (`error` is then that code, never shown): `stopped`,
+    /// `turn_limit`, `spend_limit`, `answer_form` or `failed`.
+    #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error_end: Option<String>,
     /// The account's limits as this session's tool last reported them.
     pub limits: Vec<LimitWindowInfo>,
     /// AJ-E2310: AI Juggler stopped during its turn, in words; Resume
@@ -131,6 +137,11 @@ pub struct ConversationItemInfo {
     /// When, epoch ms.
     #[ts(type = "number")]
     pub at_ms: i64,
+    /// A note that ended its turn: why, when the tool named that only by
+    /// a code (`text` is then that code, never shown). As `error_end`.
+    #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub turn_end: Option<String>,
 }
 
 /// A driven session's page: its runtime, its recent conversation, the

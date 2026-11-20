@@ -17,4 +17,9 @@ text: string,
 /**
  * When, epoch ms.
  */
-at_ms: number, };
+at_ms: number, 
+/**
+ * A note that ended its turn: why, when the tool named that only by
+ * a code (`text` is then that code, never shown). As `error_end`.
+ */
+turn_end?: string, };

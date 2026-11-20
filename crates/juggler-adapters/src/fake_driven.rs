@@ -302,6 +302,7 @@ impl FakeDrivenSession {
                 category: ErrorCategory::Other,
                 message: bounded(&word(message, "message")),
                 will_retry: false,
+                turn_end: None,
             }],
             _ => Vec::new(), // unknown: ignored, never guessed
         }
