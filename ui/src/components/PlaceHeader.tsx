@@ -166,10 +166,14 @@ export function PlaceHeader({
               width (cut at their end, the whole name on hover, only when
               nothing else is left to give). An App with no profile
               (ChatGPT) is its name alone. */}
-          <span className="ml-0.5 min-w-0 truncate text-label font-semibold leading-[18px] text-ink" data-testid={place?.profile ? "place-profile" : undefined} title={name}>
+          <span className={"ml-0.5 min-w-0 truncate text-label font-semibold leading-[18px] text-ink" + (place?.profile ? " shrink-0 max-w-[55%]" : "")} data-testid={place?.profile ? "place-profile" : undefined} title={name}>
             {place?.profile ?? label}
           </span>
           {place?.profile && (
+            // AJ-E3603: the app word gives way first: the profile is whole
+            // up to half the line or so (max 55 %), so a cut header reads
+            // "Work Max Claude Cod…", never "Work … Claude Cod…" (the 0.4.1
+            // gate's "Wor…").
             <span className="min-w-0 truncate whitespace-nowrap text-label leading-[18px] text-muted" data-testid="place-app-word" title={name}>
               {label}
             </span>
