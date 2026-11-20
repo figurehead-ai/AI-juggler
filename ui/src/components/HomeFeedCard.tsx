@@ -95,7 +95,9 @@ function Thing({ thing, now, actions }: { thing: FeedThing; now: number; actions
   const item = stateOf(thing);
   return (
     <li className="flex min-w-0 items-baseline gap-3 text-meta text-ink-2" data-testid="feed-rollup-thing">
-      <button type="button" onClick={() => actions.open(item)} className="min-w-0 truncate rounded text-left outline-none hover:text-ink hover:underline focus-visible:ring-1 focus-visible:ring-accent/60">{item.subject || said(sentence(item))}</button>
+      {/* A whole 24 px target (WCAG 2.5.8): at 19 px, three stacked left
+          18 px of spacing (axe target-size, the flood's rollup). */}
+      <button type="button" onClick={() => actions.open(item)} className="min-h-6 min-w-0 truncate rounded text-left outline-none hover:text-ink hover:underline focus-visible:ring-1 focus-visible:ring-accent/60">{item.subject || said(sentence(item))}</button>
       <time className="ml-auto shrink-0 text-label text-muted" dateTime={new Date(item.at_ms).toISOString()} title={exactWhen(item.at_ms)}>{feedWhen(item.at_ms, now)}</time>
     </li>
   );
