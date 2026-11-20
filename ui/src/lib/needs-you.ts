@@ -81,7 +81,7 @@ export function useBackendNeeds(): BackendNeeds {
 }
 
 /** The busiest live session on an account (a hand-over starts there). */
-export function liveOn(sessions: InstanceInfo[], accountId: string | null | undefined): InstanceInfo | undefined {
+function liveOn(sessions: InstanceInfo[], accountId: string | null | undefined): InstanceInfo | undefined {
   return sessions.find((s) => s.account_id === accountId && (s.status === "running" || s.status === "waiting_user" || s.status === "stuck"));
 }
 
@@ -135,11 +135,6 @@ export function homeNeedsOf(rows: NoticeInfo[], items: RailItem[], accounts: Acc
 function openElsewhere(items: RailItem[], accountId: string | null): ConversationInfo | undefined {
   const found = openOnAccount(accountId, [], items.flatMap((item) => (item.conversation ? [item.conversation] : [])));
   return found && "conversation" in found ? found.conversation : undefined;
-}
-
-/** The kinds counted elsewhere on Home (their own rows). */
-export function isOwnRowKind(kind: string): boolean {
-  return kind === "cap" || kind === "message" || kind === "task";
 }
 
 function stateOf(rows: NeedSnoozeInfo[]): SnoozeState {

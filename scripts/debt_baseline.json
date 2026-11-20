@@ -240,7 +240,7 @@
   "jscpd:lines": 9
  },
  "crates/juggler-adapters/src/grok_inventory.rs": {
-  "jscpd:lines": 66
+  "jscpd:lines": 65
  },
  "crates/juggler-adapters/src/grok_sessions.rs": {
   "jscpd:lines": 47
@@ -1069,9 +1069,6 @@
   "knip:exports": 2
  },
  "ui/src/lib/nav.ts": {
-  "knip:exports": 1
- },
- "ui/src/lib/needs-you.ts": {
   "knip:exports": 1
  },
  "ui/src/lib/new-pool.ts": {
