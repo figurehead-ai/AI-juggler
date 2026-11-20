@@ -15,11 +15,13 @@
  */
 import type { JSX } from "react";
 
-import { Disclosure, Segmented } from "../../components/controls";
+import { Disclosure, Picker, Segmented } from "../../components/controls";
 import { LogoTile } from "../../components/ToolLogo";
 import { useApps, type AppModel } from "../../lib/apps";
 import type { PoolRole } from "../../lib/ipc/pools";
-import type { Draft, DraftMember } from "../../lib/new-pool";
+import type { Candidate, Draft, DraftMember } from "../../lib/new-pool";
+import { leadCandidates, withReviewer } from "../../lib/new-pool-lead";
+import { templateById } from "../../lib/pool-templates";
 import { APP_KIND_WORDS, JOINS_BY_ITSELF, ROLE_CARDS, roleCard } from "../../lib/pool-words";
 import type { InstanceInfo } from "../../types/generated/InstanceInfo";
 import { MemberOwnLevel } from "../../pages/pool/setup/OwnLevelChoice";
@@ -52,6 +54,36 @@ function RoleControl({ name, value, onChange }: { name: string; value: PoolRole;
   );
 }
 
+/** SK-13: a template that promises a Reviewer ("Writer and reviewer")
+ * names one here: a member already in, or a session open now, added as
+ * the Reviewer. Shown while no named member reviews. */
+function NameReviewer({ draft, onDraft, nameOf, candidates }: { draft: Draft; onDraft: (next: Draft) => void; nameOf: (ref: string, label: string) => string; candidates: readonly Candidate[] }): JSX.Element | null {
+  const named = draft.members.filter((member) => member.ref !== "all" && member.role !== "lead" && member.ref !== draft.leadNext);
+  const open = leadCandidates(candidates).filter((row) => !draft.members.some((member) => member.ref === row.ref));
+  const options = [...named.map((member) => ({ value: member.ref, label: nameOf(member.ref, member.label) })), ...open.map((row) => ({ value: row.ref, label: row.label, hint: row.detail }))];
+  return (
+    <li className="flex flex-wrap items-center gap-x-3.5 gap-y-2 rounded-card bg-surface px-3.5 py-3 inset-ring-1 inset-ring-hairline/75" data-testid="new-pool-name-reviewer">
+      <span className="flex min-w-0 flex-1 flex-col">
+        <span className="text-body font-semibold text-ink">Who checks the work</span>
+        <span className="text-meta text-ink-2">{options.length > 0 ? "This template has a Reviewer: pick the session that checks the others' work." : `No session to pick yet: open one in ${draft.every ? "a project" : "its project"}, or add it in Who's in.`}</span>
+      </span>
+      {options.length > 0 && (
+        <Picker
+          groups={[{ label: "In the pool", values: named.map((member) => member.ref) }, { label: "Open now", values: open.map((row) => row.ref) }]}
+          size="sm"
+          ariaLabel="The Reviewer"
+          heading="Who checks the work"
+          placeholder="Pick a session…"
+          value={null}
+          options={options}
+          onChange={(ref) => onDraft(withReviewer(draft, ref, open.find((row) => row.ref === ref)))}
+          testId="new-pool-reviewer-pick"
+        />
+      )}
+    </li>
+  );
+}
+
 export function NewPoolEveryone({
   draft,
   onDraft,
@@ -59,7 +91,10 @@ export function NewPoolEveryone({
   nameOf,
   open = [],
   apps: given,
+  candidates = [],
 }: {
+  /** The sessions that could join (a Reviewer can be named from them). */
+  candidates?: readonly Candidate[];
   draft: Draft;
   onDraft: (next: Draft) => void;
   where: string;
@@ -122,6 +157,7 @@ export function NewPoolEveryone({
               <RoleControl name="Every new session" value={everyone.role === "lead" ? "member" : everyone.role} onChange={(role) => setMember("all", { role })} />
             </li>
           )}
+          {templateById(draft.template).roles.includes("reviewer") && !named.some((member) => member.role === "reviewer") && <NameReviewer draft={draft} onDraft={onDraft} nameOf={nameOf} candidates={candidates} />}
           {named.length === 0 && !everyone && <li className="text-meta text-ink-2">No one yet: add members in Who's in.</li>}
         </ul>
       </section>

@@ -7,12 +7,12 @@
  * terminal too, typed at its idle prompt, D-29). Any other terminal is
  * never typed into: it reads its messages on its next turn.
  *
- * A message held for your OK has its answers on it (Allow once, Always
- * allow here from the second time, Deny), the same command the canvas
- * card and Needs you answer with (the rc19 walk: it only said "Waits on
- * your OK"). One a chain paused at the hop limit has Deliver and Don't
- * deliver, as Home's card does (the rc3h walk: the thread only offered
- * Resume).
+ * A message held for your OK has its answers on it (`heldChoices`,
+ * D-139: Allow and deliver, one press; Allow, deliver later; Always allow
+ * here from the second time; Deny), the same command the canvas card and
+ * Needs you answer with (the rc19 walk: it only said "Waits on your OK").
+ * One a chain paused at the hop limit has Deliver and Don't deliver, as
+ * Home's card does (the rc3h walk: the thread only offered Resume).
  *
  * The header pauses, stops or resumes the thread (resuming resets its
  * count of agent messages in a row). Earlier messages load a page at a
@@ -35,29 +35,40 @@ import {
   type ThreadPage,
 } from "../../lib/ipc/messages";
 import { Compose, type Member } from "./Compose";
-import { KIND_WORDS, THREAD_WORDS, hopWords, recipientWords, when } from "./words";
+import { KIND_WORDS, THREAD_WORDS, heldChoices, hopWords, recipientWords, when, type HeldAnswer } from "./words";
 
-type Answer = "once" | "always" | "deny";
+type Answer = HeldAnswer;
+
+/** Each answer's test id (the first is the one to press). */
+const ANSWER_TEST_ID: Record<HeldAnswer, string> = {
+  deliver: "message-allow-deliver",
+  once: "message-allow-once",
+  always: "message-allow-always",
+  deny: "message-deny",
+};
 
 /** A held message's answers, one group per ask that holds it. */
 function HeldAnswers({ asks, busy, onAnswer }: { asks: MessageNeedInfo[]; busy: boolean; onAnswer: (askId: string, answer: Answer) => void }): JSX.Element {
   return (
     <div className="flex flex-col gap-1.5">
-      {asks.map((ask) => (
-        <fieldset key={ask.key} className="m-0 flex flex-wrap items-center gap-1.5 border-0 p-0" aria-label={`Answer: ${ask.title}`} data-testid="message-held-answers">
-          <Button size="sm" variant="secondary" disabled={busy} onClick={() => ask.ask_id && onAnswer(ask.ask_id, "once")} data-testid="message-allow-once">
-            {ask.kind === "deliver" ? "Deliver" : "Allow once"}
-          </Button>
-          {ask.offer_always && ask.kind !== "deliver" && (
-            <Button size="sm" variant="ghost" disabled={busy} onClick={() => ask.ask_id && onAnswer(ask.ask_id, "always")} data-testid="message-allow-always">
-              Always allow here
-            </Button>
-          )}
-          <Button size="sm" variant="ghost" disabled={busy} onClick={() => ask.ask_id && onAnswer(ask.ask_id, "deny")} data-testid="message-deny">
-            {ask.kind === "deliver" ? "Don't deliver" : "Deny"}
-          </Button>
-        </fieldset>
-      ))}
+      {asks.map((ask) => {
+        const choices =
+          ask.kind === "deliver"
+            ? [
+                { id: "once" as const, label: "Deliver" },
+                { id: "deny" as const, label: "Don't deliver" },
+              ]
+            : heldChoices(ask, "Always allow here");
+        return (
+          <fieldset key={ask.key} className="m-0 flex flex-wrap items-center gap-1.5 border-0 p-0" aria-label={`Answer: ${ask.title}`} data-testid="message-held-answers">
+            {choices.map((choice, index) => (
+              <Button key={choice.id} size="sm" variant={index === 0 ? "secondary" : "ghost"} disabled={busy} onClick={() => ask.ask_id && onAnswer(ask.ask_id, choice.id)} data-testid={ANSWER_TEST_ID[choice.id]}>
+                {choice.label}
+              </Button>
+            ))}
+          </fieldset>
+        );
+      })}
     </div>
   );
 }

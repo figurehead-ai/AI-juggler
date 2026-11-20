@@ -1,0 +1,53 @@
+id = "PM5"
+title = "Persona Maya: back after a reset"
+epic = "E33"
+decisions = ["D-62.12", "D-31"]
+layers = ["L4"]
+exercises = ["persona walk (AJ-E3307)", "out of room", "room again"]
+needs = ["lab"]
+
+# Maya's flow M5 (docs/qa/0.4-walks/personas/maya.md): her two Claude
+# subscriptions and a ChatGPT one. Work is out of room and its writer
+# session waits at its limit, parked until the reset, with a few turns
+# behind it; Work's
+# five-hour window resets 3 minutes after the setup, so open the lab at
+# once: she sees Work come back while she watches, and the session that
+# waited can start on Work again. (0.4.6's soak couldn't walk M5: no lab
+# seeded an Account coming back while work waited.)
+[setup]
+projects = ["web"]
+
+[[setup.apps]]
+id = "cc-work"
+tool = "claude-code"
+account = "Work"
+profile = "work"
+room_used = 100
+room_resets_in = 3
+
+[[setup.apps]]
+id = "cc-personal"
+tool = "claude-code"
+account = "Personal"
+profile = "personal"
+room_used = 30
+
+[[setup.apps]]
+id = "codex"
+tool = "codex"
+account = "ChatGPT"
+profile = "default"
+
+[[setup.sessions]]
+id = "writer"
+app = "cc-work"
+project = "web"
+state = "limit"
+conversation = true
+# She parked it until Work's reset (its page's "Park until reset"): at the
+# reset AI Juggler offers it back, to resume on Work.
+parked = true
+
+[[steps]]
+do = "The first account's back. Move my work back to it."
+expect = "Work has room again (its reset, about 3 minutes after the lab opens) and the session that waited at its limit carries on on Work, its conversation there"

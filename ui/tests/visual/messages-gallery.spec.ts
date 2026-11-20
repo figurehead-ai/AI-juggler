@@ -97,7 +97,7 @@ const DOCS = [
 ];
 
 const NEEDS = [
-  { key: "ask:1", kind: "ask", pool_id: "pool-checkout", pool_name: "Checkout redesign", thread_id: "thr-schema", message_id: "x1", session_id: null, ask_id: "ask-1", offer_always: true, title: "«Reviewer» wants to message Builder", detail: "«Schema change: order totals» · above what the pool lets agents do", preview: "Before you migrate: the refunds table also stores totals as floats.", at_ms: T0 - 4 * MIN },
+  { key: "ask:1", kind: "ask", pool_id: "pool-checkout", pool_name: "Checkout redesign", thread_id: "thr-schema", message_id: "x1", session_id: null, ask_id: "ask-1", offer_always: true, delivers_now: true, title: "«Reviewer» wants to message Builder", detail: "«Schema change: order totals» · above what the pool lets agents do", preview: "Before you migrate: the refunds table also stores totals as floats.", at_ms: T0 - 4 * MIN },
   { key: "ask:2", kind: "deliver", pool_id: "pool-checkout", pool_name: "Checkout redesign", thread_id: "thr-deps", message_id: "x2", session_id: null, ask_id: "ask-2", offer_always: false, title: "«Builder»'s message would start «Planner»'s next turn", detail: "«Upgrade the payment SDK» · 5 agent messages in a row without you", preview: "Planner: v9 drops the legacy client; can you take the two call sites?", at_ms: T0 - 3 * MIN },
   { key: "question:r1", kind: "question", pool_id: "pool-checkout", pool_name: "Checkout redesign", thread_id: "thr-review", message_id: "r1", session_id: null, ask_id: null, offer_always: false, title: "«Reviewer» asks you", detail: "«Review the checkout steps» · Checkout redesign", preview: null, at_ms: T0 - 26 * MIN },
   { key: "waiting:sess-live-1", kind: "waiting", pool_id: "pool-checkout", pool_name: "Checkout redesign", thread_id: "thr-api", message_id: "m5", session_id: "sess-live-1", ask_id: null, offer_always: false, title: "Planner has a message waiting", detail: "from Builder · Checkout redesign", preview: null, at_ms: T0 - 8 * MIN },
@@ -222,12 +222,12 @@ for (const theme of ["dark", "light"] as const) {
   });
 }
 
-test("keyboard: a held message answered with 1, Deliver reached by Tab", async ({ page }) => {
+test("keyboard: a held message answered with 1 (Allow and deliver, D-139), Deliver reached by Tab", async ({ page }) => {
   await open(page, "dark", 1280, 800);
   const card = page.getByTestId("message-needs").getByTestId("ask-card").first();
   await card.focus();
   await page.keyboard.press("1");
   await expect(page.getByTestId("message-needs").getByTestId("ask-card")).toHaveCount(1);
   const calls = await page.evaluate(() => (window as unknown as { __AIJ_MESSAGES_CALLS__?: string[] }).__AIJ_MESSAGES_CALLS__ ?? []);
-  expect(calls).toContain("answer:ask-1:once");
+  expect(calls).toContain("answer:ask-1:deliver");
 });

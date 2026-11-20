@@ -116,7 +116,7 @@ async function preview(poolId: string, shown: string[]): Promise<PoolCanvasInfo>
     .filter((need) => need.pool_id === poolId && need.kind === "ask" && need.ask_id)
     .map((need) => {
       const sender = previewPoolMessages(poolId).find((m) => m.id === need.message_id)?.from_session_id ?? null;
-      return { session_id: sender && ids.has(sender) ? sender : null, source: "message", id: need.ask_id!, title: need.title, offer_always: need.offer_always, at_ms: need.at_ms };
+      return { session_id: sender && ids.has(sender) ? sender : null, source: "message", id: need.ask_id!, title: need.title, offer_always: need.offer_always, delivers_now: need.delivers_now, at_ms: need.at_ms };
     });
   // A seeded task ask stays while its need is open (answered, it goes).
   const open = new Set((await tasksNeeds()).map((need) => need.id));

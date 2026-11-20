@@ -36,7 +36,7 @@ export const SETUP = {
   /** The header's state pill: how far, and once every step is done, that
    * it is ("7 of 7" read as unfinished beside "Setting up", the rc3
    * baseline review); before any session joins, that it waits for one. */
-  pill: (done: number, total: number, joined: boolean) => (done < total ? `Setting up · ${done} of ${total}` : joined ? "Setup done" : "Setup done · no session yet"),
+  pill: (done: number, total: number, joined: boolean, heldBy: string | null = null) => (done < total ? `Setting up · ${done} of ${total}` : joined ? "Setup done" : heldBy ? `Setup done · its sessions in ${heldBy}` : "Setup done · no session yet"),
   foot: "Once a session joins and setup is done, this panel becomes the pool's live view.",
   hide: "Hide setup",
   settings: "All of this pool's settings",
@@ -54,6 +54,7 @@ export function leftWords(left: number, toolsLeft: boolean): string {
  * cards' kinds, the lead's line and everyone's are pool-words'). */
 export const PLANNED = {
   title: "Your team is drawn. No one has joined yet.",
+  titleNoneOpen: "Your team is drawn. None of its sessions is open.",
   line: (where: string) => `Sessions show up here as they start in ${where}. Click a card to see what it may do.`,
   leadBody: "No session yet. Start one and it takes the lead.",
   appBody: (where: string) => `Its sessions in ${where} join as they start.`,

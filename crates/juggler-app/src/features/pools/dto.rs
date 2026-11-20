@@ -469,6 +469,10 @@ pub struct NodeAskInfo {
     pub title: String,
     /// Offer "Always allow in this pool" (from the second approval).
     pub offer_always: bool,
+    /// A held message's: whether "Allow and deliver" (D-139) can put it
+    /// into a session now (else "Allow once", D-127). `None` for a task's.
+    #[ts(optional)]
+    pub delivers_now: Option<bool>,
     /// Since when, epoch ms.
     #[ts(type = "number")]
     pub at_ms: i64,

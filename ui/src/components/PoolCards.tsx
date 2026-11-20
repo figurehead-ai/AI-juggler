@@ -28,7 +28,7 @@ import { ShellOnly, useShellOnly } from "./ShellOnly";
 /** `renderOwn`: a row's own choices in its pool, behind its disclosure
  * (the pool page's List view: what it may do on its own there, the rc2
  * walk P5). */
-export function PoolCardRows({ list, sessions, now, renderOwn }: { list: Paged<PoolMemberRow>; sessions: InstanceInfo[]; now: number; renderOwn?: (row: PoolMemberRow, name: string) => ReactNode }): JSX.Element {
+export function PoolCardRows({ list, sessions, now, renderOwn, renderRole }: { list: Paged<PoolMemberRow>; sessions: InstanceInfo[]; now: number; renderOwn?: (row: PoolMemberRow, name: string) => ReactNode; renderRole?: (row: PoolMemberRow, name: string) => ReactNode }): JSX.Element {
   return (
     <PagedList
       list={list}
@@ -38,14 +38,16 @@ export function PoolCardRows({ list, sessions, now, renderOwn }: { list: Paged<P
       skeletonRows={3}
       testId="pool-cards"
       empty={<p className="text-xs text-ink-2">No sessions here yet. Move one in from its menu in the list.</p>}
-      renderRow={(row) => <CardRow card={row.card} session={sessions.find((session) => session.id === row.session.id) ?? row.session} now={now} heldBy={row.held_by} own={renderOwn ? (name) => renderOwn(row, name) : undefined} />}
+      renderRow={(row) => <CardRow card={row.card} session={sessions.find((session) => session.id === row.session.id) ?? row.session} now={now} heldBy={row.held_by} own={renderOwn ? (name) => renderOwn(row, name) : undefined} role={renderRole ? (name) => renderRole(row, name) : undefined} />}
     />
   );
 }
 
 /** `heldBy`: a sealed pool holds it out of this one (D-62, the P7 walk):
  * shown greyed, saying where it is. */
-function CardRow({ card, session, now, heldBy = null, own }: { card: ContextCard; session: InstanceInfo; now: number; heldBy?: string | null; own?: (name: string) => ReactNode }): JSX.Element {
+function CardRow({ card, session, now, heldBy = null, own, role }: { card: ContextCard; session: InstanceInfo; now: number; heldBy?: string | null; own?: (name: string) => ReactNode; role?: (name: string) => ReactNode }): JSX.Element {
+  // SK-13: its role set in its row, as its card's ⋯ sets it on the canvas.
+  const roleHere = role && !heldBy ? role : undefined;
   const host = useActionHost();
   const [open, setOpen] = useState(false);
   // The rail's words and dot (Asks you, Working, Idle, Ended).
@@ -103,13 +105,18 @@ function CardRow({ card, session, now, heldBy = null, own }: { card: ContextCard
               in {heldBy} (sealed)
             </span>
           ) : (
-            card.role === "lead" && <span className="shrink-0 rounded-md bg-accent-soft px-1.5 text-label text-accent-hi">Lead</span>
+            card.role === "lead" && !roleHere && <span className="shrink-0 rounded-md bg-accent-soft px-1.5 text-label text-accent-hi">Lead</span>
           )}
           <ShellOnly tool={session.provider} account={session.account_id} project={session.project_id} inRow />
           <span className="w-20 shrink-0 whitespace-nowrap text-right font-mono text-xs text-faint">
             {card.last_activity_ms === null ? "—" : agoWords(card.last_activity_ms, now)}
           </span>
         </button>
+        {roleHere && (
+          <span className="ml-1 shrink-0" data-testid="pool-card-role">
+            {roleHere(name)}
+          </span>
+        )}
         <button
           type="button"
           aria-expanded={open}

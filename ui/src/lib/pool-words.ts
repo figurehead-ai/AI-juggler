@@ -9,8 +9,8 @@
  *   own", with Look only, Work together, and Work together and wake each
  *   other (D-28's Read, Work together and Full; waking is D-29 and D-119).
  * - Each role says what it may do in one line (role cards).
- * - Every choice reads back as a sentence ("New sessions in web join as
- *   Member and may Work together.").
+ * - Every choice reads back as a sentence ("Every session in web, now and
+ *   new, is a Member and may Work together.").
  */
 import type { PoolRole } from "./ipc/pools";
 import type { TalkRule } from "./ipc/pool-model";
@@ -139,12 +139,15 @@ export function everyoneLabel(every: boolean, names: readonly string[]): string 
   return every ? "Everyone, in every project" : `Everyone in ${whereWords(false, names)}`;
 }
 
-/** The join line read back as a sentence: who joins by themselves, as
+/** The join line read back as a sentence: who is in by themselves, as
  * what, and what they may do on their own. `role` is the "everyone"
- * member's role; `null`: nobody joins but who's in. */
+ * member's role; `null`: nobody joins but who's in. SK-12: that member is
+ * every session in scope, the ones already there too, never only new
+ * ones. */
 export function joinSentence(where: string, role: PoolRole | null, level: string, picked?: number): string {
   if (role === null) return `Only who's in joins: other sessions in ${where} stay out of this pool.`;
-  return `New sessions in ${where} join as ${roleCard(role).label} and may ${ownMay(level, picked)}.`;
+  const label = roleCard(role).label;
+  return `Every session in ${where}, now and new, is ${/^[AEIOU]/.test(label) ? "an" : "a"} ${label} and may ${ownMay(level, picked)}.`;
 }
 
 /** One member read back: "Codex CLI · Personal is a Reviewer and may

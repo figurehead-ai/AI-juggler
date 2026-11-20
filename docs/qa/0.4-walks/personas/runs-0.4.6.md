@@ -74,3 +74,33 @@ Per-step scores (worked / value / clarity / feeling): 3/3/3/3, 3/3/3/3, 5/5/4/4,
 **What changed.** The wizard's clarity 2 (every rc3f run) is gone: the sheet scored clarity 5 and confusion 0, and ease rose from 4–5 to 5. Her "partly" has the same one reason as before, a repo tied to its client's account, which D-134 defers. **Recorded as partly solved: account binding deferred (D-134).**
 
 Firewall: her tool calls were the screen command, her own pictures and her log only. Opus checked her claims against her pictures (the client-b page's "Who did the work" and "Kept apart: no · Keep it apart…").
+
+## On beta: the soak's persona runs (AJ-E3307 R3–R6), 2026-11-20
+
+Build: the soak's Dev bundle, the same product code as 0.4.6 on beta (v0.4.6, 130fd935a). Each run was a fresh Sonnet tester with the screen only (window shots and accessibility presses on the lab window's pid), one flow, one log. Opus checked every transcript (only the screen tool, the tester's own shots and its log) and every claim against its pictures. The pictures were then deleted: lab screens, and one run's macOS folder picker showed the real home's folder names. The logs keep each step.
+
+| Persona · flow | Lab | Steps | Solved | Ease /7 | Value /7 | Feeling |
+|---|---|---|---|---|---|---|
+| Devon · find one of fifty | PD3 | 4 | yes | 6 | 5 | calm, quick; +1 |
+| Maya · room left | PM3 | 2 | partly–yes | 6 | 6 | relieved, informed; +1 |
+| Maya · first run | PF1 | 7 | partly | 5 | 4 | calm, hopeful, slightly stuck; +1 |
+| Devon · the laptop is struggling | PD4 | 7 | partly | 5 | 5 | capable, then doubtful; +1 |
+| Maya · out mid-feature | PM4 | 6 | partly | 5 | 5 | hopeful, uneasy; +1 |
+| Devon · start a batch | N5 | 7 | partly | 5 | 4 | hopeful, then blocked; 0 |
+| Maya · what needs me | K3 | 4 | partly | 4 | 4 | hopeful, stuck; 0 |
+| Devon · overnight | K3 | 2 | partly | 4 | 5 | hopeful, then stuck; 0 |
+| Devon · first run | PF1 | 7 | partly | 4 | 3 | curious, mildly disappointed; 0 |
+| Maya · back after a reset | — | — | not walked: no lab seeds an account coming back while work waits | | | |
+
+### Ranked findings (severity, then how many personas and flows they touch)
+
+1. **A stopped left-behind process stays listed** (Devon · struggling; the soak's PD4 walk too): the stop works, the row stays "Left behind" until AI Juggler next starts, and Clean up then says "already ended". A bug with its cause found (SK-10): 0.4.7.
+2. **"What needs me" never shows the question** (Maya and Devon, both stopped there): Home says "Open it to see what it asks", but nothing quotes the ask. In K3 the seeded sessions print nothing, so the page was blank. Part lab (the lab must stage a readable ask), part product (show the tool's own notice text on the card and the page).
+3. **A switch doesn't show its carried work on the new page** (Maya · out mid-feature; the PM4 walk): the title is lost and only History says "Arrived from …" (SK-11). Content carrying was proven live on 0.4 (the c2c journeys); what's missing is showing it.
+4. **First run with nothing to show** (Devon and Maya · first run): set-up was smooth (Find my apps, Bring in 3 apps, under a minute), but PF1 has no running sessions and its accounts no plan, so "show me what's running" and "measure its limits" couldn't land. Mostly the lab. Product part: "Plenty of room" beside 72 % CPU never says what room measures.
+5. **Starting work on several repos** (Devon · batch): one session at a time, the folder defaulting to the last; no "start these on whichever account has room". A feature question.
+6. **Home's headline vs the question asked** (Maya · room left): the answer was in Runway, lower right, under a headline about something else.
+
+### What waits on the maintainer (R5: scores under 4)
+
+Every flow above scored under 4 somewhere. None of 2–6 is a bug in what the screen promises, so nothing changes without a ruling. 1 is a bug: its fix goes to 0.4.7 with the triage. The lab gaps (a readable ask in K3, running sessions in PF1, a "back after a reset" seed, both repos in N5, its own web storage per lab) are test work for 0.4.7.

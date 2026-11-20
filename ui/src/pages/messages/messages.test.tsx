@@ -7,6 +7,8 @@
  * - A paused pool says why, with Resume; a thread pauses, stops, resumes.
  * - You write to a member or the pool, with Deliver (on by default).
  * - Needs you: an agent's held message as the same approval card (keys),
+ *   "Allow and deliver" first, one press (D-139), "Allow, deliver later"
+ *   second, "Allow once" alone where it can't go into a session (D-127);
  *   "Always allow in this pool" only from the second time, never for a
  *   hop-limit delivery; messages waiting for a session, one Deliver.
  * - Shared docs say what was withheld, as packs do.
@@ -200,7 +202,8 @@ describe("a pool's messages", () => {
     seams().__AIJ_MESSAGES__!.threads![0] = thread({ hop: 2, hop_cap: 2 });
     const { findByTestId } = render(<MessagesView poolId="pool-team" members={members} now={NOW} />);
     expect((await findByTestId("thread-hops")).textContent).toBe("2 of 2 agent messages in a row without you");
-    expect(hopWords(3, 2)).toBe("3 agent messages in a row without you, over this pool's limit of 2");
+    // AJ-E3014 item 3: past the limit, still "N of 2", as Needs you says it.
+    expect(hopWords(3, 2)).toBe("2 of 2 agent messages in a row without you; one more waits for you");
     expect(hopWords(1, 1), "at a limit of 1, the first is the last").toBe("1 of 1 agent messages in a row without you");
     expect(hopWords(1, 5)).toBeNull();
   });
@@ -245,6 +248,23 @@ describe("a pool's messages", () => {
     fireEvent.click(within(answers).getByRole("button", { name: "Allow once" }));
     await waitFor(() => expect(calls()).toContain("answer:ask-1:once"));
   });
+
+  // D-139: one press approves and delivers it (the soak's X1: Allow once,
+  // then Deliver, scored clarity 3).
+  it("a held message it can put into a session: Allow and deliver, one press, beside Allow, deliver later", async () => {
+    const held = message({ recipients: [{ id: "session:sess-done-1", name: "Builder", session_id: "sess-done-1", state: "held", via: null, deliverable: false, how: "Waits on your OK" }] });
+    seams().__AIJ_MESSAGES__!.messages!["thr-1"] = [held];
+    seams().__AIJ_MESSAGES__!.needs = [need({ delivers_now: true })];
+    const { findByTestId } = render(<MessagesView poolId="pool-team" members={members} now={NOW} />);
+    const answers = await findByTestId("message-held-answers");
+    const names = within(answers)
+      .getAllByRole("button")
+      .map((button) => button.textContent);
+    expect(names).toEqual(["Allow and deliver", "Allow, deliver later", "Deny"]);
+    expect(within(answers).queryByRole("button", { name: "Allow once" })).toBeNull();
+    fireEvent.click(within(answers).getByRole("button", { name: "Allow and deliver" }));
+    await waitFor(() => expect(calls()).toContain("answer:ask-1:deliver"));
+  });
 });
 
 describe("Needs you", () => {
@@ -257,6 +277,17 @@ describe("Needs you", () => {
     expect(queryByText("Always allow in this pool")).toBeNull();
     fireEvent.keyDown(card, { key: "1" });
     await waitFor(() => expect(calls()).toContain("answer:ask-1:once"));
+  });
+
+  it("Allow and deliver is the card's first answer (Enter, 1) where it can go into a session", async () => {
+    const { getByTestId } = render(<MessageNeeds needs={[need({ delivers_now: true, offer_always: true })]} />);
+    const card = getByTestId("ask-card");
+    expect(card.textContent).toContain("Allow and deliver");
+    expect(card.textContent).toContain("Allow, deliver later");
+    expect(card.textContent).toContain("Always allow in this pool");
+    expect(card.textContent).not.toContain("Allow once");
+    fireEvent.keyDown(card, { key: "1" });
+    await waitFor(() => expect(calls()).toContain("answer:ask-1:deliver"));
   });
 
   it("offers the rule from the second time, never for the hop limit", () => {

@@ -102,6 +102,16 @@ export function nextLine(shape: Pick<PoolShape, "members" | "leadNext">, where: 
   return nextParts(shape, where).join("; ");
 }
 
+/** With no lead: which new session joins by itself, if any (AJ-E3014
+ * item 4: "Open a session in web: it joins" while every new session's
+ * switch was off, and none would). */
+function joinsFirst(shape: Pick<PoolShape, "members">, where: string): string {
+  if (shape.members.some((member) => member.ref === "all")) return `Open a session in ${where}: it joins`;
+  const laters = shape.members.filter((member) => member.later).map((member) => member.label);
+  if (laters.length > 0) return `Open a session of ${listWords(laters)} in ${where}: it joins`;
+  return `A new session in ${where} doesn't join by itself: add it on the diagram`;
+}
+
 /** What happens next, in parts: who to open first (and that it leads),
  * then who checks, then that their messages show here. */
 export function nextParts(shape: Pick<PoolShape, "members" | "leadNext">, where: string): string[] {
@@ -109,7 +119,7 @@ export function nextParts(shape: Pick<PoolShape, "members" | "leadNext">, where:
   const next = shape.leadNext ? shape.members.find((member) => member.ref === shape.leadNext) : undefined;
   const reviewers = shape.members.filter((member) => member.role === "reviewer").map((member) => member.label);
   // Sam's round-4 walk: which one to open first, named.
-  const parts = [session ? `${session.label} leads` : next ? `Open ${next.label} in ${where} first: it leads` : `Open a session in ${where}: it joins`];
+  const parts = [session ? `${session.label} leads` : next ? `Open ${next.label} in ${where} first: it leads` : joinsFirst(shape, where)];
   if (reviewers.length > 0) parts.push(`${listWords(reviewers)} ${reviewers.length === 1 ? "checks" : "check"} ${session || next ? "its" : "their"} work`);
   parts.push("their messages show here");
   return parts;

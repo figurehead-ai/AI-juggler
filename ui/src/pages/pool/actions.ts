@@ -109,9 +109,13 @@ export function takeOutMember(pool: PoolInfo, member: string, name: string): voi
   });
 }
 
+/** A named session whose role is set: its card, its inspector or its List
+ * view row (SK-13). */
+export type RoleTarget = Pick<MemberNode, "id" | "role" | "name">;
+
 /** Makes a member the pool's lead; the lead it had becomes a member.
  * Undo gives the roles back. */
-export async function makeLead(pool: PoolInfo, member: MemberNode, members: MemberNode[]): Promise<void> {
+export async function makeLead(pool: PoolInfo, member: RoleTarget, members: readonly Pick<MemberNode, "id" | "role" | "session">[]): Promise<void> {
   const before = members.filter((other) => other.role === "lead" && other.id !== member.id);
   const was = member.role as PoolRole;
   try {
@@ -133,7 +137,7 @@ export async function makeLead(pool: PoolInfo, member: MemberNode, members: Memb
 }
 
 /** Sets a member's role in `pool` (member, reviewer or observer). */
-export async function setRole(pool: PoolInfo, member: MemberNode, role: PoolRole): Promise<void> {
+export async function setRole(pool: PoolInfo, member: RoleTarget, role: PoolRole): Promise<void> {
   try {
     setPools(await withPendingRole({ poolId: pool.id, ref: member.id, role }, () => poolSetRole(member.id, role, pool.id)));
   } catch (cause) {

@@ -241,3 +241,18 @@
 **Files to touch**: `docs/research/codex.md`, `docs/adr/0003-*.md`, `ui/src/lib/trust-claims.json`, `docs/guide/`.
 **Research basis**: `session-runtime.md` §2, §7.
 **Handover note**: —
+
+### AJ-E2311 0.4.6's deferred session findings: hand-over rows, New session's order, the Stop toast, the switch dialog at 1280×800, the wizard rail, recovery limits, Codex's added messages, usage readings | Status: IN-PROGRESS (0.4.7: bugs in shipped 0.4 ship as 0.4.x, built on release/0.4.7 during the soak (D-138) and forward-merged) | Priority P1 | Effort L | Depends: AJ-E2310
+**Deferred from 0.4.6's exit RC (rc3h), 2026-11-19 (D-114: the 0.4 line takes blockers only after beta).** The source list, with the walk rows that stay open and their reasons: [docs/research/0.4.6-deferred-to-0.5.md](../research/0.4.6-deferred-to-0.5.md). Work it as one batch (D-137): find, triage, fix together, one build.
+**Requirements**:
+1. **(rc3h item 8)** **During a terminal hand-over the sidebar shows two rows for the session.** Home's last-12-hours list shows both "h-b Finished" and "h-b Stopped by you".
+2. **(rc3h item 9)** **New session suggests the maintainer's other projects first, and Recent reshuffles.** Its layout shifts when the memory line appears.
+3. **(rc3h item 10)** **The Stop toast names the folder** ("Stopping web · …"), not the session.
+4. **(rc3h item 11)** **The switch dialog** (Continue in another app…) at 1280×800 didn't show its "what comes along" part or a Cancel, and didn't scroll there. Check its layout at the minimum window.
+5. **(rc3h item 12)** The pool wizard's steps can't be pressed from its left rail.
+6. **(rc3h item 13)** **Recovery limits** (from F-rc3f-3's agent): a driven session whose conversation file was deleted still ends in a failed `-t`. A session with no turn yet, quit under a build from before d4c840a46, fails once more after the upgrade. A cross-Mac switch back takes the original's name, not one given on the other Mac. A rare race: if a live look is already running when a process ends, it can write the entry back until the next look.
+7. **(rc3h item 14)** Codex: whether a message the person adds during a running Codex turn comes back as a `userMessage` item isn't verified live. If it doesn't, those messages won't show as "You".
+8. **(rc3h item 15)** **Usage readings:** the Claude codec's `percent()` reads any value ≤ 1 as a fraction, so a whole "1" would read as 100%. A week on one model from the stream shows only on the session panel, still labelled "Weekly".
+**Handover note**: Item 15 is a correctness bug (a whole 1 % read as 100 %): fix it first, with a test over the codec's boundary values; it touches the honest-usage promise. Item 14 needs a live Codex check in a lab profile (real accounts read-only).
+**Quality gates**: verify-static; a failing-before test per fixed item; the screens touched walked once by Sonnet and checked by Opus.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E2311/manifest.md`, one row per item.

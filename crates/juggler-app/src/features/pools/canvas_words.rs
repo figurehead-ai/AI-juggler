@@ -1,5 +1,6 @@
 //! The pool canvas's live stream in plain words (D-25): who did what to
-//! which task or wrote to whom, by the names they had then.
+//! which task or wrote to whom, by the names they go by now (SK-18: the
+//! canvas renames them before a line is made).
 
 use juggler_core::storage::{MEMBER_LEFT, SENDER_USER, StreamEntry};
 

@@ -596,7 +596,9 @@
   Allow, Ask or Deny for every agent action (AJ-E1702); the bridge
   (AJ-E1704), messaging (E18) and tasks (E19) only call it.
 
-### D-29 Delivering into a session without a click — SETTLED (2026-10-24)
+### D-29 Delivering into a session without a click — SETTLED (2026-10-24; the hop count's unit amended by D-140)
+
+- **Amended 2026-11-20 (D-140):** the hop limit counts per chain, not per thread: a turn woken by an agent's message carries the count into any new thread it starts.
 
 - Decision: AI Juggler may deliver a message into an idle session, so it
   starts a turn without the user, only where the user allowed it: a pool
@@ -3108,7 +3110,9 @@ Each ships with tests that fail without it and a design critique; the M2, D2 and
 - Sources: `crates/juggler-window-events`, `crates/juggler-app/src/quit.rs`,
   ADR-0003's gap note.
 
-### D-114 The first Stable: 0.4.6 after 7 days on beta, the 0.4 line frozen; a blocker fix needs 3 days on its own tag — SETTLED (2026-11-13)
+### D-114 The first Stable: 0.4.6 after 7 days on beta, the 0.4 line frozen; a blocker fix needs 3 days on its own tag — SETTLED (2026-11-13; the freeze superseded by D-138)
+
+- **Amended 2026-11-20 (D-138):** the freeze is withdrawn; fixes keep shipping through Nightly, and promotions are periodic. The 7-day soak and the 3-day blocker-fix minimum stand.
 
 - **Ruling** (maintainer, 2026-11-13; asked "How long should the Stable
   candidate (0.4.6) sit on Beta with the 0.4 line frozen before it can
@@ -3183,7 +3187,9 @@ Each ships with tests that fail without it and a design critique; the M2, D2 and
 - Sources: the coordinating session's relay of the maintainer's answer
   and words, 2026-11-14.
 
-### D-119 A desktop Code-tab pool member is woken through Claude Code's own inbox, under the pool's waking rule — SETTLED (2026-11-15)
+### D-119 A desktop Code-tab pool member is woken through Claude Code's own inbox, under the pool's waking rule — SETTLED (2026-11-15; its two-press approval superseded by D-139)
+
+- **Amended 2026-11-20 (D-139):** approving a held message is one press, "Allow and deliver"; "Allow, deliver later" is the second choice.
 
 - **Ruling** (engineering, by the coordinating session under D-66's
   standing rule and D-28's levels; no new maintainer ruling needed,
@@ -3247,3 +3253,28 @@ Each ships with tests that fail without it and a design critique; the M2, D2 and
 - **Why:** 0.4.6 is the first Stable candidate (D-114); the Stable gate (D-85, D-99) takes the whole 0.4, and the maintainer would rather do the sign-in than defer the route's proof.
 - **Also settled, the same answer round:** "jive-code-graph" and "Jive CLI" in PRINCIPLES.md, ADR-0032, the decision log and fixtures are fine in public ("They're fine public"); nothing changes.
 - Sources: the coordinating session's message, 2026-11-16, quoting the maintainer.
+
+### D-138 Releases flow continuously; promotions are periodic, not per version (supersedes D-114's freeze) — STANDING RULE — SETTLED (2026-11-20)
+
+- **Ruling** (the maintainer, through the coordinating session, 2026-11-20): releases flow continuously. Every good batch goes to main and Nightly. A nightly that has had real use and is good is promoted to beta. Stable takes the latest beta with enough soak and testing, whatever its version.
+- **Promotions are periodic, not per version** (the maintainer, the same day): at each beta promotion point, about every 3 days, the latest nightly that has been tested long enough goes to beta, and the nightlies in between are skipped. Stable works the same way from beta, at its own, longer cadence. A newer version replaces an older candidate; it doesn't wait behind it. The coordinating session calls each promotion point and picks the latest good nightly then; release sessions get their batch onto Nightly and walk it.
+- **Supersedes** D-114's "freeze the 0.4 line to blockers during the soak": fixes keep shipping through Nightly during a soak, and no plan parks work "until after Stable". **Stands:** the 7-day soak for the first Stable, and the 3-day minimum on beta for a patch on a soaked base (`scripts/promotion_rules.py`'s blocker-fix rule).
+- **Why:** a release train that stops for a soak ships nothing for a week; Nightly exists so fixes reach real use at once, and the channels are quality gates, not queues.
+- **Consequences:** 0.4.7 starts at once on release/0.4.7 from main (the soak's findings and the 17 items held for 0.5); at most one planned nightly a day stays (hotfixes excepted); release branches stay short-lived and forward-merge into the next line.
+- Sources: the coordinating session's messages, 2026-11-20, quoting the maintainer.
+
+### D-139 One press approves and delivers a held message: "Allow and deliver", with "Allow, deliver later" second (supersedes D-119's two presses) — SETTLED (2026-11-20)
+
+- **Ruling** (the maintainer, asked by the coordinating session, 2026-11-20): "One press". In the soak's X1 walk, approving a held message in a "Work together" pool took two presses (Allow once put it in the recipient's inbox; Deliver woke it), and scored clarity 3.
+- **Decision:** the primary choice is **"Allow and deliver"**: it approves the message and wakes the recipient at once. The secondary is **"Allow, deliver later"**: approved, left in the recipient's inbox for its next turn. "Deny" stays as it is.
+- **Where:** every surface that offers the approval: Home's Needs you, the message's thread, the bell, and the agents' own words about it; the specs, the visual gallery and the accessibility gate follow.
+- **Why:** waking is what "Work together" is for; one obvious press, and the slower choice named for what it does.
+- Sources: the coordinating session's message, 2026-11-20, quoting the maintainer; AJ-E3014 item 7.
+
+### D-140 The hop limit counts per chain, not per thread (supersedes D-29's per-thread count) — SETTLED (2026-11-20)
+
+- **Ruling** (the coordinating session, 2026-11-20, as a correctness fix: the setting's words promise it). In the soak's P11 walk, a pool set to ask after 2 agent messages in a row let 4 through: the woken agent answered in a new thread, which started the count again (`messaging::next_hop` on the thread's own hop).
+- **Decision:** a turn woken by an agent's message carries that message's count into any new thread it starts; a person's message (prompt, click or reply) resets it. The pool's pause after 8 back-and-forth messages between two members in 10 minutes and the sender's 10 a minute stay as they are.
+- **Proof:** a test reproduces P11: limit 2, the woken agent answers in a new thread, and the third agent message is held.
+- **A desktop member** (engineering, the 0.4.7 release session, 2026-11-20): AI Juggler can't tell a desktop member's own prompts from its wakes, so the count a woken turn carries lapses after 10 minutes for a desktop member, the same window as the pool's ping-pong pause. An existing thread counts on from the higher of its own count and the turn's.
+- Sources: the coordinating session's message, 2026-11-20; soak finding SK-15.

@@ -80,7 +80,9 @@ who's in make a working pool.
    - **Lead**: plans the work and hands out tasks. One session.
    - **Member**: works on the tasks it's given, and messages the team.
    - **Reviewer**: reads everything, checks work in review and gives its
-     verdict. Doesn't build.
+     verdict. Doesn't build. When it sends a task back, its note reaches
+     the task's holder as its message, under the pool's own rules for who
+     may tell whom.
    - **Observer**: watches and reads. Changes nothing.
 
    Then each member is a row with its logo and its role: **Member**,
@@ -352,7 +354,8 @@ messages** or **reads messages on its next turn**; a Codex app thread
 Anything above that becomes a question for you in Needs you (the list of
 things waiting for your OK, on Home), never a block: **Allow once**,
 **Always allow in this pool** (offered the second time you allow the same
-thing) or **Deny**. Every "always allow" is listed under the pool's
+thing) or **Deny**; a held message's yes can also deliver it (see
+[What waits on you](#what-waits-on-you)). Every "always allow" is listed under the pool's
 **Allowed without asking** and in **Settings › Agent access › Rules you
 made**, and **Take back** ends it from the next request.
 
@@ -387,7 +390,10 @@ it has any.
   its messages itself. For a session that isn't running, Deliver gives it
   the message as its next prompt when you resume it.
 - **Without your click**, a message goes into a session only in a pool at
-  **Full**, or by a rule you made, and only up to the pool's hop limit.
+  **Full**, or by a rule you made, and only up to the pool's hop limit. At
+  the limit the chain pauses and asks you, whoever it's to: a session AI
+  Juggler wakes, a desktop member, or one in a terminal that reads its
+  messages itself.
 - **New message** writes to one member or to everyone in the pool.
   **Deliver to their sessions** (on by default) also puts it into the
   sessions AI Juggler runs. Your message starts the thread's count of
@@ -395,16 +401,23 @@ it has any.
 - **Pause** and **Stop** on a thread hold it, or end it for agents;
   **Resume** opens it again from 0. On a chain paused at the hop limit,
   **Resume** doesn't send the message it paused on: that message waits for
-  its **Deliver**, as any other does. **Pause this pool's messages** holds the
-  whole pool.
+  its **Deliver**, as any other does; **Pause** or **Stop** takes its
+  question off Needs you, and nothing is delivered in that thread until you
+  resume it. **Pause this pool's messages** holds the whole pool.
 
 ### What waits on you
 
 Home's **Needs you** shows, beside your sessions' questions:
 
-- an agent's message above what its pool lets agents do, held until you
-  answer: **Allow once**, **Always allow in this pool** (from the second
-  time) or **Deny**. Keys 1–9 pick an answer, Enter the first;
+- an agent's message held for your OK (above what its pool lets agents
+  do, or between members that ask you first), until you answer: **Allow
+  and deliver** puts it into its recipient's session at once, in one
+  press; **Allow, deliver later** leaves it in its inbox for its next
+  turn; **Always allow in this pool** (from the second time); or
+  **Deny**. Where it can't go into a session now (a terminal AI Juggler
+  can't type into), **Allow once** stands for the first two. The same
+  answers are on the message in its thread and on the pool's diagram.
+  Keys 1–9 pick an answer, Enter the first;
 - a chain that reached the hop limit: **Deliver** sends that message and
   starts the count again; **Don't deliver** ends the chain there: the
   message isn't sent and the thread stops (its **Resume** opens it again
@@ -416,8 +429,10 @@ Home's **Needs you** shows, beside your sessions' questions:
 
 ### Loops stay small
 
-- A thread takes at most 6 agent messages in a row without you; then it
-  pauses until you resume it.
+- A chain takes at most 6 agent messages in a row without you; then its
+  thread pauses until you resume it. The count runs across threads: a
+  session woken by an agent's message counts on from it, in a new thread
+  too. Your message, prompt or click starts it again.
 - An open thread counts them against the number after which you're asked:
   the pool's **Stop and ask you after** when the pool puts messages into
   sessions by itself, never more than 6. "2 of 2 agent messages in a row

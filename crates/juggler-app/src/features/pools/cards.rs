@@ -364,8 +364,8 @@ fn folder_of(row: &InstanceInfo) -> String {
         .to_owned()
 }
 
-/// A member's name as its card says it ([`card_name`]).
-pub(super) fn name_of(row: &InstanceInfo) -> String {
+/// A member's name as its card says it ([`card_name`]), and the rail.
+pub(crate) fn name_of(row: &InstanceInfo) -> String {
     let folder = folder_of(row);
     // Words only for an untitled one (the system's formatter, per card).
     let started = juggler_core::naming::named_by_facts(

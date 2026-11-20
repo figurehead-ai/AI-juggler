@@ -61,9 +61,11 @@ export function Canvas({
   empty,
   overlay,
   overlayRoom = 0, lineRules,
-  paletteMore, paletteQuiet = false,
+  paletteMore, paletteQuiet = false, paletteTemplate,
   paletteRequest = 0,
 }: {
+  /** SK-7: setting up, "Use a template" beside Add a member. */
+  paletteTemplate?: () => void;
   pool: PoolInfo;
   data: CanvasData;
   /** What the empty canvas shows (it teaches the first steps). */
@@ -366,7 +368,7 @@ export function Canvas({
             setDrag({ kind: "session", session, start: { x: event.clientX, y: event.clientY }, moved: false });
           }}
           onAdd={(session) => onAdd(session, null)}
-          more={paletteMore} quiet={paletteQuiet}
+          more={paletteMore} quiet={paletteQuiet} onTemplate={paletteTemplate}
         />
         </div>
       </div>

@@ -556,7 +556,23 @@ pub fn send(state: &Arc<AppState>, out: &Outgoing) -> Result<Sent, Response> {
         }
     }
     let (kind, subject, body) = shaped(out, thread.as_ref().map(|t| t.subject.as_str()))?;
-    let hop = messaging::next_hop(thread.as_ref().map_or(0, |t| t.hop), !agent);
+    // D-140: an agent's message counts on from the chain behind its turn:
+    // its thread's count, or the count of the agent message that woke it
+    // (in a new thread too), whichever is higher. A person's resets it.
+    let behind = match &out.from {
+        Author::Agent { session, .. } => state.messages.chains.carried(session.as_str()),
+        Author::User => 0,
+    };
+    let hop = messaging::next_hop(thread.as_ref().map_or(0, |t| t.hop).max(behind), !agent);
+    if agent && messaging::over_hops(hop) && thread.is_none() {
+        return Err(refuse(
+            Refusal::Limit,
+            format!(
+                "Not sent: this chain already has {} agent messages in a row without the user (the one that started this turn among them), the most any chain takes, and a new thread counts on from it. Wait for the user to write to you.",
+                hop - 1
+            ),
+        ));
+    }
     if agent && messaging::over_hops(hop) {
         if let (Some(thread), Ok(storage)) = (&thread, lock_storage_arc(state)) {
             let _ = storage.messages().set_thread_state(
@@ -830,6 +846,8 @@ pub(crate) fn route(
 
 /// Where one recipient's copy goes.
 enum Target {
+    /// The person, in AI Juggler's messages.
+    You,
     /// Into its inbox, or (a session AI Juggler runs) its next turn.
     Inbox(&'static str, Option<SessionId>),
     /// A connected desktop member: its ref, whether the pool wakes it, and
@@ -856,13 +874,17 @@ fn route_with(
     for recipient in &recipients {
         let name = recipient.recipient_name.clone();
         if recipient.recipient_ref == SENDER_USER {
-            targets.push((name, Target::Inbox("in your messages", None)));
+            targets.push((name, Target::You));
             continue;
         }
         if let Some(one) = desktop
             .iter()
             .find(|one| one.connected && one.member == recipient.recipient_ref)
         {
+            if let (Author::User, Some(session)) = (from, &one.session) {
+                // D-140: the person's word to it starts its count again.
+                state.messages.chains.person(session);
+            }
             targets.push((
                 name,
                 Target::Desktop(one.member.clone(), one.wakes, one.can_wake),
@@ -874,9 +896,30 @@ fn route_with(
         targets.push((name, Target::Inbox("in its inbox", session)));
     }
     drop(storage);
+    // AJ-E3014 item 3: past the pool's hop limit, the chain pauses for every
+    // recipient, not only the ones AI Juggler would wake.
+    let past = match from {
+        Author::Agent {
+            session: sender, ..
+        } => super::delivery::past_hop_limit(state, message, sender),
+        Author::User => false,
+    };
     let mut routes = Vec::new();
     for (name, target) in targets {
+        if past && matches!(target, Target::Desktop(..) | Target::Inbox(_, None)) {
+            super::delivery::pause_at_hop_limit(
+                state,
+                message,
+                &format!(
+                    "«{}»'s message would go on to «{name}» past this pool's hop limit",
+                    message.sender_name
+                ),
+            );
+            routes.push((name, super::delivery::AT_HOP_LIMIT));
+            continue;
+        }
         let (inbox, session) = match target {
+            Target::You => ("in your messages", None),
             // AJ-E3013 (the A9 lab walk): the person's compose with
             // Deliver queues its copy (their click), which wakes it.
             Target::Desktop(member, _, can_wake) if matches!(from, Author::User) && deliver => {
@@ -901,6 +944,10 @@ fn route_with(
             routes.push((name, inbox));
             continue;
         };
+        if matches!(from, Author::User) {
+            // D-140: the person's word to it starts its count again.
+            state.messages.chains.person(session.as_str());
+        }
         let how = match from {
             Author::User if deliver => {
                 super::delivery::queue(state, &message.id, &session);

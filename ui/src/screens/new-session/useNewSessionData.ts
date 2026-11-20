@@ -17,12 +17,12 @@ import type { AccountInfo } from "../../types/generated/AccountInfo";
 import type { InstanceInfo } from "../../types/generated/InstanceInfo";
 import type { LaunchRecipeInfo } from "../../types/generated/LaunchRecipeInfo";
 import type { QuotaDisplayData } from "../../lib/ipc/quota";
-import { useQuotaDisplays } from "../../lib/kept-reads";
+import { machineAdvices, useQuotaDisplays } from "../../lib/kept-reads";
+import { useSharedRead } from "../../lib/shared-read";
 import { accountDisplay, accountName, accountOfProfile, useSubscriptions } from "../../lib/subscriptions";
 import { useApps, useCliRecipes } from "../../lib/apps";
 import { cliAppId, cliAppName } from "../../lib/app-name";
 import { launchRoom } from "../../lib/launch-pick";
-import { machineAdvice } from "../../lib/ipc/this-mac";
 import type { MachineAdviceInfo } from "../../lib/machine";
 import type { Room } from "../../lib/new-session-choice";
 import { accountsRanHere } from "../../lib/new-session-history";
@@ -105,17 +105,10 @@ export function useNewSessionData({
   const byAccount = useRelatedCounts(live && project ? "project" : null, projectId, "subscription");
   const total = useRelationCounts(live && project ? "project" : null, projectId)?.sessions.all;
 
-  const [advice, setAdvice] = useState<Map<string, MachineAdviceInfo>>(new Map());
-  useEffect(() => {
-    let alive = true;
-    void machineAdvice().then(
-      (rows) => alive && setAdvice(new Map(rows.map((row) => [row.recipe_id, row]))),
-      () => null,
-    );
-    return () => {
-      alive = false;
-    };
-  }, []);
+  // AJ-E2311 item 2: kept, so the memory line is there in the first frame
+  // (it came in a read later, and the sheet's layout shifted); read again.
+  const adviceRows = useSharedRead(machineAdvices);
+  const advice = useMemo(() => new Map((adviceRows ?? []).map((row) => [row.recipe_id, row])), [adviceRows]);
 
   return useMemo(() => {
     const accountOf = (folderId: string) => (subscriptions ? accountOfProfile(subscriptions, folderId) : undefined);

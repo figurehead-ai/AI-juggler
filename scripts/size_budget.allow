@@ -21,10 +21,11 @@
 # spawn, stop and adoption paths) and the Floor's models.rs (one model per
 # file). 2026-11-18: supervisor.rs's adoption path moved to adoption.rs
 # (the 0.4.6 rc3a walk's adopted-root watch); its cap came down to its size.
+# 2026-11-20 (0.4.7): the reconciler's settings moved to reconcile_scope.rs,
+# and supervisor.rs is back within the default budget, so it left the list.
 crates/juggler-app/src/link.rs 2202
 crates/juggler-app/src/usage_stats.rs 2088
 crates/juggler-floor/src/models.rs 1978
-crates/juggler-supervisor/src/supervisor.rs 1510
 ui/src/components/KillSheet.tsx 589
 ui/src/components/RemoteTabs.tsx 467
 ui/src/components/RightInspector.tsx 1146

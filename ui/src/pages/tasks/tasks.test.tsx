@@ -382,6 +382,31 @@ describe("Needs you", () => {
   });
 });
 
+describe("SK-14: a held change is answered where its doors lead", () => {
+  it("on its task's page, and in its pool's Tasks: the same card as Needs you", async () => {
+    seams().__AIJ_TASKS__!.needs = [need({}), need({ id: "tneed-3", task_id: "aj-1a2b", task_title: "Cart endpoints", title: "«Planner» wants to give «Cart endpoints» to Builder" })];
+    const { findByTestId } = render(<PoolTasks poolId="pool-team" sessions={MOCK_SESSIONS} projects={[project]} now={NOW} />);
+    // The open task (the rail's and the bell's rows open it) has its own.
+    const view = await findByTestId("task-view");
+    const own = await within(view).findByTestId("ask-card");
+    expect(own.textContent).toContain("An agent asks about a task");
+    expect(own.textContent).toContain("«Build the orders API»");
+    // Another task's waits above the list, once (not on this page too).
+    const strip = await findByTestId("pool-task-asks");
+    expect(within(strip).getAllByTestId("ask-card")).toHaveLength(1);
+    expect(strip.textContent).toContain("Cart endpoints");
+    fireEvent.click(within(own).getByTestId("ask-option-once"));
+    await waitFor(() => expect(calls()).toContain("answer:tneed-1:once"));
+    await waitFor(() => expect(within(view).queryByTestId("ask-card")).toBeNull());
+  });
+
+  it("one component draws it everywhere (no copy)", () => {
+    expect(TaskViewSource).toContain("<TaskAsk ");
+    expect(PoolTasksSource).toContain("<TaskAsk ");
+    expect(TaskNeedsSource.match(/<AskCard /g)).toHaveLength(1);
+  });
+});
+
 describe("a session's tasks and the pages", () => {
   it("a session shows what it holds", async () => {
     const { findAllByTestId } = render(<SessionTasks session={live} now={NOW} />);

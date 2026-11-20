@@ -129,7 +129,7 @@ function nextTo(step: SetupStep): void {
 const stepNames = () => screen.getAllByTestId("flow-step").map((step) => step.querySelector('[id$="-name"]')?.textContent);
 
 /** The preview's row for `row`, its value. */
-const previewValue = (row: string) => screen.getAllByTestId("new-pool-preview-row").find((one) => one.dataset.row === row)?.querySelector("dd")?.textContent;
+const previewValue = (row: string) => screen.getAllByTestId("new-pool-preview-row").find((one) => one.dataset.row === row)?.querySelector("[data-testid=new-pool-preview-value]")?.textContent;
 
 describe("AJ-E3007, AJ-E3011 the setup, start to end", () => {
   it("picks, sets talk, reviews and makes the pool with the user's own calls", async () => {
@@ -215,6 +215,15 @@ describe("AJ-E3007, AJ-E3011 the setup, start to end", () => {
     // the preview what with (D-126: each row, "· prefilled").
     expect(screen.getByTestId("new-pool-prefilled").textContent).toBe("The rest is prefilled. You can make the pool now.");
     expect(previewValue("who")).toBe("Every new session in ai-juggler");
+    // AJ-E3014 item 4: the side panel says who joins now and who later.
+    // One line, its full words its tooltip (the visual review: two lines
+    // pushed the step's own row out of view).
+    const joins = screen.getByTestId("new-pool-preview-joins");
+    expect(joins.getAttribute("title")).toMatch(/^Now: (no session open|\d+ open sessions?) · Later: every new session in ai-juggler$/);
+    expect(joins.firstChild?.textContent).toMatch(/^(None|\d+) open now · new ones join$/);
+    expect(joins.className).toContain("truncate");
+    // The step says how a desktop session takes part at most once.
+    expect(screen.queryAllByTestId("new-pool-desktop-note").length).toBeLessThanOrEqual(1);
     expect(previewValue("everyone")).toBe("Everyone builds (Member) · prefilled");
     expect(previewValue("talk")).toBe("Everyone may message everyone; an Observer only reads. · prefilled");
     expect(previewValue("own")).toBe("Work together · prefilled");

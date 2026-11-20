@@ -13,6 +13,7 @@
  */
 import { Fragment, useEffect, useState, type JSX } from "react";
 import { Button } from "../../components/primitives";
+import { ListSkeleton } from "../../components/ListSkeleton";
 import { errorText } from "../../lib/bridge";
 import type { InstanceInfo } from "../../types/generated/InstanceInfo";
 import type { ProjectInfo } from "../../types/generated/ProjectInfo";
@@ -24,6 +25,7 @@ import { focusTask, onTasksChanged, takeFocusedTask, tasksList, tasksOfSession, 
 import { TaskRow } from "./TaskRow";
 import { TaskTree } from "./TaskTree";
 import { TaskView } from "./TaskView";
+import { TaskAsk, useTaskAsks } from "../../components/TaskNeeds";
 import { STATUS_WORDS } from "./words";
 import { useTaskSearch } from "./useTaskSearch";
 
@@ -50,17 +52,6 @@ function useTasksRefresh(): void {
   useEffect(() => onTasksChanged(() => refreshPaged("tasks")), []);
 }
 
-/** A list's skeleton while its first page is read. */
-function Skeleton({ label, rows }: { label: string; rows: number }): JSX.Element {
-  return (
-    <div className="flex flex-col gap-2" role="status" aria-label={label}>
-      {Array.from({ length: rows }, (_, n) => (
-        <span key={n} className="h-16 rounded-lg bg-skeleton motion-safe:animate-pulse" />
-      ))}
-    </div>
-  );
-}
-
 export function PoolTasks({ poolId, sessions, projects, now }: { poolId: string; sessions: InstanceInfo[]; projects: ProjectInfo[]; now: number }): JSX.Element {
   const pool = usePools()?.pools.find((p) => p.id === poolId);
   const defaultAccount = projects.find((p) => p.id === pool?.project_id)?.default_account_id ?? null;
@@ -73,6 +64,8 @@ export function PoolTasks({ poolId, sessions, projects, now }: { poolId: string;
   const list = usePagedList(`tasks:${poolId}:${filter}:${query}`, (page) => tasksList(poolId, filter, query || null, page), { pageSize: LIST_PAGE, keyOf: (task) => task.id });
   // The plan's folds.
   const plan = usePagedList(`tasks-plan:${poolId}`, (page) => tasksPlan(poolId, page), { pageSize: PLAN_PAGE, keyOf: (task) => task.id });
+  // SK-14: what waits on you here; the open task's own show on its page.
+  const asks = useTaskAsks({ poolId }).filter((need) => need.task_id === null || need.task_id !== open);
   const first = list.items[0]?.id ?? null;
   useEffect(() => {
     if (first) setOpen((was) => was ?? first);
@@ -122,16 +115,23 @@ export function PoolTasks({ poolId, sessions, projects, now }: { poolId: string;
           {view === "list" && <input autoCorrect="off" autoCapitalize="off" spellCheck={false} type="search" aria-label="Find tasks" placeholder="Find tasks" value={words} onChange={(event) => setWords(event.target.value)} className="h-8 w-44 rounded-lg border border-hairline bg-surface-2 px-3 text-meta text-ink outline-none focus:border-accent/60" />}
         </div>
       </div>
+      {asks.length > 0 && (
+        <section className="flex flex-col gap-2" aria-label="Waits on you" data-testid="pool-task-asks">
+          {asks.map((need) => (
+            <TaskAsk key={need.id} need={need} />
+          ))}
+        </section>
+      )}
       <div className="grid min-w-0 gap-4 lg:grid-cols-[minmax(300px,420px)_minmax(0,1fr)]">
         <aside className="flex min-w-0 flex-col gap-2" aria-label="Tasks">
           {view === "plan" ? (
             plan.loading ? (
-              <Skeleton label="Loading the plan" rows={3} />
+              <ListSkeleton label="Loading the plan" rows={3} />
             ) : (
               <TaskTree plan={plan.items} poolId={poolId} open={open} now={now} onOpen={setOpen} />
             )
           ) : !read ? (
-            <Skeleton label="Loading the tasks" rows={4} />
+            <ListSkeleton label="Loading the tasks" rows={4} />
           ) : rows.length === 0 ? (
             <p className="rounded-lg border border-dashed border-hairline px-3 py-4 text-meta text-ink-2" data-testid="tasks-empty">
               {query ? "No task has those words." : total ? `No ${FILTER_WORDS[filter]!.toLowerCase()} tasks.` : "No tasks yet. The pool's agents add them and take ready work with their own tools: ask one to plan the work. You follow them here, and approve or send back what's in review."}

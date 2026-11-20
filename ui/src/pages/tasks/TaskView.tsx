@@ -15,6 +15,8 @@
  * - **Cancel** an open task;
  * - **Start a session for it**, on the launch settings you pick (D-31). An
  *   agent's request for one shows here and in Needs you.
+ * - **Answer an agent's held change** to it (SK-14): the same approval card
+ *   as in Needs you, since the rail's and the bell's rows for it open here.
  */
 import { useEffect, useState, type JSX } from "react";
 import { Button } from "../../components/primitives";
@@ -31,6 +33,7 @@ import { useActionHost } from "../../components/ItemMenu";
 import { PlaceMark, markPlace } from "../../components/PlaceMarks";
 import { showTab } from "../PageShell";
 import { StartSession } from "./StartSession";
+import { TaskAsk, useTaskAsks } from "../../components/TaskNeeds";
 import { TaskLinks } from "./TaskLinks";
 import { TaskRow, TaskStatus } from "./TaskRow";
 import { HOW_WORDS, KIND_WORDS, PRIORITY_WORDS, STATUS_WORDS, waitsOnWords } from "./words";
@@ -118,6 +121,7 @@ export function TaskView({
   const [cancelling, setCancelling] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const asks = useTaskAsks({ taskId });
   useEffect(() => {
     let alive = true;
     setDetail(null);
@@ -183,6 +187,13 @@ export function TaskView({
             {task.by_agent ? " (an agent: its words, not yours)" : ""} · changed {ago(task.updated_at_ms, now)}
           </span>
         </div>
+        {asks.length > 0 && (
+          <div className="flex flex-col gap-2 pt-1" data-testid="task-asks">
+            {asks.map((need) => (
+              <TaskAsk key={need.id} need={need} />
+            ))}
+          </div>
+        )}
         {quiet && (actions.review || canStart || actions.cancel) && (
           <div className="flex flex-wrap items-center gap-2 pt-1" data-testid="task-actions">
             {actions.review && (

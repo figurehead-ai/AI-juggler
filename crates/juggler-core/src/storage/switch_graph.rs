@@ -555,6 +555,42 @@ impl SwitchGraphRepo<'_> {
         Ok(out)
     }
 
+    /// SK-11: where a switch carried each session's conversation from,
+    /// by the session it made: the latest switch into each. A failed
+    /// switch made nothing.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::Storage`] on SQLite failures.
+    pub fn arrivals(&self) -> Result<std::collections::HashMap<SessionId, Arrival>, CoreError> {
+        let mut stmt = self.conn.prepare(
+            "SELECT t.session_ref, f.session_ref, e.from_account, e.from_provider, f.native_id
+               FROM switch_edges e
+               JOIN epochs f ON f.id = e.from_epoch
+               JOIN epochs t ON t.id = e.to_epoch
+              WHERE t.session_ref IS NOT NULL AND e.state <> 'failed'
+              ORDER BY e.rowid",
+        )?;
+        let rows = stmt.query_map([], |row| {
+            Ok((
+                SessionId::new(row.get::<_, String>(0)?),
+                Arrival {
+                    from_session: row.get::<_, Option<String>>(1)?.map(SessionId::new),
+                    from_account: AccountId::new(row.get::<_, String>(2)?),
+                    from_provider: HarnessId::new(row.get::<_, String>(3)?),
+                    from_native_id: row.get(4)?,
+                },
+            ))
+        })?;
+        let mut out = std::collections::HashMap::new();
+        for row in rows {
+            let (to, arrival) = row?;
+            // In order: a later switch into the same session wins.
+            out.insert(to, arrival);
+        }
+        Ok(out)
+    }
+
     /// Appends an edge's artifact manifest rows (INSERT only).
     ///
     /// # Errors
@@ -608,6 +644,21 @@ impl SwitchGraphRepo<'_> {
         }
         Ok(out)
     }
+}
+
+/// SK-11: what a switch carried into a session: the session it came
+/// from and that one's conversation.
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct Arrival {
+    /// The session it left, when it was one of AI Juggler's (`None` for
+    /// a session another app ran: its account and conversation say it).
+    pub from_session: Option<SessionId>,
+    /// The account it left.
+    pub from_account: AccountId,
+    /// That account's tool.
+    pub from_provider: HarnessId,
+    /// Its conversation's id there, when the tool gave one.
+    pub from_native_id: Option<String>,
 }
 
 /// The whole graph for one work item — the E209 read shape. Two

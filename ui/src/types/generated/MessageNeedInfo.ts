@@ -44,6 +44,12 @@ ask_id: string | null,
  */
 offer_always: boolean, 
 /**
+ * For `ask`: whether "Allow and deliver" (D-139) can put it into a
+ * session it's held for (else only "Allow once" is offered, D-127).
+ * `None` for the other kinds.
+ */
+delivers_now?: boolean, 
+/**
  * In one line.
  */
 title: string, 

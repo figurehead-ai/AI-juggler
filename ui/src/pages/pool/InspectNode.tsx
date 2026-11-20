@@ -19,10 +19,11 @@ import { onTasksChanged, tasksOfSession, type TaskInfo } from "../../lib/ipc/tas
 import type { CanvasEdgeInfo, NodeAskInfo } from "../../lib/ipc/pool-canvas";
 import type { PoolInfo } from "../../lib/ipc/pools";
 import { TaskRow } from "../tasks/TaskRow";
-import { answerAsk, sessionAlert } from "./NodeParts";
+import { answerAsk, askChoices, sessionAlert } from "./NodeParts";
+import type { HeldAnswer } from "../messages/words";
 import { edgeWords } from "./CanvasEdges";
 import { Section } from "./Section";
-import { makeLead } from "./actions";
+import { MemberRole } from "./MemberRole";
 import { MemberLevel } from "./MemberLevel";
 import type { MemberNode } from "./useCanvas";
 import { edgeKey } from "./useCanvas";
@@ -38,11 +39,7 @@ function asCard(ask: NodeAskInfo, sessionId: string): AskInfo {
     approval_kind: null,
     summary: ask.title,
     reason: ask.source === "task" ? "A change to a task, above what this pool lets agents do." : "A message, above what this pool lets agents do.",
-    options: [
-      { id: "once", label: "Allow once", effect: "allow_once", rule: null },
-      ...(ask.offer_always ? [{ id: "always", label: "Always allow in this pool", effect: "allow_rule", rule: null }] : []),
-      { id: "deny", label: "Deny", effect: "deny", rule: null },
-    ],
+    options: askChoices(ask).map(({ id, label }) => ({ id, label, effect: id === "always" ? "allow_rule" : id === "deny" ? "deny" : "allow_once", rule: null })),
     parts: [],
     asked_at_ms: ask.at_ms,
   };
@@ -111,12 +108,9 @@ export function InspectNode({
           <Button size="sm" onClick={() => host.openSessionById?.(member.id)} disabled={!host.openSessionById} data-testid="inspect-node-open">
             Open session
           </Button>
-          {member.role !== "lead" && (
-            <Button size="sm" variant="secondary" onClick={() => void makeLead(pool, member, members)} data-testid="inspect-node-lead">
-              Make lead
-            </Button>
-          )}
         </div>
+        {/* SK-13: its role, Lead too, as its card's ⋯ sets it. */}
+        <MemberRole pool={pool} member={member} members={members} testId="inspect-node-role" />
       </div>
 
       {(toolAsks.length > 0 || asks.length > 0 || alert) && (
@@ -126,7 +120,7 @@ export function InspectNode({
             <AskCard key={ask.id} ask={ask} kindLabel="Its tool asks" plain />
           ))}
           {asks.map((ask) => (
-            <AskCard key={ask.id} ask={asCard(ask, member.id)} kindLabel="Its agent asks" answer={(option) => answerAsk(ask, option as "once" | "always" | "deny")} plain />
+            <AskCard key={ask.id} ask={asCard(ask, member.id)} kindLabel="Its agent asks" answer={(option) => answerAsk(ask, option as HeldAnswer)} plain />
           ))}
         </Section>
       )}

@@ -14,6 +14,7 @@
 import { useEffect, useLayoutEffect, useRef, type RefObject } from "react";
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import type { ConversationInfo } from "./ipc/conversations";
+import { cantSwitchYet } from "./switch-not-yet";
 
 /** A page that opens now may take a request for its session this long. */
 const PENDING_MS = 3_000;
@@ -121,7 +122,10 @@ const LIVE = new Set(["running", "waiting_user", "stuck", "starting", "quota_blo
 
 /** The session to continue for an account that ran out: its newest open
  * one, AI Juggler's or another app's (the 0.2 walk, F16: the account had
- * a session open in the Claude app and the banner opened the account). */
+ * a session open in the Claude app and the banner opened the account).
+ * SK-2 (the 0.4.6 soak, A5): never one of AI Juggler's that can't switch
+ * yet (`cantSwitchYet`): Home's card offered Continue for a session whose
+ * Account page greyed it. */
 export function openOnAccount(
   accountId: string | null | undefined,
   sessions: InstanceInfo[],
@@ -130,7 +134,7 @@ export function openOnAccount(
   if (!accountId) return null;
   const when = (ms: number | null | undefined, start: number | null = 0) => ms ?? start ?? 0;
   const own = sessions
-    .filter((s) => s.account_id === accountId && LIVE.has(s.status))
+    .filter((s) => s.account_id === accountId && LIVE.has(s.status) && cantSwitchYet(s) === null)
     .map((session) => ({ at: when(session.last_activity_ms, session.started_at_ms), pick: { session } }));
   const others = conversations
     .filter((c) => c.account_id === accountId && c.live && c.session_id === null)

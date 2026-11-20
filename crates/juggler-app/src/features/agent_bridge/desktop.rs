@@ -97,7 +97,19 @@ pub type Attestor =
 pub fn wake_for(state: &Arc<AppState>, session: &SessionId) -> Option<String> {
     let look = look_for(state, session)?;
     mark(session, &look);
+    woke(state, session, &look);
     look.notice
+}
+
+/// D-140: a wake carries its chain's count into the turn it starts.
+fn woke(state: &Arc<AppState>, session: &SessionId, look: &Look) {
+    if look.notice.is_some() {
+        let _ = state.messages.chains.woke(
+            session.as_str(),
+            look.carry,
+            crate::features::messages::chain::Woken::Desktop,
+        );
+    }
 }
 
 /// What one look found for a session, before anything is marked.
@@ -107,6 +119,9 @@ pub(crate) struct Look {
     pub notice: Option<String>,
     /// The newest message (epoch ms) the look read.
     newest: i64,
+    /// D-140: the agent messages in a row the wake carries (0 when the
+    /// person's Deliver is among what wakes it).
+    carry: u32,
 }
 
 /// L8 (round 2): marks `look` as accounted for: what it read is seen,
@@ -179,6 +194,8 @@ pub(crate) fn look_for(state: &Arc<AppState>, session: &SessionId) -> Option<Loo
     };
     let mut senders: Vec<String> = Vec::new();
     let mut count = 0;
+    let by_the_person = !delivered.is_empty();
+    let mut carry = 0;
     for name in delivered {
         count += 1;
         if !senders.contains(&name) {
@@ -196,13 +213,18 @@ pub(crate) fn look_for(state: &Arc<AppState>, session: &SessionId) -> Option<Loo
         ) == Decision::Allow
         {
             count += 1;
+            carry = carry.max(row.message.hop);
             if !senders.contains(&row.message.sender_name) {
                 senders.push(row.message.sender_name.clone());
             }
         }
     }
     let notice = juggler_core::messaging::unread_note(count, &senders);
-    Some(Look { notice, newest })
+    Some(Look {
+        notice,
+        newest,
+        carry: if by_the_person { 0 } else { carry },
+    })
 }
 
 /// When a copy became wake-worthy: a delivered one when the person
@@ -318,6 +340,7 @@ pub(crate) async fn wait_with(
                 let same = matches!(&again, Ok(Ok(now)) if now.session == caller.session);
                 if same {
                     mark(&caller.session, &look);
+                    woke(&state, &caller.session, &look);
                 }
                 let wake = look.notice.filter(|_| same);
                 return Response::ok(serde_json::json!({ "wake": wake }));
@@ -398,6 +421,13 @@ pub fn report(state: &Arc<AppState>, report: &wire::Report, peer: Option<Peer>) 
             },
         )
     });
+    if report.hook.event == "UserPromptSubmit" {
+        // D-140: a wake's own prompt keeps its count; the person's resets it.
+        state
+            .messages
+            .chains
+            .prompt_submitted(caller.session.as_str());
+    }
     let noted =
         allowed && juggler_agentbridge::hook::NOTE_EVENTS.contains(&report.hook.event.as_str());
     if noted {

@@ -33,8 +33,10 @@ beforeEach(() => resetPreviewAgentBridge());
 
 describe("the sentences each choice reads back as", () => {
   it("who joins, as what, and what they may do", () => {
-    expect(joinSentence("web", "member", "work_together")).toBe("New sessions in web join as Member and may Work together.");
-    expect(joinSentence("web and docs", "reviewer", "read")).toBe("New sessions in web and docs join as Reviewer and may Look only.");
+    // SK-12: that member is every session in scope, the ones in already too.
+    expect(joinSentence("web", "member", "work_together")).toBe("Every session in web, now and new, is a Member and may Work together.");
+    expect(joinSentence("web and docs", "reviewer", "read")).toBe("Every session in web and docs, now and new, is a Reviewer and may Look only.");
+    expect(joinSentence("web", "observer", "read")).toBe("Every session in web, now and new, is an Observer and may Look only.");
     expect(joinSentence("web", null, "full")).toBe("Only who's in joins: other sessions in web stay out of this pool.");
     expect(whereWords(false, ["web", "docs", "api"])).toBe("web, docs and api");
     expect(whereWords(true, [])).toBe("every project");
@@ -69,16 +71,21 @@ describe("the sentences each choice reads back as", () => {
 });
 
 describe("the controls", () => {
-  it("New sessions join as: a labelled picker whose choice is the everyone member's role", () => {
+  it("Everyone in scope, now and new: a labelled picker whose choice is the everyone member's role, with how many it sets now (SK-12)", () => {
     const change = vi.fn();
-    render(<JoinAs where="web" value="member" onChange={change} />);
+    const { rerender } = render(<JoinAs where="web" value="member" count={59} onChange={change} />);
     const picker = screen.getByTestId("join-as-picker");
-    expect(screen.getByTestId("join-as").textContent).toContain("New sessions in web join as");
-    expect(picker.getAttribute("aria-label")).toBe("New sessions in web join as: Member");
+    // It sets the role of the sessions in already too: the words say so.
+    expect(screen.getByTestId("join-as").textContent).toContain("Everyone in web, now and new, is:");
+    expect(screen.getByTestId("join-as").textContent).not.toContain("New sessions");
+    expect(picker.getAttribute("aria-label")).toBe("Everyone in web, now and new, is: Member");
+    expect(screen.getByTestId("join-as-count").textContent).toBe("· 59 sessions now");
     pick(picker, "Reviewer");
     expect(change).toHaveBeenCalledWith("reviewer");
-    pick(picker, "Don't join");
+    pick(picker, "Not in the pool");
     expect(change).toHaveBeenCalledWith(null);
+    rerender(<JoinAs where="web" value={null} count={null} onChange={change} />);
+    expect(screen.queryByTestId("join-as-count")).toBeNull();
   });
 
   it("the roles are four cards, one line each, saying who holds them", () => {

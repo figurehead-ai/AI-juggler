@@ -458,6 +458,11 @@ fn a_pools_talk_rules_hold_or_refuse_an_agents_message_d62() {
         "a talk rule is the pool's, never an always"
     );
     assert!(ask.detail.contains("asks you first"), "{}", ask.detail);
+    assert_eq!(
+        ask.delivers_now,
+        Some(false),
+        "a terminal AI Juggler can't type into: no Allow and deliver (D-127)"
+    );
     assert!(needs::answer(&lab.state, ask.ask_id.as_deref().unwrap(), "always").is_err());
     needs::answer(&lab.state, ask.ask_id.as_deref().unwrap(), "once").unwrap();
     assert_eq!(
@@ -477,12 +482,28 @@ fn a_pools_talk_rules_hold_or_refuse_an_agents_message_d62() {
     let (why, words) = refusal(&lab.say(&a, &b_id, "Again?", None));
     assert_eq!(why, Some(Refusal::Deny));
     assert!(
-        words.contains("doesn't let you message that member"),
+        words.starts_with("Messages from you to that member are blocked in this pool"),
+        "{words}"
+    );
+
+    // The soak's P4: a pair's rule is named as the pair's.
+    pools::model::set_talk_impl(&lab.state, &lab.pool, "session:s-a", "session:s-b", None).unwrap();
+    pools::model::set_talk_impl(
+        &lab.state,
+        &lab.pool,
+        "role:member",
+        "role:member",
+        Some("blocked"),
+    )
+    .unwrap();
+    let (why, words) = refusal(&lab.say(&a, &b_id, "And now?", None));
+    assert_eq!(why, Some(Refusal::Deny));
+    assert!(
+        words.starts_with("Member to Member messages are blocked in this pool"),
         "{words}"
     );
 
     // Cleared: back to the pair's ask first; cleared too: allowed.
-    pools::model::set_talk_impl(&lab.state, &lab.pool, "session:s-a", "session:s-b", None).unwrap();
     pools::model::set_talk_impl(&lab.state, &lab.pool, "role:member", "role:member", None).unwrap();
     let sent = lab.say(&a, &b_id, "Plain again", None);
     assert!(sent.refused.is_none(), "{sent:?}");
@@ -490,6 +511,48 @@ fn a_pools_talk_rules_hold_or_refuse_an_agents_message_d62() {
         field(&sent, "/to/0/gets_it"),
         "when the user delivers it (this pool asks first)"
     );
+}
+
+/// D-139: one press approves and delivers a held message. In a pool at
+/// Work together whose members ask first, "Allow and deliver" puts it into
+/// a driven recipient's session at once; "Allow, deliver later" leaves it
+/// in its inbox for its next turn. Before, the approval was "Allow once",
+/// then a second press, Deliver.
+#[test]
+fn allow_and_deliver_puts_a_held_message_into_its_session_in_one_press() {
+    let lab = Lab::new();
+    let (_a, a) = lab.agent("s-a", "Alpha");
+    let (builder, _b) = lab.driven("Builder");
+    pools::model::set_talk_impl(
+        &lab.state,
+        &lab.pool,
+        "role:member",
+        "role:member",
+        Some("ask"),
+    )
+    .unwrap();
+    let held = |message: &str| {
+        needs::needs(&lab.state)
+            .unwrap()
+            .into_iter()
+            .find(|n| n.kind == "ask" && n.message_id.as_deref() == Some(message))
+            .expect("the held message in Needs you")
+    };
+    let first = field(&lab.say(&a, &builder, "Start on the API", None), "/message");
+    let card = held(&first);
+    assert_eq!(card.delivers_now, Some(true), "a session it can go into");
+    needs::answer(&lab.state, card.ask_id.as_deref().unwrap(), "deliver").unwrap();
+    wait_for("its delivery, at one press", || {
+        state_for(&lab, &first) == ["delivered"]
+    });
+    wait_for("its turn to end", || {
+        delivery::between_turns(&lab.state, &builder)
+    });
+
+    let second = field(&lab.say(&a, &builder, "And the docs", None), "/message");
+    needs::answer(&lab.state, held(&second).ask_id.as_deref().unwrap(), "once").unwrap();
+    std::thread::sleep(Duration::from_millis(300));
+    assert_eq!(state_for(&lab, &second), ["unread"], "left in its inbox");
 }
 
 #[test]
@@ -726,7 +789,7 @@ fn the_hop_limit_pauses_the_chain_and_asks_and_stop_all_holds_it() {
     // thread's cap (lab 2026-10-26, finding 3).
     assert_eq!(field(&third, "/hop"), "3");
     assert_eq!(field(&third, "/hop_limit"), "2");
-    assert!(field(&third, "/paused").contains("hop limit, 2"));
+    assert!(field(&third, "/paused").contains("hop limit: 2 of 2"));
     assert_eq!(field(&first, "/paused"), "null", "only when it paused");
     let waiting = needs::needs(&lab.state).unwrap();
     // One message, one card (finding 4): the ask, and no "waiting" card
@@ -781,6 +844,110 @@ fn the_hop_limit_pauses_the_chain_and_asks_and_stop_all_holds_it() {
     );
     std::thread::sleep(Duration::from_millis(300));
     assert_eq!(state_for(&lab, &field(&held, "/message")), ["unread"]);
+}
+
+/// D-140 (SK-15, the soak's P11 walk): the hop limit counts per chain.
+/// With a limit of 2, A writes to B, B answers, and A, woken by that
+/// answer, writes to B in a new thread: that third agent message is held
+/// and the person is asked. Before, the new thread started at 1, so a pool
+/// set to ask after 2 let 4 through. The person's prompt starts it again.
+#[test]
+fn a_woken_agent_writing_in_a_new_thread_counts_on_from_its_chain() {
+    let lab = Lab::new();
+    let (a_id, a) = lab.driven("Alpha");
+    let (b_id, b) = lab.driven("Beta");
+    pools::access::set_level_impl(&lab.state, &lab.pool, "full", &[]).unwrap();
+    pools::access::set_delivery_impl(&lab.state, &lab.pool, 2, false).unwrap();
+    let first = lab.say(&a, &b_id, "ping", None);
+    let thread = field(&first, "/thread");
+    wait_for("B woken by A's message", || {
+        state_for(&lab, &field(&first, "/message")) == ["delivered"]
+    });
+    wait_for("B's turn to end", || {
+        delivery::between_turns(&lab.state, &b_id)
+    });
+    let answer = lab.say(&b, &a_id, "pong", Some(&thread));
+    assert_eq!(field(&answer, "/hop"), "2");
+    wait_for("A woken by B's answer", || {
+        state_for(&lab, &field(&answer, "/message")) == ["delivered"]
+    });
+    wait_for("A's turn to end", || {
+        delivery::between_turns(&lab.state, &a_id)
+    });
+
+    let third = lab.say(&a, &b_id, "ping again", None);
+    assert!(third.refused.is_none(), "{third:?}");
+    assert_ne!(field(&third, "/thread"), thread, "a new thread");
+    assert_eq!(field(&third, "/hop"), "3", "it counts on from its chain");
+    assert_eq!(
+        field(&third, "/to/0/gets_it"),
+        "when the user says (the chain reached the hop limit)"
+    );
+    let third_id = field(&third, "/message");
+    assert!(
+        needs::needs(&lab.state)
+            .unwrap()
+            .iter()
+            .any(|n| n.kind == "deliver" && n.message_id.as_deref() == Some(third_id.as_str())),
+        "the person is asked"
+    );
+    std::thread::sleep(Duration::from_millis(300));
+    assert_eq!(
+        state_for(&lab, &third_id),
+        ["unread"],
+        "held, not delivered"
+    );
+
+    // The person's prompt to A starts the count again.
+    runtime::send_impl(&lab.state, a_id.as_str(), "carry on").unwrap();
+    wait_for("A's own turn to end", || {
+        delivery::between_turns(&lab.state, &a_id)
+    });
+    let fresh = lab.say(&a, &b_id, "a new topic", None);
+    assert_eq!(field(&fresh, "/hop"), "1", "{fresh:?}");
+}
+
+/// AJ-E3014 item 3 (rc3h): a pool that delivers by itself didn't pause at
+/// its hop limit when the recipient was a session AI Juggler can't type
+/// into (or a desktop member): it only stopped waking it, and the chain
+/// went on. The limit holds for every recipient: the thread pauses, the
+/// person is asked, and the count reads "2 of 2" everywhere.
+#[test]
+fn the_hop_limit_holds_for_a_recipient_ai_juggler_cant_wake() {
+    let lab = Lab::new();
+    let (planner, a) = lab.agent("s-a", "Planner");
+    let (builder, b) = lab.agent("s-b", "Builder");
+    pools::access::set_level_impl(&lab.state, &lab.pool, "full", &[]).unwrap();
+    pools::access::set_delivery_impl(&lab.state, &lab.pool, 2, false).unwrap();
+    let first = lab.say(&a, &builder, "one", None);
+    assert_eq!(field(&first, "/to/0/gets_it"), "in its inbox");
+    let thread = field(&first, "/thread");
+    lab.say(&b, &planner, "two", Some(&thread));
+    let third = lab.say(&a, &builder, "three", Some(&thread));
+    assert_eq!(
+        field(&third, "/to/0/gets_it"),
+        "when the user says (the chain reached the hop limit)"
+    );
+    assert!(
+        field(&third, "/paused").contains("2 of 2 agent messages in a row"),
+        "{third:?}"
+    );
+    let paused = views::thread(&lab.state, &thread, None).unwrap().thread;
+    assert_eq!(paused.state, "paused");
+    let ask = needs::needs(&lab.state)
+        .unwrap()
+        .into_iter()
+        .find(|n| n.kind == "deliver")
+        .expect("the person is asked");
+    assert!(
+        ask.detail
+            .ends_with("2 of 2 agent messages in a row without you; one more waits for you"),
+        "{}",
+        ask.detail
+    );
+    // The chain doesn't go on in its thread.
+    let (why, _) = refusal(&lab.say(&b, &planner, "four", Some(&thread)));
+    assert_eq!(why, Some(Refusal::Limit));
 }
 
 /// The rc3h walk: "Don't deliver" on a chain paused at the hop limit
@@ -864,6 +1031,50 @@ fn resume_at_the_hop_limit_lets_its_message_wait_as_usual() {
         copy.deliverable,
         "the thread offers its Deliver too: {copy:?}"
     );
+}
+
+/// AJ-E3014 item 8 (rc3h): Pause or Stop on a thread whose chain waits at
+/// the hop limit left its ask on Home, and its Deliver opened the thread
+/// again. The ask goes when the person holds the thread, and no Deliver
+/// opens a thread they paused or stopped.
+#[test]
+fn pause_or_stop_at_the_hop_limit_takes_the_ask_off_home_and_deliver_never_reopens() {
+    for word in ["paused", "stopped"] {
+        let lab = Lab::new();
+        let chain = PausedChain::at_two(&lab);
+        views::set_thread(&lab.state, &chain.thread, word).unwrap();
+
+        let waiting = needs::needs(&lab.state).unwrap();
+        assert!(
+            waiting.iter().all(|n| n.kind != "deliver"),
+            "{word}: no chain asks about it: {waiting:?}"
+        );
+        // A card left open in a window: its Deliver says why not, and the
+        // thread stays as the person left it.
+        assert!(needs::answer(&lab.state, &chain.ask, "once").is_err());
+        let page = views::thread(&lab.state, &chain.thread, None).unwrap();
+        let copy = page
+            .messages
+            .iter()
+            .find(|m| m.id == chain.third)
+            .unwrap()
+            .recipients[0]
+            .id
+            .clone();
+        let refused = views::deliver(&lab.state, &chain.third, &copy);
+        let why = format!("{:?}", refused.err());
+        assert!(why.contains(&format!("thread is {word}")), "{word}: {why}");
+        let thread = views::thread(&lab.state, &chain.thread, None)
+            .unwrap()
+            .thread;
+        assert_eq!(thread.state, word, "the person's hold stands");
+        std::thread::sleep(Duration::from_millis(300));
+        assert_eq!(
+            state_for(&lab, &chain.third),
+            ["unread"],
+            "{word}: not delivered"
+        );
+    }
 }
 
 /// A chain in a pool at Full with a hop limit of 2: Planner → Builder

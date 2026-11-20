@@ -603,7 +603,6 @@ fn messages_name_a_desktop_session_as_sender_and_recipient() {
 #[test]
 fn a_line_between_a_cli_and_a_desktop_session_counts_and_its_own_rule_holds() {
     use crate::features::pools::{canvas, model};
-    use juggler_core::pools::talk::RefuseReason;
 
     let lab = lab();
     lab.attest();
@@ -643,9 +642,12 @@ fn a_line_between_a_cli_and_a_desktop_session_counts_and_its_own_rule_holds() {
         ("blocked", "allowed", true)
     );
     let refused = lab.send("s-cli", "session:s-cli", MEMBER, 4).unwrap_err();
-    assert_eq!(
-        refused.reason.as_deref(),
-        Some(RefuseReason::Blocked.words())
+    // The soak's P4: the refusal names the line's own rule.
+    assert!(
+        refused.reason.as_deref().is_some_and(|why| why
+            .starts_with("Messages from you to that member are blocked in this pool: the user set it on the line between you two.")),
+        "{:?}",
+        refused.reason
     );
     // The other way is its own line, following the role pair.
     let back = model::edge_talk_impl(&lab.state, &lab.pool, MEMBER, "s-cli").unwrap();

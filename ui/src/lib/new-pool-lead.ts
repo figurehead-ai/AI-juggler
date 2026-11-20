@@ -38,3 +38,15 @@ export function leadCandidates(sessions: readonly Candidate[]): Candidate[] {
   return sessions.filter((row) => row.kind === "session" && row.blocked === null && row.group === "open" && row.reach !== "watched").sort((a, b) => b.lastMs - a.lastMs);
 }
 
+
+/** SK-13: the draft with `ref` as a Reviewer (a template that promises one,
+ * "Writer and reviewer", had no way to name it): a member already in takes
+ * the role, a session open now is added with it (from `candidate`). The
+ * lead stays the lead. */
+export function withReviewer(draft: Draft, ref: string, candidate?: Candidate): Draft {
+  if (draft.members.some((member) => member.ref === ref)) {
+    return { ...draft, members: draft.members.map((member) => (member.ref === ref && member.role !== "lead" ? { ...member, role: "reviewer" } : member)) };
+  }
+  if (!candidate) return draft;
+  return { ...draft, members: [...draft.members, { ref: candidate.ref, kind: candidate.kind, label: candidate.label, role: "reviewer", level: null, reach: candidate.reach, shell: candidate.shell ?? null }] };
+}

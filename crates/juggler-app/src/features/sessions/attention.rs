@@ -83,7 +83,13 @@ pub fn apply_lifecycle_event_as(
         // Centre (AJ-E506) consumes these via the ledger.
         LifecycleEvent::HelperOrphaned { .. } => return None,
         LifecycleEvent::Exited { kind, .. } => {
-            record.status = if stopped_by_user {
+            // AJ-E2311 item 1: a session already handed over (its
+            // conversation went on in another session: Open in terminal,
+            // a switch) stays so. Its process's end is the hand-over's,
+            // never a "Finished" or "Stopped by you" of its own beside the
+            // session it went on in.
+            let handed_over = record.status == SessionStatus::HandedOver;
+            let ended = if stopped_by_user {
                 // The stop ladder (PTY exits surface kills as plain
                 // non-zero codes) — user intent, not a failure.
                 SessionStatus::Stopped
@@ -100,11 +106,16 @@ pub fn apply_lifecycle_event_as(
                     juggler_supervisor::ExitKind::Code(_) => SessionStatus::Failed,
                 }
             };
+            record.status = if handed_over {
+                SessionStatus::HandedOver
+            } else {
+                ended
+            };
             if record.status != SessionStatus::QuotaBlocked {
                 record.attention = None;
             }
             // AJ-E1103: a signal nobody asked for is a crash.
-            let outcome = match (record.status, kind) {
+            let outcome = match (ended, kind) {
                 (SessionStatus::Finished, _) => "finished",
                 (SessionStatus::Stopped, _) if stopped_by_user => "stopped",
                 (
@@ -115,7 +126,12 @@ pub fn apply_lifecycle_event_as(
                 _ => "failed",
             };
             crate::usage_stats::instance_ended(storage, &record, outcome);
-            ending = ending_of_exit(record.status, kind, stop);
+            // A switch's stop still says so ("stopped by the switch").
+            ending = if handed_over && stop != Stop::BySwitch {
+                None
+            } else {
+                ending_of_exit(ended, kind, stop)
+            };
         }
     }
     record.last_activity = Some(Timestamp::now());

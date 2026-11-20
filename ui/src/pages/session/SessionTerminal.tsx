@@ -8,6 +8,8 @@
  * and that line only when output was kept; else its conversation, read
  * from the tool's own transcript as every session's page shows it; else
  * (no conversation either) that nothing was kept, and History's search.
+ * SK-5: one that ended in an error says why, where its ending knows, and
+ * offers to start it again in its folder.
  * The terminal stays mounted while it ends and while that's asked (one
  * that ends as you watch is never rebuilt). One opened ended shows a
  * skeleton while that's asked, never a blank terminal (the 0.4.6 RC walk
@@ -18,7 +20,8 @@ import { useEffect, useState, type JSX, type ReactNode } from "react";
 import { Button, Card } from "../../components/primitives";
 import { terminalKept } from "../../lib/ipc/terminal-io";
 import { providerDisplayName } from "../../lib/providers";
-import { since } from "../../lib/time-words";
+import { pastWhen, since } from "../../lib/time-words";
+import { endedCause } from "../../lib/ended-how";
 import type { InstanceInfo } from "../../types/generated/InstanceInfo";
 import { LastMessages } from "./LastMessages";
 import { fromInstance } from "./model";
@@ -71,6 +74,24 @@ function searchHistory(words: string): void {
   window.dispatchEvent(new CustomEvent("aij:open-screen", { detail: { id: "history", query: words } }));
 }
 
+/** SK-5 (the 0.4.6 soak, K3: "Error 8:35 AM" and "No output was kept", no
+ * why): one that ended in an error or a crash says why where its ending
+ * knows ("Claude Code exited with code 1, at 8:35 AM."), else when, and
+ * that its tool didn't say; `null` for any other ending. */
+function errorWords(session: InstanceInfo, now: number): { title: string; why: string } | null {
+  const how = session.ending?.how;
+  if (how !== "error" && how !== "crashed") return null;
+  const tool = providerDisplayName(session.provider);
+  const at = pastWhen(session.last_activity_ms ?? session.started_at_ms, now);
+  const cause = endedCause(session.ending?.detail, tool);
+  return { title: how === "crashed" ? "It crashed" : "It stopped with an error", why: cause ? `${cause}, at ${at}.` : `It stopped at ${at}; ${tool} didn't say why.` };
+}
+
+/** New session in its folder on its App: run again, the error shows as it happens. */
+function startAgain(session: InstanceInfo): void {
+  window.dispatchEvent(new CustomEvent("aij:new-session", { detail: { accountId: session.account_id, dir: session.cwd } }));
+}
+
 export function SessionTerminal({ session, live, terminal, now }: { session: InstanceInfo; live: boolean; terminal: ReactNode; now: number }): JSX.Element {
   const kept = useKept(live ? null : session.id, live ? null : `${session.id}@${session.last_activity_ms ?? session.started_at_ms}`);
   // Seen running here: its terminal stays while what it kept is asked.
@@ -85,9 +106,15 @@ export function SessionTerminal({ session, live, terminal, now }: { session: Ins
       </div>
     );
   }
+  const failed = errorWords(session, now);
   if (session.conversation_id) {
     return (
       <div className="flex min-h-0 flex-1 flex-col gap-2" data-testid="ended-terminal-conversation">
+        {failed && (
+          <p className="text-meta text-ink" data-testid="ended-why">
+            {failed.why}
+          </p>
+        )}
         <p className="text-meta text-ink-2">Its terminal output wasn't kept, so this is its conversation.</p>
         <LastMessages model={fromInstance(session)} visible />
       </div>
@@ -96,11 +123,27 @@ export function SessionTerminal({ session, live, terminal, now }: { session: Ins
   const tool = providerDisplayName(session.provider);
   return (
     <Card className="flex min-h-[280px] flex-1 flex-col items-center justify-center gap-3 p-6 text-center" data-testid="ended-terminal-none">
-      <p className="text-section font-semibold text-ink">No output was kept</p>
-      <p className="max-w-md text-body text-ink-2">{`AI Juggler keeps a terminal's output only while it runs, and ${tool} recorded no conversation for this session.`}</p>
-      <Button size="sm" variant="secondary" onClick={() => searchHistory(session.label ?? "")} data-testid="ended-terminal-history">
-        Search History
-      </Button>
+      <p className="text-section font-semibold text-ink">{failed?.title ?? "No output was kept"}</p>
+      {failed && (
+        <p className="max-w-md text-body text-ink" data-testid="ended-why">
+          {failed.why}
+        </p>
+      )}
+      <p className="max-w-md text-body text-ink-2">
+        {failed
+          ? `No output was kept: AI Juggler keeps a terminal's output only while it runs, and ${tool} recorded no conversation. Start it again in the same folder to see what it says as it happens.`
+          : `AI Juggler keeps a terminal's output only while it runs, and ${tool} recorded no conversation for this session.`}
+      </p>
+      <div className="flex flex-wrap justify-center gap-2">
+        {failed && (
+          <Button size="sm" variant="primary" onClick={() => startAgain(session)} data-testid="ended-start-again">
+            Start again here
+          </Button>
+        )}
+        <Button size="sm" variant="secondary" onClick={() => searchHistory(session.label ?? "")} data-testid="ended-terminal-history">
+          Search History
+        </Button>
+      </div>
     </Card>
   );
 }

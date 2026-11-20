@@ -26,6 +26,7 @@ pub mod live_stats;
 pub mod machine;
 pub mod orphans;
 pub mod ports;
+mod reconcile_scope;
 pub mod ring;
 mod rows;
 pub mod stats;

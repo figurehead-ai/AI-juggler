@@ -285,3 +285,19 @@
 **Files to touch**: `crates/juggler-adapters/` (each desktop adapter's connector seam), `crates/juggler-agentbridge/`, `plugins/claude-code/ai-juggler/` (the inbox hook), `ui/src/pages/pool/`, `docs/guide/pools.md`.
 **Research basis**: D-116, D-66, AJ-E1905, AJ-E3006; `docs/research/desktop-pool-members.md` (to write).
 **Handover note**: —
+
+### AJ-E3014 0.4.6's deferred pool and message findings: stable grid order, the project-pool name, the hop words, setup's side panel, names, delete and the held-message flow | Status: IN-PROGRESS (0.4.7: bugs in shipped 0.4 ship as 0.4.x, built on release/0.4.7 during the soak (D-138) and forward-merged) | Priority P1 | Effort M | Depends: AJ-E3013
+**Deferred from 0.4.6's exit RC (rc3h), 2026-11-19 (D-114: the 0.4 line takes blockers only after beta).** The source list, with the walk rows that stay open and their reasons: [docs/research/0.4.6-deferred-to-0.5.md](../research/0.4.6-deferred-to-0.5.md). Work it as one batch (D-137): find, triage, fix together, one build.
+**Requirements**:
+1. **(rc3h item 1)** **The Pools grid still moves when a pool is made.** A new pool took slot 3 and pushed the project pool down, then moved again. 7695e15e0 holds the order only after the first move on the screen. Wanted: a stable order for the whole visit, with a new pool at the end.
+2. **(rc3h item 2)** **Naming a project pool by its project ("web") is refused when the session is only in a custom pool on that project.** Example: "isn't in a pool called "web"; the only pool it belongs to is web team". Decide whether a session is in its project's own pool too, or make the refusal say how to reach it.
+3. **(rc3h item 3)** **The hop counter's words.** The pause chip reads "3 agent messages in a row without you, over this pool's limit of 2", where the person expects "N of 2". Also: a delivering pool doesn't pause at its hop limit when the recipient is a desktop member or a terminal session AI Juggler can't type into; it only stops waking it.
+4. **(rc3h item 4)** **Pool setup's side panel** says "Open a session in web: it joins" while the every-new-session switch is off. The Who's in step repeats the connector paragraph twice. P1's sheet also expects the side panel to say who joins now and who joins later; today only the review step does.
+5. **(rc3h item 5)** `shortPoolName` (Settings › Agent access) doesn't shorten a told-apart name such as "web · all sessions (in lab)".
+6. **(rc3h item 6)** Deleting a pool is only at the foot of its settings panel. The List view's right panel doesn't scroll by wheel.
+7. **(rc3h item 7)** In a Work together pool, approving a held message takes two presses: Allow once (into the inbox), then Deliver (wake now). This is by design (D-119), but X1 scored clarity 3. It's a UX question for the maintainer.
+8. **(rc3h batch)** Stop or Pause on a thread with an open hop-limit ask leaves the ask on Home, and its Deliver reopens the thread. Resume and Don't deliver are fixed in 0.4.6 (ba4fd61b6, 82bcc4f8d); this edge is left. The ask leaves Home when its thread stops or pauses, and Deliver never reopens a stopped or paused thread. A test for each.
+9. **(P7's rc3a lab follow-ups, unchecked since)** Re-check on the beta build: a lone "No lead for now"; "Setup done" while the panel is still in setup; "Who's in: No one yet"; 3 nodes drawn for 2 sessions. Fix any that remain, with a test each, and record each result in the evidence manifest.
+**Handover note**: Item 7 is a UX question for the maintainer (D-119's two presses scored clarity 3): bring it as one plain question with an example, and record the answer as a D-number.
+**Quality gates**: verify-static; a failing-before test per fixed item; the screens touched walked once by Sonnet and checked by Opus.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E3014/manifest.md`, one row per item.

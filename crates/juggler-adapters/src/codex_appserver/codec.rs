@@ -226,6 +226,7 @@ fn status_changed(params: &Value) -> Vec<RuntimeEvent> {
                 category: ErrorCategory::Crash,
                 message: "Codex reported a system error".into(),
                 will_retry: false,
+                turn_end: None,
             },
             state(LiveStatusWord::Idle),
         ],
@@ -443,6 +444,7 @@ impl Codec {
                     category: ErrorCategory::Other,
                     message: bounded(&message),
                     will_retry: false,
+                    turn_end: None,
                 }];
             }
         };
@@ -507,6 +509,7 @@ impl Codec {
                 category: category(error),
                 message: bounded(&text(error, "/message").unwrap_or_default()),
                 will_retry: false,
+                turn_end: None,
             });
         }
         events.push(RuntimeEvent::TurnEnded {
@@ -593,6 +596,7 @@ impl Codec {
                         .get("willRetry")
                         .and_then(Value::as_bool)
                         .unwrap_or(false),
+                    turn_end: None,
                 }]
             }
             "thread/started" => Vec::new(), // the thread response says it

@@ -67,13 +67,19 @@ fn dir_of(state: &Arc<AppState>, id: &str) -> PathBuf {
 
 /// A lab's room: folder `id`'s `window` `used`% full, as its tool's own
 /// statusline would have said a minute ago, the five-hour window resetting
-/// in two hours, the week in three days.
-fn lab_room(state: &Arc<AppState>, id: &str, window: juggler_core::quota::WindowKind, used: f64) {
+/// in two hours (or in `resets_in_ms`), the week in three days.
+fn lab_room(
+    state: &Arc<AppState>,
+    id: &str,
+    window: juggler_core::quota::WindowKind,
+    used: f64,
+    resets_in_ms: Option<i64>,
+) {
     use juggler_core::model::Confidence;
     use juggler_core::quota::{QuotaSample, UsageSource, WindowKind};
     let now = Timestamp::now().millis();
     let resets = match window {
-        WindowKind::FiveHour => 2 * 3_600_000,
+        WindowKind::FiveHour => resets_in_ms.unwrap_or(2 * 3_600_000),
         WindowKind::Weekly { .. } => 3 * 24 * 3_600_000,
     };
     let sample = QuotaSample {
@@ -96,13 +102,25 @@ fn lab_room(state: &Arc<AppState>, id: &str, window: juggler_core::quota::Window
 /// `week_used` (% of the week: PL1's out for days, past any five-hour
 /// reset, so a walk needn't start within two hours of its setup) on
 /// scenario App `app`: folder `id`'s readings ([`lab_room`]).
+/// `room_resets_in = N` (persona M5, PM5): the five-hour window resets N
+/// minutes after the seed, so a walk opened at once sees the Account
+/// come back while it watches.
 fn seed_room(state: &Arc<AppState>, app: &Value, id: &str) {
     use juggler_core::quota::WindowKind;
+    let resets_in = app["room_resets_in"]
+        .as_i64()
+        .map(|minutes| minutes * 60_000);
     if let Some(used) = app["room_used"].as_f64() {
-        lab_room(state, id, WindowKind::FiveHour, used);
+        lab_room(state, id, WindowKind::FiveHour, used, resets_in);
     }
     if let Some(used) = app["week_used"].as_f64() {
-        lab_room(state, id, WindowKind::Weekly { anchor_ms: None }, used);
+        lab_room(
+            state,
+            id,
+            WindowKind::Weekly { anchor_ms: None },
+            used,
+            None,
+        );
     }
 }
 
@@ -128,12 +146,24 @@ fn replica(args: &[std::ffi::OsString]) -> Value {
         .unwrap();
     assert!(
         out.status.success(),
-        "replica.py {}: {}",
-        args.first()
-            .map_or_else(String::new, |verb| verb.to_string_lossy().into_owned()),
-        String::from_utf8_lossy(&out.stderr)
+        "replica.py exited with {}: its stderr is in {}",
+        out.status,
+        kept_stderr("replica", &out.stderr)
     );
     serde_json::from_slice(&out.stdout).unwrap()
+}
+
+/// A failed helper's stderr, kept in a file the failure names. It's never
+/// printed: it can carry the lab's ids (CodeQL's cleartext-logging rule).
+fn kept_stderr(what: &str, stderr: &[u8]) -> String {
+    let mut file = tempfile::Builder::new()
+        .prefix(&format!("{what}-stderr-"))
+        .suffix(".txt")
+        .tempfile()
+        .unwrap();
+    std::io::Write::write_all(&mut file, stderr).unwrap();
+    let (_, path) = file.keep().unwrap();
+    path.display().to_string()
 }
 
 /// Who started a lab session, in its tool's own words: what decides its
@@ -619,7 +649,10 @@ fn seed_scenario() {
     let seed: Value = serde_json::from_str(&std::fs::read_to_string(&seed_path).unwrap()).unwrap();
     // Persona walks (AJ-E3307): a Mac as AI Juggler first sees it.
     if seed["first_run"].as_bool() == Some(true) {
-        println!("seed: {}", seed_first_run(&seed, &home));
+        let (made, _) = seed_first_run(&seed, &home);
+        for note in made {
+            println!("seed: {note}");
+        }
         return;
     }
     let (_, notes, _) = seed_lab(&seed, data, &home);
@@ -1017,6 +1050,23 @@ fn seed_lab(
         if session["conversation"].as_bool() == Some(true) {
             let (account, _) = &recipes[session["app"].as_str().unwrap()];
             lab_conversation(&state, &session, account, &mut notes);
+        }
+        // Persona M5 (PM5): `parked = true`, a session stopped at its limit
+        // that its user parked until the reset (its page's "Park until
+        // reset"), as AI Juggler parks one: at its Account's reset, AI
+        // Juggler offers it back once, to resume on that Account.
+        if session["parked"].as_bool() == Some(true) {
+            // Parking keeps its context in a pack, which needs her choice
+            // for keys and passwords first: the safe one, stripped.
+            juggler_app::features::redaction::redaction_policy_set_global_impl(
+                &state,
+                Some("strip"),
+            )
+            .unwrap();
+            match juggler_app::parked::instance_park_impl(&state, id) {
+                Ok(_) => notes.push(format!("{id}: parked until its Account's reset")),
+                Err(error) => notes.push(format!("{id}: can't be parked: {error}")),
+            }
         }
         // Persona D4: `leftover = true`, a real process left behind by
         // this (ended) session, as AI Juggler's process ledger records one.
@@ -1918,14 +1968,17 @@ fn real_default(state: &Arc<AppState>, tool: &str, lab: &std::path::Path) -> std
 /// signs anything in). A CLI App's folder is `~/.claude` for profile
 /// `default` (or none), else `~/.claude-<profile>`; Codex's `~/.codex`
 /// (not signed in); a desktop App's its profile under ClaudeProfiles.
-/// The projects are folders under `~/repos`.
-fn seed_first_run(seed: &Value, home: &std::path::Path) -> String {
+/// The projects are folders under `~/repos`. Its `sessions` run
+/// ([`first_run_session`]). What it made, and the process groups of the
+/// sessions it started (teardown stops them).
+fn seed_first_run(seed: &Value, home: &std::path::Path) -> (Vec<String>, Vec<u32>) {
     for name in seed["projects"].as_array().cloned().unwrap_or_default() {
         if let Some(name) = name.as_str() {
             std::fs::create_dir_all(home.join("repos").join(name)).unwrap();
         }
     }
     let mut made = Vec::new();
+    let mut folders: HashMap<String, (String, PathBuf)> = HashMap::new();
     for app in seed["apps"].as_array().cloned().unwrap_or_default() {
         let tool = app["tool"].as_str().unwrap_or_default();
         let profile = app["profile"].as_str().unwrap_or("default");
@@ -1946,11 +1999,140 @@ fn seed_first_run(seed: &Value, home: &std::path::Path) -> String {
             lab_sign_in(&dir, account);
         }
         made.push(dir.strip_prefix(home).unwrap().display().to_string());
+        if let Some(id) = app["id"].as_str() {
+            folders.insert(id.to_owned(), (tool.to_owned(), dir));
+        }
     }
-    format!(
+    let mut notes = vec![format!(
         "first run: no AI Juggler data; the tools' folders {}",
         made.join(", ")
-    )
+    )];
+    let mut groups = Vec::new();
+    for session in seed["sessions"].as_array().cloned().unwrap_or_default() {
+        let id = session["id"].as_str().unwrap();
+        let Some((tool, folder)) = session["app"].as_str().and_then(|app| folders.get(app)) else {
+            notes.push(format!("{id}: its App isn't seeded; left out"));
+            continue;
+        };
+        match first_run_session(&session, tool, folder, home) {
+            Ok((group, note)) => {
+                groups.push(group);
+                notes.push(note);
+            }
+            Err(why) => notes.push(format!("{id}: {why}; left out")),
+        }
+    }
+    (notes, groups)
+}
+
+/// PF1 (the soak's first-run personas found "No sessions on this Mac
+/// yet"): first-run session `session`, running in its App's `folder` as
+/// that tool's session outside AI Juggler, in its project's folder under
+/// the lab: the lab's stand-in (`~/.aij-lab-bin/claude`, which
+/// `lab_scenario.sh setup` puts there), at its prompt on a conversation of
+/// a few turns, recording itself in the folder as Claude Code does, so
+/// the build sees it once the folder is brought in. Started with only the lab's environment, in a
+/// process group of its own, for at most an hour; teardown stops it (its
+/// folder is the lab's). Its process group and a note, or why not.
+#[cfg(unix)]
+fn first_run_session(
+    session: &Value,
+    tool: &str,
+    folder: &std::path::Path,
+    home: &std::path::Path,
+) -> Result<(u32, String), String> {
+    use std::os::unix::process::CommandExt;
+    let id = session["id"].as_str().unwrap();
+    if tool != "claude-code" {
+        return Err(format!("no lab stand-in for {tool} yet"));
+    }
+    if !matches!(
+        status_of(session["state"].as_str().unwrap_or("idle")),
+        SessionStatus::Running | SessionStatus::WaitingUser
+    ) {
+        return Err("only a running one is started on a first run".to_owned());
+    }
+    let standin = home.join(".aij-lab-bin/claude");
+    if !standin.is_file() {
+        return Err("the lab has no stand-in (lab_scenario.sh setup puts it there)".to_owned());
+    }
+    let cwd = session["project"]
+        .as_str()
+        .map_or_else(|| home.to_path_buf(), |name| home.join("repos").join(name));
+    assert!(
+        cwd.starts_with(home) && folder.starts_with(home),
+        "{id}: a lab session runs only in the lab's folders"
+    );
+    // A session that has talked: a few turns in Claude Code's own format
+    // in its setup's folder (the replica's writer), the stand-in running
+    // on that conversation. (Claude Code writes a conversation at its
+    // first turn: one that never talked is listed nowhere.)
+    let conversation = lab_uuid(id);
+    replica(&[
+        "conversation".into(),
+        "--folder".into(),
+        folder.into(),
+        "--session".into(),
+        conversation.clone().into(),
+        "--cwd".into(),
+        cwd.clone().into(),
+        "--entrypoint".into(),
+        "cli".into(),
+    ]);
+    let mut command = std::process::Command::new(&standin);
+    command
+        .arg(if session["state"].as_str() == Some("needs-you") {
+            "--lab-ask"
+        } else {
+            "--lab-idle"
+        })
+        .args(["--session-id", &conversation])
+        .env_clear()
+        .env("HOME", home)
+        .env("PATH", "/usr/bin:/bin:/usr/sbin:/sbin")
+        .env("AIJ_LAB_STANDIN_SECS", LIVE_SECS.to_string())
+        .current_dir(&cwd)
+        .process_group(0)
+        .stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null());
+    // Claude Code's default folder needs no variable; another names it.
+    if folder != home.join(".claude") {
+        command.env("CLAUDE_CONFIG_DIR", folder);
+    }
+    let mut child = command.spawn().map_err(|error| error.to_string())?;
+    let pid = child.id();
+    std::thread::spawn(move || {
+        let _ = child.wait();
+    });
+    let record = folder.join("sessions").join(format!("{pid}.json"));
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+    while !record.is_file() {
+        if std::time::Instant::now() > deadline {
+            return Err("its stand-in never recorded itself".to_owned());
+        }
+        std::thread::sleep(std::time::Duration::from_millis(20));
+    }
+    Ok((
+        pid,
+        format!(
+            "{id}: running in {} on {} (pid {pid}, at most {} minutes), outside AI Juggler; teardown stops it",
+            cwd.strip_prefix(home).unwrap().display(),
+            folder.strip_prefix(home).unwrap().display(),
+            LIVE_SECS / 60
+        ),
+    ))
+}
+
+/// A first-run session elsewhere: the stand-in is a Unix shell script.
+#[cfg(not(unix))]
+fn first_run_session(
+    _session: &Value,
+    _tool: &str,
+    _folder: &std::path::Path,
+    _home: &std::path::Path,
+) -> Result<(u32, String), String> {
+    Err("no lab stand-in outside a Unix lab".to_owned())
 }
 
 /// A10: `signin = "unreadable"` leaves the lab folder's sign-in cut short,
@@ -2647,8 +2829,9 @@ fn presence_reads(state: &Arc<AppState>, paths: &[&std::path::Path], expr: &str)
         .unwrap();
     assert!(
         out.status.success(),
-        "presence_sessions: {}",
-        String::from_utf8_lossy(&out.stderr)
+        "presence_sessions exited with {}: its stderr is in {}",
+        out.status,
+        kept_stderr("presence_sessions", &out.stderr)
     );
     serde_json::from_slice(&out.stdout).unwrap()
 }
@@ -3045,4 +3228,165 @@ fn seeded_working_sessions_are_picked_up_running_when_the_app_opens() {
             }
         }
     }
+}
+
+/// PM5 (persona M5, "back after a reset"): `room_resets_in = 3` puts the
+/// out Account's five-hour reset three minutes after the seed, not two
+/// hours, so a walk opened at once sees it come back.
+#[test]
+fn room_resets_in_brings_the_account_back_minutes_after_the_seed() {
+    let seed = serde_json::json!({"apps": [
+        {"id": "cc-work", "tool": "claude-code", "account": "Work", "profile": "work", "room_used": 100, "room_resets_in": 3},
+        {"id": "cc-personal", "tool": "claude-code", "account": "Personal", "profile": "personal", "room_used": 30},
+    ]});
+    let (_lab, state) = seeded(&seed, "reset");
+    let resets_in = |label: &str| {
+        let folder = folder_labelled(&state, label);
+        presence_reads(
+            &state,
+            &[&folder],
+            "db.execute('select q.used_pct, q.resets_at - ? from quota_samples q join accounts f \
+              on f.id = q.account where f.state_dir = ? and q.window = ?', \
+              [int(time.time() * 1000), str(a[0]), 'five_hour']).fetchone()",
+        )
+    };
+    let work = resets_in("Work · work");
+    assert_eq!(work[0], serde_json::json!(100.0));
+    let ms = work[1].as_i64().unwrap();
+    assert!(
+        (150_000..=180_000).contains(&ms),
+        "Work back in about 3 minutes: {ms} ms"
+    );
+    let personal = resets_in("Personal · personal")[1].as_i64().unwrap();
+    assert!(
+        personal > 3_600_000,
+        "the others keep two hours: {personal} ms"
+    );
+}
+
+/// PM5 (persona M5): the session that waits at Work's limit is parked
+/// until Work's reset, three minutes on; once the reset passes, AI
+/// Juggler offers it back, to resume on Work.
+#[test]
+fn pm5s_parked_session_is_offered_back_at_its_accounts_reset() {
+    let seed = scenario_seed("PM5");
+    let (_lab, state, notes) = seeded_with_notes(&seed, "pm5");
+    let parked = juggler_app::parked::parked_list_impl(&state);
+    assert_eq!(parked.len(), 1, "{notes:?}");
+    assert_eq!(parked[0].session_id, "writer");
+    let now = Timestamp::now().millis();
+    let resets = parked[0].resets_at_ms.expect("its reset is known");
+    assert!(
+        (150_000..=180_000).contains(&(resets - now)),
+        "Work's reset, about 3 minutes on: {} ms",
+        resets - now
+    );
+    // Before the reset nothing is offered; once it passes, the session is.
+    assert!(
+        juggler_app::parked::parked_offers_impl(&state)
+            .unwrap()
+            .is_empty()
+    );
+    juggler_app::parked::parked_set_reset_for_test(&state, "writer", now - 1_000);
+    let offers = juggler_app::parked::parked_offers_impl(&state).unwrap();
+    assert_eq!(offers.len(), 1);
+    assert_eq!(offers[0].session_id, "writer");
+}
+
+/// Every `.jsonl` file under `dir`, at any depth.
+fn walkdir_jsonl(dir: &std::path::Path) -> Vec<PathBuf> {
+    let mut out = Vec::new();
+    for entry in std::fs::read_dir(dir).into_iter().flatten().flatten() {
+        let path = entry.path();
+        if path.is_dir() {
+            out.extend(walkdir_jsonl(&path));
+        } else if path.extension().is_some_and(|ext| ext == "jsonl") {
+            out.push(path);
+        }
+    }
+    out
+}
+
+/// PF1 (the soak's first-run personas: "No sessions on this Mac yet"):
+/// one running session per Claude Code setup, each the lab's stand-in in
+/// a project folder, recorded in its setup's folder as Claude Code
+/// records one (what the build reads once the setup is brought in); the
+/// Claude app profile and Codex get none. Stopped, each takes its record.
+#[cfg(unix)]
+#[test]
+fn pf1s_first_run_runs_a_session_per_claude_setup() {
+    let seed = scenario_seed("PF1");
+    // The stand-in runs only on a HOME under /tmp, as a lab's is.
+    let dir = tempfile::Builder::new()
+        .prefix("aij-lab-pf1-test-")
+        .tempdir_in("/tmp")
+        .unwrap();
+    let home = dir.path().to_path_buf();
+    let bin = home.join(".aij-lab-bin");
+    std::fs::create_dir_all(&bin).unwrap();
+    std::fs::copy(
+        concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../scripts/qa/lab_standin.sh"
+        ),
+        bin.join("claude"),
+    )
+    .unwrap();
+    let (notes, groups) = seed_first_run(&seed, &home);
+    let lab = Lab {
+        dir,
+        groups: groups.clone(),
+    };
+    assert_eq!(groups.len(), 2, "{notes:?}");
+    let records = |folder: &str| -> Vec<Value> {
+        std::fs::read_dir(home.join(folder).join("sessions"))
+            .map(|entries| {
+                entries
+                    .flatten()
+                    .map(|entry| {
+                        serde_json::from_slice(&std::fs::read(entry.path()).unwrap()).unwrap()
+                    })
+                    .collect()
+            })
+            .unwrap_or_default()
+    };
+    for folder in [".claude", ".claude-work"] {
+        let found = records(folder);
+        assert_eq!(found.len(), 1, "{folder}: {found:?}");
+        let record = &found[0];
+        assert_eq!(record["status"], "idle");
+        assert_eq!(record["entrypoint"], "cli");
+        let cwd = PathBuf::from(record["cwd"].as_str().unwrap());
+        assert!(
+            cwd.ends_with("repos/shop") || cwd.ends_with("repos/billing"),
+            "{folder}: in a project folder: {}",
+            cwd.display()
+        );
+        let pid = u32::try_from(record["pid"].as_u64().unwrap()).unwrap();
+        assert!(groups.contains(&pid), "{folder}: its own process group");
+        // Running on a conversation written in its folder, as Claude Code's.
+        let conversation = record["sessionId"].as_str().unwrap();
+        let written: Vec<_> = walkdir_jsonl(&home.join(folder).join("projects"));
+        assert!(
+            written
+                .iter()
+                .any(|path| path.file_stem().is_some_and(|stem| stem == conversation)),
+            "{folder}: its conversation {conversation} in {written:?}"
+        );
+    }
+    assert!(records(".codex").is_empty());
+    for group in &groups {
+        let _ = std::process::Command::new("/bin/kill")
+            .args(["-TERM", &format!("-{group}")])
+            .status();
+    }
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+    while !(records(".claude").is_empty() && records(".claude-work").is_empty()) {
+        assert!(
+            std::time::Instant::now() < deadline,
+            "a stopped stand-in kept its record"
+        );
+        std::thread::sleep(std::time::Duration::from_millis(50));
+    }
+    drop(lab);
 }

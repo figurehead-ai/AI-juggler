@@ -22,4 +22,15 @@ reasons: Array<RoomReasonInfo>,
  * that names the level and its cause; `null` with plenty of room or
  * when the words already say it (the memory-pressure alert).
  */
-cause?: string | null, };
+cause?: string | null, 
+/**
+ * D1: what "room" counts, one short line with no figures
+ * (`RoomThresholds::counts`), under This Mac's calm level.
+ */
+counts: string, 
+/**
+ * D1: when it turns tight, from the thresholds in force
+ * (`RoomThresholds::measures`): behind This Mac's "When does it turn
+ * tight?", and in the top bar's help.
+ */
+measures: string, };

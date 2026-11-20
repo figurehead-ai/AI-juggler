@@ -12,6 +12,8 @@ import type { QualitySignalsInfo } from "../types/generated/QualitySignalsInfo";
 import { budgetsList, type BudgetInfo } from "./ipc/budgets";
 import { fleetUsageByMachine, type MachineUsageInfo } from "./ipc/fleet-launch";
 import { sharedRead, sharedReads, useSharedRead } from "./shared-read";
+import { machineAdvice } from "./ipc/this-mac";
+import type { MachineAdviceInfo } from "../types/generated/MachineAdviceInfo";
 
 /** Every account's two clocks (`quotaDisplayAll`). Read again when a
  * screen showing them opens, every half minute while one is shown, and
@@ -79,3 +81,10 @@ export function useQualitySignals(sessionId: string | null, visible: boolean): {
   const read = useSharedRead(sessionId ? qualityOf(sessionId) : null, { wanted: visible, maxAgeMs: QUALITY_FRESH_MS });
   return { quality: read?.signals ?? null, loadError: read?.error ?? null };
 }
+
+/** AJ-E2311 item 2 (New session's layout shifted when its memory line
+ * came): this Mac's room for each launch settings' session, kept, so the
+ * sheet opened again has it in its first frame; read in idle time after
+ * the first paint too (`prefetchMainScreens`), and again on each opening. */
+export const machineAdvices = sharedRead<MachineAdviceInfo[]>(() => machineAdvice());
+

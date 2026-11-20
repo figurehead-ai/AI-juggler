@@ -59,13 +59,21 @@ export function useMoreCandidates(pool: PoolInfo, sessions: InstanceInfo[], proj
 /** D-62: a member rule's name, from the same Apps, Accounts and Tools the
  * other screens list. */
 export function useRuleLabel(accounts: AccountInfo[], sessions: InstanceInfo[], everyone = "Everyone in this pool's projects"): (rule: PoolRuleInfo) => string {
+  const label = useMemberLabel(accounts, sessions, everyone);
+  return useCallback((rule: PoolRuleInfo) => label(rule.member), [label]);
+}
+
+/** A broad member's name by its ref (an App, an Account, a tool, a Mac),
+ * as the canvas says it; the Pools cards say it the same (SK-9: a card
+ * read "An Account" where the canvas said "Personal"). */
+export function useMemberLabel(accounts: AccountInfo[], sessions: InstanceInfo[], everyone = "Everyone in this pool's projects"): (member: string) => string {
   const apps = useApps(accounts);
   const subscriptions = useSubscriptions();
   const tools = useTools();
   const paired = usePairedMacs();
   return useCallback(
     // AJ-E3011: everyone by its scope ("Everyone in web").
-    (rule: PoolRuleInfo) => (rule.member === "all" ? everyone : memberLabel(rule.member, { apps: apps ?? [], subscriptions: subscriptions ?? [], tools, thisMac: thisMacOf(sessions), paired })),
+    (member: string) => (member === "all" ? everyone : memberLabel(member, { apps: apps ?? [], subscriptions: subscriptions ?? [], tools, thisMac: thisMacOf(sessions), paired })),
     [apps, subscriptions, tools, sessions, paired, everyone],
   );
 }

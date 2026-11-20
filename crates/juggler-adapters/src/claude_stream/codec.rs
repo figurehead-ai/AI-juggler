@@ -21,7 +21,7 @@ use juggler_adapter::runtime::events::bounded;
 use juggler_adapter::runtime::{
     Approval, ApprovalKind, AskAnswer, AskId, AskOption, Choice, ErrorCategory, ItemKind,
     ItemSummary, LimitWindow, LimitsSnapshot, LiveStatusWord, OptionEffect, Question, QuestionPart,
-    RuntimeEvent, TurnEnd, TurnInput, TurnUsage,
+    RuntimeEvent, TurnEnd, TurnInput, TurnStop, TurnUsage,
 };
 use serde_json::{Value, json};
 
@@ -67,15 +67,14 @@ fn state(status: LiveStatusWord) -> RuntimeEvent {
 }
 
 /// A window's length from its name, and the one model it limits when it
-/// is a week on one model only (`seven_day_opus`).
+/// is a week on one model only (`seven_day_opus`), by the name people
+/// know it by ("Opus", as Claude's own usage page writes it).
 fn window_of(name: &str) -> (Option<u32>, Option<String>) {
     match name {
         "five_hour" => (Some(300), None),
         "seven_day" => (Some(10_080), None),
-        "seven_day_opus" | "seven_day_sonnet" => (
-            Some(10_080),
-            name.strip_prefix("seven_day_").map(str::to_owned),
-        ),
+        "seven_day_opus" => (Some(10_080), Some("Opus".to_owned())),
+        "seven_day_sonnet" => (Some(10_080), Some("Sonnet".to_owned())),
         _ => (None, None),
     }
 }
@@ -94,10 +93,15 @@ fn epoch_ms(value: &Value) -> Option<i64> {
     })
 }
 
-/// A utilization as a percentage (a fraction is scaled; never over 100).
+/// A utilization as a percentage, 0–100. Claude Code sends it as the
+/// fraction of the window used, always: lab 2 read 0.01 where `/usage`
+/// said 1%, and its own schema says "the fraction of the window used
+/// (usually 0-1 …; values above 1 occur when usage legitimately runs
+/// past a window's cap)". So 1 is all of it, and anything above 1 is past
+/// it: all used, never a small whole percent (AJ-E2311 item 8).
 fn percent(value: &Value) -> Option<f64> {
-    let used = value.as_f64()?;
-    Some(if used <= 1.0 { used * 100.0 } else { used }.clamp(0.0, 100.0))
+    let used = value.as_f64().filter(|used| used.is_finite())?;
+    Some((used * 100.0).clamp(0.0, 100.0))
 }
 
 /// One window of a `rate_limit_event`: its use as the tool gave it, or
@@ -141,6 +145,19 @@ pub fn limits_of(info: &Value) -> LimitsSnapshot {
         windows,
         plan: None,
         reached,
+    }
+}
+
+/// A `result`'s subtype (Claude Code names a turn that ended early only
+/// by it) as why the turn ended: `error_during_execution` is a turn
+/// stopped before it finished (an interrupt, or "Deny and stop").
+fn turn_stop(subtype: &str) -> TurnStop {
+    match subtype {
+        "error_during_execution" => TurnStop::Stopped,
+        "error_max_turns" => TurnStop::TurnLimit,
+        "error_max_budget_usd" => TurnStop::SpendLimit,
+        "error_max_structured_output_retries" => TurnStop::AnswerForm,
+        _ => TurnStop::Failed,
     }
 }
 
@@ -496,7 +513,10 @@ impl Codec {
             || subtype != "success";
         let mut events = Vec::new();
         if failed {
-            let words = text(message, "/result").unwrap_or_else(|| subtype.clone());
+            let said = text(message, "/result");
+            // Only its code: the app says why in its own words.
+            let turn_end = said.is_none().then(|| turn_stop(&subtype));
+            let words = said.unwrap_or_else(|| subtype.clone());
             let category = if words.contains("limit") {
                 ErrorCategory::RateLimit
             } else if words.contains("billing") || words.contains("credit") {
@@ -510,6 +530,7 @@ impl Codec {
                 category,
                 message: bounded(&words),
                 will_retry: false,
+                turn_end,
             });
         }
         let outcome = if !failed {
@@ -596,6 +617,7 @@ impl Codec {
                         category: ErrorCategory::Other,
                         message: bounded(&text(&message, "/response/error").unwrap_or_default()),
                         will_retry: false,
+                        turn_end: None,
                     }],
                     _ => Vec::new(),
                 }
@@ -716,8 +738,91 @@ mod limits {
             [
                 ("five_hour", Some(300), None),
                 ("seven_day", Some(10_080), None),
-                ("seven_day_opus", Some(10_080), Some("opus")),
+                ("seven_day_opus", Some(10_080), Some("Opus")),
             ]
         );
+    }
+
+    /// AJ-E2311 item 8: `utilization` is always a fraction of the window.
+    /// A whole 1 is all of it, as 1.0 is; past the cap (above 1) is all
+    /// of it too, never read as a small whole percent.
+    #[test]
+    fn a_use_is_always_a_fraction_of_its_window() {
+        let used = |utilization: serde_json::Value| {
+            let info = json!({"status": "allowed",
+                "unifiedWindows": {"five_hour": {"utilization": utilization}}});
+            limits_of(&info).windows.first().map(|w| w.used_pct)
+        };
+        let cases = [
+            (json!(0), 0.0),
+            (json!(0.0), 0.0),
+            (json!(0.01), 1.0),
+            (json!(0.5), 50.0),
+            (json!(0.99), 99.0),
+            (json!(1), 100.0),
+            (json!(1.0), 100.0),
+            (json!(1.2), 100.0),
+            (json!(99), 100.0),
+            (json!(100), 100.0),
+            (json!(-0.1), 0.0),
+        ];
+        for (utilization, want) in cases {
+            let got = used(utilization.clone()).expect("a reading");
+            assert!(
+                (got - want).abs() < 1e-9,
+                "{utilization} read as {got}%, not {want}%"
+            );
+        }
+        assert_eq!(used(json!("0.5")), None, "not a number: no reading");
+    }
+}
+
+/// AJ-E2025 item 1: a turn Claude Code names only by its `result`
+/// subtype ends with a neutral kind on its error, so the app says why in
+/// its own words; a turn the tool put in words keeps them, with no kind.
+#[cfg(test)]
+mod turn_end {
+    use super::{Codec, RuntimeEvent, TurnStop};
+    use serde_json::json;
+
+    fn ended(result: &serde_json::Value) -> Option<(String, Option<TurnStop>)> {
+        let mut codec = Codec::default();
+        let (events, _) = codec.incoming(&result.to_string());
+        events.into_iter().find_map(|event| match event {
+            RuntimeEvent::Error {
+                message, turn_end, ..
+            } => Some((message, turn_end)),
+            _ => None,
+        })
+    }
+
+    #[test]
+    fn each_code_is_a_kind_and_words_stay_words() {
+        let kinds = [
+            ("error_during_execution", TurnStop::Stopped),
+            ("error_max_turns", TurnStop::TurnLimit),
+            ("error_max_budget_usd", TurnStop::SpendLimit),
+            ("error_max_structured_output_retries", TurnStop::AnswerForm),
+            ("error_some_new_code", TurnStop::Failed),
+        ];
+        for (code, kind) in kinds {
+            // The recorded shape: an empty `result` beside the subtype.
+            let result = json!({"type": "result", "subtype": code, "is_error": true, "result": ""});
+            assert_eq!(
+                ended(&result).and_then(|(_, end)| end),
+                Some(kind),
+                "{code}"
+            );
+        }
+        let said = json!({"type": "result", "subtype": "success", "is_error": true,
+            "result": "Credit balance is too low"});
+        assert_eq!(
+            ended(&said),
+            Some(("Credit balance is too low".to_owned(), None))
+        );
+        let fine =
+            json!({"type": "result", "subtype": "success", "is_error": false, "result": "Done"});
+        assert_eq!(ended(&fine), None);
+        assert_eq!(TurnStop::TurnLimit.as_str(), "turn_limit");
     }
 }

@@ -10,6 +10,7 @@ import { prefetchData } from "./lazy";
 import { prefetchPaged, refreshPaged } from "./paged";
 import { costRowsKey, costRowsPage } from "./ipc/costs";
 import { sessionsPage, sessionsQuery } from "./ipc/sessions";
+import { machineAdvices } from "./kept-reads";
 
 /** History's key for a tab and a search (screens/History). */
 export function historyKey(list: "ended" | "archived", searched: string, version = ""): string {
@@ -32,6 +33,8 @@ export function prefetchMainScreens(): void {
   if (!hasLiveBackend()) return;
   prefetchData(() => prefetchPaged(historyKey("ended", ""), (page) => sessionsPage(sessionsQuery({ which: "ended" }), page)));
   prefetchData(() => prefetchPaged(costRowsKey(null), (page) => costRowsPage(null, page)));
+  // AJ-E2311 item 2: New session's memory line, there in its first frame.
+  prefetchData(() => machineAdvices.load());
   // AJ-E2404: Processes' Needs attention (its own module, loaded with it).
   prefetchData(() => import("../screens/processes/useProcessRows").then((rows) => rows.prefetchProcessRows()));
 }

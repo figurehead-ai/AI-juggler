@@ -93,13 +93,14 @@ fn wants_to_message(sender: &str, to: &[String]) -> String {
 
 /// A thread's count against its pool's [`super::delivery::hop_cap`], as
 /// its thread view says it too (F-rc3g-10): "2 of 2 agent messages in a
-/// row without you", or for the one past it "3 agent messages in a row
-/// without you, over this pool's limit of 2".
+/// row without you"; past it (AJ-E3014 item 3: the person reads "N of 2",
+/// never "3 …, over this pool's limit of 2") "2 of 2 agent messages in a
+/// row without you; one more waits for you".
 pub(crate) fn hops_words(hop: u32, cap: u32) -> String {
     if hop <= cap {
         format!("{hop} of {cap} agent messages in a row without you")
     } else {
-        format!("{hop} agent messages in a row without you, over this pool's limit of {cap}")
+        format!("{cap} of {cap} agent messages in a row without you; one more waits for you")
     }
 }
 
@@ -159,6 +160,15 @@ pub fn needs(state: &Arc<AppState>) -> AppResult<Vec<MessageNeedInfo>> {
             continue;
         };
         let deliver = ask.action == AgentAction::DeliverToSession.as_str();
+        // AJ-E3014 item 8: no chain's ask about a thread the person paused
+        // or stopped since.
+        if deliver
+            && repo
+                .thread(&message.thread_id)?
+                .is_some_and(|thread| super::delivery::held_by_person(&thread))
+        {
+            continue;
+        }
         let talk = ask.action == super::talk::TALK_ASK;
         let watched = ask.action == super::talk::WATCHED_ASK;
         let offer_always = !deliver
@@ -190,9 +200,11 @@ pub fn needs(state: &Arc<AppState>) -> AppResult<Vec<MessageNeedInfo>> {
             title: wants_to_message(&message.sender_name, &to),
             reason: reason_words(deliver, talk, watched).to_owned(),
         };
+        let delivers_now = delivers_now(state, &storage, &ask, &message);
         out.push(MessageNeedInfo {
             key: format!("ask:{}", ask.id),
             kind: if deliver { "deliver" } else { "ask" }.to_owned(),
+            delivers_now,
             pool_name: name_of(&ask.pool_id),
             pool_id: ask.pool_id,
             thread_id: Some(message.thread_id.clone()),
@@ -241,6 +253,7 @@ pub fn needs(state: &Arc<AppState>) -> AppResult<Vec<MessageNeedInfo>> {
         out.push(MessageNeedInfo {
             key: format!("pool:{pool}"),
             kind: "pool_paused".to_owned(),
+            delivers_now: None,
             pool_name: name_of(&pool),
             title: format!("Messages in «{}» are paused", name_of(&pool)),
             pool_id: pool,
@@ -265,6 +278,7 @@ pub fn needs(state: &Arc<AppState>) -> AppResult<Vec<MessageNeedInfo>> {
         out.push(MessageNeedInfo {
             key: format!("thread:{}", thread.id),
             kind: "thread_paused".to_owned(),
+            delivers_now: None,
             pool_name: name_of(&thread.pool_id),
             title: format!(
                 "«{}» is paused",
@@ -295,6 +309,7 @@ pub fn needs(state: &Arc<AppState>) -> AppResult<Vec<MessageNeedInfo>> {
         out.push(MessageNeedInfo {
             key: format!("question:{}", row.message.id),
             kind: "question".to_owned(),
+            delivers_now: None,
             pool_name: name_of(&row.message.pool_id),
             title: format!("«{}» asks you", row.message.sender_name),
             detail: format!(
@@ -334,6 +349,7 @@ pub fn needs(state: &Arc<AppState>) -> AppResult<Vec<MessageNeedInfo>> {
         out.push(MessageNeedInfo {
             key: format!("waiting:{}", record.id.as_str()),
             kind: "waiting".to_owned(),
+            delivers_now: None,
             pool_name: name_of(&newest.message.pool_id),
             title: if count == 1 {
                 format!("{name} has a message waiting")
@@ -362,20 +378,26 @@ pub fn needs(state: &Arc<AppState>) -> AppResult<Vec<MessageNeedInfo>> {
     Ok(out)
 }
 
-/// The user's answer to a held ask: `once`, `always` (a rule for this
-/// action in this pool, D-28) or `deny`.
+/// The user's answer to a held ask: `deliver` (D-139: "Allow and
+/// deliver", one press: allowed, and put into its recipients' sessions at
+/// once as the person's click), `once` ("Allow, deliver later": allowed,
+/// left in their inboxes for their next turn), `always` (a rule for this
+/// action in this pool, D-28) or `deny`. On a chain paused at the hop
+/// limit, `deliver` and `once` are both its Deliver.
 ///
 /// # Errors
 ///
 /// [`AppError::Refused`] for an ask that isn't open; validation for an
 /// unknown answer.
 pub fn answer(state: &Arc<AppState>, ask_id: &str, answer: &str) -> AppResult<()> {
-    if !matches!(answer, "once" | "always" | "deny") {
+    if !matches!(answer, "deliver" | "once" | "always" | "deny") {
         return Err(AppError::Validation {
             subject: "answer",
-            message: format!("{answer} isn't an answer (once, always or deny)"),
+            message: format!("{answer} isn't an answer (deliver, once, always or deny)"),
         });
     }
+    let deliver_now = answer == "deliver";
+    let answer = if deliver_now { "once" } else { answer };
     let (ask, message) = {
         let storage = lock_storage_arc(state)?;
         let repo = storage.messages();
@@ -390,6 +412,22 @@ pub fn answer(state: &Arc<AppState>, ask_id: &str, answer: &str) -> AppResult<()
         (ask, message)
     };
     let deliver = ask.action == AgentAction::DeliverToSession.as_str();
+    // AJ-E3014 item 8: Deliver never opens a thread the person paused or
+    // stopped since the chain asked.
+    if deliver
+        && let Some(thread) = lock_storage_arc(state)?
+            .messages()
+            .thread(&message.thread_id)?
+            .filter(super::delivery::held_by_person)
+    {
+        let storage = lock_storage_arc(state)?;
+        storage.messages().close_ask(&ask.id, "held")?;
+        drop(storage);
+        state.messages.notify(&message.pool_id);
+        return Err(AppError::Refused(
+            super::views::held_words(thread.state).to_owned(),
+        ));
+    }
     if deliver && answer == "always" {
         return Err(AppError::Refused(
             "A hop limit is never lifted by a rule: Deliver once, or change the pool's hop limit"
@@ -412,7 +450,11 @@ pub fn answer(state: &Arc<AppState>, ask_id: &str, answer: &str) -> AppResult<()
         .close_ask(&ask.id, answer)?;
     let waiting = settle(state, &ask, deliver, answer, &message)?;
     if answer != "deny" {
-        go_on(state, deliver, &message)?;
+        if deliver_now && !deliver {
+            deliver_for_person(state, &message)?;
+        } else {
+            go_on(state, deliver, &message)?;
+        }
         if !waiting.is_empty() {
             // The words a direct send to a Watched member gets.
             tell_sender(
@@ -649,35 +691,91 @@ fn tell_sender(state: &Arc<AppState>, message: &Message, body: &str) {
     }
 }
 
-/// After a yes: a released message goes where it would have (the pool's
-/// level and the hop limit decide its delivery); a hop-limit delivery is
-/// queued as the user's click.
-fn go_on(state: &Arc<AppState>, deliver: bool, message: &Message) -> AppResult<()> {
-    if !deliver {
-        let sender = super::sender_session(&*lock_storage_arc(state)?, &message.sender_ref);
-        if let Some(session) = sender {
-            let from = Author::Agent {
-                session,
-                member_ref: message.sender_ref.clone(),
-                name: message.sender_name.clone(),
-                tool: String::new(),
-            };
-            route(state, message, &from, false);
+/// D-139's "Allow and deliver": every copy the yes released goes into its
+/// recipient's session as the person's own Deliver puts it (queued for
+/// its next turn boundary, a desktop member woken); a session in a
+/// terminal AI Juggler can't type into reads it on its next turn.
+fn deliver_for_person(state: &Arc<AppState>, message: &Message) -> AppResult<()> {
+    let sessions = {
+        let storage = lock_storage_arc(state)?;
+        let released: Vec<String> = storage
+            .messages()
+            .recipients(&message.id)?
+            .into_iter()
+            .filter(|r| r.recipient_ref != SENDER_USER && r.state == RecipientState::Unread)
+            .map(|r| r.recipient_ref)
+            .collect();
+        let mut sessions = Vec::new();
+        for recipient in released {
+            match super::views::queue_for_person(state, &storage, message, &recipient) {
+                Ok(session) => sessions.extend(session),
+                Err(AppError::Refused(_)) => {}
+                Err(other) => return Err(other),
+            }
         }
-        return Ok(());
+        sessions
+    };
+    for session in sessions {
+        super::delivery::kick(state, &session);
     }
-    let recipients = lock_storage_arc(state)?
+    Ok(())
+}
+
+/// For a held message's ask (not a hop-limit one, nor a Watched wait):
+/// whether "Allow and deliver" (D-139) can put it into a session now
+/// ([`person_delivers`]). `None` for the asks that don't offer it. Needs
+/// you and the pool's diagram ask this.
+pub(crate) fn delivers_now(
+    state: &Arc<AppState>,
+    storage: &Storage,
+    ask: &HeldAsk,
+    message: &Message,
+) -> Option<bool> {
+    let offered = ask.action != AgentAction::DeliverToSession.as_str()
+        && ask.action != super::talk::WATCHED_ASK;
+    offered.then(|| person_delivers(state, storage, message))
+}
+
+/// Whether "Allow and deliver" can put a held message into one of the
+/// sessions it's held for now, or when it's resumed (D-127: never offered
+/// where it can't): a session AI Juggler runs and can put it into, a
+/// connected desktop member, or a member not running now (its next
+/// session's prompt). Not a session in a terminal AI Juggler can't type
+/// into, nor another app's session with no connector (Watched).
+fn person_delivers(state: &Arc<AppState>, storage: &Storage, message: &Message) -> bool {
+    storage
         .messages()
-        .recipients(&message.id)?;
-    for recipient in recipients {
-        let session = {
-            let storage = lock_storage_arc(state)?;
-            super::live_session_of(&storage, &recipient.recipient_ref)
-                .filter(|s| super::reachable(state, &storage, s))
+        .recipients(&message.id)
+        .unwrap_or_default()
+        .into_iter()
+        .filter(|r| r.recipient_ref != SENDER_USER && r.state == RecipientState::Held)
+        .any(|r| match super::session_now(storage, &r.recipient_ref) {
+            Some(session) => {
+                juggler_core::storage::attested::is_desktop_id(session.as_str())
+                    || super::reachable(state, storage, &session)
+            }
+            None => !r.recipient_ref.starts_with("conversation:"),
+        })
+}
+
+/// After a yes: a released message goes where it would have (the pool's
+/// level and the hop limit decide its delivery); a hop-limit delivery goes
+/// in as the person's click, to every recipient it can (AJ-E3014 item 3: a
+/// desktop member is woken; a terminal AI Juggler can't type into reads it
+/// on its next turn).
+fn go_on(state: &Arc<AppState>, deliver: bool, message: &Message) -> AppResult<()> {
+    if deliver {
+        return deliver_for_person(state, message);
+    }
+    let sender = super::sender_session(&*lock_storage_arc(state)?, &message.sender_ref);
+    if let Some(session) = sender {
+        let from = Author::Agent {
+            session,
+            member_ref: message.sender_ref.clone(),
+            name: message.sender_name.clone(),
+            tool: String::new(),
         };
-        if let Some(session) = session {
-            super::delivery::queue(state, &message.id, &session);
-        }
+        route(state, message, &from, false);
     }
     Ok(())
 }
@@ -696,7 +794,7 @@ mod line_tests {
         );
         assert_eq!(
             hops_words(3, 2),
-            "3 agent messages in a row without you, over this pool's limit of 2"
+            "2 of 2 agent messages in a row without you; one more waits for you"
         );
     }
 

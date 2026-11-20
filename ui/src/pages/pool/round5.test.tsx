@@ -53,7 +53,7 @@ describe("AJ-E3011 round 5", () => {
     expect(drawnRules({ kind: "default" }, rules)).toEqual([{ member: "app:cli:work" }]);
     expect(drawnRules({ kind: "user" }, rules)).toEqual(rules);
     render(<JoinAs where="web" value="member" onChange={() => undefined} />);
-    expect(screen.getByTestId("join-as").textContent).toContain("New sessions in web join as:");
+    expect(screen.getByTestId("join-as").textContent).toContain("Everyone in web, now and new, is:");
   });
 
   it("#4: the cost line", () => {

@@ -150,6 +150,39 @@ impl RefuseReason {
     }
 }
 
+/// A role as the pool's rules name it ("Member to Member").
+const fn role_word(role: PoolRole) -> &'static str {
+    match role {
+        PoolRole::Lead => "Lead",
+        PoolRole::Member => "Member",
+        PoolRole::Reviewer => "Reviewer",
+        PoolRole::Observer => "Observer",
+    }
+}
+
+/// What a sending agent is told when the pool blocks its message: the rule
+/// that refused it, from the rule itself (the soak's P4: "This pool
+/// doesn't let you message that member." named no rule, and the agent
+/// guessed a wrong cause). A line's own rule, else its role pair's.
+#[must_use]
+pub fn blocked_words(
+    talk: &PoolTalk,
+    from: (&MemberRef, PoolRole),
+    to: (&MemberRef, PoolRole),
+) -> String {
+    if talk.connection(from.0, to.0) == Some(TalkRule::Blocked) {
+        "Messages from you to that member are blocked in this pool: the user set it on the line between you two. Only the user changes it, in AI Juggler.".to_owned()
+    } else {
+        format!(
+            "{} to {} messages are blocked in this pool (you're a {} here, and that member is a {}). Only the user changes it, in AI Juggler.",
+            role_word(from.1),
+            role_word(to.1),
+            from.1.as_str(),
+            to.1.as_str()
+        )
+    }
+}
+
 impl HoldReason {
     /// What the sending agent is told.
     #[must_use]
@@ -227,5 +260,32 @@ pub fn claude_inbound(pools: &[InboundPool]) -> Inbound {
         Inbound::Refuse
     } else {
         Inbound::Accept
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{PoolTalk, blocked_words};
+    use crate::storage::{MemberRef, PoolRole, TalkKey, TalkRule};
+
+    /// The soak's P4: a refusal names its rule, the pair's or the line's.
+    #[test]
+    fn a_blocked_message_is_told_the_rule_that_blocked_it() {
+        let web1 = MemberRef::parse("session:web1").unwrap();
+        let api1 = MemberRef::parse("session:api1").unwrap();
+        let pair = TalkKey::Roles(PoolRole::Member, PoolRole::Member);
+        let talk = PoolTalk::new([(&pair, TalkRule::Blocked)]);
+        let words = blocked_words(&talk, (&web1, PoolRole::Member), (&api1, PoolRole::Member));
+        assert!(
+            words.starts_with("Member to Member messages are blocked in this pool"),
+            "{words}"
+        );
+        let line = TalkKey::Connection(web1.clone(), api1.clone());
+        let talk = PoolTalk::new([(&line, TalkRule::Blocked)]);
+        let words = blocked_words(&talk, (&web1, PoolRole::Lead), (&api1, PoolRole::Member));
+        assert!(
+            words.starts_with("Messages from you to that member are blocked in this pool: the user set it on the line between you two."),
+            "{words}"
+        );
     }
 }

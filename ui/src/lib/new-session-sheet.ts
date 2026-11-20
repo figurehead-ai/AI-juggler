@@ -69,15 +69,19 @@ export interface NewSessionSheet extends SheetState {
 
 const CLOSED: SheetState = { open: false, dir: null, account: null, after: null };
 
-type Opening = { dir?: string | null; account?: string | null; after?: StartedBefore | null };
+/** `here`: the project of the page it was opened from (⌘N, the header's
+ * New session; AJ-E2311 item 2), weaker than a door's `dir` and than a
+ * standing "Start another". */
+type Opening = { dir?: string | null; here?: string | null; account?: string | null; after?: StartedBefore | null };
 
 /** The sheet opened `at`. Opened plainly (⌘N, the header's New session)
  * while "Start another" stands, it opens where the offer would (the
- * 0.4.1 persona walk); any opening ends the offer. */
+ * 0.4.1 persona walk); else in the project of the page it was opened
+ * from. Any opening ends the offer. */
 function opening(at: Opening): SheetState {
   const offer = !at.dir && !at.after && !at.account ? standingOffer() : null;
   withdrawOffer();
-  return offer ? { open: true, dir: offer.dir, account: null, after: offer.after } : { open: true, dir: at.dir ?? null, account: at.account ?? null, after: at.after ?? null };
+  return offer ? { open: true, dir: offer.dir, account: null, after: offer.after } : { open: true, dir: at.dir ?? at.here ?? null, account: at.account ?? null, after: at.after ?? null };
 }
 
 export function useNewSessionSheet(): NewSessionSheet {

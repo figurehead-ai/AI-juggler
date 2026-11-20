@@ -344,6 +344,12 @@ pub async fn fleet_switch_back_execute_impl(
         delta_turn: plan.delta_preview.clone(),
         ..proto::HandoverBundle::default()
     };
+    // AJ-E2311 item 6: the name the person gave it here goes back with it.
+    let (label, pinned) = crate::commands::lock_storage_arc(&state)?
+        .sessions()
+        .marks()?
+        .remove(session_id.as_str())
+        .unwrap_or_default();
     let back = proto::SwitchBack {
         original_epoch_id: lineage.original.id.to_string(),
         from_epoch_id: lineage.away_epoch.id.to_string(),
@@ -354,6 +360,8 @@ pub async fn fleet_switch_back_execute_impl(
         divergence_choice: choice.clone(),
         from_provider_id: away_account.harness.to_string(),
         from_account_label: away_account.label.clone(),
+        from_session_label: label.unwrap_or_default(),
+        from_session_pinned: pinned.is_some(),
     };
     let build = move |total| {
         proto::control_command::Action::SwitchBack(proto::SwitchBack {
@@ -795,6 +803,7 @@ pub(crate) fn switch_back_here(
         .as_ref()
         .and_then(|id| state.storage.lock().ok()?.projects().get(id).ok())
         .ok_or_else(unknown)?;
+    let marks = back_marks_of(state, back, &session.id); // AJ-E2311 item 6
     // Keep both: a fork of the original resumes; the original's own
     // continuation stays exactly as it is.
     let keep_both = back.divergence_choice == "keep_both";
@@ -814,8 +823,7 @@ pub(crate) fn switch_back_here(
         },
         Some(resume_ref),
         "switch_back",
-        // F-rc3g-3: the original's name and pin, as here.
-        Some(crate::features::sessions::spawn::GoesOn::From(&session.id)),
+        Some(goes_on(&marks)),
     )
     .map_err(super::launch_refusal)?;
     record_back(state, peer, back, &original, &account, &instance, resume_id)
@@ -831,6 +839,46 @@ pub(crate) fn switch_back_here(
         },
         instance_id: instance.to_string(),
     })
+}
+
+/// [`back_marks`] for the original `session` here: the other Mac's name
+/// for the work, else the original's.
+fn back_marks_of(
+    state: &Arc<AppState>,
+    back: &proto::SwitchBack,
+    session: &SessionId,
+) -> (Option<String>, bool) {
+    let here = state
+        .storage
+        .lock()
+        .ok()
+        .and_then(|storage| storage.sessions().marks().ok())
+        .and_then(|mut marks| marks.remove(session.as_str()))
+        .unwrap_or_default();
+    back_marks(&back.from_session_label, back.from_session_pinned, here)
+}
+
+/// The name and pin `marks` say, as the new session takes them.
+fn goes_on(marks: &(Option<String>, bool)) -> crate::features::sessions::spawn::GoesOn<'_> {
+    crate::features::sessions::spawn::GoesOn::Sent {
+        label: marks.0.as_deref(),
+        pinned: marks.1,
+    }
+}
+
+/// The name and pin work switched back takes: the name the person gave
+/// it on the other Mac (`sent`, "" for none), else the original's;
+/// pinned when it was there or here.
+fn back_marks(
+    sent: &str,
+    sent_pinned: bool,
+    (original, pinned_here): (Option<String>, Option<i64>),
+) -> (Option<String>, bool) {
+    let sent = Some(sent.trim()).filter(|label| !label.is_empty());
+    (
+        sent.map(str::to_owned).or(original),
+        sent_pinned || pinned_here.is_some(),
+    )
 }
 
 fn file_mtime_ms(path: &Path) -> Option<i64> {
@@ -1094,5 +1142,28 @@ mod fork_tests {
         assert!(fork_original(&path).is_err());
         assert_eq!(std::fs::read(&path).unwrap(), before);
         assert_eq!(std::fs::read_dir(dir.path()).unwrap().count(), 1);
+    }
+}
+
+/// AJ-E2311 item 6: work switched back takes the name the person gave it
+/// on the other Mac (it took the original's), else the original's.
+#[cfg(test)]
+mod back_name_tests {
+    use super::back_marks;
+
+    #[test]
+    fn the_other_macs_name_wins_and_an_empty_one_keeps_the_originals() {
+        let here = (Some("checkout flow".to_owned()), None);
+        assert_eq!(
+            back_marks("checkout and refunds", false, here.clone()),
+            (Some("checkout and refunds".to_owned()), false)
+        );
+        // An older console sends none: the original's, as before.
+        assert_eq!(
+            back_marks("  ", false, here.clone()),
+            (Some("checkout flow".to_owned()), false)
+        );
+        assert_eq!(back_marks("", true, (None, None)), (None, true));
+        assert_eq!(back_marks("", false, (None, Some(5))), (None, true));
     }
 }

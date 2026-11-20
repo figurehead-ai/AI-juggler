@@ -18,6 +18,7 @@ use super::dto::{
 };
 use crate::commands::lock_storage_arc;
 use crate::error::{AppError, AppResult};
+use crate::features::messages::NamesNow;
 use crate::paging::{Page, PageRequest, SortKey, page, page_of_fetched};
 use crate::state::AppState;
 
@@ -26,9 +27,9 @@ pub const PAGE: u32 = 40;
 /// A page of a task's history.
 pub const HISTORY: u32 = 20;
 
-/// A task as a row: names as the pool shows them, the session its holder
-/// runs in now.
-pub(crate) fn info(storage: &Storage, task: &Task) -> TaskInfo {
+/// A task as a row: names as the rail says them now (SK-18), the session
+/// its holder runs in now.
+pub(crate) fn info(storage: &Storage, names: &NamesNow, task: &Task) -> TaskInfo {
     let holder_session_id = task
         .assignee_ref
         .as_deref()
@@ -50,10 +51,12 @@ pub(crate) fn info(storage: &Storage, task: &Task) -> TaskInfo {
         status: task.status.as_str().to_owned(),
         stored_status: (task.stored != task.status).then(|| task.stored.as_str().to_owned()),
         priority: task.priority.as_str().to_owned(),
-        holder: task
-            .assignee_ref
-            .as_deref()
-            .map(|who| you(who, task.assignee_name.as_deref().unwrap_or("someone"))),
+        holder: task.assignee_ref.as_deref().map(|who| {
+            you(
+                who,
+                &names.of(who, task.assignee_name.as_deref().unwrap_or("someone")),
+            )
+        }),
         holder_session_id,
         blocked_by: task.blocked_by.clone(),
         waits_on: task
@@ -66,7 +69,10 @@ pub(crate) fn info(storage: &Storage, task: &Task) -> TaskInfo {
             .collect(),
         items: task.children.0,
         items_done: task.children.1,
-        written_by: you(&task.created_by, &task.created_by_name),
+        written_by: you(
+            &task.created_by,
+            &names.of(&task.created_by, &task.created_by_name),
+        ),
         by_agent: task.created_by != TASK_USER,
         updated_at_ms: task.updated_at,
         issue_label: task
@@ -107,6 +113,7 @@ fn page_of(
     request: &PageRequest,
 ) -> AppResult<Page<TaskInfo>> {
     let limit = request.limit();
+    let names = NamesNow::read(state);
     let storage = lock_storage_arc(state)?;
     let rows = storage.tasks().list(
         &TaskQuery {
@@ -117,7 +124,7 @@ fn page_of(
     )?;
     let fetched = rows
         .iter()
-        .map(|task| (sort_key(task), info(&storage, task)))
+        .map(|task| (sort_key(task), info(&storage, &names, task)))
         .collect();
     Ok(page_of_fetched(fetched, limit, None))
 }
@@ -258,6 +265,7 @@ pub fn of_session(
     session_id: &str,
     request: &PageRequest,
 ) -> AppResult<Page<TaskInfo>> {
+    let names = NamesNow::read(state);
     let storage = lock_storage_arc(state)?;
     let session = SessionId::new(session_id);
     let refs = crate::features::messages::refs_of(&storage, &session);
@@ -282,7 +290,7 @@ pub fn of_session(
     }
     let keyed: Vec<(SortKey, TaskInfo)> = rows
         .iter()
-        .map(|task| (sort_key(task), info(&storage, task)))
+        .map(|task| (sort_key(task), info(&storage, &names, task)))
         .collect();
     page(keyed, |(key, _)| key.clone(), request).map(|page| page.map(|(_, row)| row))
 }
@@ -413,6 +421,7 @@ fn sessions_of(
 /// A page of history in words, and the cursor for older events.
 fn history_of(
     storage: &Storage,
+    names: &NamesNow,
     events: &[juggler_core::storage::TaskEvent],
 ) -> (Vec<TaskEventInfo>, Option<String>) {
     let next = (events.len() > HISTORY as usize)
@@ -431,7 +440,7 @@ fn history_of(
             who: if e.actor_ref == TASK_USER {
                 super::YOU.to_owned()
             } else {
-                e.actor_name.clone()
+                names.of(&e.actor_ref, &e.actor_name)
             },
             by_agent: e.actor_ref != TASK_USER,
             // D-25: each task in it by its title, named as it's read
@@ -488,17 +497,18 @@ pub fn detail(state: &Arc<AppState>, task_id: &str, cursor: Option<&str>) -> App
             )
             .collect()
     };
+    let now = NamesNow::read(state);
     let storage = lock_storage_arc(state)?;
     let repo = storage.tasks();
     let task = repo
         .get(task_id)?
         .ok_or_else(|| AppError::Refused("That task isn't there any more".to_owned()))?;
-    let row = info(&storage, &task);
+    let row = info(&storage, &now, &task);
     let before = cursor
         .and_then(|c| c.strip_prefix('h'))
         .and_then(|n| n.parse().ok());
     let (history, history_next) =
-        history_of(&storage, &repo.events(&task.id, before, HISTORY + 1)?);
+        history_of(&storage, &now, &repo.events(&task.id, before, HISTORY + 1)?);
     let children = repo.list(
         &TaskQuery {
             pool_id: Some(&task.pool_id),
@@ -521,7 +531,7 @@ pub fn detail(state: &Arc<AppState>, task_id: &str, cursor: Option<&str>) -> App
             .as_deref()
             .and_then(|p| repo.get(p).ok().flatten())
             .map(|p| p.title),
-        children: children.iter().map(|t| info(&storage, t)).collect(),
+        children: children.iter().map(|t| info(&storage, &now, t)).collect(),
         links: repo
             .links(&task.id)?
             .into_iter()

@@ -7,7 +7,7 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { draftOf, type Candidate, type Draft, type DraftMember } from "../../lib/new-pool";
+import { DESKTOP_NOTE, draftOf, type Candidate, type Draft, type DraftMember } from "../../lib/new-pool";
 import type { MemberKind } from "../../lib/ipc/pool-model";
 import { templateById } from "../../lib/pool-templates";
 import { CANDIDATES_PAGE, NewPoolWho } from "./NewPoolWho";
@@ -46,6 +46,20 @@ describe("New pool's Who list is paged", () => {
     // A search pages its matches the same way.
     fireEvent.change(screen.getByRole("searchbox"), { target: { value: "Session 1" } });
     expect(within(list).getAllByRole("listitem").length).toBeLessThanOrEqual(CANDIDATES_PAGE);
+  });
+});
+
+// AJ-E3014 item 4: the connector paragraph read twice in Who's in, under
+// the Apps and again in the sessions.
+describe("Who's in says how a desktop session takes part once", () => {
+  it("one note for the step, however many lists have a desktop row", () => {
+    const app: Candidate = { ref: "app:desktop:claude", kind: "app", label: "Claude app · Work", detail: "", group: "open", reach: "watched", blocked: null, note: DESKTOP_NOTE, lastMs: 1 };
+    const session: Candidate = { ref: "session:d1", kind: "session", label: "Plan the API", detail: "web", group: "open", reach: "watched", blocked: null, note: DESKTOP_NOTE, lastMs: 1 };
+    const candidates = { session: [session], app: [app], account: [], tool: [], mac: [], everyone: [] } as Record<MemberKind, Candidate[]>;
+    render(<NewPoolWho draft={draftOf(templateById("blank"), null)} onDraft={() => undefined} candidates={candidates} onFix={() => undefined} apps={[]} />);
+    const notes = screen.getAllByTestId("new-pool-desktop-note");
+    expect(notes).toHaveLength(1);
+    expect(notes[0]!.textContent).toBe(DESKTOP_NOTE);
   });
 });
 

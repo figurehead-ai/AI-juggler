@@ -31,7 +31,8 @@ import { runwayOf } from "../../components/AccountRunway";
 import type { ProjectInfo } from "../../types/generated/ProjectInfo";
 import { homeRelative } from "../../lib/project-words";
 import { agoWords } from "../../lib/time-words";
-import { folderWhyWords, isSuggestion, workedAt, type AppChoice, type appsByRoom, type FolderChoice } from "../../lib/new-session-choice";
+import { suggestedMarkOn, type AppChoice, type appsByRoom } from "../../lib/new-session-choice";
+import { folderWhyWords, workedAt, type FolderChoice } from "../../lib/new-session-folder";
 import type { NewSessionData } from "./useNewSessionData";
 import { AppPicker, FolderPicker } from "./ChoicePickers";
 import { LINK, Notes, reasonOf, Told } from "./ChoiceNotes";
@@ -51,6 +52,7 @@ export function StatedChoice({
   data,
   ranked,
   projects,
+  recent,
   handover,
   now,
   onFolder,
@@ -76,6 +78,8 @@ export function StatedChoice({
   data: NewSessionData;
   ranked: ReturnType<typeof appsByRoom>;
   projects: readonly ProjectInfo[];
+  /** Recent's order, as the sheet holds it (`steadyRecent`). */
+  recent?: readonly string[];
   /** Started from a saved handover. */
   handover: boolean;
   now: number;
@@ -93,6 +97,9 @@ export function StatedChoice({
   const why = app ? whyOf(app, data, now, after) : null;
   const suggested = suggestion ?? app;
   const { change, ask } = told?.(app, suggested) ?? { change: null, ask: null };
+  // SK-6: "Suggested" only on an App that can run now: on the one shown,
+  // or, when it can't, on the one its note offers.
+  const markOn = suggestedMarkOn(app, ranked);
   return (
     <section aria-labelledby="new-session-sentence" data-testid="launch-preselected" className="rounded-xl border border-accent/30 bg-accent-soft px-4 py-3.5">
       <p id="new-session-sentence" data-testid="new-session-sentence" className="text-body leading-snug text-ink">
@@ -113,7 +120,7 @@ export function StatedChoice({
         )}
       </p>
       <div className="mt-3 flex flex-col gap-1">
-        <Line icon={<IconProjects width={13} height={13} />} term="Folder" change={<FolderPicker projects={projects} root={folder?.root ?? null} onPick={onFolder} now={now} />}>
+        <Line icon={<IconProjects width={13} height={13} />} term="Folder" change={<FolderPicker projects={projects} recent={recent} root={folder?.root ?? null} onPick={onFolder} now={now} />}>
           {folder ? (
             <>
               <span className="font-mono text-label text-ink">{homeRelative(folder.root)}</span>
@@ -127,6 +134,7 @@ export function StatedChoice({
         <div>
           <AppLine
             app={app}
+            suggested={app !== null && markOn === app.recipe.account_id}
             data={data}
             change={ranked.length > 0 ? <AppPicker data={data} ranked={ranked} choice={app} suggested={suggested} project={folder?.project ?? null} onPick={onApp} onAlways={onAlways} now={now} /> : null}
             onAddApp={onAddApp}
@@ -135,7 +143,7 @@ export function StatedChoice({
         </div>
         <BindingOffer app={app} folder={folder} data={data} ranked={ranked} onAlways={onAlways} />
       </div>
-      {app && appName && <Notes app={app} appName={appName} data={data} now={now} onApp={onApp} onSignIn={onSignIn} sessionName={sessionName} />}
+      {app && appName && <Notes app={app} appName={appName} offerSuggested={markOn !== null && markOn === app.roomier?.account_id} data={data} now={now} onApp={onApp} onSignIn={onSignIn} sessionName={sessionName} />}
     </section>
   );
 }
@@ -220,9 +228,9 @@ function Line({ icon, term, change, children }: { icon: ReactNode; term?: string
 /** F-rc3f-1: the one place that shows the App and its Account. The App's
  * mark (its icon and its colour's dot, as the rail draws it) and its name
  * lead, with "Suggested" when New session chose it rather than the
- * person; its Account and room under it, in words (D-69: beside an App
+ * person and it can run now (SK-6); its Account and room under it, in words (D-69: beside an App
  * an Account wears no colour); Change app on the App's line. */
-function AppLine({ app, data, change, onAddApp }: { app: AppChoice | null; data: NewSessionData; change: ReactNode; onAddApp?: () => void }): JSX.Element {
+function AppLine({ app, suggested, data, change, onAddApp }: { app: AppChoice | null; suggested: boolean; data: NewSessionData; change: ReactNode; onAddApp?: () => void }): JSX.Element {
   if (!app)
     return (
       <Line icon={<AccountAvatar account={{ folder: null }} label="No account yet" size={13} tone="neutral" />} term="App" change={change}>
@@ -241,7 +249,7 @@ function AppLine({ app, data, change, onAddApp }: { app: AppChoice | null; data:
             <span className="sr-only">App: </span>
             {data.appNameOf(recipe)}
           </span>
-          {isSuggestion(app.why) && <SuggestedMark />}
+          {suggested && <SuggestedMark />}
         </span>
         <span className="-mt-1 block pb-1">
           <AccountWords app={app} data={data} />

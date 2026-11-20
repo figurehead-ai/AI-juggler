@@ -8,7 +8,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { MOCK_PROJECTS, MOCK_SESSIONS } from "../../preview/fixtures";
 import { resetPreviewAgentBridge } from "../../lib/ipc/agent-bridge";
 import { poolsList, resetPreviewPools, scopeOf, type PoolInfo } from "../../lib/ipc/pools";
-import { draftOf, type Draft } from "../../lib/new-pool";
+import { draftOf, EVERYONE, type Draft } from "../../lib/new-pool";
 import { nextLine, shapeOfDraft } from "../../lib/pool-sentences";
 import { templateById } from "../../lib/pool-templates";
 import { resetPending, settleAdds, settleRoles, usePendingAdds, usePendingRoles, withPendingAdd, withPendingRole } from "../../lib/pool-pending";
@@ -76,6 +76,16 @@ describe("AJ-E3011 round 4", () => {
     render(<NewPool sessions={MOCK_SESSIONS} projects={MOCK_PROJECTS} accounts={[]} project="proj-ai-juggler" onClose={() => undefined} />);
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(screen.getAllByTestId("flow-step")).toHaveLength(8);
+  });
+
+  it("AJ-E3014 item 4: with no lead, \"it joins\" only when a new session would", () => {
+    const base = draftOf(templateById("blank"), "p-web");
+    const words = (members: Draft["members"]) => nextLine(shapeOfDraft({ ...base, members, leadNext: null }, (_, label) => label), "web").split("; ")[0];
+    expect(words([{ ...EVERYONE, role: "member" }])).toBe("Open a session in web: it joins");
+    expect(words([app("app:cli:work", "Claude Code · Work")])).toBe("Open a session of Claude Code · Work in web: it joins");
+    // The every-new-session switch off, only a session picked: none joins.
+    const picked = { ref: "session:s1", kind: "session" as const, label: "p1-writer", role: "member" as const, level: null, reach: "full" as const, shell: null };
+    expect(words([picked])).toBe("A new session in web doesn't join by itself: add it on the diagram");
   });
 
   it("#3: what happens next, in one line, from the shared sentences: Review and the diagram alike", () => {
@@ -175,7 +185,7 @@ describe("AJ-E3011 round 4", () => {
 describe("Sam's round-4 follow-ups", () => {
   it("Custom reads as the actions picked, counted, everywhere the sentence is", () => {
     expect(levelSentence("custom", 11)).toBe("On their own they may do the 11 things you picked, under Custom actions.");
-    expect(joinSentence("web", "member", "custom", 1)).toBe("New sessions in web join as Member and may do the 1 thing you picked.");
+    expect(joinSentence("web", "member", "custom", 1)).toBe("Every session in web, now and new, is a Member and may do the 1 thing you picked.");
     expect(memberSentence("Codex · Personal", "reviewer", null, "custom", 3)).toBe("Codex · Personal is a Reviewer and may do the 3 things you picked, as the pool.");
     const pool = { access: { level: "custom", actions: ["read_roster", "read_cards", "deliver_to_session"] } };
     expect(pickedCount(pool)).toBe(2);
@@ -188,7 +198,7 @@ describe("Sam's round-4 follow-ups", () => {
     // As the backend sends it: Work together's actions listed.
     const pool = (await poolsList()).pools.find((one) => one.id === "pool-x")!;
     expect(pool.access.level).toBe("work_together");
-    render(<PoolHeader pool={pool} facts={null} mode="canvas" panel={null} onMode={() => undefined} onPanel={() => undefined} />);
+    render(<PoolHeader pool={pool} facts={null} mode="canvas" panel={null} onMode={() => undefined} onPanel={() => undefined} onDeleted={() => undefined} />);
     fireEvent.click(screen.getByTestId("pool-header-level"));
     await act(async () => fireEvent.click(screen.getByRole("menuitemradio", { name: /^Custom/ })));
     const list = await screen.findByTestId("pool-header-custom");

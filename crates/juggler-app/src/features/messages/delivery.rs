@@ -138,6 +138,16 @@ pub(crate) fn may_deliver_now(storage: &Storage, message: &Message) -> bool {
     !paused && thread_open && !stopped
 }
 
+/// Why a thread paused at its pool's hop limit, as the thread says it.
+pub(crate) const PAUSED_AT_HOP_LIMIT: &str = "it reached this pool's hop limit";
+
+/// Whether `thread` is held: paused or stopped by the person (or at a
+/// thread's own cap), not by the pool's hop limit (a chain paused there is
+/// its ask's to answer).
+pub(crate) fn held_by_person(thread: &juggler_core::storage::Thread) -> bool {
+    thread.state != ThreadState::Open && thread.state_reason.as_deref() != Some(PAUSED_AT_HOP_LIMIT)
+}
+
 /// How a message reaches a session when its chain is paused at the pool's
 /// hop limit (the sender's answer names the limit beside it).
 pub(crate) const AT_HOP_LIMIT: &str = "when the user says (the chain reached the hop limit)";
@@ -170,43 +180,87 @@ pub(crate) fn decide(
                 .lock()
                 .is_ok_and(|storage| pool_delivers(&storage, &message.pool_id)) =>
         {
-            if let Ok(storage) = state.storage.lock() {
-                let repo = storage.messages();
-                let to = repo
+            let to = state.storage.lock().ok().and_then(|storage| {
+                storage
+                    .messages()
                     .recipients(&message.id)
                     .unwrap_or_default()
                     .into_iter()
                     .find(|r| {
                         super::live_session_of(&storage, &r.recipient_ref).as_ref() == Some(session)
                     })
-                    .map_or_else(
-                        || "another session".to_owned(),
-                        |r| format!("«{}»", r.recipient_name),
-                    );
-                let _ = repo.set_thread_state(
-                    &message.thread_id,
-                    ThreadState::Paused,
-                    Some("it reached this pool's hop limit"),
-                    "system",
-                );
-                let _ = repo.hold(&HeldAsk {
-                    id: new_id("ask"),
-                    pool_id: message.pool_id.clone(),
-                    actor_ref: message.sender_ref.clone(),
-                    actor_name: message.sender_name.clone(),
-                    action: AgentAction::DeliverToSession.as_str().to_owned(),
-                    object_ref: message.id.clone(),
-                    summary: format!(
-                        "«{}»'s message would start {to}'s next turn",
-                        message.sender_name
-                    ),
-                    created_at: Timestamp::now().millis(),
-                });
-            }
+                    .map(|r| format!("«{}»", r.recipient_name))
+            });
+            pause_at_hop_limit(
+                state,
+                message,
+                &format!(
+                    "«{}»'s message would start {}'s next turn",
+                    message.sender_name,
+                    to.as_deref().unwrap_or("another session")
+                ),
+            );
             AT_HOP_LIMIT
         }
         Decision::Ask { .. } => "in its inbox (the user can deliver it)",
         Decision::Deny => "in its inbox (delivery is stopped in this pool)",
+    }
+}
+
+/// AJ-E3014 item 3: whether an agent's `message` goes past its pool's hop
+/// limit: the pool puts its agents' messages into sessions by itself, and
+/// this one would be a hop past the limit. The same for every recipient,
+/// one AI Juggler wakes or not (a desktop member, a terminal it can't type
+/// into): before, the limit only stopped the waking, and those chains went
+/// on.
+pub(crate) fn past_hop_limit(state: &Arc<AppState>, message: &Message, sender: &SessionId) -> bool {
+    let taken = message.hop.saturating_sub(1);
+    matches!(
+        crate::features::pools::access::allowed(
+            state,
+            sender.as_str(),
+            &message.pool_id,
+            AgentAction::DeliverToSession,
+            Some(taken),
+        ),
+        Decision::Ask { .. }
+    ) && state
+        .storage
+        .lock()
+        .is_ok_and(|storage| pool_delivers(&storage, &message.pool_id))
+}
+
+/// A chain at its pool's hop limit: its thread pauses and the person is
+/// asked, once a message (`summary` says what a yes does).
+pub(crate) fn pause_at_hop_limit(state: &Arc<AppState>, message: &Message, summary: &str) {
+    let Ok(storage) = state.storage.lock() else {
+        return;
+    };
+    let repo = storage.messages();
+    let _ = repo.set_thread_state(
+        &message.thread_id,
+        ThreadState::Paused,
+        Some(PAUSED_AT_HOP_LIMIT),
+        "system",
+    );
+    let asked = repo
+        .open_asks(0, 200)
+        .unwrap_or_default()
+        .iter()
+        .any(|ask| {
+            ask.object_ref == message.id && ask.action == AgentAction::DeliverToSession.as_str()
+        });
+    if !asked {
+        let _ = repo.hold(&HeldAsk {
+            id: new_id("ask"),
+            pool_id: message.pool_id.clone(),
+            actor_ref: message.sender_ref.clone(),
+            actor_name: message.sender_name.clone(),
+            action: AgentAction::DeliverToSession.as_str().to_owned(),
+            object_ref: message.id.clone(),
+            summary: summary.to_owned(),
+            created_at: Timestamp::now().millis(),
+        });
     }
 }
 
@@ -256,6 +310,8 @@ pub fn prompt_sent(state: &Arc<AppState>, session: &SessionId) {
     if let Ok(mut map) = state.messages.typing.lock() {
         map.remove(session.as_str());
     }
+    // D-140: a wake's own prompt keeps its count; the person's resets it.
+    state.messages.chains.prompt_submitted(session.as_str());
 }
 
 fn typing(state: &Arc<AppState>, session: &SessionId) -> bool {
@@ -377,6 +433,13 @@ pub fn pump(state: &Arc<AppState>, session: &SessionId) {
         [one] => (*one).to_owned(),
         _ => format!("{} messages", rows.len()),
     };
+    // D-140: the turn carries its chain's count. Set before it starts, so
+    // the hook that reports its prompt finds the wake.
+    let before = state.messages.chains.woke(
+        session.as_str(),
+        carried_by(&rows),
+        super::chain::Woken::Turn,
+    );
     let typed = match &driver {
         Some(driver) => driver
             .turn(TurnInput {
@@ -387,7 +450,9 @@ pub fn pump(state: &Arc<AppState>, session: &SessionId) {
         None => crate::features::runtime::typed::type_turn(state, session, &text).is_ok(),
     };
     if !typed {
-        return; // a turn started meanwhile, or its terminal went: it stays queued
+        // A turn started meanwhile, or its terminal went: it stays queued.
+        state.messages.chains.put_back(session.as_str(), before);
+        return;
     }
     let ids: Vec<String> = rows.iter().map(|row| row.message.id.clone()).collect();
     if let Ok(storage) = state.storage.lock() {
@@ -404,6 +469,19 @@ pub fn pump(state: &Arc<AppState>, session: &SessionId) {
     if let Some(row) = rows.first() {
         state.messages.notify(&row.message.pool_id);
     }
+}
+
+/// D-140: the agent messages in a row a delivered turn carries: the
+/// highest count among them, or 0 when the person's own word is among them
+/// (their message, or their click that queued one), which starts it again.
+pub(crate) fn carried_by(rows: &[juggler_core::storage::InboxRow]) -> u32 {
+    let person = rows.iter().any(|row| {
+        row.message.sender_kind == SENDER_USER || row.recipient.via.as_deref() == Some(BY_USER)
+    });
+    if person {
+        return 0;
+    }
+    rows.iter().map(|row| row.message.hop).max().unwrap_or(0)
 }
 
 /// The note a Claude Code session in a terminal gets at a turn boundary

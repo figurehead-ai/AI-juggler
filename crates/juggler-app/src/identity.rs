@@ -38,13 +38,19 @@ struct Pin {
 }
 
 fn pins(state: &Arc<AppState>) -> BTreeMap<String, Pin> {
-    state
+    let mut pins: BTreeMap<String, Pin> = state
         .storage
         .lock()
         .ok()
         .and_then(|storage| storage.app_settings().get(PINS_KEY).ok().flatten())
         .and_then(|raw| serde_json::from_str(&raw).ok())
-        .unwrap_or_default()
+        .unwrap_or_default();
+    // SK-16: a label pinned before 0.4.7 can hold an organisation named
+    // after its email in full.
+    for pin in pins.values_mut() {
+        pin.label = juggler_adapter::identity::mask_emails_in(&pin.label);
+    }
+    pins
 }
 
 fn save_pins(state: &Arc<AppState>, pins: &BTreeMap<String, Pin>) -> AppResult<()> {

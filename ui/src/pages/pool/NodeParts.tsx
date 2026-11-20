@@ -16,6 +16,7 @@ import { useState, type JSX, type KeyboardEvent, type PointerEvent } from "react
 import { useShellOnly } from "../../components/ShellOnly";
 import { errorText } from "../../lib/bridge";
 import { messagesAnswer } from "../../lib/ipc/messages";
+import { heldChoices, type HeldAnswer } from "../messages/words";
 import { tasksAnswer } from "../../lib/ipc/tasks";
 import type { CanvasEdgeInfo, NodeAskInfo } from "../../lib/ipc/pool-canvas";
 import { sessionState } from "../../lib/rail-items";
@@ -26,9 +27,33 @@ import type { MemberNode } from "./useCanvas";
 
 export const NO_TASK = "None";
 
-/** Answers an agent's ask (Allow once, Always allow in this pool, Deny). */
-export function answerAsk(ask: NodeAskInfo, answer: "once" | "always" | "deny"): Promise<void> {
-  return ask.source === "task" ? tasksAnswer(ask.id, answer) : messagesAnswer(ask.id, answer);
+/** Answers an agent's ask: a task's (Allow once, Always allow in this
+ * pool, Deny), or a held message's (`heldChoices`, D-139). */
+export function answerAsk(ask: NodeAskInfo, answer: HeldAnswer): Promise<void> {
+  if (ask.source !== "task") return messagesAnswer(ask.id, answer);
+  return tasksAnswer(ask.id, answer === "deliver" ? "once" : answer);
+}
+
+/** An ask's answers: a held message's as every surface offers them
+ * (`heldChoices`), a task change's Allow once, Always allow, Deny. */
+export function askChoices(ask: NodeAskInfo, always = "Always allow in this pool"): { id: HeldAnswer; label: string }[] {
+  if (ask.source !== "task") return heldChoices(ask, always);
+  return [{ id: "once", label: "Allow once" }, ...(ask.offer_always ? [{ id: "always" as const, label: always }] : []), { id: "deny", label: "Deny" }];
+}
+
+/** Each answer's test id on a node. */
+const NODE_TEST_ID: Record<HeldAnswer, string> = {
+  deliver: "node-ask-deliver",
+  once: "node-ask-once",
+  always: "node-ask-always",
+  deny: "node-ask-deny",
+};
+
+/** How an answer's button looks on a node: the first is the one to
+ * press, Deny the quietest. */
+function nodeTone(id: HeldAnswer, first: boolean): string {
+  if (first) return "border-warning/60 bg-warning/15 font-medium text-ink hover:bg-warning/25";
+  return id === "deny" ? "border-hairline text-muted hover:bg-surface-2 hover:text-ink" : "border-hairline text-ink hover:bg-surface-2";
 }
 
 /** What about a member waits on you besides its agent's asks: its tool
@@ -69,7 +94,7 @@ export function PausedLine({ paused, hops }: { paused: Paused; hops?: number }):
 export function AskLine({ ask }: { ask: NodeAskInfo }): JSX.Element {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const answer = (choice: "once" | "always" | "deny") => {
+  const answer = (choice: HeldAnswer) => {
     setBusy(true);
     setError(null);
     void answerAsk(ask, choice).then(
@@ -87,17 +112,11 @@ export function AskLine({ ask }: { ask: NodeAskInfo }): JSX.Element {
         {ask.title}
       </span>
       <div className="flex flex-wrap gap-1" role="group" aria-label={`Answer: ${ask.title}`}>
-        <button type="button" disabled={busy} onClick={() => answer("once")} className={button + " border-warning/60 bg-warning/15 font-medium text-ink hover:bg-warning/25"} data-testid="node-ask-once">
-          Allow once
-        </button>
-        {ask.offer_always && (
-          <button type="button" disabled={busy} onClick={() => answer("always")} className={button + " border-hairline text-ink hover:bg-surface-2"} data-testid="node-ask-always">
-            Always allow here
+        {askChoices(ask, "Always allow here").map((choice, index) => (
+          <button key={choice.id} type="button" disabled={busy} onClick={() => answer(choice.id)} className={button + " " + nodeTone(choice.id, index === 0)} data-testid={NODE_TEST_ID[choice.id]}>
+            {choice.label}
           </button>
-        )}
-        <button type="button" disabled={busy} onClick={() => answer("deny")} className={button + " border-hairline text-muted hover:bg-surface-2 hover:text-ink"} data-testid="node-ask-deny">
-          Deny
-        </button>
+        ))}
       </div>
       {error && (
         <span className="text-label text-danger" role="alert">

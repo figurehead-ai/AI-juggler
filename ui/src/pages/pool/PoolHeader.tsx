@@ -1,8 +1,8 @@
 /**
  * A pool page's header: its name (yours rename in place; a project's own
  * pool keeps its project's), what it is in one line, and its controls —
- * the canvas or the list, Tasks and Messages over the canvas, and what
- * agents may do, changed right here.
+ * the canvas or the list, Tasks and Messages over the canvas, what
+ * agents may do, changed right here, and its ⋯ (Rename…, Delete…).
  */
 import { useCallback, useEffect, useRef, useState, type JSX, type ReactNode } from "react";
 
@@ -10,7 +10,7 @@ import { IconPool } from "../../components/icons-actions";
 import { IconMessage, IconTasks } from "../../components/icons-canvas";
 import { errorText } from "../../lib/bridge";
 import { poolRename, poolSetAccess, type PoolInfo } from "../../lib/ipc/pools";
-import { setPools } from "../../lib/pools";
+import { needWords, setPools } from "../../lib/pools";
 import { asOwnLevel } from "../../lib/pool-words";
 import { OwnLevelChoice } from "./setup/OwnLevelChoice";
 import { HeaderCustom } from "./HeaderCustom";
@@ -20,6 +20,7 @@ import { StatePill } from "../../components/Pill";
 import { IconProjects } from "../../components/icons";
 import { SETUP } from "./setup-words";
 import { CrumbButton } from "../PageHeader";
+import { PoolHeaderMenu } from "../../screens/pools/PoolCard";
 
 export type Panel = "tasks" | "messages" | null;
 export type Mode = "canvas" | "list";
@@ -117,20 +118,36 @@ function ScopeChip({ words, onOpen }: { words: string; onOpen: () => void }): JS
   );
 }
 
+/** SK-14: "2 need you", a door to the Tasks or Messages that hold them. */
+function Needs({ count, at, onPanel }: { count: number; at: Panel; onPanel: (panel: Panel) => void }): JSX.Element {
+  if (!at) return <>{needWords(count)}</>;
+  return (
+    <button type="button" onClick={() => onPanel(at)} className="font-medium text-warning underline-offset-2 outline-none hover:underline focus-visible:ring-1 focus-visible:ring-accent/60" title={at === "tasks" ? "Show them in Tasks" : "Show them in Messages"} data-testid="pool-header-needs">
+      {needWords(count)}
+    </button>
+  );
+}
+
 export function PoolHeader({
   pool,
   facts,
+  needs = { count: 0, at: null },
   scope,
   mode,
   panel,
   onMode,
   onPanel,
   setup = null,
+  onDeleted,
 }: {
+  /** SK-1: after its ⋯'s Delete. */
+  onDeleted: () => void;
   /** D-126 §3: while it's being set up, how far ("Setting up · 5 of 7"). */
-  setup?: { done: number; total: number; joined: boolean } | null;
+  setup?: { done: number; total: number; joined: boolean; heldBy?: string | null } | null;
   pool: PoolInfo;
   facts: ReactNode;
+  /** What needs you in it, and where those show. */
+  needs?: { count: number; at: Panel };
   /** A pool you made: where it works, in words, and its scope sheet. */
   scope?: { words: string; onOpen: () => void };
   mode: Mode;
@@ -169,7 +186,7 @@ export function PoolHeader({
           {scope && <ScopeChip words={scope.words} onOpen={scope.onOpen} />}
           {setup && (
             <StatePill variant="progress" testId="pool-header-setup">
-              {SETUP.pill(setup.done, setup.total, setup.joined)}
+              {SETUP.pill(setup.done, setup.total, setup.joined, setup.heldBy)}
             </StatePill>
           )}
           {pool.sealed && (
@@ -177,9 +194,22 @@ export function PoolHeader({
               <Chip tone="danger">sealed</Chip>
             </span>
           )}
+          {/* SK-1 (the visual review): the page's ⋯ at its title row's end,
+              as a session page has it, apart from the agents' choice. */}
+          {pool.kind === "user" && (
+            <span className="ml-auto flex shrink-0 pl-2" title="Rename or delete" data-testid="pool-header-menu">
+              <PoolHeaderMenu pool={pool} onDeleted={onDeleted} />
+            </span>
+          )}
         </div>
         <span className="truncate text-meta text-muted" data-testid="pool-page-count">
           {facts}
+          {needs.count > 0 && (
+            <>
+              {facts ? " · " : ""}
+              <Needs count={needs.count} at={needs.at} onPanel={onPanel} />
+            </>
+          )}
         </span>
       </div>
       <div className="flex flex-wrap items-center gap-1.5">

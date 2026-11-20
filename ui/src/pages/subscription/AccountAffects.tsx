@@ -12,10 +12,11 @@
  * Inline on the Overview, never a band over the page (D-87); it offers,
  * it never moves anything by itself (D-31).
  */
-import { useId, useState, type JSX } from "react";
+import { useState, type JSX } from "react";
 import { Section } from "../../components/charts/ChartCard";
 import { Button } from "../../components/primitives";
 import { RoomChip } from "../../components/RoomChip";
+import { WhyButton } from "../../components/WhyTip";
 import { IconGaugeEmpty, IconGaugeLow } from "../../components/icons";
 import type { ActionHost } from "../../lib/actions";
 import { resolveActions, type ResolvedAction } from "../../lib/actions";
@@ -78,7 +79,20 @@ export function AccountAffects({
             const action = item ? switchOf(item, host) : null;
             return (
               <li key={row.key} className="border-t border-hairline/60 first:border-t-0" data-testid="account-affects-item" data-key={row.key}>
-                <ListRow row={row} project={project} badge={action && <SwitchButton action={action} title={row.title} />} />
+                <ListRow
+                  row={row}
+                  project={project}
+                  badge={action && <SwitchButton action={action} title={row.title} />}
+                  // SK-2 (D-127): a greyed switch says why on screen, not
+                  // only in its tip.
+                  below={
+                    action?.reason ? (
+                      <p className="mx-4 mb-2 ml-[3.75rem] text-meta text-ink-2" data-testid="account-affects-why">
+                        {action.reason}.
+                      </p>
+                    ) : null
+                  }
+                />
               </li>
             );
           })}
@@ -89,27 +103,13 @@ export function AccountAffects({
 }
 
 function SwitchButton({ action, title }: { action: ResolvedAction; title: string }): JSX.Element {
-  const why = useId();
+  // SK-2: greyed as every other door greys it (WhyButton: it keeps its
+  // tab stop, and hover, focus or a press shows why).
   return (
-    <>
-      <Button
-        size="sm"
-        variant="secondary"
-        disabled={action.reason !== undefined}
-        title={action.reason}
-        aria-describedby={action.reason ? why : undefined}
-        onClick={() => void action.run()}
-        data-testid="account-affects-switch"
-      >
-        {action.label}
-        <span className="sr-only"> {title}</span>
-      </Button>
-      {action.reason && (
-        <span id={why} className="sr-only">
-          {action.reason}
-        </span>
-      )}
-    </>
+    <WhyButton size="sm" variant="secondary" why={action.reason ?? null} onClick={() => void action.run()} data-testid="account-affects-switch">
+      {action.label}
+      <span className="sr-only"> {title}</span>
+    </WhyButton>
   );
 }
 

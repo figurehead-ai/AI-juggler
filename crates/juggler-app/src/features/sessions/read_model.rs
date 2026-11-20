@@ -10,8 +10,8 @@ use crate::commands::now_millis;
 use crate::error::{AppError, AppResult};
 use crate::events::{AppEvent, EmitEvent as _};
 use crate::features::sessions::dto::{
-    AttentionInfo, EndingInfo, InstanceInfo, InstanceQuotaInfo, InstanceResourcesInfo,
-    NeedsAttention, QuotaSnapshotInfo, TokenCountsInfo,
+    AttentionInfo, ContinuesInfo, EndingInfo, InstanceInfo, InstanceQuotaInfo,
+    InstanceResourcesInfo, NeedsAttention, QuotaSnapshotInfo, TokenCountsInfo,
 };
 use crate::state::AppState;
 
@@ -414,13 +414,40 @@ struct RowJoins<'a> {
     live: &'a LiveStatsMap,
     desktop_labels: &'a std::collections::BTreeMap<String, String>,
     adopted_ids: &'a [juggler_core::model::SessionId],
+    arrivals:
+        std::collections::HashMap<juggler_core::model::SessionId, juggler_core::storage::Arrival>,
+    went_on: std::collections::HashMap<String, String>,
 }
 
 impl RowJoins<'_> {
+    /// SK-11: the session a switch carried this one's conversation from.
+    fn continues(&self, id: &juggler_core::model::SessionId) -> Option<ContinuesInfo> {
+        let arrival = self.arrivals.get(id)?;
+        let account_id = arrival.from_account.to_string();
+        Some(ContinuesInfo {
+            session_id: arrival.from_session.as_ref().map(ToString::to_string),
+            account_label: self
+                .account_index
+                .get(&account_id)
+                .map_or_else(|| account_id.clone(), |(label, _)| label.clone()),
+            account_id,
+            provider: arrival.from_provider.to_string(),
+            conversation_id: arrival.from_native_id.clone(),
+        })
+    }
+
     /// The identity assertion's state and label (both null when none).
+    /// SK-16: a label recorded before 0.4.7 can hold an organisation
+    /// named after its email in full, so every email in it is masked.
     fn identity(&self, id: &str) -> (Option<String>, Option<String>) {
         self.identities.get(id).map_or((None, None), |assertion| {
-            (Some(assertion.state.clone()), assertion.label.clone())
+            (
+                Some(assertion.state.clone()),
+                assertion
+                    .label
+                    .as_deref()
+                    .map(juggler_adapter::identity::mask_emails_in),
+            )
         })
     }
 
@@ -473,7 +500,10 @@ pub(crate) fn session_infos_for(
         live,
         desktop_labels,
         adopted_ids,
+        arrivals: storage.switch_graph().arrivals().unwrap_or_default(),
+        went_on: std::collections::HashMap::new(),
     };
+    joins.went_on = went_on_of(&records, &joins.recipe_index);
     Ok(records
         .into_iter()
         .map(|record| session_info_of(&mut joins, &record))
@@ -567,7 +597,43 @@ fn session_info_of(joins: &mut RowJoins<'_>, record: &SessionRecord) -> Instance
         resume_refusal: None,
         app_id: joins.launched.remove(id),
         ending: ending_of(&joins.endings, record),
+        continues: joins.continues(&record.id),
+        went_on_in: joins.went_on.remove(id),
     }
+}
+
+/// AJ-E2311 item 1: each handed-over session of `records` whose
+/// conversation went on in a later one of them on the same account (Open
+/// in terminal and back, a resume after its limit): `its id → the latest
+/// such one's`. A switch to another account isn't one (that original
+/// stays a row of its own, "Stopped by a switch").
+fn went_on_of(
+    records: &[SessionRecord],
+    recipe_index: &RecipeIndex,
+) -> std::collections::HashMap<String, String> {
+    let key = |record: &SessionRecord| {
+        let account = recipe_index.get(record.profile.as_str())?.0.clone();
+        Some((account, record.conversation.as_ref()?.as_str().to_owned()))
+    };
+    let mut latest: std::collections::HashMap<(String, String), &SessionRecord> =
+        std::collections::HashMap::new();
+    for record in records {
+        if let Some(at) = key(record) {
+            let kept = latest.entry(at).or_insert(record);
+            if record.started_at > kept.started_at {
+                *kept = record;
+            }
+        }
+    }
+    records
+        .iter()
+        .filter(|record| record.status == SessionStatus::HandedOver)
+        .filter_map(|record| {
+            let next = latest.get(&key(record)?)?;
+            (next.id != record.id && next.started_at >= record.started_at)
+                .then(|| (record.id.to_string(), next.id.to_string()))
+        })
+        .collect()
 }
 
 #[cfg(test)]
