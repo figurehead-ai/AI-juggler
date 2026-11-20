@@ -32,20 +32,18 @@ fn ids(models: &[CatalogModel]) -> Vec<&str> {
     models.iter().map(|m| m.id.as_str()).collect()
 }
 
-#[test]
-fn a_16_gb_mac_with_apple_intelligence_sees_every_model_and_apple_is_recommended() {
+/// The list as an 18 GB Mac with Apple Intelligence on sees it.
+fn on_an_apple_mac(memory_bytes: Option<u64>) -> super::ModelsCatalog {
     let listing = Listing::Read(list());
     let offer = offered(&listing);
     let mac = mac(18, 212, AppleAi::On);
     let pick = recommendation(&mac, &usable(&offer, &[]), &[]);
-    let shown = catalog(
-        Some(&mac),
-        Some(19_327_352_832),
-        &listing,
-        &offer,
-        &[],
-        Some(&pick),
-    );
+    catalog(Some(&mac), memory_bytes, &listing, &offer, &[], Some(&pick))
+}
+
+#[test]
+fn a_16_gb_mac_with_apple_intelligence_sees_every_model_and_apple_is_recommended() {
+    let shown = on_an_apple_mac(Some(19_327_352_832));
     assert!(shown.listed);
     assert_eq!(shown.models.len(), 5, "Apple's and four downloads");
     assert!(shown.models[0].built_in);
@@ -167,12 +165,8 @@ fn an_installed_model_the_list_dropped_still_shows_and_offline_shows_only_apple(
 /// and attention (code), keep the list's verdict.
 #[test]
 fn a_job_off_in_this_build_is_not_yet_on_every_card() {
-    let listing = Listing::Read(list());
-    let offer = offered(&listing);
-    let mac = mac(18, 212, AppleAi::On);
-    let pick = recommendation(&mac, &usable(&offer, &[]), &[]);
-    let shown = catalog(Some(&mac), None, &listing, &offer, &[], Some(&pick))
-        .in_this_build(|job| job != crate::features::ai::models::Job::Review);
+    let shown =
+        on_an_apple_mac(None).in_this_build(|job| job != crate::features::ai::models::Job::Review);
     for model in &shown.models {
         let of = |job: ModelJob| model.verdicts.iter().find(|v| v.job == job).unwrap();
         assert_eq!(

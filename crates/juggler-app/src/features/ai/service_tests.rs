@@ -173,65 +173,32 @@ fn a_remote_kill_and_a_narrowed_verdict_each_hide_a_job() {
         "min_memory_gb": 8, "review": "beta", "chat": "not_yet", "attention": "ships"
     }))
     .unwrap();
-    let narrowed = Snapshot::build(
-        &registry(),
-        Some(&file(
-            json!({ "models": { "schema": 1, "items": [apple.clone()] } }),
-        )),
-        &facts(1),
-    );
-    let (jobs, _) = service.answer(
-        &narrowed,
-        &beta_for(&[]),
-        &BTreeMap::new(),
-        dir.path(),
-        Probe::Never,
-    );
+    // The Bot job's state with `apple` as the list's one model.
+    let bot_with = |apple: &serde_json::Value, beta: &dyn Fn(Job) -> bool| {
+        let listed = Snapshot::build(
+            &registry(),
+            Some(&file(
+                json!({ "models": { "schema": 1, "items": [apple] } }),
+            )),
+            &facts(1),
+        );
+        let (jobs, _) = service.answer(&listed, beta, &BTreeMap::new(), dir.path(), Probe::Never);
+        state_of(&jobs, AiJob::Bot)
+    };
     assert_eq!(
-        state_of(&jobs, AiJob::Bot).0,
+        bot_with(&apple, &beta_for(&[])).0,
         AiJobState::NoEngine,
         "not_yet: the plain path"
     );
 
     apple["chat"] = json!("ships");
-    let shipped = Snapshot::build(
-        &registry(),
-        Some(&file(
-            json!({ "models": { "schema": 1, "items": [apple.clone()] } }),
-        )),
-        &facts(1),
-    );
-    let (jobs, _) = service.answer(
-        &shipped,
-        &beta_for(&[]),
-        &BTreeMap::new(),
-        dir.path(),
-        Probe::Never,
-    );
-    assert_eq!(
-        state_of(&jobs, AiJob::Bot).0,
-        AiJobState::Ready,
-        "ships needs no Beta switch"
-    );
-    assert!(!state_of(&jobs, AiJob::Bot).1, "and isn't labelled Beta");
+    let shipped = bot_with(&apple, &beta_for(&[]));
+    assert_eq!(shipped.0, AiJobState::Ready, "ships needs no Beta switch");
+    assert!(!shipped.1, "and isn't labelled Beta");
 
     apple["withdrawn"] = json!(true);
-    let withdrawn = Snapshot::build(
-        &registry(),
-        Some(&file(
-            json!({ "models": { "schema": 1, "items": [apple] } }),
-        )),
-        &facts(1),
-    );
-    let (jobs, _) = service.answer(
-        &withdrawn,
-        &beta,
-        &BTreeMap::new(),
-        dir.path(),
-        Probe::Never,
-    );
     assert_eq!(
-        state_of(&jobs, AiJob::Bot).0,
+        bot_with(&apple, &beta).0,
         AiJobState::NoEngine,
         "a withdrawn model is offered for nothing"
     );
