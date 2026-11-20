@@ -167,6 +167,7 @@ pub fn across(
     let limit = request.limit();
     let statuses = statuses(filter.status.as_deref())?;
     let kinds = kinds(filter.kind.as_deref())?;
+    let names = crate::features::messages::NamesNow::read(state);
     let storage = lock_storage_arc(state)?;
     let (assignees, unheld) = holders(filter.holder.as_deref(), |app| app_sessions(&storage, app))?;
     let scope = scope(&storage, filter)?;
@@ -196,7 +197,7 @@ pub fn across(
             // D-62: the task's own project, else its pool's one.
             let project_id = task.project.clone().or(pool_project);
             let row = TaskBoardRow {
-                task: info(&storage, task),
+                task: info(&storage, &names, task),
                 pool_name,
                 project_id,
                 path: path_of(&storage, task.parent_id.as_deref(), &mut seen),

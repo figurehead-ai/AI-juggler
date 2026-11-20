@@ -325,6 +325,43 @@ fn cancel_only_an_open_task() {
     );
 }
 
+/// SK-18 (the soak): Tasks, a task's history and the Live feed read
+/// "p1-writer · started 11:17 AM" for a session the rail named "p1-writer".
+/// Wherever the app names a session to the person, it's the rail's name
+/// now: the name the person gave it, never the one a row was written with,
+/// nor the mark that told it from a namesake then.
+#[test]
+fn a_renamed_session_is_named_as_the_rail_names_it() {
+    let lab = Lab::new();
+    let (b_id, builder) = lab.agent("s-b", "Builder");
+    let (p_id, _planner) = lab.agent("s-p", "Planner");
+    let id = task(&lab, "Shipping rates");
+    claim(&lab, &builder, &id);
+    let thread = field(&lab.say(&builder, &p_id, "On it", None), "/thread");
+
+    lab.state
+        .storage
+        .lock()
+        .unwrap()
+        .sessions()
+        .set_label(&b_id, Some("p1-writer"))
+        .unwrap();
+    let detail = views::detail(&lab.state, &id, None).unwrap();
+    assert_eq!(detail.task.holder.as_deref(), Some("p1-writer"));
+    assert_eq!(newest(&lab, &id).0, "p1-writer", "its history");
+    let page = messages::views::thread(&lab.state, &thread, None).unwrap();
+    assert_eq!(
+        page.messages[0].from_name, "p1-writer",
+        "a message's sender"
+    );
+
+    // A namesake joins: the agents' roster tells them apart; the person's
+    // words keep the rail's name.
+    lab.agent("s-o", "p1-writer");
+    let detail = views::detail(&lab.state, &id, None).unwrap();
+    assert_eq!(detail.task.holder.as_deref(), Some("p1-writer"));
+}
+
 /// A reviewer's verdict with its note (`task_update`).
 fn review(lab: &Lab, key: &str, id: &str, verdict: &str, note: &str) -> Response {
     lab.call(

@@ -21,7 +21,7 @@ use super::dto::{
     ComposeInput, MessageInfo, PauseInfo, RecipientInfo, ThreadInfo, ThreadPage, ThreadsPage,
 };
 use super::send::{Author, Outgoing, send};
-use super::{refs_of, session_now};
+use super::{NamesNow, refs_of, session_now};
 use crate::commands::lock_storage_arc;
 use crate::error::{AppError, AppResult};
 use crate::state::AppState;
@@ -42,19 +42,19 @@ fn first_line(text: &str) -> String {
 }
 
 /// A thread as a row.
-fn thread_info(storage: &Storage, thread: Thread, pool_name: &str) -> ThreadInfo {
+fn thread_info(storage: &Storage, now: &NamesNow, thread: Thread, pool_name: &str) -> ThreadInfo {
     let repo = storage.messages();
     let recent = repo
         .thread_messages(&thread.id, None, 20)
         .unwrap_or_default();
     let mut people: Vec<String> = Vec::new();
     for message in recent.iter().rev() {
-        let mut names = vec![message.sender_name.clone()];
+        let mut names = vec![now.of(&message.sender_ref, &message.sender_name)];
         names.extend(
             repo.recipients(&message.id)
                 .unwrap_or_default()
                 .into_iter()
-                .map(|r| r.recipient_name),
+                .map(|r| now.of(&r.recipient_ref, &r.recipient_name)),
         );
         for name in names {
             if !people.contains(&name) {
@@ -77,7 +77,9 @@ fn thread_info(storage: &Storage, thread: Thread, pool_name: &str) -> ThreadInfo
         people,
         hop_cap: super::delivery::hop_cap(storage, &thread.pool_id),
         state: thread.state.as_str().to_owned(),
-        last_from: last.map(|m| m.sender_name.clone()).unwrap_or_default(),
+        last_from: last
+            .map(|m| now.of(&m.sender_ref, &m.sender_name))
+            .unwrap_or_default(),
         // D-25: a task an agent names by its id reads as its title.
         last_line: last
             .map(|m| crate::features::tasks::words::name_tasks(storage, &first_line(&m.body)))
@@ -97,6 +99,7 @@ fn thread_info(storage: &Storage, thread: Thread, pool_name: &str) -> ThreadInfo
 fn recipient_info(
     state: &Arc<AppState>,
     storage: &Storage,
+    now: &NamesNow,
     thread_open: bool,
     recipient: juggler_core::storage::Recipient,
 ) -> RecipientInfo {
@@ -112,6 +115,7 @@ fn recipient_info(
         RecipientState::Unread | RecipientState::Read
     );
     let user = recipient.recipient_ref == SENDER_USER;
+    let name = now.of(&recipient.recipient_ref, &recipient.recipient_name);
     let (deliverable, how) = match (user, recipient.state, &session) {
         (true, _, _) => (false, "To you".to_owned()),
         (_, RecipientState::Queued, _) => (false, "Goes in at its next turn".to_owned()),
@@ -142,7 +146,7 @@ fn recipient_info(
     };
     RecipientInfo {
         id: recipient.recipient_ref,
-        name: recipient.recipient_name,
+        name,
         session_id: session.map(|s| s.to_string()),
         state: recipient.state.as_str().to_owned(),
         via: recipient.via,
@@ -154,6 +158,7 @@ fn recipient_info(
 fn message_info(
     state: &Arc<AppState>,
     storage: &Storage,
+    now: &NamesNow,
     thread_open: bool,
     message: Message,
 ) -> MessageInfo {
@@ -162,7 +167,7 @@ fn message_info(
         .recipients(&message.id)
         .unwrap_or_default()
         .into_iter()
-        .map(|r| recipient_info(state, storage, thread_open, r))
+        .map(|r| recipient_info(state, storage, now, thread_open, r))
         .collect();
     let from_session = message
         .sender_ref
@@ -172,7 +177,7 @@ fn message_info(
     MessageInfo {
         id: message.id,
         thread_id: message.thread_id,
-        from_name: message.sender_name,
+        from_name: now.of(&message.sender_ref, &message.sender_name),
         from_kind: if message.sender_kind == SENDER_USER {
             "user"
         } else {
@@ -204,6 +209,7 @@ pub fn threads(
     session_id: Option<&str>,
     cursor_text: Option<&str>,
 ) -> AppResult<ThreadsPage> {
+    let now = NamesNow::read(state);
     let storage = lock_storage_arc(state)?;
     let refs = session_id.map(|session| refs_of(&storage, &SessionId::new(session)));
     let mut rows = storage.messages().threads(
@@ -234,7 +240,7 @@ pub fn threads(
         .into_iter()
         .map(|thread| {
             let name = names.get(&thread.pool_id).cloned().unwrap_or_default();
-            thread_info(&storage, thread, &name)
+            thread_info(&storage, &now, thread, &name)
         })
         .collect();
     Ok(ThreadsPage {
@@ -255,6 +261,7 @@ pub fn thread(
     thread_id: &str,
     cursor_text: Option<&str>,
 ) -> AppResult<ThreadPage> {
+    let now = NamesNow::read(state);
     let storage = lock_storage_arc(state)?;
     let repo = storage.messages();
     let thread = repo
@@ -278,11 +285,11 @@ pub fn thread(
     let open = thread.state == ThreadState::Open;
     let pool_name = super::pool_name(&storage, &thread.pool_id).unwrap_or_default();
     let pool = thread.pool_id.clone();
-    let info = thread_info(&storage, thread, &pool_name);
+    let info = thread_info(&storage, &now, thread, &pool_name);
     let messages = rows
         .into_iter()
         .rev()
-        .map(|message| message_info(state, &storage, open, message))
+        .map(|message| message_info(state, &storage, &now, open, message))
         .collect();
     drop(storage);
     if read > 0 {
@@ -526,6 +533,7 @@ pub fn set_pool(state: &Arc<AppState>, pool_id: &str, paused: bool) -> AppResult
 ///
 /// Storage failures.
 pub fn search(state: &Arc<AppState>, pool_id: &str, query: &str) -> AppResult<Vec<MessageInfo>> {
+    let now = NamesNow::read(state);
     let storage = lock_storage_arc(state)?;
     let found = storage.messages().search(pool_id, query, 30)?;
     let open: HashSet<String> = found
@@ -538,7 +546,7 @@ pub fn search(state: &Arc<AppState>, pool_id: &str, query: &str) -> AppResult<Ve
         .into_iter()
         .map(|m| {
             let is_open = open.contains(&m.thread_id);
-            message_info(state, &storage, is_open, m)
+            message_info(state, &storage, &now, is_open, m)
         })
         .collect())
 }

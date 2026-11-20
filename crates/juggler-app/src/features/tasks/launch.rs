@@ -25,6 +25,7 @@ use super::Actor;
 use super::dto::TaskStartedInfo;
 use crate::commands::lock_storage_arc;
 use crate::error::{AppError, AppResult};
+use crate::features::messages::NamesNow;
 use crate::state::AppState;
 
 /// The folder a session for a task works in: the pool's project, else
@@ -272,7 +273,8 @@ pub fn start(
         })
         .map_or_else(|| "The new session".to_owned(), |m| m.name);
     let member = format!("session:{}", session.as_str());
-    let you = Actor::user();
+    // SK-18: the row names its sessions as the rail does now.
+    let (you, names) = (Actor::user(), NamesNow::read(state));
     let profile = lock_storage_arc(state)?
         .profiles()
         .get(&juggler_core::model::ProfileId::new(profile_id))
@@ -301,7 +303,7 @@ pub fn start(
         if let Some(need) = need {
             repo.close_need(need, "started", Some(session.as_str()))?;
         }
-        super::views::info(&storage, &task)
+        super::views::info(&storage, &names, &task)
     };
     state.tasks.notify(&task.pool_id);
     Ok(TaskStartedInfo {

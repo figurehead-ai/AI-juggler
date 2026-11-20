@@ -289,6 +289,7 @@ pub fn canvas_impl(
     session_ids: Vec<String>,
 ) -> AppResult<PoolCanvasInfo> {
     let session_ids = checked(session_ids, MOST_NODES, "sessions")?;
+    let now = crate::features::messages::NamesNow::read(state);
     let storage = lock_storage_arc(state)?;
     super::live_pool(&storage, pool_id)?;
     let refs = Refs::new(&storage, &session_ids)?;
@@ -306,7 +307,14 @@ pub fn canvas_impl(
     let stream = canvas
         .stream(pool_id, STREAM_LINES)?
         .into_iter()
-        .map(|entry| super::canvas_words::line(&entry, |r| refs.session_of(r)))
+        .map(|mut entry| {
+            // SK-18: who did it and to whom, by the names they go by now.
+            entry.actor_name = now.of(&entry.actor_ref, &entry.actor_name);
+            for (to, name) in &mut entry.to {
+                *name = now.of(to, name);
+            }
+            super::canvas_words::line(&entry, |r| refs.session_of(r))
+        })
         .collect();
     Ok(PoolCanvasInfo {
         pool_id: pool_id.to_owned(),

@@ -344,6 +344,63 @@ pub(crate) fn sender_session(storage: &Storage, sender: &str) -> Option<SessionI
     live_session_of(storage, sender)
 }
 
+/// SK-18: the names sessions go by now, as the rail says them (the name
+/// the person gave one, else its title, else its facts), by the member
+/// refs that stand for them. What the app shows a person names a session
+/// so (a task's holder and history, the Live feed, a message's sender and
+/// recipients), never by the name it had when the row was written: the
+/// soak read "p1-writer · started 11:17 AM" in Tasks for a session the
+/// rail named "p1-writer". A ref no session stands for now keeps its
+/// stored name, without the mark that told it from a namesake then.
+#[derive(Debug, Default)]
+pub(crate) struct NamesNow {
+    by_ref: HashMap<String, String>,
+}
+
+impl NamesNow {
+    /// The names, read once for a page. Reads the store: never call it
+    /// while holding the store's lock.
+    pub(crate) fn read(state: &Arc<AppState>) -> Self {
+        let Ok(rows) = crate::features::sessions::list::instances_shared_snapshot(state) else {
+            return Self::default();
+        };
+        let works = crate::commands::lock_storage_arc(state)
+            .ok()
+            .and_then(|storage| storage.switch_graph().works_by_session().ok())
+            .unwrap_or_default();
+        let mut by_ref = HashMap::new();
+        // A Work item's sessions: its newest names it (as `live_session_of`).
+        let mut newest: HashMap<String, i64> = HashMap::new();
+        for row in rows {
+            let session = SessionId::new(row.id.as_str());
+            let name = crate::features::pools::cards::name_of(&row);
+            let anchor = MemberRef::of_session(&session, works.get(&session)).to_wire();
+            by_ref.insert(format!("session:{}", row.id), name.clone());
+            if newest
+                .get(&anchor)
+                .is_none_or(|started| *started <= row.started_at_ms)
+            {
+                newest.insert(anchor.clone(), row.started_at_ms);
+                by_ref.insert(anchor, name);
+            }
+        }
+        Self { by_ref }
+    }
+
+    /// `member_ref`'s name now; `stored` (the name it was written with)
+    /// when no session stands for it.
+    #[must_use]
+    pub(crate) fn of(&self, member_ref: &str, stored: &str) -> String {
+        if member_ref == SENDER_USER {
+            return stored.to_owned();
+        }
+        self.by_ref
+            .get(member_ref)
+            .cloned()
+            .unwrap_or_else(|| crate::features::pools::cards::untold(stored).to_owned())
+    }
+}
+
 /// A pool's name as the app shows it.
 pub(crate) fn pool_name(storage: &Storage, pool_id: &str) -> AppResult<String> {
     crate::features::pools::named_pool(storage, pool_id).map(|(_, name)| name)
