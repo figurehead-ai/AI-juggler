@@ -140,7 +140,7 @@ for (const theme of ["dark", "light"] as const) {
       await shoot(page, SETUP, `setup-${step}-empty-1280x800-${theme}.png`);
       if (step !== "review") await page.getByTestId("new-pool-next").click();
     }
-    await expect(page.getByTestId("new-pool-review")).toContainText("New sessions in");
+    await expect(page.getByTestId("new-pool-review")).toContainText("Every session in these projects");
   });
 
   test(`the setup, every step, filled — ${theme}`, gate(`98-pool-setup-filled-${theme}`), async ({ page }) => {
