@@ -539,13 +539,13 @@ fn forget_leaves_no_trace_in_the_file() {
                  ('c1', 1, 4, 'remember {CANARY} for payments', 't1'),
                  ('c2', 1, 1, 'is {CANARY} stuck?', 't3'),
                  ('c3', 1, 1, 'the {CANARY} chat', NULL);
-             INSERT INTO chat_turns (id, conversation_id, seq, at_ms, question, outcome, shown) VALUES
+             INSERT INTO chat_turns (id, conversation_id, seq, at_ms, question, outcome, shown, entities) VALUES
                  ('t1', 'c1', 1, 1, 'remember {CANARY} for payments', 'remembered',
-                  'I''ll remember: {CANARY} for payments'),
-                 ('t2', 'c1', 2, 2, 'how is web', 'rows', NULL),
-                 ('t4', 'c1', 3, 3, 'and {CANARY} again?', 'rows', 'about {CANARY}'),
-                 ('t3', 'c2', 1, 1, 'is {CANARY} stuck?', 'rows', NULL),
-                 ('t5', 'c3', 1, 1, 'the {CANARY} chat', 'rows', NULL);"
+                  'I''ll remember: {CANARY} for payments', '{{\"memory\":\"{CANARY}\"}}'),
+                 ('t2', 'c1', 2, 2, 'how is web', 'rows', NULL, '{{}}'),
+                 ('t4', 'c1', 3, 3, 'and {CANARY} again?', 'rows', 'about {CANARY}', '{{\"used\":[\"{CANARY}\"]}}'),
+                 ('t3', 'c2', 1, 1, 'is {CANARY} stuck?', 'rows', NULL, '{{}}'),
+                 ('t5', 'c3', 1, 1, 'the {CANARY} chat', 'rows', NULL, '{{}}');"
         ))
         .unwrap();
     let key = format!("note:{KEY_CANARY}");

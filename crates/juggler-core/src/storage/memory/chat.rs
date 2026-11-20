@@ -210,18 +210,25 @@ impl<'c> ChatHistory<'c> {
                 params![topic, turn.at_ms, cut(&question, TITLE_MAX_CHARS), id, i64::from(turn.has_agent_words)],
             )?;
         }
-        Self::prune(&tx, &topic)?;
+        let pruned = Self::prune(&tx, &topic, &id)?;
         let kept = tx.query_row(
             &format!("SELECT {TURN_COLUMNS} FROM chat_turns WHERE id = ?1"),
             [&id],
             turn_row,
         )?;
         tx.commit()?;
+        if pruned {
+            // What the cap removed leaves no frame behind (as a clear).
+            fold_wal(self.conn)?;
+        }
         Ok(kept)
     }
 
-    /// The oldest topics go while the words kept pass [`MAX_BYTES`].
-    fn prune(conn: &Connection, current: &str) -> rusqlite::Result<()> {
+    /// The oldest topics go while the words kept pass [`MAX_BYTES`]; when
+    /// the current topic is the only one left, its oldest turns go (never
+    /// `keep`, the turn just kept). Whether anything was removed.
+    fn prune(conn: &Connection, current: &str, keep: &str) -> rusqlite::Result<bool> {
+        let mut pruned = false;
         loop {
             let size: i64 = conn.query_row(
                 "SELECT COALESCE(SUM(length(question) + COALESCE(length(shown), 0) + length(cites) + length(entities)), 0) FROM chat_turns",
@@ -229,7 +236,7 @@ impl<'c> ChatHistory<'c> {
                 |row| row.get(0),
             )?;
             if size <= MAX_BYTES {
-                return Ok(());
+                return Ok(pruned);
             }
             let oldest: Option<String> = conn
                 .query_row(
@@ -238,10 +245,19 @@ impl<'c> ChatHistory<'c> {
                     |row| row.get(0),
                 )
                 .optional()?;
-            let Some(oldest) = oldest else {
-                return Ok(());
+            let removed = if let Some(oldest) = oldest {
+                conn.execute("DELETE FROM chat_conversations WHERE id = ?1", [oldest])?
+            } else {
+                conn.execute(
+                    "DELETE FROM chat_turns WHERE id = (SELECT id FROM chat_turns
+                         WHERE conversation_id = ?1 AND id != ?2 ORDER BY seq LIMIT 1)",
+                    params![current, keep],
+                )?
             };
-            conn.execute("DELETE FROM chat_conversations WHERE id = ?1", [oldest])?;
+            if removed == 0 {
+                return Ok(pruned);
+            }
+            pruned = true;
         }
     }
 
@@ -448,6 +464,7 @@ impl<'c> ChatHistory<'c> {
     ///
     /// Storage failures.
     pub fn annotate(&self, id: &str, entities: &str) -> Result<(), MemoryError> {
+        let _hold = SecureHold::on(self.conn)?;
         self.conn.execute(
             "UPDATE chat_turns SET entities = ?2 WHERE id = ?1",
             params![id, entities],
@@ -562,8 +579,24 @@ mod tests {
         assert!(chat.find("  ").unwrap().is_empty());
     }
 
+    fn holding(dir: &std::path::Path, canary: &str) -> Vec<std::path::PathBuf> {
+        std::fs::read_dir(dir)
+            .unwrap()
+            .flatten()
+            .map(|e| e.path())
+            .filter(|p| {
+                std::fs::read(p)
+                    .unwrap_or_default()
+                    .windows(canary.len())
+                    .any(|w| w == canary.as_bytes())
+            })
+            .collect()
+    }
+
+    /// The Bot review's I1: the file and its WAL are scanned while the
+    /// connection is still open (closing it would fold the WAL anyway).
     #[test]
-    fn clear_removes_every_turn_and_topic_and_leaves_no_words_in_the_file() {
+    fn clear_removes_every_turn_and_topic_and_leaves_no_words_in_the_file_or_the_wal() {
         const CANARY: &str = "qzxwvclearcanary";
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("j.sqlite");
@@ -582,17 +615,62 @@ mod tests {
         );
         let cleared = chat.clear().unwrap();
         assert_eq!((cleared.turns, cleared.topics), (2, 2));
+        assert!(cleared.wal_folded);
         assert_eq!(chat.count().unwrap().turns, 0);
         assert!(chat.page(None, 10).unwrap().turns.is_empty());
+        assert!(
+            holding(dir.path(), CANARY).is_empty(),
+            "still held before the connection closed"
+        );
         drop(storage);
-        for entry in std::fs::read_dir(dir.path()).unwrap().flatten() {
-            let bytes = std::fs::read(entry.path()).unwrap();
-            assert!(
-                !bytes.windows(CANARY.len()).any(|w| w == CANARY.as_bytes()),
-                "{} still holds it",
-                entry.path().display()
-            );
+        assert!(holding(dir.path(), CANARY).is_empty());
+    }
+
+    /// I1: the cap holds even in one topic (its oldest turns go, never the
+    /// one just kept), and what it removed leaves no frame in the WAL.
+    #[test]
+    fn the_cap_holds_in_one_topic_and_leaves_no_words_behind() {
+        const CANARY: &str = "qzxwvcapcanary";
+        let dir = tempfile::tempdir().unwrap();
+        let storage = Storage::open(&dir.path().join("j.sqlite")).unwrap();
+        // No automatic checkpoint: only the cap's own fold can empty the WAL
+        // of the pruned words (the mutation without it then fails).
+        storage
+            .raw_conn()
+            .pragma_update(None, "wal_autocheckpoint", 0)
+            .unwrap();
+        let chat = storage.chat();
+        let big = "x".repeat(2 * 1024 * 1024);
+        let first_cites = format!("[\"{CANARY}{big}\"]");
+        chat.append(&NewTurn {
+            cites: &first_cites,
+            ..turn(1, "first")
+        })
+        .unwrap();
+        let cites = format!("[\"{big}\"]");
+        for n in 2..=11 {
+            chat.append(&NewTurn {
+                cites: &cites,
+                ..turn(n, "more")
+            })
+            .unwrap();
         }
+        let size: i64 = storage
+            .raw_conn()
+            .query_row("SELECT SUM(length(question) + COALESCE(length(shown), 0) + length(cites) + length(entities)) FROM chat_turns", [], |r| r.get(0))
+            .unwrap();
+        assert!(size <= MAX_BYTES, "{size} kept");
+        let page = chat.page(None, 50).unwrap();
+        assert_eq!(
+            page.turns.first().map(|t| t.at_ms),
+            Some(11),
+            "the turn just kept stays"
+        );
+        assert!(page.turns.iter().all(|t| t.at_ms != 1), "the oldest went");
+        assert!(
+            holding(dir.path(), CANARY).is_empty(),
+            "the pruned words are still on disk"
+        );
     }
 
     #[test]

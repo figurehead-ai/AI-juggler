@@ -75,6 +75,15 @@ pub(super) fn erase_subject(conn: &Connection, subject_id: &str) -> rusqlite::Re
            AND id IN (SELECT turn_id FROM chat_turn_memory WHERE subject_id = ?1)",
         [subject_id],
     )?;
+    // A turn's notes (its scope, the memories it used or kept) go with its
+    // words, on every turn the subject came from or was used in, already
+    // redacted or not (the Bot review's H1).
+    conn.execute(
+        "UPDATE chat_turns SET entities = '{}'
+         WHERE entities != '{}'
+           AND id IN (SELECT turn_id FROM chat_turn_memory WHERE subject_id = ?1)",
+        [subject_id],
+    )?;
     conn.execute(
         "DELETE FROM chat_turn_memory WHERE subject_id = ?1",
         [subject_id],
