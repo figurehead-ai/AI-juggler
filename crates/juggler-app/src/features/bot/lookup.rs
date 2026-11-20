@@ -13,7 +13,8 @@
 //!   lead counts them one clause per state.
 
 use super::dto::{
-    BotLooked, BotRowInfo, BotRowKind, BotScope, BotScopeKind, BotShortcut, BotState, BotUnknown,
+    BotLooked, BotRowInfo, BotRowKind, BotScope, BotScopeKind, BotShortcut, BotState, BotTally,
+    BotUnknown,
 };
 use super::question::{Reading, When};
 use super::world::World;
@@ -30,6 +31,8 @@ pub struct Found {
     pub rows: Vec<BotRowInfo>,
     /// How many matched.
     pub total: u32,
+    /// Every match counted by kind and state (the lead's numbers).
+    pub tallies: Vec<BotTally>,
     /// Why Bot doesn't know, if it doesn't.
     pub unknown: Option<BotUnknown>,
     /// The nearest screen.
@@ -219,6 +222,7 @@ pub fn look_up(reading: &Reading, world: &World, scope: Option<&BotScope>) -> Fo
         };
         return Found {
             total: u32::try_from(nearest.len()).unwrap_or(0),
+            tallies: Vec::new(),
             rows: nearest,
             unknown: Some(unknown),
             shortcut: Some(shortcut_for(reading)),
@@ -229,6 +233,7 @@ pub fn look_up(reading: &Reading, world: &World, scope: Option<&BotScope>) -> Fo
         return Found {
             rows: Vec::new(),
             total: 0,
+            tallies: Vec::new(),
             unknown: Some(BotUnknown::NothingFound),
             shortcut: Some(shortcut_for(reading)),
             looked: looked("searched", reach_scope),
@@ -236,6 +241,7 @@ pub fn look_up(reading: &Reading, world: &World, scope: Option<&BotScope>) -> Fo
     }
     let answer = narrow(reading, world, scope, matched, accounts_only);
     let total = u32::try_from(answer.len()).unwrap_or(u32::MAX);
+    let tallies = tally(&answer);
     let rows = answer.into_iter().take(SHOWN).cloned().collect();
     let reach = if subject_scope.is_some() {
         "subject"
@@ -245,10 +251,30 @@ pub fn look_up(reading: &Reading, world: &World, scope: Option<&BotScope>) -> Fo
     Found {
         rows,
         total,
+        tallies,
         unknown: None,
         shortcut: None,
         looked: looked(reach, subject_scope.or(reach_scope)),
     }
+}
+
+/// Every matched row counted by kind and state, in first-seen order.
+fn tally(answer: &[&BotRowInfo]) -> Vec<BotTally> {
+    let mut out: Vec<BotTally> = Vec::new();
+    for row in answer {
+        match out
+            .iter_mut()
+            .find(|c| c.kind == row.kind && c.state == row.state)
+        {
+            Some(c) => c.n = c.n.saturating_add(1),
+            None => out.push(BotTally {
+                kind: row.kind,
+                state: row.state,
+                n: 1,
+            }),
+        }
+    }
+    out
 }
 
 /// The matched rows narrowed by the question's states and time, in the

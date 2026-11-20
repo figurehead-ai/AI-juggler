@@ -16,7 +16,7 @@ import type { RetentionPreviewInfo } from "../types/generated/RetentionPreviewIn
 import { CardTitle } from "./CardTitle";
 import { byteSize } from "../lib/compact";
 import { Picker } from "./controls";
-import { folderAppName } from "../lib/app-name";
+import { useFolderAppName } from "../lib/apps";
 
 const CHOICES: Array<{ value: string; label: string }> = [
   { value: "forever", label: "Keep forever" },
@@ -27,6 +27,7 @@ const CHOICES: Array<{ value: string; label: string }> = [
 ];
 
 export function StorageRetentionCard(): JSX.Element {
+  const folderAppName = useFolderAppName();
   const [rows, setRows] = useState<AccountStorageInfo[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [preview, setPreview] = useState<RetentionPreviewInfo | null>(null);

@@ -6,6 +6,7 @@ import type { BotOutcome } from "./BotOutcome";
 import type { BotRowInfo } from "./BotRowInfo";
 import type { BotScope } from "./BotScope";
 import type { BotShortcut } from "./BotShortcut";
+import type { BotTally } from "./BotTally";
 import type { BotUnknown } from "./BotUnknown";
 import type { BotWritten } from "./BotWritten";
 
@@ -45,6 +46,11 @@ rows: Array<BotRowInfo>,
  * How many matched in all ("and 4 more").
  */
 total: number, 
+/**
+ * Every match counted by kind and state, for the lead (empty on a
+ * turn kept before 0.5.0's fix: the lead then counts the rows).
+ */
+tallies: Array<BotTally>, 
 /**
  * Why Bot doesn't know, and the nearest record or screen.
  */

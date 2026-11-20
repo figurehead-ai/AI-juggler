@@ -23,6 +23,7 @@ import type { RailPlace } from "./rail-items";
 
 import { hasLiveBackend } from "./bridge";
 import { appSlot } from "./marks";
+import { knownFolderTool } from "./palette";
 
 export interface AppModel {
   /** `cli:<folder>` or the place's id (`app:<host>:<instance folder>`). */
@@ -262,6 +263,17 @@ function useAppsRead(): { stored: readonly StoredAppInfo[]; places: readonly Kno
 export function useTargetApp(): (target: FolderTarget) => TargetApp {
   const read = useAppsRead();
   return useCallback((target: FolderTarget) => targetApp(target, read), [read]);
+}
+
+/** A sign-in folder's App by name, for the surfaces that list folders
+ * (Settings › Sessions' retention, the cleanup rules, Usage by App): the
+ * name `targetApp` gives, so a folder only a Claude app profile holds
+ * reads "Claude app · Work Max", never "Claude Code CLI · Work Max", an
+ * App that isn't one (the 0.5 walk's F-05). A folder whose tool isn't
+ * known is its label. */
+export function useFolderAppName(): (folderId: string | null | undefined, label: string) => string {
+  const appOf = useTargetApp();
+  return useCallback((folderId: string | null | undefined, label: string) => (folderId ? appOf({ folder: folderId, tool: knownFolderTool(folderId), label }).name : label), [appOf]);
 }
 
 /** `cliRecipes` over the Apps as read now (`null` stays `null`). */

@@ -37,6 +37,18 @@ pub enum ModelJob {
 }
 
 impl ModelJob {
+    /// The job it stands for.
+    const fn job(self) -> Job {
+        match self {
+            Self::Feed => Job::Feed,
+            Self::Review => Job::Review,
+            Self::Attention => Job::Attention,
+            Self::Bot => Job::Bot,
+            Self::Digest => Job::Digest,
+            Self::Watches => Job::Watches,
+        }
+    }
+
     const fn of(job: Job) -> Self {
         match job {
             Job::Feed => Self::Feed,
@@ -351,6 +363,31 @@ fn usable_here(entry: &ModelEntry, mac: &MacFacts) -> bool {
     };
     let built_in_on = entry.engine != Engine::AppleBuiltin || mac.apple_ai == AppleAi::On;
     chip && built_in_on && entry.min_memory_gb <= mac.memory_gb
+}
+
+impl ModelsCatalog {
+    /// Every card as this build can use it: a routed job that isn't in
+    /// this build (its flag off by default or by the remote kill, D-130)
+    /// reads "not yet" whatever the list's verdict, so no card offers a
+    /// job the app can't run (D-127; the 0.5 walk's F-02: "Turn reviews ·
+    /// Beta" with nothing that writes a review). `on` says whether a
+    /// job's flag is on; attention is code and keeps its verdict.
+    #[must_use]
+    pub fn in_this_build(mut self, on: impl Fn(Job) -> bool) -> Self {
+        for model in &mut self.models {
+            for verdict in &mut model.verdicts {
+                let job = verdict.job.job();
+                if job.counts_for_listing()
+                    && !on(job)
+                    && matches!(verdict.verdict, ModelVerdict::Ships | ModelVerdict::Beta)
+                {
+                    verdict.verdict = ModelVerdict::NotYet;
+                    verdict.note = None;
+                }
+            }
+        }
+        self
+    }
 }
 
 /// The screen's list for `mac` (`None`: not read yet, nothing offered is

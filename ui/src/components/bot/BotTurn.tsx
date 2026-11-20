@@ -180,7 +180,7 @@ function Answer({ turn, now, latest, find, onWatch }: { turn: BotTurnInfo; now: 
       ) : before && turn.rows.length > 0 && !latest ? (
         <span className="text-meta text-muted">{WORDS.askedBefore(turn.at_ms, now)}</span>
       ) : (
-        <Lead pieces={lead(turn.rows, turn.lang, turn.scope)} />
+        <Lead pieces={lead(turn.rows, turn.lang, turn.scope, turn.tallies)} />
       )}
       {turn.rows.length > 0 && <BotRows rows={turn.rows} numbered={written !== null} now={now} find={find} onWatch={onWatch} label="What Bot found" aliases={aliasesOf(turn)} />}
       {turn.total > turn.rows.length && <span className="pl-1 text-meta text-muted">{WORDS.more(turn.total - turn.rows.length)}</span>}

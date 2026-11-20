@@ -134,13 +134,19 @@ done
 #[cfg(unix)]
 const HELLO: &str = r#"{"kind":"hello","protocol":3,"gpu":true,"sandboxed":false}"#;
 
-/// Memory pressure as these tests set it: calm, or critical while
-/// [`CRITICAL`] is on (one test at a time sets it: nextest runs each test
-/// in its own process).
+/// Memory pressure as these tests set it: calm for every engine but the
+/// pressure test's, which reads [`CRITICAL`]. Only that engine reads the
+/// switch, so a plain `cargo test` running the module's tests in parallel
+/// threads can't see another test's pressure (nextest's own processes
+/// hid it; the 0.5 pre-push run met it as "garbage: NotHere(Unknown)").
 static CRITICAL: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 
 fn critical_now() -> bool {
     CRITICAL.load(std::sync::atomic::Ordering::SeqCst)
+}
+
+const fn calm() -> bool {
+    false
 }
 
 /// A fake helper `program` and these `models`, on a Mac with room,
@@ -150,7 +156,7 @@ fn setup(program: PathBuf, models: (PathBuf, Vec<Installed>)) -> Setup {
         program: Some(program),
         models: Some(models),
         host: Some(MAC),
-        pressure: Some(critical_now),
+        pressure: Some(calm),
         unsandboxed: true,
         sandbox_tool: None,
     }
@@ -768,7 +774,13 @@ fn the_memory_cap_follows_the_model_within_the_mac() {
 #[test]
 fn critical_memory_pressure_never_starts_a_model_and_stops_one_running() {
     let dir = tempfile::tempdir().unwrap();
-    let engine = engine(dir.path(), "hang", 16);
+    let engine = Local::with(Setup {
+        pressure: Some(critical_now),
+        ..setup(
+            fake(dir.path(), "hang", HELLO),
+            models(dir.path(), 16, BYTES),
+        )
+    });
     engine.probe();
     CRITICAL.store(true, std::sync::atomic::Ordering::SeqCst);
     refused_unloaded(&engine, dir.path(), Reason::Unknown);

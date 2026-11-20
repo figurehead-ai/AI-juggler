@@ -48,7 +48,7 @@ fn beta_for(on: &'static [Job]) -> impl Fn(Job) -> bool {
 
 #[cfg(unix)]
 #[test]
-fn on_a_mac_with_apple_intelligence_review_and_chat_wait_for_their_beta() {
+fn on_a_mac_with_apple_intelligence_bot_waits_for_its_beta() {
     let dir = tempfile::tempdir().unwrap();
     let service = Service::new(apple_only(dir.path()));
     let compiled = Snapshot::default();
@@ -68,7 +68,11 @@ fn on_a_mac_with_apple_intelligence_review_and_chat_wait_for_their_beta() {
             "{job:?}: not yet (D-131)"
         );
     }
-    assert_eq!(state_of(&jobs, AiJob::Review).0, AiJobState::BetaOff);
+    assert_eq!(
+        state_of(&jobs, AiJob::Review).0,
+        AiJobState::Off,
+        "the review waits for AJ-E3820 (the 0.5 walk's F-02)"
+    );
     assert_eq!(state_of(&jobs, AiJob::Bot).0, AiJobState::BetaOff);
 
     let (jobs, changed) = service.answer(
@@ -92,8 +96,8 @@ fn on_a_mac_with_apple_intelligence_review_and_chat_wait_for_their_beta() {
     );
     assert_eq!(
         state_of(&jobs, AiJob::Review).0,
-        AiJobState::BetaOff,
-        "one job's Beta only"
+        AiJobState::Off,
+        "Bot's Beta turns on Bot only; the review waits for AJ-E3820"
     );
 
     let (_, changed) = service.answer(
@@ -122,12 +126,11 @@ fn apple_intelligence_turned_off_mid_session_hides_the_jobs_with_the_reason() {
     let (jobs, changed) =
         service.answer(&compiled, &beta, &BTreeMap::new(), dir.path(), Probe::Now);
     assert!(changed);
-    for job in [AiJob::Review, AiJob::Bot] {
-        assert_eq!(
-            state_of(&jobs, job),
-            (AiJobState::NoEngine, false, Some(AiJobWhy::TurnedOff))
-        );
-    }
+    assert_eq!(
+        state_of(&jobs, AiJob::Bot),
+        (AiJobState::NoEngine, false, Some(AiJobWhy::TurnedOff))
+    );
+    assert_eq!(state_of(&jobs, AiJob::Review).0, AiJobState::Off);
     helper(dir.path(), "available");
     let (jobs, changed) =
         service.answer(&compiled, &beta, &BTreeMap::new(), dir.path(), Probe::Now);
@@ -159,11 +162,15 @@ fn a_remote_kill_and_a_narrowed_verdict_each_hide_a_job() {
         AiJobState::Off,
         "an OffOnly flag is never turned on remotely"
     );
-    assert_eq!(state_of(&jobs, AiJob::Review).0, AiJobState::Ready);
+    assert_eq!(
+        state_of(&jobs, AiJob::Review).0,
+        AiJobState::Off,
+        "off by default until AJ-E3820"
+    );
 
     let mut apple = serde_json::to_value(json!({
         "id": builtin()[0].id, "name": "Built-in", "engine": "apple_builtin", "min_chip": "m1",
-        "min_memory_gb": 8, "review": "not_yet", "chat": "ships", "attention": "ships"
+        "min_memory_gb": 8, "review": "beta", "chat": "not_yet", "attention": "ships"
     }))
     .unwrap();
     let narrowed = Snapshot::build(
@@ -181,9 +188,25 @@ fn a_remote_kill_and_a_narrowed_verdict_each_hide_a_job() {
         Probe::Never,
     );
     assert_eq!(
-        state_of(&jobs, AiJob::Review).0,
+        state_of(&jobs, AiJob::Bot).0,
         AiJobState::NoEngine,
         "not_yet: the plain path"
+    );
+
+    apple["chat"] = json!("ships");
+    let shipped = Snapshot::build(
+        &registry(),
+        Some(&file(
+            json!({ "models": { "schema": 1, "items": [apple.clone()] } }),
+        )),
+        &facts(1),
+    );
+    let (jobs, _) = service.answer(
+        &shipped,
+        &beta_for(&[]),
+        &BTreeMap::new(),
+        dir.path(),
+        Probe::Never,
     );
     assert_eq!(
         state_of(&jobs, AiJob::Bot).0,

@@ -61,6 +61,18 @@ describe("the lead follows each row's own state", () => {
     expect(leadText(lead([{ ...R.loginDone, then_state: "stuck" }], "en"))).toBe("Here’s what I found: 1 session looks stuck.");
   });
 
+  it("counts every match, not only the rows shown (the 0.5 walk's F-04)", () => {
+    // Eight rows shown of 13: the lead's numbers add up to 13, as "and 5 more" does.
+    const shown = [R.loginDone, R.apiDone, R.loginDone, R.apiDone, R.loginDone, R.apiDone, R.taskDone, R.taskDone];
+    const tallies = [
+      { kind: "session" as const, state: "finished" as const, n: 10 },
+      { kind: "task" as const, state: "done" as const, n: 3 },
+    ];
+    expect(leadText(lead(shown, "en", null, tallies))).toBe("Here’s what I found: 10 sessions finished and 3 tasks are done.");
+    // A turn kept before the tallies counts its rows, as before.
+    expect(leadText(lead([R.loginDone, R.apiDone, R.taskDone], "en", null, []))).toBe("Here’s what I found: 2 sessions finished and 1 task is done.");
+  });
+
   it("names the scope it was asked about", () => {
     expect(leadText(lead([R.apiRun], "en", { kind: "session", id: "s-api", name: "api", sessions: [] }))).toBe("Here’s what I found about “api”: 1 session is working.");
   });

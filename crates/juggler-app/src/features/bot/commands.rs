@@ -90,6 +90,7 @@ pub fn bot_ask_impl(state: &Arc<AppState>, input: &BotAskInput) -> AppResult<Bot
             ..found.looked
         });
         meta.total = found.total;
+        meta.tallies.clone_from(&found.tallies);
         if found.unknown.is_some() {
             (BotOutcome::DontKnow, found.rows, None)
         } else if !found.rows.is_empty() && written_on(state) {

@@ -39,7 +39,7 @@ function TopicDivider({ topic, withNote }: { topic: BotTopicInfo; withNote: bool
 function announcement(turn: BotTurnInfo | undefined): string {
   if (!turn) return "";
   if (turn.outcome === "dont_know") return "Bot: I don’t know.";
-  if (turn.outcome === "rows" || turn.outcome === "answered") return WORDS.answered(leadText(lead(turn.rows, turn.lang, turn.scope)));
+  if (turn.outcome === "rows" || turn.outcome === "answered") return WORDS.answered(leadText(lead(turn.rows, turn.lang, turn.scope, turn.tallies)));
   return "Bot answered.";
 }
 

@@ -11,7 +11,7 @@ const NOW = new Date(2026, 10, 19, 11, 30).getTime();
 
 function turn(over: Partial<BotTurnInfo>): BotTurnInfo {
   return {
-    id: "t1", at_ms: NOW - 60_000, question: "", lang: "en", outcome: "remembered", scope: null, rows: [], total: 0, unknown: null, shortcut: null,
+    id: "t1", at_ms: NOW - 60_000, question: "", lang: "en", outcome: "remembered", scope: null, rows: [], total: 0, tallies: [], unknown: null, shortcut: null,
     looked: { reach: "everything", scope: null, memories: 0 }, written: null, memory: null, used: [], live: true, redacted: true, flagged: false,
     ...over,
   };

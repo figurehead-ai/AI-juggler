@@ -7,8 +7,8 @@
 use serde::{Deserialize, Serialize};
 
 use super::dto::{
-    BotLang, BotLooked, BotMemoryInfo, BotOutcome, BotRowInfo, BotScope, BotShortcut, BotTurnInfo,
-    BotUnknown, BotWritten, BotWrittenPart,
+    BotLang, BotLooked, BotMemoryInfo, BotOutcome, BotRowInfo, BotScope, BotShortcut, BotTally,
+    BotTurnInfo, BotUnknown, BotWritten, BotWrittenPart,
 };
 use super::world::World;
 use juggler_core::storage::memory::Turn;
@@ -30,6 +30,9 @@ pub struct Meta {
     /// How many matched.
     #[serde(default)]
     pub total: u32,
+    /// Every match counted by kind and state when asked.
+    #[serde(default)]
+    pub tallies: Vec<BotTally>,
     /// The written answer's model and each sentence's cites.
     pub written_model: Option<String>,
     /// Each sentence's cites.
@@ -124,6 +127,7 @@ pub fn turn_info(
         outcome: BotOutcome::parse(&turn.outcome),
         scope: meta.scope,
         total: meta.total.max(u32::try_from(rows.len()).unwrap_or(0)),
+        tallies: meta.tallies,
         rows,
         unknown: meta.unknown,
         shortcut: meta.shortcut,

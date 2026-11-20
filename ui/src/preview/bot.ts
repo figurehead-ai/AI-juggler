@@ -50,7 +50,7 @@ export const R = {
 
 function turn(id: string, question: string, when: number, over: Partial<BotTurnInfo> = {}): BotTurnInfo {
   return {
-    id, at_ms: when, question, lang: "en", outcome: "rows", scope: null, rows: [], total: over.rows?.length ?? 0, unknown: null, shortcut: null,
+    id, at_ms: when, question, lang: "en", outcome: "rows", scope: null, rows: [], total: over.rows?.length ?? 0, tallies: [], unknown: null, shortcut: null,
     looked: { reach: "everything", scope: null, memories: 0 }, written: null, memory: null, used: [], live: true, redacted: false, flagged: false,
     ...over,
   };

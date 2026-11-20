@@ -10,7 +10,7 @@
 //! | Job | Flag default | Why |
 //! |---|---|---|
 //! | Feed line | off | "not yet": A's excerpt is the plain path and the default |
-//! | Turn review | on | opt-in Beta |
+//! | Turn review | off | D-131 allows it as opt-in Beta, but nothing writes or shows a review yet: on with AJ-E3820, which builds it (the 0.5 walk's F-02; D-127: no switch with nothing behind it) |
 //! | Bot | on | opt-in Beta |
 //! | Digest | off | "not yet": the code roundup stays |
 //! | Watches from Bot | off | "not yet": the Watches form (code) ships |
@@ -48,10 +48,12 @@ pub const FEED_ON: Flag = Flag {
     remote: RemoteMode::OffOnly,
 };
 
-/// The turn review's flag (opt-in Beta, D-131).
+/// The turn review's flag: off until AJ-E3820 builds the review (D-131
+/// allows it as opt-in Beta; D-127: a switch with nothing behind it isn't
+/// shown).
 pub const REVIEW_ON: Flag = Flag {
     name: "ai_review_on",
-    default: true,
+    default: false,
     remote: RemoteMode::OffOnly,
 };
 

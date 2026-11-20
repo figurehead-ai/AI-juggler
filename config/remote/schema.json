@@ -75,7 +75,7 @@
         },
         "ai_review_on": {
           "switch": {
-            "default": true,
+            "default": false,
             "remote": "off_only"
           }
         },

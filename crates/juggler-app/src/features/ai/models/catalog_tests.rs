@@ -161,3 +161,37 @@ fn an_installed_model_the_list_dropped_still_shows_and_offline_shows_only_apple(
     let shown = catalog(None, None, &unread, &offer, &[], None);
     assert!(shown.models.is_empty() && shown.mac.is_none());
 }
+
+/// The 0.5 walk's F-02: a job that isn't in this build (its flag off) is
+/// "not yet" on every card, whatever the list says; the jobs that are on,
+/// and attention (code), keep the list's verdict.
+#[test]
+fn a_job_off_in_this_build_is_not_yet_on_every_card() {
+    let listing = Listing::Read(list());
+    let offer = offered(&listing);
+    let mac = mac(18, 212, AppleAi::On);
+    let pick = recommendation(&mac, &usable(&offer, &[]), &[]);
+    let shown = catalog(Some(&mac), None, &listing, &offer, &[], Some(&pick))
+        .in_this_build(|job| job != crate::features::ai::models::Job::Review);
+    for model in &shown.models {
+        let of = |job: ModelJob| model.verdicts.iter().find(|v| v.job == job).unwrap();
+        assert_eq!(
+            of(ModelJob::Review).verdict,
+            ModelVerdict::NotYet,
+            "{}",
+            model.id
+        );
+        assert_eq!(of(ModelJob::Review).note, None);
+    }
+    let qwen = &shown.models[1];
+    let bot = qwen
+        .verdicts
+        .iter()
+        .find(|v| v.job == ModelJob::Bot)
+        .unwrap();
+    assert_eq!(
+        bot.verdict,
+        ModelVerdict::Beta,
+        "a job that is on keeps the list's verdict"
+    );
+}

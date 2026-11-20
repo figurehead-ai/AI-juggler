@@ -86,6 +86,20 @@ impl BotState {
     }
 }
 
+/// How many matched records are of one kind in one state: the lead
+/// sentence counts every match with these, not only the rows shown (the
+/// 0.5 walk's F-04: "8 sessions finished" over six rows and "7 more").
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, ts_rs::TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
+pub struct BotTally {
+    /// The records' kind.
+    pub kind: BotRowKind,
+    /// Their state when asked (an Account has none).
+    pub state: Option<BotState>,
+    /// How many.
+    pub n: u32,
+}
+
 /// One found record: its source (kind and id: the link is built from
 /// these, never from text), its name, its state and AI Juggler's facts.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, ts_rs::TS)]
@@ -354,6 +368,10 @@ pub struct BotTurnInfo {
     pub rows: Vec<BotRowInfo>,
     /// How many matched in all ("and 4 more").
     pub total: u32,
+    /// Every match counted by kind and state, for the lead (empty on a
+    /// turn kept before 0.5.0's fix: the lead then counts the rows).
+    #[serde(default)]
+    pub tallies: Vec<BotTally>,
     /// Why Bot doesn't know, and the nearest record or screen.
     pub unknown: Option<BotUnknown>,
     /// The nearest screen for "I don't know" and the no-model shortcuts.

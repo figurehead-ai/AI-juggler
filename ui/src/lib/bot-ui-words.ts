@@ -50,7 +50,7 @@ export const WORDS = {
     { mark: "later", text: "Bot will do more in a later version." },
   ] as const,
   tryOne: "Try one",
-  examples: ["What needs me?", "What finished today?", "Was hängt gerade fest?"] as const,
+  examples: ["What needs me?", "What finished today?", "What’s blocked?"] as const,
   betaRowTitle: "Written answers",
   betaRowLead: (model: string) => `A short answer above the records, written by ${model} on ${THIS_MACHINE_IN_TEXT}.`,
   turnOn: "Turn on",

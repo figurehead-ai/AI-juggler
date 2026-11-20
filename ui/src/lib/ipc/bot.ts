@@ -68,6 +68,7 @@ export async function botAsk(input: BotAskInput): Promise<BotTurnInfo> {
         scope: input.scope,
         rows: [],
         total: 0,
+        tallies: [],
         unknown: "nothing_found",
         shortcut: "finished_today",
         looked: { reach: "searched", scope: input.scope, memories: 0 },

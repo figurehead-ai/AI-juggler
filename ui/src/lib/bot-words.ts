@@ -17,6 +17,7 @@ import type { BotRowInfo } from "../types/generated/BotRowInfo";
 import type { BotScope } from "../types/generated/BotScope";
 import type { BotShortcut } from "../types/generated/BotShortcut";
 import type { BotState } from "../types/generated/BotState";
+import type { BotTally } from "../types/generated/BotTally";
 import type { BotUnknown } from "../types/generated/BotUnknown";
 
 /** A piece of a sentence; `strong` is shown bold. */
@@ -79,17 +80,21 @@ function leadState(row: BotRowInfo): BotState | null {
   return row.then_state ?? row.state;
 }
 
-/** The lead sentence over the rows, by code: one clause per state. */
-export function lead(rows: readonly BotRowInfo[], lang: BotLang, about?: BotScope | null): Piece[] {
+/** The lead sentence, by code: one clause per state. It counts every
+ * match (`tallies`, kept with the turn) when it has them, so its numbers
+ * agree with "and n more" (the 0.5 walk's F-04); a turn kept before them
+ * counts its rows. */
+export function lead(rows: readonly BotRowInfo[], lang: BotLang, about?: BotScope | null, tallies?: readonly BotTally[]): Piece[] {
   if (rows.length === 0) return [{ text: NOTHING[lang] }];
   const groups = new Map<string, { kind: Kind; state: BotState | null; n: number }>();
-  for (const row of rows) {
-    const state = leadState(row);
-    const key = `${row.kind}:${state ?? "-"}`;
-    const group = groups.get(key) ?? { kind: row.kind, state, n: 0 };
-    group.n += 1;
+  const add = (kind: Kind, state: BotState | null, n: number) => {
+    const key = `${kind}:${state ?? "-"}`;
+    const group = groups.get(key) ?? { kind, state, n: 0 };
+    group.n += n;
     groups.set(key, group);
-  }
+  };
+  if (tallies && tallies.length > 0) for (const t of tallies) add(t.kind, t.state, t.n);
+  else for (const row of rows) add(row.kind, leadState(row), 1);
   const rank = (state: BotState | null) => (state === null ? ORDER.length : ORDER.indexOf(state));
   const kindRank = (kind: Kind) => ["session", "task", "account"].indexOf(kind);
   const ordered = [...groups.values()].sort((a, b) => rank(a.state) - rank(b.state) || kindRank(a.kind) - kindRank(b.kind));

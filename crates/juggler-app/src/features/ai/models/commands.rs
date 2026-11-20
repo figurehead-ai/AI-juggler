@@ -188,7 +188,11 @@ pub async fn ai_models_catalog(state: tauri::State<'_, Arc<AppState>>) -> AppRes
             &offered,
             &installed,
             recommendation.as_ref(),
-        ))
+        )
+        .in_this_build(|job| {
+            crate::features::ai::jobs::by_name(job.name())
+                .is_none_or(|spec| crate::features::flags::is_on(spec.flag))
+        }))
     })
     .await
 }

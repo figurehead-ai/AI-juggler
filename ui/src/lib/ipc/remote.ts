@@ -48,7 +48,7 @@ const preview = (): RemotePreview => (window.__AIJ_REMOTE__ ??= {});
 const BUILT_IN_FLAGS: Record<string, boolean> = {
   notices_on: true,
   ai_feed_on: false,
-  ai_review_on: true,
+  ai_review_on: false,
   ai_chat_on: true,
   ai_digest_on: false,
   ai_watches_on: false,

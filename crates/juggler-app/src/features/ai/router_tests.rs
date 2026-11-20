@@ -537,8 +537,8 @@ fn the_jobs_flags_are_declared_and_off_only() {
         .collect();
     assert_eq!(
         on,
-        ["review", "chat"],
-        "D-131's table: review and Chat as opt-in Beta"
+        ["chat"],
+        "D-131's table: Bot (chat) as opt-in Beta; the review waits for AJ-E3820"
     );
     assert!(
         jobs::by_name("attention").is_none(),
@@ -550,7 +550,7 @@ fn the_jobs_flags_are_declared_and_off_only() {
 /// `juggler-local-ai`) gives a ready card for an installed model, and the
 /// one query routes to it: Automatic picks the downloaded model the
 /// recommendation names (AJ-E3811) on a Mac without Apple's model, and a
-/// job whose Beta is off says so.
+/// job that isn't in this build (the review, until AJ-E3820) says so.
 #[cfg(unix)]
 #[test]
 fn the_local_engine_serves_its_installed_model_and_automatic_picks_it() {
@@ -593,7 +593,7 @@ fn the_local_engine_serves_its_installed_model_and_automatic_picks_it() {
         free_disk_bytes: u64::MAX / 2,
         apple_ai: AppleAi::Unavailable,
     };
-    let beta = |job: Job| job == Job::Review;
+    let beta = |job: Job| job == Job::Bot;
     let jobs = answer_for(
         &engines,
         &offered,
@@ -603,11 +603,15 @@ fn the_local_engine_serves_its_installed_model_and_automatic_picks_it() {
         &beta,
         &BTreeMap::new(),
     );
-    let review = jobs.iter().find(|info| info.job == AiJob::Review).unwrap();
-    assert_eq!(review.state, AiJobState::Ready);
-    assert_eq!(review.model_id.as_deref(), Some(LOCAL));
-    assert_eq!(review.why, Some(AiJobWhy::Recommended));
     let chat = jobs.iter().find(|info| info.job == AiJob::Bot).unwrap();
-    assert_eq!(chat.state, AiJobState::BetaOff, "Chat's Beta is off");
+    assert_eq!(chat.state, AiJobState::Ready);
+    assert_eq!(chat.model_id.as_deref(), Some(LOCAL));
+    assert_eq!(chat.why, Some(AiJobWhy::Recommended));
+    let review = jobs.iter().find(|info| info.job == AiJob::Review).unwrap();
+    assert_eq!(
+        review.state,
+        AiJobState::Off,
+        "the review waits for AJ-E3820"
+    );
     engines.release();
 }
