@@ -132,14 +132,14 @@ mod tests {
     #[test]
     fn every_email_inside_a_text_is_masked_and_nothing_else() {
         assert_eq!(
-            mask_emails_in("sam.lee+ai@example.co.uk's Organization"),
-            "s…@example.co.uk's Organization"
+            mask_emails_in("sam.lee+ai@example.com's Organization"),
+            "s…@example.com's Organization"
         );
         assert_eq!(
             mask_emails_in("s…@example.com · sam@example.com's Organization"),
             "s…@example.com · s…@example.com's Organization"
         );
-        assert_eq!(mask_emails_in("a@b.co and c@d.io."), "a…@b.co and c…@d.io.");
+        assert_eq!(mask_emails_in("a@example.com and c@example.com."), "a…@example.com and c…@example.com.");
         assert_eq!(mask_emails_in("Acme · Team"), "Acme · Team");
         assert_eq!(
             mask_emails_in("ops@localhost, @handle, x@.com"),

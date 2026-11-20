@@ -99,8 +99,8 @@ if [ "${1:-}" = "--selftest" ]; then
   grep -q '"status":"idle"' "$tmp/home/.claude-work/sessions/$pid3.json" || fail "--lab-idle isn't idle"
   kill "$pid3"
   # Never outside a lab: a real HOME, or a folder outside its HOME.
-  HOME=/Users/nobody "$tmp/claude" < /dev/null > /dev/null 2>&1 && fail "ran on a real HOME"
-  HOME="$tmp/home" CLAUDE_CONFIG_DIR=/Users/nobody/.claude "$tmp/claude" < /dev/null > /dev/null 2>&1 && fail "wrote outside its HOME"
+  HOME=/Users/you "$tmp/claude" < /dev/null > /dev/null 2>&1 && fail "ran on a real HOME"
+  HOME="$tmp/home" CLAUDE_CONFIG_DIR=/Users/you/.claude "$tmp/claude" < /dev/null > /dev/null 2>&1 && fail "wrote outside its HOME"
   for _ in $(seq 30); do kill -0 "$pid2" 2>/dev/null || kill -0 "$pid3" 2>/dev/null || break; sleep 0.1; done
   echo "lab_standin selftest: ok"
   exit 0
