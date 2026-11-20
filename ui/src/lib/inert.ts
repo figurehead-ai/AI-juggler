@@ -37,7 +37,7 @@ function release(element: Element): void {
 }
 
 /** The elements beside `open` and beside each of its ancestors. */
-export function besides(open: Element): Element[] {
+function besides(open: Element): Element[] {
   const out: Element[] = [];
   for (let at: Element | null = open; at && at !== document.body && at.parentElement; at = at.parentElement) {
     for (const sibling of at.parentElement.children) {

@@ -17,7 +17,7 @@ import type { ToolsPlace } from "../../lib/team-tools";
 export type SetupStepId = (typeof SETUP_STEPS)[number];
 
 /** A pool's projects in words: "web", "web and docs", "every project". */
-export function poolWhere(pool: Pick<PoolInfo, "scope_all" | "scope">, projects: readonly { id: string; name: string }[]): string {
+function poolWhere(pool: Pick<PoolInfo, "scope_all" | "scope">, projects: readonly { id: string; name: string }[]): string {
   if (pool.scope_all) return whereWords(true, []);
   return whereWords(
     false,

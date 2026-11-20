@@ -60,7 +60,7 @@ export function forgetStops(): void {
 }
 
 /** A tool's error or note in words: the user's stop by what they chose. */
-export function turnWords(text: string, how: StopHow | null = null): string {
+function turnWords(text: string, how: StopHow | null = null): string {
   const said = text.trim();
   if (said === STOPPED && how) return STOP_WORDS[how];
   return CODE_WORDS[said] ?? (BARE_CODE.test(said) ? "Stopped with an error" : text);

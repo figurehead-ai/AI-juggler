@@ -31,7 +31,7 @@ export function existingOf(pool: Pick<PoolInfo, "kind" | "scope_all" | "scope" |
 }
 
 /** A project's own pool's name, as its setup says it. */
-export const ownPoolName = (project: string | undefined) => `${project ?? "This project"}'s own pool`;
+const ownPoolName = (project: string | undefined) => `${project ?? "This project"}'s own pool`;
 
 export function EmptyPoolSetup({ pool, rules, projects, sessions, accounts, onDiagram }: { pool: PoolInfo; rules: PoolRules; projects: ProjectInfo[]; sessions: InstanceInfo[]; accounts: AccountInfo[]; onDiagram: () => void }): JSX.Element {
   const project = pool.project_id ? projects.find((one) => one.id === pool.project_id) : undefined;

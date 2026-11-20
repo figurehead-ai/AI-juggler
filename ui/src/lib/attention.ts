@@ -108,11 +108,6 @@ export function attentionLevel(subject: AttentionSubject): AttentionLevel {
   return subject.state === "done_review" ? 1 : subject.state === "asks_you" ? 2 : 0;
 }
 
-/** A rail item's level: its need, else its state. */
-export function itemLevel(item: { need: string | null; state: string }): AttentionLevel {
-  return attentionLevel({ need: item.need, state: item.state });
-}
-
 /** The shared count (the rail's Needs you, the bell, Home's title, the
  * badge and the menu-bar item): L2 and L3 only. "To review" (L1) stays
  * listed, last, and uncounted. */

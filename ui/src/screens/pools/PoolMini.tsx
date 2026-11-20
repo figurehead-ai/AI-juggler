@@ -110,7 +110,7 @@ function Chip({ member }: { member: MiniMember }): JSX.Element {
 
 /** At most this many members drawn as cards (a logo, its name and its
  * line); more, as logos with counts. */
-export const MINI_CARDS = 2;
+const MINI_CARDS = 2;
 
 /** A member's card's second line: its role, or how many are open. */
 const lineOf = (member: MiniMember): string => (member.role === "lead" ? roleCard("lead").label : member.count > 1 ? `${member.count} open · ${roleCard(member.role).label}` : roleCard(member.role).label);

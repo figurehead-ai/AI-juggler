@@ -16,7 +16,7 @@ import { leadHint, rolesFor } from "../../../lib/pools";
 
 /** A role's icon: New pool's (its role tiles, the mark on a member's
  * logo), one map for both paths (D-126). */
-export function RoleIcon({ role, size = 14 }: { role: string; size?: number }): JSX.Element {
+function RoleIcon({ role, size = 14 }: { role: string; size?: number }): JSX.Element {
   const Shape = ROLE_ICONS[asRole(role)];
   return <Shape aria-hidden="true" width={size} height={size} className="shrink-0 text-muted" />;
 }
@@ -59,7 +59,7 @@ export function RoleCards({ holders, narrow = false, testId = "role-cards" }: { 
 }
 
 /** Round 3 (#1): an App's Lead, which its next session takes. */
-export const NEXT_LEAD_OPTION = { label: "Lead, once one of its sessions starts", hint: "It takes charge as soon as one of its sessions starts in the pool's projects. Its other sessions keep their role." };
+const NEXT_LEAD_OPTION = { label: "Lead, once one of its sessions starts", hint: "It takes charge as soon as one of its sessions starts in the pool's projects. Its other sessions keep their role." };
 
 /** Whether a member is an App (its next session can lead). */
 const isApp = (member: string) => member === "app" || member.startsWith("app:");

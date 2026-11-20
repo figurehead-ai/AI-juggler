@@ -54,10 +54,10 @@ import { navOf } from "./preview-model";
 import { StepEyebrow } from "./StepHead";
 
 /** The steps, in order (AJ-E3011 §1). */
-export const STEPS: readonly SetupStep[] = ["template", "where", "who", "lead", "everyone", "talk", "own", "review"];
+const STEPS: readonly SetupStep[] = ["template", "where", "who", "lead", "everyone", "talk", "own", "review"];
 /** With D-30's question still unanswered, it's its own step before
  * Review (round 4, main's ruling). */
-export const stepsFor = (ask: boolean): readonly SetupStep[] => (ask ? [...STEPS.slice(0, -1), "tools", "review"] : STEPS);
+const stepsFor = (ask: boolean): readonly SetupStep[] => (ask ? [...STEPS.slice(0, -1), "tools", "review"] : STEPS);
 /** From this step on, Make pool is enabled (a name and its projects make
  * a working pool). */
 const MAKE_FROM = STEPS.indexOf("who");

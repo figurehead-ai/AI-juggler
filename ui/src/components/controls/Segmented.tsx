@@ -25,7 +25,7 @@ export interface Segment<T extends string> {
   icon?: ControlIcon;
 }
 
-export type SegmentedSize = "sm" | "md";
+type SegmentedSize = "sm" | "md";
 
 const SIZES: Record<SegmentedSize, { item: string; icon: number }> = {
   md: { item: "h-7 gap-1.5 px-2.5 text-meta", icon: 14 },
@@ -33,7 +33,7 @@ const SIZES: Record<SegmentedSize, { item: string; icon: number }> = {
 };
 
 /** The control's frame: the fill, its hairline edge, 3 px inside. */
-export const SEGMENTED_FRAME = "seg-fill gap-0.5 rounded-[10px] bg-fill p-[3px] inset-ring-1 inset-ring-hairline/75";
+const SEGMENTED_FRAME = "seg-fill gap-0.5 rounded-[10px] bg-fill p-[3px] inset-ring-1 inset-ring-hairline/75";
 
 export function Segmented<T extends string>({
   label,

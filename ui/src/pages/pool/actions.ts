@@ -72,7 +72,7 @@ export function cannotRemove(pool: PoolInfo): string | null {
 }
 
 /** How long a take-out waits for Undo before it's done, in seconds. */
-export const TAKE_OUT_HOLD_SECONDS = 5;
+const TAKE_OUT_HOLD_SECONDS = 5;
 
 /** Takes a member out (back to its project's own pool) through the held
  * action, like Stop (AJ-E3011 round 4): it waits for Undo first, so a

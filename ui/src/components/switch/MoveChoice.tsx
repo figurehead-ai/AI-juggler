@@ -21,7 +21,7 @@ export type How = "move" | "copy";
 
 /** D-127: the offer as the switch screen shows it: none when anything
  * the user can't clear stands in Move's way. */
-export function shownOffer(offer: MoveOfferInfo | null): MoveOfferInfo | null {
+function shownOffer(offer: MoveOfferInfo | null): MoveOfferInfo | null {
   return offer && offer.applies && !offer.blocks.some((block) => block.kind === "setup") ? offer : null;
 }
 

@@ -368,9 +368,5 @@ export const CLAUDE_CHANNEL_NOTE = "Claude's own messages between sessions aren'
  * beside the button: a new process, the pool's tools, the same pool. */
 export const CONTINUE_WATCHED = "Starts a new process here that resumes it, with the pool's tools. It stays in this pool.";
 
-/** The rc19 walk: the canvas node's Continue said it only in a tooltip, so
- * nothing on screen said a new process starts. Its short line, always shown. */
-export const CONTINUE_WATCHED_SHORT = "Starts a new process here";
-
 /** Said once Continue in AI Juggler has started its session. */
 export const CONTINUED_HERE = "Continued in AI Juggler: a new process resumes it here.";

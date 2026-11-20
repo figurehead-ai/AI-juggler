@@ -179,7 +179,7 @@ function selectionHead(input: {
 
 /** The status under the title: calm at L0 and L1, an amber word and dot
  * at L2, red with a glyph on its tint at L3 (D-117). */
-export function StatusPill({ pill }: { pill: NonNullable<InspectorHead["pill"]> }): JSX.Element {
+function StatusPill({ pill }: { pill: NonNullable<InspectorHead["pill"]> }): JSX.Element {
   const shape = "inline-flex w-fit items-center gap-1.5 rounded-full px-2 py-0.5 text-label";
   if (pill.level === 3)
     return (

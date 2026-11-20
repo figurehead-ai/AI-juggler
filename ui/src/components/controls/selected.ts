@@ -25,10 +25,6 @@ export const SELECTED = "bg-selected font-semibold text-selected-ink inset-ring-
  * title semibold ink when selected): the fill and the edge only. */
 export const SELECTED_FILL = "bg-selected inset-ring-[1.5px] inset-ring-selected-ring";
 
-/** A chosen card that already draws a 1 px border: the border and an inner
- * ring make the 2 px solid edge the pool canvas's selected card has. */
-export const SELECTED_CARD = "border-selected-ring bg-selected inset-ring-1 inset-ring-selected-ring";
-
 /**
  * 0.4.6 (AJ-E3012, the pool screens; D-126, every making screen): a
  * chosen card — a pool's node, a template, a RadioCard — a solid 2 px

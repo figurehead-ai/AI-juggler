@@ -17,7 +17,7 @@ import { FoldSection, Section } from "./Section";
 const HOPS = Array.from({ length: 20 }, (_, index) => ({ value: String(index + 1), label: String(index + 1) }));
 
 /** The folds' titles and lines. */
-export const ACCESS_FOLDS = {
+const ACCESS_FOLDS = {
   rules: { title: "Allowed without asking", line: "What you told this pool to always allow, so its agents stop asking you. Take one back any time." },
   delivery: { title: "Messages into sessions", line: "How a message reaches a session that is working, and when a back-and-forth between agents stops to ask you." },
 };

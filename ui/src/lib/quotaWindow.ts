@@ -108,7 +108,7 @@ export const READING_OLD_MS = 3_600_000;
 /** Said after an old reading's age while this start's first read of the
  * tools' records runs (`QuotaDisplayData.refreshing`): a newer reading
  * may be on its way. */
-export const REFRESHING = "refreshing…";
+const REFRESHING = "refreshing…";
 
 function isOld(measuredAtMs: number, now: number): boolean {
   return now - measuredAtMs >= READING_OLD_MS;

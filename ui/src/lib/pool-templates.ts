@@ -18,7 +18,7 @@ export type PairKey = `${PoolRole}>${PoolRole}`;
 export const pairKey = (from: PoolRole, to: PoolRole): PairKey => `${from}>${to}`;
 
 /** A chip on a template's card: its words and how it reads. */
-export interface TemplateChip {
+interface TemplateChip {
   label: string;
   tone: "accent" | "live" | "success" | "warning" | "danger" | "plain";
 }

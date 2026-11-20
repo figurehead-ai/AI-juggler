@@ -44,7 +44,7 @@ const buttonSizes: Record<ButtonSize, string> = {
  * holds it to one. Every other action is `secondary` (or `ghost`, or
  * `accent` for an app-wide one); FlowLayout's foot takes one primary.
  */
-export const PRIMARY_MARK = "data-primary";
+const PRIMARY_MARK = "data-primary";
 
 /** The filled primaries in `view` (a view shows one). */
 export function primariesIn(view: ParentNode): HTMLElement[] {

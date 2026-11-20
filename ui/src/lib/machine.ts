@@ -110,13 +110,6 @@ export function ThisMacValue({ info, children }: { info: ThisMacInfo | null; chi
   return createElement(ThisMacStoreContext.Provider, { value: store }, createElement(ThisMacContext.Provider, { value: info }, children));
 }
 
-/** This Mac as given (a test, the preview), else the app's one
- * subscription (AJ-E805). */
-export function useThisMacInfo(given?: ThisMacInfo | null): ThisMacInfo | null {
-  const shown = useContext(ThisMacContext);
-  return given === undefined ? shown : given;
-}
-
 /** The app's one This Mac subscription, given to what reads it. AJ-E805:
  * it was the shell's state, so each 5 s reading (while an AI tool runs)
  * drew the whole app again, the rail included; now only what reads This
