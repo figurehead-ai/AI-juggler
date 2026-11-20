@@ -230,6 +230,10 @@ test("machine filter persists, a Fleet alert opens its machine, access is change
   await openFilters(page);
   await expect(page.getByTestId("rail-view-only-mac")).toContainText("Mac mini");
   await expect(page.getByTestId("board-machine-local")).toHaveCount(0);
+  // The View closed: an open menu makes the page under it inert (AJ-E3011
+  // round 4), so the alert's Open could not be pressed through it.
+  await page.keyboard.press("Escape");
+  await expect(page.getByTestId("rail-view-only-mac")).toHaveCount(0);
 
   // The alert names the machine and opens its inspector.
   await expect(page.getByTestId("remote-alert-exhausted")).toContainText("Mac mini");

@@ -76,7 +76,7 @@ for (const theme of ["dark", "light"] as const) {
     await sheet.getByRole("button", { name: "Apply to AGENTS.md" }).click();
     await expect(sheet.getByTestId("project-sync-summary")).toHaveText("Rules in sync");
     await sheet.getByRole("button", { name: "Copy github to Codex" }).click();
-    await expect(sheet.getByText("Every account has the same servers.")).toBeVisible();
+    await expect(sheet.getByText("Every app has the same servers.")).toBeVisible(); // D-62: an App, not an account
     await sheet.screenshot({ path: resolve(OUT, `sheet-done-${theme}.png`) });
     await axeClean(page, "the sync sheet after applying");
     // Focus stayed inside: Escape closes it, and the header says so.

@@ -84,8 +84,9 @@ async function openProject(page: Page, tab: "Overview" | "Usage") {
 
 async function openProfile(page: Page) {
   await goTo(page, "Accounts");
-  await page.getByTestId("account-label").filter({ hasText: /^Work$/ }).first().click();
-  await expect(page.getByTestId("page-type")).toHaveText("Account");
+  // D-62: a profile is its CLI App, named with its tool ("Claude Code CLI · Work").
+  await page.getByTestId("account-label").filter({ hasText: /^Claude Code CLI · Work$/ }).first().click();
+  await expect(page.getByTestId("page-type")).toHaveText("App");
 }
 
 for (const viewport of VIEWPORTS) {
@@ -118,9 +119,11 @@ for (const viewport of VIEWPORTS) {
     test(`a profile's page — ${at}`, async ({ page }) => {
       await seed(page, theme, viewport);
       await openProfile(page);
-      await settled(page, "account-usage-dashboard");
-      // A gauge per window once read; one for both while neither is.
+      // A gauge per window once read; one for both while neither is (its
+      // Overview); its usage is the App page's Usage tab (AJ-E3104).
       await expect(page.getByTestId("account-limits").getByTestId("window-gauge").first()).toBeVisible();
+      await page.getByRole("tab", { name: /^Usage/ }).click();
+      await settled(page, "account-usage-dashboard");
       await shoot(page, "profile", theme, viewport);
     });
 

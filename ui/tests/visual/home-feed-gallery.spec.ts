@@ -298,7 +298,12 @@ test("home feed paging — 5,000 items: three pages by themselves, then Load mor
   await seed(page, allStatuses, "dark", { width: 1440, height: 900 }, { feed: manyFeed(T0, 5_000) });
   await expect(page.getByTestId("home")).toHaveAttribute("data-layout", "columns");
   const main = page.getByTestId("home-main");
-  const calls = () => page.evaluate(() => ((window as unknown as { __AIJ_FEED_CALLS__?: unknown[] }).__AIJ_FEED_CALLS__ ?? []).length);
+  // The pages asked for, by where each starts: the first page may be read
+  // again (AJ-E3712: a notices change re-reads it, as the preview's
+  // stand-in makes once its first tick works Needs you out), never
+  // counted as one more page.
+  const asked = () => page.evaluate(() => (window as unknown as { __AIJ_FEED_CALLS__?: Array<{ cursor: string | null; limit: number }> }).__AIJ_FEED_CALLS__ ?? []);
+  const pages = async () => new Set((await asked()).map((call) => call.cursor)).size;
   await expect(page.getByTestId("feed-card").first()).toBeVisible();
   // Scroll to the end until the button shows (each page that lands moves the end further).
   await expect(async () => {
@@ -310,13 +315,11 @@ test("home feed paging — 5,000 items: three pages by themselves, then Load mor
     await main.evaluate((node) => node.scrollTo(0, node.scrollHeight));
     await page.waitForTimeout(150);
   }
-  expect(await calls()).toBe(3);
-  const asked = await page.evaluate(() => (window as unknown as { __AIJ_FEED_CALLS__: Array<{ limit: number }> }).__AIJ_FEED_CALLS__);
-  for (const call of asked) expect(call.limit).toBe(30);
+  expect(await pages()).toBe(3);
+  for (const call of await asked()) expect(call.limit).toBe(30);
   await page.getByTestId("feed-load-more").click();
-  await expect.poll(calls).toBe(4);
-  const after = await page.evaluate(() => (window as unknown as { __AIJ_FEED_CALLS__: Array<{ limit: number }> }).__AIJ_FEED_CALLS__);
-  expect(Math.max(...after.map((call) => call.limit))).toBe(30);
+  await expect.poll(pages).toBe(4);
+  expect(Math.max(...(await asked()).map((call) => call.limit))).toBe(30);
 });
 
 /**

@@ -174,6 +174,10 @@ test("AJ-E2909: the rail's width set by keys, at its ends, kept after a reload",
 test("AJ-E2910: no chip changes the rail; Mark all and its toast; at 1440", async ({ page }) => {
   await open(page, "dark", WIDE, { __AIJ_FIXTURE__: allStatuses });
   const rail = page.getByTestId("rail");
+  // The rail settled first: its Needs you lands after the first paint
+  // (D-103.6: the preview's first tick), which the read below then took
+  // for a chip's doing (0.5 gate triage).
+  await expect(page.getByTestId("rail-needs-you")).toContainText(/Needs you\s*5/i);
   const before = await rail.innerText();
   const chips = page.getByTestId("feed-filters").getByRole("radio");
   for (let i = 0; i < (await chips.count()); i++) {

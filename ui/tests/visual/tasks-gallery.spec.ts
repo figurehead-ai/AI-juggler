@@ -251,7 +251,7 @@ for (const theme of ["dark", "light"] as const) {
     await poolTasks(page);
     await page.getByTestId("task-start-open").click();
     await expect(page.getByTestId("task-start")).toBeVisible();
-    await pick(page, page.getByTestId("task-start-profile"), "Deep work · Claude Code · Work Max");
+    await pick(page, page.getByTestId("task-start-profile"), "Deep work · Claude Code CLI · Work Max");
     await page.mouse.move(0, 0);
     await page.screenshot({ path: resolve(OUT, `task-start-1680x1050-${theme}.png`) });
     await axe(page, `task start ${theme}`);
@@ -319,7 +319,7 @@ test("keyboard: a held change answered with 1; a launch is started only by its b
   const launch = page.getByTestId("home-needs").getByTestId("task-need-launch");
   const start = launch.getByTestId("task-start-go");
   await expect(start).toBeDisabled();
-  await pick(page, launch.getByTestId("task-start-profile"), "Weekend build · Claude Code · Personal");
+  await pick(page, launch.getByTestId("task-start-profile"), "Weekend build · Claude Code CLI · Personal");
   await start.focus();
   await page.keyboard.press("Enter");
   const calls = await page.evaluate(() => (window as unknown as { __AIJ_TASKS_CALLS__?: string[] }).__AIJ_TASKS_CALLS__ ?? []);
