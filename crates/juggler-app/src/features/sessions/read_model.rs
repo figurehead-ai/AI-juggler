@@ -10,8 +10,8 @@ use crate::commands::now_millis;
 use crate::error::{AppError, AppResult};
 use crate::events::{AppEvent, EmitEvent as _};
 use crate::features::sessions::dto::{
-    AttentionInfo, EndingInfo, InstanceInfo, InstanceQuotaInfo, InstanceResourcesInfo,
-    NeedsAttention, QuotaSnapshotInfo, TokenCountsInfo,
+    AttentionInfo, ContinuesInfo, EndingInfo, InstanceInfo, InstanceQuotaInfo,
+    InstanceResourcesInfo, NeedsAttention, QuotaSnapshotInfo, TokenCountsInfo,
 };
 use crate::state::AppState;
 
@@ -414,9 +414,27 @@ struct RowJoins<'a> {
     live: &'a LiveStatsMap,
     desktop_labels: &'a std::collections::BTreeMap<String, String>,
     adopted_ids: &'a [juggler_core::model::SessionId],
+    arrivals:
+        std::collections::HashMap<juggler_core::model::SessionId, juggler_core::storage::Arrival>,
 }
 
 impl RowJoins<'_> {
+    /// SK-11: the session a switch carried this one's conversation from.
+    fn continues(&self, id: &juggler_core::model::SessionId) -> Option<ContinuesInfo> {
+        let arrival = self.arrivals.get(id)?;
+        let account_id = arrival.from_account.to_string();
+        Some(ContinuesInfo {
+            session_id: arrival.from_session.as_ref().map(ToString::to_string),
+            account_label: self
+                .account_index
+                .get(&account_id)
+                .map_or_else(|| account_id.clone(), |(label, _)| label.clone()),
+            account_id,
+            provider: arrival.from_provider.to_string(),
+            conversation_id: arrival.from_native_id.clone(),
+        })
+    }
+
     /// The identity assertion's state and label (both null when none).
     /// SK-16: a label recorded before 0.4.7 can hold an organisation
     /// named after its email in full, so every email in it is masked.
@@ -481,6 +499,7 @@ pub(crate) fn session_infos_for(
         live,
         desktop_labels,
         adopted_ids,
+        arrivals: storage.switch_graph().arrivals().unwrap_or_default(),
     };
     Ok(records
         .into_iter()
@@ -575,6 +594,7 @@ fn session_info_of(joins: &mut RowJoins<'_>, record: &SessionRecord) -> Instance
         resume_refusal: None,
         app_id: joins.launched.remove(id),
         ending: ending_of(&joins.endings, record),
+        continues: joins.continues(&record.id),
     }
 }
 

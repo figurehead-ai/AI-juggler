@@ -163,6 +163,27 @@ pub struct InstanceInfo {
     /// "Ended" then.
     #[ts(optional)]
     pub ending: Option<EndingInfo>,
+    /// SK-11: the session a switch carried its conversation from (its
+    /// page says so, with a door to it); absent when none did.
+    #[ts(optional)]
+    pub continues: Option<ContinuesInfo>,
+}
+
+/// SK-11: where a switch carried a session's conversation from.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
+pub struct ContinuesInfo {
+    /// The session it continues, when it was one of AI Juggler's; `null`
+    /// for one another app ran (its conversation is the door then).
+    pub session_id: Option<String>,
+    /// The account it ran on.
+    pub account_id: String,
+    /// That account's name.
+    pub account_label: String,
+    /// That account's tool.
+    pub provider: String,
+    /// Its conversation there, when its tool gave one.
+    pub conversation_id: Option<String>,
 }
 
 /// D-96 C: how a session ended (`read_model::with_endings`).

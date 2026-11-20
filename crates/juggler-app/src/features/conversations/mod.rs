@@ -686,24 +686,44 @@ pub fn titled(
 ) -> AppResult<Vec<crate::features::sessions::dto::InstanceInfo>> {
     // AJ-E805: only these rows' conversations (Needs you reads the rows
     // every 5 s; this copied every conversation on the Mac each time).
-    let wanted: std::collections::HashSet<(&str, &str)> = rows
-        .iter()
-        .filter_map(|row| Some((row.account_id.as_deref()?, row.conversation_id.as_deref()?)))
-        .collect();
-    let titles: HashMap<(String, String), String> = state
-        .conversations
-        .all_where(|c| wanted.contains(&(c.account_id.as_str(), c.summary.id.as_str())))?
-        .into_iter()
-        .filter_map(|c| Some(((c.account_id, c.summary.id), c.summary.title?)))
-        .collect();
+    let titles: HashMap<(String, String), String> = {
+        let wanted: std::collections::HashSet<(&str, &str)> = rows
+            .iter()
+            .flat_map(|row| [own_conversation(row), carried_conversation(row)])
+            .flatten()
+            .collect();
+        state
+            .conversations
+            .all_where(|c| wanted.contains(&(c.account_id.as_str(), c.summary.id.as_str())))?
+            .into_iter()
+            .filter_map(|c| Some(((c.account_id, c.summary.id), c.summary.title?)))
+            .collect()
+    };
+    let title = |key: Option<(&str, &str)>| {
+        key.and_then(|(account, id)| titles.get(&(account.to_owned(), id.to_owned())).cloned())
+    };
     for row in &mut rows {
-        if let (Some(account), Some(conversation)) = (&row.account_id, &row.conversation_id) {
-            row.title = titles
-                .get(&(account.clone(), conversation.clone()))
-                .cloned();
+        let (own, carried) = (own_conversation(row), carried_conversation(row));
+        if own.is_some() || carried.is_some() {
+            row.title = title(own).or_else(|| title(carried));
         }
     }
     Ok(rows)
+}
+
+/// A session row's own conversation: `(account, id)`.
+fn own_conversation(row: &crate::features::sessions::dto::InstanceInfo) -> Option<(&str, &str)> {
+    Some((row.account_id.as_deref()?, row.conversation_id.as_deref()?))
+}
+
+/// SK-11: the conversation a switch carried into a session row. Its copy
+/// is the same conversation, so until the copy is read the row goes by
+/// that one's title (never by its facts: "web · started 9:40 AM").
+fn carried_conversation(
+    row: &crate::features::sessions::dto::InstanceInfo,
+) -> Option<(&str, &str)> {
+    let from = row.continues.as_ref()?;
+    Some((from.account_id.as_str(), from.conversation_id.as_deref()?))
 }
 
 /// F-rc3g-4 (the 0.4.6 rc3g walk; Open now means running): an AI

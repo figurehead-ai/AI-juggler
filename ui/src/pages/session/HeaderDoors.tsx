@@ -17,7 +17,9 @@ import { IconAccount } from "../../components/usage/controls";
 import { openAccount } from "../../lib/accounts-page";
 import { accountName, useSubscriptions } from "../../lib/subscriptions";
 import { accountForApp } from "../app/AppTerms";
-import { IconComputer, IconPool } from "../../components/icons-actions";
+import { IconCarryIn, IconComputer, IconPool } from "../../components/icons-actions";
+import { cliAppName } from "../../lib/app-name";
+import type { InstanceInfo } from "../../types/generated/InstanceInfo";
 import { THIS_MACHINE } from "../../lib/machine-words";
 import { openApp, useApps } from "../../lib/apps";
 import type { AccountInfo } from "../../types/generated/AccountInfo";
@@ -86,6 +88,45 @@ export function SessionToolChip({ tool, said = null }: { tool: string; said?: st
         <span className="truncate">{spec.display_name}</span>
       </button>
       <Dot />
+    </>
+  );
+}
+
+/** SK-11: a session a switch made says what it continues, in History's
+ * words for it ("Arrived from Claude Code · Work"), a door to that
+ * session's page (to its conversation, for one another app ran). */
+export function SessionContinuesDoor({ session, lead }: { session: Pick<InstanceInfo, "continues" | "project_id">; lead?: JSX.Element }): JSX.Element | null {
+  const host = useActionHost();
+  const from = session.continues;
+  if (!from) return null;
+  const app = cliAppName(from.provider, from.account_label);
+  const sessionId = from.session_id;
+  const conversationId = from.conversation_id;
+  const open =
+    sessionId && host.openSessionById
+      ? () => host.openSessionById?.(sessionId)
+      : conversationId && host.openConversationById
+        ? () => host.openConversationById?.(from.account_id, conversationId, session.project_id ?? null)
+        : null;
+  const words = (
+    <>
+      <IconCarryIn width={13} height={13} aria-hidden="true" className="shrink-0 text-muted" />
+      <span className="text-muted">continues from</span>{" "}
+      <span className="truncate">{app}</span>
+    </>
+  );
+  return (
+    <>
+      {lead}
+      {open ? (
+        <button type="button" onClick={open} title={`Open the session it continues, in ${app}`} className={DOOR} data-testid="door-continues">
+          {words}
+        </button>
+      ) : (
+        <span className="inline-flex min-w-0 items-center gap-1 text-meta text-ink/85" data-testid="door-continues">
+          {words}
+        </span>
+      )}
     </>
   );
 }
