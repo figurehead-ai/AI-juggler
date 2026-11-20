@@ -152,7 +152,6 @@ export function LimitDialog({
         tabIndex={-1}
         aria-labelledby="limit-title"
         aria-describedby="limit-what"
-        data-testid="limit-dialog"
         onKeyDown={(event) => {
           if (event.key === "Escape") {
             event.stopPropagation();
@@ -171,9 +170,14 @@ export function LimitDialog({
             }
           }
         }}
-        className="sheen flex w-full max-w-lg flex-col gap-4 rounded-card border border-hairline bg-surface p-6 outline-none shadow-[0_24px_80px_-24px_rgba(0,0,0,0.8)]"
+        // AJ-E2311 item 4 (the 0.4.6 walk at 1280×800: "see what carries
+        // over" and Not now were cut off, with no scroll): never taller
+        // than the window; the title and the way out stay, the choices
+        // between them scroll.
+        className="sheen flex max-h-full w-full max-w-lg flex-col overflow-hidden rounded-card border border-hairline bg-surface outline-none shadow-[0_24px_80px_-24px_rgba(0,0,0,0.8)]"
+        data-testid="limit-dialog"
       >
-        <header className="flex flex-col gap-1">
+        <header className="flex shrink-0 flex-col gap-1 px-6 pt-6 pb-3" data-testid="limit-header">
           <div className="flex items-start gap-3">
             <h2 id="limit-title" className="min-w-0 flex-1 text-base font-semibold">
               {who} hit its limit
@@ -200,108 +204,112 @@ export function LimitDialog({
           </p>
         </header>
 
-        {parking === "done" ? (
-          <section className="flex flex-col gap-3 rounded-xl border border-hairline p-4" data-testid="limit-parked">
-            <p className="text-sm">
-              Parked.{" "}
-              {resetAt ? `At ${whenWords(resetAt, now)} it's offered back to you` : "When the reset is known, it's offered back to you"}; nothing restarts on
-              its own.
-            </p>
-            <Button size="sm" variant="primary" data-autofocus onClick={close}>
-              Done
-            </Button>
-          </section>
-        ) : (
-          <>
-            <section className="flex flex-col gap-3 rounded-xl border border-accent/40 bg-accent-soft/40 p-4" data-testid="limit-continue">
-              {targets === null ? (
-                <p className="text-xs text-ink-2">Finding the best app for this…</p>
-              ) : target ? (
-                <>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-sm font-medium">Continue now in {targetName}</span>
-                    {target.suggested && <SuggestedMark />}
-                  </div>
-                  {ready && (
-                    <p className="text-xs text-success" data-testid="limit-ready">
-                      Ready to continue in {targetName} · prepared {ago(now - ready.prepared_at_ms)}
+        <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-6 pb-4" data-testid="limit-body">
+          {parking === "done" ? (
+            <section className="flex flex-col gap-3 rounded-xl border border-hairline p-4" data-testid="limit-parked">
+              <p className="text-sm">
+                Parked.{" "}
+                {resetAt ? `At ${whenWords(resetAt, now)} it's offered back to you` : "When the reset is known, it's offered back to you"}; nothing restarts on
+                its own.
+              </p>
+              <Button size="sm" variant="primary" data-autofocus onClick={close}>
+                Done
+              </Button>
+            </section>
+          ) : (
+            <>
+              <section className="flex flex-col gap-3 rounded-xl border border-accent/40 bg-accent-soft/40 p-4" data-testid="limit-continue">
+                {targets === null ? (
+                  <p className="text-xs text-ink-2">Finding the best app for this…</p>
+                ) : target ? (
+                  <>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-sm font-medium">Continue now in {targetName}</span>
+                      {target.suggested && <SuggestedMark />}
+                    </div>
+                    {ready && (
+                      <p className="text-xs text-success" data-testid="limit-ready">
+                        Ready to continue in {targetName} · prepared {ago(now - ready.prepared_at_ms)}
+                      </p>
+                    )}
+                    {target.room.kind === "credits" && target.room.credits && (
+                      <p className="text-xs text-ink" data-testid="limit-target-credits">
+                        {usingCreditsWords(target.room.credits)}. {creditsConsequence(target.room.resetsAtMs, now, "It goes on")}
+                      </p>
+                    )}
+                    {targetLines.length > 0 && (
+                      <p className="text-xs text-ink-2" data-testid="limit-target-runway">
+                        {targetLines.map((line) => `${line.label}: ${line.words}`).join(" · ")}
+                      </p>
+                    )}
+                    <p className="text-xs leading-relaxed text-ink-2">
+                      Takes the conversation, the branch and the project's context with it ({target.badge}):{" "}
+                      <button
+                        type="button"
+                        aria-expanded={carry}
+                        onClick={() => setCarry((open) => !open)}
+                        className="text-ink underline decoration-hairline underline-offset-2 outline-none focus-visible:ring-1 focus-visible:ring-accent/60"
+                      >
+                        see what carries over
+                      </button>
+                      .
                     </p>
-                  )}
-                  {target.room.kind === "credits" && target.room.credits && (
-                    <p className="text-xs text-ink" data-testid="limit-target-credits">
-                      {usingCreditsWords(target.room.credits)}. {creditsConsequence(target.room.resetsAtMs, now, "It goes on")}
-                    </p>
-                  )}
-                  {targetLines.length > 0 && (
-                    <p className="text-xs text-ink-2" data-testid="limit-target-runway">
-                      {targetLines.map((line) => `${line.label}: ${line.words}`).join(" · ")}
-                    </p>
-                  )}
-                  <p className="text-xs leading-relaxed text-ink-2">
-                    Takes the conversation, the branch and the project's context with it ({target.badge}):{" "}
-                    <button
-                      type="button"
-                      aria-expanded={carry}
-                      onClick={() => setCarry((open) => !open)}
-                      className="text-ink underline decoration-hairline underline-offset-2 outline-none focus-visible:ring-1 focus-visible:ring-accent/60"
-                    >
-                      see what carries over
-                    </button>
-                    .
+                    {carry && (
+                      <p className="text-xs text-ink-2" data-testid="limit-drops">
+                        {target.drops.length > 0 ? `Doesn't carry: ${target.drops.join(", ")}.` : "Everything this pair supports carries over."}
+                      </p>
+                    )}
+                    <Button size="sm" variant="primary" data-autofocus onClick={() => onContinue(target)}>
+                      Continue in {targetName}
+                    </Button>
+                  </>
+                ) : (
+                  <p className="text-xs text-ink-2" data-testid="limit-no-target">
+                    No other app can take this session right now. Wait for the reset, or add an account.
                   </p>
-                  {carry && (
-                    <p className="text-xs text-ink-2" data-testid="limit-drops">
-                      {target.drops.length > 0 ? `Doesn't carry: ${target.drops.join(", ")}.` : "Everything this pair supports carries over."}
-                    </p>
-                  )}
-                  <Button size="sm" variant="primary" data-autofocus onClick={() => onContinue(target)}>
-                    Continue in {targetName}
-                  </Button>
-                </>
-              ) : (
-                <p className="text-xs text-ink-2" data-testid="limit-no-target">
-                  No other app can take this session right now. Wait for the reset, or add an account.
+                )}
+              </section>
+
+              <section className="flex flex-col gap-2 rounded-xl border border-hairline p-4" data-testid="limit-wait">
+                <span className="text-sm font-medium">Wait for the reset</span>
+                <p className="text-xs leading-relaxed text-ink-2">
+                  {stillOpen ? "Keeps it open where it stopped. " : "Parks the session. "}
+                  {resetAt ? `At ${whenWords(resetAt, now)} it's offered back to you` : "Once the reset is known it's offered back to you"};
+                  nothing {stillOpen ? "runs" : "restarts"} on its own.
                 </p>
-              )}
-            </section>
+                {/* 0.3: said with the wait it belongs to, not under the footer. */}
+                <p className="text-xs leading-relaxed text-ink-2" data-testid="limit-switch-back">
+                  You can switch back to {who} after the reset.
+                </p>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  disabled={parking === "busy" || session.status !== "quota_blocked"}
+                  title={session.status !== "quota_blocked" ? "Only a session stopped by its limit can be parked" : undefined}
+                  data-autofocus={target ? undefined : true}
+                  onClick={() => void park()}
+                >
+                  {parking === "busy" ? "Parking…" : resetAt ? `Park until ${whenWords(resetAt, now)}` : "Park until the reset"}
+                </Button>
+                {error && <p className="text-xs text-danger">{error}</p>}
+              </section>
 
-            <section className="flex flex-col gap-2 rounded-xl border border-hairline p-4" data-testid="limit-wait">
-              <span className="text-sm font-medium">Wait for the reset</span>
-              <p className="text-xs leading-relaxed text-ink-2">
-                {stillOpen ? "Keeps it open where it stopped. " : "Parks the session. "}
-                {resetAt ? `At ${whenWords(resetAt, now)} it's offered back to you` : "Once the reset is known it's offered back to you"};
-                nothing {stillOpen ? "runs" : "restarts"} on its own.
-              </p>
-              {/* 0.3: said with the wait it belongs to, not under the footer. */}
-              <p className="text-xs leading-relaxed text-ink-2" data-testid="limit-switch-back">
-                You can switch back to {who} after the reset.
-              </p>
-              <Button
-                size="sm"
-                variant="secondary"
-                disabled={parking === "busy" || session.status !== "quota_blocked"}
-                title={session.status !== "quota_blocked" ? "Only a session stopped by its limit can be parked" : undefined}
-                data-autofocus={target ? undefined : true}
-                onClick={() => void park()}
-              >
-                {parking === "busy" ? "Parking…" : resetAt ? `Park until ${whenWords(resetAt, now)}` : "Park until the reset"}
-              </Button>
-              {error && <p className="text-xs text-danger">{error}</p>}
-            </section>
-
-            <footer className="flex flex-wrap items-center justify-between gap-2">
-              <button
-                type="button"
-                onClick={onChooseAnother}
-                className="text-xs text-muted underline decoration-hairline underline-offset-2 outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60"
-              >
-                Choose another app or tool…
-              </button>
-              <Button size="sm" variant="ghost" onClick={close}>
-                Not now
-              </Button>
-            </footer>
-          </>
+            </>
+          )}
+        </div>
+        {parking !== "done" && (
+          <footer className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-t border-hairline px-6 py-3" data-testid="limit-footer">
+            <button
+              type="button"
+              onClick={onChooseAnother}
+              className="text-xs text-muted underline decoration-hairline underline-offset-2 outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60"
+            >
+              Choose another app or tool…
+            </button>
+            <Button size="sm" variant="ghost" onClick={close} data-testid="limit-not-now">
+              Not now
+            </Button>
+          </footer>
         )}
       </div>
     </div>

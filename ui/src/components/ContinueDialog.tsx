@@ -6,12 +6,13 @@
  * a session AI Juggler runs and one another app runs; its body is the
  * page's own switch list, moved here while the dialog is open, so the two
  * can't drift. Picking an account opens the switch screen, as from the
- * page; Esc, × or a click outside close it and change nothing.
+ * page; Esc, ×, Cancel or a click outside close it and change nothing.
  */
 import { useEffect, useRef, useState, type JSX, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { noteSwitchOpener } from "../lib/handover-focus";
 import { useEscapeCloses } from "../lib/use-escape-closes";
+import { SECONDARY } from "./switch/SwitchDialogFrame";
 
 /** The pickable accounts in either switch list. */
 const TARGETS = "[data-testid='continue-target']:not(:disabled), button[data-row]:not(:disabled)";
@@ -79,7 +80,17 @@ export function ContinueDialog({ title, detail, onClose: close, children }: { ti
             ×
           </button>
         </header>
-        <div className="flex min-h-0 flex-col gap-3 overflow-y-auto px-5 py-4">{children}</div>
+        <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-5 py-4" data-testid="continue-dialog-body">
+          {children}
+        </div>
+        {/* AJ-E2311 item 4 (the 0.4.6 walk at 1280×800: no Cancel in sight):
+            the way out stays under the list, however long it is, as the
+            switch's own frame keeps it (switch/SwitchDialogFrame). */}
+        <footer className="flex shrink-0 justify-end border-t border-hairline px-5 py-3" data-testid="continue-dialog-footer">
+          <button type="button" onClick={onClose} className={SECONDARY} data-testid="continue-dialog-cancel" aria-keyshortcuts="Escape">
+            Cancel
+          </button>
+        </footer>
       </div>
     </div>,
     document.body,
