@@ -133,7 +133,7 @@ What no agent can walk, and the maintainer's calibration covers: the installer, 
 
 What passed, what was fixed (with its commit), what's known and why, and what waits on a decision.
 
-**In short.** 0.4.6 was walked on its release candidates rc1 to rc3h, from 2026-11-16 to 11-19, in labs and live on the real Mac. Most bugs found were fixed and walked again on a later candidate (the list below says where not). The rest are under "Known": two possible blockers from the last walk, being checked now; 17 smaller items that move to 0.5; and three limits already decided. It wasn't one run: the rows are spread over the candidates, with fixes between them. The walk of everything in one run happens in the beta soak (AJ-E3306 R1 and R2).
+**In short.** 0.4.6 was walked on its release candidates rc1 to rc3h, from 2026-11-16 to 11-19, in labs and live on the real Mac. Most bugs found were fixed and walked again on a later candidate (the list below says where not). The two possible blockers from the last walk were settled in one batch, built once into rc3h and walked again (below). The rest are under "Known": 17 smaller items that move to 0.5; and three limits already decided. It wasn't one run: the rows are spread over the candidates, with fixes between them. The walk of everything in one run happens in the beta soak (AJ-E3306 R1 and R2).
 
 **The candidates.**
 - rc1 4fc89b72a and rc2 8365e2d21: the lab rows, and rc2's first live checks.
@@ -229,9 +229,10 @@ Not a bug: "the bell can't close its own panel" came from the walk tool's way of
 
 ### Known, and why
 
-**Two possible blockers from rc3h's walk, being checked now.** If either needs a fix, it goes into one more build of rc3h, and only those are walked again.
-- A Claude Code run's page stayed "Idle · This session has no turn yet" for minutes after Send, until you clicked elsewhere. "Show them" then opened a read-only view stuck on its loading bars. The suspect is 6666e4431, which reads the run's view once.
-- "Don't deliver" on a paused chain of replies changed nothing you could see. Since then, on the same walk step (rc3h H7c): ba4fd61b6 makes Resume on a paused chain close its ask without delivering, so Home and the thread agree. Whether that settles "Don't deliver" isn't recorded yet.
+**The two possible blockers from rc3h's walk, settled in one batch (D-137), rc3h rebuilt at 8d1e9516b and walked again.**
+- A Claude Code run's page that stayed "no turn yet" after Send: **not a bug.** The walk's window was fully covered by other windows, so the page was hidden and, by design, paused its live updates (AJ-E805); everything on it froze together, and opening the page again showed the turn. Walkers keep the window visible or reopen the page. The "Show them" view it led to, which called a session AI Juggler runs "Started outside AI Juggler" with no Send box, is fixed (45ac2facb; tests fail on the old code): the link shows only once a conversation is written, and such a conversation opens on its session. On the rebuilt rc3h the mislabelled view can't be reached: every way in opens the session's own page.
+- "Don't deliver" on a chain paused at its hop limit: **was a real bug, fixed** (82bcc4f8d). It now ends the chain at that message: walked live, Home's card goes, nothing waits on you, the thread reads "Stopped: you didn't deliver «k-a»'s message past this pool's hop limit", and the message "Not sent"; Resume opens the thread again and sends nothing. Resume while the chain is paused lets the paused message wait as usual (ba4fd61b6, by its test; the live step was refused by AI Juggler's duplicate-message guard, as the walk resent the same prompt).
+- Folded into the same build: going back from 0.4.6 names "0.4.5", not "schema 52" (691a8b86b, with a test that every database version is listed).
 
 **Cells left open, each with its reason:**
 - X1 step 2 and P1 step 6: they need an account that runs out of room during the walk.
