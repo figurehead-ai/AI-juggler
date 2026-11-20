@@ -418,9 +418,17 @@ struct RowJoins<'a> {
 
 impl RowJoins<'_> {
     /// The identity assertion's state and label (both null when none).
+    /// SK-16: a label recorded before 0.4.7 can hold an organisation
+    /// named after its email in full, so every email in it is masked.
     fn identity(&self, id: &str) -> (Option<String>, Option<String>) {
         self.identities.get(id).map_or((None, None), |assertion| {
-            (Some(assertion.state.clone()), assertion.label.clone())
+            (
+                Some(assertion.state.clone()),
+                assertion
+                    .label
+                    .as_deref()
+                    .map(juggler_adapter::identity::mask_emails_in),
+            )
         })
     }
 

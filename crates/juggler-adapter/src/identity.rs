@@ -74,6 +74,49 @@ pub fn mask_email(email: &str) -> String {
     }
 }
 
+/// Masks every email inside a text as [`mask_email`] does, leaving the
+/// rest as it is: an organisation a tool names after its owner's email
+/// ("sam@example.com's Organization") never shows the address in full
+/// beside its masked form (SK-16). A masked email stays as it is, so a
+/// label can be masked again safely.
+#[must_use]
+pub fn mask_emails_in(text: &str) -> String {
+    let local = |c: char| c.is_alphanumeric() || "._%+-".contains(c);
+    let domain = |c: char| c.is_alphanumeric() || ".-".contains(c);
+    let chars: Vec<char> = text.chars().collect();
+    let mut out = String::with_capacity(text.len());
+    let mut i = 0;
+    while i < chars.len() {
+        if !local(chars[i]) {
+            out.push(chars[i]);
+            i += 1;
+            continue;
+        }
+        let start = i;
+        while i < chars.len() && local(chars[i]) {
+            i += 1;
+        }
+        let at = i;
+        let mut end = at + 1;
+        while end < chars.len() && domain(chars[end]) {
+            end += 1;
+        }
+        // A domain is a dotted name: `example.com`, not `x` or `.com`.
+        let host: String = chars.get(at + 1..end).unwrap_or_default().iter().collect();
+        let host = host.trim_end_matches('.');
+        if chars.get(at) == Some(&'@') && host.contains('.') && !host.starts_with('.') {
+            out.push(chars[start]);
+            out.push('…');
+            out.push('@');
+            out.push_str(host);
+            i = at + 1 + host.chars().count();
+        } else {
+            out.extend(&chars[start..at]);
+        }
+    }
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -83,5 +126,27 @@ mod tests {
         assert_eq!(mask_email("sam@example.com"), "s…@example.com");
         assert_eq!(mask_email("@example.com"), "…");
         assert_eq!(mask_email("nobody"), "…");
+    }
+
+    /// SK-16: a personal Claude organisation is named after its email.
+    #[test]
+    fn every_email_inside_a_text_is_masked_and_nothing_else() {
+        assert_eq!(
+            mask_emails_in("sam.lee+ai@example.co.uk's Organization"),
+            "s…@example.co.uk's Organization"
+        );
+        assert_eq!(
+            mask_emails_in("s…@example.com · sam@example.com's Organization"),
+            "s…@example.com · s…@example.com's Organization"
+        );
+        assert_eq!(mask_emails_in("a@b.co and c@d.io."), "a…@b.co and c…@d.io.");
+        assert_eq!(mask_emails_in("Acme · Team"), "Acme · Team");
+        assert_eq!(
+            mask_emails_in("ops@localhost, @handle, x@.com"),
+            "ops@localhost, @handle, x@.com"
+        );
+        assert_eq!(mask_emails_in("Zoë@bücher.de"), "Z…@bücher.de");
+        let once = mask_emails_in("sam@example.com");
+        assert_eq!(mask_emails_in(&once), once, "masking again changes nothing");
     }
 }
