@@ -325,6 +325,79 @@ fn cancel_only_an_open_task() {
     );
 }
 
+/// A reviewer's verdict with its note (`task_update`).
+fn review(lab: &Lab, key: &str, id: &str, verdict: &str, note: &str) -> Response {
+    lab.call(
+        key,
+        Call::TaskUpdate,
+        Args {
+            task_change: Some(TaskUpdateArgs {
+                task: id.into(),
+                status: Some(verdict.into()),
+                note: Some(note.into()),
+                ..TaskUpdateArgs::default()
+            }),
+            ..Args::default()
+        },
+    )
+}
+
+/// SK-17 (the soak's LA walk: the writer's inbox was empty after "p1-reviewer
+/// reviewed it and sent it back: add one line"): a Reviewer agent's
+/// send-back reaches the task's holder with its note, as the reviewer's
+/// message through the pool's own messaging, so the pool's rules apply: a
+/// rule that blocks reviewer to member leaves the verdict and says, in
+/// words, that the holder wasn't told.
+#[test]
+fn a_reviewers_send_back_reaches_the_holder_through_the_pools_messaging() {
+    let lab = Lab::new();
+    let (_b, builder) = lab.agent("s-b", "Builder");
+    let (_r, reviewer) = lab.agent("s-r", "Reviewer");
+    pools::model::join_impl(&lab.state, &lab.pool, "session:s-r", "reviewer", None, &[]).unwrap();
+    let id = task(&lab, "Refunds in cents");
+    claim(&lab, &builder, &id);
+    assert!(mark(&lab, &builder, &id, "in_review").result.is_some());
+
+    let note = "Add one line on rounding";
+    let verdict = review(&lab, &reviewer, &id, "sent_back", note);
+    assert!(verdict.result.is_some(), "{verdict:?}");
+    assert_eq!(
+        field(&verdict, "/note"),
+        "Builder gets your note in its inbox"
+    );
+    assert_eq!(got(&lab, &builder, &id)["status"], "in_progress");
+    let inbox = lab.inbox(&builder);
+    let message = inbox.result.as_ref().unwrap()["messages"][0].clone();
+    assert_eq!(message["from"], "Reviewer");
+    assert_eq!(message["subject"], "Sent back · Refunds in cents");
+    let body = message["body"].as_str().unwrap_or_default();
+    assert!(body.contains(note), "{body}");
+    assert!(body.contains("«Reviewer» sent"), "{body}");
+
+    // Reviewer to member blocked: the verdict stands; the note is refused.
+    assert!(mark(&lab, &builder, &id, "in_review").result.is_some());
+    pools::model::set_talk_impl(
+        &lab.state,
+        &lab.pool,
+        "role:reviewer",
+        "role:member",
+        Some("blocked"),
+    )
+    .unwrap();
+    let verdict = review(&lab, &reviewer, &id, "sent_back", "One more line");
+    assert!(verdict.result.is_some(), "{verdict:?}");
+    let told = field(&verdict, "/note");
+    assert!(told.starts_with("Its holder wasn't told: "), "{told}");
+    assert_eq!(got(&lab, &builder, &id)["status"], "in_progress");
+    assert!(
+        lab.inbox(&builder).result.unwrap()["messages"]
+            .as_array()
+            .unwrap()
+            .is_empty(),
+        "nothing new reached it"
+    );
+}
+
 /// AJ-E3304 R2, named risky triple 5: a Reviewer × its own level, Read,
 /// in a pool at Work together × a task in review. The member's own level
 /// replaces the pool's at the decision point (D-62), so the Reviewer's

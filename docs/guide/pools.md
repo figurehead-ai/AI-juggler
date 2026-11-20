@@ -80,7 +80,9 @@ who's in make a working pool.
    - **Lead**: plans the work and hands out tasks. One session.
    - **Member**: works on the tasks it's given, and messages the team.
    - **Reviewer**: reads everything, checks work in review and gives its
-     verdict. Doesn't build.
+     verdict. Doesn't build. When it sends a task back, its note reaches
+     the task's holder as its message, under the pool's own rules for who
+     may tell whom.
    - **Observer**: watches and reads. Changes nothing.
 
    Then each member is a row with its logo and its role: **Member**,

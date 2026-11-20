@@ -21,7 +21,7 @@ use juggler_agentbridge::wire::{Call, Refusal, Request, Response, TasksListArgs}
 use juggler_core::agent_access::{AgentAction, Decision};
 use juggler_core::model::SessionId;
 use juggler_core::storage::{Claim, TASK_USER, Task, TaskNeed, TaskQuery};
-use juggler_core::tasks::{Role, TaskStatus};
+use juggler_core::tasks::{Role, TaskStatus, Verdict};
 use serde_json::{Value, json};
 
 use super::Actor;
@@ -392,7 +392,23 @@ pub fn run(
         },
         Held::Update { args } => {
             let task = apply::update(state, actor, pool_id, args)?;
-            Ok(json!({"task": row(&task, actor)}))
+            // SK-17: a reviewer's send-back reaches the holder, as its
+            // message through the pool's own messaging (its rules apply).
+            let sent_back =
+                args.status.as_deref().and_then(Verdict::parse) == Some(Verdict::SentBack);
+            let note = args
+                .note
+                .as_deref()
+                .map(str::trim)
+                .filter(|note| !note.is_empty());
+            match note.filter(|_| sent_back && actor.session.is_some()) {
+                Some(note) => {
+                    let told = super::oversight::tell_holder_as_reviewer(state, &task, note, actor)
+                        .unwrap_or_else(|why| format!("Its holder wasn't told: {why}"));
+                    Ok(json!({"task": row(&task, actor), "note": told}))
+                }
+                None => Ok(json!({"task": row(&task, actor)})),
+            }
         }
         Held::Assign { task, to } => {
             let to = if to.trim() == "nobody" {
