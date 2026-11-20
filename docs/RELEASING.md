@@ -8,7 +8,7 @@ travels **nightly → beta → stable**:
 |---|---|---|
 | **Nightly** | People who want the newest code and accept rough edges. Installed as its own app, **AI Juggler Nightly** | `nightly.yml` builds `main` every day something that ships has changed. No approval |
 | **Beta** | Newer features, a little less tested | `promote.yml`, the tested nightly, with no rebuild, once **no `blocker` issue is open** (D-24 as D-99 amends it: the days of real use happen on beta), with the maintainer's approval (the `beta` environment) |
-| **Stable** | Well-tested releases for everyday work | `promote.yml`, a deliberate release: only a version that has been on beta **7+ days** (D-114; a blocker fix on a frozen line: **3+ days** on its own tag) with **no open `blocker`**, once the minor's whole roadmap scope is done or deferred (D-99), with the maintainer's approval (the `stable` environment), which is the release's sign-off and is recorded (D-109) |
+| **Stable** | Well-tested releases for everyday work | `promote.yml`, a deliberate release: only a version that has been on beta **7+ days** (D-114; a blocker fix on a soaked base: **3+ days** on its own tag) with **no open `blocker`**, once the minor's whole roadmap scope is done or deferred (D-99), with the maintainer's approval (the `stable` environment), which is the release's sign-off and is recorded (D-109) |
 
 **What counts as a blocker** (label the issue `blocker`): data loss, an
 Instance running on the wrong account, stopping a process AI Juggler
@@ -402,6 +402,8 @@ retries only Apple's known transient failures (up to four tries, 30 s,
 60 s, 120 s apart) and fails at once on anything else. If a run still
 fails on one of them, re-run its failed jobs from the run page.
 
+**When to promote (D-138).** Releases flow continuously: every good batch goes to main and Nightly, at most one planned nightly a day. Promotions are periodic, not per version: at each beta promotion point, about every 3 days, the latest nightly that has been tested long enough goes to beta, and the nightlies in between are skipped. Stable works the same way from beta, at its own, longer cadence, and takes the latest beta with enough soak and testing, whatever its version. Nothing is frozen for a soak.
+
 **Promoting a version to beta:**
 
 1. **Pick the build.** Any `vX.Y.Z` pre-release on GitHub that nightly
@@ -488,7 +490,7 @@ also needs:
 
 - the version has been on beta for 7+ days (D-114; counted from the
   annotated `beta/vX.Y.Z` tag's date) and no `blocker` issue is open. A
-  blocker fix on a frozen line needs 3+ days on its own beta tag
+  blocker fix on a soaked base needs 3+ days on its own beta tag
   instead, with its line's Stable candidate 7+ days on beta: run
   **Promote** with `blocker_fix` (the blocker issues it fixes, each
   closed and labelled `blocker`) and `candidate` (the version it fixes);
