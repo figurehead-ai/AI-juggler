@@ -85,7 +85,7 @@
 **Research basis**: AJ-E3801's ADR; ADR-0033; D-121 point 1.
 **Handover note**: Opus builds this. Keep AJ-E3711's tests green through the move; the summary behaviour must not change. A hidden job must be hidden by the one query, never by a per-job check in the UI.
 
-### AJ-E3803 Disk rules: one downloaded model, approval for more, Settings total and Remove, free-disk margin | Status: TODO (back in 0.5 on 2026-11-18: part of D-131's Models area, with AJ-E3810 to AJ-E3813; D-130 withdrew the deferral) | Priority P0 | Effort M | Depends: AJ-E3802
+### AJ-E3803 Disk rules: one downloaded model, approval for more, Settings total and Remove, free-disk margin | Status: IN-PROGRESS (2026-11-20: built eeaf3eebb, the model store, disk rules and verified download (backend; D-131 back in 0.5); open: the Models screen (AJ-E3812), the walk, no manifest yet) | Priority P0 | Effort M | Depends: AJ-E3802
 **Part of D-131's Models area (2026-11-18)**: these disk rules are no longer deferred. D-130 withdrew the cap on model work and D-131 amends D-121 point 2: one downloaded model is the default, and more need the user's explicit approval each time (AJ-E3813). The Settings total and Remove rows live in the Models screen (AJ-E3812); the rules here are the engine under it.
 **Goal**: AI models never fill the user's disk behind their back: Apple's first, one downloaded model at most, anything more only after the user agrees.
 **User story**: As someone with a nearly full 256 GB Mac, I am never asked to download a second model, I always see how much space the AI uses, and I can remove it in one click.
@@ -226,7 +226,7 @@
 **Research basis**: D-121; the persona-validation and test-by-hand rules.
 **Handover note**: Set up the persona lab first and validate it on the real app before the testers start (one batch, one report). Redact captures only with the fail-closed tool.
 
-### AJ-E3810 The `models` section of the remote config: an ADR amendment first (D-131) | Status: TODO | Priority P0 | Effort M | Depends: AJ-E3802
+### AJ-E3810 The `models` section of the remote config: an ADR amendment first (D-131) | Status: IN-PROGRESS (2026-11-20: built c11dba0be, f9021410b (ADR-0035 §11 accepted) and d25187736 (the typed section); open: local_models_on, the engine-wide stop (R2, PENDING)) | Priority P0 | Effort M | Depends: AJ-E3802
 **Goal**: The list of models AI Juggler supports comes from the signed remote config, so a tested model can be added or withdrawn without an app release, and the config can never add an engine.
 **User story**: As the maintainer, I want to list a newly tested model, or withdraw a bad one, by publishing a signed file, with no release.
 **Requirements**:
@@ -245,7 +245,7 @@
 **Research basis**: D-131 point 3; ADR-0035; D-130; the public-repo security guide.
 **Handover note**: The amendment comes before the schema and the code. The section describes models; it never carries code, an engine or a URL outside the allow-list. No model is downloaded to build this.
 
-### AJ-E3811 The recommendation: the best model for this Mac, Apple's first when it passes (D-131) | Status: TODO | Priority P0 | Effort M | Depends: AJ-E3810, AJ-E3802
+### AJ-E3811 The recommendation: the best model for this Mac, Apple's first when it passes (D-131) | Status: IN-PROGRESS (2026-11-20: built 205265182, the pure recommendation function and its matrix; open: reading the Mac's facts through the seams (R1), the reason line (R4), feeding the router and Models (R6), the timing) | Priority P0 | Effort M | Depends: AJ-E3810, AJ-E3802
 **Goal**: The app picks one recommended model for this Mac and can say why in one plain line.
 **User story**: As a vibe-coder who does not know what a quantised model is, I see one recommendation and why it fits my Mac.
 **Requirements**:
@@ -264,7 +264,7 @@
 **Research basis**: D-131 points 1 and 3; D-121; `docs/research/on-device-model-selection.md`.
 **Handover note**: Keep it a table-driven function over the typed section; no per-model branches. A Mac with no Apple Intelligence and under 16 GB may well get no recommendation, and that is a correct answer.
 
-### AJ-E3812 Settings > AI > Models: Recommended, Other tested models, Installed (D-131, D-126 rich mode) | Status: TODO | Priority P0 | Effort XL | Depends: AJ-E3810, AJ-E3811, AJ-E3803, AJ-E3618
+### AJ-E3812 Settings > AI > Models: Recommended, Other tested models, Installed (D-131, D-126 rich mode) | Status: IN-PROGRESS (2026-11-20: built 9978d6b29, a040d6be2 and the Models screen commits; open: R3 waits for the `models` section to be published after the 0.5 merge (F-01, a release step, not an app fault), then the download and per-job override walk on that nightly) | Priority P0 | Effort XL | Depends: AJ-E3810, AJ-E3811, AJ-E3803, AJ-E3618
 **Goal**: One screen to see, choose, install and remove the AI models, in the making-and-editing design of D-126.
 **User story**: As a user, I see what AI Juggler recommends for my Mac, what else it has tested, what is installed and how much disk it uses, and I can remove anything in one click.
 **Requirements**:
@@ -283,7 +283,7 @@
 **Research basis**: D-131 point 1; D-126; ui-consistency; the a11y and design-quality reviews.
 **Handover note**: Reuse the Settings storage row and the card pattern of the kit. Design with the stubbed section; no real model is downloaded in development.
 
-### AJ-E3813 Downloads: one click, the size shown, a free-disk check, a verified hash, approval for each extra model (D-131) | Status: TODO | Priority P0 | Effort L | Depends: AJ-E3810, AJ-E3803
+### AJ-E3813 Downloads: one click, the size shown, a free-disk check, a verified hash, approval for each extra model (D-131) | Status: IN-PROGRESS (2026-11-20: built eeaf3eebb, 860df2f13, 69fb1df26 (store, verified download, metered pause); open: the download walked once the `models` section is published after the 0.5 merge (F-01); manifest not run yet) | Priority P0 | Effort L | Depends: AJ-E3810, AJ-E3803
 **Goal**: A model is fetched only on the user's click, safely and visibly, and never fills the disk.
 **User story**: As someone with a nearly full Mac, I am told what a download costs before I click and it never starts if it would not fit.
 **Requirements**:
@@ -302,7 +302,7 @@
 **Research basis**: D-131 point 2; D-121 point 2; D-58; the public-repo security guide.
 **Handover note**: Use a stub server and a file of the right size; do not fetch a real model while building. The approval is per model and per time; never a standing yes.
 
-### AJ-E3814 The watch model: a typed rule over the event stream, evaluated deterministically (D-132) | Status: TODO | Priority P0 | Effort XL | Depends: AJ-E3802, AJ-E3702, AJ-E3819 (step 1: the store and log)
+### AJ-E3814 The watch model: a typed rule over the event stream, evaluated deterministically (D-132) | Status: IN-PROGRESS (2026-11-20: built aa4323821 and dd7385a0a (the typed watch model, deterministic evaluation); open: the target picker, expiry, storage and the refusal set, no manifest yet) | Priority P0 | Effort XL | Depends: AJ-E3802, AJ-E3702, AJ-E3819 (step 1: the store and log)
 **Goal**: A watch is a typed, closed-set rule that AI Juggler evaluates itself on its own events, with no model in the loop. The design is [ADR-0036](../adr/0036-digest-and-watches.md).
 **User story**: As a user, I can have "tell me when the api and web agents finish or get stuck" watched reliably, even with no AI available.
 **Requirements**:
@@ -321,7 +321,7 @@
 **Research basis**: D-132 point 2; ADR-0036; the architecture standard; actions-target-by-id.
 **Handover note**: Build the model and evaluator first and use them from a plain UI (AJ-E3816) before the model layer exists; Chat is only one way to create a watch.
 
-### AJ-E3815 Chat creates, changes and removes watches, after the user confirms (D-132) | Status: TODO | Priority P0 | Effort L | Depends: AJ-E3814, AJ-E3804, AJ-E3806
+### AJ-E3815 Chat creates, changes and removes watches, after the user confirms (D-132) | Status: IN-PROGRESS (2026-11-20: built 8c76d145d, the confirm card that writes a watch only on Watch; open: plain-words parse and its blind set (R1, R6), refusals, the ambiguity pick, no manifest) | Priority P0 | Effort L | Depends: AJ-E3814, AJ-E3804, AJ-E3806
 **Goal**: The user can tell Chat what to watch for in plain words, see the rule, confirm it, and trust it.
 **User story**: As a user, I say "let me know when the api agent gets stuck", read "Watch the api session: when it gets stuck", and press Confirm.
 **Requirements**:
@@ -341,7 +341,7 @@
 **Research basis**: D-132 points 2 to 4; D-123; D-130; ADR-0036.
 **Handover note**: The model proposes; code validates against the closed set and renders the words. A wrong proposal must fail closed to a question, not to a watch.
 
-### AJ-E3816 The Watches view: list, edit and expire watches in rich mode (D-132, D-126) | Status: TODO | Priority P0 | Effort L | Depends: AJ-E3814, AJ-E3618
+### AJ-E3816 The Watches view: list, edit and expire watches in rich mode (D-132, D-126) | Status: IN-PROGRESS (2026-11-20: built e66d9de86, c2ad77851, ce7bb9c0f and the Watches view; the second walk shows create, pause, edit, remove, Go to and quiet hours working; open: expired and orphaned watches (R4) not walked, manifest rows carry no R ids) | Priority P0 | Effort L | Depends: AJ-E3814, AJ-E3618
 **Goal**: Every watch is visible and manageable in one screen, with or without AI.
 **User story**: As a user, I see all my watches in plain words, change a target, extend or end one, and know which have alerted.
 **Requirements**:
