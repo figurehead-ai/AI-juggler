@@ -67,13 +67,19 @@ fn dir_of(state: &Arc<AppState>, id: &str) -> PathBuf {
 
 /// A lab's room: folder `id`'s `window` `used`% full, as its tool's own
 /// statusline would have said a minute ago, the five-hour window resetting
-/// in two hours, the week in three days.
-fn lab_room(state: &Arc<AppState>, id: &str, window: juggler_core::quota::WindowKind, used: f64) {
+/// in two hours (or in `resets_in_ms`), the week in three days.
+fn lab_room(
+    state: &Arc<AppState>,
+    id: &str,
+    window: juggler_core::quota::WindowKind,
+    used: f64,
+    resets_in_ms: Option<i64>,
+) {
     use juggler_core::model::Confidence;
     use juggler_core::quota::{QuotaSample, UsageSource, WindowKind};
     let now = Timestamp::now().millis();
     let resets = match window {
-        WindowKind::FiveHour => 2 * 3_600_000,
+        WindowKind::FiveHour => resets_in_ms.unwrap_or(2 * 3_600_000),
         WindowKind::Weekly { .. } => 3 * 24 * 3_600_000,
     };
     let sample = QuotaSample {
@@ -96,13 +102,25 @@ fn lab_room(state: &Arc<AppState>, id: &str, window: juggler_core::quota::Window
 /// `week_used` (% of the week: PL1's out for days, past any five-hour
 /// reset, so a walk needn't start within two hours of its setup) on
 /// scenario App `app`: folder `id`'s readings ([`lab_room`]).
+/// `room_resets_in = N` (persona M5, PM5): the five-hour window resets N
+/// minutes after the seed, so a walk opened at once sees the Account
+/// come back while it watches.
 fn seed_room(state: &Arc<AppState>, app: &Value, id: &str) {
     use juggler_core::quota::WindowKind;
+    let resets_in = app["room_resets_in"]
+        .as_i64()
+        .map(|minutes| minutes * 60_000);
     if let Some(used) = app["room_used"].as_f64() {
-        lab_room(state, id, WindowKind::FiveHour, used);
+        lab_room(state, id, WindowKind::FiveHour, used, resets_in);
     }
     if let Some(used) = app["week_used"].as_f64() {
-        lab_room(state, id, WindowKind::Weekly { anchor_ms: None }, used);
+        lab_room(
+            state,
+            id,
+            WindowKind::Weekly { anchor_ms: None },
+            used,
+            None,
+        );
     }
 }
 
@@ -1020,6 +1038,23 @@ fn seed_lab(
         if session["conversation"].as_bool() == Some(true) {
             let (account, _) = &recipes[session["app"].as_str().unwrap()];
             lab_conversation(&state, &session, account, &mut notes);
+        }
+        // Persona M5 (PM5): `parked = true`, a session stopped at its limit
+        // that its user parked until the reset (its page's "Park until
+        // reset"), as AI Juggler parks one: at its Account's reset, AI
+        // Juggler offers it back once, to resume on that Account.
+        if session["parked"].as_bool() == Some(true) {
+            // Parking keeps its context in a pack, which needs her choice
+            // for keys and passwords first: the safe one, stripped.
+            juggler_app::features::redaction::redaction_policy_set_global_impl(
+                &state,
+                Some("strip"),
+            )
+            .unwrap();
+            match juggler_app::parked::instance_park_impl(&state, id) {
+                Ok(_) => notes.push(format!("{id}: parked until its Account's reset")),
+                Err(error) => notes.push(format!("{id}: can't be parked: {error}")),
+            }
         }
         // Persona D4: `leftover = true`, a real process left behind by
         // this (ended) session, as AI Juggler's process ledger records one.
@@ -3180,6 +3215,69 @@ fn seeded_working_sessions_are_picked_up_running_when_the_app_opens() {
             }
         }
     }
+}
+
+/// PM5 (persona M5, "back after a reset"): `room_resets_in = 3` puts the
+/// out Account's five-hour reset three minutes after the seed, not two
+/// hours, so a walk opened at once sees it come back.
+#[test]
+fn room_resets_in_brings_the_account_back_minutes_after_the_seed() {
+    let seed = serde_json::json!({"apps": [
+        {"id": "cc-work", "tool": "claude-code", "account": "Work", "profile": "work", "room_used": 100, "room_resets_in": 3},
+        {"id": "cc-personal", "tool": "claude-code", "account": "Personal", "profile": "personal", "room_used": 30},
+    ]});
+    let (_lab, state) = seeded(&seed, "reset");
+    let resets_in = |label: &str| {
+        let folder = folder_labelled(&state, label);
+        presence_reads(
+            &state,
+            &[&folder],
+            "db.execute('select q.used_pct, q.resets_at - ? from quota_samples q join accounts f \
+              on f.id = q.account where f.state_dir = ? and q.window = ?', \
+              [int(time.time() * 1000), str(a[0]), 'five_hour']).fetchone()",
+        )
+    };
+    let work = resets_in("Work · work");
+    assert_eq!(work[0], serde_json::json!(100.0));
+    let ms = work[1].as_i64().unwrap();
+    assert!(
+        (150_000..=180_000).contains(&ms),
+        "Work back in about 3 minutes: {ms} ms"
+    );
+    let personal = resets_in("Personal · personal")[1].as_i64().unwrap();
+    assert!(
+        personal > 3_600_000,
+        "the others keep two hours: {personal} ms"
+    );
+}
+
+/// PM5 (persona M5): the session that waits at Work's limit is parked
+/// until Work's reset, three minutes on; once the reset passes, AI
+/// Juggler offers it back, to resume on Work.
+#[test]
+fn pm5s_parked_session_is_offered_back_at_its_accounts_reset() {
+    let seed = scenario_seed("PM5");
+    let (_lab, state, notes) = seeded_with_notes(&seed, "pm5");
+    let parked = juggler_app::parked::parked_list_impl(&state);
+    assert_eq!(parked.len(), 1, "{notes:?}");
+    assert_eq!(parked[0].session_id, "writer");
+    let now = Timestamp::now().millis();
+    let resets = parked[0].resets_at_ms.expect("its reset is known");
+    assert!(
+        (150_000..=180_000).contains(&(resets - now)),
+        "Work's reset, about 3 minutes on: {} ms",
+        resets - now
+    );
+    // Before the reset nothing is offered; once it passes, the session is.
+    assert!(
+        juggler_app::parked::parked_offers_impl(&state)
+            .unwrap()
+            .is_empty()
+    );
+    juggler_app::parked::parked_set_reset_for_test(&state, "writer", now - 1_000);
+    let offers = juggler_app::parked::parked_offers_impl(&state).unwrap();
+    assert_eq!(offers.len(), 1);
+    assert_eq!(offers[0].session_id, "writer");
 }
 
 /// Every `.jsonl` file under `dir`, at any depth.
