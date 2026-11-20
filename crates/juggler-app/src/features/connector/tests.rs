@@ -91,8 +91,14 @@ fn preview_add_status_and_remove_through_the_app() {
             .path
             .ends_with("skills/ai-juggler/.claude-plugin/plugin.json")
     );
+    // The bridge by its own path, links resolved as its trust check
+    // resolves them (Ubuntu 26.04's `/bin/echo` is a link to uutils'
+    // `coreutils`).
+    let bridge = std::fs::canonicalize("/bin/echo").unwrap();
     assert!(
-        preview.files[0].after.contains("/bin/echo"),
+        preview.files[0]
+            .after
+            .contains(bridge.to_string_lossy().as_ref()),
         "the bridge by its path"
     );
     assert!(preview.guide.is_some());
