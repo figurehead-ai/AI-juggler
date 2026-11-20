@@ -120,7 +120,10 @@ fn state(root: &Path) -> Arc<AppState> {
     registry.register(Arc::new(
         juggler_adapters::HermesAdapter::new().with_home(&home),
     ));
-    Arc::new(AppState::init_with_registry(root.join("data"), registry).unwrap())
+    crate::features::places::fakes::on_made_up_mac(
+        AppState::init_with_registry(root.join("data"), registry).unwrap(),
+        root,
+    )
 }
 
 /// Every file under `dir`, with its bytes.

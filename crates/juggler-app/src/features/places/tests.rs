@@ -12,7 +12,7 @@ use super::*;
 /// A state whose book holds a Claude profile and the Codex app, both
 /// installed under `root` and not running.
 fn state_with_places(root: &Path) -> (Arc<AppState>, String, String) {
-    let state = Arc::new(AppState::init(root.join("data")).unwrap());
+    let state = super::fakes::on_made_up_mac(AppState::init(root.join("data")).unwrap(), root);
     let claude = root.join("Claude.app");
     let codex = root.join("ChatGPT.app");
     for bundle in [&claude, &codex] {

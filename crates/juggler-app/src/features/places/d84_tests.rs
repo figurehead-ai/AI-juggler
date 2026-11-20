@@ -49,7 +49,7 @@ fn profile_folder() -> tempfile::TempDir {
 }
 
 fn state(root: &Path) -> Arc<AppState> {
-    Arc::new(AppState::init(root.join("data")).unwrap())
+    super::fakes::on_made_up_mac(AppState::init(root.join("data")).unwrap(), root)
 }
 
 fn listed(state: &Arc<AppState>) -> (Vec<String>, Vec<String>) {

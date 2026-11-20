@@ -138,3 +138,20 @@ impl Desktop for FakeDesktop {
         LinkSent::Sent
     }
 }
+
+/// A state over `root` whose places see a made-up Mac: only this test's
+/// own process runs on it (its pid and start are real, so a place pinned
+/// to it is found alive), and its home is `root/home`. Nothing the test
+/// asserts then depends on what runs on the machine (a real ChatGPT or
+/// Codex app was found and brought forward instead of started).
+pub(crate) fn on_made_up_mac(
+    state: crate::state::AppState,
+    root: &Path,
+) -> std::sync::Arc<crate::state::AppState> {
+    let me = std::process::id();
+    let _ = state.places.made_up.set(super::MadeUpMac {
+        table: crate::features::conversations::procs::some(&[me]),
+        home: root.join("home"),
+    });
+    std::sync::Arc::new(state)
+}
