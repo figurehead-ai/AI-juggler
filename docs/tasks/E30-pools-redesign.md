@@ -296,6 +296,8 @@
 5. **(rc3h item 5)** `shortPoolName` (Settings › Agent access) doesn't shorten a told-apart name such as "web · all sessions (in lab)".
 6. **(rc3h item 6)** Deleting a pool is only at the foot of its settings panel. The List view's right panel doesn't scroll by wheel.
 7. **(rc3h item 7)** In a Work together pool, approving a held message takes two presses: Allow once (into the inbox), then Deliver (wake now). This is by design (D-119), but X1 scored clarity 3. It's a UX question for the maintainer.
+8. **(rc3h batch)** Stop or Pause on a thread with an open hop-limit ask leaves the ask on Home, and its Deliver reopens the thread. Resume and Don't deliver are fixed in 0.4.6 (ba4fd61b6, 82bcc4f8d); this edge is left. The ask leaves Home when its thread stops or pauses, and Deliver never reopens a stopped or paused thread. A test for each.
+9. **(P7's rc3a lab follow-ups, unchecked since)** Re-check on the beta build: a lone "No lead for now"; "Setup done" while the panel is still in setup; "Who's in: No one yet"; 3 nodes drawn for 2 sessions. Fix any that remain, with a test each, and record each result in the evidence manifest.
 **Handover note**: Item 7 is a UX question for the maintainer (D-119's two presses scored clarity 3): bring it as one plain question with an example, and record the answer as a D-number.
 **Quality gates**: verify-static; a failing-before test per fixed item; the screens touched walked once by Sonnet and checked by Opus.
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E3014/manifest.md`, one row per item.
