@@ -173,6 +173,48 @@ describe("the Pools screen (AJ-E2807)", () => {
     expect(mine(two)).toEqual(["pool-b", "pool-a", "pool-c"]);
   });
 
+  // The 0.4.7 nightly walk (P1 step 8): a pool deleted on its own page
+  // sent you back to a grid whose other pools had swapped.
+  it("after a pool is deleted, the others keep their order on the next visit; the visit after orders them as any", async () => {
+    const third: InstanceInfo = MOCK_SESSIONS[2]!;
+    const joins = [
+      { session_id: first.id, pool_id: "pool-a", role: "member" },
+      { session_id: second.id, pool_id: "pool-b", role: "member" },
+      { session_id: third.id, pool_id: "pool-c", role: "member" },
+    ];
+    const named = (id: string) => ({ id, name: id.slice(-1).toUpperCase(), rules: [] });
+    seed({ pools: ["pool-a", "pool-b", "pool-c"].map(named), members: joins });
+    await act(async () => {
+      await refreshPools();
+    });
+    const busy = (a: number, b: number, c: number) => [
+      { ...first, status: "running" as const, last_activity_ms: a },
+      { ...second, status: "running" as const, last_activity_ms: b },
+      { ...third, status: "running" as const, last_activity_ms: c },
+    ];
+    const screen = (sessions: InstanceInfo[]) => <PoolsScreen sessions={sessions} projects={MOCK_PROJECTS} accounts={[]} />;
+    const mine = (view: ReturnType<typeof render>) =>
+      view
+        .queryAllByTestId("pool-card-tile")
+        .map((tile) => tile.dataset.pool ?? "")
+        .filter((id) => ["pool-a", "pool-b", "pool-c"].includes(id));
+    const one = render(screen(busy(3_000, 2_000, 1_000)));
+    await waitFor(() => expect(mine(one)).toEqual(["pool-a", "pool-b", "pool-c"]));
+    one.unmount();
+    // B deleted on its own page; meanwhile C's session became the latest active.
+    resetPreviewPools();
+    seed({ pools: ["pool-a", "pool-c"].map(named), members: joins.filter((join) => join.pool_id !== "pool-b") });
+    await act(async () => {
+      await refreshPools();
+    });
+    const two = render(screen(busy(3_000, 2_000, 9_000)));
+    await waitFor(() => expect(mine(two)).toEqual(["pool-a", "pool-c"]));
+    two.unmount();
+    // Nothing made or deleted since: the latest active first, as always.
+    const three = render(screen(busy(3_000, 2_000, 9_000)));
+    await waitFor(() => expect(mine(three)).toEqual(["pool-c", "pool-a"]));
+  });
+
   it("gives a card its menu: open, rename, and delete saying what happens to its members (R4)", async () => {
     seed({
       pools: [{ id: "pool-team", name: "Team", rules: [] }],
