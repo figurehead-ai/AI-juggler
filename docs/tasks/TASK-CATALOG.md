@@ -267,6 +267,7 @@
 | AJ-E2022 | Remote configuration, steps 2–3: the compat section, the app's wiring and the Publish config workflow (ADR-0035, D-128 point 3, D-129) | E20-engineering-and-security.md | P0 | L | AJ-E2021 |
 | AJ-E2023 | Remote configuration, step 4: flags (remote: OffOnly, OnOff or Rollout) and notices, with their UI through the D-126 Alert (ADR-0035, D-129) | E20-engineering-and-security.md | P1 | M | AJ-E2021 |
 | AJ-E2024 | Numbers the window can't hold: a 64-bit value reaches the UI only below 2^53 | E20-engineering-and-security.md | P1 | S | — |
+| AJ-E2025 | 0.4.6's deferred architecture findings: turn-end codes into the adapter; an external-terminal session placed by its process | E20-engineering-and-security.md | P1 | M | AJ-E2024 |
 | AJ-E2101 | Live sessions from the apps' own files | E21-desktop-first.md | P0 | L | — |
 | AJ-E2102 | Go to it | E21-desktop-first.md | P0 | M | AJ-E2101 |
 | AJ-E2103 | Open first: the rail's order | E21-desktop-first.md | P0 | S | AJ-E2101 |
@@ -293,6 +294,7 @@
 | AJ-E2304 | Open in terminal, and Start in terminal | E23-session-runtime.md | P0 | S | AJ-E2303 |
 | AJ-E2305 | Switching and hand-over across runtimes | E23-session-runtime.md | P0 | M | AJ-E2303 |
 | AJ-E2310 | Driven sessions come back after AI Juggler restarts | E23-session-runtime.md | P0 | M | AJ-E2303, AJ-E2308 |
+| AJ-E2311 | 0.4.6's deferred session findings (hand-over rows, New session order, Stop toast, switch dialog, recovery limits, usage readings) | E23-session-runtime.md | P1 | L | AJ-E2310 |
 | AJ-E2306 | Claude terminal sessions with hooks and the status line | E23-session-runtime.md | P0 | M | AJ-E2302 |
 | AJ-E2307 | Answers from Needs you and the session page | E23-session-runtime.md | P0 | M | AJ-E2303 |
 | AJ-E2308 | Run without a terminal: answer from AI Juggler (Beta) | E23-session-runtime.md | P1 | L | AJ-E2302, AJ-E2307 |
@@ -381,6 +383,7 @@
 | AJ-E3011 | Pool setup a newcomer understands: a flow in order, every choice said in plain words for whom it applies | E30-pools-redesign.md | P0 | L | AJ-E3007, AJ-E3008 |
 | AJ-E3012 | The canvas's selection: one clear treatment, and the inspector always titled by what is selected | E30-pools-redesign.md | P1 | M | AJ-E3008 |
 | AJ-E3013 | Desktop app sessions as full pool members through AI Juggler's connector, added with consent or guided (D-116) | E30-pools-redesign.md | P0 | L | AJ-E3006, AJ-E1902 |
+| AJ-E3014 | 0.4.6's deferred pool and message findings (grid order, project-pool name, hop words, setup panel, names, delete, held messages) | E30-pools-redesign.md | P1 | M | AJ-E3013 |
 | AJ-E3101 | What relates to what: the map, each page's tabs, and one list for all of them | E31-everything-links.md | P0 | M | — |
 | AJ-E3102 | Relations made cheap: instance and conversation indexes, and a relation-count cache | E31-everything-links.md | P0 | M | AJ-E3202 |
 | AJ-E3103 | One related-items list and one row, everywhere | E31-everything-links.md | P0 | L | AJ-E3102 |
@@ -481,5 +484,5 @@
 | AJ-E3817 | Watch alerts through the existing notification path: quiet hours, consolidation, dismissal | E38-chat.md | P0 | M | AJ-E3814, AJ-E3712, AJ-E3819 |
 | AJ-E3818 | The harness for the digest (job e) and watch parsing (job f), on D-130's criteria | E38-chat.md | P0 | L | AJ-E3709, AJ-E3712, AJ-E3815 |
 | AJ-E3819 | Chat memory, short and long term, with context budgets (ADR-0037) | E38-chat.md | P0 | XL | AJ-E3804, AJ-E3805, AJ-E3808, AJ-E3815 |
-Total: 479 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
+Total: 482 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
 Status of every task at generation: TODO. The epic files are canonical; this catalog is an index, never edited to claim progress.
