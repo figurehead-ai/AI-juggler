@@ -19,7 +19,7 @@ import { focusRailSearch } from "../lib/rail-view";
 import { showTasksHeldBy } from "../lib/tasks-holder";
 import { useWindowTitle } from "../lib/window-title";
 import { providerDisplayName } from "../lib/providers";
-import { holdStop, sessionLabel } from "../lib/stop";
+import { holdStop, stopOf } from "../lib/stop";
 import { useWindowFolderDrop } from "../lib/use-folder-drop";
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import { useAppData } from "./use-app-data";
@@ -112,7 +112,7 @@ export function useShell() {
   // AJ-E1503 Req.2: Stop is held 5 s with Undo, then sent. The ref keeps
   // ⌘. on the session selected now (the key listener is set up once).
   const stopSession = useCallback(
-    (session: InstanceInfo) => holdStop({ id: session.id, label: sessionLabel(session, projects) }, () => void refresh()),
+    (session: InstanceInfo) => holdStop(stopOf(session, projects), () => void refresh()),
     [projects, refresh],
   );
   const stopSelectedRef = useRef<() => void>(() => {});
