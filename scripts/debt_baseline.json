@@ -224,12 +224,6 @@
  "crates/juggler-adapters/src/conversation_lines.rs": {
   "jscpd:lines": 7
  },
- "crates/juggler-adapters/src/fake.rs": {
-  "jscpd:lines": 8
- },
- "crates/juggler-adapters/src/fake_desktop.rs": {
-  "jscpd:lines": 8
- },
  "crates/juggler-adapters/src/fake_driven.rs": {
   "jscpd:lines": 20
  },
@@ -243,7 +237,7 @@
   "jscpd:lines": 65
  },
  "crates/juggler-adapters/src/grok_sessions.rs": {
-  "jscpd:lines": 47
+  "jscpd:lines": 38
  },
  "crates/juggler-adapters/src/grok_subagents.rs": {
   "jscpd:lines": 36
@@ -261,7 +255,7 @@
   "jscpd:lines": 55
  },
  "crates/juggler-adapters/src/kimi_sessions.rs": {
-  "jscpd:lines": 46
+  "jscpd:lines": 37
  },
  "crates/juggler-adapters/src/kimi_subagents.rs": {
   "jscpd:lines": 14
@@ -295,9 +289,6 @@
  },
  "crates/juggler-agentbridge/src/wire.rs": {
   "jscpd:lines": 7
- },
- "crates/juggler-app/src/cloud_backup.rs": {
-  "jscpd:lines": 10
  },
  "crates/juggler-app/src/crash.rs": {
   "jscpd:lines": 13
@@ -514,9 +505,6 @@
  },
  "crates/juggler-app/src/features/usage_history/settled.rs": {
   "jscpd:lines": 16
- },
- "crates/juggler-app/src/figurehead.rs": {
-  "jscpd:lines": 10
  },
  "crates/juggler-app/src/focus.rs": {
   "jscpd:lines": 24
@@ -1136,9 +1124,6 @@
   "knip:exports": 1
  },
  "ui/src/lib/shown-apps.ts": {
-  "knip:exports": 1
- },
- "ui/src/lib/subscriptions.ts": {
   "knip:exports": 1
  },
  "ui/src/lib/switch-words.ts": {
