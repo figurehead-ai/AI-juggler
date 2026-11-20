@@ -59,8 +59,11 @@ import shutil
 import sqlite3
 import subprocess
 import tempfile
+import time
 from dataclasses import dataclass, field, replace
 from pathlib import Path
+from types import SimpleNamespace
+from unittest import mock
 
 HOME = Path.home()
 DESKTOP_ENTRYPOINTS = (b'"entrypoint":"claude-desktop"', b'"entrypoint":"sdk-ts"')
@@ -372,11 +375,23 @@ def lab_app_folder(home: Path) -> Path | None:
     return Path(found.pop())
 
 
+def made_at(stat: os.stat_result) -> float:
+    """When a file was made (epoch s): its creation time where the OS keeps
+    one in `os.stat` (`st_birthtime`: macOS, the BSDs, Windows), else its
+    last write (`st_mtime`: Linux, the CI runners). A file is written only
+    after it's made, so on Linux one made before a time and written after
+    it counts as made after it: a `since` there counts more, never fewer,
+    and the gate can only fail more. (Setting a file's times back moves
+    macOS's creation time with them, so both read it as old.)"""
+    return getattr(stat, "st_birthtime", stat.st_mtime)
+
+
 def lab_leftovers(state_dirs: list[Path], since: float = 0.0, sanctioned: Path | None = None) -> int:
     """Terminal transcripts (`cli`, `sdk-cli`) in a real profile's folder
     that run in a lab folder: our tests on a real Account. `since` (epoch
-    s, default always) counts only those made after it. Each folder once,
-    by its resolved path; `sanctioned` ([`lab_app_folder`]) is ours."""
+    s, default always) counts only those made after it ([`made_at`]). Each
+    folder once, by its resolved path; `sanctioned` ([`lab_app_folder`]) is
+    ours."""
     count = 0
     seen: set[str] = set()
     for state_dir in state_dirs:
@@ -386,7 +401,7 @@ def lab_leftovers(state_dirs: list[Path], since: float = 0.0, sanctioned: Path |
         seen.add(real)
         for path in transcripts(state_dir).values():
             try:
-                if path.stat().st_birthtime < since:
+                if made_at(path.stat()) < since:
                     continue
                 cwd = entry = None
                 with path.open(errors="replace") as handle:
@@ -708,6 +723,23 @@ def selftest_lab_app(tmp: Path) -> None:
     link = tmp / "lab-link"
     link.symlink_to(lab_dir)
     assert lab_leftovers([link, other_dir, other_dir], sanctioned=found) == 1, "by its resolved path; a folder counted once"
+    # `since` counts only the runs made after it ([`made_at`]), read as this
+    # OS reads it and as Linux does (no creation time: the last write): an
+    # old one in the real profile's folder drops out, none is made after a
+    # time to come, and without `since` all count.
+    os.utime(real_dir / "projects/-w/lab-run.jsonl", (1000, 1000))
+    real = made_at
+
+    def as_linux(stat: os.stat_result) -> float:
+        return real(SimpleNamespace(st_mtime=stat.st_mtime))
+
+    for reading, made in (("this OS", real), ("Linux", as_linux)):
+        with mock.patch.dict(globals(), {"made_at": made}):
+            assert lab_leftovers(folders, since=2000) == 3, reading
+            assert lab_leftovers(folders, since=time.time() + 3600) == 0, reading
+            assert lab_leftovers(folders) == 4, reading
+    assert made_at(SimpleNamespace(st_birthtime=3.0, st_mtime=7.0)) == 3.0, "its creation time where the OS keeps one"
+    assert made_at(SimpleNamespace(st_mtime=7.0)) == 7.0, "else (Linux) its last write"
     # Not found (none exempt): two Lab App copies, or none of Dev's own.
     database(dev, [lab_row, ("claude-code-4", "claude-code", "Lab", other_dir, 0, None)])
     assert lab_app_folder(home) is None
