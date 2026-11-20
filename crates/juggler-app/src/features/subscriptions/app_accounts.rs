@@ -341,9 +341,9 @@ pub fn moved_detail(was: &str) -> String {
     format!("It was on {was}. Its room and new sessions count on the new account from now on.")
 }
 
-/// Each App's name as the rail says it, for a notice: a desktop App's
-/// identity (`places`), a CLI App's tool and folder.
-fn app_names(state: &Arc<AppState>) -> BTreeMap<String, String> {
+/// Each App's name as the rail says it, for a notice or a watch: a
+/// desktop App's identity (`places`), a CLI App's tool and folder.
+pub(crate) fn app_names(state: &Arc<AppState>) -> BTreeMap<String, String> {
     use crate::features::presence::{Naming, identity};
     let mut names: BTreeMap<String, String> = crate::features::places::commands::identities(state)
         .into_iter()

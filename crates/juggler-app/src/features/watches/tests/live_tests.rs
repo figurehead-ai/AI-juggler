@@ -496,3 +496,100 @@ fn the_view_reads_parts_counts_and_brings_back_a_removed_watch() {
     let summary = commands::watches_summary_impl(&state).unwrap();
     assert_eq!(summary.told_today, 1, "{summary:?}");
 }
+
+/// AJ-E3816: a watch on an App targets it by its App id, as every other
+/// surface does. It fires for a session of that App under each launch
+/// setting; the App is named as the rail names it; and a watch stored
+/// before (an App by its launch settings' id) moves to the App id once.
+#[test]
+fn an_app_watch_hears_every_launch_setting_and_old_ones_move_to_the_app_id() {
+    let dir = tempfile::tempdir().unwrap();
+    let state = lab(dir.path());
+    let writers = Writers::for_tests();
+    let now = crate::commands::now_millis();
+    {
+        let storage = state.storage.lock().unwrap();
+        storage
+            .profiles()
+            .insert(&crate::test_support::launch_settings(
+                "p2",
+                "Lab terminal, quick",
+                "acct-1",
+            ))
+            .unwrap();
+        storage
+            .sessions()
+            .insert(&crate::test_support::instance(
+                "s2",
+                "p2",
+                SessionStatus::Running,
+                dir.path().to_path_buf(),
+            ))
+            .unwrap();
+    }
+    let app = WatchTarget::App(juggler_core::storage::cli_app_id("acct-1"));
+    let mut on_app = watch(
+        "w-a0",
+        vec![app.clone()],
+        vec![cond("fails")],
+        Lifetime::Always,
+    );
+    on_app.created_ms = now;
+    // Stored before App ids: its App named by launch settings `p1`.
+    let mut legacy = watch(
+        "w-a1",
+        vec![WatchTarget::App("p1".into())],
+        vec![cond("fails")],
+        Lifetime::Always,
+    );
+    legacy.created_ms = now;
+    create(&state, &writers, &on_app);
+    create(&state, &writers, &legacy);
+    {
+        let storage = state.storage.lock().unwrap();
+        let facts = crate::features::watches::runtime::Facts::new(&storage, &state);
+        for session in ["s1", "s2"] {
+            assert_eq!(
+                facts.session_subject(session).apps,
+                vec![juggler_core::storage::cli_app_id("acct-1")],
+                "{session}'s App, by its App id"
+            );
+        }
+        assert_eq!(facts.exists(&app), Some(true));
+        assert_eq!(
+            facts.exists(&WatchTarget::App("cli:gone".into())),
+            Some(false)
+        );
+    }
+    crate::features::notifications::session_status(&state, "s1", "failed");
+    crate::features::notifications::session_status(&state, "s2", "failed");
+    let told = wait_for_notices(&state, 4);
+    for session in ["s1", "s2"] {
+        assert!(
+            told.iter()
+                .any(|(key, _, _)| key.starts_with(&format!("watch:w-a0:{session}:fails:"))),
+            "the App watch told {session}: {told:?}"
+        );
+        assert!(
+            told.iter()
+                .any(|(key, _, _)| key.starts_with(&format!("watch:w-a1:{session}:fails:"))),
+            "the moved watch told {session}: {told:?}"
+        );
+    }
+    let listed =
+        commands::watches_list_impl(&state, &crate::paging::PageRequest::first(10), Lang::En)
+            .unwrap()
+            .items;
+    let moved = listed.iter().find(|w| w.watch.id.0 == "w-a1").unwrap();
+    assert_eq!(
+        moved.watch.targets,
+        vec![app.clone()],
+        "moved to the App id"
+    );
+    let named = listed.iter().find(|w| w.watch.id.0 == "w-a0").unwrap();
+    assert!(
+        named.words.starts_with("Tell you when “") && named.echo.head.iter().any(|s| s.name),
+        "the App is named: {}",
+        named.words
+    );
+}

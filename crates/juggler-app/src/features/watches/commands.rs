@@ -132,9 +132,16 @@ fn names_for<'t>(
     state: &Arc<AppState>,
     targets: impl IntoIterator<Item = &'t WatchTarget>,
 ) -> NameBook {
-    use juggler_core::model::{AccountId, ProfileId, ProjectId, SessionId};
+    use juggler_core::model::{AccountId, ProjectId, SessionId};
     let targets: std::collections::BTreeSet<&WatchTarget> = targets.into_iter().collect();
     let mut book = NameBook::default();
+    // An App by its App id, named as the rail names it (read before the
+    // storage lock below: it takes its own).
+    let apps = if targets.iter().any(|t| matches!(t, WatchTarget::App(_))) {
+        crate::features::subscriptions::app_accounts::app_names(state)
+    } else {
+        std::collections::BTreeMap::new()
+    };
     let Ok(storage) = state.storage.lock() else {
         return book;
     };
@@ -148,11 +155,7 @@ fn names_for<'t>(
     let records = storage.sessions().get_many(&sessions).unwrap_or_default();
     for target in &targets {
         let name = match target {
-            WatchTarget::App(id) => storage
-                .profiles()
-                .get(&ProfileId::new(id.as_str()))
-                .ok()
-                .map(|p| p.name),
+            WatchTarget::App(id) => apps.get(id).cloned(),
             WatchTarget::Project(id) => storage
                 .projects()
                 .get(&ProjectId::new(id.as_str()))

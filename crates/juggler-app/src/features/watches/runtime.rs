@@ -121,6 +121,49 @@ impl<'a> Facts<'a> {
         ))
     }
 
+    /// An App's tool, by its App id: its stored row's, else (a CLI App on a
+    /// folder) its folder's.
+    fn tool_of_app(&self, app: &str) -> Option<String> {
+        if let Some(row) = self.storage.apps().get(app).ok().flatten() {
+            return Some(row.tool).filter(|tool| !tool.is_empty());
+        }
+        let folder = app.strip_prefix("cli:")?;
+        self.storage
+            .accounts()
+            .get(&juggler_core::model::AccountId::new(folder))
+            .ok()
+            .map(|account| account.harness.as_str().to_owned())
+    }
+
+    /// An App is there: its stored row, or (a CLI App) its folder.
+    fn app_exists(&self, app: &str) -> Option<bool> {
+        match self.storage.apps().get(app) {
+            Ok(Some(_)) => return Some(true),
+            Ok(None) => {}
+            Err(_) => return None,
+        }
+        let Some(folder) = app.strip_prefix("cli:") else {
+            return Some(false);
+        };
+        match self
+            .storage
+            .accounts()
+            .get(&juggler_core::model::AccountId::new(folder))
+        {
+            Ok(_) => Some(true),
+            Err(juggler_core::error::CoreError::NotFound { .. }) => Some(false),
+            Err(_) => None,
+        }
+    }
+
+    /// The App id a launch setting's sessions are in: its folder's CLI
+    /// App (a watch stored before App ids, AJ-E3816's migration).
+    #[must_use]
+    pub fn app_of_launch_settings(&self, id: &str) -> Option<String> {
+        let profile = self.storage.profiles().get(&ProfileId::new(id)).ok()?;
+        Some(juggler_core::storage::cli_app_id(profile.account.as_str()))
+    }
+
     /// The pools whose members name this session, its App, account or tool.
     fn pools_of(
         &self,
@@ -149,11 +192,19 @@ impl<'a> Facts<'a> {
     }
 
     /// What an observation about a session is about: the session, its App
-    /// (the profile it runs under), project, account and pools.
+    /// (by its App id, `cli:<folder>` or `app:<host>:<instance>`: the one
+    /// resolution the pools use, `sessions().pool_facts_of`), project,
+    /// account and pools.
     #[must_use]
     pub fn session_subject(&self, session: &str) -> Subject {
         let record = self.storage.sessions().get(&SessionId::new(session)).ok();
-        let app = record.as_ref().map(|r| r.profile.as_str().to_owned());
+        let app = self
+            .storage
+            .sessions()
+            .pool_facts_of(&SessionId::new(session))
+            .ok()
+            .flatten()
+            .and_then(|facts| facts.app);
         let project = record
             .as_ref()
             .and_then(|r| r.project.as_ref())
@@ -178,20 +229,22 @@ impl<'a> Facts<'a> {
     }
 
     /// What an observation about an account's room is about: the account
-    /// and every App (profile) signed in to it.
+    /// and every App on its folder (its CLI App and the desktop ones that
+    /// use it), by App id.
     #[must_use]
     pub fn account_subject(&self, account: &str) -> Subject {
-        let apps = self
+        let mut apps: Vec<String> = self
             .storage
-            .profiles()
-            .list_by_account(&juggler_core::model::AccountId::new(account))
-            .map(|profiles| {
-                profiles
-                    .into_iter()
-                    .map(|p| p.id.as_str().to_owned())
-                    .collect()
-            })
-            .unwrap_or_default();
+            .apps()
+            .list()
+            .unwrap_or_default()
+            .into_iter()
+            .filter(|app| app.folder_id.as_deref() == Some(account))
+            .map(|app| app.id)
+            .collect();
+        apps.push(juggler_core::storage::cli_app_id(account));
+        apps.sort();
+        apps.dedup();
         Subject {
             account: Some(account.to_owned()),
             apps,
@@ -226,11 +279,7 @@ impl<'a> Facts<'a> {
                 .map(|(_, tool)| tool)
                 .into_iter()
                 .collect(),
-            WatchTarget::App(app) => self
-                .tool_of_profile(&ProfileId::new(app.as_str()))
-                .map(|(_, tool)| tool)
-                .into_iter()
-                .collect(),
+            WatchTarget::App(app) => self.tool_of_app(app).into_iter().collect(),
             WatchTarget::Account(account) => self
                 .storage
                 .accounts()
@@ -271,12 +320,7 @@ impl<'a> Facts<'a> {
                     .get(&SessionId::new(id.as_str()))
                     .map(drop),
             ),
-            WatchTarget::App(id) => found(
-                self.storage
-                    .profiles()
-                    .get(&ProfileId::new(id.as_str()))
-                    .map(drop),
-            ),
+            WatchTarget::App(id) => self.app_exists(id),
             WatchTarget::Project(id) => found(
                 self.storage
                     .projects()
@@ -319,10 +363,14 @@ fn unheard(registry: &Registry, facts: &Facts<'_>, watch: &Watch) -> Option<EndR
 /// there yet (V54), the engine is empty.
 fn load(state: &AppState, registry: &Arc<Registry>, now_ms: i64) -> Engine {
     let mut engine = Engine::new(registry.clone());
+    let writer = state.watches.writer(state);
     let Ok(storage) = state.storage.lock() else {
         return engine;
     };
     let store = WatchStore::new(&storage, registry);
+    if let Some(writer) = writer {
+        migrate_app_targets(&store, &Facts::new(&storage, state), writer, now_ms);
+    }
     let Ok(active) = store.active() else {
         return engine;
     };
@@ -339,6 +387,48 @@ fn load(state: &AppState, registry: &Arc<Registry>, now_ms: i64) -> Engine {
         engine.add(watch, now_ms);
     }
     engine
+}
+
+/// AJ-E3816: a watch on an App stored before Apps were targeted by their
+/// App id named its launch settings; each such target moves to the App
+/// those settings' sessions are in (a new version, the app's, once).
+/// Every App id is `cli:` or `app:`; a launch setting's id never is.
+fn migrate_app_targets(
+    store: &WatchStore<'_>,
+    facts: &Facts<'_>,
+    writer: &KindWriter,
+    now_ms: i64,
+) {
+    let legacy = |id: &str| !id.starts_with("cli:") && !id.starts_with("app:");
+    for stored in store.every().unwrap_or_default() {
+        if !stored
+            .watch
+            .targets
+            .iter()
+            .any(|t| matches!(t, WatchTarget::App(id) if legacy(id)))
+        {
+            continue;
+        }
+        let mut moved: Vec<WatchTarget> = Vec::with_capacity(stored.watch.targets.len());
+        for target in stored.watch.targets {
+            let next = match &target {
+                WatchTarget::App(id) if legacy(id) => facts
+                    .app_of_launch_settings(id)
+                    .map_or(target.clone(), WatchTarget::App),
+                _ => target.clone(),
+            };
+            if !moved.contains(&next) {
+                moved.push(next);
+            }
+        }
+        let _ = store.retarget(
+            writer,
+            &crate::features::ai::memory::RedactionSecrets,
+            &stored.watch.id,
+            moved,
+            now_ms,
+        );
+    }
 }
 
 /// Queues what happened for the engine and wakes its thread.

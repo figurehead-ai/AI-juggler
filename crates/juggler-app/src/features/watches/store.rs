@@ -134,8 +134,8 @@ fn entities_of(watch: &Watch) -> Vec<EntityRef> {
 
 /// A change's log event: codes only (the conditions, the lifetime, the
 /// quiet switch), never words.
-fn change_event(watch: &Watch, verb: &'static str, now_ms: i64) -> NewEvent {
-    let mut event = NewEvent::new(now_ms, Stream::Watch, verb, Actor::User);
+fn change_event(watch: &Watch, verb: &'static str, actor: Actor, now_ms: i64) -> NewEvent {
+    let mut event = NewEvent::new(now_ms, Stream::Watch, verb, actor);
     event.subject = Some((SUBJECT, watch.id.0.clone()));
     let lifetime = match watch.lifetime {
         super::model::Lifetime::Once => "once",
@@ -360,6 +360,25 @@ impl<'a> WatchStore<'a> {
         verb: &'static str,
         now_ms: i64,
     ) -> Result<Stored, StoreError> {
+        self.write_by(
+            writer,
+            secrets,
+            payload,
+            origin,
+            (verb, Actor::User),
+            now_ms,
+        )
+    }
+
+    fn write_by(
+        &self,
+        writer: &KindWriter,
+        secrets: &dyn SecretScan,
+        payload: &Payload,
+        origin: &Origin,
+        (verb, actor): (&'static str, Actor),
+        now_ms: i64,
+    ) -> Result<Stored, StoreError> {
         let watch = &payload.watch;
         let (source, source_id) = origin.source();
         let record = NewRecord {
@@ -385,7 +404,7 @@ impl<'a> WatchStore<'a> {
             expires_ms: None,
             entities: entities_of(watch),
         };
-        let event = change_event(watch, verb, now_ms);
+        let event = change_event(watch, verb, actor, now_ms);
         let written = self
             .storage
             .memory()
@@ -535,6 +554,65 @@ impl<'a> WatchStore<'a> {
             removed: false,
         };
         self.write(writer, secrets, &payload, origin, "restored", now_ms)
+    }
+
+    /// Moves a stored watch's targets to ids that mean the same thing
+    /// (AJ-E3816: an App by its App id, not its launch settings'): a new
+    /// version, logged as the app's, removed or ended as it was.
+    ///
+    /// # Errors
+    ///
+    /// The store isn't there; [`StoreError::NotFound`]; the gate or storage.
+    pub fn retarget(
+        &self,
+        writer: &KindWriter,
+        secrets: &dyn SecretScan,
+        id: &WatchId,
+        targets: Vec<WatchTarget>,
+        now_ms: i64,
+    ) -> Result<Stored, StoreError> {
+        self.ready()?;
+        let current = self.get(id)?.ok_or(StoreError::NotFound)?;
+        let mut watch = current.watch;
+        watch.targets = targets;
+        let payload = Payload {
+            watch,
+            removed: current.removed,
+        };
+        self.write_by(
+            writer,
+            secrets,
+            &payload,
+            &Origin::WatchesView,
+            ("retargeted", Actor::App),
+            now_ms,
+        )
+    }
+
+    /// Every stored watch, removed ones too (a migration reads them all).
+    ///
+    /// # Errors
+    ///
+    /// The store isn't there; storage failures.
+    pub fn every(&self) -> Result<Vec<Stored>, StoreError> {
+        self.ready()?;
+        let mut out = Vec::new();
+        for record in self
+            .storage
+            .memory()
+            .current_of_kind(Kind::StandingRequest, None, 10_000)?
+        {
+            if let Ok(payload) = serde_json::from_value::<Payload>(record.payload) {
+                out.push(Stored {
+                    watch: payload.watch,
+                    removed: payload.removed,
+                    version: record.version,
+                    updated_ms: record.created_ms,
+                    key: (record.created_ms, record.id),
+                });
+            }
+        }
+        Ok(out)
     }
 
     fn current_live(&self, id: &WatchId) -> Result<Stored, StoreError> {
