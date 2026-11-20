@@ -212,9 +212,14 @@ describe("a pool's messages", () => {
     fireEvent.click((await view.findAllByTestId("thread-row"))[1]!);
     expect(await view.findByText("Can you look?", { selector: "p" })).toBeTruthy();
     view.rerender(<MessagesView poolId="pool-team" sessionId="sess-done-1" members={members.slice(1)} composeTo="sess-done-1" now={NOW} />);
+    // Never the thread the page before had open: at once, nor once its own
+    // list is read. Its own thread then shows (read after the list, so
+    // waited for: a check made at once raced its load).
+    expect(view.queryByText("Can you look?", { selector: "p" })).toBeNull();
     await waitFor(() => expect(view.getAllByTestId("thread-row").map((row) => row.textContent)).toEqual([expect.stringContaining("Start on the API")]));
     expect(view.queryByText("Can you look?", { selector: "p" })).toBeNull();
-    expect(view.getByTestId("thread-view").textContent).toContain("Start on the API");
+    await waitFor(() => expect(view.getByTestId("thread-view").textContent).toContain("Start on the API"));
+    expect(view.queryByText("Can you look?", { selector: "p" })).toBeNull();
     expect(threadToShow("thr-2", [thread({})], null), "a list that doesn't hold it").toBe("thr-1");
     expect(threadToShow("thr-9", [thread({})], "thr-9"), "asked for by name").toBe("thr-9");
   });
