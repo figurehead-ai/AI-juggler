@@ -416,8 +416,10 @@ Home's **Needs you** shows, beside your sessions' questions:
 
 ### Loops stay small
 
-- A thread takes at most 6 agent messages in a row without you; then it
-  pauses until you resume it.
+- A chain takes at most 6 agent messages in a row without you; then its
+  thread pauses until you resume it. The count runs across threads: a
+  session woken by an agent's message counts on from it, in a new thread
+  too. Your message, prompt or click starts it again.
 - An open thread counts them against the number after which you're asked:
   the pool's **Stop and ask you after** when the pool puts messages into
   sessions by itself, never more than 6. "2 of 2 agent messages in a row

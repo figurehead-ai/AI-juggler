@@ -256,6 +256,8 @@ pub fn prompt_sent(state: &Arc<AppState>, session: &SessionId) {
     if let Ok(mut map) = state.messages.typing.lock() {
         map.remove(session.as_str());
     }
+    // D-140: a wake's own prompt keeps its count; the person's resets it.
+    state.messages.chains.prompt_submitted(session.as_str());
 }
 
 fn typing(state: &Arc<AppState>, session: &SessionId) -> bool {
@@ -377,6 +379,13 @@ pub fn pump(state: &Arc<AppState>, session: &SessionId) {
         [one] => (*one).to_owned(),
         _ => format!("{} messages", rows.len()),
     };
+    // D-140: the turn carries its chain's count. Set before it starts, so
+    // the hook that reports its prompt finds the wake.
+    let before = state.messages.chains.woke(
+        session.as_str(),
+        carried_by(&rows),
+        super::chain::Woken::Turn,
+    );
     let typed = match &driver {
         Some(driver) => driver
             .turn(TurnInput {
@@ -387,7 +396,9 @@ pub fn pump(state: &Arc<AppState>, session: &SessionId) {
         None => crate::features::runtime::typed::type_turn(state, session, &text).is_ok(),
     };
     if !typed {
-        return; // a turn started meanwhile, or its terminal went: it stays queued
+        // A turn started meanwhile, or its terminal went: it stays queued.
+        state.messages.chains.put_back(session.as_str(), before);
+        return;
     }
     let ids: Vec<String> = rows.iter().map(|row| row.message.id.clone()).collect();
     if let Ok(storage) = state.storage.lock() {
@@ -404,6 +415,19 @@ pub fn pump(state: &Arc<AppState>, session: &SessionId) {
     if let Some(row) = rows.first() {
         state.messages.notify(&row.message.pool_id);
     }
+}
+
+/// D-140: the agent messages in a row a delivered turn carries: the
+/// highest count among them, or 0 when the person's own word is among them
+/// (their message, or their click that queued one), which starts it again.
+pub(crate) fn carried_by(rows: &[juggler_core::storage::InboxRow]) -> u32 {
+    let person = rows.iter().any(|row| {
+        row.message.sender_kind == SENDER_USER || row.recipient.via.as_deref() == Some(BY_USER)
+    });
+    if person {
+        return 0;
+    }
+    rows.iter().map(|row| row.message.hop).max().unwrap_or(0)
 }
 
 /// The note a Claude Code session in a terminal gets at a turn boundary

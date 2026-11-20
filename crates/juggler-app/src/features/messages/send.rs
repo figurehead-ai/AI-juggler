@@ -556,7 +556,23 @@ pub fn send(state: &Arc<AppState>, out: &Outgoing) -> Result<Sent, Response> {
         }
     }
     let (kind, subject, body) = shaped(out, thread.as_ref().map(|t| t.subject.as_str()))?;
-    let hop = messaging::next_hop(thread.as_ref().map_or(0, |t| t.hop), !agent);
+    // D-140: an agent's message counts on from the chain behind its turn:
+    // its thread's count, or the count of the agent message that woke it
+    // (in a new thread too), whichever is higher. A person's resets it.
+    let behind = match &out.from {
+        Author::Agent { session, .. } => state.messages.chains.carried(session.as_str()),
+        Author::User => 0,
+    };
+    let hop = messaging::next_hop(thread.as_ref().map_or(0, |t| t.hop).max(behind), !agent);
+    if agent && messaging::over_hops(hop) && thread.is_none() {
+        return Err(refuse(
+            Refusal::Limit,
+            format!(
+                "Not sent: this chain already has {} agent messages in a row without the user (the one that started this turn among them), the most any chain takes, and a new thread counts on from it. Wait for the user to write to you.",
+                hop - 1
+            ),
+        ));
+    }
     if agent && messaging::over_hops(hop) {
         if let (Some(thread), Ok(storage)) = (&thread, lock_storage_arc(state)) {
             let _ = storage.messages().set_thread_state(
@@ -863,6 +879,10 @@ fn route_with(
             .iter()
             .find(|one| one.connected && one.member == recipient.recipient_ref)
         {
+            if let (Author::User, Some(session)) = (from, &one.session) {
+                // D-140: the person's word to it starts its count again.
+                state.messages.chains.person(session);
+            }
             targets.push((
                 name,
                 Target::Desktop(one.member.clone(), one.wakes, one.can_wake),
@@ -901,6 +921,10 @@ fn route_with(
             routes.push((name, inbox));
             continue;
         };
+        if matches!(from, Author::User) {
+            // D-140: the person's word to it starts its count again.
+            state.messages.chains.person(session.as_str());
+        }
         let how = match from {
             Author::User if deliver => {
                 super::delivery::queue(state, &message.id, &session);

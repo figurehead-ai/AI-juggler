@@ -209,7 +209,7 @@ fn send_message(
         .any(|(_, how)| *how == super::delivery::AT_HOP_LIMIT);
     let why = hop_limit.filter(|_| paused).map(|limit| {
         format!(
-            "Paused at this pool's hop limit, {limit}: after {limit} agent messages in a row, the user decides whether this one (hop {}) starts a turn. A person's message or click starts the count again.",
+            "Paused at this pool's hop limit, {limit}: after {limit} agent messages in a row without the user, the user decides whether this one (hop {}) starts a turn. The count runs across threads: a turn an agent's message started counts on from it, in a new thread too. A person's message, prompt or click starts the count again.",
             sent.message.hop
         )
     });

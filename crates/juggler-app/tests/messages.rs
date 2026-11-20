@@ -783,6 +783,67 @@ fn the_hop_limit_pauses_the_chain_and_asks_and_stop_all_holds_it() {
     assert_eq!(state_for(&lab, &field(&held, "/message")), ["unread"]);
 }
 
+/// D-140 (SK-15, the soak's P11 walk): the hop limit counts per chain.
+/// With a limit of 2, A writes to B, B answers, and A, woken by that
+/// answer, writes to B in a new thread: that third agent message is held
+/// and the person is asked. Before, the new thread started at 1, so a pool
+/// set to ask after 2 let 4 through. The person's prompt starts it again.
+#[test]
+fn a_woken_agent_writing_in_a_new_thread_counts_on_from_its_chain() {
+    let lab = Lab::new();
+    let (a_id, a) = lab.driven("Alpha");
+    let (b_id, b) = lab.driven("Beta");
+    pools::access::set_level_impl(&lab.state, &lab.pool, "full", &[]).unwrap();
+    pools::access::set_delivery_impl(&lab.state, &lab.pool, 2, false).unwrap();
+    let first = lab.say(&a, &b_id, "ping", None);
+    let thread = field(&first, "/thread");
+    wait_for("B woken by A's message", || {
+        state_for(&lab, &field(&first, "/message")) == ["delivered"]
+    });
+    wait_for("B's turn to end", || {
+        delivery::between_turns(&lab.state, &b_id)
+    });
+    let answer = lab.say(&b, &a_id, "pong", Some(&thread));
+    assert_eq!(field(&answer, "/hop"), "2");
+    wait_for("A woken by B's answer", || {
+        state_for(&lab, &field(&answer, "/message")) == ["delivered"]
+    });
+    wait_for("A's turn to end", || {
+        delivery::between_turns(&lab.state, &a_id)
+    });
+
+    let third = lab.say(&a, &b_id, "ping again", None);
+    assert!(third.refused.is_none(), "{third:?}");
+    assert_ne!(field(&third, "/thread"), thread, "a new thread");
+    assert_eq!(field(&third, "/hop"), "3", "it counts on from its chain");
+    assert_eq!(
+        field(&third, "/to/0/gets_it"),
+        "when the user says (the chain reached the hop limit)"
+    );
+    let third_id = field(&third, "/message");
+    assert!(
+        needs::needs(&lab.state)
+            .unwrap()
+            .iter()
+            .any(|n| n.kind == "deliver" && n.message_id.as_deref() == Some(third_id.as_str())),
+        "the person is asked"
+    );
+    std::thread::sleep(Duration::from_millis(300));
+    assert_eq!(
+        state_for(&lab, &third_id),
+        ["unread"],
+        "held, not delivered"
+    );
+
+    // The person's prompt to A starts the count again.
+    runtime::send_impl(&lab.state, a_id.as_str(), "carry on").unwrap();
+    wait_for("A's own turn to end", || {
+        delivery::between_turns(&lab.state, &a_id)
+    });
+    let fresh = lab.say(&a, &b_id, "a new topic", None);
+    assert_eq!(field(&fresh, "/hop"), "1", "{fresh:?}");
+}
+
 /// The rc3h walk: "Don't deliver" on a chain paused at the hop limit
 /// changed nothing in sight. The thread stayed "Paused", the message
 /// "Waiting in its inbox", and Needs you swapped the card for two that

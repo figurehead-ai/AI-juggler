@@ -26,6 +26,7 @@
 
 pub mod agent;
 pub mod catch_up;
+pub mod chain;
 pub mod commands;
 pub mod delivery;
 pub mod docs;
@@ -61,6 +62,8 @@ pub struct Messages {
     pub(crate) worker: Mutex<Option<std::sync::mpsc::Sender<String>>>,
     pub(crate) typing: Mutex<HashMap<String, Instant>>,
     pub(crate) noted: Mutex<HashMap<String, usize>>,
+    /// D-140: the count each woken turn carries.
+    pub(crate) chains: chain::Chains,
     notifier: Mutex<Option<Notifier>>,
 }
 

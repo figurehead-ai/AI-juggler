@@ -85,7 +85,9 @@ pub const BODY_MAX: usize = 4_000;
 pub const DOC_MAX: usize = 64 * 1024;
 /// The longest doc name, in characters.
 pub const DOC_NAME_MAX: usize = 80;
-/// Agent messages a thread takes in a row before it pauses for the user.
+/// Agent messages a chain takes in a row before it pauses for the user
+/// (D-140: a chain runs across threads; a turn an agent's message woke
+/// counts on from it).
 pub const MAX_THREAD_HOPS: u32 = 6;
 /// Messages a sender may send a minute in one pool.
 pub const PER_MINUTE: usize = 10;
@@ -212,8 +214,10 @@ pub fn rate_limit(sent_at: &[i64], now: i64) -> Option<Limit> {
     None
 }
 
-/// A thread's hop after one more message: an agent's adds one, a
-/// person's resets it (D-29: a person's prompt, click or reply).
+/// A chain's hop after one more message: an agent's adds one, a
+/// person's resets it (D-29: a person's prompt, click or reply). D-140:
+/// `hop` is the chain's count behind the sender (its thread's, or the
+/// message that woke its turn), not only its thread's.
 #[must_use]
 pub const fn next_hop(hop: u32, from_a_person: bool) -> u32 {
     if from_a_person {
