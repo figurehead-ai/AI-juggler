@@ -50,6 +50,8 @@ describe("the List view sets what the canvas sets", () => {
     expect(await view.findByTestId("edge-talk-rule")).toBeTruthy();
     fireEvent.click(within(pair).getByTestId("pool-list-pair-roles"));
     expect(await view.findByTestId("pool-talk")).toBeTruthy();
+    // The settings say where a member's role is set: not the diagram alone.
+    expect(view.getByTestId("pool-role-where").textContent).toContain("List view");
   });
 
   it("a member's inspector sets its role too, Lead included", async () => {

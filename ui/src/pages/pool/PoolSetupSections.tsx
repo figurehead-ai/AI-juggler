@@ -177,7 +177,7 @@ export function PoolSetupSections({
           </p>
           <RoleCards holders={holders} narrow testId="pool-role-cards" />
           <RoleHolders rows={holderRows(members, memberRules, ruleLabel, leadNext)} onSelect={onSelect} />
-          <p className="text-meta text-muted">Change one member's role by clicking its card on the diagram.</p>
+          <p className="text-meta text-muted" data-testid="pool-role-where">Change one member's role by opening it above, or in its row in the List view.</p>
         </Section>
       </div>
       <div id="pool-setup-talk">
