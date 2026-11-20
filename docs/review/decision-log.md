@@ -596,7 +596,9 @@
   Allow, Ask or Deny for every agent action (AJ-E1702); the bridge
   (AJ-E1704), messaging (E18) and tasks (E19) only call it.
 
-### D-29 Delivering into a session without a click — SETTLED (2026-10-24)
+### D-29 Delivering into a session without a click — SETTLED (2026-10-24; the hop count's unit amended by D-140)
+
+- **Amended 2026-11-20 (D-140):** the hop limit counts per chain, not per thread: a turn woken by an agent's message carries the count into any new thread it starts.
 
 - Decision: AI Juggler may deliver a message into an idle session, so it
   starts a turn without the user, only where the user allowed it: a pool
@@ -3185,7 +3187,9 @@ Each ships with tests that fail without it and a design critique; the M2, D2 and
 - Sources: the coordinating session's relay of the maintainer's answer
   and words, 2026-11-14.
 
-### D-119 A desktop Code-tab pool member is woken through Claude Code's own inbox, under the pool's waking rule — SETTLED (2026-11-15)
+### D-119 A desktop Code-tab pool member is woken through Claude Code's own inbox, under the pool's waking rule — SETTLED (2026-11-15; its two-press approval superseded by D-139)
+
+- **Amended 2026-11-20 (D-139):** approving a held message is one press, "Allow and deliver"; "Allow, deliver later" is the second choice.
 
 - **Ruling** (engineering, by the coordinating session under D-66's
   standing rule and D-28's levels; no new maintainer ruling needed,
@@ -3258,3 +3262,18 @@ Each ships with tests that fail without it and a design critique; the M2, D2 and
 - **Why:** a release train that stops for a soak ships nothing for a week; Nightly exists so fixes reach real use at once, and the channels are quality gates, not queues.
 - **Consequences:** 0.4.7 starts at once on release/0.4.7 from main (the soak's findings and the 17 items held for 0.5); at most one planned nightly a day stays (hotfixes excepted); release branches stay short-lived and forward-merge into the next line.
 - Sources: the coordinating session's messages, 2026-11-20, quoting the maintainer.
+
+### D-139 One press approves and delivers a held message: "Allow and deliver", with "Allow, deliver later" second (supersedes D-119's two presses) — SETTLED (2026-11-20)
+
+- **Ruling** (the maintainer, asked by the coordinating session, 2026-11-20): "One press". In the soak's X1 walk, approving a held message in a "Work together" pool took two presses (Allow once put it in the recipient's inbox; Deliver woke it), and scored clarity 3.
+- **Decision:** the primary choice is **"Allow and deliver"**: it approves the message and wakes the recipient at once. The secondary is **"Allow, deliver later"**: approved, left in the recipient's inbox for its next turn. "Deny" stays as it is.
+- **Where:** every surface that offers the approval: Home's Needs you, the message's thread, the bell, and the agents' own words about it; the specs, the visual gallery and the accessibility gate follow.
+- **Why:** waking is what "Work together" is for; one obvious press, and the slower choice named for what it does.
+- Sources: the coordinating session's message, 2026-11-20, quoting the maintainer; AJ-E3014 item 7.
+
+### D-140 The hop limit counts per chain, not per thread (supersedes D-29's per-thread count) — SETTLED (2026-11-20)
+
+- **Ruling** (the coordinating session, 2026-11-20, as a correctness fix: the setting's words promise it). In the soak's P11 walk, a pool set to ask after 2 agent messages in a row let 4 through: the woken agent answered in a new thread, which started the count again (`messaging::next_hop` on the thread's own hop).
+- **Decision:** a turn woken by an agent's message carries that message's count into any new thread it starts; a person's message (prompt, click or reply) resets it. The pool's pause after 8 back-and-forth messages between two members in 10 minutes and the sender's 10 a minute stay as they are.
+- **Proof:** a test reproduces P11: limit 2, the woken agent answers in a new thread, and the third agent message is held.
+- Sources: the coordinating session's message, 2026-11-20; soak finding SK-15.
