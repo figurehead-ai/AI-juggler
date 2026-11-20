@@ -360,9 +360,15 @@ export function scopeChipWords(pool: PoolInfo, projects: readonly ProjectInfo[])
 }
 
 /** A pool's name where a heading already says it's a project's own pool:
- * "web", not "web · all sessions" (design review #60). */
+ * "web", not "web · all sessions" (design review #60). A name told apart
+ * from another project's of the same name keeps what tells it apart:
+ * "web (in lab)", from "web · all sessions (in lab)" (AJ-E3014 item 5). */
 export function shortPoolName(pool: PoolInfo): string {
-  return pool.kind === "default" && pool.name.endsWith(ALL_SESSIONS) ? pool.name.slice(0, -ALL_SESSIONS.length) : pool.name;
+  if (pool.kind !== "default") return pool.name;
+  const at = pool.name.lastIndexOf(ALL_SESSIONS);
+  if (at <= 0) return pool.name;
+  const rest = pool.name.slice(at + ALL_SESSIONS.length);
+  return rest === "" || /^ \(in .+\)$/.test(rest) ? pool.name.slice(0, at) + rest : pool.name;
 }
 
 export { doneNewPoolRequest, onNewPoolRequest, requestNewPool, takeNewPoolRequest, type NewPoolRequest } from "./new-pool-request";
