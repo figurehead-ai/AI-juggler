@@ -166,7 +166,7 @@ for (const theme of ["dark", "light"] as const) {
     await seed(page, "eight", theme);
     // Counted as the rail counts them (the review of 0.1.4).
     // D-117: the review is listed, named in the counts line, not counted.
-    await expect(page.getByTestId("home-heading")).toHaveText("2 sessions need you");
+    await expect(page.getByTestId("home-heading")).toHaveText("2 need you: 2 sessions"); // D-118: the one count, then its parts
     await expect(page.getByTestId("home-app-tile")).toHaveCount(4);
     await shoot(page, "home-typical", theme);
   });

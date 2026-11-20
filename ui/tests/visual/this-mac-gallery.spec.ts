@@ -93,6 +93,9 @@ for (const theme of ["dark", "light"] as const) {
 
   test(`heavy session — Needs you, rail, session header — ${theme}`, async ({ page }) => {
     await seed(page, { fixture: heavy, machine: "plenty" }, theme, { width: 1280, height: 800 });
+    // D-118 (AJ-E3702 R2): Home pins three needs, the rest behind
+    // "+n more need you"; the heavy session waits longest of none.
+    await page.getByTestId("home-needs-more").click();
     const item = page.getByTestId("home-need-heavy");
     await expect(item).toContainText("Working your Mac hard — CPU 96% · 3.0 GB");
     // The rail shows one figure, only on the heavy row.
@@ -108,9 +111,13 @@ for (const theme of ["dark", "light"] as const) {
 
   test(`Clean up leads to Processes — ${theme}`, async ({ page }) => {
     await seed(page, { fixture: calm, machine: "plenty", leftovers: [1, 0] }, theme, { width: 1280, height: 800 });
-    // AJ-E2105: left-behind processes are a Needs you item on Home.
-    await expect(page.getByTestId("home-need-leftovers")).toContainText("1 process left running");
-    await page.getByTestId("home-need-leftovers").getByRole("button", { name: /^Clean up/ }).click();
+    // AJ-E2105, D-117: left-behind processes are a note (listed, never
+    // counted): the rail's Needs you lists it, Home's title stays all
+    // clear, and its Clean up leads to Processes.
+    await expect(page.getByTestId("home-heading")).toHaveText("All clear — nothing needs you");
+    const note = page.getByTestId("rail").getByRole("button", { name: /^1 process left running, after their sessions closed/ });
+    await expect(note).toBeVisible();
+    await note.click();
     await expect(page.getByRole("heading", { name: "Processes", exact: false }).first()).toBeVisible();
   });
 }

@@ -161,8 +161,11 @@ test("page tab walk — arrow keys move across the session page's tabs", async (
     await page.keyboard.press("ArrowRight");
     const stop = await focused(page);
     stops.push(stop);
-    await expect(tablist.getByRole("tab", { name, exact: true })).toHaveAttribute("aria-selected", "true");
-    await expect(page.getByRole("tabpanel", { name, exact: true })).toBeVisible();
+    // AJ-E1612: a tab named like a header destination says whose it is
+    // ("Pools (this session)"); its words shown are its name's start.
+    const named = new RegExp(`^${name}( \\(this session\\))?$`);
+    await expect(tablist.getByRole("tab", { name: named })).toHaveAttribute("aria-selected", "true");
+    await expect(page.getByRole("tabpanel", { name: named })).toBeVisible();
     expect(stop.name).toContain(name);
   }
   record("inspector-tab-walk", stops, [
