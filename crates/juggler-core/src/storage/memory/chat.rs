@@ -673,6 +673,38 @@ mod tests {
         );
     }
 
+    /// The re-review's S4: a new note on a turn zeroes the old one's bytes
+    /// (its `SecureHold`), so once the WAL folds no copy of it is left.
+    #[test]
+    fn a_new_note_on_a_turn_leaves_no_trace_of_the_old_one() {
+        const CANARY: &str = "qzxwvannotatecanary";
+        let dir = tempfile::tempdir().unwrap();
+        let storage = Storage::open(&dir.path().join("j.sqlite")).unwrap();
+        let chat = storage.chat();
+        let fold = || {
+            storage
+                .raw_conn()
+                .query_row("PRAGMA wal_checkpoint(TRUNCATE)", [], |_| Ok(()))
+                .unwrap();
+        };
+        let kept = chat.append(&turn(1, "what about the shop")).unwrap();
+        // The canary leads a long note: SQLite puts the short new cell at
+        // the tail of the freed one, so only zeroing clears the head.
+        let note = format!("{{\"name\":\"{CANARY}\",\"pad\":\"{}\"}}", "x".repeat(600));
+        chat.annotate(&kept.id, &note).unwrap();
+        fold();
+        assert!(
+            !holding(dir.path(), CANARY).is_empty(),
+            "the note was never written"
+        );
+        chat.annotate(&kept.id, "{}").unwrap();
+        fold();
+        assert!(
+            holding(dir.path(), CANARY).is_empty(),
+            "the old note is still on disk"
+        );
+    }
+
     #[test]
     fn a_long_question_is_cut_and_the_topic_takes_its_title_from_the_first() {
         let storage = Storage::open_in_memory().unwrap();

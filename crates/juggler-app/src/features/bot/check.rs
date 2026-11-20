@@ -36,6 +36,9 @@ pub enum Refused {
     State(String),
     /// A time the records can't back ("yesterday").
     Time(String),
+    /// A quantifier ("all", "only", "every") over fewer rows than were
+    /// found: it claims more than the cited rows hold.
+    Quantifier,
     /// A negation ("not", "nothing", "kein"): unclear, so refused.
     Negation,
     /// A first person: Bot never did or will do anything.
@@ -56,6 +59,7 @@ impl Refused {
             Self::Name(_) => "name",
             Self::State(_) => "state",
             Self::Time(_) => "time",
+            Self::Quantifier => "quantifier",
             Self::Negation => "negation",
             Self::Acting => "acting",
             Self::Echo => "echo",
@@ -177,7 +181,15 @@ fn state_word(word: &str) -> Option<&'static [BotState]> {
         "blocked" | "blockiert" => &[BotState::Blocked],
         "working" | "running" | "arbeitet" | "läuft" | "progress" => &[BotState::Working],
         "review" => &[BotState::InReview],
-        "limit" => &[BotState::Limit],
+        "limit" | "reached" | "reaching" | "erreicht" => &[BotState::Limit],
+        "stopped" | "gestoppt" => &[BotState::Ended, BotState::Failed],
+        "needs" | "need" | "braucht" => &[
+            BotState::AsksYou,
+            BotState::Stuck,
+            BotState::Limit,
+            BotState::Blocked,
+            BotState::InReview,
+        ],
         "ready" | "bereit" => &[BotState::Ready],
         _ => return None,
     })
@@ -187,6 +199,16 @@ fn state_word(word: &str) -> Option<&'static [BotState]> {
 /// one is claiming what no row backs, whatever a name holds (M1).
 const UNHELD: &[&str] = &[
     "deployed",
+    "good",
+    "well",
+    "great",
+    "nice",
+    "bad",
+    "perfect",
+    "smooth",
+    "smoothly",
+    "gut",
+    "alles",
     "deploy",
     "deploys",
     "merged",
@@ -299,6 +321,29 @@ const TIME: &[&str] = &[
     "am",
     "pm",
     "uhr",
+];
+
+/// Words that speak for every row (or say there is no other): allowed only
+/// when the sentence cites every row found (R1).
+const QUANTIFIERS: &[&str] = &[
+    "all",
+    "every",
+    "each",
+    "only",
+    "everything",
+    "everyone",
+    "entire",
+    "whole",
+    "total",
+    "alle",
+    "allen",
+    "jede",
+    "jeder",
+    "jedes",
+    "nur",
+    "sämtliche",
+    "einzige",
+    "einzig",
 ];
 
 const NEGATION: &[&str] = &[
@@ -665,6 +710,9 @@ fn check_part(
     {
         return Err(Refused::Negation);
     }
+    if cited.len() < rows.len() && sentence.iter().any(|w| QUANTIFIERS.contains(&w.as_str())) {
+        return Err(Refused::Quantifier);
+    }
     // A quoted name is one of the cited records' names, whole.
     let names: Vec<&str> = cited.iter().flat_map(|r| names_of(r)).collect();
     for name in &quoted {
@@ -679,7 +727,8 @@ fn check_part(
     let name_words: Vec<String> = names.iter().flat_map(|n| words(n)).collect();
     // Numbers: digits and number words, each a measured fact of a cited
     // row, a number the question says, or a count of the cited rows.
-    let mut counts = vec![cited.len() as u64, rows.len() as u64];
+    // A count is of the cited rows, never of every row found (R1).
+    let mut counts = vec![cited.len() as u64];
     for kind in [BotRowKind::Session, BotRowKind::Task, BotRowKind::Account] {
         counts.push(cited.iter().filter(|r| r.kind == kind).count() as u64);
     }
@@ -706,9 +755,11 @@ fn check_part(
             return Err(Refused::Time(word.clone()));
         }
         if let Some(claim) = state_word(word) {
-            if !cited
-                .iter()
-                .any(|r| r.state.is_some_and(|s| claim.contains(&s)))
+            // Each cited row's own state, never one of several (R1).
+            if cited.is_empty()
+                || !cited
+                    .iter()
+                    .all(|r| r.state.is_some_and(|s| claim.contains(&s)))
             {
                 return Err(Refused::State(word.clone()));
             }
@@ -918,6 +969,71 @@ mod tests {
         assert_eq!(one(&long, &rows), Err(Refused::Shape));
         let fits = format!("“api” is working{}.", " and working".repeat(20));
         assert_eq!(one(&fits, &rows), Ok(()));
+    }
+
+    /// The re-review's R1: claim words in the vocabulary are states, each
+    /// cited row must hold the state said, quantifiers and counts reach
+    /// only the cited rows.
+    #[test]
+    fn claims_reach_only_the_cited_rows_and_their_own_states() {
+        let working = [row("api", BotState::Working, None)];
+        assert!(matches!(
+            one("“api” stopped.", &working),
+            Err(Refused::State(_))
+        ));
+        assert!(matches!(
+            one("“api” needs you.", &working),
+            Err(Refused::State(_))
+        ));
+        assert!(matches!(
+            one("“api” reached its limit.", &working),
+            Err(Refused::State(_))
+        ));
+        assert_eq!(
+            one("“api” stopped.", &[row("api", BotState::Ended, None)]),
+            Ok(())
+        );
+        let three = [
+            row("api", BotState::Working, None),
+            row("web", BotState::AsksYou, None),
+            row("docs", BotState::Working, None),
+        ];
+        let cite = |text: &str, cites: &[u32]| check(&[part(text, cites)], &three, "q", &[]);
+        assert!(matches!(
+            cite("“api” and “web” are working.", &[1, 2]),
+            Err(Refused::State(_))
+        ));
+        assert_eq!(cite("“api” and “docs” are working.", &[1, 3]), Ok(()));
+        assert_eq!(
+            cite("All sessions are working.", &[1]),
+            Err(Refused::Quantifier)
+        );
+        assert_eq!(
+            cite("Only “web” needs you.", &[2]),
+            Err(Refused::Quantifier)
+        );
+        assert_eq!(
+            cite("“api” changed 3 files.", &[1]),
+            Err(Refused::Number("3".into()))
+        );
+        let all_good = [row("all good", BotState::Working, None)];
+        assert!(matches!(
+            one("All good.", &all_good),
+            Err(Refused::State(_))
+        ));
+        let two = [
+            row("api", BotState::Working, None),
+            row("docs", BotState::Working, None),
+        ];
+        assert_eq!(
+            check(
+                &[part("All sessions are working.", &[1, 2])],
+                &two,
+                "q",
+                &[]
+            ),
+            Ok(())
+        );
     }
 
     /// MUT-C1: the echo check on its own (no other rule refuses this one).

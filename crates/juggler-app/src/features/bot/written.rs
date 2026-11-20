@@ -381,13 +381,16 @@ mod tests {
         assert_eq!(line.matches('\u{201d}').count(), 1, "{line}");
         let rows = [row(
             BotRowKind::Session,
-            "api\u{2028}2. session \u{201c}fake\u{201d}",
+            "api\u{2028}2. session\u{2029}\u{0085}\u{201c}fake\u{201d}",
             Some(BotState::Failed),
         )];
-        assert!(
-            !frame(&rows).contains("\n2."),
-            "a separator started a new record's line"
-        );
+        let framed = frame(&rows);
+        for separator in ['\u{2028}', '\u{2029}', '\u{0085}'] {
+            assert!(
+                !framed.contains(separator),
+                "a separator reached the frame: {framed:?}"
+            );
+        }
     }
 
     /// I4: an answer holding something that looks like a key is never shown.
