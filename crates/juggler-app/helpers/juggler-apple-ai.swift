@@ -15,8 +15,9 @@
 //   out first: {"hello":true,"protocol":2,"available":<state>,"context_size":<int>}
 //     state: available | device_not_eligible | apple_intelligence_not_enabled | model_not_ready | not_this_os | unknown
 //   in:  {"id":<int>,"op":"respond","instructions":<text>,"prompt":<text>,"max_tokens":<int>,"schema":<shape>?}
-//   out: {"id":<int>,"text":<text>,"finish":"stop"|"length"|"unmeasured","error":null|"refused"|"too_long"|"unavailable"|"failed"}
-//     unmeasured: a plain answer whose tokens this SDK or OS can't count (macOS 26); the app treats it as possibly cut.
+//   out: {"id":<int>,"text":<text>,"finish":"stop"|"length","error":null|"refused"|"too_long"|"unavailable"|"failed"}
+//     "stop" only when the answer is known whole: counted under the limit, or guided output that decoded. Where tokens
+//     can't be counted (FoundationModels 1.x, macOS 26), a plain request runs as guided output with one field, `text`.
 //   in:  {"id":<int>,"op":"network"}   (any macOS: the network path, for the model download's pause, AJ-E3813)
 //   out: {"id":<int>,"satisfied":<bool>,"expensive":<bool>,"constrained":<bool>,"error":null|"unknown"}
 //   in:  {"op":"quit"}
@@ -110,20 +111,20 @@ func generate(_ request: [String: Any], permissive: Bool) async throws -> (Strin
         // Guided output that decoded is whole: a cut one fails to decode (decodingFailure, sent as "length").
         return (response.content.jsonString, "stop")
     }
-    let response = try await session.respond(to: prompt, options: options)
-    return (response.content, finish(response, limit: limit))
-}
-
-/// How a plain answer ended: "length" at the token limit, "stop" before it, "unmeasured" where its tokens can't be
-/// counted (the usage counts are FoundationModels 2.x, macOS 27): never "stop" without a count.
-@available(macOS 26.0, *)
-func finish(_ response: LanguageModelSession.Response<String>, limit: Int) -> String {
     #if canImport(FoundationModels, _version: 2.0)
     if #available(macOS 27.0, *) {
-        return response.usage.output.totalTokenCount >= limit ? "length" : "stop"
+        // Counted: "length" at the token limit, "stop" before it.
+        let response = try await session.respond(to: prompt, options: options)
+        return (response.content, response.usage.output.totalTokenCount >= limit ? "length" : "stop")
     }
     #endif
-    return "unmeasured"
+    // No token count here (FoundationModels 1.x, macOS 26): the plain request runs as guided output with one field,
+    // whose decoded answer is whole, so "stop" is still known, never assumed.
+    let text = DynamicGenerationSchema.Property(name: "text", description: nil, schema: DynamicGenerationSchema(type: String.self))
+    let plain = try GenerationSchema(root: DynamicGenerationSchema(name: "Answer", description: nil, properties: [text]),
+                                     dependencies: [])
+    let response = try await session.respond(to: prompt, schema: plain, includeSchemaInPrompt: true, options: options)
+    return (try response.content.value(String.self, forProperty: "text"), "stop")
 }
 
 /// The protocol's error word for `error`, and whether a permissive retry may help.

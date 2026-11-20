@@ -282,8 +282,8 @@ fn a_refusal_and_a_cut_answer_reach_the_job_as_such() {
     engine.probe();
     let draft = engine.respond("m", &request(), &soon()).unwrap();
     assert_eq!(draft.finish, crate::features::ai::engine::Finish::Length);
-    // A plain answer the helper couldn't count (macOS 26) is possibly cut,
-    // never finished.
+    // Any finish but "stop" (an older or unknown word) is possibly cut,
+    // never finished: the engine fails closed.
     let unmeasured = r#"{"id":ID,"text":"maybe whole","finish":"unmeasured","error":null}"#;
     let engine = Apple::with_program(Some(fake(
         dir.path(),
@@ -295,6 +295,31 @@ fn a_refusal_and_a_cut_answer_reach_the_job_as_such() {
     engine.probe();
     let draft = engine.respond("m", &request(), &soon()).unwrap();
     assert_eq!(draft.finish, crate::features::ai::engine::Finish::Length);
+}
+
+/// Every job keeps a measured finish on every macOS (D-127: Apple's model
+/// is never a broken option on macOS 26): a plain request is counted on
+/// FoundationModels 2.x and runs as one-field guided output on 1.x, and
+/// the two SDKs' APIs sit behind the module's own version.
+#[test]
+fn a_plain_answer_is_measured_on_both_sdks() {
+    let guarded = SOURCE
+        .matches("#if canImport(FoundationModels, _version: 2.0)")
+        .count();
+    assert_eq!(guarded, 2, "the sampling label and the token count");
+    let counted = SOURCE
+        .find("response.usage.output.totalTokenCount")
+        .unwrap();
+    let fallback = SOURCE.find("forProperty: \"text\"").unwrap();
+    assert!(
+        counted < fallback,
+        "counted where it can be, guided where it can't"
+    );
+    assert!(SOURCE.contains("DynamicGenerationSchema.Property(name: \"text\""));
+    assert!(
+        !SOURCE.contains("\"unmeasured\""),
+        "never an unmeasured finish"
+    );
 }
 
 #[test]
