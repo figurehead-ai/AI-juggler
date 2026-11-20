@@ -21,7 +21,7 @@ export function watchesChanged(): void {
 }
 
 /** How many live watches name `target`. */
-export function watchedBy(watches: readonly WatchInfo[], target: WatchTarget): number {
+function watchedBy(watches: readonly WatchInfo[], target: WatchTarget): number {
   const key = target.kind === "any" ? "any" : `${target.kind}:${target.id}`;
   return watches.filter((info) => info.watch.targets.some((t) => (t.kind === "any" ? "any" : `${t.kind}:${t.id}`) === key)).length;
 }

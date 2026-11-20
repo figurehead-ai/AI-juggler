@@ -13,13 +13,11 @@ import { hasLiveBackend } from "../bridge";
 import { listenWhileShown } from "../shown-window";
 import type { AiJob } from "../../types/generated/AiJob";
 import type { AiJobInfo } from "../../types/generated/AiJobInfo";
-import type { AiJobState } from "../../types/generated/AiJobState";
-import type { AiJobWhy } from "../../types/generated/AiJobWhy";
 
-export type { AiJob, AiJobInfo, AiJobState, AiJobWhy };
+export type { AiJob, AiJobInfo };
 
 /** The event the backend sends when the answer changed. */
-export const AI_JOBS_CHANGED = "ai://jobs-changed";
+const AI_JOBS_CHANGED = "ai://jobs-changed";
 
 declare global {
   interface Window {

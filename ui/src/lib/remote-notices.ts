@@ -12,7 +12,7 @@ import { useCallback, useEffect } from "react";
 import { sharedRead, useSharedRead, whenForgotten } from "./shared-read";
 import { noticesDismiss, noticesList, onRemoteChanged, type RemoteNoticeInfo } from "./ipc/remote";
 
-export type { RemoteNoticeInfo };
+
 
 const NOTICES = sharedRead<RemoteNoticeInfo[]>(noticesList);
 

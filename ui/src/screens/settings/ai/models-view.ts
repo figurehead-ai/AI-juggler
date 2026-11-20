@@ -13,7 +13,7 @@ import { FIT, chipWords, memoryWords } from "./models-words";
 
 /** The jobs a model card lists (attention is code, never the model's:
  * it shows only in Each job uses): the routed jobs. */
-export const MODEL_JOBS: readonly AiJob[] = ["review", "chat", "feed", "digest", "watches"];
+const MODEL_JOBS: readonly AiJob[] = ["review", "chat", "feed", "digest", "watches"];
 
 /** Every job's row in Each job uses, in the mock's order. */
 export const JOB_ROWS: readonly ModelJob[] = ["review", "chat", "attention", "feed", "digest", "watches"];
@@ -22,7 +22,7 @@ export function verdictOf(model: CatalogModel, job: ModelJob) {
   return model.verdicts.find((verdict) => verdict.job === job) ?? { job, verdict: "not_tested" as const, note: null };
 }
 
-export function passed(model: CatalogModel, job: ModelJob): boolean {
+function passed(model: CatalogModel, job: ModelJob): boolean {
   const { verdict } = verdictOf(model, job);
   return verdict === "beta" || verdict === "ships";
 }
@@ -41,7 +41,7 @@ export function betaJobs(model: CatalogModel): AiJob[] {
 }
 
 /** What the Recommended card's action is. */
-export type RecommendedAction = "use" | "in-use" | "download" | "downloading" | "no-disk";
+type RecommendedAction = "use" | "in-use" | "download" | "downloading" | "no-disk";
 
 export interface Recommended {
   model: CatalogModel;

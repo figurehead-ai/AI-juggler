@@ -6,10 +6,10 @@
  * One copy: each is the Watches view's own call (`watch-view.ts`), with
  * its one stand-in (`window.__AIJ_WATCH_VIEW__`) for the preview and tests.
  */
-import { watchCatalogue, watchCreate, watchDraftWords, watchesPage, type CatalogueEntry, type WatchDraftInfo, type WatchInfo, type WatchTarget } from "./watch-view";
+import { watchCatalogue, watchCreate, watchDraftWords, watchesPage, type CatalogueEntry, type WatchDraftInfo } from "./watch-view";
 import type { WatchPreviewInfo } from "../../types/generated/WatchPreviewInfo";
 
-export type { CatalogueEntry, WatchDraftInfo, WatchInfo, WatchPreviewInfo, WatchTarget };
+export type { CatalogueEntry, WatchDraftInfo, WatchPreviewInfo };
 export type { WatchViewSeam as WatchesSeam } from "./watch-view";
 
 /** What `target` can be watched for. */

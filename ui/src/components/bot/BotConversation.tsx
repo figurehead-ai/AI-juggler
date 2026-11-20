@@ -24,7 +24,7 @@ function DayDivider({ ms, now }: { ms: number; now: number }): JSX.Element {
   );
 }
 
-export function TopicDivider({ topic, withNote }: { topic: BotTopicInfo; withNote: boolean }): JSX.Element {
+function TopicDivider({ topic, withNote }: { topic: BotTopicInfo; withNote: boolean }): JSX.Element {
   return (
     <div className="flex flex-col items-center gap-1" data-testid="bot-topic">
       <span className="flex w-full items-center gap-2.5 text-label font-semibold tracking-[.07em] text-accent-hi uppercase before:h-px before:flex-1 before:bg-[color-mix(in_srgb,var(--color-accent)_40%,var(--color-divider))] after:h-px after:flex-1 after:bg-[color-mix(in_srgb,var(--color-accent)_40%,var(--color-divider))]">

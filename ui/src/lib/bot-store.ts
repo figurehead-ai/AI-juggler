@@ -17,18 +17,18 @@ import type { BotScope } from "../types/generated/BotScope";
 export type { BotScope };
 
 /** Where Bot is. */
-export type BotMode = "closed" | "panel" | "page";
+type BotMode = "closed" | "panel" | "page";
 
 /** The panel's width: 340 to 560, 400 by default (the mock). */
-export const WIDTH_MIN = 340;
-export const WIDTH_MAX = 560;
+const WIDTH_MIN = 340;
+const WIDTH_MAX = 560;
 export const WIDTH_DEFAULT = 400;
 const WIDTH_KEY = "aij.bot.width";
 
 /** Under this window width the panel is a sheet over the page. */
 export const SHEET_UNDER = 1100;
 
-export interface BotFind {
+interface BotFind {
   words: string;
   /** Matching turns, oldest first. */
   matches: string[];
@@ -224,11 +224,6 @@ export async function newTopic(): Promise<void> {
 export async function clearConversation(): Promise<void> {
   await botClear();
   set({ turns: [], topics: [], more: false, find: null, anchor: null });
-}
-
-/** Replaces a turn (a memory's Undo, "This is wrong"). */
-export function updateTurn(turn: BotTurnInfo): void {
-  set({ turns: state.turns.map((t) => (t.id === turn.id ? turn : t)) });
 }
 
 /** Find in the conversation: the matches, the newest current. */

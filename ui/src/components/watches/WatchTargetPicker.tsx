@@ -17,7 +17,7 @@ const KIND_WORDS: Record<WatchTarget["kind"], string> = { session: PICKER.sessio
 const KIND_ICONS: Record<WatchTarget["kind"], WatchIcon> = { session: IconTerminal, app: IconTiles, project: IconFolderShut, pool: IconPoolRing, account: IconPersonOutline, any: IconTiles };
 
 /** The next set of targets once `option` is flipped. */
-export function flipTarget(picked: readonly WatchTarget[], option: TargetOption): WatchTarget[] {
+function flipTarget(picked: readonly WatchTarget[], option: TargetOption): WatchTarget[] {
   if (picked.some((t) => sameTarget(t, option.target))) return picked.filter((t) => !sameTarget(t, option.target));
   if (option.kind === "any") return [option.target];
   const rest = picked.filter((t) => t.kind !== "any");

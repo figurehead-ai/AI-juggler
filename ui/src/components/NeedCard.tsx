@@ -28,7 +28,7 @@ export function NeedByLine({ author, place, time, timeTestId }: { author: string
 /** An agent's letters for its disc: its first letter and its number when
  * it has one ("builder-1" → "b1", told from "builder-2"), else its first
  * two ("reviewer" → "re"). */
-export function agentLetters(name: string): string {
+function agentLetters(name: string): string {
   const plain = name.replace(/[^\p{L}\p{N}]/gu, "").toLowerCase();
   const number = /(\d+)$/u.exec(plain)?.[1];
   if (number && plain.length > number.length) return (plain[0]! + number).slice(0, 3);

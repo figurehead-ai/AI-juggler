@@ -36,7 +36,7 @@ function Licence({ model }: { model: CatalogModel }): JSX.Element | null {
   );
 }
 
-export function ModelCard({
+function ModelCard({
   model,
   tag,
   free,

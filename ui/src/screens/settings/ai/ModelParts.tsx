@@ -18,7 +18,7 @@ import { initials } from "./models-view";
 import { FACTS, HONESTY, JOB_NAMES, PAGE, SPEED_WORDS, VERDICT_WORDS, gb } from "./models-words";
 
 /** The guide page "How we test models" opens. */
-export const HOW_WE_TEST = "ai-models#how-we-test-models";
+const HOW_WE_TEST = "ai-models#how-we-test-models";
 
 /** A card's edge: the kit's hairline at three quarters. */
 export const CARD = "rounded-[14px] bg-surface inset-ring-1 inset-ring-hairline/75";

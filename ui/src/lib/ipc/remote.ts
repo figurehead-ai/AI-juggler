@@ -13,11 +13,10 @@ import { hasLiveBackend } from "../bridge";
 import { listenWhileShown } from "../shown-window";
 import type { RemoteAboutInfo } from "../../types/generated/RemoteAboutInfo";
 import type { RemoteNoticeInfo } from "../../types/generated/RemoteNoticeInfo";
-import type { RemoteNoticeLevel } from "../../types/generated/RemoteNoticeLevel";
 import type { RemoteSection } from "../../types/generated/RemoteSection";
 import type { RemoteValuesInfo } from "../../types/generated/RemoteValuesInfo";
 
-export type { RemoteAboutInfo, RemoteNoticeInfo, RemoteNoticeLevel, RemoteSection, RemoteValuesInfo };
+export type { RemoteAboutInfo, RemoteNoticeInfo, RemoteSection, RemoteValuesInfo };
 
 /** A section's values, typed by its name. */
 export type RemoteValuesOf<S extends RemoteSection> = Extract<RemoteValuesInfo, { section: S }>;
@@ -29,7 +28,7 @@ export function isSection<S extends RemoteSection>(values: RemoteValuesInfo, sec
 
 /** The event the backend sends when the configuration in effect changed
  * or a notice was dismissed. */
-export const REMOTE_CHANGED = "remote-config://changed";
+const REMOTE_CHANGED = "remote-config://changed";
 
 type RemotePreview = {
   flags?: Record<string, boolean>;

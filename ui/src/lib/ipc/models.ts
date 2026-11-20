@@ -26,8 +26,8 @@ import type { SystemPage } from "../../types/generated/SystemPage";
 export type { ApprovalInfo, CatalogModel, DownloadInfo, InstalledModelInfo, ModelsCatalog, ModelsInfo, StartInfo, SystemPage };
 
 /** The backend's events. */
-export const AI_MODELS_CHANGED = "ai-models://changed";
-export const AI_MODELS_PROGRESS = "ai-models://progress";
+const AI_MODELS_CHANGED = "ai-models://changed";
+const AI_MODELS_PROGRESS = "ai-models://progress";
 
 declare global {
   interface Window {

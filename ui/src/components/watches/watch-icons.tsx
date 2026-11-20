@@ -29,7 +29,7 @@ export const IconCheckCircle = draw(
 );
 export const IconMessage = draw(<path d="M4 5.5h16v10H9l-5 4v-14Z" />);
 export const IconHourglass = draw(<path d="M7 3.5h10M7 20.5h10M8 3.5v3l4 5.5-4 5.5v3M16 3.5v3L12 12l4 5.5v3" />);
-export const IconFail = draw(
+const IconFail = draw(
   <>
     <circle cx="12" cy="12" r="9" />
     <path d="m9 9 6 6M15 9l-6 6" />
@@ -43,7 +43,7 @@ export const IconSun = draw(
     <path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6 7 7M17 17l1.4 1.4M5.6 18.4 7 17M17 7l1.4-1.4" />
   </>,
 );
-export const IconClockFace = draw(
+const IconClockFace = draw(
   <>
     <circle cx="12" cy="12" r="9" />
     <path d="M12 7.5V12l3 2" />
@@ -62,7 +62,7 @@ export const IconTerminal = draw(
     <path d="m7 9 3 3-3 3M12.5 15H17" />
   </>,
 );
-export const IconRestart = draw(<path d="M20 11a8 8 0 0 0-14.6-4.5L4 8M4 4v4h4M4 13a8 8 0 0 0 14.6 4.5L20 16M20 20v-4h-4" />);
+const IconRestart = draw(<path d="M20 11a8 8 0 0 0-14.6-4.5L4 8M4 4v4h4M4 13a8 8 0 0 0 14.6 4.5L20 16M20 20v-4h-4" />);
 export const IconPlay = draw(<path d="M8 5.5v13l10.5-6.5L8 5.5Z" />);
 export const IconPause = draw(<path d="M9 6v12M15 6v12" />, 2);
 export const IconDots = draw(
@@ -129,12 +129,6 @@ export const IconChevronR = draw(<path d="m9 6 6 6-6 6" />);
 export const IconChevronD = draw(<path d="m6 9 6 6 6-6" />);
 export const IconChevronL = draw(<path d="m15 6-6 6 6 6" />);
 export const IconArrowR = draw(<path d="M5 12h14M13 6l6 6-6 6" />);
-export const IconUndoArrow = draw(
-  <>
-    <path d="M9 14 4 9l5-5" />
-    <path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11" />
-  </>,
-);
 export const IconInfinity = draw(<path d="M7.5 15.5C4 15.5 3 13 3 12s1-3.5 4.5-3.5c3.5 0 5.5 7 9 7 3.5 0 4.5-2.5 4.5-3.5s-1-3.5-4.5-3.5c-3.5 0-5.5 7-9 7Z" />);
 export const IconCopyTwo = draw(
   <>
@@ -144,13 +138,7 @@ export const IconCopyTwo = draw(
 );
 export const IconLines = draw(<path d="M5 7h14M5 12h14M5 17h9" />);
 export const IconShieldLine = draw(<path d="M12 3.5 5 6v5.5c0 4.2 3 7.6 7 9 4-1.4 7-4.8 7-9V6l-7-2.5Z" />);
-export const IconBell = draw(
-  <>
-    <path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15L6 16Z" />
-    <path d="M10 20.5a2 2 0 0 0 4 0" />
-  </>,
-);
-export const IconCommit = draw(
+const IconCommit = draw(
   <>
     <circle cx="12" cy="12" r="3.5" />
     <path d="M3 12h5.5M15.5 12H21" />

@@ -17,7 +17,7 @@ import { MANY, PAGE } from "./watches-words";
 import { IconCross } from "./watch-icons";
 
 /** Ended watches read at a time. */
-export const ENDED_PAGE = 10;
+const ENDED_PAGE = 10;
 
 export function WatchingSection(props: {
   live: WatchInfo[];

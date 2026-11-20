@@ -74,7 +74,7 @@ function Facts({ row, alias }: { row: BotRowInfo; alias?: string }): JSX.Element
 }
 
 /** One row, its source link. */
-export function BotRow({ row, n, now, find, onWatch, alias }: { row: BotRowInfo; n?: number; now: number; find?: string; onWatch?: (row: BotRowInfo) => void; alias?: string }): JSX.Element {
+function BotRow({ row, n, now, find, onWatch, alias }: { row: BotRowInfo; n?: number; now: number; find?: string; onWatch?: (row: BotRowInfo) => void; alias?: string }): JSX.Element {
   const nav = useBotNav();
   const stateId = useId();
   const live = row.kind === "session" && (row.state === "working" || row.state === "asks_you" || row.state === "stuck" || row.state === "limit");

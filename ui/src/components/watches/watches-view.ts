@@ -54,7 +54,7 @@ export function appOfSession(session: Pick<InstanceInfo, "account_id" | "kind">,
   return apps.find((app) => app.id === `cli:${folder}`) ?? null;
 }
 
-export interface PoolLike {
+interface PoolLike {
   id: string;
   name: string;
   kind: string;
@@ -164,7 +164,7 @@ export function kindList(book: Map<string, TargetOption>, kind: WatchTarget["kin
 }
 
 /** A target the book doesn't know (gone, or not read yet). */
-export function unknownTarget(target: WatchTarget): TargetOption {
+function unknownTarget(target: WatchTarget): TargetOption {
   const kind = target.kind;
   // Not on this Mac's lists right now (an ended session, one not read
   // yet): said by its kind, never called removed (only its watch's ending
@@ -216,7 +216,7 @@ export function rowState(info: WatchInfo, now: number): { tone: StateTone; top: 
 }
 
 /** "at 14:32" today, "yesterday 22:41", "Tue 11:05", "Nov 17 11:05". */
-export function lastWhen(at: number, now: number): string {
+function lastWhen(at: number, now: number): string {
   const words = pastWhen(at, now);
   return words === clock(at) ? `at ${words}` : words;
 }
@@ -240,7 +240,7 @@ export function intersect(catalogues: readonly CatalogueEntry[][]): CatalogueEnt
 }
 
 /** The four most used first; the rest fold under "N more". */
-export const TOP_CODES = ["finishes", "asks_you", "stuck", "fails"] as const;
+const TOP_CODES = ["finishes", "asks_you", "stuck", "fails"] as const;
 
 export function splitConditions(entries: readonly CatalogueEntry[]): { top: CatalogueEntry[]; more: CatalogueEntry[] } {
   const top = TOP_CODES.map((code) => entries.find((e) => e.code === code)).filter((e): e is CatalogueEntry => e !== undefined);

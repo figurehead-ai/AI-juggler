@@ -47,7 +47,7 @@ function model(spec: {
   };
 }
 
-export const APPLE: CatalogModel = model({
+const APPLE: CatalogModel = model({
   id: "apple-on-device",
   name: "Apple's on-device model",
   size: null,
@@ -64,7 +64,7 @@ export const APPLE: CatalogModel = model({
   ],
 });
 
-export const QWEN: CatalogModel = model({
+const QWEN: CatalogModel = model({
   id: "qwen3-1-7b-q8",
   name: "Qwen3 1.7B",
   size: 1834426016,
@@ -81,7 +81,7 @@ export const QWEN: CatalogModel = model({
   ],
 });
 
-export const NEMOTRON: CatalogModel = model({
+const NEMOTRON: CatalogModel = model({
   id: "nemotron-3-nano-4b-q4km",
   name: "Nemotron 3 Nano 4B",
   size: 2837072864,
@@ -98,7 +98,7 @@ export const NEMOTRON: CatalogModel = model({
   ],
 });
 
-export const GRANITE: CatalogModel = model({
+const GRANITE: CatalogModel = model({
   id: "granite-4-1-3b-q4km",
   name: "Granite 4.1 3B",
   size: 2099501664,
@@ -133,12 +133,12 @@ export const GEMMA: CatalogModel = model({
 });
 
 /** The downloads, smallest first. */
-export const DOWNLOADS = [QWEN, GRANITE, NEMOTRON, GEMMA];
+const DOWNLOADS = [QWEN, GRANITE, NEMOTRON, GEMMA];
 
 /** A Mac with Apple Intelligence on (M3, 18 GB, 212 GB free). */
-export const MAC_AI: MacInfo = { apple_silicon: true, chip: 3, memory_bytes: 18 * GIB, memory_gb: 19, free_disk_bytes: 212 * GB, apple_ai: "on" };
+const MAC_AI: MacInfo = { apple_silicon: true, chip: 3, memory_bytes: 18 * GIB, memory_gb: 19, free_disk_bytes: 212 * GB, apple_ai: "on" };
 /** A Mac without it (M2, 16 GB, 48 GB free). */
-export const MAC_PLAIN: MacInfo = { apple_silicon: true, chip: 2, memory_bytes: 16 * GIB, memory_gb: 17, free_disk_bytes: 48 * GB, apple_ai: "off" };
+const MAC_PLAIN: MacInfo = { apple_silicon: true, chip: 2, memory_bytes: 16 * GIB, memory_gb: 17, free_disk_bytes: 48 * GB, apple_ai: "off" };
 
 const rec = (over: Partial<RecommendationInfo>): RecommendationInfo => ({ model_id: null, why: null, nothing: null, needed_bytes: null, apple_ai_off: false, ...over });
 
@@ -146,7 +146,7 @@ export function catalog(mac: MacInfo, recommendation: RecommendationInfo, models
   return { listed, mac, recommendation, models };
 }
 
-export const NO_MODELS: ModelsInfo = { installed: [], total_bytes: 0, download: null, declined: [] };
+const NO_MODELS: ModelsInfo = { installed: [], total_bytes: 0, download: null, declined: [] };
 
 function installed(...rows: Array<[CatalogModel, number, "listed" | "withdrawn" | "unknown"]>): ModelsInfo {
   const list = rows.map(([m, at, standing]) => ({ id: m.id, name: m.name, size_bytes: m.size_bytes ?? 0, installed_at_ms: at, licence_name: m.licence_name, standing }));

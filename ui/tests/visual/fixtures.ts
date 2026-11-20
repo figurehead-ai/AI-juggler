@@ -29,7 +29,7 @@ const T0 = 1_728_800_000_000; // pinned clock base (deterministic)
  * its first prompt, so captures read like a real day ("Fix the flaky
  * login test"), never "Session started 8:30 AM" in every row. A spec that
  * tests the untitled fallback (D-96) clears `title` on the rows it means. */
-export const SESSION_TITLES = [
+const SESSION_TITLES = [
   "Set up the billing webhooks",
   "Fix the flaky login test",
   "Draft the migration plan",
@@ -120,7 +120,7 @@ const mk = (n: number, status: InstanceInfo["status"], label: string): InstanceI
 /** The clock `allStatuses` was written against (its times are T0 less a
  * few minutes or hours): a spec that pins another clock sees them moved
  * to it (`src/preview/fixtures.ts`). */
-export const FIXTURE_NOW = T0;
+const FIXTURE_NOW = T0;
 
 export const allStatuses: FixtureSet = {
   now_ms: T0,

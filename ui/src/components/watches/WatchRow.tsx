@@ -49,7 +49,7 @@ function MenuSwitch({ on }: { on: boolean }): JSX.Element {
   );
 }
 
-export function WatchMenu({ info, at, onClose, actions, targetName, quietTo }: { info: WatchInfo; at: MenuAt; onClose: () => void; actions: WatchRowActions; targetName: string; quietTo: string | null }): JSX.Element {
+function WatchMenu({ info, at, onClose, actions, targetName, quietTo }: { info: WatchInfo; at: MenuAt; onClose: () => void; actions: WatchRowActions; targetName: string; quietTo: string | null }): JSX.Element {
   const run = (act: () => void) => () => {
     onClose();
     act();
@@ -103,7 +103,7 @@ export function WatchMenu({ info, at, onClose, actions, targetName, quietTo }: {
 }
 
 /** The name "Go to" uses: the one target's, quoted, else the first's. */
-export function goToName(info: WatchInfo, book: Map<string, TargetOption>): string {
+function goToName(info: WatchInfo, book: Map<string, TargetOption>): string {
   const first = info.echo.head.find((span) => span.name)?.text;
   if (first) return first;
   return optionOf(book, info.watch.targets[0]!).name;

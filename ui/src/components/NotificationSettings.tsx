@@ -125,7 +125,7 @@ function ManageWatches(): JSX.Element {
 
 /** AJ-E3712 R7: the agent digest's own switch (on unless turned off):
  * off, Home gets no digest item and the digest no notification. */
-export const DIGEST_ON_KEY = "digest.on";
+const DIGEST_ON_KEY = "digest.on";
 
 function AgentDigest({ onStatus }: { onStatus: (status: string | null, error: string | null) => void }): JSX.Element | null {
   const [on, setOn] = useState<boolean | null>(null);

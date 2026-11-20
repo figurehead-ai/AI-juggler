@@ -195,7 +195,7 @@ export function accountLine(row: SubscriptionInfo, { email = true }: { email?: b
 /** AJ-E1601: an account through another service in one line — its plan
  * and how honest its usage is ("Go Plus · estimate"), or why its key
  * can't be used. */
-export function serviceLine(row: SubscriptionInfo): string {
+function serviceLine(row: SubscriptionInfo): string {
   if (row.state === "unverified") {
     const reason = row.reason ?? "its key isn't here";
     return reason.charAt(0).toUpperCase() + reason.slice(1);
@@ -207,7 +207,7 @@ export function serviceLine(row: SubscriptionInfo): string {
 /** Whether a reading is Account `row`'s (AJ-E3210, D-135): one read
  * under an Account (`signed_in_as`) is that Account's only; one that says
  * none is its folder's, so its folder's Account's. */
-export function displayIsAccounts(row: SubscriptionInfo, display: QuotaDisplayData): boolean {
+function displayIsAccounts(row: SubscriptionInfo, display: QuotaDisplayData): boolean {
   const under = display.signed_in_as ?? null;
   if (under !== null) return row.account_id != null && under === row.account_id;
   return row.profiles.some((profile) => profile.id === display.account);

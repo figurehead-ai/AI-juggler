@@ -22,7 +22,7 @@ import { useMemories } from "../../lib/bot-memory";
 const ICON_BUTTON = "grid size-[30px] place-items-center rounded-lg text-muted outline-none hover:bg-surface-2 hover:text-ink focus-visible:ring-2 focus-visible:ring-accent/60";
 
 /** Whether the Beta switch is offered: a model passes Bot's tests here. */
-export function betaOffered(job: AiJobInfo | null): boolean {
+function betaOffered(job: AiJobInfo | null): boolean {
   return job?.state === "ready" || job?.state === "waiting" || job?.state === "beta_off";
 }
 

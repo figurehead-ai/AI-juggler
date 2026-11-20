@@ -15,7 +15,7 @@ import { MANY, PAGE, QUIET } from "./watches-words";
 import { IconAdd, IconBotHead, IconChevronR, IconFind, IconMoon, IconWarnTriangle } from "./watch-icons";
 
 /** The guide's section on watches. */
-export const WATCHES_GUIDE = "notifications#watches-you-set";
+const WATCHES_GUIDE = "notifications#watches-you-set";
 
 export function WatchesHead({ count, limit, empty, onNew, onAskBot }: { count: number; limit: number; empty: boolean; onNew: () => void; onAskBot: (() => void) | null }): JSX.Element {
   return (

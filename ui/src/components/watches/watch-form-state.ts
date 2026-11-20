@@ -12,7 +12,7 @@ import type { Matching } from "../../types/generated/Matching";
 import type { Param } from "../../types/generated/Param";
 import type { WatchDraftInfo } from "../../types/generated/WatchDraftInfo";
 import type { WatchTarget } from "../../types/generated/WatchTarget";
-import { clock, whenWords } from "../../lib/time-words";
+import { whenWords } from "../../lib/time-words";
 import type { PreviewFacts } from "./WatchPreview";
 import { optionOf, suggestedLifetime, type TargetOption } from "./watches-view";
 import { NOUN, PREVIEW } from "./watches-words";
@@ -62,7 +62,7 @@ export function paramSteps(entry: CatalogueEntry): number[] {
 }
 
 /** "YYYY-MM-DD" and "HH:MM" for a local time. */
-export function dayAndTime(at: number): { day: string; time: string } {
+function dayAndTime(at: number): { day: string; time: string } {
   const d = new Date(at);
   const two = (n: number) => String(n).padStart(2, "0");
   return { day: `${d.getFullYear()}-${two(d.getMonth() + 1)}-${two(d.getDate())}`, time: `${two(d.getHours())}:${two(d.getMinutes())}` };
@@ -83,7 +83,7 @@ export function lifeOf(state: FormState): LifeKind {
   return state.life ?? suggestedLifetime(state.targets, state.codes);
 }
 
-export function lifetimeChoice(state: FormState): LifetimeChoice {
+function lifetimeChoice(state: FormState): LifetimeChoice {
   const life = lifeOf(state);
   if (life === "until") {
     const at = untilMs(state.untilDay, state.untilTime);
@@ -148,9 +148,4 @@ export function previewFacts(input: { state: FormState; offered: readonly Catalo
   const ends =
     life === "once" ? PREVIEW.onceEnds : life === "until_ends" ? PREVIEW.untilEnds(state.targets.length) : life === "today" || at === null ? PREVIEW.todayEnds : life === "until" ? PREVIEW.untilEndsAt(whenWords(at, input.now)) : PREVIEW.alwaysEnds;
   return { echo: input.echo, was: input.was, title, line, shows, quiet, quietWakes: state.quiet, ends, endsKind: life };
-}
-
-/** A clock for an hour of the day, as the system writes it. */
-export function hourWords(hour: number): string {
-  return clock(new Date(2026, 0, 1, hour).getTime());
 }

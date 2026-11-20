@@ -72,7 +72,7 @@ export interface RunwayLine {
 
 /** An Account's one runway: its newest measured window over every folder
  * signed in to it, and the sessions on any of them. */
-export function groupRunway(group: AccountGroup, quota: QuotaDisplayData[], sessions: InstanceInfo[]): RunwayLine {
+function groupRunway(group: AccountGroup, quota: QuotaDisplayData[], sessions: InstanceInfo[]): RunwayLine {
   const ids = new Set(group.profiles.map((profile) => profile.id));
   const display = group.subscription ? accountDisplay(group.subscription, quota) : quota.find((q) => q.account === group.profiles[0]?.id);
   return runwayOf(display, sessions.filter((s) => s.account_id !== null && ids.has(s.account_id)));

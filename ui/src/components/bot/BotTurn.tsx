@@ -30,7 +30,7 @@ const SHORTCUT_ICON: Record<BotShortcut, (p: SVGProps<SVGSVGElement>) => JSX.Ele
   usage: IconGauge,
 };
 
-export function Lead({ pieces }: { pieces: readonly Piece[] }): JSX.Element {
+function Lead({ pieces }: { pieces: readonly Piece[] }): JSX.Element {
   return (
     <p className="text-body leading-normal text-ink-2" data-testid="bot-lead">
       {pieces.map((p, i) => (p.strong ? <b key={i} className="font-semibold text-ink">{p.text}</b> : <span key={i}>{p.text}</span>))}

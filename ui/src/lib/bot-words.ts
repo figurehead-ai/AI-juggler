@@ -163,7 +163,7 @@ export function stateSub(row: BotRowInfo, now: number): string {
 }
 
 /** "14:32", "yesterday 16:20", or the day. */
-export function whenShort(ms: number, now: number): string {
+function whenShort(ms: number, now: number): string {
   const day = dayWords(ms, now);
   if (day === "Today") return clock(ms);
   if (day === "Yesterday") return `yesterday ${clock(ms)}`;
@@ -218,7 +218,7 @@ export function lookedWords(looked: BotLooked, atMs: number, now: number): strin
 }
 
 /** "api only", "every session in Agent app one", "shop", "the session api". */
-export function scopeWords(scope: BotScope, chip: boolean): string {
+function scopeWords(scope: BotScope, chip: boolean): string {
   switch (scope.kind) {
     case "session":
       return chip ? `${scope.name} only` : `the session ${scope.name}`;
