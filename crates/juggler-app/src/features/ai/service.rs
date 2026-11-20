@@ -359,7 +359,7 @@ mod tests;
 ///
 /// # Errors
 ///
-/// [`EngineError::NotHere`] when the job doesn't run now; the engine's
+/// [`super::engine::EngineError::NotHere`] when the job doesn't run now; the engine's
 /// own error otherwise.
 pub fn respond_for(
     state: &AppState,
