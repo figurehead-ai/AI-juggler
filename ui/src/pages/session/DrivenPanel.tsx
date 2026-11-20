@@ -158,9 +158,11 @@ export function DrivenPanel({
         <AskCard key={ask.id} ask={ask} />
       ))}
       <DrivenItems items={notes.items} streaming={view?.streaming ?? null} />
-      {(view?.items ?? []).length === 0 && !view?.streaming && session.conversation_id && host.openConversationById && (
+      {view?.written === true && view.items.length === 0 && !view.streaming && session.conversation_id && host.openConversationById && (
         // The RC walk: a conversation continued here (Run in AI Juggler,
         // Resume) showed a blank page; its earlier turns are the tool's.
+        // Only once its tool has written it (the rc3h walk: offered before
+        // any turn, it opened a conversation with nothing in it).
         <p className="text-meta text-ink-2" data-testid="driven-earlier">
           Earlier turns are in its conversation.{" "}
           <button type="button" className="font-medium text-accent-hi underline-offset-2 hover:underline" onClick={() => host.openConversationById?.(session.account_id ?? "", session.conversation_id!, session.project_id ?? null)}>

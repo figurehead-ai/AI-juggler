@@ -86,6 +86,8 @@ const view = (asks: AskInfo[]): RuntimeViewInfo => ({
   items: [{ kind: "user_message", text: "Run the tests", at_ms: 1 }],
   streaming: null,
   model: "gpt-5.5-codex",
+  // A conversation continued here: its tool has written it.
+  written: true,
 });
 
 beforeEach(() => {

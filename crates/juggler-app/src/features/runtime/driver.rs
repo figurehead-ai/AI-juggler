@@ -412,6 +412,7 @@ impl Driver {
             items: snapshot.items.iter().cloned().collect(),
             streaming: Some(snapshot.streaming.clone()).filter(|s| !s.is_empty()),
             model: snapshot.model,
+            written: snapshot.written,
         }
     }
 

@@ -35,7 +35,7 @@ const runtime: RuntimeInfo = {
 const driven = (over: Partial<InstanceInfo> = {}): InstanceInfo =>
   instance({ id: "sess-p4", status: "running", model: null, launch_model: null, running_model: null, model_source: "unknown", conversation_id: null, runtime, ...over });
 
-const view: RuntimeViewInfo = { session_id: "sess-p4", runtime, items: [], streaming: null, model: REPORTED };
+const view: RuntimeViewInfo = { session_id: "sess-p4", runtime, items: [], streaming: null, model: REPORTED, written: true };
 
 /** The preview's runtime views (`runtimeGet` reads them with no backend). */
 const views = (all: Record<string, RuntimeViewInfo>) => Reflect.set(window, "__AIJ_RUNTIME__", all);
