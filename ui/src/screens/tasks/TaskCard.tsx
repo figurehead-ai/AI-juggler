@@ -92,7 +92,9 @@ export function TaskCard({
         type="button"
         onClick={onOpen}
         aria-current={selected ? "true" : undefined}
-        className="text-left text-body font-medium leading-snug text-ink outline-none after:absolute after:inset-0 after:content-['']"
+        // A whole 24 px target (WCAG 2.5.8): at 19 px, a blocked card's
+        // "Waits on:" link under it left it 22 px of spacing (axe, 1024).
+        className="min-h-6 text-left text-body font-medium leading-snug text-ink outline-none after:absolute after:inset-0 after:content-['']"
         data-testid="task-card-open"
       >
         {task.title}
