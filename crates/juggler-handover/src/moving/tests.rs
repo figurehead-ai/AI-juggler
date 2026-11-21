@@ -449,3 +449,177 @@ fn an_interrupted_undo_keeps_one_preserved_folder() {
     let kept = txn.undo(&stopped, 99).unwrap();
     assert!(kept.ends_with("first"));
 }
+
+/// The journal's events, in order (phases by name).
+fn journal(txn: &Transaction) -> Vec<String> {
+    std::fs::read_to_string(txn.dir().join("journal.jsonl"))
+        .unwrap()
+        .lines()
+        .filter_map(|line| serde_json::from_str::<serde_json::Value>(line).ok())
+        .map(|value| match value["event"].as_str() {
+            Some("phase") => value["phase"].as_str().unwrap_or_default().to_owned(),
+            Some(event) => event.to_owned(),
+            None => String::new(),
+        })
+        .collect()
+}
+
+fn appends(path: &Path, line: &[u8]) {
+    std::fs::OpenOptions::new()
+        .append(true)
+        .open(path)
+        .unwrap()
+        .write_all(line)
+        .unwrap();
+}
+
+/// 0.4.9 (a 406 MB move refused: "the backup of … doesn't match it"):
+/// the Claude app's Code tab wrote its last lines as the app closed,
+/// while the history was backed up. A file that changes once while it is
+/// read is backed up again after the caller's settle, and the journal
+/// says so.
+#[test]
+fn a_file_that_changed_while_backed_up_is_backed_up_again_after_settling() {
+    if !clones() {
+        return;
+    }
+    let lab = lab();
+    let history = lab.a.join("p/s.jsonl");
+    let mut txn = begin(&lab, "m15");
+    let mut wrote = false;
+    let mut settled = 0;
+    txn.back_up_retrying(
+        &Stopped::checked(),
+        &mut |path| {
+            if path == history && !wrote {
+                wrote = true;
+                appends(&history, b"{\"type\":\"last-prompt\"}\n");
+            }
+        },
+        &mut |_, _| {},
+        &mut || settled += 1,
+    )
+    .unwrap();
+    assert_eq!(settled, 1, "settled once before the second try");
+    assert_eq!(txn.manifest.phase, Phase::BackedUp);
+    assert_eq!(journal(&txn), ["planned", "backup_changed", "backed_up"]);
+    let entry = txn
+        .manifest
+        .entries
+        .iter()
+        .find(|e| e.path == history)
+        .unwrap();
+    assert!(
+        state::same_bytes(&history, &entry.before),
+        "the grown file is the baseline"
+    );
+}
+
+/// A file still changing on the second try refuses with its path for
+/// Copy details; that try's clones go, and the undone move reads
+/// planned → undone.
+#[test]
+fn a_file_still_changing_on_the_second_try_refuses_and_leaves_no_clone() {
+    if !clones() {
+        return;
+    }
+    let lab = lab();
+    let history = lab.a.join("p/s.jsonl");
+    let mut txn = begin(&lab, "m16");
+    let error = txn
+        .back_up_retrying(
+            &Stopped::checked(),
+            &mut |path| {
+                if path == history {
+                    appends(&history, b"{\"type\":\"cost-state\"}\n");
+                }
+            },
+            &mut |_, _| {},
+            &mut || {},
+        )
+        .unwrap_err();
+    assert!(
+        matches!(&error, MoveError::Changed(path) if *path == history),
+        "{error}"
+    );
+    assert_eq!(txn.manifest.phase, Phase::Planned);
+    assert!(walk(&txn.dir().join("backups")).is_empty(), "no clone left");
+    txn.undo(&Stopped::checked(), 7).unwrap();
+    assert_eq!(
+        journal(&txn),
+        ["planned", "backup_changed", "backup_changed", "undone"]
+    );
+}
+
+/// 0.4.9: a long backup says how far it is: the bytes read rise to the
+/// total (every file read twice: its baseline and its clone's check).
+#[test]
+fn a_large_backup_reports_its_progress_as_it_reads() {
+    if !clones() {
+        return;
+    }
+    let lab = lab();
+    let history = lab.a.join("p/s.jsonl");
+    let line = b"{\"type\":\"assistant\",\"pad\":\"................................\"}\n";
+    let mut big = Vec::with_capacity(6 << 20);
+    while big.len() < 6 << 20 {
+        big.extend_from_slice(line);
+    }
+    std::fs::write(&history, &big).unwrap();
+    let mut txn = begin(&lab, "m17");
+    let mut seen: Vec<(u64, u64)> = Vec::new();
+    txn.back_up_with(
+        &Stopped::checked(),
+        &mut |done, total| seen.push((done, total)),
+        &mut || {},
+    )
+    .unwrap();
+    let total = seen.last().unwrap().1;
+    assert!(total >= 2 * big.len() as u64, "{total}");
+    assert!(
+        seen.len() >= 12,
+        "about one report per MiB read: {}",
+        seen.len()
+    );
+    assert!(seen.windows(2).all(|w| w[0].0 <= w[1].0), "never goes back");
+    assert!(
+        seen.iter().any(|(done, _)| *done > 0 && *done < total),
+        "reported part way"
+    );
+    assert_eq!(seen.last().unwrap().0, total);
+}
+
+/// 0.4.9: an undone move's backups go (nothing is left to restore); one
+/// in any other phase keeps its own, and work Undo kept aside stays.
+#[test]
+fn only_an_undone_moves_backups_are_let_go() {
+    if !clones() {
+        return;
+    }
+    let lab = lab();
+    let stopped = Stopped::checked();
+    let mut undone = begin(&lab, "m18");
+    undone.back_up(&stopped).unwrap();
+    undone.apply(&stopped, 0).unwrap();
+    std::fs::write(lab.b.join("p/s/subagents/y.jsonl"), b"since\n").unwrap();
+    let kept = undone.undo(&stopped, 9).unwrap();
+    assert!(!walk(&undone.dir().join("backups")).is_empty());
+    // Another move of the same files, backed up and applied: not undone.
+    let mut live = begin(&lab, "m19");
+    live.back_up(&stopped).unwrap();
+    live.apply(&stopped, 0).unwrap();
+    assert!(
+        live.drop_backups().is_err(),
+        "a live move keeps its backups"
+    );
+    assert_eq!(sweep_undone(&lab.moves), 1);
+    assert!(walk(&undone.dir().join("backups")).is_empty());
+    assert!(!walk(&kept).is_empty(), "the work kept aside stays");
+    assert!(!walk(&live.dir().join("backups")).is_empty());
+    assert_eq!(sweep_undone(&lab.moves), 0, "nothing more to let go");
+    let reopened = Transaction::open(undone.dir()).unwrap();
+    assert_eq!(
+        journal(&reopened).last().map(String::as_str),
+        Some("backups_dropped")
+    );
+}
