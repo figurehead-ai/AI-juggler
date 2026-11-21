@@ -40,12 +40,17 @@ fn app_state(dir: &Path) -> Arc<AppState> {
 }
 
 fn account(state: &Arc<AppState>) {
+    account_on(state, "fake");
+}
+
+/// The Work account, its tool `harness`, with its one launch settings.
+fn account_on(state: &Arc<AppState>, harness: &str) {
     let storage = state.storage.lock().unwrap();
     storage
         .accounts()
         .insert(&Account {
             id: AccountId::new("acc-work"),
-            harness: HarnessId::new("fake"),
+            harness: HarnessId::new(harness),
             label: ACCOUNT_LABEL.into(),
             plan: Some(juggler_core::model::PlanTier::new(PLAN)),
             state_dir: state.accounts_dir().join("acc-work"),
@@ -167,6 +172,46 @@ fn checkout(dir: &Path) -> (Arc<AppState>, String, std::path::PathBuf) {
     pools::pool_move_impl(&state, builder.as_str(), &pool).unwrap();
     pools::pool_set_role_impl(&state, planner.as_str(), "lead", None).unwrap();
     (state, pool, transcript)
+}
+
+/// SK48-4 (the 0.4.8 soak, P8): a Kimi Code member's card said
+/// "Unavailable — its transcript hasn't been read yet", but Kimi Code's
+/// transcripts don't say what a session is working on, so it never would
+/// be. Its card says so plainly, naming the tool.
+#[test]
+fn a_tool_that_doesnt_report_what_its_session_does_says_so_plainly() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut registry = AdapterRegistry::new();
+    registry.register(Arc::new(juggler_adapters::KimiCodeAdapter::new()));
+    let state =
+        Arc::new(AppState::init_with_registry(dir.path().join("app-data"), registry).unwrap());
+    account_on(&state, juggler_adapters::KIMI_CODE_ID);
+    let root = dir.path().join("research");
+    let research = project(&state, &root);
+    let scout = session(
+        &state,
+        "s-scout",
+        &research,
+        &root,
+        None,
+        SessionStatus::Running,
+    );
+    let info = pools::pool_create_impl(&state, "Scouts", None).unwrap();
+    let pool = info.pools[0].id.clone();
+    pools::pool_move_impl(&state, scout.as_str(), &pool).unwrap();
+
+    let result = cards::cards_impl(&state, &pool).unwrap();
+    let scout = card(&result.cards, "s-scout");
+    assert_eq!(scout.tool, "Kimi Code");
+    assert_eq!(scout.said.value, None);
+    assert_eq!(
+        scout.said.unavailable.as_deref(),
+        Some("Kimi Code doesn't report what it's doing")
+    );
+    assert_eq!(
+        scout.files_unavailable.as_deref(),
+        Some("Kimi Code doesn't report which files it changes")
+    );
 }
 
 #[test]

@@ -705,6 +705,9 @@ impl ToolInventory for ClaudeCodeAdapter {
 }
 
 impl ToolTranscripts for ClaudeCodeAdapter {
+    fn reports_activity(&self) -> bool {
+        true
+    }
     fn subagent_support(&self) -> juggler_adapter::SubagentSupport {
         crate::claude_subagents::SUPPORT
     }

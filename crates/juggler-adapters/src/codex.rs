@@ -818,6 +818,9 @@ impl ToolInventory for CodexAdapter {
 }
 
 impl ToolTranscripts for CodexAdapter {
+    fn reports_activity(&self) -> bool {
+        true
+    }
     fn subagent_support(&self) -> juggler_adapter::SubagentSupport {
         crate::codex_subagents::SUPPORT
     }

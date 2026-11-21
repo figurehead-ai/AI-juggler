@@ -121,6 +121,17 @@ fn transcript_of(
         .map(|reference| reference.path)
 }
 
+/// Whether tool `provider`'s transcripts say what a session is working on
+/// (its adapter's [`juggler_adapter::ToolTranscripts::reports_activity`]);
+/// a tool with no adapter here claims nothing either way.
+fn reports_activity(state: &AppState, provider: &str) -> bool {
+    use juggler_adapter::ToolTranscripts as _;
+    state
+        .registry
+        .get(&juggler_core::model::HarnessId::new(provider))
+        .is_none_or(|adapter| adapter.reports_activity())
+}
+
 /// Reads what each live session's transcript gained and publishes it.
 /// A session that ended keeps its last view; its reader is dropped.
 pub fn tick(state: &Arc<AppState>) {
@@ -425,8 +436,18 @@ fn card_of(
     } else {
         NOT_READ
     };
+    let tool = crate::features::tools::display_name(&state.registry, &row.provider);
     let (said, files, files_unavailable) = activity.map_or_else(
         || {
+            // SK48-4: a tool whose transcripts don't say it is never read
+            // for it: said plainly, never "hasn't been read yet".
+            if !reports_activity(state, &row.provider) {
+                return (
+                    CardField::not_reported(format!("{tool} doesn't report what it's doing")),
+                    Vec::new(),
+                    Some(format!("{tool} doesn't report which files it changes")),
+                );
+            }
             (
                 CardField::unavailable(why),
                 Vec::new(),
@@ -452,7 +473,7 @@ fn card_of(
         session_id: row.id.clone(),
         name,
         place,
-        tool: crate::features::tools::display_name(&state.registry, &row.provider),
+        tool,
         account: profile,
         state: row.status.clone(),
         role,

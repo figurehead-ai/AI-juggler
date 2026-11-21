@@ -738,6 +738,14 @@ pub trait ToolTranscripts: ToolIdentity {
         let _ = state_dir;
         Vec::new()
     }
+    /// AJ-E1703: its transcripts say what a session is working on (the
+    /// files it changed, its task list's step), as a pool's context card
+    /// reads them. Default: no; the card then says the tool doesn't report
+    /// it (SK48-4), never that its transcript is still to be read.
+    #[must_use]
+    fn reports_activity(&self) -> bool {
+        false
+    }
     /// 0.4.3: the version of what [`crate::ToolTranscripts::read_conversation`]
     /// reads from a file. Bump it whenever a summary would say something
     /// else of an unchanged file (a new field, a changed rule): AI

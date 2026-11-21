@@ -264,6 +264,9 @@ impl ToolConfig for FakeHarnessAdapter {
 impl ToolInventory for FakeHarnessAdapter {}
 
 impl ToolTranscripts for FakeHarnessAdapter {
+    fn reports_activity(&self) -> bool {
+        true
+    }
     fn subagent_support(&self) -> juggler_adapter::SubagentSupport {
         juggler_adapter::SubagentSupport::NotSupported(
             "A test stand-in keeps no record of subagents.",
