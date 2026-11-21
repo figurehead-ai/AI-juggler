@@ -60,9 +60,11 @@ export function WhereItRuns({
         {rows.map(([label, value, mono]) => (
           <div key={label} className="contents">
             <dt className="text-muted">{label}</dt>
-            <dd className={"min-w-0 truncate text-ink " + (mono ? "font-mono text-meta" : "")} title={value}>
+            {/* SK48-4: words wrap, whole ("Account unknown · Kimi Code
+                doesn't say…" was cut); only a folder's path gives way. */}
+            <dd className={"min-w-0 text-ink " + (mono ? "truncate font-mono text-meta" : "[overflow-wrap:anywhere]")} title={value} data-testid={`where-${label.toLowerCase()}-value`}>
               {doors[label] ? (
-                <button type="button" onClick={doors[label]} className="max-w-full truncate rounded text-left text-ink underline decoration-hairline underline-offset-2 outline-none hover:decoration-ink focus-visible:ring-1 focus-visible:ring-accent/60" data-testid={`where-${label.toLowerCase()}`}>
+                <button type="button" onClick={doors[label]} className={"max-w-full rounded text-left text-ink underline decoration-hairline underline-offset-2 outline-none hover:decoration-ink focus-visible:ring-1 focus-visible:ring-accent/60 " + (mono ? "truncate" : "")} data-testid={`where-${label.toLowerCase()}`}>
                   {value}
                 </button>
               ) : (

@@ -92,7 +92,9 @@ function CardRow({ card, session, named, now, heldBy = null, own, role }: { card
             </span>
             <span className="truncate text-xs text-faint">{card.place}</span>
             {shell && (
-              <span className="truncate text-xs text-muted" data-testid="pool-card-shell-why">
+              // SK48-4: whole, on as many lines as it takes (it was cut
+              // at "…can't read the pool, p…").
+              <span className="text-xs text-muted [overflow-wrap:anywhere]" data-testid="pool-card-shell-why">
                 {shell}
               </span>
             )}

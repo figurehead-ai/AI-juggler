@@ -127,7 +127,7 @@ export function InspectNode({
 
       {/* Its own choice here, near the top (the rc2 walk P5: the walker
           didn't find it at the foot, under Usage). */}
-      <MemberLevel pool={pool} sessionId={member.id} memberRole={member.role} />
+      <MemberLevel pool={pool} sessionId={member.id} memberRole={member.role} session={member.session} />
 
       <Section title="What it's doing">
         {member.card.said.value ? (
