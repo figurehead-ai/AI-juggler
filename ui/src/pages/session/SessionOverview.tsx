@@ -59,10 +59,10 @@ export function SessionOverview(props: OverviewProps): JSX.Element {
           <ConversationSwitcher model={model} visible={props.visible} own={<LastMessages model={model} visible={props.visible} onGoTo={props.onGoTo} />} />
         )
       }
+      // D-143 (PAT-SW): switching, always one visible click, first in the column.
+      lead={props.remoteMac ? undefined : <SwitchAccountButton switchKey={model.switchSource} accountId={model.profileId} why={switchNotYet} />}
       side={
         <>
-          {/* D-143 (PAT-SW): switching, always one visible click, first in the column. */}
-          {!props.remoteMac && <SwitchAccountButton switchKey={model.switchSource} accountId={model.profileId} why={switchNotYet} />}
           <WhereItRuns model={model} outside={props.outside ?? false} accountWords={account ? [accountName(account), accountLine(account)].filter(Boolean).join(" · ") : null}
             accountId={account?.state === "signed_in" ? (account.account_id ?? null) : null} />
           <Runway display={display} title={account && account.state === "signed_in" ? accountName(account) : null} profile={profiles.find((p) => p.id === model.profileId) ?? null} />

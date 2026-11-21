@@ -95,13 +95,16 @@ function page(): JSX.Element {
 }
 
 describe("a conversation's page (the maintainer's report: Claude app · personal-max, inactive, its week at 0%)", () => {
-  it("shows Switch account… first in its side column, above Where it runs", async () => {
+  it("shows Switch account… first, above Where it runs, outside the side column's scroll", async () => {
     render(page());
     const button = await screen.findByTestId("switch-account");
     const where = await screen.findByTestId("where-it-runs");
     expect(button.compareDocumentPosition(where) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(button.parentElement).toBe(where.parentElement);
-    expect(button.parentElement!.firstElementChild).toBe(button);
+    // Its own slot, the columns' first (above the main area when narrow,
+    // atop the side column when wide), outside the column's scroll.
+    const grid = screen.getByTestId("session-side").parentElement!.parentElement!;
+    expect(grid.firstElementChild!.contains(button)).toBe(true);
+    expect(screen.getByTestId("session-side").contains(button)).toBe(false);
   });
 
   it("out of room: Switch account… is the one filled primary; Continue in AI Juggler steps down", async () => {

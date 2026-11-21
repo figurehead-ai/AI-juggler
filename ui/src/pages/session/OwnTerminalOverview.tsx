@@ -63,10 +63,10 @@ export function OwnTerminalOverview({
       // 0.3.4: its subagents and the sessions it started, beside it on its
       // left, each one click away; the terminal stays as it is meanwhile.
       main={<ConversationSwitcher model={model} visible own={terminal} ownWords="Its terminal" />}
+      // D-143 (PAT-SW): switching, always one visible click, first in the column.
+      lead={<SwitchAccountButton switchKey={session.id} accountId={session.account_id} why={switchNotYet} />}
       side={
         <>
-          {/* D-143 (PAT-SW): switching, always one visible click, first in the column. */}
-          <SwitchAccountButton switchKey={session.id} accountId={session.account_id} why={switchNotYet} />
           <WhereItRuns
             model={model}
             outside={false}
