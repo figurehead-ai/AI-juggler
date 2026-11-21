@@ -20,6 +20,8 @@ cd "$(dirname "$0")/.."
 swift scripts/edition_icon.swift crates/juggler-app/icons/icon.png target/edition-icons/dev/icon.png Dev C2410C
 cargo tauri icon target/edition-icons/dev/icon.png --output target/edition-icons/dev > /dev/null
 [ "${1:-}" = icon ] && exit 0
+# Free disk first (2026-11-21: parallel sessions drove it to 180 MB).
+python3 scripts/disk_guard.py "the Dev build" || exit 1
 
 target="${CARGO_TARGET_DIR:-target}"
 triple="$(rustc -vV | sed -n 's/^host: //p')"

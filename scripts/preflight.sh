@@ -59,6 +59,9 @@ case "$0" in */aij-preflight-sh.*) rm -f -- "$0" ;; esac # the open copy reads o
 ROOT="$AIJ_PREFLIGHT_ROOT"
 unset AIJ_PREFLIGHT_ROOT
 cd "$ROOT" || exit 2
+# Free disk first: warn under 40 GB, refuse under 20 (scripts/disk_guard.py,
+# the one rule every heavy entry point runs).
+python3 "$ROOT/scripts/disk_guard.py" "preflight" || exit 2
 BASE=""
 MODE=fast
 while [ $# -gt 0 ]; do
