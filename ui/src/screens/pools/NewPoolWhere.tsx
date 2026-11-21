@@ -34,6 +34,15 @@ export interface WhereProject {
   open: boolean;
 }
 
+/** A project pick a template change cleared (AJ-E2312 item 6): what was
+ * picked, and how the new template uses its project. */
+export interface ClearedPick {
+  /** What was picked, named as Review names it ("team", "every project"). */
+  what: string;
+  /** "«Sealed client project» keeps one project apart". */
+  why: string;
+}
+
 /** What's in a project now, in a line: "2 sessions open now · Claude
  * Code, Codex", else "Nothing open now · last used 3 h ago". */
 export function projectLine(id: string | null, sessions: readonly InstanceInfo[], now: number): string {
@@ -59,6 +68,7 @@ export function cardProjects(projects: readonly WhereProject[], chosen: readonly
 export function NewPoolWhere({
   draft,
   onDraft,
+  cleared = null,
   projects,
   sessions = [],
   nameFixed = false,
@@ -70,6 +80,9 @@ export function NewPoolWhere({
   scopeFixed?: string;
   draft: Draft;
   onDraft: (next: Draft) => void;
+  /** The pick the last template change cleared: said until a project is
+   * picked again. */
+  cleared?: ClearedPick | null;
   /** Every project; `open`: it has sessions open now (shown first). */
   projects: readonly WhereProject[];
   /** What's open in each, and when each was last worked in. */
@@ -178,7 +191,11 @@ export function NewPoolWhere({
           )}
           {none ? (
             <Alert level="needs-you" className="mt-1.5" testId="new-pool-where-words">
-              Pick at least one project: only its sessions can join.
+              {cleared ? `${cleared.why}, so your pick (${cleared.what}) was cleared. Pick at least one project: only its sessions can join.` : "Pick at least one project: only its sessions can join."}
+            </Alert>
+          ) : cleared ? (
+            <Alert level="info" className="mt-1.5" testId="new-pool-where-words">
+              {cleared.why}, so your pick ({cleared.what}) was cleared.
             </Alert>
           ) : (
             <Alert level="info" className="mt-1.5" testId="new-pool-where-words">
