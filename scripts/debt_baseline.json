@@ -1120,9 +1120,6 @@
  "ui/src/lib/useToolsWithoutLimits.ts": {
   "knip:exports": 1
  },
- "ui/src/pages/ItemHeader.tsx": {
-  "knip:exports": 1
- },
  "ui/src/pages/SessionRow.tsx": {
   "knip:exports": 1
  },

@@ -11,7 +11,7 @@ import { conversationWorking, openWords, sessionWorking, type ProjectOpen } from
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
 
 /** How many of a tool's sessions run now, outside ones too (AJ-E1529). */
-export function toolRunning(toolId: string, sessions: InstanceInfo[], conversations: ConversationInfo[]): number {
+function toolRunning(toolId: string, sessions: InstanceInfo[], conversations: ConversationInfo[]): number {
   return (
     sessions.filter((s) => s.provider === toolId && isActiveStatus(s.status)).length +
     outside(conversations).filter((c) => c.tool === toolId && c.live).length
