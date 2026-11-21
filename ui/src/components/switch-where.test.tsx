@@ -220,25 +220,28 @@ describe("0.3.5 simple by default, details on demand", () => {
     expect(within(summary).getByTestId("switch-carry-recreated").querySelector("span")!.className).toContain("bg-accent-soft");
   });
 
-  it("says what stays behind in the warning tint", async () => {
+  it("says what stays behind as a fact, neutral, never amber (COL-4)", async () => {
     const view = mount({ ...ONECLICK, carry_items: [...ONECLICK.carry_items.slice(0, 2), { label: "The task list", hint: "It doesn't go along.", how: "stays", kind: "tasks" }] } as PreflightInfoData, EXAMPLE_DESTINATIONS);
     await waitFor(() => expect(view.getByTestId("switch-carry-summary")).toBeTruthy());
     expect(view.getByTestId("switch-carry-words").textContent).toBe("2 go along · 1 stays behind");
-    expect(view.getByTestId("switch-carry-stays").querySelector("span")!.className).toContain("bg-warning-soft");
+    const stays = view.getByTestId("switch-carry-stays");
+    expect(stays.querySelector("span")!.className).toContain("bg-surface-3");
+    expect(stays.textContent).toContain("Stays behind");
   });
 
-  // D-117 (selection): the current step has the one selected look (a 3:1
-  // edge on the raised fill, semibold), no longer the accent's tint.
-  it("colours the step marks: done ticked in the success tint, the current one selected", async () => {
+  // 0.5.0 (WIZ-1, D-126: progress is the accent's): the current step's dot
+  // filled in the accent and its name semibold, the done ones ticked on
+  // the accent's tint.
+  it("marks the steps: done ticked on the accent's tint, the current one in the accent", async () => {
     const view = mount(WIZARD, EXAMPLE_DESTINATIONS);
     await toConfirm(view);
     const marks = view.getByTestId("switch-steps").querySelectorAll("li");
     expect(marks[0]!.dataset.done).toBe("true");
-    expect(marks[0]!.className).toContain("bg-success-soft");
+    expect(marks[0]!.querySelector("span[aria-hidden]")!.className).toContain("bg-accent-soft");
     expect(marks[0]!.querySelector("svg")).toBeTruthy();
     expect(marks[2]!.getAttribute("aria-current")).toBe("step");
-    expect(marks[2]!.className).toContain("inset-ring-selected-ring");
-    expect(marks[2]!.className).toContain("font-semibold");
+    expect(marks[2]!.querySelector("span[aria-hidden]:not(.h-px)")!.className).toContain("bg-accent-fill");
+    expect(marks[2]!.lastElementChild!.className).toContain("font-semibold");
   });
 });
 

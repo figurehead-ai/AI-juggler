@@ -3,8 +3,9 @@
  * 2026-11-02: "too bland, too monotone"): each kind of thing has its icon
  * (the conversation a bubble, the rules a page, connected tools a link…),
  * and each disposition its tint: goes along in the success tint, recreated
- * in the accent tint, not there yet or left behind in the warning tint. The
- * words always say it too; colour is never the only signal.
+ * in the accent tint, not there yet in the warning tint, left behind
+ * neutral (0.5.0: a fact, not a call to act). The words always say it too;
+ * colour is never the only signal.
  */
 import type { JSX, SVGProps } from "react";
 import { IconGitBranch, IconSubtasks } from "../icons";
@@ -36,10 +37,11 @@ export type CarryTone = "moves" | "recreated" | "missing" | "stays";
 
 /** The chip's tint and its icon's colour, per disposition. */
 export const CARRY_TONES: Record<CarryTone, { chip: string; icon: string }> = {
-  moves: { chip: "border-success/30 bg-success-soft", icon: "text-success" },
-  recreated: { chip: "border-accent/30 bg-accent-soft", icon: "text-accent-hi" },
-  missing: { chip: "border-warning/35 bg-warning-soft", icon: "text-warning" },
-  stays: { chip: "border-warning/35 bg-warning-soft", icon: "text-warning" },
+  moves: { chip: "bg-success-soft", icon: "text-success" },
+  recreated: { chip: "bg-accent-soft", icon: "text-accent-hi" },
+  missing: { chip: "bg-warning-soft", icon: "text-warning" },
+  // Left behind is a fact, not a call to act (COL-4): neutral.
+  stays: { chip: "bg-surface-3", icon: "text-ink-2" },
 };
 
 /** A carry item's icon, by its kind (a check for one without a kind). */

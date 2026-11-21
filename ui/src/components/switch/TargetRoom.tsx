@@ -15,6 +15,9 @@ import { GUIDE } from "../../lib/switch-words";
 import { useSubscriptions } from "../../lib/subscriptions";
 import { useProfiles, useRunways } from "../../pages/session/data";
 import { Explain } from "./Explain";
+import { Alert } from "../Alert";
+import { IconGaugeLow } from "../icons";
+import { Fact } from "./Facts";
 
 /** The target account's room, once the preflight names it. AJ-E3210:
  * `appId`, the desktop App a session runs in: its own Account's room (a
@@ -37,53 +40,61 @@ export function risky(room: TargetRoom | null): boolean {
   return room?.kind === "out" || room?.kind === "low";
 }
 
-/** The room line every step shows; a warning, explained, when it's out
- * or low. */
+/** The room, said as a fact ("Account F: 98% left this week · Week
+ * resets Thu 08:00"): where it's fine, it's one row of the summary panel. */
+export function roomWords(room: TargetRoom, target: string): string {
+  const who = room.account ?? target;
+  if (room.kind === "credits" && room.credits) return `${who}: ${usingCreditsWords(room.credits)}. ${creditsConsequence(room.resetsAtMs)}`;
+  return `${who}: ${room.left === null ? room.words : `${room.words}${room.resets ? ` · ${room.resets}` : ""}`}`;
+}
+
+/** The room as a fact row, where nothing about it needs the user. */
+export function RoomFact({ room, target }: { room: TargetRoom | null; target: string }): JSX.Element | null {
+  if (room === null || risky(room) || room.kind === "blocked") return null;
+  return (
+    <Fact icon={IconGaugeLow} label="Room" testId="switch-room">
+      <span data-room={room.kind}>{roomWords(room, target)}</span>
+    </Fact>
+  );
+}
+
+/** What about the room needs a look, as an Alert (ALR-1): out of room or
+ * low is needs-you, explained, since the work stops there at the limit;
+ * not signed in, a fact. Nothing when the room is fine (`RoomFact`). */
 export function RoomNote({ room, target }: { room: TargetRoom | null; target: string }): JSX.Element | null {
   if (room === null) return null;
   // D-62: the room is the Account's, so it's said by its name; a folder
   // no Account lists, by the target's own.
   if (room.kind === "blocked") {
     return (
-      <p className="text-body text-ink" data-testid="switch-room" data-room="blocked">
+      <Alert level="info" live={null} testId="switch-room" data-room="blocked">
         {target}: {NOT_SIGNED_IN}
-      </p>
+      </Alert>
     );
   }
+  if (!risky(room)) return null;
   const who = room.account ?? target;
-  // 0.3.2: its window is used up, but its credits carry a session on.
-  if (room.kind === "credits" && room.credits) {
-    return (
-      <p className="text-body text-ink" data-testid="switch-room" data-room="credits">
-        Room on {who}: {usingCreditsWords(room.credits)}. {creditsConsequence(room.resetsAtMs)}
-      </p>
-    );
-  }
-  if (!risky(room)) {
-    return (
-      <p className="text-body text-ink" data-testid="switch-room" data-room={room.kind}>
-        Room on {who}: {room.left === null ? room.words : `${room.words}${room.resets ? ` · ${room.resets}` : ""}`}
-      </p>
-    );
-  }
   const out = room.kind === "out";
   return (
-    <div className="flex flex-col gap-1.5 rounded-lg border border-warning/40 px-3 py-2" data-testid="switch-room" data-room={room.kind}>
-      <p className="text-body font-semibold text-warning">
-        {out ? `${who}: ${outOfRoomWords(room.resetsAtMs)}` : lowRoomWords(who, room.left ?? 0)}
-      </p>
-      <p className="text-body text-ink">
-        {out ? outOfRoomConsequence(who, room.resetsAtMs) : `${room.resets ? `${room.resets}. ` : ""}You can still switch; it stops there if it reaches the limit.`}
-      </p>
-      <Explain
-        guide={GUIDE.room}
-        testId="switch-room-explain"
-        tips={[
-          "Each account has its own limits: a 5-hour window and a week. When one runs out, that account answers nothing more until it resets.",
-          `Example: switching to ${target} while it's out of room starts the conversation there, but the first message stops at the limit and waits for the reset.`,
-          "To keep working now, Cancel and pick the app marked Suggested: it has the most room.",
-        ]}
-      />
-    </div>
+    <Alert
+      level="needs-you"
+      live={null}
+      testId="switch-room"
+      data-room={room.kind}
+      title={out ? `${who}: ${outOfRoomWords(room.resetsAtMs)}` : lowRoomWords(who, room.left ?? 0)}
+      below={
+        <Explain
+          guide={GUIDE.room}
+          testId="switch-room-explain"
+          tips={[
+            "Each account has its own limits: a 5-hour window and a week. When one runs out, that account answers nothing more until it resets.",
+            `Example: switching to ${target} while it's out of room starts the conversation there, but the first message stops at the limit and waits for the reset.`,
+            "To keep working now, Cancel and pick the app marked Suggested: it has the most room.",
+          ]}
+        />
+      }
+    >
+      {out ? outOfRoomConsequence(who, room.resetsAtMs) : `${room.resets ? `${room.resets}. ` : ""}You can still switch; it stops there if it reaches the limit.`}
+    </Alert>
   );
 }

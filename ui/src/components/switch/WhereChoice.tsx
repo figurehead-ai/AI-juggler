@@ -8,16 +8,16 @@
  * has no Claude app profile it shows greyed, with why. The last button
  * names the choice ("Switch to Desktop").
  */
-import { useMemo, type JSX } from "react";
+import type { JSX } from "react";
 import type { PreflightInfoData, SwitchExecutedData } from "../../lib/ipc/switch-preflight";
 import { parseSourceKey } from "../../lib/ipc/conversations";
 import { markOpening } from "../../lib/just-opened";
 import type { DestinationsInfo } from "../../types/generated/DestinationsInfo";
 import { toolSpec } from "../../lib/tools";
-import { AppIcon } from "../AppIcon";
-import { IconTerminal } from "../icons";
-import { IconComputer } from "../icons-actions";
-import { ChoiceOption } from "../controls";
+import { RadioCard, RadioCards } from "../controls";
+import { Pill } from "../Pill";
+import { Section } from "../Section";
+import { ToolLogo } from "../ToolLogo";
 
 export type Destination = "desktop" | "cli";
 
@@ -59,60 +59,49 @@ export function WhereChoice({
   const info = destinationsOf(preflight);
   const spec = toolSpec(preflight.target_tool);
   const desktop = info.desktop;
-  const same = (destination: Destination) =>
-    info.suggested === destination && (destination === "cli" || desktop !== null) ? (
-      <span className="ml-1.5 rounded-full border border-success/30 bg-success-soft px-1.5 py-px text-label font-medium text-success">Same as the original</span>
-    ) : null;
-  const desktopApp = spec.desktop_app ?? "Desktop";
-  // The app's own icon (its id from the preflight, else the tool's app);
-  // a screen when neither is known. Kept across renders, so it's read once.
-  const appId = desktop?.app_id ?? spec.host_app ?? null;
-  const DesktopIcon = useMemo(
-    () =>
-      function DesktopIcon(): JSX.Element {
-        return appId ? <AppIcon appId={appId} name={desktopApp} size={16} /> : <IconComputer width={15} height={15} />;
-      },
-    [appId, desktopApp],
+  const same = (destination: Destination) => info.suggested === destination && (destination === "cli" || desktop !== null);
+  const title = (word: string, destination: Destination) => (
+    <span className="inline-flex flex-wrap items-center gap-x-2 gap-y-1">
+      {word}
+      {same(destination) && <Pill tone="neutral">Same as the original</Pill>}
+    </span>
   );
+  const desktopApp = spec.desktop_app ?? "Desktop";
+  const desktopWhy = info.desktop_why_not ?? `This account has no ${desktopApp} app profile AI Juggler knows.`;
+  // A card that can't be chosen says why on its face (RC-6).
+  const why = (words: string) => <span className="mt-1 text-meta text-ink-2">{words}</span>;
   return (
-    <div className="flex flex-col gap-2" data-testid="switch-where">
-      <span id="switch-where-legend" className="text-meta font-medium text-ink">
-        Continue in
-      </span>
-      <div role="radiogroup" aria-labelledby="switch-where-legend" className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-        <ChoiceOption
-          type="radio"
-          look="card"
-          name="switch-where"
-          icon={DesktopIcon}
-          label={<>Desktop{same("desktop")}</>}
-          hint={desktop ? desktop.name : `${desktopApp} app`}
-          reason={info.desktop_why_not ?? `This account has no ${desktopApp} app profile AI Juggler knows.`}
+    <Section title="Continue in" testId="switch-where">
+      <RadioCards label="Continue in" value={value} onChange={(next) => onChange(next === "desktop" ? "desktop" : "cli")} columns={2}>
+        <RadioCard
+          value="desktop"
+          logo={<ToolLogo tool={preflight.target_tool} kind="desktop" appId={desktop?.app_id ?? undefined} size={32} />}
+          title={title("Desktop", "desktop")}
+          sub={desktop ? desktop.name : `${desktopApp} app`}
           disabled={desktop === null}
-          checked={value === "desktop"}
-          onChange={() => onChange("desktop")}
-          data-testid="switch-where-desktop"
-        />
-        <ChoiceOption
-          type="radio"
-          look="card"
-          name="switch-where"
-          icon={IconTerminal}
-          label={<>CLI{same("cli")}</>}
-          hint={`${spec.display_name} in a terminal`}
-          reason={info.cli_why_not ?? undefined}
+          reason={desktopWhy}
+          testId="switch-where-desktop"
+        >
+          {desktop === null && why(desktopWhy)}
+        </RadioCard>
+        <RadioCard
+          value="cli"
+          logo={<ToolLogo tool={preflight.target_tool} kind="cli" size={32} />}
+          title={title("CLI", "cli")}
+          sub={`${spec.display_name} in a terminal`}
           disabled={info.cli_why_not !== null}
-          checked={value === "cli"}
-          onChange={() => onChange("cli")}
-          data-testid="switch-where-cli"
-        />
-      </div>
+          reason={info.cli_why_not ?? undefined}
+          testId="switch-where-cli"
+        >
+          {info.cli_why_not !== null && why(info.cli_why_not)}
+        </RadioCard>
+      </RadioCards>
       {value === "desktop" && desktop && !desktop.running && (
-        <p className="text-label text-muted" data-testid="switch-where-starts">
+        <p className="text-meta text-ink-2" data-testid="switch-where-starts">
           AI Juggler starts it as it switches.
         </p>
       )}
-    </div>
+    </Section>
   );
 }
 

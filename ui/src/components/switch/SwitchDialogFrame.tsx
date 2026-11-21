@@ -13,43 +13,45 @@
  */
 import { useEffect, type JSX, type ReactNode, type RefObject } from "react";
 import { Button } from "../primitives";
-import { IconCheck } from "../icons-controls";
-import { SELECTED_CARD } from "../controls/selected";
+import { IconCheck, IconClose } from "../icons-controls";
 import { DialogFrame, DialogOverlay } from "../DialogFrame";
 
 
 /** Where the dialog's controls are, for Tab. */
 const FOCUSABLE = "button:not(:disabled), input:not(:disabled), summary";
 
-/** The step marks: "Step 2 of 3: What's carried", then each step: the
- * ones done ticked in the success tint, the current one in the accent's
- * (0.3.5: "too monotone"). Only the steps that render are listed (§8). */
+/** The step marks (WIZ-1, DESIGN-SYSTEM §4.3): "Step 2 of 3: What's
+ * carried" in the accent, then each step as a numbered dot and its name,
+ * joined: the ones done ticked on the accent's tint, the current one filled
+ * in the accent and marked `aria-current`, the rest a quiet ring. Only the
+ * steps that render are listed (§8). */
 export function StepMarks({ steps, step, testId }: { steps: readonly string[]; step: number; testId: string }): JSX.Element {
   return (
-    <div className="flex flex-col gap-1.5" data-testid={testId} aria-live="polite">
-      <p className="text-meta text-ink">
+    <div className="flex flex-col gap-2" data-testid={testId} aria-live="polite">
+      <p className="text-label font-semibold uppercase tracking-[0.07em] text-accent-hi">
         Step {step + 1} of {steps.length}: {steps[step]}
       </p>
-      <ol className="flex flex-wrap gap-1">
-        {steps.map((title, index) => (
-          <li
-            key={title}
-            aria-current={index === step ? "step" : undefined}
-            data-done={index < step ? "true" : undefined}
-            className={
-              "inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-label " +
-              (index === step
-                ? SELECTED_CARD + " font-semibold text-selected-ink"
-                : index < step
-                  ? "border-success/30 bg-success-soft text-success"
-                  : "border-hairline text-muted")
-            }
-          >
-            {index < step && <IconCheck aria-hidden="true" width={12} height={12} strokeWidth={2.5} className="shrink-0" />}
-            {index < step && <span className="sr-only">Done: </span>}
-            {title}
-          </li>
-        ))}
+      <ol className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
+        {steps.map((title, index) => {
+          const done = index < step;
+          const now = index === step;
+          return (
+            <li key={title} aria-current={now ? "step" : undefined} data-done={done ? "true" : undefined} className="flex items-center gap-2">
+              {index > 0 && <span aria-hidden="true" className={"h-px w-5 " + (done || now ? "bg-accent/60" : "bg-hairline")} />}
+              <span
+                aria-hidden="true"
+                className={
+                  "flex size-5 shrink-0 items-center justify-center rounded-full text-label font-semibold tabular-nums " +
+                  (now ? "bg-accent-fill text-white" : done ? "bg-accent-soft text-accent-hi" : "text-muted inset-ring-[1.5px] inset-ring-faint/70")
+                }
+              >
+                {done ? <IconCheck width={12} height={12} strokeWidth={3} /> : index + 1}
+              </span>
+              {done && <span className="sr-only">Done: </span>}
+              <span className={"text-meta " + (now ? "font-semibold text-ink" : done ? "text-ink-2" : "text-muted")}>{title}</span>
+            </li>
+          );
+        })}
       </ol>
     </div>
   );
@@ -75,12 +77,14 @@ export function BackButton({ onClick, testId }: { onClick: () => void; testId: s
   );
 }
 
-/** Continue, to the next step; waits (disabled) until the step is
- * answered. A double-click never lands on the next step's button. */
-export function ContinueButton({ onClick, ready, testId }: { onClick: () => void; ready: boolean; testId: string }): JSX.Element {
+/** Next, to the next step, named by where it goes (WIZ-3: "Next: What's
+ * carried"); waits (disabled) until the step is answered, the footer's
+ * reason line saying why (BTN-5). A double-click never lands on the next
+ * step's button. */
+export function ContinueButton({ onClick, ready, testId, next }: { onClick: () => void; ready: boolean; testId: string; next?: string }): JSX.Element {
   return (
     <Button variant="primary" key="continue" type="button" disabled={!ready} onClick={onClick} data-testid={testId}>
-      Continue
+      {next ? `Next: ${next}` : "Continue"}
     </Button>
   );
 }
@@ -172,21 +176,21 @@ export function SwitchDialogFrame({
         aria-label={label}
         data-testid={testId}
         size="M-cards"
-        className="rounded-xl border border-hairline bg-surface shadow-card"
+        className="rounded-card border border-hairline bg-surface shadow-card"
         headerTestId="switch-header"
-        headerClassName="flex items-start gap-3 px-6 pt-5"
+        headerClassName="flex items-start gap-3 px-6 pt-5 pb-1"
         header={
           <>
-            <div className="min-w-0 flex-1 pb-3">{header}</div>
+            <div className="min-w-0 flex-1 pb-4">{header}</div>
             {onClose && (
-              <button type="button" onClick={onClose} aria-label="Close" title="Close (Esc)" className="-mr-3 -mt-2 flex size-8 shrink-0 items-center justify-center rounded-lg text-ink hover:bg-surface-2" data-testid="switch-close">
-                <span aria-hidden="true" className="text-lg leading-none">×</span>
-              </button>
+              <Button variant="ghost" size="sm" type="button" onClick={onClose} aria-label="Close" title="Close (Esc)" className="-mr-2 -mt-1 w-7 shrink-0 px-0" data-testid="switch-close">
+                <IconClose aria-hidden="true" width={20} height={20} className="text-ink-2" />
+              </Button>
             )}
           </>
         }
         bodyTestId="switch-body"
-        bodyClassName="px-6 pb-5"
+        bodyClassName="px-6 pt-1 pb-6"
         footer={footer}
         footerTestId="switch-footer"
         footerClassName="flex flex-wrap items-center justify-end gap-2 border-t border-hairline px-6 py-3"

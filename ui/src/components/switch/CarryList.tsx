@@ -11,26 +11,43 @@ import { GUIDE } from "../../lib/switch-words";
 import { Explain } from "./Explain";
 import { IN_HANDOVER, NOTES_KIND } from "./NotesRow";
 import { CARRY_TONES, CarryIcon, type CarryTone } from "./carry-marks";
+import { Pill, type PillTone } from "../Pill";
 
-function Items({ items, testId, tone }: { items: CarryItemData[]; testId: string; tone: CarryTone }): JSX.Element {
+/** Each disposition's tag (one look per state, TAG-5): only what isn't
+ * plain going along is coloured, and amber only for what the user can
+ * still act on (set it up first). */
+const TAGS: Record<CarryTone, { tone: PillTone; words: (target: string) => string }> = {
+  moves: { tone: "success", words: () => "Goes along" },
+  recreated: { tone: "neutral", words: () => "Recreated" },
+  missing: { tone: "warning", words: (target) => `Not on ${target} yet` },
+  stays: { tone: "neutral", words: () => "Stays behind" },
+};
+
+/** One group's rows: the kind's icon in a chip, the thing, its line, and
+ * the disposition's tag. Each row is focusable, its line read with it. */
+function Items({ items, testId, tone, target }: { items: CarryItemData[]; testId: string; tone: CarryTone; target: string }): JSX.Element {
   const id = useId();
   const look = CARRY_TONES[tone];
+  const tag = TAGS[tone];
   return (
-    <ul className="flex flex-wrap gap-1.5 text-ink" data-testid={testId}>
+    <ul className="flex flex-col" data-testid={testId}>
       {items.map((item, index) => (
-        <li key={item.label}>
-          <span
-            tabIndex={0}
-            title={item.hint}
-            aria-describedby={`${id}-${index}`}
-            className={"inline-flex min-h-6 items-center gap-1.5 rounded-md border px-2 text-meta outline-none focus-visible:ring-1 focus-visible:ring-accent/60 " + look.chip}
-          >
+        <li
+          key={item.label}
+          tabIndex={0}
+          aria-describedby={`${id}-${index}`}
+          className="flex min-w-0 items-center gap-3 rounded-[10px] px-3 py-2 outline-none hover:bg-surface-2 focus-visible:ring-2 focus-visible:ring-accent/60"
+        >
+          <span aria-hidden="true" className={"flex size-[30px] shrink-0 items-center justify-center rounded-lg " + look.chip}>
             <CarryIcon kind={item.kind} className={look.icon} />
-            {item.label}
           </span>
-          <span id={`${id}-${index}`} className="sr-only">
-            {item.hint}
+          <span className="flex min-w-0 flex-1 flex-col">
+            <span className="text-body font-medium text-ink">{item.label}</span>
+            <span id={`${id}-${index}`} className="text-meta text-ink-2">
+              {item.hint}
+            </span>
           </span>
+          <Pill tone={tag.tone}>{tag.words(target)}</Pill>
         </li>
       ))}
     </ul>
@@ -118,27 +135,28 @@ export function CarryList({
   const moves = items.filter((item) => item.how === "moves");
   const recreated = items.filter((item) => item.how === "recreated");
   const stays = items.filter((item) => item.how === "stays");
-  // Each group under a short heading; what each one means is in its
-  // chip's line (hover, focus) and under "What does this mean?".
+  // One list, each row tagged; each group keeps its own place in it.
   const group = (tone: CarryTone, title: string, list: CarryItemData[], testId: string, listId: string) =>
     list.length > 0 && (
-      <section className="flex flex-col gap-1.5" data-testid={testId}>
-        <h4 className={"text-meta font-semibold " + (tone === "stays" ? "text-warning" : "text-ink")}>{title}</h4>
-        <Items items={list} testId={listId} tone={tone} />
+      <section aria-label={title} data-testid={testId}>
+        <Items items={list} testId={listId} tone={tone} target={target} />
       </section>
     );
   return (
     <div className="flex flex-col gap-3" data-testid="switch-carry">
-      {group("moves", "Goes along", moves, "switch-carry-carried", "switch-carry-moves")}
-      {group("recreated", `Recreated on ${target}`, recreated, "switch-carry-rebuilt", "switch-carry-recreated")}
-      {group("missing", `Not on ${target} yet: you can set it up before you switch`, missing, "switch-carry-missing", "switch-carry-not-there")}
-      {group("stays", "Stays behind: the new session starts without it", stays, "switch-carry-dropped", "switch-carry-stays")}
+      <div className="flex flex-col gap-0.5 rounded-card bg-surface p-1.5 inset-ring-1 inset-ring-hairline/75">
+        {group("moves", "Goes along", moves, "switch-carry-carried", "switch-carry-moves")}
+        {group("recreated", `Recreated on ${target}`, recreated, "switch-carry-rebuilt", "switch-carry-recreated")}
+        {group("missing", `Not on ${target} yet: you can set it up before you switch`, missing, "switch-carry-missing", "switch-carry-not-there")}
+        {group("stays", "Stays behind: the new session starts without it", stays, "switch-carry-dropped", "switch-carry-stays")}
+      </div>
       <Explain
         guide={GUIDE.carried}
         testId="switch-carry-explain"
         tips={[
           ...(recreated.length > 0 ? [`Recreated: ${tool} on ${target} makes it again from its latest version.`] : []),
-          ...[...items, ...missing].map((item) => `${item.label}: ${item.hint}`),
+          "Not there yet: pick it on the last step, and it's set up on the other account before the switch.",
+          "Stays behind: the new session starts without it; the original keeps it.",
         ]}
       />
     </div>

@@ -7,6 +7,10 @@
  */
 import type { JSX } from "react";
 import { useResource } from "../../lib/use-resource";
+import { Alert } from "../Alert";
+import { IconFolderOpen } from "../icons-actions";
+import { Button } from "../primitives";
+import { Fact } from "./Facts";
 
 import { switchSpace, type SwitchSpaceInfo } from "../../lib/ipc/switchSpace";
 
@@ -22,22 +26,40 @@ export function tooLittleSpace(space: SwitchSpaceInfo | null): boolean {
   return space?.kind === "short";
 }
 
+/** The space as a fact row; short, the one thing that stops the switch,
+ * as a needs-you Alert with its clearing action (ALR-4). */
 export function DiskSpace({ space, onCheckAgain }: { space: SwitchSpaceInfo | null; onCheckAgain?: () => void }): JSX.Element | null {
   if (!space || space.kind === "none" || !space.words) return null;
-  const short = space.kind === "short";
+  if (space.kind === "short") {
+    return (
+      <Alert
+        level="needs-you"
+        live={null}
+        testId="switch-disk-space"
+        data-kind={space.kind}
+        title={space.words}
+        actions={
+          onCheckAgain && (
+            <Button size="sm" variant="secondary" type="button" onClick={onCheckAgain} data-testid="switch-disk-space-again">
+              Check again
+            </Button>
+          )
+        }
+      >
+        {space.advice && <span data-testid="switch-disk-space-advice">{space.advice}</span>}
+      </Alert>
+    );
+  }
   return (
-    <div className="flex flex-col gap-0.5" data-testid="switch-disk-space" data-kind={space.kind}>
-      <p className={"text-body " + (short ? "font-semibold text-warning" : "text-ink-2")}>{space.words}</p>
-      {space.advice && (
-        <p className={"text-body " + (short || space.kind === "low" ? "text-warning" : "text-ink-2")} data-testid="switch-disk-space-advice">
-          {space.advice}
-        </p>
-      )}
-      {short && onCheckAgain && (
-        <button type="button" onClick={onCheckAgain} className="self-start rounded-lg border border-hairline px-2.5 py-1 text-meta text-ink outline-none hover:bg-surface-2 focus-visible:ring-2 focus-visible:ring-accent/60" data-testid="switch-disk-space-again">
-          Check again
-        </button>
-      )}
-    </div>
+    <Fact icon={IconFolderOpen} label="Disk space" tone={space.kind === "low" ? "warn" : "plain"} testId="switch-disk-space">
+      <span data-kind={space.kind}>
+        {space.words}
+        {space.advice && (
+          <span className="block text-meta text-ink-2" data-testid="switch-disk-space-advice">
+            {space.advice}
+          </span>
+        )}
+      </span>
+    </Fact>
   );
 }

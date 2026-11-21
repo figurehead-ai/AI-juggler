@@ -14,6 +14,8 @@
 import type { JSX } from "react";
 import type { MoveProgressInfo } from "../../lib/ipc/switch-move";
 import { ProgressBar } from "../UpdateProgress";
+import { Alert } from "../Alert";
+import { IconCheck } from "../icons-controls";
 import { FailedStep } from "./FailedStep";
 import { MoveUndo } from "./MoveDone";
 import { sentence } from "./MoveScreen";
@@ -31,23 +33,52 @@ function percentOf(progress: MoveProgressInfo | null): number | null {
   return Math.min(100, Math.floor((progress.done / progress.total) * 100));
 }
 
-/** While the move runs: what it does now, and how far, when it counts. */
+/** §8's three steps, and where each of the backend's stages falls. */
+const STEPS = ["Quit both apps", "Move the conversation", "Reopen both"] as const;
+const STEP_OF: Record<string, number> = { closing: 0, still: 0, backing_up: 1, moving: 1, starting: 2, checking: 2 };
+
+/** While the move runs (DLG-10): what it does now and how far, on the
+ * tinted panel, then the three steps, done, now and next. */
 export function Moving({ target, holding, progress }: { target: string; holding: boolean; progress: MoveProgressInfo | null }): JSX.Element {
   const percent = percentOf(progress);
+  const at = STEP_OF[progress?.stage ?? ""] ?? 0;
   return (
-    <div className="flex flex-col gap-2" data-testid="switch-moving" data-stage={progress?.stage ?? "starting"}>
-      <p className="flex items-baseline gap-2 text-body text-ink">
-        <span aria-live="polite" data-testid="switch-moving-now">
-          {progress ? progress.words : `Moving to ${target}: both profiles quit, the conversation moves, and both start again.`}
-        </span>
-        {percent != null && (
-          <span className="ml-auto shrink-0 tabular-nums text-meta text-ink-2" data-testid="switch-moving-percent">
-            {percent}%
+    <div className="flex flex-col gap-4" data-testid="switch-moving" data-stage={progress?.stage ?? "starting"}>
+      <h3 className="type-section">Moving to {target}…</h3>
+      <div className="flex flex-col gap-2 rounded-card bg-accent-soft px-4 py-3.5 inset-ring-1 inset-ring-accent/15">
+        <p className="flex items-baseline gap-2 text-body font-semibold text-ink">
+          <span aria-live="polite" data-testid="switch-moving-now">
+            {progress ? progress.words : `Moving to ${target}: both profiles quit, the conversation moves, and both start again.`}
           </span>
-        )}
-      </p>
-      {percent != null && <ProgressBar label="Backing up" percent={percent} testId="switch-moving-bar" />}
-      {holding && <p className="text-meta text-muted">It can&apos;t be stopped half way, so it finishes first.</p>}
+          {percent != null && (
+            <span className="ml-auto shrink-0 text-meta font-normal tabular-nums text-ink-2" data-testid="switch-moving-percent">
+              {percent}%
+            </span>
+          )}
+        </p>
+        {percent != null && <ProgressBar label="Backing up" percent={percent} testId="switch-moving-bar" />}
+      </div>
+      <ol className="flex flex-col gap-1.5 text-body">
+        {STEPS.map((step, index) => (
+          <li key={step} className={"flex items-center gap-2.5 " + (index < at ? "text-ink-2" : index === at ? "font-semibold text-ink" : "text-muted")} data-state={index < at ? "done" : index === at ? "now" : "next"}>
+            <span aria-hidden="true" className="flex size-5 shrink-0 items-center justify-center">
+              {index < at ? (
+                <IconCheck width={14} height={14} strokeWidth={2.5} className="text-success" />
+              ) : index === at ? (
+                <span className="inline-block size-3.5 rounded-full border-2 border-accent border-t-transparent motion-safe:animate-spin" />
+              ) : (
+                <span className="size-2 rounded-full inset-ring-[1.5px] inset-ring-faint" />
+              )}
+            </span>
+            {step}
+          </li>
+        ))}
+      </ol>
+      {holding && (
+        <Alert level="info" live="status">
+          It can&apos;t be stopped half way, so it finishes first.
+        </Alert>
+      )}
     </div>
   );
 }

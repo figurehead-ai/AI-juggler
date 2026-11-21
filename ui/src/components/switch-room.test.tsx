@@ -234,7 +234,7 @@ describe("F1 the switch dialog says the target's room", () => {
     expect(room.textContent).toMatch(/Account F: Out of room until/);
     expect(room.textContent).toContain("stops at Account F's limit straight away");
     expect(within(room).getByTestId("switch-room-explain").textContent).toContain("What does this mean?");
-    expect(screen.getByTestId("switch-summary-room").textContent).toBe("Account F is out of room: see below before you switch.");
+    expect(screen.getByTestId("switch-summary-room").textContent).toBe("Account F is out of room: see above before you switch.");
     // 0.3.5: nothing needing you says nothing (no "Nothing needs you" beside the warning).
     expect(screen.getByTestId("switch-step-confirm").textContent).not.toContain("Nothing needs you");
     expect(screen.getByTestId("switch-confirm").textContent).toBe("Switch to CLI anyway");
@@ -252,17 +252,18 @@ describe("F1 the switch dialog says the target's room", () => {
     const room = await screen.findByTestId("switch-room");
     expect(room.textContent).toMatch(/Claude Max 20x: Out of room until/);
     expect(room.textContent).toContain("stops at Claude Max 20x's limit straight away");
-    expect(screen.getByTestId("switch-summary-room").textContent).toBe("Claude Max 20x is out of room: see below before you switch.");
+    expect(screen.getByTestId("switch-summary-room").textContent).toBe("Claude Max 20x is out of room: see above before you switch.");
     expect(screen.getByTestId("switch-step-confirm").textContent).toContain("Ready to switch to Account F");
   });
 
   it("an account with room: its room in words on the Target step, and Switch to CLI", async () => {
     open({ ...ONECLICK, door: "wizard", wizard_steps: ["Target", "Confirm"], target_account: "b" } as PreflightInfoData);
     const room = await screen.findByTestId("switch-room");
-    expect(room.textContent).toBe("Room on Account F: 98% left this week · Week resets " + room.textContent!.split("Week resets ")[1]);
+    // 0.5.0: a fact row of the Target step's panel, "Room" its label.
+    expect(room.textContent).toBe("RoomAccount F: 98% left this week · Week resets " + room.textContent!.split("Week resets ")[1]);
     expect(screen.getByTestId("switch-step-target").textContent).toContain("Nothing changes until the last step, where you pick Desktop or CLI and switch.");
     // deep/11 §9: the step's heading has the keyboard, never × (⏎ closed it).
-    await waitFor(() => expect(document.activeElement?.textContent).toBe("Switch to Account F"));
+    await waitFor(() => expect(document.activeElement?.textContent).toBe("Where it goes"));
     fireEvent.click(screen.getByTestId("switch-continue"));
     await waitFor(() => expect(document.activeElement?.textContent).toBe("Ready to switch to Account F"));
     expect(screen.getByTestId("switch-confirm").textContent).toBe("Switch to CLI");

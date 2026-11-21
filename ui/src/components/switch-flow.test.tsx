@@ -177,8 +177,10 @@ describe("AJ-E206 door", () => {
     fireEvent.click(view.getByTestId("switch-continue"));
     await waitFor(() => expect(view.getByTestId("switch-step-confirm")).toBeTruthy());
     expect(view.getByTestId("switch-confirm")).toBeTruthy();
-    // 0.4: the conversation that moves is named before anything does.
-    expect(view.getByTestId("switch-source").textContent).toBe("Copies “Fix the checkout flow” from Work");
+    // 0.4: the conversation that moves is named before anything does
+    // (0.5.0: as the summary panel's "Copies" fact).
+    expect(view.getByTestId("switch-source").textContent).toBe("“Fix the checkout flow” from Work");
+    expect(view.getByTestId("switch-source").closest("div")?.querySelector("dt")?.textContent).toBe("Copies");
   });
 
   it("wizard done navigates without an undo window (modal keeps the graph path)", async () => {
@@ -466,7 +468,8 @@ describe("leaving the switch", () => {
     // A late or repeated event never moves it back.
     act(() => events.get("switch://progress")!({ payload: "copying" }));
     expect(now()).toBe(first + 2);
-    expect(view.getByTestId("switch-progress").getAttribute("aria-valuenow")).toBe(String(first + 2));
+    // The bar: half way into the stage it's at, of the five (0.5.0: in percent).
+    expect(view.getByTestId("switch-progress").getAttribute("aria-valuenow")).toBe(String(Math.round(((first + 2.5) / 5) * 100)));
   });
 
   it("a failure a retry can't fix offers no Retry, and Copy details carries what the program said", async () => {
@@ -586,7 +589,8 @@ describe("0.4.1 (rc5): every screen says the same about the original", () => {
   const walk = async (change: Partial<PreflightInfoData>) => {
     const view = mount({ ...WIZARD, ...change }, vi.fn());
     await waitFor(() => expect(view.getByTestId("switch-step-target")).toBeTruthy());
-    const target = view.getByTestId("switch-move-line").textContent ?? "";
+    // 0.5.0: the Target step's facts, what carries and the original.
+    const target = view.getByTestId("switch-target-facts").textContent ?? "";
     fireEvent.click(view.getByTestId("switch-continue"));
     fireEvent.click(view.getByTestId("switch-continue"));
     await waitFor(() => expect(view.getByTestId("switch-original")).toBeTruthy());
@@ -616,7 +620,8 @@ describe("0.4.1 (rc5): every screen says the same about the original", () => {
   it("the confirm says the conversation is copied, never moved", async () => {
     const view = mount(ONECLICK, vi.fn());
     await waitFor(() => expect(view.getByTestId("switch-source")).toBeTruthy());
-    expect(view.getByTestId("switch-source").textContent).toMatch(/^Copies /);
+    expect(view.getByTestId("switch-source").closest("div")?.querySelector("dt")?.textContent).toBe("Copies");
+    expect(view.getByTestId("switch-summary").textContent).not.toMatch(/\bMoves\b/);
   });
 });
 

@@ -301,7 +301,7 @@ describe("Move to account", () => {
     expect(view.getByTestId("switch-failed").textContent).toContain("Nothing was moved");
     expect(view.getByTestId("switch-failed").textContent).not.toContain("didn't complete");
     const words = view.getByTestId("switch-failed-words");
-    expect(words.getAttribute("data-level")).toBe("info");
+    expect(words.closest("[data-level]")?.getAttribute("data-level")).toBe("info");
     expect(words.textContent).toBe(STILL_WRITING.user_message);
     expect(words.textContent).not.toContain("/");
     expect(view.getByTestId("switch-details").textContent).toContain("main.jsonl");

@@ -19,18 +19,21 @@
  *   and "What does this mean?" with the guide.
  * The words are the facts the backend reports, in plain words.
  */
-import type { JSX, ReactNode, SVGProps } from "react";
+import type { JSX, ReactNode } from "react";
 import type { MoveOfferInfo } from "../../lib/ipc/switch-move";
 import { GUIDE } from "../../lib/switch-words";
 import { Alert } from "../Alert";
 import { CheckRow, Disclosure, RadioCard, RadioCards, RowList } from "../controls";
 import { IconCarryIn, IconCopy, IconGoTo, IconPage, IconReplay } from "../icons-actions";
 import { IconMessage } from "../icons-canvas";
+import { IconCheck } from "../icons-controls";
 import { IconHistory } from "../icons-places";
-import { Pill, StatePill } from "../Pill";
+import { Pill } from "../Pill";
 import { Section } from "../Section";
 import { LogoTile, ToolLogo } from "../ToolLogo";
 import { Explain } from "./Explain";
+import { Fact, FactPanel } from "./Facts";
+import { SwitchHeader } from "./SwitchHeader";
 
 export type How = "move" | "copy";
 
@@ -87,34 +90,17 @@ export function MoveHeader({
   const { from, to } = placeNames(offer, source, target);
   const kind = offer.app ? "desktop" : "cli";
   return (
-    <div className="flex flex-col gap-3" data-testid="switch-move-header">
-      <div className="flex items-start gap-3">
-        <LogoTile icon={IconCarryIn} size={40} on />
-        <div className="flex min-w-0 flex-col gap-0.5">
-          <h2 className="type-section" data-testid="switch-move-title">
-            Continue on {to}
-          </h2>
-          <p className="type-help truncate">
-            {title ?? "This conversation"} · now on {from}
-          </p>
-        </div>
-      </div>
-      <div className="flex min-w-0 flex-wrap items-center gap-2 text-meta font-medium text-ink" data-testid="switch-move-strip">
-        <span className="inline-flex min-w-0 items-center gap-2 rounded-full bg-surface-2 py-1 pr-3 pl-1">
-          <ToolLogo tool={tool} kind={kind} size={24} />
-          <span className="truncate">{from}</span>
-        </span>
-        <svg aria-hidden="true" width="40" height="12" viewBox="0 0 40 12" className="shrink-0 text-faint">
-          <path d="M1 6h36M32 1.5 37 6l-5 4.5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-        <span className="sr-only">to</span>
-        <span className="inline-flex min-w-0 items-center gap-2 rounded-full bg-accent-soft py-1 pr-3 pl-1">
-          <ToolLogo tool={tool} kind={kind} size={24} />
-          <span className="truncate">{to}</span>
-        </span>
-      </div>
-      {marks}
-    </div>
+    <SwitchHeader
+      icon={IconCarryIn}
+      title={`Continue on ${to}`}
+      sub={`${title ?? "This conversation"} · now on ${from}`}
+      from={{ name: from, logo: <ToolLogo tool={tool} kind={kind} size={24} /> }}
+      to={{ name: to, logo: <ToolLogo tool={tool} kind={kind} size={24} /> }}
+      marks={marks}
+      testId="switch-move-header"
+      titleTestId="switch-move-title"
+      stripTestId="switch-move-strip"
+    />
   );
 }
 
@@ -156,8 +142,8 @@ export function MoveChoice({
         >
           {ready ? (
             <span className="mt-1.5 flex flex-wrap gap-1.5">
-              <StatePill variant="neutral">No extra space</StatePill>
-              <StatePill variant="neutral">Undo available</StatePill>
+              <Pill tone="neutral">No extra space</Pill>
+              <Pill tone="neutral">Undo available</Pill>
             </span>
           ) : (
             why[0] && <span className="mt-1 text-meta text-ink-2">{sentence(why[0])}</span>
@@ -173,7 +159,7 @@ export function MoveChoice({
           testId="switch-how-copy"
         >
           <span className="mt-1.5 flex flex-wrap gap-1.5">
-            <StatePill variant="neutral">Uses {size(offer.bytes)}</StatePill>
+            <Pill tone="neutral">Uses {size(offer.bytes)}</Pill>
           </span>
         </RadioCard>
       </RadioCards>
@@ -190,19 +176,6 @@ export function MoveChoice({
         </button>
       )}
     </Section>
-  );
-}
-
-type Icon = (props: SVGProps<SVGSVGElement>) => JSX.Element;
-
-/** One fact row of the summary panel: icon, label, value. */
-function Fact({ icon: Glyph, label, children, testId }: { icon: Icon; label: string; children: ReactNode; testId: string }): JSX.Element {
-  return (
-    <div className="grid grid-cols-[16px_5.5rem_minmax(0,1fr)] items-start gap-x-3 py-2" data-testid={testId}>
-      <Glyph aria-hidden="true" width={16} height={16} className="mt-0.5 text-ink-2" />
-      <dt className="text-meta text-muted">{label}</dt>
-      <dd className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-body text-ink">{children}</dd>
-    </div>
   );
 }
 
@@ -250,13 +223,13 @@ export function MoveBody({
         </Alert>
       )}
       <Section title="What happens">
-        <dl className="flex flex-col divide-y divide-hairline rounded-card bg-surface-2 px-4 py-1">
+        <FactPanel label="What happens">
           <Fact icon={IconMessage} label="Moves" testId="switch-move-what">
             <span>
               {others > 0 ? `The conversation and its ${others} ${plural(others, "session", "sessions")}` : "The conversation"} · {size(offer.bytes)}, with every message, sub-session and rewind point
             </span>
-            {archived > 0 && <StatePill variant="neutral">{archived} archived</StatePill>}
-            {gone > 0 && <StatePill variant="neutral">{gone} folder{gone === 1 ? "" : "s"} gone</StatePill>}
+            {archived > 0 && <Pill tone="neutral">{archived} archived</Pill>}
+            {gone > 0 && <Pill tone="neutral">{gone} folder{gone === 1 ? "" : "s"} gone</Pill>}
           </Fact>
           <Fact icon={IconHistory} label="Original" testId="switch-move-original">
             {source} no longer lists it; {target} does, as the same conversation. Undo puts both back exactly.
@@ -269,7 +242,7 @@ export function MoveBody({
           <Fact icon={IconGoTo} label="After" testId="switch-move-model">
             It opens in {target}. AI Juggler sends no message; send one to check it answers on {target}.
           </Fact>
-        </dl>
+        </FactPanel>
       </Section>
       {offer.notes.length > 0 && (
         <Alert level="info" live={null} testId="switch-move-notes">
@@ -295,14 +268,19 @@ export function MoveBody({
           <ul className="mt-2 flex flex-col gap-1">
             {offer.members.map((member, index) => (
               <li key={`${member.title}-${index}`} className="flex min-w-0 flex-wrap items-center gap-x-2.5 gap-y-1 rounded-lg px-2 py-1.5 hover:bg-surface-2" data-testid="switch-move-member">
+                {member.side === "relinked" ? (
+                  <IconCheck aria-hidden="true" width={16} height={16} className="shrink-0 text-success" />
+                ) : (
+                  <IconCarryIn aria-hidden="true" width={16} height={16} className="shrink-0 text-accent-hi" />
+                )}
                 <ToolLogo tool={tool} kind={offer.app ? "desktop" : "cli"} size={24} />
                 <span className="min-w-0 flex-1 truncate text-body text-ink" title={member.title}>
                   {member.title}
                 </span>
                 {tags(member, target).map((tag) => (
-                  <StatePill key={tag} variant="neutral">
+                  <Pill key={tag} tone="neutral">
                     {tag}
-                  </StatePill>
+                  </Pill>
                 ))}
               </li>
             ))}

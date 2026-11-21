@@ -97,8 +97,9 @@ describe("keys and passwords", () => {
     expect(question.textContent).toContain("Codex sees OPENAI_API_KEY=•••");
     expect(question.textContent).toContain("Codex and OpenAI see the keys exactly as written");
     expect(question.textContent).not.toMatch(/\bpacks?\b|redact/i);
-    expect((view.getByTestId("switch-keys-hide") as HTMLInputElement).checked).toBe(false);
-    expect((view.getByTestId("switch-keys-leave") as HTMLInputElement).checked).toBe(false);
+    // 0.5.0: the two answers are choice cards, their radios inside.
+    expect((view.getByTestId("switch-keys-hide").querySelector("input") as HTMLInputElement).checked).toBe(false);
+    expect((view.getByTestId("switch-keys-leave").querySelector("input") as HTMLInputElement).checked).toBe(false);
     // Nothing moves on until it's answered.
     expect((view.getByTestId("switch-continue") as HTMLButtonElement).disabled).toBe(true);
     fireEvent.click(view.getByTestId("switch-keys-hide"));

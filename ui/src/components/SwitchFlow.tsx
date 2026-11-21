@@ -1,20 +1,13 @@
 /**
- * AJ-E205/E206 — the switch execution surface. The door (pass2/02
- * §8) picks the shape at preflight: a proven move renders one confirm
- * screen, everything else opens the wizard, which renders ONLY the
- * steps whose data is non-trivial ("Step 2 of 3", never phantom
- * steps). No handover executes from a preview the user has not seen:
- * the Switch click lives on the last screen. Executing names its stages
- * in plain words (never a bare spinner); failure keeps the original safe
- * and offers Retry; a completed one-click switch offers a 10-second
- * undo toast. Copy never says "we switched you" (SPEC:26).
- *
- * The maintainer's walk of 0.1.8 (2026-10-27): Cancel on every step and
- * a close × (but while the copy runs, §4.9: Esc and × wait, "Finishing
- * copy…"); the keys question only when the words go somewhere new; the
- * carry list in plain words; and a confirm screen to read. 0.3: done,
- * what the other tool was told (`switch/DoneStep`). 0.3.5: where it
- * continues, Desktop or CLI, chosen on the last screen (`WhereChoice`).
+ * AJ-E205/E206 — the switch execution surface. The door (pass2/02 §8)
+ * picks the shape at preflight: a proven move renders one confirm screen,
+ * everything else the wizard, with ONLY the steps whose data is
+ * non-trivial ("Step 2 of 3", never phantom steps). Nothing executes from
+ * a preview the user hasn't seen: Switch lives on the last screen. The
+ * stages are named (never a bare spinner); a failure keeps the original
+ * safe and offers Retry; a one-click switch offers a 10-second undo.
+ * Cancel on every step, × too (but while the copy runs Esc and × wait,
+ * §4.9). 0.5.0 (D-142): rich mode under one fixed header (DESIGN-SYSTEM §8).
  */
 import { useEffect, useRef, useState, type JSX } from "react";
 import { BackButton, CancelButton, ContinueButton, StepMarks, SwitchDialogFrame, useDialogKeys } from "./switch/SwitchDialogFrame";
@@ -26,7 +19,8 @@ import { tooLittleSpace, useSwitchSpace } from "./switch/DiskSpace";
 import { CarryChoice, useCarryChoice } from "./switch/CarryChoice";
 import { showToast } from "./Toast";
 import { ConfirmBody, SwitchPoolLines, useSealOwed } from "./switch/ConfirmBody";
-import { CarryList } from "./switch/CarryList";
+import { CarriedStep } from "./switch/CarrySummary";
+import { CopyHeader } from "./switch/SwitchHeader";
 import { DoneStep, familyOf, type FamilyMoved } from "./switch/DoneStep";
 import { Executing, OtherStep, risky, TargetStep, useTargetRoom } from "./switch/StepBodies";
 import { keysChoice, KeysQuestion, keysRequired, type KeysAnswer } from "./switch/KeysQuestion";
@@ -82,17 +76,19 @@ export function SwitchFlow({
   const { setup, picked, toggle: togglePicked } = setupCheck;
   const move = useMoveFlow(sessionId, targetProfileId, attempt); // ADR-0031 (D-93): Move, or Copy
   const dialogRef = useRef<HTMLDivElement | null>(null);
-  // AJ-E804 (WCAG 2.4.3): cancelling returns focus to the control that
-  // opened the switch. (A completed switch hands focus to the undo
-  // toast instead.)
-  // From Continue on another account, what opened that dialog.
+  // AJ-E804 (WCAG 2.4.3): Cancel returns focus to what opened the switch
+  // (a completed one hands it to the undo toast).
   const invokerRef = useSwitchInvoker();
   // One switch per confirm: a second ⏎ before the phase re-renders would
   // read the stale "confirm" and start another (review of #132).
   const started = useRef(false);
+  // The last check's answer: the header keeps it while the switch runs.
+  const checked = "preflight" in phase ? phase.preflight : null;
+  const [seen, setSeen] = useState<PreflightInfoData | null>(null);
+  useEffect(() => void (checked && setSeen(checked)), [checked]);
+  const shownCheck = checked ?? seen;
   const running = phase.kind === "executing" || move.running;
-  // Set the moment the switch starts, so an Esc that comes before the
-  // next render is held too.
+  // Set the moment the switch starts: an Esc before the next render is held too.
   const runningRef = useRef(false);
   runningRef.current = running || (runningRef.current && phase.kind !== "failed" && phase.kind !== "done" && !move.settled);
   const cancel = () => {
@@ -254,14 +250,17 @@ export function SwitchFlow({
   const wizard = phase.kind === "confirm" && phase.preflight.door === "wizard" && !move.moving ? phase.preflight : null;
   const carriedPending = wizard !== null && steps[step] === "What's carried" && keysPending;
 
-  // The step marks list ONLY the rendered steps: never phantom ones (§8); under "Continue on <App>" where moving applies.
-  const header = move.header(wizard && <StepMarks steps={steps} step={step} testId="switch-steps" />, targetLabel, phase.kind === "confirm" ? phase.preflight : null);
+  // 0.5.0 (D-142): one header for every phase: "Continue on <App>" where
+  // moving applies, else "Switch to <account>"; the step marks list ONLY
+  // the rendered steps (§8).
+  const marks = wizard && <StepMarks steps={steps} step={step} testId="switch-steps" />;
+  const header = move.offer && shownCheck ? move.header(marks, targetLabel, shownCheck) : <CopyHeader preflight={shownCheck} target={targetLabel} destination={destination} marks={marks} />;
 
   const body = (() => {
     switch (phase.kind) {
       case "preflight":
         return (
-          <p className="text-body text-ink" data-testid="switch-preflighting">
+          <p className="text-body text-ink-2" data-testid="switch-preflighting">
             Checking the switch to {targetLabel}…
           </p>
         );
@@ -278,14 +277,8 @@ export function SwitchFlow({
         return (
           <div className="flex flex-col gap-5" data-testid="switch-wizard">
             {step === 0 && move.choice(targetLabel, phase.preflight.source_account ?? "this account")}
-            {steps[step] === "Target" && <TargetStep preflight={phase.preflight} target={targetLabel} room={room} />}
-            {steps[step] === "What's carried" && (
-              <div className="flex flex-col gap-4" data-testid="switch-step-carried">
-                <h3 className="text-title text-ink">What goes along</h3>
-                <CarryList items={phase.preflight.carry_items} target={targetLabel} tool={toolSpec(phase.preflight.target_tool).display_name} setup={setup} picked={picked} />
-                {keys(phase.preflight)}
-              </div>
-            )}
+            {steps[step] === "Target" && <TargetStep preflight={phase.preflight} target={targetLabel} targetFolder={targetProfileId} room={room} />}
+            {steps[step] === "What's carried" && <CarriedStep preflight={phase.preflight} target={targetLabel} tool={toolSpec(phase.preflight.target_tool).display_name} setup={setup} picked={picked} keys={keys(phase.preflight)} />}
             {(steps[step] === "Conflicts" || steps[step] === "Rules & diff") && <OtherStep step={steps[step] as "Conflicts" | "Rules & diff"} />}
             {steps[step] === "Confirm" && confirmBody(phase.preflight)}
           </div>
@@ -322,7 +315,7 @@ export function SwitchFlow({
             {cancelButton}
             {step > 0 && <BackButton onClick={() => setStep((current) => Math.max(0, current - 1))} testId="switch-back" />}
             {step < steps.length - 1 ? (
-              <ContinueButton ready={!carriedPending} onClick={() => setStep((current) => current + 1)} testId="switch-continue" />
+              <ContinueButton ready={!carriedPending} next={steps[step + 1]} onClick={() => setStep((current) => current + 1)} testId="switch-continue" />
             ) : (
               switchButton(phase.preflight)
             )}
@@ -331,10 +324,16 @@ export function SwitchFlow({
       case "executing":
         return null;
       case "done":
+        // Esc, × and Close close it; the primary goes to what it opened.
         return (
-          <Button variant="primary" type="button" data-autofocus onClick={() => onSwitched(phase.sessionId, null)} data-testid="switch-go">
-            {phase.continuedIn === "desktop" ? "Open its page" : "Go to the new session"}
-          </Button>
+          <>
+            <Button variant="ghost" type="button" onClick={cancel} data-testid="switch-done-close" aria-keyshortcuts="Escape">
+              Close
+            </Button>
+            <Button variant="primary" type="button" data-autofocus onClick={() => onSwitched(phase.sessionId, null)} data-testid="switch-go">
+              {phase.continuedIn === "desktop" ? "Open its page" : "Go to the new session"}
+            </Button>
+          </>
         );
       case "failed":
         return (

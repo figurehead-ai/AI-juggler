@@ -11,7 +11,12 @@
 import type { JSX } from "react";
 import { Explain } from "./switch/Explain";
 import { GUIDE } from "../lib/switch-words";
-import { Radio } from "./controls";
+import { RadioCard, RadioCards } from "./controls";
+import { IconStop } from "./icons-actions";
+import { IconClock } from "./icons-menu";
+import { Pill } from "./Pill";
+import { Section } from "./Section";
+import { LogoTile } from "./ToolLogo";
 import type { PreflightInfoData } from "../lib/ipc/switch-preflight";
 
 export type FreezeChoice = "finish-turn" | "stop-now";
@@ -85,8 +90,6 @@ export function originalWords({
     : "The original stops now (an unfinished reply is marked as cut off), then stays as it was. You can switch back to it any time.";
 }
 
-const radio = "shrink-0";
-
 export function SwitchFreezeChoice({
   sourceLive,
   keepsRunning = false,
@@ -121,19 +124,21 @@ export function SwitchFreezeChoice({
   // 0.3.5: one line each; the examples are under "What does this mean?".
   if (!sourceLive) return null;
   return (
-    <fieldset className="flex flex-col gap-1.5" data-testid="switch-freeze">
-      <legend className="mb-1 text-meta font-semibold text-ink">When to stop the original</legend>
-      <label className="flex items-center gap-2.5 text-body text-ink">
-        <Radio name="freeze" className={radio} checked={value === "finish-turn"} onChange={() => onChange("finish-turn")} />
-        <span>
-          Let it finish its reply, then switch{" "}
-          <span className="ml-1 rounded-full border border-success/30 bg-success-soft px-1.5 py-px text-label font-medium text-success">recommended</span>
-        </span>
-      </label>
-      <label className="flex items-center gap-2.5 text-body text-ink">
-        <Radio name="freeze" className={radio} checked={value === "stop-now"} onChange={() => onChange("stop-now")} />
-        <span>Stop it now and switch</span>
-      </label>
+    <Section title="When to stop the original" testId="switch-freeze">
+      <RadioCards label="When to stop the original" value={value} onChange={(next) => onChange(next === "stop-now" ? "stop-now" : "finish-turn")} columns={2}>
+        <RadioCard
+          value="finish-turn"
+          logo={<LogoTile icon={IconClock} size={32} on={value === "finish-turn"} />}
+          title={
+            <span className="inline-flex flex-wrap items-center gap-x-2 gap-y-1">
+              Let it finish its reply, then switch
+              <Pill tone="accent">Recommended</Pill>
+            </span>
+          }
+          sub="Nothing it was writing is cut off."
+        />
+        <RadioCard value="stop-now" logo={<LogoTile icon={IconStop} size={32} on={value === "stop-now"} />} title="Stop it now and switch" sub="An unfinished reply is marked as cut off." />
+      </RadioCards>
       <Explain
         guide={GUIDE.original}
         testId="switch-freeze-explain"
@@ -145,6 +150,6 @@ export function SwitchFreezeChoice({
           "AI Juggler can stop only sessions it started; others keep going in their app.",
         ]}
       />
-    </fieldset>
+    </Section>
   );
 }

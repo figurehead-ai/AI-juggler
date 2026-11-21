@@ -9,13 +9,16 @@
  *
  * 0.4.9: a refusal that left everything as it was is `calm`: its own
  * title in ink and its words as an info Alert, never amber (the switch
- * screen's Move to account).
+ * screen's Move to account). 0.5.0: anything else is a broken Alert.
  */
 import { useState, type JSX } from "react";
 
 import { Alert } from "../Alert";
 import { SwitchSetupResults } from "../SwitchSetupList";
 import { Disclosure } from "../controls";
+import { IconCopy } from "../icons-actions";
+import { IconHelp } from "../icons-menu";
+import { Button } from "../primitives";
 import { openReportBug } from "../../lib/report-bug";
 import type { AppliedInfo } from "../../lib/ipc/switchSetup";
 
@@ -57,35 +60,23 @@ export function FailedStep({
         () => setCopied("no"),
       );
   return (
-    <div className="flex flex-col gap-4" data-testid="switch-failed" data-calm={calm ? "true" : undefined}>
-      {calm ? (
-        <>
-          <h3 className="text-title text-ink">{calm.title}</h3>
-          <Alert level="info" testId="switch-failed-words" className="text-body">
-            {message}
-          </Alert>
-        </>
-      ) : (
-        <>
-          <h3 className="text-title text-warning">The switch didn't complete</h3>
-          <p className="rounded-lg border border-warning/40 px-3 py-2 text-body text-warning" data-testid="switch-failed-words">
-            {message}
-          </p>
-        </>
-      )}
-      <div className="flex items-center gap-3">
-        <button type="button" onClick={copy} className="rounded-lg border border-hairline px-2.5 py-1 text-meta text-ink outline-none hover:bg-surface-2 focus-visible:ring-2 focus-visible:ring-accent/60" data-testid="switch-copy-details">
+    <div className="flex flex-col gap-5" data-testid="switch-failed" data-calm={calm ? "true" : undefined}>
+      {/* 0.4.9 / ALR-1: a refusal that changed nothing is a fact (info);
+          a switch that broke part way is broken, said at once. */}
+      <h3 className="type-section">{calm ? calm.title : "The switch didn't complete"}</h3>
+      <Alert level={calm ? "info" : "broken"} className="text-body">
+        <span data-testid="switch-failed-words">{message}</span>
+      </Alert>
+      <div className="flex flex-wrap items-center gap-2">
+        <Button size="sm" variant="secondary" type="button" onClick={copy} data-testid="switch-copy-details">
+          <IconCopy aria-hidden="true" width={14} height={14} />
           Copy details
-        </button>
+        </Button>
         {/* AJ-E2911: the same facts and the switch's steps, shown first. */}
-        <button
-          type="button"
-          onClick={() => openReportBug({ from: "switch", words: message, detail, atMs: Date.now() })}
-          className="rounded-lg border border-hairline px-2.5 py-1 text-meta text-ink outline-none hover:bg-surface-2 focus-visible:ring-2 focus-visible:ring-accent/60"
-          data-testid="switch-report-bug"
-        >
+        <Button size="sm" variant="secondary" type="button" onClick={() => openReportBug({ from: "switch", words: message, detail, atMs: Date.now() })} data-testid="switch-report-bug">
+          <IconHelp aria-hidden="true" width={14} height={14} />
           Report a bug…
-        </button>
+        </Button>
         {copied && (
           <span className="text-meta text-ink-2" role="status">
             {copied === "yes" ? "Copied. Paste it into a new issue at github.com/figurehead-ai/AI-juggler/issues." : "Couldn't copy: select the words above instead."}

@@ -12,7 +12,13 @@ import type { PreflightInfoData } from "../../lib/ipc/switch-preflight";
 import { toolSpec } from "../../lib/tools";
 import { foundWords, GUIDE, secretWords } from "../../lib/switch-words";
 import { Explain } from "./Explain";
-import { Checkbox, Radio } from "../controls";
+import { CheckRow, RadioCard, RadioCards, RowList } from "../controls";
+import { Alert } from "../Alert";
+import { IconPin, IconShield } from "../icons";
+import { IconKey } from "../icons-actions";
+import { Pill } from "../Pill";
+import { Section } from "../Section";
+import { LogoTile } from "../ToolLogo";
 
 export type KeysAnswer = "strip" | "keep";
 
@@ -37,8 +43,6 @@ export function keysChoice(preflight: PreflightInfoData, answer: KeysAnswer | nu
   if (!preflight.secrets.asks) return null;
   return answer ?? (preflight.redaction_items.length === 0 ? "strip" : null);
 }
-
-const radio = "mt-1 shrink-0";
 
 /** "Codex and OpenAI see", "Claude Code sees": the tool and the company
  * behind it, from its spec. */
@@ -99,48 +103,64 @@ export function KeysQuestion({
     );
   }
   return (
-    <fieldset className="flex flex-col gap-3 rounded-lg border border-hairline p-3" data-testid="switch-keys">
-      <legend className="px-1 text-section font-semibold text-ink">Keys and passwords in this conversation</legend>
-      <p className="text-body text-ink" data-testid="switch-keys-found">
+    <Section title="Keys and passwords in this conversation" testId="switch-keys">
+      <Alert level="needs-you" live={null} testId="switch-keys-found">
         {foundWords(items)} {reader} will read this conversation to pick up the work.
-      </p>
-      <label className="flex items-start gap-2.5 text-body text-ink">
-        <Radio name="switch-keys" className={radio} checked={answer === "strip"} onChange={() => onAnswer("strip")} data-testid="switch-keys-hide" />
-        <span>
-          <span className="font-semibold">Hide them</span>{" "}
-          <span className="ml-1 rounded-full border border-success/30 bg-success-soft px-1.5 py-px text-label font-medium text-success">recommended</span>
-          <span className="block text-meta">
-            {tool} sees <code className="font-mono">OPENAI_API_KEY=•••</code> instead of the key. If it needs a key, it will ask you.
-          </span>
-        </span>
-      </label>
-      <label className="flex items-start gap-2.5 text-body text-ink">
-        <Radio name="switch-keys" className={radio} checked={answer === "keep"} onChange={() => onAnswer("keep")} data-testid="switch-keys-leave" />
-        <span>
-          <span className="font-semibold">Leave them in</span>
-          <span className="block text-meta">{whoSees(preflight.target_tool)} the keys exactly as written. Use this only if the work needs them.</span>
-        </span>
-      </label>
+      </Alert>
+      {/* Nothing preselected: the user answers (the switch waits for it). */}
+      <RadioCards label="Keys and passwords in this conversation" value={answer} onChange={(next) => onAnswer(next === "keep" ? "keep" : "strip")} columns={2}>
+        <RadioCard
+          value="strip"
+          logo={<LogoTile icon={IconShield} size={32} on={answer === "strip"} />}
+          title={
+            <span className="inline-flex flex-wrap items-center gap-x-2 gap-y-1">
+              Hide them
+              <Pill tone="accent">Recommended</Pill>
+            </span>
+          }
+          sub={
+            <>
+              {tool} sees <code className="font-mono">OPENAI_API_KEY=•••</code> instead of the key. If it needs a key, it will ask you.
+            </>
+          }
+          testId="switch-keys-hide"
+        />
+        <RadioCard
+          value="keep"
+          logo={<LogoTile icon={IconKey} size={32} on={answer === "keep"} />}
+          title="Leave them in"
+          sub={`${whoSees(preflight.target_tool)} the keys exactly as written. Use this only if the work needs them.`}
+          testId="switch-keys-leave"
+        />
+      </RadioCards>
       {answer === "strip" && (
-        <div className="flex flex-col gap-1 text-meta text-ink" data-testid="switch-keys-items">
-          <p>Show one anyway (this switch only):</p>
+        <RowList label="Show one anyway (this switch only)" testId="switch-keys-items">
           {items.map((item, index) => (
-            <label key={`${item.kind}-${index}`} className="flex items-center gap-2">
-              <Checkbox checked={unhide.has(index)} onChange={() => onToggle(index)} />
-              <span>
-                {secretWords(item.kind)} <span className="font-mono">{item.preview}</span>
-              </span>
-            </label>
+            <CheckRow
+              key={`${item.kind}-${index}`}
+              icon={IconKey}
+              title={
+                <>
+                  Show {secretWords(item.kind)} <span className="font-mono">{item.preview}</span>
+                </>
+              }
+              help="This switch only"
+              checked={unhide.has(index)}
+              onChange={() => onToggle(index)}
+            />
           ))}
-        </div>
+        </RowList>
       )}
-      <label className="flex items-start gap-2.5 text-body text-ink">
-        <Checkbox className="mt-1" checked={remember} onChange={(event) => onRemember(event.target.checked)} data-testid="switch-keys-remember" />
-        <span>
-          Remember my choice
-          <span className="block text-meta">Change it any time in Settings › Switching. Unticked, AI Juggler asks on every switch like this one.</span>
-        </span>
-      </label>
+      <RowList>
+        <CheckRow
+          icon={IconPin}
+          title="Remember my choice"
+          help="Change it any time in Settings › Switching. Unticked, AI Juggler asks on every switch like this one."
+          checked={remember}
+          onChange={onRemember}
+          testId="switch-keys-remember"
+        />
+      </RowList>
       <Explain
         guide={GUIDE.keys}
         tips={[
@@ -150,6 +170,6 @@ export function KeysQuestion({
           "If the work needs a key, the other tool asks you for it.",
         ]}
       />
-    </fieldset>
+    </Section>
   );
 }
