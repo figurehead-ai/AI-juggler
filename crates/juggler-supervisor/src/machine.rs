@@ -552,7 +552,7 @@ fn swap_full(latest: &MachineSample, thresholds: &RoomThresholds) -> Option<Room
 /// makes more swap as it needs it, so its size is no limit, and its own
 /// memory pressure says when the squeeze is on; swap counts once it holds
 /// [`RoomThresholds::swap_full_ram_share`] of the memory, or while it
-/// grows ([`swap_full`], [`summarize`]). `None` when it isn't nearly
+/// grows (the rule [`summarize`] uses). `None` when it isn't nearly
 /// full, or it counts (a reason says so then).
 #[must_use]
 #[allow(
