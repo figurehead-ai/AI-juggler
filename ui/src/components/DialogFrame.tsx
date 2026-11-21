@@ -16,16 +16,19 @@
  *      is below (`.scroll-edge`, `data-scrolled`, `data-more`);
  *   3. the footer, fixed: a top border that shows while the body scrolls,
  *      the reason or note line, the buttons (Cancel … the one primary).
- * - `DialogActions`: a row of actions where it must stay inside the body
- *   (a multi-step flow's own step parts); it sticks to the body's foot.
+ * - `DialogFooter`: the actions a step owns (a multi-step flow's own step
+ *   parts), drawn in the frame's fixed footer from wherever the step sits.
  * - `DialogHeading`: a title where it must stay inside the body (a flow
  *   whose phases each draw their own); it sticks to the body's top.
  *
  * Measured by tests/visual/dialog-fit.spec.ts (VALIDATION N1) at 1024×680
  * and 1280×800, both themes.
  */
-import { useLayoutEffect, useRef, useState, type HTMLAttributes, type JSX, type ReactNode, type Ref, type RefObject } from "react";
+import { createContext, useContext, useLayoutEffect, useRef, useState, type HTMLAttributes, type JSX, type ReactNode, type Ref, type RefObject } from "react";
 import { createPortal } from "react-dom";
+
+/** The frame's footer, for a step's own actions (`DialogFooter`). */
+const FooterSlot = createContext<HTMLElement | null>(null);
 
 /** The overlay's default: the app's dim, a 16 px gutter, the card centred
  * while it fits (the frame's cap keeps it inside). */
@@ -116,6 +119,7 @@ export function DialogFrame({
   children: ReactNode;
 } & Omit<HTMLAttributes<HTMLDivElement>, "className" | "children">): JSX.Element {
   const bodyRef = useRef<HTMLDivElement | null>(null);
+  const [slot, setSlot] = useState<HTMLDivElement | null>(null);
   const { above, below } = useScrollEdges(bodyRef);
   const scrolls = above || below;
   return (
@@ -138,38 +142,31 @@ export function DialogFrame({
         data-more={below || undefined}
         data-testid={bodyTestId}
       >
-        {children}
+        <FooterSlot.Provider value={slot}>{children}</FooterSlot.Provider>
       </div>
-      {footer && (
-        <div
-          className={`shrink-0 border-t transition-colors ${scrolls ? "border-hairline" : "border-transparent"} ${footerClassName}`}
-          data-dialog-part="footer"
-          data-testid={footerTestId}
-        >
-          {footer}
-        </div>
-      )}
+      {/* The footer: the caller's, or the one a step fills (`DialogFooter`),
+          hidden while nothing is in it. */}
+      <div
+        ref={setSlot}
+        className={`shrink-0 border-t transition-colors empty:hidden ${scrolls ? "border-hairline" : "border-transparent"} ${footerClassName}`}
+        data-dialog-part="footer"
+        data-testid={footerTestId}
+      >
+        {footer}
+      </div>
     </div>
   );
 }
 
 /**
- * Actions where they must stay inside the body (a flow's step part that
- * owns them): they stick to the body's foot, over the surface, with a
- * hairline above while more is below.
+ * The actions a step owns (a multi-step flow whose steps each draw their
+ * own buttons), drawn in the frame's fixed footer: never scrolled away,
+ * whatever the step's length (DLG-1). A submit button for a form in the
+ * body names its form (`form=`), since the footer sits outside it.
  */
-export function DialogActions({ children, className = "justify-end", testId }: { children: ReactNode; className?: string; testId?: string }): JSX.Element {
-  return (
-    <div
-      className={
-        "sticky bottom-0 z-10 flex flex-wrap items-center gap-2 border-t border-transparent bg-surface py-2 group-data-[more]/dialog:border-hairline " + className
-      }
-      data-dialog-actions
-      data-testid={testId}
-    >
-      {children}
-    </div>
-  );
+export function DialogFooter({ children }: { children: ReactNode }): JSX.Element | null {
+  const slot = useContext(FooterSlot);
+  return slot ? createPortal(children, slot) : null;
 }
 
 /** A title where it must stay inside the body: it sticks to the body's

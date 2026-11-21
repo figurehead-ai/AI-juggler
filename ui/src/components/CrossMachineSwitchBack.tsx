@@ -18,12 +18,11 @@ import { fleetDivergenceKeepTheirs, fleetSwitchBackExecute } from "../lib/ipc/fl
 import type { DivergenceInfo } from "../types/generated/DivergenceInfo";
 import type { FleetSwitchBackPlanInfo } from "../types/generated/FleetSwitchBackPlanInfo";
 import { Checkbox, Radio } from "./controls";
-import { PRIMARY_FILL } from "./primitives";
+import { Button } from "./primitives";
 import { SELECTED_CARD } from "./controls/selected";
-import { DialogActions, DialogFrame, DialogHeading, DialogOverlay } from "./DialogFrame";
+import { DialogFooter, DialogFrame, DialogHeading, DialogOverlay } from "./DialogFrame";
 
 /** The dialog's go button: the one primary fill (0.3.2), faded while it can't go. */
-const GO = `rounded-lg px-3 py-1.5 text-xs font-semibold ${PRIMARY_FILL} disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:brightness-100`;
 
 type Choice = "keep_mine" | "keep_theirs" | "keep_both";
 
@@ -159,6 +158,7 @@ export function CrossMachineSwitchBack({
         data-testid="cross-switch-back"
         className="w-full max-w-xl rounded-xl border border-hairline bg-surface shadow-card"
         bodyClassName="flex flex-col gap-3 p-5"
+        footerClassName="flex flex-wrap items-center justify-end gap-2 px-5 py-3"
       >
         {phase.kind === "diverged" ? (
           <>
@@ -212,27 +212,14 @@ export function CrossMachineSwitchBack({
                 </label>
               ))}
             </div>
-            <DialogActions>
-              <button
-                ref={laterRef}
-                type="button"
-                onClick={onClose}
-                className="rounded-lg border border-hairline px-3 py-1.5 text-xs text-ink"
-                data-testid="conflict-later"
-              >
+            <DialogFooter>
+              <Button ref={laterRef} variant="ghost" type="button" onClick={onClose} data-testid="conflict-later">
                 Review later
-              </button>
-              <button
-                type="button"
-                disabled={choice === null}
-                onClick={() => void apply()}
-                className={GO}
-                data-primary=""
-                data-testid="conflict-apply"
-              >
+              </Button>
+              <Button variant="primary" type="button" disabled={choice === null} onClick={() => void apply()} data-testid="conflict-apply">
                 {choice === "keep_theirs" ? "Keep both as they are" : choice ? `Apply on ${machine}` : "Choose one"}
-              </button>
-            </DialogActions>
+              </Button>
+            </DialogFooter>
           </>
         ) : (
           <>
@@ -267,25 +254,15 @@ export function CrossMachineSwitchBack({
                   <Checkbox checked={keepAway} onChange={(event) => setKeepAway(event.target.checked)} />
                   Keep this session running too
                 </label>
-                <DialogActions>
-                  <button
-                    type="button"
-                    onClick={onClose}
-                    className="rounded-lg border border-hairline px-3 py-1.5 text-xs text-ink"
-                  >
+                <DialogFooter>
+                  {plan.blockers.length > 0 && <p className="mr-auto text-meta text-ink-2">Clear the points above to switch back.</p>}
+                  <Button variant="ghost" type="button" onClick={onClose} aria-keyshortcuts="Escape">
                     Cancel
-                  </button>
-                  <button
-                    type="button"
-                    disabled={plan.blockers.length > 0}
-                    onClick={() => void run("")}
-                    className={GO}
-                    data-primary=""
-                    data-testid="cross-back-go"
-                  >
+                  </Button>
+                  <Button variant="primary" type="button" disabled={plan.blockers.length > 0} onClick={() => void run("")} data-testid="cross-back-go">
                     Switch back to {machine}…
-                  </button>
-                </DialogActions>
+                  </Button>
+                </DialogFooter>
               </>
             )}
             {phase.kind === "running" && (
@@ -299,11 +276,11 @@ export function CrossMachineSwitchBack({
                   <span aria-hidden="true">✓ </span>
                   {phase.message}
                 </p>
-                <DialogActions>
-                  <button type="button" onClick={onClose} className="rounded-lg border border-hairline px-3 py-1.5 text-xs text-ink">
+                <DialogFooter>
+                  <Button variant="secondary" type="button" data-autofocus onClick={onClose}>
                     Close
-                  </button>
-                </DialogActions>
+                  </Button>
+                </DialogFooter>
               </div>
             )}
             {phase.kind === "failed" && (
@@ -312,11 +289,11 @@ export function CrossMachineSwitchBack({
                   <span aria-hidden="true">✗ </span>
                   {phase.message}
                 </p>
-                <DialogActions>
-                  <button type="button" onClick={onClose} className="rounded-lg border border-hairline px-3 py-1.5 text-xs text-ink">
+                <DialogFooter>
+                  <Button variant="secondary" type="button" data-autofocus onClick={onClose}>
                     Close
-                  </button>
-                </DialogActions>
+                  </Button>
+                </DialogFooter>
               </div>
             )}
           </>

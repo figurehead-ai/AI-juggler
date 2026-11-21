@@ -9,7 +9,7 @@
  */
 import { act, cleanup, fireEvent, render } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { DialogActions, DialogFrame, DialogOverlay } from "./DialogFrame";
+import { DialogFooter, DialogFrame, DialogOverlay } from "./DialogFrame";
 import { Modal } from "./form";
 import { Button, primariesIn } from "./primitives";
 
@@ -92,16 +92,29 @@ describe("DialogFrame", () => {
     expect(overlay.className).toContain("p-4");
   });
 
-  it("keeps a flow's own actions at the body's foot", () => {
+  it("draws a step's own actions in the fixed footer, outside the body, and hides an empty footer", () => {
     const view = render(
       <DialogFrame aria-label="flow" data-testid="flow">
-        <DialogActions>
-          <Button>Back</Button>
-        </DialogActions>
+        <section>
+          <p>Step</p>
+          <DialogFooter>
+            <Button>Back</Button>
+          </DialogFooter>
+        </section>
       </DialogFrame>,
     );
-    const row = view.getByTestId("flow").querySelector("[data-dialog-actions]")!;
-    expect(row.className).toMatch(/sticky bottom-0/);
+    const frame = view.getByTestId("flow");
+    const footer = frame.querySelector("[data-dialog-part='footer']")!;
+    const body = frame.querySelector("[data-dialog-part='body']")!;
+    expect(footer.contains(view.getByRole("button", { name: "Back" }))).toBe(true);
+    expect(body.contains(view.getByRole("button", { name: "Back" }))).toBe(false);
+    expect(frame.querySelectorAll("[data-dialog-part='footer']")).toHaveLength(1);
+    const empty = render(
+      <DialogFrame aria-label="none" data-testid="none">
+        <p />
+      </DialogFrame>,
+    );
+    expect(empty.getByTestId("none").querySelector("[data-dialog-part='footer']")!.className).toContain("empty:hidden");
   });
 });
 

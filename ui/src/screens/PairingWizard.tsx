@@ -7,7 +7,8 @@ import type { PairingStateInfo } from "../types/generated/PairingStateInfo";
 import { Radio } from "../components/controls";
 import { keepTabInside, useDialogFocus } from "../components/form";
 import { SELECTED_CARD } from "../components/controls/selected";
-import { DialogActions, DialogFrame, DialogOverlay } from "../components/DialogFrame";
+import { DialogFooter, DialogFrame, DialogOverlay } from "../components/DialogFrame";
+import { Failure } from "./pairing/Failure";
 
 /** Which side of pairing this Mac is on. */
 export type PairingMode = "host" | "join";
@@ -187,7 +188,8 @@ export function PairingWizard({
         data-testid="pairing-wizard"
         data-mode={mode}
         data-step={String(step)}
-        bodyClassName="flex flex-col gap-4 px-5 pt-4 pb-1.5"
+        bodyClassName="flex flex-col gap-4 px-5 pt-4 pb-4"
+        footerClassName="flex flex-wrap items-center justify-end gap-2 px-5 py-3"
         headerClassName="px-5 pt-5"
         header={
           <div className="flex flex-col gap-2">
@@ -252,9 +254,11 @@ export function PairingWizard({
               It's listed under Paired machines and connects whenever Link is on on both
               machines. You can unpair it any time.
             </p>
-            <Button variant="primary" className="self-end" onClick={() => void close()} data-autofocus>
-              Done
-            </Button>
+            <DialogFooter>
+              <Button variant="primary" onClick={() => void close()} data-autofocus>
+                Done
+              </Button>
+            </DialogFooter>
           </div>
         )}
         {step === "failed" && state && (
@@ -386,11 +390,11 @@ function HostFind({
       <p className="text-label text-muted" role="status">
         Waiting for the other machine…
       </p>
-      <DialogActions>
+      <DialogFooter>
         <Button variant="secondary" onClick={onCancel} data-autofocus>
           Cancel
         </Button>
-      </DialogActions>
+      </DialogFooter>
     </div>
   );
 }
@@ -475,6 +479,7 @@ function JoinFind({
 
   return (
     <form
+      id="pairing-join-form"
       className="flex flex-col gap-4"
       data-testid="pairing-join-find"
       onSubmit={(event) => {
@@ -598,19 +603,21 @@ function JoinFind({
           Connecting securely…
         </p>
       )}
-      <DialogActions>
+      {/* In the fixed footer, outside the form: the Connect names its form. */}
+      <DialogFooter>
         <Button variant="secondary" onClick={onCancel}>
           Cancel
         </Button>
         <Button
           type="submit"
+          form="pairing-join-form"
           variant="primary"
           disabled={!target || !complete || busy || connecting}
           data-testid="pairing-connect"
         >
           Connect
         </Button>
-      </DialogActions>
+      </DialogFooter>
     </form>
   );
 }
@@ -652,14 +659,14 @@ function Verify({
         It shows this Mac as <span className="font-medium text-ink">{selfLabel}</span> ·{" "}
         <span className="font-mono">{selfFingerprint}</span>
       </p>
-      <DialogActions>
+      <DialogFooter>
         <Button variant="secondary" onClick={onBack} data-testid="pairing-mismatch">
           They don't match — cancel
         </Button>
         <Button variant="primary" onClick={onMatch} data-autofocus data-testid="pairing-fingerprints-match">
           Fingerprints match
         </Button>
-      </DialogActions>
+      </DialogFooter>
     </div>
   );
 }
@@ -719,103 +726,14 @@ function Permissions({
         ))}
       </div>
       <p className="text-label text-muted">You can unpair it any time in Fleet.</p>
-      <DialogActions>
+      <DialogFooter>
         <Button variant="secondary" onClick={onBack}>
           Back
         </Button>
         <Button variant="primary" disabled={busy} onClick={onPair} data-testid="pairing-pair">
           Pair
         </Button>
-      </DialogActions>
-    </div>
-  );
-}
-
-const FAILURES: Record<string, { title: string; body: string; action: string; reEnable?: boolean }> = {
-  expired: {
-    title: "The pairing window closed",
-    body: "Codes work for 2 minutes. Start again when the other machine is ready.",
-    action: "Start again",
-  },
-  mismatch: {
-    title: "The code didn't match",
-    body: "Nothing was paired. Check the 6 digits on the other machine — it now shows a new code.",
-    action: "Try again",
-  },
-  cancelled: {
-    title: "Pairing was cancelled",
-    body: "One of the machines cancelled, so nothing was paired.",
-    action: "Start over",
-  },
-  locked_out: {
-    title: "Pairing is paused",
-    body: "Too many wrong codes in a row. Wait a minute, then try again.",
-    action: "Try again",
-  },
-  disabled: {
-    title: "Pairing is turned off",
-    body: "After 20 wrong codes in a day, pairing turns off to protect this Mac. Turn it back on only if you're the one pairing.",
-    action: "Turn pairing back on",
-    reEnable: true,
-  },
-  unreachable: {
-    title: "Couldn't reach that machine",
-    body: "Check both machines are on the same network — or connected by Tailscale or WireGuard — with Link on.",
-    action: "Try again",
-  },
-  fingerprint: {
-    title: "The fingerprint doesn't match the link",
-    body: "Don't pair — something may be intercepting. Copy the pairing link again from the other machine.",
-    action: "Start over",
-  },
-  not_open: {
-    title: "Pairing isn't open on that machine",
-    body: "Choose Add a machine on it first, then enter the code it shows.",
-    action: "Try again",
-  },
-  busy: {
-    title: "Another machine is pairing",
-    body: "That machine is pairing with someone else right now. Wait a moment and try again.",
-    action: "Try again",
-  },
-};
-
-function Failure({
-  mode,
-  state,
-  busy,
-  onRetry,
-  onClose,
-}: {
-  mode: PairingMode;
-  state: PairingStateInfo;
-  busy: boolean;
-  onRetry: (reEnable: boolean) => void;
-  onClose: () => void;
-}): JSX.Element {
-  const known = FAILURES[state.reason ?? ""];
-  // The re-enable action only exists on the machine that turned off.
-  const reEnable = Boolean(known?.reEnable) && mode === "host";
-  return (
-    <div className="flex flex-col gap-3" role="alert" data-testid="pairing-failure" data-reason={state.reason ?? "unknown"}>
-      <p className="text-sm font-medium">{known?.title ?? "Pairing didn't finish"}</p>
-      <p className="text-xs leading-relaxed text-ink-2">{known?.body ?? state.message ?? "Nothing was paired."}</p>
-      <DialogActions>
-        <Button variant="secondary" onClick={onClose}>
-          Close
-        </Button>
-        {(known?.reEnable !== true || reEnable) && (
-          <Button
-            variant="primary"
-            disabled={busy}
-            onClick={() => onRetry(reEnable)}
-            data-autofocus
-            data-testid="pairing-retry"
-          >
-            {known?.action ?? "Try again"}
-          </Button>
-        )}
-      </DialogActions>
+      </DialogFooter>
     </div>
   );
 }

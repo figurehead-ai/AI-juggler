@@ -616,15 +616,10 @@ main::-webkit-scrollbar-track,
 /* At the foot, while more of the list is below (data-more): its last
    20 px fade out, so a row cut at the bottom reads as more below and never
    as a stray half label. A mask, not a colour, so it matches any surface
-   behind it (the rail is translucent over the canvas). Not over a dialog
-   body that holds its own sticky actions (DialogActions): they stay whole. */
+   behind it (the rail is translucent over the canvas). */
 .scroll-edge[data-more] {
   -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 20px), transparent);
   mask-image: linear-gradient(to bottom, #000 calc(100% - 20px), transparent);
-}
-.scroll-edge[data-more]:has([data-dialog-actions]) {
-  -webkit-mask-image: none;
-  mask-image: none;
 }
 
 /* D-118 (AJ-E3702 R6): a feed item that arrives while the reader is at

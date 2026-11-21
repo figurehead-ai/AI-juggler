@@ -18,8 +18,8 @@ import { useEffect, useRef, useState, type JSX } from "react";
 import { switchBackPlan, switchBackExecute, type SwitchBackPlanData } from "../lib/ipc/switchBack";
 import { errorText } from "../lib/bridge";
 import { Radio } from "./controls";
-import { PRIMARY_FILL } from "./primitives";
-import { DialogActions, DialogFrame, DialogHeading, DialogOverlay } from "./DialogFrame";
+import { Button } from "./primitives";
+import { DialogFooter, DialogFrame, DialogHeading, DialogOverlay } from "./DialogFrame";
 
 type Phase =
   | { kind: "plan" }
@@ -136,6 +136,7 @@ export function SwitchBackFlow({
         data-testid="switch-back-flow"
         className="w-full max-w-md rounded-xl border border-hairline bg-surface shadow-card"
         bodyClassName="p-5"
+        footerClassName="flex flex-wrap items-center justify-end gap-2 px-5 py-3"
       >
         {phase.kind === "plan" && (
           <p className="text-xs text-ink-2" data-testid="switch-back-planning">
@@ -263,27 +264,16 @@ export function SwitchBackFlow({
                     : `One click carries the work back to ${plan.original_account} in a new session.`}
               </p>
             </div>
-            <DialogActions>
-              <button
-                type="button"
-                onClick={onClose}
-                className="rounded-lg border border-hairline px-3 py-1.5 text-xs hover:bg-surface-2"
-              >
+            {/* The way on and out, in the dialog's fixed footer (DLG-1). */}
+            <DialogFooter>
+              <Button variant="ghost" type="button" onClick={onClose} aria-keyshortcuts="Escape">
                 Cancel
-              </button>
-              <button
-                type="button"
-                disabled={unresolved > 0}
-                onClick={() => void execute()}
-                data-testid="switch-back-confirm"
-                // 0.3.2: the one primary fill, as in every dialog; faded
-                // while a conflict waits on a choice.
-                className={`rounded-lg px-3 py-1.5 text-xs font-semibold ${PRIMARY_FILL} disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:brightness-100`}
-                data-primary=""
-              >
+              </Button>
+              {/* Faded while a conflict waits on a choice; the line above says which. */}
+              <Button variant="primary" type="button" disabled={unresolved > 0} onClick={() => void execute()} data-testid="switch-back-confirm">
                 Resume {plan.original_account} ▸ {armed && <span>(⏎)</span>}
-              </button>
-            </DialogActions>
+              </Button>
+            </DialogFooter>
           </div>
         )}
 
@@ -310,15 +300,11 @@ export function SwitchBackFlow({
               It resumed exactly where it rested — the away work arrived as one
               “while you were away” update.
             </p>
-            <DialogActions>
-              <button
-                type="button"
-                onClick={() => onSwitched(phase.sessionId)}
-                className="rounded-lg border border-accent/40 bg-accent-soft px-3 py-1.5 text-xs text-accent-hi"
-              >
+            <DialogFooter>
+              <Button variant="primary" type="button" data-autofocus onClick={() => onSwitched(phase.sessionId)}>
                 Go to the session
-              </button>
-            </DialogActions>
+              </Button>
+            </DialogFooter>
           </div>
         )}
 
@@ -330,15 +316,11 @@ export function SwitchBackFlow({
             <p className="rounded border border-warning/40 px-2 py-1 text-label text-warning" data-testid="switch-back-failed-words">
               {phase.message}
             </p>
-            <DialogActions>
-              <button
-                type="button"
-                onClick={onClose}
-                className="rounded-lg border border-hairline px-3 py-1.5 text-xs hover:bg-surface-2"
-              >
+            <DialogFooter>
+              <Button variant="secondary" type="button" data-autofocus onClick={onClose}>
                 Close
-              </button>
-            </DialogActions>
+              </Button>
+            </DialogFooter>
           </div>
         )}
       </DialogFrame>
