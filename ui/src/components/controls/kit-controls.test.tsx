@@ -173,6 +173,7 @@ describe("a choice card is one control, the whole card", () => {
               {false}
             </RadioCard>
             <RadioCard value="none" title="Start from scratch" testId="card-none" />
+            <RadioCard value="logo" title="Its next session" logo={<span className="relative inline-flex">L</span>} testId="card-logo" />
           </RadioCards>
           <CheckCard title="web" sub="2 sessions open now" checked={on} onChange={setOn} testId="card-web" />
         </>
@@ -199,6 +200,16 @@ describe("a choice card is one control, the whole card", () => {
     }
     expect(describedBy(screen.getByRole("radio", { name: "Writer and reviewer" }))).toBe("One writes, one reviews Lead · Reviewer");
     expect(screen.getByRole("radio", { name: "Start from scratch" }).hasAttribute("aria-describedby")).toBe(false);
+    // SK48-13: a positioned part of its face (its logo, its check mark)
+    // paints over the input; it takes no pointer, so a press there is the
+    // input's (a Who leads card's logo found "nothing to press").
+    for (const id of ["card-logo", "card-pair"]) {
+      const card = screen.getByTestId(id);
+      const input = card.querySelector("input")!;
+      const over = [...card.querySelectorAll<HTMLElement>("*")].filter((one) => one !== input && /\b(relative|absolute)\b/.test(one.className));
+      expect(over.length, id).toBeGreaterThan(0);
+      for (const one of over) expect(one.closest(".pointer-events-none"), `${id}: ${one.className}`).not.toBeNull();
+    }
     // A press on its words chooses it, as on its input.
     fireEvent.click(screen.getByText("Lead · Reviewer"));
     expect(screen.getByRole("radio", { name: "Writer and reviewer" })).toHaveProperty("checked", true);

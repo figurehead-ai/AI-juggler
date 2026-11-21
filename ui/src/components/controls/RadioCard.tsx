@@ -22,6 +22,11 @@
  * and a press by place, its name the title and its description the rest
  * of the card's words. A part of the face that shows a hint on hover sits
  * above the input (positioned, after it).
+ *
+ * SK48-13 (the 0.4.8 soak, P10): a press on a Who leads card's body found
+ * nothing to press: its logo (a positioned MemberLogo) and its check mark
+ * paint above the input, so a press there landed on a picture. They take
+ * no pointer now: the press passes through to the input, the card's own.
  */
 import { Children, createContext, useContext, useId, type JSX, type KeyboardEvent, type ReactNode } from "react";
 import { IconCheck } from "../icons-controls";
@@ -50,7 +55,7 @@ function Mark({ on, shape }: { on: boolean; shape: "round" | "square" }): JSX.El
     <span
       aria-hidden="true"
       className={
-        "absolute right-3.5 top-3.5 flex size-5 items-center justify-center " +
+        "pointer-events-none absolute right-3.5 top-3.5 flex size-5 items-center justify-center " +
         (shape === "round" ? "rounded-full " : "rounded-md ") +
         (on ? "bg-accent-fill text-white" : "inset-ring-[1.5px] inset-ring-faint")
       }
@@ -66,7 +71,7 @@ function Mark({ on, shape }: { on: boolean; shape: "round" | "square" }): JSX.El
 function Body({ logo, title, sub, children, layout = "row", titleId, subId, moreId }: CardWords & { titleId: string; subId: string; moreId: string }): JSX.Element {
   return (
     <span className={layout === "row" ? "flex min-w-0 items-center gap-3.5 pr-7" : "flex min-w-0 flex-col items-start gap-2.5 pr-7"}>
-      {logo && <span className="flex shrink-0">{logo}</span>}
+      {logo && <span className="pointer-events-none flex shrink-0">{logo}</span>}
       <span className="flex min-w-0 flex-col gap-0.5">
         <span id={titleId} className="text-body font-semibold text-ink">
           {title}
