@@ -34,6 +34,7 @@
     { "need": "keep-alive-paused", "level": 1 },
     { "need": "unmeasured", "level": 1 },
     { "need": "uncommitted", "level": 1 },
+    { "need": "resume", "level": 2 },
     { "need": "limit", "parked": true, "level": 0 },
     { "need": "limit", "noRoom": true, "parked": true, "level": 0 },
     { "need": "failed", "parked": true, "level": 0 },
