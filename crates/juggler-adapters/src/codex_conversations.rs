@@ -46,6 +46,35 @@ pub fn conversation_files(home: &Path) -> Vec<PathBuf> {
     out
 }
 
+/// AJ-E2311 6(b): whether thread `id` is written under `home`: a rollout
+/// named for it (`rollout-<time>-<id>.jsonl`, compressed or not) under
+/// `sessions/`, or archived in `archived_sessions/` (written, though Codex
+/// resumes it only once it's unarchived). `None` for an id that isn't a
+/// UUID (Codex names none otherwise) or a folder that is there but can't
+/// be read.
+#[must_use]
+pub fn conversation_written(home: &Path, id: &str) -> Option<bool> {
+    if !juggler_adapter::handover::is_uuid_form(id) {
+        return None;
+    }
+    let archived = match std::fs::read_dir(home.join("archived_sessions")) {
+        Ok(entries) => entries.flatten().map(|entry| entry.path()).collect(),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Vec::new(),
+        Err(_) => return None,
+    };
+    if let Err(error) = std::fs::read_dir(home.join("sessions"))
+        && error.kind() != std::io::ErrorKind::NotFound
+    {
+        return None;
+    }
+    let named = |path: &PathBuf| {
+        path.file_name()
+            .and_then(|name| thread_id_from_name(&name.to_string_lossy()))
+            .is_some_and(|thread| thread.eq_ignore_ascii_case(id))
+    };
+    Some(conversation_files(home).iter().any(named) || archived.iter().any(named))
+}
+
 /// Reads one rollout whole: its thread id, folder, branch, title
 /// ([`crate::codex_titles`]: never the context Codex or its app injects),
 /// first and last activity, and tokens (each response once, as the usage
@@ -385,6 +414,49 @@ pub fn session_process(exe: Option<&Path>, args: &[String]) -> Option<SessionPro
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// AJ-E2311 6(b): a thread is written once a rollout named for it is
+    /// under `sessions/Y/M/D/` (compressed or not) or archived; another
+    /// thread's rollout, or none, isn't it. An id that isn't a UUID can't
+    /// be told.
+    #[test]
+    fn a_thread_is_written_once_a_rollout_is_named_for_it() {
+        use juggler_adapter::ToolTranscripts as _;
+        let home = tempfile::tempdir().unwrap();
+        let adapter = crate::CodexAdapter::with_bin("codex");
+        let id = "0199aa00-0000-7000-8000-0000000000dd";
+        assert_eq!(
+            adapter.conversation_written(home.path(), id),
+            Some(false),
+            "no sessions folder yet: nothing written"
+        );
+        let day = home.path().join("sessions/2026/11/21");
+        std::fs::create_dir_all(&day).unwrap();
+        std::fs::write(
+            day.join("rollout-2026-11-21T10-00-00-0199aa00-0000-7000-8000-0000000000ee.jsonl"),
+            "{}\n",
+        )
+        .unwrap();
+        assert_eq!(adapter.conversation_written(home.path(), id), Some(false));
+        let rollout = day.join(format!("rollout-2026-11-21T10-05-00-{id}.jsonl.zst"));
+        std::fs::write(&rollout, "").unwrap();
+        assert_eq!(adapter.conversation_written(home.path(), id), Some(true));
+        // Archived: moved out of `sessions/`, still written.
+        std::fs::create_dir_all(home.path().join("archived_sessions")).unwrap();
+        std::fs::rename(
+            &rollout,
+            home.path()
+                .join("archived_sessions")
+                .join(rollout.file_name().unwrap()),
+        )
+        .unwrap();
+        assert_eq!(adapter.conversation_written(home.path(), id), Some(true));
+        assert_eq!(
+            adapter.conversation_written(home.path(), "thread-1"),
+            None,
+            "not an id Codex names"
+        );
+    }
 
     /// 0.4.5 (AJ-E805): a rollout read as it grows says what it says read
     /// whole, and its tokens are the usage reading's (P14, P17): reasoning

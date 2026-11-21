@@ -720,6 +720,9 @@ impl ToolTranscripts for ClaudeCodeAdapter {
     fn conversation_files(&self, state_dir: &Path) -> Vec<PathBuf> {
         crate::claude_conversations::conversation_files(state_dir)
     }
+    fn conversation_written(&self, state_dir: &Path, conversation_id: &str) -> Option<bool> {
+        crate::claude_conversations::conversation_written(state_dir, conversation_id)
+    }
     fn read_conversation(
         &self,
         path: &Path,
