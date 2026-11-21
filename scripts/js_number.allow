@@ -435,3 +435,5 @@ BotRowInfo.started_ms                              # ms epoch, < 2^53 until year
 BotTopicInfo.started_ms                            # ms epoch, < 2^53 until year 287396
 BotTurnInfo.at_ms                                  # ms epoch, < 2^53 until year 287396
 command bot_page(before_ms)                        # ms epoch, < 2^53 until year 287396
+MoveProgressInfo.done                              # a move's bytes (or steps) so far, < 2^53 (9 PB); 0.4.9's move progress
+MoveProgressInfo.total                             # a move's total bytes (or steps), < 2^53 (9 PB); 0.4.9's move progress
