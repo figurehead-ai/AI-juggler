@@ -6,9 +6,14 @@
  * (the home folder written `~`), and Report a bug… (AJ-E2911) with the
  * switch's steps. Retry shows only when
  * trying again can succeed (`retryable`).
+ *
+ * 0.4.9: a refusal that left everything as it was is `calm`: its own
+ * title in ink and its words as an info Alert, never amber (the switch
+ * screen's Move to account).
  */
 import { useState, type JSX } from "react";
 
+import { Alert } from "../Alert";
 import { SwitchSetupResults } from "../SwitchSetupList";
 import { Disclosure } from "../controls";
 import { openReportBug } from "../../lib/report-bug";
@@ -28,7 +33,20 @@ export function detailsText(target: string, message: string, detail: string | nu
   return [`AI Juggler · a switch to ${target} didn't complete · ${at.toISOString()}`, `What it said: ${message}`, `Details: ${detail ?? "none recorded"}`].join("\n");
 }
 
-export function FailedStep({ target, message, cause, results }: { target: string; message: string; cause: unknown; results: AppliedInfo[] }): JSX.Element {
+export function FailedStep({
+  target,
+  message,
+  cause,
+  results,
+  calm,
+}: {
+  target: string;
+  message: string;
+  cause: unknown;
+  results: AppliedInfo[];
+  /** Nothing changed: said calmly, under this title. */
+  calm?: { title: string };
+}): JSX.Element {
   const { detail } = failureOf(cause);
   const [copied, setCopied] = useState<"yes" | "no" | null>(null);
   const copy = () =>
@@ -39,11 +57,22 @@ export function FailedStep({ target, message, cause, results }: { target: string
         () => setCopied("no"),
       );
   return (
-    <div className="flex flex-col gap-4" data-testid="switch-failed">
-      <h3 className="text-title text-warning">The switch didn't complete</h3>
-      <p className="rounded-lg border border-warning/40 px-3 py-2 text-body text-warning" data-testid="switch-failed-words">
-        {message}
-      </p>
+    <div className="flex flex-col gap-4" data-testid="switch-failed" data-calm={calm ? "true" : undefined}>
+      {calm ? (
+        <>
+          <h3 className="text-title text-ink">{calm.title}</h3>
+          <Alert level="info" testId="switch-failed-words" className="text-body">
+            {message}
+          </Alert>
+        </>
+      ) : (
+        <>
+          <h3 className="text-title text-warning">The switch didn't complete</h3>
+          <p className="rounded-lg border border-warning/40 px-3 py-2 text-body text-warning" data-testid="switch-failed-words">
+            {message}
+          </p>
+        </>
+      )}
       <div className="flex items-center gap-3">
         <button type="button" onClick={copy} className="rounded-lg border border-hairline px-2.5 py-1 text-meta text-ink outline-none hover:bg-surface-2 focus-visible:ring-2 focus-visible:ring-accent/60" data-testid="switch-copy-details">
           Copy details

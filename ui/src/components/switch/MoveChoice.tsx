@@ -9,10 +9,10 @@
  * shown waiting only for what the user can clear, saying how.
  */
 import { useEffect, useRef, useState, type JSX } from "react";
-import { switchMoveExecute, switchMoveOffer, switchMoves, type MoveDoneInfo, type MoveOfferInfo } from "../../lib/ipc/switch-move";
+import { onMoveProgress, switchMoveExecute, switchMoveOffer, switchMoves, type MoveDoneInfo, type MoveOfferInfo, type MoveProgressInfo } from "../../lib/ipc/switch-move";
 import { errorText } from "../../lib/bridge";
-import { FailedStep } from "./FailedStep";
-import { MoveDone, MoveUndo } from "./MoveDone";
+import { MoveDone } from "./MoveDone";
+import { MoveFailed, Moving, nothingMoved } from "./MoveRunning";
 import { PRIMARY } from "./SwitchDialogFrame";
 import { ChoiceOption, Disclosure } from "../controls";
 import { IconCarryIn, IconCopy } from "../icons-actions";
@@ -55,6 +55,8 @@ export function useMoveFlow(sessionId: string, targetProfileId: string, attempt:
   const [chosen, setHow] = useState<How | null>(null);
   const [takeNotes, setTakeNotes] = useState(false);
   const [phase, setPhase] = useState<MovePhase>({ kind: "idle" });
+  // 0.4.9: what the running move told last (a long backup never looks frozen).
+  const [progress, setProgress] = useState<MoveProgressInfo | null>(null);
   const [read, setRead] = useState<string | null>(null);
   // Bumped to read the offer again: a check again of the switch, or
   // Check again on a Move that can't happen yet (busy work finished).
@@ -86,16 +88,30 @@ export function useMoveFlow(sessionId: string, targetProfileId: string, attempt:
   const start = async () => {
     if (started.current) return;
     started.current = true;
+    setProgress(null);
     setPhase({ kind: "moving" });
+    const stop = onMoveProgress(setProgress);
     try {
       setPhase({ kind: "moved", done: await switchMoveExecute(sessionId, targetProfileId, takeNotes) });
     } catch (cause) {
       started.current = false;
-      const left = await switchMoves()
-        .then((moves) => moves.find((m) => m.state === "interrupted")?.move_id ?? null)
-        .catch(() => null);
+      // A refusal left nothing to undo; only a move left part way has one.
+      const left = nothingMoved(cause)
+        ? null
+        : await switchMoves()
+            .then((moves) => moves.find((m) => m.state === "interrupted")?.move_id ?? null)
+            .catch(() => null);
       setPhase({ kind: "failed", message: errorText(cause), cause, left });
+    } finally {
+      stop();
     }
+  };
+  /** After a refusal: back to Move, its offer read again. */
+  const again = () => {
+    started.current = false;
+    setProgress(null);
+    setPhase({ kind: "idle" });
+    setNonce((n) => n + 1);
   };
   /** What the dialog shows: the move's own screens once it started, else
    * the switch's `shown` ones. */
@@ -106,7 +122,7 @@ export function useMoveFlow(sessionId: string, targetProfileId: string, attempt:
     close: () => void,
     cancelButton: JSX.Element,
   ): { body: JSX.Element | null; footer: JSX.Element | null } => {
-    if (phase.kind === "moving") return { body: <Moving target={target} holding={holding} />, footer: null };
+    if (phase.kind === "moving") return { body: <Moving target={target} holding={holding} progress={progress} />, footer: null };
     if (phase.kind === "moved") {
       return {
         body: <MoveDone done={phase.done} target={target} />,
@@ -118,14 +134,21 @@ export function useMoveFlow(sessionId: string, targetProfileId: string, attempt:
       };
     }
     if (phase.kind === "failed") {
+      // 0.4.9: Cancel, × and Esc close it (nothing stays busy); Retry
+      // when nothing was moved (deep/11 §4.9: "Nothing was changed.
+      // [Retry][Cancel]").
       return {
-        body: (
-          <div className="flex flex-col gap-4">
-            <FailedStep target={target} message={phase.message} cause={phase.cause} results={[]} />
-            {phase.left && <MoveUndo moveId={phase.left} />}
-          </div>
+        body: <MoveFailed target={target} message={phase.message} cause={phase.cause} left={phase.left} />,
+        footer: (
+          <>
+            {cancelButton}
+            {nothingMoved(phase.cause) && !phase.left && (
+              <button type="button" data-autofocus onClick={again} className={PRIMARY} data-testid="switch-move-again">
+                Retry
+              </button>
+            )}
+          </>
         ),
-        footer: cancelButton,
       };
     }
     return shown;
@@ -144,7 +167,10 @@ export function useMoveFlow(sessionId: string, targetProfileId: string, attempt:
   const button = (target: string) => <MoveButton target={target} onMove={() => void start()} />;
   // Enter: Move when it's chosen, else what the switch does.
   const enter = (copy: () => void) => (moving ? () => void start() : copy);
-  return { offer, how, moving, running: phase.kind === "moving", start, frame, choice, screen, button, enter };
+  // Ended either way: the dialog is no longer busy (it closed on nothing
+  // after a refusal, 0.4.9).
+  const settled = phase.kind === "failed" || phase.kind === "moved";
+  return { offer, how, moving, running: phase.kind === "moving", settled, start, frame, choice, screen, button, enter };
 }
 
 /** The last button with Move chosen. */
@@ -153,16 +179,6 @@ function MoveButton({ target, onMove }: { target: string; onMove: () => void }):
     <button key="move-now" type="button" onClick={(event) => event.detail < 2 && onMove()} data-testid="switch-move-confirm" className={PRIMARY} aria-keyshortcuts="Enter">
       Move to {target}
     </button>
-  );
-}
-
-/** While the move runs. */
-function Moving({ target, holding }: { target: string; holding: boolean }): JSX.Element {
-  return (
-    <p className="text-body text-ink" data-testid="switch-moving" aria-live="polite">
-      Moving to {target}: both profiles quit, the conversation moves, and both start again. This takes a minute
-      {holding ? ". It can't be stopped half way, so it finishes first" : ""}.
-    </p>
   );
 }
 
