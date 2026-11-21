@@ -26,6 +26,8 @@ export function NewPoolSteps({
   furthest,
   valueOf,
   onPick,
+  held = null,
+  heldWhy,
 }: {
   steps: readonly SetupStep[];
   /** The step shown, by its place. */
@@ -35,6 +37,10 @@ export function NewPoolSteps({
   /** A step's value under its name (`null`: none). */
   valueOf: (step: SetupStep, walked: boolean) => string | null;
   onPick: (at: number) => void;
+  /** Nothing goes on past this place until the choice its step needs is
+   * made; the steps after it say why (`heldWhy`). */
+  held?: number | null;
+  heldWhy?: string;
 }): JSX.Element {
   const open = furthest >= steps.indexOf(OPEN_FROM);
   const next = steps[furthest + 1];
@@ -43,7 +49,8 @@ export function NewPoolSteps({
     // The basics say nothing until walked; the rest say what they're
     // filled in with.
     const value = state === "done" || (state === "todo" && GROUP_OF[id] !== "basics") ? valueOf(id, state === "done") : null;
-    return { id, label: navOf(id), value: value ?? undefined, state, group: GROUP_OF[id], disabled: !(at <= furthest + 1 || open), reason: next ? `After ${navOf(next)}` : undefined };
+    const stopped = held !== null && at > held;
+    return { id, label: navOf(id), value: value ?? undefined, state, group: GROUP_OF[id], disabled: stopped || !(at <= furthest + 1 || open), reason: stopped ? heldWhy : next ? `After ${navOf(next)}` : undefined };
   });
   const groups = WIZARD_GROUPS.map((group) => (group.id === "how" && step <= steps.indexOf(OPEN_FROM) ? { ...group, tag: PREFILLED } : group));
   return (

@@ -218,6 +218,61 @@ describe("How to start (D-126 cards)", () => {
   });
 });
 
+// The 0.4.7 nightly walk: a press on a template card's words found
+// nothing to press (only its radio took one), and Next with no template
+// picked went on and made a pool with no project.
+describe("How to start and Where take the whole card, and Next waits for what the step needs", () => {
+  it("a template card is its radio, all of it: a press on its words picks it", () => {
+    const chosen: string[] = [];
+    render(<NewPoolTemplate chosen="blank" onChoose={(id) => chosen.push(id)} first />);
+    for (const card of screen.getAllByTestId("new-pool-template")) {
+      const radio = within(card).getByRole("radio");
+      expect(radio.className, card.dataset.template).toMatch(/\babsolute\b.*\binset-0\b/);
+      expect(card.querySelector('[aria-hidden="true"] [id$="-title"]'), card.dataset.template).not.toBeNull();
+    }
+    const pair = screen.getAllByTestId("new-pool-template").find((card) => card.dataset.template === "writer-reviewer")!;
+    fireEvent.click(within(pair).getByText(templateById("writer-reviewer").description));
+    expect(chosen).toEqual(["writer-reviewer"]);
+  });
+
+  it("starts on Start from scratch, picked where it shows; with no project, Next waits on Where and says why, as do the steps after it", () => {
+    render(<NewPool sessions={[]} projects={MOCK_PROJECTS} accounts={[]} project={null} onClose={() => undefined} />);
+    // The step's default is picked, and shows it.
+    const scratch = screen.getByRole("radio", { name: /^Start from scratch/ });
+    expect(scratch).toHaveProperty("checked", true);
+    expect(screen.getAllByTestId("new-pool-template").find((card) => card.dataset.template === "blank")!.querySelector("label")!.className).toContain("ring-accent");
+    fireEvent.click(screen.getByTestId("new-pool-next"));
+    expect(screen.getByTestId("new-pool-step-where")).toBeTruthy();
+    const next = screen.getByTestId("new-pool-next");
+    const rail = (id: string) => screen.getAllByTestId("flow-step").find((one) => one.dataset.step === id)!;
+    const waits = () => {
+      expect(next).toHaveProperty("disabled", true);
+      expect(screen.getByTestId("flow-foot-why").textContent).toBe("Pick a project to go on.");
+      expect(next.getAttribute("aria-describedby")).toBe(screen.getByTestId("flow-foot-why").id);
+      expect(rail("who")).toHaveProperty("disabled", true);
+      expect(rail("who").getAttribute("title")).toBe("Pick a project first");
+      fireEvent.click(next);
+      fireEvent.click(rail("who"));
+      expect(screen.getByTestId("new-pool-step-where")).toBeTruthy();
+    };
+    waits();
+    // Next can't hold the keyboard's focus while it waits: the first project has it.
+    expect(document.activeElement).toBe(within(screen.getByTestId("new-pool-where")).getAllByRole("checkbox")[0]);
+    const where = () => screen.getByRole("group", { name: "Which project" });
+    fireEvent.click(within(where()).getByRole("checkbox", { name: "ai-juggler" }));
+    expect(next).toHaveProperty("disabled", false);
+    expect(screen.queryByTestId("flow-foot-why")).toBeNull();
+    nextTo("lead");
+    // Back on Where with the project taken out, it waits again, though
+    // the steps after it were reached.
+    fireEvent.click(rail("where"));
+    fireEvent.click(within(where()).getByRole("checkbox", { name: "ai-juggler" }));
+    waits();
+    expect(rail("lead")).toHaveProperty("disabled", true);
+    expect(rail("template")).toHaveProperty("disabled", false);
+  });
+});
+
 describe("Where (D-126 cards)", () => {
   const NOW = 1_800_000_000_000;
   const at = (id: string, project: string, status: string, ms: number): InstanceInfo => ({ ...MOCK_SESSIONS[0]!, id, project_id: project, provider: "claude-code", status, started_at_ms: ms, last_activity_ms: ms });

@@ -157,3 +157,51 @@ describe("CheckCard", () => {
     expect(card.matches(":checked")).toBe(false);
   });
 });
+
+// The 0.4.7 nightly walk: a press on a template card's words found
+// nothing to press; only its radio, a pixel in a corner, took one.
+describe("a choice card is one control, the whole card", () => {
+  it("its input covers the card; its face is shown, not read; its name the title, its description the rest", () => {
+    function Harness() {
+      const [lead, setLead] = useState<string | null>(null);
+      const [on, setOn] = useState(false);
+      return (
+        <>
+          <RadioCards label="How to start" value={lead} onChange={setLead}>
+            <RadioCard value="pair" title="Writer and reviewer" sub="One writes, one reviews" testId="card-pair">
+              <span>Lead · Reviewer</span>
+              {false}
+            </RadioCard>
+            <RadioCard value="none" title="Start from scratch" testId="card-none" />
+          </RadioCards>
+          <CheckCard title="web" sub="2 sessions open now" checked={on} onChange={setOn} testId="card-web" />
+        </>
+      );
+    }
+    render(<Harness />);
+    for (const [id, role, name] of [
+      ["card-pair", "radio", "Writer and reviewer"],
+      ["card-none", "radio", "Start from scratch"],
+      ["card-web", "checkbox", "web"],
+    ] as const) {
+      const card = screen.getByTestId(id);
+      const input = screen.getByRole(role, { name });
+      expect(input.parentElement, id).toBe(card);
+      // Over the whole card, unseen: never a pixel in a corner.
+      expect(input.className, id).toMatch(/\babsolute\b.*\binset-0\b/);
+      expect(input.className, id).toContain("opacity-0");
+      expect(input.className, id).not.toContain("sr-only");
+      // Every word on the card is shown, not read: the input says them.
+      const words = [...card.querySelectorAll("*")].filter((one) => one !== input && one.childElementCount === 0 && (one.textContent ?? "").trim() !== "");
+      expect(words.length, id).toBeGreaterThan(0);
+      for (const one of words) expect(one.closest('[aria-hidden="true"]'), `${id}: ${one.textContent}`).not.toBeNull();
+    }
+    expect(describedBy(screen.getByRole("radio", { name: "Writer and reviewer" }))).toBe("One writes, one reviews Lead · Reviewer");
+    expect(screen.getByRole("radio", { name: "Start from scratch" }).hasAttribute("aria-describedby")).toBe(false);
+    // A press on its words chooses it, as on its input.
+    fireEvent.click(screen.getByText("Lead · Reviewer"));
+    expect(screen.getByRole("radio", { name: "Writer and reviewer" })).toHaveProperty("checked", true);
+    fireEvent.click(screen.getByText("2 sessions open now"));
+    expect(screen.getByRole("checkbox", { name: "web" })).toHaveProperty("checked", true);
+  });
+});

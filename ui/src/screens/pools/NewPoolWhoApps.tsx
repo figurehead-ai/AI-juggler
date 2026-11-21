@@ -95,8 +95,12 @@ function AppCard({ row, title, app, on, open, where, onToggle }: { row: Candidat
           </span>
         )}
         {!blocked && row.shell && (
-          <span className="mt-1">
+          // Above the card's input (positioned, after it), so its hint
+          // shows on hover; the card's words are its checkbox's
+          // description (its face is shown, not read), its why with them.
+          <span className="relative mt-1">
             <ShellOnlyChip why={row.shell} inRow />
+            <span className="sr-only">. {row.shell}</span>
           </span>
         )}
         {blocked && <span className="text-label text-ink-2">{row.blocked}</span>}
