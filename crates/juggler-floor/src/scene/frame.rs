@@ -209,7 +209,8 @@ impl Scene {
         let (screen, glow, scroll): (Uv, f32, f32) = match d.state {
             FloorState::Working if d.desktop => (p.chat, 0.9, -1.0),
             FloorState::Working => (code, 0.9, (t * 0.25 + d.phase * 0.13).fract()),
-            FloorState::Idle | FloorState::Ended => {
+            // awake again (its limit reset): its screen back on
+            FloorState::Idle | FloorState::Ended | FloorState::Ready => {
                 (if d.desktop { p.chat } else { code }, 0.6, -1.0)
             }
             FloorState::Asks => (p.chat, 0.9, -1.0),
@@ -445,6 +446,17 @@ fn state_effects(b: &mut B, d: &DeskRec, t: f32, drawn: &mut Drawn) {
                 floor: d.floor,
                 p: [p[0], p[1], p[2], 2.8],
                 c: [0.9 * k, 0.12, 0.1, 1.0],
+                owner: 0,
+            });
+        }
+        // AJ-E2312: a steady blue lamp, the READY flag's colour: its limit
+        // has reset, it can go on.
+        FloorState::Ready => {
+            let p = d.frame.0.point([0.0, d.top + 0.5, -0.2]);
+            drawn.lights.push(Light {
+                floor: d.floor,
+                p: [p[0], p[1], p[2], 2.6],
+                c: [0.3, 0.48, 0.9, 1.0],
                 owner: 0,
             });
         }

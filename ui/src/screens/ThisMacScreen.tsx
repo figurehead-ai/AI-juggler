@@ -163,7 +163,10 @@ export function ThisMacOverview({ nameOf, onOpenSession, onOpenCleanup }: Overvi
   const machine = info?.machine;
   return (
     <>
-      {!info || !machine ? (
+      {/* 0.4.7 walk V2: a reading from before the first sample drew an
+          empty Memory card and "Not measured yet": until the Mac is
+          measured, the page says it's measuring. */}
+      {!info || !machine || !machine.sampled ? (
         <RowPlaceholders shape="home" rows={4} label="Measuring this Mac" />
       ) : (
         // Two columns on a wide window: the Mac's figures, and what's
@@ -197,7 +200,12 @@ export function ThisMacOverview({ nameOf, onOpenSession, onOpenCleanup }: Overvi
                 <Card title="Swap" testId="this-mac-swap">
                   <Figure value={bytesWords(machine.swap_used)} of={`of ${bytesWords(machine.swap_total)} moved to disk`} />
                   <Gauge pct={(machine.swap_used / machine.swap_total) * 100} label={`Swap: ${bytesWords(machine.swap_used)} of ${bytesWords(machine.swap_total)} moved to disk`} />
-                  <p className="text-meta text-ink-2">Memory macOS moved to disk to make room. Reading it back is slow.</p>
+                  {/* D1 (0.4.8): a nearly full swap beside "Plenty of room"
+                      says why it doesn't count yet, in the backend's words
+                      from the rule it uses. */}
+                  <p className="text-meta text-ink-2" data-testid="this-mac-swap-note">
+                    {machine.swap_note ?? "Memory macOS moved to disk to make room. Reading it back is slow."}
+                  </p>
                 </Card>
               )}
               <Card title="AI Juggler" testId="this-mac-own-card">
@@ -210,7 +218,10 @@ export function ThisMacOverview({ nameOf, onOpenSession, onOpenCleanup }: Overvi
 
           <div className="flex min-w-0 flex-col gap-8">
           <Section id="this-mac-using" title="What's using it">
-            {info.by_tool.length === 0 && <p className="text-body text-ink-2">No AI tools are running.</p>}
+            {/* "None running" needs a look first (0.4.7 walk V2: said
+                beside two running sessions before the first scan). */}
+            {info.by_tool.length === 0 &&
+              (info.scanned ? <p className="text-body text-ink-2">No AI tools are running.</p> : <RowPlaceholders shape="rail" rows={2} label="Looking for running AI tools" />)}
             <div className="flex flex-col">
               {info.by_tool.map((group) => (
                 <ToolGroup key={`${group.ours ? "ours" : "theirs"}-${group.tool}`} group={group} info={info} nameOf={nameOf} onOpenSession={onOpenSession} />

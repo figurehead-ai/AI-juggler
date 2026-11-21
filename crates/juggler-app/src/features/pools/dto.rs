@@ -297,6 +297,16 @@ impl CardField {
             unavailable: Some(format!("Unavailable — {why}")),
         }
     }
+
+    /// Unknown because its tool doesn't report it, said whole ("Kimi Code
+    /// doesn't report what it's doing", SK48-4).
+    #[must_use]
+    pub fn not_reported(words: String) -> Self {
+        Self {
+            value: None,
+            unavailable: Some(words),
+        }
+    }
 }
 
 /// AJ-E1703: what one member of a pool is working on, built only from

@@ -77,4 +77,10 @@ awake: AwakeInfo,
 /**
  * AJ-E1509: AI Juggler itself (with its watchdog; opens at login).
  */
-own: OwnInfo, };
+own: OwnInfo, 
+/**
+ * The running AI tools have been looked for and measured
+ * (`MachineWatch::tools_known`): until then "No AI tools are running"
+ * can't be said (0.4.7 walk V2 saw it beside two running sessions).
+ */
+scanned: boolean, };

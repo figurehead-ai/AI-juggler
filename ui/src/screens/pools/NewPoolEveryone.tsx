@@ -8,7 +8,7 @@
  * corner), its name and what it is, and its role as one segmented
  * control: Member, Reviewer, Observer. Who leads is the step before's: a
  * session that leads says so here; an App whose next session leads says
- * "Its next session leads. Its other sessions:" and its control sets the
+ * "Its next session leads; the role here is for its other sessions." and its control sets the
  * others' role, keeping the lead (round 2, #2: one row, not a Lead
  * beside a Member). Every new session's role is the same control
  * (everyone joins at all is Who's in's switch).
@@ -140,7 +140,7 @@ export function NewPoolEveryone({
                     {name}
                   </span>
                   <span className="text-meta text-ink-2" data-testid="new-pool-member-line">
-                    {leads ? "Leads the team. Change it in Who leads." : leadsNext ? "Its next session leads. Its other sessions:" : memberKindWords(member, apps)}
+                    {leads ? "Leads the team. Change it in Who leads." : leadsNext ? "Its next session leads; the role here is for its other sessions." : memberKindWords(member, apps)}
                   </span>
                 </span>
                 {!leads && <RoleControl name={leadsNext ? `${name}'s other sessions` : name} value={member.role} onChange={(role) => setMember(member.ref, { role })} />}

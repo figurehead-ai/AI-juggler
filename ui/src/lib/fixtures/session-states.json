@@ -13,6 +13,7 @@
     { "status": "stuck", "needs_attention": null, "runtime": null, "snoozed": false, "rail": "asks_you", "word": "Probably stuck", "floor": "stuck" },
     { "status": "running", "needs_attention": "stuck", "runtime": null, "snoozed": false, "rail": "asks_you", "word": "Probably stuck", "floor": "stuck" },
     { "status": "quota_blocked", "needs_attention": null, "runtime": null, "snoozed": false, "rail": "asks_you", "word": "Limit reached", "floor": "limit" },
+    { "status": "quota_blocked", "needs_attention": "limit_reset", "runtime": null, "snoozed": false, "rail": "asks_you", "word": "Room again", "floor": "ready" },
     { "status": "running", "needs_attention": "quota_blocked", "runtime": "working", "snoozed": false, "rail": "working", "word": "Limit reached", "floor": "limit" },
     { "status": "failed", "needs_attention": null, "runtime": null, "snoozed": false, "rail": "ended", "word": "Stopped with an error", "floor": "crashed" },
     { "status": "failed", "needs_attention": null, "runtime": null, "snoozed": true, "rail": "ended", "word": "Ended", "floor": "ended" },

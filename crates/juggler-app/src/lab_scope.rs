@@ -187,17 +187,12 @@ mod tests {
         assert!(!hides_in(lab, real, &own, Some(Path::new("/elsewhere"))));
     }
 
+    /// The shared fixture with no start time known.
     fn proc(pid: u32, ppid: u32, exe: &str, args: &[&str]) -> (u32, Proc) {
-        (
-            pid,
-            Proc {
-                pid,
-                ppid: Some(ppid),
-                exe: Some(PathBuf::from(exe)),
-                args: args.iter().map(|arg| (*arg).to_owned()).collect(),
-                start: None,
-            },
-        )
+        let (pid, mut process) =
+            crate::features::conversations::procs::fixture(pid, ppid, exe, args);
+        process.start = None;
+        (pid, process)
     }
 
     #[test]

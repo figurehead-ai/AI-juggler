@@ -3278,3 +3278,11 @@ Each ships with tests that fail without it and a design critique; the M2, D2 and
 - **Proof:** a test reproduces P11: limit 2, the woken agent answers in a new thread, and the third agent message is held.
 - **A desktop member** (engineering, the 0.4.7 release session, 2026-11-20): AI Juggler can't tell a desktop member's own prompts from its wakes, so the count a woken turn carries lapses after 10 minutes for a desktop member, the same window as the pool's ping-pong pause. An existing thread counts on from the higher of its own count and the turn's.
 - Sources: the coordinating session's message, 2026-11-20; soak finding SK-15.
+
+### D-141 The live Codex checks and the "account ran out" cells move to 0.5's live sign-in sitting; 0.4.8's Stable doesn't wait for them — SETTLED (2026-11-21)
+
+- **Ruling** (the maintainer, 2026-11-20/21, in the coordinating session's chat: "Yes defer"): the live Codex checks (AJ-E2311 R7, Codex's added messages; AJ-E3013 C2, the connector on the Codex lab, and with it C1) and the "account ran out" cells (AJ-E3304 P1 step 6, X1 step 2) move to 0.5's live sign-in sitting. 0.4.8's Stable doesn't wait for them.
+- **Why:** each needs a lab Codex sign-in or an account that runs out by itself; neither is in reach before 0.4.8's Stable on 2026-11-28 (D-114: 7 days on its own beta tag).
+- **The sitting:** sign-ins are kept in Dev's permanent lab folders, and the sitting is torn down only when every step has a result (the 2026-11-16 lesson: a teardown deleted five sign-ins after one step).
+- **Recorded as:** `DEFERRED (D-141)` on AJ-E2311 R7 and AJ-E3013 R1's Codex part in their evidence manifests (R1's chats and Cowork part stays under D-119's scope decision), and on AJ-E3304 R3's ran-out cells. AJ-E3306 R1/R2 (the soak round) and AJ-E3307 R7 stay in 0.4's scope and are finished during the soak.
+- Sources: the coordinating session's message, 2026-11-21.

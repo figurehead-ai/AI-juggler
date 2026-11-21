@@ -33,6 +33,7 @@ import { useConversations } from "../../lib/conversations";
 import { useAgentBridge } from "../../lib/ipc/agent-bridge";
 import { MEMBER_KINDS, type MemberKind } from "../../lib/ipc/pool-model";
 import { broadCandidates, draftOf, freeName, makePool, sessionCandidates, startDraft, startName, thisMacOf, type Candidate, type Draft } from "../../lib/new-pool";
+import { homeRelative } from "../../lib/project-words";
 import { NewPoolFrame, fitExisting, foldsTemplates, sayNotAdded, type ExistingPool } from "./NewPoolFrame";
 import { usePairedMacs } from "../../lib/ipc/fleet-launch";
 import { templateById, type PoolTemplate } from "../../lib/pool-templates";
@@ -50,6 +51,7 @@ import { openNowByMember } from "../../lib/pool-open-now";
 import { NewPoolSteps } from "./NewPoolSteps";
 import { sideFor } from "./NewPoolSide";
 import { NewPoolStep } from "./NewPoolStep";
+import type { ClearedPick } from "./NewPoolWhere";
 import { navOf } from "./preview-model";
 import { StepEyebrow } from "./StepHead";
 
@@ -85,6 +87,33 @@ export function nameOnChoose(was: Pick<Draft, "name" | "template">, template: Po
   const typed = was.name.trim() !== "" && was.name !== startName(templateById(was.template), projectName, taken);
   if (typed) return was.name;
   return startName(template, projectName, taken);
+}
+
+/** How a template uses its projects, in words: what Where says when a
+ * pick made under another template was cleared. */
+function projectUseWords(template: PoolTemplate): string {
+  if (template.sealed) return "keeps one project apart";
+  if (template.scope === "every") return "works in every project";
+  return template.scope === "several" ? "works across two or more projects" : "works in one project";
+}
+
+/** The projects a draft has once `template` is chosen over `was`'s
+ * (AJ-E2312 item 6; the LC2 walk: a pick made for a team stayed under
+ * "Sealed client project"). A pick is kept only where the new template
+ * uses a project the same way (as many, kept apart or not); else it's
+ * cleared and said (`cleared`). Before Where was reached nothing was
+ * picked: the new template starts where the work is (`start`). */
+export function projectsOnChoose(
+  was: Pick<Draft, "template" | "every" | "projects">,
+  template: PoolTemplate,
+  { start, picked, names }: { start: string | null; picked: boolean; names: (ids: (string | null)[]) => string },
+): { every: boolean; projects: (string | null)[]; cleared: ClearedPick | null } {
+  const before = templateById(was.template);
+  if (before.scope === template.scope && (before.sealed ?? false) === (template.sealed ?? false)) return { every: was.every, projects: was.projects, cleared: null };
+  const fresh = draftOf(template, start);
+  if (!picked) return { every: fresh.every, projects: fresh.projects, cleared: null };
+  const had = was.every ? "every project" : was.projects.length > 0 ? names(was.projects) : null;
+  return { every: template.scope === "every", projects: [], cleared: had ? { what: had, why: `«${template.name}» ${projectUseWords(template)}` } : null };
 }
 
 /** Where a one-project template starts: the project with the most
@@ -177,7 +206,17 @@ export function NewPool({
 
   const projectName = (id: string | null) => (id === null ? "No project" : (projects.find((one) => one.id === id)?.name ?? "A project"));
   const projectNames = draft.projects.map(projectName);
-  const where = whereWords(draft.every, projectNames);
+  // AJ-E2312 item 6: what's picked, named exactly (Review, the steps
+  // beside): the card's own words for no project, and a name two
+  // projects share told apart by its folder, as the pickers do.
+  const pickedName = (id: string | null) => {
+    if (id === null) return "sessions with no project";
+    const picked = projects.find((one) => one.id === id);
+    if (!picked) return projectName(id);
+    return projects.some((one) => one.id !== id && one.name === picked.name) ? `${picked.name} (${homeRelative(picked.root)})` : picked.name;
+  };
+  const pickedNames = (ids: (string | null)[]) => whereWords(false, ids.map(pickedName));
+  const where = whereWords(draft.every, draft.projects.map(pickedName));
   // A member's name on screen: everyone by its scope ("Everyone in web").
   const memberName = (ref: string, label: string) => (ref === "all" ? everyoneLabel(draft.every, projectNames) : label);
   // Left empty, a pool is called after its project ("web team").
@@ -215,9 +254,22 @@ export function NewPool({
   // its canvas card will.
   const openNow = useMemo(() => openNowByMember(draft, sessions, { apps: apps ?? [], subscriptions: subscriptions ?? [] }), [draft, sessions, apps, subscriptions]);
 
+  // A pick a template change cleared, said on Where until the projects
+  // are picked again.
+  const [cleared, setCleared] = useState<ClearedPick | null>(null);
   const choose = (id: string) => {
     const template = templateById(id);
-    setDraft((was) => ({ ...fitExisting(draftOf(template, start), existing), members: was.members, name: into ? was.name : nameOnChoose(was, template, taken, fromName) }));
+    // Picked once Where was reached: the person saw it and went on.
+    const picked = furthest >= steps.indexOf("where");
+    const kept = projectsOnChoose(draft, template, { start, picked, names: pickedNames });
+    // An existing pool's projects are its own (`fitExisting`).
+    setCleared(existing ? null : kept.cleared);
+    setDraft((was) => ({ ...fitExisting({ ...draftOf(template, start), every: kept.every, projects: kept.projects }, existing), members: was.members, name: into ? was.name : nameOnChoose(was, template, taken, fromName) }));
+  };
+  // The steps' own edits; a change to the projects answers a cleared pick.
+  const edit = (next: Draft) => {
+    if (next.every !== draft.every || next.projects !== draft.projects) setCleared(null);
+    setDraft(next);
   };
   const fix = (row: Candidate) => {
     if (!row.fix) return;
@@ -317,7 +369,8 @@ export function NewPool({
             current={current}
             apps={apps}
             draft={draft}
-            setDraft={setDraft}
+            setDraft={edit}
+            cleared={cleared}
             name={name}
             where={where}
             memberName={memberName}

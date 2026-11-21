@@ -11,7 +11,7 @@
 # open (beta promotes the tested nightly; its days of use are on beta).
 # Stable also needs: the accessibility gate run here again, on the
 # commit, whatever CI ran; 7+ days on beta (D-114; a blocker fix on a
-# frozen line: 3+ days on its own beta tag, with the Stable candidate it
+# soaked base (D-138): 3+ days on its own beta tag, with the Stable candidate it
 # fixes 7+ on beta, named by the `blocker_fix` and `candidate` inputs),
 # no open `blocker`, a CHANGELOG section, and the minor's whole roadmap
 # scope done or deferred (release_scope.py, D-99). A D-24 requirement can
@@ -42,7 +42,7 @@ on:
         required: false
         default: ""
       blocker_fix:
-        description: "Stable only, a blocker fix on a frozen line (D-114): the blocker issues it fixes, e.g. 42 57"
+        description: "Stable only, a blocker fix on a soaked base (D-114, D-138): the blocker issues it fixes, e.g. 42 57"
         type: string
         required: false
         default: ""
@@ -124,7 +124,7 @@ jobs:
             [ "${beta_ref%% *}" = "tag" ] && beta_at="$(gh api "repos/$REPO/git/tags/${beta_ref#* }" --jq .tagger.date)"
           fi
           gh issue list --repo "$REPO" --label blocker --state open --json number,title > "$RUNNER_TEMP/blockers.json"
-          # D-114: a blocker fix on a frozen line names the blockers it
+          # D-114: a blocker fix on a soaked base names the blockers it
           # fixes (each must be closed and labelled) and the Stable
           # candidate it fixes, whose beta date starts the line's 7 days.
           line_beta_at=""

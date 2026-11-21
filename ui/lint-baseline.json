@@ -2200,8 +2200,8 @@
   "eslint(max-lines)": 1,
   "jsx-a11y(no-static-element-interactions)": 1,
   "typescript(consistent-return)": 2,
-  "typescript(no-unnecessary-type-assertion)": 2,
-  "typescript(no-unsafe-type-assertion)": 2
+  "typescript(no-unnecessary-type-assertion)": 1,
+  "typescript(no-unsafe-type-assertion)": 1
  },
  "src/screens/NewProjectSheet.tsx": {
   "eslint(complexity)": 1,
@@ -2215,7 +2215,7 @@
   "jsx-a11y(prefer-tag-over-role)": 1,
   "react(memo-dependencies)": 1,
   "react(purity)": 1,
-  "react(refs)": 24,
+  "react(refs)": 23,
   "typescript(no-misused-promises)": 1,
   "typescript(no-unsafe-type-assertion)": 1
  },

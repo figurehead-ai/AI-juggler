@@ -35,6 +35,7 @@ import type { SummaryRowInfo } from "../types/generated/SummaryRowInfo";
 import { sessionAppName } from "../lib/app-name";
 import { namesApart } from "../lib/session-titles";
 import { onConversationsChanged } from "../lib/ipc/conversations";
+import { onSessionsUpdated } from "../lib/ipc/instances";
 import { coalesced } from "../lib/shown-window";
 import { pastWhen } from "../lib/time-words";
 import { useKeys } from "../lib/use-keys";
@@ -50,6 +51,9 @@ const GROUPS: Array<{ id: string; title: string; icon: string }> = [
   { id: "crashed", title: "Crashed", icon: "✕" },
   { id: "error", title: "Error", icon: "✕" },
   { id: "needs_you", title: "Needs you", icon: "!" },
+  // AJ-E2312 1 (PM5): apart from Needs you, as Home lists it ("Needs you
+  // (1)" read under Home's "All clear").
+  { id: "parked", title: "Parked until a reset", icon: "⏸" },
   { id: "running", title: "Still running", icon: "▶" },
   { id: "finished", title: "Finished", icon: "✓" },
   { id: "stopped", title: "Stopped by you", icon: "■" },
@@ -94,7 +98,7 @@ function known(ms: number | null | undefined): ms is number {
 /** When, under a row: how long it has waited, when it ended, else its
  * last change; nothing when it has no time to say. */
 export function whenLine(row: SummaryRowInfo, now: number): string | null {
-  if (known(row.at_ms) && row.group === "needs_you") return waitingWords(row.at_ms, now);
+  if (known(row.at_ms) && (row.group === "needs_you" || row.group === "parked")) return waitingWords(row.at_ms, now);
   if (known(row.at_ms) && ENDED_GROUPS.has(row.group)) return `ended ${since(row.at_ms)}`;
   const last = [...row.transitions].reverse().find((step) => known(step.at_ms));
   return last ? `last change ${since(last.at_ms)}` : null;
@@ -183,13 +187,22 @@ export function MorningSummary({
   // "<folder> · started …" while Pick up named them. It reads again when
   // the conversation index changes (not on each live turn), at most every
   // 5 s, and only while the window shows.
+  //
+  // AJ-E2312 item 6 (SK48-7, the 0.4.8 soak's K3 lab): it reads again when
+  // a session's state changes too, as the rail, Home's heading and the
+  // bell do. A session seeded "probably stuck" that the first look found
+  // waiting at its prompt read "Needs you — no output for a while" here
+  // for minutes while the rail said it ran and the heading didn't count it.
   useEffect(() => {
     const again = coalesced(() => void summaryRead.refresh(), 5_000);
-    const stop = onConversationsChanged((change) => {
-      if (change === "index") again.ask();
-    });
+    const stops = [
+      onConversationsChanged((change) => {
+        if (change === "index") again.ask();
+      }),
+      onSessionsUpdated(again.ask),
+    ];
     return () => {
-      stop();
+      for (const stop of stops) stop();
       again.stop();
     };
   }, []);

@@ -267,7 +267,7 @@
 **Research basis**: AJ-E3008's inspector; the calm UI round 2 levels.
 **Handover note**: —
 
-### AJ-E3013 Desktop app sessions as full pool members through AI Juggler's connector, added with consent or guided (D-116) | Status: IN-PROGRESS (R2–R6 proven, docs/qa/evidence/AJ-E3013/manifest.md; R1 waits for the chats/Cowork route proof and the Codex app's, C1/C2, on the maintainer's lab Codex sign-in) | Priority P0 | Effort L | Depends: AJ-E3006, AJ-E1902
+### AJ-E3013 Desktop app sessions as full pool members through AI Juggler's connector, added with consent or guided (D-116) | Status: DONE-EVIDENCED (2026-11-21: R2–R6 proven and R1 for the Claude app's Code tab, docs/qa/evidence/AJ-E3013/manifest.md; the Codex app's live proofs C1/C2 moved to 0.5's live sign-in sitting by D-141, chats and Cowork out of 0.4 by D-119) | Priority P0 | Effort L | Depends: AJ-E3006, AJ-E1902
 **Goal**: A Claude app or Codex app session in a pool reads and sends the pool's messages, docs and tasks as a member, like a CLI session.
 **User story**: As someone who put two Claude app profiles in a pool, I add AI Juggler's connector to each with one click (or follow a short guide), and their sessions talk in the pool instead of showing "can't reply".
 **Requirements** (D-116):

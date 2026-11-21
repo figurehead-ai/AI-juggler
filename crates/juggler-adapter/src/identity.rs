@@ -40,23 +40,25 @@ pub enum IdentityProbe {
     },
 }
 
-/// What a Provider with no account metadata says where its account would
-/// be ([`IdentityProbe::Unverifiable`], and its key sign-ins').
-pub const NO_ACCOUNT_METADATA: &str = "this Provider exposes no account metadata";
+/// What a tool with no account metadata says where its account would be
+/// ([`IdentityProbe::Unverifiable`], and its key sign-ins'), by the tool's
+/// own name (SK48-4: a session page said "Account unknown · this Provider
+/// exposes no account metadata", the tool unnamed and an internal word).
+#[must_use]
+pub fn no_account_metadata(tool: &str) -> String {
+    format!("{tool} doesn't say which account it's signed in to")
+}
 
 /// [`IdentityProbe::SignedInWithKey`] for a tool whose sign-in state says
-/// it runs on an API key, else what a Provider with no account metadata
-/// says.
+/// it runs on an API key, else what a tool with no account metadata says
+/// ([`no_account_metadata`], `tool` its name as people see it).
 #[must_use]
-pub fn key_or_no_metadata(on_key: bool) -> IdentityProbe {
+pub fn key_or_no_metadata(on_key: bool, tool: &str) -> IdentityProbe {
+    let reason = no_account_metadata(tool);
     if on_key {
-        IdentityProbe::SignedInWithKey {
-            reason: NO_ACCOUNT_METADATA.into(),
-        }
+        IdentityProbe::SignedInWithKey { reason }
     } else {
-        IdentityProbe::Unverifiable {
-            reason: NO_ACCOUNT_METADATA.into(),
-        }
+        IdentityProbe::Unverifiable { reason }
     }
 }
 
@@ -120,6 +122,25 @@ pub fn mask_emails_in(text: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// SK48-4: a tool with no account metadata is named, in plain words
+    /// ("this Provider exposes no account metadata" before).
+    #[test]
+    fn no_account_metadata_names_the_tool_in_plain_words() {
+        let probe = key_or_no_metadata(false, "Kimi Code");
+        assert_eq!(
+            probe,
+            IdentityProbe::Unverifiable {
+                reason: "Kimi Code doesn't say which account it's signed in to".into()
+            }
+        );
+        assert_eq!(
+            key_or_no_metadata(true, "Grok Build"),
+            IdentityProbe::SignedInWithKey {
+                reason: "Grok Build doesn't say which account it's signed in to".into()
+            }
+        );
+    }
 
     #[test]
     fn emails_are_masked_but_recognisable() {

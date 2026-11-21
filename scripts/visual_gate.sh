@@ -25,6 +25,8 @@ for arg in "$@"; do
     *) ARGS="$ARGS $(printf '%q' "$arg")" ;;
   esac
 done
+# Free disk first (2026-11-21: parallel sessions drove it to 180 MB).
+python3 ../scripts/disk_guard.py "the visual gate" || exit 1
 docker run --rm --ipc=host --platform linux/amd64 \
   -v "$PWD":/work -w /work \
   -v aij-visual-node-modules-amd64:/work/node_modules \

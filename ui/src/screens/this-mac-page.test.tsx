@@ -58,6 +58,7 @@ function info(trees: ToolTreeInfo[], extra: Partial<ThisMacInfo> = {}): ThisMacI
     other_apps: [],
     leftover_processes: 0,
     leftover_ports: 0,
+    scanned: true,
     alerts: [],
     recommendations: [],
     awake: { working: 0, kept_awake: false, on_battery: false },
@@ -219,6 +220,46 @@ describe("the This Mac page", () => {
     expect(rows.map((row) => row.textContent)).toEqual(["next-server6.0 GB", "Dockerabout 3.7 GB3 processes", "fseventsd1.4 GB"]);
     // D-08: another app is never offered anything.
     expect(within(group).getAllByRole("button", { hidden: true })).toEqual([fold]);
+  });
+
+  // 0.4.7 walk V2: the Overview opened on an empty Memory card,
+  // "Processor — Not measured yet" and "No AI tools are running" with two
+  // sessions running. Before the first sample it says it's measuring;
+  // before the first look for tools, that it's looking, never "none".
+  it("says it's measuring, never empty figures or no tools, before its first readings", () => {
+    renderPage(info([], { machine: mockMachineHealth("unsampled", NOW), by_tool: [], scanned: false }));
+    expect(screen.getByRole("status", { name: "Measuring this Mac" })).toBeTruthy();
+    expect(screen.queryByTestId("this-mac-memory-card")).toBeNull();
+    expect(document.body.textContent).not.toContain("Not measured yet");
+    expect(document.body.textContent).not.toContain("No AI tools are running");
+    cleanup();
+    renderPage(info([], { machine: mockMachineHealth("plenty", NOW), by_tool: [], scanned: false }));
+    const using = screen.getByTestId("this-mac-using");
+    expect(within(using).getByRole("status", { name: "Looking for running AI tools" })).toBeTruthy();
+    expect(using.textContent).not.toContain("No AI tools are running");
+    expect(screen.getByTestId("this-mac-state").textContent).not.toContain("Nothing running");
+    cleanup();
+    renderPage(info([], { machine: mockMachineHealth("plenty", NOW), by_tool: [] }));
+    expect(screen.getByTestId("this-mac-using").textContent).toContain("No AI tools are running.");
+    expect(screen.getByTestId("this-mac-state").textContent).toContain("Nothing running — your Mac has room");
+  });
+
+  // D1 (0.4.8's persona run): "Plenty of room" in green beside swap at
+  // 8.2 of 9.0 GB read as wrong. The card says why it doesn't count yet,
+  // in the backend's words; a swap that isn't nearly full keeps the plain
+  // line.
+  it("says why a nearly full swap leaves plenty of room", () => {
+    const GB = 1024 ** 3;
+    const note = "Nearly full, but the system makes more swap as it needs it: it counts against room once it holds 24 GB (25% of your memory) or keeps growing.";
+    const plenty = mockMachineHealth("plenty", NOW);
+    renderPage(info([ours("a")], { machine: { ...plenty, memory_total: 96 * GB, swap_used: 8.2 * GB, swap_total: 9 * GB, swap_note: note } }));
+    expect(screen.getByTestId("this-mac-state").textContent).toContain("Plenty of room");
+    const swap = screen.getByTestId("this-mac-swap");
+    expect(swap.textContent).toContain("8.2 GB of 9.0 GB moved to disk");
+    expect(within(swap).getByTestId("this-mac-swap-note").textContent).toBe(note);
+    cleanup();
+    renderPage(info([ours("a")], { machine: plenty }));
+    expect(screen.getByTestId("this-mac-swap-note").textContent).toBe("Memory macOS moved to disk to make room. Reading it back is slow.");
   });
 
   it("says no word of pressure while macOS reports none", () => {

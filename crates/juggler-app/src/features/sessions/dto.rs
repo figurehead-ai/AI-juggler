@@ -310,6 +310,10 @@ pub enum NeedsAttention {
     Stuck,
     /// Rate-limit signature on exit.
     QuotaBlocked,
+    /// AJ-E2312 1: it ended at its limit, and that limit has reset since
+    /// (`limits::RESET_RULE`): it waits to be resumed, never "Limit
+    /// reached" again.
+    LimitReset,
     /// Non-zero, non-user exit.
     Failed,
 }

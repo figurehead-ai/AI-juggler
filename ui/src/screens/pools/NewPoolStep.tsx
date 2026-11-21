@@ -17,7 +17,7 @@ import { NewPoolReview } from "./NewPoolReview";
 import { NewPoolTalk } from "./NewPoolTalk";
 import { NewPoolTemplate } from "./NewPoolTemplate";
 import { NewPoolTools } from "./NewPoolTools";
-import { NewPoolWhere, type WhereProject } from "./NewPoolWhere";
+import { NewPoolWhere, type ClearedPick, type WhereProject } from "./NewPoolWhere";
 import { NewPoolWho } from "./NewPoolWho";
 
 export function NewPoolStep({
@@ -25,6 +25,7 @@ export function NewPoolStep({
   apps,
   draft,
   setDraft,
+  cleared = null,
   name,
   where,
   memberName,
@@ -48,6 +49,8 @@ export function NewPoolStep({
   apps: readonly AppModel[] | null;
   draft: Draft;
   setDraft: (next: Draft) => void;
+  /** A project pick the last template change cleared (Where says so). */
+  cleared?: ClearedPick | null;
   name: string;
   where: string;
   memberName: (ref: string, label: string) => string;
@@ -70,7 +73,7 @@ export function NewPoolStep({
     case "template":
       return <NewPoolTemplate chosen={draft.template} onChoose={onChoose} first={firstPool} fold={foldTemplates} />;
     case "where":
-      return <NewPoolWhere draft={draft} onDraft={setDraft} projects={stepProjects} sessions={sessions} nameFixed={nameFixed} suggestedName={suggestedName} scopeFixed={scopeFixed} />;
+      return <NewPoolWhere draft={draft} onDraft={setDraft} cleared={cleared} projects={stepProjects} sessions={sessions} nameFixed={nameFixed} suggestedName={suggestedName} scopeFixed={scopeFixed} />;
     case "who":
       return <NewPoolWho draft={draft} onDraft={setDraft} candidates={candidates} onFix={onFix} nameOf={memberName} where={where} sessions={sessions} apps={apps} />;
     case "lead":

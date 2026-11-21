@@ -24,7 +24,7 @@ import { APP_KIND_WORDS, JOINS_BY_ITSELF, LEAD_WOULD, NO_LEAD_YET, asRole, asTal
 import { roleLabel } from "../../lib/pools";
 import { cliFolderOf } from "../../lib/start-lead";
 import type { Selection } from "./Canvas";
-import { NODE_W, type View } from "./layout";
+import { NODE_H, NODE_W, type View } from "./layout";
 import { ConnectorFix, KIND_WORD, STACK } from "./RuleNodes";
 import { SELECTED } from "./selection";
 import { StartLeadButton } from "./setup/StartLead";
@@ -42,6 +42,23 @@ const PER_ROW = 3;
 /** `label`: its short identity on the card; `full`: its whole name (the
  * tooltip, the inspector's title). */
 type Card = { ref: string; label: string; full?: string; sub: string; body: string; role: string; logo: ReactNode; broad: boolean; pending?: boolean; start?: boolean };
+
+/** Where the planned team's cards are, for the canvas's fit (SK48-5: at
+ * a fixed centre, the open Add a member covered the left card at 1701
+ * wide): the lead's place, when one is drawn, then the rows under it. */
+function plannedPoints(rowCards: number, hasTop: boolean): { x: number; y: number }[] {
+  return [...(hasTop ? [{ x: 0, y: TOP }] : []), ...plannedPlaces(rowCards, hasTop ? TOP + NODE_H + DROP : TOP)];
+}
+
+/** The canvas's room for what it draws over itself (SK48-5): under the
+ * planned team, its cards' places (fitted beside the open Add a member, as
+ * members are) and no room kept for the rules' column, which isn't drawn
+ * then; else that column's room (`room`). */
+export function canvasRoom(planned: boolean, rules: readonly { member: string }[], setup: { leadNext: { ref: string } | null; leadCard: boolean; room: number }): { overlayRoom: number; emptyPoints?: { x: number; y: number }[] } {
+  if (!planned) return { overlayRoom: setup.room };
+  const lead = rules.some((rule) => rule.member === setup.leadNext?.ref);
+  return { overlayRoom: 0, emptyPoints: plannedPoints(rules.length - (lead ? 1 : 0), lead || setup.leadCard) };
+}
 
 /** Each card's place under the lead: centred rows of up to three. */
 export function plannedPlaces(count: number, top: number): { x: number; y: number }[] {

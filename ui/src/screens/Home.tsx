@@ -68,10 +68,13 @@ const RECENT_SHOWN = 3;
 
 export { toReview } from "../lib/home-review";
 
-/** A session's need, from the status or the attention flag. */
+/** A session's need, from the status or the attention flag; a limit that
+ * has reset since is none (AJ-E2312 1). */
 export function needOf(session: InstanceInfo): Need | null {
-  if ((NEEDS as readonly string[]).includes(session.status)) return session.status as Need;
-  return (session.needs_attention as Need | null) ?? null;
+  const isNeed = (word: string | null): word is Need => NEEDS.some((need) => need === word);
+  if (session.needs_attention === "limit_reset") return null;
+  if (isNeed(session.status)) return session.status;
+  return isNeed(session.needs_attention) ? session.needs_attention : null;
 }
 
 /** What's wrong, in a sentence, and the one action. A limit is the

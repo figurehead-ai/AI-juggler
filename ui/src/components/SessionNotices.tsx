@@ -12,6 +12,7 @@
  * one quiet line under "Continue in another app" there instead.
  */
 import { useEffect, useState, type JSX } from "react";
+import { useClock } from "../lib/clock";
 import { Banner } from "./Banner";
 import { notificationsDismiss } from "../lib/ipc/notices";
 import { acted } from "../lib/notices-store";
@@ -54,7 +55,7 @@ export function SessionNotices({
   const [queue, setQueue] = useState<ResetQueueRow[]>([]);
   const [offers, setOffers] = useState<ParkedOfferInfo[]>([]);
   const [hidden, setHidden] = useState<ReadonlySet<string>>(() => new Set());
-  const [now] = useState(() => Date.now());
+  const now = useClock(); // SK48-6: the app's one clock, never the page's opening
   useEffect(() => {
     let alive = true;
     const poll = () => {

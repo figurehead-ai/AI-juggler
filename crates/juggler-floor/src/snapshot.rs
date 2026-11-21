@@ -198,7 +198,7 @@ impl FloorSnapshot {
             .filter(|s| {
                 matches!(
                     s.state,
-                    FloorState::Asks | FloorState::Stuck | FloorState::Limit
+                    FloorState::Asks | FloorState::Stuck | FloorState::Ready | FloorState::Limit
                 )
             })
             .collect()

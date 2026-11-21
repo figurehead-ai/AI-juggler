@@ -102,7 +102,6 @@ export function NewSessionModal({
   // AJ-E2911: a launch that failed can be reported with what it showed.
   const [failure, setFailure] = useState<Failure | null>(null);
   const where = useWhere(); // AJ-E1515: or on a paired Mac
-  const runtimePick = useRuntimePick(); // AJ-E2304: this session's runtime
   const sheetRef = useRef<HTMLDivElement | null>(null);
   const startRef = useRef<HTMLButtonElement | null>(null);
   const restoreFocusRef = useRef<HTMLElement | null>(null);
@@ -181,13 +180,16 @@ export function NewSessionModal({
   // No folder known: the App's own, from its launch settings.
   const folder: FolderChoice | null = asked ?? (recipe?.default_cwd ? { root: recipe.default_cwd, project: projects.find((row) => row.root === recipe.default_cwd) ?? null, why: "app-folder" } : null);
   const ready = recipe !== null && signedIn(accounts.find((row) => row.id === recipe.account_id)?.login_state ?? "logged_in");
+  // AJ-E2304: this session's runtime, kept for its App (AJ-E2312 item 5).
+  const runtimePick = useRuntimePick(recipe);
   const sessionNames = useMemo(() => new Map(sessions.map((row) => [row.id, sessionTitle(row)])), [sessions]);
   const sessionName = (id: string) => sessionNames.get(id) ?? null;
   const appName = app ? data.appNameOf(app.recipe) : null;
   // The person's pick; the App shown picked again (F-rc3g-5) keeps the
   // launch settings chosen for it.
   const pickApp = (id: string) => {
-    choice.pick(id);
+    // AJ-E2312 item 5: the App shown until now, said in its warning's place.
+    choice.pick(id, app);
     if (id !== app?.recipe.account_id) setChosenSettings(null);
   };
   // Change folder, a dropped folder, a saved handover's: one rule for the App.
@@ -268,6 +270,7 @@ export function NewSessionModal({
         setBusy(false);
         return;
       }
+      if (!pack.opened) runtimePick.remember();
       onLaunched(result.session_id, launchTitle(recipe));
       if (!pack.opened && cwd) offerAnother(cwd, result.session_id);
     } catch (cause) {
@@ -357,7 +360,7 @@ export function NewSessionModal({
             runtimeElement={runtimePick.element}
             where={where}
             pack={pack}
-            advice={recipe ? data.adviceOf(recipe.id) : undefined}
+            adviceOf={data.adviceOf}
             sessionName={sessionName}
             folders={accounts}
             onManageLaunchSettings={onManageLaunchSettings}

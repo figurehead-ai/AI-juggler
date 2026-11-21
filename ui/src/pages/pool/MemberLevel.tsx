@@ -17,6 +17,8 @@ import { SAME_AS_POOL, ownLabel, wakeWords } from "../../lib/pool-words";
 import { MemberOwnLevel } from "./setup/OwnLevelChoice";
 import { useSessionPools } from "../session/useSessionPools";
 import { Section } from "./Section";
+import { useShellOnly } from "../../components/ShellOnly";
+import type { InstanceInfo } from "../../types/generated/InstanceInfo";
 
 const ROLES: readonly PoolRole[] = ["lead", "member", "reviewer", "observer"];
 const roleOf = (word: string): PoolRole => ROLES.find((one) => one === word) ?? "member";
@@ -32,8 +34,9 @@ export function keptLevelWords(via: string, level: string | null, poolLevel: str
 /** `look`: a section of its own in the member's inspector, or a row's
  * detail in the List view, whose term says what it is (the rc2 walk P5,
  * AJ-E3304 L4: reachable from both, the walker found it on neither). */
-export function MemberLevel({ pool, sessionId, memberRole, name = "it", look = "section" }: { pool: PoolInfo; sessionId: string; memberRole: string; name?: string; look?: "section" | "row" }): JSX.Element | null {
+export function MemberLevel({ pool, sessionId, memberRole, name = "it", look = "section", session = null }: { pool: PoolInfo; sessionId: string; memberRole: string; name?: string; look?: "section" | "row"; /** Its tool, App and project: one that works through its shell only says so of its messages (SK48-4). */ session?: Pick<InstanceInfo, "provider" | "account_id" | "project_id"> | null }): JSX.Element | null {
   const info = useSessionPools(sessionId);
+  const shell = useShellOnly(session?.provider ?? "", session?.account_id, session?.project_id);
   const [busy, setBusy] = useState(false);
   const place = info?.pools.find((one) => one.pool_id === pool.id);
   if (!place) return null;
@@ -68,7 +71,9 @@ export function MemberLevel({ pool, sessionId, memberRole, name = "it", look = "
       />
       <span className="text-meta text-ink-2">Its own choice wins over its {own ? "pool's" : `${VIA_WORD[place.via] ?? "member"}'s`}, for this session only.</span>
       <span className="text-meta text-muted" data-testid="inspect-node-wake">
-        Messages: it {wakeWords(place.level ?? pool.access.level)}.
+        {/* SK48-4: a member without the agent tools can't read them,
+            whatever it may do on its own. */}
+        {shell ? "Messages: it can't read the pool's messages: it works through its shell." : `Messages: it ${wakeWords(place.level ?? pool.access.level)}.`}
       </span>
     </div>
   );

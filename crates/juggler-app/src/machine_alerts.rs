@@ -595,6 +595,7 @@ mod tests {
                 swap_total: 4 * G,
                 swap_used: 3 * G,
                 swap_growth_mb_per_min: Some(0.0),
+                swap_note: None,
                 volumes: vec![VolumeInfo {
                     name: "Macintosh HD".into(),
                     total_bytes: 1_000 * G,
@@ -645,6 +646,7 @@ mod tests {
             recommendations: Vec::new(),
             awake: crate::features::app::awake::AwakeInfo::default(),
             own: crate::features::app::own::OwnInfo::default(),
+            scanned: true,
         }
     }
 

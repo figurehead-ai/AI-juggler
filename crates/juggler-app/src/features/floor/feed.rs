@@ -155,6 +155,8 @@ fn needs_word(attention: NeedsAttention) -> &'static str {
         NeedsAttention::WaitingUser => "waiting_user",
         NeedsAttention::Stuck => "stuck",
         NeedsAttention::QuotaBlocked => "quota_blocked",
+        // AJ-E2312 1: no limit any more (the Floor draws it as idle).
+        NeedsAttention::LimitReset => "limit_reset",
         NeedsAttention::Failed => "failed",
     }
 }

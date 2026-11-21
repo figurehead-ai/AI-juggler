@@ -22,6 +22,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 NESTED = re.compile(r"^just\s+([A-Za-z0-9_-]+)\s*$")
+# A line that only checks free disk (scripts/disk_guard.py): its refusal stops the run.
+GUARD = re.compile(r"scripts/disk_guard\.py")
 
 
 def lines_of(recipe: str, run=subprocess.run) -> list[str]:
@@ -64,6 +66,10 @@ def main(argv: list[str]) -> int:
         if code != 0:
             failed.append((line, code))
             print(f"== FAILED (exit {code}): {line}", flush=True)
+            if GUARD.search(line):
+                # The disk guard refused: going on would fill the disk.
+                print(f"keep-going {argv[1]}: stopped, the disk guard refused", flush=True)
+                return 1
     print(f"\nkeep-going {argv[1]}: {len(lines) - len(failed)} of {len(lines)} passed")
     for line, code in failed:
         print(f"  FAILED (exit {code}): {line}")
@@ -84,6 +90,7 @@ def selftest() -> int:
     assert got == ["echo a", "echo b1", "echo b2", "echo c"], got
     plans["loop"] = "just loop\n"
     assert expand("loop", run=fake) == ["just loop"], "a recipe calling itself isn't expanded forever"
+    assert GUARD.search('python3 scripts/disk_guard.py "verify-tests"') and not GUARD.search("cargo nextest run")
     print("keep-going selftest: OK")
     return 0
 

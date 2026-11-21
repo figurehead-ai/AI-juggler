@@ -94,7 +94,7 @@ describe("AJ-E3011 round 2", () => {
     const rows = screen.getAllByTestId("new-pool-member-row");
     // One row for the App, not a Lead beside a Member; its others named.
     expect(rows).toHaveLength(2);
-    expect(within(rows[0]!).getByTestId("new-pool-member-line").textContent).toBe("Its next session leads. Its other sessions:");
+    expect(within(rows[0]!).getByTestId("new-pool-member-line").textContent).toBe("Its next session leads; the role here is for its other sessions.");
     const others = within(rows[0]!).getByRole("radiogroup", { name: "Claude Code · Work's other sessions's role" });
     expect(within(others).getAllByRole("radio").map((one) => one.textContent)).toEqual(["Member", "Reviewer", "Observer"]);
     // Its others' role changes; it keeps the lead.

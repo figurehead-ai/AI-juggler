@@ -24,6 +24,7 @@ import { showGoTo } from "../lib/go-to";
 import { conversationsBringForward } from "../lib/ipc/conversations";
 import { placesOpen, type KnownPlaceInfo } from "../lib/ipc/places";
 import { placeFor, placeWords, useKnownPlaces } from "../lib/places";
+import { useClock } from "../lib/clock";
 import { groupItems, type RailGroup } from "../lib/rail-places";
 import { appFolderOf, knownAppWord } from "../lib/rail-apps";
 import { appIdOfRailKey, openApp } from "../lib/apps";
@@ -61,6 +62,9 @@ function bringForward(group: RailGroup): void {
  * open yet (Open). */
 function KeptTile({ place, rows }: { place: KnownPlaceInfo; rows: Rows }): JSX.Element {
   const running = place.app_pid !== null;
+  // SK48-6: "last open 11 min ago" moves with every row's clock, the app's
+  // one (it read the system's at each draw, beside rows still at 7 min).
+  const now = useClock();
   // The open tiles' word for it ("Claude app"), D-64.
   const app = knownAppWord(place);
   const profile = desktopProfile(place.instance, place.profile);
@@ -110,8 +114,8 @@ function KeptTile({ place, rows }: { place: KnownPlaceInfo; rows: Rows }): JSX.E
       </span>
       {/* Its state where a running card's account line is. */}
       <div className="flex flex-col gap-1">
-        <span className={"truncate text-meta " + (place.paused || place.lost ? "text-warning" : "text-muted")} title={placeWords(place)}>
-          {placeWords(place)}
+        <span className={"truncate text-meta " + (place.paused || place.lost ? "text-warning" : "text-muted")} title={placeWords(place, now)}>
+          {placeWords(place, now)}
         </span>
         {rows.bar && <div className="h-1.5" aria-hidden="true" />}
       </div>

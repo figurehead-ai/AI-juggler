@@ -7,7 +7,7 @@ import { resetPreviewPools } from "../lib/ipc/pools";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { RightInspector, type InspectorSelection } from "./RightInspector";
 import { isHandoverShortcut, isStopShortcut } from "../lib/shortcuts";
-import { clock, pastWhen } from "../lib/time-words";
+import { agoWords, clock, pastWhen } from "../lib/time-words";
 import type { AccountInfo } from "../types/generated/AccountInfo";
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import type { LaunchRecipeInfo } from "../types/generated/LaunchRecipeInfo";
@@ -134,7 +134,7 @@ describe("AJ-E407 Instance Overview (§5.1, Req.1)", () => {
     const { container } = shell(mk());
     expect(container.querySelector('[data-testid="instance-overview-fields"]')).not.toBeNull();
     // D-25: the header carries the state and how long (no duplicate chip).
-    expect(container.textContent).toContain("started 42m ago");
+    expect(container.textContent).toContain("started 42 min ago");
     expect(container.textContent).toContain("Claude Code");
     expect(container.textContent).toContain("Work Max");
     expect(container.textContent).toContain("Deep work");
@@ -173,8 +173,23 @@ describe("AJ-E407 Instance Overview (§5.1, Req.1)", () => {
     expect(subline(NOW + 8_000)).toContain("started just now");
     expect(subline(NOW - 20_000)).toContain("started just now");
     expect(subline(NOW - 20_000)).not.toMatch(/\d+s ago/);
-    expect(subline(NOW - 3 * 60_000)).toContain("started 3m ago");
-    expect(subline(NOW - 5 * 3_600_000)).toContain("started 5h ago");
+    expect(subline(NOW - 3 * 60_000)).toContain("started 3 min ago");
+    expect(subline(NOW - 5 * 3_600_000)).toContain("started 5 h ago");
+  });
+
+  // AJ-E2312 item 3: "started 1m ago" in the header beside the rail's and
+  // Home's "21 min ago": the header says it in the app's one time words.
+  it("says when it started in the rail's and Home's words, never its own short form", () => {
+    const words = (startedMs: number) => {
+      const view = shell(mk({ started_at_ms: startedMs }));
+      const said = view.getByTestId("session-subline").textContent ?? "";
+      view.unmount();
+      return said;
+    };
+    expect(words(NOW - 21 * 60_000)).toContain(`started ${agoWords(NOW - 21 * 60_000, NOW)}`);
+    expect(words(NOW - 21 * 60_000)).toContain("started 21 min ago");
+    expect(words(NOW - 3 * 24 * 3_600_000)).toContain("started 3 d ago");
+    for (const ms of [NOW - 90_000, NOW - 2 * 3_600_000]) expect(words(ms)).not.toMatch(/\d+[smhd] ago/);
   });
 });
 

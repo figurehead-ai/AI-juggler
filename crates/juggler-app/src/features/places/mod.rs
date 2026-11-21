@@ -30,6 +30,7 @@ mod records;
 pub use records::{RecordIndex, record_index};
 pub mod start;
 mod store;
+pub mod tree;
 
 use crate::events::{AppEvent, EmitEvent as _};
 use std::collections::HashSet;

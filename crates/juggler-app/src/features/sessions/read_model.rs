@@ -174,11 +174,16 @@ pub(crate) fn confidence_name(confidence: juggler_core::model::Confidence) -> &'
 }
 
 /// Wire value for the I-10 attention reason derived from lifecycle status
-/// (AJ-E405 replaces the derivation with structured heuristic reasons).
-fn needs_attention_of(status: SessionStatus) -> Option<NeedsAttention> {
+/// (AJ-E405 replaces the derivation with structured heuristic reasons),
+/// and its rule: a limit that has reset since is no limit any more
+/// (AJ-E2312 1: every view reads this one word for it).
+fn needs_attention_of(status: SessionStatus, rule: Option<&str>) -> Option<NeedsAttention> {
     match status {
         SessionStatus::WaitingUser => Some(NeedsAttention::WaitingUser),
         SessionStatus::Stuck => Some(NeedsAttention::Stuck),
+        SessionStatus::QuotaBlocked if rule == Some(super::limits::RESET_RULE) => {
+            Some(NeedsAttention::LimitReset)
+        }
         SessionStatus::QuotaBlocked => Some(NeedsAttention::QuotaBlocked),
         SessionStatus::Failed => Some(NeedsAttention::Failed),
         SessionStatus::Starting
@@ -569,7 +574,10 @@ fn session_info_of(joins: &mut RowJoins<'_>, record: &SessionRecord) -> Instance
         git_behind: git.as_ref().and_then(|status| status.behind),
         git_worktree: Some(crate::worktree::is_linked_worktree(&record.cwd))
             .filter(|linked| *linked),
-        needs_attention: needs_attention_of(record.status),
+        needs_attention: needs_attention_of(
+            record.status,
+            record.attention.as_ref().map(|reason| reason.rule.as_str()),
+        ),
         attention: record.attention.as_ref().map(|reason| AttentionInfo {
             rule: reason.rule.clone(),
             inputs: reason.inputs.clone(),
@@ -1041,7 +1049,7 @@ mod tests {
                 .all(|status| SessionStatus::parse(status).is_some())
         );
         assert_eq!(
-            needs_attention_of(SessionStatus::parse("quota_blocked").unwrap()),
+            needs_attention_of(SessionStatus::parse("quota_blocked").unwrap(), None),
             Some(NeedsAttention::QuotaBlocked)
         );
     }
@@ -1148,7 +1156,13 @@ mod tests {
             }
         }
         let needs = read("NeedsAttention");
-        for variant in ["waiting_user", "stuck", "quota_blocked", "failed"] {
+        for variant in [
+            "waiting_user",
+            "stuck",
+            "quota_blocked",
+            "limit_reset",
+            "failed",
+        ] {
             assert!(
                 needs.contains(variant),
                 "NeedsAttention.ts is missing `{variant}`"

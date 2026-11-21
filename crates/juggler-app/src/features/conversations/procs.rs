@@ -28,6 +28,22 @@ pub struct Proc {
 /// The process table, by pid.
 pub type Table = HashMap<u32, Proc>;
 
+/// A process for tests: `pid` under `ppid`, running `exe` with `args`,
+/// started at `pid × 10` (one fixture for every process-table test).
+#[cfg(test)]
+pub(crate) fn fixture(pid: u32, ppid: u32, exe: &str, args: &[&str]) -> (u32, Proc) {
+    (
+        pid,
+        Proc {
+            pid,
+            ppid: Some(ppid),
+            exe: Some(PathBuf::from(exe)),
+            args: args.iter().map(|a| (*a).to_owned()).collect(),
+            start: Some(i64::from(pid) * 10),
+        },
+    )
+}
+
 /// What every process read asks the OS for: the executable and the
 /// arguments (the parent and the start time come with every read).
 /// Never the environment: the guardrail test checks this value.

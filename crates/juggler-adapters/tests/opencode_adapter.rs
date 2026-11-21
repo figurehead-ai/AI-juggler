@@ -399,7 +399,7 @@ fn the_sign_in_probe_reads_kinds_never_values() {
             assert_eq!(
                 probe,
                 juggler_adapter::IdentityProbe::SignedInWithKey {
-                    reason: juggler_adapter::identity::NO_ACCOUNT_METADATA.into()
+                    reason: juggler_adapter::identity::no_account_metadata("OpenCode")
                 },
                 "{text}"
             );
@@ -407,7 +407,7 @@ fn the_sign_in_probe_reads_kinds_never_values() {
             assert_eq!(
                 probe,
                 juggler_adapter::IdentityProbe::Unverifiable {
-                    reason: juggler_adapter::identity::NO_ACCOUNT_METADATA.into()
+                    reason: juggler_adapter::identity::no_account_metadata("OpenCode")
                 },
                 "{text}"
             );

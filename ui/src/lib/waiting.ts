@@ -64,7 +64,7 @@ export interface NeedRow {
 
 /** The needs that wait on you (a finished one to review, or a failure,
  * has nothing waiting: it says what happened). */
-const WAITS = new Set(["asks", "limit", "stuck", "cut_off"]);
+const WAITS = new Set(["asks", "limit", "resume", "stuck", "cut_off"]);
 
 /** A Needs-you row's wait, or `null` for one that doesn't wait. */
 export function needWait(item: { need: string | null; session?: WaitingSession | null; conversation?: WaitingConversation | null; lastMs?: number }, now: number): string | null {
