@@ -672,17 +672,18 @@ pub fn session_pools_impl(state: &Arc<AppState>, session_id: &str) -> AppResult<
                 SkipReason::HeldElsewhere { by_pool } => ("held_elsewhere", Some(by_pool.clone())),
             };
             let by_name = by.as_deref().map(name);
+            // SK48-11: plain words under the pool's own name (its row's
+            // title, so never said again), the other pool named bare.
             let words = match (&skip.reason, &by_name) {
-                (SkipReason::OutOfScope, _) => format!(
-                    "«{}» doesn't take its project. Add the project to its scope to let it in.",
-                    name(&skip.pool_id)
-                ),
+                (SkipReason::OutOfScope, _) => {
+                    "This pool doesn't take its project. Add the project to the pool to let it in."
+                        .to_owned()
+                }
                 (SkipReason::SealedElsewhere { .. }, Some(by)) => format!(
-                    "It's in «{by}» (sealed), so it's in no other pool. Take it out of «{by}» to let it in."
+                    "It's in the sealed pool {by}, so it's in no other pool. Take it out of {by} to let it in."
                 ),
                 (SkipReason::HeldElsewhere { .. }, Some(by)) => format!(
-                    "You put it in «{by}», so «{}» leaves it out.",
-                    name(&skip.pool_id)
+                    "You added it to {by} yourself, so this pool leaves it out. Take it out of {by} to let it in here."
                 ),
                 _ => "Left out.".to_owned(),
             };

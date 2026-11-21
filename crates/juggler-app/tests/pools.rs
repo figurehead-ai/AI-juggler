@@ -1733,3 +1733,45 @@ fn an_app_signing_in_to_another_account_moves_its_open_session_between_account_p
         None
     );
 }
+
+/// SK48-11 (the 0.4.8 soak, P11): a session you added to a pool yourself
+/// is left out of its project's own pool, and its Pools tab said so as
+/// "You put it in «A», so «web · all sessions» leaves it out." Plain words
+/// now, under the pool's own name: no guillemets, the left-out pool not
+/// named again, and how to let it in.
+#[test]
+fn a_left_out_pool_says_why_in_plain_words() {
+    let dir = tempfile::tempdir().unwrap();
+    let state = app_state(dir.path());
+    account(&state, "work");
+    let root = dir.path().join("web");
+    let web = project(&state, &root, "web");
+    let s = session(&state, "s-web", "work", Some(&web), &root);
+    let info = pools::pool_create_impl(&state, "A", None).unwrap();
+    let a = pool_id(&info, "A");
+    pools::model::join_impl(
+        &state,
+        &a,
+        &format!("session:{}", s.as_str()),
+        "member",
+        None,
+        &[],
+    )
+    .unwrap();
+    let tab = pools::model::session_pools_impl(&state, s.as_str()).unwrap();
+    let skip = tab
+        .skipped
+        .iter()
+        .find(|skip| skip.reason == "held_elsewhere")
+        .unwrap_or_else(|| panic!("its project's own pool leaves it out: {:?}", tab.skipped));
+    assert_eq!(
+        skip.words,
+        "You added it to A yourself, so this pool leaves it out. Take it out of A to let it in here."
+    );
+    for skip in &tab.skipped {
+        assert!(
+            !skip.words.contains('«') && !skip.words.contains(&skip.pool_name),
+            "{skip:?}"
+        );
+    }
+}
