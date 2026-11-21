@@ -24,4 +24,12 @@ session_io: number,
 /**
  * The profile's new tokens in it.
  */
-profile_io: number, };
+profile_io: number, 
+/**
+ * `None`: the App's tool reports this window's limit, so the share
+ * is drawn against it. Otherwise no limit is known, and why, from
+ * the tool's adapter ("OpenCode doesn't report its limits to AI
+ * Juggler yet"): the share is only of the use AI Juggler saw, said
+ * in words, never drawn as a limit (SK-22).
+ */
+no_limit: string | null, };

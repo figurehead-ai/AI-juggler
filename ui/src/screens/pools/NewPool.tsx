@@ -61,6 +61,20 @@ const stepsFor = (ask: boolean): readonly SetupStep[] => (ask ? [...STEPS.slice(
 /** From this step on, Make pool is enabled (a name and its projects make
  * a working pool). */
 const MAKE_FROM = STEPS.indexOf("who");
+/** Why nothing goes on past Where without a project: on the steps beside
+ * and at the foot (the 0.4.7 nightly walk: Next went on, and only Make
+ * pool at the end sent it back). */
+const NEEDS_PROJECT = { steps: "Pick a project first", foot: "Pick a project to go on." } as const;
+
+/** Where needs a project: with none, nothing goes on past it (or past the
+ * step shown, if that's further). The place nothing goes on past, or
+ * `null` once the draft has a project. */
+function heldAfter(draft: Pick<Draft, "every" | "projects">, steps: readonly SetupStep[], step: number): number | null {
+  return draft.every || draft.projects.length > 0 ? null : Math.max(steps.indexOf("where"), step);
+}
+
+/** Why Next waits, said at the foot; `undefined` when it doesn't. */
+const nextWaits = (held: number | null, step: number, last: boolean): string | undefined => (!last && held !== null && step + 1 > held ? NEEDS_PROJECT.foot : undefined);
 
 /** The name a draft has once `template` is chosen: one the user typed
  * stays; the last template's own (or none) gives way to this one's, and
@@ -147,10 +161,6 @@ export function NewPool({
   const [step, setStep] = useState(() => Math.max(0, STEPS.indexOf(startAt ?? "template")));
   // The furthest step reached: the side's steps up to it are a click away.
   const [furthest, setFurthest] = useState(step);
-  const go = (to: number) => {
-    setStep(to);
-    setFurthest((was) => Math.max(was, to));
-  };
   const firstPool = useMemo(() => pools !== null && !hasUserPools(pools), [pools]);
   const fromName = openedFrom(projects, project);
   const [draft, setDraft] = useState<Draft>(() => {
@@ -179,6 +189,15 @@ export function NewPool({
   // the step (it then says where they stand).
   const [answeredHere, setAnsweredHere] = useState(false);
   const steps = stepsFor(asksInNewPool(bridge, answeredHere));
+  // Where needs a project: nothing goes on past it without one (Next, the
+  // steps beside, the preview's rows), and the step says so.
+  const held = heldAfter(draft, steps, step);
+  const ahead = (to: number) => held !== null && to > held;
+  const go = (to: number) => {
+    if (ahead(to)) return;
+    setStep(to);
+    setFurthest((was) => Math.max(was, to));
+  };
   const paired = usePairedMacs();
   const candidates = useMemo(() => {
     const now = Date.now();
@@ -236,6 +255,7 @@ export function NewPool({
     }
   };
   const last = step === steps.length - 1;
+  const waits = nextWaits(held, step, last);
   const current = steps[step]!;
   // The draft as its words read it: the steps' values and the preview's
   // rows from the same shape as the canvas checklist's.
@@ -252,11 +272,11 @@ export function NewPool({
         <FlowLayout
           label={WIZARD_HEADS[current].title}
           at={current}
-          steps={<NewPoolSteps steps={steps} step={step} furthest={furthest} valueOf={valueOf} onPick={go} />}
+          steps={<NewPoolSteps steps={steps} step={step} furthest={furthest} valueOf={valueOf} onPick={go} held={held} heldWhy={NEEDS_PROJECT.steps} />}
           {...sideFor({
             current, draft, name, where, shape, visited, sources: { apps: apps ?? [], sessions }, memberName, first: firstPool, openNow,
             // A preview row goes to its step once that step is reached.
-            pick: { go: (row) => go(steps.indexOf(row)), can: (row) => steps.indexOf(row) >= 0 && steps.indexOf(row) <= furthest },
+            pick: { go: (row) => go(steps.indexOf(row)), can: (row) => steps.indexOf(row) >= 0 && steps.indexOf(row) <= furthest && !ahead(steps.indexOf(row)) },
           })}
           foot={
             <FlowFoot
@@ -285,7 +305,8 @@ export function NewPool({
                   </>
                 ),
                 onClick: last ? () => void make() : () => go(step + 1),
-                disabled: busy,
+                disabled: busy || waits !== undefined,
+                reason: waits,
                 testId: "new-pool-next",
               }}
             />

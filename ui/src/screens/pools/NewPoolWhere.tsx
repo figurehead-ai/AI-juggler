@@ -9,7 +9,7 @@
  * rest are a search away (Add another project: open now first, then
  * All). Every project takes them all in, so their cards say so.
  */
-import { useId, useState, type JSX } from "react";
+import { useEffect, useId, useRef, useState, type JSX } from "react";
 
 import { CheckCard, Picker } from "../../components/controls";
 import { Alert } from "../../components/Alert";
@@ -88,6 +88,14 @@ export function NewPoolWhere({
   const has = (id: string | null) => draft.projects.includes(id);
   const flip = (id: string | null, on: boolean) => onDraft({ ...draft, projects: on ? [...draft.projects.filter((one) => one !== id), id] : draft.projects.filter((one) => one !== id) });
   const every = draft.every ? "Every project is in" : undefined;
+  // Opened with no project, Next waits for one: the first project takes
+  // the keyboard's focus (Next can't hold it while it waits).
+  const choices = useRef<HTMLFieldSetElement | null>(null);
+  const none = !draft.every && draft.projects.length === 0;
+  const [openedEmpty] = useState(none);
+  useEffect(() => {
+    if (openedEmpty) choices.current?.querySelector<HTMLInputElement>("input:not(:disabled)")?.focus();
+  }, [openedEmpty]);
   return (
     <div className="flex flex-col gap-7" data-testid="new-pool-step-where">
       <StepHead step="where" />
@@ -118,7 +126,7 @@ export function NewPoolWhere({
           {scopeFixed}
         </p>
       ) : (
-        <fieldset className="flex min-w-0 flex-col gap-2.5" data-testid="new-pool-where">
+        <fieldset ref={choices} className="flex min-w-0 flex-col gap-2.5" data-testid="new-pool-where">
           <legend className="mb-2.5 text-meta font-medium text-ink">Which project</legend>
           <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2" data-testid="new-pool-projects">
             {shown.map((project) => (
@@ -168,7 +176,7 @@ export function NewPoolWhere({
               testId="new-pool-add-project"
             />
           )}
-          {!draft.every && draft.projects.length === 0 ? (
+          {none ? (
             <Alert level="needs-you" className="mt-1.5" testId="new-pool-where-words">
               Pick at least one project: only its sessions can join.
             </Alert>

@@ -28,7 +28,7 @@ import { IconFleet, IconJuggler, IconProjects, IconTerminal } from "../component
 import type { InspectorData, InspectorKind } from "../components/RightInspector";
 import { outside, useConversations } from "../lib/conversations";
 import { resourceLine, useHeavyNote } from "../lib/machine";
-import { since } from "../lib/time-words";
+import { knownMs, since } from "../lib/time-words";
 import type { AccountInfo } from "../types/generated/AccountInfo";
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import type { LaunchRecipeInfo } from "../types/generated/LaunchRecipeInfo";
@@ -347,9 +347,20 @@ const ENDED = ["finished", "stopped", "failed", "handed_over"];
  * (its project is the crumb above, its account the Account chip; the
  * account leads only where there's no chip for it). */
 function sessionFacts(session: InstanceInfo, now: number, withAccount: boolean): string {
-  return [withAccount ? session.account_label : null, `started ${since(session.started_at_ms, now)} ago`, lowLeftWords(session)]
+  return [withAccount ? session.account_label : null, startedAgo(session.started_at_ms, now), lowLeftWords(session)]
     .filter(Boolean)
     .join(" · ");
+}
+
+/** SK-24 (the 0.4.7 persona run M2): how long ago it started, measured
+ * from the session's own start against the window's clock, which ticks
+ * every 15 s (30 s unfocused). Under a minute is "just now": by seconds,
+ * a page opened between two ticks said "started 1s ago" of a session that
+ * began before the last one (and "30s", then "1s", as it was read again).
+ * Nothing when the start isn't known. */
+function startedAgo(startedMs: number, now: number): string | null {
+  if (!knownMs(startedMs)) return null;
+  return now - startedMs < 60_000 ? "started just now" : `started ${since(startedMs, now)} ago`;
 }
 
 /** How many of a tool's sessions run now, outside ones too (AJ-E1529). */

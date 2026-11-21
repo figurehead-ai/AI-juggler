@@ -4,7 +4,9 @@
  */
 import { call, listen, liveBackend as hasBackend } from "./transport";
 import { orderedJoin, orderedLatest } from "./ordered";
+import type { TerminalChunk } from "../../types/generated/TerminalChunk";
 import type { TerminalInfo } from "../../types/generated/TerminalInfo";
+import type { TerminalSnapshot } from "../../types/generated/TerminalSnapshot";
 
 
 export const TERMINAL_EVENTS = {
@@ -50,9 +52,11 @@ export async function terminalKill(id: string): Promise<void> {
   return call("terminal_kill", { id });
 }
 
-/** The retained output tail (base64) for replay on panel reopen. */
-export async function terminalSnapshot(id: string): Promise<string> {
-  return call("terminal_snapshot", { id });
+/** The retained output tail (base64) for replay when a view opens, and
+ * where it ends in the terminal's whole output (SK-23: joined to the live
+ * chunks by place); with `from`, only what's kept after that place. */
+export async function terminalSnapshot(id: string, from?: number): Promise<TerminalSnapshot> {
+  return call("terminal_snapshot", from === undefined ? { id } : { id, from });
 }
 
 /** P2: whether an ended session's terminal kept output to replay. The
@@ -63,20 +67,26 @@ export async function terminalSnapshot(id: string): Promise<string> {
 export async function terminalKept(id: string): Promise<boolean> {
   if (!hasBackend) return (seams().__AIJ_TERMINAL_KEPT__ ?? []).includes(id);
   try {
-    return (await terminalSnapshot(id)).length > 0;
+    return (await terminalSnapshot(id)).data.length > 0;
   } catch {
     return false;
   }
 }
 
-/** Live output stream for one terminal (base64 chunks). */
+/** Live output stream for one terminal (base64 chunks, each saying where
+ * it ends). `listening` runs once the listener is in place. */
 export function onTerminalOutput(
   id: string,
-  handler: (base64: string) => void,
+  handler: (chunk: TerminalChunk) => void,
+  listening?: () => void,
 ): () => void {
-  return listenScoped(TERMINAL_EVENTS.output, (payload: { id: string; data: string }) => {
-    if (payload.id === id) handler(payload.data);
-  });
+  return listenScoped(
+    TERMINAL_EVENTS.output,
+    (payload: TerminalChunk) => {
+      if (payload.id === id) handler(payload);
+    },
+    listening,
+  );
 }
 
 /** A terminal's process exited. */
@@ -89,6 +99,7 @@ export function onTerminalExit(handler: (id: string) => void): () => void {
 export function listenScoped<T>(
   event: string,
   handler: (payload: T) => void,
+  listening?: () => void,
 ): () => void {
   if (!hasBackend) {
     return () => {};
@@ -100,6 +111,7 @@ export function listenScoped<T>(
       stop();
     } else {
       unlisten = stop;
+      listening?.();
     }
   });
   return () => {

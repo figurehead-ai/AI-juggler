@@ -509,6 +509,73 @@ fn a_tap_attached_after_the_process_finished_still_gets_its_output() {
     );
 }
 
+/// SK-23: a terminal's view joins the kept output to the live stream by
+/// place. The snapshot says where it ends, the tap where it starts, and
+/// the tap's chunks follow on from there: together they are the output
+/// once, with no byte missing or twice, whatever the order they're read in.
+#[test]
+fn the_kept_output_and_a_tap_say_where_they_are_in_the_stream() {
+    let workdir = tempfile::tempdir().unwrap();
+    let supervisor = Supervisor::new();
+    let session = SessionId::new("s-places");
+    let spec = LaunchSpec {
+        program: PathBuf::from("/bin/sh"),
+        args: vec!["-c".into(), "cat".into()],
+        env: EnvMap::new(),
+        cwd: workdir.path().to_path_buf(),
+        needs_pty: true,
+    };
+    supervisor
+        .spawn(&session, &spec, &ledger_test_ctx())
+        .unwrap();
+    // A typed line shows (the terminal's echo, then cat's copy), then the
+    // output stands still.
+    let settled = |marker: &[u8]| {
+        let deadline = std::time::Instant::now() + Duration::from_secs(10);
+        let mut last = None;
+        while std::time::Instant::now() < deadline {
+            let (bytes, end) = supervisor.output_at(&session).unwrap();
+            if bytes.windows(marker.len()).any(|w| w == marker) && last == Some(end) {
+                return;
+            }
+            last = Some(end);
+            std::thread::sleep(Duration::from_millis(300));
+        }
+        panic!("{} never showed", String::from_utf8_lossy(marker));
+    };
+    supervisor.write_input(&session, b"asked-before\n").unwrap();
+    settled(b"asked-before");
+
+    // Nothing trimmed yet: the kept output is the whole stream.
+    let (kept, kept_end) = supervisor.output_at(&session).unwrap();
+    assert_eq!(kept_end, kept.len() as u64);
+    let (start, tap) = supervisor.tap_at(&session).unwrap();
+    assert_eq!(start, kept_end, "a tap starts where the output stands");
+
+    supervisor.write_input(&session, b"said-after\n").unwrap();
+    settled(b"said-after");
+    let (_, now_end) = supervisor.output_at(&session).unwrap();
+    let mut heard = Vec::new();
+    let mut end = start;
+    let deadline = std::time::Instant::now() + Duration::from_secs(10);
+    while end < now_end && std::time::Instant::now() < deadline {
+        if let Ok(chunk) = tap.recv_timeout(Duration::from_millis(200)) {
+            end += chunk.len() as u64;
+            heard.extend_from_slice(&chunk);
+        }
+    }
+    let (all, all_end) = supervisor.output_at(&session).unwrap();
+    assert_eq!(end, all_end, "the chunks add up to where the output ends");
+    let from_start = usize::try_from(start).unwrap();
+    assert_eq!(
+        &all[from_start..],
+        heard.as_slice(),
+        "the tap's bytes are the stream's from its start"
+    );
+    assert!(String::from_utf8_lossy(&heard).contains("said-after"));
+    supervisor.stop(&session, Duration::from_secs(2)).unwrap();
+}
+
 /// AJ-E401: the batched live-stats collector reads every supervised
 /// session from one process-table refresh; the first sample cannot know
 /// CPU deltas, so `cpu_pct` is honestly `None` (never a fabricated 0.0),

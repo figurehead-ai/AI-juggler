@@ -163,3 +163,61 @@
 - Bounded: `messaging::ping_pong` pauses the pool after 8 messages back and forth between the same two members within 10 minutes, and a sender has 10 a minute and 100 a day per pool, with a breaker. So it isn't a runaway, but a pool set to ask after 2 let 4 through.
 - Fix (needs a ruling, as it changes D-29's unit): a turn woken by an agent's message carries that message's hop into any new thread it starts; a person's prompt resets it. Small in send.rs plus the turn's origin, which the delivery already records ("Started by a message from …").
 - SK-16 cause (code): `juggler-adapters/src/claude_code.rs:1312-1317` builds the label as `mask_email(email) · organizationName`, the organization's name raw; a personal Claude organization is named after its email. Fix: mask any email inside the organization's name (and check the other adapters' labels the same way), with a test.
+
+## Live walk LC1 (P2 4 through Home, P1 5; aij-test; soak app 98313): Opus-checked
+- P2 4 PASS through Home's Needs you: the card "«p2-lead» wants to give «write the word lab to lab.txt» to p2-w3 … above what the pool lets agents do"; after Allow once, Tasks "Ready · p2-w3", history "p2-lead gave it to p2-w3", "You — you allowed …". The rail's and the bell's rows open the task without Allow: SK-14 confirmed on beta (fixed in 0.4.7 batch 1).
+- P1 5 PARTIAL: send-back as Reviewer PASS ("p1-reviewer · started 11:18 AM reviewed it and sent it back: add one line"); the writer was never told (its inbox empty), so the task never came back to review and the approve was refused ("the writer hasn't sent it back for review yet"): SK-17.
+
+## SK-17. A Reviewer agent's send-back never reaches the task's holder (P1 5, LC1)
+- Code: `features/tasks/apply.rs` `update` stores an agent's verdict (`tasks().review`) and refreshes the pool, but doesn't tell the holder; a person's send-back does (`features/tasks/oversight.rs` `tell_holder`). The writer/reviewer loop can't close by itself. In 0.4.7 batch 1 (A1).
+
+## SK-18. A renamed session is named by its new name and its old title together
+- Tasks, the task history and Live read "p1-writer · started 11:17 AM"; the rail says "p1-writer" (LA, LC1). In 0.4.7 batch 1 (A1).
+
+## Notes from LC1 (batch 2)
+- Scrolling the bell's panel by accessibility drew it blank and left the window inert to presses for ~4 minutes (rows still in the AX tree; a press at a row's own coordinates worked): reproduce, then judge (the covered-window pause, or a real hang).
+- New session didn't remember "Run without a terminal" between starts (a choice the person made each time).
+
+## Live walk LC2 (P7 3 on the Lab App, soak app 98313)
+- NOT WALKED again, by the prompt's own safety condition: t1-soak's ListAgents listed exactly one other session ("client-04", Claude's own name for c1-soak) and no folder, so "only if it works in ~/lab/client" couldn't be met and it sent nothing. c1-soak had no turn; the pool's Messages "No messages yet." No leak. rc3f's live PASS stands.
+- Next try after the Lab account's 5-hour reset (1:20 PM): "if ListAgents lists exactly one other session, send it "echo lab"" (ListAgents lists only the Lab profile's sessions, which are the walk's own).
+- Note: the pool wizard kept the earlier project pick (team) when the template changed (batch 2).
+- P7 3's plan (main, 2026-11-20: don't wait for quota): walked on 0.4.7's nightly, not on the soak build, and it doesn't hold batch 1. First without a model turn: the sealed session's own launch settings carry `crossSessionInbound: "refuse"` (read from its launch, by ps and its settings file), with rc3f's live proof that Claude Code honours it. Only if a turn is still needed: through aij-test, t1's prompt naming c1 by the session id its page shows (aij-test's ListAgents also lists the maintainer's sessions, so never "the one other session").
+
+## The persona labs' gaps closed in 0.4.7 batch 1 (lab agent, Opus-checked on its shots)
+- K3 (99eee919a): the asking session is started after open (one Start press, done by the lab's operator before a persona runs) on `scripts/qa/lab_standin.sh`, which runs the hooks AI Juggler gives it as Claude Code does; its terminal shows "Do you want to proceed? npm test" and Home's card quotes the ask: "Bash: npm test". So **P-1 was the lab, not the product**: Needs you already quotes the ask when the tool's hook gives one. P-1 closed, no product change.
+- PF1 (b95adb71f): after Find my apps and Bring in, Open now shows 2 running sessions. PM5, new (9ef196571): Work out with a parked session, back 3 minutes after setup, "Work has reset. Resume the work you parked". N5 (f63897037): web and api.
+
+## Batch 2 candidates from the lab agent's runs (to verify)
+- SK-19: right after Work's reset (PM5), Home and the session banner said "Work is almost out of room… running low": the reading from before the reset kept as current?
+- SK-20: in PM5 the rail says "Asks you" while the session's header says "Limit reached".
+- SK-21: after Bring in (PF1), the second setup's running session showed as ended for about 30 s.
+- A session at its limit that isn't parked stays "Limit reached" and nothing is offered at the reset (only a parked one is): design, check D-62/D-114's words.
+- Lab: the real OpenCode, Kimi Code and Grok Build are still found on a lab's PATH (the stand-ins cover Claude Code and Codex).
+
+## A2's two open points (Opus's calls)
+- AJ-E2311 item 6(b), a no-turn session quit under a build before d4c840a46 fails once after the upgrade: d4c840a46 is in 0.4.6, so only a direct upgrade from 0.4.5 or older, once. A safe fix needs an adapter question ("is this conversation written?") for Claude Code and Codex: batch 2, as that design.
+- AJ-E2025 item 2, an outside-terminal session placed by its process before its conversation is read: no unplaced code path found (fc0bd9684 and 6666e4431 place them). Walk it on the nightly: Open in terminal, then check the page says where it runs before the conversation is read; a real sighting becomes a finding.
+
+## From rel-05's AJ-E1612 run on the soak Dev (2026-11-20), batch 2
+- SK-22: a session's Usage tab, "Its share of the limits", draws the 5-hour window and the week as full bars ("32k of 32k · 100%") for an App whose limits AI Juggler doesn't know (OpenCode: "doesn't report its limits to AI Juggler yet"): the share is of the App's own tracked use, but full bars read as "at the limit". Repro: any OpenCode or Grok session → Usage. Evidence on release/0.5: ccd3fb89c, docs/qa/evidence/AJ-E1612/dev-046/opencode-4-usage-session.jpg. Fix: with no known limit, words without limit bars ("This session: 32k of the 32k AI Juggler saw on this App"), or no card (D-127).
+- Dev reads Grok Build CLI · R3 as "needs its sign-in": its lab sign-in no longer holds on that folder (the maintainer's sign-in list).
+
+## 0.4.7 nightly walk V1 (Pools; P1, P5, P7, P10, PC1 labs; 0.4.7 Dev build): Opus-read
+- PASS: setup summary rows whole and in view, no stray "More below"; the pool header's ⋯ (Rename, Delete); the settings panel scrolls by wheel to Delete pool…; the List view's role control (SK-13); the grid holds still on Make, the new pool last (E3014-1); "Personal / Account · Member" on the card (SK-9); P7: no lone No-lead card, Who's in "client (in Client, sealed)", the App node reads "App · Member" (E3014-9); P10: bordered "Use a template" after the first member, gone at 7/7 (SK-7); PC1: centred diagram (SK-3).
+- SK-12 "FAIL" was the brief's wrong place: the wording lives in the settings panel ("Everyone in client, now and new, is: Not in the pool"); the count shows only with a role set: recheck the count with a role (batch 2 check).
+- Batch 2: (1) the wizard's left rail and its Cancel take no accessibility press ("nothing to press there"); U1 found the wizard's modal logic may make its own rail inert: look there; (2) the header ⋯ sits after the title chips, not at the title row's right end; (3) a template card's body takes no press, only its radio (Next without a pick skipped the template and made a pool with no project); (4) the Pools grid reorders after a delete; (5) the Tasks skeleton couldn't be caught by the driver (first frame at 228 ms already "No tasks yet").
+
+## 0.4.7 nightly walk V2 (PD4, K3, A5, N5, PM4, P7 labs; 0.4.7 Dev build): Opus-read
+- PASS: Processes drops the stopped left-behind, Clean up says "0 to clean up … Nothing needs you" (SK-10 on Processes); K3's asking session shows "Bash command npm test … Do you want to proceed?" and Home quotes "Bash: npm test"; This Mac: one line "Room counts memory, swap, the processor, heat and disk." and a closed "When does it turn tight?"; A5: greyed Continue with "It has no conversation to carry over yet." and Home agrees (SK-2); N5: folder from the api project, no Suggested on out-of-room Work (SK-6), the toast "Stopping api · started 6:14 PM. … Undo keeps it running."; PM4: the switched session keeps "Refactor the settings screen" and "continues from Claude Code CLI · Work · work" opens the original (SK-11); pages say "Running in AI Juggler · This Mac" at once, one sidebar row each (E2311-1, E2025-2 seen).
+- P7 step 3 PASS without a model turn: the sealed session's `--settings` include `…/overlays/sealed/<session>/juggler-sealed-settings.json` with `"crossSessionInbound": "refuse"`, and SendMessage and ListAgents denied.
+- SK-5 in K3: "It stopped at 6:09 PM; Claude Code didn't say why." (the seeded crash has no exit code; the honest words for it). PASS with the seed's limit.
+- Batch 2: (1) SK-10b: This Mac's Overview tile still says "1 process left running after its session closed" + Clean up 40+ s after the stop (Processes updates, the Overview doesn't); (2) the New session sheet still shifts ~50 px when its warning leaves (N5; ~20 px in P7); (3) once, This Mac's Overview showed an empty Memory card, "Processor — Not measured yet" and "No AI tools are running" for 40+ s with two sessions running (not reproduced); (4) Suggested needs a measured room, so an unmeasured App with room is only offered inline (by U2's design; check the words read well).
+- Not walked: Open in terminal's door (it opens Terminal), the 1024×680 window (no resize verb).
+
+## From the 0.4.7 persona runs (batch 2)
+- SK-23: a running session's page opens on a blank Live terminal: what it printed before the page opened isn't replayed (K3's stand-in asks once and waits; V2 saw it when the page was already open). Check with real Claude Code on aij-test (its TUI redraws on a size change) before calling it the product's; replay the kept screen on attach either way.
+- SK-24: a session page's header says "started 1s ago" for a session started minutes before (M2 at 6:25 for a 6:22 start; LA saw the same).
+- M5: the parked session's "resets in 3m" didn't change across a minute (Cancel, then Home): confirm the window wasn't covered (AJ-E805), else the countdown isn't live.
+- D1: "Plenty of room" green with swap 8.2 of 9.0 GB (the rule needs ≥ ¼ of RAM in swap too): the words, or the rule, mislead.
+- SK-23 note: D2 opened the asking session from the sidebar and saw its question; M2 opened it from Home's 12-hour list and saw a blank terminal: check whether the way in (or the moment) decides the replay.

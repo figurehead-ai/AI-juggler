@@ -287,8 +287,15 @@ fn a_stopped_left_behind_process_leaves_processes_at_the_next_tick() {
             .find(|node| node.pid == child_pid)
             .map(|node| node.state)
     };
+    // SK-10b: This Mac's Overview reads the same count.
+    let overview = |state: &Arc<AppState>| {
+        juggler_app::machine_health::this_mac_impl(state, Timestamp::now().millis())
+            .unwrap()
+            .leftover_processes
+    };
     juggler_app::features::processes::tick(&state);
     assert_eq!(node_state(&state), Some(ProcState::LeftBehind));
+    assert_eq!(overview(&state), 1, "the Overview counts it");
 
     let cancel = Arc::new(std::sync::atomic::AtomicBool::new(false));
     let outcome = juggler_app::features::kill::kill_execute_audited(
@@ -318,6 +325,7 @@ fn a_stopped_left_behind_process_leaves_processes_at_the_next_tick() {
     let change = juggler_app::features::processes::tick(&state);
     assert!(change.is_some(), "the page hears of it");
     assert_eq!(node_state(&state), None, "no longer listed");
+    assert_eq!(overview(&state), 0, "and off the Overview's count");
 }
 
 #[test]

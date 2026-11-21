@@ -39,7 +39,9 @@ fn reset_words(window: &str) -> &'static str {
 /// The fullest window of an account now: `(window, used %, resets at,
 /// whether that percentage is an estimate)`. Out of room, the window that
 /// keeps it out longest and when it has room again (0.4.4, `room_back`:
-/// out on both windows, Needs you and the tiles gave two times).
+/// out on both windows, Needs you and the tiles gave two times). A window
+/// whose reset has passed since its reading has no reading now (SK-19):
+/// it is never the fullest, so its old reading never says low.
 fn fullest(
     display: &crate::features::quota::QuotaDisplayInfo,
 ) -> Option<(&'static str, Option<f64>, Option<i64>, bool)> {
@@ -68,6 +70,7 @@ fn fullest(
     slots
         .into_iter()
         .filter_map(|(slot, window)| window.as_ref().map(|window| (slot, window)))
+        .filter(|(_, window)| window.state != "reset")
         .max_by(|a, b| {
             let used = |w: &crate::features::quota::WindowDisplay| w.percentage.unwrap_or(-1.0);
             used(a.1).total_cmp(&used(b.1))
@@ -80,6 +83,22 @@ fn fullest(
                 estimate(window),
             )
         })
+}
+
+/// The window whose reset has passed since its last reading (SK-19), in
+/// words: the week when both have.
+fn reset_since(display: &crate::features::quota::QuotaDisplayInfo) -> Option<&'static str> {
+    [
+        ("weekly", &display.weekly),
+        ("five_hour", &display.five_hour),
+    ]
+    .into_iter()
+    .find(|(_, window)| {
+        window
+            .as_ref()
+            .is_some_and(|window| window.state == "reset")
+    })
+    .map(|(slot, _)| window_words(slot))
 }
 
 fn live_sessions_on(storage: &Storage, account_id: &str) -> u32 {
@@ -439,6 +458,20 @@ fn carrying_on(
 }
 
 impl AccountPass<'_> {
+    /// The Account's reading now: its newest folder's display, and which
+    /// of its folders that is.
+    fn reading(&self, group: &Group<'_>) -> (usize, crate::features::quota::QuotaDisplayInfo) {
+        let mut displays: Vec<_> = group
+            .folders
+            .iter()
+            .map(|folder| {
+                crate::features::quota::quota_display_inner(self.storage, folder, self.now)
+            })
+            .collect();
+        let reading = newest_reading(&displays);
+        (reading, displays.swap_remove(reading))
+    }
+
     fn run(
         &self,
         group: &Group<'_>,
@@ -458,16 +491,13 @@ impl AccountPass<'_> {
         if low_now.is_none() && !is_open && !carrying {
             return;
         }
-        let mut displays: Vec<_> = group
-            .folders
-            .iter()
-            .map(|folder| {
-                crate::features::quota::quota_display_inner(self.storage, folder, self.now)
-            })
-            .collect();
-        let reading = newest_reading(&displays);
-        let display = displays.swap_remove(reading);
-        let Some((window, used, resets_at, estimate)) = fullest(&display) else {
+        let (reading, display) = self.reading(group);
+        // SK-19: a window past its reset isn't measured since; with no
+        // other reading, it is that window, and no figure.
+        let reset = reset_since(&display);
+        let Some((window, used, resets_at, estimate)) =
+            fullest(&display).or_else(|| reset.map(|window| (window, None, None, false)))
+        else {
             return;
         };
         let live: Vec<u32> = folders
@@ -491,7 +521,11 @@ impl AccountPass<'_> {
                 return;
             }
         }
-        if is_open && low_now.is_none() && used.is_some_and(|used| used < ROOM_AGAIN_USED_PCT) {
+        // Room again: under half used now; or, with no figure now, a
+        // window has reset since the reading that made it low (SK-19:
+        // that reading stayed "almost out of room… running low").
+        let has_room = used.map_or(reset.is_some(), |used| used < ROOM_AGAIN_USED_PCT);
+        if is_open && low_now.is_none() && has_room {
             let mut ended = false;
             for key in &keys {
                 ended |= centre::end_need(self.storage, key, self.now).unwrap_or(false);
@@ -500,7 +534,8 @@ impl AccountPass<'_> {
                 room_again.push(RoomAgain {
                     subject,
                     folders: folders.iter().map(|folder| (*folder).to_owned()).collect(),
-                    window,
+                    // The window that reset, when one has.
+                    window: reset.unwrap_or(window),
                 });
             }
             return;
@@ -883,7 +918,15 @@ pub fn import_notice(
 /// so its line names it. The Accounts are read only when there is
 /// something to tell.
 pub fn quota_pass(state: &Arc<AppState>, emitted: &[crate::features::alerts::dto::AlertEventInfo]) {
-    let now = crate::commands::now_millis();
+    quota_pass_at(state, emitted, crate::commands::now_millis());
+}
+
+/// [`quota_pass`] at `now` (tests step the clock past a reset).
+pub fn quota_pass_at(
+    state: &Arc<AppState>,
+    emitted: &[crate::features::alerts::dto::AlertEventInfo],
+    now: i64,
+) {
     let mut told = Vec::new();
     let renewals = emitted.iter().any(|event| event.kind == "digest");
     let accounts = if renewals || quota_work(state, emitted) {

@@ -158,6 +158,24 @@ describe("AJ-E407 Instance Overview (§5.1, Req.1)", () => {
     expect(container.querySelector('[data-testid="instance-quota"]')?.textContent).toContain("Not measured yet");
     expect(container.textContent).toContain("default model");
   });
+
+  // SK-24 (the 0.4.7 persona run M2): "started 1s ago" for a session that
+  // began before the page opened. The window's clock ticks every 15 s (30 s
+  // unfocused): one session began after its last tick, another 20 s before
+  // it was read. Neither is "1s ago".
+  it("says when it started from its own start, never seconds by a clock that ticks slower", () => {
+    const subline = (startedMs: number) => {
+      const view = shell(mk({ started_at_ms: startedMs }));
+      const words = view.getByTestId("session-subline").textContent;
+      view.unmount();
+      return words;
+    };
+    expect(subline(NOW + 8_000)).toContain("started just now");
+    expect(subline(NOW - 20_000)).toContain("started just now");
+    expect(subline(NOW - 20_000)).not.toMatch(/\d+s ago/);
+    expect(subline(NOW - 3 * 60_000)).toContain("started 3m ago");
+    expect(subline(NOW - 5 * 3_600_000)).toContain("started 5h ago");
+  });
 });
 
 describe("AJ-E407 Instance Usage (Req.2)", () => {

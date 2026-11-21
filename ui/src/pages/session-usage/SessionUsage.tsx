@@ -15,6 +15,7 @@ import { IconChart, IconDonut, IconGauge, IconLayers, IconList, IconMoney, IconT
 import { useCached } from "../../lib/usage/cached";
 import { usageSession, type UsageSessionDetailInfo } from "../../lib/ipc/usageHistory";
 import { newTokens } from "../../lib/usage/tokens";
+import type { UsageWindowShareInfo } from "../../types/generated/UsageWindowShareInfo";
 import { NewTokensNote } from "../../components/usage/NewTokensNote";
 
 /** At most this many bars: more turns are summed into even slices of time. */
@@ -55,6 +56,57 @@ export function turnBars(detail: UsageSessionDetailInfo): { edges: number[]; inp
   return { edges, input, output, perTurn: false };
 }
 
+/** What a window's share covers: "since Tue 3:10 PM" (its reset time
+ * places it), else "the last 5 hours" or "the last 7 days". */
+function spanWords(window: UsageWindowShareInfo): string {
+  return window.basis === "window" ? `since ${time(window.since_ms)}` : window.window === "five_hour" ? "the last 5 hours" : "the last 7 days";
+}
+
+/** SK-22: a session's share of each window. Against a limit the App's tool
+ * reports, a bar; with no known limit (its tool doesn't report one), the
+ * share is only of the use AI Juggler saw: words, never a bar that reads
+ * "at the limit", and why there's no limit, in the adapter's words. */
+function ShareOfLimits({ windows, color }: { windows: UsageWindowShareInfo[]; color: string }): JSX.Element {
+  const reasons = [...new Set(windows.flatMap((window) => (window.no_limit === null ? [] : [window.no_limit])))];
+  return (
+    <>
+      <ul className="flex flex-col gap-3">
+        {windows.map((window) => {
+          const name = window.window === "five_hour" ? "This 5-hour window" : "This week";
+          const of = `${exact(window.session_io, "tokens")} of ${exact(window.profile_io, "tokens")}`;
+          if (window.no_limit !== null) {
+            const span = spanWords(window);
+            return (
+              <li key={window.window} className="flex flex-col gap-0.5" data-testid="session-usage-share-words">
+                <span className="text-body font-semibold text-ink">{span.charAt(0).toUpperCase() + span.slice(1)}</span>
+                <span className="text-meta text-ink-2" title={of}>
+                  This session: {short(window.session_io, "tokens")} of the {short(window.profile_io, "tokens")} new tokens AI Juggler saw on this app
+                </span>
+              </li>
+            );
+          }
+          return (
+            <li key={window.window} className="flex flex-col gap-1.5">
+              <span className="flex flex-wrap items-baseline justify-between gap-2">
+                <span className="text-body font-semibold text-ink">{name}</span>
+                <span className="text-meta text-muted" title={of}>
+                  {short(window.session_io, "tokens")} of {short(window.profile_io, "tokens")} · {spanWords(window)}
+                </span>
+              </span>
+              <ShareBar parts={[{ key: "this", label: "This session", value: window.session_io, color }]} total={window.profile_io} unit="tokens" label={name} />
+            </li>
+          );
+        })}
+      </ul>
+      {reasons.map((reason) => (
+        <p key={reason} className="text-meta text-muted" data-testid="session-usage-no-limit">
+          {reason}.
+        </p>
+      ))}
+    </>
+  );
+}
+
 export function SessionUsage({ profile, conversation, profileLabel }: { profile: string; conversation: string; profileLabel?: string }): JSX.Element {
   const result = useCached(`session-usage:${profile}:${conversation}`, () => usageSession(profile, conversation), 30_000);
   const detail = result.data;
@@ -75,6 +127,9 @@ export function SessionUsage({ profile, conversation, profileLabel }: { profile:
   // The app's accent: the session's page shows its App's colour, and colour
   // is the Apps' (the windows are its Account's room, said in words).
   const color = "var(--color-accent)";
+  // SK-22: a limit is known for at least one window (before the first read,
+  // as it was: the limits).
+  const limited = detail === null || detail.windows.length === 0 || detail.windows.some((window) => window.no_limit === null);
   return (
     <div className="@container flex flex-col gap-grid" data-testid="session-usage-visual">
       <div className="grid grid-cols-2 gap-grid @min-[860px]:grid-cols-4">
@@ -115,23 +170,18 @@ export function SessionUsage({ profile, conversation, profileLabel }: { profile:
             <Donut items={models} unit="tokens" label="New tokens by model" centre={{ value: String(models.length), words: models.length === 1 ? "model" : "models" }} />
           </ChartBody>
         </Section>
-        <Section title="Its share of the limits" icon={<IconGauge />} sub={`of ${profileLabel ?? "its app"}'s use`} className="@min-[900px]:col-span-2" busy={busy} testId="session-usage-share">
+        <Section
+          title={limited ? "Its share of the limits" : "Its share of the app's use"}
+          icon={<IconGauge />}
+          sub={limited ? `of ${profileLabel ?? "its app"}'s use` : profileLabel}
+          className="@min-[900px]:col-span-2"
+          busy={busy}
+          testId="session-usage-share"
+        >
           {(detail?.windows ?? []).length === 0 ? (
             <p className="text-meta text-ink-2">{detail === null ? "Reading…" : "Nothing measured in its windows."}</p>
           ) : (
-            <ul className="flex flex-col gap-3">
-              {detail!.windows.map((window) => (
-                <li key={window.window} className="flex flex-col gap-1.5">
-                  <span className="flex flex-wrap items-baseline justify-between gap-2">
-                    <span className="text-body font-semibold text-ink">{window.window === "five_hour" ? "This 5-hour window" : "This week"}</span>
-                    <span className="text-meta text-muted" title={`${exact(window.session_io, "tokens")} of ${exact(window.profile_io, "tokens")}`}>
-                      {short(window.session_io, "tokens")} of {short(window.profile_io, "tokens")} · {window.basis === "window" ? `since ${time(window.since_ms)}` : window.window === "five_hour" ? "the last 5 hours" : "the last 7 days"}
-                    </span>
-                  </span>
-                  <ShareBar parts={[{ key: "this", label: "This session", value: window.session_io, color }]} total={window.profile_io} unit="tokens" label={window.window === "five_hour" ? "This 5-hour window" : "This week"} />
-                </li>
-              ))}
-            </ul>
+            <ShareOfLimits windows={detail!.windows} color={color} />
           )}
         </Section>
       </div>

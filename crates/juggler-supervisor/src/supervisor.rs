@@ -130,7 +130,7 @@ pub(crate) struct ChildHandle {
     /// When the process exited (epoch ms; 0 = live) — the eviction
     /// timer (AJ-E504 Req.4).
     pub(crate) exit_at_ms: Arc<AtomicI64>,
-    ring: Arc<Mutex<OutputRing>>,
+    pub(crate) ring: Arc<Mutex<OutputRing>>,
     pub(crate) finished: Arc<AtomicBool>,
     /// Last output arrival (epoch ms, 0 = none) — feeds the Stuck rule
     /// and event-driven recovery (AJ-E405).
@@ -823,27 +823,6 @@ impl Supervisor {
         whole_group_stopped(&crate::tree::OsProcessControl, handle.pid)
     }
 
-    /// Snapshot of the retained output tail for a session.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`SupervisorError::UnknownSession`] when the id is not
-    /// supervised.
-    pub fn output(&self, session: &SessionId) -> Result<Vec<u8>, SupervisorError> {
-        let handle = self
-            .children
-            .lock()
-            .map_err(|_| SupervisorError::UnknownSession(session.clone()))?
-            .get(session)
-            .cloned()
-            .ok_or_else(|| SupervisorError::UnknownSession(session.clone()))?;
-        handle
-            .ring
-            .lock()
-            .map(|ring| ring.snapshot())
-            .map_err(|_| SupervisorError::UnknownSession(session.clone()))
-    }
-
     /// Live descendant process ids of a session's process tree (ppid walk).
     ///
     /// # Errors
@@ -888,15 +867,6 @@ impl Supervisor {
         let handle = children.get(session)?;
         let at = handle.last_output_ms.load(Ordering::Relaxed);
         (at > 0).then_some(at)
-    }
-
-    /// The last `max_bytes` of captured output (for prompt and
-    /// rate-limit signature detection; never the whole ring).
-    #[must_use]
-    pub fn output_tail(&self, session: &SessionId, max_bytes: usize) -> Option<String> {
-        let output = self.output(session).ok()?;
-        let start = output.len().saturating_sub(max_bytes);
-        Some(String::from_utf8_lossy(&output[start..]).into_owned())
     }
 
     /// Drains sessions with fresh output since the last call — the
@@ -1068,53 +1038,6 @@ impl Supervisor {
             .map_err(|e| SupervisorError::Io(std::io::Error::other(e.to_string())))
     }
 
-    /// Subscribes to this session's live output stream (each chunk as
-    /// written). Snapshot-then-tap is race-free: the ring forwards every
-    /// byte to listeners, so a snapshot followed by a tap yields the
-    /// stream exactly once from the snapshot point onward.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`SupervisorError::UnknownSession`] when the id is not
-    /// supervised.
-    pub fn tap(
-        &self,
-        session: &SessionId,
-    ) -> Result<std::sync::mpsc::Receiver<Vec<u8>>, SupervisorError> {
-        let handle = self.child(session)?;
-        let mut ring = handle
-            .ring
-            .lock()
-            .map_err(|_| SupervisorError::UnknownSession(session.clone()))?;
-        let (tx, rx) = std::sync::mpsc::channel();
-        ring.add_listener(tx);
-        Ok(rx)
-    }
-
-    /// The retained output AND a live tap, taken under one ring lock so
-    /// no chunk falls between them or arrives twice. Use this when the
-    /// reader needs everything: a fast process can write (and even
-    /// finish) before a plain [`Supervisor::tap`] is attached.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`SupervisorError::UnknownSession`] when the id is not
-    /// supervised.
-    pub fn tap_with_backlog(
-        &self,
-        session: &SessionId,
-    ) -> Result<(Vec<u8>, std::sync::mpsc::Receiver<Vec<u8>>), SupervisorError> {
-        let handle = self.child(session)?;
-        let mut ring = handle
-            .ring
-            .lock()
-            .map_err(|_| SupervisorError::UnknownSession(session.clone()))?;
-        let backlog = ring.snapshot();
-        let (tx, rx) = std::sync::mpsc::channel();
-        ring.add_listener(tx);
-        Ok((backlog, rx))
-    }
-
     /// The supervision journal, when one is open (descendant snapshots
     /// and kill audit writes, AJ-E410).
     #[must_use]
@@ -1150,7 +1073,7 @@ impl Supervisor {
             .is_none_or(|handle| self.settle_adopted(session, &handle))
     }
 
-    fn child(&self, session: &SessionId) -> Result<Arc<ChildHandle>, SupervisorError> {
+    pub(crate) fn child(&self, session: &SessionId) -> Result<Arc<ChildHandle>, SupervisorError> {
         self.children
             .lock()
             .map_err(|_| SupervisorError::UnknownSession(session.clone()))?

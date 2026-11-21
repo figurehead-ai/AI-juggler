@@ -268,23 +268,19 @@ test("a project's New pool for … stays put as the tab loads, and opens New poo
 });
 
 // Round 6 #6 (Casey's run): a note at the window's foot covered New pool's
-// Next and Make pool. Toasts sit above that footer.
+// Next and Make pool. Toasts sit above any footer at the window's foot that
+// carries `data-toast-avoid` (ToastStack's useAboveFooters, held by its unit
+// test). 0.4.8: the setup no longer raises a toast of its own (Next waits on
+// Where for a project), so this holds the other half: New pool's footer is
+// marked and sits at the window's foot, from its portal under the body too.
 test("a toast never covers New pool's footer", async ({ page }) => {
   await open(page, { width: 1280, height: 800 });
   await goTo(page, "Pools");
   await page.getByTestId("pools-new").click();
-  // A toast of its own: Make pool with no project ("Pick a project first").
-  await page.getByTestId("new-pool-next").click();
-  // D-126: each project a card; every chosen one taken out.
-  const every = page.getByTestId("new-pool-project-every");
-  if (await every.getByRole("checkbox").isChecked()) await every.click();
-  const chosen = page.getByTestId("new-pool-projects").locator('[data-testid="new-pool-project"]:has(input:checked), [data-testid="new-pool-project-none"]:has(input:checked)');
-  while ((await chosen.count()) > 0) await chosen.first().click();
-  await page.getByTestId("new-pool-next").click();
-  await page.getByTestId("new-pool-make").click();
-  const stack = page.getByTestId("toast-stack");
-  await expect(stack).toBeVisible();
-  const toasts = (await stack.boundingBox())!;
-  const next = (await page.getByTestId("new-pool-next").boundingBox())!;
-  expect(toasts.y + toasts.height, "the toasts end above the footer's buttons").toBeLessThanOrEqual(next.y);
+  const next = page.getByTestId("new-pool-next");
+  await expect(next).toBeVisible();
+  const foot = next.locator("xpath=ancestor::*[@data-toast-avoid][1]");
+  await expect(foot).toHaveCount(1);
+  const box = (await foot.boundingBox())!;
+  expect(box.y + box.height, "the footer sits at the window's foot, where the toasts avoid it").toBeGreaterThanOrEqual(800 - 24);
 });

@@ -402,3 +402,92 @@ fn an_account_out_on_both_windows_is_out_until_the_later_reset() {
         .unwrap();
     assert_eq!(back(&state), Some((RoomWindow::Weekly, Some(week))));
 }
+
+/// The titles of the resets told, under Earlier.
+fn resets_told(state: &Arc<AppState>) -> Vec<String> {
+    centre::page(
+        &state.storage.lock().unwrap(),
+        "earlier",
+        &juggler_app::paging::PageRequest::first(50),
+        Timestamp::now().millis(),
+    )
+    .unwrap()
+    .items
+    .into_iter()
+    .filter(|notice| notice.kind == "reset")
+    .map(|notice| notice.title)
+    .collect()
+}
+
+/// SK-19: once a window's reset time has passed, the reading from before
+/// it no longer says low (PM5: right after Work's reset, Home and the
+/// session's banner still said "almost out of room… running low"). Work,
+/// 95% used an hour before its reset, is almost out; a minute past the
+/// reset, with no new reading, its need ends and its reset is told.
+#[test]
+fn past_its_reset_a_window_is_never_low_on_the_reading_from_before() {
+    let dir = tempfile::tempdir().unwrap();
+    let state = app_state(dir.path());
+    let work = folder(&state, "Work", None);
+    let now = Timestamp::now().millis();
+    let resets = now + 3_600_000;
+    reading_in(&state, &work, now - 60_000, 95.0, resets - 3 * 3_600_000);
+    sources::quota_pass_at(&state, &[low(&work)], now);
+    let open = needs(&state);
+    assert_eq!(open.len(), 1);
+    assert_eq!(open[0].title, "Work is almost out of room");
+    assert_eq!(open[0].detail, "5% of its 5-hour window left");
+
+    let after = resets + 60_000;
+    sources::quota_pass_at(&state, &[], after);
+    let open: Vec<(String, String)> = needs(&state)
+        .into_iter()
+        .map(|notice| (notice.title, notice.detail))
+        .collect();
+    assert!(
+        open.is_empty(),
+        "nothing low from before the reset: {open:?}"
+    );
+    assert_eq!(
+        resets_told(&state),
+        ["Work has room again — its 5-hour window reset"]
+    );
+}
+
+/// SK-19: the window that reset is the one the room-again notice names,
+/// not the other window's current reading (the week at 30%).
+#[test]
+fn room_again_names_the_window_that_reset() {
+    let dir = tempfile::tempdir().unwrap();
+    let state = app_state(dir.path());
+    let work = folder(&state, "Work", None);
+    let now = Timestamp::now().millis();
+    let resets = now + 3_600_000;
+    reading_in(&state, &work, now - 60_000, 95.0, resets - 3 * 3_600_000);
+    state
+        .storage
+        .lock()
+        .unwrap()
+        .usage()
+        .insert_sample(
+            &work,
+            WindowKind::Weekly { anchor_ms: None },
+            &QuotaSample {
+                ts: now - 60_000,
+                used_pct: 30.0,
+                resets_at: Some(now + 3 * 86_400_000),
+                confidence: Confidence::Measured,
+                held_until: None,
+            },
+        )
+        .unwrap();
+    sources::quota_pass_at(&state, &[low(&work)], now);
+    assert_eq!(needs(&state)[0].detail, "5% of its 5-hour window left");
+
+    sources::quota_pass_at(&state, &[], resets + 60_000);
+    assert!(needs(&state).is_empty());
+    assert_eq!(
+        resets_told(&state),
+        ["Work has room again — its 5-hour window reset"]
+    );
+}

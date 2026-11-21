@@ -237,6 +237,7 @@ import type { TaskNeedInfo } from "./TaskNeedInfo";
 import type { TaskStartedInfo } from "./TaskStartedInfo";
 import type { TasksFilterInput } from "./TasksFilterInput";
 import type { TerminalInfo } from "./TerminalInfo";
+import type { TerminalSnapshot } from "./TerminalSnapshot";
 import type { ThisMacInfo } from "./ThisMacInfo";
 import type { ThreadPage } from "./ThreadPage";
 import type { ThreadsPage } from "./ThreadsPage";
@@ -1232,7 +1233,7 @@ export interface Commands {
   /** Write features::terminal::commands::terminal_resize */
   terminal_resize: { args: { id: string; cols: number; rows: number }; result: void };
   /** Write features::terminal::commands::terminal_snapshot */
-  terminal_snapshot: { args: { id: string }; result: string };
+  terminal_snapshot: { args: { id: string; from?: number | null }; result: TerminalSnapshot };
   /** Write features::terminal::commands::terminal_spawn_login */
   terminal_spawn_login: { args: { accountId: string }; result: TerminalInfo };
   /** Read features::terminal::commands::terminal_windows */

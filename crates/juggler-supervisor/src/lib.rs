@@ -29,6 +29,7 @@ pub mod ports;
 mod reconcile_scope;
 pub mod ring;
 mod rows;
+mod session_output;
 pub mod stats;
 mod stop_guard;
 pub mod supervisor;
