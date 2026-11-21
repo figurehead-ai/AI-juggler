@@ -316,6 +316,8 @@ TaskIssueInfo.checked_at_ms                        # ms epoch, < 2^53 until year
 TaskNeedInfo.at_ms                                 # ms epoch, < 2^53 until year 287396
 TaskSessionInfo.at_ms                              # ms epoch, < 2^53 until year 287396
 TaskThreadInfo.at_ms                               # ms epoch, < 2^53 until year 287396
+TerminalChunk.end                                  # a terminal's byte offset (SK-23), < 2^53 is 9 PB of one terminal's output
+TerminalSnapshot.end                               # a terminal's byte offset (SK-23), < 2^53 is 9 PB of one terminal's output
 ThreadInfo.updated_at_ms                           # ms epoch, < 2^53 until year 287396
 Tier2NoticeInfo.deadline_ms                        # ms epoch, < 2^53 until year 287396
 TokenCounts.cache_read                             # tokens, < 2^53 is 9e15 tokens
@@ -417,6 +419,7 @@ command sessions_unmark_reviewed(at_ms)            # ms epoch (a batch's stamp),
 command sessions_unmark_reviewed->                 # a count of sessions on this Mac, far below 2^53
 command subagents_conversation(before)             # a transcript offset (lines/bytes), < 2^53
 command subagents_conversation(from)               # a transcript offset (lines/bytes), < 2^53
+command terminal_snapshot(from)                    # a terminal's byte offset (SK-23), < 2^53 is 9 PB of one terminal's output
 command usage_history_first->                      # ms epoch, < 2^53 until year 287396
 command usage_history_limits(end_ms)               # ms epoch, < 2^53 until year 287396
 command usage_history_limits(start_ms)             # ms epoch, < 2^53 until year 287396
