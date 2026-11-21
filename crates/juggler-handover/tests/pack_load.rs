@@ -139,7 +139,11 @@ fn a_500_turn_pack_is_assembled_and_written_in_under_5_s() {
         ("full", ConversationMode::Full),
         ("distilled", ConversationMode::Distilled { last_n: 12 }),
     ] {
-        let started = Instant::now();
+        // This thread's CPU time: other jobs' turns on a busy runner don't
+        // count against the budget (0.5's release PR: 7.7 s wall on CI
+        // for work that takes 40 ms here); wall time is printed beside it.
+        let wall = Instant::now();
+        let started = cpu_time::ThreadTime::now();
         let pack = redacted_pack(
             &input,
             mode,
@@ -149,12 +153,15 @@ fn a_500_turn_pack_is_assembled_and_written_in_under_5_s() {
             },
         );
         write_pack(&dir.path().join(name), &pack).unwrap();
-        let took = started.elapsed();
+        let (took, wall) = (started.elapsed(), wall.elapsed());
         println!(
-            "[perf] {name} pack, 500 turns ({} KB of text): {took:?} (budget 5 s)",
+            "[perf] {name} pack, 500 turns ({} KB of text): {took:?} CPU, {wall:?} wall (budget 5 s CPU)",
             chars / 1024
         );
-        assert!(took < Duration::from_secs(5), "{name}: {took:?}");
+        assert!(
+            took < Duration::from_secs(5),
+            "{name}: {took:?} CPU ({wall:?} wall)"
+        );
         // The work really happened: every file written, no secret in any.
         let mut bytes = 0;
         for entry in std::fs::read_dir(dir.path().join(name)).unwrap().flatten() {
