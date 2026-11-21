@@ -10,7 +10,8 @@
     clippy::unwrap_used,
     clippy::expect_used,
     clippy::panic,
-    clippy::pedantic
+    clippy::pedantic,
+    reason = "a test: a failed step is the failure it reports"
 )]
 
 use std::collections::HashSet;

@@ -340,7 +340,7 @@ fn ended_reset(state: &Arc<AppState>, session: &SessionId, facts: &Facts, now: i
 /// whose tool records them); `true` when its stored state changed. A
 /// driven session's mark is its runtime's ([`driven`]), and only expires
 /// here. A session whose process ended is the exit classifier's, until
-/// its limit resets ([`ended_reset`]).
+/// its limit resets (`ended_reset`).
 pub fn check(state: &Arc<AppState>, session: &SessionId) -> bool {
     let Some(facts) = facts(state, session) else {
         return false;

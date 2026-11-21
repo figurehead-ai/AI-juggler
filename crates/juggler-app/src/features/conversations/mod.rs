@@ -246,7 +246,7 @@ pub struct ConversationIndex {
     tails: Mutex<asks::Tails>,
     /// The profile folders it reads, refreshed with the accounts: when
     /// listed, the folders' stamp then, and the list.
-    profiles: Mutex<Option<(std::time::Instant, Option<i64>, Vec<scan::Profile>)>>,
+    profiles: Mutex<Option<folders::Listed>>,
     /// Held while a pass reads the files: one pass at a time (QA batch 9:
     /// at a start, the background pass, the conversation list and the
     /// projects backfill each read every file at once).

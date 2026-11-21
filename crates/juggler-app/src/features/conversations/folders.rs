@@ -8,6 +8,10 @@ use std::sync::Arc;
 use super::scan;
 use crate::state::AppState;
 
+/// A list of the folders as kept: when it was made, the folders' stamp
+/// then, and the folders.
+pub(super) type Listed = (std::time::Instant, Option<i64>, Vec<scan::Profile>);
+
 /// How often the profile folders are listed again from the accounts.
 const PROFILES_EVERY: std::time::Duration = std::time::Duration::from_secs(15);
 
