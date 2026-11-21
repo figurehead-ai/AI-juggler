@@ -126,7 +126,7 @@ export function MoveChoice({
   return (
     <Section title="How it continues" testId="switch-how">
       <RadioCards label="How it continues" value={value} onChange={(how) => onChange(how === "move" ? "move" : "copy")} columns={2} testId="switch-how-cards">
-        <RadioCard
+        <RadioCard align="start"
           value="move"
           logo={<LogoTile icon={IconCarryIn} size={32} on={value === "move"} />}
           title={
@@ -141,7 +141,8 @@ export function MoveChoice({
           testId="switch-how-move"
         >
           {ready ? (
-            <span className="mt-1.5 flex flex-wrap gap-1.5">
+            // Under the check mark's corner, the tags may use the card's width.
+            <span className="mt-1.5 -mr-7 flex flex-wrap gap-1.5">
               <Pill tone="neutral">No extra space</Pill>
               <Pill tone="neutral">Undo available</Pill>
             </span>
@@ -149,7 +150,7 @@ export function MoveChoice({
             why[0] && <span className="mt-1 text-meta text-ink-2">{sentence(why[0])}</span>
           )}
         </RadioCard>
-        <RadioCard
+        <RadioCard align="start"
           value="copy"
           logo={<LogoTile icon={IconCopy} size={32} on={value === "copy"} />}
           title="Copy"

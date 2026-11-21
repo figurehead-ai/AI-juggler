@@ -169,7 +169,8 @@ export function HandoverSection({
     };
   }, [instanceId, session.status, turn, dialog, switchOpen, quiet]);
   const list = (
-    <div className="mt-3 flex flex-col gap-2">
+    // In the dialog, under its header; in the card, under the fold.
+    <div className={(dialog ? "" : "mt-3 ") + "flex flex-col gap-2"}>
       {/* AJ-E207 Req.3: the reset-trigger suggestion — suggested,
           never executed; the user clicks. */}
       {suggestions.map((suggestion) => (

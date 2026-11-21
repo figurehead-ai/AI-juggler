@@ -93,7 +93,7 @@ export function ContinueDialog({ title, detail, onClose: close, children }: { ti
             </button>
           </>
         }
-        bodyClassName="flex flex-col gap-3 px-5 py-4"
+        bodyClassName="flex flex-col gap-3 px-5 pt-1 pb-4"
         bodyTestId="continue-dialog-body"
         // AJ-E2311 item 4 (the 0.4.6 walk at 1280×800: no Cancel in
         // sight): the way out stays under the list, however long it is.

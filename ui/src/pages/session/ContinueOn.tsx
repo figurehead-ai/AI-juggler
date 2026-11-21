@@ -23,7 +23,7 @@ import { roomMarkFrom } from "../../lib/room-mark";
 import { Pill } from "../../components/Pill";
 import { WhyButton } from "../../components/WhyTip";
 import { RoomLine, StartThereLink } from "../../components/SwitchTargetRows";
-import { BadgeTag, RoomTag, SuggestedTag, TargetButton, TargetLogo } from "../../components/switch/TargetCard";
+import { BadgeLine, RoomTag, SuggestedTag, TargetButton, TargetLogo } from "../../components/switch/TargetCard";
 import { switchTargets, type SwitchTargetData } from "../../lib/ipc/switch-targets";
 import type { QuotaDisplayData } from "../../lib/ipc/quota";
 import type { SwitchBackSuggestionData } from "../../lib/ipc/switchBack";
@@ -346,15 +346,15 @@ function ContinueTarget({ target, accountRoom, check, pick, onStart }: { target:
         suggested={target.suggested && target.blocked === null}
         logo={<TargetLogo tool={target.tool ?? null} kind={target.mark?.kind === "desktop" ? "desktop" : "cli"} place={target.mark} folderId={target.profileId} label={target.label} />}
         name={target.name ?? target.label}
-        tags={
-          (target.suggested || badge) && (
+        tags={target.suggested && <SuggestedTag />}
+        detail={
+          (badge || words) && (
             <>
-              {target.suggested && <SuggestedTag />}
-              {badge && <BadgeTag badge={badge.words} validated={badge.validated} />}
+              {badge && <BadgeLine badge={badge.words} validated={badge.validated} />}
+              {words && <span data-testid="continue-check">{words}</span>}
             </>
           )
         }
-        detail={words && <span data-testid="continue-check">{words}</span>}
       />
       {target.setupNeeded && <StartThereLink accountId={target.profileId} label={target.label} onStart={onStart} />}
     </div>

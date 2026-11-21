@@ -2,14 +2,14 @@
  * 0.3.5 — what goes along, in one coloured line on the last step
  * ("Everything goes along · 8 items"), that opens to the whole list (the
  * maintainer, 2026-11-02: "keep the transfer simple but give options to
- * read things in details"). Closed at first; its tint says whether
- * anything is left behind (warning) or all of it goes (success), and the
- * words say it too.
+ * read things in details"). Closed at first; its chip says whether all
+ * of it goes (a green ✓) or not (a neutral (i): a fact, not amber), and
+ * the words say it too.
  */
 import type { JSX, ReactNode } from "react";
 import type { CarryItemData, PreflightInfoData } from "../../lib/ipc/switch-preflight";
 import type { SetupCheckInfo } from "../../lib/ipc/switchSetup";
-import { IconAlert } from "../icons";
+import { IconInfo } from "../icons-actions";
 import { IconCheck } from "../icons-controls";
 import { Disclosure } from "../controls";
 import { CarryList, withSetup } from "./CarryList";
@@ -39,13 +39,14 @@ export function carryWords(
   return { words: parts.join(" · "), warn: true };
 }
 
-/** The words as a tinted line: an icon chip (✓ all goes; ! something
- * doesn't) and the count, the words saying it too. */
+/** The words with an icon chip: ✓ on the quiet green when all of it goes,
+ * else a neutral (i), since what stays behind is a fact, not a call to act
+ * (COL-4); the words say it too. */
 function Headline({ words, warn, testId }: { words: string; warn: boolean; testId?: string }): JSX.Element {
-  const Mark = warn ? IconAlert : IconCheck;
+  const Mark = warn ? IconInfo : IconCheck;
   return (
     <span className="inline-flex min-w-0 items-center gap-2 font-medium text-ink">
-      <span aria-hidden="true" className={"flex size-6 shrink-0 items-center justify-center rounded-md " + (warn ? "bg-warning-soft text-warning" : "bg-success-soft text-success")}>
+      <span aria-hidden="true" className={"flex size-6 shrink-0 items-center justify-center rounded-md " + (warn ? "bg-surface-3 text-ink-2" : "bg-success-soft text-success")}>
         <Mark width={14} height={14} />
       </span>
       <span data-testid={testId}>{words}</span>

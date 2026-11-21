@@ -88,7 +88,7 @@ describe("AJ-E209 SwitchTargetRows — the badged ranked entry", () => {
     expect(badge.getAttribute("data-validated")).toBe("false");
     expect(
       container.querySelector('[data-testid="target-drop-list"]')!.textContent,
-    ).toContain("Doesn't carry: The task list, Subagents' work");
+    ).toContain("Doesn't carry: the task list, subagents' work");
     expect(container.textContent).toContain("80% headroom · used most here");
     expect(container.textContent).toContain("exhausts ≈262 min");
     expect(container.textContent).toContain("Computed");

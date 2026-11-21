@@ -73,7 +73,7 @@ export function WhereChoice({
   return (
     <Section title="Continue in" testId="switch-where">
       <RadioCards label="Continue in" value={value} onChange={(next) => onChange(next === "desktop" ? "desktop" : "cli")} columns={2}>
-        <RadioCard
+        <RadioCard align="start"
           value="desktop"
           logo={<ToolLogo tool={preflight.target_tool} kind="desktop" appId={desktop?.app_id ?? undefined} size={32} />}
           title={title("Desktop", "desktop")}
@@ -84,7 +84,7 @@ export function WhereChoice({
         >
           {desktop === null && why(desktopWhy)}
         </RadioCard>
-        <RadioCard
+        <RadioCard align="start"
           value="cli"
           logo={<ToolLogo tool={preflight.target_tool} kind="cli" size={32} />}
           title={title("CLI", "cli")}

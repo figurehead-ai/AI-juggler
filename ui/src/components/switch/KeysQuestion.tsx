@@ -109,7 +109,7 @@ export function KeysQuestion({
       </Alert>
       {/* Nothing preselected: the user answers (the switch waits for it). */}
       <RadioCards label="Keys and passwords in this conversation" value={answer} onChange={(next) => onAnswer(next === "keep" ? "keep" : "strip")} columns={2}>
-        <RadioCard
+        <RadioCard align="start"
           value="strip"
           logo={<LogoTile icon={IconShield} size={32} on={answer === "strip"} />}
           title={
@@ -125,7 +125,7 @@ export function KeysQuestion({
           }
           testId="switch-keys-hide"
         />
-        <RadioCard
+        <RadioCard align="start"
           value="keep"
           logo={<LogoTile icon={IconKey} size={32} on={answer === "keep"} />}
           title="Leave them in"

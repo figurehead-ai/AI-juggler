@@ -23,7 +23,7 @@ import { lowRoomWords, ROOM_ORDER_WORDS, outOfRoomConsequence, outOfRoomWords } 
 import { DESKTOP_ONLY, roomless, type TargetRoom } from "../lib/room-targets";
 import { creditsConsequence, usingCreditsWords } from "../lib/credits";
 import { useTargetApp } from "../lib/apps";
-import { BadgeTag, RoomTag, SuggestedTag, TargetButton, TargetLogo } from "./switch/TargetCard";
+import { afterColon, BadgeLine, BadgeTag, RoomTag, SuggestedTag, TargetButton, TargetLogo } from "./switch/TargetCard";
 
 /** "Suggested": the one with the most room (the one order by room). One
  * look everywhere (TAG-5): the accent tag. */
@@ -162,22 +162,22 @@ export function SwitchTargetRows({
                 name={app.name}
                 sub={filtered ? target.filtered_reason : `On ${target.room?.account ?? target.account_label}${forecast ? ` · ${forecast}` : ""}`}
                 tags={
-                  <>
-                    {target.room && !filtered && <RoomTag room={target.room} />}
-                    {target.suggested && !filtered && <SuggestedTag />}
-                    <BadgeTag badge={target.badge} validated={target.validated} />
-                  </>
-                }
-                detail={
-                  !filtered && (
+                  !filtered && (target.room || target.suggested) && (
                     <>
-                      {target.room && <RoomLine name={target.room.account ?? target.account_label} room={target.room} chip={false} />}
-                      {target.signed_out && target.desktop && <span data-testid="target-sign-in">{DESKTOP_ONLY}</span>}
-                      {target.cross_provider && target.drops.length > 0 && <span data-testid="target-drop-list">Doesn't carry: {target.drops.join(", ")}</span>}
-                      {/* The top two, or with "Why this order?" open, every input. */}
-                      {whyOpen ? <span>{target.factors.map(([words]) => words).join(" · ")}</span> : factors && <span>{factors}</span>}
+                      {target.room && <RoomTag room={target.room} />}
+                      {target.suggested && <SuggestedTag />}
                     </>
                   )
+                }
+                detail={
+                  <>
+                    <BadgeLine badge={target.badge} validated={target.validated} />
+                    {!filtered && target.room && <RoomLine name={target.room.account ?? target.account_label} room={target.room} chip={false} />}
+                    {!filtered && target.signed_out && target.desktop && <span data-testid="target-sign-in">{DESKTOP_ONLY}</span>}
+                    {!filtered && target.cross_provider && target.drops.length > 0 && <span data-testid="target-drop-list">Doesn't carry: {afterColon(target.drops)}</span>}
+                    {/* The top two, or with "Why this order?" open, every input. */}
+                    {!filtered && (whyOpen ? <span>{target.factors.map(([words]) => words).join(" · ")}</span> : factors && <span>{factors}</span>)}
+                  </>
                 }
               />
               {target.held_back === "set_up" && <StartThereLink accountId={target.account_id} label={target.account_label} />}

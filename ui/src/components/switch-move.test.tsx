@@ -302,7 +302,8 @@ describe("Move to account", () => {
     expect(view.getByTestId("switch-failed").textContent).not.toContain("didn't complete");
     const words = view.getByTestId("switch-failed-words");
     expect(words.closest("[data-level]")?.getAttribute("data-level")).toBe("info");
-    expect(words.textContent).toBe(STILL_WRITING.user_message);
+    // Under "Nothing was moved", its own "so nothing was moved" isn't said again.
+    expect(words.textContent).toBe("Claude app · Work was still writing this conversation as it closed. Try again in a moment.");
     expect(words.textContent).not.toContain("/");
     expect(view.getByTestId("switch-details").textContent).toContain("main.jsonl");
     expect(view.queryByTestId("switch-moved-undo")).toBeNull();

@@ -126,7 +126,7 @@ export function SwitchFreezeChoice({
   return (
     <Section title="When to stop the original" testId="switch-freeze">
       <RadioCards label="When to stop the original" value={value} onChange={(next) => onChange(next === "stop-now" ? "stop-now" : "finish-turn")} columns={2}>
-        <RadioCard
+        <RadioCard align="start"
           value="finish-turn"
           logo={<LogoTile icon={IconClock} size={32} on={value === "finish-turn"} />}
           title={
@@ -137,7 +137,7 @@ export function SwitchFreezeChoice({
           }
           sub="Nothing it was writing is cut off."
         />
-        <RadioCard value="stop-now" logo={<LogoTile icon={IconStop} size={32} on={value === "stop-now"} />} title="Stop it now and switch" sub="An unfinished reply is marked as cut off." />
+        <RadioCard align="start" value="stop-now" logo={<LogoTile icon={IconStop} size={32} on={value === "stop-now"} />} title="Stop it now and switch" sub="An unfinished reply is marked as cut off." />
       </RadioCards>
       <Explain
         guide={GUIDE.original}

@@ -226,7 +226,9 @@ describe("0.3.5 simple by default, details on demand", () => {
     expect(view.getByTestId("switch-carry-words").textContent).toBe("2 go along · 1 stays behind");
     const stays = view.getByTestId("switch-carry-stays");
     expect(stays.querySelector("span")!.className).toContain("bg-surface-3");
-    expect(stays.textContent).toContain("Stays behind");
+    // The group's heading says it once, with its count (LST-3), no tag per row.
+    expect(view.getByTestId("switch-carry-dropped").querySelector("h4")!.textContent).toBe("Stays behind · 1");
+    expect(stays.textContent).not.toContain("Stays behind");
   });
 
   // 0.5.0 (WIZ-1, D-126: progress is the accent's): the current step's dot

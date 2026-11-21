@@ -85,11 +85,17 @@ export function Moving({ target, holding, progress }: { target: string; holding:
 
 /** A move that stopped: calm when nothing changed, else the warning and
  * Undo for the move left part way (`left`). */
+/** A refusal's words under the heading "Nothing was moved": its own
+ * "…, so nothing was moved" left out, so it isn't said twice (CNT-5). */
+export function withoutNothingMoved(message: string): string {
+  return message.replace(/\s*[,;]\s*(so\s+)?nothing (was|has been) moved(?=[.;,]|$)/gi, "");
+}
+
 export function MoveFailed({ target, message, cause, left }: { target: string; message: string; cause: unknown; left: string | null }): JSX.Element {
   const calm = nothingMoved(cause) && !left;
   return (
     <div className="flex flex-col gap-4">
-      <FailedStep target={target} message={sentence(message)} cause={cause} results={[]} calm={calm ? { title: "Nothing was moved" } : undefined} />
+      <FailedStep target={target} message={sentence(calm ? withoutNothingMoved(message) : message)} cause={cause} results={[]} calm={calm ? { title: "Nothing was moved" } : undefined} />
       {left && <MoveUndo moveId={left} />}
     </div>
   );

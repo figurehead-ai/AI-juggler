@@ -78,7 +78,7 @@ export function CrossTarget({ target, badge, mechanism, onMechanism, t2Possible 
       )}
       <Section title="How the work goes along" as="h4">
         <RadioCards label="How the work goes along" value={mechanism} onChange={(next) => onMechanism(next === "replay" ? "replay" : "transplant")} columns={2}>
-          <RadioCard
+          <RadioCard align="start"
             value="transplant"
             logo={<LogoTile icon={IconMessage} size={32} on={mechanism === "transplant"} />}
             title="Same conversation"
@@ -87,7 +87,7 @@ export function CrossTarget({ target, badge, mechanism, onMechanism, t2Possible 
             reason="Not possible here: see why above."
             testId="cross-switch-t2"
           />
-          <RadioCard
+          <RadioCard align="start"
             value="replay"
             logo={<LogoTile icon={IconPage} size={32} on={mechanism === "replay"} />}
             title="Full story, fresh start"
@@ -120,7 +120,7 @@ export function CrossProject({ target, projectId, onProject, confirmed, onConfir
       ) : (
         <RadioCards label={`Project on ${machine}`} value={projectId} onChange={onProject}>
           {projects.map((project) => (
-            <RadioCard
+            <RadioCard align="start"
               key={project.project_id}
               value={project.project_id}
               logo={<LogoTile icon={IconFolderOpen} size={32} on={projectId === project.project_id} />}
@@ -178,8 +178,8 @@ export function CrossCarried({ target, mechanism, secrets, onSecrets }: { target
       ) : (
         <Section title="Keys and passwords in this conversation" as="h4" testId="cross-switch-keys">
           <RadioCards label="Keys and passwords in this conversation" value={secrets} onChange={(next) => onSecrets(next === "keep" ? "keep" : "strip")} columns={2}>
-            <RadioCard value="strip" logo={<LogoTile icon={IconShield} size={32} on={secrets === "strip"} />} title="Hide them" sub="They're replaced with ••• and never leave this computer. If the other session needs a key, it asks you." testId="cross-switch-secrets-strip" />
-            <RadioCard value="keep" logo={<LogoTile icon={IconKey} size={32} on={secrets === "keep"} />} title="Leave them in" sub={`They go to ${machine} exactly as written. Choose this only if the work needs them.`} testId="cross-switch-secrets-keep" />
+            <RadioCard align="start" value="strip" logo={<LogoTile icon={IconShield} size={32} on={secrets === "strip"} />} title="Hide them" sub="They're replaced with ••• and never leave this computer. If the other session needs a key, it asks you." testId="cross-switch-secrets-strip" />
+            <RadioCard align="start" value="keep" logo={<LogoTile icon={IconKey} size={32} on={secrets === "keep"} />} title="Leave them in" sub={`They go to ${machine} exactly as written. Choose this only if the work needs them.`} testId="cross-switch-secrets-keep" />
           </RadioCards>
         </Section>
       )}

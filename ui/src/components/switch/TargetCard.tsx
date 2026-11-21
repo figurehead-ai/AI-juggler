@@ -74,14 +74,31 @@ export function SuggestedTag(): JSX.Element {
   );
 }
 
-/** How much carries ("Full story, fresh start · Beta"): a neutral tag,
- * the words saying beta; the accent only once it's validated. */
+/** How much carries ("Full story, fresh start · Beta"), where a list
+ * already shows two tags (TAG-2): a quiet line under the name, the words
+ * saying beta. */
+export function BadgeLine({ badge, validated }: { badge: string; validated: boolean }): JSX.Element {
+  return (
+    <span className="text-meta text-muted" data-testid="fidelity-badge" data-validated={validated ? "true" : "false"}>
+      {badge}
+    </span>
+  );
+}
+
+/** How much carries, as a neutral tag on a screen about one target (the
+ * accent only once it's validated). */
 export function BadgeTag({ badge, validated }: { badge: string; validated: boolean }): JSX.Element {
   return (
     <span className="contents" data-testid="fidelity-badge" data-validated={validated ? "true" : "false"}>
       <Pill tone={validated ? "accent" : "neutral"}>{badge}</Pill>
     </span>
   );
+}
+
+/** A list's items after a colon, each in lower case unless it's a name
+ * ("Doesn't carry: subagents' work, the task list, MCP servers"). */
+export function afterColon(items: readonly string[]): string {
+  return items.map((item) => (/^[A-Z][a-z]/.test(item) ? item[0]!.toLowerCase() + item.slice(1) : item)).join(", ");
 }
 
 /** A pick in a target list: a card-like row that opens the switch. */
