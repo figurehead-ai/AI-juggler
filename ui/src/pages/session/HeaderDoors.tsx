@@ -44,9 +44,11 @@ export function SessionPoolChip({ sessionId }: { sessionId: string }): JSX.Eleme
   const place = usePoolPlace(sessionId);
   // SK48-10 (the 0.4.8 soak, P11): a session in pools A and B read
   // "Pool: A". Every pool it's in is named, each its own door (its Pools
-  // tab lists them too); until that's read, the one its place names.
+  // tab lists them too), with the one its place names.
   const all = useSessionPools(sessionId);
-  const ids = all ? all.pools.map((entry) => entry.pool_id) : place ? [place.pool_id] : [];
+  // Its project's own pool comes from its place (the pools list may leave
+  // it out): both, once each.
+  const ids = [...new Set([...(all ? all.pools.map((entry) => entry.pool_id) : []), ...(place ? [place.pool_id] : [])])];
   // Its project's own pool only once another session shares it: a session
   // alone there has nothing to see.
   const shown = ids.flatMap((id) => poolById(pools, id) ?? []).filter((pool) => !(pool.kind === "default" && pool.members < 2));

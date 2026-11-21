@@ -53,3 +53,13 @@ it("one pool reads as before", () => {
   );
   expect(view.getByTestId("session-pool-chip").textContent).toBe("Pool: A");
 });
+
+it("keeps the pool its place names when its pools list leaves it out (the project's own pool)", () => {
+  inPools = [];
+  const view = render(
+    <ActionHostProvider host={{ openPool: vi.fn() }}>
+      <SessionPoolChip sessionId="s1" />
+    </ActionHostProvider>,
+  );
+  expect(view.getByTestId("session-pool-chip").textContent).toBe("Pool: A");
+});
