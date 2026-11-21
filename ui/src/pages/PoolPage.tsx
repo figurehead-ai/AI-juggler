@@ -22,7 +22,7 @@ import { PaletteMore } from "./pool/PaletteMore";
 import { RuleNodes } from "./pool/RuleNodes";
 import { startNextLead } from "../lib/start-lead";
 import { useLogoSources, useMoreCandidates, useRuleLabel, useRuleTool } from "./pool/pool-page-reads";
-import { PlannedTeam } from "./pool/PlannedTeam";
+import { PlannedTeam, canvasRoom } from "./pool/PlannedTeam";
 import { ScopeSheet } from "./pool/ScopeSheet";
 import { NewPool } from "../screens/pools/NewPool";
 import { EmptyPoolSetup, SetupSkeleton } from "./pool/EmptyPoolSetup";
@@ -302,7 +302,7 @@ function PoolCanvasPage({ poolId, sessions, projects, accounts, now, rules }: Pa
                   }}
                 />
               }
-              overlayRoom={setup.room}
+              {...canvasRoom(planned, broad, setup)}
               lineRules={lineRules}
               overlay={(placeOf, view) =>
                 planned ? (
