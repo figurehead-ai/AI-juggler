@@ -60,6 +60,34 @@ describe("the window's own polling", () => {
     vi.advanceTimersByTime(5000);
     expect(run).toHaveBeenCalledTimes(5);
   });
+
+  // SK-24 (the 0.4.7 persona runs): a session page said "started 1s ago"
+  // for a session minutes old. The shell's clock is this cadence (15 s,
+  // 30 s unfocused), and each focus or blur started its wait again: a
+  // window whose focus came and went every 10 s never ticked at all.
+  it("keeps its cadence while focus comes and goes faster than it", () => {
+    vi.useFakeTimers();
+    let focused = false;
+    const focus = vi.spyOn(document, "hasFocus").mockImplementation(() => focused);
+    const run = vi.fn();
+    const stop = everyWhileShown(run, 15_000, { unfocusedTimes: 2 });
+    for (let step = 0; step < 12; step += 1) {
+      vi.advanceTimersByTime(10_000);
+      focused = !focused;
+      window.dispatchEvent(new Event(focused ? "focus" : "blur"));
+    }
+    // Two minutes: at least one run every 30 s (the unfocused cadence).
+    expect(run.mock.calls.length).toBeGreaterThanOrEqual(4);
+    // A run is never more often than the focused cadence, however often focus moves.
+    const count = run.mock.calls.length;
+    for (let step = 0; step < 10; step += 1) {
+      vi.advanceTimersByTime(1000);
+      window.dispatchEvent(new Event(step % 2 === 0 ? "blur" : "focus"));
+    }
+    expect(run.mock.calls.length - count).toBeLessThanOrEqual(1);
+    stop();
+    focus.mockRestore();
+  });
 });
 
 describe("a read asked for on every change (AJ-E805, round 3)", () => {
