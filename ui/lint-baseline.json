@@ -101,7 +101,6 @@
   "jsx-a11y(prefer-tag-over-role)": 1
  },
  "src/components/CrossMachineSwitchFlow.tsx": {
-  "jsx-a11y(prefer-tag-over-role)": 2,
   "typescript(consistent-return)": 2
  },
  "src/components/DeleteInstanceDialog.tsx": {

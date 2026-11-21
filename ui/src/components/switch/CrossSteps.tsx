@@ -6,7 +6,12 @@
  * same rich look as this Mac's: facts on the tinted panel, choices as
  * cards, what blocks as an Alert.
  */
-import type { JSX } from "react";
+import type { JSX, ReactNode } from "react";
+import type { FleetSwitchProgressInfo } from "../../types/generated/FleetSwitchProgressInfo";
+import { byteSize } from "../../lib/compact";
+import { ProgressBar } from "../UpdateProgress";
+import { SwitchHeader } from "./SwitchHeader";
+import { ToolLogo } from "../ToolLogo";
 import type { CarryItemData } from "../../lib/ipc/switch-preflight";
 import type { RemoteSwitchTargetInfo } from "../../types/generated/RemoteSwitchTargetInfo";
 import { toolSpec } from "../../lib/tools";
@@ -17,11 +22,11 @@ import { Alert } from "../Alert";
 import { Pill } from "../Pill";
 import { Section } from "../Section";
 import { LogoTile } from "../ToolLogo";
-import { IconFolderOpen, IconKey, IconPage } from "../icons-actions";
+import { IconComputer, IconFolderOpen, IconKey, IconPage } from "../icons-actions";
 import { IconMessage } from "../icons-canvas";
 import { IconCheck } from "../icons-controls";
 import { IconWarn } from "../icons-menu";
-import { IconShield, IconTerminal } from "../icons";
+import { IconFleet, IconShield, IconStateHandover, IconTerminal } from "../icons";
 import { IconHistory } from "../icons-places";
 import { Fact, FactPanel } from "./Facts";
 import { BadgeTag } from "./TargetCard";
@@ -56,7 +61,7 @@ export function CrossTarget({ target, badge, mechanism, onMechanism, t2Possible 
   const tool = target.provider === "" ? null : toolSpec(target.provider).display_name;
   return (
     <div className="flex flex-col gap-5" data-testid="cross-switch-target">
-      <Heading title={`Switch to ${target.account_label} on ${machine}`} badge={badge} />
+      <Heading title="Where it goes" badge={badge} />
       <FactPanel testId="cross-switch-preconditions" label="Before it can move">
         {tool && (
           <Fact icon={sameVersion ? IconCheck : IconWarn} tone={sameVersion ? "done" : "warn"} label="Tool">
@@ -204,6 +209,116 @@ export function CrossConfirm({ target, badge, mechanism, projectName, freeze, on
         </Fact>
       </FactPanel>
       <SwitchFreezeChoice sourceLive value={freeze} onChange={onFreeze} />
+    </div>
+  );
+}
+
+/** The switch to a paired Mac's header: the same as this computer's
+ * switch (icon tile, title, from → to), the step marks under it. */
+export function CrossHeader({ target, marks }: { target: RemoteSwitchTargetInfo; marks?: ReactNode }): JSX.Element {
+  const to = `${target.account_label} on ${target.machine_label}`;
+  return (
+    <SwitchHeader
+      icon={IconStateHandover}
+      title={`Switch to ${to}`}
+      sub="This conversation · now on this computer"
+      from={{ name: "This computer", logo: <LogoTile icon={IconComputer} size={24} /> }}
+      to={{ name: to, logo: target.provider ? <ToolLogo tool={target.provider} kind="cli" size={24} /> : <LogoTile icon={IconFleet} size={24} on /> }}
+      marks={marks}
+      testId="cross-switch-header"
+      titleTestId="cross-switch-title"
+      stripTestId="cross-switch-strip"
+    />
+  );
+}
+
+/** The two things sending does, and where it is (DLG-10). */
+const SENDING = (machine: string) => [`Send it to ${machine}`, `${machine} sets it up and starts it`];
+
+/** While it sends: the stage it's at on the tinted panel, the bytes and a
+ * bar while there are bytes to count, then the two steps. */
+export function CrossSending({ target, progress, holding }: { target: RemoteSwitchTargetInfo; progress: FleetSwitchProgressInfo | null; holding: boolean }): JSX.Element {
+  const machine = target.machine_label;
+  const at = progress?.phase === "installing" ? 1 : 0;
+  const counted = progress && progress.total_bytes > 0 ? progress : null;
+  return (
+    <div className="flex flex-col gap-4" data-testid="cross-switch-pushing" aria-live="polite">
+      <h3 className="type-section">
+        Switching to {target.account_label} on {machine}…
+      </h3>
+      <div className="flex flex-col gap-2 rounded-card bg-accent-soft px-4 py-3.5 inset-ring-1 inset-ring-accent/15">
+        <p className="flex items-baseline gap-2 text-body font-semibold text-ink">
+          {at === 1 ? `${machine} is setting it up and starting it…` : `Sending it to ${machine}…`}
+          {counted && (
+            <span className="ml-auto shrink-0 text-meta font-normal tabular-nums text-ink-2">
+              {byteSize(counted.received_bytes)} of {byteSize(counted.total_bytes)}
+            </span>
+          )}
+        </p>
+        {counted && <ProgressBar label={`Sent to ${machine}`} percent={Math.min(100, Math.floor((counted.received_bytes / counted.total_bytes) * 100))} />}
+      </div>
+      <ol className="flex flex-col gap-1.5 text-body">
+        {SENDING(machine).map((stage, index) => (
+          <li key={stage} className={"flex items-center gap-2.5 " + (index < at ? "text-ink-2" : index === at ? "font-semibold text-ink" : "text-muted")} data-state={index < at ? "done" : index === at ? "now" : "next"}>
+            <span aria-hidden="true" className="flex size-5 shrink-0 items-center justify-center">
+              {index < at ? (
+                <IconCheck width={14} height={14} strokeWidth={2.5} className="text-success" />
+              ) : index === at ? (
+                <span className="inline-block size-3.5 rounded-full border-2 border-accent border-t-transparent motion-safe:animate-spin" />
+              ) : (
+                <span className="size-2 rounded-full inset-ring-[1.5px] inset-ring-faint" />
+              )}
+            </span>
+            {stage}
+          </li>
+        ))}
+      </ol>
+      <p className="text-body text-ink-2">The original stays safe on this computer until the new session is running.</p>
+      {holding && (
+        <Alert level="info" live="status" testId="cross-switch-holding">
+          Still sending. Choose Stop sending to stop it; nothing changes on either computer.
+        </Alert>
+      )}
+    </div>
+  );
+}
+
+/** Switched: a success summary, what happened as facts. */
+export function CrossDone({ target, message }: { target: RemoteSwitchTargetInfo; message: string }): JSX.Element {
+  return (
+    <div className="flex flex-col gap-6" data-testid="cross-switch-done" aria-live="polite">
+      <div className="flex items-center gap-3">
+        <span aria-hidden="true" className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-success-soft text-success">
+          <IconCheck width={20} height={20} strokeWidth={2.5} />
+        </span>
+        <div className="flex min-w-0 flex-col gap-0.5">
+          <h3 className="type-section">
+            Switched to {target.account_label} on {target.machine_label}
+          </h3>
+          <p className="type-help">{message}.</p>
+        </div>
+      </div>
+      <FactPanel label="What happened">
+        <Fact icon={IconFleet} label="Where" tone="done">
+          {target.account_label} on {target.machine_label}
+        </Fact>
+        <Fact icon={IconHistory} label="Original">
+          This session rests here, handed over; you can switch back to it any time.
+        </Fact>
+      </FactPanel>
+    </div>
+  );
+}
+
+/** It didn't complete: the failure's own words in a broken Alert, said
+ * once (crossmachine/failure.rs); nothing is added to them. */
+export function CrossFailed({ message }: { message: string }): JSX.Element {
+  return (
+    <div className="flex flex-col gap-5" data-testid="cross-switch-failed">
+      <h3 className="type-section">The switch didn't complete</h3>
+      <Alert level="broken" className="text-body">
+        <span data-testid="cross-switch-failed-words">{message}</span>
+      </Alert>
     </div>
   );
 }
