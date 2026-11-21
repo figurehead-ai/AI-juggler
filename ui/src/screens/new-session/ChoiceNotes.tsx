@@ -27,11 +27,31 @@ export function reasonOf(app: AppChoice, data: NewSessionData, now: number, afte
   if (app.passedOver) return passedOverWords(data.appNameOf(app.passedOver));
   const skipped = app.skipped;
   if (!skipped) return appWhyWords(app.why, after);
-  const id = skipped.account_id;
+  return roomGoneWords(skipped, data, now) ?? appWhyWords(app.why, after);
+}
+
+/** An App's Account out of room or almost, as it stands now ("Work is out
+ * of room until 8:12 PM", "Work is almost out (5% left)"); `null` once it
+ * has room. */
+function roomGoneWords(recipe: LaunchRecipeInfo, data: NewSessionData, now: number): string | null {
+  const id = recipe.account_id;
   // An estimate says "about", as its Low/Out mark does.
   const about = roomMarkOf(data.displayOf(id), data.sessionsOf(id), now)?.about ?? false;
-  const skip = skippedWords(data.accountNameOf(id) ?? data.appNameOf(skipped), data.roomOf(id), now, about);
-  return skip ?? appWhyWords(app.why, after);
+  return skippedWords(data.accountNameOf(id) ?? data.appNameOf(recipe), data.roomOf(id), now, about);
+}
+
+/** "App changed to … (was …): why. Undo": a change of App the person
+ * didn't make here directly, or one that took a warning away. */
+function ChangedAlert({ appName, was, why, onUndo, testId, undoTestId }: { appName: string; was: string; why: string | null; onUndo: () => void; testId: string; undoTestId: string }): JSX.Element {
+  return (
+    <Alert level="info" live={null} className="my-1" title={`App changed to ${appName}`} testId={testId}>
+      {/* An App's name stays whole on its line ("Work / Max" read as two). */}
+      (was <span className="whitespace-nowrap">{was}</span>){why ? `: ${why}` : ""}.{" "}
+      <button type="button" onClick={onUndo} aria-label={`Undo: back to ${was}`} className={LINK} data-testid={undoTestId}>
+        Undo
+      </button>
+    </Alert>
+  );
 }
 
 /** F-rc3f-1: what a folder change did to the App, on the card under it,
@@ -77,15 +97,7 @@ export function Told({
           {account ? `Starts on ${appName}, account ${account}.` : `Starts on ${appName}.`}
         </span>
       )}
-      {appName && change && (
-        <Alert level="info" live={null} className="my-1" title={`App changed to ${appName}`} testId="launch-app-changed">
-          {/* An App's name stays whole on its line ("Work / Max" read as two). */}
-          (was <span className="whitespace-nowrap">{data.appNameOf(change)}</span>){why ? `: ${why}` : ""}.{" "}
-          <button type="button" onClick={() => onApp(change.account_id)} aria-label={`Undo: back to ${data.appNameOf(change)}`} className={LINK} data-testid="launch-app-undo">
-            Undo
-          </button>
-        </Alert>
-      )}
+      {appName && change && <ChangedAlert appName={appName} was={data.appNameOf(change)} why={why} onUndo={() => onApp(change.account_id)} testId="launch-app-changed" undoTestId="launch-app-undo" />}
       {appName && ask && own && (
         <Alert level="info" live={null} className="my-1" title={`Kept ${appName}, as you chose.`} testId="launch-app-kept">
           {own}.{" "}
@@ -101,6 +113,7 @@ export function Told({
 export function Notes({
   app,
   appName,
+  left = null,
   offerSuggested = false,
   data,
   now,
@@ -110,6 +123,11 @@ export function Notes({
 }: {
   app: AppChoice;
   appName: string;
+  /** AJ-E2312 item 5: the App the person moved off while it warned
+   * (`useAppPick`): in the warning's place, what changed and why, with
+   * Undo, so the space it held still says something and nothing under it
+   * moves up. */
+  left?: AppChoice | null;
   /** SK-6: the App offered is the one New session suggests (the shown one
    * can't run now). */
   offerSuggested?: boolean;
@@ -130,6 +148,11 @@ export function Notes({
     </>
   ) : null;
   const lines: JSX.Element[] = [];
+  if (left) {
+    const was = data.appNameOf(left.recipe);
+    const why = left.kind === "blocked" ? passedOverWords(was) : roomGoneWords(left.recipe, data, now);
+    lines.push(<ChangedAlert key="left" appName={appName} was={was} why={why} onUndo={() => onApp(left.recipe.account_id)} testId="launch-app-left" undoTestId="launch-app-left-undo" />);
+  }
   if (app.kind === "out")
     lines.push(
       <Note key="out" testId="launch-out-of-room" tone="warning">

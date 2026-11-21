@@ -20,8 +20,17 @@
  * that carries the person's pick into a folder whose own App is another
  * names that one and offers it. Both, and the App and Account themselves
  * once the person acts, are said in a polite live region.
+ *
+ * AJ-E2312 item 5 (N5 and P7 on 0.4.7's nightly: the sheet moved ~50 px
+ * when its warning left, ~20 px when Suggested left the App's line):
+ * the card holds still while the sheet is open, as 0.4.7 held the sheet
+ * at the top. A warning the person answered by moving off its App stays
+ * answered in its place ("App changed to … (was …): Work is out of room
+ * until 8:12 PM. Undo"), and the card never gets shorter (its tallest
+ * height so far is its least), so nothing under it moves up under the
+ * pointer; it only grows, downward.
  */
-import type { JSX, ReactNode } from "react";
+import { useLayoutEffect, useRef, type JSX, type ReactNode, type RefObject } from "react";
 import { IconProjects } from "../../components/icons";
 import { IconStar } from "../../components/icons-actions";
 import { AccountAvatar } from "../../components/Avatar";
@@ -96,12 +105,13 @@ export function StatedChoice({
   const appName = app ? data.appNameOf(app.recipe) : null;
   const why = app ? whyOf(app, data, now, after) : null;
   const suggested = suggestion ?? app;
-  const { change, ask } = told?.(app, suggested) ?? { change: null, ask: null };
+  const { change, ask, left } = told?.(app, suggested) ?? { change: null, ask: null, left: null };
+  const card = useHeldHeight<HTMLElement>();
   // SK-6: "Suggested" only on an App that can run now: on the one shown,
   // or, when it can't, on the one its note offers.
   const markOn = suggestedMarkOn(app, ranked);
   return (
-    <section aria-labelledby="new-session-sentence" data-testid="launch-preselected" className="rounded-xl border border-accent/30 bg-accent-soft px-4 py-3.5">
+    <section ref={card} aria-labelledby="new-session-sentence" data-testid="launch-preselected" className="rounded-xl border border-accent/30 bg-accent-soft px-4 py-3.5">
       <p id="new-session-sentence" data-testid="new-session-sentence" className="text-body leading-snug text-ink">
         {folder ? "Start in " : "Start a session"}
         {folder && <strong className="font-semibold">{folderName(folder)}</strong>}
@@ -143,9 +153,33 @@ export function StatedChoice({
         </div>
         <BindingOffer app={app} folder={folder} data={data} ranked={ranked} onAlways={onAlways} />
       </div>
-      {app && appName && <Notes app={app} appName={appName} offerSuggested={markOn !== null && markOn === app.roomier?.account_id} data={data} now={now} onApp={onApp} onSignIn={onSignIn} sessionName={sessionName} />}
+      {app && appName && <Notes app={app} appName={appName} left={left} offerSuggested={markOn !== null && markOn === app.roomier?.account_id} data={data} now={now} onApp={onApp} onSignIn={onSignIn} sessionName={sessionName} />}
     </section>
   );
+}
+
+/** The card's least height is its tallest so far (AJ-E2312 item 5): a
+ * line that goes (a warning answered, Suggested gone) never moves up
+ * what's under it while the sheet is open. Measured after each drawing
+ * and whenever its size changes; held in the element's own style, so it
+ * draws nothing again. */
+function useHeldHeight<T extends HTMLElement>(): RefObject<T | null> {
+  const ref = useRef<T | null>(null);
+  const held = useRef(0);
+  useLayoutEffect(() => {
+    const box = ref.current;
+    const hold = () => {
+      const height = box?.getBoundingClientRect().height ?? 0;
+      if (!box || height <= held.current) return;
+      held.current = height;
+      box.style.minHeight = `${height}px`;
+    };
+    hold();
+    const watch = box && typeof ResizeObserver !== "undefined" ? new ResizeObserver(hold) : null;
+    if (box) watch?.observe(box);
+    return () => watch?.disconnect();
+  });
+  return ref;
 }
 
 /** D-103.7: a repo with no binding offers it in one click, "Always start

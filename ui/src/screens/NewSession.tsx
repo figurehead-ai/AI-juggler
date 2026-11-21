@@ -180,8 +180,7 @@ export function NewSessionModal({
   // No folder known: the App's own, from its launch settings.
   const folder: FolderChoice | null = asked ?? (recipe?.default_cwd ? { root: recipe.default_cwd, project: projects.find((row) => row.root === recipe.default_cwd) ?? null, why: "app-folder" } : null);
   const ready = recipe !== null && signedIn(accounts.find((row) => row.id === recipe.account_id)?.login_state ?? "logged_in");
-  // AJ-E2304: this session's runtime; AJ-E2312 item 5: "Run without a
-  // terminal" offered where the App can, and remembered for the App.
+  // AJ-E2304: this session's runtime, kept for its App (AJ-E2312 item 5).
   const runtimePick = useRuntimePick(recipe);
   const sessionNames = useMemo(() => new Map(sessions.map((row) => [row.id, sessionTitle(row)])), [sessions]);
   const sessionName = (id: string) => sessionNames.get(id) ?? null;
@@ -189,7 +188,8 @@ export function NewSessionModal({
   // The person's pick; the App shown picked again (F-rc3g-5) keeps the
   // launch settings chosen for it.
   const pickApp = (id: string) => {
-    choice.pick(id);
+    // AJ-E2312 item 5: the App shown until now, said in its warning's place.
+    choice.pick(id, app);
     if (id !== app?.recipe.account_id) setChosenSettings(null);
   };
   // Change folder, a dropped folder, a saved handover's: one rule for the App.
