@@ -21,14 +21,16 @@ import { DialogFrame, DialogOverlay } from "../DialogFrame";
 const FOCUSABLE = "button:not(:disabled), input:not(:disabled), summary";
 
 /** The step marks (WIZ-1, DESIGN-SYSTEM §4.3): "Step 2 of 3: What's
- * carried" in the accent, then each step as a numbered dot and its name,
+ * carried" for screen readers, then each step as a numbered dot and its name,
  * joined: the ones done ticked on the accent's tint, the current one filled
  * in the accent and marked `aria-current`, the rest a quiet ring. Only the
  * steps that render are listed (§8). */
 export function StepMarks({ steps, step, testId }: { steps: readonly string[]; step: number; testId: string }): JSX.Element {
   return (
     <div className="flex flex-col gap-2" data-testid={testId} aria-live="polite">
-      <p className="text-label font-semibold uppercase tracking-[0.07em] text-accent-hi">
+      {/* Said to screen readers only: the stepper below shows it (D-142 B3:
+          capitals only over groups, never a second heading). */}
+      <p className="sr-only">
         Step {step + 1} of {steps.length}: {steps[step]}
       </p>
       <ol className="flex flex-wrap items-center gap-x-2 gap-y-1.5">

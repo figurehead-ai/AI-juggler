@@ -6,9 +6,10 @@
  */
 import { useState, type JSX, type ReactNode, type SVGProps } from "react";
 import type { PreflightInfoData } from "../../lib/ipc/switch-preflight";
-import { cliAppName } from "../../lib/app-name";
+import { cliAppName, sessionAppName } from "../../lib/app-name";
 import { IconProfiles, IconStateHandover } from "../icons";
 import { LogoTile, ToolLogo } from "../ToolLogo";
+import { toolSpec } from "../../lib/tools";
 import { destinationsOf, type Destination } from "./WhereChoice";
 
 type Icon = (props: SVGProps<SVGSVGElement>) => JSX.Element;
@@ -83,12 +84,17 @@ export function CopyHeader({ preflight, target, destination, marks }: { prefligh
   const tool = preflight?.target_tool ?? null;
   const to = desktop?.name ?? (tool ? cliAppName(tool, target) : target);
   const source = preflight?.source_account ?? "this account";
+  // Both sides as Apps with their logos (DESIGN-SYSTEM §8): the source is
+  // its tool's desktop app when that is where it is open, else its CLI App.
+  const sourceTool = preflight?.source_tool || null;
+  const sourceDesktop = Boolean(sourceTool && preflight?.source_outside && preflight.source_app && preflight.source_app === toolSpec(sourceTool).desktop_app);
+  const fromName = sourceTool ? sessionAppName({ kind: sourceDesktop ? "desktop" : "cli", provider: sourceTool, account_label: source }) : source;
   return (
     <SwitchHeader
       icon={IconStateHandover}
       title={`Switch to ${target}`}
-      sub={`${preflight?.source_title ?? "This conversation"} · now on ${source}`}
-      from={{ name: source, logo: <LogoTile icon={IconProfiles} size={24} /> }}
+      sub={`${preflight?.source_title ?? "This conversation"} · now on ${fromName}`}
+      from={{ name: fromName, logo: sourceTool ? <ToolLogo tool={sourceTool} kind={sourceDesktop ? "desktop" : "cli"} size={24} /> : <LogoTile icon={IconProfiles} size={24} /> }}
       to={{ name: to, logo: tool ? <ToolLogo tool={tool} kind={destination === "desktop" ? "desktop" : "cli"} appId={desktop?.app_id} size={24} /> : <LogoTile icon={IconProfiles} size={24} on /> }}
       marks={marks}
       testId="switch-copy-header"

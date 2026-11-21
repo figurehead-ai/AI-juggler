@@ -210,6 +210,7 @@ const ONECLICK = {
   ],
   move_line: "The whole conversation is carried over — all 31,009 messages.",
   secrets: { asks: false, reader: "Claude Code (Anthropic)" },
+  source_tool: "claude-code",
   target_tool: "claude-code",
   target_account: "f",
 } as unknown as PreflightInfoData;

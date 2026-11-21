@@ -893,6 +893,7 @@ for (const theme of ["dark", "light"] as const) {
             { label: "The task list", hint: "It doesn't go along: the new session starts without it.", how: "stays" },
           ],
           secrets: { asks: true, reader: "Codex (OpenAI)" },
+          source_tool: "codex",
           target_tool: "codex",
           redaction: { global: null, override: null, effective: null, source: "unset", line: "" },
           redaction_items: [{ kind: "sk-key", preview: "s•••5678", segment: 0 }],

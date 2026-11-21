@@ -157,6 +157,7 @@ pub(crate) fn preflight_with(
         carry_items: [words.carry_items, named.stays].concat(),
         move_line: words.move_line,
         secrets: words.secrets,
+        source_tool: account_a.harness.to_string(),
         target_tool: account_b.harness.to_string(),
         target_account: account_b.id.to_string(),
         destinations: switch_destinations(state, &account_a, &account_b, &reference),

@@ -63,6 +63,7 @@ const ONECLICK: PreflightInfoData = {
   ],
   move_line: "The whole conversation is carried over — all 42 messages, its subagents and file history.",
   secrets: { asks: false, reader: "Claude Code (Anthropic)" },
+  source_tool: "claude-code",
   target_tool: "claude-code",
 };
 
@@ -652,5 +653,16 @@ describe("0.3 what the other tool was told", () => {
     await waitFor(() => expect(view.getByTestId("switch-done")).toBeTruthy());
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(view.queryByTestId("switch-handover")).toBeNull();
+  });
+});
+
+describe("D-142 §8 — the header names both sides as Apps", () => {
+  it("from its CLI App with its logo to the target App, with no step line in capitals", async () => {
+    const view = mount(WIZARD, vi.fn());
+    await waitFor(() => expect(view.getByTestId("switch-wizard")).toBeTruthy());
+    const strip = view.getByTestId("switch-strip");
+    expect(strip.textContent).toMatch(/^Claude Code CLI · .+to.*Claude Code CLI · Personal$/);
+    // The stepper says the step; its words are for screen readers only.
+    expect(view.getByText(/^Step 1 of 3:/).className).toContain("sr-only");
   });
 });

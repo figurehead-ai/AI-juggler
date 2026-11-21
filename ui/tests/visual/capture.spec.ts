@@ -2791,6 +2791,7 @@ for (const theme of THEMES) {
       ],
       move_line: "Codex starts fresh and reads the conversation — all 42 messages, newest first as much as fits — to pick up the work.",
       secrets: { asks: true, reader: "Codex (OpenAI)" },
+      source_tool: "codex",
       target_tool: "codex",
     };
 
@@ -6148,6 +6149,7 @@ for (const theme of THEMES) {
             mechanism: "replay",
             fidelity: "F1",
             fidelity_words: "Full story, fresh start",
+            source_tool: "codex",
             target_tool: "codex",
             move_line: "Codex starts fresh and reads the conversation — all 42 messages, newest first as much as fits — to pick up the work.",
           }

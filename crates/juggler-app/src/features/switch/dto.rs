@@ -76,6 +76,9 @@ pub struct PreflightInfo {
     pub move_line: String,
     /// Whether the keys-and-passwords question applies, and who reads.
     pub secrets: crate::features::handover::switch_words::SecretsInfo,
+    /// The source's tool (its id): the header names both sides as Apps,
+    /// each with its logo (D-142, DESIGN-SYSTEM §8).
+    pub source_tool: String,
     /// The target's tool (its id: the UI names it from the catalog).
     pub target_tool: String,
     /// The target's account (its profile id): the UI reads its room from

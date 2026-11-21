@@ -187,6 +187,7 @@ describe("the switch list and its confirm", () => {
       carry_items: [],
       move_line: "The whole conversation is carried over.",
       secrets: { asks: false, reader: "Codex" },
+      source_tool: "codex",
       target_tool: "codex",
       target_account: "codex",
     } as unknown as PreflightInfoData;

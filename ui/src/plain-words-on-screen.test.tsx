@@ -136,6 +136,7 @@ describe("nothing internal on screen (D-25)", () => {
       redaction_items: [],
       carry_items: [],
       secrets: { asks: false, reader: "Claude Code (Anthropic)" },
+      source_tool: "claude-code",
       target_tool: "claude-code",
     };
     seams.__AIJ_SWITCH_EXECUTE_FAIL__ = { code: "switch_failed", retryable: true, user_message: words };

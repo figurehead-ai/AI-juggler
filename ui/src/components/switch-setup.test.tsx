@@ -42,6 +42,7 @@ const PREFLIGHT: PreflightInfoData = {
   carry_items: [{ label: "The whole conversation", hint: "Every message from the start.", how: "moves" }],
   move_line: "The whole conversation is carried over — all 12 messages, its subagents and file history.",
   secrets: { asks: false, reader: "Claude Code (Anthropic)" },
+  source_tool: "claude-code",
   target_tool: "claude-code",
 };
 
