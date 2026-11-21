@@ -223,6 +223,7 @@ pub(crate) fn relaunch(state: &Arc<AppState>, r: &Relaunch<'_>) -> AppResult<(Se
 /// [`AppError::Refused`] while it still runs, or when it has no
 /// conversation to resume; as [`epoch_resume_impl`] otherwise.
 pub fn session_resume_impl(state: &Arc<AppState>, session_id: &str) -> AppResult<LaunchResult> {
+    use juggler_core::model::SessionStatus as S;
     let (row, account) = {
         let storage = lock_storage_arc(state)?;
         let row = storage
@@ -239,7 +240,6 @@ pub fn session_resume_impl(state: &Arc<AppState>, session_id: &str) -> AppResult
             .map_err(|error| not_found_or_core(error, "account", &profile.account.to_string()))?;
         (row, account)
     };
-    use juggler_core::model::SessionStatus as S;
     // Ended at its limit: every mark but an open session's own hit
     // (`limits::RULE`: its tool is still open, showing the limit).
     let ended_at_limit = row.status == S::QuotaBlocked
