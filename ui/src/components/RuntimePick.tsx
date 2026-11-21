@@ -47,13 +47,13 @@ function keptApps(): Record<string, "driven"> {
 }
 
 /** How the App was last started, when that was without a terminal. */
-export function keptRuntime(appId: string): RuntimeChoice {
+function keptRuntime(appId: string): RuntimeChoice {
   return keptApps()[appId];
 }
 
 /** Keeps the runtime a start on the App asked for: "Run without a
  * terminal" is remembered; any other forgets it. */
-export function keepRuntime(appId: string, runtime: RuntimeChoice): void {
+function keepRuntime(appId: string, runtime: RuntimeChoice): void {
   const apps = keptApps();
   if (runtime === "driven") apps[appId] = "driven";
   else delete apps[appId];
@@ -63,7 +63,7 @@ export function keepRuntime(appId: string, runtime: RuntimeChoice): void {
 /** Whether the launch settings `profileId` can run without a terminal
  * now: its tool has that runtime, nothing keeps it from running, and the
  * Beta switch is on. */
-export function canRunWithout(choices: RuntimeChoicesInfo | null, profileId: string | null): boolean {
+function canRunWithout(choices: RuntimeChoicesInfo | null, profileId: string | null): boolean {
   if (!choices?.beta_on || profileId === null) return false;
   return choices.profiles.some((row) => row.profile_id === profileId && row.unavailable === null);
 }

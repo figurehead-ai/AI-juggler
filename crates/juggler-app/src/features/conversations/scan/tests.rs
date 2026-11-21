@@ -19,16 +19,10 @@ struct FakeOs {
 
 impl FakeOs {
     fn put(&self, pid: u32, ppid: u32, exe: &str, args: &[&str], start: i64) {
-        self.table.lock().unwrap().insert(
-            pid,
-            Proc {
-                pid,
-                ppid: Some(ppid),
-                exe: Some(PathBuf::from(exe)),
-                args: args.iter().map(|a| (*a).to_owned()).collect(),
-                start: Some(start),
-            },
-        );
+        let (pid, mut process) =
+            crate::features::conversations::procs::fixture(pid, ppid, exe, args);
+        process.start = Some(start);
+        self.table.lock().unwrap().insert(pid, process);
     }
 }
 

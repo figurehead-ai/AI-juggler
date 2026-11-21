@@ -561,10 +561,7 @@ fn a_large_backup_reports_its_progress_as_it_reads() {
     let lab = lab();
     let history = lab.a.join("p/s.jsonl");
     let line = b"{\"type\":\"assistant\",\"pad\":\"................................\"}\n";
-    let mut big = Vec::with_capacity(6 << 20);
-    while big.len() < 6 << 20 {
-        big.extend_from_slice(line);
-    }
+    let big = line.repeat((6 << 20) / line.len() + 1);
     std::fs::write(&history, &big).unwrap();
     let mut txn = begin(&lab, "m17");
     let mut seen: Vec<(u64, u64)> = Vec::new();

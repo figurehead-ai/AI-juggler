@@ -197,18 +197,7 @@ mod tests {
     const APP: &str = "/Applications/Claude.app";
     const PROFILE: &str = "/Users/you/Library/Application Support/ClaudeProfiles/work";
 
-    fn proc(pid: u32, ppid: u32, exe: &str, args: &[&str]) -> (u32, Proc) {
-        (
-            pid,
-            Proc {
-                pid,
-                ppid: Some(ppid),
-                exe: Some(PathBuf::from(exe)),
-                args: args.iter().map(|a| (*a).to_owned()).collect(),
-                start: Some(i64::from(pid) * 10),
-            },
-        )
-    }
+    use crate::features::conversations::procs::fixture as proc;
 
     fn place(dir: &str) -> KnownPlace {
         KnownPlace {

@@ -858,10 +858,7 @@ fn a_long_backup_says_how_far_it_is() {
     }
     let lab = lab();
     let line = b"{\"type\":\"assistant\",\"pad\":\"................................\"}\n";
-    let mut big = Vec::with_capacity(6 << 20);
-    while big.len() < 6 << 20 {
-        big.extend_from_slice(line);
-    }
+    let big = line.repeat((6 << 20) / line.len() + 1);
     std::fs::write(history(&lab.a_code), &big).unwrap();
     let system = running_both(&lab);
     run(&lab.state, &lab.sides, &system).unwrap();

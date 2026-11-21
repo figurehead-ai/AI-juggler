@@ -46,7 +46,7 @@ type Card = { ref: string; label: string; full?: string; sub: string; body: stri
 /** Where the planned team's cards are, for the canvas's fit (SK48-5: at
  * a fixed centre, the open Add a member covered the left card at 1701
  * wide): the lead's place, when one is drawn, then the rows under it. */
-export function plannedPoints(rowCards: number, hasTop: boolean): { x: number; y: number }[] {
+function plannedPoints(rowCards: number, hasTop: boolean): { x: number; y: number }[] {
   return [...(hasTop ? [{ x: 0, y: TOP }] : []), ...plannedPlaces(rowCards, hasTop ? TOP + NODE_H + DROP : TOP)];
 }
 
