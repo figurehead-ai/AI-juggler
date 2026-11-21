@@ -15,7 +15,10 @@
 //!   tool hasn't written its conversation yet (no turn so far: Claude Code
 //!   writes it at the first) has nothing to resume, so it starts again,
 //!   fresh, in the same runtime and under the same id (F-rc3f-3: resumed,
-//!   such a session failed, and so did the terminal it was handed to);
+//!   such a session failed, and so did the terminal it was handed to).
+//!   Before a resume, its tool's adapter says whether the conversation is
+//!   on disk: one that isn't (deleted, or never written under a mark kept
+//!   before 0.4.6) starts again too (AJ-E2311 item 6);
 //! - **mid-turn** starts nothing: it says its turn was cut off, needs the
 //!   user, and [`resume_impl`] (their click on Resume) resumes it, sending
 //!   nothing either.
@@ -286,13 +289,16 @@ fn come_back(
     how: &str,
 ) -> AppResult<SessionId> {
     let native_id = mark.native_id.as_str();
-    // AJ-E2311 item 6: its conversation's file, known once written, is
-    // gone (deleted since): nothing to resume, so it starts again too.
-    let mut gone = false;
+    // AJ-E2311 item 6: a conversation its mark calls written may have
+    // nothing to resume (its file deleted since, or, from a mark kept
+    // before `written` was, never written): it starts again too.
+    let mut found = Found::Written;
     let started = (|| {
         let (record, profile, account) = super::commands::owner(state, session.as_str())?;
-        gone = mark.written && file_gone(record.transcript_ref.as_ref());
-        let written = mark.written && !gone;
+        if mark.written {
+            found = found_on_disk(state, &account, record.transcript_ref.as_ref(), native_id);
+        }
+        let written = mark.written && found == Found::Written;
         // `kept`: its terminal, if it runs there, keeps the conversation id.
         let (terminal, resume, fresh_id, kept) = if written {
             let terminal = crate::features::launch::resume_gate::resume_spec(
@@ -353,8 +359,8 @@ fn come_back(
             // Its conversation went on under a new id: the old one is done.
             note(&storage, session, None);
         }
-        let words = match (mark.written && !gone, started.runtime) {
-            (false, _) if gone => {
+        let words = match (mark.written && found == Found::Written, started.runtime) {
+            (false, _) if found == Found::Gone => {
                 format!("{how}: its conversation's file was gone, so it started again")
             }
             (true, Runtime::Driven) => format!("{how}: its conversation resumed"),
@@ -373,10 +379,40 @@ fn come_back(
     Ok(started.session)
 }
 
-/// Whether a conversation's file, as the session recorded it, isn't there
-/// any more (deleted since). Unknown is never gone.
-fn file_gone(transcript: Option<&juggler_core::model::TranscriptRef>) -> bool {
-    transcript.is_some_and(|transcript| !transcript.path.exists())
+/// What a conversation its mark calls written has on disk.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Found {
+    /// There to resume (or it can't be told: resumed, as before).
+    Written,
+    /// Its file, once recorded, is gone (deleted since).
+    Gone,
+    /// Its tool never wrote it, and AI Juggler never recorded a file: a
+    /// session with no turn yet whose mark was kept before
+    /// [`Mark::written`] was (AJ-E2311 6(b): quit under 0.4.5 or older).
+    NeverWritten,
+}
+
+/// Whether `native_id`'s conversation is there to resume: its tool's
+/// adapter says, from where the tool keeps it (`conversation_written`);
+/// where it can't tell, the file the session recorded, if any. A file AI
+/// Juggler never recorded is never taken as gone on its own.
+fn found_on_disk(
+    state: &Arc<AppState>,
+    account: &juggler_core::model::Account,
+    transcript: Option<&juggler_core::model::TranscriptRef>,
+    native_id: &str,
+) -> Found {
+    let written = state
+        .registry
+        .get(&account.harness)
+        .and_then(|adapter| adapter.conversation_written(&account.state_dir, native_id));
+    match (written, transcript) {
+        (Some(true), _) => Found::Written,
+        (Some(false), Some(_)) => Found::Gone,
+        (Some(false), None) => Found::NeverWritten,
+        (None, Some(transcript)) if !transcript.path.exists() => Found::Gone,
+        (None, _) => Found::Written,
+    }
 }
 
 /// The terminal launch for `session` starting `native_id` again fresh (its
