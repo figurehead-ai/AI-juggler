@@ -66,11 +66,17 @@ What changed, step by step:
 
 Dialog add-on: VALIDATION N1 (`tests/visual/dialog-fit.spec.ts`) passes for Move or Copy, the wizard's three steps, done, Continue on another account and Add a machine, at 1024×680 and 1280×800 in both themes: header and footer fixed, the body alone scrolls, the primary visible at every scroll position, the first choice group whole on open.
 
-Why not 5:
-- Targets: the dialog is the S size, so at 1024×680 two cards show before a scroll; the Suggested card carries three tags (room, Suggested, badge), one over TAG-2's two; a 40 px blank band under the dialog's header (ContinueDialog's body and the list's own top margin).
+### Fix round (D-137)
+
+Changed after the coordinator's look: the target list's blank band under the dialog header is gone (the list's top margin only in the card, the body's top padding 4 px); each target card has at most two tags (its room, Suggested), how much carries a quiet line under the name, and Doesn't carry's items in lower case ("subagents' work, the task list"); What's carried groups its rows under "Goes along · 3" and "Stays behind · 1" with no tag per row, its summary chip a neutral (i) (a fact, not amber); every choice card in the switch (Move or Copy, Continue in, keys, when to stop, the cross-Mac ones) has its logo top-aligned with its title (`RadioCard align="start"`); Move's two tags sit side by side; the header's close draws its 24 px cross (the button's padding had shrunk it to 8 px); a refusal under "Nothing was moved" no longer says "so nothing was moved" again; the switch to a paired Mac has the same header (icon tile, title, This computer → Team on Mac mini) and its sending, done and failed bodies the same stage panel, success summary and broken Alert.
+
+Re-scored lines (the rest stand): Targets 5 Matches the mock-up 4→5, 6 Areas 4→5, 7 Colour 4→5, 12 Words 4→5; Carried 5 Matches the mock-up 4→5, 12 Words stays 5; Move/Copy 6 Areas 4→5; Confirm 6 Areas 4→5; Failure 12 Words 5 (no longer says it twice). N1 passes again for every switch dialog at 1024×680 and 1280×800, both themes.
+
+Why not 5 still:
+- Targets: the dialog is the S size, so at 1024×680 two cards show before a scroll.
 - Target and Confirm: the header's "from" side shows an account icon, not the source App's logo (the check doesn't name the source App).
-- Accessibility and the hand walk: keyboard, names and focus checked by the unit tests and the preview walk; Reduce Motion, Increase Contrast and 200% not re-walked by hand, and the Dev app not walked yet.
+- Accessibility and the hand walk: checked by the unit tests and the preview walk; Reduce Motion, Increase Contrast and 200% not re-walked by hand, and the Dev app not walked yet.
 
 ### Weak (0.5.0)
 
-- The cross-Mac switch (50-cross-switch) shares the step marks and the step bodies (facts, cards, Alerts) but its own header still has no title or from → to strip, and its sending, done and failed bodies are the 0.4 look; a "Tool" fact and its blocker Alert say the same version line twice.
+- A step heading that takes focus after a keyboard press shows the global focus ring (50-cross-switch progress-1280x800-dark: the ring around "Switching to Team on Mac mini…"): the heading's `outline-none` loses to the unlayered `:focus-visible` rule.
