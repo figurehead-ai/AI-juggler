@@ -26,7 +26,7 @@ import { IconFleet, IconJuggler, IconProjects, IconTerminal } from "../component
 import type { InspectorData, InspectorKind } from "../components/RightInspector";
 import { outside, useConversations } from "../lib/conversations";
 import { resourceLine, useHeavyNote } from "../lib/machine";
-import { knownMs, since } from "../lib/time-words";
+import { agoWords } from "../lib/time-words";
 import type { AccountInfo } from "../types/generated/AccountInfo";
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import type { LaunchRecipeInfo } from "../types/generated/LaunchRecipeInfo";
@@ -350,10 +350,12 @@ function sessionFacts(session: InstanceInfo, now: number, withAccount: boolean):
  * every 15 s (30 s unfocused). Under a minute is "just now": by seconds,
  * a page opened between two ticks said "started 1s ago" of a session that
  * began before the last one (and "30s", then "1s", as it was read again).
- * Nothing when the start isn't known. */
+ * AJ-E2312 3: in the app's one time words ("started 21 min ago"), as the
+ * rail and Home say it, never its own "21m ago". Nothing when the start
+ * isn't known. */
 function startedAgo(startedMs: number, now: number): string | null {
-  if (!knownMs(startedMs)) return null;
-  return now - startedMs < 60_000 ? "started just now" : `started ${since(startedMs, now)} ago`;
+  const words = agoWords(startedMs, now);
+  return words === "" ? null : `started ${words}`;
 }
 
 /** How many of a tool's sessions run now, outside ones too (AJ-E1529). */
