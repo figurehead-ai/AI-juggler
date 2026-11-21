@@ -796,6 +796,14 @@ fn read_sources(state: &Arc<AppState>, now: i64) -> NeedSources {
         now_ms: now,
         ..NeedSources::default()
     };
+    // SK48-14: what's left to clean up is the Processes graph's count, the
+    // one the tile and the top bar read, never This Mac's last sample (up
+    // to a 5 s tick older): a stopped leftover leaves every count at once.
+    if let (Some(mac), Some((left, _))) =
+        (sources.this_mac.as_mut(), state.processes.leftovers())
+    {
+        mac.leftover_processes = left;
+    }
     for id in state.registry.ids() {
         if let Some(adapter) = state.registry.get(&id) {
             let spec = adapter.spec();

@@ -30,6 +30,7 @@ import { clearProcess, onProcessAsk, openSubagents, peekProcess } from "../../li
 import { RowActions, canStop, isSessionItself, type RowHandlers } from "./RowActions";
 import { FiltersButton, NO_FILTERS, SearchBox, ViewTabs, filterCount, type Choice, type Filters, type ViewId } from "./Toolbar";
 import { useProcessRows } from "./useProcessRows";
+import { askRecount } from "../../lib/recount";
 
 /** The Ports view reads the port inventory (the made-up one in the preview). */
 const PORTS: PortsBridge = { load: processesPorts };
@@ -133,7 +134,13 @@ export function ProcessesView({
       }),
     [view, sessionId, scope, filters, words, expanded, collapsed],
   );
-  const { rows, total, counts, degraded, loading, current, error, hasMore, loadMore, refresh } = useProcessRows(query);
+  const { rows, total, counts, degraded, loading, current, error, hasMore, loadMore, refresh: reread } = useProcessRows(query);
+  // SK48-14: what a stop, a clean-up or a mark changed, every count reads
+  // with the list (the tile, the top bar's, Needs you), now and a tick on.
+  const refresh = useCallback(() => {
+    reread();
+    askRecount();
+  }, [reread]);
 
   const chooseView = (next: ViewId) => {
     setView(next);

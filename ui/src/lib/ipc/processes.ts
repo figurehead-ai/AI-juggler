@@ -10,6 +10,7 @@
  */
 import { call } from "./transport";
 import { listenWhileShown } from "../shown-window";
+import { onRecount } from "../recount";
 import { hasLiveBackend } from "../bridge";
 import { portInventory, type PortInventoryInfo } from "./kill";
 import type { KillExecuteData, KillVerifyData } from "../../components/KillSheet";
@@ -157,9 +158,9 @@ export async function processesSnapshot(): Promise<ProcessSnapshotInfo> {
  * shows: AJ-E805); returns the disposer. In the preview, a
  * `aij:processes-changed` window event stands in. */
 export function onProcessesChanged(on: (counts: ProcessCountsInfo) => void): () => void {
-  return (
-    previewCounts(on) ??
-    listenWhileShown<ProcessGraphChangedInfo>(PROCESSES_CHANGED, (change) => on(change.counts), countsAgain(on))
+  return both(
+    previewCounts(on) ?? listenWhileShown<ProcessGraphChangedInfo>(PROCESSES_CHANGED, (change) => on(change.counts), countsAgain(on)),
+    onRecount(countsAgain(on)),
   );
 }
 
@@ -170,7 +171,15 @@ export function onProcessesChanged(on: (counts: ProcessCountsInfo) => void): () 
  * any other count listens to the graph's event (`PROCESSES_CHANGED`,
  * `onProcessesChanged`) instead. */
 export function onProcessCounts(on: (counts: ProcessCountsInfo) => void): () => void {
-  return previewCounts(on) ?? listenWhileShown<ProcessCountsInfo>(PROCESS_COUNTS, on, countsAgain(on));
+  return both(previewCounts(on) ?? listenWhileShown<ProcessCountsInfo>(PROCESS_COUNTS, on, countsAgain(on)), onRecount(countsAgain(on)));
+}
+
+/** SK48-14: a stop's recount (`askRecount`) re-reads the counts too. */
+function both(first: () => void, second: () => void): () => void {
+  return () => {
+    first();
+    second();
+  };
 }
 
 /** The counts read again (a window that shows again catches up). */

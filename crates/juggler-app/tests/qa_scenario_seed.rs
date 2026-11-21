@@ -3574,3 +3574,98 @@ fn pf1s_first_run_runs_a_session_per_claude_setup() {
     }
     drop(lab);
 }
+
+/// SK48-14 (the 0.4.8 soak, PD4 step 2): after the sheet stopped the
+/// leftover `sleep`, the list said "Nothing needs you" while the tile,
+/// the header chip, the rail's need and the bell still counted 1 for 45 s
+/// and more. Every count reads the graph's, so once the stop is done the
+/// next tick must leave nothing to clean up anywhere.
+#[cfg(unix)]
+#[test]
+fn pd4s_stopped_leftover_leaves_every_count_at_the_next_tick() {
+    use juggler_supervisor::tree::LedgerStore as _;
+    let mut stop = StopGroup(None);
+    let (lab, state) = seeded(&scenario_seed("PD4"), "pd4-stop");
+    let helper = state
+        .ledger
+        .session_rows(&SessionId::new("billing-dev"))
+        .unwrap()
+        .into_iter()
+        .find(|row| row.role == "helper")
+        .expect("its leftover");
+    stop.0 = helper.pgid;
+    let pid = helper.pid.unwrap();
+    drop(state);
+    // The lab opens, as the walk did.
+    let app = Arc::new(
+        AppState::init_with_registry(lab.path().join("data"), default_registry()).unwrap(),
+    );
+    let counts = |app: &Arc<AppState>| {
+        let graph = app.processes.graph();
+        let listed = juggler_app::features::processes::query::rows(
+            &graph,
+            &serde_json::from_value(serde_json::json!({
+                "view": "attention", "session_id": null, "session_ids": [], "states": [],
+                "app": null, "account_id": null, "project_id": null, "has_port": false,
+                "heavy": false, "show_internal": false, "others": false, "search": "",
+                "expanded": [], "collapsed": []
+            }))
+            .unwrap(),
+        )
+        .into_iter()
+        .filter(|row| row.kind == "process")
+        .count();
+        (graph.counts.to_clean, listed)
+    };
+    // Two ticks: the first reads the slow facts too.
+    let leftover_needs = |app: &Arc<AppState>| {
+        use juggler_app::features::notifications::{centre, tray};
+        let storage = app.storage.lock().unwrap();
+        centre::open_needs(&storage, Timestamp::now().millis(), tray::NEEDS_LISTED)
+            .into_iter()
+            .filter(|row| row.kind == "leftovers")
+            .count()
+    };
+    juggler_app::features::processes::tick::processes_tick(&app);
+    let change = juggler_app::features::processes::tick(&app).expect("the first graph");
+    assert_eq!(counts(&app), (1, 1), "the leftover, counted and listed");
+    // This Mac sampled (its 5 s tick), and Needs you worked out from it.
+    juggler_app::features::processes::after_change(&app, &change);
+    app.notifier.set_this_mac(
+        juggler_app::machine_health::this_mac_impl(&app, Timestamp::now().millis()).unwrap(),
+    );
+    juggler_app::features::notifications::needs::refresh(&app);
+    assert_eq!(leftover_needs(&app), 1, "Needs you: 1 process left running");
+
+    let cancel = Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let outcome = juggler_app::features::kill::kill_execute_audited(
+        &app,
+        app.audit.as_ref(),
+        "billing-dev",
+        pid,
+        "pid",
+        &cancel,
+        None,
+    )
+    .unwrap();
+    assert!(outcome.all_succeeded, "stopped: {outcome:?}");
+    juggler_app::features::processes::tick::processes_tick(&app);
+    let change = juggler_app::features::processes::tick(&app);
+    assert_eq!(counts(&app), (0, 0), "nothing to clean up, nothing listed");
+    let change = change.expect("the page and the counts hear of it");
+    assert_eq!(change.counts.to_clean, 0, "{change:?}");
+    // The same tick: the top bar's count moved, and Needs you (the rail,
+    // the bell, Home) follows it, before This Mac's next sample.
+    assert!(
+        juggler_app::features::processes::after_change(&app, &change),
+        "the top bar's count moved"
+    );
+    assert_eq!(leftover_needs(&app), 0, "Needs you lets it go on the same tick");
+    assert_eq!(
+        juggler_app::machine_health::this_mac_impl(&app, Timestamp::now().millis())
+            .unwrap()
+            .leftover_processes,
+        0,
+        "This Mac and the rail's need read it too"
+    );
+}

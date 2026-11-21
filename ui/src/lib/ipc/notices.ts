@@ -9,6 +9,7 @@
  */
 import { call, listen } from "./transport";
 import { listenWhileShown } from "../shown-window";
+import { onRecount } from "../recount";
 import { hasLiveBackend } from "../bridge";
 import { pageOf, type Page, type PageRequest } from "../paged";
 import { counted, noticeLevel } from "../attention";
@@ -258,7 +259,14 @@ export function onNoticesChanged(handler: (summary: NoticeSummaryInfo) => void):
     return () => s.listeners.delete(handler);
   }
   // AJ-E805: not heard while the window is hidden; read once when it shows.
-  return listenWhileShown<NoticeSummaryInfo>(NOTICES_CHANGED, handler, () => void notificationsSummary().then(handler, () => undefined));
+  const again = () => void notificationsSummary().then(handler, () => undefined);
+  const stop = listenWhileShown<NoticeSummaryInfo>(NOTICES_CHANGED, handler, again);
+  // SK48-14: a stop's recount (Needs you's "left running" with it).
+  const stopRecount = onRecount(again);
+  return () => {
+    stop();
+    stopRecount();
+  };
 }
 
 /** The menu-bar item asked to open a notice (an id) or the centre (null). */

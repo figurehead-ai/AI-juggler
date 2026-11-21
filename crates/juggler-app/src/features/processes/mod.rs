@@ -762,6 +762,18 @@ pub fn tick(state: &Arc<AppState>) -> Option<ProcessGraphChangedInfo> {
     Some(ProcessGraphChangedInfo { version, counts })
 }
 
+/// What follows a graph change on its own tick (SK48-14): when the top
+/// bar's count moved, Needs you (the rail, the bell, Home) is worked out
+/// again from this graph at once, so a stopped leftover leaves every count
+/// together. `true` when the top bar's count moved (its event is due).
+pub fn after_change(state: &Arc<AppState>, change: &ProcessGraphChangedInfo) -> bool {
+    let moved = state.processes.counts_moved(&change.counts);
+    if moved {
+        crate::features::notifications::needs::refresh(state);
+    }
+    moved
+}
+
 /// AJ-E2405/E2407: the reconciler found `pid` of `session` left behind
 /// (`HelperOrphaned`): counted for usage statistics (its category only,
 /// when the user shares them), shown at once, told once per session.
