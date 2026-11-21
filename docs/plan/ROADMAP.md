@@ -134,6 +134,14 @@ The bugs 0.4.6's exit RC (rc3h) deferred and the soak's findings, shipped as a 0
 | Sessions: one row during a hand-over, New session's order steady, the Stop toast naming the session, the switch dialog whole at 1280×800, the wizard rail pressable, the recovery limits, Codex's added messages checked live, usage readings exact (a whole 1 % is 1 %, first) | AJ-E2311 |
 | Claude's turn-end codes read by its adapter, never named in the UI; a session in an external terminal placed by its own process before its conversation is indexed (0.4.6's deferred architecture items, moved from 0.5 by D-138's batch) | AJ-E2025 |
 
+### 0.4.9 — what walking 0.4.8 found
+
+The third batch of 0.4.x fixes (D-137: walked first, fixed together, one build), from the walks of 0.4.7's nightly and 0.4.8's build, on release/0.4.9 from main and forward-merged into 0.5 (D-138). The list is `docs/qa/0.4-walks/soak-0.4.6/findings.md`.
+
+| Area | Tasks |
+|---|---|
+| Limits after a reset read the same in the header, the rail, Home and the bell; the Parked card; short time words; Bring in's running sessions; New session's sheet and its memory; the pool wizard's pick; This Mac's room; the bell's scroll; the lab and test tools | AJ-E2312 |
+
 ## 0.5 — More tools and teams
 
 **Intent.** Bring the tools people use next, let work move between

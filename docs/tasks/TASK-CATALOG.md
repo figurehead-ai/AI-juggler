@@ -284,6 +284,7 @@
 | AJ-E2305 | Switching and hand-over across runtimes | E23-session-runtime.md | P0 | M | AJ-E2303 |
 | AJ-E2310 | Driven sessions come back after AI Juggler restarts | E23-session-runtime.md | P0 | M | AJ-E2303, AJ-E2308 |
 | AJ-E2311 | 0.4.6's deferred session findings (hand-over rows, New session order, Stop toast, switch dialog, recovery limits, usage readings) | E23-session-runtime.md | P1 | L | AJ-E2310 |
+| AJ-E2312 | 0.4.8's walk findings (limits after a reset, the Parked card, time words, Bring in, New session, the pool wizard's pick, This Mac's room, the bell's scroll, lab tools) | E23-session-runtime.md | P1 | L | AJ-E2311 |
 | AJ-E2306 | Claude terminal sessions with hooks and the status line | E23-session-runtime.md | P0 | M | AJ-E2302 |
 | AJ-E2307 | Answers from Needs you and the session page | E23-session-runtime.md | P0 | M | AJ-E2303 |
 | AJ-E2308 | Run without a terminal: answer from AI Juggler (Beta) | E23-session-runtime.md | P1 | L | AJ-E2302, AJ-E2307 |
@@ -422,5 +423,5 @@
 | AJ-E3519 | The View menu, top right | E35-the-floor.md | P1 | S | AJ-E3515 |
 | AJ-E3520 | Day and night from the Mac's clock | E35-the-floor.md | P1 | S | AJ-E3521 |
 | AJ-E3521 | The reworked look: light, shadow, occlusion and grade | E35-the-floor.md | P0 | M | — |
-Total: 420 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
+Total: 421 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
 Status of every task at generation: TODO. The epic files are canonical; this catalog is an index, never edited to claim progress.

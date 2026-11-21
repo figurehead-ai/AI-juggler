@@ -256,3 +256,19 @@
 **Handover note**: Item 15 is a correctness bug (a whole 1 % read as 100 %): fix it first, with a test over the codec's boundary values; it touches the honest-usage promise. Item 14 needs a live Codex check in a lab profile (real accounts read-only).
 **Quality gates**: verify-static; a failing-before test per fixed item; the screens touched walked once by Sonnet and checked by Opus.
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E2311/manifest.md`, one row per item.
+
+### AJ-E2312 0.4.8's walk findings: limits after a reset read the same everywhere, the Parked card, short time words, sessions after Bring in, New session's sheet and memory, the pool wizard's pick, This Mac's room, the bell's scroll, the lab tools | Status: IN-PROGRESS (0.4.9, batch 3 on release/0.4.9 from main, forward-merged into 0.5; D-137, D-138) | Priority P1 | Effort L | Depends: AJ-E2311
+**Found walking 0.4.7's nightly and 0.4.8's build (2026-11-20/21).** The source list: `docs/qa/0.4-walks/soak-0.4.6/findings.md` (W2, V1, V2, the persona runs, LC1). Worked as one batch (D-137): every item fixed together, one build, one re-walk.
+**Requirements**:
+1. **After a window resets, nothing still says the session is at its limit.** In PM5 the header kept "Limit reached · 4 min" and Home's row "Needs you — quota reached" after the reset, while Home's heading said "All clear" above "Needs you (1)"; the rail said "Asks you" while the header said "Limit reached" (SK-20). One state, read the same in the header, the rail, Home and the bell; a session at its limit that wasn't parked is told its window reset and offered a way on, as a parked one is; Home's heading never contradicts its own Needs you.
+2. **The Parked card reads as a sentence** beside "Resume the same conversation" after the reset, never one word per line.
+3. **Short time words are the app's own everywhere:** the session header says "1 min ago" as the rail and Home do, not "1m ago".
+4. **Bring in doesn't show a running session as ended** (SK-21: after Find my apps and Bring in, the second setup's running session read as ended for about 30 s).
+5. **New session:** the sheet holds still when its warning leaves (N5 about 50 px, P7 about 20 px), and "Run without a terminal" is remembered for the App it was chosen on.
+6. **The pool wizard's project pick follows the template:** a pick made under one template is kept only where the new template uses a project the same way, else cleared, and Review names what is picked.
+7. **This Mac:** "Plenty of room" is never green with swap nearly full (8.2 of 9.0 GB): the words and the rule agree; the Overview shows its last readings at once, never an empty Memory card, "Not measured yet" and "No AI tools are running" while tools run.
+8. **The bell's panel scrolled by accessibility** drew blank and left the window taking no presses for about 4 minutes (LC1): reproduce on a Dev build and judge (the covered-window pause or a real hang); fix a real one.
+9. **The lab and test tools:** a lab's PATH finds no real OpenCode, Kimi Code or Grok Build; floor_drive reaches what is drawn over main by a system-wide hit-test, as Voice Control does; lab builds don't share the Dev bundle's web storage; promote.yml's `blocker_fix` says "soaked base" (D-138).
+10. **SK-12's count rechecked** with a role set (walked).
+**Quality gates**: `just keep-going verify-static` and `verify-tests`; a failing-before test per fixed item; the visual and accessibility gates; the screens touched walked by Sonnet and checked by Opus on the 0.4.9 build.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E2312/manifest.md`, one row per item.

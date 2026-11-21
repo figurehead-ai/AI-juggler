@@ -45,7 +45,7 @@
 | [E20-engineering-and-security.md](E20-engineering-and-security.md) | Engineering and security foundations | AJ-E2001-E2025 |
 | [E21-desktop-first.md](E21-desktop-first.md) | Desktop first: what's open, where, and one click to it | AJ-E2101-E2112 |
 | [E22-visual-usage.md](E22-visual-usage.md) | Usage and projects you can read at a glance | AJ-E2201-E2207 |
-| [E23-session-runtime.md](E23-session-runtime.md) | A runtime per tool: driven sessions, exact state, answers from AI Juggler | AJ-E2301-E2311 |
+| [E23-session-runtime.md](E23-session-runtime.md) | A runtime per tool: driven sessions, exact state, answers from AI Juggler | AJ-E2301-E2312 |
 | [E24-processes.md](E24-processes.md) | The Processes view: every app, session and process, one model | AJ-E2401-E2407 |
 | [E25-notifications-and-user-menu.md](E25-notifications-and-user-menu.md) | Notifications and your menu: one model, one count, every view | AJ-E2501-E2507 |
 | [E26-windows-release.md](E26-windows-release.md) | AI Juggler for Windows: a dedicated first release, then every release (D-52) | AJ-E2601-E2616 |
