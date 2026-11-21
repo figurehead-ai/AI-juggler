@@ -86,8 +86,29 @@ async function axe(page: Page, what: string) {
   expect(bad.map((v) => `${v.id}: ${v.nodes[0]?.target}`), `axe on ${what}`).toEqual([]);
 }
 
+/** Waits until nothing on the page is still scrolling itself: every
+ * scrolling box keeps its offset over two frames. The setup's summary and
+ * the inspector keep their current row in view from a ResizeObserver, a
+ * frame after a row wraps (0.5's release PR: the same code captured once
+ * before that scroll and once after, 4,021 and 6,109 px apart). */
+async function settled(page: Page) {
+  await page.waitForFunction(
+    () =>
+      new Promise<boolean>((done) => {
+        const offsets = () =>
+          [...document.querySelectorAll<HTMLElement>("*")]
+            .filter((el) => el.scrollHeight > el.clientHeight)
+            .map((el) => `${el.scrollTop},${el.scrollLeft}`)
+            .join("|");
+        const before = offsets();
+        requestAnimationFrame(() => requestAnimationFrame(() => done(offsets() === before)));
+      }),
+  );
+}
+
 async function shoot(page: Page, dir: string, name: string) {
   await page.mouse.move(0, 0);
+  await settled(page);
   await page.screenshot({ path: resolve(dir, name) });
   await axe(page, name);
 }
