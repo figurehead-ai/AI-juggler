@@ -191,10 +191,11 @@ describe("a choice card is one control, the whole card", () => {
       expect(input.className, id).toMatch(/\babsolute\b.*\binset-0\b/);
       expect(input.className, id).toContain("opacity-0");
       expect(input.className, id).not.toContain("sr-only");
-      // Every word on the card is shown, not read: the input says them.
+      // The card's words label its input, so none is hidden from assistive
+      // tech (axe: a hidden label is no label, label-title-only).
       const words = [...card.querySelectorAll("*")].filter((one) => one !== input && one.childElementCount === 0 && (one.textContent ?? "").trim() !== "");
       expect(words.length, id).toBeGreaterThan(0);
-      for (const one of words) expect(one.closest('[aria-hidden="true"]'), `${id}: ${one.textContent}`).not.toBeNull();
+      for (const one of words) expect(one.closest('[aria-hidden="true"]'), `${id}: ${one.textContent}`).toBeNull();
     }
     expect(describedBy(screen.getByRole("radio", { name: "Writer and reviewer" }))).toBe("One writes, one reviews Lead · Reviewer");
     expect(screen.getByRole("radio", { name: "Start from scratch" }).hasAttribute("aria-describedby")).toBe(false);

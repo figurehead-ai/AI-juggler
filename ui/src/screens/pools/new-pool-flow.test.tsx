@@ -232,7 +232,8 @@ describe("How to start and Where take the whole card, and Next waits for what th
     for (const card of screen.getAllByTestId("new-pool-template")) {
       const radio = within(card).getByRole("radio");
       expect(radio.className, card.dataset.template).toMatch(/\babsolute\b.*\binset-0\b/);
-      expect(card.querySelector('[aria-hidden="true"] [id$="-title"]'), card.dataset.template).not.toBeNull();
+      expect(card.querySelector('[id$="-title"]'), card.dataset.template).not.toBeNull();
+      expect(card.querySelector('[aria-hidden="true"] [id$="-title"]'), card.dataset.template).toBeNull();
     }
     const pair = screen.getAllByTestId("new-pool-template").find((card) => card.dataset.template === "writer-reviewer")!;
     fireEvent.click(within(pair).getByText(templateById("writer-reviewer").description));

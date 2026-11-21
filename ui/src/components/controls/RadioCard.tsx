@@ -60,11 +60,12 @@ function Mark({ on, shape }: { on: boolean; shape: "round" | "square" }): JSX.El
   );
 }
 
-/** The card's body: logo, words, more. Shown, not read: its input says
- * it. */
+/** The card's body: logo, words, more. Its input is named by the title
+ * and described by the rest; the words stay readable, because a label
+ * hidden from assistive tech is no label (axe's label-title-only). */
 function Body({ logo, title, sub, children, layout = "row", titleId, subId, moreId }: CardWords & { titleId: string; subId: string; moreId: string }): JSX.Element {
   return (
-    <span aria-hidden="true" className={layout === "row" ? "flex min-w-0 items-center gap-3.5 pr-7" : "flex min-w-0 flex-col items-start gap-2.5 pr-7"}>
+    <span className={layout === "row" ? "flex min-w-0 items-center gap-3.5 pr-7" : "flex min-w-0 flex-col items-start gap-2.5 pr-7"}>
       {logo && <span className="flex shrink-0">{logo}</span>}
       <span className="flex min-w-0 flex-col gap-0.5">
         <span id={titleId} className="text-body font-semibold text-ink">
