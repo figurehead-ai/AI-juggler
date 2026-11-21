@@ -8,6 +8,7 @@ import { act, cleanup, fireEvent, render, waitFor } from "@testing-library/react
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MorningSummary, olderThanCard, sinceHeading, whenLine } from "./MorningSummary";
 import { summaryHeadline } from "../lib/ended-how";
+import { PREVIEW_SESSIONS_UPDATED } from "../lib/ipc/instances";
 import type { SummaryRowInfo } from "../types/generated/SummaryRowInfo";
 
 // The card's conversation-index listener, heard by the test (the preview's
@@ -79,6 +80,28 @@ describe("AJ-E1004 morning summary", () => {
     expect(name()).toMatch(/^storefront · started /);
     act(() => heard.forEach((handler) => handler("index")));
     await waitFor(() => expect(name()).toBe("Add retries with backoff to the webhook client"));
+  });
+
+  // AJ-E2312 item 6 (SK48-7, the 0.4.8 soak's K3 lab): a session seeded
+  // "probably stuck" that the first look found at its prompt read "Needs
+  // you — no output for a while" here for minutes, while the rail said it
+  // ran and Home's heading didn't count it: the card read again only on
+  // the conversation index. It reads again when a session's state changes.
+  it("reads again when a session's state changes, so it says what the rail and the heading say (SK48-7)", async () => {
+    const summary = (group: string, words: string) => ({
+      since_ms: 1_800_000_000_000 - 8 * 3_600_000,
+      generated_ms: 1_800_000_000_000,
+      rows: [row("api", group, words, { at_ms: group === "needs_you" ? 1_800_000_000_000 - 60_000 : null })],
+      counts: { [group]: 1 },
+      leftovers: 0,
+    });
+    w().__AIJ_SUMMARY__ = summary("needs_you", "Needs you — no output for a while");
+    const { container } = render(<MorningSummary onOpenSession={() => undefined} />);
+    await waitFor(() => expect(container.textContent).toContain("Needs you — no output for a while"));
+    w().__AIJ_SUMMARY__ = summary("running", "Still running");
+    act(() => void window.dispatchEvent(new Event(PREVIEW_SESSIONS_UPDATED)));
+    await waitFor(() => expect(container.textContent).toContain("Still running (1)"));
+    expect(container.textContent).not.toContain("no output for a while");
   });
 
   it("leads every row with the session's own name, alike ones told apart, then its App (0.4.5, persona D3)", async () => {
