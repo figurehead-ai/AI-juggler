@@ -322,8 +322,12 @@ export function PagedSessions({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [told]);
   const open = !live ? list.items.filter((row) => row.live).length : query.which === "ended" || query.which === "archived" ? 0 : (counts?.open ?? 0);
-  // Sections head the rows once there's more than one.
-  const sections = ordered && new Set(list.items.map(held.bandOf)).size > 1 ? (row: Row) => BAND_WORDS[held.bandOf(row)] : undefined;
+  // Sections head the rows once there's more than one. SK48-9: a list
+  // with more to read than its first pages may hold another section
+  // further down, so it is headed too: the same rows read the same with
+  // a filter on or off (an Account's 333 sessions, all of its first pages
+  // from the last 7 days, had no heading; its project's 167 had both).
+  const sections = ordered && list.items.length > 0 && (new Set(list.items.map(held.bandOf)).size > 1 || total > list.items.length) ? (row: Row) => BAND_WORDS[held.bandOf(row)] : undefined;
   const heading = groupOf ?? sections;
   return (
     // `data-read`: "read" once its first fresh read is shown (from then on

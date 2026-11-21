@@ -199,6 +199,33 @@ describe("AJ-E3103 the one list", () => {
     expect(heads.map((head) => head.textContent)).toEqual(["Needs you", "Working", "Open", "Last 7 days", "Earlier"]);
   });
 
+  it("heads its first page when more is to come, as the same rows read with a filter on (SK48-9)", async () => {
+    // 60 ended sessions from the last 7 days, then 20 earlier ones: the
+    // first page (50) holds only the first kind.
+    const rows = Array.from({ length: 80 }, (_, i) => {
+      const s = session("account", 3 + i * 10);
+      const last = i < 60 ? NOW - DAY - i * 60_000 : NOW - 30 * DAY - i * 60_000;
+      return sessionRow({ ...s, status: "finished", runtime: null, started_at_ms: last - 60_000, last_activity_ms: last } as unknown as InstanceInfo, NOW, () => undefined);
+    });
+    render(
+      <ActionHostProvider host={{}}>
+        <RelatedList
+          listKey={`test:paged-heads:${Math.random()}`}
+          anchor={ANCHOR.account}
+          local={() => rows}
+          folders={folders}
+          projects={projects}
+          showProjects
+          teach={{ title: "Nothing here yet", body: "Sessions you start here show up here." }}
+          onOpenSession={() => undefined}
+          searchLabel="Search these sessions"
+        />
+      </ActionHostProvider>,
+    );
+    const heads = await screen.findAllByTestId("page-sessions-group");
+    expect(heads[0]?.textContent).toBe("Last 7 days");
+  });
+
   it("an empty list teaches: what would appear and the one step", () => {
     const opened = renderList("app", 0);
     expect(screen.getByTestId("related-empty").textContent).toContain("Sessions you start here show up here.");
