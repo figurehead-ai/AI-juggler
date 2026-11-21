@@ -283,15 +283,12 @@ fn heuristic_inputs(
     );
     // A picked-up session's output isn't read: its transcript's last
     // write is its last sign of work (none: it never worked, Starting).
-    let last_output_ms = state
-        .supervisor
-        .last_output_ms(&record.id)
-        .or_else(|| {
-            adopted
-                .contains(&record.id)
-                .then_some(transcript_mtime_ms)
-                .flatten()
-        });
+    let last_output_ms = state.supervisor.last_output_ms(&record.id).or_else(|| {
+        adopted
+            .contains(&record.id)
+            .then_some(transcript_mtime_ms)
+            .flatten()
+    });
     Some(juggler_supervisor::HeuristicInputs {
         last_output_ms,
         cpu_pct,
@@ -302,9 +299,10 @@ fn heuristic_inputs(
     })
 }
 
-/// [`heuristic_inputs`] for `session` at `now_ms`, read as the heuristic
-/// tick reads them (the lab seeder's checks, AJ-E2312 item 8); `None`
-/// when the rule leaves it alone or it isn't found.
+/// What the stuck rule reads (`heuristic_inputs`) for `session` at
+/// `now_ms`, read as the heuristic tick reads them (the lab seeder's
+/// checks, AJ-E2312 item 8); `None` when the rule leaves it alone or it
+/// isn't found.
 #[must_use]
 pub fn heuristic_inputs_now(
     state: &Arc<AppState>,

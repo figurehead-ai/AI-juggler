@@ -1487,7 +1487,11 @@ fn lab_conversation(
     // default): [`OPEN_TURN_QUIET_MINUTES`].
     let open_turn = session["open_turn"].as_bool() == Some(true);
     let ago_minutes = session["days_ago"].as_u64().map_or(
-        if open_turn { OPEN_TURN_QUIET_MINUTES } else { 0 },
+        if open_turn {
+            OPEN_TURN_QUIET_MINUTES
+        } else {
+            0
+        },
         |days| (days * 24 * 60).saturating_sub(30),
     );
     lab_talk(
@@ -3305,7 +3309,10 @@ fn k3s_stuck_session_has_an_open_turn_the_apps_rule_calls_stuck() {
     let (ask, call) = (&lines[lines.len() - 2], &lines[lines.len() - 1]);
     assert_eq!(ask["type"], "user", "the turn's ask");
     assert_eq!(call["message"]["stop_reason"], "tool_use", "a tool call…");
-    assert_eq!(call["parentUuid"], ask["uuid"], "…of that turn, never answered");
+    assert_eq!(
+        call["parentUuid"], ask["uuid"],
+        "…of that turn, never answered"
+    );
     let written = std::fs::metadata(&transcript)
         .unwrap()
         .modified()
@@ -3660,7 +3667,11 @@ fn pd4s_stopped_leftover_leaves_every_count_at_the_next_tick() {
         juggler_app::features::processes::after_change(&app, &change),
         "the top bar's count moved"
     );
-    assert_eq!(leftover_needs(&app), 0, "Needs you lets it go on the same tick");
+    assert_eq!(
+        leftover_needs(&app),
+        0,
+        "Needs you lets it go on the same tick"
+    );
     assert_eq!(
         juggler_app::machine_health::this_mac_impl(&app, Timestamp::now().millis())
             .unwrap()
