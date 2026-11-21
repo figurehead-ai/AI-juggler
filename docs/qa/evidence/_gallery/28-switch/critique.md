@@ -26,3 +26,51 @@ Re-shot: dialog-finish, dialog-stop, executing, failed, notes-*, switch-anyway, 
 ### Weak (0.3.5)
 
 - At 800×600 the out-of-room note sits below the fold; the amber "Personal is out of room: see below" line above it points there.
+
+## 0.5.0 (D-142): the switch wizard rebuilt to the design system
+
+Reviewed side by side with the d126 kit and review references (`kit-*`, `start-*`, `review-*`, `running-*`), both themes, at 1024×680 and 1280×800, every step walked in the preview (Playwright, the gallery's fixtures), not yet in the Dev app.
+
+What changed, step by step:
+- **Continue in another app (the target choice).** Each App is a card row: its own logo at 40 px with the profile's badge beside it, the App's name in ink, "On <account> · forecast" under it, then tags: the room in its status colour (88% left green, 8% left amber, Out red), one accent Suggested, how much carries as a neutral tag ("Full story, fresh start · Beta", no more amber hatching on every row). The Suggested card wears the accent's edge; a chevron says the card opens the switch. The same card in the terminal list and the desktop one.
+- **Header, every step and phase.** A 40 px icon tile, "Switch to Personal" (or "Continue on Claude app · Personal" for Move), "Fix the checkout flow · now on Work", then the from → to strip with the destination App's logo (it follows Desktop or CLI), then the step marks: "STEP 2 OF 3: WHAT'S CARRIED" in the accent, numbered dots joined by a line, done ones ticked on the accent's tint, the current one filled.
+- **Target.** "Where it goes": the App card (logo, name, account, room and badge tags), then "What happens" as fact rows on the tinted panel (Carries, Original, Room, Where), the out-of-room or low room as a needs-you Alert with "What does this mean?", the wizard's reasons as an info Alert ("Why it asks first"), never amber boxes.
+- **What's carried.** A tinted headline ("3 go along · 1 stays behind", ✓ or ! chip), then one card of rows: the kind's icon in a 30 px chip, the thing in ink, its line in ink-2, a tag at the right (Goes along green, Recreated and Stays behind neutral, Not on Personal yet amber). The keys question, when it applies, as two choice cards (Hide them · Recommended, Leave them in) with a needs-you Alert saying what was found, and CheckRows.
+- **Confirm.** "Ready to switch to Personal", Continue in as two choice cards with the tool's logo (Desktop greyed with its reason on its face), then the Alerts (room, disk short, the check's warnings as one info Alert "Worth knowing"), then What happens as fact rows (Copies with the badge tag, Carries opening to the list, Original, Disk space, Runs by itself, Room, Needs you), the stop choice as two cards (Let it finish · Recommended), set-up under "Set up first", Details folded.
+- **Move or Copy.** §8 as built, its summary panel now the shared tinted one; its tags keep an edge so they show on the chosen card; each conversation row has a status icon (moves, already there).
+- **Progress.** "Switching to Personal…", a tinted panel with the stage it's at, "Step 2 of 5" and a bar, then the five steps (✓ done, spinner now, ring next). Move's is the same shape: the stage's words, its percent and bar, then Quit both apps · Move the conversation · Reopen both.
+- **Done.** A success tile, "Switched to Personal", the facts (Where with the App's logo, Original, its sessions, what runs by itself), Close (ghost) and the one primary. Moved: the four outcomes as fact rows, each with its ✓, ! or clock icon, Undo the move as a secondary.
+- **Failure.** "The switch didn't complete" over a broken Alert with the failure's own words; a refusal that changed nothing is "Nothing was moved" over an info Alert. Copy details and Report a bug… are kit buttons with icons. Esc, × and Cancel close both.
+- **Footers.** Next names its step ("Next: What's carried"); Switch back, the cross-Mac switch back and the pairing wizard now draw their buttons in the frame's fixed footer.
+
+### Scores (VALIDATION §5, 1–5)
+
+| # | Line | Targets | Target | Carried | Confirm | Move/Copy | Progress | Done | Failure |
+|---|---|---|---|---|---|---|---|---|---|
+| 1 | Job | 5 | 4 | 5 | 5 | 5 | 4 | 5 | 4 |
+| 2 | Prominence | 5 | 4 | 5 | 4 | 5 | 5 | 5 | 5 |
+| 3 | Default and folding | 5 | 4 | 4 | 5 | 5 | n/a (no choice) | 5 | 5 |
+| 4 | Mode (rich) | 5 | 5 | 5 | 5 | 5 | 4 | 4 | 4 |
+| 5 | Matches the mock-up | 4 | 4 | 4 | 4 | 5 | 4 | 4 | 4 |
+| 6 | Areas and spacing | 4 | 5 | 5 | 4 | 4 | 5 | 5 | 5 |
+| 7 | Colour | 4 | 5 | 5 | 5 | 5 | 5 | 5 | 5 |
+| 8 | Type and hierarchy | 5 | 5 | 5 | 4 | 5 | 5 | 5 | 5 |
+| 9 | Actions | 5 | 5 | 5 | 5 | 5 | 5 | 5 | 5 |
+| 10 | Serious choices | 4 | 4 | 5 | 5 | 5 | n/a | 5 | 4 |
+| 11 | Doors | 4 | 4 | 4 | 4 | 4 | 4 | 5 | 4 |
+| 12 | Words | 4 | 5 | 5 | 4 | 5 | 5 | 5 | 5 |
+| 13 | States and speed | 4 | 4 | 4 | 4 | 4 | 5 | 5 | 5 |
+| 14 | Consistency | 5 | 5 | 5 | 5 | 5 | 5 | 5 | 5 |
+| 15 | Accessibility | 4 | 4 | 4 | 4 | 4 | 4 | 4 | 4 |
+| 16 | Hand walk | 4 | 4 | 4 | 4 | 4 | 4 | 4 | 4 |
+
+Dialog add-on: VALIDATION N1 (`tests/visual/dialog-fit.spec.ts`) passes for Move or Copy, the wizard's three steps, done, Continue on another account and Add a machine, at 1024×680 and 1280×800 in both themes: header and footer fixed, the body alone scrolls, the primary visible at every scroll position, the first choice group whole on open.
+
+Why not 5:
+- Targets: the dialog is the S size, so at 1024×680 two cards show before a scroll; the Suggested card carries three tags (room, Suggested, badge), one over TAG-2's two; a 40 px blank band under the dialog's header (ContinueDialog's body and the list's own top margin).
+- Target and Confirm: the header's "from" side shows an account icon, not the source App's logo (the check doesn't name the source App).
+- Accessibility and the hand walk: keyboard, names and focus checked by the unit tests and the preview walk; Reduce Motion, Increase Contrast and 200% not re-walked by hand, and the Dev app not walked yet.
+
+### Weak (0.5.0)
+
+- The cross-Mac switch (50-cross-switch) shares the step marks and the step bodies (facts, cards, Alerts) but its own header still has no title or from → to strip, and its sending, done and failed bodies are the 0.4 look; a "Tool" fact and its blocker Alert say the same version line twice.

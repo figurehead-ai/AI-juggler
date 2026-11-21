@@ -20,7 +20,7 @@ import { CarryChoice, useCarryChoice } from "./switch/CarryChoice";
 import { showToast } from "./Toast";
 import { ConfirmBody, SwitchPoolLines, useSealOwed } from "./switch/ConfirmBody";
 import { CarriedStep } from "./switch/CarrySummary";
-import { FlowHeader, useLastCheck } from "./switch/SwitchHeader";
+import { Checking, FlowHeader, useLastCheck } from "./switch/SwitchHeader";
 import { DoneStep, familyOf, type FamilyMoved } from "./switch/DoneStep";
 import { Executing, OtherStep, risky, TargetStep, useTargetRoom } from "./switch/StepBodies";
 import { keysChoice, KeysQuestion, keysRequired, type KeysAnswer } from "./switch/KeysQuestion";
@@ -258,11 +258,7 @@ export function SwitchFlow({
   const body = (() => {
     switch (phase.kind) {
       case "preflight":
-        return (
-          <p className="text-body text-ink-2" data-testid="switch-preflighting">
-            Checking the switch to {targetLabel}…
-          </p>
-        );
+        return <Checking target={targetLabel} />;
       case "confirm":
         if (move.moving) return move.screen(targetLabel, phase.preflight.source_account ?? "this account", phase.preflight.target_tool);
         if (phase.preflight.door === "one-click") {

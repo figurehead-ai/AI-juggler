@@ -113,3 +113,20 @@ export function FlowHeader({ move, marks, target, preflight, destination }: { mo
   if (move.offer && preflight) return <>{move.header(marks, target, preflight)}</>;
   return <CopyHeader preflight={preflight} target={target} destination={destination} marks={marks} />;
 }
+
+/** While the check runs (EMP-2, never a blank body): the words, and the
+ * summary panel's shape where its facts will be. */
+export function Checking({ target }: { target: string }): JSX.Element {
+  return (
+    <div className="flex flex-col gap-4" aria-busy="true">
+      <p className="text-body text-ink-2" data-testid="switch-preflighting">
+        Checking the switch to {target}…
+      </p>
+      <div aria-hidden="true" className="flex flex-col gap-3 rounded-card bg-accent-soft px-4 py-4 inset-ring-1 inset-ring-accent/15">
+        {[72, 88, 64].map((width) => (
+          <span key={width} className="h-3 rounded-full bg-skeleton" style={{ width: `${width}%` }} />
+        ))}
+      </div>
+    </div>
+  );
+}
