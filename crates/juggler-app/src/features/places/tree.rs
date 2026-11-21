@@ -130,7 +130,8 @@ fn name_of(process: &Proc) -> String {
 
 /// Every process of `place` running now (`roots`: its main process while
 /// it runs), from the live view's process table.
-pub(crate) fn now(state: &Arc<AppState>, place: &KnownPlace, roots: &[u32]) -> Vec<Member> {
+#[must_use]
+pub fn now(state: &Arc<AppState>, place: &KnownPlace, roots: &[u32]) -> Vec<Member> {
     let hosts = HostRegistry::of(&state.registry);
     let flag = hosts
         .by_id(&place.app_id)
