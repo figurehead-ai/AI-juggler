@@ -32,7 +32,7 @@ const FAILURES: Record<string, { title: string; body: string; action: string; re
   },
   disabled: {
     title: "Pairing is turned off",
-    body: "After 20 wrong codes in a day, pairing turns off to protect this Mac. Turn it back on only if you're the one pairing.",
+    body: "After 20 wrong codes in a day, pairing turns off to protect this computer. Turn it back on only if you're the one pairing.",
     action: "Turn pairing back on",
     reEnable: true,
   },

@@ -103,7 +103,7 @@ ui/src/pages/AccountProbe.tsx mac-words 1
 ui/src/pages/ItemHeader.tsx mac-words 1
 ui/src/pages/registry.ts mac-words 1
 ui/src/screens/FleetScreen.tsx mac-words 9
-ui/src/screens/PairingWizard.tsx mac-words 4
+ui/src/screens/PairingWizard.tsx mac-words 3
 ui/src/screens/ThisMacScreen.tsx mac-words 5
 ui/src/screens/accounts/ServiceAccountSheet.tsx mac-words 1
 ui/src/screens/accounts/ServiceParts.tsx mac-words 1
