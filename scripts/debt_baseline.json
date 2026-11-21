@@ -675,7 +675,7 @@
   "jscpd:lines": 39
  },
  "crates/juggler-supervisor/src/supervisor.rs": {
-  "jscpd:lines": 165
+  "jscpd:lines": 151
  },
  "crates/juggler-supervisor/src/tree.rs": {
   "jscpd:lines": 38
