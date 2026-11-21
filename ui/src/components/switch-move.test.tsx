@@ -5,13 +5,15 @@
  * without the click, the done screen keeps the four outcomes apart (a
  * model reply is always the user's to check), and Undo is there.
  */
-import { cleanup, fireEvent, render, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { SwitchFlow } from "./SwitchFlow";
-import type { MoveDoneInfo, MoveOfferInfo } from "../lib/ipc/switch-move";
+import type { MoveDoneInfo, MoveOfferInfo, MoveProgressInfo } from "../lib/ipc/switch-move";
 import { switchPreflight } from "../lib/ipc/switch-preflight";
 
 const executed = vi.hoisted(() => [] as unknown[][]);
+// The move's progress listeners, as the backend would tell them.
+const listeners = vi.hoisted(() => [] as Array<(progress: MoveProgressInfo) => void>);
 vi.mock("../lib/ipc/switch-move", async (original) => {
   const real = await original<typeof import("../lib/ipc/switch-move")>();
   return {
@@ -19,6 +21,14 @@ vi.mock("../lib/ipc/switch-move", async (original) => {
     switchMoveExecute: (sessionId: string, targetProfileId: string, takeNotes: boolean) => {
       executed.push([sessionId, targetProfileId, takeNotes]);
       return real.switchMoveExecute(sessionId, targetProfileId, takeNotes);
+    },
+    onMoveProgress: (handler: (progress: MoveProgressInfo) => void) => {
+      listeners.push(handler);
+      const stop = real.onMoveProgress(handler);
+      return () => {
+        listeners.splice(listeners.indexOf(handler), 1);
+        stop();
+      };
     },
   };
 });
@@ -51,9 +61,12 @@ const DONE: MoveDoneInfo = {
 afterEach(() => {
   cleanup();
   executed.length = 0;
+  listeners.length = 0;
   delete window.__AIJ_MOVE_OFFER__;
   delete window.__AIJ_MOVE_DONE__;
   delete window.__AIJ_MOVE_ERROR__;
+  delete window.__AIJ_MOVE_PROGRESS__;
+  delete window.__AIJ_MOVE_HOLD__;
   delete window.__AIJ_MOVE_UNDONE__;
   delete window.__AIJ_MOVES__;
   Object.assign(window, { __AIJ_SWITCH_PREFLIGHT__: undefined });
@@ -68,8 +81,28 @@ async function oneClick(): Promise<void> {
 
 beforeEach(oneClick);
 
-function mount() {
-  return render(<SwitchFlow sessionId="sess-1" targetProfileId="p-1" targetLabel="Personal" onClose={vi.fn()} onSwitched={vi.fn()} />);
+function mount(onClose: () => void = vi.fn()) {
+  return render(<SwitchFlow sessionId="sess-1" targetProfileId="p-1" targetLabel="Personal" onClose={onClose} onSwitched={vi.fn()} />);
+}
+
+/** 0.4.9: the maintainer's refusal, as the backend sends it now: plain
+ * words, the path only in its detail. */
+const STILL_WRITING = {
+  code: "move_refused",
+  retryable: true,
+  user_message: "Claude app · Work was still writing this conversation as it closed, so nothing was moved. Try again in a moment.",
+  detail: "still changing after 9 s: ~/example/projects/-w-proj/main.jsonl",
+};
+
+/** Mounted, Move clicked, and refused with `STILL_WRITING`. */
+async function refused(onClose: () => void) {
+  window.__AIJ_MOVE_OFFER__ = OFFER;
+  window.__AIJ_MOVE_ERROR__ = STILL_WRITING;
+  const view = mount(onClose);
+  await waitFor(() => expect(view.getByTestId("switch-move-confirm")).toBeTruthy());
+  fireEvent.click(view.getByTestId("switch-move-confirm"), { detail: 1 });
+  await waitFor(() => expect(view.getByTestId("switch-failed")).toBeTruthy());
+  return view;
 }
 
 describe("Move to account", () => {
@@ -246,5 +279,77 @@ describe("Move to account", () => {
     expect(view.getByTestId("switch-footer").getAttribute("data-dialog-part")).toBe("footer");
     expect(body.contains(view.getByTestId("switch-move-confirm"))).toBe(false);
     expect(body.contains(view.getByTestId("switch-cancel"))).toBe(false);
+  });
+
+  // 0.4.9 (the maintainer's 406 MB move): the refusal's dialog couldn't
+  // be closed: Esc, × and Cancel all did nothing (the dialog stayed
+  // marked busy after the move ended), and AI Juggler had to be quit.
+  it.each([
+    ["Esc", (view: ReturnType<typeof mount>) => fireEvent.keyDown(view.getByTestId("switch-flow"), { key: "Escape" })],
+    ["×", (view: ReturnType<typeof mount>) => fireEvent.click(view.getByTestId("switch-close"))],
+    ["Cancel", (view: ReturnType<typeof mount>) => fireEvent.click(view.getByTestId("switch-cancel"))],
+  ])("closes after a refusal with %s", async (_key, close) => {
+    const onClose = vi.fn();
+    const view = await refused(onClose);
+    close(view);
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("says a refusal that changed nothing calmly, in plain words, the path only in Copy details", async () => {
+    const view = await refused(vi.fn());
+    expect(view.getByTestId("switch-failed").getAttribute("data-calm")).toBe("true");
+    expect(view.getByTestId("switch-failed").textContent).toContain("Nothing was moved");
+    expect(view.getByTestId("switch-failed").textContent).not.toContain("didn't complete");
+    const words = view.getByTestId("switch-failed-words");
+    expect(words.getAttribute("data-level")).toBe("info");
+    expect(words.textContent).toBe(STILL_WRITING.user_message);
+    expect(words.textContent).not.toContain("/");
+    expect(view.getByTestId("switch-details").textContent).toContain("main.jsonl");
+    expect(view.queryByTestId("switch-moved-undo")).toBeNull();
+  });
+
+  it("tries again from Move after a refusal, its offer read again", async () => {
+    const view = await refused(vi.fn());
+    expect(view.getByTestId("switch-move-again").textContent).toBe("Retry");
+    fireEvent.click(view.getByTestId("switch-move-again"));
+    await waitFor(() => expect(view.getByTestId("switch-move-confirm")).toBeTruthy());
+    expect(view.queryByTestId("switch-failed")).toBeNull();
+  });
+
+  it("closes with Done after a move (the same busy mark held it)", async () => {
+    window.__AIJ_MOVE_OFFER__ = OFFER;
+    window.__AIJ_MOVE_DONE__ = DONE;
+    const onClose = vi.fn();
+    const view = mount(onClose);
+    await waitFor(() => expect(view.getByTestId("switch-move-confirm")).toBeTruthy());
+    fireEvent.click(view.getByTestId("switch-move-confirm"), { detail: 1 });
+    await waitFor(() => expect(view.getByTestId("switch-moved")).toBeTruthy());
+    fireEvent.click(view.getByTestId("switch-moved-close"));
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("never looks frozen: each step in one line, and a bar that rises while it backs up", async () => {
+    window.__AIJ_MOVE_OFFER__ = OFFER;
+    window.__AIJ_MOVE_HOLD__ = true;
+    const view = mount();
+    await waitFor(() => expect(view.getByTestId("switch-move-confirm")).toBeTruthy());
+    fireEvent.click(view.getByTestId("switch-move-confirm"), { detail: 1 });
+    await waitFor(() => expect(listeners).toHaveLength(1));
+    const tell = (progress: MoveProgressInfo) => act(() => listeners[0]!(progress));
+    tell({ stage: "closing", words: "Waiting for Claude app · Work to finish closing…", done: 0, total: 0 });
+    expect(view.getByTestId("switch-moving-now").textContent).toBe("Waiting for Claude app · Work to finish closing…");
+    expect(view.queryByTestId("switch-moving-bar")).toBeNull();
+    const total = 812_000_000;
+    const seen: number[] = [];
+    for (const done of [8_120_000, 203_000_000, 609_000_000, total]) {
+      tell({ stage: "backing_up", words: "Backing up the conversation (406 MB)…", done, total });
+      seen.push(Number(view.getByTestId("switch-moving-bar").getAttribute("aria-valuenow")));
+    }
+    expect(seen).toEqual([1, 25, 75, 100]);
+    expect(view.getByTestId("switch-moving-now").textContent).toBe("Backing up the conversation (406 MB)…");
+    expect(view.getByTestId("switch-moving-percent").textContent).toBe("100%");
+    tell({ stage: "moving", words: "Moving the conversation…", done: 0, total: 0 });
+    expect(view.queryByTestId("switch-moving-bar")).toBeNull();
+    expect(view.getByTestId("switch-moving").getAttribute("data-stage")).toBe("moving");
   });
 });

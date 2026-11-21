@@ -930,6 +930,8 @@ pub fn run() {
     }
     // AJ-E1513: prepared switches a crash left for sessions now ended.
     features::staging::sweep_at_startup(&app_state);
+    // 0.4.9: an undone move's backups (a refused move kept its own).
+    features::handover::moving::sweep_at_startup(&app_state);
     // 0.4.1: the user's own install, with no keychain reachable, says
     // once where its keys went.
     features::notifications::sources::secrets_in_files_if_fallen_back(&app_state);

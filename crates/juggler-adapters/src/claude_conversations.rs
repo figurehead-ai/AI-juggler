@@ -36,6 +36,31 @@ pub fn conversation_files(state_dir: &Path) -> Vec<PathBuf> {
         .collect()
 }
 
+/// AJ-E2311 6(b): whether conversation `id` is written under `state_dir`:
+/// `projects/<any folder>/<id>.jsonl`, the file Claude Code writes at a
+/// conversation's first turn and `--resume` opens (before it, `--resume`
+/// says "No conversation found"). Every project's folder is looked in, so
+/// how Claude Code names a folder after its path never matters. `None`
+/// for an id that isn't a UUID (Claude Code names none otherwise) or a
+/// `projects/` that is there but can't be read.
+#[must_use]
+pub fn conversation_written(state_dir: &Path, id: &str) -> Option<bool> {
+    if !juggler_adapter::handover::is_uuid_form(id) {
+        return None;
+    }
+    let folders = match std::fs::read_dir(state_dir.join("projects")) {
+        Ok(folders) => folders,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Some(false),
+        Err(_) => return None,
+    };
+    let file = format!("{id}.jsonl");
+    Some(
+        folders
+            .flatten()
+            .any(|folder| folder.path().join(&file).is_file()),
+    )
+}
+
 /// What Claude Code itself writes into a user turn when another session
 /// messages this one (its own route between sessions): never the user's.
 const SESSION_MESSAGE: &str = "Another Claude session sent a message:";
@@ -350,6 +375,41 @@ pub fn session_process(exe: Option<&Path>, args: &[String]) -> Option<SessionPro
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// AJ-E2311 6(b): a conversation is written once its
+    /// `projects/<folder>/<id>.jsonl` is there, in whichever project's
+    /// folder; before its first turn it isn't (as `--resume` finds it). An
+    /// id that isn't a UUID can't be told.
+    #[test]
+    fn a_conversation_is_written_once_its_file_is_in_a_projects_folder() {
+        use juggler_adapter::ToolTranscripts as _;
+        let config = tempfile::tempdir().unwrap();
+        let adapter = crate::ClaudeCodeAdapter::with_bin("claude");
+        let id = "0a1b2c3d-0000-4000-8000-0000000000cc";
+        assert_eq!(
+            adapter.conversation_written(config.path(), id),
+            Some(false),
+            "no projects folder yet: nothing written"
+        );
+        std::fs::create_dir_all(config.path().join("projects/-Users-you-api")).unwrap();
+        std::fs::write(
+            config.path().join("projects/-Users-you-api/other.jsonl"),
+            "{}\n",
+        )
+        .unwrap();
+        assert_eq!(adapter.conversation_written(config.path(), id), Some(false));
+        write(
+            config.path(),
+            &format!("projects/-Users-you-web/{id}.jsonl"),
+            &[r#"{"type":"user","sessionId":"x"}"#],
+        );
+        assert_eq!(adapter.conversation_written(config.path(), id), Some(true));
+        assert_eq!(
+            adapter.conversation_written(config.path(), "../web"),
+            None,
+            "not an id Claude Code names"
+        );
+    }
 
     /// 0.4.5 (AJ-E805): a transcript read as it grows, in any pieces (a
     /// response's lines split between reads), says what it says read whole,

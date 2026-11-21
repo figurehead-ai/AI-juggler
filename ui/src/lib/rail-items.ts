@@ -28,8 +28,8 @@ export { goToWhere } from "./go-to-where"; // moved out, so this list stays with
 
 export type RailState = "asks_you" | "working" | "idle" | "done_review" | "ended";
 
-/** Why an item is in Needs you. */
-export type Need = "asks" | "limit" | "stuck" | "failed" | "review" | "cut_off";
+/** Why an item is in Needs you (`resume`: its limit reset since it stopped there, AJ-E2312 1). */
+export type Need = "asks" | "limit" | "resume" | "stuck" | "failed" | "review" | "cut_off";
 
 /** AI Juggler itself: the `kind` of a place whose window is AI Juggler's
  * own terminal, and the id its icon is asked with. */
@@ -149,6 +149,7 @@ export function needWord(item: Pick<RailItem, "need" | "state" | "probably"> & P
   switch (item.need) {
     case "limit":
       return "Limit reached";
+    case "resume": return "Room again"; // AJ-E2312 1: past its reset, nothing says it's at its limit
     case "failed":
       return "Stopped with an error";
     case "stuck":
@@ -159,7 +160,7 @@ export function needWord(item: Pick<RailItem, "need" | "state" | "probably"> & P
       return stateWord("done_review");
     default:
       if (item.state === "ended" && item.endedHow) return endedWord(item.endedHow); // D-96 C
-      if (item.session?.parked && item.state !== "ended") return "Parked"; // D-117: calm until its reset
+      if (item.session?.parked) return "Parked"; // SK-20: apart from Needs you, as the backend's leaves it
       return stateWord(item.state, item.probably);
   }
 }
@@ -182,11 +183,12 @@ function folderOf(cwd: string | null): string {
   return (cwd ?? "").replace(/\/+$/, "").split("/").pop() ?? "";
 }
 
-/** AI Juggler's own session: Needs you from its attention (a snoozed one
- * waits in its place), Working while it runs, Ended after. */
+/** AI Juggler's own session: Needs you from its attention (a snoozed one,
+ * or one parked till its reset, waits in its place), Working, Ended. */
 export function sessionItem(row: InstanceInfo, projectName: (id: string | null) => string | null, snoozed: boolean): RailItem {
   const raw = row.needs_attention ?? (NEED_STATUSES.has(row.status) ? (row.status as NonNullable<InstanceInfo["needs_attention"]>) : null);
-  const attention = snoozed ? null : raw;
+  const parked = Boolean(row.parked); // SK-20: it read "Asks you" here (its need left out, its state kept)
+  const attention = snoozed || parked ? null : raw;
   // AJ-E2310: a turn AI Juggler's stop cut off waits for Resume, nothing
   // asks (the runtime lab 3: it read "Asks you").
   const cutOff = !snoozed && row.attention?.rule === "turn_cut_off";
@@ -197,11 +199,11 @@ export function sessionItem(row: InstanceInfo, projectName: (id: string | null) 
   const exact = ended ? null : (row.runtime?.state as RailState | null | undefined);
   const said: Need | null = cutOff
     ? "cut_off"
-    : attention === "waiting_user" ? (exact && exact !== "asks_you" && exact !== "ended" ? null : "asks") : attention === "quota_blocked" ? "limit" : attention === "stuck" ? "stuck" : attention === "failed" ? "failed" : null;
+    : attention === "waiting_user" ? (exact && exact !== "asks_you" && exact !== "ended" ? null : "asks") : needOfAttention(attention);
   // D-117, the one rule (as the backend's `session_kind`): a need at level 0 is no need; a
   // parked session is calm (CI run 43777785232: its limit lit the folded rail, uncounted).
   const need = said !== null && attentionLevel({ need: said, parked: row.parked != null }) > 0 ? said : null;
-  const guessed: RailState = need === "asks" || need === "stuck" || need === "limit" || need === "cut_off" ? "asks_you" : ended ? "ended" : ACTIVE.has(row.status) ? "working" : "idle";
+  const guessed: RailState = need === "asks" || need === "stuck" || need === "limit" || need === "resume" || need === "cut_off" ? "asks_you" : ended ? "ended" : ACTIVE.has(row.status) ? "working" : "idle";
   const state: RailState = !snoozed && exact && exact in WORDS ? exact : guessed;
   return {
     key: `s:${row.id}`,
@@ -226,7 +228,7 @@ export function sessionItem(row: InstanceInfo, projectName: (id: string | null) 
     need,
     lastMs: row.last_activity_ms ?? row.started_at_ms,
     viewedMs: null,
-    live: ACTIVE.has(row.status) || attention !== null,
+    live: ACTIVE.has(row.status) || attention !== null || (parked && row.attention?.rule === "limit_hit" /* its tool still open */),
     background: false,
     inactive: false,
     archived: row.lifecycle === "archived",
@@ -345,7 +347,7 @@ export function itemsOf({ sessions, conversations, projects, seen, snoozed = () 
   });
 }
 
-const NEED_ORDER: Need[] = ["failed", "asks", "limit", "stuck", "review"];
+const NEED_ORDER: Need[] = ["failed", "asks", "limit", "resume", "stuck", "review"];
 
 /** With no need, a need's state (Asks you, Done) gives way to what it is doing. */
 function calmState(item: RailItem): RailState {
@@ -353,9 +355,8 @@ function calmState(item: RailItem): RailState {
   return item.session ? (ENDED.has(item.session.status) ? "ended" : ACTIVE.has(item.session.status) ? "working" : "idle") : item.live ? "idle" : "ended";
 }
 
-/** The state a need says, as `sessionItem` reads a session's (a failure
- * keeps the state it has). */
-const NEED_STATE: Partial<Record<Need, RailState>> = { asks: "asks_you", stuck: "asks_you", limit: "asks_you", review: "done_review" };
+/** The state a need says, as `sessionItem` reads a session's (a failure keeps its own). */
+const NEED_STATE: Partial<Record<Need, RailState>> = { asks: "asks_you", stuck: "asks_you", limit: "asks_you", resume: "asks_you", review: "done_review" };
 
 /** Needs you, in `byNeed`'s order (what broke, then what asks, …). */
 export function needsYou(items: RailItem[]): RailItem[] {
@@ -371,7 +372,7 @@ function byNeed(a: Pick<RailItem, "need" | "lastMs" | "key"> & NeedRow, b: Pick<
 
 /** The need an AI Juggler session's attention record says. */
 export function needOfAttention(attention: string | null | undefined): Need | null {
-  return attention === "waiting_user" ? "asks" : attention === "quota_blocked" ? "limit" : attention === "stuck" ? "stuck" : attention === "failed" ? "failed" : null;
+  return attention === "waiting_user" ? "asks" : attention === "quota_blocked" ? "limit" : attention === "limit_reset" ? "resume" : attention === "stuck" ? "stuck" : attention === "failed" ? "failed" : null;
 }
 
 /** Open now: open and interactive. A session that needs you stays in its

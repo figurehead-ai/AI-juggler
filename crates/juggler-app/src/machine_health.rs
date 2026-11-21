@@ -25,7 +25,7 @@ use std::sync::Arc;
 
 use juggler_supervisor::machine::{
     MachineSampler, MachineSnapshot, MemoryBasis, PowerState, PressureLevel, RoomLevel,
-    RoomThresholds, ThermalState, memory_words, summarize, swap_growth_mb_per_min,
+    RoomThresholds, ThermalState, memory_words, summarize, swap_growth_mb_per_min, swap_note,
 };
 use juggler_supervisor::{LiveProcessStats, TreeSample};
 
@@ -155,6 +155,13 @@ pub struct MachineHealthInfo {
     /// Swap growth over the last minute, MB a minute; `null` with too
     /// little history.
     pub swap_growth_mb_per_min: Option<f64>,
+    /// D1 (0.4.8's persona run: "Plenty of room" beside swap at 8.2 of 9.0
+    /// GB): why swap this nearly full doesn't count against room yet, in
+    /// words from the thresholds in force (`machine::swap_note`), for the
+    /// Swap card; `null` when it isn't nearly full, or it counts (a
+    /// reason says so then).
+    #[ts(optional = nullable)]
+    pub swap_note: Option<String>,
     /// Volumes in use.
     pub volumes: Vec<VolumeInfo>,
     /// Power; `null` where the OS does not report it.
@@ -230,6 +237,7 @@ pub fn health_of(snapshot: &MachineSnapshot, thresholds: &RoomThresholds) -> Mac
         swap_total: latest.swap_total,
         swap_used: latest.swap_used,
         swap_growth_mb_per_min: swap_growth_mb_per_min(&snapshot.ring),
+        swap_note: swap_note(snapshot, thresholds),
         volumes: snapshot
             .volumes
             .iter()
@@ -299,8 +307,9 @@ pub struct MachineWatch {
     /// 5 s tick to record in the notification centre (a read, the test
     /// bridge's too, writes nothing). At most [`ENDED_KEPT`].
     ended: Vec<crate::machine_alerts::EndedAlert>,
-    /// Whether a running-tools scan has read a process table yet.
-    tools_scanned: bool,
+    /// The tick on which a running-tools scan first read a process table;
+    /// `None` until one has.
+    first_scan: Option<u32>,
     /// Bumped whenever footprints are written or pruned.
     pub(crate) footprints_written: u64,
     /// What This Mac's recommendations read from storage (AJ-E1409),
@@ -314,6 +323,15 @@ impl MachineWatch {
     #[must_use]
     pub(crate) fn tools(&self) -> &[RunningTool] {
         &self.tools
+    }
+
+    /// Whether the running AI tools are known: a scan has read the
+    /// process table, and a tick has measured what it found since (the
+    /// collector measures a found tool on its next tick). Until then no
+    /// surface may say none are running (0.4.7 walk V2).
+    #[must_use]
+    pub fn tools_known(&self) -> bool {
+        self.first_scan.is_some_and(|at| self.ticks != at)
     }
 
     /// How many 2 s ticks have started (read-only: lets a test know a tick
@@ -334,7 +352,7 @@ impl Default for MachineWatch {
             peaks: std::collections::HashMap::new(),
             alerts: crate::machine_alerts::AlertEngine::default(),
             ended: Vec::new(),
-            tools_scanned: false,
+            first_scan: None,
             footprints_written: 0,
             advice_inputs: None,
         }
@@ -370,7 +388,7 @@ pub fn tick(state: &Arc<AppState>, now_ms: i64) {
         let work = watch.sampler.tick(now_ms);
         // Until a scan has found a process table to read, every tick tries
         // (the collector may not have its first table yet).
-        let scan = !watch.tools_scanned || watch.ticks.is_multiple_of(TOOLS_EVERY);
+        let scan = watch.first_scan.is_none() || watch.ticks.is_multiple_of(TOOLS_EVERY);
         (work, watch.ticks, scan)
     };
     if let Some(mut work) = work {
@@ -427,7 +445,8 @@ pub fn tick(state: &Arc<AppState>, now_ms: i64) {
         .collect();
     if let Ok(mut watch) = state.machine.lock() {
         watch.tools = tools;
-        watch.tools_scanned = true;
+        let at = watch.ticks;
+        watch.first_scan.get_or_insert(at);
     }
     if let Ok(mut collector) = state.resources.lock() {
         collector.set_observed_roots(roots);
@@ -960,6 +979,10 @@ pub struct ThisMacInfo {
     pub awake: crate::features::app::awake::AwakeInfo,
     /// AJ-E1509: AI Juggler itself (with its watchdog; opens at login).
     pub own: crate::features::app::own::OwnInfo,
+    /// The running AI tools have been looked for and measured
+    /// (`MachineWatch::tools_known`): until then "No AI tools are running"
+    /// can't be said (0.4.7 walk V2 saw it beside two running sessions).
+    pub scanned: bool,
 }
 
 /// One tree, as the pure assembly sees it.
@@ -1155,6 +1178,7 @@ pub fn assemble(
         recommendations: Vec::new(),
         awake: crate::features::app::awake::AwakeInfo::default(),
         own: crate::features::app::own::OwnInfo::default(),
+        scanned: false,
         machine,
     }
 }
@@ -1261,11 +1285,12 @@ fn tree_inputs(
 ///
 /// [`AppError::StatePoisoned`] when a lock is poisoned; storage errors.
 pub fn this_mac_impl(state: &Arc<AppState>, now_ms: i64) -> AppResult<ThisMacInfo> {
-    let (machine, tools) = {
+    let (machine, tools, scanned) = {
         let watch = state.machine.lock().map_err(|_| AppError::StatePoisoned)?;
         (
             health_of(watch.sampler.snapshot(), &RoomThresholds::default()),
             watch.tools.clone(),
+            watch.tools_known(),
         )
     };
     let (accounts, live, labels) = {
@@ -1304,6 +1329,7 @@ pub fn this_mac_impl(state: &Arc<AppState>, now_ms: i64) -> AppResult<ThisMacInf
         .unwrap_or(u32::MAX),
     ));
     let mut info = assemble(machine, &trees, leftovers);
+    info.scanned = scanned;
     // The other apps, from the table the collector already holds: copied
     // out under its lock, grouped outside it.
     let processes = state
@@ -1389,6 +1415,12 @@ pub struct Told {
     pub leftovers: u32,
     /// Ports those hold.
     pub ports: u32,
+    /// The Mac's figures are read (its first sample).
+    pub sampled: bool,
+    /// The processor is read (it needs a second sample).
+    pub cpu: bool,
+    /// The running AI tools are known (`ThisMacInfo::scanned`).
+    pub scanned: bool,
 }
 
 impl Told {
@@ -1400,6 +1432,9 @@ impl Told {
             tools: info.tools.count,
             leftovers: info.leftover_processes,
             ports: info.leftover_ports,
+            sampled: info.machine.sampled,
+            cpu: info.machine.cpu_pct.is_some(),
+            scanned: info.scanned,
         }
     }
 }
@@ -1410,8 +1445,11 @@ static LAST_EMITTED: std::sync::Mutex<Option<Told>> = std::sync::Mutex::new(None
 /// Pure: whether This Mac goes out this tick. Always while an AI tool
 /// runs; otherwise only when something changed — the level, the count
 /// (so the step from one tool to none is told, and Home never keeps a
-/// stale "1 running"), or the left-behind count (SK-10b: a stopped
-/// leftover stayed on the Overview while nothing ran, as nothing was told).
+/// stale "1 running"), the left-behind count (SK-10b: a stopped
+/// leftover stayed on the Overview while nothing ran, as nothing was
+/// told), or a first reading (0.4.7 walk V2: a reading from before the
+/// first sample stayed on the Overview, empty, as the measured one changed
+/// nothing else).
 #[must_use]
 pub fn should_emit(last: &mut Option<Told>, now: Told) -> bool {
     let changed = last.as_ref() != Some(&now);
@@ -1900,7 +1938,7 @@ mod tests {
             level: level.to_string(),
             tools,
             leftovers,
-            ports: 0,
+            ..Told::default()
         }
     }
 
@@ -1925,6 +1963,77 @@ mod tests {
             "a level change is told"
         );
         assert!(!should_emit(&mut last, told("tight", 0, 0)));
+    }
+
+    /// 0.4.7 walk V2: This Mac's Overview showed an empty Memory card,
+    /// "Processor — Not measured yet" and "No AI tools are running" for 40+
+    /// s with two sessions running. Its first reading came before the
+    /// first sample; the measured one changed no level or count, so an
+    /// idle app never told it. Each first reading is told: the figures,
+    /// the processor's, and the first look for running tools.
+    #[test]
+    fn each_first_reading_is_told_with_nothing_else_changed() {
+        let thresholds = RoomThresholds::default();
+        let reading = |latest: Option<juggler_supervisor::machine::MachineSample>| {
+            let snapshot = MachineSnapshot {
+                cores: 10,
+                latest,
+                ..MachineSnapshot::default()
+            };
+            assemble(health_of(&snapshot, &thresholds), &[], (0, 0))
+        };
+        let sample = MachineSample {
+            memory_total: 32 * G,
+            memory_available: 20 * G,
+            swap_total: 0,
+            ..MachineSample::default()
+        };
+        let mut last = None;
+        assert!(should_emit(&mut last, Told::of(&reading(None))));
+        assert!(
+            should_emit(&mut last, Told::of(&reading(Some(sample)))),
+            "the first sample is told"
+        );
+        let cpu = MachineSample {
+            cpu_pct: Some(12.0),
+            ..sample
+        };
+        assert!(
+            should_emit(&mut last, Told::of(&reading(Some(cpu)))),
+            "the processor's first reading is told"
+        );
+        let mut scanned = reading(Some(cpu));
+        scanned.scanned = true;
+        assert!(
+            should_emit(&mut last, Told::of(&scanned)),
+            "the first look for running tools is told"
+        );
+        assert!(
+            !should_emit(&mut last, Told::of(&scanned)),
+            "then an idle app is quiet"
+        );
+    }
+
+    /// 0.4.7 walk V2: the running tools are known only once a scan has
+    /// read the process table and a tick has measured what it found.
+    #[test]
+    fn running_tools_are_known_a_tick_after_the_first_scan() {
+        let mut watch = MachineWatch::default();
+        assert!(!watch.tools_known(), "never scanned");
+        watch.ticks = 3;
+        watch.first_scan = Some(3);
+        assert!(!watch.tools_known(), "found, not yet measured");
+        watch.ticks = 4;
+        assert!(watch.tools_known());
+        assert!(
+            !assemble(
+                health_of(&MachineSnapshot::default(), &RoomThresholds::default()),
+                &[],
+                (0, 0)
+            )
+            .scanned,
+            "a reading says it only when it knows"
+        );
     }
 
     /// SK-10b: with nothing running, a stopped leftover still leaves the

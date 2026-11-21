@@ -91,12 +91,16 @@ if [ -f "$lab/standins/env.sh" ]; then
   # shellcheck source=/dev/null
   . "$lab/standins/env.sh"
 fi
-# The lab's stand-ins for `claude` and `codex`, when its setup put them
+# The lab's stand-ins for the tools (`claude`, `codex`, and from 0.4.9
+# `opencode`, `kimi`, `grok`), when its setup put them
 # there (`.aij-lab-bin`): what AI Juggler runs for them (its own test
 # overrides). Not `standins`, the --standins switch above.
 standin_bins=(env)
 [ -x "$lab/.aij-lab-bin/claude" ] && standin_bins+=("AI_JUGGLER_CLAUDE_BIN=$lab/.aij-lab-bin/claude")
 [ -x "$lab/.aij-lab-bin/codex" ] && standin_bins+=("AI_JUGGLER_CODEX_BIN=$lab/.aij-lab-bin/codex")
+[ -x "$lab/.aij-lab-bin/opencode" ] && standin_bins+=("AI_JUGGLER_OPENCODE_BIN=$lab/.aij-lab-bin/opencode")
+[ -x "$lab/.aij-lab-bin/kimi" ] && standin_bins+=("AI_JUGGLER_KIMI_BIN=$lab/.aij-lab-bin/kimi")
+[ -x "$lab/.aij-lab-bin/grok" ] && standin_bins+=("AI_JUGGLER_GROK_BIN=$lab/.aij-lab-bin/grok")
 
 case "$cmd" in
   setup)
@@ -117,8 +121,12 @@ case "$cmd" in
     # 0.4.7: the tools' stand-ins (lab_standin.sh) as `claude` and `codex`,
     # unless the scenario runs the real ones (live-claude, live-codex): a
     # session started in the lab runs a stand-in, never a real tool.
+    # 0.4.9: OpenCode, Kimi Code and Grok Build always (no lab runs them
+    # live): AI Juggler looks for them in Homebrew's folder and on PATH too,
+    # where the real ones are.
+    mkdir -p "$lab/.aij-lab-bin"
+    for tool in opencode kimi grok; do cp "$root/scripts/qa/lab_standin.sh" "$lab/.aij-lab-bin/$tool"; chmod 755 "$lab/.aij-lab-bin/$tool"; done
     if ! python3 -I "$root/scripts/qa/scenario.py" list | grep -E "^$id " | grep -q 'live-'; then
-      mkdir -p "$lab/.aij-lab-bin"
       for tool in claude codex; do cp "$root/scripts/qa/lab_standin.sh" "$lab/.aij-lab-bin/$tool"; chmod 755 "$lab/.aij-lab-bin/$tool"; done
       # `standin = "asks"` (K3): a session started in the lab asks at once.
       if echo "$seed_json" | grep -q '"standin": "asks"'; then touch "$lab/.aij-lab-bin/asks-at-start"; fi
@@ -203,9 +211,12 @@ json.dump(seed, open(path, "w"), indent=2)' "$lab/scenario-seed.json" "$hermes"
       codesign --verify --strict "$app" || { echo "lab-scenario: $app doesn't verify after an ad-hoc signature" >&2; exit 1; }
     fi
     # Its own HOME: the data folder, the vendors' folders and the sign-ins are the lab's;
-    # its `claude` and `codex` are the lab's stand-ins when `setup` put them there.
+    # its tools are the lab's stand-ins when `setup` put them there. 0.4.9:
+    # its web storage too. WebKit finds ~/Library by the system's own home
+    # (NSHomeDirectory), not $HOME, so every lab shared the Dev bundle's;
+    # CFFIXED_USER_HOME is Core Foundation's own override of that home.
     # Its log in the lab, so this command returns (and a pipe after it ends).
-    HOME="$lab" "${standin_bins[@]}" "$root/scripts/qa/lab_env.sh" "$app/Contents/MacOS/$(defaults read "$app/Contents/Info" CFBundleExecutable)" > "$lab/dev.log" 2>&1 &
+    HOME="$lab" CFFIXED_USER_HOME="$lab" "${standin_bins[@]}" "$root/scripts/qa/lab_env.sh" "$app/Contents/MacOS/$(defaults read "$app/Contents/Info" CFBundleExecutable)" > "$lab/dev.log" 2>&1 &
     pid=$!
     # AI Juggler Dev runs once per Mac: a second one hands over to the
     # running copy and quits. Still running after 8 s, it is the lab's.

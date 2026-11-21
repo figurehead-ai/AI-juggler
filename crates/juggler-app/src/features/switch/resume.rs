@@ -213,13 +213,17 @@ pub(crate) fn relaunch(state: &Arc<AppState>, r: &Relaunch<'_>) -> AppResult<(Se
 }
 
 /// AJ-E2908: Resume on an ended session's page — the same conversation,
-/// on the same account and launch settings, in its folder.
+/// on the same account and launch settings, in its folder. AJ-E2312 1: a
+/// session that ended at its limit resumes too (its limit reset, the way
+/// on its page offers, as a parked one's does); it then goes on in the
+/// new one, so it is handed over and its row leaves the lists.
 ///
 /// # Errors
 ///
 /// [`AppError::Refused`] while it still runs, or when it has no
 /// conversation to resume; as [`epoch_resume_impl`] otherwise.
 pub fn session_resume_impl(state: &Arc<AppState>, session_id: &str) -> AppResult<LaunchResult> {
+    use juggler_core::model::SessionStatus as S;
     let (row, account) = {
         let storage = lock_storage_arc(state)?;
         let row = storage
@@ -236,16 +240,20 @@ pub fn session_resume_impl(state: &Arc<AppState>, session_id: &str) -> AppResult
             .map_err(|error| not_found_or_core(error, "account", &profile.account.to_string()))?;
         (row, account)
     };
-    {
-        use juggler_core::model::SessionStatus as S;
-        if !matches!(
+    // Ended at its limit: every mark but an open session's own hit
+    // (`limits::RULE`: its tool is still open, showing the limit).
+    let ended_at_limit = row.status == S::QuotaBlocked
+        && row.attention.as_ref().map(|reason| reason.rule.as_str())
+            != Some(crate::features::sessions::limits::RULE);
+    if !ended_at_limit
+        && !matches!(
             row.status,
             S::Finished | S::Stopped | S::Failed | S::HandedOver
-        ) {
-            return Err(AppError::Refused(
-                "It's still running. Go to it instead".into(),
-            ));
-        }
+        )
+    {
+        return Err(AppError::Refused(
+            "It's still running. Go to it instead".into(),
+        ));
     }
     let native = row
         .conversation
@@ -258,5 +266,13 @@ pub fn session_resume_impl(state: &Arc<AppState>, session_id: &str) -> AppResult
         })
         .filter(|id| !id.is_empty())
         .ok_or_else(|| AppError::Refused("It has no conversation to resume yet".into()))?;
-    resume_conversation(state, &row, &account, native, "resume")
+    let resumed = resume_conversation(state, &row, &account, native, "resume")?;
+    if ended_at_limit {
+        let storage = lock_storage_arc(state)?;
+        if let Ok(mut old) = storage.sessions().get(&row.id) {
+            old.status = S::HandedOver;
+            storage.sessions().update(&old)?;
+        }
+    }
+    Ok(resumed)
 }

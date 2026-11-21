@@ -78,6 +78,7 @@ verify-static:
 # ones apart, no retries); nextest doesn't run doctests, cargo test does.
 # Every test: nextest, the doctests, the dev-bridge tests, no fixture left running.
 verify-tests:
+    python3 scripts/disk_guard.py "verify-tests"
     cargo nextest run --workspace --no-fail-fast
     ./scripts/ts_types_fresh.sh
     cargo test --workspace --doc
@@ -95,6 +96,7 @@ dev-bridge-tests:
 # Preflight's fast mode passes the packages scripts/affected_crates.py names.
 # The tests (and doctests) of some packages only.
 test-packages +packages:
+    python3 scripts/disk_guard.py "test-packages"
     cargo nextest run --no-fail-fast {{ prepend("-p ", packages) }}
     cargo test --doc {{ prepend("-p ", packages) }}
 
@@ -129,6 +131,8 @@ hooks:
 release-selftest:
     python3 scripts/gate_passed.py --selftest
     python3 scripts/keep_going.py --selftest
+    python3 scripts/disk_guard.py --selftest
+    python3 scripts/trim_target.py --selftest
     python3 scripts/affected_crates.py --selftest
     python3 scripts/ci_scope.py --selftest
     python3 scripts/ci_scope.py --check
@@ -291,6 +295,7 @@ lint:
     cargo clippy --workspace --all-targets --no-default-features -- -D warnings
 
 test:
+    python3 scripts/disk_guard.py "test"
     cargo nextest run --workspace
     cargo test --workspace --doc
 

@@ -87,11 +87,10 @@ describe("the folded rail's count = its lit icons = the bell (D-117)", () => {
     expect(count).toBe(4);
     // Two amber (asks, stuck), two red (the two that stopped with an error).
     expect(corners).toEqual(["2", "2", "3", "3"]);
-    // The parked one: no corner, its icon muted, its word "Parked".
-    const parked = view.container.querySelector<HTMLElement>("button[data-instance-id='sess-5']")!;
-    expect(parked.querySelector("[data-testid='rail-folded-needs']")).toBeNull();
-    expect(parked.querySelector(".app-tone")?.classList.contains("is-lit")).toBe(false);
-    expect(parked.querySelector(".sr-only")?.textContent).toMatch(/^Parked, /);
+    // The parked one isn't counted, and (0.4.9, SK-20) with its tool
+    // closed it isn't open, so the folded rail, which lists what's open,
+    // leaves it out: never a lit icon for it.
+    expect(view.container.querySelector("button[data-instance-id='sess-5']")).toBeNull();
   });
 
   it("not parked (home's fixture): 5 = 5 = 5, the limit one amber", async () => {

@@ -164,6 +164,9 @@ export function attentionBadge(
       return { text: "Probably stuck", tone: "warning" };
     case "quota_blocked":
       return { text: "Limit reached", tone: "danger" };
+    // AJ-E2312 1: its limit has reset; it waits to be resumed.
+    case "limit_reset":
+      return { text: "Room again", tone: "warning" };
     case "failed":
       return { text: "Stopped with an error", tone: "danger" };
     default:

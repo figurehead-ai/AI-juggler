@@ -77,7 +77,7 @@ export { appOfRow } from "./SessionRow";
 /** One of AI Juggler's sessions as a row. */
 export function sessionRow(session: InstanceInfo, now: number, onOpenSession: (id: string) => void): Row {
   const rail = sessionItem(session, () => null, false);
-  const said = { ...rowState(rail), state: rail.state };
+  const said = { ...rowState(rail, now), state: rail.state };
   return {
     key: `s/${session.id}`,
     item: { kind: isActiveStatus(session.status) ? "session" : "history", session },

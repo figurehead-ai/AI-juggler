@@ -160,6 +160,14 @@ fn group_of_session(
             NEEDS_YOU,
         );
     }
+    // AJ-E2312 1: a limit that has reset is no limit any more.
+    if status == "quota_blocked" && rule == Some(crate::features::sessions::limits::RESET_RULE) {
+        return (
+            "needs_you",
+            "Needs you — its limit has reset: resume it",
+            NEEDS_YOU,
+        );
+    }
     group_of(status, ended_how)
 }
 
@@ -194,10 +202,15 @@ fn entered_ms(row: &crate::features::sessions::dto::InstanceInfo, rank: u8) -> O
     }
 }
 
-/// A row's group by [`group_of_session`].
+/// A row's group by [`group_of_session`]; one parked until its reset
+/// waits in its own group, as Home lists it apart from Needs you
+/// (AJ-E2312 1, PM5: "Needs you (1)" read under Home's "All clear").
 fn group_of_row(
     row: &crate::features::sessions::dto::InstanceInfo,
 ) -> (&'static str, &'static str, u8) {
+    if row.parked.is_some() {
+        return ("parked", "Parked until its reset", NEEDS_YOU);
+    }
     group_of_session(
         &row.status,
         row.attention

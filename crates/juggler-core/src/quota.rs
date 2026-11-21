@@ -611,6 +611,46 @@ pub fn reading_window_ended(sample: &QuotaSample, kind: WindowKind, now_ms: i64)
     }
 }
 
+/// 0.4.9 (AJ-E2312 1): when a limit reached at `since_ms` reset, by its
+/// Account's readings `windows` (each window's kind and its samples), or
+/// `None` while it may still hold. It reset when a Measured reading found
+/// a window used up, in a window still running at `since_ms`, and that
+/// window has ended ([`reading_window_ended`]), with no window used up now
+/// (out on both, both must reset): the latest such window's end. A limit
+/// no reading saw used up never reads as reset (D-06: nothing is known of
+/// it), however long ago it was reached.
+#[must_use]
+pub fn limit_reset_at(
+    windows: &[(WindowKind, &[QuotaSample])],
+    since_ms: i64,
+    now_ms: i64,
+) -> Option<i64> {
+    let ended_at = |sample: &QuotaSample, kind: WindowKind| {
+        sample
+            .resets_at
+            .unwrap_or_else(|| sample.ts.saturating_add(kind.width_ms()))
+    };
+    let out_now = windows.iter().any(|(kind, samples)| {
+        current_reading(samples).is_some_and(|sample| {
+            used_up(sample.used_pct) && !reading_window_ended(&sample, *kind, now_ms)
+        })
+    });
+    if out_now {
+        return None;
+    }
+    windows
+        .iter()
+        .flat_map(|(kind, samples)| samples.iter().map(move |sample| (*kind, sample)))
+        .filter(|(kind, sample)| {
+            sample.confidence == Confidence::Measured
+                && used_up(sample.used_pct)
+                && ended_at(sample, *kind) > since_ms
+                && reading_window_ended(sample, *kind, now_ms)
+        })
+        .map(|(kind, sample)| ended_at(sample, kind).min(now_ms))
+        .max()
+}
+
 /// A window used up: no whole percent left (what every screen rounds to
 /// "0% left").
 #[must_use]

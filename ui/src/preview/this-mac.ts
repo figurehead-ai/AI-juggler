@@ -133,6 +133,8 @@ export function mockThisMac(
     other_apps: otherApps,
     leftover_processes: leftovers[0],
     leftover_ports: leftovers[1],
+    // As the backend: the running tools are known once the Mac is read.
+    scanned: machine.sampled,
     // As the backend's awake keeper, with Settings' defaults: kept awake
     // while sessions work, on power.
     awake: (() => {

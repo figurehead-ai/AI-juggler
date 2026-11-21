@@ -4,7 +4,9 @@
  * terminal"), so nothing hides silently: the App's launch
  * settings when it has more than one, how it runs, which Mac (only with
  * paired Macs), a saved handover to start from, this Mac's room when it's
- * fine, and the expert setup. Nothing here is remembered for next time.
+ * fine, and the expert setup. Only "Run without a terminal" is
+ * remembered, for the App it was started on (AJ-E2312 item 5,
+ * `useRuntimePick`); nothing else here is kept for next time.
  */
 import type { JSX } from "react";
 import { Disclosure, Picker } from "../../components/controls";
@@ -44,7 +46,7 @@ export function MoreOptions({
   runtimeElement,
   where,
   pack,
-  advice,
+  adviceOf,
   sessionName,
   folders,
   onManageLaunchSettings,
@@ -57,13 +59,15 @@ export function MoreOptions({
   runtimeElement: JSX.Element;
   where: Where;
   pack: PackChoice;
-  advice: MachineAdviceInfo | undefined;
+  /** This Mac's room for a launch settings' session. */
+  adviceOf: (recipeId: string) => MachineAdviceInfo | undefined;
   sessionName: (id: string) => string | null;
   folders: readonly AccountInfo[];
   onManageLaunchSettings?: () => void;
 }): JSX.Element {
   const machine = where.machines.length > 0 ? "on this computer" : null;
   const suggested = useSuggested("launch_settings", settings.map((row) => row.id));
+  const advice = recipe ? adviceOf(recipe.id) : undefined;
   return (
     <Disclosure
       testId="new-session-more"

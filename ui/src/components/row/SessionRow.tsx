@@ -34,6 +34,7 @@ import { shortHeavy, useHeavyNote } from "../../lib/machine";
 import { STATE_TONE, needWord, type RailItem } from "../../lib/rail-items";
 import { itemLevel, levelTone, type AttentionLevel } from "../../lib/attention";
 import { agoWords } from "../../lib/time-words";
+import { parkedWords } from "../../lib/parked";
 import type { AppRef } from "../../lib/app-of";
 import { RowShell } from "./RowShell";
 import { needWait } from "../../lib/waiting";
@@ -95,16 +96,15 @@ export function rowWhen(item: RailItem, now: number): string {
 
 /** Its state, in words and colour: why it needs you when it does, in its
  * level's colour (D-117: amber L2, red L3; a review, L1, is muted with its
- * ✓), else its state (calm). */
-export function rowState(item: RailItem): { word: string; text: string; dot: string; level: AttentionLevel } {
+ * ✓), else its state (calm); parked, as its rail row and its page's header
+ * say it ("Parked 3m", "Parked · ready"; AJ-E2312 1), given `now`. */
+export function rowState(item: RailItem, now?: number): { word: string; text: string; dot: string; level: AttentionLevel } {
   const level = itemLevel(item);
   if (level >= 2) return { word: needWord(item), ...levelTone(level), level };
-  return { word: needWord(item), ...STATE_TONE[item.state], level };
+  const parked = item.session?.parked && now !== undefined ? parkedWords(item.session, now) : null;
+  return { word: parked?.chip ?? needWord(item), ...STATE_TONE[item.state], level };
 }
 
-/** The rail's state mark (D-117): a 6 px dot — a need's level mark (a
- * hollow ring when it's a guess), a static calm dot while working, faint
- * when idle or ended — or a review's ✓. Every lens's rows draw it. */
 export function StateMark({ item, level, dot }: { item: RailItem; level: AttentionLevel; dot: string }): JSX.Element {
   if (level >= 2) return <span aria-hidden="true" data-state-dot={item.state} data-level={level} data-probably={item.probably ? "true" : undefined} className="level-mark" />;
   if (item.need === "review") return <span aria-hidden="true" data-state-dot={item.state} className="flex w-1.5 shrink-0 justify-center overflow-visible text-label leading-none text-success">✓</span>;
@@ -114,7 +114,7 @@ export function StateMark({ item, level, dot }: { item: RailItem; level: Attenti
 export function SessionRow(props: SessionRowProps): JSX.Element {
   const { item, density, now, within = {}, subagents } = props;
   const title = props.title ?? item.title;
-  const state = rowState(item);
+  const state = rowState(item, now);
   // AJ-E3603: a row its limit stopped says "Limit reached"; "0% left"
   // beside it said it twice and cut its title to "Tidy the …".
   const low = item.session && item.need !== "limit" ? lowLeftWords(item.session) : null;

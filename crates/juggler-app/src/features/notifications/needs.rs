@@ -159,6 +159,7 @@ fn quoted(kind: &str, name: &str) -> String {
         "asks" => format!("“{name}” needs your reply"),
         "stuck" => format!("“{name}” may be stuck"),
         "limit" => format!("“{name}” hit its usage limit"),
+        "resume" => format!("“{name}” can carry on: its limit has reset"),
         "failed" => format!("“{name}” stopped with an error"),
         _ => format!("“{name}” is done — review it"),
     }
@@ -215,6 +216,8 @@ fn kind_of(
         NeedsAttention::WaitingUser => "asks",
         NeedsAttention::Stuck => "stuck",
         NeedsAttention::QuotaBlocked => "limit",
+        // AJ-E2312 1: its limit has reset; it waits to be resumed.
+        NeedsAttention::LimitReset => "resume",
         NeedsAttention::Failed => "failed",
     })
 }

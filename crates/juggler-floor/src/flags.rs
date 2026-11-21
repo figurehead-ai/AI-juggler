@@ -79,6 +79,8 @@ pub enum Need {
     Asks,
     /// Stuck.
     Stuck,
+    /// AJ-E2312: its limit has reset: ready to go on.
+    Ready,
     /// The machine runs hot.
     Hot,
     /// Done.
@@ -106,6 +108,7 @@ impl Need {
             FloorState::Stuck => Some(Self::Stuck),
             FloorState::Done => Some(Self::Done),
             FloorState::Limit => Some(Self::Out),
+            FloorState::Ready => Some(Self::Ready),
             FloorState::Working | FloorState::Idle | FloorState::Ended => None,
         }
     }
@@ -119,6 +122,7 @@ impl Need {
             (Self::Asks, false) => "ASKS",
             (Self::Asks, true) => "ASKING",
             (Self::Stuck, _) => "STUCK",
+            (Self::Ready, _) => "READY",
             (Self::Hot, _) => "HOT",
             (Self::Done, _) => "DONE",
             (Self::Out, _) => "OUT",
@@ -133,6 +137,8 @@ impl Need {
             Self::Crashed => [0.94, 0.33, 0.31, 1.0],
             Self::Asks => [1.0, 0.83, 0.3, 1.0],
             Self::Stuck => [0.94, 0.65, 0.25, 1.0],
+            // the app's accent: room again, ready to go on
+            Self::Ready => [0.42, 0.62, 1.0, 1.0],
             Self::Hot => [1.0, 0.48, 0.24, 1.0],
             Self::Done => [0.37, 0.83, 0.55, 1.0],
             // the app's Out chip and Low chip: danger red, warning amber

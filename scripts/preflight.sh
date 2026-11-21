@@ -58,6 +58,9 @@ case "$0" in */aij-preflight-sh.*) rm -f -- "$0" ;; esac # the open copy reads o
 ROOT="$AIJ_PREFLIGHT_ROOT"
 unset AIJ_PREFLIGHT_ROOT
 cd "$ROOT" || exit 2
+# Free disk first: warn under 40 GB, refuse under 20 (scripts/disk_guard.py,
+# the one rule every heavy entry point runs).
+python3 "$ROOT/scripts/disk_guard.py" "preflight" || exit 2
 BASE=""
 MODE=fast
 while [ $# -gt 0 ]; do
@@ -87,15 +90,9 @@ SUMMARY="$LOGS/summary.txt"
 JOBS="${AIJ_PREFLIGHT_JOBS:-4}"
 NICE=(nice -n "${AIJ_PREFLIGHT_NICE:-10}")
 
-# Free disk first (2026-11-19: it fell to 13 GB during a merge and engine
-# builds): under 40 GB a warning with the trim to run; under 20 GB no build.
-FREE_GB="$(python3 "$ROOT/scripts/trim_target.py" --free 2>/dev/null || echo 999)"
-if [ "$FREE_GB" -lt 20 ]; then
-  echo "preflight: only ${FREE_GB} GB free; refusing to build under 20 GB. Run: just trim-target \"\$CARGO_TARGET_DIR\" --apply" >&2
-  exit 2
-elif [ "$FREE_GB" -lt 40 ]; then
-  echo "preflight: warning, only ${FREE_GB} GB free (under 40 GB). Consider: just trim-target \"\$CARGO_TARGET_DIR\" --apply" >&2
-fi
+# Free disk first: one rule for every heavy entry point (scripts/disk_guard.py,
+# 0.4.9): a warning under 40 GB, no build under 20 GB, with what to run.
+python3 "$ROOT/scripts/disk_guard.py" "preflight" || exit 2
 
 # One preflight at a time on this repository: two at once fail each
 # other's timing tests (6a0b1d5, 2026-11-01).

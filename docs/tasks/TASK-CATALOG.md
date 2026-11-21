@@ -295,6 +295,7 @@
 | AJ-E2305 | Switching and hand-over across runtimes | E23-session-runtime.md | P0 | M | AJ-E2303 |
 | AJ-E2310 | Driven sessions come back after AI Juggler restarts | E23-session-runtime.md | P0 | M | AJ-E2303, AJ-E2308 |
 | AJ-E2311 | 0.4.6's deferred session findings (hand-over rows, New session order, Stop toast, switch dialog, recovery limits, usage readings) | E23-session-runtime.md | P1 | L | AJ-E2310 |
+| AJ-E2312 | 0.4.8's walk findings (limits after a reset, the Parked card, time words, Bring in, New session, the pool wizard's pick, This Mac's room, the bell's scroll, lab tools) | E23-session-runtime.md | P1 | L | AJ-E2311 |
 | AJ-E2306 | Claude terminal sessions with hooks and the status line | E23-session-runtime.md | P0 | M | AJ-E2302 |
 | AJ-E2307 | Answers from Needs you and the session page | E23-session-runtime.md | P0 | M | AJ-E2303 |
 | AJ-E2308 | Run without a terminal: answer from AI Juggler (Beta) | E23-session-runtime.md | P1 | L | AJ-E2302, AJ-E2307 |
@@ -485,5 +486,5 @@
 | AJ-E3818 | The harness for the digest (job e) and watch parsing (job f), on D-130's criteria | E38-chat.md | P0 | L | AJ-E3709, AJ-E3712, AJ-E3815 |
 | AJ-E3819 | Chat memory, short and long term, with context budgets (ADR-0037) | E38-chat.md | P0 | XL | AJ-E3804, AJ-E3805, AJ-E3808, AJ-E3815 |
 | AJ-E3820 | The turn review: the code-only review, the model's Beta lines on it, and where it shows | E38-chat.md | P0 | L | AJ-E3802, AJ-E3705, AJ-E3806 |
-Total: 483 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
+Total: 484 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
 Status of every task at generation: TODO. The epic files are canonical; this catalog is an index, never edited to claim progress.

@@ -64,7 +64,7 @@ proof on real accounts of what has so far been proven with fakes.
 | A task's session starts from a pointer | The first prompt names the task and the session reads the brief through the task tool; nothing private in the process list (D-72) | AJ-E1907 |
 | Validated by real use | Every option combination that changes behaviour run against an independent reference; every real use case (writer and reviewer, feature team, across repositories, a reviewer for everything, rules by account, a build Mac, a sealed client, scouts, the upgrade, and the Account, App, links and New session journeys) walked by hand in the app, timed and scored; all of it again on the release candidate ([the plan](../qa/0.4-validation-plan.md)); and personas walking their day from first run, as newcomers, each step scored on whether it worked, gave value, was clear and felt good, so 0.4 is ready to announce | E33: AJ-E3301…AJ-E3307 |
 | Proven on real tools | Codex on real accounts; the runtime lab on real tools; the switching-fidelity matrix; Fleet on two Macs | AJ-E1305, AJ-E2301, AJ-E808, AJ-E710 |
-| An honest picture | The shipped work of E21, E23, E24, E25 and E28 evidenced and its statuses brought up to date; the README's roadmap matches this page | E21, E23, E24, E25, E28 |
+| An honest picture | The shipped work of E21, E23, E24, E25 and E28 evidenced and its statuses brought up to date; the README's roadmap matches this page | E21, AJ-E2301…AJ-E2311, E24, E25, E28 |
 | Releases that don't stall | A fast local preflight, the heavy gates on GitHub's free runners, release PRs merged as merge commits, deterministic tests | AJ-E3308 (#198's follow-up; ADR-0025) |
 
 **Order inside 0.4** for the approved designs: the words and the stored
@@ -159,6 +159,7 @@ under D-24.
 | The 10-account, 50-session load proof; a cold start budget on the release build | AJ-E805 |
 | Updates and release integrity finished | AJ-E1010 |
 | Each release's sign-off recorded from the Stable approval (D-109) | AJ-E807 |
+| What walking 0.4.8 found and its beta soak finds, fixed on release/0.4.9 and merged in (no separate 0.4.9: every known bug ships in 0.5.0): limits after a reset read the same everywhere, the Parked card, short time words, Bring in's running sessions, New session's sheet and memory, the pool wizard's pick, This Mac's room, the lab and test tools | AJ-E2312 |
 | Release speed: beta promotes the tested nightly, CI builds once and tests what changed (D-99; planned after 0.4.1) | AJ-E2020 |
 | Calm attention: four levels read from one place, each need loud once per area, a quieter look (section labels, no borders, App icons muted until they need you), every collapsible kept, on every screen: the 0.5 Stable doesn't ship with a screen on the old look (D-117) | E36 |
 | Home as an activity feed: what needs you pinned on top, then what happened, newest first and rolled up, with a "while you were away" digest; Your apps and Runway by account beside it (D-118) | E37 |

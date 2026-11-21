@@ -662,11 +662,18 @@ pub fn error_class(error: &crate::error::AppError) -> Option<(&'static str, &'st
         ),
         AppError::StatePoisoned => ("ui", "invalid_state"),
         AppError::Switch { failure, .. } => ("switch", switch_code(failure)),
+        // A move left part way (one that changed nothing is a refusal).
+        AppError::Move {
+            unchanged: false, ..
+        } => ("switch", "invalid_state"),
         AppError::Validation { .. }
         | AppError::NotFound { .. }
         | AppError::IdentityMismatch { .. }
         | AppError::AlreadyImported { .. }
-        | AppError::Refused(_) => return None,
+        | AppError::Refused(_)
+        | AppError::Move {
+            unchanged: true, ..
+        } => return None,
     })
 }
 

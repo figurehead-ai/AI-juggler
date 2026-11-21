@@ -25,6 +25,8 @@ for arg in "$@"; do
     *) ARGS="$ARGS $(printf '%q' "$arg")" ;;
   esac
 done
+# Free disk first (2026-11-21: parallel sessions drove it to 180 MB).
+python3 ../scripts/disk_guard.py "the visual gate" || exit 1
 # pnpm itself is kept in the aij-visual-corepack volume: fetched once (the
 # maintainer's yes, 2026-11-20), then every run is offline; `--offline` makes
 # a missing package fail loudly rather than download it (no downloads

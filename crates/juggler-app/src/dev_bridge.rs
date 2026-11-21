@@ -113,6 +113,10 @@ pub const NOT_FORWARDED_EVENTS: &[(&str, &str)] = &[
     ),
     (AppEvent::BackupProgress.name(), "the progress of a write"),
     (
+        AppEvent::MoveProgress.name(),
+        "a running move's steps: the bridge runs no move (a write)",
+    ),
+    (
         AppEvent::QuitRequested.name(),
         "the native window's own quit",
     ),

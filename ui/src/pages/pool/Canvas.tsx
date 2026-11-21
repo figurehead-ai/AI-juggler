@@ -63,7 +63,11 @@ export function Canvas({
   overlayRoom = 0, lineRules,
   paletteMore, paletteQuiet = false, paletteTemplate,
   paletteRequest = 0,
+  sessionNamesAll, emptyPoints,
 }: {
+  /** SK48-5: the planned team's cards, fitted beside the open Add a member as members are. */ emptyPoints?: readonly Point[];
+  /** SK48-3: every session's one name (`sessionNames`), for Add a member. */
+  sessionNamesAll?: ReadonlyMap<string, string>;
   /** SK-7: setting up, "Use a template" beside Add a member. */
   paletteTemplate?: () => void;
   pool: PoolInfo;
@@ -120,9 +124,9 @@ export function Canvas({
   const { view, latest, setView, fit, forget, hold } = useCanvasView(
     pool.id,
     // Running (quiet), the folded palette isn't drawn: no room kept for it (the rc3 critique's 53 % fit).
-    () => fitView(points.values(), size.w, size.h, 48, paletteOpen ? 260 : 0, paletteOpen || paletteQuiet ? 0 : 44, TOOLBAR_H, overlayRoom),
-    size.w > 0 && members.length > 0 && !!canvas && paletteOpen !== null,
-    [size.w, size.h, members.length, paletteOpen, paletteQuiet, overlayRoom, [...points].map(([id, at]) => `${id}:${at.x},${at.y}`).join(" ")],
+    () => fitView(members.length > 0 ? points.values() : (emptyPoints ?? []), size.w, size.h, 48, paletteOpen ? 260 : 0, paletteOpen || paletteQuiet ? 0 : 44, TOOLBAR_H, overlayRoom),
+    size.w > 0 && (members.length > 0 || (emptyPoints?.length ?? 0) > 0) && !!canvas && paletteOpen !== null,
+    [size.w, size.h, members.length, paletteOpen, paletteQuiet, overlayRoom, [...points].map(([id, at]) => `${id}:${at.x},${at.y}`).join(" "), (emptyPoints ?? []).map((at) => `${at.x},${at.y}`).join(" ")],
   );
   const placeHeld = (rows: Parameters<typeof place>[0]) => (hold(), place(rows));
   const shown = view ?? { x: size.w / 2 - NODE_W / 2, y: 48, scale: 1 };
@@ -359,6 +363,7 @@ export function Canvas({
         <Palette
           poolId={pool.id}
           sessions={candidates}
+          names={sessionNamesAll}
           projects={projects}
           removing={dragged ? { over: overPalette, why: cannotRemove(pool) } : null}
           open={paletteOpen ?? false}

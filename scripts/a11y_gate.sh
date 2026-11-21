@@ -28,6 +28,8 @@ set -uo pipefail
 root="$(cd "$(dirname "$0")/.." && pwd)"
 [ -n "${A11Y_SKIP_SUMMARY:-}" ] || rm -rf "$root/docs/qa/evidence/AJ-E804/axe"
 cd "$root/ui" || exit 2
+# Free disk first (2026-11-21: parallel sessions drove it to 180 MB).
+python3 "$root/scripts/disk_guard.py" "the accessibility gate" || exit 1
 AJ_AXE_GALLERY=1 AJ_A11Y_EVIDENCE=1 pnpm exec playwright test \
   tests/visual/capture.spec.ts \
   tests/visual/keyboard-flows.spec.ts \

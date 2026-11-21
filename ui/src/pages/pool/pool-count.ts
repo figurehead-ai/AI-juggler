@@ -44,8 +44,9 @@ export interface HeldMember {
 /** AJ-E3014 item 9 (P7's rc3a follow-ups): the members a sealed pool holds
  * out of this one, from its rows (the List view shows them greyed, "in
  * Client (sealed)"). The canvas draws none of them, so the page says so. */
-export function heldOf(rows: readonly PoolMemberRow[]): HeldMember[] {
-  return rows.flatMap((row) => (row.held_by ? [{ id: row.session.id, name: shortName(row.session), by: row.held_by }] : []));
+export function heldOf(rows: readonly PoolMemberRow[], names: ReadonlyMap<string, string> = new Map()): HeldMember[] {
+  // SK48-3: by its one name (`sessionNames`), as everywhere else.
+  return rows.flatMap((row) => (row.held_by ? [{ id: row.session.id, name: names.get(row.session.id) ?? shortName(row.session), by: row.held_by }] : []));
 }
 
 /** The pools that hold them, in words: "Client (sealed)". */

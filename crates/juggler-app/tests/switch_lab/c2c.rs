@@ -373,7 +373,13 @@ pub fn journey() {
         let offer = moving::offer(&state, session, &profile_b);
         let step4 = match &offer {
             Ok(offer) if offer.applies && offer.blocks.is_empty() => {
-                match moving::execute(&state, session, &profile_b, NotesChoice::KeepTarget) {
+                match moving::execute(
+                    &state,
+                    session,
+                    &profile_b,
+                    NotesChoice::KeepTarget,
+                    Box::new(|_| {}),
+                ) {
                     Ok(done) => {
                         let on_b = holds(&claude_b, &native);
                         let b_history = tree(&claude_b.join("file-history").join(&native));

@@ -350,14 +350,8 @@
  "crates/juggler-app/src/features/conversations/mod.rs": {
   "jscpd:lines": 29
  },
- "crates/juggler-app/src/features/conversations/places.rs": {
-  "jscpd:lines": 19
- },
  "crates/juggler-app/src/features/conversations/scan.rs": {
   "jscpd:lines": 14
- },
- "crates/juggler-app/src/features/conversations/scan/tests.rs": {
-  "jscpd:lines": 8
  },
  "crates/juggler-app/src/features/conversations/switch_source.rs": {
   "jscpd:lines": 13
@@ -493,9 +487,6 @@
  },
  "crates/juggler-app/src/history.rs": {
   "jscpd:lines": 49
- },
- "crates/juggler-app/src/lab_scope.rs": {
-  "jscpd:lines": 11
  },
  "crates/juggler-app/src/lifecycle.rs": {
   "jscpd:lines": 24

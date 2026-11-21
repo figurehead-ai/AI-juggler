@@ -51,6 +51,9 @@ const MANIFEST: &str = "manifest.json";
 const JOURNAL: &str = "journal.jsonl";
 /// The room a move keeps free beyond its own writes.
 const ROOM_MARGIN: u64 = 256 * 1024 * 1024;
+/// How many times a backup is tried when a file changes while it is read
+/// (0.4.9: once more, after the caller's settle).
+const BACKUP_TRIES: u32 = 2;
 
 /// A move's error, in words a user can read.
 #[derive(Debug, thiserror::Error)]
@@ -58,6 +61,10 @@ pub enum MoveError {
     /// The move can't start or go on, and nothing it would touch changed.
     #[error("{0}")]
     Refused(String),
+    /// A file changed while it was backed up (a writer still ran as its
+    /// app closed): nothing changed, and that try's clones were let go.
+    #[error("the backup of {} doesn't match it, so nothing was moved", .0.display())]
+    Changed(PathBuf),
     /// A step failed; the journal says how far it got.
     #[error("{what}: {source}")]
     Io {
@@ -339,6 +346,19 @@ pub fn preflight(plan: &MovePlan, moves_dir: &Path) -> Vec<Refusal> {
     out
 }
 
+/// Lets go of the backups of every undone move under `moves_dir` (at
+/// start: moves refused or undone before 0.4.9 kept them). A move in any
+/// other phase keeps its own. Returns how many moves' backups went.
+#[must_use]
+pub fn sweep_undone(moves_dir: &Path) -> usize {
+    Transaction::all(moves_dir)
+        .into_iter()
+        .filter(|txn| txn.manifest.phase == Phase::Undone)
+        .filter_map(|mut txn| txn.drop_backups().ok())
+        .filter(|went| *went)
+        .count()
+}
+
 /// Refusals as one line of words (an error's).
 #[must_use]
 pub fn words(refusals: &[Refusal]) -> String {
@@ -541,12 +561,75 @@ impl Transaction {
     /// # Errors
     ///
     /// A path can't be read, a clone fails or doesn't match.
-    pub fn back_up(&mut self, _stopped: &Stopped) -> Result<(), MoveError> {
+    pub fn back_up(&mut self, stopped: &Stopped) -> Result<(), MoveError> {
+        self.back_up_with(stopped, &mut |_, _| {}, &mut || {})
+    }
+
+    /// [`Self::back_up`] for a move someone waits on (0.4.9): `progress`
+    /// is told the bytes read so far of all it reads (each file twice: its
+    /// baseline, then its clone's check), and a file that changed while it
+    /// was read (a writer finishing as its app closed) lets that try's
+    /// clones go, waits on `settle`, and is backed up once more. The
+    /// journal says so each time; a second change refuses
+    /// ([`MoveError::Changed`]).
+    ///
+    /// # Errors
+    ///
+    /// A path can't be read, a clone fails, or a file changed twice.
+    pub fn back_up_with(
+        &mut self,
+        stopped: &Stopped,
+        progress: &mut dyn FnMut(u64, u64),
+        settle: &mut dyn FnMut(),
+    ) -> Result<(), MoveError> {
+        self.back_up_retrying(stopped, &mut |_| {}, progress, settle)
+    }
+
+    /// [`Self::back_up_with`], calling `between` with each path after its
+    /// baseline is read and before it is cloned (the tests' writer).
+    fn back_up_retrying(
+        &mut self,
+        _stopped: &Stopped,
+        between: &mut dyn FnMut(&Path),
+        progress: &mut dyn FnMut(u64, u64),
+        settle: &mut dyn FnMut(),
+    ) -> Result<(), MoveError> {
         if self.manifest.phase != Phase::Planned {
             return Err(MoveError::Refused("the move is backed up already".into()));
         }
+        let mut tries = 0;
+        loop {
+            tries += 1;
+            let result = self.back_up_once(between, progress);
+            if result.is_err() {
+                // Nothing of a failed try is a backup: its clones go, so the
+                // next try (or the move's undo) starts clean.
+                let backups = self.dir.join("backups");
+                let _ = std::fs::remove_dir_all(&backups);
+                std::fs::create_dir(&backups).map_err(io("empty the move's backups"))?;
+            }
+            match result {
+                Err(MoveError::Changed(path)) => {
+                    self.log(
+                        &serde_json::json!({"event": "backup_changed", "path": path, "try": tries}),
+                    )?;
+                    if tries >= BACKUP_TRIES {
+                        return Err(MoveError::Changed(path));
+                    }
+                    settle();
+                }
+                other => return other,
+            }
+        }
+    }
+
+    fn back_up_once(
+        &mut self,
+        between: &mut dyn FnMut(&Path),
+        progress: &mut dyn FnMut(u64, u64),
+    ) -> Result<(), MoveError> {
         let mut seen = std::collections::BTreeSet::new();
-        let mut entries = Vec::new();
+        let mut paths = Vec::new();
         for step in &self.manifest.plan.steps {
             let made = matches!(step, MoveStep::MakeDir { .. });
             let touched: Vec<&Path> = match step {
@@ -554,22 +637,38 @@ impl Transaction {
                 other => other.paths(),
             };
             for path in touched {
-                if !seen.insert(path.to_path_buf()) {
-                    continue;
+                if seen.insert(path.to_path_buf()) {
+                    paths.push((path.to_path_buf(), made));
                 }
-                let before = state::read(path).map_err(io(format!("read {}", path.display())))?;
-                entries.push(Entry {
-                    path: path.to_path_buf(),
-                    made: made && !before.present(),
-                    before,
-                    backup: None,
-                });
             }
+        }
+        // Each file is read twice: its baseline, then its clone's check.
+        let all: Vec<PathBuf> = paths.iter().map(|(path, _)| path.clone()).collect();
+        let total = 2 * state::marks(&all)
+            .values()
+            .map(|(size, _)| size)
+            .sum::<u64>();
+        let mut done = 0_u64;
+        let mut tick = |read: u64| {
+            done += read;
+            progress(done.min(total), total);
+        };
+        let mut entries = Vec::new();
+        for (path, made) in paths {
+            let before = state::read_with(&path, &mut tick)
+                .map_err(io(format!("read {}", path.display())))?;
+            entries.push(Entry {
+                made: made && !before.present(),
+                path,
+                before,
+                backup: None,
+            });
         }
         for (index, entry) in entries.iter_mut().enumerate() {
             if !entry.before.present() {
                 continue;
             }
+            between(&entry.path);
             let name = PathBuf::from(format!("{index:05}"));
             let to = self.dir.join("backups").join(&name);
             match &entry.before {
@@ -578,16 +677,43 @@ impl Transaction {
                 State::Absent => Ok(()),
             }
             .map_err(io(format!("back up {}", entry.path.display())))?;
-            if !state::same_bytes(&to, &entry.before) {
-                return Err(MoveError::Refused(format!(
-                    "the backup of {} doesn't match it, so nothing was moved",
-                    entry.path.display()
-                )));
+            if !state::same_bytes_with(&to, &entry.before, &mut tick) {
+                return Err(MoveError::Changed(entry.path.clone()));
             }
             entry.backup = Some(name);
         }
         self.manifest.entries = entries;
         self.set_phase(Phase::BackedUp)
+    }
+
+    /// Lets go of an undone move's backups (0.4.9): nothing is left to
+    /// restore from them (the baseline is back, or nothing was moved).
+    /// What Undo kept aside (`preserved/`) and the journal stay. Returns
+    /// whether anything went (`false`: none were left).
+    ///
+    /// # Errors
+    ///
+    /// The move isn't undone (Undo may still need them), or they can't be
+    /// removed.
+    pub fn drop_backups(&mut self) -> Result<bool, MoveError> {
+        if self.manifest.phase != Phase::Undone {
+            return Err(MoveError::Refused(
+                "only an undone move's backups are let go".into(),
+            ));
+        }
+        let backups = self.dir.join("backups");
+        let any = std::fs::read_dir(&backups).is_ok_and(|mut entries| entries.next().is_some());
+        if !any {
+            return Ok(false);
+        }
+        let bytes: u64 = state::marks(std::slice::from_ref(&backups))
+            .values()
+            .map(|(size, _)| size)
+            .sum();
+        std::fs::remove_dir_all(&backups).map_err(io("let the move's backups go"))?;
+        std::fs::create_dir(&backups).map_err(io("let the move's backups go"))?;
+        self.log(&serde_json::json!({"event": "backups_dropped", "bytes": bytes}))?;
+        Ok(true)
     }
 
     fn before(&self, path: &Path) -> Option<&State> {

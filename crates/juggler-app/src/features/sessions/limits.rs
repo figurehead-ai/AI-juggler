@@ -28,6 +28,13 @@
 //! account has room again. A warning that a limit is near is no hit (the
 //! adapter's rule). Like the exit classifier, a hit is the tool's own fact,
 //! so it marks at once, with no debounce; nothing acts on it but the user.
+//!
+//! 0.4.9 (AJ-E2312 1, the PM5 walk): a limit's window also ends by its
+//! Account's readings ([`juggler_core::quota::limit_reset_at`]): a hit
+//! with no reset of its own clears then too, and a session that ended at
+//! its limit keeps its status but is marked [`RESET_RULE`]: its limit has
+//! reset and it waits to be resumed, read the same in the header, the
+//! rail, Home and the bell (`read_model`), never "Limit reached" again.
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -46,6 +53,9 @@ use crate::state::AppState;
 pub const RULE: &str = "limit_hit";
 /// The exit classifier's rule: the session ended at its limit.
 pub const EXIT_RULE: &str = "quota_exit";
+/// A session that ended at its limit whose limit has reset since: it
+/// waits to be resumed (AJ-E2312 1).
+pub const RESET_RULE: &str = "limit_reset";
 /// How often a session whose output moves is looked at, at most.
 pub const OUTPUT_EVERY: std::time::Duration = std::time::Duration::from_secs(1);
 
@@ -182,6 +192,9 @@ fn window_words(window: Option<WindowKind>) -> &'static str {
 struct Facts {
     status: SessionStatus,
     rule: Option<String>,
+    /// When its limit began: its mark's, else its last activity.
+    since_ms: i64,
+    account: Option<String>,
     started_ms: i64,
     transcript: Option<PathBuf>,
     caps: Capabilities,
@@ -191,17 +204,22 @@ struct Facts {
 fn facts(state: &Arc<AppState>, session: &SessionId) -> Option<Facts> {
     let storage = state.storage.lock().ok()?;
     let record = storage.sessions().get(session).ok()?;
-    let harness = storage
+    let account = storage
         .profiles()
         .get(&record.profile)
         .ok()
-        .and_then(|profile| storage.accounts().get(&profile.account).ok())
-        .map(|account| account.harness);
+        .and_then(|profile| storage.accounts().get(&profile.account).ok());
     drop(storage);
+    let harness = account.as_ref().map(|account| account.harness.clone());
     let adapter = harness.and_then(|harness| state.registry.get(&harness));
     Some(Facts {
         status: record.status,
+        since_ms: record.attention.as_ref().map_or_else(
+            || record.last_activity.unwrap_or(record.started_at).millis(),
+            |reason| reason.since_ms,
+        ),
         rule: record.attention.map(|reason| reason.rule),
+        account: account.map(|account| account.id.to_string()),
         started_ms: record.started_at.millis(),
         transcript: record.transcript_ref.map(|reference| reference.path),
         caps: adapter
@@ -250,15 +268,93 @@ fn settle(state: &Arc<AppState>, session: &SessionId, hit: Option<&LimitHit>, ma
     true
 }
 
+/// When the limit folder `account`'s session reached at `since_ms` reset,
+/// by the folder's readings of both windows
+/// ([`juggler_core::quota::limit_reset_at`]); `None` while it may hold.
+#[must_use]
+pub fn account_reset_at(
+    storage: &juggler_core::storage::Storage,
+    account: &str,
+    since_ms: i64,
+    now_ms: i64,
+) -> Option<i64> {
+    use juggler_core::quota::{WEEK_MS, limit_reset_at};
+    // A window still running at `since_ms` was read a week before it at
+    // most (the week's own length).
+    let from = since_ms.min(now_ms) - WEEK_MS;
+    let anchor = storage
+        .app_settings()
+        .get(&juggler_core::storage::anchor_settings_key(account))
+        .ok()
+        .flatten()
+        .and_then(|raw| raw.parse::<i64>().ok());
+    let read = |kind: WindowKind| -> Vec<juggler_core::quota::QuotaSample> {
+        storage
+            .usage()
+            .sourced_samples_since(account, kind, from)
+            .unwrap_or_default()
+            .into_iter()
+            .map(|(sample, _)| sample)
+            .collect()
+    };
+    let week = WindowKind::Weekly { anchor_ms: anchor };
+    let (five, weekly) = (read(WindowKind::FiveHour), read(week));
+    limit_reset_at(
+        &[(WindowKind::FiveHour, &five[..]), (week, &weekly[..])],
+        since_ms,
+        now_ms,
+    )
+}
+
+/// A session that ended at its limit (the exit classifier's mark, or
+/// none recorded) whose limit has reset by its Account's readings: marked
+/// [`RESET_RULE`] from when it reset, its status kept. `true` when its
+/// stored state changed.
+fn ended_reset(state: &Arc<AppState>, session: &SessionId, facts: &Facts, now: i64) -> bool {
+    if matches!(facts.rule.as_deref(), Some(RULE | RESET_RULE)) {
+        return false;
+    }
+    let Some(account) = facts.account.as_deref() else {
+        return false;
+    };
+    let Ok(storage) = state.storage.lock() else {
+        return false;
+    };
+    let Some(at) = account_reset_at(&storage, account, facts.since_ms, now) else {
+        return false;
+    };
+    let Ok(mut record) = storage.sessions().get(session) else {
+        return false;
+    };
+    if record.status != SessionStatus::QuotaBlocked
+        || record.attention.as_ref().map(|reason| reason.rule.as_str()) != facts.rule.as_deref()
+    {
+        return false;
+    }
+    record.attention = Some(AttentionReason {
+        rule: RESET_RULE.to_owned(),
+        inputs: vec!["its limit has reset".to_owned()],
+        since_ms: at,
+    });
+    storage.sessions().update(&record).is_ok()
+}
+
 /// Looks at one session's transcript for a limit hit (a terminal session
 /// whose tool records them); `true` when its stored state changed. A
 /// driven session's mark is its runtime's ([`driven`]), and only expires
-/// here. A session whose process ended is the exit classifier's.
+/// here. A session whose process ended is the exit classifier's, until
+/// its limit resets (`ended_reset`).
 pub fn check(state: &Arc<AppState>, session: &SessionId) -> bool {
     let Some(facts) = facts(state, session) else {
         return false;
     };
     let now = Timestamp::now().millis();
+    if facts.status == SessionStatus::QuotaBlocked
+        && facts.rule.as_deref() != Some(RULE)
+        && !state.runtime.is_driven(session)
+    {
+        return ended_reset(state, session, &facts, now);
+    }
     if state.runtime.is_driven(session) {
         let reset = state
             .limits
@@ -285,9 +381,17 @@ pub fn check(state: &Arc<AppState>, session: &SessionId) -> bool {
             .limits
             .tail_hit(session.as_str(), &path, |tail| adapter.limit_hit(tail))
     });
-    let hit_holds = hit
-        .as_ref()
-        .is_some_and(|hit| holds(hit, facts.started_ms, now));
+    // A hit with no reset of its own holds until its Account's readings
+    // say its window ended (AJ-E2312 1).
+    let hit_holds = hit.as_ref().is_some_and(|hit| {
+        holds(hit, facts.started_ms, now)
+            && (hit.resets_at_ms.is_some()
+                || facts.account.as_deref().is_none_or(|account| {
+                    state.storage.lock().ok().is_none_or(|storage| {
+                        account_reset_at(&storage, account, hit.at_ms, now).is_none()
+                    })
+                }))
+    });
     match wanted(facts.status, facts.rule.as_deref(), hit_holds) {
         Some(true) => settle(state, session, hit.as_ref(), true),
         Some(false) => settle(state, session, None, false),

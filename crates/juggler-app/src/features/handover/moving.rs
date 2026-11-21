@@ -25,8 +25,19 @@
 //! the app's list of it, that it opened in the target profile, and a
 //! reply from the model on the target account, which only the user can
 //! check (the move never sends a prompt).
+//!
+//! 0.4.9 (a 406 MB move refused: "the backup of … doesn't match it"):
+//! a profile is quit as its whole process tree ([`places::tree`]: its
+//! helpers and the Code tab's Claude Code outlive its main process and
+//! wrote the history's last lines after it ended), then every file the
+//! move touches must hold still before it is backed up, a backup that
+//! still caught a write is tried once more, a refusal says why in plain
+//! words (the paths only in Copy details), the switch screen is told how
+//! far the move is, and an undone move's backups go.
+//!
+//! [`places::tree`]: crate::features::places::tree
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
@@ -38,6 +49,7 @@ use juggler_handover::moving::{Lock, MoveError, Phase, Recovery, Stopped, Transa
 
 use crate::error::{AppError, AppResult};
 use crate::features::places::book::KnownPlace;
+use crate::features::places::tree::{self, Member};
 use crate::state::AppState;
 
 /// How long a profile is given to quit.
@@ -49,6 +61,42 @@ const START_WAIT: Duration = Duration::from_secs(30);
 const SETTLE: Duration = Duration::from_secs(6);
 /// Between looks.
 const EVERY: Duration = Duration::from_millis(250);
+/// How long every file the move touches must hold still before it is
+/// backed up (an app's last lines land as it closes).
+const STILL: Duration = Duration::from_millis(1500);
+/// How many such windows a move waits at most for them.
+const STILL_LOOKS: u32 = 6;
+
+/// How a move is going, for the switch screen while it runs (0.4.9: a
+/// long backup never looks frozen).
+#[derive(Clone, PartialEq, Eq, Debug, serde::Serialize, ts_rs::TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
+pub struct MoveProgressInfo {
+    /// `closing`, `still`, `backing_up`, `moving`, `starting` or
+    /// `checking`.
+    pub stage: String,
+    /// What it is doing, in words ("Waiting for Claude app · Work to
+    /// finish closing…").
+    pub words: String,
+    /// Bytes done of `total` (both 0 where there's nothing to count).
+    #[ts(type = "number")]
+    pub done: u64,
+    /// See `done`.
+    #[ts(type = "number")]
+    pub total: u64,
+}
+
+impl MoveProgressInfo {
+    /// A stage with nothing to count.
+    fn step(stage: &str, words: String) -> Self {
+        Self {
+            stage: stage.to_owned(),
+            words,
+            done: 0,
+            total: 0,
+        }
+    }
+}
 
 /// One conversation of the family, as the switch screen lists it.
 #[derive(Clone, PartialEq, Eq, Debug, serde::Serialize, ts_rs::TS)]
@@ -235,16 +283,52 @@ pub trait MoveSystem: Send + Sync {
     fn settle(&self, for_: Duration) {
         std::thread::sleep(for_);
     }
-    /// How long a profile is given to quit.
+    /// How long a profile is given to quit, its whole process tree
+    /// included.
     fn quit_wait(&self) -> Duration {
         QUIT_WAIT
     }
+    /// Every process of `place` now ([`tree::now`]): `roots` (its main
+    /// process, while it runs) and below, its helpers, the tools it runs
+    /// from its own folder, and theirs.
+    fn tree(&self, state: &Arc<AppState>, place: &KnownPlace, roots: &[u32]) -> Vec<Member>;
+    /// Tells the switch screen how the move is going.
+    fn tell(&self, _progress: &MoveProgressInfo) {}
 }
 
+/// Hands each step of a move's progress on (to the switch screen).
+pub type Tell = Box<dyn Fn(&MoveProgressInfo) + Send + Sync>;
+
 /// The real system.
-pub struct Real;
+pub struct Real {
+    tell: Option<Tell>,
+}
+
+impl Real {
+    /// The real system, telling no one how a move goes (the offer, Undo).
+    #[must_use]
+    pub fn quiet() -> Self {
+        Self { tell: None }
+    }
+
+    /// The real system, telling `tell` how the move goes.
+    #[must_use]
+    pub fn telling(tell: Tell) -> Self {
+        Self { tell: Some(tell) }
+    }
+}
 
 impl MoveSystem for Real {
+    fn tree(&self, state: &Arc<AppState>, place: &KnownPlace, roots: &[u32]) -> Vec<Member> {
+        tree::now(state, place, roots)
+    }
+
+    fn tell(&self, progress: &MoveProgressInfo) {
+        if let Some(tell) = &self.tell {
+            tell(progress);
+        }
+    }
+
     fn running(&self, state: &Arc<AppState>, place_id: &str) -> Option<(u32, Option<i64>)> {
         crate::features::places::running_now(state, place_id)
     }
@@ -559,7 +643,12 @@ pub fn offer(
     session_id: &str,
     target_profile_id: &str,
 ) -> AppResult<MoveOfferInfo> {
-    Ok(offer_with(state, session_id, target_profile_id, &Real))
+    Ok(offer_with(
+        state,
+        session_id,
+        target_profile_id,
+        &Real::quiet(),
+    ))
 }
 
 pub(crate) fn offer_with(
@@ -635,8 +724,11 @@ struct StoppedPlace {
     was_running: bool,
 }
 
-/// Quits each of `places` by its exact process and waits for it to end.
-/// On a refusal, the ones already quit are started again.
+/// Quits each of `places` by its exact process and waits for its whole
+/// process tree to end (0.4.9: its helpers and the tools it runs outlive
+/// its main process, and the Claude app's Code tab wrote the history's
+/// last lines after it ended). On a refusal, the ones already quit are
+/// started again.
 fn stop_places(
     state: &Arc<AppState>,
     places: &[(String, KnownPlace)],
@@ -644,55 +736,180 @@ fn stop_places(
 ) -> AppResult<Vec<StoppedPlace>> {
     let mut stopped: Vec<StoppedPlace> = Vec::new();
     for (id, place) in places {
-        let Some((pid, start)) = system.running(state, id) else {
-            stopped.push(StoppedPlace {
-                id: id.clone(),
-                place: place.clone(),
-                was_running: false,
-            });
-            continue;
-        };
-        // The pid is this profile's process still (not one the system
-        // gave another program since): checked by its start time.
-        if start.is_none() || !system.alive(pid, start) {
-            start_again(state, &stopped, system);
-            return Err(refused(format!(
-                "AI Juggler couldn't be sure which process is {}, so nothing was quit or moved",
-                place_name(state, place)
-            )));
-        }
-        if let Err(why) = system.quit(pid) {
-            start_again(state, &stopped, system);
-            return Err(refused(format!(
-                "couldn't quit {}: {why}",
-                place_name(state, place)
-            )));
-        }
+        let name = place_name(state, place);
+        system.tell(&MoveProgressInfo::step(
+            "closing",
+            format!("Waiting for {name} to finish closing…"),
+        ));
         let wait = system.quit_wait();
         let until = Instant::now() + wait;
-        while system.alive(pid, start) {
-            if Instant::now() >= until {
-                start_again(state, &stopped, system);
-                return Err(refused(format!(
-                    "{} didn't quit within {} seconds, so nothing was moved. It may be asking something: look at its window",
-                    place_name(state, place),
-                    wait.as_secs().max(1)
-                )));
+        let mut before = Vec::new();
+        let was_running = match system.running(state, id) {
+            None => false,
+            Some((pid, start)) => {
+                // The pid is this profile's process still (not one the
+                // system gave another program since): checked by its start
+                // time.
+                if start.is_none() || !system.alive(pid, start) {
+                    start_again(state, &stopped, system);
+                    return Err(refused(format!(
+                        "AI Juggler couldn't be sure which process is {name}, so nothing was quit or moved"
+                    )));
+                }
+                // All of it, looked at before it quits: once its main
+                // process ends, what it started belongs to launchd.
+                before = system.tree(state, place, &[pid]);
+                if let Err(why) = system.quit(pid) {
+                    start_again(state, &stopped, system);
+                    return Err(refused(format!("couldn't quit {name}: {why}")));
+                }
+                while system.alive(pid, start) {
+                    if Instant::now() >= until {
+                        start_again(state, &stopped, system);
+                        return Err(refused(format!(
+                            "{name} didn't quit within {} seconds, so nothing was moved. It may be asking something: look at its window",
+                            wait.as_secs().max(1)
+                        )));
+                    }
+                    std::thread::sleep(EVERY);
+                }
+                true
             }
-            std::thread::sleep(EVERY);
-        }
+        };
         stopped.push(StoppedPlace {
             id: id.clone(),
             place: place.clone(),
-            was_running: true,
+            was_running,
         });
+        if let Err(left) = rest_ended(state, place, &before, until, system) {
+            start_again(state, &stopped, system);
+            let secs = wait.as_secs().max(1);
+            return Err(AppError::Move {
+                words: format!(
+                    "{name} didn't finish closing within {secs} seconds: {} still {}, so nothing was moved. Try again in a moment.",
+                    tree::words(&left),
+                    if left.len() == 1 { "runs" } else { "run" }
+                ),
+                detail: format!(
+                    "still running {secs} s after the quit: {}",
+                    left.iter()
+                        .map(|m| format!("{} (process {})", m.name, m.pid))
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                ),
+                unchanged: true,
+            });
+        }
     }
     Ok(stopped)
 }
 
-/// Starts again the profiles that were running.
+/// Waits until every process of `place` has ended: each of `before`
+/// (looked at before it quit; by pid and start time, so a pid given to
+/// another program since isn't one) and any its marks find now, until
+/// `until`. Returns what still runs then.
+fn rest_ended(
+    state: &Arc<AppState>,
+    place: &KnownPlace,
+    before: &[Member],
+    until: Instant,
+    system: &dyn MoveSystem,
+) -> Result<(), Vec<Member>> {
+    loop {
+        let mut left: Vec<Member> = before
+            .iter()
+            .filter(|member| system.alive(member.pid, member.start))
+            .cloned()
+            .collect();
+        for member in system.tree(state, place, &[]) {
+            if !left.iter().any(|known| known.pid == member.pid) {
+                left.push(member);
+            }
+        }
+        if left.is_empty() {
+            return Ok(());
+        }
+        if Instant::now() >= until {
+            return Err(left);
+        }
+        std::thread::sleep(EVERY);
+    }
+}
+
+/// Waits for every file at or under `paths` to hold still for [`STILL`]
+/// (no size or time of last write changing), at most [`STILL_LOOKS`]
+/// windows. Returns the files still changing then.
+fn hold_still(paths: &[PathBuf], system: &dyn MoveSystem) -> Result<(), Vec<PathBuf>> {
+    use juggler_handover::moving::state::{changed, marks};
+    let mut last = marks(paths);
+    let mut moving = Vec::new();
+    for _ in 0..STILL_LOOKS {
+        system.settle(STILL);
+        let now = marks(paths);
+        moving = changed(&last, &now);
+        if moving.is_empty() {
+            return Ok(());
+        }
+        last = now;
+    }
+    Err(moving)
+}
+
+/// Who was still writing `path`, in words: the profile whose folders hold
+/// it ("Claude app · Work was still writing this conversation as it
+/// closed"), else the account whose sessions write there.
+fn still_writing(state: &Arc<AppState>, sides: &Sides, path: &Path) -> String {
+    let both = [
+        (
+            &sides.request.source,
+            &sides.source_place,
+            &sides.source_label,
+        ),
+        (
+            &sides.request.target,
+            &sides.target_place,
+            &sides.target_label,
+        ),
+    ];
+    for (side, place, label) in both {
+        let holds = path.starts_with(&side.tool_dir)
+            || side
+                .host_dir
+                .as_deref()
+                .is_some_and(|dir| path.starts_with(dir));
+        if holds {
+            return match place {
+                Some((_, place)) => format!(
+                    "{} was still writing this conversation as it closed",
+                    place_name(state, place)
+                ),
+                None => format!("a session on {label} was still writing this conversation"),
+            };
+        }
+    }
+    "another app was still writing this conversation".to_owned()
+}
+
+/// A size in words ("406 MB"), as the switch screen says sizes.
+fn size_words(bytes: u64) -> String {
+    #[allow(clippy::cast_precision_loss, reason = "a size in words")]
+    let bytes = bytes as f64;
+    if bytes >= 1e9 {
+        format!("{:.1} GB", bytes / 1e9)
+    } else if bytes >= 1e6 {
+        format!("{:.0} MB", bytes / 1e6)
+    } else {
+        format!("{:.0} KB", (bytes / 1e3).max(1.0))
+    }
+}
+
+/// Starts again the profiles that were running (and aren't again: one the
+/// user started meanwhile is left as it is).
 fn start_again(state: &Arc<AppState>, stopped: &[StoppedPlace], system: &dyn MoveSystem) {
     for place in stopped.iter().filter(|p| p.was_running) {
+        if system.running(state, &place.id).is_some() {
+            continue;
+        }
         if let Err(why) = system.start(state, &place.place) {
             tracing::warn!(target: "juggler::move", "a profile didn't start again after a move: {why}");
         }
@@ -752,8 +969,15 @@ pub fn execute(
     session_id: &str,
     target_profile_id: &str,
     notes: NotesChoice,
+    tell: Tell,
 ) -> AppResult<MoveDoneInfo> {
-    execute_with(state, session_id, target_profile_id, notes, &Real)
+    execute_with(
+        state,
+        session_id,
+        target_profile_id,
+        notes,
+        &Real::telling(tell),
+    )
 }
 
 pub(crate) fn execute_with(
@@ -813,31 +1037,59 @@ fn run(state: &Arc<AppState>, sides: &Sides, system: &dyn MoveSystem) -> AppResu
         .map_err(engine)?;
 
     // The single-writer phase.
-    let stopped_places = stop_places(state, &places, system)?;
+    let stopped_places = match stop_places(state, &places, system) {
+        Ok(stopped) => stopped,
+        Err(error) => {
+            // Planned only: its undo touches no file. The journal reads
+            // planned → undone, with nothing kept.
+            let _ = txn.undo(
+                &Stopped::checked(),
+                juggler_core::model::Timestamp::now().millis(),
+            );
+            let _ = txn.drop_backups();
+            return Err(error);
+        }
+    };
     let stopped = Stopped::checked();
-    let fail = |txn: &mut Transaction, why: String| -> AppError {
-        // Never undo under a running app: it would write over the restore.
-        if let Err(started) = still_down(state, &stopped_places, system) {
-            let _ = txn.stop_with(&format!("{why}; {started}"));
-            return refused(format!(
-                "{why}, and {started}, so AI Juggler left both accounts as they are now. Quit it, then Undo the move here"
-            ));
+    // `words` say why in plain words (no path); `detail` is the program's
+    // own, for Copy details.
+    let fail = |txn: &mut Transaction, words: String, detail: String| -> AppError {
+        let untouched = txn.manifest.phase == Phase::Planned;
+        // Never undo under a running app: it would write over the restore
+        // (a move only planned has nothing to restore).
+        if !untouched && let Err(started) = still_down(state, &stopped_places, system) {
+            let _ = txn.stop_with(&format!("{detail}; {started}"));
+            return AppError::Move {
+                words: format!(
+                    "{words}, and {started}, so AI Juggler left both accounts as they are now. Quit it, then Undo the move here."
+                ),
+                detail,
+                unchanged: false,
+            };
         }
         match txn.undo(&stopped, juggler_core::model::Timestamp::now().millis()) {
             Ok(_) => {
+                // Nothing is left to restore from them.
+                let _ = txn.drop_backups();
                 start_again(state, &stopped_places, system);
-                refused(format!(
-                    "{why}. Nothing was moved: both accounts are as they were"
-                ))
+                AppError::Move {
+                    words: format!("{words}, so nothing was moved. Try again in a moment."),
+                    detail,
+                    unchanged: true,
+                }
             }
             Err(error) => {
                 // Left closed: an app writing into a half-undone folder
                 // would make the next Undo reconcile its writes.
-                let _ = txn.stop_with(&format!("{why}; undo: {error}"));
+                let _ = txn.stop_with(&format!("{detail}; undo: {error}"));
                 pause(state, &stopped_places);
-                refused(format!(
-                    "{why}. Undoing it didn't finish ({error}); both profiles stay closed, the move's journal and backups are kept, and Undo the move here finishes it"
-                ))
+                AppError::Move {
+                    words: format!(
+                        "{words}. Undoing it didn't finish; both profiles stay closed, the move's journal and backups are kept, and Undo the move here finishes it."
+                    ),
+                    detail: format!("{detail}; undo: {error}"),
+                    unchanged: false,
+                }
             }
         }
     };
@@ -845,7 +1097,8 @@ fn run(state: &Arc<AppState>, sides: &Sides, system: &dyn MoveSystem) -> AppResu
     // changed family.
     let again = plan_of(sides).and_then(|plan| txn.replan(plan).map_err(engine));
     if let Err(error) = again {
-        return Err(fail(&mut txn, error.to_string()));
+        let words = "the conversation's family or files changed while the apps closed".to_owned();
+        return Err(fail(&mut txn, words, error.to_string()));
     }
     let plan = txn.manifest.plan.clone();
     let mover = sides
@@ -853,31 +1106,84 @@ fn run(state: &Arc<AppState>, sides: &Sides, system: &dyn MoveSystem) -> AppResu
         .in_place_move()
         .ok_or_else(|| refused("no mover"))?;
     if let Err(started) = still_down(state, &stopped_places, system) {
-        return Err(fail(&mut txn, started));
+        return Err(fail(&mut txn, started.clone(), started));
     }
-    if let Err(error) = txn.back_up(&stopped) {
-        return Err(fail(&mut txn, error.to_string()));
+    // 0.4.9: every file it touches holds still before it is backed up.
+    let watched: Vec<PathBuf> = txn.touched().into_iter().map(Path::to_path_buf).collect();
+    system.tell(&MoveProgressInfo::step(
+        "still",
+        "Waiting for the conversation's files to hold still…".to_owned(),
+    ));
+    if let Err(moving) = hold_still(&watched, system) {
+        let first = moving.first().cloned().unwrap_or_default();
+        let detail = format!(
+            "still changing after {} s: {}",
+            (STILL * STILL_LOOKS).as_secs(),
+            moving
+                .iter()
+                .map(|path| path.display().to_string())
+                .collect::<Vec<_>>()
+                .join(", ")
+        );
+        return Err(fail(&mut txn, still_writing(state, sides, &first), detail));
+    }
+    let mut told = 0_u64;
+    let mut progress = |done: u64, total: u64| {
+        if done < told {
+            told = 0; // a second try reads from the start
+        }
+        if done == total || (done - told).saturating_mul(100) >= total {
+            told = done;
+            system.tell(&MoveProgressInfo {
+                stage: "backing_up".to_owned(),
+                words: format!("Backing up the conversation ({})…", size_words(total / 2)),
+                done,
+                total,
+            });
+        }
+    };
+    let backed_up = txn.back_up_with(&stopped, &mut progress, &mut || {
+        let _ = hold_still(&watched, system);
+    });
+    if let Err(error) = backed_up {
+        let words = match &error {
+            MoveError::Changed(path) => still_writing(state, sides, path),
+            _ => "AI Juggler couldn't back up the conversation's files".to_owned(),
+        };
+        return Err(fail(&mut txn, words, error.to_string()));
     }
     if let Err(started) = still_down(state, &stopped_places, system) {
-        return Err(fail(&mut txn, started));
+        return Err(fail(&mut txn, started.clone(), started));
     }
+    system.tell(&MoveProgressInfo::step(
+        "moving",
+        "Moving the conversation…".to_owned(),
+    ));
     if let Err(error) = txn.apply(&stopped, 0) {
-        return Err(fail(&mut txn, error.to_string()));
+        let words = "the conversation's files couldn't be moved".to_owned();
+        return Err(fail(&mut txn, words, error.to_string()));
     }
     let cold = match txn.verify_cold(mover.verify(&sides.request, &plan)) {
         Ok(report) => report,
-        Err(error) => return Err(fail(&mut txn, error.to_string())),
+        Err(error) => {
+            let words = "AI Juggler couldn't record its checks of the move".to_owned();
+            return Err(fail(&mut txn, words, error.to_string()));
+        }
     };
     if !cold.passed() {
-        let why = format!(
-            "a check before reopening failed: {}",
-            cold.failures().join("; ")
-        );
-        return Err(fail(&mut txn, why));
+        let words = "a check before reopening failed".to_owned();
+        return Err(fail(&mut txn, words, cold.failures().join("; ")));
     }
 
     // Both profiles again, each on its own folders; the conversation
     // opened in the target by its own process.
+    if !places.is_empty() {
+        let names: Vec<String> = places.iter().map(|(_, p)| place_name(state, p)).collect();
+        system.tell(&MoveProgressInfo::step(
+            "starting",
+            format!("Starting {} again…", names.join(" and ")),
+        ));
+    }
     let source_id = sides.source_place.as_ref().map(|(id, _)| id);
     if let Some(source) = stopped_places.iter().find(|p| Some(&p.id) == source_id)
         && source.was_running
@@ -892,6 +1198,14 @@ fn run(state: &Arc<AppState>, sides: &Sides, system: &dyn MoveSystem) -> AppResu
         }
         _ => None,
     };
+    let target_name = sides
+        .target_place
+        .as_ref()
+        .map_or_else(|| sides.target_label.clone(), |(_, p)| place_name(state, p));
+    system.tell(&MoveProgressInfo::step(
+        "checking",
+        format!("Checking the conversation in {target_name}…"),
+    ));
     system.settle(SETTLE);
     // The move happened: a check that can't be written is a failed check,
     // never an error that hides the move and its Undo.
@@ -919,10 +1233,6 @@ fn run(state: &Arc<AppState>, sides: &Sides, system: &dyn MoveSystem) -> AppResu
         .filter(|c| !c.pass && !c.what.contains("starts with"))
         .map(|c| c.what.clone())
         .collect();
-    let target_name = sides
-        .target_place
-        .as_ref()
-        .map_or_else(|| sides.target_label.clone(), |(_, p)| place_name(state, p));
     let members = plan.members.len();
     let many = |n: usize, one: &str, more: &str| format!("{n} {}", if n == 1 { one } else { more });
     let mut notes = plan.notes.clone();
@@ -990,7 +1300,7 @@ fn run(state: &Arc<AppState>, sides: &Sides, system: &dyn MoveSystem) -> AppResu
 /// A backup doesn't match (nothing changed), a profile wouldn't quit, or
 /// the restore failed (the journal says how far).
 pub fn undo(state: &Arc<AppState>, move_id: &str) -> AppResult<String> {
-    undo_with(state, move_id, &Real)
+    undo_with(state, move_id, &Real::quiet())
 }
 
 pub(crate) fn undo_with(
@@ -1050,6 +1360,8 @@ pub(crate) fn undo_with(
     );
     let kept = match result {
         Ok(kept) => {
+            // Nothing is left to restore from them (0.4.9).
+            let _ = txn.drop_backups();
             start_again(state, &stopped_places, system);
             kept
         }
@@ -1089,6 +1401,21 @@ pub(crate) fn undo_with(
         "Undone: the conversation is back where it was. Anything done since the move is kept in {}",
         kept.display()
     ))
+}
+
+/// 0.4.9: at start, in the background, lets go of the backups of moves
+/// already undone (a move refused before 0.4.9 kept a backup of its whole
+/// history). A move in any other phase keeps its own.
+pub fn sweep_at_startup(state: &Arc<AppState>) {
+    let folder = moves_dir(state);
+    let _ = std::thread::Builder::new()
+        .name("move-backups-sweep".into())
+        .spawn(move || {
+            let went = juggler_handover::moving::sweep_undone(&folder);
+            if went > 0 {
+                tracing::info!(target: "juggler::move", "let go of {went} undone moves' backups");
+            }
+        });
 }
 
 /// Every move AI Juggler knows of, newest first, with any left part way

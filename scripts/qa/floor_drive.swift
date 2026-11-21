@@ -162,10 +162,31 @@ func attr(_ e: AXUIElement, _ name: String) -> CFTypeRef? {
     return value
 }
 
-/// The deepest element of the main window under (x, y), found in its own
-/// tree: the system's hit test sees only windows on screen, and a window
-/// manager may keep this one off screen.
+/// The deepest element of the main window under (x, y): found in its own
+/// tree first (the system's hit test sees only windows on screen, and a
+/// window manager may keep this one off screen), else by the app's own hit
+/// test ([`hitTest`]).
 func element(at x: Double, _ y: Double) -> AXUIElement {
+    if let e = treeElement(at: x, y) { return e }
+    if let e = hitTest(at: x, y) { return e }
+    fail("nothing there")
+}
+
+/// What the app itself says is under (x, y), as Voice Control's "click"
+/// and Switch Control's pointing ask it. The tree walk follows only frames
+/// that contain the point, so it misses what is drawn outside its
+/// parent's frame: 0.4.8's pool wizard, drawn over the whole window from
+/// the page's column, was "nothing to press there" for this driver and,
+/// before its fix, for those users too. Only while the window is on screen.
+func hitTest(at x: Double, _ y: Double) -> AXUIElement? {
+    let b = need(.main).bounds
+    var found: AXUIElement?
+    guard AXUIElementCopyElementAtPosition(axApp, Float(b.origin.x + x), Float(b.origin.y + y), &found) == .success else { return nil }
+    return found
+}
+
+/// The deepest element under (x, y) in the main window's own tree.
+func treeElement(at x: Double, _ y: Double) -> AXUIElement? {
     let b = need(.main).bounds
     let at = CGPoint(x: b.origin.x + x, y: b.origin.y + y)
     func frame(_ e: AXUIElement) -> CGRect? {
@@ -188,8 +209,7 @@ func element(at x: Double, _ y: Double) -> AXUIElement {
     for w in (attr(axApp, "AXWindows") as? [AXUIElement]) ?? [] where !(attr(w, "AXTitle") as? String ?? "").hasPrefix("The Floor") {
         walk(w, 0)
     }
-    guard let (e, _) = best else { fail("nothing there") }
-    return e
+    return best?.0
 }
 
 func ancestors(_ start: AXUIElement) -> [AXUIElement] {
@@ -270,12 +290,22 @@ func main(_ args: [String]) {
     let start = Date()
     switch verb {
     case "click":
-        let chain = ancestors(element(at: n(1), n(2)))
+        var chain = ancestors(element(at: n(1), n(2)))
+        let fields = ["AXTextField", "AXTextArea", "AXComboBox", "AXSearchField"]
+        func takes(_ c: [AXUIElement]) -> Bool {
+            c.prefix(3).contains(where: { fields.contains(attr($0, "AXRole") as? String ?? "") })
+                || c.contains(where: { actions($0).contains("AXPress") })
+        }
+        // Nothing to press in the tree there: ask the app what is under
+        // the point (an overlay drawn outside its parent's frame).
+        if !takes(chain), let hit = hitTest(at: n(1), n(2)), takes(ancestors(hit)) {
+            chain = ancestors(hit)
+            FileHandle.standardError.write("floor_drive: found by the app's own hit-test\n".data(using: .utf8)!)
+        }
         // The element under the point can be a text field's own part (its
         // placeholder's text): the field is then up the chain, and a click
         // there puts the cursor in it, as a mouse click does (the 0.4.3
         // persona D3: the rail's search box "took no typing").
-        let fields = ["AXTextField", "AXTextArea", "AXComboBox", "AXSearchField"]
         if let field = chain.prefix(3).first(where: { fields.contains(attr($0, "AXRole") as? String ?? "") }) {
             AXUIElementSetAttributeValue(field, "AXFocused" as CFString, kCFBooleanTrue)
             // While the app is in the background (the Mac is in use and is
@@ -304,8 +334,12 @@ func main(_ args: [String]) {
             fail("that field doesn't take typing")
         }
     case "scroll":
-        let chain = ancestors(element(at: n(1), n(2)))
-        if let area = chain.first(where: { (attr($0, "AXRole") as? String) == "AXScrollArea" }),
+        var chain = ancestors(element(at: n(1), n(2)))
+        let isArea = { (e: AXUIElement) in (attr(e, "AXRole") as? String) == "AXScrollArea" }
+        if !chain.contains(where: isArea), let hit = hitTest(at: n(1), n(2)), ancestors(hit).contains(where: isArea) {
+            chain = ancestors(hit)
+        }
+        if let area = chain.first(where: isArea),
            let bar = attr(area, "AXVerticalScrollBar"),
            let value = attr(bar as! AXUIElement, "AXValue") as? Double {
             let next = min(1, max(0, value + n(3) * 0.05))

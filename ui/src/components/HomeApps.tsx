@@ -27,6 +27,7 @@ import { showGoTo } from "../lib/go-to";
 import { conversationsBringForward } from "../lib/ipc/conversations";
 import { placesOpen, type KnownPlaceInfo } from "../lib/ipc/places";
 import { placeFor, placeShortWords, placeWords, useKnownPlaces } from "../lib/places";
+import { useClock } from "../lib/clock";
 import { groupItems, type RailGroup } from "../lib/rail-places";
 import { appFolderOf, knownAppWord, ownersOf } from "../lib/rail-apps";
 import { appIdOfRailKey, openApp, useCliApps, type AppModel } from "../lib/apps";
@@ -212,6 +213,9 @@ function CliRow({ app }: { app: AppModel }): JSX.Element {
 
 function KeptRow({ place }: { place: KnownPlaceInfo }): JSX.Element {
   const running = place.app_pid !== null;
+  // SK48-6: "last open 11 min ago" moves with every row's clock, the app's
+  // one (it read the system's at each draw, beside rows still at 7 min).
+  const now = useClock();
   const app = knownAppWord(place);
   const profile = desktopProfile(place.instance, place.profile);
   const name = appName(app, profile);
@@ -219,7 +223,7 @@ function KeptRow({ place }: { place: KnownPlaceInfo }): JSX.Element {
   // Its state in the words every place line uses (lib/places); a closed
   // one under "Not running" says only when it was seen (the full words
   // in its tooltip and name).
-  const line = running ? placeWords(place) : placeShortWords(place);
+  const line = running ? placeWords(place, now) : placeShortWords(place, now);
   return (
     <Row
       id={place.id}
@@ -228,7 +232,7 @@ function KeptRow({ place }: { place: KnownPlaceInfo }): JSX.Element {
       profile={profile}
       slot={place.colour_slot ?? place.id}
       line={line}
-      long={placeWords(place)}
+      long={placeWords(place, now)}
       needs={0}
       level={0}
       broken={[]}

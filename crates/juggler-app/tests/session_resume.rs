@@ -111,6 +111,77 @@ fn an_ended_session_resumes_its_own_conversation_on_its_own_account() {
     assert_eq!(row.cwd, folder, "in its folder");
 }
 
+/// AJ-E2312 item 1 (the PM5 walk): one that ended at its limit is
+/// offered its way on once its limit resets, as a parked one is: Resume
+/// takes it up again, and the original is handed over to it (its row
+/// leaves the lists: it never says it waits there again). One still open
+/// at its limit (its tool shows the limit) is gone to, not resumed.
+#[test]
+fn a_session_that_ended_at_its_limit_resumes_and_hands_over() {
+    use juggler_core::model::AttentionReason;
+    let work = tempfile::tempdir().unwrap();
+    let state = app_state(work.path());
+    let folder = work.path().join("shop");
+    std::fs::create_dir_all(&folder).unwrap();
+    let account = set_up::set_up(
+        &state,
+        juggler_app::features::account::create_account(&state, CLAUDE_CODE_ID, "Work", None)
+            .unwrap(),
+    );
+    let profile =
+        juggler_app::features::profile::create_profile(&state, &account.id, "Main", None, None)
+            .unwrap();
+    let launched = juggler_app::features::launch::launch_profile(
+        &state,
+        &profile.id,
+        Some(folder.to_string_lossy().into_owned()),
+    )
+    .unwrap();
+    let id = SessionId::new(launched.session_id.clone());
+    let mark = |rule: &str| {
+        set(
+            &state,
+            &launched.session_id,
+            SessionStatus::QuotaBlocked,
+            Some("c0c0c0c0-0000-4000-8000-000000000002"),
+        );
+        let storage = state.storage.lock().unwrap();
+        let mut row = storage.sessions().get(&id).unwrap();
+        row.attention = Some(AttentionReason {
+            rule: rule.to_owned(),
+            inputs: Vec::new(),
+            since_ms: 1,
+        });
+        storage.sessions().update(&row).unwrap();
+    };
+    mark(juggler_app::features::sessions::limits::RULE);
+    let refused =
+        juggler_app::features::switch::resume::session_resume_impl(&state, &launched.session_id)
+            .unwrap_err();
+    assert!(refused.to_string().contains("still running"), "{refused}");
+
+    mark(juggler_app::features::sessions::limits::RESET_RULE);
+    let resumed =
+        juggler_app::features::switch::resume::session_resume_impl(&state, &launched.session_id)
+            .unwrap();
+    assert_ne!(resumed.session_id, launched.session_id, "a new session");
+    let storage = state.storage.lock().unwrap();
+    let new = storage
+        .sessions()
+        .get(&SessionId::new(resumed.session_id.clone()))
+        .unwrap();
+    assert_eq!(
+        new.conversation.as_ref().map(|c| c.as_str()),
+        Some("c0c0c0c0-0000-4000-8000-000000000002"),
+        "the same conversation"
+    );
+    assert_eq!(
+        storage.sessions().get(&id).unwrap().status,
+        SessionStatus::HandedOver,
+        "the original went on in it"
+    );
+}
+
 /// E3002-R3 step 10 (the rc32 walk): a resumed session is the same line
 /// of work. It keeps the pools the original was put in by hand, with its
 /// role there and its place on the canvas; the original's node is the

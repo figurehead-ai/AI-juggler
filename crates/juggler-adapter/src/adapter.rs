@@ -171,6 +171,7 @@ pub trait ToolSignIn: ToolIdentity {
     fn probe_identity(&self, account: &Account) -> crate::identity::IdentityProbe {
         crate::identity::key_or_no_metadata(
             self.login_state(&account.state_dir) == LoginState::ApiKey,
+            &self.spec().display_name,
         )
     }
     /// AJ-E3210 (D-63 as amended, Q1-A): the sign-in the tool's desktop
@@ -794,6 +795,14 @@ pub trait ToolTranscripts: ToolIdentity {
         let _ = state_dir;
         Vec::new()
     }
+    /// AJ-E1703: its transcripts say what a session is working on (the
+    /// files it changed, its task list's step), as a pool's context card
+    /// reads them. Default: no; the card then says the tool doesn't report
+    /// it (SK48-4), never that its transcript is still to be read.
+    #[must_use]
+    fn reports_activity(&self) -> bool {
+        false
+    }
     /// 0.4.3: the version of what [`crate::ToolTranscripts::read_conversation`]
     /// reads from a file. Bump it whenever a summary would say something
     /// else of an unchanged file (a new field, a changed rule): AI
@@ -860,6 +869,20 @@ pub trait ToolTranscripts: ToolIdentity {
                 .read_conversation(path)
                 .map(|summary| summary.opening.is_some()),
         }
+    }
+    /// AJ-E2311 6(b): whether conversation `conversation_id` is written
+    /// under `state_dir`, where this tool keeps its conversations, so a
+    /// resume by that id finds it. A restart asks before it resumes a
+    /// session by its id: `Some(false)` (nothing there to resume) starts it
+    /// again, saying why, instead of a resume the tool refuses ("No
+    /// conversation found") and a terminal that fails the same way. Looks
+    /// at names only; reads no file. `None` (the default, and for an id
+    /// that isn't one this tool names, or a folder that can't be read):
+    /// can't tell, so it is resumed as before.
+    #[must_use]
+    fn conversation_written(&self, state_dir: &Path, conversation_id: &str) -> Option<bool> {
+        let _ = (state_dir, conversation_id);
+        None
     }
     /// AJ-E1602: the conversations of a tool that keeps them all in one
     /// store (one database) rather than a file each, read in one pass,

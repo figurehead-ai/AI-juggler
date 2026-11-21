@@ -94,7 +94,7 @@ export function SwitchFlow({
   // Set the moment the switch starts, so an Esc that comes before the
   // next render is held too.
   const runningRef = useRef(false);
-  runningRef.current = running || (runningRef.current && phase.kind !== "failed" && phase.kind !== "done");
+  runningRef.current = running || (runningRef.current && phase.kind !== "failed" && phase.kind !== "done" && !move.settled);
   const cancel = () => {
     if (runningRef.current) {
       setHolding(true);

@@ -58,4 +58,6 @@ do = "Change one, start, then open New session again"
 # D-40 and AJ-E3207: the fold's options are this start's own; what lasts
 # is saved where it lives (Advanced's overrides are the App's launch
 # settings, saved with Save). Nothing in the sheet offers to keep them.
-expect = "For this start only: New session opens on the defaults again"
+# AJ-E2312 item 5: the one exception is "Run without a terminal" (Beta),
+# remembered for the App it was started on (and said in the fold's label).
+expect = "For this start only: New session opens on the defaults again (Run without a terminal excepted: it's kept for the App it started on)"

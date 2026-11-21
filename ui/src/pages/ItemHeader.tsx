@@ -27,7 +27,7 @@ import { IconFleet, IconJuggler, IconProjects, IconTerminal } from "../component
 import type { InspectorData, InspectorKind } from "../components/RightInspector";
 import { useConversations } from "../lib/conversations";
 import { resourceLine, useHeavyNote } from "../lib/machine";
-import { knownMs, since } from "../lib/time-words";
+import { agoWords } from "../lib/time-words";
 import type { AccountInfo } from "../types/generated/AccountInfo";
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import type { LaunchRecipeInfo } from "../types/generated/LaunchRecipeInfo";
@@ -351,13 +351,13 @@ function sessionFacts(session: InstanceInfo, now: number, withAccount: boolean):
     .join(" · ");
 }
 
-/** SK-24 (the 0.4.7 persona run M2): how long ago it started, measured
- * from the session's own start against the window's clock, which ticks
- * every 15 s (30 s unfocused). Under a minute is "just now": by seconds,
- * a page opened between two ticks said "started 1s ago" of a session that
- * began before the last one (and "30s", then "1s", as it was read again).
+/** SK-24 (the 0.4.7 persona run M2): how long ago it started, from the
+ * session's own start against the window's clock (it ticks every 15 s):
+ * under a minute is "just now", never "started 1s ago" of one that began
+ * before the last tick. AJ-E2312 3: in the app's one time words ("started
+ * 21 min ago"), as the rail and Home say it, never its own "21m ago".
  * Nothing when the start isn't known. */
 function startedAgo(startedMs: number, now: number): string | null {
-  if (!knownMs(startedMs)) return null;
-  return now - startedMs < 60_000 ? "started just now" : `started ${since(startedMs, now)} ago`;
+  const words = agoWords(startedMs, now);
+  return words === "" ? null : `started ${words}`;
 }

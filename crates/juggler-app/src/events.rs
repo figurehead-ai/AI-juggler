@@ -35,6 +35,9 @@ pub enum AppEvent {
     FleetSwitchProgress,
     /// A backup export's progress (AJ-E1009).
     BackupProgress,
+    /// A move to account's progress (0.4.9; carries its
+    /// `MoveProgressInfo`).
+    MoveProgress,
     /// The update status changed (AJ-E1010).
     UpdateStatus,
     /// The native window asked to quit; the UI shows the quit plan.
@@ -95,7 +98,7 @@ pub enum AppEvent {
 
 impl AppEvent {
     /// Every event, in declaration order.
-    pub const ALL: [Self; 35] = [
+    pub const ALL: [Self; 36] = [
         Self::AppReady,
         Self::SessionsUpdated,
         Self::SessionsResources,
@@ -106,6 +109,7 @@ impl AppEvent {
         Self::PreviewState,
         Self::FleetSwitchProgress,
         Self::BackupProgress,
+        Self::MoveProgress,
         Self::UpdateStatus,
         Self::QuitRequested,
         Self::ReportBug,
@@ -147,6 +151,7 @@ impl AppEvent {
             Self::PreviewState => "preview://state",
             Self::FleetSwitchProgress => "fleet://switch-progress",
             Self::BackupProgress => "backup://progress",
+            Self::MoveProgress => "move://progress",
             Self::UpdateStatus => "update://status",
             Self::QuitRequested => "app://quit-requested",
             Self::ReportBug => "app://report-bug",

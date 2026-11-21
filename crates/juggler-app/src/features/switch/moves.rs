@@ -48,7 +48,13 @@ pub async fn switch_move_execute(
         NotesChoice::KeepTarget
     };
     crate::ipc::blocking(state.inner(), "move", move |state| {
-        let done = execute(state, &session_id, &target_profile_id, notes)?;
+        // 0.4.9: the switch screen shows how far it is.
+        let steps = app.clone();
+        let tell: crate::features::handover::moving::Tell = Box::new(move |progress| {
+            use crate::events::{AppEvent, EmitEvent as _};
+            steps.emit_event(AppEvent::MoveProgress, progress.clone());
+        });
+        let done = execute(state, &session_id, &target_profile_id, notes, tell)?;
         let _ = crate::features::sessions::read_model::emit_sessions(&app, state);
         Ok(done)
     })

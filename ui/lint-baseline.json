@@ -2194,7 +2194,7 @@
   "jsx-a11y(prefer-tag-over-role)": 1,
   "react(memo-dependencies)": 1,
   "react(purity)": 1,
-  "react(refs)": 24,
+  "react(refs)": 23,
   "typescript(no-misused-promises)": 1,
   "typescript(no-unsafe-type-assertion)": 1
  },

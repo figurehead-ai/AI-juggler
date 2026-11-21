@@ -11,6 +11,7 @@ import { AppIconTile } from "../../components/AppIcon";
 import { IconGoTo } from "../../components/icons-actions";
 import { ToolMark } from "../../components/ToolMark";
 import { ago, agoWords, pastDay, pastWhen } from "../../lib/time-words";
+import { parkedWords } from "../../lib/parked";
 import { useGiveWay } from "../../components/use-give-way";
 import type { SubscriptionInfo } from "../../lib/subscriptions";
 import { AccountMenu, sessionAppMark } from "./AccountMenu";
@@ -104,18 +105,21 @@ export function SessionChips({ model, account, now }: { model: SessionModel; acc
   const ended = endedAt === null ? null : pastWhen(endedAt, now);
   const day = endedAt === null ? null : pastDay(endedAt, now);
   const shorter = day !== ended;
+  // AJ-E2312 1: parked, its rail row's words ("Parked · ready" past its
+  // reset), never "Limit reached".
+  const words = (model.parked ? parkedWords(model.parked, now)?.chip : null) ?? model.state.words;
   return (
     <>
       <span
         ref={state}
         data-testid="session-state-chip"
         data-tone={model.state.tone}
-        title={ended === null ? undefined : `${model.state.words} ${ended}`}
+        title={ended === null ? undefined : `${words} ${ended}`}
         className={"inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-2.5 py-0.5 text-meta font-semibold leading-5 " + TONES[model.state.tone]}
       >
         {model.live && <span aria-hidden="true" className={"size-2 rounded-full bg-current " + (model.state.working ? "motion-safe:animate-pulse" : "")} />}
         <span>
-          {model.state.words}
+          {words}
           {model.state.asks || model.state.tone === "accent" ? since : null}
           {ended !== null && (
             <span data-give-at={shorter ? 1 : 3} data-testid="session-ended-at" className="data-gone:sr-only">

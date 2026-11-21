@@ -10,6 +10,7 @@
  * and focus goes back to the bell. Nothing here acts by itself.
  */
 import { useEffect, useId, useLayoutEffect, useRef, useState, type JSX, type RefObject } from "react";
+import { useClock } from "../lib/clock";
 import { useInertOutside } from "../lib/inert";
 import { keepTabInside } from "./form";
 import { NoticeRow } from "./NoticeRow";
@@ -84,7 +85,8 @@ export function NotificationCentre({ summary, sessions, anchor, onClose }: { sum
     onClose();
     openWatches({ kind: "edit", id });
   };
-  const [now] = useState(() => Date.now());
+  // SK48-6: its rows' times move with the app's clock while it's open.
+  const now = useClock();
   // Focus in on open; back to what opened it on close.
   useEffect(() => {
     const before = document.activeElement as HTMLElement | null;

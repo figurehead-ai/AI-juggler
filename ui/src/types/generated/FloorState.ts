@@ -3,4 +3,4 @@
 /**
  * How the Floor draws a person at a desk (SPEC §9.7's table).
  */
-export type FloorState = "working" | "idle" | "asks" | "stuck" | "limit" | "crashed" | "done" | "ended";
+export type FloorState = "working" | "idle" | "asks" | "stuck" | "limit" | "ready" | "crashed" | "done" | "ended";

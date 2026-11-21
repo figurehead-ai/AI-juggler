@@ -19,6 +19,9 @@ export function attentionWords(rule: string | null | undefined): string {
     // 0.3: open at its limit (the tool's own record; it waits there).
     case "limit_hit":
       return "hit its usage limit";
+    // AJ-E2312 1: it stopped at its limit, which has reset since.
+    case "limit_reset":
+      return "its limit has reset";
     case "failed":
       return "stopped with an error";
     // AJ-E1509: why a crashed session wasn't started again, and a session
@@ -90,7 +93,8 @@ export interface AttentionSubject {
 }
 
 /** The kinds that are a decision waiting (L2) whatever their facts. */
-const WAITS = new Set(["asks", "stuck", "cut_off", "signin", "cap", "message", "task", "heavy"]);
+// `resume` (AJ-E2312 1, 0.4.9): its limit reset since it stopped there; "Room again" waits on you.
+const WAITS = new Set(["asks", "stuck", "cut_off", "resume", "signin", "cap", "message", "task", "heavy"]);
 /** The kinds that are a note (L1): done work to review, leftovers, and
  * the proposal's other notes (an update, a renewal within 7 days, kept
  * alive or paused, not measured yet, uncommitted files). */

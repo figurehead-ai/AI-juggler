@@ -73,17 +73,27 @@ impl State {
 ///
 /// It can't be read, or holds a link.
 pub fn read(path: &Path) -> std::io::Result<State> {
+    read_with(path, &mut |_| {})
+}
+
+/// [`read`], telling `tick` the bytes of each piece as it is read (a
+/// long backup says how far it is, 0.4.9).
+///
+/// # Errors
+///
+/// It can't be read, or holds a link.
+pub fn read_with(path: &Path, tick: &mut dyn FnMut(u64)) -> std::io::Result<State> {
     let Ok(meta) = std::fs::symlink_metadata(path) else {
         return Ok(State::Absent);
     };
     if meta.is_file() {
-        return Ok(State::File(file_state(path)?));
+        return Ok(State::File(file_state_with(path, tick)?));
     }
     if meta.is_dir() {
         let (files, dirs) = juggler_platform::transfer::tree(path)?;
         let mut states = Vec::with_capacity(files.len());
         for rel in files {
-            let state = file_state(&path.join(&rel))?;
+            let state = file_state_with(&path.join(&rel), tick)?;
             states.push((rel, state));
         }
         return Ok(State::Dir(DirState {
@@ -104,7 +114,16 @@ pub fn read(path: &Path) -> std::io::Result<State> {
 ///
 /// It can't be read.
 pub fn file_state(path: &Path) -> std::io::Result<FileState> {
-    let (sha256, size) = juggler_adapter::handover::sha256_file(path, None)?;
+    file_state_with(path, &mut |_| {})
+}
+
+/// [`file_state`], telling `tick` each piece read.
+fn file_state_with(path: &Path, tick: &mut dyn FnMut(u64)) -> std::io::Result<FileState> {
+    let reader = Counted {
+        inner: std::fs::File::open(path)?,
+        tick,
+    };
+    let (sha256, size) = juggler_adapter::handover::sha256_reader(reader, None)?;
     Ok(FileState {
         size,
         sha256,
@@ -112,11 +131,31 @@ pub fn file_state(path: &Path) -> std::io::Result<FileState> {
     })
 }
 
+/// A reader that tells `tick` how many bytes each read gave.
+struct Counted<'a, R> {
+    inner: R,
+    tick: &'a mut dyn FnMut(u64),
+}
+
+impl<R: std::io::Read> std::io::Read for Counted<'_, R> {
+    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+        let read = self.inner.read(buf)?;
+        (self.tick)(read as u64);
+        Ok(read)
+    }
+}
+
 /// Whether what is at `path` now holds exactly `before`'s bytes (its
 /// identity aside: a restored clone is another file with the same bytes).
 #[must_use]
 pub fn same_bytes(path: &Path, before: &State) -> bool {
-    match (before, read(path)) {
+    same_bytes_with(path, before, &mut |_| {})
+}
+
+/// [`same_bytes`], telling `tick` each piece read.
+#[must_use]
+pub fn same_bytes_with(path: &Path, before: &State, tick: &mut dyn FnMut(u64)) -> bool {
+    match (before, read_with(path, tick)) {
         (State::Absent, Ok(State::Absent)) => true,
         (State::File(was), Ok(State::File(is))) => was.sha256 == is.sha256 && was.size == is.size,
         (State::Dir(was), Ok(State::Dir(is))) => {
@@ -147,4 +186,52 @@ pub fn starts_with(path: &Path, before: &FileState) -> Option<Vec<u8>> {
     // The added part is a few lines; a megabyte more is read at most.
     file.take(1 << 20).read_to_end(&mut added).ok()?;
     Some(added)
+}
+
+/// What a writer changes, read without reading any bytes: every file at
+/// or under each of `paths`, with its size and when it was last written
+/// (0.4.9: a move waits for these to hold still before it backs them up).
+pub type Marks = std::collections::BTreeMap<PathBuf, (u64, Option<std::time::SystemTime>)>;
+
+/// The [`Marks`] of `paths` now (what can't be read is left out: a file
+/// that comes or goes reads as a change).
+#[must_use]
+pub fn marks(paths: &[PathBuf]) -> Marks {
+    let mut out = Marks::new();
+    for path in paths {
+        let Ok(meta) = std::fs::symlink_metadata(path) else {
+            continue;
+        };
+        if meta.is_file() {
+            out.insert(path.clone(), (meta.len(), meta.modified().ok()));
+        } else if meta.is_dir()
+            && let Ok((files, _)) = juggler_platform::transfer::tree(path)
+        {
+            for rel in files {
+                let file = path.join(rel);
+                if let Ok(meta) = std::fs::symlink_metadata(&file) {
+                    out.insert(file, (meta.len(), meta.modified().ok()));
+                }
+            }
+        }
+    }
+    out
+}
+
+/// The files whose marks differ between `before` and `now` (changed,
+/// come or gone).
+#[must_use]
+pub fn changed(before: &Marks, now: &Marks) -> Vec<PathBuf> {
+    let mut out: Vec<PathBuf> = now
+        .iter()
+        .filter(|(path, mark)| before.get(*path) != Some(*mark))
+        .map(|(path, _)| path.clone())
+        .collect();
+    out.extend(
+        before
+            .keys()
+            .filter(|path| !now.contains_key(*path))
+            .cloned(),
+    );
+    out
 }

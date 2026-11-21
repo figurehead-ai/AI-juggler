@@ -67,8 +67,9 @@ it("a row's figure stays muted when it asks (L2), when it broke (L3) and when it
   expect(screen.queryByText("0% left")).toBeNull();
   expect(screen.getByTestId("state-word").textContent).toBe("Limit reached");
   cleanup();
-  // Parked until its reset: calm too, its word "Parked".
+  // Parked, its reset reached: calm too, its word as its page's header
+  // says it ("Parked · ready", AJ-E2312 1, 0.4.9).
   out({ status: "quota_blocked", needs_attention: "quota_blocked", parked: "measured", parked_resets_at_ms: Date.now() - 60_000 });
   expect(screen.getByText("0% left").className).toContain("text-muted");
-  expect(screen.getByText("Parked")).toBeTruthy();
+  expect(screen.getByText("Parked · ready")).toBeTruthy();
 });

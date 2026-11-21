@@ -92,6 +92,7 @@ function info(level: "plenty" | "tight" | "pressure", trees: ToolTreeInfo[], lef
     other_apps: [],
     leftover_processes: leftovers[0],
     leftover_ports: leftovers[1],
+    scanned: true,
     alerts: [],
     recommendations: [],
   };

@@ -27,7 +27,7 @@ import { showToast } from "../../components/Toast";
 import { layout, type Point } from "./layout";
 import { tidyLayout } from "./tidy-layout";
 import { nameOf } from "./actions";
-import { namedByFacts, tellApart } from "../../lib/session-titles";
+import { namedByFacts, sessionNames, tellApart } from "../../lib/session-titles";
 import { rememberCanvas, rememberedCanvas } from "./prefetch";
 import { nodeTitles, type NodeTitle } from "./node-title";
 
@@ -49,9 +49,12 @@ export const PULSE_MS = 1_600;
  * what its node leads with, and when it started second (D-126 §4a). */
 export type MemberNode = { id: string; session: InstanceInfo; card: ContextCard; role: string; name: string; pending?: boolean; title?: NodeTitle };
 
-/** Each name once: where two sessions share one, each says when it started. */
-export function distinctNames<T extends { session: InstanceInfo }>(rows: readonly T[]): (T & { name: string })[] {
-  const plain = rows.map((row) => nameOf(row.session));
+/** Each name once: where two sessions share one, each says when it started.
+ * `names`: each session's one name (`sessionNames`, SK48-3), so a member
+ * reads here as it does everywhere; within the pool only what still reads
+ * alike is told apart. */
+export function distinctNames<T extends { session: InstanceInfo }>(rows: readonly T[], names: ReadonlyMap<string, string> = new Map()): (T & { name: string })[] {
+  const plain = rows.map((row) => names.get(row.session.id) ?? nameOf(row.session));
   const twice = new Set(plain.filter((name, at) => plain.indexOf(name) !== at));
   const clock = (ms: number) => new Date(ms).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   // One named by its facts says when it started already (D-96).
@@ -73,7 +76,7 @@ const sameStream = (a: PoolCanvasInfo["stream"], b: PoolCanvasInfo["stream"]) =>
  * and those named on their own, ended or not. `open`: how many of the
  * pool's sessions are open now (the page's header count), when more may be
  * open than the rows read so far. */
-export function drawnMembers(items: readonly PoolMemberRow[], live: ReadonlyMap<string, InstanceInfo>, open = 0): MemberNode[] {
+export function drawnMembers(items: readonly PoolMemberRow[], live: ReadonlyMap<string, InstanceInfo>, open = 0, names: ReadonlyMap<string, string> = new Map()): MemberNode[] {
   const own = (row: PoolMemberRow) => row.via === "session" || row.via === "watched";
   const drawable = items
     .map((row) => ({ row, session: live.get(row.session.id) ?? row.session }))
@@ -87,7 +90,7 @@ export function drawnMembers(items: readonly PoolMemberRow[], live: ReadonlyMap<
   // drew none of its 3 open ones: "No one has joined yet").
   const grouped = Math.max(drawable.length, open) > GROUP_PAST;
   const drawn = drawable.filter(({ row }) => !grouped || own(row)).map(({ row, session }) => ({ id: row.session.id, session, card: row.card, role: row.card.role }));
-  return distinctNames(drawn);
+  return distinctNames(drawn, names);
 }
 
 /** Pools whose members and canvas are being read ahead. */
@@ -128,11 +131,12 @@ export function useCanvas(poolId: string, sessions: InstanceInfo[], desktop: rea
     if (hasMore && !loadingMore && !loading && items.length < CANVAS_NODES) loadMore();
   }, [hasMore, loadingMore, loading, items.length, loadMore]);
   const live = useMemo(() => new Map(sessions.map((session) => [session.id, session])), [sessions]);
+  const names = useMemo(() => sessionNames(sessions), [sessions]);
   // The canvas draws the open work and the sessions named on their own;
   // an ended session a broad member brought in (an App's pile up as they
   // end) stays in the pool and the List view, counted on the canvas's
   // "more in the List view" (the P3 walk).
-  const drawn: MemberNode[] = useMemo(() => drawnMembers(items, live, open).slice(0, CANVAS_NODES), [items, live, open]);
+  const drawn: MemberNode[] = useMemo(() => drawnMembers(items, live, open, names).slice(0, CANVAS_NODES), [items, live, open, names]);
   // Round 4 (#5): a role being changed shows at once, pending, until the
   // backend's answer reaches these rows; the adds and roles they show settle.
   const pendingRoles = usePendingRoles(poolId);
@@ -141,9 +145,9 @@ export function useCanvas(poolId: string, sessions: InstanceInfo[], desktop: rea
     settleRoles(poolId, new Map(drawn.map((member) => [member.id, member.role])));
   }, [poolId, drawn]);
   const members: MemberNode[] = useMemo(() => {
-    const titles = nodeTitles(drawn);
+    const titles = nodeTitles(drawn, Date.now(), names);
     return drawn.map((member) => ({ ...member, title: titles.get(member.id), ...(pendingRoles.has(member.id) ? { role: pendingRoles.get(member.id)!, pending: true } : {}) }));
-  }, [drawn, pendingRoles]);
+  }, [drawn, pendingRoles, names]);
   const desktopKey = desktop.join("|");
   const ids = useMemo(() => [...members.map((member) => member.id), ...(desktopKey ? desktopKey.split("|") : [])], [members, desktopKey]);
   const idsKey = ids.join("|");

@@ -25,12 +25,12 @@ import { ownersOf } from "./rail-apps";
 import { counted, noticeLevel } from "./attention";
 
 /** The kinds that are a session's (the rail's Needs you shows them). */
-const SESSION_KINDS = new Set<string>(["asks", "stuck", "limit", "failed", "review"]);
+const SESSION_KINDS = new Set<string>(["asks", "stuck", "limit", "resume", "failed", "review"]);
 
 /** Home's order: what blocks work first (lib/home-needs.ts). */
-const HOME_KIND: Record<string, HomeNeedKind> = { asks: "session", stuck: "session", review: "session", limit: "limit", failed: "failed", quota: "quota", signin: "signin", room: "mac", heavy: "heavy", leftovers: "leftovers" };
+const HOME_KIND: Record<string, HomeNeedKind> = { asks: "session", stuck: "session", review: "session", resume: "session", limit: "limit", failed: "failed", quota: "quota", signin: "signin", room: "mac", heavy: "heavy", leftovers: "leftovers" };
 const HOME_ORDER: HomeNeedKind[] = ["session", "limit", "failed", "quota", "signin", "mac", "heavy", "leftovers"];
-const NEED_ORDER = ["asks", "limit", "failed", "stuck", "review"];
+const NEED_ORDER = ["asks", "limit", "resume", "failed", "stuck", "review"];
 
 export interface BackendNeeds {
   /** What counts now, oldest first (snoozed ones left out). */

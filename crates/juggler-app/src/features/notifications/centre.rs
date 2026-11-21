@@ -38,6 +38,8 @@ pub const NEED_KINDS: &[(&str, &str)] = &[
     ("asks", "Sessions that ask you"),
     ("stuck", "Sessions that may be stuck"),
     ("limit", "Usage limits reached"),
+    // AJ-E2312 1: one that stopped at its limit, which has reset since.
+    ("resume", "Sessions to resume after a reset"),
     ("failed", "Sessions that stopped with an error"),
     ("review", "Finished work to review"),
     ("signin", "Sign-ins"),
