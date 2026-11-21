@@ -165,7 +165,7 @@ export const SHORTCUTS = [
   { id: "processes-search", owner: "app", area: "Screens", keys: ["⌘F"], label: "Search Processes (on Processes)", match: cmd("f") },
   // Session
   { id: "stop", owner: "app", area: "Session", keys: ["⌘."], label: "Stop the session (5 s to undo)", match: cmd(".") },
-  { id: "handover", owner: "app", area: "Session", keys: ["⌘⇧H"], label: "Continue in another app", match: cmd("h", { shift: true }) },
+  { id: "handover", owner: "app", area: "Session", keys: ["⌘⇧H"], label: "Switch account", match: cmd("h", { shift: true }) },
   // AJ-E2905 R8: a project's switch graph resumes its open epoch itself.
   { id: "epoch-resume", owner: "page", area: "Session", keys: ["⌘R"], label: "Resume the open epoch (a project's switch graph)" },
   // AJ-E2810 R8: the Subagents tab's search, from its list

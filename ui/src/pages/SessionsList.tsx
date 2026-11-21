@@ -16,7 +16,7 @@ import { rowState } from "../components/row/SessionRow";
 import { sessionTitle } from "../components/ManageWork";
 import { conversationTitle, outside, useConversations } from "../lib/conversations";
 import { onConversationsChanged } from "../lib/ipc/conversations";
-import { BAND_WORDS, bandOf } from "../components/related/order";
+import { bandOf, sectionsOf } from "../components/related/order";
 import { useHeld } from "../components/related/useHeld";
 import { NewRowsBar } from "../components/related/NewRowsBar";
 import { useActionHost } from "../components/ItemMenu";
@@ -216,6 +216,13 @@ export function SessionsList({
   );
 }
 
+/** How many of the list's rows are open: the preview's own, the
+ * backend's count, none for an ended or archived list. */
+function openCount(live: boolean, items: Row[], query: SessionsQuery, counts: SessionsCountsInfo | null): number {
+  if (!live) return items.filter((row) => row.live).length;
+  return query.which === "ended" || query.which === "archived" ? 0 : (counts?.open ?? 0);
+}
+
 /**
  * A list that can grow, a page at a time: History, a project's or an
  * account's Sessions. The backend narrows, searches and orders it
@@ -321,13 +328,13 @@ export function PagedSessions({
     if (told !== null) onTotal?.(told);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [told]);
-  const open = !live ? list.items.filter((row) => row.live).length : query.which === "ended" || query.which === "archived" ? 0 : (counts?.open ?? 0);
+  const open = openCount(live, list.items, query, counts);
   // Sections head the rows once there's more than one. SK48-9: a list
   // with more to read than its first pages may hold another section
   // further down, so it is headed too: the same rows read the same with
   // a filter on or off (an Account's 333 sessions, all of its first pages
   // from the last 7 days, had no heading; its project's 167 had both).
-  const sections = ordered && list.items.length > 0 && (new Set(list.items.map(held.bandOf)).size > 1 || total > list.items.length) ? (row: Row) => BAND_WORDS[held.bandOf(row)] : undefined;
+  const sections = ordered ? sectionsOf(list.items, total, held.bandOf) : undefined;
   const heading = groupOf ?? sections;
   return (
     // `data-read`: "read" once its first fresh read is shown (from then on

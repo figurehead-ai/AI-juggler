@@ -252,9 +252,9 @@ for (const theme of THEMES) {
 
       test(`limit dialog — ${cell}`, async ({ page }) => {
         await open(page, theme, density, vp);
-        // The limit row's own button: "Continue in another app…" (the 0.4
+        // The limit row's own button: "Switch account…" (the 0.4
         // review, 69) also names an asking session's second choice.
-        await page.getByTestId("home-need-limit").first().getByRole("button", { name: /^Continue in another app/ }).click();
+        await page.getByTestId("home-need-limit").first().getByRole("button", { name: /^Switch account/ }).click();
         const dialog = page.getByTestId("limit-dialog");
         await expect(dialog).toBeVisible();
         await expect(dialog.getByRole("button", { name: /^Continue (on|in) / })).toBeVisible();

@@ -308,7 +308,7 @@ export function ContinueOn({
         </ContinueFold>
       ) : (
         <>
-          <CardTitle>Continue in another app</CardTitle>
+          <CardTitle>Apps that can take it over</CardTitle>
           {shown}
         </>
       )}
@@ -317,7 +317,7 @@ export function ContinueOn({
           another app runs is only read for it). */}
       <SaveHandover sessionId={source} />
       {dialog && (
-        <ContinueDialog title="Continue in another app" detail={`Now in ${sessionAppName(model)}`} onClose={() => setDialog(false)}>
+        <ContinueDialog title="Switch account" detail={`Now in ${sessionAppName(model)}`} onClose={() => setDialog(false)}>
           {list}
         </ContinueDialog>
       )}

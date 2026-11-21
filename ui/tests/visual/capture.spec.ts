@@ -2201,7 +2201,7 @@ for (const theme of THEMES) {
       const quotaNeed = page.getByTestId("home-need-quota");
       await expect(quotaNeed).toContainText("Claude Max 20x is almost out of room");
       await expect(quotaNeed).toContainText("8% of its 5-hour window left");
-      await expect(quotaNeed.getByRole("button", { name: "Continue in another app… — Claude Max 20x is almost out of room" })).toBeVisible(); // its hand-over
+      await expect(quotaNeed.getByRole("button", { name: "Switch account… — Claude Max 20x is almost out of room" })).toBeVisible(); // its hand-over
       // D-118: the renewal line is also one of the feed's items (what happened).
       await expect(page.getByTestId("feed")).toContainText("p…@example.com: Renews in 6 days — check your plan");
       await page.getByTestId("notification-bell").click();

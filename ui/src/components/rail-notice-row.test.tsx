@@ -24,11 +24,11 @@ afterEach(() => {
 it("walk A5: the rail names a hand-over as it will act, the switch with something open, its app without", async () => {
   const { RailNoticeRow } = await import("./RailNoticeRow");
   const { primaryWords } = await import("../lib/notice-words");
-  expect(primaryWords(quota, true)).toBe("Continue in another app…");
+  expect(primaryWords(quota, true)).toBe("Switch account…");
   expect(primaryWords(quota, false)).toBe("Open its app");
   const view = render(<RailNoticeRow notice={quota} now={Date.now()} onOpen={() => undefined} canHandOver={false} />);
   expect(view.getByTestId("rail-notice").textContent).toContain("Open its app");
-  expect(view.getByTestId("rail-notice").textContent).not.toContain("Continue in another app");
+  expect(view.getByTestId("rail-notice").textContent).not.toContain("Switch account");
   view.unmount();
 });
 

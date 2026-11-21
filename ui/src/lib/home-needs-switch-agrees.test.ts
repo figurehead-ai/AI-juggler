@@ -49,6 +49,6 @@ describe("SK-2 Home's account card continues only a session that can switch", ()
     const talking = instance({ id: "w2", account_id: "claude-work", status: "running", conversation_id: "conv-2", last_activity_ms: 1 });
     const [need] = homeNeedsOf([quota], [], [], [fresh, talking], null, Date.now());
     expect(need?.sessionId).toBe("w2");
-    expect(primaryWords(need!)).toBe("Continue in another app…");
+    expect(primaryWords(need!)).toBe("Switch account…");
   });
 });

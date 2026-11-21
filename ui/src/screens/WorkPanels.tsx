@@ -145,7 +145,7 @@ export function SessionPanel({
       {!isLoginTerminal && session && (
         <div className="flex flex-col gap-2">
           <p className="text-section font-semibold text-ink">
-            Continue in another app
+            Switch account
           </p>
           <div className="flex flex-wrap gap-1.5">
             {profiles

@@ -1,4 +1,4 @@
-# Continue in another app
+# Switch account
 
 When an account runs out of room, or you'd rather use another tool, you can
 carry a conversation over and keep working. You choose each switch, one
@@ -8,11 +8,12 @@ conversation at a time. AI Juggler never switches for you.
 
 Open the session, then do one of these:
 
-- Choose **Continue in another app…** at the top of the session, or press
-  ⌘⇧H.
-- Open the session's menu in the list and choose **Continue in another
-  app…**.
-- In the panel on the right, open **Continue in another app**. It lists
+- Choose **Switch account…**, the first thing in the column on the right
+  of every session's page, or press ⌘⇧H. When the session's account is out
+  of room or almost out, it is the page's main button.
+- Open the session's menu in the list and choose **Switch account…**.
+- In the panel on the right, open **Apps that can take it over** (it opens
+  by itself when the account is out of room). It lists
   every app you can go to, ranked by how much room its account has left,
   read the same way as Home's **Runway by account**: the most room first,
   then accounts not measured yet, then low ones, then any out of room. The

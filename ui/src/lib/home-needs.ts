@@ -1,7 +1,7 @@
 /**
  * AJ-E2105 — Home's Needs you: every kind of thing that waits on the user,
  * in one list, each with its own primary. A session asking (its page), a
- * limit reached (Continue in another app…, or Wait), a sign-in, a Mac working
+ * limit reached (Switch account…, or Wait), a sign-in, a Mac working
  * hard, processes left behind. (On 0.2: agent messages, agent requests,
  * prepared launches and paused chains join as kinds here.)
  */
@@ -144,7 +144,7 @@ export function primaryWords(need: HomeNeed): string {
     // One word for one action (the 0.4 design review, 69): the asking
     // session's second choice says the same.
     case "limit":
-      return "Continue in another app…";
+      return "Switch account…";
     case "failed":
       return "See what happened";
     case "signin":
@@ -158,7 +158,7 @@ export function primaryWords(need: HomeNeed): string {
     // AJ-E2501: an account almost out of room (the notification model's own).
     // F16: its open session's switch, else its account, named so.
     case "quota":
-      return need.sessionId || need.conversation ? "Continue in another app…" : "Open its app";
+      return need.sessionId || need.conversation ? "Switch account…" : "Open its app";
   }
 }
 

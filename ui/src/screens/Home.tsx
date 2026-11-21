@@ -86,7 +86,7 @@ export function needWords(need: Need, session: InstanceInfo, accounts?: readonly
     case "stuck":
       return { what: "Looks stuck — no progress for a while", action: "Take a look" };
     case "quota_blocked":
-      return { what: `${accountNameOf(accounts, session.account_id, session.account_label)} hit its limit`, action: "Continue in another app…" };
+      return { what: `${accountNameOf(accounts, session.account_id, session.account_label)} hit its limit`, action: "Switch account…" };
     case "failed":
       return { what: "Stopped with an error", action: "See what happened" };
   }

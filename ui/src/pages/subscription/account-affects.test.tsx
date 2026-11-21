@@ -74,8 +74,8 @@ describe("A5 an out-of-room Account's page: what it affects", () => {
     const byTitle = (words: string) => items.find((item) => item.textContent?.includes(words))!;
     const mine = within(byTitle("Fix the flaky login test")).getByTestId("account-affects-switch");
     const theirs = within(byTitle("Write the onboarding copy")).getByTestId("account-affects-switch");
-    expect(mine.textContent).toContain("Continue in another app…");
-    expect(theirs.textContent).toContain("Continue in another app…");
+    expect(mine.textContent).toContain("Switch account…");
+    expect(theirs.textContent).toContain("Switch account…");
     fireEvent.click(mine);
     expect(continueSession).toHaveBeenCalledTimes(1);
     expect(continueSession.mock.calls[0]![0].id).toBe("s-work");

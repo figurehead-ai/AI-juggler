@@ -254,7 +254,7 @@ export function HandoverSection({
       {/* 0.3: save its handover, beside the switch actions. */}
       <SaveHandover sessionId={session.id} />
       {dialog && (
-        <ContinueDialog title="Continue in another app" detail={`Now in ${cliAppName(session.provider, session.account_label)}`} onClose={() => setDialog(false)}>
+        <ContinueDialog title="Switch account" detail={`Now in ${cliAppName(session.provider, session.account_label)}`} onClose={() => setDialog(false)}>
           {list}
         </ContinueDialog>
       )}

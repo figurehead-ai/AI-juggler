@@ -2,7 +2,7 @@
  * 0.4.6 (the rc3c walk): the guide says a Claude app conversation
  * continued in AI Juggler and stopped there opens again with "Open in
  * Claude app". That run's page had no such button: Resume, Relaunch, Run in
- * AI Juggler and Continue in another app… (other Accounts only). The run
+ * AI Juggler and Switch account… (other Accounts only). The run
  * stands for its conversation, so the conversation's own page, which has
  * it, wasn't reached. Now the ended run's header offers it too, in the
  * app the conversation was last open in, and not while it's open

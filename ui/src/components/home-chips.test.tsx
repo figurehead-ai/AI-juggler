@@ -25,7 +25,7 @@ describe("D-118 — the pinned zone", () => {
 
   it("says a limit as its rows do, and Continue one way (0.4 design review, 69)", () => {
     const limit: HomeNeed = { key: "lim", kind: "limit", title: "Work hit its limit", detail: "", severe: true };
-    expect(primaryWords(limit)).toBe("Continue in another app…");
+    expect(primaryWords(limit)).toBe("Switch account…");
   });
 
   it("shows 3, then the rest behind +n more need you, every one a click away", () => {

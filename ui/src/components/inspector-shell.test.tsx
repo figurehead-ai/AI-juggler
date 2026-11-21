@@ -288,7 +288,7 @@ describe("AJ-E1533 keyboard, footers, the terminal", () => {
     await act(async () => {
       fireEvent.click(getByTestId("switch-account"));
     });
-    expect(getByTestId("continue-dialog").textContent).toContain("Continue in another app");
+    expect(getByTestId("continue-dialog").textContent).toContain("Switch account");
     fireEvent.click(getByTestId("continue-dialog-close"));
     expect(queryByTestId("continue-dialog")).toBeNull();
     cleanup();

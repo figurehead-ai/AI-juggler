@@ -148,9 +148,9 @@ describe("Home, desktop first", () => {
     expect(first.textContent).toContain("Claude app · Work Max");
     expect(first.textContent).toContain("payments-api");
     expect(within(first).getByRole("button", { name: /^Open its page/ })).toBeTruthy();
-    expect(within(first).getByRole("button", { name: /^Continue in another app/ })).toBeTruthy();
+    expect(within(first).getByRole("button", { name: /^Switch account/ })).toBeTruthy();
     const limit = view.getByTestId("home-need-limit");
-    fireEvent.click(within(limit).getByRole("button", { name: /^Continue in another app/ }));
+    fireEvent.click(within(limit).getByRole("button", { name: /^Switch account/ }));
     expect(onLimit).toHaveBeenCalledWith("lim");
     // D-118: the pinned zone holds L2 and L3 only: the review is the
     // feed's Finished filter, the leftovers the top bar's Clean up.

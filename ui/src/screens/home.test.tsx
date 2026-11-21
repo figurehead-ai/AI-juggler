@@ -93,7 +93,7 @@ describe("D-25 Home — the rules", () => {
   it("each need is one sentence and one action", () => {
     expect(needWords("waiting_user", mk("a"))).toEqual({ what: "Waiting for your reply", action: "Open" });
     expect(needWords("quota_blocked", mk("a")).what).toBe("Work Max hit its limit");
-    expect(needWords("quota_blocked", mk("a")).action).toBe("Continue in another app…");
+    expect(needWords("quota_blocked", mk("a")).action).toBe("Switch account…");
   });
 
   it("D-62: a limit is named by the Account its folder is signed in to; a folder in none keeps its own name", () => {
@@ -539,7 +539,7 @@ describe("AJ-E2910 R4 — r, h, s and e on the focused row", () => {
     expect(opened).toEqual(["w"]);
   });
 
-  it("h opens its page at Continue in another app… only with a conversation; without one it does nothing and the ⋯ says why", async () => {
+  it("h opens its page at Switch account… only with a conversation; without one it does nothing and the ⋯ says why", async () => {
     const user = userEvent.setup();
     const { view, opened, rowOf } = await renderKeys([mk("w", { status: "waiting_user", conversation_id: "conv-w" }), mk("x", { status: "waiting_user", last_activity_ms: NOW - 120_000 })]);
     await waitFor(() => expect(rowOf("x")).toBeTruthy());
@@ -552,7 +552,7 @@ describe("AJ-E2910 R4 — r, h, s and e on the focused row", () => {
     // Its ⋯ (s opens it) says why Continue can't run.
     await user.keyboard("s");
     const menu = await view.findByRole("menu");
-    const go = within(menu).getAllByRole("menuitem").find((item) => item.textContent?.includes("Continue in another app…"))!;
+    const go = within(menu).getAllByRole("menuitem").find((item) => item.textContent?.includes("Switch account…"))!;
     expect(go instanceof HTMLButtonElement ? go.disabled : go.getAttribute("aria-disabled") === "true").toBe(true);
     expect(go.getAttribute("title")).toBe("It has no conversation to carry over yet");
     expect(menu.textContent).toContain("It has no conversation to carry over yet");

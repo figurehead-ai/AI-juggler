@@ -3,7 +3,7 @@
  * card per need, in Needs you's one order (the louder level, then the one
  * waiting longest: `needs-order`, the rail's too), whatever its kind: a
  * session's (its title, what it needs in its level's colour and what it
- * asks when its tool said; "Open its page ↵", "Continue in another app…",
+ * asks when its tool said; "Open its page ↵", "Switch account…",
  * ↗), an agent's message (MessageNeedCard: "Asks you: …", Reply · Open
  * the thread), a task's (TaskNeedCard), a sign-in, This Mac, processes
  * left behind. The first card's primary is the one filled button (Enter).
@@ -71,7 +71,7 @@ function useRun(handlers: NeedHandlers): (need: HomeNeed, second?: boolean) => v
       case "failed":
         if (conversation) {
           markSeen(conversation.account_id, conversation.id);
-          // Its page here ("Continue in another app…" lives there,
+          // Its page here ("Switch account…" lives there,
           // AJ-E2108); its ↗ goes to its app.
           host.openConversation?.(conversation);
         } else if (session) {
@@ -151,7 +151,7 @@ function SessionBox({ item, tag: Tag, className, data, children }: BoxProps & { 
 
 /** Its second choice, when it has one. */
 function secondWords(need: HomeNeed): string | null {
-  if (need.kind === "session" && need.item?.need === "asks") return "Continue in another app…";
+  if (need.kind === "session" && need.item?.need === "asks") return "Switch account…";
   if (need.kind === "limit") return "Wait";
   return null;
 }

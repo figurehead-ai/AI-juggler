@@ -24,7 +24,7 @@
   usual settings, the default app and launch settings.
 - [Usage and limits](usage-and-limits.md): what the numbers mean, "Not
   measured yet", and measuring Claude limits for sessions started elsewhere.
-- [Continue in another app](switching.md): carrying a conversation to
+- [Switch account](switching.md): carrying a conversation to
   another app or tool, what carries over, and switching back.
 - [Rules and MCP servers](rules-and-servers.md): keeping `CLAUDE.md` and
   `AGENTS.md` the same, and your apps' MCP servers.

@@ -251,10 +251,10 @@ describe("AJ-E2502 R2 — Home's account almost out of room", () => {
   const WORK = account({ id: "acct-work", label: "Work Max" });
   const base: HomeNeed = { key: "quota:acct-work", kind: "quota", title: "Work Max is almost out of room", detail: "7% of its 5-hour window left", severe: false, account: WORK };
 
-  it("with one of its sessions open, “Continue in another app…” opens that session", () => {
+  it("with one of its sessions open, “Switch account…” opens that session", () => {
     const onOpenSession = vi.fn();
     render(<HomeNeeds needs={[{ ...base, sessionId: "s-open" }]} handlers={{ onOpenSession }} />);
-    const button = screen.getByRole("button", { name: /^Continue in another app…/ });
+    const button = screen.getByRole("button", { name: /^Switch account…/ });
     fireEvent.click(button);
     expect(onOpenSession).toHaveBeenCalledWith("s-open");
   });
@@ -267,7 +267,7 @@ describe("AJ-E2502 R2 — Home's account almost out of room", () => {
         <HomeNeeds needs={[base]} handlers={{ onOpenSession }} />
       </ActionHostProvider>,
     );
-    expect(screen.queryByRole("button", { name: /Continue in another app…/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /Switch account…/ })).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: /^Open its app/ }));
     expect(openAccount).toHaveBeenCalledWith(WORK);
     expect(onOpenSession).not.toHaveBeenCalled();

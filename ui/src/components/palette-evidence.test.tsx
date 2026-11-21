@@ -247,7 +247,7 @@ describe("R7 — → previews a session, an app, a project or an account", () =>
     expect(facts.Where).not.toBe("");
     expect(facts["Last active"]).toBe(agoWords(NOW - 5 * 60_000, Date.now()));
     expect(view.getByTestId("goto-preview-open").textContent).toBe("Open");
-    expect(view.getByTestId("goto-preview-continue").textContent).toBe("Continue in another app…");
+    expect(view.getByTestId("goto-preview-continue").textContent).toBe("Switch account…");
   });
 
   it("an app: open now or not, which app, signed in as; Open its page and Bring it forward", async () => {

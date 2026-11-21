@@ -171,7 +171,7 @@ const CASES: Case[] = [
   {
     name: "the limit",
     open: async (page) => {
-      await page.getByTestId("home-need-limit").first().getByRole("button", { name: /^Continue in another app/ }).click();
+      await page.getByTestId("home-need-limit").first().getByRole("button", { name: /^Switch account/ }).click();
       await expect(page.getByTestId("limit-dialog")).toBeVisible();
     },
   },

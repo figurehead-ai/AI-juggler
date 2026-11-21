@@ -1,5 +1,5 @@
 /**
- * AJ-E2311 item 4 (the 0.4.6 walk at 1280×800): Continue in another app…
+ * AJ-E2311 item 4 (the 0.4.6 walk at 1280×800): Switch account…
  * didn't show "see what carries over" or a way out, and didn't scroll
  * there. Both of its dialogs (the limit's decision, and the list of
  * other apps) are never taller than the window: the title and the way
@@ -70,7 +70,7 @@ describe("the switch's dialogs fit the window, the way out always in sight", () 
   it("Continue in another app: its list scrolls; Cancel stays under it", () => {
     const onClose = vi.fn();
     render(
-      <ContinueDialog title="Continue in another app" onClose={onClose}>
+      <ContinueDialog title="Switch account" onClose={onClose}>
         <p>Many apps</p>
       </ContinueDialog>,
     );

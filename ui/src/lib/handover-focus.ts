@@ -1,7 +1,7 @@
 /**
  * "Continue in another app" for the session whose page is open: ⌘⇧H,
  * the row menu, the header's Switch account…, an out-of-room banner and
- * Home's "Continue in another app…" all ask through here (the 0.2
+ * Home's "Switch account…" all ask through here (the 0.2
  * walk, F8 and F16: ⌘⇧H did nothing on another app's session, and the
  * banner's Hand over… opened the account page).
  *

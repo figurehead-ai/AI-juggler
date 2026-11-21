@@ -22,7 +22,7 @@ export const HISTORY: ActionSpec<"history">[] = [
   { id: "open", label: "Open its page", icon: "page", group: "go", rank: 10, shortcut: "row-open", applies: (_, h) => has(h.openHistory), run: (row, h) => h.openHistory!(row) },
   {
     id: "continue",
-    label: "Continue in another app…",
+    label: "Switch account…",
     icon: "carry-over",
     group: "work",
     rank: 10,
@@ -59,10 +59,10 @@ export const SESSION: ActionSpec<"session">[] = [
     applies: (row, h) => has(h.revealSessionProject) && row.project_id !== null,
     run: (row, h) => h.revealSessionProject!(row),
   },
-  // Working on it. D-05's switch, named "Continue in another app…" (D-62).
+  // Working on it. D-05's switch, named "Switch account…" (D-62).
   {
     id: "continue",
-    label: "Continue in another app…",
+    label: "Switch account…",
     icon: "carry-over",
     group: "work",
     rank: 10,
@@ -194,7 +194,7 @@ export const CONVERSATION: ActionSpec<"conversation">[] = [
   // left open in its app.
   {
     id: "continue-elsewhere",
-    label: "Continue in another app…",
+    label: "Switch account…",
     icon: "carry-over",
     group: "work",
     rank: 10,

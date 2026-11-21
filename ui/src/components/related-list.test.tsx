@@ -205,7 +205,7 @@ describe("AJ-E3103 the one list", () => {
     const rows = Array.from({ length: 80 }, (_, i) => {
       const s = session("account", 3 + i * 10);
       const last = i < 60 ? NOW - DAY - i * 60_000 : NOW - 30 * DAY - i * 60_000;
-      return sessionRow({ ...s, status: "finished", runtime: null, started_at_ms: last - 60_000, last_activity_ms: last } as unknown as InstanceInfo, NOW, () => undefined);
+      return sessionRow({ ...s, status: "finished", runtime: undefined, started_at_ms: last - 60_000, last_activity_ms: last }, NOW, () => undefined);
     });
     render(
       <ActionHostProvider host={{}}>

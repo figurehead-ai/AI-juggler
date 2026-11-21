@@ -126,8 +126,9 @@ export function DialogFrame({
     <div
       {...rest}
       ref={frameRef}
-      // A caller's own cap (a dialog held near the top) replaces the default.
-      className={`flex ${/\bmax-h-/.test(className) ? "" : sheet ? "max-h-full" : "max-h-[min(92vh,760px,calc(100vh_-_2rem))]"} min-h-0 w-full flex-col overflow-hidden ${size ? WIDTH[size] : ""} ${className}`}
+      // A caller's own cap (a dialog held near the top) replaces the default;
+      // so does its own width (the palette's 640 or 920 px).
+      className={`flex ${/\bmax-h-/.test(className) ? "" : sheet ? "max-h-full" : "max-h-[min(92vh,760px,calc(100vh_-_2rem))]"} min-h-0 ${/(^|\s)w-\[/.test(className) ? "" : "w-full"} flex-col overflow-hidden ${size ? WIDTH[size] : ""} ${className}`}
       data-dialog-frame
     >
       <div className={`shrink-0 ${headerClassName}`} data-dialog-part="header" data-testid={headerTestId}>

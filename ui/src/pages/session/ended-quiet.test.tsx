@@ -46,7 +46,7 @@ const settle = () => act(async () => new Promise((done) => setTimeout(done, 20))
 /** Opens a folded card, as a click on its title does. */
 /** Presses a card's Continue fold (the app's disclosure, a button). */
 function openFold(testId: string): void {
-  fireEvent.click(within(screen.getByTestId(testId)).getByRole("button", { name: "Continue in another app" }));
+  fireEvent.click(within(screen.getByTestId(testId)).getByRole("button", { name: "Apps that can take it over" }));
 }
 
 describe("D-103.3 an ended session's page stays quiet", () => {

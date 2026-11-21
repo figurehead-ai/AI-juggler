@@ -45,7 +45,7 @@ async function open(page: Page, theme: "dark" | "light") {
 for (const theme of ["dark", "light"] as const) {
   test(`the limit dialog says the prepared switch is ready — ${theme}`, gate("89-limit-ready"), async ({ page }) => {
     await open(page, theme);
-    await page.getByTestId("home-need-limit").first().getByRole("button", { name: /^Continue in another app/ }).click();
+    await page.getByTestId("home-need-limit").first().getByRole("button", { name: /^Switch account/ }).click();
     const dialog = page.getByTestId("limit-dialog");
     await expect(dialog.getByTestId("limit-ready")).toHaveText(/^Ready to continue in (Claude Code (CLI )?· )?Work Max · prepared 4 min ago$/);
     await expect(dialog.getByRole("button", { name: /^Continue in (Claude Code (CLI )?· )?Work Max$/ })).toBeVisible();
