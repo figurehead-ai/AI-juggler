@@ -4,14 +4,15 @@
  * of them needs it (instant and lazy: the rail never waits for it).
  */
 import { useMemo } from "react";
-import { accountName, useSubscriptions } from "./subscriptions";
+import { accountNamesApart, useSubscriptions } from "./subscriptions";
 import type { AccountOf } from "./rail-places";
 
 export function useRailAccountOf(wanted: boolean): AccountOf {
   const subscriptions = useSubscriptions(0, wanted);
   return useMemo(() => {
     const all = subscriptions ?? [];
-    const byProfile = new Map(all.flatMap((row) => row.profiles.map((profile) => [profile.id, { key: row.key, label: accountName(row) }] as const)));
+    const named = accountNamesApart(all);
+    const byProfile = new Map(all.flatMap((row) => row.profiles.map((profile) => [profile.id, { key: row.key, label: named(row) }] as const)));
     return (profileId: string | null) => (profileId === null ? null : (byProfile.get(profileId) ?? null));
   }, [subscriptions]);
 }

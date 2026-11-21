@@ -10,7 +10,7 @@
 import { useMemo } from "react";
 import { hasLiveBackend } from "../../lib/bridge";
 import { useRelatedCounts, useRelationCounts } from "../../lib/relation-counts";
-import { accountName, accountOfProfile, useSubscriptions, type SubscriptionInfo } from "../../lib/subscriptions";
+import { accountNamesApart, accountOfProfile, useSubscriptions, type SubscriptionInfo } from "../../lib/subscriptions";
 import { accountColor } from "../../lib/marks";
 import type { DonutItem } from "../../components/charts/Donut";
 
@@ -25,8 +25,8 @@ export interface SessionsByAccount {
   total: number;
 }
 
-function part(row: SubscriptionInfo | undefined, key: string, value: number): DonutItem {
-  return row ? { key, label: accountName(row), value, color: accountColor(row) } : { key: UNKNOWN, label: UNKNOWN_WORDS, value, color: "var(--color-faint)" };
+function part(row: SubscriptionInfo | undefined, key: string, value: number, named: (row: SubscriptionInfo) => string): DonutItem {
+  return row ? { key, label: named(row), value, color: accountColor(row) } : { key: UNKNOWN, label: UNKNOWN_WORDS, value, color: "var(--color-faint)" };
 }
 
 /** The parts, from the backend's count (`counted`: stored Account id →
@@ -42,8 +42,9 @@ export function sessionsByAccount({
   subscriptions: readonly SubscriptionInfo[];
 }): SessionsByAccount {
   const parts = new Map<string, DonutItem>();
+  const named = accountNamesApart(subscriptions);
   const add = (row: SubscriptionInfo | undefined, key: string, n: number) => {
-    const next = part(row, row ? key : UNKNOWN, n);
+    const next = part(row, row ? key : UNKNOWN, n, named);
     const was = parts.get(next.key);
     parts.set(next.key, was ? { ...was, value: was.value + n } : next);
   };

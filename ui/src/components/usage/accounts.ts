@@ -7,7 +7,7 @@
  */
 import { accountColor, appColor } from "../../lib/marks";
 import { cliAppId } from "../../lib/app-name";
-import { accountName, type SubscriptionInfo } from "../../lib/subscriptions";
+import { accountNamesApart, type SubscriptionInfo } from "../../lib/subscriptions";
 import type { Series } from "../charts/scale";
 
 export type AccountGroup = { key: string; label: string; color: string; profiles: string[] };
@@ -15,10 +15,11 @@ export type AccountGroup = { key: string; label: string; color: string; profiles
 /** The account a profile is on (signed-out or unknown profiles stand alone). */
 export function accountGroups(subscriptions: SubscriptionInfo[] | null, labels: Map<string, string>): Map<string, AccountGroup> {
   const out = new Map<string, AccountGroup>();
+  const named = accountNamesApart((subscriptions ?? []).filter((sub) => sub.state !== "signed_out"));
   for (const sub of subscriptions ?? []) {
     if (sub.state === "signed_out") continue;
     const profiles = sub.profiles.map((profile) => profile.id);
-    const group = { key: sub.key, label: accountName(sub), color: accountColor(sub), profiles };
+    const group = { key: sub.key, label: named(sub), color: accountColor(sub), profiles };
     for (const id of profiles) out.set(id, group);
   }
   for (const [id, label] of labels) {

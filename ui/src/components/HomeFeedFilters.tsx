@@ -19,7 +19,7 @@ import type { AccountInfo } from "../types/generated/AccountInfo";
 import type { ProjectInfo } from "../types/generated/ProjectInfo";
 import type { PoolsInfo } from "../types/generated/PoolsInfo";
 import type { SubscriptionInfo } from "../lib/subscriptions";
-import { accountName } from "../lib/subscriptions";
+import { accountNamesApart } from "../lib/subscriptions";
 
 type Chip = "all" | "needs" | "finished" | "switches" | "pools" | "mac";
 
@@ -47,7 +47,8 @@ function facetOptions(facets: Facets): { options: PickerOption[]; suggested: str
   for (const project of projects) options.push({ value: `project:${project.id}`, label: project.name, hint: "Project" });
   for (const account of facets.accounts) options.push({ value: `app:${account.id}`, label: cliAppName(account.provider, account.label), hint: "App" });
   for (const pool of facets.pools?.pools ?? []) options.push({ value: `pool:${pool.id}`, label: pool.name, hint: "Pool" });
-  for (const sub of facets.subscriptions ?? []) if (sub.profiles.length > 1) options.push({ value: `account:${sub.key}`, label: accountName(sub), hint: "Account" });
+  const named = accountNamesApart(facets.subscriptions ?? []);
+  for (const sub of facets.subscriptions ?? []) if (sub.profiles.length > 1) options.push({ value: `account:${sub.key}`, label: named(sub), hint: "Account" });
   return { options, suggested: projects.slice(0, 4).map((project) => `project:${project.id}`) };
 }
 

@@ -10,6 +10,7 @@ import { runwayOf } from "../components/AccountRunway";
 import type { QuotaDisplayData } from "./ipc/quota";
 import { whenForgotten } from "./shared-read";
 import { everyWhileShown } from "./shown-window";
+import { toolSpec } from "./tools";
 
 export type { SubscriptionInfo };
 
@@ -155,6 +156,26 @@ export function shareAccount(rows: SubscriptionInfo[], a: string, b: string): bo
  * apart from a twin. Never a folder's or an app's name: those are Apps. */
 export function accountName(row: SubscriptionInfo): string {
   return row.display_name;
+}
+
+/** SK48-8: accounts listed together (a filter's values, a chart's parts,
+ * a list), each by a name that tells it apart. Two that share a name (a
+ * Claude and a Codex account both called "Personal") each get their tool
+ * beside it: "Personal (Claude)", "Personal (Codex)". A name only one of
+ * `rows` has stays as it is. One rule for every list of accounts. */
+export function accountNamesApart(rows: readonly SubscriptionInfo[]): (row: SubscriptionInfo) => string {
+  const seen = new Map<string, Set<string>>();
+  for (const row of rows) {
+    const name = accountName(row);
+    seen.set(name, (seen.get(name) ?? new Set()).add(row.key));
+  }
+  return (row) => {
+    const name = accountName(row);
+    if ((seen.get(name)?.size ?? 0) < 2) return name;
+    const spec = toolSpec(row.tool);
+    const tool = spec.short_name || spec.display_name || row.tool;
+    return tool && !name.includes(tool) ? `${name} (${tool})` : name;
+  };
 }
 
 /** What a limit, a reset or a renewal calls folder `folderId` (D-62: they
