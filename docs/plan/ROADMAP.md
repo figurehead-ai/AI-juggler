@@ -64,7 +64,7 @@ proof on real accounts of what has so far been proven with fakes.
 | A task's session starts from a pointer | The first prompt names the task and the session reads the brief through the task tool; nothing private in the process list (D-72) | AJ-E1907 |
 | Validated by real use | Every option combination that changes behaviour run against an independent reference; every real use case (writer and reviewer, feature team, across repositories, a reviewer for everything, rules by account, a build Mac, a sealed client, scouts, the upgrade, and the Account, App, links and New session journeys) walked by hand in the app, timed and scored; all of it again on the release candidate ([the plan](../qa/0.4-validation-plan.md)); and personas walking their day from first run, as newcomers, each step scored on whether it worked, gave value, was clear and felt good, so 0.4 is ready to announce | E33: AJ-E3301…AJ-E3307 |
 | Proven on real tools | Codex on real accounts; the runtime lab on real tools; the switching-fidelity matrix; Fleet on two Macs | AJ-E1305, AJ-E2301, AJ-E808, AJ-E710 |
-| An honest picture | The shipped work of E21, E23, E24, E25 and E28 evidenced and its statuses brought up to date; the README's roadmap matches this page | E21, E23, E24, E25, E28 |
+| An honest picture | The shipped work of E21, E23, E24, E25 and E28 evidenced and its statuses brought up to date; the README's roadmap matches this page | E21, AJ-E2301…AJ-E2311, E24, E25, E28 |
 | Releases that don't stall | A fast local preflight, the heavy gates on GitHub's free runners, release PRs merged as merge commits, deterministic tests | AJ-E3308 (#198's follow-up; ADR-0025) |
 
 **Order inside 0.4** for the approved designs: the words and the stored
@@ -134,14 +134,6 @@ The bugs 0.4.6's exit RC (rc3h) deferred and the soak's findings, shipped as a 0
 | Sessions: one row during a hand-over, New session's order steady, the Stop toast naming the session, the switch dialog whole at 1280×800, the wizard rail pressable, the recovery limits, Codex's added messages checked live, usage readings exact (a whole 1 % is 1 %, first) | AJ-E2311 |
 | Claude's turn-end codes read by its adapter, never named in the UI; a session in an external terminal placed by its own process before its conversation is indexed (0.4.6's deferred architecture items, moved from 0.5 by D-138's batch) | AJ-E2025 |
 
-### 0.4.9 — what walking 0.4.8 found
-
-The third batch of 0.4.x fixes (D-137: walked first, fixed together, one build), from the walks of 0.4.7's nightly and 0.4.8's build, on release/0.4.9 from main and forward-merged into 0.5 (D-138). The list is `docs/qa/0.4-walks/soak-0.4.6/findings.md`.
-
-| Area | Tasks |
-|---|---|
-| Limits after a reset read the same in the header, the rail, Home and the bell; the Parked card; short time words; Bring in's running sessions; New session's sheet and its memory; the pool wizard's pick; This Mac's room; the bell's scroll; the lab and test tools | AJ-E2312 |
-
 ## 0.5 — More tools and teams
 
 **Intent.** Bring the tools people use next, let work move between
@@ -166,6 +158,7 @@ under D-24.
 | The 10-account, 50-session load proof; a cold start budget on the release build | AJ-E805 |
 | Updates and release integrity finished | AJ-E1010 |
 | Each release's sign-off recorded from the Stable approval (D-109) | AJ-E807 |
+| What walking 0.4.8 found and its beta soak finds, fixed on release/0.4.9 and merged in (no separate 0.4.9: every known bug ships in 0.5.0): limits after a reset read the same everywhere, the Parked card, short time words, Bring in's running sessions, New session's sheet and memory, the pool wizard's pick, This Mac's room, the lab and test tools | AJ-E2312 |
 | Release speed: beta promotes the tested nightly, CI builds once and tests what changed (D-99; planned after 0.4.1) | AJ-E2020 |
 
 Accessibility stays proven by the automated gates on every release
