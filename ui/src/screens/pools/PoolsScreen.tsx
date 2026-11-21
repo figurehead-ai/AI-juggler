@@ -27,7 +27,8 @@ import type { PoolInfo } from "../../lib/ipc/pools";
 import { doneNewPoolRequest, heldOut, needWords, onNewPoolRequest, poolIdsOf, poolNeedCount, roleOf, scopeLabel, takeNewPoolRequest, usePools, warmPool, type NewPoolRequest } from "../../lib/pools";
 import { sessionState } from "../../lib/rail-items";
 import { NewPool } from "./NewPool";
-import { miniTeam, PoolMini, withoutHeld } from "./PoolMini";
+import { miniTeam, PoolMini, withoutBareWork, withoutHeld } from "./PoolMini";
+import { poolMembers } from "../../lib/ipc/pools";
 import { useMemberLabel } from "../../pages/pool/pool-page-reads";
 import { DeletePool, PoolCard, RenamePool } from "./PoolCard";
 import { useVisitOrder } from "./visit-order";
@@ -111,6 +112,9 @@ function memberNameOf(label: (member: string) => string): (ref: string, sessions
   };
 }
 
+/** The members a card reads of its pool (its mini team's sessions). */
+const CARD_MEMBERS = 24;
+
 export function PoolsScreen({ sessions, projects, accounts }: { sessions: InstanceInfo[]; projects: ProjectInfo[]; accounts: AccountInfo[] }): JSX.Element {
   const pools = usePools();
   const host = useActionHost();
@@ -130,6 +134,10 @@ export function PoolsScreen({ sessions, projects, accounts }: { sessions: Instan
   const [previews, setPreviews] = useState<Map<string, PoolPreviewInfo>>(new Map());
   // D-126 §4d: each shown card's team (its members, their open sessions).
   const [teams, setTeams] = useState<Map<string, PoolRulesInfo>>(new Map());
+  // SK48-12: each card's members as its page lists them (its first page),
+  // so the card names them as the page does: a member that ended long ago
+  // isn't among the sessions the app holds now, and read "A session".
+  const [listed, setListed] = useState<Map<string, InstanceInfo[]>>(new Map());
   const apps = useApps(accounts);
   const memberName = memberNameOf(useMemberLabel(accounts, sessions));
 
@@ -164,6 +172,14 @@ export function PoolsScreen({ sessions, projects, accounts }: { sessions: Instan
         () => undefined,
       );
       void Promise.all(ids.map((id) => poolRules(id).catch(() => null))).then((rows) => alive && setTeams(new Map(rows.flatMap((row) => (row ? [[row.pool_id, row] as const] : [])))));
+      void Promise.all(
+        ids.map((id) =>
+          poolMembers(id, { cursor: null, limit: CARD_MEMBERS }).then(
+            (page) => [id, page.items.map((row) => row.session)] as const,
+            () => [id, [] as InstanceInfo[]] as const,
+          ),
+        ),
+      ).then((rows) => alive && setListed(new Map(rows)));
     };
     read();
     const off = onTasksChanged(read);
@@ -218,7 +234,8 @@ export function PoolsScreen({ sessions, projects, accounts }: { sessions: Instan
             {visible.map((pool) => {
               const members = byPool.get(pool.id) ?? [];
               const preview = previews.get(pool.id);
-              const team = miniTeam(withoutHeld(teams.get(pool.id) ?? null, (id) => heldOut(pools, id, pool.id)), members.slice(0, 24), (id) => roleOf(pools, id, pool.id), { apps: apps ?? [], sessions }, (ref) => memberName(ref, sessions));
+              const known = [...(listed.get(pool.id) ?? []), ...sessions];
+              const team = miniTeam(withoutBareWork(withoutHeld(teams.get(pool.id) ?? null, (id) => heldOut(pools, id, pool.id))), members.slice(0, CARD_MEMBERS), (id) => roleOf(pools, id, pool.id), { apps: apps ?? [], sessions: known }, (ref) => memberName(ref, known));
               return (
                 <PoolCard key={pool.id} pool={pool} local={cardHost} asks={asks.get(pool.id) ?? 0} onOpen={() => host.openPool?.(pool.id)}>
                   <PoolMini lead={team.lead} members={team.members} known={teams.has(pool.id)} />

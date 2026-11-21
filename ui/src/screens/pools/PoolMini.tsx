@@ -41,6 +41,14 @@ export function withoutHeld(rules: PoolRulesInfo | null, held: (sessionId: strin
   return rules && { ...rules, members: rules.members.filter((rule) => !(rule.kind === "session" && held(rule.member.slice("session:".length)))) };
 }
 
+/** SK48-12 (the 0.4.8 soak, P9): a 0.3 Work item member (`work:`)
+ * stands for its sessions. The pool's page lists those sessions, never
+ * the item, so its card draws it only while it brings one in: Notes'
+ * card drew "A session" twice where its page listed one. */
+export function withoutBareWork(rules: PoolRulesInfo | null): PoolRulesInfo | null {
+  return rules && { ...rules, members: rules.members.filter((rule) => !(rule.member.startsWith("work:") && rule.sessions === 0 && rule.session_ids.length === 0)) };
+}
+
 /** A member's name by its ref (a session's title, an App's name). */
 export type MiniName = (ref: string) => string;
 
