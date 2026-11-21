@@ -6,6 +6,8 @@
  * runs. Loaded with the page, never at start; the runways and the
  * profiles come from one shared read (data.ts), not one per page.
  */
+import { SwitchAccountButton } from "../../components/SwitchAccountButton";
+import { useSwitchNotYet } from "../../lib/switch-not-yet";
 import type { JSX } from "react";
 import type { SwitchBackSuggestionData } from "../../lib/ipc/switchBack";
 import { accountDisplay, accountLine, accountName, accountOfProfile, useSubscriptions } from "../../lib/subscriptions";
@@ -45,6 +47,7 @@ export function SessionOverview(props: OverviewProps): JSX.Element {
   const profiles = useProfiles();
   const account = accounts ? accountOfProfile(accounts, model.profileId) : undefined;
   const display = account ? accountDisplay(account, displays) : displays.find((d) => d.account === model.profileId);
+  const switchNotYet = useSwitchNotYet(model.sessionId);
   return (
     <SessionColumns
       // 0.3.4: beside it, on its left, its subagents and the sessions it
@@ -58,6 +61,8 @@ export function SessionOverview(props: OverviewProps): JSX.Element {
       }
       side={
         <>
+          {/* D-143 (PAT-SW): switching, always one visible click, first in the column. */}
+          {!props.remoteMac && <SwitchAccountButton switchKey={model.switchSource} accountId={model.profileId} why={switchNotYet} />}
           <WhereItRuns model={model} outside={props.outside ?? false} accountWords={account ? [accountName(account), accountLine(account)].filter(Boolean).join(" · ") : null}
             accountId={account?.state === "signed_in" ? (account.account_id ?? null) : null} />
           <Runway display={display} title={account && account.state === "signed_in" ? accountName(account) : null} profile={profiles.find((p) => p.id === model.profileId) ?? null} />

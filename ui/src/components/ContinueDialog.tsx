@@ -22,12 +22,12 @@ const PICKS = `${TARGETS}, [data-testid='remote-switch-target']:not(:disabled)`;
 const SUGGESTED = "[data-testid='continue-target'][data-suggested='true']:not(:disabled), button[data-row][aria-pressed='true']:not(:disabled)";
 
 /** Where the keyboard goes back to: what opened the dialog, else (a
- * menu's line, gone with its menu) the page's own Switch account…, else
+ * menu's line, gone with its menu) the page's own Switch account… (D-143), else
  * the page. */
 function back(opener: Element | null): HTMLElement {
   const usable = (node: Element | null): node is HTMLElement => node instanceof HTMLElement && node.isConnected && node !== document.body && !node.closest("[role='menu']");
   if (usable(opener)) return opener;
-  const door = document.querySelector("[data-testid='header-switch']");
+  const door = document.querySelector("[data-testid='switch-account']");
   if (usable(door)) return door;
   return document.querySelector<HTMLElement>("main") ?? document.body;
 }

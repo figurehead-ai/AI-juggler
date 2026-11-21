@@ -37,7 +37,8 @@ import { CardTitle } from "./CardTitle";
 import { toolSpec } from "../../lib/tools";
 import { SaveHandover } from "../../components/HandoverView";
 import { ContinueDialog } from "../../components/ContinueDialog";
-import { AccountRoomLine, ContinueFold } from "../../components/ContinueSummary";
+import { ContinueFold } from "../../components/ContinueSummary";
+import { FoldedLines, useFold } from "./ContinueFold";
 
 /** A target App (D-62: a tool on one of its folders), as the page shows
  * it. */
@@ -182,10 +183,11 @@ export function ContinueOn({
   // session starts from "Looking for room…".
   const turn = `${model.conversationId ?? ""}|${model.state.working ? "working" : "still"}`;
   const asked = useRef<string | null>(null);
-  // D-103.3: an ended one searches only once the user opens it.
+  // D-103.3: an ended one searches only once the user opens it. D-143
+  // amends it: its account out of room or low, it searches at once, and
+  // out of room its list opens by itself (its user can still fold it).
   const quiet = !model.live;
-  const [chosen, setChosen] = useState(false);
-  const searching = !quiet || chosen || dialog;
+  const { open, setChosen, searching } = useFold(model, dialog);
   useEffect(() => {
     let alive = true;
     if (searching) {
@@ -336,8 +338,8 @@ export function ContinueOn({
   return (
     <Card className="flex flex-col gap-3 p-5" data-testid="continue-on">
       {quiet ? (
-        <ContinueFold open={chosen} onToggle={setChosen} testId="continue-fold">
-          {chosen && <div className="mt-3 flex flex-col gap-3">{shown}</div>}
+        <ContinueFold open={open} onToggle={setChosen} testId="continue-fold">
+          {open && <div className="mt-3 flex flex-col gap-3">{shown}</div>}
         </ContinueFold>
       ) : (
         <>
@@ -345,7 +347,7 @@ export function ContinueOn({
           {shown}
         </>
       )}
-      {quiet && !chosen && <AccountRoomLine accountId={model.profileId} />}
+      {quiet && !open && <FoldedLines rows={searching ? rows : undefined} targets={others.flatMap((group) => group.targets)} accountId={model.profileId} />}
       {/* 0.3: save its handover, beside the switch actions (a session
           another app runs is only read for it). */}
       <SaveHandover sessionId={source} />

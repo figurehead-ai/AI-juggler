@@ -5,6 +5,8 @@
  * it the side column: where it runs (with its project and its details),
  * its account's runway, and Continue on another account.
  */
+import { SwitchAccountButton } from "../../components/SwitchAccountButton";
+import { useSwitchNotYet } from "../../lib/switch-not-yet";
 import { useMemo, type JSX, type ReactNode } from "react";
 import type { InstanceInfo } from "../../types/generated/InstanceInfo";
 import type { ProjectInfo } from "../../types/generated/ProjectInfo";
@@ -54,6 +56,7 @@ export function OwnTerminalOverview({
   const model = useMemo(() => JSON.parse(json) as ReturnType<typeof fromInstance>, [json]);
   const account = accounts ? accountOfProfile(accounts, model.profileId) : undefined;
   const display = account ? accountDisplay(account, displays) : displays.find((d) => d.account === model.profileId);
+  const switchNotYet = useSwitchNotYet(session.id);
   return (
     <SessionColumns
       testId="own-session-overview"
@@ -62,6 +65,8 @@ export function OwnTerminalOverview({
       main={<ConversationSwitcher model={model} visible own={terminal} ownWords="Its terminal" />}
       side={
         <>
+          {/* D-143 (PAT-SW): switching, always one visible click, first in the column. */}
+          <SwitchAccountButton switchKey={session.id} accountId={session.account_id} why={switchNotYet} />
           <WhereItRuns
             model={model}
             outside={false}

@@ -33,6 +33,7 @@ import type { RemoteSwitchTargetInfo } from "../types/generated/RemoteSwitchTarg
 import type { SwitchBackSuggestionData } from "../lib/ipc/switchBack";
 import { rankTargets, type TargetRoom } from "../lib/room-targets";
 import { useHandoverFocus } from "../lib/handover-focus";
+import { useOwnRoom } from "../lib/own-room-notices";
 import { sessionState } from "../lib/rail-items";
 import { useSubscriptions } from "../lib/subscriptions";
 import { useRunways } from "../pages/session/data";
@@ -62,6 +63,31 @@ export function handoverTeaser(targets: Array<SwitchTargetData & { room?: Target
 /** The switch list shows open when asked for (or out of room), or with a
  * switch-back plan or a suggestion to see, unless its user folded it. */
 const listOpen = (folded: boolean, asked: boolean, offered: boolean): boolean => !folded && (asked || offered);
+
+/** D-143 (amends D-103.3): its account out of room opens the list by
+ * itself (ended or inactive too, not only at its limit); out or low, it
+ * looks for room at once; an ended one with room only once it's opened. A
+ * press still folds it away. */
+function useHandoverFold(session: InstanceInfo, folded: boolean, asked: boolean, offered: boolean, dialog: boolean): { open: boolean; quiet: boolean } {
+  const room = useOwnRoom(session.account_id);
+  const open = listOpen(folded, asked || room === "out", offered);
+  return { open, quiet: !statusLive(session.status) && !open && !dialog && room === null };
+}
+
+/** Folded: what's possible first, then an ended one's account fact (never
+ * the fact alone once it has looked). */
+function HandoverFolded({ teaser, ended, accountId }: { teaser: string | null; ended: boolean; accountId: string | null }): JSX.Element {
+  return (
+    <>
+      {teaser !== null && (
+        <p className="text-meta leading-[1.5] text-ink-2" data-testid="handover-teaser">
+          {teaser}
+        </p>
+      )}
+      {ended && <AccountRoomLine accountId={accountId} />}
+    </>
+  );
+}
 
 export function HandoverSection({
   session,
@@ -131,9 +157,7 @@ export function HandoverSection({
     };
   }, [instanceId, session.status, crossTick]);
   const suggestions = switchBackSuggestions.filter((suggestion) => suggestion.session_id === session.id);
-  const open = listOpen(folded, switchOpen, Boolean(backPlan) || suggestions.length > 0);
-  // D-103.3: an ended one looks for room only once it's opened.
-  const quiet = !statusLive(session.status) && !open && !dialog;
+  const { open, quiet } = useHandoverFold(session, folded, switchOpen, Boolean(backPlan) || suggestions.length > 0, dialog);
   useEffect(() => {
     let alive = true;
     if (!quiet)
@@ -225,15 +249,7 @@ export function HandoverSection({
           list
         )}
       </ContinueFold>
-      {quiet ? (
-        <AccountRoomLine accountId={session.account_id} />
-      ) : (
-        !open && (
-          <p className="text-meta leading-[1.5] text-ink-2" data-testid="handover-teaser">
-            {handoverTeaser(targets)}
-          </p>
-        )
-      )}
+      {!open && <HandoverFolded teaser={quiet ? null : handoverTeaser(targets)} ended={!statusLive(session.status)} accountId={session.account_id} />}
       {/* 0.3: save its handover, beside the switch actions. */}
       <SaveHandover sessionId={session.id} />
       {dialog && (

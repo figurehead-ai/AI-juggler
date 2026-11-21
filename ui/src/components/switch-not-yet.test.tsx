@@ -6,6 +6,7 @@
  * ("This session hasn't started a conversation yet…"). When the switch
  * would refuse, every door says so up front, in the switch's own words.
  */
+import { SwitchAccountButton } from "./SwitchAccountButton";
 import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as notices from "../lib/ipc/notices";
@@ -15,7 +16,6 @@ import { noteSwitchTargets, resetSwitchNotYet, useSwitchNotYet } from "../lib/sw
 import { clearSeams, instance, setSeam } from "../test/fixtures";
 import { SessionNotices } from "./SessionNotices";
 import { handoverTeaser } from "./HandoverSection";
-import { ResumeButton } from "../pages/session/ResumeButton";
 import { resetToasts } from "./Toast";
 
 const NO_TURN = "This session hasn't started a conversation yet, so there's nothing to switch. Send it a first message, then switch.";
@@ -85,19 +85,13 @@ describe("rc33 M4: a switch that would refuse says so on every door", () => {
     expect(go.getAttribute("aria-disabled")).toBeNull();
   });
 
-  it("the header's Continue on another account… greys with the same words", async () => {
-    const { quotaDisplay, windowDisplay } = await import("../lib/wire");
-    setSeam("__AIJ_QUOTA_DISPLAY__", [{ ...quotaDisplay("acc-work"), five_hour: windowDisplay("tracking", { percentage: 100, resets_at_ms: Date.now() + 2 * 3_600_000 }) }]);
-    const ended = instance({ id: "writer", provider: "claude-code", status: "finished", conversation_id: null, account_id: "acc-work" });
-    const onContinue = vi.fn();
-    render(<ResumeButton session={ended} openIn={null} onContinue={onContinue} continueWhy={NO_TURN} />);
-    const go = await screen.findByTestId("header-resume-continue");
+  it("the side column's Switch account… greys with the same words, and stays focusable (D-143, BTN-5)", () => {
+    render(<SwitchAccountButton switchKey="writer" accountId="acc-work" why={NO_TURN} />);
+    const go = screen.getByTestId("switch-account");
     expect(go.getAttribute("aria-disabled")).toBe("true");
     expect(go.getAttribute("aria-description")).toBe(NO_TURN);
-    go.click();
-    expect(onContinue).not.toHaveBeenCalled();
-    clearSeams("__AIJ_QUOTA_DISPLAY__");
   });
+
 
   it("the switch card's line gives the same reason, not “No other app can take it now”", () => {
     expect(handoverTeaser([row()])).toBe(NO_TURN);

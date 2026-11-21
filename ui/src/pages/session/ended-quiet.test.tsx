@@ -1,6 +1,8 @@
 /**
  * D-103.3 (M7, twice: the amber notice "shouting" on a page they only
- * wanted to read): reading an ended session stays quiet. Its account's
+ * wanted to read): reading an ended session stays quiet. D-143 amends it:
+ * its account out of room opens the list by itself; low, the folded line
+ * says what's possible first. Its account's
  * out-of-room notice is one quiet line under "Continue in another app",
  * and the search for room starts only when the user chooses an app. A
  * live session keeps today's notice and its list at once.
@@ -57,24 +59,46 @@ describe("D-103.3 an ended session's page stays quiet", () => {
     expect((await screen.findByTestId("session-notice-quota")).textContent).toContain("This session's account, West, is out of room");
   });
 
-  it("says its account is out in one quiet line under Continue, and looks for room only once it's opened", async () => {
+  it("D-143: its account out of room, the list opens by itself and searches at once", async () => {
     const asked = vi.spyOn(targets, "switchTargets").mockResolvedValue([]);
     render(<ContinueOn model={fromInstance(ENDED)} accounts={[]} displays={[]} onPick={vi.fn()} />);
-    const line = await screen.findByTestId("continue-account-room");
-    expect(line.textContent).toMatch(/^This session's account, West, is out of room · resets .+$/);
-    // Quiet: folded, muted words, no banner, no list, no search.
-    expect(line.className).toContain("text-muted");
-    expect(screen.getByTestId("continue-fold-toggle").getAttribute("aria-expanded")).toBe("false");
-    expect(screen.queryByText("Looking for room…")).toBeNull();
-    await settle();
-    expect(asked).not.toHaveBeenCalled();
-    openFold("continue-fold");
+    await waitFor(() => expect(screen.getByTestId("continue-fold-toggle").getAttribute("aria-expanded")).toBe("true"));
     await waitFor(() => expect(asked).toHaveBeenCalledWith("s-1"));
     expect(await screen.findByTestId("continue-none")).toBeTruthy();
-    expect(screen.queryByTestId("continue-account-room")).toBeNull();
+    // No banner on the page: the list itself is the answer.
+    expect(screen.queryByTestId("session-notice-quota")).toBeNull();
+    // Its user can still fold it away.
+    openFold("continue-fold");
+    expect(screen.getByTestId("continue-fold-toggle").getAttribute("aria-expanded")).toBe("false");
   });
 
-  it("⌘⇧H (the header's or the bell's Continue) opens its list and the search too", async () => {
+  it("D-143: low, it stays folded, and its line says what's possible before the account's fact", async () => {
+    setSeam("__AIJ_NOTICES__", { app: [{ ...OUT, meter: 6, title: "West is almost out of room" }] });
+    notices.resetNoticeStandIn();
+    vi.spyOn(targets, "switchTargets").mockResolvedValue([]);
+    render(<ContinueOn model={fromInstance(ENDED)} accounts={[]} displays={[]} onPick={vi.fn()} />);
+    const teaser = await screen.findByTestId("continue-teaser");
+    await waitFor(() => expect(teaser.textContent).toBe("No other app can take it now."));
+    expect(screen.getByTestId("continue-fold-toggle").getAttribute("aria-expanded")).toBe("false");
+    expect((await screen.findByTestId("continue-account-room")).textContent).toMatch(/almost out of room/);
+  });
+
+  it("with room, an ended one stays quiet (D-103.3): folded, no search until it's opened", async () => {
+    setSeam("__AIJ_NOTICES__", { app: [] });
+    notices.resetNoticeStandIn();
+    const asked = vi.spyOn(targets, "switchTargets").mockResolvedValue([]);
+    render(<ContinueOn model={fromInstance(ENDED)} accounts={[]} displays={[]} onPick={vi.fn()} />);
+    await settle();
+    expect(asked).not.toHaveBeenCalled();
+    expect(screen.queryByTestId("continue-teaser")).toBeNull();
+    expect(screen.getByTestId("continue-fold-toggle").getAttribute("aria-expanded")).toBe("false");
+    openFold("continue-fold");
+    await waitFor(() => expect(asked).toHaveBeenCalledWith("s-1"));
+  });
+
+  it("⌘⇧H (or Switch account…) opens its list and the search too", async () => {
+    setSeam("__AIJ_NOTICES__", { app: [] });
+    notices.resetNoticeStandIn();
     const asked = vi.spyOn(targets, "switchTargets").mockResolvedValue([]);
     render(<ContinueOn model={fromInstance(ENDED)} accounts={[]} displays={[]} onPick={vi.fn()} />);
     await settle();
@@ -91,19 +115,32 @@ describe("D-103.3 an ended session's page stays quiet", () => {
     expect(screen.queryByTestId("continue-account-room")).toBeNull();
   });
 
-  it("a terminal session's card, ended, searches nothing and says the same line", async () => {
+  it("a terminal session's card, ended, its account out of room: open by itself (D-143)", async () => {
     const asked = vi.spyOn(targets, "switchTargets").mockResolvedValue([]);
     render(<HandoverSection session={ENDED} onHandover={vi.fn()} />);
-    expect((await screen.findByTestId("continue-account-room")).textContent).toContain("This session's account, West, is out of room");
-    expect(screen.queryByTestId("handover-teaser")).toBeNull();
+    await waitFor(() => expect(screen.getByTestId("handover-section-toggle").getAttribute("aria-expanded")).toBe("true"));
+    await waitFor(() => expect(asked).toHaveBeenCalledWith("s-1"));
+  });
+
+  it("a terminal session's card, ended, with room: searches nothing until opened", async () => {
+    setSeam("__AIJ_NOTICES__", { app: [] });
+    notices.resetNoticeStandIn();
+    const asked = vi.spyOn(targets, "switchTargets").mockResolvedValue([]);
+    render(<HandoverSection session={ENDED} onHandover={vi.fn()} />);
     await settle();
     expect(asked).not.toHaveBeenCalled();
+    expect(screen.queryByTestId("handover-teaser")).toBeNull();
     openFold("handover-section");
     await waitFor(() => expect(asked).toHaveBeenCalledWith("s-1"));
   });
 
-  it("a live terminal session's card ranks its apps at once, as before", async () => {
+  it("a live terminal session's card ranks its apps at once, as before; its account out of room, open (D-143)", async () => {
     const asked = vi.spyOn(targets, "switchTargets").mockResolvedValue([]);
+    const out = render(<HandoverSection session={LIVE} onHandover={vi.fn()} />);
+    await waitFor(() => expect(screen.getByTestId("handover-section-toggle").getAttribute("aria-expanded")).toBe("true"));
+    out.unmount();
+    setSeam("__AIJ_NOTICES__", { app: [] });
+    notices.resetNoticeStandIn();
     render(<HandoverSection session={LIVE} onHandover={vi.fn()} />);
     await waitFor(() => expect(asked).toHaveBeenCalledWith("s-1"));
     expect(await screen.findByTestId("handover-teaser")).toBeTruthy();

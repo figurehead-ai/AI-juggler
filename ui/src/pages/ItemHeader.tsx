@@ -4,9 +4,8 @@
  * its state, two or three facts, and its actions with its ⋯ menu.
  */
 import { keysOf } from "../lib/shortcuts";
-import { focusHandover } from "../lib/handover-focus";
-import { useSwitchNotYet } from "../lib/switch-not-yet";
-import { WhyButton } from "../components/WhyTip";
+import { useOwnRoom } from "../lib/own-room-notices";
+import { ownRoomWantsSwitch } from "../components/SwitchAccountButton";
 import type { ReactNode } from "react";
 import { PageHeader, type Crumb } from "./PageHeader";
 import type { PageKind } from "./registry";
@@ -108,7 +107,8 @@ export function InspectorHeader({
   const instance = data.instance ?? null;
   const shownTitle = instance ? sessionTitle(instance) : "Session";
   // rc33 M4: why its switch would refuse, said on its doors here too.
-  const switchNotYet = useSwitchNotYet(instance?.id);
+  // D-143: out of room or low, the side column's Switch account… is the primary.
+  const ownRoom = useOwnRoom(kind === "instance" ? (instance?.account_id ?? null) : null);
 
   if (remote) {
     const crumbs: Crumb[] = [{ label: "Fleet", onOpen: onRemoteBack }];
@@ -254,12 +254,7 @@ export function InspectorHeader({
       {/* AJ-E3816: watched, or Watch… in the same spot (by its id). */}
       {kind === "instance" && instance && <WatchDoor target={{ kind: "session", id: instance.id }} name={name} />}
       {kind === "project" && data.project && <AskBot scope={{ kind: "project", id: data.project.id, name: data.project.name, sessions: [] }} />}
-      {/* D-25: the one-step-away move, beside its Stop; only with a conversation to carry over (the menu's rule). */}
-      {kind === "instance" && instance && instance.kind !== "desktop" && instance.conversation_id !== null && (
-        <WhyButton size="sm" variant="secondary" why={switchNotYet} data-testid="header-switch" onClick={() => focusHandover(instance.id)}>
-          Continue in another app…
-        </WhyButton>
-      )}
+      {/* D-143: the switch is the side column's Switch account… (PAT-SW). */}
       {kind === "project" && data.project && host.openProjectIn && (
         <Button
           size="sm"
@@ -312,8 +307,7 @@ export function InspectorHeader({
           session={instance}
           openIn={conversations.some((c) => c.id === instance.conversation_id && c.live) ? "another app" : null}
           onOpen={host.openSessionById}
-          onContinue={() => focusHandover(instance.id)}
-          continueWhy={switchNotYet}
+          quiet={ownRoomWantsSwitch(ownRoom)}
           onOpenOriginal={host.openConversationById}
           hint={hinted ? "Same conversation" : null}
         />

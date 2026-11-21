@@ -2178,9 +2178,7 @@
  "src/screens/Home.tsx": {
   "eslint(max-lines)": 1,
   "jsx-a11y(no-static-element-interactions)": 1,
-  "typescript(consistent-return)": 2,
-  "typescript(no-unnecessary-type-assertion)": 1,
-  "typescript(no-unsafe-type-assertion)": 1
+  "typescript(consistent-return)": 2
  },
  "src/screens/NewProjectSheet.tsx": {
   "eslint(complexity)": 1,

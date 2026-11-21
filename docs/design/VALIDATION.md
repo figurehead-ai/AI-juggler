@@ -200,6 +200,12 @@ For the core screens and every dialog, `pnpm visual:capture` also writes protan,
 - `attention-budget.spec.ts` runs its invariants on every `calm` family (today only Home, rail and header); N6 runs on every `rich` and `mixed` region.
 - **Covers:** MD-1, PAT-ATT-1 to 4 across all calm screens, and routes N6.
 
+### N21. Switching is one visible click (vitest now, Playwright with N1's pass)
+
+- **Unit (in place, `components/switch-account.test.tsx`):** "Switch account…" is the first child of a session's and a conversation's side column; accent with room, `data-primary` when its account is out of room or low, and then the view's only `[data-primary]`; its press opens the switch list.
+- **Runtime (to add to N1's gallery pass):** on every gallery state whose page is a session or a conversation (`[data-testid='session-page'], [data-testid='conversation-page']`), `[data-testid='switch-account']` is visible without scrolling at 1024×680 and 1280×800 in both themes, and passes a hit test. A session on a paired Mac is exempt.
+- **Covers:** PAT-SW-1 to PAT-SW-3, BTN-1 on session pages.
+
 ### Rollout order
 
 1. N1 + N2 with `DialogFrame` (the reported bug, and the frame every later fix uses).
@@ -383,6 +389,7 @@ Legend: **A** = existing automated, **N#** = new automated (§3), **R** = Opus r
 | PAT-LST-5 Feed chronological | A home-feed tests |
 | PAT-ATT-1…5 | A attention-budget; N20 extends it to every calm family |
 | PAT-DOOR-1…3 | R11; A actions-by-id tests where they exist |
+| PAT-SW-1…5 | N21; walk step "from any session page, the switch is one visible click"; R2, R9 |
 | CNT-1 Plain words | A plain_words_lint, plain-words-on-screen.test |
 | CNT-2 One word per thing | A terminology_lint, one-vocabulary.test |
 | CNT-3 Sentence case | N13 |

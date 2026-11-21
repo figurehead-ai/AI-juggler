@@ -2930,7 +2930,7 @@ Each ships with tests that fail without it and a design critique; the M2, D2 and
 
 - **D-103.1** **Recent, not open.** An App with nothing open shows a muted "Recent" caption above its last 3 ended rows (D6, twice: "work nothing open" above three rows read as a contradiction).
 - **D-103.2** **"All N sessions ›"** is the link under them (was "Show all N"; M7 guessed what it hid).
-- **D-103.3** **Reading an ended session stays quiet.** Its Account's out notice is one quiet line under "Continue in…"; the search for room starts only when you choose Continue (M7, twice).
+- **D-103.3** **Reading an ended session stays quiet.** Its Account's out notice is one quiet line under "Continue in…"; the search for room starts only when you choose Continue (M7, twice). *Amended 2026-11-21 by D-143:* out of room, its list opens by itself and searches at once; low, it searches and its folded line says what's possible first.
 - **D-103.4** **"Measure its limits" only where a check exists** (D-39's probe, measuring in place); elsewhere the line reads "How it's measured ›".
 - **D-103.5** **"Closed · last open 12 min ago"** on an App that isn't running (was "Not running · seen this hour").
 - **D-103.6** **Home's Needs you has a skeleton until the needs load**, gone when there are none: nothing moves when they arrive (P9's Home part).
@@ -3798,3 +3798,12 @@ Every session and agent brief carries this rule.
 - **Scope:** 0.5.0 ships GAPS A1–A2 (one dialog frame with a fixed header and footer, only the body scrolling, everywhere), check N1 (`dialog-fit.spec.ts`), the Move or Copy dialog per DESIGN-SYSTEM §8, and B1's token. The rest of GAPS and checks N2–N20 follow after 0.5.0 (AJ-E3618, AJ-E3619).
 - **Process:** from now on every UI change is scored by Opus on VALIDATION.md's screen-review checklist (§5), at 4 or more on every line, before any baseline.
 - Sources: the coordinating session's message, 2026-11-21; the maintainer's report that a dialog's choices scrolled under the top edge while its buttons scrolled away.
+
+### D-143 Switching is always one visible click: "Switch account…" first in every session and conversation page's side column (amends D-103.3) — SETTLED (2026-11-21)
+
+- **Ruling** (the maintainer, through the coordinating session, 2026-11-21: "this is our main feature, we don't want it to be hard to find"; and "I don't mind it being hidden, but it should look more like a button, and prominent, so it is clear"). On 0.4.9 a session page (inactive, Claude app · personal-max, its account at "This week 0% left") offered no visible way to switch: only a folded "› Continue in another app" whose one visible control was "Save handover…", ⌘⇧H, or "Switch account…" inside ⋯.
+- **Decision:** every session and conversation page shows **"Switch account…"** with the switch icon as the first thing in its side column, above Where it runs. It is an accented action while the account has room, and the page's one filled primary when its account is out of room or low; the page's other primary (Continue in AI Juggler, Open session, Resume) steps down to secondary then (BTN-1). Its press opens the ranked list of Apps (the same dialog as ⌘⇧H). A session on a paired Mac, switched from there, shows none.
+- **The card behind it** stays folded with its list (D-25). Its account out of room, the list opens by itself, for ended and inactive sessions too, not only at the limit; low, it searches for room and its folded line says what's possible first ("2 apps can take it over · Personal suggested"), then the account's fact. With room, an ended one stays quiet (D-103.3, amended).
+- **One door, one word:** the header's "Continue in another app…" and Resume's "Continue on another account…" are removed; the side column's button is the one visible switch door (CNT-2, CNT-5). ⌘⇧H, the row menus and the bell's Continue still open the same list.
+- **Recorded as** DESIGN-SYSTEM PAT-SW, checked by VALIDATION N21 and a walk step: from any session page, the switch is one visible click.
+- Sources: the coordinating session's messages, 2026-11-21, quoting the maintainer.

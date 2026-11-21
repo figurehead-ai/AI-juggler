@@ -142,9 +142,8 @@ export function stateWord(state: RailState, probably = false): string {
   return probably ? `Probably ${WORDS[state].toLowerCase()}` : WORDS[state];
 }
 
-/** Why it needs you, in a few words — the reason line ("Limit reached",
- * "Probably stuck") — else its state in words. One wording for every row
- * that shows a session's state (AJ-E2104 Req.3). */
+/** Why it needs you, in a few words — the reason line ("Limit reached", "Probably stuck") —
+ * else its state in words. One wording for every row that shows a session's state (AJ-E2104 Req.3). */
 export function needWord(item: Pick<RailItem, "need" | "state" | "probably"> & Partial<Pick<RailItem, "endedHow" | "session">>): string {
   switch (item.need) {
     case "limit":

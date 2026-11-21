@@ -99,27 +99,26 @@ describe("AJ-E2908 — an ended session's page", () => {
   });
 });
 
-describe("AJ-E2908 R3 — out of room, Continue on another account… beside Resume", () => {
+describe("AJ-E2908 R3, D-143 — out of room: Resume says why; the side column's Switch account… is the way on", () => {
   afterEach(() => {
     clearSeams("__AIJ_QUOTA_DISPLAY__");
   });
 
-  it("says the account is out of room on Resume, and offers Continue on another account…", async () => {
+  it("says the account is out of room on Resume, with no second switch door beside it", async () => {
     const { quotaDisplay, windowDisplay } = await import("../../lib/wire");
     setSeam("__AIJ_QUOTA_DISPLAY__", [{ ...quotaDisplay("acc-x"), five_hour: windowDisplay("tracking", { percentage: 100, resets_at_ms: Date.now() + 2 * 3_600_000 }) }]);
-    const onContinue = vi.fn();
-    render(<ResumeButton session={session()} openIn={null} onContinue={onContinue} />);
-    const go = await screen.findByTestId("header-resume-continue");
-    expect(go.textContent).toBe("Continue on another account…");
-    expect(screen.getByTestId("header-resume").getAttribute("aria-disabled")).toBe("true");
+    render(<ResumeButton session={session()} openIn={null} />);
+    await waitFor(() => expect(screen.getByTestId("header-resume").getAttribute("aria-disabled")).toBe("true"));
     expect(screen.getByTestId("header-resume").getAttribute("aria-description")).toMatch(/out of room/);
-    fireEvent.click(go);
-    expect(onContinue).toHaveBeenCalledTimes(1);
+    expect(screen.queryByTestId("header-resume-continue")).toBeNull();
   });
 
-  it("with room, no Continue beside it", () => {
-    render(<ResumeButton session={session()} openIn={null} onContinue={vi.fn()} />);
-    expect(screen.queryByTestId("header-resume-continue")).toBeNull();
+  it("steps down to secondary when the switch is the page's primary (BTN-1)", () => {
+    const view = render(<ResumeButton session={session()} openIn={null} quiet />);
+    expect(view.getByTestId("header-resume").hasAttribute("data-primary")).toBe(false);
+    view.unmount();
+    render(<ResumeButton session={session()} openIn={null} />);
+    expect(screen.getByTestId("header-resume").hasAttribute("data-primary")).toBe(true);
   });
 });
 

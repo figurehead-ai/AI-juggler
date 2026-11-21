@@ -605,6 +605,16 @@ A serious choice changes what happens to the user's work, money, data or another
 
 ---
 
+### 5.9 Switching, the main action (PAT-SW)
+
+Switching a session to another account is the product's main action (M:switching-0-1-core). It is always one visible click away.
+
+- **PAT-SW-1.** Every session and conversation page shows "Switch account…" with the switch icon (⇄, `IconStateHandover`) as the first thing in its side column, above Where it runs (`components/SwitchAccountButton.tsx`). Never only in a menu, a fold or a shortcut. (D-143)
+- **PAT-SW-2.** It reads as an action at a glance: accented (`accent`) while the account has room; the view's one filled primary when its account is out of room or low, when the view's other primary steps down (BTN-1). (D-143)
+- **PAT-SW-3.** Its press opens the ranked list of Apps (the same dialog as ⌘⇧H, the row menus and the bell's Continue). One visible door, one word: no second "Continue in another app…" or "Continue on another account…" beside it (CNT-2, CNT-5). (D-143)
+- **PAT-SW-4.** The card behind it stays folded with its list. Out of room, the list opens by itself; low, its folded line says what's possible first ("2 apps can take it over · Personal suggested"), never only the account's fact. (D-143, amends D-103.3)
+- **PAT-SW-5.** When it can't switch yet, the button stays focusable and says why (BTN-5, `WhyButton`).
+
 ## 6. Content rules
 
 - **CNT-1. Plain words.** No internal words on screen: pack, target, recipe, instance, transplant, harness, proven, major, F1, tok. Use handover, the App's name, launch settings, session. (PRIN §13, `plain_words_lint.py`, `terminology_lint.sh`)

@@ -44,3 +44,18 @@ export function ownQuietLine(notice: NoticeInfo, now: number): string {
   const resets = notice.facts.resets_at_ms;
   return resets !== null && resets > now ? `${ownTitle(notice)} · ${resetsWords(resets, now)}` : ownTitle(notice);
 }
+
+/** This session's own account's room, as its notices say it: "out" (none
+ * left), "low" (almost out), or null (room enough, or not read yet). The
+ * Switch account… button turns primary on either (D-143). */
+export type OwnRoom = "out" | "low" | null;
+
+export function ownRoomOf(notices: readonly NoticeInfo[]): OwnRoom {
+  if (notices.length === 0) return null;
+  return notices.some((notice) => notice.meter !== null && notice.meter <= 0) ? "out" : "low";
+}
+
+export function useOwnRoom(accountId: string | null): OwnRoom {
+  const notices = useOwnRoomNotices(accountId);
+  return ownRoomOf(notices);
+}

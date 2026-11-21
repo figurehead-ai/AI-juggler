@@ -487,11 +487,12 @@ export async function terminalDrawn(page: import("@playwright/test").Page): Prom
 }
 
 /** The session's switch list, open: as the card's list when it's open
- * already (the limit hit), else Switch account…'s dialog (0.3.2). */
+ * already (the limit hit), else Switch account…'s dialog (0.3.2; the side
+ * column's button, D-143). */
 export async function openSwitch(page: import("@playwright/test").Page): Promise<void> {
   const section = page.getByTestId("handover-section");
   if (await section.evaluate((node) => node.hasAttribute("data-open")).catch(() => false)) return;
-  await page.getByTestId("header-switch").click();
+  await page.getByTestId("switch-account").click();
   await expect(page.getByTestId("continue-dialog")).toBeVisible();
 }
 

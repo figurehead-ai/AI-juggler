@@ -2,8 +2,8 @@
  * AJ-E2908: an ended session's page offers Resume (the same conversation,
  * on the same account and launch settings) before Relaunch (a fresh one).
  * When it can't run it says why, in the button's own words: no
- * conversation yet, the account signed out, out of room (with Continue on
- * another account beside it, D-45), the conversation open in another
+ * conversation yet, the account signed out, out of room (the side
+ * column's Switch account… is the page's primary then, D-143), the conversation open in another
  * app now, or (rc21) its tool won't open it by its id, with the way out
  * (Open the original) beside it. Greyed, it says why on hover and on
  * keyboard focus (`WhyButton`): the rc21 walk found it greyed in silence.
@@ -58,8 +58,7 @@ export function ResumeButton({
   session,
   openIn,
   onOpen,
-  onContinue,
-  continueWhy = null,
+  quiet = false,
   onOpenOriginal,
   hint = null,
 }: {
@@ -67,11 +66,9 @@ export function ResumeButton({
   /** The app the conversation is open in now, if any. */
   openIn: string | null;
   onOpen?: (sessionId: string) => void;
-  /** Continue on another account… (shown beside it when out of room). */
-  onContinue?: () => void;
-  /** rc33 M4: why its switch would refuse (no conversation yet): the
-   * Continue beside it greys with the switch's own words. */
-  continueWhy?: string | null;
+  /** D-143: its account is out of room or low, so the side column's
+   * Switch account… is the page's one primary (BTN-1); Resume steps down. */
+  quiet?: boolean;
   /** Opens a conversation by its account and id (Open the original). */
   onOpenOriginal?: (accountId: string, id: string, projectId: string | null) => void;
   /** The line under Resume alone ("Same conversation"): Run in AI
@@ -133,7 +130,7 @@ export function ResumeButton({
       <Hinted hint={hint} testId="header-resume-hint">
         <WhyButton
           size="sm"
-          variant="primary"
+          variant={quiet ? "secondary" : "primary"}
           why={blocked}
           disabled={busy || settling}
           title={blocked ? undefined : "Resume — same session, same account."}
@@ -149,11 +146,6 @@ export function ResumeButton({
         <Button size="sm" variant="secondary" disabled={busy} title={`The same conversation, here without a terminal: ${back.label}${back.beta ? " (Beta)" : ""}.`} onClick={() => void runHere()} data-testid="header-run-here">
           Run in AI Juggler
         </Button>
-      )}
-      {out && onContinue && (
-        <WhyButton size="sm" variant="secondary" why={continueWhy} onClick={onContinue} data-testid="header-resume-continue">
-          Continue on another account…
-        </WhyButton>
       )}
     </>
   );

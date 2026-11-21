@@ -272,20 +272,21 @@ describe("AJ-E1533 keyboard, footers, the terminal", () => {
     expect(container.querySelector('[data-testid="instance-terminal"]')!.closest("section")!.hasAttribute("hidden")).toBe(true);
   });
 
-  it("the session header says on which account and since when, and offers Continue in another app…", () => {
+  it("the session header says on which account and since when; its side column offers Switch account… first (D-143)", () => {
     const { getByTestId } = shell({ kind: "instance", id: "sess-1" });
     // 0.3 polish: the account is its Account chip, said once.
     expect(getByTestId("session-app-chip").textContent).toContain("Work Max");
     expect(getByTestId("session-subline").textContent).not.toContain("Work Max");
     expect(getByTestId("session-subline").textContent).toMatch(/started .+ ago/);
-    expect(getByTestId("header-switch").textContent).toBe("Continue in another app…");
+    expect(getByTestId("switch-account").textContent).toBe("Switch account…");
+    expect(document.querySelector("[data-testid='header-switch']")).toBeNull();
   });
 
-  it("the switch list is one step away: closed, Continue in another app… opens it in a dialog (0.3.2); open when the limit hit", async () => {
+  it("the switch list is one step away: closed, Switch account… opens it in a dialog (0.3.2, D-143); open when the limit hit", async () => {
     const { getByTestId, queryByTestId } = shell({ kind: "instance", id: "sess-1" });
     expect(getByTestId("handover-section-toggle").getAttribute("aria-expanded")).toBe("false");
     await act(async () => {
-      fireEvent.click(getByTestId("header-switch"));
+      fireEvent.click(getByTestId("switch-account"));
     });
     expect(getByTestId("continue-dialog").textContent).toContain("Continue in another app");
     fireEvent.click(getByTestId("continue-dialog-close"));
