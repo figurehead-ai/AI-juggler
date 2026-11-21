@@ -5,7 +5,8 @@
  * "client · started 8:25 AM" in web's List view and its canvas line: each
  * surface told names apart within its own few. Now one function decides
  * (`sessionNames`, over every session the app holds) and every surface
- * reads it.
+ * reads it. P11 too: one session read "web (1)" on pool A's canvas, "web"
+ * on B's, and "web · started 8:33 AM (1)" in the sidebar.
  */
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
@@ -14,6 +15,7 @@ import type { PagedList } from "../../lib/paged";
 import type { ContextCard, PoolMemberRow } from "../../lib/ipc/pools";
 import { sessionNames } from "../../lib/session-titles";
 import { instance } from "../../test/fixtures";
+import { nodeTitles } from "./node-title";
 import { heldOf } from "./pool-count";
 import { drawnMembers } from "./useCanvas";
 
@@ -49,5 +51,24 @@ describe("one name for a session, on every surface (SK48-3)", () => {
     // The List view's row.
     render(<PoolCardRows list={listOf([row(C1)])} sessions={EVERY} now={AT + 60_000} />);
     expect(screen.getByTestId("pool-card-name").textContent).toContain(one);
+  });
+
+  it("P11: a session in two pools has one number on both canvases, the sidebar's; two started apart get none", () => {
+    const web = (id: string, ms: number) => instance({ id, label: undefined, title: undefined, git_branch: null, cwd: "/Users/you/lab/web", project_id: "web", status: "running", started_at_ms: ms });
+    const W1 = web("w1", AT + 8 * 60_000);
+    const W2 = web("w2", AT + 8 * 60_000 + 5_000);
+    const LATER = web("w3", AT + 45 * 60_000);
+    const names = sessionNames([W1, W2, LATER]);
+    const member = (session: typeof W1) => ({ id: session.id, session, card: card(session.id) });
+    const now = AT + 60 * 60_000;
+    // Pool A holds w1, w2 and the later one; pool B holds only w1.
+    const a = nodeTitles([member(W1), member(W2), member(LATER)], now, names);
+    const b = nodeTitles([member(W1)], now, names);
+    expect(names.get("w1")).toMatch(/^web · started .+ \(1\)$/);
+    expect(a.get("w1")!.title).toBe("web (1)");
+    expect(b.get("w1")!.title).toBe("web (1)");
+    expect(a.get("w2")!.title).toBe("web (2)");
+    // Its start under its title tells it apart: no number of this pool's own.
+    expect(a.get("w3")!.title).toBe("web");
   });
 });

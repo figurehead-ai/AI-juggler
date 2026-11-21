@@ -145,9 +145,9 @@ export function useCanvas(poolId: string, sessions: InstanceInfo[], desktop: rea
     settleRoles(poolId, new Map(drawn.map((member) => [member.id, member.role])));
   }, [poolId, drawn]);
   const members: MemberNode[] = useMemo(() => {
-    const titles = nodeTitles(drawn);
+    const titles = nodeTitles(drawn, Date.now(), names);
     return drawn.map((member) => ({ ...member, title: titles.get(member.id), ...(pendingRoles.has(member.id) ? { role: pendingRoles.get(member.id)!, pending: true } : {}) }));
-  }, [drawn, pendingRoles]);
+  }, [drawn, pendingRoles, names]);
   const desktopKey = desktop.join("|");
   const ids = useMemo(() => [...members.map((member) => member.id), ...(desktopKey ? desktopKey.split("|") : [])], [members, desktopKey]);
   const idsKey = ids.join("|");

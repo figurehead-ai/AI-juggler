@@ -132,16 +132,25 @@ export function untitledName(facts: SessionFacts, now: number): string {
  * the same folder still reads as two. Rows whose names differ are left as
  * they are. */
 export function tellApart<T>(rows: readonly T[], name: (row: T) => string, order: (row: T) => [number, string]): Map<T, string> {
+  const numbers = numberAlike(rows, name, order);
+  return new Map(rows.map((row) => [row, numbers.get(row) ? `${name(row)} (${numbers.get(row)})` : name(row)] as const));
+}
+
+/** The number each row is told apart by among the rows whose `key` is
+ * the same (1, 2… by `order`), `null` for a row no other shares it with:
+ * [`tellApart`]'s count, for a name said apart from its key (a canvas
+ * node's title, its start under it). */
+export function numberAlike<T>(rows: readonly T[], key: (row: T) => string, order: (row: T) => [number, string]): Map<T, number | null> {
   const groups = new Map<string, T[]>();
-  for (const row of rows) groups.set(name(row), [...(groups.get(name(row)) ?? []), row]);
-  const out = new Map<T, string>();
-  for (const [shown, same] of groups) {
+  for (const row of rows) groups.set(key(row), [...(groups.get(key(row)) ?? []), row]);
+  const out = new Map<T, number | null>();
+  for (const same of groups.values()) {
     if (same.length === 1) {
-      out.set(same[0]!, shown);
+      out.set(same[0]!, null);
       continue;
     }
     const sorted = [...same].sort((a, b) => order(a)[0] - order(b)[0] || order(a)[1].localeCompare(order(b)[1]));
-    sorted.forEach((row, at) => out.set(row, `${shown} (${at + 1})`));
+    sorted.forEach((row, at) => out.set(row, at + 1));
   }
   return out;
 }
