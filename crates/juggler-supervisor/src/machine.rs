@@ -575,8 +575,8 @@ pub fn swap_note(snapshot: &MachineSnapshot, thresholds: &RoomThresholds) -> Opt
     }
     let counts_at = (latest.memory_total as f64 * thresholds.swap_full_ram_share) as u64;
     Some(format!(
-        "Nearly full, but macOS makes more swap as it needs it: it counts against room once \
-         it holds {} ({} of your memory) or keeps growing.",
+        "Nearly full, but the system makes more swap as it needs it: it counts against room \
+         once it holds {} ({} of your memory) or keeps growing.",
         memory_words(counts_at),
         share_words(thresholds.swap_full_ram_share),
     ))
@@ -1255,8 +1255,8 @@ mod tests {
         assert_eq!(
             swap_note(&persona, &defaults).as_deref(),
             Some(
-                "Nearly full, but macOS makes more swap as it needs it: it counts against room \
-                 once it holds 24 GB (25% of your memory) or keeps growing."
+                "Nearly full, but the system makes more swap as it needs it: it counts against \
+                 room once it holds 24 GB (25% of your memory) or keeps growing."
             )
         );
         // Just under a quarter of memory: still plenty, still said.

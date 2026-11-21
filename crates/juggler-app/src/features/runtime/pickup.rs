@@ -392,26 +392,29 @@ enum Found {
     NeverWritten,
 }
 
-/// Whether `native_id`'s conversation is there to resume: its tool's
-/// adapter says, from where the tool keeps it (`conversation_written`);
-/// where it can't tell, the file the session recorded, if any. A file AI
-/// Juggler never recorded is never taken as gone on its own.
+/// Whether `native_id`'s conversation is there to resume: the file the
+/// session recorded, when it's there; else its tool's adapter says, from
+/// where the tool keeps it (`conversation_written`); where it can't tell,
+/// a recorded file that's missing is gone, and an unrecorded one is
+/// resumed as before.
 fn found_on_disk(
     state: &Arc<AppState>,
     account: &juggler_core::model::Account,
     transcript: Option<&juggler_core::model::TranscriptRef>,
     native_id: &str,
 ) -> Found {
+    // The file it recorded is there: nothing to ask.
+    if transcript.is_some_and(|transcript| transcript.path.exists()) {
+        return Found::Written;
+    }
     let written = state
         .registry
         .get(&account.harness)
         .and_then(|adapter| adapter.conversation_written(&account.state_dir, native_id));
-    match (written, transcript) {
-        (Some(true), _) => Found::Written,
-        (Some(false), Some(_)) => Found::Gone,
-        (Some(false), None) => Found::NeverWritten,
-        (None, Some(transcript)) if !transcript.path.exists() => Found::Gone,
-        (None, _) => Found::Written,
+    match (written, transcript.is_some()) {
+        (Some(true), _) | (None, false) => Found::Written,
+        (Some(false) | None, true) => Found::Gone,
+        (Some(false), false) => Found::NeverWritten,
     }
 }
 

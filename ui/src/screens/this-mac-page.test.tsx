@@ -250,7 +250,7 @@ describe("the This Mac page", () => {
   // line.
   it("says why a nearly full swap leaves plenty of room", () => {
     const GB = 1024 ** 3;
-    const note = "Nearly full, but macOS makes more swap as it needs it: it counts against room once it holds 24 GB (25% of your memory) or keeps growing.";
+    const note = "Nearly full, but the system makes more swap as it needs it: it counts against room once it holds 24 GB (25% of your memory) or keeps growing.";
     const plenty = mockMachineHealth("plenty", NOW);
     renderPage(info([ours("a")], { machine: { ...plenty, memory_total: 96 * GB, swap_used: 8.2 * GB, swap_total: 9 * GB, swap_note: note } }));
     expect(screen.getByTestId("this-mac-state").textContent).toContain("Plenty of room");
