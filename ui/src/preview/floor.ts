@@ -14,6 +14,7 @@ const WORDS: Record<FloorState, string> = {
   asks: "Asks you",
   stuck: "Probably stuck",
   limit: "Limit reached",
+  ready: "Room again",
   crashed: "Stopped with an error",
   done: "Done, review it",
   ended: "Ended",

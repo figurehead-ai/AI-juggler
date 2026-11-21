@@ -276,7 +276,8 @@ pub const fn pose_of(state: FloorState) -> crate::models::Pose {
         FloorState::Asks => Pose::Wave,
         FloorState::Stuck => Pose::Scratch,
         FloorState::Crashed => Pose::HandsOnHead,
-        FloorState::Done => Pose::Stretch,
+        // done; or awake again, its limit reset (AJ-E2312's Ready)
+        FloorState::Done | FloorState::Ready => Pose::Stretch,
         FloorState::Limit => Pose::Asleep,
         FloorState::Idle | FloorState::Ended => Pose::Idle,
     }
@@ -291,7 +292,8 @@ pub const fn balloon_of(state: FloorState) -> Option<Icon> {
         FloorState::Crashed => Some(Icon::Error),
         FloorState::Done => Some(Icon::Done),
         FloorState::Limit => Some(Icon::Sleep),
-        FloorState::Working | FloorState::Idle | FloorState::Ended => None,
+        // its flag says READY; up close, the stretch after the sleep
+        FloorState::Ready | FloorState::Working | FloorState::Idle | FloorState::Ended => None,
     }
 }
 
@@ -510,6 +512,7 @@ impl Scene {
             (Need::Crashed, count(FloorState::Crashed)),
             (Need::Asks, count(FloorState::Asks)),
             (Need::Stuck, count(FloorState::Stuck)),
+            (Need::Ready, count(FloorState::Ready)),
             (Need::Done, count(FloorState::Done)),
         ]
         .into_iter()
@@ -575,6 +578,7 @@ impl Scene {
             (Need::Asks, sessions(Need::Asks), "WAITING"),
             (Need::Crashed, sessions(Need::Crashed), "CRASHED"),
             (Need::Stuck, sessions(Need::Stuck), "STUCK"),
+            (Need::Ready, sessions(Need::Ready), "READY"),
             // the app's chip words (its Out, Low and Hot)
             (Need::Out, rooms(Need::Out), "OUT"),
             (Need::Low, rooms(Need::Low), "LOW"),
@@ -895,7 +899,7 @@ impl Scene {
         for d in &self.desks {
             if matches!(
                 d.state,
-                FloorState::Asks | FloorState::Stuck | FloorState::Limit
+                FloorState::Asks | FloorState::Stuck | FloorState::Ready | FloorState::Limit
             ) {
                 *waiting
                     .entry((d.floor, d.session.key.as_str()))
@@ -941,7 +945,8 @@ impl Scene {
         let rank = |s: FloorState| match s {
             FloorState::Asks => Some(0),
             FloorState::Stuck => Some(1),
-            FloorState::Limit => Some(2),
+            FloorState::Ready => Some(2),
+            FloorState::Limit => Some(3),
             _ => None,
         };
         let mut desks: Vec<(u8, &DeskRec)> = self
@@ -1021,6 +1026,7 @@ impl Scene {
         let words: Vec<String> = [
             (FloorState::Asks, "asking"),
             (FloorState::Stuck, "stuck"),
+            (FloorState::Ready, "ready"),
             (FloorState::Limit, "out of usage"),
         ]
         .into_iter()

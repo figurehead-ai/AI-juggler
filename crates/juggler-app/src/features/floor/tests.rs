@@ -174,6 +174,44 @@ fn sessions_sit_in_their_apps_live_first_then_by_start() {
     assert_eq!(snap.waiting().len(), 1);
 }
 
+/// AJ-E2312 item 7: a session that stopped at its limit, its limit reset
+/// since (`limit_reset`), read "Room again" in its header, the rail, Home
+/// and the bell, and sat idle on the Floor. It reads the same there: up
+/// and ready to go on, waiting on you (N finds it), never asleep or idle.
+#[test]
+fn a_session_whose_limit_reset_is_ready_to_go_on_not_idle() {
+    let mut i = inputs();
+    i.own = vec![
+        (
+            OwnRow {
+                needs_attention: Some("limit_reset"),
+                ..own("reset", "quota_blocked", NOW - 600)
+            },
+            "cli:f-work".into(),
+        ),
+        (
+            OwnRow {
+                needs_attention: Some("quota_blocked"),
+                ..own("out", "quota_blocked", NOW - 900)
+            },
+            "cli:f-work".into(),
+        ),
+    ];
+    let snap = assemble(&i, NOW, &mut BTreeMap::new());
+    let cli = by_id(&snap, "cli:f-work");
+    let seat = |key: &str| cli.sessions.iter().find(|s| s.key == key).unwrap();
+    assert_eq!(
+        (seat("s:reset").state, seat("s:reset").word.as_str()),
+        (FloorState::Ready, "Room again")
+    );
+    assert_eq!(
+        (seat("s:out").state, seat("s:out").word.as_str()),
+        (FloorState::Limit, "Limit reached")
+    );
+    let waiting: Vec<&str> = snap.waiting().iter().map(|s| s.key.as_str()).collect();
+    assert!(waiting.contains(&"s:reset"), "it waits on you: {waiting:?}");
+}
+
 /// 0.4.3: an ended session its desktop App's own records don't list
 /// (deleted in the app) sits in no App on the Floor, as in no App's list.
 #[test]

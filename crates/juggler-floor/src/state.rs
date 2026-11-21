@@ -56,6 +56,9 @@ pub enum Need {
     Asks,
     /// Its Account is out.
     Limit,
+    /// AJ-E2312: it stopped at its limit, and that limit has reset since:
+    /// it waits to be resumed.
+    Resume,
     /// It looks stuck.
     Stuck,
     /// It stopped with an error.
@@ -79,6 +82,10 @@ pub enum FloorState {
     Stuck,
     /// Asleep at the desk: the Account is out.
     Limit,
+    /// AJ-E2312: awake again and stretching, a READY flag: its limit has
+    /// reset since it stopped there, so it can go on (the app's "Room
+    /// again"), never asleep or idle.
+    Ready,
     /// Hands on head, smoke: stopped with an error.
     Crashed,
     /// Stretches, a green tick.
@@ -106,6 +113,7 @@ impl Seen {
     pub fn word(&self) -> String {
         match self.need {
             Some(Need::Limit) => "Limit reached".to_owned(),
+            Some(Need::Resume) => "Room again".to_owned(),
             Some(Need::Failed) => "Stopped with an error".to_owned(),
             Some(Need::Stuck) => "Probably stuck".to_owned(),
             Some(Need::Review) => RailState::DoneReview.word().to_owned(),
@@ -123,6 +131,7 @@ impl Seen {
             (Some(Need::Asks), _) | (None, RailState::AsksYou) => FloorState::Asks,
             (Some(Need::Stuck), _) => FloorState::Stuck,
             (Some(Need::Limit), _) => FloorState::Limit,
+            (Some(Need::Resume), _) => FloorState::Ready,
             (Some(Need::Failed), _) => FloorState::Crashed,
             (Some(Need::Review), _) | (None, RailState::DoneReview) => FloorState::Done,
             (None, RailState::Working) => FloorState::Working,
@@ -151,11 +160,15 @@ pub fn own_session(
     let need = match attention {
         Some("waiting_user") => Some(Need::Asks),
         Some("quota_blocked") => Some(Need::Limit),
+        Some("limit_reset") => Some(Need::Resume),
         Some("stuck") => Some(Need::Stuck),
         Some("failed") => Some(Need::Failed),
         _ => None,
     };
-    let guessed = if matches!(need, Some(Need::Asks | Need::Stuck | Need::Limit)) {
+    let guessed = if matches!(
+        need,
+        Some(Need::Asks | Need::Stuck | Need::Limit | Need::Resume)
+    ) {
         RailState::AsksYou
     } else if ENDED.contains(&status) {
         RailState::Ended

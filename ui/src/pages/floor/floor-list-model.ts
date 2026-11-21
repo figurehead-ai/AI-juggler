@@ -10,8 +10,9 @@ import type { FloorPlaceInfo } from "../../lib/ipc/floor-controls";
 import { agoWords } from "../../lib/time-words";
 
 /** Each state's glyph (decoration: the word beside it says the same). */
-export const GLYPH: Record<FloorState, string> = { asks: "!", working: "▸", stuck: "?", limit: "⏸", crashed: "✕", done: "✓", idle: "·", ended: "–" };
-const WAITING: readonly FloorState[] = ["asks", "stuck", "limit", "crashed", "done"];
+export const GLYPH: Record<FloorState, string> = { asks: "!", working: "▸", stuck: "?", limit: "⏸", ready: "↻", crashed: "✕", done: "✓", idle: "·", ended: "–" };
+/** AJ-E2312: "ready" (its limit reset) waits on you to go on, as "Room again" does in Needs you. */
+const WAITING: readonly FloorState[] = ["asks", "stuck", "limit", "ready", "crashed", "done"];
 
 export function isWaiting(session: FloorSession): boolean {
   return WAITING.includes(session.state);

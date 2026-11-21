@@ -498,7 +498,8 @@ const fn icon_of(need: Need) -> Icon {
         Need::Asks => Icon::Asks,
         Need::Stuck => Icon::Stuck,
         Need::Hot => Icon::Hot,
-        Need::Done => Icon::Done,
+        // ready to go on (AJ-E2312): the tick too, on the READY flag's blue
+        Need::Done | Need::Ready => Icon::Done,
         Need::Out => Icon::Out,
         Need::Low => Icon::Low,
     }
