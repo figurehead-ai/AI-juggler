@@ -111,8 +111,8 @@ fn two_accounts_parallel_same_project_mechanics() {
         let deadline = Instant::now() + Duration::from_secs(30);
         let mut saw_output = false;
         while Instant::now() < deadline {
-            let snapshot = terminal::terminal_snapshot_impl(&state, &id).unwrap();
-            let bytes = base64_decode_for_test(&snapshot);
+            let snapshot = terminal::terminal_snapshot_impl(&state, &id, None).unwrap();
+            let bytes = base64_decode_for_test(&snapshot.data);
             let text = String::from_utf8_lossy(&bytes);
             if text.contains("login") || text.contains("Claude") || !text.trim().is_empty() {
                 println!(

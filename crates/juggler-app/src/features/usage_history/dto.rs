@@ -303,4 +303,10 @@ pub struct UsageWindowShareInfo {
     /// The profile's new tokens in it.
     #[ts(type = "number")]
     pub profile_io: u64,
+    /// `None`: the App's tool reports this window's limit, so the share
+    /// is drawn against it. Otherwise no limit is known, and why, from
+    /// the tool's adapter ("OpenCode doesn't report its limits to AI
+    /// Juggler yet"): the share is only of the use AI Juggler saw, said
+    /// in words, never drawn as a limit (SK-22).
+    pub no_limit: Option<String>,
 }

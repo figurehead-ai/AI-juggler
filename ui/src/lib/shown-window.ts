@@ -25,32 +25,45 @@ export function nextDelay(everyMs: number, shown: boolean, focused: boolean, unf
 }
 
 /** Runs `run` on the window's cadence (above); returns the stop. With
- * `now`, it also runs at once. */
+ * `now`, it also runs at once.
+ *
+ * SK-24 (the 0.4.7 persona runs): the next run is counted from the last
+ * one, never from a focus change. Each focus and blur started the wait
+ * again, so a window that gained and lost focus more often than its
+ * cadence (a person working in another app beside it) never ran at all:
+ * the shell's clock stood still, and a session page said "started 1s
+ * ago" for a session minutes old. */
 export function everyWhileShown(run: () => void, everyMs: number, { unfocusedTimes = 4, now = false }: { unfocusedTimes?: number; now?: boolean } = {}): () => void {
   let timer: ReturnType<typeof setTimeout> | null = null;
   let stopped = false;
+  let last = Date.now();
+  const runNow = () => {
+    last = Date.now();
+    run();
+  };
   const schedule = () => {
     if (timer !== null) clearTimeout(timer);
     timer = null;
     if (stopped) return;
     const delay = nextDelay(everyMs, windowShown(), windowFocused(), unfocusedTimes);
     if (delay === null) return;
+    // A run already due (the cadence got shorter) comes at once.
     timer = setTimeout(() => {
       timer = null;
-      run();
+      runNow();
       schedule();
-    }, delay);
+    }, Math.max(0, last + delay - Date.now()));
   };
   const back = () => {
     if (stopped) return;
-    if (windowShown()) run();
+    if (windowShown()) runNow();
     schedule();
   };
   const onVisibility = () => (windowShown() ? back() : schedule());
   document.addEventListener("visibilitychange", onVisibility);
   window.addEventListener("focus", schedule);
   window.addEventListener("blur", schedule);
-  if (now) run();
+  if (now) runNow();
   schedule();
   return () => {
     stopped = true;

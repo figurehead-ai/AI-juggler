@@ -14,8 +14,16 @@
  * on top: a grid of apps). A card that can't be chosen now is faded and
  * says why. Each card is a label around its own native input (unseen),
  * so the control, its name and its keys are the platform's.
+ *
+ * 0.4.8 (the 0.4.7 nightly walk): a press on a template card's words
+ * found nothing to press; only its radio took one, a pixel in a corner.
+ * The input now covers the whole card, over its face, and the face is
+ * shown, not read: the input is the card for screen readers, the pointer
+ * and a press by place, its name the title and its description the rest
+ * of the card's words. A part of the face that shows a hint on hover sits
+ * above the input (positioned, after it).
  */
-import { createContext, useContext, useId, type JSX, type KeyboardEvent, type ReactNode } from "react";
+import { Children, createContext, useContext, useId, type JSX, type KeyboardEvent, type ReactNode } from "react";
 import { IconCheck } from "../icons-controls";
 import { CHOSEN_CARD } from "./selected";
 
@@ -52,8 +60,10 @@ function Mark({ on, shape }: { on: boolean; shape: "round" | "square" }): JSX.El
   );
 }
 
-/** The card's body: logo, words, more. */
-function Body({ logo, title, sub, children, layout = "row", titleId, subId }: CardWords & { titleId: string; subId: string }): JSX.Element {
+/** The card's body: logo, words, more. Its input is named by the title
+ * and described by the rest; the words stay readable, because a label
+ * hidden from assistive tech is no label (axe's label-title-only). */
+function Body({ logo, title, sub, children, layout = "row", titleId, subId, moreId }: CardWords & { titleId: string; subId: string; moreId: string }): JSX.Element {
   return (
     <span className={layout === "row" ? "flex min-w-0 items-center gap-3.5 pr-7" : "flex min-w-0 flex-col items-start gap-2.5 pr-7"}>
       {logo && <span className="flex shrink-0">{logo}</span>}
@@ -66,11 +76,18 @@ function Body({ logo, title, sub, children, layout = "row", titleId, subId }: Ca
             {sub}
           </span>
         )}
-        {children}
+        {hasMore(children) && (
+          <span id={moreId} className="flex min-w-0 flex-col gap-0.5">
+            {children}
+          </span>
+        )}
       </span>
     </span>
   );
 }
+
+/** Whether a card has more under its sub-line (a count, a tag). */
+const hasMore = (children: ReactNode): boolean => Children.toArray(children).length > 0;
 
 const CARD = "relative flex w-full min-w-0 rounded-card px-4 py-3.5 text-left transition-[background-color,box-shadow] ";
 const AT_REST = "bg-surface inset-ring-1 inset-ring-hairline/75 hover:inset-ring-faint/60";
@@ -81,10 +98,11 @@ function cardLook(on: boolean, disabled: boolean): string {
   return CARD + (on ? CHOSEN_CARD : AT_REST) + " " + FOCUS_INSIDE + (disabled ? " opacity-60" : " cursor-pointer");
 }
 
-function useIds(reason: string | undefined, disabled: boolean, sub: ReactNode): { titleId: string; subId: string; whyId: string; describedBy: string | undefined } {
+function useIds(words: CardWords): { titleId: string; subId: string; moreId: string; whyId: string; describedBy: string | undefined } {
   const base = useId().replace(/:/g, "");
-  const ids = { titleId: `${base}-title`, subId: `${base}-sub`, whyId: `${base}-why` };
-  const describedBy = [sub ? ids.subId : null, disabled && reason ? ids.whyId : null].filter(Boolean).join(" ") || undefined;
+  const ids = { titleId: `${base}-title`, subId: `${base}-sub`, moreId: `${base}-more`, whyId: `${base}-why` };
+  const why = (words.disabled ?? false) && words.reason;
+  const describedBy = [words.sub ? ids.subId : null, hasMore(words.children) ? ids.moreId : null, why ? ids.whyId : null].filter(Boolean).join(" ") || undefined;
   return { ...ids, describedBy };
 }
 
@@ -95,9 +113,9 @@ function CardFace({ on, shape, words, ids }: { on: boolean; shape: "round" | "sq
   return (
     <>
       <Mark on={on} shape={shape} />
-      <Body {...words} titleId={ids.titleId} subId={ids.subId} />
+      <Body {...words} titleId={ids.titleId} subId={ids.subId} moreId={ids.moreId} />
       {disabled && words.reason && (
-        <span id={ids.whyId} className="sr-only">
+        <span id={ids.whyId} aria-hidden="true" className="sr-only">
           {words.reason}
         </span>
       )}
@@ -105,8 +123,9 @@ function CardFace({ on, shape, words, ids }: { on: boolean; shape: "round" | "sq
   );
 }
 
-/** The card's own input: unseen, the control screen readers and keys use. */
-const UNSEEN = "peer sr-only";
+/** The card's own input: unseen, over the whole card, the control
+ * screen readers, keys, the pointer and a press anywhere on it use. */
+const UNSEEN = "peer absolute inset-0 m-0 size-full cursor-pointer appearance-none opacity-0 disabled:cursor-default";
 
 const Group = createContext<{ name: string; value: string | null; onChange: (value: string) => void } | null>(null);
 
@@ -164,7 +183,7 @@ export function RadioCard({ value, ...words }: CardWords & { value: string }): J
   const group = useContext(Group);
   const on = group?.value === value;
   const disabled = words.disabled ?? false;
-  const ids = useIds(words.reason, disabled, words.sub);
+  const ids = useIds(words);
   const choose = () => !disabled && group?.onChange(value);
   return (
     <label className={cardLook(on, disabled)} title={disabled ? words.reason : undefined} data-testid={words.testId} data-value={value}>
@@ -189,7 +208,7 @@ export function RadioCard({ value, ...words }: CardWords & { value: string }): J
  * Space does. */
 export function CheckCard({ checked, onChange, ...words }: CardWords & { checked: boolean; onChange: (next: boolean) => void }): JSX.Element {
   const disabled = words.disabled ?? false;
-  const ids = useIds(words.reason, disabled, words.sub);
+  const ids = useIds(words);
   return (
     <label className={cardLook(checked, disabled)} title={disabled ? words.reason : undefined} data-testid={words.testId}>
       <input

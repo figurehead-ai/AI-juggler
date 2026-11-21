@@ -76,6 +76,12 @@ describe("P8 an App member that works through its shell, in the wizard", () => {
     // A lone App of its tool goes by its app word (the rc3 critique: its short name).
     expect(within(row).getByRole("checkbox", { name: "Kimi Code" })).toBeTruthy();
     expect(within(row).getByTestId("shell-only").getAttribute("aria-description")).toBe(why);
+    // The card's face is shown, not read: its checkbox's description says
+    // Shell only and why; the chip sits above the card's input, for its hint.
+    const box = within(row).getByRole("checkbox");
+    const said = (box.getAttribute("aria-describedby") ?? "").split(" ").map((id) => document.getElementById(id)?.textContent ?? "").join(" ");
+    expect(said).toContain(`Shell only. ${why}`);
+    expect(within(row).getByTestId("shell-only").parentElement!.className).toContain("relative");
     fireEvent.click(within(row).getByRole("checkbox"));
     expect(draft.members.map((member) => [member.ref, member.kind])).toEqual([["app:cli:kimi-1", "app"]]);
     rerender(<NewPoolWho draft={draft} onDraft={(next) => (draft = next)} candidates={candidates} onFix={() => undefined} />);

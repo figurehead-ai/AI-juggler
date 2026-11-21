@@ -11,4 +11,11 @@ id: string,
 /**
  * Base64-encoded PTY bytes since the previous chunk.
  */
-data: string, };
+data: string, 
+/**
+ * SK-23: where these bytes end in the terminal's whole output (the
+ * count of bytes it has written through them), so a view joins them
+ * to the kept output ([`TerminalSnapshot`]) by place: no byte missing
+ * or twice, whichever it hears first.
+ */
+end: number, };

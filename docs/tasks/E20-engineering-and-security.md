@@ -362,7 +362,7 @@ Every check starts with an allowlist that may only shrink.
 **Research basis**: [release-speed.md](../research/release-speed.md); D-99 in the [decision log](../review/decision-log.md).
 **Handover note**: Planned after 0.4.1 (R2 to R5 each a small PR on main right after the 0.4.1 merge); filed under 0.5 in the roadmap so no 0.4.x check requires it.
 
-### AJ-E2025 0.4.6's deferred architecture findings: Claude's turn-end codes into the adapter, and placing an external-terminal session by its process before indexing | Status: IN-PROGRESS (0.4.7: built in batch 1 on release/0.4.7, the coordinating session's call under D-138) | Priority P1 | Effort M | Depends: —
+### AJ-E2025 0.4.6's deferred architecture findings: Claude's turn-end codes into the adapter, and placing an external-terminal session by its process before indexing | Status: DONE (0.4.7, walked on its nightly; follow-ups in 0.4.8) | Priority P1 | Effort M | Depends: —
 **Deferred from 0.4.6's exit RC (rc3h), 2026-11-19 (D-114: the 0.4 line takes blockers only after beta).** The source list, with the walk rows that stay open and their reasons: [docs/research/0.4.6-deferred-to-0.5.md](../research/0.4.6-deferred-to-0.5.md). Work it as one batch (D-137): find, triage, fix together, one build.
 **Requirements**:
 1. **(rc3h item 16)** Move Claude's turn-end codes (`error_during_execution`, `error_max_turns` …) out of the UI's `turn-words.ts` into the claude_stream adapter, as a neutral turn-end kind on the note (from 2e9887601).

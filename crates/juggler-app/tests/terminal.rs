@@ -59,9 +59,9 @@ fn terminal_cores_roundtrip_input_snapshot_and_stop() {
     let deadline = std::time::Instant::now() + Duration::from_secs(5);
     let mut echoed = false;
     while std::time::Instant::now() < deadline {
-        let snapshot = terminal::terminal_snapshot_impl(&state, &id_str).unwrap();
+        let snapshot = terminal::terminal_snapshot_impl(&state, &id_str, None).unwrap();
         let bytes = base64::engine::general_purpose::STANDARD
-            .decode(&snapshot)
+            .decode(&snapshot.data)
             .unwrap();
         if bytes.windows(10).any(|w| w == b"hello-dock") {
             echoed = true;
@@ -83,9 +83,9 @@ fn terminal_cores_roundtrip_input_snapshot_and_stop() {
         std::thread::sleep(Duration::from_millis(50));
     }
     assert!(state.supervisor.is_finished(&id));
-    let snapshot = terminal::terminal_snapshot_impl(&state, &id_str).unwrap();
+    let snapshot = terminal::terminal_snapshot_impl(&state, &id_str, None).unwrap();
     let bytes = base64::engine::general_purpose::STANDARD
-        .decode(&snapshot)
+        .decode(&snapshot.data)
         .unwrap();
     assert!(bytes.windows(10).any(|w| w == b"hello-dock"));
 }

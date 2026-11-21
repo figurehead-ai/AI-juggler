@@ -7,7 +7,8 @@ import { WebLinksAddon } from "@xterm/addon-web-links";
 import { Terminal } from "@xterm/xterm";
 import "@xterm/xterm/css/xterm.css";
 import { errorText, hasLiveBackend } from "../lib/bridge";
-import { onTerminalExit, onTerminalOutput, terminalAttach, terminalResize, terminalSnapshot, terminalWrite } from "../lib/ipc/terminal-io";
+import { onTerminalExit, terminalResize, terminalWrite } from "../lib/ipc/terminal-io";
+import { attachTerminal } from "../lib/terminal-attach";
 import { sessionPrefsGet, sessionPrefsSet, SESSION_PREFS_DEFAULT, SESSION_PREFS_EVENT, SESSION_PREFS_RANGE, type SessionPrefsInfo } from "../lib/ipc/session-prefs";
 import { followTerminalWindows, terminalOpenLink, terminalPopIn, terminalPopOut } from "../lib/ipc/terminal";
 import { copyText, pathLinkProvider, terminalKey, type TerminalKey } from "../lib/terminalTools";
@@ -60,18 +61,17 @@ function leaveTerminal(host: HTMLElement, backwards: boolean) {
   target?.focus();
 }
 
-function decodeBase64(data: string): Uint8Array {
-  const binary = atob(data);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
-  return bytes;
-}
-
 /**
  * One xterm instance bound to a backend PTY (M1-4), embedded in the panel
  * of whatever session/login selected it: replays the retained tail on
  * (re)mount, streams live output, sends keystrokes, resizes with its
  * container. Closing and reopening a panel loses nothing.
+ *
+ * SK-23 (the 0.4.7 persona runs): a running session's page opened on a
+ * blank terminal under "Live": what was printed between reading the kept
+ * output and listening was lost, and "Live" showed before the replay was
+ * drawn. lib/terminal-attach joins them by place; until the replay is
+ * drawn, its rows say it's being read.
  *
  * AJ-E1506: with the tools a terminal user expects — find, links and file
  * paths, copy, text size, jump to the bottom, a Live / Reconnecting /
@@ -109,6 +109,8 @@ export function TerminalView({
   const [maximized, setMaximized] = useState(false);
   const [scrolledUp, setScrolledUp] = useState(false);
   const [attached, setAttached] = useState(!hasLiveBackend());
+  // What it printed is being read: its rows say so, never a black pane.
+  const [reading, setReading] = useState(hasLiveBackend());
   const [exited, setExited] = useState(false);
   const [poppedOut, setPoppedOut] = useState(false);
   const [note, setNote] = useState<string | null>(null);
@@ -180,23 +182,13 @@ export function TerminalView({
       seams.__AIJ_TERMINALS__ = { ...seams.__AIJ_TERMINALS__, [id]: { term, search: finder } };
     }
 
-    let alive = true;
+    let detach = () => {};
     if (hasLiveBackend()) {
       setAttached(false);
-      // Reconnecting until the tail is back, each try waiting longer, up to 30 s
-      // (rc5 walk: a session never supervised was asked for every 2 s, for ever).
-      let wait = 2000;
-      const attach = (): void => {
-        void Promise.all([terminalSnapshot(id), terminalAttach(id)]).then(
-          ([b64]) => {
-            if (!alive) return;
-            if (b64) term.write(decodeBase64(b64));
-            setAttached(true);
-          },
-          () => void (alive && (window.setTimeout(attach, wait), (wait = Math.min(wait * 2, 30_000)))),
-        );
-      };
-      attach();
+      setReading(true);
+      // Reconnecting until what it printed is back and drawn, then Live;
+      // one it can't reach yet is Reconnecting over its own rows.
+      detach = attachTerminal(id, term, { replayed: () => (setReading(false), setAttached(true)), missed: () => setReading(false) });
       term.onData((data) => {
         void terminalWrite(id, data);
       });
@@ -252,7 +244,7 @@ export function TerminalView({
     });
 
     return () => {
-      alive = false;
+      detach();
       caret?.dispose();
       containerObserver.disconnect();
       shownObserver?.disconnect();
@@ -286,12 +278,7 @@ export function TerminalView({
 
   useEffect(() => {
     if (!hasLiveBackend()) return;
-    const off = onTerminalOutput(id, (b64) => termRef.current?.write(decodeBase64(b64)));
-    const offExit = onTerminalExit((which) => which === id && setExited(true));
-    return () => {
-      off();
-      offExit();
-    };
+    return onTerminalExit((which) => which === id && setExited(true));
   }, [id]);
 
   useEffect(() => (ownWindow ? undefined : followTerminalWindows((ids) => setPoppedOut(ids.includes(id)))), [id, ownWindow]);
@@ -370,8 +357,16 @@ export function TerminalView({
         {/* The margin is outside the host: xterm's fit measures the host
             whole, so padding on it made the rows overrun it (A− at
             1024×680: 22 rows of 14 px in 303 px). */}
-        <div className="min-h-0 flex-1 px-3 pt-2">
+        <div className="relative min-h-0 flex-1 px-3 pt-2">
           <div ref={hostRef} className="h-full w-full" data-terminal-host={id} />
+          {/* SK-23: what it printed is on its way: its rows say so. */}
+          {reading && (
+            <output aria-label="Reading what it printed" className="pointer-events-none absolute inset-x-3 top-2 flex flex-col gap-2 pt-1" data-testid="terminal-replaying">
+              <span className="h-3 w-1/3 rounded bg-[#2f3645] motion-safe:animate-pulse" />
+              <span className="h-3 w-2/3 rounded bg-[#2f3645] motion-safe:animate-pulse" />
+              <span className="h-3 w-1/2 rounded bg-[#2f3645] motion-safe:animate-pulse" />
+            </output>
+          )}
         </div>
         <TerminalFoot
           hintId={hintId}

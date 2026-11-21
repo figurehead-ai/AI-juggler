@@ -113,6 +113,36 @@ fn tokens_info(tokens: juggler_core::model::TokenCounts) -> TokenCountsInfo {
     }
 }
 
+/// Said when the App's limits can't be read at all (no quota display).
+const NO_LIMIT_KNOWN: &str = "AI Juggler doesn't know this App's limits";
+
+/// Why a window has no known limit (SK-22), from the App's quota display
+/// (its tool's adapter says whether it reports limits, and which):
+/// `None` when the window's limit is reported.
+fn no_limit(
+    display: Option<&crate::features::quota::QuotaDisplayInfo>,
+    five_hour: bool,
+) -> Option<String> {
+    let Some(display) = display else {
+        return Some(NO_LIMIT_KNOWN.to_owned());
+    };
+    let (window, omitted) = if five_hour {
+        (&display.five_hour, &display.five_hour_omitted_reason)
+    } else {
+        (&display.weekly, &display.weekly_omitted_reason)
+    };
+    if window.is_some() {
+        return None;
+    }
+    Some(
+        display
+            .unavailable_reason
+            .clone()
+            .or_else(|| omitted.clone())
+            .unwrap_or_else(|| NO_LIMIT_KNOWN.to_owned()),
+    )
+}
+
 /// One session's usage turn by turn, by model, and its share of the
 /// profile's windows now.
 ///
@@ -179,6 +209,13 @@ pub fn session_impl(
     totals.tokens = tokens_info(all);
     totals.usd = priced.then_some(usd);
     let now = juggler_core::model::Timestamp::now().millis();
+    // SK-22: the windows the App's tool reports a limit for, as every
+    // quota surface reads them (its adapter's data).
+    let limits = storage
+        .accounts()
+        .get(&juggler_core::model::AccountId::new(profile.to_owned()))
+        .ok()
+        .map(|account| crate::features::quota::quota_display_inner(&storage, &account, now));
     let mut windows = Vec::new();
     for (name, kind, length) in [
         ("five_hour", WindowKind::FiveHour, FIVE_HOURS_MS),
@@ -201,6 +238,7 @@ pub fn session_impl(
             basis: basis.to_owned(),
             session_io: io(&session_tokens),
             profile_io: io(&profile_tokens),
+            no_limit: no_limit(limits.as_ref(), name == "five_hour"),
         });
     }
     Ok(UsageSessionDetailInfo {

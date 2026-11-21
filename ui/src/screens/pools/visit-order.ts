@@ -13,19 +13,35 @@
  * pools a visit showed when it opened are kept for the app's run: on the
  * next visit, a pool that wasn't among them (made since) comes after them
  * all, however its sessions move. The visit after takes it in as any.
+ *
+ * 0.4.8 (the 0.4.7 nightly walk, P1 step 8): a pool deleted on its own
+ * page sent you back to a grid whose other two pools had swapped. So
+ * once a pool was made or deleted since the last visit opened, the next
+ * one opens with the pools in the order that visit last showed them, the
+ * gone ones out and the new ones after them. A visit with the same pools
+ * as the last one orders them as it suggests.
  */
 import { useEffect, useRef, useState } from "react";
 import { whenForgotten } from "../../lib/shared-read";
 
-/** The pools the last visit showed when it opened (null before the first). */
-let lastOpened: ReadonlySet<string> | null = null;
-whenForgotten(() => (lastOpened = null));
+/** The last visit: the pools it opened with, and the order it showed
+ * them in last. */
+interface LastVisit {
+  opened: ReadonlySet<string>;
+  shown: readonly string[];
+}
 
-/** `live` with the pools the last visit didn't show after the ones it did,
- * each part in its own order. */
-function afterShown(shown: ReadonlySet<string> | null, live: readonly string[]): string[] {
-  if (!shown) return [...live];
-  return [...live.filter((id) => shown.has(id)), ...live.filter((id) => !shown.has(id))];
+/** The last visit (null before the first). */
+let lastVisit: LastVisit | null = null;
+whenForgotten(() => (lastVisit = null));
+
+/** Where a visit starts: `live` as it suggests; but once a pool was made
+ * or deleted since the last visit opened, the pools it showed keep the
+ * order it showed them in, and the ones made since come after them. */
+function openingOrder(last: LastVisit | null, live: readonly string[]): string[] {
+  if (!last) return [...live];
+  const same = live.length === last.opened.size && live.every((id) => last.opened.has(id));
+  return same ? [...live] : visitOrder(last.shown, live);
 }
 
 /** How long the order may still follow what's read (needs, sessions)
@@ -49,15 +65,15 @@ export function visitOrder(kept: readonly string[] | null, live: readonly string
 export function useVisitOrder<T extends { id: string }>(live: readonly T[], ready: boolean): T[] {
   const [kept, setKept] = useState<string[] | null>(null);
   // The last visit's, read once as this one opens.
-  const [before] = useState(() => lastOpened);
-  const opened = useRef(false);
+  const [before] = useState(() => lastVisit);
+  const opened = useRef<ReadonlySet<string> | null>(null);
   const shown = useRef<readonly string[]>([]);
-  const ids = visitOrder(kept, afterShown(before, live.map((item) => item.id)));
+  const ids = visitOrder(kept, openingOrder(before, live.map((item) => item.id)));
   useEffect(() => {
     shown.current = ids;
-    if (!ready || opened.current) return;
-    opened.current = true;
-    lastOpened = new Set(ids);
+    if (!ready) return;
+    opened.current ??= new Set(ids);
+    lastVisit = { opened: opened.current, shown: ids };
   });
   const holding = ready && kept === null;
   useEffect(() => {

@@ -199,6 +199,9 @@ export interface FlowAction {
   label: ReactNode;
   onClick: () => void;
   disabled?: boolean;
+  /** Why it's disabled (D-127): said before the actions, and its
+   * description (a disabled button shows no tooltip). */
+  reason?: string;
   testId?: string;
 }
 
@@ -221,6 +224,8 @@ export const FlowFoot = forwardRef(function FlowFoot(
   },
   primaryRef: Ref<HTMLButtonElement>,
 ): JSX.Element {
+  const whyId = useId();
+  const why = primary.disabled && primary.reason ? primary.reason : null;
   return (
     <footer className="flex min-h-[68px] shrink-0 flex-wrap items-center gap-2 border-t border-divider bg-surface px-6 py-3" data-toast-avoid data-testid="flow-foot">
       {cancel && (
@@ -229,7 +234,13 @@ export const FlowFoot = forwardRef(function FlowFoot(
         </Button>
       )}
       <span className="flex-1" />
-      {note && <p className="mr-3 min-w-0 text-meta text-ink-2">{note}</p>}
+      {why ? (
+        <p id={whyId} className="mr-3 min-w-0 text-meta text-ink-2" data-testid="flow-foot-why">
+          {why}
+        </p>
+      ) : (
+        note && <p className="mr-3 min-w-0 text-meta text-ink-2">{note}</p>
+      )}
       {back && (
         <Button variant="ghost" onClick={back.onClick} disabled={back.disabled} data-testid={back.testId}>
           {back.label}
@@ -240,7 +251,7 @@ export const FlowFoot = forwardRef(function FlowFoot(
           {secondary.label}
         </Button>
       )}
-      <Button ref={primaryRef} variant="primary" onClick={primary.onClick} disabled={primary.disabled} data-testid={primary.testId}>
+      <Button ref={primaryRef} variant="primary" onClick={primary.onClick} disabled={primary.disabled} aria-describedby={why ? whyId : undefined} data-testid={primary.testId}>
         {primary.label}
       </Button>
     </footer>
