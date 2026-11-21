@@ -5,4 +5,4 @@
  * Derived from the lifecycle status here; AJ-E405 replaces the
  * derivation with structured heuristic reasons.
  */
-export type NeedsAttention = "waiting_user" | "stuck" | "quota_blocked" | "failed";
+export type NeedsAttention = "waiting_user" | "stuck" | "quota_blocked" | "limit_reset" | "failed";
