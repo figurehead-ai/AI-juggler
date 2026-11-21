@@ -9,11 +9,13 @@
 #
 #   scripts/qa/lab_env.sh <command> [args...]
 #
-# Kept: the basics (HOME, PATH, USER, LOGNAME, SHELL, TMPDIR, LANG,
+# Kept: the basics (HOME, CFFIXED_USER_HOME, PATH, USER, LOGNAME, SHELL, TMPDIR, LANG,
 # LC_ALL, TERM), the build's (CARGO_*, RUSTFLAGS, RUSTUP_*, RUSTC_WRAPPER),
 # the test bridge's switches (AIJ_DEV_BRIDGE*), the lab's own (AIJ_LAB_*, AIJ_QA_* seeding, AJ_LAB_OUT, DISABLE_AUTOUPDATER, which it
 # sets to 1) and the tools' stand-ins it names (AI_JUGGLER_CLAUDE_BIN,
-# AI_JUGGLER_CODEX_BIN). Values are passed through, never printed.
+# AI_JUGGLER_CODEX_BIN, and from 0.4.9 AI_JUGGLER_OPENCODE_BIN,
+# AI_JUGGLER_KIMI_BIN, AI_JUGGLER_GROK_BIN). Values are passed through,
+# never printed.
 set -euo pipefail
 # 0.4.6 (the presence report): proof A's headless `claude -p`, typed by hand
 # inside a Code-tab session, inherited CLAUDE_CODE_ENTRYPOINT=claude-desktop
@@ -31,7 +33,7 @@ if [ "${1:-}" = "--selftest" ]; then
   echo "$out" | grep -q '^AI_JUGGLER_CLAUDE_BIN=/tmp/aij-lab-x/.aij-lab-bin/claude$' || { echo "lab_env selftest: the stand-in's path was dropped" >&2; exit 1; }
   echo "lab_env selftest: ok"; exit 0
 fi
-keep=(HOME PATH USER LOGNAME SHELL TMPDIR LANG LC_ALL TERM RUSTFLAGS RUSTC_WRAPPER AJ_LAB_OUT)
+keep=(HOME CFFIXED_USER_HOME PATH USER LOGNAME SHELL TMPDIR LANG LC_ALL TERM RUSTFLAGS RUSTC_WRAPPER AJ_LAB_OUT)
 args=()
 for name in "${keep[@]}"; do
   if [ -n "${!name+x}" ]; then args+=("$name=${!name}"); fi
@@ -41,7 +43,7 @@ while IFS='=' read -r name _; do
     CARGO_*|RUSTUP_*|AIJ_LAB_*|AIJ_QA_*|AIJ_DEV_BRIDGE|AIJ_DEV_BRIDGE_ORIGIN) args+=("$name=${!name}") ;;
     # 0.4.7: the lab's stand-ins for the tools (lab_standin.sh), which
     # lab_scenario.sh names: a lab never runs the real ones.
-    AI_JUGGLER_CLAUDE_BIN|AI_JUGGLER_CODEX_BIN) args+=("$name=${!name}") ;;
+    AI_JUGGLER_CLAUDE_BIN|AI_JUGGLER_CODEX_BIN|AI_JUGGLER_OPENCODE_BIN|AI_JUGGLER_KIMI_BIN|AI_JUGGLER_GROK_BIN) args+=("$name=${!name}") ;;
   esac
 done < <(env)
 exec env -i "${args[@]}" DISABLE_AUTOUPDATER=1 "$@"

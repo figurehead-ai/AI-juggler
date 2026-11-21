@@ -11,6 +11,12 @@
 #   claude --lab-idle        the same, started by the seeder (PF1's running
 #                            sessions: no terminal, so it stays at its prompt)
 #   codex  …                 the same, as Codex CLI
+#   opencode, kimi, grok     0.4.9: their versions as the adapters read them
+#                            (OpenCode 1.19.5, Kimi Code 2.5.3, Grok Build
+#                            1.0.77); started, each says it runs nothing and
+#                            idles. The real ones sit in Homebrew's folder and
+#                            on the shell's PATH, where AI Juggler looks, so a
+#                            lab without these found and ran them.
 #
 # Asking now, without a line typed: `$HOME/.aij-lab-bin/asks-at-start`
 # (a scenario's `standin = "asks"`, K3), or `--lab-ask`.
@@ -36,9 +42,18 @@ if [ "${1:-}" = "--selftest" ]; then
   # Its stand-ins stop with it, a failed run's too.
   trap 'for p in $(cat "$tmp"/pid* 2>/dev/null); do kill "$p" 2>/dev/null; done; rm -rf "$tmp"' EXIT
   fail() { echo "lab_standin selftest: $*" >&2; exit 1; }
-  cp "$0" "$tmp/claude" && cp "$0" "$tmp/codex"
+  for tool in claude codex opencode kimi grok; do cp "$0" "$tmp/$tool"; done
   [ "$("$tmp/claude" --version)" = "2.1.296 (Claude Code)" ] || fail "claude --version"
   "$tmp/codex" --version | grep -q '^codex-cli ' || fail "codex --version"
+  # As each adapter's parse_version reads them (the bare version; the last
+  # word, a leading v dropped; the first word starting with a digit).
+  [ "$("$tmp/opencode" --version)" = "1.19.5" ] || fail "opencode --version"
+  [ "$("$tmp/kimi" --version)" = "kimi-code v2.5.3" ] || fail "kimi --version"
+  [ "$("$tmp/grok" --version)" = "grok 1.0.77 (lab)" ] || fail "grok --version"
+  mkdir -p "$tmp/home"
+  out="$(HOME="$tmp/home" AIJ_LAB_STANDIN_SECS=0 "$tmp/opencode" run < /dev/null 2>&1)" || fail "opencode run"
+  echo "$out" | grep -q 'runs nothing' || fail "opencode said: $out"
+  HOME=/Users/you "$tmp/grok" < /dev/null > /dev/null 2>&1 && fail "grok ran on a real HOME"
   mkdir -p "$tmp/home/repo"
   # Its hooks, as AI Juggler writes them: each event's input kept.
   printf '#!/bin/sh\ncat > "%s/hook-$1.json"\n' "$tmp" > "$tmp/hook" && chmod +x "$tmp/hook"
@@ -108,13 +123,27 @@ fi
 
 case "${1:-}" in
   --version|-v|-V)
-    if [ "$name" = codex ]; then echo "codex-cli 0.163.0"; else echo "2.1.296 (Claude Code)"; fi
+    case "$name" in
+      codex) echo "codex-cli 0.163.0" ;;
+      opencode) echo "1.19.5" ;;
+      kimi) echo "kimi-code v2.5.3" ;;
+      grok) echo "grok 1.0.77 (lab)" ;;
+      *) echo "2.1.296 (Claude Code)" ;;
+    esac
     exit 0 ;;
 esac
 
 case "$HOME" in
   /tmp/*|/private/tmp/*) ;;
   *) echo "lab stand-in: HOME isn't a lab's; nothing runs" >&2; exit 2 ;;
+esac
+
+# OpenCode, Kimi Code and Grok Build: found, never run.
+case "$name" in
+  opencode|kimi|grok)
+    echo "$name (a lab's stand-in): it runs nothing here."
+    [ "$secs" -gt 0 ] && { sleep "$secs" & wait $!; }
+    exit 0 ;;
 esac
 
 asks=0
