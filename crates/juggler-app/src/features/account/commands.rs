@@ -166,6 +166,12 @@ pub async fn account_import(
         };
         let imported = account_import_mode_impl(state, &harness, &source_path, &label, request);
         crate::usage_stats::import_finished(&harness, imported.as_ref().err());
+        // AJ-E2312 item 4 (SK-21): what runs in the folder brought in is
+        // looked for now, before a conversation pass lists its sessions
+        // (else they read as ended until the live view's next look).
+        if imported.is_ok() {
+            let _ = crate::features::conversations::live_tick(state);
+        }
         imported
     })
     .await

@@ -241,8 +241,9 @@ pub struct ConversationIndex {
     /// AJ-E2107: what each open terminal session's transcript tail last
     /// said it waits on.
     tails: Mutex<asks::Tails>,
-    /// The profile folders it reads, refreshed with the accounts.
-    profiles: Mutex<Option<(std::time::Instant, Vec<scan::Profile>)>>,
+    /// The profile folders it reads, refreshed with the accounts: when
+    /// listed, the folders' stamp then, and the list.
+    profiles: Mutex<Option<(std::time::Instant, Option<i64>, Vec<scan::Profile>)>>,
     /// Held while a pass reads the files: one pass at a time (QA batch 9:
     /// at a start, the background pass, the conversation list and the
     /// projects backfill each read every file at once).
@@ -946,13 +947,28 @@ fn update_live(state: &Arc<AppState>) -> AppResult<bool> {
 /// How often the profile folders are listed again from the accounts.
 const PROFILES_EVERY: std::time::Duration = std::time::Duration::from_secs(15);
 
+/// The folders' stamp as committed now: the database's own count of
+/// folders added, removed or moved (read on its own connection, never
+/// behind a writer); `None` when it can't be read.
+fn folders_stamp(state: &AppState) -> Option<i64> {
+    crate::features::relations::stored_now(state)
+        .ok()
+        .map(|stamps| stamps.folders)
+}
+
 /// The folders whose per-session files are read: every account's, the
-/// folders accounts were copied from, and each tool's own default.
+/// folders accounts were copied from, and each tool's own default. Listed
+/// again every [`PROFILES_EVERY`], and at once when the folders changed:
+/// AJ-E2312 item 4 (SK-21), a setup just brought in had its running
+/// session read as ended until the list's next turn (its pid file's
+/// folder wasn't read), about 30 s on the PF1 walk.
 fn profiles(state: &Arc<AppState>) -> Vec<scan::Profile> {
     let now = std::time::Instant::now();
+    let stamp = folders_stamp(state);
     if let Ok(cached) = state.conversations.profiles.lock()
-        && let Some((at, profiles)) = cached.as_ref()
+        && let Some((at, seen, profiles)) = cached.as_ref()
         && now.saturating_duration_since(*at) < PROFILES_EVERY
+        && *seen == stamp
     {
         return profiles.clone();
     }
@@ -965,7 +981,7 @@ fn profiles(state: &Arc<AppState>) -> Vec<scan::Profile> {
         .profiles
         .lock()
         .ok()
-        .and_then(|cached| cached.as_ref().map(|(_, profiles)| profiles.clone()));
+        .and_then(|cached| cached.as_ref().map(|(_, _, profiles)| profiles.clone()));
     let accounts = match (state.storage.try_lock(), last) {
         (Ok(storage), _) => storage.accounts().list().unwrap_or_default(),
         (Err(_), Some(last)) => return last,
@@ -1009,7 +1025,7 @@ fn profiles(state: &Arc<AppState>) -> Vec<scan::Profile> {
         }
     }
     if let Ok(mut cached) = state.conversations.profiles.lock() {
-        *cached = Some((now, out.clone()));
+        *cached = Some((now, stamp, out.clone()));
     }
     out
 }
