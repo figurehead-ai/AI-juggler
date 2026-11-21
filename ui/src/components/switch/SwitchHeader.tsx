@@ -4,7 +4,7 @@
  * where it is now, a from → to strip with each side's logo (the one
  * picture of what happens), and a wizard's step marks under it.
  */
-import type { JSX, ReactNode, SVGProps } from "react";
+import { useState, type JSX, type ReactNode, type SVGProps } from "react";
 import type { PreflightInfoData } from "../../lib/ipc/switch-preflight";
 import { cliAppName } from "../../lib/app-name";
 import { IconProfiles, IconStateHandover } from "../icons";
@@ -96,4 +96,20 @@ export function CopyHeader({ preflight, target, destination, marks }: { prefligh
       stripTestId="switch-strip"
     />
   );
+}
+
+/** The last check's answer: kept while a phase that holds none (the
+ * switch running) shows. */
+export function useLastCheck(checked: PreflightInfoData | null): PreflightInfoData | null {
+  const [seen, setSeen] = useState<PreflightInfoData | null>(checked);
+  // Kept as it changes (React's "adjusting state on a prop change").
+  if (checked && checked !== seen) setSeen(checked);
+  return checked ?? seen;
+}
+
+/** The switch dialog's header: Move's "Continue on <App>" where moving
+ * applies, else the copy's. */
+export function FlowHeader({ move, marks, target, preflight, destination }: { move: { offer: unknown; header: (marks: ReactNode, target: string, preflight: PreflightInfoData) => ReactNode }; marks: ReactNode; target: string; preflight: PreflightInfoData | null; destination: Destination }): JSX.Element {
+  if (move.offer && preflight) return <>{move.header(marks, target, preflight)}</>;
+  return <CopyHeader preflight={preflight} target={target} destination={destination} marks={marks} />;
 }

@@ -20,7 +20,7 @@ import { CarryChoice, useCarryChoice } from "./switch/CarryChoice";
 import { showToast } from "./Toast";
 import { ConfirmBody, SwitchPoolLines, useSealOwed } from "./switch/ConfirmBody";
 import { CarriedStep } from "./switch/CarrySummary";
-import { CopyHeader } from "./switch/SwitchHeader";
+import { FlowHeader, useLastCheck } from "./switch/SwitchHeader";
 import { DoneStep, familyOf, type FamilyMoved } from "./switch/DoneStep";
 import { Executing, OtherStep, risky, TargetStep, useTargetRoom } from "./switch/StepBodies";
 import { keysChoice, KeysQuestion, keysRequired, type KeysAnswer } from "./switch/KeysQuestion";
@@ -41,6 +41,9 @@ type Phase =
   // A failure keeps what it failed on: Retry runs the switch again from
   // there (or checks it again when the check itself failed).
   | { kind: "failed"; message: string; preflight: PreflightInfoData | null; cause?: unknown };
+
+/** What a phase was checked with, when it holds it. */
+const checkOf = (phase: Phase): PreflightInfoData | null => ("preflight" in phase ? phase.preflight : null);
 
 export function SwitchFlow({
   sessionId,
@@ -82,11 +85,7 @@ export function SwitchFlow({
   // One switch per confirm: a second ⏎ before the phase re-renders would
   // read the stale "confirm" and start another (review of #132).
   const started = useRef(false);
-  // The last check's answer: the header keeps it while the switch runs.
-  const checked = "preflight" in phase ? phase.preflight : null;
-  const [seen, setSeen] = useState<PreflightInfoData | null>(null);
-  useEffect(() => void (checked && setSeen(checked)), [checked]);
-  const shownCheck = checked ?? seen;
+  const shownCheck = useLastCheck(checkOf(phase)); // the header keeps it while the switch runs
   const running = phase.kind === "executing" || move.running;
   // Set the moment the switch starts: an Esc before the next render is held too.
   const runningRef = useRef(false);
@@ -254,7 +253,7 @@ export function SwitchFlow({
   // moving applies, else "Switch to <account>"; the step marks list ONLY
   // the rendered steps (§8).
   const marks = wizard && <StepMarks steps={steps} step={step} testId="switch-steps" />;
-  const header = move.offer && shownCheck ? move.header(marks, targetLabel, shownCheck) : <CopyHeader preflight={shownCheck} target={targetLabel} destination={destination} marks={marks} />;
+  const header = <FlowHeader move={move} marks={marks} target={targetLabel} preflight={shownCheck} destination={destination} />;
 
   const body = (() => {
     switch (phase.kind) {

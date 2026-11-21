@@ -174,8 +174,8 @@ export function SwitchTargetRows({
                       {target.room && <RoomLine name={target.room.account ?? target.account_label} room={target.room} chip={false} />}
                       {target.signed_out && target.desktop && <span data-testid="target-sign-in">{DESKTOP_ONLY}</span>}
                       {target.cross_provider && target.drops.length > 0 && <span data-testid="target-drop-list">Doesn't carry: {target.drops.join(", ")}</span>}
-                      {factors && <span>{factors}</span>}
-                      {whyOpen && <span>{target.factors.map(([words]) => words).join(" · ")}</span>}
+                      {/* The top two, or with "Why this order?" open, every input. */}
+                      {whyOpen ? <span>{target.factors.map(([words]) => words).join(" · ")}</span> : factors && <span>{factors}</span>}
                     </>
                   )
                 }

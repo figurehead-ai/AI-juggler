@@ -259,38 +259,9 @@ export function ContinueOn({
                 <RoomFigure room={room} />
               </span>
               {room && room.kind !== "blocked" && <RoomLine name={name} room={room} testId="continue-room" chip={false} />}
-              {group.targets.map((target) => {
-                // Its own sign-in, when the account's line doesn't say it.
-                const sign = signInWords({ signed_out: target.signedOut, desktop: target.desktop });
-                const own = sign && !(sign === NOT_SIGNED_IN && room?.kind === "blocked") ? sign : null;
-                const words = own ?? withFirstRun(target.recipeId in checks ? setupWords(checks[target.recipeId]) : null, target.firstRun === true);
-                const check = target.blocked ?? words;
-                return (
-                  <div key={target.profileId + target.recipeId} className="flex flex-col gap-1">
-                    <TargetButton
-                      disabled={!pick || target.blocked !== null}
-                      title={target.blocked ?? `Continue in ${target.name ?? target.label}`}
-                      onClick={() => pick?.(target.recipeId, target.label)}
-                      data-testid="continue-target"
-                      data-cross-tool={target.crossTool ? "true" : undefined}
-                      data-suggested={target.suggested ? "true" : undefined}
-                      suggested={target.suggested && target.blocked === null}
-                      logo={<TargetLogo tool={target.tool ?? null} kind={target.mark?.kind === "desktop" ? "desktop" : "cli"} place={target.mark} folderId={target.profileId} label={target.label} />}
-                      name={target.name ?? target.label}
-                      tags={
-                        (target.suggested || (target.crossTool && target.badge)) && (
-                          <>
-                            {target.suggested && <SuggestedTag />}
-                            {target.crossTool && target.badge && <BadgeTag badge={target.badge.words} validated={target.badge.validated} />}
-                          </>
-                        )
-                      }
-                      detail={check && <span data-testid="continue-check">{check}</span>}
-                    />
-                    {target.setupNeeded && <StartThereLink accountId={target.profileId} label={target.label} onStart={() => setDialog(false)} />}
-                  </div>
-                );
-              })}
+              {group.targets.map((target) => (
+                <ContinueTarget key={target.profileId + target.recipeId} target={target} accountRoom={room} check={target.recipeId in checks ? checks[target.recipeId] : undefined} pick={pick} onStart={() => setDialog(false)} />
+              ))}
             </li>
           );
         })}
@@ -351,6 +322,42 @@ export function ContinueOn({
         </ContinueDialog>
       )}
     </Card>
+  );
+}
+
+/** One App to continue in, as a target card (D-142): its logo and badge,
+ * its name, Suggested and how much carries as tags, and its one-line
+ * check (its own sign-in, or what it lacks) under them. */
+function ContinueTarget({ target, accountRoom, check, pick, onStart }: { target: Target; accountRoom: TargetRoom | null; check: SetupCheckInfo | null | undefined; pick: ((recipeId: string, label: string) => void) | undefined; onStart: () => void }): JSX.Element {
+  // Its own sign-in, when the account's line doesn't say it.
+  const sign = signInWords({ signed_out: target.signedOut, desktop: target.desktop });
+  const own = sign && !(sign === NOT_SIGNED_IN && accountRoom?.kind === "blocked") ? sign : null;
+  const words = target.blocked ?? own ?? withFirstRun(check === undefined ? null : setupWords(check), target.firstRun === true);
+  const badge = target.crossTool ? target.badge : null;
+  return (
+    <div className="flex flex-col gap-1">
+      <TargetButton
+        disabled={!pick || target.blocked !== null}
+        title={target.blocked ?? `Continue in ${target.name ?? target.label}`}
+        onClick={() => pick?.(target.recipeId, target.label)}
+        data-testid="continue-target"
+        data-cross-tool={target.crossTool ? "true" : undefined}
+        data-suggested={target.suggested ? "true" : undefined}
+        suggested={target.suggested && target.blocked === null}
+        logo={<TargetLogo tool={target.tool ?? null} kind={target.mark?.kind === "desktop" ? "desktop" : "cli"} place={target.mark} folderId={target.profileId} label={target.label} />}
+        name={target.name ?? target.label}
+        tags={
+          (target.suggested || badge) && (
+            <>
+              {target.suggested && <SuggestedTag />}
+              {badge && <BadgeTag badge={badge.words} validated={badge.validated} />}
+            </>
+          )
+        }
+        detail={words && <span data-testid="continue-check">{words}</span>}
+      />
+      {target.setupNeeded && <StartThereLink accountId={target.profileId} label={target.label} onStart={onStart} />}
+    </div>
   );
 }
 

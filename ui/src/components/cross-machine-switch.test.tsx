@@ -113,10 +113,10 @@ describe("AJ-E706 wizard", () => {
     expect(q("cross-switch-project")).not.toBeNull();
     const next = q("cross-switch-next") as HTMLButtonElement;
     expect(next.disabled).toBe(true);
-    const options = document.body.querySelectorAll<HTMLInputElement>("[data-testid='cross-switch-project-option']");
+    const options = document.body.querySelectorAll<HTMLElement>("[data-testid='cross-switch-project-option']");
     // The same-name copy is listed first — a suggestion, never pre-picked.
     expect(options[0]!.closest("label")!.textContent).toContain("same name (suggested)");
-    expect(options[0]!.checked).toBe(false);
+    expect(options[0]!.querySelector("input")!.checked).toBe(false);
     fireEvent.click(options[0]!);
     expect((q("cross-switch-next") as HTMLButtonElement).disabled).toBe(true);
     fireEvent.click(q("cross-switch-confirm-mapping")!);
@@ -143,8 +143,9 @@ describe("AJ-E706 wizard", () => {
       />,
     );
     const q = (id: string) => document.body.querySelector<HTMLElement>(`[data-testid='${id}']`);
-    expect((q("cross-switch-t2") as HTMLInputElement).disabled).toBe(true);
-    expect((q("cross-switch-t3") as HTMLInputElement).checked).toBe(true);
+    // 0.5.0: choice cards, their radios inside.
+    expect(q("cross-switch-t2")!.querySelector("input")!.disabled).toBe(true);
+    expect(q("cross-switch-t3")!.querySelector("input")!.checked).toBe(true);
     expect(q("cross-switch-blockers")!.textContent).toContain("moving the same conversation needs the same version");
     fireEvent.click(q("cross-switch-next")!);
     expect((q("cross-switch-next") as HTMLButtonElement).disabled).toBe(true);

@@ -456,9 +456,6 @@
   "typescript(consistent-return)": 2,
   "typescript(no-unnecessary-type-assertion)": 1
  },
- "src/components/SwitchFreezeChoice.tsx": {
-  "jsx-a11y(label-has-associated-control)": 1
- },
  "src/components/SwitchGraph.tsx": {
   "eslint(complexity)": 1,
   "jsx-a11y(no-noninteractive-element-interactions)": 1,
@@ -663,7 +660,7 @@
   "typescript(no-unsafe-type-assertion)": 3
  },
  "src/components/cross-machine-switch.test.tsx": {
-  "typescript(no-unsafe-type-assertion)": 10
+  "typescript(no-unsafe-type-assertion)": 8
  },
  "src/components/density.test.tsx": {
   "eslint(no-constant-binary-expression)": 1,
@@ -1024,9 +1021,6 @@
   "react(purity)": 1,
   "react(set-state-in-effect)": 1
  },
- "src/components/switch/CrossSteps.tsx": {
-  "jsx-a11y(label-has-associated-control)": 3
- },
  "src/components/switch/DoneStep.tsx": {
   "eslint(complexity)": 1
  },
@@ -1036,22 +1030,12 @@
  "src/components/switch/GraphParts.tsx": {
   "jsx-a11y(prefer-tag-over-role)": 1
  },
- "src/components/switch/KeysQuestion.tsx": {
-  "jsx-a11y(label-has-associated-control)": 2
- },
  "src/components/switch/SecretSteps.tsx": {
-  "jsx-a11y(prefer-tag-over-role)": 2
- },
- "src/components/switch/StepBodies.tsx": {
   "jsx-a11y(prefer-tag-over-role)": 2
  },
  "src/components/switch/SwitchDialogFrame.tsx": {
   "jsx-a11y(prefer-tag-over-role)": 1,
   "react(exhaustive-effect-dependencies)": 1
- },
- "src/components/switch/WhereChoice.tsx": {
-  "eslint(no-shadow)": 1,
-  "react(no-unstable-nested-components)": 1
  },
  "src/components/switch/carry-choice.test.tsx": {
   "typescript(no-unsafe-type-assertion)": 1
