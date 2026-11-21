@@ -92,6 +92,36 @@ const CASES: Case[] = [
     },
   },
   {
+    name: "the switch wizard, What's carried",
+    seams: { __AIJ_SWITCH_PREFLIGHT__: DOOR_WIZARD },
+    open: async (page) => {
+      await openSwitchFlow(page);
+      await page.getByTestId("switch-continue").click();
+      await expect(page.getByTestId("switch-step-carried")).toBeVisible();
+    },
+  },
+  {
+    name: "the switch wizard, Confirm",
+    seams: { __AIJ_SWITCH_PREFLIGHT__: DOOR_WIZARD },
+    open: async (page) => {
+      await openSwitchFlow(page);
+      await page.getByTestId("switch-continue").click();
+      await page.getByTestId("switch-continue").click();
+      await expect(page.getByTestId("switch-step-confirm")).toBeVisible();
+    },
+  },
+  {
+    name: "the switch, done",
+    seams: { __AIJ_SWITCH_PREFLIGHT__: DOOR_WIZARD },
+    open: async (page) => {
+      await openSwitchFlow(page);
+      await page.getByTestId("switch-continue").click();
+      await page.getByTestId("switch-continue").click();
+      await page.getByTestId("switch-confirm").click();
+      await expect(page.getByTestId("switch-done")).toBeVisible();
+    },
+  },
+  {
     name: "Continue on another account",
     open: async (page) => {
       await openRailSession(page, "sess-2");

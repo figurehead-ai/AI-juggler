@@ -6215,7 +6215,7 @@ for (const theme of THEMES) {
   test(`28 switch — Switch anyway to an account out of room — ${theme}`, async ({ page }) => {
     await openSwitchWith(page, theme, roomSeams);
     await pickTarget(page, /Personal/);
-    await expect(page.getByTestId("switch-summary-room")).toHaveText("Personal is out of room: see below before you switch.");
+    await expect(page.getByTestId("switch-summary-room")).toHaveText("Personal is out of room: see above before you switch.");
     await expect(page.getByTestId("switch-confirm")).toHaveText("Switch to CLI anyway");
     await page.mouse.move(0, 0);
     await page.screenshot({ path: resolve(GALLERY, `28-switch/switch-anyway-1280x900-${theme}.png`) });

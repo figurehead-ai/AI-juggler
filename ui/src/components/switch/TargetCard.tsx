@@ -94,17 +94,19 @@ export const TargetButton = forwardRef<
     sub?: ReactNode;
     /** Its tags (room, Suggested, how much carries): two at most. */
     tags?: ReactNode;
+    /** Lines under the tags: the room in words, what doesn't carry. */
+    detail?: ReactNode;
     /** The Suggested one: the accent's edge. */
     suggested?: boolean;
   } & Omit<ButtonHTMLAttributes<HTMLButtonElement>, "children">
->(function TargetButton({ logo, name, sub, tags, suggested = false, className = "", ...rest }, ref) {
+>(function TargetButton({ logo, name, sub, tags, detail, suggested = false, className = "", ...rest }, ref) {
   return (
     <button
       ref={ref}
       type="button"
       {...rest}
       className={
-        "group/target relative flex w-full min-w-0 items-center gap-3.5 rounded-card px-4 py-3 text-left outline-none transition-[background-color,box-shadow] " +
+        "group/target relative flex w-full min-w-0 items-start gap-3.5 rounded-card px-4 py-3 text-left outline-none transition-[background-color,box-shadow] " +
         "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:cursor-not-allowed disabled:opacity-60 " +
         (suggested ? "bg-surface inset-ring-[1.5px] inset-ring-accent/70 hover:bg-surface-2 " : "bg-surface inset-ring-1 inset-ring-hairline hover:bg-surface-2 hover:inset-ring-faint/60 ") +
         className
@@ -115,6 +117,7 @@ export const TargetButton = forwardRef<
         <span className="truncate text-body font-semibold text-ink">{name}</span>
         {sub && <span className="truncate text-meta text-ink-2">{sub}</span>}
         {tags && <span className="mt-1 flex min-w-0 flex-wrap items-center gap-1.5">{tags}</span>}
+        {detail && <span className="mt-1 flex min-w-0 flex-col gap-0.5 text-meta text-ink-2">{detail}</span>}
       </span>
       <IconChevronRight aria-hidden="true" width={16} height={16} className="shrink-0 text-faint group-hover/target:text-ink-2 group-disabled/target:hidden" />
     </button>

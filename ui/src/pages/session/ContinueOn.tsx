@@ -15,14 +15,15 @@
  * ⌘⇧H, the header's or the bell's Continue), never on opening the page. A
  * live one lists its apps at once, as before.
  */
-import { RoomChip } from "../../components/RoomChip";
-import { roomMarkFrom } from "../../lib/room-mark";
 import { useEffect, useMemo, useRef, useState, type JSX } from "react";
 import { useHandoverFocus } from "../../lib/handover-focus";
-import { CliAppMark, PlaceMark, ProfileBadge } from "../../components/PlaceMarks";
-import { Button, Card } from "../../components/primitives";
+import { Card } from "../../components/primitives";
+import { RoomChip } from "../../components/RoomChip";
+import { roomMarkFrom } from "../../lib/room-mark";
+import { Pill } from "../../components/Pill";
 import { WhyButton } from "../../components/WhyTip";
-import { FidelityBadge, RoomLine, StartThereLink, SuggestedMark } from "../../components/SwitchTargetRows";
+import { RoomLine, StartThereLink } from "../../components/SwitchTargetRows";
+import { BadgeTag, RoomTag, SuggestedTag, TargetButton, TargetLogo } from "../../components/switch/TargetCard";
 import { switchTargets, type SwitchTargetData } from "../../lib/ipc/switch-targets";
 import type { QuotaDisplayData } from "../../lib/ipc/quota";
 import type { SwitchBackSuggestionData } from "../../lib/ipc/switchBack";
@@ -30,7 +31,6 @@ import { switchSetupCheck, type SetupCheckInfo } from "../../lib/ipc/switchSetup
 import { NOT_SIGNED_IN, rankTargets, roomless, signInWords, type RoomTarget, type TargetRoom } from "../../lib/room-targets";
 import { accountName, accountOfProfile, type SubscriptionInfo } from "../../lib/subscriptions";
 import { appWords, sessionAppName, type SessionModel } from "./model";
-import { cliAppId } from "../../lib/app-name";
 import { targetApp, useTargetApp, type FolderTarget, type TargetApp } from "../../lib/apps";
 import type { RailPlace } from "../../lib/rail-items";
 import { CardTitle } from "./CardTitle";
@@ -246,53 +246,47 @@ export function ContinueOn({
     ) : others.length === 0 ? (
       <p className="text-meta text-ink-2" data-testid="continue-none">No other app to continue in.</p>
     ) : (
-      <ul className="flex flex-col gap-3" aria-label="Apps to continue in">
+      <ul className="flex flex-col gap-4" aria-label="Apps to continue in">
         {others.map((group) => {
           const name = group.account ? accountName(group.account) : group.targets[0]!.label;
           // The account's room, from a target signed in there; "Not
           // signed in" only when none is.
           const room = (group.targets.find((target) => !roomless({ signed_out: target.signedOut, desktop: target.desktop })) ?? group.targets[0]!).room;
           return (
-            <li key={group.account?.key ?? group.targets[0]!.profileId} className="flex flex-col gap-1.5" data-testid="continue-account" data-room={room?.kind}>
-              <span className="flex items-baseline justify-between gap-2 text-meta">
-                <span className="truncate font-medium text-ink">{name}</span>
+            <li key={group.account?.key ?? group.targets[0]!.profileId} className="flex flex-col gap-2" data-testid="continue-account" data-room={room?.kind}>
+              <span className="flex min-w-0 items-center justify-between gap-2">
+                <span className="truncate text-label font-semibold uppercase tracking-[0.07em] text-section-label">{name}</span>
                 <RoomFigure room={room} />
               </span>
-              {room && room.kind !== "blocked" && <RoomLine name={name} room={room} testId="continue-room" />}
+              {room && room.kind !== "blocked" && <RoomLine name={name} room={room} testId="continue-room" chip={false} />}
               {group.targets.map((target) => {
                 // Its own sign-in, when the account's line doesn't say it.
                 const sign = signInWords({ signed_out: target.signedOut, desktop: target.desktop });
                 const own = sign && !(sign === NOT_SIGNED_IN && room?.kind === "blocked") ? sign : null;
                 const words = own ?? withFirstRun(target.recipeId in checks ? setupWords(checks[target.recipeId]) : null, target.firstRun === true);
+                const check = target.blocked ?? words;
                 return (
-                  <div key={target.profileId + target.recipeId} className="flex flex-col gap-0.5">
-                    <Button
-                      size="md"
-                      variant="secondary"
-                      className="justify-start"
+                  <div key={target.profileId + target.recipeId} className="flex flex-col gap-1">
+                    <TargetButton
                       disabled={!pick || target.blocked !== null}
                       title={target.blocked ?? `Continue in ${target.name ?? target.label}`}
                       onClick={() => pick?.(target.recipeId, target.label)}
                       data-testid="continue-target"
                       data-cross-tool={target.crossTool ? "true" : undefined}
                       data-suggested={target.suggested ? "true" : undefined}
-                    >
-                      {target.mark ? (
-                        <PlaceMark place={target.mark} size={16} ring="var(--color-surface-2)" />
-                      ) : target.tool ? (
-                        <CliAppMark tool={target.tool} folderId={target.profileId} folder={target.label} size={16} ring="var(--color-surface-2)" />
-                      ) : (
-                        <ProfileBadge app={cliAppId(target.profileId)} name={target.label} />
-                      )}
-                      <span className="truncate">{target.name ?? target.label}</span>
-                      {target.suggested && <SuggestedMark className="ml-auto" />}
-                    </Button>
-                    {(target.blocked || words || (target.crossTool && target.badge)) && (
-                      <span className="flex flex-wrap items-center gap-x-2 gap-y-1 pl-1 text-label text-muted" data-testid="continue-check">
-                        {target.crossTool && target.badge && <FidelityBadge badge={target.badge.words} validated={target.badge.validated} />}
-                        {target.blocked ?? words}
-                      </span>
-                    )}
+                      suggested={target.suggested && target.blocked === null}
+                      logo={<TargetLogo tool={target.tool ?? null} kind={target.mark?.kind === "desktop" ? "desktop" : "cli"} place={target.mark} folderId={target.profileId} label={target.label} />}
+                      name={target.name ?? target.label}
+                      tags={
+                        (target.suggested || (target.crossTool && target.badge)) && (
+                          <>
+                            {target.suggested && <SuggestedTag />}
+                            {target.crossTool && target.badge && <BadgeTag badge={target.badge.words} validated={target.badge.validated} />}
+                          </>
+                        )
+                      }
+                      detail={check && <span data-testid="continue-check">{check}</span>}
+                    />
                     {target.setupNeeded && <StartThereLink accountId={target.profileId} label={target.label} onStart={() => setDialog(false)} />}
                   </div>
                 );
@@ -363,11 +357,15 @@ export function ContinueOn({
 /** An account's room, short, beside its name ("75% left", "Out of room",
  * "Using credits"). */
 function RoomFigure({ room }: { room: TargetRoom | null }): JSX.Element {
-  if (room?.kind === "credits") return <span className="shrink-0 text-ink">Using credits</span>;
-  if (room?.kind === "blocked") return <span className="shrink-0 text-muted" data-testid="continue-signed-out">{NOT_SIGNED_IN}</span>;
-  if (room === null || room.left === null) return <span className="shrink-0 text-muted">not measured</span>;
-  // 0.4.1: out or low, the one mark every screen shows (never suggested);
-  // F-rc3c-1: its title and screen-reader words say an old reading's age.
-  if (room.kind === "out" || room.kind === "low") return <RoomChip mark={roomMarkFrom(room.left, room.resetsAtMs, false, undefined, room.age ?? null)} compact testId="switch-target-room" />;
-  return <span className="shrink-0 tabular-nums text-muted">{`${room.left}% left`}</span>;
+  // 0.5.0: a tag in its status colour (TAG-5, the same as the switch's).
+  if (room?.kind === "blocked")
+    return (
+      <span className="inline-flex shrink-0" data-testid="continue-signed-out">
+        <Pill tone="neutral">{NOT_SIGNED_IN}</Pill>
+      </span>
+    );
+  // 0.4.1: out or low, the one mark every screen shows (never suggested),
+  // its title and screen-reader words saying an old reading's age.
+  if (room && room.left !== null && (room.kind === "out" || room.kind === "low")) return <RoomChip mark={roomMarkFrom(room.left, room.resetsAtMs, false, undefined, room.age ?? null)} compact testId="switch-target-room" />;
+  return <RoomTag room={room} />;
 }
