@@ -2,8 +2,10 @@
 //! fixture folders and a scripted system (no app is quit or started).
 
 use std::collections::HashMap;
+use std::io::Write as _;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use super::*;
 use crate::features::places::book;
@@ -16,6 +18,27 @@ struct Proc {
     pid: u32,
     start: Option<i64>,
     alive: bool,
+}
+
+/// A process of a profile besides its main one (a helper, the Code tab's
+/// Claude Code): it outlives the main process as the live trace showed.
+struct Kid {
+    pid: u32,
+    name: &'static str,
+    /// The place it belongs to.
+    place: String,
+    alive: Arc<AtomicBool>,
+    /// Once its main process quits: after the first wait it appends the
+    /// line to the file (its last write), after the second it ends.
+    /// `None`: it never ends.
+    after_quit: Option<(Duration, PathBuf, &'static [u8], Duration)>,
+}
+
+/// Appends `line` to `path` when it is there (a writer never makes it).
+fn append(path: &Path, line: &[u8]) {
+    if let Ok(mut file) = std::fs::OpenOptions::new().append(true).open(path) {
+        file.write_all(line).unwrap();
+    }
 }
 
 #[derive(Default)]
@@ -34,6 +57,17 @@ struct Scripted {
     starts: Mutex<Vec<String>>,
     sent: Mutex<Vec<(u32, String)>>,
     next_pid: Mutex<u32>,
+    /// What else runs of each profile.
+    kids: Vec<Kid>,
+    /// Their last writes and ends, running.
+    endings: Mutex<Vec<std::thread::JoinHandle<()>>>,
+    /// A writer no process names: appends `line` to the file at each
+    /// settle, this many times.
+    writer: Mutex<Option<(PathBuf, &'static [u8], usize)>>,
+    /// How long a profile is given to quit (300 ms when not set).
+    wait: Option<Duration>,
+    /// What the move told the switch screen.
+    told: Mutex<Vec<MoveProgressInfo>>,
 }
 
 impl Scripted {
@@ -58,6 +92,23 @@ impl MoveSystem for Scripted {
     }
     fn quit(&self, pid: u32) -> Result<(), String> {
         self.quits.lock().unwrap().push(pid);
+        if let Some(id) = self.place_of(pid) {
+            for kid in self.kids.iter().filter(|kid| kid.place == id) {
+                let Some((write_after, path, line, end_after)) = kid.after_quit.clone() else {
+                    continue;
+                };
+                let alive = Arc::clone(&kid.alive);
+                self.endings
+                    .lock()
+                    .unwrap()
+                    .push(std::thread::spawn(move || {
+                        std::thread::sleep(write_after);
+                        append(&path, line);
+                        std::thread::sleep(end_after);
+                        alive.store(false, Ordering::SeqCst);
+                    }));
+            }
+        }
         if let Some(id) = self.place_of(pid)
             && !self.stubborn.contains(&id)
         {
@@ -78,6 +129,9 @@ impl MoveSystem for Scripted {
         Ok(())
     }
     fn alive(&self, pid: u32, start: Option<i64>) -> bool {
+        if let Some(kid) = self.kids.iter().find(|kid| kid.pid == pid) {
+            return kid.alive.load(Ordering::SeqCst) && start == Some(i64::from(pid));
+        }
         let Some(id) = self.place_of(pid) else {
             return false;
         };
@@ -116,9 +170,62 @@ impl MoveSystem for Scripted {
     fn open_elsewhere(&self, _: &Arc<AppState>, _: &[String], _: &[u32]) -> usize {
         self.elsewhere
     }
-    fn settle(&self, _: Duration) {}
+    fn settle(&self, _: Duration) {
+        let mut writer = self.writer.lock().unwrap();
+        if let Some((path, line, left)) = writer.as_mut()
+            && *left > 0
+        {
+            *left -= 1;
+            append(path, line);
+        }
+    }
     fn quit_wait(&self) -> Duration {
-        Duration::from_millis(300)
+        self.wait.unwrap_or(Duration::from_millis(300))
+    }
+    fn tree(&self, _: &Arc<AppState>, place: &KnownPlace, roots: &[u32]) -> Vec<Member> {
+        let id = book::place_id(&place.app_id, place.instance_dir.as_deref());
+        let procs = self.procs.lock().unwrap();
+        let main = roots
+            .iter()
+            .filter(|pid| procs.get(&id).is_some_and(|p| p.alive && p.pid == **pid))
+            .map(|pid| Member {
+                pid: *pid,
+                start: procs[&id].start,
+                name: "Claude".into(),
+            });
+        let kids = self
+            .kids
+            .iter()
+            .filter(|kid| kid.place == id && kid.alive.load(Ordering::SeqCst))
+            .map(|kid| Member {
+                pid: kid.pid,
+                start: Some(i64::from(kid.pid)),
+                name: kid.name.into(),
+            });
+        main.chain(kids).collect()
+    }
+    fn tell(&self, progress: &MoveProgressInfo) {
+        self.told.lock().unwrap().push(progress.clone());
+    }
+}
+
+impl Scripted {
+    /// Waits for every scripted ending to finish.
+    fn join(&self) {
+        for ending in self.endings.lock().unwrap().drain(..) {
+            ending.join().unwrap();
+        }
+    }
+
+    /// The stages it told, each once, in order.
+    fn stages(&self) -> Vec<String> {
+        let mut out: Vec<String> = Vec::new();
+        for told in self.told.lock().unwrap().iter() {
+            if out.last() != Some(&told.stage) {
+                out.push(told.stage.clone());
+            }
+        }
+        out
     }
 }
 
@@ -576,4 +683,215 @@ fn records_the_move_doesnt_know_hide_it_and_are_kept_for_the_gate_watch() {
         serde_json::from_slice(&std::fs::read(lab.state.data_dir.join(SHAPE_FILE)).unwrap())
             .unwrap();
     assert_eq!(kept["seen"].as_array().unwrap().len(), seen.len());
+}
+
+/// The moved conversation's history on the code folder `code`.
+fn history(code: &Path) -> PathBuf {
+    code.join("projects").join(SLUG).join("main.jsonl")
+}
+
+fn source_id(lab: &Lab) -> String {
+    lab.sides.source_place.as_ref().unwrap().0.clone()
+}
+
+/// A move's own folder of backups.
+fn backups(lab: &Lab) -> Vec<PathBuf> {
+    let moves = lab.state.data_dir.join("moves");
+    let mut out = Vec::new();
+    for entry in std::fs::read_dir(moves).unwrap().flatten() {
+        for backup in std::fs::read_dir(entry.path().join("backups"))
+            .unwrap()
+            .flatten()
+        {
+            out.push(backup.path());
+        }
+    }
+    out
+}
+
+/// 0.4.9, the live trace (a 406 MB move refused: "the backup of … doesn't
+/// match it"): the profile's main process ends, the Code tab's Claude
+/// Code writes its last line after it, then ends. The move waits for it,
+/// so that line moves with the history and nothing is left behind.
+#[test]
+fn a_move_waits_for_what_outlives_the_profiles_main_process() {
+    if !clones() {
+        return;
+    }
+    let lab = lab();
+    let line: &'static [u8] = b"{\"type\":\"last-prompt\"}\n";
+    let system = Scripted {
+        kids: vec![Kid {
+            pid: 700,
+            name: "claude",
+            place: source_id(&lab),
+            alive: Arc::new(AtomicBool::new(true)),
+            after_quit: Some((
+                Duration::from_millis(300),
+                history(&lab.a_code),
+                line,
+                Duration::from_millis(50),
+            )),
+        }],
+        wait: Some(Duration::from_secs(5)),
+        ..running_both(&lab)
+    };
+    let done = run(&lab.state, &lab.sides, &system);
+    system.join();
+    let done = done.unwrap();
+    assert_eq!(done.payload.state, "verified", "{}", done.payload.detail);
+    let moved = std::fs::read(history(&lab.b_code)).unwrap();
+    assert!(moved.ends_with(line), "the last line moved with it");
+    assert!(!history(&lab.a_code).exists(), "nothing left behind");
+    assert!(
+        system
+            .told
+            .lock()
+            .unwrap()
+            .iter()
+            .any(|t| t.stage == "closing" && t.words.ends_with("to finish closing…")),
+        "said what it waits for"
+    );
+}
+
+/// What outlives the profile too long refuses calmly, naming it: the
+/// profile starts again, the journal reads planned → undone, and no
+/// backup is kept.
+#[test]
+fn a_profile_whose_tools_outlive_it_too_long_is_refused_calmly() {
+    if !clones() {
+        return;
+    }
+    let lab = lab();
+    let system = Scripted {
+        kids: vec![Kid {
+            pid: 700,
+            name: "claude",
+            place: source_id(&lab),
+            alive: Arc::new(AtomicBool::new(true)),
+            after_quit: None,
+        }],
+        ..running_both(&lab)
+    };
+    let error = run(&lab.state, &lab.sides, &system).unwrap_err();
+    assert!(
+        matches!(error, AppError::Move { unchanged: true, .. }),
+        "calm, both accounts as they were: {error}"
+    );
+    let words = error.wire().user_message;
+    assert!(words.contains("didn't finish closing within"), "{words}");
+    assert!(
+        words.contains("claude still runs, so nothing was moved"),
+        "{words}"
+    );
+    assert_eq!(system.starts.lock().unwrap().len(), 1, "the source again");
+    assert_eq!(moves(&lab.state)[0].state, "undone");
+    assert!(backups(&lab).is_empty());
+    assert!(unchanged(&lab));
+}
+
+/// A file still changing after the apps closed refuses in plain words:
+/// who was writing, never a path (that is Copy details'), calm, and the
+/// undone move keeps no backup.
+#[test]
+fn files_still_changing_after_the_apps_closed_refuse_in_plain_words() {
+    if !clones() {
+        return;
+    }
+    let lab = lab();
+    let system = running_both(&lab);
+    *system.writer.lock().unwrap() = Some((
+        history(&lab.a_code),
+        b"{\"type\":\"cost-state\"}\n",
+        usize::MAX,
+    ));
+    let error = run(&lab.state, &lab.sides, &system).unwrap_err();
+    let source = place_name(&lab.state, &lab.sides.source_place.as_ref().unwrap().1);
+    let wire = error.wire();
+    assert_eq!(
+        wire.user_message,
+        format!(
+            "{source} was still writing this conversation as it closed, so nothing was moved. Try again in a moment."
+        )
+    );
+    assert!(!wire.user_message.contains('/'), "no path in the words");
+    assert!(
+        wire.detail
+            .as_deref()
+            .is_some_and(|d| d.contains("main.jsonl")),
+        "{wire:?}"
+    );
+    assert_eq!((wire.code.as_str(), wire.retryable), ("move_refused", true));
+    assert_eq!(system.starts.lock().unwrap().len(), 2, "both started again");
+    assert_eq!(moves(&lab.state)[0].state, "undone");
+    assert!(backups(&lab).is_empty(), "an undone move keeps no backup");
+    assert!(unchanged(&lab));
+}
+
+/// A file that settles after one more write moves with that write.
+#[test]
+fn a_file_that_settles_after_one_more_write_moves_with_it() {
+    if !clones() {
+        return;
+    }
+    let lab = lab();
+    let line: &'static [u8] = b"{\"type\":\"cost-state\"}\n";
+    let system = running_both(&lab);
+    *system.writer.lock().unwrap() = Some((history(&lab.a_code), line, 1));
+    let done = run(&lab.state, &lab.sides, &system).unwrap();
+    assert_eq!(done.payload.state, "verified", "{}", done.payload.detail);
+    assert!(std::fs::read(history(&lab.b_code)).unwrap().ends_with(line));
+}
+
+/// 0.4.9: a long move never looks frozen: it says each stage, and the
+/// backup's bytes rise to its total.
+#[test]
+fn a_long_backup_says_how_far_it_is() {
+    if !clones() {
+        return;
+    }
+    let lab = lab();
+    let line = b"{\"type\":\"assistant\",\"pad\":\"................................\"}\n";
+    let mut big = Vec::with_capacity(6 << 20);
+    while big.len() < 6 << 20 {
+        big.extend_from_slice(line);
+    }
+    std::fs::write(history(&lab.a_code), &big).unwrap();
+    let system = running_both(&lab);
+    run(&lab.state, &lab.sides, &system).unwrap();
+    assert_eq!(
+        system.stages(),
+        [
+            "closing",
+            "still",
+            "backing_up",
+            "moving",
+            "starting",
+            "checking"
+        ]
+    );
+    let told = system.told.lock().unwrap();
+    let backing: Vec<&MoveProgressInfo> = told.iter().filter(|t| t.stage == "backing_up").collect();
+    assert!(backing.len() >= 3, "{}", backing.len());
+    assert!(backing.windows(2).all(|w| w[0].done <= w[1].done));
+    let last = backing.last().unwrap();
+    assert!(last.total >= 2 * big.len() as u64);
+    assert_eq!(last.done, last.total);
+    assert!(
+        last.words.starts_with("Backing up the conversation ("),
+        "{}",
+        last.words
+    );
+}
+
+/// 0.4.9: Undo lets the move's backups go (nothing is left to restore).
+#[test]
+fn an_undone_move_lets_its_backups_go() {
+    let Some((lab, system, done)) = moved() else {
+        return;
+    };
+    assert!(!backups(&lab).is_empty(), "a done move keeps them for Undo");
+    undo_with(&lab.state, &done.move_id, &system).unwrap();
+    assert!(backups(&lab).is_empty());
+    assert!(unchanged(&lab));
 }

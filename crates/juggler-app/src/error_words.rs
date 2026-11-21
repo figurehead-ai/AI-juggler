@@ -50,7 +50,7 @@ pub fn user_words(error: &AppError) -> String {
         | AppError::Refused(_) => error.to_string(),
         // The failure's own words (`SwitchFailure::words`), the accounts
         // named; its detail is the `Display` the log keeps.
-        AppError::Switch { words, .. } => words.clone(),
+        AppError::Switch { words, .. } | AppError::Move { words, .. } => words.clone(),
     }
 }
 

@@ -86,6 +86,19 @@ pub enum AppError {
         /// Its words, from [`juggler_handover::pipeline::SwitchFailure::words`].
         words: String,
     },
+    /// A move to account that stopped (ADR-0031, 0.4.9): `words` say why
+    /// in plain words, never a path; `detail` is the program's own text,
+    /// paths and all, for Copy details.
+    #[error("move stopped: {words} ({detail})")]
+    Move {
+        /// What the person reads.
+        words: String,
+        /// What Copy details copies (the home folder written `~`).
+        detail: String,
+        /// Both accounts are exactly as they were: said calmly, and trying
+        /// again can work. `false`: the move was left part way, for Undo.
+        unchanged: bool,
+    },
 }
 
 /// A backup archive refused or not staged (juggler-core reads it): the
@@ -173,6 +186,16 @@ impl AppError {
             // Every switch failure leaves the original resumable; Retry
             // only where trying again can work (0.3.9).
             Self::Switch { failure, .. } => ("switch_failed".to_owned(), failure.retryable()),
+            // The switch screen says a refusal that changed nothing calmly.
+            Self::Move { unchanged, .. } => (
+                if *unchanged {
+                    "move_refused"
+                } else {
+                    "move_stopped"
+                }
+                .to_owned(),
+                *unchanged,
+            ),
         };
         ErrorWire {
             code,
@@ -186,6 +209,7 @@ impl AppError {
                     failure,
                     failure.stage()
                 ))),
+                Self::Move { detail, .. } => Some(without_home(detail)),
                 _ => None,
             },
         }
