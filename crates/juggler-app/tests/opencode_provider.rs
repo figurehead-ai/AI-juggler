@@ -201,6 +201,47 @@ fn usage_comes_from_the_database_once_and_quota_says_there_is_no_limit_to_read()
     );
 }
 
+/// SK-22: a session's share of an App whose limits AI Juggler doesn't
+/// know is only of the use it saw: each window says why there is no
+/// limit (the adapter's words), so the page draws no limit bars. A Claude
+/// Code App, whose tool reports its limits, keeps them.
+#[test]
+fn a_sessions_share_on_an_app_with_no_known_limit_says_why() {
+    let work = tempfile::tempdir().unwrap();
+    let state = app_state(work.path());
+    let created =
+        juggler_app::features::account::create_account(&state, OPENCODE_ID, "OpenCode", None)
+            .unwrap();
+    let dir = state.accounts_dir().join(OPENCODE_ID).join(&created.id);
+    seed_usage(&dir.join("data/opencode/opencode.db"), Path::new("/w/app"));
+    juggler_app::usage_pipeline::ingest_pass(&state, 0);
+    let detail =
+        juggler_app::features::usage_history::session_impl(&state, &created.id, "ses_1").unwrap();
+    assert_eq!(detail.windows.len(), 2);
+    for window in &detail.windows {
+        assert_eq!(
+            window.no_limit.as_deref(),
+            Some("OpenCode doesn't report its limits to AI Juggler yet"),
+            "{}",
+            window.window
+        );
+    }
+
+    let claude =
+        juggler_app::features::account::create_account(&state, "claude-code", "Work", None)
+            .unwrap();
+    let detail =
+        juggler_app::features::usage_history::session_impl(&state, &claude.id, "c-1").unwrap();
+    assert!(
+        detail
+            .windows
+            .iter()
+            .all(|window| window.no_limit.is_none()),
+        "{:?}",
+        detail.windows
+    );
+}
+
 #[test]
 fn an_opencode_sessions_folder_becomes_a_project() {
     let work = tempfile::tempdir().unwrap();

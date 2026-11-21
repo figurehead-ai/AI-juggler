@@ -153,6 +153,11 @@ export async function previewFirst(profile: string | null): Promise<number | nul
   return mine.length ? Math.min(...mine.map((row) => row.hour)) : null;
 }
 
+/** The quota displays the visual harness seeded, when it did. */
+function seededDisplays(): QuotaDisplayData[] | undefined {
+  return (window as unknown as { __AIJ_QUOTA_DISPLAY__?: QuotaDisplayData[] }).__AIJ_QUOTA_DISPLAY__;
+}
+
 /** Readings every 15 minutes while the app is open (working hours), gaps
  * while it's closed; a weekly window that climbs and resets each Monday. */
 function windows(w: World, profile: string, start: number, end: number): { five: UsageWindowHistoryInfo; week: UsageWindowHistoryInfo } {
@@ -162,7 +167,7 @@ function windows(w: World, profile: string, start: number, end: number): { five:
   // never measured has no history, and the newest points end where the
   // gauges say. Without seeded displays, the third profile is the
   // never-measured one.
-  const seeded = (window as unknown as { __AIJ_QUOTA_DISPLAY__?: QuotaDisplayData[] }).__AIJ_QUOTA_DISPLAY__;
+  const seeded = seededDisplays();
   const shown = seeded?.find((entry) => entry.account === profile);
   const never = seeded ? !shown || (shown.five_hour?.percentage == null && shown.weekly?.percentage == null) : index === 2;
   if (never || mine.length === 0) return { five: { points: [], windows: [], samples: 0 }, week: { points: [], windows: [], samples: 0 } };
@@ -234,14 +239,17 @@ export async function previewSession(profile: string, conversation: string): Pro
   const folded = fold(rows, [0, Number.MAX_SAFE_INTEGER], "model", w.names);
   const io = folded.totals.tokens.input + folded.totals.tokens.output;
   const all = w.rows.filter((row) => row.profile === profile && row.hour >= w.now - 7 * DAY).reduce((sum, row) => sum + row.input + row.output, 0);
+  // SK-22: an App whose tool doesn't report its limits says so, as the
+  // backend does (from the seeded display).
+  const no_limit = seededDisplays()?.find((entry) => entry.account === profile)?.unavailable_reason ?? null;
   return {
     turns,
     truncated: false,
     totals: folded.totals,
     by_model: folded.by_model,
     windows: [
-      { window: "five_hour", since_ms: w.now - 5 * HOUR, basis: "rolling", session_io: Math.round(io * 0.2), profile_io: Math.max(Math.round(io * 0.2), Math.round(all / 20)) },
-      { window: "weekly", since_ms: w.now - 7 * DAY, basis: "window", session_io: io, profile_io: Math.max(io, all) },
+      { window: "five_hour", since_ms: w.now - 5 * HOUR, basis: "rolling", session_io: Math.round(io * 0.2), profile_io: Math.max(Math.round(io * 0.2), Math.round(all / 20)), no_limit },
+      { window: "weekly", since_ms: w.now - 7 * DAY, basis: "window", session_io: io, profile_io: Math.max(io, all), no_limit },
     ],
   };
 }
