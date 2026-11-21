@@ -303,7 +303,7 @@ fn the_sign_in_probe_reads_modes_never_values() {
     assert_eq!(
         adapter.probe_identity(&account(&home)),
         juggler_adapter::IdentityProbe::Unverifiable {
-            reason: juggler_adapter::identity::NO_ACCOUNT_METADATA.into()
+            reason: juggler_adapter::identity::no_account_metadata("Grok Build")
         }
     );
     grok_fixture::sign_in_api_key(&home);
@@ -311,7 +311,7 @@ fn the_sign_in_probe_reads_modes_never_values() {
     assert_eq!(
         adapter.probe_identity(&account(&home)),
         juggler_adapter::IdentityProbe::SignedInWithKey {
-            reason: juggler_adapter::identity::NO_ACCOUNT_METADATA.into()
+            reason: juggler_adapter::identity::no_account_metadata("Grok Build")
         }
     );
     write(&home.join("auth.json"), "");

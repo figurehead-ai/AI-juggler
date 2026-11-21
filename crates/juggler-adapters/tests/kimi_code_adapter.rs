@@ -255,7 +255,7 @@ fn the_sign_in_probe_reads_which_files_are_there_never_what_they_hold() {
     assert_eq!(
         adapter.probe_identity(&account(&home)),
         juggler_adapter::IdentityProbe::SignedInWithKey {
-            reason: juggler_adapter::identity::NO_ACCOUNT_METADATA.into()
+            reason: juggler_adapter::identity::no_account_metadata("Kimi Code")
         }
     );
     write(&home.join("credentials/kimi-code.json"), "");

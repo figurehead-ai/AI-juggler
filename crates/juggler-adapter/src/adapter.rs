@@ -162,6 +162,7 @@ pub trait ToolSignIn: ToolIdentity {
     fn probe_identity(&self, account: &Account) -> crate::identity::IdentityProbe {
         crate::identity::key_or_no_metadata(
             self.login_state(&account.state_dir) == LoginState::ApiKey,
+            &self.spec().display_name,
         )
     }
     /// AJ-E308/AJ-E1301: the Account's sign-in state, probed from its
