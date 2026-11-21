@@ -197,7 +197,12 @@ export function ThisMacOverview({ nameOf, onOpenSession, onOpenCleanup }: Overvi
                 <Card title="Swap" testId="this-mac-swap">
                   <Figure value={bytesWords(machine.swap_used)} of={`of ${bytesWords(machine.swap_total)} moved to disk`} />
                   <Gauge pct={(machine.swap_used / machine.swap_total) * 100} label={`Swap: ${bytesWords(machine.swap_used)} of ${bytesWords(machine.swap_total)} moved to disk`} />
-                  <p className="text-meta text-ink-2">Memory macOS moved to disk to make room. Reading it back is slow.</p>
+                  {/* D1 (0.4.8): a nearly full swap beside "Plenty of room"
+                      says why it doesn't count yet, in the backend's words
+                      from the rule it uses. */}
+                  <p className="text-meta text-ink-2" data-testid="this-mac-swap-note">
+                    {machine.swap_note ?? "Memory macOS moved to disk to make room. Reading it back is slow."}
+                  </p>
                 </Card>
               )}
               <Card title="AI Juggler" testId="this-mac-own-card">

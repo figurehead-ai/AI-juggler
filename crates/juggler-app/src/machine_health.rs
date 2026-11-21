@@ -25,7 +25,7 @@ use std::sync::Arc;
 
 use juggler_supervisor::machine::{
     MachineSampler, MachineSnapshot, MemoryBasis, PowerState, PressureLevel, RoomLevel,
-    RoomThresholds, ThermalState, memory_words, summarize, swap_growth_mb_per_min,
+    RoomThresholds, ThermalState, memory_words, summarize, swap_growth_mb_per_min, swap_note,
 };
 use juggler_supervisor::{LiveProcessStats, TreeSample};
 
@@ -155,6 +155,13 @@ pub struct MachineHealthInfo {
     /// Swap growth over the last minute, MB a minute; `null` with too
     /// little history.
     pub swap_growth_mb_per_min: Option<f64>,
+    /// D1 (0.4.8's persona run: "Plenty of room" beside swap at 8.2 of 9.0
+    /// GB): why swap this nearly full doesn't count against room yet, in
+    /// words from the thresholds in force (`machine::swap_note`), for the
+    /// Swap card; `null` when it isn't nearly full, or it counts (a
+    /// reason says so then).
+    #[ts(optional = nullable)]
+    pub swap_note: Option<String>,
     /// Volumes in use.
     pub volumes: Vec<VolumeInfo>,
     /// Power; `null` where the OS does not report it.
@@ -230,6 +237,7 @@ pub fn health_of(snapshot: &MachineSnapshot, thresholds: &RoomThresholds) -> Mac
         swap_total: latest.swap_total,
         swap_used: latest.swap_used,
         swap_growth_mb_per_min: swap_growth_mb_per_min(&snapshot.ring),
+        swap_note: swap_note(snapshot, thresholds),
         volumes: snapshot
             .volumes
             .iter()

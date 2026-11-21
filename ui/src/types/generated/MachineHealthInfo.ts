@@ -65,6 +65,14 @@ swap_used: number,
  */
 swap_growth_mb_per_min: number | null, 
 /**
+ * D1 (0.4.8's persona run: "Plenty of room" beside swap at 8.2 of 9.0
+ * GB): why swap this nearly full doesn't count against room yet, in
+ * words from the thresholds in force (`machine::swap_note`), for the
+ * Swap card; `null` when it isn't nearly full, or it counts (a
+ * reason says so then).
+ */
+swap_note?: string | null, 
+/**
  * Volumes in use.
  */
 volumes: Array<VolumeInfo>, 

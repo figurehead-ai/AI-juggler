@@ -546,6 +546,42 @@ fn swap_full(latest: &MachineSample, thresholds: &RoomThresholds) -> Option<Room
     })
 }
 
+/// 0.4.8's persona run (D1): "Plenty of room" in green beside swap at 8.2
+/// of 9.0 GB. Why swap this nearly full doesn't count against room, in
+/// words from the thresholds in force, for This Mac's Swap card: macOS
+/// makes more swap as it needs it, so its size is no limit, and its own
+/// memory pressure says when the squeeze is on; swap counts once it holds
+/// [`RoomThresholds::swap_full_ram_share`] of the memory, or while it
+/// grows ([`swap_full`], [`summarize`]). `None` when it isn't nearly
+/// full, or it counts (a reason says so then).
+#[must_use]
+#[allow(
+    clippy::cast_precision_loss,
+    clippy::cast_possible_truncation,
+    clippy::cast_sign_loss,
+    reason = "shares for a threshold, and a figure in words: far below a byte of error"
+)]
+pub fn swap_note(snapshot: &MachineSnapshot, thresholds: &RoomThresholds) -> Option<String> {
+    let latest = snapshot.latest?;
+    if latest.swap_total == 0 || latest.memory_total == 0 {
+        return None;
+    }
+    let nearly_full =
+        latest.swap_used as f64 >= latest.swap_total as f64 * thresholds.swap_full_share;
+    let growing = swap_growth_mb_per_min(&snapshot.ring)
+        .is_some_and(|rate| rate > thresholds.swap_tight_mb_per_min);
+    if !nearly_full || growing || swap_full(&latest, thresholds).is_some() {
+        return None;
+    }
+    let counts_at = (latest.memory_total as f64 * thresholds.swap_full_ram_share) as u64;
+    Some(format!(
+        "Nearly full, but macOS makes more swap as it needs it: it counts against room once \
+         it holds {} ({} of your memory) or keeps growing.",
+        memory_words(counts_at),
+        share_words(thresholds.swap_full_ram_share),
+    ))
+}
+
 /// The disk reasons: a volume in use running out of space.
 fn disk_reasons(volumes: &[VolumeSample], thresholds: &RoomThresholds) -> Vec<RoomReason> {
     let mut reasons = Vec::new();
@@ -1179,6 +1215,78 @@ mod tests {
         let summary = summarize(&snapshot_of(vec![small]), &RoomThresholds::default());
         assert_eq!(summary.level, RoomLevel::Plenty, "{summary:?}");
         assert_eq!(summary.cause(), None);
+    }
+
+    /// 0.4.8's persona run (D1): "Plenty of room" in green beside swap at
+    /// 8.2 of 9.0 GB, pressure normal, on a 96 GB Mac. Room is plenty (a
+    /// big swap file alone isn't short while macOS's pressure is normal),
+    /// and the Swap card says why, with the figure where swap starts to
+    /// count; across the rule's boundary, the reason takes over and the
+    /// note goes.
+    #[test]
+    fn nearly_full_swap_under_a_quarter_of_memory_is_plenty_and_says_why() {
+        const GIB: u64 = 1 << 30;
+        let mac = |swap_used: u64, swap_total: u64| MachineSample {
+            at_ms: 0,
+            cpu_pct: Some(30.0),
+            memory_total: 96 * GIB,
+            memory_available: 40 * GIB,
+            memory_used: Some(56 * GIB),
+            memory_basis: MemoryBasis::AppWiredCompressed,
+            memory_compressed: Some(6 * GIB),
+            pressure: Some(PressureLevel::Normal),
+            swap_total,
+            swap_used,
+        };
+        let steady = |sample: MachineSample| {
+            snapshot_of(
+                (0..31)
+                    .map(|i| MachineSample {
+                        at_ms: i * 2_000,
+                        ..sample
+                    })
+                    .collect(),
+            )
+        };
+        let defaults = RoomThresholds::default();
+        let persona = steady(mac(8_200 * GIB / 1_000, 9 * GIB));
+        let summary = summarize(&persona, &defaults);
+        assert_eq!(summary.level, RoomLevel::Plenty, "{summary:?}");
+        assert_eq!(
+            swap_note(&persona, &defaults).as_deref(),
+            Some(
+                "Nearly full, but macOS makes more swap as it needs it: it counts against room \
+                 once it holds 24 GB (25% of your memory) or keeps growing."
+            )
+        );
+        // Just under a quarter of memory: still plenty, still said.
+        let under = steady(mac(24 * GIB - 1, 25 * GIB));
+        assert_eq!(summarize(&under, &defaults).level, RoomLevel::Plenty);
+        assert!(swap_note(&under, &defaults).is_some());
+        // At a quarter: the rule counts it, and the reason says so.
+        let at = steady(mac(24 * GIB, 25 * GIB));
+        let summary = summarize(&at, &defaults);
+        assert_eq!(summary.level, RoomLevel::Tight, "{summary:?}");
+        assert_eq!(summary.cause(), Some("swap almost full"));
+        assert_eq!(swap_note(&at, &defaults), None, "the reason says it");
+        // Not nearly full (under 90% of its size): nothing to explain.
+        let roomy = steady(mac(8 * GIB, 9 * GIB));
+        assert_eq!(swap_note(&roomy, &defaults), None);
+        // Growing: the reason says it.
+        let growing = snapshot_of(
+            (0..31)
+                .map(|i| MachineSample {
+                    at_ms: i * 2_000,
+                    swap_used: 8 * GIB + u64::try_from(i).unwrap() * 200_000_000,
+                    ..mac(0, 15 * GIB)
+                })
+                .collect(),
+        );
+        assert_eq!(
+            summarize(&growing, &defaults).reasons[0].short,
+            "swap growing"
+        );
+        assert_eq!(swap_note(&growing, &defaults), None);
     }
 
     #[test]

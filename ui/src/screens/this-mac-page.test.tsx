@@ -221,6 +221,24 @@ describe("the This Mac page", () => {
     expect(within(group).getAllByRole("button", { hidden: true })).toEqual([fold]);
   });
 
+  // D1 (0.4.8's persona run): "Plenty of room" in green beside swap at
+  // 8.2 of 9.0 GB read as wrong. The card says why it doesn't count yet,
+  // in the backend's words; a swap that isn't nearly full keeps the plain
+  // line.
+  it("says why a nearly full swap leaves plenty of room", () => {
+    const GB = 1024 ** 3;
+    const note = "Nearly full, but macOS makes more swap as it needs it: it counts against room once it holds 24 GB (25% of your memory) or keeps growing.";
+    const plenty = mockMachineHealth("plenty", NOW);
+    renderPage(info([ours("a")], { machine: { ...plenty, memory_total: 96 * GB, swap_used: 8.2 * GB, swap_total: 9 * GB, swap_note: note } }));
+    expect(screen.getByTestId("this-mac-state").textContent).toContain("Plenty of room");
+    const swap = screen.getByTestId("this-mac-swap");
+    expect(swap.textContent).toContain("8.2 GB of 9.0 GB moved to disk");
+    expect(within(swap).getByTestId("this-mac-swap-note").textContent).toBe(note);
+    cleanup();
+    renderPage(info([ours("a")], { machine: plenty }));
+    expect(screen.getByTestId("this-mac-swap-note").textContent).toBe("Memory macOS moved to disk to make room. Reading it back is slow.");
+  });
+
   it("says no word of pressure while macOS reports none", () => {
     renderPage(info([ours("a")], { machine: mockMachineHealth("plenty", NOW) }));
     expect(screen.queryByTestId("this-mac-pressure-note")).toBeNull();
