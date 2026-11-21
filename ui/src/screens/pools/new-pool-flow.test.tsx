@@ -9,6 +9,7 @@ import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { useModalsInert } from "../../lib/inert";
+import css from "../../styles.css?raw";
 
 import { MOCK_PROJECTS, MOCK_SESSIONS } from "../../preview/fixtures";
 import { resetPreviewPools } from "../../lib/ipc/pools";
@@ -103,6 +104,9 @@ describe("over the window, the steps beside and Cancel take a press", () => {
     const wizard = screen.getByTestId("new-pool");
     expect(wizard.parentElement).toBe(document.body);
     expect(wizard.closest("main")).toBeNull();
+    // Its scrollbars stay the main column's thin ones.
+    expect(wizard.classList.contains("window-sheet")).toBe(true);
+    expect(css).toContain(".window-sheet ::-webkit-scrollbar {");
     await waitFor(() => expect(screen.getByTestId("app-list").closest("[inert]")).not.toBeNull());
     nextTo("who");
     const steps = screen.getAllByTestId("flow-step");

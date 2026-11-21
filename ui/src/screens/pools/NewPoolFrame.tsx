@@ -64,9 +64,10 @@ export function NewPoolFrame({ embedded, dialogRef, onClose, title, name, childr
   // by place (the walk's, Voice Control's) left of it found the column
   // missing and never reached the steps beside or Cancel ("nothing to
   // press there", the 0.4.7 nightly walk). Under the toasts and the
-  // dialogs opened over it (z-50), so a toast still shows over its foot.
+  // dialogs opened over it (z-50), so a toast still shows over its foot;
+  // its scrollbars the main column's (.window-sheet).
   return createPortal(
-    <dialog ref={dialogRef} open aria-modal="true" aria-label="New pool" className="fixed inset-0 z-40 m-0 flex h-full max-h-none w-full max-w-none flex-col border-0 bg-canvas p-0 text-ink" data-testid="new-pool">
+    <dialog ref={dialogRef} open aria-modal="true" aria-label="New pool" className="window-sheet fixed inset-0 z-40 m-0 flex h-full max-h-none w-full max-w-none flex-col border-0 bg-canvas p-0 text-ink" data-testid="new-pool">
       {/* rc5 walk: the wizard takes the whole window, so its title starts
           below the window's traffic lights (the overlay title bar's top
           28 px, as the rail's does), and the bar moves the window. */}
