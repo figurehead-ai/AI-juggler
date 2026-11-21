@@ -330,17 +330,31 @@ def own_sessions(db: sqlite3.Connection) -> dict[str, dict[str, str | None]]:
     return out
 
 
+WINDOW_MS = {"five_hour": 5 * 3_600_000, "weekly": 7 * 24 * 3_600_000}
+
+
+def reading_in_force(window: str, ts: int, resets: int | None, now_ms: int) -> bool:
+    """The app's rule (`juggler_core::quota::reading_window_ended`): a
+    reading describes its window until that window's reset, or, with no
+    reset known, until a whole window has passed since it was taken. A
+    five-hour reading at 100% from 15 hours ago is history, not "out"
+    (0.4.8's presence run: the checker held such a reading as out forever,
+    while the app, rightly, drew no Out mark)."""
+    return resets > now_ms if resets is not None else now_ms - ts < WINDOW_MS[window]
+
+
 def out_accounts(db: sqlite3.Connection, now_ms: int) -> set[str]:
     """The folders whose Account is out: its latest measured five-hour or
-    weekly reading at 100%, not past its reset (the newest reading is the
-    truth: a lower one after a 100% means the window ended early); one
-    folder out puts every folder of its subscription out."""
+    weekly reading used up (no whole percent left, `quota::used_up`) and
+    still in force (`reading_in_force`; the newest reading is the truth: a
+    lower one after a 100% means the window ended early); one folder out
+    puts every folder of its subscription out."""
     out_folders: set[str] = set()
-    for folder, window, used, resets in db.execute(
-        "select account, window, used_pct, resets_at from quota_samples q where window in ('five_hour', 'weekly') "
+    for folder, window, used, resets, ts in db.execute(
+        "select account, window, used_pct, resets_at, ts from quota_samples q where window in ('five_hour', 'weekly') "
         "and ts = (select max(ts) from quota_samples where account = q.account and window = q.window)"
     ):
-        if used >= 100 and (resets is None or resets > now_ms):
+        if round(100 - used) <= 0 and reading_in_force(window, ts, resets, now_ms):
             out_folders.add(folder)
     subs = dict(db.execute("select id, subscription_id from accounts"))
     out_subs = {subs.get(folder) for folder in out_folders if subs.get(folder)}
@@ -598,6 +612,27 @@ def check(
     return lines + more_lines, problems + more
 
 
+def selftest_out_accounts() -> None:
+    """0.4.8: a used-up reading with no reset known is out only for one
+    window's length; with a reset, until it."""
+    hour, now = 3_600_000, 100 * 24 * 3_600_000
+    db = sqlite3.connect(":memory:")
+    db.execute("create table quota_samples (account text, window text, used_pct real, resets_at integer, ts integer)")
+    db.execute("create table accounts (id text, subscription_id text)")
+    db.executemany("insert into quota_samples values (?, ?, ?, ?, ?)", [
+        ("e", "five_hour", 100.0, None, now - 15 * hour),  # 15 h ago, no reset: history
+        ("e", "weekly", 61.0, None, now - 15 * hour),
+        ("f", "five_hour", 100.0, None, now - 2 * hour),  # 2 h ago, no reset: out
+        ("g", "weekly", 100.0, now + hour, now - 3 * 24 * hour),  # resets in an hour: out
+        ("h", "weekly", 100.0, now - hour, now - 2 * 24 * hour),  # its reset has passed
+        ("i", "five_hour", 99.6, None, now - hour),  # "0% left" on every screen
+        ("j", "five_hour", 100.0, None, now - 2 * hour), ("j", "five_hour", 40.0, None, now - hour),  # the newest is the truth
+    ])
+    db.executemany("insert into accounts values (?, ?)", [(x, f"sub-{x}") for x in "efghij"] + [("g2", "sub-g")])
+    got = out_accounts(db, now)
+    assert got == {"f", "g", "g2", "i"}, got
+
+
 def selftest() -> None:
     """The parser reads 0.4.2's and 0.4.3's rails."""
     old = [
@@ -628,6 +663,7 @@ def selftest() -> None:
     _, problems = check(parse_rail(old), [east], {"f-east"}, 2)
     assert any("no Out mark" in p for p in problems) and any("lab run" in p for p in problems), problems
     selftest_d102()
+    selftest_out_accounts()
     selftest_046()
     print("presence_sessions: selftest passed")
 
