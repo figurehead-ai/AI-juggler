@@ -850,7 +850,11 @@ def conversation(args: argparse.Namespace) -> None:
     `claude-desktop`, a script's `sdk-cli`); `--app-record DIR` adds the
     Claude app's own record of it in DIR (a profile's
     `claude-code-sessions/<account>/<org>`), as a Code-tab session has.
-    Only under a lab's or the replica's folder."""
+    `--open-turn` (AJ-E2312, K3's "may be stuck"): its last turn started
+    and never ended, as a stuck turn lies on disk: an ask, and a reply
+    that began a tool call whose result never came, last written
+    `--ago-minutes` (plus one) ago. Only under a lab's or the replica's
+    folder."""
     folder = Path(args.folder)
     lab_only(folder)
     if args.app_record:
@@ -863,12 +867,32 @@ def conversation(args: argparse.Namespace) -> None:
                                                      topic=args.topic, said=args.said, entrypoint=args.entrypoint,
                                                      titled=not args.untitled)
     path = folder / "projects" / claude_dir_name(args.cwd) / f"{session}.jsonl"
+    if getattr(args, "open_turn", False):
+        open_turn(path, args.cwd, session, ended, rng, args.entrypoint)
     touch(path, ended)
     written = {"path": str(path), "session": session, "topic": topic}
     if args.app_record:
         record = write_app_record(Path(args.app_record), session, args.cwd, topic, start, ended, args.turns)
         written["record"] = str(record)
     print(json.dumps(written))
+
+
+def open_turn(path: Path, cwd: str, session: str, at: dt.datetime, rng: random.Random,
+              entrypoint: str | None) -> None:
+    """A turn that started at `at` and never ended, after `path`'s last
+    line: an ask, and Claude's reply beginning a tool call (`stop_reason`
+    `tool_use`) whose result never came back."""
+    last = json.loads(path.read_text().splitlines()[-1])
+    model = last.get("message", {}).get("model") or rng.choice(MODELS_CLAUDE)
+    ask, parent = claude_line("user", cwd, session, "main", last.get("uuid"), at - dt.timedelta(seconds=20), rng,
+                              text="Run the whole test suite and fix what fails.", entrypoint=entrypoint)
+    call, _ = claude_line("assistant", cwd, session, "main", parent, at, rng, text="Running the whole suite first.",
+                          model=model, entrypoint=entrypoint)
+    call["message"]["content"].append({"type": "tool_use", "id": f"toolu_{call['uuid'][:12]}", "name": "Bash",
+                                       "input": {"command": "npm test", "description": "Run the test suite"}})
+    call["message"]["stop_reason"] = "tool_use"
+    with path.open("a") as out:
+        out.write(json.dumps(ask) + "\n" + json.dumps(call) + "\n")
 
 
 # Codex's thread store (`state_<n>.sqlite`'s `threads`), its columns as
@@ -1050,7 +1074,20 @@ def lab_writers(tmp: Path) -> None:
             folder=str(lab / "term"), cwd=str(lab / "repos/api"), session="0a1b2c3d-0000-4000-8000-000000000002",
             turns=2, topic="Tidy the settings page", said=None, ago_minutes=0, entrypoint=None, app_record=None,
             untitled=True))
+        conversation(argparse.Namespace(
+            folder=str(lab / "term"), cwd=str(lab / "repos/api"), session="0a1b2c3d-0000-4000-8000-000000000003",
+            turns=2, topic="Fix the build", said=None, ago_minutes=10, entrypoint="cli", app_record=None,
+            untitled=False, open_turn=True))
     written = [json.loads(line) for line in out.getvalue().splitlines()]
+    # An open turn: its ask, then a tool call never answered, written
+    # eleven minutes ago (K3's "may be stuck").
+    stuck = Path(written[4]["path"])
+    tail = [json.loads(line) for line in stuck.read_text().splitlines()[-2:]]
+    assert tail[0]["type"] == "user" and tail[1]["type"] == "assistant", tail
+    assert tail[1]["message"]["stop_reason"] == "tool_use" and tail[1]["message"]["content"][-1]["type"] == "tool_use"
+    assert tail[1]["parentUuid"] == tail[0]["uuid"]
+    import time as _time
+    assert 10 * 60 <= _time.time() - stuck.stat().st_mtime <= 12 * 60, stuck.stat().st_mtime
     # Untitled: no title line; the topic is only its first ask.
     bare = [json.loads(line) for line in Path(written[3]["path"]).read_text().splitlines()]
     assert all(line["type"] != "summary" for line in bare), bare[0]
@@ -1106,6 +1143,8 @@ def main() -> None:
     c.add_argument("--ago-minutes", type=int, default=0, help="how long before now it ended")
     c.add_argument("--entrypoint", help="where Claude Code says it ran: cli, claude-desktop, sdk-cli")
     c.add_argument("--app-record", help="also the Claude app's record of it, in this records folder")
+    c.add_argument("--open-turn", action="store_true",
+                   help="its last turn started and never ended (a tool call with no result), as a stuck one lies")
     x = sub.add_parser("codex-thread", help="a lab's Codex thread: its rollout and its row in the thread store")
     x.add_argument("--home", required=True, help="the Codex home")
     x.add_argument("--cwd", required=True)

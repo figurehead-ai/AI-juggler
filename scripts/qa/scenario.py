@@ -43,6 +43,9 @@ A scenario file (TOML, the subset below) says:
                                     # days_ago (N: started N days back),
                                     # leftover (true: a real bounded process its
                                     # ended session left behind, in the ledger)
+                                    # open_turn (true: its conversation's last turn
+                                    # started and never ended, quiet 10 min: "may be
+                                    # stuck" once the lab opens; Claude Code only)
     ended_sessions = 50             # N ended sessions over the terminal Apps,
     ended_over_days = 7             # every 37 min back, or spread over N days
     ended_conversations = true      # each a short conversation in its tool's own

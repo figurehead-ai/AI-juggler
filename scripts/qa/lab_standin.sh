@@ -21,6 +21,13 @@
 # Asking now, without a line typed: `$HOME/.aij-lab-bin/asks-at-start`
 # (a scenario's `standin = "asks"`, K3), or `--lab-ask`.
 #
+# A turn that never ends (AJ-E2312, K3's "may be stuck"): `--lab-open-turn`
+# runs SessionStart, then UserPromptSubmit and a tool call that never
+# returns (its record `busy`), and never Stop: what a hung Claude Code turn
+# sends. Its hooks say Working, the tool's own word, so AI Juggler shows it
+# Working; the seeded `open_turn` session (picked up, no hooks) is the one
+# its "may be stuck" rule judges.
+#
 # Like Claude Code it records its session in its folder while it runs
 # (`<CLAUDE_CONFIG_DIR or ~/.claude>/sessions/<pid>.json`: its pid, id,
 # folder and status, `waiting` while it asks), and runs the hooks AI
@@ -105,6 +112,19 @@ if [ "${1:-}" = "--selftest" ]; then
   grep -q 'Do you want to proceed?' "$tmp/out2" || fail "asks-at-start didn't show its question"
   kill "$pid2"
   rm "$tmp/home/.aij-lab-bin/asks-at-start"
+  # A hung turn (K3): UserPromptSubmit, busy, and never Stop.
+  rm -f "$tmp"/hook-*.json
+  (cd "$tmp/home/repo" || exit 1
+   env -u CLAUDE_CONFIG_DIR HOME="$tmp/home" AIJ_LAB_STANDIN_SECS=20 "$tmp/claude" --settings "$tmp/settings.json" --lab-open-turn \
+     < /dev/null > "$tmp/out4" 2>&1 &
+   echo $! > "$tmp/pid4")
+  pid4="$(cat "$tmp/pid4")"
+  for _ in $(seq 50); do grep -q '"status":"busy"' "$tmp/home/.claude/sessions/$pid4.json" 2>/dev/null && break; sleep 0.1; done
+  grep -q '"status":"busy"' "$tmp/home/.claude/sessions/$pid4.json" || fail "--lab-open-turn isn't busy"
+  [ -f "$tmp/hook-SessionStart.json" ] && [ -f "$tmp/hook-UserPromptSubmit.json" ] || fail "--lab-open-turn: no SessionStart or UserPromptSubmit"
+  sleep 1
+  [ ! -e "$tmp/hook-Stop.json" ] || fail "--lab-open-turn ran Stop"
+  kill "$pid4"
   # PF1's: at its prompt in its folder, no terminal.
   (cd "$tmp/home/repo" || exit 1
    HOME="$tmp/home" CLAUDE_CONFIG_DIR="$tmp/home/.claude-work" AIJ_LAB_STANDIN_SECS=20 "$tmp/claude" --lab-idle < /dev/null > /dev/null 2>&1 &
@@ -155,6 +175,7 @@ for arg in "$@"; do
   case "$arg" in
     --lab-idle) asks=0 ;;
     --lab-ask) asks=1 ;;
+    --lab-open-turn) asks=2 ;;
     --resume=*) session="${arg#--resume=}" ;;
   esac
   case "$prev" in
@@ -237,7 +258,13 @@ else
   printf '\n ✻ Welcome to Claude Code (lab stand-in)\n\n   cwd: %s\n' "$PWD"
 fi
 asking=0
-if [ "$asks" = 1 ]; then ask; asking=1; else prompt; fi
+if [ "$asks" = 2 ]; then
+  # A hung turn: asked, a tool call started, never a result or Stop.
+  hook UserPromptSubmit ',"prompt":"(lab)"'
+  note busy
+  printf '\n ⏺ Running the whole suite first.\n\n ⏺ Bash(npm test)\n   ⎿  Running…\n'
+  asking=2
+elif [ "$asks" = 1 ]; then ask; asking=1; else prompt; fi
 
 # Its terminal, a line at a time, until its time is up: a line at its
 # prompt makes it ask; any answer gets one line, and it's back at its
@@ -245,7 +272,9 @@ if [ "$asks" = 1 ]; then ask; asking=1; else prompt; fi
 deadline=$((SECONDS + secs))
 while [ "$SECONDS" -lt "$deadline" ]; do
   if IFS= read -r -t 5 line; then
-    if [ "$asking" = 1 ]; then
+    if [ "$asking" = 2 ]; then
+      :  # a hung turn takes nothing in
+    elif [ "$asking" = 1 ]; then
       printf '\n   (a lab stand-in: nothing runs here)\n'
       hook Stop ',"stop_hook_active":false'
       asking=0

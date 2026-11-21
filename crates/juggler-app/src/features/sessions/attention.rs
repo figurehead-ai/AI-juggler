@@ -225,6 +225,110 @@ pub fn apply_attention_recovery(storage: &Storage, session: &SessionId) -> Optio
     Some(record)
 }
 
+/// What the "probably stuck" rule (AJ-E405) reads of `record` at `now`:
+/// its last output, CPU, transcript, prompt and whether its last turn
+/// ended. `None` for one the rule leaves alone: ended, at its limit, its
+/// state its tool's own (driven, or its hooks report), or its tool's own
+/// screen question.
+///
+/// AJ-E2312 item 8 (SK48-7): a session picked up after a restart runs in
+/// a terminal AI Juggler no longer reads, so no output ever arrives for
+/// it, and the rule took "never produced output" as starting: it was never
+/// "may be stuck", however long its turn hung. Its transcript's last write
+/// is the last sign of it working.
+fn heuristic_inputs(
+    state: &Arc<AppState>,
+    record: &SessionRecord,
+    harness: Option<&juggler_core::model::HarnessId>,
+    cpu_pct: Option<f64>,
+    adopted: &[SessionId],
+    now: i64,
+) -> Option<juggler_supervisor::HeuristicInputs> {
+    // AJ-E2302, 0.3: a driven session's or a limit's state is the tool's.
+    if !is_active(record.status)
+        || record.status == SessionStatus::QuotaBlocked
+        || state.runtime.is_exact(&record.id)
+    {
+        return None;
+    }
+    // Its tool's own screen question is [`screen_asks`]' to say and to
+    // end; nothing here calls it stuck.
+    if record
+        .attention
+        .as_ref()
+        .is_some_and(|reason| reason.rule == TOOL_ASKS)
+    {
+        return None;
+    }
+    let transcript_mtime_ms = record.transcript_ref.as_ref().and_then(|tr| {
+        std::fs::metadata(&tr.path)
+            .and_then(|meta| meta.modified())
+            .ok()
+            .and_then(|at| at.duration_since(std::time::UNIX_EPOCH).ok())
+            .map(|dur| i64::try_from(dur.as_millis()).unwrap_or_default())
+    });
+    let tail = state
+        .supervisor
+        .output_tail(&record.id, 2048)
+        .unwrap_or_default();
+    // A tool with no state reports says through its adapter whether its
+    // last turn ended, from its own record (its store, event log or
+    // rollout): then it waits for the person, however quiet.
+    let turn_ended = waits_for_person(
+        record.transcript_ref.is_some(),
+        harness
+            .and_then(|harness| state.registry.get(harness))
+            .zip(record.transcript_ref.as_ref())
+            .and_then(|(adapter, transcript)| adapter.last_turn(&transcript.path)),
+    );
+    // A picked-up session's output isn't read: its transcript's last
+    // write is its last sign of work (none: it never worked, Starting).
+    let last_output_ms = state
+        .supervisor
+        .last_output_ms(&record.id)
+        .or_else(|| {
+            adopted
+                .contains(&record.id)
+                .then_some(transcript_mtime_ms)
+                .flatten()
+        });
+    Some(juggler_supervisor::HeuristicInputs {
+        last_output_ms,
+        cpu_pct,
+        transcript_mtime_ms,
+        prompt_alive: juggler_supervisor::prompt_alive(&tail),
+        turn_ended,
+        now_ms: now,
+    })
+}
+
+/// [`heuristic_inputs`] for `session` at `now_ms`, read as the heuristic
+/// tick reads them (the lab seeder's checks, AJ-E2312 item 8); `None`
+/// when the rule leaves it alone or it isn't found.
+#[must_use]
+pub fn heuristic_inputs_now(
+    state: &Arc<AppState>,
+    session: &SessionId,
+    now_ms: i64,
+) -> Option<juggler_supervisor::HeuristicInputs> {
+    let (record, harness) = {
+        let storage = state.storage.lock().ok()?;
+        let record = storage.sessions().get(session).ok()?;
+        let harness = storage
+            .profiles()
+            .get(&record.profile)
+            .ok()
+            .and_then(|profile| storage.accounts().get(&profile.account).ok())
+            .map(|account| account.harness);
+        (record, harness)
+    };
+    let cpu_pct = live_stats_of(state)
+        .get(session.as_str())
+        .and_then(|stats| stats.cpu_pct);
+    let adopted = state.supervisor.alive_adopted_sessions();
+    heuristic_inputs(state, &record, harness.as_ref(), cpu_pct, &adopted, now_ms)
+}
+
 /// One 15 s heuristic cycle (AJ-E405): evaluates every active Instance
 /// against the supervisor's measured inputs and records + emits any
 /// confirmed transitions. Purely passive — no action follows.
@@ -252,59 +356,21 @@ pub fn heuristic_tick(app: &tauri::AppHandle, state: &Arc<AppState>) -> AppResul
                 harness_of.insert(recipe.id.to_string(), account.harness.clone());
             }
         }
+        // AJ-E2312 item 8: sessions picked up after a restart, whose output
+        // AI Juggler doesn't read (`heuristic_inputs`).
+        let adopted = state.supervisor.alive_adopted_sessions();
         for record in storage.sessions().list(None)? {
-            // AJ-E2302, 0.3: a driven session's or a limit's state is the tool's.
-            if !is_active(record.status)
-                || record.status == SessionStatus::QuotaBlocked
-                || state.runtime.is_exact(&record.id)
-            {
-                engine.forget(&record.id);
-                continue;
-            }
-            let now = Timestamp::now().millis();
-            let transcript_mtime_ms = record.transcript_ref.as_ref().and_then(|tr| {
-                std::fs::metadata(&tr.path)
-                    .and_then(|meta| meta.modified())
-                    .ok()
-                    .and_then(|at| at.duration_since(std::time::UNIX_EPOCH).ok())
-                    .map(|dur| i64::try_from(dur.as_millis()).unwrap_or_default())
-            });
-            let tail = state
-                .supervisor
-                .output_tail(&record.id, 2048)
-                .unwrap_or_default();
             let harness = harness_of.get(record.profile.as_str());
-            // Its tool's own screen question is [`screen_asks`]' to say
-            // and to end; nothing here calls it stuck.
-            if record
-                .attention
-                .as_ref()
-                .is_some_and(|reason| reason.rule == TOOL_ASKS)
-            {
+            let cpu_pct = live
+                .get(&record.id.to_string())
+                .and_then(|stats| stats.cpu_pct);
+            let now = Timestamp::now().millis();
+            let Some(inputs) = heuristic_inputs(state, &record, harness, cpu_pct, &adopted, now)
+            else {
                 engine.forget(&record.id);
                 continue;
-            }
-            // A tool with no state reports says through its adapter
-            // whether its last turn ended, from its own record (its store,
-            // event log or rollout): then it waits for the person,
-            // however quiet.
-            let turn_ended = waits_for_person(
-                record.transcript_ref.is_some(),
-                harness
-                    .and_then(|harness| state.registry.get(harness))
-                    .zip(record.transcript_ref.as_ref())
-                    .and_then(|(adapter, transcript)| adapter.last_turn(&transcript.path)),
-            );
-            let inputs = juggler_supervisor::HeuristicInputs {
-                last_output_ms: state.supervisor.last_output_ms(&record.id),
-                cpu_pct: live
-                    .get(&record.id.to_string())
-                    .and_then(|stats| stats.cpu_pct),
-                transcript_mtime_ms,
-                prompt_alive: juggler_supervisor::prompt_alive(&tail),
-                turn_ended,
-                now_ms: now,
             };
+            let turn_ended = inputs.turn_ended;
             let provider_stuck_secs = harness
                 .and_then(|harness| state.provider_stuck_secs.get(harness.as_str()))
                 .copied();

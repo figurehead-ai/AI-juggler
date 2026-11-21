@@ -1124,7 +1124,11 @@ fn seed_lab(
         // The M4 walk on P1S6 (rc33): a seeded session had no conversation,
         // so "Continue in another app" rightly refused it. `conversation =
         // true` gives it one in its tool's own format.
-        if session["conversation"].as_bool() == Some(true) {
+        // AJ-E2312 (K3's "may be stuck"): `open_turn = true` gives it one
+        // whose last turn started and never ended, quiet since.
+        if session["conversation"].as_bool() == Some(true)
+            || session["open_turn"].as_bool() == Some(true)
+        {
             let (account, _) = &recipes[session["app"].as_str().unwrap()];
             lab_conversation(&state, &session, account, &mut notes);
         }
@@ -1250,6 +1254,7 @@ fn seed_lab(
                     ago_minutes: *ago_minutes,
                     // Every third of each App's (they take turns).
                     titled: (n / terminal.len()).is_multiple_of(3),
+                    open_turn: false,
                 },
                 account,
                 &mut notes,
@@ -1477,10 +1482,14 @@ fn lab_conversation(
         return;
     }
     // Persona D3: its title and what was said, and when it ended (a
-    // session from `days_ago` ended half an hour after it started).
-    let ago_minutes = session["days_ago"]
-        .as_u64()
-        .map_or(0, |days| (days * 24 * 60).saturating_sub(30));
+    // session from `days_ago` ended half an hour after it started). An
+    // open turn has been quiet longer than "Stuck after" (5 min by
+    // default): [`OPEN_TURN_QUIET_MINUTES`].
+    let open_turn = session["open_turn"].as_bool() == Some(true);
+    let ago_minutes = session["days_ago"].as_u64().map_or(
+        if open_turn { OPEN_TURN_QUIET_MINUTES } else { 0 },
+        |days| (days * 24 * 60).saturating_sub(30),
+    );
     lab_talk(
         state,
         &LabTalk {
@@ -1491,6 +1500,7 @@ fn lab_conversation(
             said: session["said"].as_str(),
             ago_minutes,
             titled: session["title"].is_string(),
+            open_turn,
         },
         account,
         notes,
@@ -1539,7 +1549,14 @@ struct LabTalk<'a> {
     said: Option<&'a str>,
     ago_minutes: u64,
     titled: bool,
+    /// Its last turn started and never ended (`replica.py conversation
+    /// --open-turn`): Claude Code only.
+    open_turn: bool,
 }
+
+/// How long an open turn has been quiet at the seed: past "Stuck after"'s
+/// default five minutes, so "may be stuck" is due once the lab opens.
+const OPEN_TURN_QUIET_MINUTES: u64 = 10;
 
 /// The tool scenario Account `account` runs (`claude-code`, `codex`, …).
 fn lab_tool(state: &Arc<AppState>, account: &str) -> String {
@@ -1611,6 +1628,9 @@ fn lab_talk(state: &Arc<AppState>, talk: &LabTalk<'_>, account: &str, notes: &mu
     let untitled = !talk.titled && tool == "claude-code";
     if untitled {
         args.push("--untitled".into());
+    }
+    if talk.open_turn && tool == "claude-code" {
+        args.push("--open-turn".into());
     }
     let written = replica(&args);
     let path = PathBuf::from(written["path"].as_str().unwrap());
@@ -3244,6 +3264,91 @@ fn pl1s_lab_holds_the_six_shapes() {
             "{id}: {notes:?}"
         );
     }
+}
+
+/// AJ-E2312 item 8 (SK48-7, K3's step 1d): K3's "stuck" session was a
+/// process with no conversation, which the app rightly never calls stuck
+/// (it waits at its prompt), so "may be stuck" couldn't be walked. Seeded
+/// now with `open_turn`, its conversation's last turn started and never
+/// ended (an ask, a tool call with no result), quiet past "Stuck after";
+/// picked up when the app opens, the app's own rule calls it probably
+/// stuck once two looks 30 s apart agree. (A picked-up session's output
+/// isn't read: its transcript's last write is its last sign of work.)
+#[cfg(unix)]
+#[test]
+fn k3s_stuck_session_has_an_open_turn_the_apps_rule_calls_stuck() {
+    let mut k3 = scenario_seed("K3");
+    // Its stuck session alone: the walk's other rows aren't this check's.
+    let stuck: Vec<Value> = k3["sessions"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|session| session["id"] == "stuck")
+        .cloned()
+        .collect();
+    assert_eq!(stuck[0]["open_turn"], Value::Bool(true), "K3 seeds it so");
+    k3["sessions"] = Value::Array(stuck);
+    k3["ended_sessions"] = Value::from(0);
+    let (lab, state, notes) = seeded_with_notes(&k3, "k3-stuck");
+    let id = SessionId::new("stuck");
+    let record = state.storage.lock().unwrap().sessions().get(&id).unwrap();
+    let transcript = record
+        .transcript_ref
+        .clone()
+        .unwrap_or_else(|| panic!("its conversation is linked: {notes:?}"))
+        .path;
+    let lines: Vec<Value> = std::fs::read_to_string(&transcript)
+        .unwrap()
+        .lines()
+        .map(|line| serde_json::from_str(line).unwrap())
+        .collect();
+    let (ask, call) = (&lines[lines.len() - 2], &lines[lines.len() - 1]);
+    assert_eq!(ask["type"], "user", "the turn's ask");
+    assert_eq!(call["message"]["stop_reason"], "tool_use", "a tool call…");
+    assert_eq!(call["parentUuid"], ask["uuid"], "…of that turn, never answered");
+    let written = std::fs::metadata(&transcript)
+        .unwrap()
+        .modified()
+        .unwrap()
+        .elapsed()
+        .unwrap();
+    assert!(
+        written >= std::time::Duration::from_secs(9 * 60),
+        "quiet past Stuck after: {written:?}"
+    );
+    drop(state);
+
+    // The lab opens: its session is picked up running, its turn open.
+    let reopened = Arc::new(
+        AppState::init_with_registry(lab.path().join("data"), default_registry()).unwrap(),
+    );
+    assert!(
+        reopened.supervisor.alive_adopted_sessions().contains(&id),
+        "picked up again"
+    );
+    // "Stuck after" short (1 min): its transcript is 10 min quiet anyway.
+    reopened
+        .heuristics
+        .set_thresholds(juggler_app::settings_policy::thresholds_with_stuck_after(
+            reopened.heuristics.thresholds(),
+            1,
+        ));
+    let now = Timestamp::now().millis();
+    let inputs = |at: i64| {
+        juggler_app::features::sessions::attention::heuristic_inputs_now(&reopened, &id, at)
+            .expect("the stuck rule reads it")
+    };
+    assert!(!inputs(now).turn_ended, "its turn is open");
+    assert!(
+        reopened.heuristics.evaluate(&id, &inputs(now)).is_none(),
+        "one look is no proof (debounce)"
+    );
+    let stuck = reopened
+        .heuristics
+        .evaluate(&id, &inputs(now + 31_000))
+        .expect("probably stuck, the second look 30 s on");
+    assert_eq!(stuck.status, SessionStatus::Stuck);
+    assert_eq!(stuck.reason.rule, "stuck_no_output");
 }
 
 /// The rc37 persona walks: PD4's working sessions and PM4's writer read
