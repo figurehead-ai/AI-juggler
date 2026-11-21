@@ -9,7 +9,8 @@
  * The app's Disclosure, a button an accessibility press opens (the 0.4.6
  * rc2 walk P9), kept by its card: it opens by itself when the limit hits.
  */
-import { useState, type JSX, type ReactNode } from "react";
+import type { JSX, ReactNode } from "react";
+import { useClock } from "../lib/clock";
 import { Disclosure } from "./controls";
 import { ownQuietLine, useOwnRoomNotices } from "../lib/own-room-notices";
 
@@ -25,7 +26,7 @@ export function ContinueFold({ open, onToggle, testId, children }: { open: boole
  * resets at 3:10 PM"; nothing while its account has room. */
 export function AccountRoomLine({ accountId }: { accountId: string | null }): JSX.Element | null {
   const [notice] = useOwnRoomNotices(accountId || null);
-  const [now] = useState(() => Date.now());
+  const now = useClock(); // SK48-6: the app's one clock
   if (!notice) return null;
   return (
     <p className="text-meta leading-[1.5] text-muted" data-testid="continue-account-room">

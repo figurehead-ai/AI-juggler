@@ -1,7 +1,7 @@
 /**
  * The shell's clock and the rail's width (AJ-E2018: moved out of App).
  */
-import { everyWhileShown } from "../lib/shown-window";
+import { useClock } from "../lib/clock";
 import { useCallback, useEffect, useState } from "react";
 import { toggledDensity, type Density } from "../lib/density";
 import { useStoredDensity } from "../lib/use-density";
@@ -42,14 +42,9 @@ export function useRailDensity() {
   return { railDensity, toggleRail, cycleDensity };
 }
 
-/** The stale-data tick (AJ-E403 Req.5): ONE shared 15 s timer for the
- * whole app — staleness captions recompute against `now` without any
- * per-value timers. */
+/** The stale-data tick (AJ-E403 Req.5): the app's ONE shared clock
+ * (`lib/clock`), so staleness captions and every relative time move on
+ * the same tick, without any per-value timers. */
 export function useNow(): number {
-  const [now, setNow] = useState(() => Date.now());
-  useEffect(() => {
-    // only while the window is shown; at once when it's back (0.4.1)
-    return everyWhileShown(() => setNow(Date.now()), 15_000, { unfocusedTimes: 2 });
-  }, []);
-  return now;
+  return useClock();
 }
