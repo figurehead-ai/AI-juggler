@@ -334,16 +334,30 @@ def _has_table(db: sqlite3.Connection, name: str) -> bool:
     return db.execute("select 1 from sqlite_master where type = 'table' and name = ?", (name,)).fetchone() is not None
 
 
+WINDOW_MS = {"five_hour": 5 * 3_600_000, "weekly": 7 * 24 * 3_600_000}
+
+
+def reading_in_force(window: str, ts: int, resets: int | None, now_ms: int) -> bool:
+    """The app's rule (`juggler_core::quota::reading_window_ended`): a
+    reading describes its window until that window's reset, or, with no
+    reset known, until a whole window has passed since it was taken. A
+    five-hour reading at 100% from 15 hours ago is history, not "out"
+    (0.4.8's presence run: the checker held such a reading as out forever,
+    while the app, rightly, drew no Out mark)."""
+    return resets > now_ms if resets is not None else now_ms - ts < WINDOW_MS[window]
+
+
 def out_accounts(db: sqlite3.Connection, now_ms: int) -> set[str]:
     """AJ-E3210 (D-135): the Apps whose own Account is out, by App id (a
     folder no Account lists, by its folder id). An Account is out when its
-    newest measured five-hour or weekly reading, wherever it was read, is at
-    100% and not past its reset (the newest is the truth: a lower one after
-    a 100% means the window ended early). A reading is the Account it was
-    read under (V55's tag), else its folder's. An App is on its own
-    Account: a desktop App its records' (`app_accounts`), a CLI App its
-    folder's; so a Claude app profile out never marks its CLI on another
-    Account, nor the other way."""
+    newest measured five-hour or weekly reading, wherever it was read, is
+    used up (no whole percent left, `quota::used_up`) and still in force
+    (`reading_in_force`; the newest is the truth: a lower one after a 100%
+    means the window ended early). A reading is the Account it was read
+    under (V55's tag), else its folder's. An App is on its own Account: a
+    desktop App its records' (`app_accounts`), a CLI App its folder's; so a
+    Claude app profile out never marks its CLI on another Account, nor the
+    other way."""
     subs = dict(db.execute("select id, subscription_id from accounts"))
     tagged = _has_table(db, "quota_sample_sign_ins")
     rows = db.execute(
@@ -358,7 +372,15 @@ def out_accounts(db: sqlite3.Connection, now_ms: int) -> set[str]:
         whose = under or subs.get(folder) or f"folder:{folder}"
         if (whose, window) not in newest or ts > newest[(whose, window)][0]:
             newest[(whose, window)] = (ts, used, resets)
-    out = {whose for (whose, _), (_, used, resets) in newest.items() if used >= 100 and (resets is None or resets > now_ms)}
+    out = {
+        whose
+        for (whose, window), (ts, used, resets) in newest.items()
+        if round(100 - used) <= 0 and reading_in_force(window, ts, resets, now_ms)
+    }
+    if not _has_table(db, "apps"):
+        # A data folder from before Apps were stored (0.4's shape): by
+        # folder, every folder of an out subscription out (0.4.8's rule).
+        return {folder for folder, sub in subs.items() if sub in out} | {folder for folder in subs if f"folder:{folder}" in out}
     own = dict(db.execute("select app_id, subscription_id from app_accounts")) if _has_table(db, "app_accounts") else {}
     apps: set[str] = set()
     for app_id, kind, folder in db.execute("select id, kind, folder_id from apps"):
@@ -623,6 +645,27 @@ def check(
     return lines + more_lines, problems + more
 
 
+def selftest_out_accounts() -> None:
+    """0.4.8: a used-up reading with no reset known is out only for one
+    window's length; with a reset, until it."""
+    hour, now = 3_600_000, 100 * 24 * 3_600_000
+    db = sqlite3.connect(":memory:")
+    db.execute("create table quota_samples (account text, window text, used_pct real, resets_at integer, ts integer)")
+    db.execute("create table accounts (id text, subscription_id text)")
+    db.executemany("insert into quota_samples values (?, ?, ?, ?, ?)", [
+        ("e", "five_hour", 100.0, None, now - 15 * hour),  # 15 h ago, no reset: history
+        ("e", "weekly", 61.0, None, now - 15 * hour),
+        ("f", "five_hour", 100.0, None, now - 2 * hour),  # 2 h ago, no reset: out
+        ("g", "weekly", 100.0, now + hour, now - 3 * 24 * hour),  # resets in an hour: out
+        ("h", "weekly", 100.0, now - hour, now - 2 * 24 * hour),  # its reset has passed
+        ("i", "five_hour", 99.6, None, now - hour),  # "0% left" on every screen
+        ("j", "five_hour", 100.0, None, now - 2 * hour), ("j", "five_hour", 40.0, None, now - hour),  # the newest is the truth
+    ])
+    db.executemany("insert into accounts values (?, ?)", [(x, f"sub-{x}") for x in "efghij"] + [("g2", "sub-g")])
+    got = out_accounts(db, now)
+    assert got == {"f", "g", "g2", "i"}, got
+
+
 def selftest() -> None:
     """The parser reads 0.4.2's and 0.4.3's rails."""
     old = [
@@ -653,6 +696,7 @@ def selftest() -> None:
     _, problems = check(parse_rail(old), [east], {"f-east"}, 2)
     assert any("no Out mark" in p for p in problems) and any("lab run" in p for p in problems), problems
     selftest_d102()
+    selftest_out_accounts()
     selftest_046()
     selftest_split()
     print("presence_sessions: selftest passed")
