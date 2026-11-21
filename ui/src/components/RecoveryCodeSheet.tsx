@@ -9,6 +9,8 @@ import { useEffect, useRef, useState, type JSX } from "react";
 import { errorText } from "../lib/bridge";
 import { vaultConfirmSaved, vaultSaveCode, vaultSetup } from "../lib/ipc/vault";
 import { Checkbox } from "./controls";
+import { DialogFrame, DialogOverlay } from "./DialogFrame";
+import { Button } from "./primitives";
 
 export function RecoveryCodeSheet({ onClose }: { onClose: (saved: boolean) => void }): JSX.Element {
   const [code, setCode] = useState<string | null>(null);
@@ -54,18 +56,33 @@ export function RecoveryCodeSheet({ onClose }: { onClose: (saved: boolean) => vo
     }
   };
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6 backdrop-blur-sm">
-      <div
+    <DialogOverlay className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+      <DialogFrame
         role="dialog"
         aria-modal="true"
         aria-labelledby="recovery-title"
         aria-describedby="recovery-warning"
         data-testid="recovery-sheet"
-        className="flex w-full max-w-lg flex-col gap-3 rounded-xl border border-hairline bg-surface p-5 shadow-card"
+        className="w-full max-w-lg rounded-xl border border-hairline bg-surface shadow-card"
+        headerClassName="px-5 pt-5"
+        bodyClassName="flex flex-col gap-3 px-5 pt-3 pb-3"
+        footerClassName="px-5 pt-3 pb-5"
+        header={
+          <h3 id="recovery-title" className="text-sm font-semibold">
+            Save your recovery code
+          </h3>
+        }
+        footer={
+          <div className="flex justify-end gap-2">
+            <Button size="sm" variant="ghost" onClick={() => onClose(false)}>
+              Later — no backups until then
+            </Button>
+            <Button size="sm" variant="primary" disabled={!saved || !code} onClick={() => void done()} data-testid="recovery-done">
+              Start backups
+            </Button>
+          </div>
+        }
       >
-        <h3 id="recovery-title" className="text-sm font-semibold">
-          Save your recovery code
-        </h3>
         <p className="text-label text-ink">
           Your Cloud backups are encrypted on this computer with a key only you have. Figurehead can't read them. This code is
           that key: you'll need it to open your backups on a new Mac.
@@ -130,24 +147,7 @@ export function RecoveryCodeSheet({ onClose }: { onClose: (saved: boolean) => vo
             {error}
           </p>
         )}
-        <div className="flex justify-end gap-2">
-          <button type="button" onClick={() => onClose(false)} className="rounded-lg border border-hairline px-3 py-1.5 text-xs text-ink">
-            Later — no backups until then
-          </button>
-          <button
-            type="button"
-            disabled={!saved || !code}
-            onClick={() => void done()}
-            className={
-              "rounded-lg border px-3 py-1.5 text-xs font-medium " +
-              (saved && code ? "border-accent/60 text-ink" : "border-hairline text-muted")
-            }
-            data-testid="recovery-done"
-          >
-            Start backups
-          </button>
-        </div>
-      </div>
-    </div>
+      </DialogFrame>
+    </DialogOverlay>
   );
 }

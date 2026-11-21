@@ -83,8 +83,8 @@ describe("Move to account", () => {
     window.__AIJ_MOVE_OFFER__ = OFFER;
     const view = mount();
     await waitFor(() => expect(view.getByTestId("switch-move")).toBeTruthy());
-    expect(view.getByTestId("switch-how-move")).toHaveProperty("checked", true);
-    expect(view.getByTestId("switch-move-what").textContent).toContain("the conversation and its 1 session (1.2 GB)");
+    expect(view.getByRole("radio", { name: /^Move/ })).toHaveProperty("checked", true);
+    expect(view.getByTestId("switch-move-what").textContent).toContain("The conversation and its 1 session · 1.2 GB");
     expect(view.getByTestId("switch-move-original").textContent).toContain("no longer lists it");
     expect(view.getByTestId("switch-move-restart").textContent).toContain("Claude app · Work and Claude app · Personal quit and start again. Anything running in them stops");
     expect(view.getByTestId("switch-move-model").textContent).toContain("AI Juggler sends no message");
@@ -98,7 +98,7 @@ describe("Move to account", () => {
     window.__AIJ_MOVE_OFFER__ = OFFER;
     const view = mount();
     await waitFor(() => expect(view.getByTestId("switch-move")).toBeTruthy());
-    fireEvent.click(view.getByTestId("switch-how-copy"));
+    fireEvent.click(view.getByRole("radio", { name: /^Copy/ }));
     await waitFor(() => expect(view.getByTestId("switch-confirm")).toBeTruthy());
     expect(view.queryByTestId("switch-move")).toBeNull();
     expect(view.getByTestId("switch-how")).toBeTruthy();
@@ -108,7 +108,7 @@ describe("Move to account", () => {
     window.__AIJ_MOVE_OFFER__ = OFFER;
     const view = mount();
     await waitFor(() => expect(view.getByTestId("switch-move")).toBeTruthy());
-    fireEvent.click(view.getByTestId("switch-how-copy"));
+    fireEvent.click(view.getByRole("radio", { name: /^Copy/ }));
     await waitFor(() => expect(view.getByTestId("switch-confirm")).toBeTruthy());
     expect(view.getByTestId("switch-how-copy").closest("label")?.textContent).toContain("A copy continues on Personal.");
     expect(view.getByTestId("switch-how").textContent).not.toMatch(/original/i);
@@ -136,7 +136,9 @@ describe("Move to account", () => {
     };
     const view = mount();
     await waitFor(() => expect(view.getByTestId("switch-how")).toBeTruthy());
-    expect(view.getByRole("radio", { name: /Move to account/ })).toHaveProperty("disabled", true);
+    expect(view.getByRole("radio", { name: /^Move/ })).toHaveProperty("disabled", true);
+    // Faded, how it clears said on the card, and no "Recommended" (D-127).
+    expect(view.getByTestId("switch-how-move").textContent).not.toContain("Recommended");
     expect(view.getByTestId("switch-how").textContent).toContain(
       "2 sessions are working in Claude app · Work; Move becomes available once they finish.",
     );
@@ -197,5 +199,52 @@ describe("Move to account", () => {
     await waitFor(() => expect(view.getByTestId("switch-moved-undo")).toBeTruthy());
     fireEvent.click(view.getByTestId("switch-moved-undo"));
     await waitFor(() => expect(view.getByTestId("switch-moved-undo-said").textContent).toContain("Undone"));
+  });
+
+  // D-142 (DESIGN-SYSTEM §8): the header names the App, from → to; the
+  // choice first, Move recommended once; what happens as four fact rows;
+  // the restart as a needs-you Alert; the family behind a disclosure with
+  // its tags; the serious choice explained, with the guide.
+  it("is built to the design system's worked example", async () => {
+    window.__AIJ_MOVE_OFFER__ = { ...OFFER, notes_conflict: "notes differ" };
+    const view = mount();
+    await waitFor(() => expect(view.getByTestId("switch-move")).toBeTruthy());
+    const header = view.getByTestId("switch-header");
+    expect(view.getByTestId("switch-move-title").textContent).toBe("Continue on Claude app · Personal");
+    expect(header.contains(view.getByTestId("switch-move-title"))).toBe(true);
+    expect(view.getByTestId("switch-move-strip").textContent).toMatch(/Claude app · Work.*to.*Claude app · Personal/);
+    // The choice is the body's first part, never in the header.
+    const body = view.getByTestId("switch-body");
+    expect(body.contains(view.getByRole("radiogroup", { name: "How it continues" }))).toBe(true);
+    expect(view.getAllByText("Recommended")).toHaveLength(1);
+    expect(view.getByTestId("switch-how-move").textContent).toContain("No extra space");
+    expect(view.getByTestId("switch-how-copy").textContent).toContain("Uses 1.2 GB");
+    // What happens: Moves, Original, Restarts, After.
+    for (const id of ["switch-move-what", "switch-move-original", "switch-move-restarts", "switch-move-model"]) expect(view.getByTestId(id)).toBeTruthy();
+    expect(view.getByTestId("switch-move-restart").getAttribute("data-level")).toBe("needs-you");
+    // The family, each with its tags; the tool output left behind with it.
+    const members = view.getAllByTestId("switch-move-member");
+    expect(members).toHaveLength(3);
+    expect(members[2]!.textContent).toMatch(/Already on Personal.*Archived.*Folder gone/);
+    expect(view.getByTestId("switch-move-family").contains(view.getByTestId("switch-move-outputs"))).toBe(true);
+    expect(view.getByRole("checkbox", { name: /Use this conversation's project notes on Personal/ })).toBeTruthy();
+    expect(view.getByTestId("switch-move-explain")).toBeTruthy();
+    // One filled primary, last, naming its outcome.
+    const footer = view.getByTestId("switch-footer");
+    const buttons = [...footer.querySelectorAll("button")];
+    expect(buttons.at(-1)!.textContent).toBe("Move to Personal");
+    expect(buttons.at(-1)!.hasAttribute("data-primary")).toBe(true);
+    expect(view.getByTestId("switch-flow").querySelectorAll("[data-primary]")).toHaveLength(1);
+  });
+
+  it("keeps its way out at the foot: the actions in the fixed footer, outside the body that scrolls", async () => {
+    window.__AIJ_MOVE_OFFER__ = OFFER;
+    const view = mount();
+    await waitFor(() => expect(view.getByTestId("switch-move-confirm")).toBeTruthy());
+    const body = view.getByTestId("switch-body");
+    expect(body.getAttribute("data-dialog-part")).toBe("body");
+    expect(view.getByTestId("switch-footer").getAttribute("data-dialog-part")).toBe("footer");
+    expect(body.contains(view.getByTestId("switch-move-confirm"))).toBe(false);
+    expect(body.contains(view.getByTestId("switch-cancel"))).toBe(false);
   });
 });

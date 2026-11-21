@@ -17,6 +17,7 @@ import { IconDownload, IconLock } from "./model-icons";
 import { ModelTile } from "./ModelParts";
 import { jobsOf, type ModelTag } from "./models-view";
 import { APPROVAL, DOWNLOAD, JOB_NAMES, OTHERS, gb, listWords } from "./models-words";
+import { DialogOverlay } from "../../../components/DialogFrame";
 
 const NOW_FILL = "bg-accent-fill";
 const ADDED_FILL = "bg-[color-mix(in_srgb,var(--color-accent)_45%,var(--color-surface-3))]";
@@ -75,16 +76,17 @@ export function ApprovalDialog({
   const after = totalNow + size;
   const adds = jobsOf(model).passed.map((job) => JOB_NAMES[job]);
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-canvas/70 p-6 backdrop-blur-sm">
+    <DialogOverlay>
       <dialog
         ref={dialog}
         open
         aria-modal="true"
         aria-labelledby={titleId}
-        className="relative m-0 flex w-full max-w-[560px] flex-col overflow-hidden rounded-2xl border-0 bg-surface p-0 text-ink shadow-[0_24px_64px_-12px_rgba(0,0,0,.55)] inset-ring-1 inset-ring-hairline/75"
+        className="relative m-0 flex max-h-[min(92vh,760px,calc(100vh_-_2rem))] w-full max-w-[560px] flex-col overflow-hidden rounded-2xl border-0 bg-surface p-0 text-ink shadow-[0_24px_64px_-12px_rgba(0,0,0,.55)] inset-ring-1 inset-ring-hairline/75"
         data-testid="models-approval"
+        data-dialog-frame
       >
-        <div className="flex items-center gap-3 px-5 pt-5">
+        <div className="flex shrink-0 items-center gap-3 px-5 pt-5" data-dialog-part="header">
           <span aria-hidden="true" className="flex size-9 items-center justify-center rounded-[10px] bg-[color-mix(in_srgb,var(--color-accent)_16%,var(--color-surface))] text-accent-hi">
             <IconDownload width={18} height={18} />
           </span>
@@ -98,7 +100,8 @@ export function ApprovalDialog({
             <IconClose width={18} height={18} aria-hidden="true" />
           </button>
         </div>
-        <div className="flex flex-col gap-4 px-5 pt-3.5 pb-5">
+        {/* 0.5.0 (DialogFrame.tsx): only the body scrolls; the header and the buttons stay. */}
+        <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-5 pt-3.5 pb-5" data-dialog-part="body">
           <div className="flex items-center gap-3 rounded-xl bg-surface-2 px-3.5 py-3">
             <ModelTile model={model} />
             <div className="flex min-w-0 flex-1 flex-col gap-px">
@@ -129,7 +132,7 @@ export function ApprovalDialog({
             <p className="mt-1.5 pl-5 text-meta text-muted">{APPROVAL.changes}</p>
           </Disclosure>
         </div>
-        <div className="flex items-center gap-2.5 border-t border-divider px-5 py-3.5">
+        <div className="flex shrink-0 items-center gap-2.5 border-t border-divider px-5 py-3.5" data-dialog-part="footer">
           <span className="flex-1 text-label text-faint">{APPROVAL.asked}</span>
           <Button variant="ghost" onClick={onNotNow} data-autofocus data-testid="models-approval-not-now">
             {APPROVAL.notNow}
@@ -140,6 +143,6 @@ export function ApprovalDialog({
           </Button>
         </div>
       </dialog>
-    </div>
+    </DialogOverlay>
   );
 }

@@ -15,6 +15,7 @@ import { fleetAccountMacs, fleetAccountPin } from "../lib/ipc/cloud-backup";
 import type { AccountMacInfo } from "../types/generated/AccountMacInfo";
 import type { AccountMacsInfo } from "../types/generated/AccountMacsInfo";
 import { Checkbox } from "./controls";
+import { DialogFrame, DialogOverlay } from "./DialogFrame";
 
 const STATE_WORDS: Record<string, string> = {
   not_paired: "Not paired",
@@ -138,17 +139,41 @@ function CompareSheet({
     }
   };
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6 backdrop-blur-sm">
-      <div
+    <DialogOverlay className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+      <DialogFrame
         role="dialog"
         aria-modal="true"
         aria-labelledby="compare-title"
         data-testid="account-compare"
-        className="flex w-full max-w-lg flex-col gap-3 rounded-xl border border-hairline bg-surface p-5 shadow-card"
+        className="w-full max-w-lg rounded-xl border border-hairline bg-surface shadow-card"
+        headerClassName="px-5 pt-5"
+        bodyClassName="flex flex-col gap-3 px-5 pt-3 pb-3"
+        footerClassName="px-5 pt-3 pb-5"
+        header={
+          <h3 id="compare-title" className="text-sm font-semibold">
+            Pair with {mac.name || "this Mac"}
+          </h3>
+        }
+        footer={
+          <div className="flex justify-end gap-2">
+            <button type="button" onClick={() => onClose(false)} className="rounded-lg border border-hairline px-3 py-1.5 text-xs text-ink">
+              Cancel
+            </button>
+            <button
+              type="button"
+              disabled={!match}
+              onClick={() => void pair()}
+              className={
+                "rounded-lg border px-3 py-1.5 text-xs font-medium " +
+                (match ? "border-accent/60 text-ink" : "border-hairline text-muted")
+              }
+              data-testid="compare-pair"
+            >
+              Pair (View only)
+            </button>
+          </div>
+        }
       >
-        <h3 id="compare-title" className="text-sm font-semibold">
-          Pair with {mac.name || "this Mac"}
-        </h3>
         <p className="text-label text-ink">
           Open Fleet on {mac.name || "the other Mac"} too. Both Macs show the same two fingerprints — check they match,
           then confirm on each.
@@ -180,24 +205,7 @@ function CompareSheet({
             {error}
           </p>
         )}
-        <div className="flex justify-end gap-2">
-          <button type="button" onClick={() => onClose(false)} className="rounded-lg border border-hairline px-3 py-1.5 text-xs text-ink">
-            Cancel
-          </button>
-          <button
-            type="button"
-            disabled={!match}
-            onClick={() => void pair()}
-            className={
-              "rounded-lg border px-3 py-1.5 text-xs font-medium " +
-              (match ? "border-accent/60 text-ink" : "border-hairline text-muted")
-            }
-            data-testid="compare-pair"
-          >
-            Pair (View only)
-          </button>
-        </div>
-      </div>
-    </div>
+      </DialogFrame>
+    </DialogOverlay>
   );
 }

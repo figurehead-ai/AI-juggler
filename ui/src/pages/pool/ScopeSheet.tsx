@@ -35,7 +35,18 @@ export function ScopeSheet({ pool, projects, open, onClose }: { pool: PoolInfo; 
     }
   };
   return (
-    <Modal title="Where it works" subtitle="Agents see only this pool's projects. An App, Account or Tool brings in only its sessions here." onClose={onClose} wide testId="scope-sheet">
+    <Modal title="Where it works" subtitle="Agents see only this pool's projects. An App, Account or Tool brings in only its sessions here." onClose={onClose} wide testId="scope-sheet"
+      footer={
+        <>
+            <Button variant="ghost" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button variant="primary" disabled={busy || (!every && picked.length === 0)} onClick={() => void save()} data-testid="scope-sheet-save">
+              Save
+            </Button>
+        </>
+      }
+    >
       <div className="flex flex-col gap-3">
         <Segmented
           label="Where it works"
@@ -73,14 +84,6 @@ export function ScopeSheet({ pool, projects, open, onClose }: { pool: PoolInfo; 
             />
           </div>
         )}
-        <div className="flex justify-end gap-2">
-          <Button variant="ghost" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button variant="primary" disabled={busy || (!every && picked.length === 0)} onClick={() => void save()} data-testid="scope-sheet-save">
-            Save
-          </Button>
-        </div>
       </div>
     </Modal>
   );

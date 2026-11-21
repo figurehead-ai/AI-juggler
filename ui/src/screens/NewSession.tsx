@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ariaOf, keysOf } from "../lib/shortcuts";
 import { useEscapeCloses } from "../lib/use-escape-closes";
-import { Button, Card } from "../components/primitives";
+import { Button } from "../components/primitives";
 import { IconTerminal } from "../components/icons";
 import { launchSession } from "../lib/ipc/launch";
 import { projectSetDefaultAccount } from "../lib/ipc/accounts";
@@ -27,6 +27,7 @@ import { useNewSessionData } from "./new-session/useNewSessionData";
 import { folderName, StatedChoice } from "./new-session/StatedChoice";
 import { MoreOptions } from "./new-session/MoreOptions";
 import { useAppPick } from "./new-session/useAppPick";
+import { DialogFrame, DialogOverlay } from "../components/DialogFrame";
 
 const FOCUSABLE = "button:not(:disabled), a[href], input, summary, [tabindex]:not([tabindex='-1'])";
 
@@ -295,7 +296,7 @@ export function NewSessionModal({
   if (where.machine) return <RemoteSessionSheet where={where} onClose={onClose} />;
   const startWords = folder ? `Start in ${folderName(folder)}` : appName ? `Start on ${appName}` : "Start";
   return (
-    <div
+    <DialogOverlay
       ref={sheetRef}
       role="dialog"
       aria-modal="true"
@@ -304,82 +305,18 @@ export function NewSessionModal({
       // AJ-E2311 item 2: held at the top, not centred, so a line that
       // comes in a read later grows it downward and never moves the
       // choice under the pointer.
-      className="fixed inset-0 z-50 flex items-start justify-center bg-black/60 p-6 pt-[8vh] backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-start justify-center bg-black/60 p-4 pt-[8vh] backdrop-blur-sm"
     >
-      <Card className="flex max-h-[86vh] w-full max-w-xl flex-col overflow-hidden p-0">
-        <div className="flex items-center gap-3 border-b border-hairline/60 px-6 py-4">
-          <span className="text-accent-hi">
-            <IconTerminal width={16} height={16} />
-          </span>
-          <h3 className="text-sm font-semibold">New session</h3>
-        </div>
-
-        <div
-          className={"min-h-0 flex-1 overflow-y-auto px-6 py-5 " + (dragging ? "bg-accent-soft/40 outline-dashed outline-1 -outline-offset-8 outline-accent/60" : "")}
-          data-testid="new-session-drop"
-          {...zone}
-        >
-          {pack.opened && (
-            <div className="mb-4">
-              <PackPicker pack={pack} />
-            </div>
-          )}
-          <StatedChoice
-            folder={folder}
-            app={app}
-            data={data}
-            ranked={ranked}
-            projects={projects}
-            recent={recent}
-            handover={pack.opened !== null}
-            now={now}
-            suggestion={suggestion}
-            told={choice.told}
-            acted={choice.acted}
-            onFolder={changeFolder}
-            onApp={pickApp}
-            onAlways={(id) => void setDefault(id)}
-            onSignIn={async (id, name) => {
-              const terminal = await terminalSpawnLogin(id);
-              openLoginTerminal?.(terminal.id, `Sign in · ${name}`, { account: id });
-            }}
-            onAddApp={onManageLaunchSettings}
-            sessionName={sessionName}
-            after={after?.name ?? null}
-          />
-          {/* Its own place: More options is folded by default. */}
-          {runtimePick.trustElement}
-          <MoreOptions
-            recipe={recipe}
-            settings={settings}
-            onSettings={setChosenSettings}
-            runtime={runtimePick.runtime}
-            runtimeElement={runtimePick.element}
-            where={where}
-            pack={pack}
-            advice={recipe ? data.adviceOf(recipe.id) : undefined}
-            sessionName={sessionName}
-            folders={accounts}
-            onManageLaunchSettings={onManageLaunchSettings}
-          />
-          {error && (
-            <div role="alert" className="mt-3 flex flex-wrap items-baseline gap-x-3 gap-y-1 text-xs text-danger" data-testid="launch-error">
-              <span>{error}</span>
-              {failure && (
-                <button
-                  type="button"
-                  onClick={() => openReportBug(failure)}
-                  className="rounded text-ink underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
-                  data-testid="launch-report-bug"
-                >
-                  Report a bug…
-                </button>
-              )}
-            </div>
-          )}
-        </div>
-
-        <div className="flex items-center justify-end gap-2 border-t border-hairline/60 bg-surface-2 px-6 py-4">
+      <DialogFrame
+        className="sheen rounded-card border border-hairline bg-surface shadow-card w-full max-w-xl"
+        headerClassName="flex items-center gap-3 px-6 py-4"
+        header={<><IconTerminal width={16} height={16} className="text-accent-hi" /><h3 className="text-sm font-semibold">New session</h3></>}
+        bodyClassName={"px-6 py-5 " + (dragging ? "bg-accent-soft/40 outline-dashed outline-1 -outline-offset-8 outline-accent/60" : "")}
+        bodyTestId="new-session-drop"
+        bodyProps={zone}
+        footerClassName="flex items-center justify-end gap-2 bg-surface-2 px-6 py-4"
+        footer={
+          <>
           <Button size="sm" variant="secondary" onClick={onClose}>
             Cancel
           </Button>
@@ -390,8 +327,68 @@ export function NewSessionModal({
               {keysOf("page-action")[0]}
             </kbd>
           </Button>
-        </div>
-      </Card>
-    </div>
+          </>
+        }
+      >
+        {pack.opened && (
+          <div className="mb-4">
+            <PackPicker pack={pack} />
+          </div>
+        )}
+        <StatedChoice
+          folder={folder}
+          app={app}
+          data={data}
+          ranked={ranked}
+          projects={projects}
+          recent={recent}
+          handover={pack.opened !== null}
+          now={now}
+          suggestion={suggestion}
+          told={choice.told}
+          acted={choice.acted}
+          onFolder={changeFolder}
+          onApp={pickApp}
+          onAlways={(id) => void setDefault(id)}
+          onSignIn={async (id, name) => {
+            const terminal = await terminalSpawnLogin(id);
+            openLoginTerminal?.(terminal.id, `Sign in · ${name}`, { account: id });
+          }}
+          onAddApp={onManageLaunchSettings}
+          sessionName={sessionName}
+          after={after?.name ?? null}
+        />
+        {/* Its own place: More options is folded by default. */}
+        {runtimePick.trustElement}
+        <MoreOptions
+          recipe={recipe}
+          settings={settings}
+          onSettings={setChosenSettings}
+          runtime={runtimePick.runtime}
+          runtimeElement={runtimePick.element}
+          where={where}
+          pack={pack}
+          advice={recipe ? data.adviceOf(recipe.id) : undefined}
+          sessionName={sessionName}
+          folders={accounts}
+          onManageLaunchSettings={onManageLaunchSettings}
+        />
+        {error && (
+          <div role="alert" className="mt-3 flex flex-wrap items-baseline gap-x-3 gap-y-1 text-xs text-danger" data-testid="launch-error">
+            <span>{error}</span>
+            {failure && (
+              <button
+                type="button"
+                onClick={() => openReportBug(failure)}
+                className="rounded text-ink underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
+                data-testid="launch-report-bug"
+              >
+                Report a bug…
+              </button>
+            )}
+          </div>
+        )}
+      </DialogFrame>
+    </DialogOverlay>
   );
 }

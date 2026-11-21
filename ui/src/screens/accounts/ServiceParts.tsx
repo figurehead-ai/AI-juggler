@@ -71,7 +71,18 @@ export function ReplaceKeyModal({ profileId, service, onClose, onDone }: { profi
     }
   };
   return (
-    <Modal title={`New key · ${service.name}`} subtitle="Every app on this account starts with it from now on." onClose={onClose} testId="service-key-modal">
+    <Modal title={`New key · ${service.name}`} subtitle="Every app on this account starts with it from now on." onClose={onClose} testId="service-key-modal"
+      footer={
+        <>
+            <Button size="sm" variant="secondary" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button size="sm" variant="primary" disabled={busy || key.trim().length === 0} onClick={() => void save()} data-testid="service-save-key">
+              {busy ? "Saving…" : "Save key"}
+            </Button>
+        </>
+      }
+    >
       <div className="flex flex-col gap-4">
         <Field label={service.key_name} hint="Paste it once. It's kept in the macOS Keychain and never shown again.">
           <Input type="password" value={key} onChange={(event) => setKey(event.target.value)} autoComplete="off" spellCheck={false} placeholder="Paste it here" data-autofocus data-testid="service-new-key" />
@@ -81,14 +92,6 @@ export function ReplaceKeyModal({ profileId, service, onClose, onDone }: { profi
             {error}
           </p>
         )}
-        <div className="flex justify-end gap-2">
-          <Button size="sm" variant="secondary" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button size="sm" variant="primary" disabled={busy || key.trim().length === 0} onClick={() => void save()} data-testid="service-save-key">
-            {busy ? "Saving…" : "Save key"}
-          </Button>
-        </div>
       </div>
     </Modal>
   );

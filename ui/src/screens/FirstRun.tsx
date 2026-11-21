@@ -1207,7 +1207,8 @@ export function FirstRun({
       ref={frameRef}
       tabIndex={-1}
     >
-      <div data-tauri-drag-region className="flex h-11 shrink-0 items-center justify-end px-4">
+      {/* 0.5.0 (DLG-1): the way out stays at the top while the page scrolls. */}
+      <div data-tauri-drag-region className="sticky top-0 z-20 flex h-11 shrink-0 items-center justify-end bg-canvas px-4" data-dialog-part="header">
         {/* Always a visible way out (0.0.7 dogfood: "no way to close"):
             first run → Home, which offers "Find my apps" to come back. */}
         <Button

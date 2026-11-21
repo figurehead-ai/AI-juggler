@@ -24,6 +24,7 @@ import { MachineUsageCard } from "../components/MachineUsage";
 import { ThisMacCard } from "../components/FleetThisMac";
 import { Disclosure, Radio } from "../components/controls";
 import { SELECTED_CARD } from "../components/controls/selected";
+import { DialogFrame, DialogOverlay } from "../components/DialogFrame";
 
 /**
  * Fleet (beta) — AJ-E702: this Mac's machine identity and the machines
@@ -501,31 +502,38 @@ function ConfirmSheet({
     };
   }, [onCancel]);
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6">
-      <Card
-        className="w-full max-w-sm p-5"
+    <DialogOverlay className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+      <DialogFrame
+        className="sheen rounded-card border border-hairline bg-surface shadow-card w-full max-w-sm"
         role="alertdialog"
         aria-modal="true"
         aria-labelledby="fleet-confirm-title"
         aria-describedby="fleet-confirm-body"
         data-testid="fleet-confirm"
+        bodyClassName="px-5 pb-1.5"
+        footerClassName="px-5 pt-2.5 pb-5"
+        footer={
+          <div className="flex justify-end gap-2">
+            <Button ref={cancelRef} size="sm" variant="secondary" onClick={onCancel}>
+              Cancel
+            </Button>
+            <Button size="sm" variant="danger" disabled={busy} onClick={onConfirm} data-testid="fleet-confirm-action">
+              {action}
+            </Button>
+          </div>
+        }
+        headerClassName="px-5 pt-5"
+        header={
+          <p id="fleet-confirm-title" className="text-sm font-semibold">
+            {title}
+          </p>
+        }
       >
-        <p id="fleet-confirm-title" className="text-sm font-semibold">
-          {title}
-        </p>
         <p id="fleet-confirm-body" className="mt-1.5 text-xs leading-relaxed text-ink-2">
           {body}
         </p>
-        <div className="mt-4 flex justify-end gap-2">
-          <Button ref={cancelRef} size="sm" variant="secondary" onClick={onCancel}>
-            Cancel
-          </Button>
-          <Button size="sm" variant="danger" disabled={busy} onClick={onConfirm} data-testid="fleet-confirm-action">
-            {action}
-          </Button>
-        </div>
-      </Card>
-    </div>
+      </DialogFrame>
+    </DialogOverlay>
   );
 }
 
@@ -620,17 +628,38 @@ export function AccessSheet({
     },
   ];
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6">
-      <Card
-        className="flex w-full max-w-md flex-col gap-3 p-5"
+    <DialogOverlay className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+      <DialogFrame
+        className="sheen rounded-card border border-hairline bg-surface shadow-card w-full max-w-md"
         role="dialog"
         aria-modal="true"
         aria-labelledby="fleet-access-title"
         data-testid="fleet-access-sheet"
+        bodyClassName="flex flex-col gap-3 px-5 pt-3 pb-3"
+        footerClassName="px-5 pt-3 pb-5"
+        footer={
+          <div className="flex justify-end gap-2">
+            <Button ref={cancelRef} size="sm" variant="secondary" onClick={onCancel}>
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              variant="primary"
+              disabled={busy || choice === initial}
+              onClick={() => onSave(choice === "none" ? "no_access" : choice === "view" ? "view" : "control", choice === "ask")}
+              data-testid="fleet-access-save"
+            >
+              Change on this Mac
+            </Button>
+          </div>
+        }
+        headerClassName="px-5 pt-5"
+        header={
+          <p id="fleet-access-title" className="text-sm font-semibold">
+            What may {peer.label} do on this Mac?
+          </p>
+        }
       >
-        <p id="fleet-access-title" className="text-sm font-semibold">
-          What may {peer.label} do on this Mac?
-        </p>
         <div role="radiogroup" aria-labelledby="fleet-access-title" className="flex flex-col gap-2">
           {options.map((option) => (
             <label
@@ -657,21 +686,7 @@ export function AccessSheet({
         <p className="text-label text-muted">
           Only this Mac can change this. {peer.label} sees the change within half a minute.
         </p>
-        <div className="flex justify-end gap-2">
-          <Button ref={cancelRef} size="sm" variant="secondary" onClick={onCancel}>
-            Cancel
-          </Button>
-          <Button
-            size="sm"
-            variant="primary"
-            disabled={busy || choice === initial}
-            onClick={() => onSave(choice === "none" ? "no_access" : choice === "view" ? "view" : "control", choice === "ask")}
-            data-testid="fleet-access-save"
-          >
-            Change on this Mac
-          </Button>
-        </div>
-      </Card>
-    </div>
+      </DialogFrame>
+    </DialogOverlay>
   );
 }

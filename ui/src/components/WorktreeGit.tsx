@@ -11,6 +11,8 @@ import { errorText } from "../lib/bridge";
 import { gitStatusRefresh, worktreeRemovalPreview, worktreeRemove } from "../lib/ipc/launch";
 import type { GitStatusInfo } from "../types/generated/GitStatusInfo";
 import type { WorktreeRemovalInfo } from "../types/generated/WorktreeRemovalInfo";
+import { DialogFrame, DialogOverlay } from "./DialogFrame";
+import { Button } from "./primitives";
 
 function words(status: GitStatusInfo): string {
   const parts = [`branch ${status.branch ?? "detached"}`];
@@ -99,19 +101,51 @@ export function WorktreeRemoveDialog({ path, onClose }: { path: string; onClose:
     }
   };
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6 backdrop-blur-sm">
-      <div
-        ref={dialogRef}
+    <DialogOverlay className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+      <DialogFrame
+        frameRef={dialogRef}
         role="alertdialog"
         aria-modal="true"
         aria-labelledby="worktree-remove-title"
         aria-describedby="worktree-remove-summary"
         data-testid="worktree-remove-dialog"
-        className="flex w-full max-w-md flex-col gap-3 rounded-xl border border-hairline bg-surface p-5 shadow-card"
+        className="w-full max-w-md rounded-xl border border-hairline bg-surface shadow-card"
+        headerClassName="px-5 pt-5"
+        bodyClassName="flex flex-col gap-3 px-5 pt-3 pb-3"
+        header={
+          <h3 id="worktree-remove-title" className="text-sm font-semibold">
+            Remove this worktree?
+          </h3>
+        }
+        footerClassName="px-5 pt-3 pb-5"
+        footer={
+          done ? (
+            <div className="flex justify-end">
+              <p className="flex-1 text-label text-ink" aria-live="polite">
+                Removed. The branch {info?.branch} stays.
+              </p>
+              <Button size="sm" variant="secondary" onClick={onClose}>
+                Close
+              </Button>
+            </div>
+          ) : (
+            <div className="flex justify-end gap-2">
+              <Button size="sm" variant="ghost" onClick={onClose}>
+                Keep it
+              </Button>
+              <Button
+                size="sm"
+                variant="danger"
+                disabled={!armed}
+                onClick={() => void remove()}
+                data-testid="worktree-remove-go"
+              >
+                {info?.needs_confirmation ? "Discard and remove" : "Remove"}
+              </Button>
+            </div>
+          )
+        }
       >
-        <h3 id="worktree-remove-title" className="text-sm font-semibold">
-          Remove this worktree?
-        </h3>
         {info && (
           <>
             <p className="break-all font-mono text-label text-muted">{info.path}</p>
@@ -142,35 +176,7 @@ export function WorktreeRemoveDialog({ path, onClose }: { path: string; onClose:
             {error}
           </p>
         )}
-        {done ? (
-          <div className="flex justify-end">
-            <p className="flex-1 text-label text-ink" aria-live="polite">
-              Removed. The branch {info?.branch} stays.
-            </p>
-            <button type="button" onClick={onClose} className="rounded-lg border border-hairline px-3 py-1.5 text-xs text-ink">
-              Close
-            </button>
-          </div>
-        ) : (
-          <div className="flex justify-end gap-2">
-            <button type="button" onClick={onClose} className="rounded-lg border border-hairline px-3 py-1.5 text-xs text-ink">
-              Keep it
-            </button>
-            <button
-              type="button"
-              disabled={!armed}
-              onClick={() => void remove()}
-              className={
-                "rounded-lg border px-3 py-1.5 text-xs " +
-                (armed ? "border-danger/50 text-ink hover:border-danger" : "border-hairline text-muted")
-              }
-              data-testid="worktree-remove-go"
-            >
-              {info?.needs_confirmation ? "Discard and remove" : "Remove"}
-            </button>
-          </div>
-        )}
-      </div>
-    </div>
+      </DialogFrame>
+    </DialogOverlay>
   );
 }

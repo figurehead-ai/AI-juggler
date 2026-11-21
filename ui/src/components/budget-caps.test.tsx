@@ -74,7 +74,8 @@ describe("AJ-E1514 caps on Usage", () => {
     fireEvent.click(sheet.getByLabelText("A group of projects, in any app"));
     fireEvent.click(sheet.getByLabelText("acme"));
     fireEvent.click(sheet.getByLabelText("acme-web"));
-    fireEvent.click(sheet.getByTestId("cap-save"));
+    // Save sits in the sheet's fixed footer (DialogFrame), outside the form.
+    fireEvent.click(view.getByTestId("cap-save"));
     await waitFor(() => expect(view.queryByTestId("cap-sheet")).toBeNull());
     expect(seams().__AIJ_BUDGET_CALLS__).toEqual([
       {

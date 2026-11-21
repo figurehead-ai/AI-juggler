@@ -9,10 +9,10 @@
  * page; Esc, ×, Cancel or a click outside close it and change nothing.
  */
 import { useEffect, useRef, useState, type JSX, type ReactNode } from "react";
-import { createPortal } from "react-dom";
 import { noteSwitchOpener } from "../lib/handover-focus";
 import { useEscapeCloses } from "../lib/use-escape-closes";
-import { SECONDARY } from "./switch/SwitchDialogFrame";
+import { Button } from "./primitives";
+import { DialogFrame, DialogOverlay } from "./DialogFrame";
 
 /** The pickable accounts in either switch list. */
 const TARGETS = "[data-testid='continue-target']:not(:disabled), button[data-row]:not(:disabled)";
@@ -66,33 +66,47 @@ export function ContinueDialog({ title, detail, onClose: close, children }: { ti
     if (ref.current) watch.observe(ref.current, { childList: true, subtree: true });
     return () => watch.disconnect();
   }, []);
-  return createPortal(
-    <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/50 p-6 pt-[12vh]" onMouseDown={(event) => event.target === event.currentTarget && onClose()} data-testid="continue-dialog-backdrop">
-      <div ref={ref} role="dialog" aria-modal="true" aria-labelledby="continue-dialog-title" tabIndex={-1} data-testid="continue-dialog" onClickCapture={(event) => (event.target as Element).closest(PICKS) && (noteSwitchOpener(opener), giveBack())} className="flex max-h-[76vh] w-full max-w-md flex-col overflow-hidden rounded-xl border border-hairline bg-surface shadow-card outline-none">
-        <header className="flex items-start gap-3 border-b border-hairline px-5 py-4">
-          <div className="min-w-0 flex-1">
-            <h2 id="continue-dialog-title" className="text-section font-semibold text-ink">
-              {title}
-            </h2>
-            {detail && <p className="mt-0.5 truncate text-meta text-ink-2">{detail}</p>}
-          </div>
-          <button type="button" onClick={onClose} aria-label="Close" title="Close (Esc)" data-testid="continue-dialog-close" className="-mr-1 rounded-lg px-2 py-1 text-section leading-none text-muted hover:bg-surface-2 hover:text-ink">
-            ×
-          </button>
-        </header>
-        <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-5 py-4" data-testid="continue-dialog-body">
-          {children}
-        </div>
-        {/* AJ-E2311 item 4 (the 0.4.6 walk at 1280×800: no Cancel in sight):
-            the way out stays under the list, however long it is, as the
-            switch's own frame keeps it (switch/SwitchDialogFrame). */}
-        <footer className="flex shrink-0 justify-end border-t border-hairline px-5 py-3" data-testid="continue-dialog-footer">
-          <button type="button" onClick={onClose} className={SECONDARY} data-testid="continue-dialog-cancel" aria-keyshortcuts="Escape">
+  return (
+    <DialogOverlay className="fixed inset-0 z-50 flex items-start justify-center bg-black/50 p-4 pt-[12vh]" onMouseDown={(event) => event.target === event.currentTarget && onClose()} data-testid="continue-dialog-backdrop">
+      <DialogFrame
+        frameRef={ref}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="continue-dialog-title"
+        tabIndex={-1}
+        data-testid="continue-dialog"
+        onClickCapture={(event) => (event.target as Element).closest(PICKS) && (noteSwitchOpener(opener), giveBack())}
+        size="S"
+        // Held near the top (pt-[12vh]): no taller than the room below it.
+        className="max-h-[76vh] rounded-xl border border-hairline bg-surface shadow-card outline-none"
+        headerClassName="flex items-start gap-3 px-5 py-4"
+        header={
+          <>
+            <div className="min-w-0 flex-1">
+              <h2 id="continue-dialog-title" className="text-section font-semibold text-ink">
+                {title}
+              </h2>
+              {detail && <p className="mt-0.5 truncate text-meta text-ink-2">{detail}</p>}
+            </div>
+            <button type="button" onClick={onClose} aria-label="Close" title="Close (Esc)" data-testid="continue-dialog-close" className="-mr-1 rounded-lg px-2 py-1 text-section leading-none text-muted hover:bg-surface-2 hover:text-ink">
+              ×
+            </button>
+          </>
+        }
+        bodyClassName="flex flex-col gap-3 px-5 py-4"
+        bodyTestId="continue-dialog-body"
+        // AJ-E2311 item 4 (the 0.4.6 walk at 1280×800: no Cancel in
+        // sight): the way out stays under the list, however long it is.
+        footerClassName="flex justify-end px-5 py-3"
+        footerTestId="continue-dialog-footer"
+        footer={
+          <Button variant="ghost" type="button" onClick={onClose} data-testid="continue-dialog-cancel" aria-keyshortcuts="Escape">
             Cancel
-          </button>
-        </footer>
-      </div>
-    </div>,
-    document.body,
+          </Button>
+        }
+      >
+        {children}
+      </DialogFrame>
+    </DialogOverlay>
   );
 }

@@ -42,8 +42,8 @@ function open({ selected = null as InstanceInfo | null, conversation = null as {
       </ConversationsProvider>
     </ActionHostProvider>,
   );
-  const input = view.container.querySelector("input")!;
-  const options = () => [...view.container.querySelectorAll<HTMLElement>("li[role='option']")];
+  const input = document.body.querySelector("input")!;
+  const options = () => [...document.body.querySelectorAll<HTMLElement>("li[role='option']")];
   const type = (text: string) => fireEvent.change(input, { target: { value: text } });
   return { view, input, options, type, app, onClose };
 }
@@ -90,9 +90,9 @@ describe("⌘K's own actions", () => {
     const conversations = placesConversations(NOW);
     seams().__AIJ_FIXTURE__ = { conversations };
     const host: ActionHost = { goToConversation: vi.fn(), openConversation: vi.fn() };
-    const { view, input } = open({ conversation: { accountId: "claude-work", id: "outside-1" }, host });
+    const { input } = open({ conversation: { accountId: "claude-work", id: "outside-1" }, host });
     return vi.waitFor(() => {
-      expect(view.container.querySelector("[data-testid='goto-row-action::go-to']")).not.toBeNull();
+      expect(document.body.querySelector("[data-testid='goto-row-action::go-to']")).not.toBeNull();
       expect(input.getAttribute("aria-label")).toBe("Actions for Refactor the settings screen, or search, act or go");
     });
   });

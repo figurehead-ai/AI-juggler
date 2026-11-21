@@ -164,6 +164,16 @@ export function ReportBugSheet({ context, onClose }: { context: BugContextArgs; 
       onClose={onClose}
       wide
       testId="report-bug"
+      footer={
+        <>
+            <Button size="sm" variant="secondary" onClick={() => void copy()} disabled={!composed} data-testid="report-copy">
+              Copy
+            </Button>
+            <Button size="sm" variant="primary" onClick={() => void open()} disabled={!composed} data-testid="report-open">
+              Open the bug form
+            </Button>
+        </>
+      }
     >
       <div className="flex max-h-[70vh] flex-col gap-4 overflow-y-auto pr-1">
         <Field label="Title">
@@ -222,14 +232,6 @@ export function ReportBugSheet({ context, onClose }: { context: BugContextArgs; 
             {error}
           </p>
         )}
-      </div>
-      <div className="mt-4 flex flex-wrap justify-end gap-2">
-        <Button size="sm" variant="secondary" onClick={() => void copy()} disabled={!composed} data-testid="report-copy">
-          Copy
-        </Button>
-        <Button size="sm" variant="primary" onClick={() => void open()} disabled={!composed} data-testid="report-open">
-          Open the bug form
-        </Button>
       </div>
     </Modal>
   );

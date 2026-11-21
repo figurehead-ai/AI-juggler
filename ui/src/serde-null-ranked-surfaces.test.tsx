@@ -71,21 +71,21 @@ it("switch targets: no forecast when there isn't one", () => {
     tte_min: null,
     suggested: true,
   };
-  const { container } = render(<SwitchTargetRows targets={[target]} onPick={() => null} />);
-  expect(container.textContent).toContain("Not enough use to forecast");
-  expect(container.textContent).not.toContain("≈0");
+  render(<SwitchTargetRows targets={[target]} onPick={() => null} />);
+  expect(document.body.textContent).toContain("Not enough use to forecast");
+  expect(document.body.textContent).not.toContain("≈0");
 });
 
 it("the account view's rings: serde's tracking-with-null reads as not measured", () => {
-  const { container } = render(
+  render(
     <div>
       <WindowRing window={tracking()} kind="5h" />
       <WindowRing window={tracking()} kind="weekly" />
     </div>,
   );
-  expect(container.textContent).not.toMatch(PERCENT);
-  expect(container.querySelector("svg")).toBeNull();
-  expect(container.textContent).toContain("Not measured yet");
+  expect(document.body.textContent).not.toMatch(PERCENT);
+  expect(document.body.querySelector("svg")).toBeNull();
+  expect(document.body.textContent).toContain("Not measured yet");
 });
 
 it("New session: unknown room says nothing (no 0%, no raw id)", async () => {
@@ -95,12 +95,12 @@ it("New session: unknown room says nothing (no 0%, no raw id)", async () => {
   w().__AIJ_RECIPES__ = [{ id: "p-1", name: "Main", account_id: RAW_ID, account_label: "Work Max", provider: "claude-code", model: null, default_cwd: null }];
   w().__AIJ_RANKING__ = [ranked()];
   w().__AIJ_QUOTA_DISPLAY__ = [quotaDisplay(RAW_ID, { five_hour: tracking(), weekly: tracking() })];
-  const { container } = render(
+  render(
     <NewSessionModal projects={[]} accounts={accounts} initialDirectory={null} onClose={() => {}} onLaunched={() => {}} openLoginTerminal={() => {}} />,
   );
-  await waitFor(() => expect(container.querySelector('[data-testid="new-session-sentence"]')?.textContent).toContain("Work Max"));
-  expect(container.querySelector('[data-testid="launch-runway"]')).toBeNull();
-  const text = container.textContent ?? "";
+  await waitFor(() => expect(document.body.querySelector('[data-testid="new-session-sentence"]')?.textContent).toContain("Work Max"));
+  expect(document.body.querySelector('[data-testid="launch-runway"]')).toBeNull();
+  const text = document.body.textContent ?? "";
   expect(text).not.toMatch(PERCENT);
   expect(text).not.toContain("≈0");
   expect(text).not.toContain("Room left unknown");

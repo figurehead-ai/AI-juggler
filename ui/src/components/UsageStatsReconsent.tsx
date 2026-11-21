@@ -3,6 +3,7 @@ import { Button } from "./primitives";
 import { UsageStatsChooser } from "./UsageStatsChooser";
 import { usageStatsInfo, usageStatsSet, type UsageStatsMode } from "../lib/ipc/usage-stats";
 import type { UsageStatsInfo } from "../types/generated/UsageStatsInfo";
+import { DialogFrame, DialogOverlay } from "./DialogFrame";
 
 /**
  * AJ-E1105: when what usage statistics may contain changes (a consent
@@ -35,7 +36,7 @@ export function UsageStatsReconsent(): JSX.Element | null {
   }, [open]);
   if (!open) return null;
   return (
-    <div
+    <DialogOverlay
       role="dialog"
       aria-modal="true"
       aria-labelledby="reconsent-title"
@@ -45,38 +46,45 @@ export function UsageStatsReconsent(): JSX.Element | null {
         if (event.key === "Escape") setClosed(true);
       }}
     >
-      <div
-        ref={panelRef}
+      <DialogFrame
+        frameRef={panelRef}
         // A click on the panel's text keeps focus inside the dialog.
         tabIndex={-1}
-        className="flex w-full max-w-md flex-col gap-3 rounded-xl border border-hairline bg-surface p-5 shadow-lg outline-none"
+        className="w-full max-w-md rounded-xl border border-hairline bg-surface shadow-lg outline-none"
+        headerClassName="px-5 pt-5"
+        bodyClassName="flex flex-col gap-3 px-5 pt-3 pb-3"
+        footerClassName="px-5 pt-3 pb-5"
+        header={
+          <h2 id="reconsent-title" className="text-sm font-semibold">
+            Usage statistics changed
+          </h2>
+        }
+        footer={
+          <div className="flex justify-end gap-2">
+            <Button size="sm" variant="secondary" onClick={() => setClosed(true)} data-testid="reconsent-later">
+              Ask me next time
+            </Button>
+            <Button
+              size="sm"
+              variant="primary"
+              disabled={choice === null}
+              onClick={() => {
+                if (choice === null) return;
+                void usageStatsSet(choice).then(() => setClosed(true));
+              }}
+              data-testid="reconsent-save"
+            >
+              Save
+            </Button>
+          </div>
+        }
       >
-        <h2 id="reconsent-title" className="text-sm font-semibold">
-          Usage statistics changed
-        </h2>
         <p className="text-label leading-relaxed text-muted">
           What a weekly report can contain has changed. Nothing is sent until you choose again — your current choice is
           selected.
         </p>
         <UsageStatsChooser value={choice} onChange={setChoice} />
-        <div className="flex justify-end gap-2">
-          <Button size="sm" variant="secondary" onClick={() => setClosed(true)} data-testid="reconsent-later">
-            Ask me next time
-          </Button>
-          <Button
-            size="sm"
-            variant="primary"
-            disabled={choice === null}
-            onClick={() => {
-              if (choice === null) return;
-              void usageStatsSet(choice).then(() => setClosed(true));
-            }}
-            data-testid="reconsent-save"
-          >
-            Save
-          </Button>
-        </div>
-      </div>
-    </div>
+      </DialogFrame>
+    </DialogOverlay>
   );
 }

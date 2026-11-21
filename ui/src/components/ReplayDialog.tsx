@@ -15,6 +15,7 @@ import { instanceReplay } from "../lib/ipc/session-history";
 import type { ReplayInfo } from "../types/generated/ReplayInfo";
 import { cliAppName } from "../lib/app-name";
 import { byteSize } from "../lib/compact";
+import { DialogFrame, DialogOverlay } from "./DialogFrame";
 
 function when(ms: number): string {
   return new Date(ms).toLocaleString([], { dateStyle: "medium", timeStyle: "short" });
@@ -38,38 +39,42 @@ export function ReplayDialog({ sessionId, onClose }: { sessionId: string; onClos
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
   return (
-    <div className="fixed inset-0 z-50 flex items-stretch justify-center bg-black/60 p-6 backdrop-blur-sm">
-      <div
+    <DialogOverlay className="fixed inset-0 z-50 flex items-stretch justify-center bg-black/60 p-4 backdrop-blur-sm">
+      <DialogFrame
         role="dialog"
         aria-modal="true"
         aria-labelledby="replay-title"
         data-testid="replay-dialog"
-        className="flex w-full max-w-6xl flex-col gap-3 rounded-xl border border-hairline bg-surface p-4 shadow-card"
-      >
-        <div className="flex flex-wrap items-center gap-2">
-          <h3 id="replay-title" className="text-sm font-semibold">
-            Replay · read-only
-          </h3>
-          {replay && (
-            <span className="min-w-0 truncate text-label text-muted" data-testid="replay-proof">
-              {replay.transcript_path
-                ? `${byteSize(replay.bytes)} · sha256 ${replay.sha256?.slice(0, 12) ?? "unavailable"}…`
-                : "No transcript recorded"}
-              {replay.truncated ? " · showing the last 16 MB" : ""}
-            </span>
-          )}
-          <span className="flex-1" />
-          <button
-            ref={closeRef}
-            type="button"
-            onClick={onClose}
-            className="rounded-lg border border-hairline px-3 py-1 text-xs text-ink"
-            data-testid="replay-close"
-          >
-            Close
-          </button>
-        </div>
-        {error && (
+        sheet
+        className="h-full max-w-6xl rounded-xl border border-hairline bg-surface shadow-card"
+        headerClassName="flex flex-wrap items-center gap-2 p-4 pb-3"
+        header={
+          <>
+              <h3 id="replay-title" className="text-sm font-semibold">
+                Replay · read-only
+              </h3>
+              {replay && (
+                <span className="min-w-0 truncate text-label text-muted" data-testid="replay-proof">
+                  {replay.transcript_path
+                    ? `${byteSize(replay.bytes)} · sha256 ${replay.sha256?.slice(0, 12) ?? "unavailable"}…`
+                    : "No transcript recorded"}
+                  {replay.truncated ? " · showing the last 16 MB" : ""}
+                </span>
+              )}
+              <span className="flex-1" />
+              <button
+                ref={closeRef}
+                type="button"
+                onClick={onClose}
+                className="rounded-lg border border-hairline px-3 py-1 text-xs text-ink"
+                data-testid="replay-close"
+              >
+                Close
+              </button>
+          </>
+        }
+        bodyClassName="flex flex-col gap-3 px-4 pb-4"
+      >        {error && (
           <p role="alert" className="text-label text-ink">
             {error}
           </p>
@@ -139,7 +144,7 @@ export function ReplayDialog({ sessionId, onClose }: { sessionId: string; onClos
             </div>
           </div>
         )}
-      </div>
-    </div>
+      </DialogFrame>
+    </DialogOverlay>
   );
 }

@@ -8,26 +8,21 @@
  * in its way (its kind is `setup`): Copy is the switch then, alone. It is
  * shown waiting only for what the user can clear, saying how.
  */
-import { useEffect, useRef, useState, type JSX } from "react";
+import { useEffect, useRef, useState, type JSX, type ReactNode } from "react";
 import { switchMoveExecute, switchMoveOffer, switchMoves, type MoveDoneInfo, type MoveOfferInfo } from "../../lib/ipc/switch-move";
 import { errorText } from "../../lib/bridge";
 import { FailedStep } from "./FailedStep";
 import { MoveDone, MoveUndo } from "./MoveDone";
-import { PRIMARY } from "./SwitchDialogFrame";
-import { ChoiceOption, Disclosure } from "../controls";
-import { IconCarryIn, IconCopy } from "../icons-actions";
+import { MoveBody, MoveChoice, MoveHeader, type How } from "./MoveScreen";
+import { Button } from "../primitives";
 
-export type How = "move" | "copy";
+export type { How };
+export { sentence } from "./MoveScreen";
 
 /** D-127: the offer as the switch screen shows it: none when anything
  * the user can't clear stands in Move's way. */
 function shownOffer(offer: MoveOfferInfo | null): MoveOfferInfo | null {
   return offer && offer.applies && !offer.blocks.some((block) => block.kind === "setup") ? offer : null;
-}
-
-/** What the user can clear before Move can happen, each saying how. */
-function waits(offer: MoveOfferInfo): string[] {
-  return offer.blocks.filter((block) => block.kind === "user_can_clear").map((block) => block.words);
 }
 
 /** Move when it can, else Copy. */
@@ -111,9 +106,9 @@ export function useMoveFlow(sessionId: string, targetProfileId: string, attempt:
       return {
         body: <MoveDone done={phase.done} target={target} />,
         footer: (
-          <button type="button" data-autofocus onClick={close} className={PRIMARY} data-testid="switch-moved-close">
+          <Button variant="primary" type="button" data-autofocus onClick={close} data-testid="switch-moved-close">
             Done
-          </button>
+          </Button>
         ),
       };
     }
@@ -132,27 +127,36 @@ export function useMoveFlow(sessionId: string, targetProfileId: string, attempt:
   };
   /** Move is chosen and can be: the confirm screen is Move's. */
   const moving = offer !== null && how === "move";
+  /** The header, where moving applies: "Continue on <App>", from → to,
+   * and a wizard's step marks under it; else just the marks. */
+  const header = (marks: ReactNode, target: string, preflight: { source_account?: string | null; source_title?: string | null; target_tool: string } | null) =>
+    offer && preflight ? (
+      <MoveHeader offer={offer} source={preflight.source_account ?? "this account"} target={target} title={preflight.source_title ?? null} tool={preflight.target_tool} marks={marks} />
+    ) : (
+      marks
+    );
+  /** Move or Copy, first in the body. */
   const choice = (target: string, source: string) =>
     offer && <MoveChoice offer={offer} value={how} onChange={setHow} target={target} source={source} onCheckAgain={() => setNonce((n) => n + 1)} />;
-  const screen = (target: string, source: string) =>
+  const screen = (target: string, source: string, tool: string) =>
     offer && (
       <div className="flex flex-col gap-5" data-testid="switch-oneclick">
         {choice(target, source)}
-        <MoveBody offer={offer} target={target} source={source} takeNotes={takeNotes} onTakeNotes={setTakeNotes} />
+        <MoveBody offer={offer} target={target} source={source} tool={tool} takeNotes={takeNotes} onTakeNotes={setTakeNotes} />
       </div>
     );
   const button = (target: string) => <MoveButton target={target} onMove={() => void start()} />;
   // Enter: Move when it's chosen, else what the switch does.
   const enter = (copy: () => void) => (moving ? () => void start() : copy);
-  return { offer, how, moving, running: phase.kind === "moving", start, frame, choice, screen, button, enter };
+  return { offer, how, moving, running: phase.kind === "moving", start, frame, header, choice, screen, button, enter };
 }
 
 /** The last button with Move chosen. */
 function MoveButton({ target, onMove }: { target: string; onMove: () => void }): JSX.Element {
   return (
-    <button key="move-now" type="button" onClick={(event) => event.detail < 2 && onMove()} data-testid="switch-move-confirm" className={PRIMARY} aria-keyshortcuts="Enter">
+    <Button variant="primary" key="move-now" type="button" onClick={(event) => event.detail < 2 && onMove()} data-testid="switch-move-confirm" aria-keyshortcuts="Enter">
       Move to {target}
-    </button>
+    </Button>
   );
 }
 
@@ -163,179 +167,5 @@ function Moving({ target, holding }: { target: string; holding: boolean }): JSX.
       Moving to {target}: both profiles quit, the conversation moves, and both start again. This takes a minute
       {holding ? ". It can't be stopped half way, so it finishes first" : ""}.
     </p>
-  );
-}
-
-const plural = (n: number, one: string, many: string) => (n === 1 ? one : many);
-
-/** A line the backend wrote as a clause, shown as a sentence: capital
- * first, full stop last. */
-export function sentence(text: string): string {
-  const trimmed = text.trim();
-  if (!trimmed) return trimmed;
-  const capital = trimmed[0]!.toUpperCase() + trimmed.slice(1);
-  return /[.!?…]$/.test(capital) ? capital : `${capital}.`;
-}
-
-/** "the conversation and its 2 sessions". */
-function familyWords(offer: MoveOfferInfo): string {
-  const others = offer.members.filter((m) => m.side === "moves").length - 1;
-  return others > 0 ? `the conversation and its ${others} ${plural(others, "session", "sessions")}` : "the conversation";
-}
-
-/** A size in words ("1.2 GB"). */
-function size(bytes: number): string {
-  if (bytes >= 1e9) return `${(bytes / 1e9).toFixed(1)} GB`;
-  if (bytes >= 1e6) return `${Math.round(bytes / 1e6)} MB`;
-  return `${Math.max(1, Math.round(bytes / 1e3))} KB`;
-}
-
-function MoveChoice({
-  offer,
-  value,
-  onChange,
-  target,
-  source,
-  onCheckAgain,
-}: {
-  offer: MoveOfferInfo;
-  value: How;
-  onChange: (how: How) => void;
-  target: string;
-  source: string;
-  /** Reads the offer again (Move waits on something that may be done now). */
-  onCheckAgain?: () => void;
-}): JSX.Element {
-  const ready = offer.blocks.length === 0;
-  const how = waits(offer);
-  return (
-    <div className="flex flex-col gap-2" data-testid="switch-how">
-      <span id="switch-how-legend" className="text-meta font-medium text-ink">
-        How
-      </span>
-      <div role="radiogroup" aria-labelledby="switch-how-legend" className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-        <ChoiceOption
-          type="radio"
-          look="card"
-          name="switch-how"
-          icon={IconCarryIn}
-          label={
-            <>
-              Move to account
-              {ready && <span className="ml-1.5 rounded-full border border-success/30 bg-success-soft px-1.5 py-px text-label font-medium text-success">Recommended</span>}
-            </>
-          }
-          hint={`The same conversation continues on ${target}; ${source} no longer has it.`}
-          reason={how[0] && sentence(how[0])}
-          disabled={!ready}
-          checked={value === "move"}
-          onChange={() => onChange("move")}
-          data-testid="switch-how-move"
-        />
-        <ChoiceOption
-          type="radio"
-          look="card"
-          name="switch-how"
-          icon={IconCopy}
-          label="Copy"
-          // 0.4.1 (the rc6 walk): the original is said once, by the line
-          // below the choice, so this hint says only where the copy goes.
-          hint={`A copy continues on ${target}.`}
-          checked={value === "copy"}
-          onChange={() => onChange("copy")}
-          data-testid="switch-how-copy"
-        />
-      </div>
-      {!ready && how.length > 1 && (
-        <ul className="ml-4 list-disc text-label text-muted" data-testid="switch-how-why">
-          {how.slice(1).map((why) => (
-            <li key={why}>{sentence(why)}</li>
-          ))}
-        </ul>
-      )}
-      {!ready && onCheckAgain && (
-        <button type="button" onClick={onCheckAgain} className="w-fit text-label text-accent-hi underline-offset-2 hover:underline" data-testid="switch-how-again">
-          Check again
-        </button>
-      )}
-    </div>
-  );
-}
-
-/** What Move does, on the confirm screen. */
-function MoveBody({
-  offer,
-  target,
-  source,
-  takeNotes,
-  onTakeNotes,
-}: {
-  offer: MoveOfferInfo;
-  target: string;
-  source: string;
-  takeNotes: boolean;
-  onTakeNotes: (take: boolean) => void;
-}): JSX.Element {
-  const moving = offer.members.filter((m) => m.side === "moves");
-  const relinked = offer.members.filter((m) => m.side === "relinked");
-  const restarts = offer.restarts.join(" and ");
-  return (
-    <div className="flex flex-col gap-4" data-testid="switch-move">
-      <ul className="flex flex-col gap-2 text-body text-ink">
-        <li data-testid="switch-move-what">
-          <span className="font-medium">What moves:</span> {familyWords(offer)} ({size(offer.bytes)}), with every message, sub-session and rewind point. Nothing is copied, so it takes no extra room.
-        </li>
-        <li data-testid="switch-move-original">
-          <span className="font-medium">The original:</span> {source} no longer lists it; {target} does, as the same conversation. Undo puts both back exactly.
-        </li>
-        {offer.app && restarts && (
-          <li data-testid="switch-move-restart">
-            <span className="font-medium">Restarts:</span> {restarts} quit and start again. Anything running in {offer.restarts.length === 1 ? "it" : "them"} stops, including other conversations&apos; work: start it again after the move.
-          </li>
-        )}
-        <li data-testid="switch-move-model">
-          <span className="font-medium">After:</span> it opens in {target}. AI Juggler sends no message; send one to check it answers on {target}.
-        </li>
-      </ul>
-      {moving.length > 1 && (
-        <Disclosure
-          testId="switch-move-family"
-          summary={`${moving.length} conversations${relinked.length > 0 ? `, and ${relinked.length} already on ${target} linked to it` : ""}`}
-        >
-          <ul className="mt-1 ml-5 list-disc text-label text-muted">
-            {offer.members.map((m, index) => (
-              <li key={`${m.title}-${index}`}>
-                {m.title}
-                {m.archived ? " (archived, stays archived)" : ""}
-                {m.side === "relinked" ? ` (on ${target} already)` : ""}
-                {m.folder_missing ? " (its folder is gone; its history is kept)" : ""}
-              </li>
-            ))}
-          </ul>
-        </Disclosure>
-      )}
-      {offer.notes.length > 0 && (
-        <ul className="flex flex-col gap-1 text-label text-muted" data-testid="switch-move-notes">
-          {offer.notes.map((note) => (
-            <li key={note}>{sentence(note)}</li>
-          ))}
-        </ul>
-      )}
-      {offer.notes_conflict && (
-        <ChoiceOption
-          type="checkbox"
-          label={`Use this conversation's project notes on ${target}`}
-          hint={`Every conversation of this project on ${target} reads them. Off: ${target} keeps its own; either way, Undo restores them.`}
-          checked={takeNotes}
-          onChange={(event) => onTakeNotes(event.currentTarget.checked)}
-          data-testid="switch-move-take-notes"
-        />
-      )}
-      {offer.kept_outputs > 0 && (
-        <p className="text-label text-muted" data-testid="switch-move-outputs">
-          {offer.kept_outputs} {plural(offer.kept_outputs, "folder", "folders")} of tool output {plural(offer.kept_outputs, "stays", "stay")} on {source}, where old messages point to {plural(offer.kept_outputs, "it", "them")}. Cleanup keeps {plural(offer.kept_outputs, "it", "them")}.
-        </p>
-      )}
-    </div>
   );
 }

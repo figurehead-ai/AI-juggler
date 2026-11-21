@@ -69,8 +69,19 @@ function CreatePool({
   const [error, setError] = useState<string | null>(null);
   const where = session ? placeOf(session, projects) : null;
   return (
-    <Modal title="New pool" subtitle="Sessions that work together." onClose={onClose} testId="pool-create-sheet">
-      <form
+    <Modal title="New pool" subtitle="Sessions that work together." onClose={onClose} testId="pool-create-sheet"
+      footer={
+        <>
+            <Button size="sm" variant="ghost" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button size="sm" variant="primary" type="submit" form="poolsheet-form" disabled={busy || name.trim() === ""} data-testid="pool-create-save">
+              Make pool
+            </Button>
+        </>
+      }
+    >
+      <form id="poolsheet-form"
         className="flex flex-col gap-4"
         data-testid="pool-create"
         onSubmit={async (event) => {
@@ -130,14 +141,6 @@ function CreatePool({
             {error}
           </p>
         )}
-        <div className="flex justify-end gap-2">
-          <Button size="sm" variant="ghost" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button size="sm" variant="primary" type="submit" disabled={busy || name.trim() === ""} data-testid="pool-create-save">
-            Make pool
-          </Button>
-        </div>
       </form>
     </Modal>
   );

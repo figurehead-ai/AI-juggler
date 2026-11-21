@@ -17,6 +17,7 @@ import { resolve } from "node:path";
 const GALLERY_ROOT = resolve(process.cwd(), "../docs/qa/evidence/_gallery");
 import { EXAMPLE_GITHUB_OFFER } from "../../src/preview/mcp-secret-offer";
 import { EXAMPLE_SETUP_NOTES, EXAMPLE_SETUP_NOTES_HANDOVER } from "../../src/preview/switch-setup";
+import { EXAMPLE_MOVE_OFFER } from "../../src/preview/switch-move";
 import { previewMac } from "../../src/preview/processes-fixture";
 import { allStatuses, honestEmpty, openRailGroup, readyHome, goTo, groupBy, openFilters, openSwitch, expectRail, openRailList, settingsPane, onlyMac, projectBoardByDefault, terminalDrawn, NARROW_RAIL_PX, switchRows, openRailSession } from "./fixtures";
 import { away, digestFeed } from "./fixtures/home-feed";
@@ -2339,6 +2340,39 @@ for (const theme of THEMES) {
       await page.screenshot({
         path: resolve(GALLERY, `28-switch/dialog-finish-${vp.name}-${theme}.png`),
       });
+    });
+
+    // D-142 (DESIGN-SYSTEM §8): Move or Copy, rebuilt: "Continue on
+    // <App>" with from → to in the fixed header, the choice first, what
+    // happens as four fact rows, the restart as a needs-you Alert, the
+    // family behind a disclosure; then scrolled to its end, the footer
+    // and its one primary still in place.
+    test(`switch — Move or Copy (D-142) — ${vp.name} — ${theme}`, async ({ page }) => {
+      await page.addInitScript(
+        ({ fixture, t0, theme: themeName, offer }) => {
+          const w = window as unknown as Record<string, unknown>;
+          w.__AIJ_FIXTURE__ = fixture;
+          w.__AIJ_SWITCH_PREFLIGHT__ = fixture.doorFixture;
+          w.__AIJ_MOVE_OFFER__ = offer;
+          localStorage.setItem("aij.theme", themeName);
+          localStorage.setItem("aij.onboarding.dismissed", "1");
+          sessionStorage.setItem("aij.ready.skipped", "1");
+          Date.now = () => t0;
+        },
+        { fixture: { ...allStatuses, doorFixture: { ...SWITCH_WIZARD_FIXTURE, door: "one-click", wizard_steps: [], wizard_reasons: [] } }, t0: T0, theme, offer: EXAMPLE_MOVE_OFFER },
+      );
+      await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
+      await page.setViewportSize({ width: vp.width, height: vp.height });
+      await page.goto("/");
+      await openDialog(page);
+      await expect(page.getByTestId("switch-move-title")).toHaveText("Continue on Claude app · Personal");
+      await expect(page.getByTestId("switch-move-confirm")).toHaveText("Move to Personal");
+      await page.mouse.move(0, 0);
+      await page.screenshot({ path: resolve(GALLERY, `28-switch/move-${vp.name}-${theme}.png`) });
+      await page.getByTestId("switch-move-family").getByRole("button").first().click();
+      await page.getByTestId("switch-body").evaluate((body) => (body.scrollTop = body.scrollHeight));
+      await page.mouse.move(0, 0);
+      await page.screenshot({ path: resolve(GALLERY, `28-switch/move-end-${vp.name}-${theme}.png`) });
     });
 
     test(`switch — freeze stop-now + warnings on Confirm — ${vp.name} — ${theme}`, async ({ page }) => {

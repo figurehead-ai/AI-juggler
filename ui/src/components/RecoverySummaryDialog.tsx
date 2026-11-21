@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import type { RecoverySummaryData } from "../lib/ipc/cleanup";
 import { Button } from "./primitives";
+import { DialogFrame, DialogOverlay } from "./DialogFrame";
 
 /**
  * AJ-E510 Req.3: the ONE-time restart summary. `App` fetches it via
@@ -30,13 +31,13 @@ export function RecoverySummaryDialog({
   }, []);
 
   return (
-    <div
+    <DialogOverlay
       ref={ref}
       role="dialog"
       aria-modal="true"
       aria-label="Restart recovery summary"
       tabIndex={-1}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-canvas/70 p-6 backdrop-blur-sm outline-none"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-canvas/70 p-4 backdrop-blur-sm outline-none"
       onKeyDown={(event) => {
         if (event.key === "Escape") {
           event.stopPropagation();
@@ -45,8 +46,22 @@ export function RecoverySummaryDialog({
       }}
       data-testid="recovery-summary"
     >
-      <div className="sheen w-full max-w-md rounded-card border border-hairline bg-surface p-5 shadow-[0_24px_80px_-24px_rgba(0,0,0,0.8)]">
-        <h2 className="text-sm font-semibold text-ink">AI Juggler restarted — here is what kept running</h2>
+      <DialogFrame
+        className="sheen w-full max-w-md rounded-card border border-hairline bg-surface shadow-[0_24px_80px_-24px_rgba(0,0,0,0.8)]"
+        headerClassName="px-5 pt-5"
+        bodyClassName="px-5 pb-1.5"
+        footerClassName="px-5 pt-2.5 pb-5"
+        header={
+          <h2 className="text-sm font-semibold text-ink">AI Juggler restarted — here is what kept running</h2>
+        }
+        footer={
+          <div className="flex justify-end gap-2">
+            <Button onClick={onDismiss} data-testid="recovery-summary-dismiss">
+              Got it
+            </Button>
+          </div>
+        }
+      >
         <p className="mt-2 text-label text-ink" data-testid="recovery-summary-text">
           {summary.summary}
         </p>
@@ -55,12 +70,7 @@ export function RecoverySummaryDialog({
           Processes page or a session's Processes tab). Automatic cleanup stays paused for 24 hours —
           turn it back on from the Processes page when you are ready.
         </p>
-        <div className="mt-4 flex justify-end gap-2">
-          <Button onClick={onDismiss} data-testid="recovery-summary-dismiss">
-            Got it
-          </Button>
-        </div>
-      </div>
-    </div>
+      </DialogFrame>
+    </DialogOverlay>
   );
 }

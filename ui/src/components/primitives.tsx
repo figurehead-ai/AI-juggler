@@ -75,7 +75,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonHTMLAttributes<HTMLBut
     <button
       ref={ref}
       type={type ?? "button"}
-      {...(variant === "primary" ? { [PRIMARY_MARK]: "" } : {})}
+      {...(variant === "primary" ? { [PRIMARY_MARK]: "" } : variant === "danger" ? { "data-danger": "" } : {})}
       className={`inline-flex items-center justify-center ${variant === "chosen" ? "font-semibold" : "font-medium"}
         transition-all duration-150 disabled:opacity-40 disabled:pointer-events-none
         cursor-pointer disabled:cursor-default select-none ${buttonVariants[variant]} ${buttonSizes[size]} ${className}`}

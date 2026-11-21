@@ -89,7 +89,20 @@ export function GroupCleanupSheet({ session, onClose }: { session: ProcessGraphR
   const ready = lines?.filter((line) => line.check === "ok").length ?? 0;
   const checking = lines?.some((line) => line.check === "checking") ?? true;
   return (
-    <Modal title={`Clean up what ${info.title || "this session"} left`} subtitle="Each one is checked now, then stopped on its own: asked politely first, forced after 5 s only if it ignores that." onClose={() => onClose(done)} wide testId="group-cleanup">
+    <Modal title={`Clean up what ${info.title || "this session"} left`} subtitle="Each one is checked now, then stopped on its own: asked politely first, forced after 5 s only if it ignores that." onClose={() => onClose(done)} wide testId="group-cleanup"
+      footer={
+        <>
+            <Button variant="ghost" onClick={() => onClose(done)}>
+              {done ? "Close" : "Cancel"}
+            </Button>
+            {!done && (
+              <Button variant="danger" disabled={running || checking || ready === 0} onClick={() => void stopAll()} data-testid="group-cleanup-stop" data-autofocus>
+                {ready === 1 ? "Stop 1 checked process" : `Stop ${ready} checked processes`}
+              </Button>
+            )}
+        </>
+      }
+    >
       <ul className="flex flex-col divide-y divide-hairline" data-testid="group-cleanup-lines">
         {(lines ?? []).map((line) => {
           const proc = line.row.process!;
@@ -118,16 +131,6 @@ export function GroupCleanupSheet({ session, onClose }: { session: ProcessGraphR
         })}
         {lines?.length === 0 && <li className="py-4 text-body text-muted">Nothing left to clean up here.</li>}
       </ul>
-      <div className="mt-4 flex justify-end gap-2">
-        <Button variant="ghost" onClick={() => onClose(done)}>
-          {done ? "Close" : "Cancel"}
-        </Button>
-        {!done && (
-          <Button variant="danger" disabled={running || checking || ready === 0} onClick={() => void stopAll()} data-testid="group-cleanup-stop" data-autofocus>
-            {ready === 1 ? "Stop 1 checked process" : `Stop ${ready} checked processes`}
-          </Button>
-        )}
-      </div>
     </Modal>
   );
 }

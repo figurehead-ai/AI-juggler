@@ -113,10 +113,10 @@ describe("nothing internal on screen (D-25)", () => {
     (window as never as { __AIJ_SWITCH_PREFLIGHT__?: unknown }).__AIJ_SWITCH_PREFLIGHT__ = preflight;
     const view = render(<SwitchFlow sessionId="s-1" targetProfileId="p-1" targetLabel="Personal" onClose={() => {}} onSwitched={() => {}} />);
     await waitFor(() => expect(view.getByTestId("switch-wizard")).toBeTruthy());
-    expect(leaks(view.container.textContent ?? "")).toEqual([]);
+    expect(leaks(document.body.textContent ?? "")).toEqual([]);
     fireEvent.click(view.getByTestId("switch-continue"));
     await waitFor(() => expect(view.getByTestId("switch-keys")).toBeTruthy());
-    const text = view.container.textContent ?? "";
+    const text = document.body.textContent ?? "";
     expect(leaks(text)).toEqual([]);
     expect(text).toContain("an API key (s•••a91f) and a secret in an environment value (D•••word)");
     delete (window as never as { __AIJ_SWITCH_PREFLIGHT__?: unknown }).__AIJ_SWITCH_PREFLIGHT__;
@@ -146,7 +146,7 @@ describe("nothing internal on screen (D-25)", () => {
     expect(view.getByTestId("switch-failed-words").textContent).toBe(words);
     // Said once: the dialog adds a title, never a second telling.
     expect((view.getByTestId("switch-failed").textContent ?? "").split(words).length - 1).toBe(1);
-    expect(leaks(view.container.textContent ?? "")).toEqual([]);
+    expect(leaks(document.body.textContent ?? "")).toEqual([]);
     expect(words).toMatch(/Work|Personal/);
     delete seams.__AIJ_SWITCH_PREFLIGHT__;
     delete seams.__AIJ_SWITCH_EXECUTE_FAIL__;
@@ -178,8 +178,8 @@ describe("nothing internal on screen (D-25)", () => {
     const sentences = words.split(/(?<=\.) /);
     expect(sentences).toHaveLength(2);
     expect(sentences[0]).toMatch(/, so /);
-    expect(view.container.textContent ?? "").not.toMatch(/this Mac|either Mac/);
-    expect(leaks(view.container.textContent ?? "")).toEqual([]);
+    expect(document.body.textContent ?? "").not.toMatch(/this Mac|either Mac/);
+    expect(leaks(document.body.textContent ?? "")).toEqual([]);
     delete seams.__AIJ_FLEET_SWITCH_OUTCOME__;
   });
 
@@ -187,7 +187,7 @@ describe("nothing internal on screen (D-25)", () => {
     const { SwitchSetupList } = await import("./components/SwitchSetupList");
     const { EXAMPLE_SETUP } = await import("./preview/switch-setup");
     const view = render(<SwitchSetupList check={EXAMPLE_SETUP} picked={new Set()} onToggle={() => {}} onCheckAgain={async () => ""} />);
-    const text = view.container.textContent ?? "";
+    const text = document.body.textContent ?? "";
     expect(leaks(text)).toEqual([]);
     expect(text).not.toContain("in your environment: secrets are never copied");
     expect(text).toContain("You can switch now, then finish it: it needs your GITHUB_TOKEN");

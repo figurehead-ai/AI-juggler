@@ -1,7 +1,7 @@
 import { useFolderDrop } from "../lib/use-folder-drop";
 import { useEscapeCloses } from "../lib/use-escape-closes";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Button, Card, Chip } from "../components/primitives";
+import { Button, Chip } from "../components/primitives";
 import { IconProjects, IconTerminal } from "../components/icons";
 import { funnelStep } from "../lib/funnel";
 import { ExpertSetup } from "../components/ExpertSetup";
@@ -16,6 +16,7 @@ import { errorText, signedIn } from "../lib/bridge";
 import { launchSettingsName, launchTitle } from "../lib/account-words";
 import { pickLaunch } from "../lib/launch-pick";
 import { SELECTED_CARD } from "../components/controls/selected";
+import { DialogFrame, DialogOverlay } from "../components/DialogFrame";
 
 /**
  * AJ-E305 flow (b): a new project in ≤ 3 clicks and zero typed
@@ -162,12 +163,16 @@ export function NewProjectSheet({
   );
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6 backdrop-blur-sm">
-      <Card className="flex max-h-[86vh] w-full max-w-xl flex-col overflow-hidden p-0" role="dialog" aria-modal="true" aria-labelledby="new-project-title">
-        <div className="flex items-center gap-3 border-b border-hairline/60 px-6 py-4">
-          <span className="text-accent-hi">
-            <IconProjects width={16} height={16} />
-          </span>
+    <DialogOverlay className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+      <DialogFrame
+        className="sheen rounded-card border border-hairline bg-surface shadow-card w-full max-w-xl"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="new-project-title"
+        headerClassName="flex items-center gap-3 px-6 py-4"
+        header={
+          <>
+          <IconProjects width={16} height={16} className="text-accent-hi" />
           <h3 id="new-project-title" className="text-sm font-semibold">New project</h3>
           <div className="ml-auto flex items-center gap-2">
             {directory && (
@@ -178,201 +183,197 @@ export function NewProjectSheet({
               </Chip>
             )}
           </div>
-        </div>
-
-        <div
-          className="min-h-0 flex-1 overflow-y-auto px-6 py-5"
-          data-testid="new-project-drop"
-          {...zone}
-        >
-          {/* Step 1 — where */}
-          <p className="text-section font-semibold text-ink">
-            Step 1 — where do you want to work?
-          </p>
-          <div
-            ref={tilesRef}
-            onKeyDown={onTilesKey}
-            className="mt-2 grid grid-cols-2 gap-2"
-            data-testid="project-tiles"
-          >
-            {recents.map((row) => (
-              <button
-                key={row.id}
-                type="button"
-                data-tile
-                onClick={() => chooseDirectory(row.root)}
-                className={
-                  "flex min-w-0 flex-col gap-1 rounded-xl border px-3 py-2.5 text-left outline-none transition-colors focus-visible:ring-1 focus-visible:ring-accent/60 " +
-                  (directory === row.root
-                    ? SELECTED_CARD
-                    : "border-hairline hover:border-hairline/80 hover:bg-surface")
-                }
-              >
-                <span className="flex items-center gap-1.5">
-                  <IconProjects width={12} height={12} />
-                  {/* WCAG 2.5.3: the name is the tile's own words. */}
-                  <span className="truncate text-xs font-medium">
-                    <span className="sr-only">Work in </span>
-                    {row.name}
-                  </span>
-                </span>
-                <span className="truncate text-label text-muted">
-                  {row.accounts_used.length > 0
-                    ? `last used with ${row.accounts_used[row.accounts_used.length - 1]}`
-                    : row.root}
-                </span>
-              </button>
-            ))}
-            <button
-              type="button"
-              data-tile
-              onClick={async () => {
-                const picked = await pickDirectory();
-                if (picked) chooseDirectory(picked);
-              }}
-              className={
-                "flex flex-col items-center justify-center gap-1 rounded-xl border border-dashed px-3 py-2.5 text-center outline-none transition-colors focus-visible:ring-1 focus-visible:ring-accent/60 " +
-                (dragging
-                  ? "border-accent/60 bg-accent-soft text-accent-hi"
-                  : "border-hairline text-muted hover:border-accent/40 hover:text-ink")
-              }
-            >
-              <IconProjects width={14} height={14} />
-              <span className="text-xs font-medium">Choose folder…</span>
-              <span className="text-label text-muted">or drop it anywhere</span>
-            </button>
-          </div>
-
-          {/* Step 2 — who (appears once a directory is chosen) */}
-          {directory !== null && (
-            <>
-              <p className="mt-5 text-section font-semibold text-ink">
-                Step 2 — which app?
-              </p>
-              <div className="mt-2 flex flex-col gap-1.5" data-testid="project-account">
-                {recipes === null && <p className="py-3 text-xs text-ink-2">Loading…</p>}
-                {recipes !== null && recipes.length === 0 && !detour && (
-                  <div
-                    className="flex flex-col items-start gap-2 rounded-xl border border-hairline px-4 py-3"
-                    data-testid="no-account-detour"
-                  >
-                    <p className="text-xs text-ink-2">
-                      No app set up yet — add one and your project launch picks up right
-                      where it left off.
-                    </p>
-                    <Button size="sm" variant="primary" onClick={() => setDetour(true)}>
-                      Add an app
-                    </Button>
-                  </div>
-                )}
-                {recipes !== null && recipes.length > 0 && recommended !== null && !showAll && (
-                  <>
-                    <div className="flex items-center gap-2 rounded-xl border border-accent/30 bg-accent-soft px-3 py-2.5 text-xs">
-                      <IconTerminal width={13} height={13} />
-                      <span className="font-medium">{recommended.account_label}</span>
-                      <Chip tone="neutral">
-                        {quotaByAccount.get(recommended.account_id)?.forecast.badge ?? "quota unknown"}
-                      </Chip>
-                      <span className="text-muted">{recommended.name}</span>
-                      <span className="ml-auto text-label text-muted">
-                        {project?.default_account_id === recommended.account_id
-                          ? "this project's default"
-                          : accounts.find((account) => account.is_default)?.id === recommended.account_id
-                            ? "your default"
-                            : project !== null && project.accounts_used.includes(recommended.account_label)
-                              ? "last used here"
-                              : "recommended"}
-                      </span>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      <Button
-                        size="sm"
-                        variant="primary"
-                        disabled={busy || !signedIn(loginByAccount.get(recommended.account_id))}
-                        onClick={() => void start(recommended)}
-                        data-testid="start-session"
-                      >
-                        Start session →
-                      </Button>
-                      <Button size="sm" variant="secondary" onClick={() => setShowAll(true)}>
-                        Change
-                      </Button>
-                    </div>
-                    {!signedIn(loginByAccount.get(recommended.account_id)) && (
-                      <p className="text-label text-muted">
-                        This app needs sign-in — pick another or sign in first.
-                      </p>
-                    )}
-                  </>
-                )}
-                {recipes !== null && showAll && (
-                  <div className="flex flex-col gap-1.5" data-testid="project-account-list">
-                    {recipes.map((recipe) => {
-                      const ready = signedIn(loginByAccount.get(recipe.account_id));
-                      return (
-                        <button
-                          key={recipe.id}
-                          type="button"
-                          disabled={busy || !ready}
-                          onClick={() => void start(recipe)}
-                          className={
-                            "flex items-center gap-2 rounded-xl border px-3 py-2.5 text-left text-xs outline-none transition-colors focus-visible:ring-1 focus-visible:ring-accent/60 " +
-                            (ready
-                              ? "border-hairline hover:border-accent/40 hover:bg-surface"
-                              : "border-hairline/50 opacity-50")
-                          }
-                        >
-                          <IconTerminal width={13} height={13} />
-                          <span className="font-medium">{recipe.account_label}</span>
-                          <Chip tone="neutral">
-                            {quotaByAccount.get(recipe.account_id)?.forecast.badge ?? "quota unknown"}
-                          </Chip>
-                          <span className="text-muted">·</span>
-                          <span className="text-muted">{launchSettingsName(recipe.name)}</span>
-                          {!ready && <Chip tone="neutral">needs sign-in</Chip>}
-                        </button>
-                      );
-                    })}
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      onClick={() => setShowAll(false)}
-                      className="self-start"
-                    >
-                      Back to recommendation
-                    </Button>
-                  </div>
-                )}
-              </div>
-              {/* AJ-E309 Req.5: the expert hatch for the recommended
-                  account (folder, shell line, env overrides). */}
-              {recommended !== null && (
-                <div className="mt-3">
-                  <ExpertSetup
-                    provider={recommended.provider}
-                    accounts={[{ id: recommended.account_id, label: recommended.account_label }]}
-                    surface="new-project"
-                    onManageLaunchSettings={onManageLaunchSettings}
-                  />
-                </div>
-              )}
-            </>
-          )}
-
-          {error && <p className="mt-3 text-xs text-danger">{error}</p>}
-        </div>
-
-        <div className="flex items-center justify-between border-t border-hairline/60 px-6 py-4">
-          <span className="text-label text-muted">
-            {directory
-              ? `Starting in ${directory.split("/").pop()}`
-              : "Pick a folder to continue"}
-          </span>
+          </>
+        }
+        bodyClassName="px-6 py-5"
+        bodyTestId="new-project-drop"
+        bodyProps={zone}
+        footerClassName="flex items-center justify-between px-6 py-4"
+        footer={
+          <>
+          <span className="text-label text-muted">{directory ? `Starting in ${directory.split("/").pop()}` : "Pick a folder to continue"}</span>
           <Button size="sm" variant="secondary" onClick={onClose}>
             Close
           </Button>
+          </>
+        }
+      >
+        {/* Step 1 — where */}
+        <p className="text-section font-semibold text-ink">
+          Step 1 — where do you want to work?
+        </p>
+        <div
+          ref={tilesRef}
+          onKeyDown={onTilesKey}
+          className="mt-2 grid grid-cols-2 gap-2"
+          data-testid="project-tiles"
+        >
+          {recents.map((row) => (
+            <button
+              key={row.id}
+              type="button"
+              data-tile
+              onClick={() => chooseDirectory(row.root)}
+              className={
+                "flex min-w-0 flex-col gap-1 rounded-xl border px-3 py-2.5 text-left outline-none transition-colors focus-visible:ring-1 focus-visible:ring-accent/60 " +
+                (directory === row.root
+                  ? SELECTED_CARD
+                  : "border-hairline hover:border-hairline/80 hover:bg-surface")
+              }
+            >
+              <span className="flex items-center gap-1.5">
+                <IconProjects width={12} height={12} />
+                {/* WCAG 2.5.3: the name is the tile's own words. */}
+                <span className="truncate text-xs font-medium">
+                  <span className="sr-only">Work in </span>
+                  {row.name}
+                </span>
+              </span>
+              <span className="truncate text-label text-muted">
+                {row.accounts_used.length > 0
+                  ? `last used with ${row.accounts_used[row.accounts_used.length - 1]}`
+                  : row.root}
+              </span>
+            </button>
+          ))}
+          <button
+            type="button"
+            data-tile
+            onClick={async () => {
+              const picked = await pickDirectory();
+              if (picked) chooseDirectory(picked);
+            }}
+            className={
+              "flex flex-col items-center justify-center gap-1 rounded-xl border border-dashed px-3 py-2.5 text-center outline-none transition-colors focus-visible:ring-1 focus-visible:ring-accent/60 " +
+              (dragging
+                ? "border-accent/60 bg-accent-soft text-accent-hi"
+                : "border-hairline text-muted hover:border-accent/40 hover:text-ink")
+            }
+          >
+            <IconProjects width={14} height={14} />
+            <span className="text-xs font-medium">Choose folder…</span>
+            <span className="text-label text-muted">or drop it anywhere</span>
+          </button>
         </div>
-      </Card>
+
+        {/* Step 2 — who (appears once a directory is chosen) */}
+        {directory !== null && (
+          <>
+            <p className="mt-5 text-section font-semibold text-ink">
+              Step 2 — which app?
+            </p>
+            <div className="mt-2 flex flex-col gap-1.5" data-testid="project-account">
+              {recipes === null && <p className="py-3 text-xs text-ink-2">Loading…</p>}
+              {recipes !== null && recipes.length === 0 && !detour && (
+                <div
+                  className="flex flex-col items-start gap-2 rounded-xl border border-hairline px-4 py-3"
+                  data-testid="no-account-detour"
+                >
+                  <p className="text-xs text-ink-2">
+                    No app set up yet — add one and your project launch picks up right
+                    where it left off.
+                  </p>
+                  <Button size="sm" variant="primary" onClick={() => setDetour(true)}>
+                    Add an app
+                  </Button>
+                </div>
+              )}
+              {recipes !== null && recipes.length > 0 && recommended !== null && !showAll && (
+                <>
+                  <div className="flex items-center gap-2 rounded-xl border border-accent/30 bg-accent-soft px-3 py-2.5 text-xs">
+                    <IconTerminal width={13} height={13} />
+                    <span className="font-medium">{recommended.account_label}</span>
+                    <Chip tone="neutral">
+                      {quotaByAccount.get(recommended.account_id)?.forecast.badge ?? "quota unknown"}
+                    </Chip>
+                    <span className="text-muted">{recommended.name}</span>
+                    <span className="ml-auto text-label text-muted">
+                      {project?.default_account_id === recommended.account_id
+                        ? "this project's default"
+                        : accounts.find((account) => account.is_default)?.id === recommended.account_id
+                          ? "your default"
+                          : project !== null && project.accounts_used.includes(recommended.account_label)
+                            ? "last used here"
+                            : "recommended"}
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      size="sm"
+                      variant="primary"
+                      disabled={busy || !signedIn(loginByAccount.get(recommended.account_id))}
+                      onClick={() => void start(recommended)}
+                      data-testid="start-session"
+                    >
+                      Start session →
+                    </Button>
+                    <Button size="sm" variant="secondary" onClick={() => setShowAll(true)}>
+                      Change
+                    </Button>
+                  </div>
+                  {!signedIn(loginByAccount.get(recommended.account_id)) && (
+                    <p className="text-label text-muted">
+                      This app needs sign-in — pick another or sign in first.
+                    </p>
+                  )}
+                </>
+              )}
+              {recipes !== null && showAll && (
+                <div className="flex flex-col gap-1.5" data-testid="project-account-list">
+                  {recipes.map((recipe) => {
+                    const ready = signedIn(loginByAccount.get(recipe.account_id));
+                    return (
+                      <button
+                        key={recipe.id}
+                        type="button"
+                        disabled={busy || !ready}
+                        onClick={() => void start(recipe)}
+                        className={
+                          "flex items-center gap-2 rounded-xl border px-3 py-2.5 text-left text-xs outline-none transition-colors focus-visible:ring-1 focus-visible:ring-accent/60 " +
+                          (ready
+                            ? "border-hairline hover:border-accent/40 hover:bg-surface"
+                            : "border-hairline/50 opacity-50")
+                        }
+                      >
+                        <IconTerminal width={13} height={13} />
+                        <span className="font-medium">{recipe.account_label}</span>
+                        <Chip tone="neutral">
+                          {quotaByAccount.get(recipe.account_id)?.forecast.badge ?? "quota unknown"}
+                        </Chip>
+                        <span className="text-muted">·</span>
+                        <span className="text-muted">{launchSettingsName(recipe.name)}</span>
+                        {!ready && <Chip tone="neutral">needs sign-in</Chip>}
+                      </button>
+                    );
+                  })}
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={() => setShowAll(false)}
+                    className="self-start"
+                  >
+                    Back to recommendation
+                  </Button>
+                </div>
+              )}
+            </div>
+            {/* AJ-E309 Req.5: the expert hatch for the recommended
+                account (folder, shell line, env overrides). */}
+            {recommended !== null && (
+              <div className="mt-3">
+                <ExpertSetup
+                  provider={recommended.provider}
+                  accounts={[{ id: recommended.account_id, label: recommended.account_label }]}
+                  surface="new-project"
+                  onManageLaunchSettings={onManageLaunchSettings}
+                />
+              </div>
+            )}
+          </>
+        )}
+
+        {error && <p className="mt-3 text-xs text-danger">{error}</p>}
+      </DialogFrame>
 
       {/* The inline flow (d) detour — completing it returns to the
           pending project launch (Req.7): same directory, refreshed
@@ -391,6 +392,6 @@ export function NewProjectSheet({
           openLoginTerminal={openLoginTerminal}
         />
       )}
-    </div>
+    </DialogOverlay>
   );
 }

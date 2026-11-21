@@ -8,12 +8,13 @@
  * right now (not connected, view only) says why.
  */
 import { useEffect, useRef, useState, type JSX } from "react";
-import { Button, Card } from "./primitives";
+import { Button } from "./primitives";
 import { IconTerminal } from "./icons";
 import { errorText } from "../lib/bridge";
 import { appName } from "../lib/app-name";
 import { fleetLaunchOptions, fleetLaunchStart, type LaunchMachineInfo } from "../lib/ipc/fleet-launch";
 import { SELECTED_CARD } from "./controls/selected";
+import { DialogFrame, DialogOverlay } from "./DialogFrame";
 
 export interface Where {
   machines: LaunchMachineInfo[];
@@ -89,61 +90,30 @@ export function RemoteSessionSheet({ where, onClose }: { where: Where; onClose: 
     "flex min-w-0 flex-col gap-0.5 rounded-xl border px-3 py-2 text-left text-xs transition-colors " +
     (on ? SELECTED_CARD : "border-hairline hover:bg-surface");
   return (
-    <div
+    <DialogOverlay
       ref={sheet}
       role="dialog"
       aria-modal="true"
       aria-label="New session"
       data-testid="remote-session-sheet"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
       onKeyDown={(event) => event.key === "Escape" && onClose()}
     >
-      <Card className="flex max-h-[86vh] w-full max-w-xl flex-col overflow-hidden p-0">
-        <div className="flex items-center gap-3 border-b border-hairline/60 px-6 py-4">
+      <DialogFrame
+        className="sheen rounded-card border border-hairline bg-surface shadow-card w-full max-w-xl"
+        headerClassName="flex items-center gap-3 px-6 py-4"
+        header={
+          <>
           <span className="text-accent-hi">
             <IconTerminal width={16} height={16} />
           </span>
           <h3 className="text-sm font-semibold">New session on {machine.label}</h3>
-        </div>
-        <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
-          <MachinePicker where={where} />
-          {machine.why_not ? (
-            <p className="text-xs text-ink-2" data-testid="remote-why-not">
-              {machine.why_not}.
-            </p>
-          ) : (
-            <>
-              <p className="text-section font-semibold text-ink">Where on {machine.label}?</p>
-              <div className="mt-2 grid grid-cols-2 gap-2" data-testid="remote-projects">
-                {machine.projects.map((p) => (
-                  <button key={p.id} type="button" aria-pressed={project === p.id} onClick={() => setProject(p.id)} className={choice(project === p.id)}>
-                    <span className="truncate font-medium">{p.name}</span>
-                  </button>
-                ))}
-                <button type="button" aria-pressed={project === null} onClick={() => setProject(null)} className={choice(project === null)}>
-                  <span className="font-medium">Its launch setting's folder</span>
-                  <span className="text-label text-muted">where it starts by default</span>
-                </button>
-              </div>
-              <p className="mt-5 text-section font-semibold text-ink">Which app?</p>
-              <div className="mt-2 flex flex-col gap-1.5" data-testid="remote-recipes">
-                {machine.recipes.map((r) => (
-                  <button key={r.id} type="button" aria-pressed={recipe === r.id} onClick={() => setRecipe(r.id)} className={choice(recipe === r.id)}>
-                    {/* D-62: the row is an App, its tool on its folder; `tool` comes as its display name. */}
-                    <span className="font-medium">{appName(r.tool, r.account)}</span>
-                    <span className="text-label text-muted">Launch settings: {r.name}</span>
-                  </button>
-                ))}
-              </div>
-            </>
-          )}
-          {error && (
-            <p role="alert" className="mt-3 text-xs text-danger" data-testid="remote-error">
-              {error}
-            </p>
-          )}
-        </div>
-        <div className="flex items-center justify-between gap-3 border-t border-hairline/60 px-6 py-3">
+          </>
+        }
+        bodyClassName="px-6 py-5"
+        footerClassName="flex items-center justify-between gap-3 px-6 py-3"
+        footer={
+          <>
           <span className="text-label text-muted">{machine.label} checks it and starts it there.</span>
           <div className="flex gap-2">
             <Button size="sm" variant="secondary" onClick={onClose}>
@@ -153,8 +123,46 @@ export function RemoteSessionSheet({ where, onClose }: { where: Where; onClose: 
               Start there →
             </Button>
           </div>
-        </div>
-      </Card>
-    </div>
+          </>
+        }
+      >
+        <MachinePicker where={where} />
+        {machine.why_not ? (
+          <p className="text-xs text-ink-2" data-testid="remote-why-not">
+            {machine.why_not}.
+          </p>
+        ) : (
+          <>
+            <p className="text-section font-semibold text-ink">Where on {machine.label}?</p>
+            <div className="mt-2 grid grid-cols-2 gap-2" data-testid="remote-projects">
+              {machine.projects.map((p) => (
+                <button key={p.id} type="button" aria-pressed={project === p.id} onClick={() => setProject(p.id)} className={choice(project === p.id)}>
+                  <span className="truncate font-medium">{p.name}</span>
+                </button>
+              ))}
+              <button type="button" aria-pressed={project === null} onClick={() => setProject(null)} className={choice(project === null)}>
+                <span className="font-medium">Its launch setting's folder</span>
+                <span className="text-label text-muted">where it starts by default</span>
+              </button>
+            </div>
+            <p className="mt-5 text-section font-semibold text-ink">Which app?</p>
+            <div className="mt-2 flex flex-col gap-1.5" data-testid="remote-recipes">
+              {machine.recipes.map((r) => (
+                <button key={r.id} type="button" aria-pressed={recipe === r.id} onClick={() => setRecipe(r.id)} className={choice(recipe === r.id)}>
+                  {/* D-62: the row is an App, its tool on its folder; `tool` comes as its display name. */}
+                  <span className="font-medium">{appName(r.tool, r.account)}</span>
+                  <span className="text-label text-muted">Launch settings: {r.name}</span>
+                </button>
+              ))}
+            </div>
+          </>
+        )}
+        {error && (
+          <p role="alert" className="mt-3 text-xs text-danger" data-testid="remote-error">
+            {error}
+          </p>
+        )}
+      </DialogFrame>
+    </DialogOverlay>
   );
 }

@@ -75,18 +75,21 @@ export function DeletePool({ pool, members, onClose, onDeleted }: { pool: PoolIn
   };
   const who = members === 0 ? "It has no members." : members === 1 ? "Its one session goes back to its project's own pool." : `Its ${members} sessions go back to their projects' own pools.`;
   return (
-    <Modal title={`Delete «${pool.name}»?`} onClose={onClose} testId="pool-delete-sheet">
+    <Modal title={`Delete «${pool.name}»?`} onClose={onClose} testId="pool-delete-sheet"
+      footer={
+        <>
+            <Button variant="ghost" onClick={onClose}>
+              Keep it
+            </Button>
+            <Button variant="danger" onClick={() => void remove()} disabled={busy} data-testid="pool-delete-confirm">
+              Delete pool
+            </Button>
+        </>
+      }
+    >
       <p className="text-body text-ink-2" data-testid="pool-delete-words">
         {who} Its messages and tasks stay in its history. No session stops.
       </p>
-      <span className="mt-3 flex justify-end gap-2">
-        <Button variant="ghost" onClick={onClose}>
-          Keep it
-        </Button>
-        <Button variant="danger" onClick={() => void remove()} disabled={busy} data-testid="pool-delete-confirm">
-          Delete pool
-        </Button>
-      </span>
     </Modal>
   );
 }

@@ -8,6 +8,7 @@ import type { RemoteMachineInfo } from "../types/generated/RemoteMachineInfo";
 import type { RemoteProcessInfo } from "../types/generated/RemoteProcessInfo";
 import { cliAppName } from "../lib/app-name";
 import { providerDisplayName } from "../lib/providers";
+import { DialogFrame, DialogOverlay } from "./DialogFrame";
 
 /**
  * AJ-E707 — paired machines' processes on the Processes page, grouped
@@ -191,33 +192,40 @@ function CleanSheet({
     return () => window.removeEventListener("keydown", onKey);
   }, [onCancel]);
   return (
-    <div ref={boxRef} className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6">
-      <Card
-        className="w-full max-w-sm p-5"
+    <DialogOverlay ref={boxRef} className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+      <DialogFrame
+        className="sheen rounded-card border border-hairline bg-surface shadow-card w-full max-w-sm"
         onKeyDown={(event) => keepTabInside(boxRef.current, event)}
         role="alertdialog"
         aria-modal="true"
         aria-labelledby="remote-clean-title"
         aria-describedby="remote-clean-body"
         data-testid="remote-cleanup-confirm"
+        bodyClassName="px-5 pb-1.5"
+        footerClassName="px-5 pt-2.5 pb-5"
+        footer={
+          <div className="flex justify-end gap-2">
+            <Button ref={cancelRef} size="sm" variant="secondary" onClick={onCancel}>
+              Cancel
+            </Button>
+            <Button size="sm" variant="danger" disabled={busy} onClick={onConfirm} data-testid="remote-cleanup-yes">
+              Clean on {machine.label}
+            </Button>
+          </div>
+        }
+        headerClassName="px-5 pt-5"
+        header={
+          <p id="remote-clean-title" className="text-sm font-semibold">
+            Clean {row.name || "this process"} on {machine.label}?
+          </p>
+        }
       >
-        <p id="remote-clean-title" className="text-sm font-semibold">
-          Clean {row.name || "this process"} on {machine.label}?
-        </p>
         <p id="remote-clean-body" className="mt-1.5 text-xs leading-relaxed text-ink-2">
           {machine.label} checks again that pid {row.pid} is still the process it recorded for{" "}
           {row.account_label ? cliAppName(row.provider, row.account_label) : "that session"}, then asks it to quit and stops it if it doesn't. If
           anything changed, nothing is touched.
         </p>
-        <div className="mt-4 flex justify-end gap-2">
-          <Button ref={cancelRef} size="sm" variant="secondary" onClick={onCancel}>
-            Cancel
-          </Button>
-          <Button size="sm" variant="danger" disabled={busy} onClick={onConfirm} data-testid="remote-cleanup-yes">
-            Clean on {machine.label}
-          </Button>
-        </div>
-      </Card>
-    </div>
+      </DialogFrame>
+    </DialogOverlay>
   );
 }

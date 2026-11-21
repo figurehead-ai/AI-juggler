@@ -57,4 +57,5 @@ export const GUIDE = {
   carried: "switching#what-goes-along",
   room: "switching#an-account-with-little-or-no-room",
   notes: "switching#this-projects-notes",
+  move: "switching#move-or-copy-claude-to-claude",
 } as const;

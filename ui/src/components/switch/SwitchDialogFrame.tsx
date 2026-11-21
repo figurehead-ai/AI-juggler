@@ -4,20 +4,19 @@
  * 0.1.8, 2026-10-27): a header with the step marks and the close ×, a body
  * that scrolls, and a footer with the buttons — Cancel · Back · the
  * primary — always on screen, at any window size, on every step and in
- * every phase. The keyboard rules are the same too: the phase's own
+ * every phase. 0.5.0: it is the shared DialogFrame (DialogFrame.tsx), and a
+ * choice that sets what the primary does (Move or Copy) sits in the
+ * header with the step marks, never scrolled away. The keyboard rules are the same too: the phase's own
  * default (Retry, Go to it) takes focus first, Tab stays inside, and Esc
  * closes — except while the copy runs, when the flow says it's finishing
  * instead (§4.9).
  */
 import { useEffect, type JSX, type ReactNode, type RefObject } from "react";
-import { PRIMARY_FILL } from "../primitives";
+import { Button } from "../primitives";
 import { IconCheck } from "../icons-controls";
 import { SELECTED_CARD } from "../controls/selected";
+import { DialogFrame, DialogOverlay } from "../DialogFrame";
 
-export const BUTTON = "min-h-8 rounded-lg border px-3.5 text-body";
-export const SECONDARY = `${BUTTON} border-hairline text-ink hover:bg-surface-2`;
-export const PRIMARY = `${BUTTON} ${PRIMARY_FILL} font-semibold`;
-export const PRIMARY_WAITING = `${BUTTON} border-hairline text-muted`;
 
 /** Where the dialog's controls are, for Tab. */
 const FOCUSABLE = "button:not(:disabled), input:not(:disabled), summary";
@@ -61,18 +60,18 @@ export function StepMarks({ steps, step, testId }: { steps: readonly string[]; s
  * readers). */
 export function CancelButton({ onClick, testId }: { onClick: () => void; testId: string }): JSX.Element {
   return (
-    <button type="button" onClick={onClick} className={SECONDARY} data-testid={testId} aria-keyshortcuts="Escape">
+    <Button variant="ghost" type="button" onClick={onClick} data-testid={testId} aria-keyshortcuts="Escape">
       Cancel
-    </button>
+    </Button>
   );
 }
 
 /** Back, from the second step on. */
 export function BackButton({ onClick, testId }: { onClick: () => void; testId: string }): JSX.Element {
   return (
-    <button type="button" onClick={onClick} className={SECONDARY} data-testid={testId}>
+    <Button variant="ghost" type="button" onClick={onClick} data-testid={testId}>
       Back
-    </button>
+    </Button>
   );
 }
 
@@ -80,9 +79,9 @@ export function BackButton({ onClick, testId }: { onClick: () => void; testId: s
  * answered. A double-click never lands on the next step's button. */
 export function ContinueButton({ onClick, ready, testId }: { onClick: () => void; ready: boolean; testId: string }): JSX.Element {
   return (
-    <button key="continue" type="button" disabled={!ready} onClick={onClick} data-testid={testId} className={ready ? PRIMARY : PRIMARY_WAITING}>
+    <Button variant="primary" key="continue" type="button" disabled={!ready} onClick={onClick} data-testid={testId}>
       Continue
-    </button>
+    </Button>
   );
 }
 
@@ -165,32 +164,35 @@ export function SwitchDialogFrame({
   children: ReactNode;
 }): JSX.Element {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
-      <div
-        ref={dialogRef}
+    <DialogOverlay className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+      <DialogFrame
+        frameRef={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-label={label}
         data-testid={testId}
-        className="flex max-h-[min(92vh,760px)] w-full max-w-[680px] flex-col overflow-hidden rounded-xl border border-hairline bg-surface shadow-card"
+        size="M-cards"
+        className="rounded-xl border border-hairline bg-surface shadow-card"
+        headerTestId="switch-header"
+        headerClassName="flex items-start gap-3 px-6 pt-5"
+        header={
+          <>
+            <div className="min-w-0 flex-1 pb-3">{header}</div>
+            {onClose && (
+              <button type="button" onClick={onClose} aria-label="Close" title="Close (Esc)" className="-mr-3 -mt-2 flex size-8 shrink-0 items-center justify-center rounded-lg text-ink hover:bg-surface-2" data-testid="switch-close">
+                <span aria-hidden="true" className="text-lg leading-none">×</span>
+              </button>
+            )}
+          </>
+        }
+        bodyTestId="switch-body"
+        bodyClassName="px-6 pb-5"
+        footer={footer}
+        footerTestId="switch-footer"
+        footerClassName="flex flex-wrap items-center justify-end gap-2 border-t border-hairline px-6 py-3"
       >
-        <div className="flex shrink-0 items-start gap-3 px-6 pt-5" data-testid="switch-header">
-          <div className="min-w-0 flex-1 pb-3">{header}</div>
-          {onClose && (
-            <button type="button" onClick={onClose} aria-label="Close" title="Close (Esc)" className="-mr-3 -mt-2 flex size-8 shrink-0 items-center justify-center rounded-lg text-ink hover:bg-surface-2" data-testid="switch-close">
-              <span aria-hidden="true" className="text-lg leading-none">×</span>
-            </button>
-          )}
-        </div>
-        <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-5" data-testid="switch-body">
-          {children}
-        </div>
-        {footer && (
-          <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 border-t border-hairline px-6 py-3" data-testid="switch-footer">
-            {footer}
-          </div>
-        )}
-      </div>
-    </div>
+        {children}
+      </DialogFrame>
+    </DialogOverlay>
   );
 }

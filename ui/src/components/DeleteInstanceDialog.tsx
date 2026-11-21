@@ -9,6 +9,8 @@ import { useEffect, useRef, useState, type JSX } from "react";
 import { errorText } from "../lib/bridge";
 import { instanceDelete, instanceDeletePreview } from "../lib/ipc/session-history";
 import type { DeletePreviewInfo } from "../types/generated/DeletePreviewInfo";
+import { DialogFrame, DialogOverlay } from "./DialogFrame";
+import { Button } from "./primitives";
 
 export function DeleteInstanceDialog({
   sessionId,
@@ -45,19 +47,36 @@ export function DeleteInstanceDialog({
     }
   };
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6 backdrop-blur-sm">
-      <div
-        ref={dialogRef}
+    <DialogOverlay className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+      <DialogFrame
+        frameRef={dialogRef}
         role="alertdialog"
         aria-modal="true"
         aria-labelledby="delete-title"
         aria-describedby="delete-removes"
         data-testid="delete-dialog"
-        className="flex w-full max-w-lg flex-col gap-3 rounded-xl border border-hairline bg-surface p-5 shadow-card"
+        className="w-full max-w-lg rounded-xl border border-hairline bg-surface shadow-card"
+        headerClassName="px-5 pt-5"
+        bodyClassName="flex flex-col gap-3 px-5 pt-3 pb-3"
+        footerClassName="px-5 pt-3 pb-5"
+        header={
+          <h3 id="delete-title" className="text-sm font-semibold">
+            Delete this session{preview?.account_label ? ` (${preview.account_label})` : ""}?
+          </h3>
+        }
+        footer={
+          <div className="flex justify-end gap-2">
+            <Button size="sm" variant="ghost" onClick={() => onClose(false)}>
+              Keep it
+            </Button>
+            {!preview?.refused && (
+              <Button size="sm" variant="danger" disabled={!armed} onClick={() => void run()} data-testid="delete-go">
+                Delete permanently
+              </Button>
+            )}
+          </div>
+        }
       >
-        <h3 id="delete-title" className="text-sm font-semibold">
-          Delete this session{preview?.account_label ? ` (${preview.account_label})` : ""}?
-        </h3>
         {preview?.refused ? (
           <p className="text-label text-ink" data-testid="delete-refused">
             <span aria-hidden="true">⚠ </span>
@@ -101,26 +120,7 @@ export function DeleteInstanceDialog({
             {error}
           </p>
         )}
-        <div className="flex justify-end gap-2">
-          <button type="button" onClick={() => onClose(false)} className="rounded-lg border border-hairline px-3 py-1.5 text-xs text-ink">
-            Keep it
-          </button>
-          {!preview?.refused && (
-            <button
-              type="button"
-              disabled={!armed}
-              onClick={() => void run()}
-              className={
-                "rounded-lg border px-3 py-1.5 text-xs " +
-                (armed ? "border-danger/60 text-ink hover:border-danger" : "border-hairline text-muted")
-              }
-              data-testid="delete-go"
-            >
-              Delete permanently
-            </button>
-          )}
-        </div>
-      </div>
-    </div>
+      </DialogFrame>
+    </DialogOverlay>
   );
 }

@@ -85,8 +85,19 @@ export function RenameSheet({
   // After the Modal's own effect has focused it (a child's effect runs first).
   useEffect(() => field.current?.select(), []);
   return (
-    <Modal title={title} onClose={onClose}>
-      <form
+    <Modal title={title} onClose={onClose}
+      footer={
+        <>
+            <Button size="sm" variant="ghost" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button size="sm" variant="primary" type="submit" form="managework-form" disabled={busy} data-testid={`${testId}-save`}>
+              {busy ? "Saving…" : "Save"}
+            </Button>
+        </>
+      }
+    >
+      <form id="managework-form"
         className="flex flex-col gap-4"
         data-testid={testId}
         onSubmit={async (event) => {
@@ -109,14 +120,6 @@ export function RenameSheet({
             {error}
           </p>
         )}
-        <div className="flex justify-end gap-2">
-          <Button size="sm" variant="ghost" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button size="sm" variant="primary" type="submit" disabled={busy} data-testid={`${testId}-save`}>
-            {busy ? "Saving…" : "Save"}
-          </Button>
-        </div>
       </form>
     </Modal>
   );
@@ -125,16 +128,19 @@ export function RenameSheet({
 /** A refusal or failure from an action, said in the app's words. */
 function ProblemSheet({ title, message, onClose }: { title: string; message: string; onClose: () => void }) {
   return (
-    <Modal title={title} onClose={onClose}>
+    <Modal title={title} onClose={onClose}
+      footer={
+        <>
+            <Button size="sm" variant="secondary" onClick={onClose} autoFocus>
+              OK
+            </Button>
+        </>
+      }
+    >
       <div className="flex flex-col gap-4 text-sm">
         <p className="leading-relaxed text-ink-2" role="alert" data-testid="manage-problem">
           {message}
         </p>
-        <div className="flex justify-end">
-          <Button size="sm" variant="secondary" onClick={onClose} autoFocus>
-            OK
-          </Button>
-        </div>
       </div>
     </Modal>
   );
@@ -235,7 +241,34 @@ function ForgetSheet({ project, onClose, onDone }: { project: ProjectInfo; onClo
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   return (
-    <Modal title={`Forget ${project.name}?`} onClose={onClose}>
+    <Modal title={`Forget ${project.name}?`} onClose={onClose}
+      footer={
+        <>
+            <Button size="sm" variant="ghost" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              variant="danger"
+              disabled={busy}
+              data-testid="forget-project-confirm"
+              onClick={async () => {
+                setBusy(true);
+                setError(null);
+                try {
+                  await projectForget(project.id, true);
+                  onDone();
+                } catch (cause) {
+                  setError(errorText(cause));
+                  setBusy(false);
+                }
+              }}
+            >
+              {busy ? "Forgetting…" : "Forget"}
+            </Button>
+        </>
+      }
+    >
       <div className="flex flex-col gap-4 text-sm" data-testid="forget-project">
         <p className="leading-relaxed text-ink-2">
           It leaves the rail and New session until you start a session there again. Nothing in the folder changes, and its sessions stay in History.
@@ -245,30 +278,6 @@ function ForgetSheet({ project, onClose, onDone }: { project: ProjectInfo; onClo
             {error}
           </p>
         )}
-        <div className="flex justify-end gap-2">
-          <Button size="sm" variant="ghost" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button
-            size="sm"
-            variant="danger"
-            disabled={busy}
-            data-testid="forget-project-confirm"
-            onClick={async () => {
-              setBusy(true);
-              setError(null);
-              try {
-                await projectForget(project.id, true);
-                onDone();
-              } catch (cause) {
-                setError(errorText(cause));
-                setBusy(false);
-              }
-            }}
-          >
-            {busy ? "Forgetting…" : "Forget"}
-          </Button>
-        </div>
       </div>
     </Modal>
   );

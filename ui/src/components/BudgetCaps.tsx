@@ -132,8 +132,19 @@ export function BudgetSheet({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   return (
-    <Modal title={cap ? `Edit ${cap.name}` : "Set a monthly cap"} subtitle="You'll hear at 80 % and 100 %. Nothing is stopped." onClose={onClose}>
-      <form
+    <Modal title={cap ? `Edit ${cap.name}` : "Set a monthly cap"} subtitle="You'll hear at 80 % and 100 %. Nothing is stopped." onClose={onClose}
+      footer={
+        <>
+            <Button size="sm" variant="ghost" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button size="sm" variant="primary" type="submit" form="budgetcaps-form" disabled={busy} data-testid="cap-save">
+              {busy ? "Saving…" : "Save"}
+            </Button>
+        </>
+      }
+    >
+      <form id="budgetcaps-form"
         className="flex flex-col gap-4"
         data-testid="cap-sheet"
         onSubmit={async (event) => {
@@ -204,14 +215,6 @@ export function BudgetSheet({
             {error}
           </p>
         )}
-        <div className="flex justify-end gap-2">
-          <Button size="sm" variant="ghost" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button size="sm" variant="primary" type="submit" disabled={busy} data-testid="cap-save">
-            {busy ? "Saving…" : "Save"}
-          </Button>
-        </div>
       </form>
     </Modal>
   );

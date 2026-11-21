@@ -15,6 +15,7 @@ import { botCount, botMemories, type BotCountInfo } from "../../lib/ipc/bot";
 import { errorText } from "../../lib/bridge";
 import type { BotMemoryInfo } from "../../types/generated/BotMemoryInfo";
 import { THIS_MACHINE_IN_TEXT } from "../../lib/machine-words";
+import { DialogFrame, DialogOverlay } from "../DialogFrame";
 
 function Sheet({ id, title, body, children, button, onConfirm, onClose }: { id: string; title: string; body: string; children: ReactNode; button: string; onConfirm: () => Promise<void>; onClose: () => void }): JSX.Element {
   const ref = useRef<HTMLDivElement | null>(null);
@@ -42,37 +43,52 @@ function Sheet({ id, title, body, children, button, onConfirm, onClose }: { id: 
     }
   };
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-[rgba(14,18,25,.30)] p-6 [[data-theme=dark]_&]:bg-[rgba(4,6,10,.62)]">
-      <div ref={ref} role="alertdialog" aria-modal="true" aria-labelledby={`${id}-title`} aria-describedby={`${id}-body`} className="flex w-[500px] max-w-full flex-col gap-3.5 rounded-2xl bg-surface px-[22px] pt-[22px] pb-[18px] shadow-[0_18px_48px_-12px_rgba(0,0,0,.5)] inset-ring-1 inset-ring-hairline/75 [[data-theme=dark]_&]:bg-surface-2" data-testid={id}>
-        <div className="flex items-start gap-3">
-          <span className="grid size-9 shrink-0 place-items-center rounded-[10px] bg-surface-3 text-danger">
-            <IconTrash width={18} height={18} aria-hidden="true" />
-          </span>
-          <div className="flex flex-col gap-1.5">
-            <h2 id={`${id}-title`} className="text-[17px] leading-snug font-semibold text-ink">
-              {title}
-            </h2>
-            <p id={`${id}-body`} className="text-body text-muted">
-              {body}
-            </p>
-          </div>
-        </div>
+    <DialogOverlay className="fixed inset-0 z-50 grid place-items-center bg-[rgba(14,18,25,.30)] p-4 [[data-theme=dark]_&]:bg-[rgba(4,6,10,.62)]">
+      <DialogFrame
+        frameRef={ref}
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby={`${id}-title`}
+        aria-describedby={`${id}-body`}
+        className="w-[500px] max-w-full rounded-2xl bg-surface shadow-[0_18px_48px_-12px_rgba(0,0,0,.5)] inset-ring-1 inset-ring-hairline/75 [[data-theme=dark]_&]:bg-surface-2"
+        data-testid={id}
+        headerClassName="flex items-start gap-3 px-[22px] pt-[22px]"
+        header={
+          <>
+            <span className="grid size-9 shrink-0 place-items-center rounded-[10px] bg-surface-3 text-danger">
+              <IconTrash width={18} height={18} aria-hidden="true" />
+            </span>
+            <div className="flex flex-col gap-1.5">
+              <h2 id={`${id}-title`} className="text-[17px] leading-snug font-semibold text-ink">
+                {title}
+              </h2>
+              <p id={`${id}-body`} className="text-body text-muted">
+                {body}
+              </p>
+            </div>
+          </>
+        }
+        bodyClassName="flex flex-col gap-3.5 px-[22px] pt-3.5 pb-3.5 empty:pb-0"
+        footerClassName="flex items-center justify-end gap-2 px-[22px] pt-1 pb-[18px]"
+        footer={
+          <>
+            <button type="button" data-cancel className="inline-flex h-9 items-center rounded-xl px-3.5 text-body font-medium text-ink-2 outline-none hover:bg-surface-2 focus-visible:ring-2 focus-visible:ring-accent/60" onClick={onClose}>
+              {WORDS.cancel}
+            </button>
+            <button type="button" disabled={busy} className="inline-flex h-9 items-center rounded-xl bg-danger px-3.5 text-body font-medium text-white outline-none focus-visible:ring-2 focus-visible:ring-accent/60 disabled:opacity-60 [[data-theme=dark]_&]:text-canvas" onClick={() => void run()} data-testid={`${id}-confirm`}>
+              {button}
+            </button>
+          </>
+        }
+      >
         {children}
         {error && (
           <p className="text-meta text-danger" role="alert">
             {error}
           </p>
         )}
-        <div className="flex items-center justify-end gap-2 pt-1">
-          <button type="button" data-cancel className="inline-flex h-9 items-center rounded-xl px-3.5 text-body font-medium text-ink-2 outline-none hover:bg-surface-2 focus-visible:ring-2 focus-visible:ring-accent/60" onClick={onClose}>
-            {WORDS.cancel}
-          </button>
-          <button type="button" disabled={busy} className="inline-flex h-9 items-center rounded-xl bg-danger px-3.5 text-body font-medium text-white outline-none focus-visible:ring-2 focus-visible:ring-accent/60 disabled:opacity-60 [[data-theme=dark]_&]:text-canvas" onClick={() => void run()} data-testid={`${id}-confirm`}>
-            {button}
-          </button>
-        </div>
-      </div>
-    </div>
+      </DialogFrame>
+    </DialogOverlay>
   );
 }
 

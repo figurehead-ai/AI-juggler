@@ -17,7 +17,7 @@
  * continues, Desktop or CLI, chosen on the last screen (`WhereChoice`).
  */
 import { useEffect, useRef, useState, type JSX } from "react";
-import { BackButton, CancelButton, ContinueButton, PRIMARY, PRIMARY_WAITING, StepMarks, SwitchDialogFrame, useDialogKeys } from "./switch/SwitchDialogFrame";
+import { BackButton, CancelButton, ContinueButton, StepMarks, SwitchDialogFrame, useDialogKeys } from "./switch/SwitchDialogFrame";
 import type { FreezeChoice } from "./SwitchFreezeChoice";
 import { FailedStep, failureOf } from "./switch/FailedStep";
 import { useSwitchInvoker } from "../lib/handover-focus";
@@ -37,6 +37,7 @@ import { switchExecute } from "../lib/ipc/switchExecute";
 import { useMoveFlow } from "./switch/MoveChoice";
 import { redactionPolicySetGlobal } from "../lib/ipc/redaction";
 import { errorText } from "../lib/bridge";
+import { Button } from "./primitives";
 
 type Phase =
   | { kind: "preflight" }
@@ -231,21 +232,20 @@ export function SwitchFlow({
   );
   const sealOwed = useSealOwed(sessionId, targetProfileId); // D-62: a sealed pool's tick
   const switchButton = (preflight: PreflightInfoData) => (
-    <button
+    <Button
       key="switch-now"
-      type="button"
+      variant="primary"
       disabled={keysPending || sealOwed || tooLittleSpace(space)}
       // Continue and Switch now sit in one place: the second click of a
       // double-click on Continue never starts the switch from a screen
       // the user hasn't seen (deep/09 H-5).
       onClick={(event) => event.detail < 2 && void execute(preflight)}
       data-testid="switch-confirm"
-      className={keysPending || sealOwed || tooLittleSpace(space) ? PRIMARY_WAITING : PRIMARY}
       aria-keyshortcuts="Enter"
     >
       {/* 0.3.5: the button says where it goes on: Desktop or CLI. */}
       {switchLabel(destination, risky(room))}
-    </button>
+    </Button>
   );
   const cancelButton = <CancelButton onClick={cancel} testId="switch-cancel" />;
 
@@ -254,8 +254,8 @@ export function SwitchFlow({
   const wizard = phase.kind === "confirm" && phase.preflight.door === "wizard" && !move.moving ? phase.preflight : null;
   const carriedPending = wizard !== null && steps[step] === "What's carried" && keysPending;
 
-  // The step marks list ONLY the rendered steps: never phantom ones (§8).
-  const header = wizard && <StepMarks steps={steps} step={step} testId="switch-steps" />;
+  // The step marks list ONLY the rendered steps: never phantom ones (§8); under "Continue on <App>" where moving applies.
+  const header = move.header(wizard && <StepMarks steps={steps} step={step} testId="switch-steps" />, targetLabel, phase.kind === "confirm" ? phase.preflight : null);
 
   const body = (() => {
     switch (phase.kind) {
@@ -266,7 +266,7 @@ export function SwitchFlow({
           </p>
         );
       case "confirm":
-        if (move.moving) return move.screen(targetLabel, phase.preflight.source_account ?? "this account");
+        if (move.moving) return move.screen(targetLabel, phase.preflight.source_account ?? "this account", phase.preflight.target_tool);
         if (phase.preflight.door === "one-click") {
           return (
             <div className="flex flex-col gap-5" data-testid="switch-oneclick">
@@ -332,9 +332,9 @@ export function SwitchFlow({
         return null;
       case "done":
         return (
-          <button type="button" data-autofocus onClick={() => onSwitched(phase.sessionId, null)} className={PRIMARY} data-testid="switch-go">
+          <Button variant="primary" type="button" data-autofocus onClick={() => onSwitched(phase.sessionId, null)} data-testid="switch-go">
             {phase.continuedIn === "desktop" ? "Open its page" : "Go to the new session"}
-          </button>
+          </Button>
         );
       case "failed":
         return (
@@ -342,9 +342,9 @@ export function SwitchFlow({
             {cancelButton}
             {/* 0.3.9: only when trying again can succeed. */}
             {failureOf(phase.cause).retryable && (
-              <button type="button" data-autofocus onClick={() => retry(phase.preflight)} className={PRIMARY} data-testid="switch-retry">
+              <Button variant="primary" type="button" data-autofocus onClick={() => retry(phase.preflight)} data-testid="switch-retry">
                 Retry
-              </button>
+              </Button>
             )}
           </>
         );

@@ -16,6 +16,10 @@ import type { LaunchRecipeInfo } from "../types/generated/LaunchRecipeInfo";
 import type { ProjectInfo } from "../types/generated/ProjectInfo";
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import { errorText } from "../lib/bridge";
+import { DialogFrame, DialogOverlay } from "../components/DialogFrame";
+
+/** The picker is a modal dialog, drawn by DialogFrame. */
+const DIALOG = "dialog";
 
 
 function statusTone(status: string): { tone: ChipTone; label: string } {
@@ -225,12 +229,29 @@ export function NewSessionModal({
   };
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-6 backdrop-blur-sm"
+    <DialogOverlay
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm"
       onKeyDown={(event) => event.key === "Escape" && onClose()}
     >
-      <Card className="w-full max-w-md p-5">
-        <h3 className="text-sm font-semibold">New session</h3>
+      <DialogFrame
+        role={DIALOG}
+        aria-modal="true"
+        aria-label="New session"
+        className="sheen rounded-card border border-hairline bg-surface shadow-card w-full max-w-md"
+        headerClassName="px-5 pt-5"
+        bodyClassName="px-5 pb-1.5"
+        footerClassName="px-5 pt-2.5 pb-5"
+        header={
+          <h3 className="text-sm font-semibold">New session</h3>
+        }
+        footer={
+          <div className="flex justify-end">
+            <Button size="sm" variant="secondary" onClick={onClose}>
+              Close
+            </Button>
+          </div>
+        }
+      >
         <p className="mt-0.5 text-xs text-ink-2">
           Pick an app — its account, isolation, and defaults apply. Point
           it at a directory to make (or reuse) a project.
@@ -272,12 +293,7 @@ export function NewSessionModal({
         </div>
 
         {error && <p className="mt-3 text-xs text-danger">{error}</p>}
-        <div className="mt-4 flex justify-end">
-          <Button size="sm" variant="secondary" onClick={onClose}>
-            Close
-          </Button>
-        </div>
-      </Card>
-    </div>
+      </DialogFrame>
+    </DialogOverlay>
   );
 }

@@ -49,8 +49,24 @@ export function MarkSheet({ project, onClose, onDone }: { project: ProjectInfo; 
   };
 
   return (
-    <Modal title={`Change ${project.name}'s mark`} onClose={onClose}>
-      <form
+    <Modal title={`Change ${project.name}'s mark`} onClose={onClose}
+      footer={
+        <>
+            {mark.choice && (
+              <Button size="sm" variant="ghost" className="mr-auto" disabled={busy} onClick={() => void save({})} data-testid="mark-reset">
+                Use its own
+              </Button>
+            )}
+            <Button size="sm" variant="ghost" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button size="sm" variant="primary" type="submit" form="marksheet-form" disabled={busy} data-testid="mark-save">
+              {busy ? "Saving…" : "Save"}
+            </Button>
+        </>
+      }
+    >
+      <form id="marksheet-form"
         className="flex flex-col gap-4"
         data-testid="mark-sheet"
         onSubmit={(event) => {
@@ -123,19 +139,6 @@ export function MarkSheet({ project, onClose, onDone }: { project: ProjectInfo; 
             {error}
           </p>
         )}
-        <div className="flex items-center justify-end gap-2">
-          {mark.choice && (
-            <Button size="sm" variant="ghost" className="mr-auto" disabled={busy} onClick={() => void save({})} data-testid="mark-reset">
-              Use its own
-            </Button>
-          )}
-          <Button size="sm" variant="ghost" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button size="sm" variant="primary" type="submit" disabled={busy} data-testid="mark-save">
-            {busy ? "Saving…" : "Save"}
-          </Button>
-        </div>
       </form>
     </Modal>
   );

@@ -11,6 +11,9 @@
 #   - what the 0.4.6 RC walks found cut or scrolling sideways, measured
 #     (fits-its-room), and the top bar's room words never cut mid-word
 #     (header-room-words);
+#   - every dialog's fixed header and footer, its body alone scrolling,
+#     at 1024×680 and 1280×800 (dialog-fit, VALIDATION N1; writes
+#     docs/qa/evidence/design-system/dialog-fit.json);
 #   - axe on every state of Settings › AI › Models (models-gallery; its
 #     captures only when AIJ_MODELS_OUT names a folder), and of the
 #     Watches view (watches-gallery; AIJ_WATCHES_OUT);
@@ -39,6 +42,7 @@ AJ_AXE_GALLERY=1 AJ_A11Y_EVIDENCE=1 pnpm exec playwright test \
   tests/visual/caret-mark.spec.ts \
   tests/visual/cursor.spec.ts \
   tests/visual/fits-its-room.spec.ts \
+  tests/visual/dialog-fit.spec.ts \
   tests/visual/header-room-words.spec.ts \
   tests/visual/fleet-pairing.spec.ts \
   tests/visual/flows-cde.spec.ts \

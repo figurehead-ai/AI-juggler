@@ -10,7 +10,21 @@ import { trustOpen } from "../../lib/ipc/trust";
 
 export function RecreateSheet({ example, onCancel, onConfirm }: { example: string | null; onCancel: () => void; onConfirm: () => void }): JSX.Element {
   return (
-    <Modal title="Re-create the office?" subtitle="Every area gets a new look and desk layout." onClose={onCancel} testId="floor-recreate-sheet">
+    <Modal title="Re-create the office?" subtitle="Every area gets a new look and desk layout." onClose={onCancel} testId="floor-recreate-sheet"
+      footer={
+        <>
+            <button type="button" className="mr-auto text-meta text-accent-hi hover:underline" onClick={() => void trustOpen({ kind: "guide", id: "the-floor" })}>
+              How the Floor works ↗
+            </button>
+            <Button size="sm" variant="secondary" onClick={onCancel} data-autofocus>
+              Cancel
+            </Button>
+            <Button size="sm" variant="primary" onClick={onConfirm} data-testid="floor-recreate-confirm">
+              Re-create
+            </Button>
+        </>
+      }
+    >
       <dl className="flex flex-col gap-3 text-body" data-modal-body>
         <div className="flex flex-col gap-0.5">
           <dt className="text-meta font-semibold text-ink">Changes</dt>
@@ -24,17 +38,6 @@ export function RecreateSheet({ example, onCancel, onConfirm }: { example: strin
       <p className="mt-3 text-meta text-ink-2" data-testid="floor-recreate-example">
         For example: {example ?? "your first App"} keeps its place on floor 1 and keeps its style; its desks may stand in a new pattern, its floor and walls change.
       </p>
-      <div className="mt-4 flex flex-wrap items-center gap-2">
-        <button type="button" className="mr-auto text-meta text-accent-hi hover:underline" onClick={() => void trustOpen({ kind: "guide", id: "the-floor" })}>
-          How the Floor works ↗
-        </button>
-        <Button size="sm" variant="secondary" onClick={onCancel} data-autofocus>
-          Cancel
-        </Button>
-        <Button size="sm" variant="primary" onClick={onConfirm} data-testid="floor-recreate-confirm">
-          Re-create
-        </Button>
-      </div>
     </Modal>
   );
 }

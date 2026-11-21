@@ -34,28 +34,28 @@ describe("AJ-E1206 account discovery", () => {
   it("is hidden and silent while discovery is off", async () => {
     w().__AIJ_FIGUREHEAD__ = linked(false);
     w().__AIJ_ACCOUNT_MACS__ = MACS;
-    const { container } = render(<AccountMacsCard />);
+    render(<AccountMacsCard />);
     await new Promise((resolve) => setTimeout(resolve, 0));
-    expect(container.querySelector("[data-testid='account-macs']")).toBeNull();
+    expect(document.body.querySelector("[data-testid='account-macs']")).toBeNull();
     expect(calls()).toEqual([]);
   });
 
   it("pins only after both fingerprints are confirmed", async () => {
     w().__AIJ_FIGUREHEAD__ = linked(true);
     w().__AIJ_ACCOUNT_MACS__ = MACS;
-    const { container } = render(<AccountMacsCard />);
-    await waitFor(() => expect(container.querySelectorAll("[data-testid='account-mac']")).toHaveLength(2));
-    expect(container.textContent).toContain("Can't pair this way — use a pairing code");
-    fireEvent.click(container.querySelector("[data-testid='account-mac-compare']")!);
-    expect(container.querySelector("[data-testid='compare-this']")!.textContent).toBe("AAAA-BBBB-CCCC-DDDD");
-    expect(container.querySelector("[data-testid='compare-other']")!.textContent).toBe("EEEE-FFFF-GGGG-HHHH");
-    const pair = () => container.querySelector<HTMLButtonElement>("[data-testid='compare-pair']")!;
+    render(<AccountMacsCard />);
+    await waitFor(() => expect(document.body.querySelectorAll("[data-testid='account-mac']")).toHaveLength(2));
+    expect(document.body.textContent).toContain("Can't pair this way — use a pairing code");
+    fireEvent.click(document.body.querySelector("[data-testid='account-mac-compare']")!);
+    expect(document.body.querySelector("[data-testid='compare-this']")!.textContent).toBe("AAAA-BBBB-CCCC-DDDD");
+    expect(document.body.querySelector("[data-testid='compare-other']")!.textContent).toBe("EEEE-FFFF-GGGG-HHHH");
+    const pair = () => document.body.querySelector<HTMLButtonElement>("[data-testid='compare-pair']")!;
     expect(pair().disabled).toBe(true);
-    fireEvent.click(container.querySelector("[data-testid='compare-match']")!);
+    fireEvent.click(document.body.querySelector("[data-testid='compare-match']")!);
     await act(async () => {
       fireEvent.click(pair());
     });
     expect(calls()).toContain("pin:dev_mini:EEEE-FFFF-GGGG-HHHH");
-    await waitFor(() => expect(container.textContent).toContain("waiting for it to confirm this Mac"));
+    await waitFor(() => expect(document.body.textContent).toContain("waiting for it to confirm this Mac"));
   });
 });

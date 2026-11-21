@@ -25,7 +25,8 @@ import { byteSize } from "../lib/compact";
 import { useSwitchInvoker } from "../lib/handover-focus";
 import type { FreezeChoice } from "./SwitchFreezeChoice";
 import { CrossCarried, CrossConfirm, CrossProject, CrossTarget, type Mechanism } from "./switch/CrossSteps";
-import { BackButton, CancelButton, ContinueButton, PRIMARY, PRIMARY_WAITING, SECONDARY, StepMarks, SwitchDialogFrame, useDialogKeys } from "./switch/SwitchDialogFrame";
+import { BackButton, CancelButton, ContinueButton, StepMarks, SwitchDialogFrame, useDialogKeys } from "./switch/SwitchDialogFrame";
+import { Button } from "./primitives";
 
 type Phase =
   | { kind: "wizard" }
@@ -214,32 +215,32 @@ export function CrossMachineSwitchFlow({
             {current !== "Confirm" ? (
               <ContinueButton ready={stepReady} onClick={() => setStep(step + 1)} testId="cross-switch-next" />
             ) : (
-              <button type="button" disabled={!armed} onClick={(event) => event.detail < 2 && void execute()} className={armed ? PRIMARY : PRIMARY_WAITING} data-testid="cross-switch-go">
+              <Button variant="primary" type="button" disabled={!armed} onClick={(event) => event.detail < 2 && void execute()} data-testid="cross-switch-go">
                 {/* 0.3.5: the button says where it continues, as on this Mac. */}
                 Switch to CLI on {target.machine_label}
-              </button>
+              </Button>
             )}
           </>
         );
       case "pushing":
         return (
-          <button type="button" onClick={() => void fleetSwitchCancel(target.machine_id)} className={SECONDARY} data-testid="cross-switch-stop">
+          <Button variant="ghost" type="button" onClick={() => void fleetSwitchCancel(target.machine_id)} data-testid="cross-switch-stop">
             Stop sending
-          </button>
+          </Button>
         );
       case "done":
         return (
-          <button type="button" data-autofocus onClick={close} className={PRIMARY} data-testid="cross-switch-close">
+          <Button variant="primary" type="button" data-autofocus onClick={close} data-testid="cross-switch-close">
             Close
-          </button>
+          </Button>
         );
       case "failed":
         return (
           <>
             {cancel}
-            <button type="button" data-autofocus onClick={() => void execute()} className={PRIMARY} data-testid="cross-switch-retry">
+            <Button variant="primary" type="button" data-autofocus onClick={() => void execute()} data-testid="cross-switch-retry">
               Retry
-            </button>
+            </Button>
           </>
         );
     }

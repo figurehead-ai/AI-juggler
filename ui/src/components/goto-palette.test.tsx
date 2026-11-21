@@ -80,8 +80,8 @@ function shell(props: Partial<Parameters<typeof GoToPalette>[0]> = {}) {
 
 describe("AJ-E414 Go to instance… palette (Req.4)", () => {
   it("lists live instances, desktop first; ended ones never appear", () => {
-    const { view } = shell();
-    const palette = view.container.querySelector('[data-testid="goto-palette"]')!;
+    shell();
+    const palette = document.body.querySelector('[data-testid="goto-palette"]')!;
     expect(palette).not.toBeNull();
     expect(palette.querySelector('[data-testid="goto-row-sess-desk-1"]')).not.toBeNull();
     expect(palette.querySelector('[data-testid="goto-row-sess-desk-2"]')).not.toBeNull();
@@ -95,13 +95,13 @@ describe("AJ-E414 Go to instance… palette (Req.4)", () => {
   });
 
   it("closed palette renders nothing", () => {
-    const { view } = shell({ open: false });
-    expect(view.container.querySelector('[data-testid="goto-palette"]')).toBeNull();
+    shell({ open: false });
+    expect(document.body.querySelector('[data-testid="goto-palette"]')).toBeNull();
   });
 
   it("Enter opens a row's page here; ⌘Enter on a desktop row focuses its window", () => {
-    const { view, onFocusWindow, onOpenSession } = shell();
-    const input = view.container.querySelector("input")!;
+    const { onFocusWindow, onOpenSession } = shell();
+    const input = document.body.querySelector("input")!;
     // Active row 0 is desktop: Enter → its page here (the review of 0.1.4).
     fireEvent.keyDown(input, { key: "Enter" });
     expect(onOpenSession).toHaveBeenCalledWith(SESSIONS[1]!.id);
@@ -109,8 +109,8 @@ describe("AJ-E414 Go to instance… palette (Req.4)", () => {
   });
 
   it("⌘Enter on a desktop row goes to its window; on a terminal row opens its panel", () => {
-    const { view, onFocusWindow, onOpenSession } = shell();
-    const input = view.container.querySelector("input")!;
+    const { onFocusWindow, onOpenSession } = shell();
+    const input = document.body.querySelector("input")!;
     fireEvent.keyDown(input, { key: "Enter", metaKey: true });
     expect(onFocusWindow).toHaveBeenCalledWith(SESSIONS[1]);
     expect(onOpenSession).not.toHaveBeenCalled();
@@ -123,10 +123,10 @@ describe("AJ-E414 Go to instance… palette (Req.4)", () => {
   });
 
   it("filter narrows the list (account/provider text)", () => {
-    const { view } = shell();
-    const input = view.container.querySelector("input")!;
+    shell();
+    const input = document.body.querySelector("input")!;
     fireEvent.change(input, { target: { value: "work" } });
-    const palette = view.container.querySelector('[data-testid="goto-palette"]')!;
+    const palette = document.body.querySelector('[data-testid="goto-palette"]')!;
     expect(palette.querySelector('[data-testid="goto-row-sess-term-1"]')).not.toBeNull();
     expect(palette.querySelector('[data-testid="goto-row-sess-desk-1"]')).toBeNull();
     fireEvent.change(input, { target: { value: "nothing-matches" } });
@@ -134,45 +134,45 @@ describe("AJ-E414 Go to instance… palette (Req.4)", () => {
   });
 
   it("combobox a11y: aria-expanded/activedescendant/roles wired", () => {
-    const { view } = shell();
-    const input = view.container.querySelector("input")!;
+    shell();
+    const input = document.body.querySelector("input")!;
     expect(input.getAttribute("role")).toBe("combobox");
     expect(input.getAttribute("aria-expanded")).toBe("true");
     expect(input.getAttribute("aria-controls")).toBe("goto-listbox");
     expect(input.getAttribute("aria-activedescendant")).toBe("goto-option-sess-desk-1");
-    expect(view.container.querySelector("#goto-listbox")!.getAttribute("role")).toBe("listbox");
-    const first = view.container.querySelectorAll("li[role='option']")[0]!;
+    expect(document.body.querySelector("#goto-listbox")!.getAttribute("role")).toBe("listbox");
+    const first = document.body.querySelectorAll("li[role='option']")[0]!;
     expect(first.getAttribute("aria-selected")).toBe("true");
   });
 
   it("hotkey capture: ⌥Space is refused (ChatGPT's), ⌃⌥Space rebinds through the change flow; Esc cancels", async () => {
-    const { view, onHotkeyChange } = shell();
-    fireEvent.click(view.container.querySelector('[data-testid="goto-change-hotkey"]')!);
-    const input = view.container.querySelector("input")!;
+    const { onHotkeyChange } = shell();
+    fireEvent.click(document.body.querySelector('[data-testid="goto-change-hotkey"]')!);
+    const input = document.body.querySelector("input")!;
     expect(input.getAttribute("placeholder")).toContain("Press the new combo");
     fireEvent.keyDown(input, { key: " ", altKey: true });
-    expect(view.container.querySelector('[data-testid="goto-hotkey-error"]')?.textContent).toContain("ChatGPT uses ⌥Space");
+    expect(document.body.querySelector('[data-testid="goto-hotkey-error"]')?.textContent).toContain("ChatGPT uses ⌥Space");
     expect(onHotkeyChange).not.toHaveBeenCalled();
     fireEvent.keyDown(input, { key: " ", altKey: true, ctrlKey: true });
     await vi.waitFor(() => expect(onHotkeyChange).toHaveBeenCalledWith("Control+Alt+Space"));
     // Capture again; Escape cancels without rebinding.
     onHotkeyChange.mockClear();
-    fireEvent.click(view.container.querySelector('[data-testid="goto-change-hotkey"]')!);
+    fireEvent.click(document.body.querySelector('[data-testid="goto-change-hotkey"]')!);
     fireEvent.keyDown(input, { key: "Escape" });
     expect(onHotkeyChange).not.toHaveBeenCalled();
-    expect(view.container.querySelector("input")!.getAttribute("placeholder")).toContain("Search sessions, apps, projects and accounts");
+    expect(document.body.querySelector("input")!.getAttribute("placeholder")).toContain("Search sessions, apps, projects and accounts");
   });
 
   it("capture failures surface inline, never silently", async () => {
-    const { view } = shell({
+    shell({
       onHotkeyChange: vi.fn(async () => {
         throw new Error("register hotkey: Control+Alt+Space conflicts");
       }),
     });
-    fireEvent.click(view.container.querySelector('[data-testid="goto-change-hotkey"]')!);
-    fireEvent.keyDown(view.container.querySelector("input")!, { key: " ", altKey: true, ctrlKey: true });
+    fireEvent.click(document.body.querySelector('[data-testid="goto-change-hotkey"]')!);
+    fireEvent.keyDown(document.body.querySelector("input")!, { key: " ", altKey: true, ctrlKey: true });
     await vi.waitFor(() =>
-      expect(view.container.querySelector('[data-testid="goto-hotkey-error"]')?.textContent)
+      expect(document.body.querySelector('[data-testid="goto-hotkey-error"]')?.textContent)
         .toContain("conflicts"),
     );
   });

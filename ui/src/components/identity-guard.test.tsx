@@ -39,16 +39,16 @@ describe("AJ-E1001 identity guard", () => {
 
   it("a mismatch pauses with expected vs detected, and switching launches the right Account", async () => {
     w().__AIJ_IDENTITY_CHECK__ = { "rec-work": mismatch };
-    const { container } = render(<IdentityMismatchDialog />);
+    render(<IdentityMismatchDialog />);
     let launched: Promise<unknown> = Promise.resolve();
     await act(async () => {
       launched = launchSession("rec-work", null);
     });
-    const q = (id: string) => container.querySelector<HTMLElement>(`[data-testid='${id}']`);
+    const q = (id: string) => document.body.querySelector<HTMLElement>(`[data-testid='${id}']`);
     await waitFor(() => expect(q("identity-mismatch")).not.toBeNull());
     expect(q("identity-expected")!.textContent).toBe("o…@work.example · Acme");
     expect(q("identity-detected")!.textContent).toBe("o…@home.example · Acme");
-    expect(container.textContent).not.toMatch(/continue anyway/i);
+    expect(document.body.textContent).not.toMatch(/continue anyway/i);
     expect(document.activeElement).toBe(q("identity-switch"));
     expect(w().__AIJ_LAUNCH_CALLS__).toBeUndefined();
     await act(async () => {
@@ -60,8 +60,8 @@ describe("AJ-E1001 identity guard", () => {
 
   it("cancel launches nothing and says why; check again re-probes", async () => {
     w().__AIJ_IDENTITY_CHECK__ = { "rec-work": mismatch };
-    const { container } = render(<IdentityMismatchDialog />);
-    const q = (id: string) => container.querySelector<HTMLElement>(`[data-testid='${id}']`);
+    render(<IdentityMismatchDialog />);
+    const q = (id: string) => document.body.querySelector<HTMLElement>(`[data-testid='${id}']`);
     let cancelled: Promise<unknown> = Promise.resolve();
     await act(async () => {
       cancelled = launchSession("rec-work", null).catch((error: Error) => error.message);

@@ -13,6 +13,7 @@ import { Radio } from "./controls";
 import { PRIMARY_FILL } from "./primitives";
 import { sessionsInWords } from "../lib/session-titles";
 import { SELECTED_CARD } from "./controls/selected";
+import { DialogFrame, DialogOverlay } from "./DialogFrame";
 
 export function IsolationOfferDialog(): JSX.Element | null {
   const [request, setRequest] = useState<IsolationOfferRequest | null>(null);
@@ -76,18 +77,48 @@ export function IsolationOfferDialog(): JSX.Element | null {
     // Above the sheet that started the launch (z-60, as the Fleet prompt):
     // the rc6 walk's second session in a busy folder waited on this behind
     // New session's "Starting…" for minutes.
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-6 backdrop-blur-sm">
-      <div
-        ref={dialogRef}
+    <DialogOverlay className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+      <DialogFrame
+        frameRef={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby="isolation-title"
         data-testid="isolation-offer"
-        className="flex w-full max-w-lg flex-col gap-3 rounded-xl border border-hairline bg-surface p-5 shadow-card"
+        className="w-full max-w-lg rounded-xl border border-hairline bg-surface shadow-card"
+        headerClassName="px-5 pt-5"
+        bodyClassName="flex flex-col gap-3 px-5 pt-3 pb-3"
+        footerClassName="px-5 pt-3 pb-5"
+        header={
+          <h3 id="isolation-title" className="text-sm font-semibold">
+            {others} {offer.in_use.length === 1 ? "is" : "are"} already working in {offer.project_name}
+          </h3>
+        }
+        footer={
+          <div className="flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => decide({ kind: "cancel" })}
+              className="rounded-lg border border-hairline px-3 py-1.5 text-xs text-ink"
+              data-testid="isolation-cancel"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              disabled={!ready}
+              onClick={go}
+              className={
+                "rounded-lg border px-3 py-1.5 text-xs " +
+                (ready ? PRIMARY_FILL : "border-hairline text-muted")
+              }
+              data-testid="isolation-go"
+              data-primary=""
+            >
+              {choice === "worktree" ? "Create the worktree and launch" : "Launch in the shared checkout"}
+            </button>
+          </div>
+        }
       >
-        <h3 id="isolation-title" className="text-sm font-semibold">
-          {others} {offer.in_use.length === 1 ? "is" : "are"} already working in {offer.project_name}
-        </h3>
         {!offer.available && (
           <p className="text-label text-ink" data-testid="isolation-unavailable">
             {offer.unavailable_reason}. Both sessions would edit the same files.
@@ -154,29 +185,7 @@ export function IsolationOfferDialog(): JSX.Element | null {
             </span>
           </label>
         </div>
-        <div className="flex justify-end gap-2">
-          <button
-            type="button"
-            onClick={() => decide({ kind: "cancel" })}
-            className="rounded-lg border border-hairline px-3 py-1.5 text-xs text-ink"
-            data-testid="isolation-cancel"
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            disabled={!ready}
-            onClick={go}
-            className={
-              "rounded-lg border px-3 py-1.5 text-xs " +
-              (ready ? PRIMARY_FILL : "border-hairline text-muted")
-            }
-            data-testid="isolation-go"
-          >
-            {choice === "worktree" ? "Create the worktree and launch" : "Launch in the shared checkout"}
-          </button>
-        </div>
-      </div>
-    </div>
+      </DialogFrame>
+    </DialogOverlay>
   );
 }

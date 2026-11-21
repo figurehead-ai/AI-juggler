@@ -14,6 +14,7 @@ import { launchSettingsName } from "../lib/account-words";
 import { useCliRecipes, useTargetApp } from "../lib/apps";
 import type { LaunchRecipeInfo } from "../types/generated/LaunchRecipeInfo";
 import { PRIMARY_FILL } from "./primitives";
+import { DialogFrame, DialogOverlay } from "./DialogFrame";
 
 const NO_RECIPES: readonly LaunchRecipeInfo[] = [];
 
@@ -80,19 +81,44 @@ export function IdentityMismatchDialog({ recipes = NO_RECIPES }: { recipes?: rea
   if (!request) return null;
   const { check } = request;
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6 backdrop-blur-sm">
-      <div
-        ref={dialogRef}
+    <DialogOverlay className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+      <DialogFrame
+        frameRef={dialogRef}
         role="alertdialog"
         aria-modal="true"
         aria-labelledby="identity-title"
         aria-describedby="identity-body"
         data-testid="identity-mismatch"
-        className="flex w-full max-w-md flex-col gap-3 rounded-xl border border-warning/50 bg-surface p-5 shadow-card"
+        className="w-full max-w-md rounded-xl border border-warning/50 bg-surface shadow-card"
+        headerClassName="px-5 pt-5"
+        bodyClassName="flex flex-col gap-3 px-5 pt-3 pb-3"
+        header={
+          <h3 id="identity-title" className="text-sm font-semibold">
+            <span aria-hidden="true">⚠ </span>Wrong account for {appOf({ folder: check.account_id, tool: check.provider, label: check.account_label }).name}
+          </h3>
+        }
+        footerClassName="px-5 pt-3 pb-5"
+        footer={
+          <div className="flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => decide({ kind: "recheck" })}
+              className="rounded-lg border border-hairline px-3 py-1.5 text-xs text-ink"
+              data-testid="identity-recheck"
+            >
+              Check again
+            </button>
+            <button
+              type="button"
+              onClick={() => decide({ kind: "cancel" })}
+              className="rounded-lg border border-hairline px-3 py-1.5 text-xs text-ink"
+              data-testid="identity-cancel"
+            >
+              Cancel
+            </button>
+          </div>
+        }
       >
-        <h3 id="identity-title" className="text-sm font-semibold">
-          <span aria-hidden="true">⚠ </span>Wrong account for {appOf({ folder: check.account_id, tool: check.provider, label: check.account_label }).name}
-        </h3>
         <div id="identity-body" className="flex flex-col gap-1.5 text-label text-ink">
           <p>Nothing has launched. This app's sign-in changed:</p>
           <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 rounded-lg border border-hairline p-2.5">
@@ -117,6 +143,7 @@ export function IdentityMismatchDialog({ recipes = NO_RECIPES }: { recipes?: rea
               // 0.3.2: the first way out is the dialog's primary.
               className={"flex flex-col gap-0.5 rounded-lg border px-3 py-1.5 text-left text-xs " + (index === 0 ? PRIMARY_FILL : "border-accent/40 bg-accent-soft text-accent-hi")}
               data-testid="identity-switch"
+              {...(index === 0 ? { "data-primary": "" } : {})}
             >
               <span className="font-medium">
                 Use {appOf({ folder: alternative.account_id, tool: alternative.tool, label: alternative.account_label }).name} ({launchSettingsName(alternative.recipe_name)})
@@ -127,26 +154,8 @@ export function IdentityMismatchDialog({ recipes = NO_RECIPES }: { recipes?: rea
               </span>
             </button>
           ))}
-          <div className="flex justify-end gap-2">
-            <button
-              type="button"
-              onClick={() => decide({ kind: "recheck" })}
-              className="rounded-lg border border-hairline px-3 py-1.5 text-xs text-ink"
-              data-testid="identity-recheck"
-            >
-              Check again
-            </button>
-            <button
-              type="button"
-              onClick={() => decide({ kind: "cancel" })}
-              className="rounded-lg border border-hairline px-3 py-1.5 text-xs text-ink"
-              data-testid="identity-cancel"
-            >
-              Cancel
-            </button>
-          </div>
         </div>
-      </div>
-    </div>
+      </DialogFrame>
+    </DialogOverlay>
   );
 }

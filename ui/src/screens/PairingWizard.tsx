@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type JSX } from "react";
-import { Button, Card } from "../components/primitives";
+import { Button } from "../components/primitives";
 import { errorText } from "../lib/bridge";
 import { fleetDiscovered, pairingHostClose, pairingHostDecide, pairingHostOpen, pairingHostState, pairingJoinDecide, pairingJoinReset, pairingJoinStart, pairingJoinState, pairingReEnable, type PairPermission } from "../lib/ipc/link";
 import type { DiscoveredMachineInfo } from "../types/generated/DiscoveredMachineInfo";
@@ -7,6 +7,7 @@ import type { PairingStateInfo } from "../types/generated/PairingStateInfo";
 import { Radio } from "../components/controls";
 import { keepTabInside, useDialogFocus } from "../components/form";
 import { SELECTED_CARD } from "../components/controls/selected";
+import { DialogActions, DialogFrame, DialogOverlay } from "../components/DialogFrame";
 
 /** Which side of pairing this Mac is on. */
 export type PairingMode = "host" | "join";
@@ -176,9 +177,9 @@ export function PairingWizard({
   const title = mode === "host" ? "Add a machine" : "Join a machine";
 
   return (
-    <div ref={dialogRef} className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6">
-      <Card
-        className="flex max-h-full w-full max-w-lg flex-col gap-4 overflow-y-auto p-5"
+    <DialogOverlay ref={dialogRef} className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+      <DialogFrame
+        className="sheen rounded-card border border-hairline bg-surface shadow-card w-full max-w-lg"
         onKeyDown={(event) => keepTabInside(dialogRef.current, event)}
         role="dialog"
         aria-modal="true"
@@ -186,13 +187,17 @@ export function PairingWizard({
         data-testid="pairing-wizard"
         data-mode={mode}
         data-step={String(step)}
+        bodyClassName="flex flex-col gap-4 px-5 pt-4 pb-1.5"
+        headerClassName="px-5 pt-5"
+        header={
+          <div className="flex flex-col gap-2">
+            <h3 id="pairing-title" className="text-base font-semibold">
+              {title}
+            </h3>
+            <StepIndicator step={step} />
+          </div>
+        }
       >
-        <div className="flex flex-col gap-2">
-          <h3 id="pairing-title" className="text-base font-semibold">
-            {title}
-          </h3>
-          <StepIndicator step={step} />
-        </div>
 
         {error && (
           <p className="rounded-lg border border-danger/30 bg-danger-soft px-3 py-2 text-xs text-danger" role="alert">
@@ -261,8 +266,8 @@ export function PairingWizard({
             onClose={() => void close()}
           />
         )}
-      </Card>
-    </div>
+      </DialogFrame>
+    </DialogOverlay>
   );
 }
 
@@ -381,11 +386,11 @@ function HostFind({
       <p className="text-label text-muted" role="status">
         Waiting for the other machine…
       </p>
-      <div className="flex justify-end">
+      <DialogActions>
         <Button variant="secondary" onClick={onCancel} data-autofocus>
           Cancel
         </Button>
-      </div>
+      </DialogActions>
     </div>
   );
 }
@@ -593,7 +598,7 @@ function JoinFind({
           Connecting securely…
         </p>
       )}
-      <div className="flex justify-end gap-2">
+      <DialogActions>
         <Button variant="secondary" onClick={onCancel}>
           Cancel
         </Button>
@@ -605,7 +610,7 @@ function JoinFind({
         >
           Connect
         </Button>
-      </div>
+      </DialogActions>
     </form>
   );
 }
@@ -647,14 +652,14 @@ function Verify({
         It shows this Mac as <span className="font-medium text-ink">{selfLabel}</span> ·{" "}
         <span className="font-mono">{selfFingerprint}</span>
       </p>
-      <div className="flex justify-end gap-2">
+      <DialogActions>
         <Button variant="secondary" onClick={onBack} data-testid="pairing-mismatch">
           They don't match — cancel
         </Button>
         <Button variant="primary" onClick={onMatch} data-autofocus data-testid="pairing-fingerprints-match">
           Fingerprints match
         </Button>
-      </div>
+      </DialogActions>
     </div>
   );
 }
@@ -714,14 +719,14 @@ function Permissions({
         ))}
       </div>
       <p className="text-label text-muted">You can unpair it any time in Fleet.</p>
-      <div className="flex justify-end gap-2">
+      <DialogActions>
         <Button variant="secondary" onClick={onBack}>
           Back
         </Button>
         <Button variant="primary" disabled={busy} onClick={onPair} data-testid="pairing-pair">
           Pair
         </Button>
-      </div>
+      </DialogActions>
     </div>
   );
 }
@@ -795,7 +800,7 @@ function Failure({
     <div className="flex flex-col gap-3" role="alert" data-testid="pairing-failure" data-reason={state.reason ?? "unknown"}>
       <p className="text-sm font-medium">{known?.title ?? "Pairing didn't finish"}</p>
       <p className="text-xs leading-relaxed text-ink-2">{known?.body ?? state.message ?? "Nothing was paired."}</p>
-      <div className="flex justify-end gap-2">
+      <DialogActions>
         <Button variant="secondary" onClick={onClose}>
           Close
         </Button>
@@ -810,7 +815,7 @@ function Failure({
             {known?.action ?? "Try again"}
           </Button>
         )}
-      </div>
+      </DialogActions>
     </div>
   );
 }

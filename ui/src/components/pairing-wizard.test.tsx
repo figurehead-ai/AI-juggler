@@ -31,7 +31,7 @@ describe("PairingWizard — join code input", () => {
   it("auto-advances, steps back on Backspace, and gates Connect", async () => {
     const view = join();
     await waitFor(() => expect(view.getByTestId("pairing-machine")).toBeTruthy());
-    const boxes = digits(view.container);
+    const boxes = digits(document.body);
     const connect = view.getByTestId("pairing-connect") as HTMLButtonElement;
     boxes[0]!.focus();
     for (const [index, digit] of ["4", "8", "2"].entries()) {
@@ -50,7 +50,7 @@ describe("PairingWizard — join code input", () => {
   it("a pasted code or pairing link fills every box", async () => {
     const view = join();
     await waitFor(() => expect(view.getByTestId("pairing-machine")).toBeTruthy());
-    const boxes = digits(view.container);
+    const boxes = digits(document.body);
     fireEvent.paste(boxes[0]!, { clipboardData: { getData: () => "731 058" } });
     expect(boxes.map((box) => box.value).join("")).toBe("731058");
     fireEvent.paste(boxes[0]!, {
@@ -70,7 +70,7 @@ describe("PairingWizard — failure copy", () => {
     w().__AIJ_PAIR_JOIN_FAIL__ = reason;
     const view = join();
     await waitFor(() => expect(view.getByTestId("pairing-machine")).toBeTruthy());
-    const boxes = digits(view.container);
+    const boxes = digits(document.body);
     fireEvent.paste(boxes[0]!, { clipboardData: { getData: () => "482913" } });
     await act(async () => {
       fireEvent.click(view.getByTestId("pairing-connect"));

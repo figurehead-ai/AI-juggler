@@ -13,6 +13,7 @@ import { crashAnswer, crashInfo, crashSet } from "../lib/ipc/crash";
 import { errorText } from "../lib/bridge";
 import type { CrashInfo } from "../types/generated/CrashInfo";
 import { Picker } from "./controls";
+import { DialogFrame, DialogOverlay } from "./DialogFrame";
 
 const OPTIONS: { value: "never" | "ask" | "always"; label: string }[] = [
   { value: "never", label: "Never" },
@@ -76,7 +77,7 @@ export function CrashReportPrompt(): JSX.Element | null {
   if (!info || !report) return null;
   const answer = (choice: "send" | "dont_send" | "always_send") => void crashAnswer(report.id, choice).then(setInfo);
   return (
-    <div
+    <DialogOverlay
       role="dialog"
       aria-modal="true"
       aria-labelledby="crash-title"
@@ -86,10 +87,30 @@ export function CrashReportPrompt(): JSX.Element | null {
         if (event.key === "Escape") answer("dont_send");
       }}
     >
-      <div className="flex w-full max-w-lg flex-col gap-3 rounded-xl border border-hairline bg-surface p-5 shadow-lg">
-        <h2 id="crash-title" className="text-sm font-semibold">
-          AI Juggler quit unexpectedly. Send a crash report?
-        </h2>
+      <DialogFrame
+        className="w-full max-w-lg rounded-xl border border-hairline bg-surface shadow-lg"
+        headerClassName="px-5 pt-5"
+        bodyClassName="flex flex-col gap-3 px-5 pt-3 pb-3"
+        footerClassName="px-5 pt-3 pb-5"
+        header={
+          <h2 id="crash-title" className="text-sm font-semibold">
+            AI Juggler quit unexpectedly. Send a crash report?
+          </h2>
+        }
+        footer={
+          <div className="flex flex-wrap justify-end gap-2">
+            <Button size="sm" variant="secondary" onClick={() => answer("dont_send")} data-testid="crash-dont-send">
+              Don't send
+            </Button>
+            <Button size="sm" variant="secondary" onClick={() => answer("always_send")} data-testid="crash-always-send">
+              Always send
+            </Button>
+            <Button ref={sendRef} size="sm" variant="primary" onClick={() => answer("send")} data-testid="crash-send">
+              Send
+            </Button>
+          </div>
+        }
+      >
         <p className="text-label leading-relaxed text-muted">
           This is the whole report, exactly as it would be sent to Sentry. It was scrubbed on this computer: no home folder,
           user name, links or keys.
@@ -103,18 +124,7 @@ export function CrashReportPrompt(): JSX.Element | null {
         >
           {info.asking_event ?? JSON.stringify(report, null, 2)}
         </pre>
-        <div className="flex flex-wrap justify-end gap-2">
-          <Button size="sm" variant="secondary" onClick={() => answer("dont_send")} data-testid="crash-dont-send">
-            Don't send
-          </Button>
-          <Button size="sm" variant="secondary" onClick={() => answer("always_send")} data-testid="crash-always-send">
-            Always send
-          </Button>
-          <Button ref={sendRef} size="sm" variant="primary" onClick={() => answer("send")} data-testid="crash-send">
-            Send
-          </Button>
-        </div>
-      </div>
-    </div>
+      </DialogFrame>
+    </DialogOverlay>
   );
 }
