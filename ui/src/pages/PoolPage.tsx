@@ -57,6 +57,7 @@ import { useSetupPhase, useSetupProgress } from "./pool/setup-progress";
 
 export { poolCountWords } from "./pool/pool-count";
 import { canvasHintWords, heldByWords, heldCountWords, heldOf, heldOnly, poolCountWords } from "./pool/pool-count";
+import { sessionNames } from "../lib/session-titles";
 
 /** Where a link in asked the page to open (read once, on arrival). */
 function arrival(): { panel: Panel; settings: boolean } {
@@ -205,7 +206,7 @@ function PoolCanvasPage({ poolId, sessions, projects, accounts, now, rules }: Pa
   const scopeWords = scopeChipWords(pool, projects);
   // Round 5: a project's own pool says its scope here, not as a card.
   // Item 9: what a sealed pool holds out of this one is counted, and said.
-  const held = heldOf(data.list.items);
+  const held = heldOf(data.list.items, sessionNames(sessions));
   const facts = [pool.kind === "default" && project ? `Every session in ${project.name} is part of this team` : null, poolCountWords(pool.members, openHere.length, elsewhere), heldCountWords(held)].filter(Boolean).join(" · ");
   const unplaced = (data.canvas?.asks ?? []).filter((ask) => ask.session_id === null);
   // AJ-E3013: a desktop session through the connector is a recipient too.
@@ -275,6 +276,7 @@ function PoolCanvasPage({ poolId, sessions, projects, accounts, now, rules }: Pa
               pool={pool}
               data={data}
               candidates={candidates}
+              sessionNamesAll={sessionNames(sessions)}
               projects={projects}
               selection={selection}
               onSelect={select}

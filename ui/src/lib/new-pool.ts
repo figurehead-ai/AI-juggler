@@ -21,7 +21,7 @@ import { memberRef, type MemberKind, type TalkRule } from "./ipc/pool-model";
 import type { PoolInfo, PoolRole, PoolsInfo } from "./ipc/pools";
 import { pairKey, ruleOf, templateById, TALK_ROLES, type PairKey, type PoolTemplate } from "./pool-templates";
 import { sessionState } from "./rail-items";
-import { namedByFacts, tellApart } from "./session-titles";
+import { sessionNames } from "./session-titles";
 import type { AppModel } from "./apps";
 import type { SubscriptionInfo } from "./subscriptions";
 import type { ToolSpecInfo } from "../types/generated/ToolSpecInfo";
@@ -199,12 +199,9 @@ export function sessionCandidates(input: {
     return pools?.pools.find((pool) => pool.sealed && ids.has(pool.id));
   };
   // D-96 D: alike names told apart, as the rail names them (the rc27 pool
-  // pass: four untitled Lab sessions in one folder read the same here).
-  const apart = tellApart(
-    input.sessions.filter((session) => namedByFacts(session)),
-    (session) => input.nameOf(session),
-    (session) => [session.started_at_ms, session.id],
-  );
+  // pass: four untitled Lab sessions in one folder read the same here);
+  // SK48-3: by each session's one name, as everywhere else.
+  const apart = sessionNames(input.sessions);
   const own: Candidate[] = input.sessions.map((session) => {
     const state = sessionState(session);
     const ended = state.state === "ended";
@@ -215,7 +212,7 @@ export function sessionCandidates(input: {
     // and as the switches allow for its own project (the rc18 walk).
     const full = agentTools.has(session.provider) && !agentToolsWhy(session.account_id) && !switchedOffWhy(input.bridge, session.account_id, project);
     const reach: Reach = full ? "full" : "shell";
-    const base = { ref: memberRef("session", session.id), kind: "session" as const, label: apart.get(session) ?? input.nameOf(session), reach, lastMs };
+    const base = { ref: memberRef("session", session.id), kind: "session" as const, label: apart.get(session.id) ?? input.nameOf(session), reach, lastMs };
     // D-103.8: its Account on this line, never in its name (as the canvas's Add a session says it).
     const detail = `${projectName(project)} · ${session.account_label} · ${state.word}`;
     const group = !ended ? "open" : now - lastMs < 7 * DAY ? "recent" : "all";

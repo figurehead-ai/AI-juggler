@@ -21,7 +21,7 @@ import { IconPlus, IconRemove } from "../../components/icons-actions";
 import type { InstanceInfo } from "../../types/generated/InstanceInfo";
 import type { ProjectInfo } from "../../types/generated/ProjectInfo";
 import { nameOf } from "./actions";
-import { namesApart } from "../../lib/session-titles";
+import { sessionNames } from "../../lib/session-titles";
 
 /** Search shows once the palette holds more than this many. */
 const SEARCH_FROM = 8;
@@ -40,7 +40,11 @@ export function Palette({
   more,
   quiet = false,
   onTemplate,
+  names: given,
 }: {
+  /** SK48-3: every session's one name (`sessionNames` over all of them),
+   * so a candidate reads here as in the rail; without it, its own list's. */
+  names?: ReadonlyMap<string, string>;
   /** SK-7: while the pool is set up, "Use a template" beside Add a member,
    * however many have joined (it went once a member did). */
   onTemplate?: () => void;
@@ -68,8 +72,9 @@ export function Palette({
   const [kept, setKept] = useState<ReadonlyMap<string, Kept<InstanceInfo>>>(new Map());
   const query = words.trim().toLowerCase();
   const projectOf = (session: InstanceInfo) => projects.find((project) => project.id === session.project_id)?.name ?? null;
-  // D-96 D: alike names told apart, as the nodes are (the rc27 pool pass).
-  const names = namesApart(sessions);
+  // D-96 D: alike names told apart, as the nodes are (the rc27 pool pass);
+  // SK48-3: by each session's one name, as everywhere else.
+  const names = given ?? sessionNames(sessions);
   const named = (session: InstanceInfo) => names.get(session.id) ?? nameOf(session);
   const shown = keepInPlace(
     sessions.filter((session) => !query || `${named(session)} ${projectOf(session) ?? ""} ${session.account_label}`.toLowerCase().includes(query)).slice(0, SHOWN),

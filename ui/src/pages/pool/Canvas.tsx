@@ -63,7 +63,10 @@ export function Canvas({
   overlayRoom = 0, lineRules,
   paletteMore, paletteQuiet = false, paletteTemplate,
   paletteRequest = 0,
+  sessionNamesAll,
 }: {
+  /** SK48-3: every session's one name (`sessionNames`), for Add a member. */
+  sessionNamesAll?: ReadonlyMap<string, string>;
   /** SK-7: setting up, "Use a template" beside Add a member. */
   paletteTemplate?: () => void;
   pool: PoolInfo;
@@ -359,6 +362,7 @@ export function Canvas({
         <Palette
           poolId={pool.id}
           sessions={candidates}
+          names={sessionNamesAll}
           projects={projects}
           removing={dragged ? { over: overPalette, why: cannotRemove(pool) } : null}
           open={paletteOpen ?? false}

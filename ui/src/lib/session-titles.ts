@@ -227,3 +227,21 @@ export function namesApart(sessions: readonly NamedSession[], now: number = Date
   for (const [session, name] of apart) out.set(session.id, name);
   return out;
 }
+
+/** Every session's one name, kept for the list it was asked for. */
+const named = new WeakMap<readonly NamedSession[], ReadonlyMap<string, string>>();
+
+/** SK48-3 (the 0.4.8 soak, P7): each session's one name wherever it's
+ * said ([`namesApart`] over every session the app holds: the rail's
+ * rule). A pool's canvas, its List view, its sealed line, the seal's ask,
+ * Who's in and Add a session read it here, so "client · started 8:25 AM
+ * (1)" is that in each, never told apart again within one pool's few
+ * (web's List said it without its "(1)"). Asked again for the same list,
+ * the same map. */
+export function sessionNames(sessions: readonly NamedSession[]): ReadonlyMap<string, string> {
+  const known = named.get(sessions);
+  if (known) return known;
+  const names = namesApart(sessions);
+  named.set(sessions, names);
+  return names;
+}
