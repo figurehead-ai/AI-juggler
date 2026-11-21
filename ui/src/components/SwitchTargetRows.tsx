@@ -22,7 +22,7 @@ import type { SwitchTargetData } from "../lib/ipc/switch-targets";
 import { lowRoomWords, ROOM_ORDER_WORDS, outOfRoomConsequence, outOfRoomWords } from "../lib/room";
 import { DESKTOP_ONLY, roomless, type TargetRoom } from "../lib/room-targets";
 import { creditsConsequence, usingCreditsWords } from "../lib/credits";
-import { useTargetApp } from "../lib/apps";
+import { useTargetApp, type TargetApp } from "../lib/apps";
 import { afterColon, BadgeLine, BadgeTag, RoomTag, SuggestedTag, TargetButton, TargetLogo } from "./switch/TargetCard";
 
 /** "Suggested": the one with the most room (the one order by room). One
@@ -145,48 +145,68 @@ export function SwitchTargetRows({
         </p>
       )}
       <ul ref={listRef} onKeyDown={onKeyDown} aria-label="Switch destinations, ranked" className="flex flex-col gap-2.5">
-        {targets.map((target) => {
-          const filtered = target.filtered_reason != null;
-          const app = appOf({ folder: target.account_id, tool: target.provider, label: target.account_label });
-          const forecast = !filtered && !roomless(target) ? forecastWords(target.tte_min, target.confidence) : null;
-          const factors = [...target.top_factors, ...(target.first_run ? ["its first-run setup is done as it switches"] : [])].join(" · ");
-          return (
-            <li key={target.recipe_id} className="flex flex-col gap-1">
-              <TargetButton
-                data-row
-                disabled={filtered}
-                aria-pressed={target.suggested}
-                onClick={() => pick(target)}
-                suggested={target.suggested && !filtered}
-                logo={<TargetLogo tool={target.provider ?? null} kind={app.kind} place={app.mark} folderId={target.account_id} label={target.account_label} />}
-                name={app.name}
-                sub={filtered ? target.filtered_reason : `On ${target.room?.account ?? target.account_label}${forecast ? ` · ${forecast}` : ""}`}
-                tags={
-                  !filtered && (target.room || target.suggested) && (
-                    <>
-                      {target.room && <RoomTag room={target.room} />}
-                      {target.suggested && <SuggestedTag />}
-                    </>
-                  )
-                }
-                detail={
-                  <>
-                    <BadgeLine badge={target.badge} validated={target.validated} />
-                    {!filtered && target.room && <RoomLine name={target.room.account ?? target.account_label} room={target.room} chip={false} />}
-                    {!filtered && target.signed_out && target.desktop && <span data-testid="target-sign-in">{DESKTOP_ONLY}</span>}
-                    {!filtered && target.cross_provider && target.drops.length > 0 && <span data-testid="target-drop-list">Doesn't carry: {afterColon(target.drops)}</span>}
-                    {/* The top two, or with "Why this order?" open, every input. */}
-                    {!filtered && (whyOpen ? <span>{target.factors.map(([words]) => words).join(" · ")}</span> : factors && <span>{factors}</span>)}
-                  </>
-                }
-              />
-              {target.held_back === "set_up" && <StartThereLink accountId={target.account_id} label={target.account_label} />}
-            </li>
-          );
-        })}
+        {targets.map((target) => (
+          <TargetRow key={target.recipe_id} target={target} app={appOf({ folder: target.account_id, tool: target.provider, label: target.account_label })} whyOpen={whyOpen} onPick={() => pick(target)} />
+        ))}
       </ul>
       <p className="text-meta text-ink-2">What carries is checked for each pair of tools, never assumed.</p>
     </div>
+  );
+}
+
+/** One ranked target, as a card: its App, its account and forecast, the
+ * room and Suggested as its two tags, then how much carries, the room in
+ * words, what doesn't carry and why it ranks there. */
+function TargetRow({ target, app, whyOpen, onPick }: { target: SwitchTargetData & { room?: TargetRoom }; app: TargetApp; whyOpen: boolean; onPick: () => void }): JSX.Element {
+  const filtered = target.filtered_reason != null;
+  const forecast = !filtered && !roomless(target) ? forecastWords(target.tte_min, target.confidence) : null;
+  const factors = [...target.top_factors, ...(target.first_run ? ["its first-run setup is done as it switches"] : [])].join(" · ");
+  const open = !filtered;
+  return (
+    <li className="flex flex-col gap-1">
+      <TargetButton
+        data-row
+        disabled={filtered}
+        aria-pressed={target.suggested}
+        onClick={onPick}
+        suggested={target.suggested && open}
+        logo={<TargetLogo tool={target.provider ?? null} kind={app.kind} place={app.mark} folderId={target.account_id} label={target.account_label} />}
+        name={app.name}
+        sub={filtered ? target.filtered_reason : `On ${target.room?.account ?? target.account_label}${forecast ? ` · ${forecast}` : ""}`}
+        tags={open && (target.room || target.suggested) && <TwoTags room={target.room ?? null} suggested={target.suggested} />}
+        detail={
+          <>
+            <BadgeLine badge={target.badge} validated={target.validated} />
+            {open && <RowDetail target={target} />}
+            {/* The top two, or with "Why this order?" open, every input. */}
+            {open && (whyOpen || factors) && <span>{whyOpen ? target.factors.map(([words]) => words).join(" · ") : factors}</span>}
+          </>
+        }
+      />
+      {target.held_back === "set_up" && <StartThereLink accountId={target.account_id} label={target.account_label} />}
+    </li>
+  );
+}
+
+/** A card's two tags at most (TAG-2): its room, and Suggested. */
+function TwoTags({ room, suggested }: { room: TargetRoom | null; suggested: boolean }): JSX.Element {
+  return (
+    <>
+      {room && <RoomTag room={room} />}
+      {suggested && <SuggestedTag />}
+    </>
+  );
+}
+
+/** Under the badge: the room in words, a desktop-only sign-in, and what
+ * doesn't carry to another tool. */
+function RowDetail({ target }: { target: SwitchTargetData & { room?: TargetRoom } }): JSX.Element {
+  return (
+    <>
+      {target.room && <RoomLine name={target.room.account ?? target.account_label} room={target.room} chip={false} />}
+      {target.signed_out && target.desktop && <span data-testid="target-sign-in">{DESKTOP_ONLY}</span>}
+      {target.cross_provider && target.drops.length > 0 && <span data-testid="target-drop-list">Doesn't carry: {afterColon(target.drops)}</span>}
+    </>
   );
 }
 
