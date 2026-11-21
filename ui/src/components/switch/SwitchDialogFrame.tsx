@@ -184,8 +184,8 @@ export function SwitchDialogFrame({
             <div className="min-w-0 flex-1 pb-4">{header}</div>
             {onClose && (
               <Button variant="ghost" size="sm" type="button" onClick={onClose} aria-label="Close" title="Close (Esc)" className="-mr-2 -mt-1 size-7 shrink-0 px-0 text-ink-2" data-testid="switch-close">
-                {/* The set's × fills half its box: 24 draws a 12 px cross, a 28 px hit target. */}
-                <IconClose aria-hidden="true" width={24} height={24} strokeWidth={2} />
+                {/* The set's × fills half its box: 24 draws a 12 px cross (never shrunk by the button's padding), a 28 px hit target. */}
+                <IconClose aria-hidden="true" width={24} height={24} strokeWidth={2} className="shrink-0" />
               </Button>
             )}
           </>
