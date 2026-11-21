@@ -163,7 +163,10 @@ export function ThisMacOverview({ nameOf, onOpenSession, onOpenCleanup }: Overvi
   const machine = info?.machine;
   return (
     <>
-      {!info || !machine ? (
+      {/* 0.4.7 walk V2: a reading from before the first sample drew an
+          empty Memory card and "Not measured yet": until the Mac is
+          measured, the page says it's measuring. */}
+      {!info || !machine || !machine.sampled ? (
         <RowPlaceholders shape="home" rows={4} label="Measuring this Mac" />
       ) : (
         // Two columns on a wide window: the Mac's figures, and what's
@@ -215,7 +218,10 @@ export function ThisMacOverview({ nameOf, onOpenSession, onOpenCleanup }: Overvi
 
           <div className="flex min-w-0 flex-col gap-8">
           <Section id="this-mac-using" title="What's using it">
-            {info.by_tool.length === 0 && <p className="text-body text-ink-2">No AI tools are running.</p>}
+            {/* "None running" needs a look first (0.4.7 walk V2: said
+                beside two running sessions before the first scan). */}
+            {info.by_tool.length === 0 &&
+              (info.scanned ? <p className="text-body text-ink-2">No AI tools are running.</p> : <RowPlaceholders shape="rail" rows={2} label="Looking for running AI tools" />)}
             <div className="flex flex-col">
               {info.by_tool.map((group) => (
                 <ToolGroup key={`${group.ours ? "ours" : "theirs"}-${group.tool}`} group={group} info={info} nameOf={nameOf} onOpenSession={onOpenSession} />

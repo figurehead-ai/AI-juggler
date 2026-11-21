@@ -98,7 +98,8 @@ export function MachineState({ info, reasonsShown = 2 }: { info: ThisMacInfo; re
   const level = machineStatus(info);
   if (!level) return null;
   const calm = level.calm;
-  const nothing = info.tools.count === 0;
+  // "Nothing running" only once the running tools are known.
+  const nothing = info.scanned && info.tools.count === 0;
   const reasons = info.machine.summary.reasons.slice(0, reasonsShown).map((reason) => reason.words);
   return (
     <div className="flex flex-col gap-0.5" role="status">
