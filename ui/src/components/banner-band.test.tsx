@@ -78,7 +78,7 @@ describe("D-87 a session's page: its own notices, inline", () => {
     expect(screen.getAllByTestId("session-notice-quota")).toHaveLength(1);
     expect(own.textContent).toContain("This session's account, West, is almost out of room");
     expect(own.textContent).not.toContain("Work");
-    expect(screen.getByTestId("session-notice-hand-over").textContent).toBe("Continue this session in another app…");
+    expect(screen.getByTestId("session-notice-hand-over").textContent).toBe("Switch account…");
     fireEvent.click(screen.getByTestId("session-notice-hand-over"));
     expect(opened).toHaveBeenCalledWith("s-1");
     expect(screen.getByTestId("session-notice-remind").textContent).toMatch(/^Remind me at .+$/);

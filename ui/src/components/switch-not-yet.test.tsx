@@ -1,6 +1,6 @@
 /**
  * The rc33 M4 walk: a session with no conversation yet had its account's
- * out-of-room notice offer "Continue this session in another app…" and
+ * out-of-room notice offer "Switch account…" and
  * its header "Continue on another account…", both live, while its switch
  * card said "No other app can take it now" and the dialog refused
  * ("This session hasn't started a conversation yet…"). When the switch

@@ -82,7 +82,7 @@ describe("nothing internal on screen (D-25)", () => {
     expect(text).toContain("This session's account, West, is almost out of room");
     expect(text).toMatch(/7% of its 5-hour window left · resets at .+ · 1 session uses it/);
     // D-87: it acts on the session it sits beside, and says so.
-    expect(view.getByTestId("session-notice-hand-over").textContent).toBe("Continue this session in another app…");
+    expect(view.getByTestId("session-notice-hand-over").textContent).toBe("Switch account…");
     // 0.3.2: the reminder names its time ("Queue for the reset" said nothing).
     expect(view.getByTestId("session-notice-remind").textContent).toMatch(/^Remind me at .+$/);
     delete seams.__AIJ_NOTICES__;

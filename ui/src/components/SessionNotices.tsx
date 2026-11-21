@@ -90,8 +90,10 @@ export function SessionNotices({
         detail={quotaDetail(notice, now)}
         meter={notice.meter !== null ? { used: 100 - notice.meter, label: `${100 - notice.meter}% used` } : undefined}
         actions={[
-          // Its own switch, here on its page: never another session's.
-          { label: "Continue this session in another app…", primary: true, why: notYet, onClick: () => focusHandoverSoon(switchKey), testId: "session-notice-hand-over" },
+          // Its own switch, here on its page: never another session's. D-143:
+          // one name, and secondary: the side column's Switch account… is
+          // the page's one primary while its account is out or low (BTN-1).
+          { label: "Switch account…", why: notYet, onClick: () => focusHandoverSoon(switchKey), testId: "session-notice-hand-over" },
           ...(second?.id === "remind-reset" ? [{ label: second.label, onClick: () => actions.second(notice, "remind-reset"), testId: "session-notice-remind" }] : []),
           { label: "Snooze 1 h", quiet: true, testId: "session-notice-snooze", onClick: () => hideWhile(key, () => actions.snooze(notice, "hour")) },
         ]}
