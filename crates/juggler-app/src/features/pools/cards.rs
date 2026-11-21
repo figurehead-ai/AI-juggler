@@ -125,7 +125,6 @@ fn transcript_of(
 /// (its adapter's [`juggler_adapter::ToolTranscripts::reports_activity`]);
 /// a tool with no adapter here claims nothing either way.
 fn reports_activity(state: &AppState, provider: &str) -> bool {
-    use juggler_adapter::ToolTranscripts as _;
     state
         .registry
         .get(&juggler_core::model::HarnessId::new(provider))
