@@ -178,7 +178,11 @@ fn terminal_input_echo_under_50ms() {
     let id = id.as_str().to_string();
     let echoed = |token: &str| {
         let bytes = base64::engine::general_purpose::STANDARD
-            .decode(terminal::terminal_snapshot_impl(&state, &id).unwrap())
+            .decode(
+                terminal::terminal_snapshot_impl(&state, &id, None)
+                    .unwrap()
+                    .data,
+            )
             .unwrap();
         bytes.windows(token.len()).any(|w| w == token.as_bytes())
     };

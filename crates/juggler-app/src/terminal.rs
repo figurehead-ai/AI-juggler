@@ -40,13 +40,31 @@ pub fn is_login_terminal(id: &str) -> bool {
 const FLUSH_INTERVAL: Duration = Duration::from_millis(16);
 
 /// Payload of [`EVENT_TERMINAL_OUTPUT`].
-#[derive(Debug, Clone, Serialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
 #[ts(export, export_to = "../../../ui/src/types/generated/")]
 pub struct TerminalChunk {
     /// Terminal (session) id.
     pub id: String,
     /// Base64-encoded PTY bytes since the previous chunk.
     pub data: String,
+    /// SK-23: where these bytes end in the terminal's whole output (the
+    /// count of bytes it has written through them), so a view joins them
+    /// to the kept output ([`TerminalSnapshot`]) by place: no byte missing
+    /// or twice, whichever it hears first.
+    #[ts(type = "number")]
+    pub end: u64,
+}
+
+/// The kept output of a terminal, replayed when its view opens.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
+pub struct TerminalSnapshot {
+    /// Base64-encoded PTY bytes: the tail AI Juggler keeps while it runs.
+    pub data: String,
+    /// SK-23: where those bytes end in the terminal's whole output (see
+    /// [`TerminalChunk::end`]).
+    #[ts(type = "number")]
+    pub end: u64,
 }
 
 /// A spawned terminal's identity (also the exit-event payload).
@@ -132,7 +150,7 @@ pub fn attach_forwarder(app: &AppHandle, state: &Arc<AppState>, id: &SessionId) 
             return; // already streaming
         }
     }
-    let Ok(rx) = state.supervisor.tap(id) else {
+    let Ok((start, rx)) = state.supervisor.tap_at(id) else {
         if let Ok(mut taps) = state.terminal_taps.lock() {
             taps.remove(id.as_str());
         }
@@ -142,8 +160,19 @@ pub fn attach_forwarder(app: &AppHandle, state: &Arc<AppState>, id: &SessionId) 
     let state = Arc::clone(state);
     let id = id.clone();
     std::thread::spawn(move || {
-        forward_loop(&app, &state, &id, rx);
+        forward_loop(&app, &state, &id, start, rx);
     });
+}
+
+/// The event for `batch`, the bytes after `*end` in terminal `id`'s
+/// output; `*end` moves past them (SK-23: each chunk says where it ends).
+fn chunk_after(id: &SessionId, end: &mut u64, batch: &[u8]) -> TerminalChunk {
+    *end = end.saturating_add(u64::try_from(batch.len()).unwrap_or(u64::MAX));
+    TerminalChunk {
+        id: id.as_str().to_string(),
+        data: base64::engine::general_purpose::STANDARD.encode(batch),
+        end: *end,
+    }
 }
 
 // The receiver is the thread's sole input source — ownership is the
@@ -153,8 +182,10 @@ fn forward_loop(
     app: &AppHandle,
     state: &Arc<AppState>,
     id: &SessionId,
+    start: u64,
     rx: std::sync::mpsc::Receiver<Vec<u8>>,
 ) {
+    let mut end = start;
     loop {
         let mut batch: Vec<u8> = Vec::new();
         match rx.recv_timeout(FLUSH_INTERVAL) {
@@ -178,13 +209,7 @@ fn forward_loop(
                 return;
             }
         }
-        app.emit_event(
-            AppEvent::TerminalOutput,
-            TerminalChunk {
-                id: id.as_str().to_string(),
-                data: base64::engine::general_purpose::STANDARD.encode(&batch),
-            },
-        );
+        app.emit_event(AppEvent::TerminalOutput, chunk_after(id, &mut end, &batch));
     }
 }
 
@@ -266,13 +291,77 @@ pub fn terminal_kill_impl(state: &Arc<AppState>, id: &str) -> AppResult<()> {
     Ok(())
 }
 
-/// The retained output tail (base64) — replayed into xterm.js when a
-/// terminal panel reopens.
+/// The retained output tail (base64) and where it ends — replayed into
+/// xterm.js when a terminal's view opens, and joined to the live chunks
+/// by place (SK-23). With `from`, only what's kept after that place: a
+/// view that has shown up to there fills a gap with it.
 ///
 /// # Errors
 ///
 /// Returns the typed [`AppError`] message when the session is unknown.
-pub fn terminal_snapshot_impl(state: &Arc<AppState>, id: &str) -> AppResult<String> {
-    let bytes = state.supervisor.output(&SessionId::new(id))?;
-    Ok(base64::engine::general_purpose::STANDARD.encode(bytes))
+pub fn terminal_snapshot_impl(
+    state: &Arc<AppState>,
+    id: &str,
+    from: Option<u64>,
+) -> AppResult<TerminalSnapshot> {
+    let (bytes, end) = state.supervisor.output_at(&SessionId::new(id))?;
+    Ok(TerminalSnapshot {
+        data: base64::engine::general_purpose::STANDARD.encode(kept_after(&bytes, end, from)),
+        end,
+    })
+}
+
+/// The kept `bytes` (ending at place `end`) after place `from`: all of
+/// them without one, or when `from` is before the kept tail begins.
+fn kept_after(bytes: &[u8], end: u64, from: Option<u64>) -> &[u8] {
+    let Some(from) = from else { return bytes };
+    let kept = u64::try_from(bytes.len()).unwrap_or(u64::MAX);
+    let skip = from.saturating_sub(end.saturating_sub(kept)).min(kept);
+    &bytes[usize::try_from(skip).unwrap_or(bytes.len())..]
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{TerminalChunk, chunk_after, kept_after};
+    use base64::Engine as _;
+    use juggler_core::model::SessionId;
+
+    /// SK-23: a view that has shown up to a place asks for what's kept
+    /// after it; one whose place is before the kept tail gets all of it.
+    #[test]
+    fn the_kept_output_after_a_place_is_the_bytes_past_it() {
+        // "Do you want to proceed?" kept as bytes 100..123 of the output.
+        let kept = b"Do you want to proceed?";
+        assert_eq!(kept_after(kept, 123, None), kept);
+        assert_eq!(kept_after(kept, 123, Some(112)), b"to proceed?");
+        assert_eq!(kept_after(kept, 123, Some(123)), b"");
+        assert_eq!(kept_after(kept, 123, Some(500)), b"");
+        assert_eq!(kept_after(kept, 123, Some(40)), kept);
+    }
+
+    /// SK-23: the forwarder's chunks say where each ends, adding up from
+    /// where its tap started, so a view can tell a chunk it already has
+    /// (in the kept output) from one it hasn't.
+    #[test]
+    fn each_chunk_says_where_it_ends_from_where_the_tap_started() {
+        let id = SessionId::new("s-1");
+        let mut end = 120;
+        let first = chunk_after(&id, &mut end, b"Do you want");
+        let second = chunk_after(&id, &mut end, b" to proceed?");
+        assert_eq!(first.end, 131);
+        assert_eq!(second.end, 143);
+        assert_eq!(end, 143);
+        let decoded = base64::engine::general_purpose::STANDARD
+            .decode(&second.data)
+            .unwrap();
+        assert_eq!(decoded, b" to proceed?");
+        assert_eq!(
+            first,
+            TerminalChunk {
+                id: "s-1".into(),
+                data: base64::engine::general_purpose::STANDARD.encode(b"Do you want"),
+                end: 131,
+            }
+        );
+    }
 }

@@ -178,7 +178,8 @@ pub async fn terminal_kill(state: tauri::State<'_, Arc<AppState>>, id: String) -
     .await
 }
 
-/// The retained output tail (base64) for replay on panel reopen.
+/// The retained output tail (base64) and where it ends, for replay when a
+/// terminal's view opens; with `from`, only what's kept after that place.
 #[tauri::command]
 ///
 /// # Errors
@@ -187,9 +188,10 @@ pub async fn terminal_kill(state: tauri::State<'_, Arc<AppState>>, id: String) -
 pub async fn terminal_snapshot(
     state: tauri::State<'_, Arc<AppState>>,
     id: String,
-) -> AppResult<String> {
+    from: Option<u64>,
+) -> AppResult<crate::terminal::TerminalSnapshot> {
     crate::ipc::blocking(state.inner(), "terminal snapshot", move |state| {
-        crate::terminal::terminal_snapshot_impl(state, &id)
+        crate::terminal::terminal_snapshot_impl(state, &id, from)
     })
     .await
 }

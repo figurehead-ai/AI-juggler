@@ -830,17 +830,24 @@ impl Supervisor {
     /// Returns [`SupervisorError::UnknownSession`] when the id is not
     /// supervised.
     pub fn output(&self, session: &SessionId) -> Result<Vec<u8>, SupervisorError> {
-        let handle = self
-            .children
-            .lock()
-            .map_err(|_| SupervisorError::UnknownSession(session.clone()))?
-            .get(session)
-            .cloned()
-            .ok_or_else(|| SupervisorError::UnknownSession(session.clone()))?;
+        self.output_at(session).map(|(bytes, _)| bytes)
+    }
+
+    /// The retained output tail and where it ends: the count of bytes the
+    /// session has written in all. The tail is the bytes just before that
+    /// place, so a reader can join it to a [`Supervisor::tap_at`] stream
+    /// without a gap or a byte twice (SK-23).
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SupervisorError::UnknownSession`] when the id is not
+    /// supervised.
+    pub fn output_at(&self, session: &SessionId) -> Result<(Vec<u8>, u64), SupervisorError> {
+        let handle = self.child(session)?;
         handle
             .ring
             .lock()
-            .map(|ring| ring.snapshot())
+            .map(|ring| (ring.snapshot(), ring.total_written()))
             .map_err(|_| SupervisorError::UnknownSession(session.clone()))
     }
 
@@ -1081,6 +1088,22 @@ impl Supervisor {
         &self,
         session: &SessionId,
     ) -> Result<std::sync::mpsc::Receiver<Vec<u8>>, SupervisorError> {
+        self.tap_at(session).map(|(_, rx)| rx)
+    }
+
+    /// [`Supervisor::tap`], with where in the session's output it starts:
+    /// the count of bytes written before its first chunk. Each chunk then
+    /// follows the one before, so a chunk's place is known by adding up
+    /// (SK-23: the terminal's view joins it to [`Supervisor::output_at`]).
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SupervisorError::UnknownSession`] when the id is not
+    /// supervised.
+    pub fn tap_at(
+        &self,
+        session: &SessionId,
+    ) -> Result<(u64, std::sync::mpsc::Receiver<Vec<u8>>), SupervisorError> {
         let handle = self.child(session)?;
         let mut ring = handle
             .ring
@@ -1088,7 +1111,7 @@ impl Supervisor {
             .map_err(|_| SupervisorError::UnknownSession(session.clone()))?;
         let (tx, rx) = std::sync::mpsc::channel();
         ring.add_listener(tx);
-        Ok(rx)
+        Ok((ring.total_written(), rx))
     }
 
     /// The retained output AND a live tap, taken under one ring lock so
