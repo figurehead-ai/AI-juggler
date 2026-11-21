@@ -416,6 +416,7 @@
 **Files to touch**: `docs/research/screen-audit.md`, `ui/src/components/` (the kit), `ui/src/lib/`.
 **Research basis**: D-126; 0.4.6's pool wizard.
 **Handover note**: read the wireframes and the UX spec first (read-specs rule).
+**Rescoped by D-142 (2026-11-21)**: the standard is now `docs/design/DESIGN-SYSTEM.md`, checked by `docs/design/VALIDATION.md`, with today's gaps ranked in `docs/design/GAPS.md`. 0.5.0 ships GAPS A1 and A2 (one dialog frame for every dialog, sticky header and footer), check N1, the Move or Copy dialog (DESIGN-SYSTEM §8) and B1's light `muted` token. The rest of GAPS Part A and checks N2–N20 come after 0.5.0, here and in AJ-E3619, in VALIDATION's rollout order.
 
 ### AJ-E3619 Making and editing screens, rich: the worst 25 rebuilt, starting with Notifications, Add app and Add account (D-126) | Status: TODO | Priority P0 | Effort XL | Depends: AJ-E3618
 **Goal**: The screens where a user creates or edits things look great and read easily, as D-126 asks, in 0.5.
@@ -433,3 +434,4 @@
 **Files to touch**: `ui/src/screens/`, `ui/src/components/`, `ui/src/lib/`.
 **Research basis**: D-126; the screen audit (AJ-E3618).
 **Handover note**: 0.4.6 has the pool wizard; 0.5 covers everything else.
+**Rescoped by D-142 (2026-11-21)**: after 0.5.0, the screens follow GAPS A3's order, each scored on VALIDATION §5 by Opus at 4 or more on every line before its baselines; N3–N20 land warn-first with shrink-only allowlists.

@@ -3777,3 +3777,16 @@ Every session and agent brief carries this rule.
 - **Proof:** a test reproduces P11: limit 2, the woken agent answers in a new thread, and the third agent message is held.
 - **A desktop member** (engineering, the 0.4.7 release session, 2026-11-20): AI Juggler can't tell a desktop member's own prompts from its wakes, so the count a woken turn carries lapses after 10 minutes for a desktop member, the same window as the pool's ping-pong pause. An existing thread counts on from the higher of its own count and the turn's.
 - Sources: the coordinating session's message, 2026-11-20; soak finding SK-15.
+
+### D-142 One written design system, and GAPS' five conflicts decided as recommended — SETTLED (2026-11-21)
+
+- **Ruling** (the coordinating session, 2026-11-21, under the maintainer's "decide by the goal" rule; the maintainer asked for one written UI and UX design system with every screen validated against it): `docs/design/DESIGN-SYSTEM.md` is the standard, `docs/design/VALIDATION.md` says how each rule is checked, and `docs/design/GAPS.md` ranks where the app breaks it today. A D-number beats DESIGN-SYSTEM.md; DESIGN-SYSTEM.md beats `PRINCIPLES.md`.
+- **B1:** light `muted` moves from `#4f5767` to `#424958`, so muted text reaches 7:1 on every light surface (7.29–9.03:1); `contrast.spec.ts` holds `muted` to 7:1.
+- **B2:** D-127 wins over PRINCIPLES §10. An option the setup can't use is hidden; one is greyed only when the user can clear its reason, saying how. PRINCIPLES §10 is amended.
+- **B3:** small capitals label only a group of rows or steps (12 px, `section-label`); every section that holds choices has a sentence-case `.type-section` heading.
+- **B4:** decision dialogs (Switch, Hit its limit, identity mismatch and the like) are rich; destructive confirmations are rich-compact (icon, consequence panel, tags, at confirm size).
+- **B5:** gates and reviews run at 1024×680 (the real window minimum, replacing D-57's 1024×700) and 1280×800, in both themes; monitoring dashboards are also reviewed at 1680 and 2000 wide.
+- **Also:** the section heading stays 15 px (PRINCIPLES' 16 px proposal is amended); GAPS' other design calls (C1–C9) stand.
+- **Scope:** 0.5.0 ships GAPS A1–A2 (one dialog frame with a fixed header and footer, only the body scrolling, everywhere), check N1 (`dialog-fit.spec.ts`), the Move or Copy dialog per DESIGN-SYSTEM §8, and B1's token. The rest of GAPS and checks N2–N20 follow after 0.5.0 (AJ-E3618, AJ-E3619).
+- **Process:** from now on every UI change is scored by Opus on VALIDATION.md's screen-review checklist (§5), at 4 or more on every line, before any baseline.
+- Sources: the coordinating session's message, 2026-11-21; the maintainer's report that a dialog's choices scrolled under the top edge while its buttons scrolled away.

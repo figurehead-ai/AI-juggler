@@ -118,7 +118,9 @@ the router picks an engine that can serve it (ADR-0034).
   backend state), `preview` (the design preview's data, loaded lazily
   through `lib/preview-hooks.ts` only without a live backend; never in the
   app), `types/generated` (from Rust, by ts-rs, and `commands.ts`, the
-  command map; never edited).
+  command map; never edited). How the UI looks and reads is
+  `docs/design/DESIGN-SYSTEM.md` (the standard, D-142), checked as
+  `docs/design/VALIDATION.md` says; every dialog uses the one dialog frame.
 - `docs/` — the specification, ADRs, the roadmap and tasks, QA evidence.
 - `scripts/` — the gates `just verify` and CI run.
 

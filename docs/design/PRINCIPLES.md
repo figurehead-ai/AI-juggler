@@ -1,5 +1,7 @@
 # AI Juggler design principles
 
+> **Since 2026-11-21 (D-142) the standard is [DESIGN-SYSTEM.md](./DESIGN-SYSTEM.md)**, checked by [VALIDATION.md](./VALIDATION.md); where the app breaks it today is in [GAPS.md](./GAPS.md). These principles still hold as its research and reasoning. Where the two differ, DESIGN-SYSTEM.md wins. Amended by D-142: §10's greyed options (now hidden unless the user can clear them), the section heading size (15 px, not 16), and light `muted` (`#424958`, 7:1).
+
 Written 2026-10-30 for 0.4. It answers the maintainer's question that day: "Have you actually researched how to design well functional and usable designs?"
 
 Code references are to `release/0.3` at `deb209e39`, which is what the maintainer runs. Paths are relative to `ui/src/` unless they start with `docs/` or `crates/`.
@@ -345,7 +347,7 @@ Size steps of 1 px (15/14/13/12, `styles.css:61-73`) don't read as levels. Keep 
 
 | role | size | weight | colour | example |
 |---|---|---|---|---|
-| section heading | **16 px** (from 15) | 600 | ink | an area's heading |
+| section heading | 15 px (D-142 kept 15; this file proposed 16) | 600 | ink | an area's heading |
 | value or name | 14 px | 600 | ink | a project's name, "58% left" |
 | body | 14 px | 400 | ink-2 | a sentence, a row's second line |
 | label or meta | 12–13 px | 500 | muted | "Folder", "used last here", column heads |
@@ -360,7 +362,7 @@ Size steps of 1 px (15/14/13/12, `styles.css:61-73`) don't read as levels. Keep 
 ## 8. Headings, labels and values look different
 
 **Rule.**
-- **Heading:** names an area. 16 px semibold ink, sentence case, one per area.
+- **Heading:** names an area. 15 px semibold ink, sentence case, one per area (D-142).
 - **Label:** names a field. 12–13 px medium muted, never louder than its value.
 - **Value:** the thing you came for. 14 px semibold ink, `tabular-nums` for numbers.
 - Where the value is self-explanatory ("58% left"), drop the label: "Labels are a last resort" (Refactoring UI).
@@ -400,7 +402,7 @@ Size steps of 1 px (15/14/13/12, `styles.css:61-73`) don't read as levels. Keep 
 **Rule.**
 - Every chooser opens on the likely few: **Suggested** (the pick and why), then **Recent** or **Used here**, then **All**.
 - Lists of more than about 8 get a search field that has focus on open. More than 15 is a listbox with search, never a scrolling dropdown.
-- Unavailable options stay visible, greyed, with their reason.
+- Options the setup can't use are hidden. An option is shown greyed only when the user can clear its reason, and it says how (D-127; amended by D-142).
 
 **Why.**
 - Most common first ([NN/g forms](https://www.nngroup.com/articles/web-form-design/)).
