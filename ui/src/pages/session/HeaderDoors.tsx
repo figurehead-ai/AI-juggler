@@ -11,6 +11,7 @@
 import type { JSX } from "react";
 import { useActionHost } from "../../components/ItemMenu";
 import { poolById, usePoolPlace, usePools } from "../../lib/pools";
+import { useSessionPools } from "./useSessionPools";
 import { useTools } from "../../lib/tools";
 import { ToolMark } from "../../components/ToolMark";
 import { IconAccount } from "../../components/usage/controls";
@@ -41,27 +42,61 @@ export function SessionPoolChip({ sessionId }: { sessionId: string }): JSX.Eleme
   const host = useActionHost();
   const pools = usePools();
   const place = usePoolPlace(sessionId);
-  const pool = place ? poolById(pools, place.pool_id) : undefined;
-  if (!pool || !host.openPool || (pool.kind === "default" && pool.members < 2)) return null;
+  // SK48-10 (the 0.4.8 soak, P11): a session in pools A and B read
+  // "Pool: A". Every pool it's in is named, each its own door (its Pools
+  // tab lists them too); until that's read, the one its place names.
+  const all = useSessionPools(sessionId);
+  const ids = all ? all.pools.map((entry) => entry.pool_id) : place ? [place.pool_id] : [];
+  // Its project's own pool only once another session shares it: a session
+  // alone there has nothing to see.
+  const shown = ids.flatMap((id) => poolById(pools, id) ?? []).filter((pool) => !(pool.kind === "default" && pool.members < 2));
+  if (shown.length === 0 || !host.openPool) return null;
+  if (shown.length === 1) {
+    const pool = shown[0]!;
+    return (
+      <>
+        <Dot />
+        {/* Never squeezed below its word (a 21 px target at 1024, under
+            WCAG 2.5.8's 24): "Pool" keeps its width, a named one 48 px. */}
+        <button
+          type="button"
+          onClick={() => host.openPool?.(pool.id)}
+          title={`Open the pool ${pool.name}`}
+          className={`${pool.kind === "default" ? "shrink-0" : "min-w-12"} ${DOOR_LOOK}`}
+          data-testid="session-pool-chip"
+        >
+          <IconPool width={13} height={13} aria-hidden="true" className="shrink-0 text-muted" />
+          {/* Its project's own pool is just "Pool". */}
+          <span className="truncate">{pool.kind === "default" ? "Pool" : `Pool: ${pool.name}`}</span>
+        </button>
+      </>
+    );
+  }
+  const named = shown.slice(0, POOLS_NAMED);
+  const more = shown.length - named.length;
   return (
     <>
       <Dot />
-      {/* Never squeezed below its word (a 21 px target at 1024, under
-          WCAG 2.5.8's 24): "Pool" keeps its width, a named one 48 px. */}
-      <button
-        type="button"
-        onClick={() => host.openPool?.(pool.id)}
-        title={`Open the pool ${pool.name}`}
-        className={`${pool.kind === "default" ? "shrink-0" : "min-w-12"} ${DOOR_LOOK}`}
-        data-testid="session-pool-chip"
-      >
+      <span className="inline-flex min-w-0 items-center gap-1 text-meta text-ink/85" data-testid="session-pool-chip">
         <IconPool width={13} height={13} aria-hidden="true" className="shrink-0 text-muted" />
-        {/* Its project's own pool is just "Pool". */}
-        <span className="truncate">{pool.kind === "default" ? "Pool" : `Pool: ${pool.name}`}</span>
-      </button>
+        <span className="shrink-0">Pools:</span>
+        {named.map((pool, index) => (
+          <span key={pool.id} className="inline-flex min-w-0 items-center">
+            <button type="button" onClick={() => host.openPool?.(pool.id)} title={`Open the pool ${pool.name}`} className={`min-w-6 ${DOOR_LOOK}`} data-testid="session-pool-door">
+              <span className="truncate">{pool.name}</span>
+            </button>
+            {index < named.length - 1 && <span aria-hidden="true">,</span>}
+          </span>
+        ))}
+        {more > 0 && <span className="shrink-0 text-muted">and {more} more</span>}
+      </span>
     </>
   );
 }
+
+/** How many pools the header names before "and N more" (its Pools tab
+ * lists them all). */
+const POOLS_NAMED = 3;
 
 /** Its tool, a door to the tool's page; left out where `said` (the
  * header's App chip, "Claude Code · Work") names the tool already (the
