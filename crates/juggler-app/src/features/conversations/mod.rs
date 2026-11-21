@@ -24,6 +24,7 @@ pub mod procs;
 pub mod saved;
 pub mod scan;
 pub mod switch_source;
+mod titles;
 
 /// Emitted when the conversations or which are live changed (the rail
 /// reads them again). Its payload says which: [`CHANGED_INDEX`] or
@@ -50,6 +51,8 @@ use juggler_adapter::conversation::ConversationSummary;
 use crate::commands::lock_storage_arc;
 use crate::error::{AppError, AppResult};
 use crate::state::AppState;
+
+pub use titles::{titled, titled_snapshot};
 
 /// One conversation in the index: what its file says, and whose it is.
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -686,44 +689,6 @@ fn merged(conversations: impl Iterator<Item = Conversation>) -> Vec<Conversation
     by_id.into_values().collect()
 }
 
-/// AJ-E1536: AI Juggler's sessions with their conversations' titles (the
-/// tool's summary, else the first thing asked), so a session reads as
-/// what it was about wherever it shows, as one started outside does.
-///
-/// # Errors
-///
-/// [`AppError::StatePoisoned`] when the index's lock is poisoned.
-pub fn titled(
-    state: &Arc<AppState>,
-    mut rows: Vec<crate::features::sessions::dto::InstanceInfo>,
-) -> AppResult<Vec<crate::features::sessions::dto::InstanceInfo>> {
-    // AJ-E805: only these rows' conversations (Needs you reads the rows
-    // every 5 s; this copied every conversation on the Mac each time).
-    let titles: HashMap<(String, String), String> = {
-        let wanted: std::collections::HashSet<(&str, &str)> = rows
-            .iter()
-            .flat_map(|row| [own_conversation(row), carried_conversation(row)])
-            .flatten()
-            .collect();
-        state
-            .conversations
-            .all_where(|c| wanted.contains(&(c.account_id.as_str(), c.summary.id.as_str())))?
-            .into_iter()
-            .filter_map(|c| Some(((c.account_id, c.summary.id), c.summary.title?)))
-            .collect()
-    };
-    let title = |key: Option<(&str, &str)>| {
-        key.and_then(|(account, id)| titles.get(&(account.to_owned(), id.to_owned())).cloned())
-    };
-    for row in &mut rows {
-        let (own, carried) = (own_conversation(row), carried_conversation(row));
-        if own.is_some() || carried.is_some() {
-            row.title = title(own).or_else(|| title(carried));
-        }
-    }
-    Ok(rows)
-}
-
 /// `entry` without its places in processes `pids`; whether it lost one.
 fn lose_places(entry: &mut scan::LiveEntry, pids: &std::collections::BTreeSet<u32>) -> bool {
     let before = entry.places.len();
@@ -743,21 +708,6 @@ fn without_pids(model: &mut scan::LiveModel, pids: &std::collections::BTreeSet<u
     });
     model.pid_dirs.retain(|pid, _| !pids.contains(pid));
     changed
-}
-
-/// A session row's own conversation: `(account, id)`.
-fn own_conversation(row: &crate::features::sessions::dto::InstanceInfo) -> Option<(&str, &str)> {
-    Some((row.account_id.as_deref()?, row.conversation_id.as_deref()?))
-}
-
-/// SK-11: the conversation a switch carried into a session row. Its copy
-/// is the same conversation, so until the copy is read the row goes by
-/// that one's title (never by its facts: "web · started 9:40 AM").
-fn carried_conversation(
-    row: &crate::features::sessions::dto::InstanceInfo,
-) -> Option<(&str, &str)> {
-    let from = row.continues.as_ref()?;
-    Some((from.account_id.as_str(), from.conversation_id.as_deref()?))
 }
 
 /// F-rc3g-4 (the 0.4.6 rc3g walk; Open now means running): an AI
@@ -1460,15 +1410,19 @@ pub fn continue_impl(
     id: &str,
 ) -> AppResult<crate::features::launch::dto::LaunchResult> {
     use juggler_core::model::{ConversationId, SessionId};
-    let (
-        ContinueTarget {
-            account,
-            profile,
-            project,
-            cwd,
-        },
-        spec,
-    ) = continue_launch(state, account_id, id)?;
+    let ContinueTarget {
+        account,
+        profile,
+        project,
+        cwd,
+    } = continue_target(state, account_id, id)?;
+    // rc21: the one check every resume asks, in the gate's launch; a tool
+    // with no terminal UI resumes driven (AJ-E1605 R3).
+    let spec = crate::features::sessions::spawn::planned_terminal(
+        crate::features::launch::resume_gate::adapter_of(state, &account)?.as_ref(),
+        &cwd,
+        crate::features::launch::resume_gate::resume_spec(state, &account, &profile, &cwd, id),
+    )?;
     let session = SessionId::new(format!("sess-{}", crate::ids::unique_suffix()));
     // F-rc3g-3: AI Juggler ran it before (a run since ended): its name and
     // pin go on with it.
@@ -1496,12 +1450,48 @@ pub fn continue_impl(
                 .as_ref()
                 .map(crate::features::sessions::spawn::GoesOn::From),
         },
-        crate::features::sessions::spawn::Runs::Terminal(spec),
+        match spec {
+            Ok(spec) => crate::features::sessions::spawn::Runs::Terminal(spec),
+            // AJ-E1605 R3: a tool with no terminal UI continues it driven.
+            Err(none) => crate::features::sessions::spawn::Runs::Planned {
+                profile: &profile,
+                resume: Some(id.to_owned()),
+                fresh_id: None,
+                requested: Some(juggler_adapter::Runtime::Driven),
+                terminal: Err(none),
+                history: None,
+            },
+        },
     )?;
     Ok(crate::features::launch::dto::LaunchResult {
         session_id: session.to_string(),
         pid: started.spawned.pid,
     })
+}
+
+/// AJ-E1529 (moved from `lib.rs`, its size budget): every account's conversations and which are live, read from the tools' own files every
+/// 15 s (only changed files are read again); the UI hears of it only when something changed. The
+/// first pass waits for the window's first paint (at most 5 s) and runs at the lowest priority: a
+/// first start reads every transcript (about 40 s on a long history) while the window stays
+/// responsive.
+pub fn spawn_tick(app: tauri::AppHandle, state: Arc<AppState>) {
+    state.conversations.read_in_background();
+    crate::ticks::every_after_paint(
+        "conversations",
+        std::time::Duration::from_secs(5),
+        std::time::Duration::from_secs(15),
+        move || {
+            // QA batch 8: a long first pass tells the UI as it goes.
+            let tell = || {
+                crate::events::EmitEvent::emit_event(
+                    &app,
+                    AppEvent::ConversationsChanged,
+                    CHANGED_INDEX,
+                );
+            };
+            list_build::tick_and_tell(&state, PROGRESS_EVERY, &tell);
+        },
+    );
 }
 
 #[cfg(test)]

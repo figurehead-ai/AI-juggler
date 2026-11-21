@@ -347,6 +347,19 @@ pub struct IndexReportInfo {
     pub lines: u32,
 }
 
+/// AJ-E1007: keeps the transcript search index up to date in the
+/// background (incremental: unchanged transcripts cost one metadata
+/// read), so a search never waits for a first build.
+pub fn spawn_index(state: Arc<AppState>) {
+    crate::ticks::every(
+        "transcript-index",
+        std::time::Duration::from_secs(60),
+        move || {
+            let _ = index_transcripts(&state);
+        },
+    );
+}
+
 /// Core: one incremental indexing pass over every Instance's transcript.
 /// Files are read outside the storage lock; each session's new lines are
 /// written in one transaction.

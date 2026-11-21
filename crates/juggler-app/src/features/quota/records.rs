@@ -28,6 +28,147 @@ pub(crate) struct SourcedBatch {
     pub windows: Vec<(String, WindowKind, QuotaSample, UsageSource)>,
     /// `(account, model, sample, source)`.
     pub model_weeks: Vec<(String, String, QuotaSample, UsageSource)>,
+    /// AJ-E3210 (D-135): readings that carry the Account they were read
+    /// under (Claude's own records: a folder a Claude app profile shares
+    /// with its CLI holds two sign-ins' readings).
+    pub signed: juggler_core::storage::SignedSamples,
+}
+
+/// AJ-E3210: the Accounts a folder's Apps are on: its CLI's, and each
+/// desktop App's on it (their own sign-ins, D-63 as amended).
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub(crate) struct FolderSignIns {
+    /// Whose sign-ins these are (`anthropic`): an id is made as the stored
+    /// Account's.
+    pub vendor: String,
+    /// The folder's CLI App's Account.
+    pub cli: Option<String>,
+    /// The desktop Apps' on it.
+    pub desktop: Vec<String>,
+}
+
+impl FolderSignIns {
+    /// Every Account an App on the folder is on.
+    fn all(&self) -> impl Iterator<Item = &String> {
+        self.cli.iter().chain(&self.desktop)
+    }
+
+    /// The Account a limit hit in a transcript there is: a run the
+    /// Claude app made (its last `entrypoint`), its desktop App's when
+    /// that's one Account; a terminal's, the CLI's.
+    fn of_run(&self, transcript: &Path) -> RunOf {
+        if self.desktop.is_empty() {
+            return RunOf::Theirs(self.cli.clone());
+        }
+        let by_app =
+            juggler_adapters::claude_sign_ins::last_entrypoint(transcript).is_some_and(|entry| {
+                juggler_adapters::claude_sign_ins::kind_of(&entry)
+                    == juggler_adapter::SignInWriter::DesktopApp
+            });
+        if !by_app {
+            return RunOf::Theirs(self.cli.clone());
+        }
+        let mut theirs: Vec<&String> = self.desktop.iter().collect();
+        theirs.dedup();
+        match theirs.as_slice() {
+            [one] => RunOf::Theirs(Some((*one).clone())),
+            _ => RunOf::Unknown,
+        }
+    }
+}
+
+/// Whose a run (and a limit hit in it) was.
+#[derive(Clone, Debug, PartialEq, Eq)]
+enum RunOf {
+    /// This Account's (`None`: the folder's, which is on none).
+    Theirs(Option<String>),
+    /// No one can say (two desktop Apps on two Accounts share the folder):
+    /// left out, never a wrong Out.
+    Unknown,
+}
+
+/// Each folder's [`FolderSignIns`], read once a pass when first asked
+/// (`None`: a test's, none).
+pub(crate) struct SignInsByFolder<'a> {
+    state: Option<&'a crate::state::AppState>,
+    read: std::cell::OnceCell<BTreeMap<String, FolderSignIns>>,
+}
+
+impl<'a> SignInsByFolder<'a> {
+    /// For a pass.
+    pub(crate) fn new(state: &'a crate::state::AppState) -> Self {
+        Self {
+            state: Some(state),
+            read: std::cell::OnceCell::new(),
+        }
+    }
+
+    /// None known (every reading untagged, as before V55).
+    #[cfg(test)]
+    pub(crate) fn none() -> Self {
+        Self {
+            state: None,
+            read: std::cell::OnceCell::new(),
+        }
+    }
+
+    /// Folder `folder`'s, when it has an App on an Account.
+    pub(crate) fn of(&self, folder: &str) -> Option<&FolderSignIns> {
+        self.read
+            .get_or_init(|| self.state.map(read_sign_ins).unwrap_or_default())
+            .get(folder)
+    }
+}
+
+/// Every folder's [`FolderSignIns`], from the stored Apps.
+fn read_sign_ins(state: &crate::state::AppState) -> BTreeMap<String, FolderSignIns> {
+    let Ok(storage) = state.storage.lock() else {
+        return BTreeMap::new();
+    };
+    let (Ok(folders), Ok(apps), Ok(own), Ok(rows)) = (
+        storage.subscriptions().folders(),
+        storage.apps().list(),
+        storage.apps().accounts(),
+        storage.accounts().list(),
+    ) else {
+        return BTreeMap::new();
+    };
+    let vendors: BTreeMap<String, String> = rows
+        .iter()
+        .map(|row| {
+            let vendor = state.registry.get(&row.harness).map_or_else(
+                || row.harness.to_string(),
+                |adapter| adapter.sign_in_vendor(),
+            );
+            (row.id.to_string(), vendor)
+        })
+        .collect();
+    let mut out: BTreeMap<String, FolderSignIns> = folders
+        .into_iter()
+        .map(|(folder, cli)| {
+            let vendor = vendors.get(&folder).cloned().unwrap_or_default();
+            (
+                folder,
+                FolderSignIns {
+                    vendor,
+                    cli,
+                    desktop: Vec::new(),
+                },
+            )
+        })
+        .collect();
+    for app in apps
+        .iter()
+        .filter(|app| app.kind == "desktop" && !app.hidden)
+    {
+        if let (Some(folder), Some(Some(account))) = (&app.folder_id, own.get(&app.id))
+            && let Some(entry) = out.get_mut(folder)
+            && !entry.desktop.contains(account)
+        {
+            entry.desktop.push(account.clone());
+        }
+    }
+    out
 }
 
 /// How often (passes, ~1 s each) the records' files are looked at.
@@ -55,6 +196,10 @@ pub(crate) struct RecordsState {
     /// Per app instance folder: its meter history.
     #[serde(default)]
     pub app: BTreeMap<String, Mark>,
+    /// AJ-E3210: per app instance folder and Account (`<folder>#<id>`):
+    /// the newest of its meter's readings taken for that Account.
+    #[serde(default)]
+    pub app_signed: BTreeMap<String, i64>,
     /// The profile's state file (Claude Code's last `/usage`).
     #[serde(default)]
     pub cache: Mark,
@@ -152,10 +297,17 @@ fn modified_ms(path: &Path) -> Option<i64> {
 /// Reads one Claude profile's records into `out`: Claude Code's last
 /// `/usage` and the app instances' meters, each only when its file
 /// changed and only what is newer than `state` kept.
+///
+/// AJ-E3210 (D-135): each reading carries the Account it was read under:
+/// the `/usage` cache the state file's sign-in's; a meter's, each Account
+/// an App on the folder is on (`sign_ins`) or the state file names, read
+/// for each (the instance's record folder names hashed as the stored
+/// Account's id: nothing new is read).
 pub(crate) fn read_claude_records(
     account: &str,
     profile_dir: &Path,
     instances: &[PathBuf],
+    sign_ins: Option<&FolderSignIns>,
     state: &mut RecordsState,
     out: &mut SourcedBatch,
 ) {
@@ -181,6 +333,15 @@ pub(crate) fn read_claude_records(
     let Some(limits) = claude_limits::profile_limits(profile_dir) else {
         return;
     };
+    let vendor = sign_ins.map_or("anthropic", |known| known.vendor.as_str());
+    let id_of = |sign_in: &claude_limits::SignIn| {
+        crate::features::subscriptions::app_accounts::account_id_of(
+            vendor,
+            &sign_in.account,
+            Some(&sign_in.org),
+        )
+    };
+    let read_as = limits.sign_in.as_ref().map(id_of);
     if changed != state.cache.modified_ms {
         state.cache.modified_ms = changed;
         if let Some(cache) = limits
@@ -188,32 +349,71 @@ pub(crate) fn read_claude_records(
             .filter(|cache| cache.fetched_at > state.cache.newest_ms)
         {
             state.cache.newest_ms = cache.fetched_at;
-            out.windows.extend(
-                cache.samples.into_iter().map(|(kind, sample)| {
-                    (account.to_owned(), kind, sample, UsageSource::UsageCache)
-                }),
-            );
-            out.model_weeks
+            out.signed
+                .windows
+                .extend(cache.samples.into_iter().map(|(kind, sample)| {
+                    let (who, source) = (read_as.clone(), UsageSource::UsageCache);
+                    (account.to_owned(), kind, sample, source, who)
+                }));
+            out.signed
+                .model_weeks
                 .extend(cache.model_weeks.into_iter().map(|(model, sample)| {
-                    (account.to_owned(), model, sample, UsageSource::UsageCache)
+                    let (who, source) = (read_as.clone(), UsageSource::UsageCache);
+                    (account.to_owned(), model, sample, source, who)
                 }));
         }
     }
-    let Some(sign_in) = limits.sign_in else {
+    // Every Account an App here is on, and the one the state file names.
+    let wanted: BTreeSet<String> = sign_ins
+        .into_iter()
+        .flat_map(FolderSignIns::all)
+        .cloned()
+        .chain(read_as)
+        .collect();
+    if wanted.is_empty() {
         return;
-    };
+    }
     for (dir, key, modified) in meters {
-        let mark = state.app.entry(key).or_default();
+        let mark = state.app.entry(key.clone()).or_default();
         mark.modified_ms = modified;
-        let samples = claude_limits::app_usage_samples(&dir, &sign_in, mark.newest_ms);
-        if let Some(newest) = samples.iter().map(|(_, sample)| sample.ts).max() {
-            mark.newest_ms = newest;
+        for sign_in in claude_limits::instance_sign_ins(&dir) {
+            let id = id_of(&sign_in);
+            if !wanted.contains(&id) {
+                continue;
+            }
+            let newest = state.app_signed.entry(format!("{key}#{id}")).or_default();
+            let samples = claude_limits::app_usage_samples(&dir, &sign_in, *newest);
+            if let Some(at) = samples.iter().map(|(_, sample)| sample.ts).max() {
+                *newest = at;
+            }
+            out.signed
+                .windows
+                .extend(samples.into_iter().map(|(kind, sample)| {
+                    let source = UsageSource::DesktopApp;
+                    (account.to_owned(), kind, sample, source, Some(id.clone()))
+                }));
         }
-        out.windows.extend(
-            samples
-                .into_iter()
-                .map(|(kind, sample)| (account.to_owned(), kind, sample, UsageSource::DesktopApp)),
-        );
+    }
+}
+
+/// AJ-E3210: a limit hit read in transcript `transcript`, spent on folder
+/// `on`: the Account whose run it was ([`FolderSignIns::of_run`]) where
+/// the folder's Apps are known; left out when that can't be said (never a
+/// wrong Out on the other Account); as before where no App is known.
+pub(crate) fn push_hit(
+    out: &mut SourcedBatch,
+    (on, kind, sample): (String, WindowKind, QuotaSample),
+    transcript: &Path,
+    sign_ins: &SignInsByFolder<'_>,
+) {
+    match sign_ins.of(&on).map(|known| known.of_run(transcript)) {
+        None => out.windows.push((on, kind, sample, UsageSource::ApiRetry)),
+        Some(RunOf::Unknown) => {}
+        Some(RunOf::Theirs(who)) => {
+            out.signed
+                .windows
+                .push((on, kind, sample, UsageSource::ApiRetry, who));
+        }
     }
 }
 
@@ -222,7 +422,11 @@ pub(crate) fn read_claude_records(
 /// each the folder's it was spent on (`spent`: a moved conversation's, the
 /// one it left).
 pub(crate) fn look_back_for_hits(
-    (account, spent): (&str, &crate::features::handover::moved_lines::SpentOn<'_>),
+    (account, spent, sign_ins): (
+        &str,
+        &crate::features::handover::moved_lines::SpentOn<'_>,
+        &SignInsByFolder<'_>,
+    ),
     files: &[PathBuf],
     now_ms: i64,
     state: &mut RecordsState,
@@ -236,15 +440,14 @@ pub(crate) fn look_back_for_hits(
         if modified_ms(path).is_none_or(|at| now_ms.saturating_sub(at) > HITS_LOOKBACK_MS) {
             continue;
         }
-        out.windows.extend(
-            claude_limits::limit_hits_in(path)
-                .into_iter()
-                .filter(|(_, sample)| now_ms.saturating_sub(sample.ts) <= HITS_LOOKBACK_MS)
-                .filter_map(|(kind, sample)| {
-                    let on = spent.folder(account, path, sample.ts)?;
-                    Some((on, kind, sample, UsageSource::ApiRetry))
-                }),
-        );
+        for (kind, sample) in claude_limits::limit_hits_in(path)
+            .into_iter()
+            .filter(|(_, sample)| now_ms.saturating_sub(sample.ts) <= HITS_LOOKBACK_MS)
+        {
+            if let Some(on) = spent.folder(account, path, sample.ts) {
+                push_hit(out, (on, kind, sample), path, sign_ins);
+            }
+        }
     }
 }
 
@@ -298,24 +501,34 @@ mod tests {
         let instances = vec![app.path().to_path_buf()];
         let mut state = RecordsState::default();
         let mut out = SourcedBatch::default();
-        read_claude_records("acc", profile_dir.path(), &instances, &mut state, &mut out);
+        read_claude_records(
+            "acc",
+            profile_dir.path(),
+            &instances,
+            None,
+            &mut state,
+            &mut out,
+        );
         assert_eq!(
-            out.windows.len(),
+            out.signed.windows.len(),
             2,
             "the /usage reading and the meter's sample"
         );
         assert!(
-            out.windows
+            out.signed
+                .windows
                 .iter()
                 .any(|row| row.3 == UsageSource::UsageCache)
         );
         assert!(
-            out.windows
+            out.signed
+                .windows
                 .iter()
                 .any(|row| row.3 == UsageSource::DesktopApp)
         );
         assert_eq!(
-            out.model_weeks
+            out.signed
+                .model_weeks
                 .iter()
                 .map(|row| (row.1.as_str(), row.3))
                 .collect::<Vec<_>>(),
@@ -325,8 +538,15 @@ mod tests {
 
         // Nothing changed: nothing is read again.
         out = SourcedBatch::default();
-        read_claude_records("acc", profile_dir.path(), &instances, &mut state, &mut out);
-        assert!(out.windows.is_empty() && out.model_weeks.is_empty());
+        read_claude_records(
+            "acc",
+            profile_dir.path(),
+            &instances,
+            None,
+            &mut state,
+            &mut out,
+        );
+        assert!(out.signed.windows.is_empty() && out.signed.model_weeks.is_empty());
 
         // The meter grows: only its new sample comes.
         instance(
@@ -337,12 +557,98 @@ mod tests {
             ),
         );
         state.app.values_mut().for_each(|mark| mark.modified_ms = 0); // as if it changed
-        read_claude_records("acc", profile_dir.path(), &instances, &mut state, &mut out);
-        assert_eq!(out.windows.len(), 1);
-        assert_eq!(out.windows[0].2.used_pct, 15.0);
+        read_claude_records(
+            "acc",
+            profile_dir.path(),
+            &instances,
+            None,
+            &mut state,
+            &mut out,
+        );
+        assert_eq!(out.signed.windows.len(), 1);
+        assert_eq!(out.signed.windows[0].2.used_pct, 15.0);
         assert!(
-            out.model_weeks.is_empty(),
+            out.signed.model_weeks.is_empty(),
             "the /usage reading didn't change"
+        );
+    }
+
+    /// AJ-E3210 acceptance test 5: the folder a Claude app profile shares
+    /// with its CLI. Its state file holds the app's sign-in (the personal
+    /// plan) while the CLI's is the Team seat's: the meter's readings of
+    /// each are read, each tagged with its own Account, never one for the
+    /// other.
+    #[test]
+    fn a_shared_folders_readings_carry_the_account_they_were_read_under() {
+        use crate::features::subscriptions::app_accounts::account_id_of;
+        let profile_dir = tempfile::tempdir().unwrap();
+        let app = tempfile::tempdir().unwrap();
+        std::fs::write(
+            profile_dir.path().join(".claude.json"),
+            r#"{"oauthAccount":{"accountUuid":"acct-a","organizationUuid":"org-me"}}"#,
+        )
+        .unwrap();
+        // One instance's meter holds both sign-ins' readings (the default
+        // app on the Team seat, the profile on the personal plan).
+        std::fs::create_dir_all(app.path().join("claude-code-sessions/acct-a/org-me")).unwrap();
+        std::fs::create_dir_all(app.path().join("claude-code-sessions/acct-a/org-team")).unwrap();
+        std::fs::write(
+            app.path().join(claude_limits::APP_USAGE_FILE),
+            format!(
+                r#"{{"version":1,"samples":[{{"org":"org-team","t":{T0},"u":{{"sd":7}}}},{{"org":"org-me","t":{},"u":{{"sd":100}}}}]}}"#,
+                T0 + 1
+            ),
+        )
+        .unwrap();
+        let team = account_id_of("anthropic", "acct-a", Some("org-team"));
+        let me = account_id_of("anthropic", "acct-a", Some("org-me"));
+        let sign_ins = FolderSignIns {
+            vendor: "anthropic".into(),
+            cli: Some(team.clone()),
+            desktop: vec![me.clone()],
+        };
+        let mut state = RecordsState::default();
+        let mut out = SourcedBatch::default();
+        read_claude_records(
+            "shared",
+            profile_dir.path(),
+            &[app.path().to_path_buf()],
+            Some(&sign_ins),
+            &mut state,
+            &mut out,
+        );
+        let read: Vec<(f64, Option<&str>)> = out
+            .signed
+            .windows
+            .iter()
+            .map(|row| (row.2.used_pct, row.4.as_deref()))
+            .collect();
+        assert!(read.contains(&(7.0, Some(team.as_str()))), "{read:?}");
+        assert!(read.contains(&(100.0, Some(me.as_str()))), "{read:?}");
+        assert_eq!(read.len(), 2, "each once, under its own Account");
+        assert!(out.windows.is_empty(), "nothing untagged");
+
+        // A folder with no App on another Account reads only its own.
+        let mut state = RecordsState::default();
+        let mut out = SourcedBatch::default();
+        let alone = FolderSignIns {
+            vendor: "anthropic".into(),
+            cli: Some(me.clone()),
+            desktop: Vec::new(),
+        };
+        read_claude_records(
+            "personal",
+            profile_dir.path(),
+            &[app.path().to_path_buf()],
+            Some(&alone),
+            &mut state,
+            &mut out,
+        );
+        assert!(
+            out.signed
+                .windows
+                .iter()
+                .all(|row| row.4.as_deref() == Some(me.as_str()))
         );
     }
 
@@ -368,8 +674,9 @@ mod tests {
         let mut state = RecordsState::default();
         let mut out = SourcedBatch::default();
         let spent = crate::features::handover::moved_lines::SpentOn::none();
+        let sign_ins = SignInsByFolder::none();
         look_back_for_hits(
-            ("acc", &spent),
+            ("acc", &spent, &sign_ins),
             std::slice::from_ref(&path),
             now,
             &mut state,
@@ -382,7 +689,13 @@ mod tests {
         );
         assert_eq!(out.windows[0].3, UsageSource::ApiRetry);
         out = SourcedBatch::default();
-        look_back_for_hits(("acc", &spent), &[path], now, &mut state, &mut out);
+        look_back_for_hits(
+            ("acc", &spent, &sign_ins),
+            &[path],
+            now,
+            &mut state,
+            &mut out,
+        );
         assert!(out.windows.is_empty(), "once");
     }
 }

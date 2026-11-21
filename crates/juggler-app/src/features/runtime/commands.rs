@@ -224,17 +224,24 @@ fn continue_as(
     runtime: Runtime,
     written: bool,
 ) -> AppResult<HandoverInfo> {
-    let (terminal, resume, fresh_id, kept) = if written {
-        let terminal = crate::features::launch::resume_gate::resume_spec(
+    let adapter = crate::features::launch::resume_gate::adapter_of(state, account)?;
+    let (launch, resume, fresh_id, kept) = if written {
+        let launch = crate::features::launch::resume_gate::resume_spec(
             state, account, profile, &from.cwd, native_id,
-        )?;
-        (terminal, Some(native_id.to_owned()), None, true)
+        );
+        (launch, Some(native_id.to_owned()), None, true)
     } else {
-        let fresh = crate::features::launch::resume_gate::fresh_spec(
+        // A tool with no terminal (AJ-E1605 R3) refuses the terminal
+        // launch; its driven start still takes `fresh_id`.
+        match crate::features::launch::resume_gate::fresh_spec(
             state, account, profile, &from.cwd, native_id,
-        )?;
-        (fresh.spec, None, Some(native_id.to_owned()), fresh.kept)
+        ) {
+            Ok(fresh) => (Ok(fresh.spec), None, Some(native_id.to_owned()), fresh.kept),
+            Err(error) => (Err(error), None, Some(native_id.to_owned()), false),
+        }
     };
+    let terminal =
+        crate::features::sessions::spawn::planned_terminal(adapter.as_ref(), &from.cwd, launch)?;
     // The one path: its row first, then the runtime asked for.
     let session = SessionId::new(format!("sess-{}", crate::ids::unique_suffix()));
     let started = crate::features::sessions::spawn::start_session(
@@ -257,6 +264,7 @@ fn continue_as(
             fresh_id,
             requested: Some(runtime),
             terminal,
+            history: None,
         },
     )?;
     if !kept {

@@ -1,18 +1,20 @@
 /**
  * AJ-E2104 — the new rail's rows and place headers.
  *
- * - A **Needs you** row: the app's icon (D-38) with the profile's dot, the
- *   title in bold, then "project · app · profile" and why it needs you
- *   in amber; its ↗ always shows.
- * - An **Open now** row, under its place: indented, with a left edge in
- *   the profile's colour, a state dot, the title, "project · viewed N min
- *   ago", and the state word in its colour. Runway shows only when low.
+ * - A **Needs you** row (D-117): the App's dot, the title in bold, why
+ *   it needs you in ink-2 after its level's mark, then "project · app ·
+ *   profile"; its ↗ on hover, focus or when selected.
+ * - An **Open now** row, under its place: indented, a state mark, the
+ *   title and the state word on one line (a need's in ink beside its
+ *   amber mark, D-117); "project · viewed N min ago" in its tooltip and
+ *   name (D-118's mock, round 3). Runway shows only when low.
  * - A **place header**: a fold chevron, the app's icon and name, the
  *   profile's badge and name, and a count (a click opens the profile's page here), and
  *   its ↗ (Open), which brings the running app forward (never launches it).
  * - D-47: in Your order, a row and a place show a drag handle on hover
  *   and focus (⌥⌘↑ and ⌥⌘↓ are its twin); a row shows its pin there too.
- *   A row that needs you stays in its place, its state in amber.
+ *   A row that needs you stays in its place (D-117: its word in ink by
+ *   its level's mark; the loud copy is its Needs you row).
  * - E31 (AJ-E3103): an Open now row is the one session row
  *   (`row/SessionRow`, the rail's densities), the same as on Home and
  *   every page's lists; its shell and parts are `row/`.
@@ -25,7 +27,8 @@
  * "Asks you, …" first). Message text never shows here (D-37).
  */
 import type { JSX } from "react";
-import { PlaceMark } from "./PlaceMarks";
+import { ProfileBadge } from "./ProfileBadge";
+import { appTone, itemLevel } from "../lib/attention";
 import { RowShell } from "./row/RowShell";
 import { RowProject } from "./row/RowParts";
 
@@ -33,9 +36,8 @@ export { PlaceHeader } from "./PlaceHeader";
 export type { Arrangeable } from "./RowTools";
 export { usePrimary } from "./row/RowShell";
 export { RowProject } from "./row/RowParts";
-import { placeWords, type RailItem, type RailPlace } from "../lib/rail-items";
+import { placeWords, type RailItem } from "../lib/rail-items";
 import { needWord } from "../lib/rail-items";
-import { appColor } from "../lib/marks";
 export { needWord } from "../lib/rail-items";
 
 /** Where it is, in words: "project · Claude Code · Work · in Terminal". */
@@ -57,34 +59,56 @@ interface RowProps {
   parent?: string | null;
 }
 
-/** A Needs you row. */
+/** A Needs you row (D-117): the App's 6 px dot (in full colour while it
+ * needs you, muted for a note), the title in semibold ink, why in ink-2
+ * after its level's mark — an amber dot at L2 (a hollow ring before a
+ * guess), a red ✕ at L3 — or a review's ✓ and muted words (L1), then
+ * where (AJ-E3603 R5: the colour on the mark alone). One
+ * quiet mark per need (D-118's mock, the 0.5 review's "loud blocks"): no
+ * row is tinted in the rail, so five needs never stack five coloured
+ * blocks; the ✕ and the word tell L3 from L2 by shape, never by a fill.
+ * Its ↗ shows on hover, focus or when selected. */
 export function NeedRow({ compact = false, ...props }: RowProps): JSX.Element {
   const { item } = props;
   const word = needWord(item);
   const where = whereWords(item);
+  const level = itemLevel(item);
+  const lit = level >= 2 || props.selected;
+  const dot = (
+    <span aria-hidden="true" className={"flex shrink-0 " + (compact ? "" : "mt-[6px]")} data-testid="place-mark">
+      <ProfileBadge app={item.place.key} name={item.place.profile ?? item.accountLabel} size={6} className={appTone(lit)} />
+    </span>
+  );
+  // AJ-E3603 R5: one quiet mark per need, on every page: the level's
+  // colour is on its small mark alone (an amber dot, a ring for a guess,
+  // a red ✕), the words beside it in calm ink, so five needs never make
+  // five loud lines.
+  const why = (
+    <span aria-hidden="true" className={"flex min-w-0 items-center gap-1.5 truncate text-label leading-4 " + (level >= 2 ? "font-medium text-ink-2" : "text-muted")} data-testid="need-word" data-level={level}>
+      {/* The marks are decoration (the row's name says its word). */}
+      {level >= 2 && <span aria-hidden="true" className="level-mark" data-level={level} data-probably={level === 2 && item.probably ? "true" : undefined} />}
+      {level < 2 && item.need === "review" && <span aria-hidden="true" className="shrink-0 text-success">✓</span>}
+      <span className="truncate">{word}</span>
+    </span>
+  );
+  const data = { "data-level": String(level), "data-need": item.need ?? undefined, "data-state": item.state };
   if (compact) {
     // Two lines: what, and why it needs you (where is in its name).
     return (
-      <RowShell {...props} label={`${word}, ${item.title}, ${where}`} shape="rounded-lg" className="h-[44px] items-center gap-2 pl-2">
-        <span aria-hidden="true" className="flex shrink-0">
-          <PlaceMark place={item.place} profile={item.accountLabel} size={18} />
-        </span>
+      <RowShell {...props} data={data} label={`${word}, ${item.title}, ${where}`} shape="rounded-lg" className="h-[44px] items-center gap-2 pl-2">
+        {dot}
         <span className="flex min-w-0 flex-1 flex-col">
           <span aria-hidden="true" className="truncate text-meta font-semibold leading-[18px] text-ink">
             {item.title}
           </span>
-          <span aria-hidden="true" className="truncate text-label font-semibold leading-4 text-warning" data-testid="need-word">
-            {word}
-          </span>
+          {why}
         </span>
       </RowShell>
     );
   }
   return (
-    <RowShell {...props} label={`${word}, ${item.title}, ${where}`} shape="rounded-lg" className="h-[62px] items-start gap-2.5 pb-2.5 pl-2 pt-2">
-      <span aria-hidden="true" className="mt-0.5 flex shrink-0">
-        <PlaceMark place={item.place} profile={item.accountLabel} size={24} />
-      </span>
+    <RowShell {...props} data={data} label={`${word}, ${item.title}, ${where}`} shape="rounded-lg" className="h-[62px] items-start gap-2.5 pb-2.5 pl-2.5 pt-2">
+      {dot}
       {/* Three lines, each its own width (the review of 0.1.4: the state
           beside the place cut both to "ai-jug… · T…"): what, why it
           needs you, where. */}
@@ -92,16 +116,9 @@ export function NeedRow({ compact = false, ...props }: RowProps): JSX.Element {
         <span aria-hidden="true" className="truncate text-meta font-semibold leading-[18px] text-ink">
           {item.title}
         </span>
-        <span aria-hidden="true" className="truncate text-label font-semibold leading-4 text-warning" data-testid="need-word">
-          {word}
-        </span>
+        {why}
         <RowProject item={item} rest={placeWords(item.place).join(" · ")} />
       </span>
     </RowShell>
   );
-}
-
-/** The left edge a place's rows carry: its App's colour. */
-export function edgeOf(place: RailPlace | null): string | null {
-  return place?.profile ? appColor(place.key) : null;
 }

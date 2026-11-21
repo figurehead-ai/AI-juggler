@@ -138,15 +138,16 @@ The bugs 0.4.6's exit RC (rc3h) deferred and the soak's findings, shipped as a 0
 
 **Intent.** Bring the tools people use next, let work move between
 people as easily as between accounts, and make AI Juggler a macOS
-release people can rely on. Planned work that starts only after the
-first Stable, a 0.4.x (D-85); 0.5 ships to Beta first, then to Stable
+release people can rely on. It may start before the first Stable, a
+0.4.x, and 0.4.x fixes preempt it (D-104, amending D-85); the order is
+[0.5-order.md](0.5-order.md). 0.5 ships to Beta first, then to Stable
 under D-24.
 
 | Area | Tasks |
 |---|---|
-| ZCode, Kiro CLI, Hermes Agent, Muse, Cursor CLI, Antigravity on work plans; the desktop apps, track-only | AJ-E1605…AJ-E1610, AJ-E1613 |
+| ZCode, Kiro CLI, Hermes Agent, Muse, Cursor CLI, Antigravity (every plan, D-105); the desktop apps opened, kept alive and focused, with replies wherever a route exists (D-66) | AJ-E1605…AJ-E1610, AJ-E1613 |
 | Kimi Code's and Grok Build's usage finished | AJ-E1603, AJ-E1604 |
-| Every new tool checked live on spare accounts | AJ-E1612 |
+| Every new tool checked live on existing accounts in separate lab profiles (D-107) | AJ-E1612 |
 | The Claude Code plugin published | AJ-E1905 (waits on D-43 point 6) |
 | Pools across your Macs, after the pools spike's rulings | AJ-E1701, AJ-E1705 |
 | A context pack handed to a colleague | AJ-E1011 |
@@ -159,6 +160,23 @@ under D-24.
 | Updates and release integrity finished | AJ-E1010 |
 | Each release's sign-off recorded from the Stable approval (D-109) | AJ-E807 |
 | Release speed: beta promotes the tested nightly, CI builds once and tests what changed (D-99; planned after 0.4.1) | AJ-E2020 |
+| Calm attention: four levels read from one place, each need loud once per area, a quieter look (section labels, no borders, App icons muted until they need you), every collapsible kept, on every screen: the 0.5 Stable doesn't ship with a screen on the old look (D-117) | E36 |
+| Home as an activity feed: what needs you pinned on top, then what happened, newest first and rolled up, with a "while you were away" digest; Your apps and Runway by account beside it (D-118) | E37 |
+| AI jobs through one router, and Chat v1. **Rescoped 2026-11-18 (ADR-0033, 659da7fec):** 0.5 ships no model-written text; Chat v1 ships as the look-up view (found records with links, no written answer); the downloaded-model parts and written answers are not shipped (D-120, D-121) | E38 |
+| The digest: a cross-agent scheduler posting short items to the feed, consolidated notifications and a non-AI rollup (D-132, ADR-0036) | AJ-E3712 |
+| Watches: a typed, deterministic rule over the event stream, created and edited by talking to Chat with confirmation, a Watches view, alerts through the notification path, and the harness for the digest and watch parsing (D-132, D-130) | AJ-E3814, AJ-E3815, AJ-E3816, AJ-E3817, AJ-E3818 |
+| The Models area: a `models` section of the remote config, a recommendation for this Mac, Settings > AI > Models, downloads with size, free-disk check and hash, and the disk rules of AJ-E3803 (D-131) | AJ-E3803, AJ-E3810, AJ-E3811, AJ-E3812, AJ-E3813 |
+| Chat memory, short and long term, with context budgets (D-133, ADR-0037) | AJ-E3819 |
+| The turn review: the code-only review and the model's Beta lines (D-131; found missing by the pre-push walk, F-02) | AJ-E3820 |
+| Feed summaries: A's excerpts built in the apps; B's research and its evaluation are done and its design is ADR-0033 (Proposed); B's build is not shipped | AJ-E3708, AJ-E3709, AJ-E3710, AJ-E3711 |
+| The signed remote configuration: the crate and its trust rules (step 1 built and reviewed, ADR-0035), the compat section and its publish workflow, then flags and notices with their screens; hosted on the website, on by default (D-129). Params and endpoints and the account layer (ADR-0035 order, steps 3 and 4) come with the features that need them, in later releases | AJ-E2021, AJ-E2022, AJ-E2023 |
+| The lab-Mac compatibility run on the installed tool versions (D-128) | AJ-E819 |
+| Making and editing screens get a rich, polished design, from the screen audit's worst-25 list (Notifications, Add app and Add account first), built on 0.4.6's pool-wizard kit (D-126) | AJ-E3618, AJ-E3619 |
+| Switches through another service (the `+service` pairs) validated live, or kept Beta-only by a logged choice (D-127, D-128) | AJ-E818 |
+| The sign-in surface fixes the sign-in sitting found; an ended session filed under the App whose own list shows it (D-102) | AJ-E1615, AJ-E2113 |
+| A 64-bit number reaches the window only below 2^53 (done) | AJ-E2024 |
+
+**Deferred (D-120):** AJ-E3711 — not shipped by D-120's rule (ADR-0033 verdicts: 861ee2015, 1b8b7cbec, 659da7fec; D-121 point 4): written lines ship only if blind reviewers prefer them to A's excerpt with 0 FAILs, and they did not; 0.5 ships A's excerpts and no model text.
 
 Accessibility stays proven by the automated gates on every release
 (axe on every gallery state, keyboard traversals, contrast); the manual

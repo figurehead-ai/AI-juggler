@@ -1,0 +1,6346 @@
+{
+ "meta": {
+  "harness": "v5",
+  "prompt_version": 5,
+  "engine": "local model (llama.cpp, Metal) via local_probe",
+  "hello": "{\"arch\":\"qwen3\",\"available\":\"available\",\"chat_template\":\"the GGUF's own (tokenizer.chat_template), Jinja\",\"engine\":\"local model (llama.cpp, Metal) via local_probe\",\"extensions\":[\"fields\",\"sampling\"],\"gpu_offload\":true,\"guided\":true,\"hello\":true,\"line_grammar\":\"root ::= first rest{0,159}\\nfirst ::= [^ \\\\t\\\\n\\\\r\\\\x0B\\\\x0C\\\\u0085   -     　\\\"“”„«»「」]\\nrest ::= [^\\\\t\\\\n\\\\r\\\\x0B\\\\x0C\\\\u0085   -     　\\\"“”„«»「」]\\n\",\"line_max_chars\":160,\"llama_cpp\":\"llama-cpp-2 0.1.146 / llama-cpp-sys-2 0.1.146 (llama-cpp-rs 4afdaf0782ef, vendored llama.cpp), Metal\",\"model_file\":\"Qwen3-4B-Instruct-2507-Q4_K_M.gguf\",\"model_sha256\":null,\"n_ctx\":4096,\"os\":\"27.0.1\",\"protocol\":3,\"quant\":\"Q4_K_M\",\"sampler\":\"greedy\",\"sha256_source\":\"Qwen3-4B-Instruct-2507-Q4_K_M.gguf not listed in ~/Dev/AIJuggler-models/MANIFEST.md\",\"system_info\":\"MTL : EMBED_LIBRARY = 1 | CPU : NEON = 1 | ARM_FMA = 1 | FP16_VA = 1 | DOTPROD = 1 | LLAMAFILE = 1 | ACCELERATE = 1 | REPACK = 1 | \",\"temperature\":0,\"thinking\":\"off: enable_thinking=false (flag and template kwarg)\"}",
+  "family": "qwen3-4b-instruct-2507",
+  "sampling_name": "card",
+  "sampling": {
+   "temperature": 0.7,
+   "top_p": 0.8,
+   "top_k": 20,
+   "min_p": 0.0,
+   "presence_penalty": 0.0
+  },
+  "sampling_source": "the base model card (Qwen/Qwen3-4B-Instruct-2507): Temperature 0.7, TopP 0.8, TopK 20, MinP 0; presence_penalty 0-2 'to reduce endless repetitions' (0 here: grammar-bounded fields). UNVERIFIED against a GGUF: none is downloaded (MANIFEST.md: no official GGUF repository). A non-thinking model: no think block. Re-read the card and the GGUF metadata on download.",
+  "datamark": "on",
+  "retries": 2,
+  "jobs": [
+   "feed_line",
+   "review",
+   "attention",
+   "chat",
+   "digest",
+   "watch"
+  ],
+  "prompt_sha256": {
+   "feed_line": "26dea99d99f27f4b86718cdb64447788f722590db65d95ee3cd9f786a147f458",
+   "review": "a848b539958cbadef034879e6255468cab2a921174fdba60db7a7ef54ff2fa61",
+   "attention": "cffa6cbd59b3f204d666fc444d799db3bf1d99bce4be50216ae6fb7fc440b083",
+   "chat": "d1f89296583ee7986890e564fca069b5825c3387794999c632c54ad8497dd939",
+   "digest": "9146a005e1a212b59b652ec0e3b00cefa6da7377ab99a6b9ae86c13e1ecbb1f6",
+   "watch": "b84f3b6ce41d0548952b377a2be38dba45f0757a69d2332e3bd2c176c23050cf"
+  },
+  "context_tokens": 4096,
+  "code_sha256": {
+   "core.py": "fabf8436de8d224b5bd3756d1db1dcd492e6d87f3361486bd318ac59045eb66e",
+   "turns.py": "d50d4d425ff5aa487f95369bb85263c3e77e177f64c18fc89fa69530992239c8",
+   "chat.py": "e8adb5a70d6fb4724113a079caa779426801d22b815efbb8cc63e3b6eafc0909",
+   "severity.py": "4f3b90974fa75dab71ffda5e80546b76aa67d33f1e5b2ee48ecf53f9ff333319",
+   "digest.py": "e4f230e3c23596e9224193b09051dc16d17418283564041af059dfa8ea1ce743",
+   "watch.py": "bac5db2ff1b6a2ac1463eb6abe4dc35822a417ddcef61816f1cd0a05ac2c5df4"
+  },
+  "gate_py_sha256": "22152d013af518c34237464f53fd92dbdc83b8b1fa21b1cff8588f5d08735a68",
+  "frozen_gate_commit": "7acec4f50",
+  "jobs_v4_sha256": "17ac6523b2382ec497e392a55a78c23aa6cc56c57430dd43463f2bb67bf5ca94",
+  "repeats": 1,
+  "limit": null,
+  "corpora": [
+   {
+    "label": "turns",
+    "file": "turns-v5.json",
+    "sha256": "73960bf03f4d52557179b77561e105f6139daaaa0e58b7a17908d973549a4b30",
+    "items_in_file": 40,
+    "items_run": 40
+   },
+   {
+    "label": "chat",
+    "file": "chat-v5.json",
+    "sha256": "19a3bf0c8bc0db689fa0b4b7e34915ccedd07c44445fa05292d17f99f5e266a4",
+    "items_in_file": 40,
+    "items_run": 40
+   }
+  ],
+  "calls": 174,
+  "wall_s": 206.3,
+  "machine": {
+   "macos": "27.0.1",
+   "macos_build": "26A434",
+   "arch": "arm64",
+   "model": "Mac17,15",
+   "chip": "Apple M5 Ultra",
+   "ram_gb": 96.0,
+   "cpus": 30
+  },
+  "load_avg_start": [
+   10.6,
+   14.3,
+   14.2
+  ],
+  "load_avg_end": [
+   13.5,
+   12.9,
+   13.5
+  ],
+  "helper_cpu_s": 106.19,
+  "cpu_deltas": [
+   {
+    "name": "local_probe",
+    "cpu_s": 105.86
+   }
+  ],
+  "watched_rss_mb": {
+   "before": 3134.5,
+   "peak": 3325.7,
+   "after": 3321.9
+  },
+  "started": "2026-11-18 11:21:46"
+ },
+ "results": [
+  {
+   "corpus": "turns",
+   "job": "feed_line",
+   "setting": "main",
+   "id": "V001",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"action\": \"added\", \"object\": \"cursor-based pagination to the invoice list endpoint\", \"result\": \"all 24 tests in the module pass\", \"caveat_kind\": \"none\", \"caveat\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1064,
+     "gen_ms": 1063.3269169999999,
+     "out_tokens": 50,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2560,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "written",
+    "shown": "Added cursor-based pagination to the invoice list endpoint, all 24 tests in the module pass",
+    "model_text": [
+     "Added cursor-based pagination to the invoice list endpoint, all 24 tests in the module pass"
+    ],
+    "notes": []
+   }
+  },
+  {
+   "corpus": "turns",
+   "job": "feed_line",
+   "setting": "main",
+   "id": "V002",
+   "rep": 0,
+   "model_called": true,
+   "used": "fallback",
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"action\": \"added\", \"object\": \"a caching layer for the exchange-rate lookups in rates/client.py\", \"result\": \"all 12 tests pass\", \"caveat_kind\": \"none\", \"caveat\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1095,
+     "gen_ms": 1095.169416,
+     "out_tokens": 52,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2569,
+     "cut": false,
+     "retry_note": false,
+     "errors": [
+      "contradiction: names a change that was undone (git: rates/client.py was reverted)"
+     ],
+     "ok": false,
+     "soft": []
+    },
+    {
+     "attempt": 1,
+     "text": "{\"action\": \"added\", \"object\": \"a caching layer for the exchange-rate lookups in rates/client.py\", \"result\": \"all 12 tests pass\", \"caveat_kind\": \"partial\", \"caveat\": \"the new cache module was created then removed again; the cah\" }",
+     "finish": "stop",
+     "latency_ms": 1313,
+     "gen_ms": 1312.563208,
+     "out_tokens": 65,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2687,
+     "cut": false,
+     "retry_note": true,
+     "errors": [
+      "composer: does not fit 20 words / 160 characters with its caveat: A's excerpt"
+     ],
+     "ok": false,
+     "soft": []
+    },
+    {
+     "attempt": 2,
+     "text": "{\"action\": \"added\", \"object\": \"a caching layer for the exchange-rate lookups in rates/client.py\", \"result\": \"all 12 tests pass\", \"caveat_kind\": \"none\", \"caveat\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1114,
+     "gen_ms": 1114.310667,
+     "out_tokens": 52,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2703,
+     "cut": false,
+     "retry_note": true,
+     "errors": [
+      "contradiction: names a change that was undone (git: rates/client.py was reverted)"
+     ],
+     "ok": false,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "excerpt",
+    "shown": "I added a caching layer for the exchange-rate lookups in rates/client.py so repeated calls within five minutes no longer hit the upstream API.",
+    "model_text": [],
+    "notes": [
+     "every attempt failed its checks: A's excerpt"
+    ]
+   }
+  },
+  {
+   "corpus": "turns",
+   "job": "feed_line",
+   "setting": "main",
+   "id": "V003",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "excerpt_routed",
+    "shown": "Der Import der Kundendaten aus der CSV-Datei ist fast fertig.\nFehlgeschlagen: FAILED tests/test_import.py::test_plz_five_digits - AssertionError: '1234' != '01234'\nFehlgeschlagen: FAILED tests/test_import.py::test_empty_row_skipped - KeyError: 'name'\nFehlgeschlagen: FAILED tests/test_import.py::test_utf8_bom - UnicodeDecodeError\nFehlgeschlagen: FAILED tests/test_import.py::test_duplicate_ids - IndexError",
+    "model_text": [],
+    "notes": [
+     "a question, a failure or loud facts: the agent's own words (no call)"
+    ]
+   }
+  },
+  {
+   "corpus": "turns",
+   "job": "feed_line",
+   "setting": "main",
+   "id": "V004",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "excerpt_routed",
+    "shown": "The webhook retry logic now backs off exponentially with jitter, capped at ten minutes.\nQuestion: Tell me which way you want to go on keeping the legacy /v1/notify endpoint.",
+    "model_text": [],
+    "notes": [
+     "a question, a failure or loud facts: the agent's own words (no call)"
+    ]
+   }
+  },
+  {
+   "corpus": "turns",
+   "job": "feed_line",
+   "setting": "main",
+   "id": "V005",
+   "rep": 0,
+   "model_called": true,
+   "used": "fallback",
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"action\": \"overhauled\", \"object\": \"the Login-Dialog of the Desktop-App\", \"result\": \"18 Component tests run through\", \"caveat_kind\": \"partial\", \"caveat\": \"Andere Module habe ich dabei nicht gefasst, und die Schnitts\" }",
+     "finish": "stop",
+     "latency_ms": 1325,
+     "gen_ms": 1325.052792,
+     "out_tokens": 66,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2573,
+     "cut": false,
+     "retry_note": false,
+     "errors": [
+      "gate step 2b: 2b: content word(s) not in the text: gefasst, overhauled, the"
+     ],
+     "ok": false,
+     "soft": []
+    },
+    {
+     "attempt": 1,
+     "text": "{\"action\": \"changed\", \"object\": \"the Fehlermeldungen und Tab-Reihenfolge in dem Login-Dialog derDesktop\", \"result\": \"18 Komponententests laufen durch\", \"caveat_kind\": \"partial\", \"caveat\": \"Andere Module habe ich dabei nicht gefasst, und die Schnitts\"}",
+     "finish": "stop",
+     "latency_ms": 1496,
+     "gen_ms": 1496.305083,
+     "out_tokens": 75,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2703,
+     "cut": false,
+     "retry_note": true,
+     "errors": [
+      "gate step 2: invented code derdesktop",
+      "gate step 2b: 2b: content word(s) not in the text: gefasst, the",
+      "gate step 3: outcome: a finished turn; the line states a failure with no word of resolution (the problem, not the outcome)"
+     ],
+     "ok": false,
+     "soft": []
+    },
+    {
+     "attempt": 2,
+     "text": "{\"action\": \"changed\", \"object\": \"die Fehlermeldungen und die Tab-Reihenfolge im Login-Dialog\", \"result\": \"18 Komponententests laufen durch\", \"caveat_kind\": \"partial\", \"caveat\": \"Andere Module habe ich dabei nicht gefasst, und die Schnitts\" }",
+     "finish": "stop",
+     "latency_ms": 1510,
+     "gen_ms": 1510.052167,
+     "out_tokens": 74,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2755,
+     "cut": false,
+     "retry_note": true,
+     "errors": [
+      "gate step 2b: 2b: content word(s) not in the text: gefasst",
+      "gate step 3: outcome: a finished turn; the line states a failure with no word of resolution (the problem, not the outcome)"
+     ],
+     "ok": false,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "excerpt",
+    "shown": "Ich habe den Login-Dialog der Desktop-App überarbeitet: Die Fehlermeldungen stehen jetzt direkt unter den Feldern und die Tab-Reihenfolge stimmt.",
+    "model_text": [],
+    "notes": [
+     "every attempt failed its checks: A's excerpt"
+    ]
+   }
+  },
+  {
+   "corpus": "turns",
+   "job": "feed_line",
+   "setting": "main",
+   "id": "V006",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "excerpt_routed",
+    "shown": "The date-range filter now handles time zones correctly and I verified the whole suite: everything passes, including the DST edge cases.\nFailed: FAIL reports/filter.spec.ts > dst spring forward > keeps 23h day\nFailed: FAIL reports/filter.spec.ts > dst autumn > keeps 25h day",
+    "model_text": [],
+    "notes": [
+     "a question, a failure or loud facts: the agent's own words (no call)"
+    ]
+   }
+  },
+  {
+   "corpus": "turns",
+   "job": "feed_line",
+   "setting": "main",
+   "id": "V007",
+   "rep": 0,
+   "model_called": true,
+   "used": "fallback",
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"action\": \"added\", \"object\": \"a Rate-Limiter for the Upload-Schnittstelle with a limit of 60Requests\", \"result\": \"none\", \"caveat_kind\": \"not_run\", \"caveat\": \"Die Tests habe ich nicht erneut ausgeführt\"}",
+     "finish": "stop",
+     "latency_ms": 1297,
+     "gen_ms": 1296.503708,
+     "out_tokens": 63,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2541,
+     "cut": false,
+     "retry_note": false,
+     "errors": [
+      "gate step 2: invented proper request",
+      "gate step 2b: 2b: content word(s) not in the text: for, the, with",
+      "gate step 3: caveat: dropped (facts: tests not run)"
+     ],
+     "ok": false,
+     "soft": []
+    },
+    {
+     "attempt": 1,
+     "text": "{\"action\": \"added\", \"object\": \"a Rate-Limiter for the Upload-Schnittstelle\", \"result\": \"none\", \"caveat_kind\": \"not_run\", \"caveat\": \"Die Tests habe ich nicht erneut ausgeführt\"}",
+     "finish": "stop",
+     "latency_ms": 1156,
+     "gen_ms": 1156.1173330000001,
+     "out_tokens": 55,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2690,
+     "cut": false,
+     "retry_note": true,
+     "errors": [
+      "gate step 2b: 2b: content word(s) not in the text: for, the",
+      "gate step 3: caveat: dropped (facts: tests not run)"
+     ],
+     "ok": false,
+     "soft": []
+    },
+    {
+     "attempt": 2,
+     "text": "{\"action\": \"added\", \"object\": \"a Rate-Limiter for the Upload-Schnittstelle\", \"result\": \"none\", \"caveat_kind\": \"not_run\", \"caveat\": \"Die Tests habe ich nicht erneut ausgeführt\"}",
+     "finish": "stop",
+     "latency_ms": 1152,
+     "gen_ms": 1151.502917,
+     "out_tokens": 55,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2669,
+     "cut": false,
+     "retry_note": true,
+     "errors": [
+      "gate step 2b: 2b: content word(s) not in the text: for, the",
+      "gate step 3: caveat: dropped (facts: tests not run)"
+     ],
+     "ok": false,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "excerpt",
+    "shown": "Ich habe einen Rate-Limiter für die Upload-Schnittstelle eingebaut, mit einem Limit von 60 Anfragen pro Minute.\nDie Tests habe ich nicht erneut ausgeführt.",
+    "model_text": [],
+    "notes": [
+     "every attempt failed its checks: A's excerpt"
+    ]
+   }
+  },
+  {
+   "corpus": "turns",
+   "job": "feed_line",
+   "setting": "main",
+   "id": "V008",
+   "rep": 0,
+   "model_called": true,
+   "used": "fallback",
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"action\": \"rewrote\", \"object\": \"the contributor guide so the setup steps match the current Makefile 10\", \"result\": \"none\", \"caveat_kind\": \"not_run\", \"caveat\": \"I did not run the test suite\"}",
+     "finish": "stop",
+     "latency_ms": 1158,
+     "gen_ms": 1158.304,
+     "out_tokens": 57,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2492,
+     "cut": false,
+     "retry_note": false,
+     "errors": [
+      "gate step 2: invented number 10"
+     ],
+     "ok": false,
+     "soft": []
+    },
+    {
+     "attempt": 1,
+     "text": "{\"action\": \"rewrote\", \"object\": \"the contributor guide so the setup steps match the current Makefile 10\", \"result\": \"none\", \"caveat_kind\": \"not_run\", \"caveat\": \"I did not run the test suite\"}",
+     "finish": "stop",
+     "latency_ms": 1161,
+     "gen_ms": 1161.30825,
+     "out_tokens": 57,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2602,
+     "cut": false,
+     "retry_note": true,
+     "errors": [
+      "gate step 2: invented number 10"
+     ],
+     "ok": false,
+     "soft": []
+    },
+    {
+     "attempt": 2,
+     "text": "{\"action\": \"rewrote\", \"object\": \"the contributor guide so the setup steps match the current Makefile 10\", \"result\": \"none\", \"caveat_kind\": \"not_run\", \"caveat\": \"I did not run the test suite\"}",
+     "finish": "stop",
+     "latency_ms": 1181,
+     "gen_ms": 1181.018959,
+     "out_tokens": 57,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2602,
+     "cut": false,
+     "retry_note": true,
+     "errors": [
+      "gate step 2: invented number 10"
+     ],
+     "ok": false,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "excerpt",
+    "shown": "I rewrote the contributor guide so the setup steps match the current Makefile targets and removed the outdated Docker section.\nThis is documentation only, so I did not run the test suite.",
+    "model_text": [],
+    "notes": [
+     "every attempt failed its checks: A's excerpt"
+    ]
+   }
+  },
+  {
+   "corpus": "turns",
+   "job": "feed_line",
+   "setting": "main",
+   "id": "V009",
+   "rep": 0,
+   "model_called": true,
+   "used": "fallback",
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"action\": \"converted\", \"object\": \"the users and teams tables\", \"result\": \"none\", \"caveat_kind\": \"partial\", \"caveat\": \"the orders and refunds tables are still on the old layout\"}",
+     "finish": "stop",
+     "latency_ms": 1044,
+     "gen_ms": 1043.480542,
+     "out_tokens": 49,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2538,
+     "cut": false,
+     "retry_note": false,
+     "errors": [
+      "composer: caveat kept by the composer: The orders and refunds tables are still on the old layout and the script for them is not written yet; does not fit 20 words / 160 characters with its caveat: A's excerpt"
+     ],
+     "ok": false,
+     "soft": []
+    },
+    {
+     "attempt": 1,
+     "text": "{\"action\": \"converted\", \"object\": \"the users and teams tables\", \"result\": \"none\", \"caveat_kind\": \"partial\", \"caveat\": \"the orders and refunds tables are still on the old layout\"}",
+     "finish": "stop",
+     "latency_ms": 1058,
+     "gen_ms": 1057.655083,
+     "out_tokens": 49,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2681,
+     "cut": false,
+     "retry_note": true,
+     "errors": [
+      "composer: caveat kept by the composer: The orders and refunds tables are still on the old layout and the script for them is not written yet; does not fit 20 words / 160 characters with its caveat: A's excerpt"
+     ],
+     "ok": false,
+     "soft": []
+    },
+    {
+     "attempt": 2,
+     "text": "{\"action\": \"converted\", \"object\": \"the users and teams tables\", \"result\": \"none\", \"caveat_kind\": \"partial\", \"caveat\": \"the orders and refunds tables are still on the old layout\"}",
+     "finish": "stop",
+     "latency_ms": 1056,
+     "gen_ms": 1055.392042,
+     "out_tokens": 49,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2681,
+     "cut": false,
+     "retry_note": true,
+     "errors": [
+      "composer: caveat kept by the composer: The orders and refunds tables are still on the old layout and the script for them is not written yet; does not fit 20 words / 160 characters with its caveat: A's excerpt"
+     ],
+     "ok": false,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "excerpt",
+    "shown": "The migration to the new schema is half done.\nThe orders and refunds tables are still on the old layout and the script for them is not written yet.",
+    "model_text": [],
+    "notes": [
+     "every attempt failed its checks: A's excerpt"
+    ]
+   }
+  },
+  {
+   "corpus": "turns",
+   "job": "feed_line",
+   "setting": "main",
+   "id": "V010",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "excerpt_routed",
+    "shown": "Soll ich die alte Export-Funktion für Word-Dateien ebenfalls entfernen oder bleibt sie vorerst drin?\nFrage: Soll ich die alte Export-Funktion für Word-Dateien ebenfalls entfernen oder bleibt sie vorerst drin?",
+    "model_text": [],
+    "notes": [
+     "a question, a failure or loud facts: the agent's own words (no call)"
+    ]
+   }
+  },
+  {
+   "corpus": "turns",
+   "job": "feed_line",
+   "setting": "main",
+   "id": "V011",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "excerpt_routed",
+    "shown": "I tried to upgrade the build to the new bundler version.\nFailed: Error: Cannot find module 'asset-hash-plugin' imported from build/vite.config.ts\nFailed: npm ERR! code ELIFECYCLE\nFailed: build exited with code 1",
+    "model_text": [],
+    "notes": [
+     "a question, a failure or loud facts: the agent's own words (no call)"
+    ]
+   }
+  },
+  {
+   "corpus": "turns",
+   "job": "feed_line",
+   "setting": "main",
+   "id": "V012",
+   "rep": 0,
+   "model_called": true,
+   "used": "fallback",
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"action\": \"swapped\", \"object\": \"the JSON serializer in the telemetry module for the faster one\", \"result\": \"nine tests pass\", \"caveat_kind\": \"partial\", \"caveat\": \"a small leftover is the settings file where I toggled a flag\"}",
+     "finish": "stop",
+     "latency_ms": 1240,
+     "gen_ms": 1239.83325,
+     "out_tokens": 60,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2538,
+     "cut": false,
+     "retry_note": false,
+     "errors": [
+      "composer: does not fit 20 words / 160 characters with its caveat: A's excerpt"
+     ],
+     "ok": false,
+     "soft": []
+    },
+    {
+     "attempt": 1,
+     "text": "{\"action\": \"swapped\", \"object\": \"the JSON serializer in the telemetry module for the faster one\", \"result\": \"nine tests pass\", \"caveat_kind\": \"partial\", \"caveat\": \"a small leftover is the settings file where I toggled a flag\"}",
+     "finish": "stop",
+     "latency_ms": 1233,
+     "gen_ms": 1232.563875,
+     "out_tokens": 60,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2671,
+     "cut": false,
+     "retry_note": true,
+     "errors": [
+      "composer: does not fit 20 words / 160 characters with its caveat: A's excerpt"
+     ],
+     "ok": false,
+     "soft": []
+    },
+    {
+     "attempt": 2,
+     "text": "{\"action\": \"swapped\", \"object\": \"the JSON serializer in the telemetry module for the faster one\", \"result\": \"nine tests pass\", \"caveat_kind\": \"partial\", \"caveat\": \"a small leftover is the settings file where I toggled a flag\"}",
+     "finish": "stop",
+     "latency_ms": 1244,
+     "gen_ms": 1244.098792,
+     "out_tokens": 60,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2671,
+     "cut": false,
+     "retry_note": true,
+     "errors": [
+      "composer: does not fit 20 words / 160 characters with its caveat: A's excerpt"
+     ],
+     "ok": false,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "excerpt",
+    "shown": "I swapped the JSON serializer in the telemetry module for the faster one and the benchmarks look better.",
+    "model_text": [],
+    "notes": [
+     "every attempt failed its checks: A's excerpt"
+    ]
+   }
+  },
+  {
+   "corpus": "turns",
+   "job": "feed_line",
+   "setting": "main",
+   "id": "V013",
+   "rep": 0,
+   "model_called": true,
+   "used": 1,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"action\": \"fixed\", \"object\": \"the cart counter in the header\", \"result\": \"all 41 tests are green\", \"caveat_kind\": \"none\", \"caveat\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 980,
+     "gen_ms": 980.350459,
+     "out_tokens": 46,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2512,
+     "cut": false,
+     "retry_note": false,
+     "errors": [
+      "gate step 2b: 2b: content word(s) not in the text: are, cart, counter, the"
+     ],
+     "ok": false,
+     "soft": []
+    },
+    {
+     "attempt": 1,
+     "text": "{\"action\": \"fixed\", \"object\": \"Warenkorb-Zähler im Header\", \"result\": \"alle 41 Tests sind grün\", \"caveat_kind\": \"none\", \"caveat\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1076,
+     "gen_ms": 1076.317083,
+     "out_tokens": 50,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2619,
+     "cut": false,
+     "retry_note": true,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "written",
+    "shown": "Warenkorb-Zähler im Header fixed, alle 41 Tests sind grün",
+    "model_text": [
+     "Warenkorb-Zähler im Header fixed, alle 41 Tests sind grün"
+    ],
+    "notes": []
+   }
+  },
+  {
+   "corpus": "turns",
+   "job": "feed_line",
+   "setting": "main",
+   "id": "V014",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "excerpt_routed",
+    "shown": "One of the older integration tests for the autocomplete is flaky and failed on the last run; it also failed before my change, so I left it alone.\nFailed: FAILED tests/integration/test_autocomplete.py::test_prefix_timeout - TimeoutError after 5.0s",
+    "model_text": [],
+    "notes": [
+     "a question, a failure or loud facts: the agent's own words (no call)"
+    ]
+   }
+  },
+  {
+   "corpus": "turns",
+   "job": "feed_line",
+   "setting": "main",
+   "id": "V015",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "excerpt_routed",
+    "shown": "Die Rechnungsnummern werden jetzt lückenlos vergeben.\nFehlgeschlagen: FAILED tests/test_numbering.py::test_concurrent_allocation - AssertionError: duplicate number 1007\nFehlgeschlagen: FAILED tests/test_numbering.py::test_rollback_gap - AssertionError\nFehlgeschlagen: FAILED tests/test_numbering.py::test_year_rollover - ValueError",
+    "model_text": [],
+    "notes": [
+     "a question, a failure or loud facts: the agent's own words (no call)"
+    ]
+   }
+  },
+  {
+   "corpus": "turns",
+   "job": "feed_line",
+   "setting": "main",
+   "id": "V016",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "excerpt_routed",
+    "shown": "Do you want the worker to run inside the main process for now, or should I set it up as a separate service?\nQuestion: Do you want the worker to run inside the main process for now, or should I set it up as a separate service?",
+    "model_text": [],
+    "notes": [
+     "a question, a failure or loud facts: the agent's own words (no call)"
+    ]
+   }
+  },
+  {
+   "corpus": "turns",
+   "job": "feed_line",
+   "setting": "main",
+   "id": "V017",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"action\": \"removed\", \"object\": \"the unused legacy importer module and its tests\", \"result\": \"33 tests pass\", \"caveat_kind\": \"none\", \"caveat\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 957,
+     "gen_ms": 956.405708,
+     "out_tokens": 45,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2566,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "quoted",
+    "shown": "Removed the unused legacy importer module and its tests, 33 tests pass",
+    "model_text": [
+     "Removed the unused legacy importer module and its tests, 33 tests pass"
+    ],
+    "notes": []
+   }
+  },
+  {
+   "corpus": "turns",
+   "job": "feed_line",
+   "setting": "main",
+   "id": "V018",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"action\": \"ergänzt\", \"object\": \"die Übersetzungsdateien für Französisch und Spanisch\", \"result\": \"none\", \"caveat_kind\": \"not_run\", \"caveat\": \"Tests wurden nicht ausgeführt, weil es nur Textdateien sind\"}",
+     "finish": "stop",
+     "latency_ms": 1273,
+     "gen_ms": 1273.000667,
+     "out_tokens": 64,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2543,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "written",
+    "shown": "Die Übersetzungsdateien für Französisch und Spanisch ergänzt; tests wurden nicht ausgeführt, weil es nur Textdateien sind",
+    "model_text": [
+     "Die Übersetzungsdateien für Französisch und Spanisch ergänzt; tests wurden nicht ausgeführt, weil es nur Textdateien sind"
+    ],
+    "notes": []
+   }
+  },
+  {
+   "corpus": "turns",
+   "job": "feed_line",
+   "setting": "main",
+   "id": "V019",
+   "rep": 0,
+   "model_called": true,
+   "used": "fallback",
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"action\": \"read through\", \"object\": \"the scheduler code\", \"result\": \"none\", \"caveat_kind\": \"none\", \"caveat\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 838,
+     "gen_ms": 837.894542,
+     "out_tokens": 38,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2517,
+     "cut": false,
+     "retry_note": false,
+     "errors": [
+      "gate step 3: caveat: dropped (facts: tests not run)"
+     ],
+     "ok": false,
+     "soft": []
+    },
+    {
+     "attempt": 1,
+     "text": "{\"action\": \"read through\", \"object\": \"the scheduler code\", \"result\": \"none\", \"caveat_kind\": \"partial\", \"caveat\": \"the lock timeout is hard-coded to 30 seconds\"}",
+     "finish": "stop",
+     "latency_ms": 1026,
+     "gen_ms": 1025.593167,
+     "out_tokens": 48,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2611,
+     "cut": false,
+     "retry_note": true,
+     "errors": [
+      "gate step 3: caveat: dropped (facts: tests not run)"
+     ],
+     "ok": false,
+     "soft": []
+    },
+    {
+     "attempt": 2,
+     "text": "{\"action\": \"read through\", \"object\": \"the scheduler code\", \"result\": \"none\", \"caveat_kind\": \"none\", \"caveat\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 845,
+     "gen_ms": 845.19125,
+     "out_tokens": 38,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2623,
+     "cut": false,
+     "retry_note": true,
+     "errors": [
+      "gate step 3: caveat: dropped (facts: tests not run)"
+     ],
+     "ok": false,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "excerpt",
+    "shown": "I read through the scheduler code as asked and wrote up how the job queue picks the next task: priority first, then age, with a lock per tenant.",
+    "model_text": [],
+    "notes": [
+     "every attempt failed its checks: A's excerpt"
+    ]
+   }
+  },
+  {
+   "corpus": "turns",
+   "job": "feed_line",
+   "setting": "main",
+   "id": "V020",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "excerpt_routed",
+    "shown": "Das Skript bricht ab, bevor es etwas schreibt.\nFehlgeschlagen: certctl renew --env staging: permission denied (keychain access refused)\nFehlgeschlagen: exit status 77",
+    "model_text": [],
+    "notes": [
+     "a question, a failure or loud facts: the agent's own words (no call)"
+    ]
+   }
+  },
+  {
+   "corpus": "turns",
+   "job": "feed_line",
+   "setting": "main",
+   "id": "V021",
+   "rep": 0,
+   "model_called": true,
+   "used": "fallback",
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"action\": \"split\", \"object\": \"the 900-line order service into three modules: pricing, stock and fulf\" , \"result\": \"all 118 tests pass\", \"caveat_kind\": \"none\", \"caveat\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1222,
+     "gen_ms": 1221.513667,
+     "out_tokens": 59,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2570,
+     "cut": false,
+     "retry_note": false,
+     "errors": [
+      "gate step 2b: 2b: content word(s) not in the text: fulf"
+     ],
+     "ok": false,
+     "soft": []
+    },
+    {
+     "attempt": 1,
+     "text": "{\"action\": \"split\", \"object\": \"the 900-line order service into three modules: pricing, stock and fulf\", \"result\": \"all 118 tests pass\", \"caveat_kind\": \"none\", \"caveat\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1207,
+     "gen_ms": 1207.321042,
+     "out_tokens": 58,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2682,
+     "cut": false,
+     "retry_note": true,
+     "errors": [
+      "gate step 2b: 2b: content word(s) not in the text: fulf"
+     ],
+     "ok": false,
+     "soft": []
+    },
+    {
+     "attempt": 2,
+     "text": "{\"action\": \"split\", \"object\": \"the 900-line order service into three modules: pricing, stock and fulf\", \"result\": \"all 118 tests pass\", \"caveat_kind\": \"none\", \"caveat\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1205,
+     "gen_ms": 1204.717875,
+     "out_tokens": 58,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2682,
+     "cut": false,
+     "retry_note": true,
+     "errors": [
+      "gate step 2b: 2b: content word(s) not in the text: fulf"
+     ],
+     "ok": false,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "excerpt",
+    "shown": "I split the 900-line order service into three modules: pricing, stock and fulfilment.",
+    "model_text": [],
+    "notes": [
+     "every attempt failed its checks: A's excerpt"
+    ]
+   }
+  },
+  {
+   "corpus": "turns",
+   "job": "feed_line",
+   "setting": "main",
+   "id": "V022",
+   "rep": 0,
+   "model_called": true,
+   "used": "fallback",
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"action\": \"modified\", \"object\": \"the Password Reset Email with new sender and shortened subject\", \"result\": \"twelve tests run successfully\", \"caveat_kind\": \"partial\", \"caveat\": \"Other modules were not addressed, and the interfaces remain,\" }",
+     "finish": "stop",
+     "latency_ms": 1206,
+     "gen_ms": 1205.667417,
+     "out_tokens": 59,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2565,
+     "cut": false,
+     "retry_note": false,
+     "errors": [
+      "gate step 2: invented proper email; proper password",
+      "gate step 2b: 2b: content word(s) not in the text: addressed, and, email, interfaces, modified, new, other, sender, shortened, subject, the, were, with",
+      "gate step 3: facts: finished cleanly; the line claims a failure the cleaned text does not state; words: pending word in the line with none in the cleaned text"
+     ],
+     "ok": false,
+     "soft": []
+    },
+    {
+     "attempt": 1,
+     "text": "{\"action\": \"added\", \"object\": \"a retry for the mail send\", \"result\": \"twelve tests run successfully\", \"caveat_kind\": \"partial\", \"caveat\": \"Other modules were not addressed, and the interfaces remain,\"}",
+     "finish": "stop",
+     "latency_ms": 1154,
+     "gen_ms": 1153.828209,
+     "out_tokens": 54,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2784,
+     "cut": false,
+     "retry_note": true,
+     "errors": [
+      "gate step 2b: 2b: content word(s) not in the text: addressed, and, for, interfaces, other, run, send, the, twelve, were",
+      "gate step 3: facts: finished cleanly; the line claims a failure the cleaned text does not state; words: pending word in the line with none in the cleaned text"
+     ],
+     "ok": false,
+     "soft": []
+    },
+    {
+     "attempt": 2,
+     "text": "{\"action\": \"added\", \"object\": \"a retry for the mail send\", \"result\": \"twelve tests run successfully\", \"caveat_kind\": \"partial\", \"caveat\": \"other modules were not addressed, and the interfaces remain,\"}",
+     "finish": "stop",
+     "latency_ms": 1141,
+     "gen_ms": 1140.495083,
+     "out_tokens": 54,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2748,
+     "cut": false,
+     "retry_note": true,
+     "errors": [
+      "gate step 2b: 2b: content word(s) not in the text: addressed, and, for, interfaces, other, run, send, the, twelve, were",
+      "gate step 3: facts: finished cleanly; the line claims a failure the cleaned text does not state; words: pending word in the line with none in the cleaned text"
+     ],
+     "ok": false,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "excerpt",
+    "shown": "Ich habe die Passwort-Zurücksetzen-Mail mit dem neuen Absender versehen und den Betreff gekürzt.",
+    "model_text": [],
+    "notes": [
+     "every attempt failed its checks: A's excerpt"
+    ]
+   }
+  },
+  {
+   "corpus": "turns",
+   "job": "feed_line",
+   "setting": "main",
+   "id": "V023",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"action\": \"saved\", \"object\": \"the notification preferences and shows a toast on success\", \"result\": \"14 of 14 passed\", \"caveat_kind\": \"none\", \"caveat\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1092,
+     "gen_ms": 1092.3291669999999,
+     "out_tokens": 49,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2555,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "written",
+    "shown": "Saved the notification preferences and shows a toast on success, 14 of 14 passed",
+    "model_text": [
+     "Saved the notification preferences and shows a toast on success, 14 of 14 passed"
+    ],
+    "notes": []
+   }
+  },
+  {
+   "corpus": "turns",
+   "job": "feed_line",
+   "setting": "main",
+   "id": "V024",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "excerpt_routed",
+    "shown": "Die Suche merkt sich jetzt die letzten zehn Anfragen.\nFrage: Gib bitte Bescheid, ob der Verlauf auch beim Abmelden gelöscht werden soll.",
+    "model_text": [],
+    "notes": [
+     "a question, a failure or loud facts: the agent's own words (no call)"
+    ]
+   }
+  },
+  {
+   "corpus": "turns",
+   "job": "feed_line",
+   "setting": "main",
+   "id": "V025",
+   "rep": 0,
+   "model_called": true,
+   "used": "fallback",
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"action\": \"fixed\", \"object\": \"the crash on startup when the config directory is missing\", \"result\": \"the app now creates it with the right permissions\", \"caveat_kind\": \"none\", \"caveat\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1115,
+     "gen_ms": 1115.2310830000001,
+     "out_tokens": 52,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2478,
+     "cut": false,
+     "retry_note": false,
+     "errors": [
+      "gate step 3: caveat: dropped (facts: tests not run)"
+     ],
+     "ok": false,
+     "soft": []
+    },
+    {
+     "attempt": 1,
+     "text": "{\"action\": \"fixed\", \"object\": \"the crash on startup when the config directory is missing\", \"result\": \"the app now creates it with the right permissions\", \"caveat_kind\": \"not_run\", \"caveat\": \"tests not run\"}",
+     "finish": "stop",
+     "latency_ms": 1169,
+     "gen_ms": 1168.87225,
+     "out_tokens": 55,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2594,
+     "cut": false,
+     "retry_note": true,
+     "errors": [
+      "gate step 2b: 2b: content word(s) not in the text: run, tests",
+      "gate step 3: words: negation word in the line with none in the cleaned text"
+     ],
+     "ok": false,
+     "soft": []
+    },
+    {
+     "attempt": 2,
+     "text": "{\"action\": \"fixed\", \"object\": \"the crash on startup when the config directory is missing\", \"result\": \"the app now creates it with the right permissions\", \"caveat_kind\": \"none\", \"caveat\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1124,
+     "gen_ms": 1123.4187920000002,
+     "out_tokens": 52,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2622,
+     "cut": false,
+     "retry_note": true,
+     "errors": [
+      "gate step 3: caveat: dropped (facts: tests not run)"
+     ],
+     "ok": false,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "excerpt",
+    "shown": "I fixed the crash on startup when the config directory is missing; the app now creates it with the right permissions.",
+    "model_text": [],
+    "notes": [
+     "every attempt failed its checks: A's excerpt"
+    ]
+   }
+  },
+  {
+   "corpus": "turns",
+   "job": "feed_line",
+   "setting": "main",
+   "id": "V026",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "excerpt_routed",
+    "shown": "The tests did not finish: the suite crashes in the session store test.\nFailed: FAILED tests/test_session_store.py::test_expiry_sweep - RuntimeError: event loop is closed\nFailed: 1 failed, 40 passed",
+    "model_text": [],
+    "notes": [
+     "a question, a failure or loud facts: the agent's own words (no call)"
+    ]
+   }
+  },
+  {
+   "corpus": "turns",
+   "job": "feed_line",
+   "setting": "main",
+   "id": "V027",
+   "rep": 0,
+   "model_called": true,
+   "used": "fallback",
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"action\": \"beschleunigt\", \"object\": \"die Abfrage mit einem Index\", \"result\": \"27 bestanden\", \"caveat_kind\": \"partial\", \"caveat\": \"Der neue Index ist erst lokal angelegt; für die Produktion-m\" }",
+     "finish": "stop",
+     "latency_ms": 1273,
+     "gen_ms": 1272.813416,
+     "out_tokens": 60,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2522,
+     "cut": false,
+     "retry_note": false,
+     "errors": [
+      "gate step 2: invented proper produktion-m"
+     ],
+     "ok": false,
+     "soft": []
+    },
+    {
+     "attempt": 1,
+     "text": "{\"action\": \"beschleunigt\", \"object\": \"die Abfrage mit einem Index\", \"result\": \"27 bestanden\", \"caveat_kind\": \"partial\", \"caveat\": \"Der neue Index ist erst lokal angelegt; für die Produktion-m\"}",
+     "finish": "stop",
+     "latency_ms": 1258,
+     "gen_ms": 1257.484333,
+     "out_tokens": 59,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2635,
+     "cut": false,
+     "retry_note": true,
+     "errors": [
+      "gate step 2: invented proper produktion-m"
+     ],
+     "ok": false,
+     "soft": []
+    },
+    {
+     "attempt": 2,
+     "text": "{\"action\": \"beschleunigt\", \"object\": \"die Abfrage mit einem Index\", \"result\": \"27 bestanden\", \"caveat_kind\": \"partial\", \"caveat\": \"Der neue Index ist erst lokal angelegt; für die Produktion-m\"}",
+     "finish": "stop",
+     "latency_ms": 1337,
+     "gen_ms": 1336.461709,
+     "out_tokens": 59,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2635,
+     "cut": false,
+     "retry_note": true,
+     "errors": [
+      "gate step 2: invented proper produktion-m"
+     ],
+     "ok": false,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "excerpt",
+    "shown": "Die Statistikseite lädt jetzt in unter einer Sekunde, weil ich die Abfrage mit einem Index beschleunigt habe.",
+    "model_text": [],
+    "notes": [
+     "every attempt failed its checks: A's excerpt"
+    ]
+   }
+  },
+  {
+   "corpus": "turns",
+   "job": "feed_line",
+   "setting": "main",
+   "id": "V028",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"action\": \"switched\", \"object\": \"the logging library to structured output across the worker package\", \"result\": \"19 tests pass\", \"caveat_kind\": \"none\", \"caveat\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1013,
+     "gen_ms": 1013.2426670000001,
+     "out_tokens": 48,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2562,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "written",
+    "shown": "Switched the logging library to structured output across the worker package, 19 tests pass",
+    "model_text": [
+     "Switched the logging library to structured output across the worker package, 19 tests pass"
+    ],
+    "notes": []
+   }
+  },
+  {
+   "corpus": "turns",
+   "job": "feed_line",
+   "setting": "main",
+   "id": "V029",
+   "rep": 0,
+   "model_called": true,
+   "used": "fallback",
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"action\": \"renamed\", \"object\": \"the module `geo/lookups.py` to `geo/resolve.py` and updated allimports\", \"result\": \"type checks and 22 tests pass\", \"caveat_kind\": \"none\", \"caveat\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1260,
+     "gen_ms": 1259.375334,
+     "out_tokens": 62,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2524,
+     "cut": false,
+     "retry_note": false,
+     "errors": [
+      "gate step 2b: 2b: content word(s) not in the text: allimports"
+     ],
+     "ok": false,
+     "soft": []
+    },
+    {
+     "attempt": 1,
+     "text": "{\"action\": \"renamed\", \"object\": \"the module `geo/lookups.py` to `geo/resolve.py` and updated allimports\", \"result\": \"type checks and 22 tests pass\", \"caveat_kind\": \"none\", \"caveat\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1293,
+     "gen_ms": 1293.236125,
+     "out_tokens": 62,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2642,
+     "cut": false,
+     "retry_note": true,
+     "errors": [
+      "gate step 2b: 2b: content word(s) not in the text: allimports"
+     ],
+     "ok": false,
+     "soft": []
+    },
+    {
+     "attempt": 2,
+     "text": "{\"action\": \"renamed\", \"object\": \"the module `geo/lookups.py` to `geo/resolve.py` and updated allimports\", \"result\": \"type checks and 22 tests pass\", \"caveat_kind\": \"none\", \"caveat\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1280,
+     "gen_ms": 1280.301584,
+     "out_tokens": 62,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2642,
+     "cut": false,
+     "retry_note": true,
+     "errors": [
+      "gate step 2b: 2b: content word(s) not in the text: allimports"
+     ],
+     "ok": false,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "excerpt",
+    "shown": "I renamed the module `geo/lookups.py` to `geo/resolve.py` and updated all imports.",
+    "model_text": [],
+    "notes": [
+     "every attempt failed its checks: A's excerpt"
+    ]
+   }
+  },
+  {
+   "corpus": "turns",
+   "job": "feed_line",
+   "setting": "main",
+   "id": "V030",
+   "rep": 0,
+   "model_called": true,
+   "used": "fallback",
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"action\": \"sah\", \"object\": \"die Architektur der Ereigniswarteschlange\", \"result\": \"none\", \"caveat_kind\": \"none\", \"caveat\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1011,
+     "gen_ms": 1011.044292,
+     "out_tokens": 48,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2517,
+     "cut": false,
+     "retry_note": false,
+     "errors": [
+      "gate step 2b: 2b: content word(s) not in the text: sah",
+      "gate step 3: caveat: dropped (facts: tests not run)"
+     ],
+     "ok": false,
+     "soft": []
+    },
+    {
+     "attempt": 1,
+     "text": "{\"action\": \"sah\", \"object\": \"die Architektur der Ereigniswarteschlange\", \"result\": \"none\", \"caveat_kind\": \"none\", \"caveat\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1037,
+     "gen_ms": 1037.186792,
+     "out_tokens": 48,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2631,
+     "cut": false,
+     "retry_note": true,
+     "errors": [
+      "gate step 2b: 2b: content word(s) not in the text: sah",
+      "gate step 3: caveat: dropped (facts: tests not run)"
+     ],
+     "ok": false,
+     "soft": []
+    },
+    {
+     "attempt": 2,
+     "text": "{\"action\": \"sah\", \"object\": \"die Architektur der Ereigniswarteschlange\", \"result\": \"none\", \"caveat_kind\": \"none\", \"caveat\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1046,
+     "gen_ms": 1045.672625,
+     "out_tokens": 48,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2631,
+     "cut": false,
+     "retry_note": true,
+     "errors": [
+      "gate step 2b: 2b: content word(s) not in the text: sah",
+      "gate step 3: caveat: dropped (facts: tests not run)"
+     ],
+     "ok": false,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "excerpt",
+    "shown": "Ich habe die Architektur der Ereigniswarteschlange durchgesehen und die Unterschiede zwischen den beiden Brokern beschrieben.",
+    "model_text": [],
+    "notes": [
+     "every attempt failed its checks: A's excerpt"
+    ]
+   }
+  },
+  {
+   "corpus": "turns",
+   "job": "feed_line",
+   "setting": "main",
+   "id": "V031",
+   "rep": 0,
+   "model_called": true,
+   "used": "fallback",
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"action\": \"added\", \"object\": \"input validation to the signup form\", \"result\": \"the suite passes\", \"caveat_kind\": \"none\", \"caveat\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 905,
+     "gen_ms": 904.6815839999999,
+     "out_tokens": 42,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2528,
+     "cut": false,
+     "retry_note": false,
+     "errors": [
+      "gate step 3: facts: no tests ran; the line says tests pass; caveat: dropped (facts: tests not run)"
+     ],
+     "ok": false,
+     "soft": []
+    },
+    {
+     "attempt": 1,
+     "text": "{\"action\": \"added\", \"object\": \"input validation to the signup form\", \"result\": \"the suite passes\", \"caveat_kind\": \"not_run\", \"caveat\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 938,
+     "gen_ms": 937.60675,
+     "out_tokens": 43,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2642,
+     "cut": false,
+     "retry_note": true,
+     "errors": [
+      "gate step 3: facts: no tests ran; the line says tests pass; caveat: dropped (facts: tests not run)"
+     ],
+     "ok": false,
+     "soft": []
+    },
+    {
+     "attempt": 2,
+     "text": "{\"action\": \"added\", \"object\": \"input validation to the signup form\", \"result\": \"the suite passes\", \"caveat_kind\": \"not_run\", \"caveat\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 950,
+     "gen_ms": 949.768583,
+     "out_tokens": 43,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2643,
+     "cut": false,
+     "retry_note": true,
+     "errors": [
+      "gate step 3: facts: no tests ran; the line says tests pass; caveat: dropped (facts: tests not run)"
+     ],
+     "ok": false,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "excerpt",
+    "shown": "I added input validation to the signup form and ran the suite, which passes.",
+    "model_text": [],
+    "notes": [
+     "every attempt failed its checks: A's excerpt"
+    ]
+   }
+  },
+  {
+   "corpus": "turns",
+   "job": "feed_line",
+   "setting": "main",
+   "id": "V032",
+   "rep": 0,
+   "model_called": true,
+   "used": "fallback",
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"action\": \"changed\", \"object\": \"how reports can be exported as CSV with semicolon separator\", \"result\": \"ten tests run\", \"caveat_kind\": \"partial\", \"caveat\": \"other modules were not addressed, and the interfaces remain,\" }",
+     "finish": "stop",
+     "latency_ms": 1176,
+     "gen_ms": 1175.674125,
+     "out_tokens": 58,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2538,
+     "cut": false,
+     "retry_note": false,
+     "errors": [
+      "gate step 2b: 2b: content word(s) not in the text: addressed, and, how, interfaces, other, semicolon, separator, the, were, with",
+      "gate step 3: facts: finished cleanly; the line claims a failure the cleaned text does not state; words: pending word in the line with none in the cleaned text"
+     ],
+     "ok": false,
+     "soft": []
+    },
+    {
+     "attempt": 1,
+     "text": "{\"action\": \"changed\", \"object\": \"reports can be exported as CSV with semicolon as delimiter\", \"result\": \"ten tests run\", \"caveat_kind\": \"partial\", \"caveat\": \"other modules not addressed, interfaces remain as before\"}",
+     "finish": "stop",
+     "latency_ms": 1180,
+     "gen_ms": 1180.035625,
+     "out_tokens": 55,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2730,
+     "cut": false,
+     "retry_note": true,
+     "errors": [
+      "gate step 2b: 2b: content word(s) not in the text: addressed, before, delimiter, interfaces, other, semicolon, with",
+      "gate step 3: facts: finished cleanly; the line claims a failure the cleaned text does not state; words: pending word in the line with none in the cleaned text"
+     ],
+     "ok": false,
+     "soft": []
+    },
+    {
+     "attempt": 2,
+     "text": "{\"action\": \"changed\", \"object\": \"reports can be exported as CSV with semicolon as separator\", \"result\": \"ten tests run\", \"caveat_kind\": \"partial\", \"caveat\": \"other modules not addressed, interfaces remain as before\"}",
+     "finish": "stop",
+     "latency_ms": 1163,
+     "gen_ms": 1163.072375,
+     "out_tokens": 55,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2724,
+     "cut": false,
+     "retry_note": true,
+     "errors": [
+      "gate step 2b: 2b: content word(s) not in the text: addressed, before, interfaces, other, semicolon, separator, with",
+      "gate step 3: facts: finished cleanly; the line claims a failure the cleaned text does not state; words: pending word in the line with none in the cleaned text"
+     ],
+     "ok": false,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "excerpt",
+    "shown": "Die Berichte lassen sich jetzt als CSV mit Semikolon als Trenner exportieren.",
+    "model_text": [],
+    "notes": [
+     "every attempt failed its checks: A's excerpt"
+    ]
+   }
+  },
+  {
+   "corpus": "turns",
+   "job": "feed_line",
+   "setting": "main",
+   "id": "V033",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "excerpt_routed",
+    "shown": "The invoice PDF layout is updated.\nQuestion: Which logo file should go in the header?\nQuestion: Should the footer show the VAT number.",
+    "model_text": [],
+    "notes": [
+     "a question, a failure or loud facts: the agent's own words (no call)"
+    ]
+   }
+  },
+  {
+   "corpus": "turns",
+   "job": "feed_line",
+   "setting": "main",
+   "id": "V034",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "excerpt_routed",
+    "shown": "Ich habe die Datenbankverbindung auf einen Pool umgestellt.\nFehlgeschlagen: FAILED tests/test_pool.py::test_reconnect_after_drop - Timeout >30s",
+    "model_text": [],
+    "notes": [
+     "a question, a failure or loud facts: the agent's own words (no call)"
+    ]
+   }
+  },
+  {
+   "corpus": "turns",
+   "job": "feed_line",
+   "setting": "main",
+   "id": "V035",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"action\": \"deleted\", \"object\": \"the obsolete feature-flag file and all references to the beta banner\", \"result\": \"47 tests pass\", \"caveat_kind\": \"none\", \"caveat\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1032,
+     "gen_ms": 1031.716708,
+     "out_tokens": 49,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2545,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "written",
+    "shown": "Deleted the obsolete feature-flag file and all references to the beta banner, 47 tests pass",
+    "model_text": [
+     "Deleted the obsolete feature-flag file and all references to the beta banner, 47 tests pass"
+    ],
+    "notes": []
+   }
+  },
+  {
+   "corpus": "turns",
+   "job": "feed_line",
+   "setting": "main",
+   "id": "V036",
+   "rep": 0,
+   "model_called": true,
+   "used": "fallback",
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"action\": \"got\", \"object\": \"the CSV importer to parse quoted fields with embedded newlines\", \"result\": \"none\", \"caveat_kind\": \"partial\", \"caveat\": \"Still to do: the error report for malformed rows, and the 25\" }",
+     "finish": "stop",
+     "latency_ms": 1262,
+     "gen_ms": 1262.32125,
+     "out_tokens": 61,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2540,
+     "cut": false,
+     "retry_note": false,
+     "errors": [
+      "composer: does not fit 20 words / 160 characters with its caveat: A's excerpt"
+     ],
+     "ok": false,
+     "soft": []
+    },
+    {
+     "attempt": 1,
+     "text": "{\"action\": \"got\", \"object\": \"the CSV importer to parse quoted fields with embedded newlines\", \"result\": \"none\", \"caveat_kind\": \"partial\", \"caveat\": \"Still to do: the error report for malformed rows, and the 25\"}",
+     "finish": "stop",
+     "latency_ms": 1222,
+     "gen_ms": 1221.69525,
+     "out_tokens": 60,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2669,
+     "cut": false,
+     "retry_note": true,
+     "errors": [
+      "composer: does not fit 20 words / 160 characters with its caveat: A's excerpt"
+     ],
+     "ok": false,
+     "soft": []
+    },
+    {
+     "attempt": 2,
+     "text": "{\"action\": \"got\", \"object\": \"the CSV importer to parse quoted fields with embedded newlines\", \"result\": \"none\", \"caveat_kind\": \"partial\", \"caveat\": \"Still to do: the error report for malformed rows, and the 25\"}",
+     "finish": "stop",
+     "latency_ms": 1239,
+     "gen_ms": 1238.70175,
+     "out_tokens": 60,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2668,
+     "cut": false,
+     "retry_note": true,
+     "errors": [
+      "composer: does not fit 20 words / 160 characters with its caveat: A's excerpt"
+     ],
+     "ok": false,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "excerpt",
+    "shown": "I got the CSV importer to parse quoted fields with embedded newlines.",
+    "model_text": [],
+    "notes": [
+     "every attempt failed its checks: A's excerpt"
+    ]
+   }
+  },
+  {
+   "corpus": "turns",
+   "job": "feed_line",
+   "setting": "main",
+   "id": "V037",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "excerpt_routed",
+    "shown": "Die Währungsumrechnung rundet jetzt kaufmännisch.\nFehlgeschlagen: FAILED tests/test_round.py::test_half_cent_negative - assert Decimal('-0.01') == Decimal('-0.02')\nFehlgeschlagen: FAILED tests/test_round.py::test_half_cent_large - assert 1000000.01 == 1000000.02\nFehlgeschlagen: FAILED tests/test_round.py::test_jpy_zero_decimals",
+    "model_text": [],
+    "notes": [
+     "a question, a failure or loud facts: the agent's own words (no call)"
+    ]
+   }
+  },
+  {
+   "corpus": "turns",
+   "job": "feed_line",
+   "setting": "main",
+   "id": "V038",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"action\": \"bumped\", \"object\": \"the default request timeout from 10 to 20 seconds in the shared client\", \"result\": \"8 of 8 config loader tests pass\", \"caveat_kind\": \"none\", \"caveat\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1184,
+     "gen_ms": 1183.455542,
+     "out_tokens": 59,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2489,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "quoted",
+    "shown": "Bumped the default request timeout from 10 to 20 seconds in the shared client",
+    "model_text": [
+     "Bumped the default request timeout from 10 to 20 seconds in the shared client"
+    ],
+    "notes": [
+     "result dropped to fit; the caveat kept"
+    ]
+   }
+  },
+  {
+   "corpus": "turns",
+   "job": "feed_line",
+   "setting": "main",
+   "id": "V039",
+   "rep": 0,
+   "model_called": true,
+   "used": "fallback",
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"action\": \"ergänzt\", \"object\": \"den neuen Abschnitt zu Cookies\", \"result\": \"none\", \"caveat_kind\": \"partial\", \"caveat\": \"Andere Module habe ich dabei nicht gefasst, und die Schnitts\" }",
+     "finish": "stop",
+     "latency_ms": 1236,
+     "gen_ms": 1235.91,
+     "out_tokens": 58,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2524,
+     "cut": false,
+     "retry_note": false,
+     "errors": [
+      "gate step 2b: 2b: content word(s) not in the text: gefasst",
+      "gate step 3: caveat: dropped (facts: tests not run)"
+     ],
+     "ok": false,
+     "soft": []
+    },
+    {
+     "attempt": 1,
+     "text": "{\"action\": \"ergänzt\", \"object\": \"den neuen Abschnitt zu Cookies\", \"result\": \"none\", \"caveat_kind\": \"not_run\", \"caveat\": \"Tests nicht nötig\"}",
+     "finish": "stop",
+     "latency_ms": 1021,
+     "gen_ms": 1020.4905,
+     "out_tokens": 47,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2654,
+     "cut": false,
+     "retry_note": true,
+     "errors": [
+      "gate step 3: caveat: dropped (facts: tests not run)"
+     ],
+     "ok": false,
+     "soft": []
+    },
+    {
+     "attempt": 2,
+     "text": "{\"action\": \"ergänzt\", \"object\": \"den neuen Abschnitt zu Cookies\", \"result\": \"none\", \"caveat_kind\": \"not_run\", \"caveat\": \"Tests nicht nötig\"}",
+     "finish": "stop",
+     "latency_ms": 1012,
+     "gen_ms": 1012.153166,
+     "out_tokens": 47,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2625,
+     "cut": false,
+     "retry_note": true,
+     "errors": [
+      "gate step 3: caveat: dropped (facts: tests not run)"
+     ],
+     "ok": false,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "excerpt",
+    "shown": "Ich habe die Datenschutzseite um den neuen Abschnitt zu Cookies ergänzt.",
+    "model_text": [],
+    "notes": [
+     "every attempt failed its checks: A's excerpt"
+    ]
+   }
+  },
+  {
+   "corpus": "turns",
+   "job": "feed_line",
+   "setting": "main",
+   "id": "V040",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"action\": \"reverted\", \"object\": \"the process pool, memoization, and JPEG quality change\", \"result\": \"21 tests pass\", \"caveat_kind\": \"partial\", \"caveat\": \"only lowering the quality stuck; the other two did not help\"}",
+     "finish": "stop",
+     "latency_ms": 1268,
+     "gen_ms": 1267.464167,
+     "out_tokens": 60,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2558,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "written",
+    "shown": "Reverted the process pool, memoization, and JPEG quality change; only lowering the quality stuck; the other two did not help",
+    "model_text": [
+     "Reverted the process pool, memoization, and JPEG quality change; only lowering the quality stuck; the other two did not help"
+    ],
+    "notes": [
+     "result dropped to fit; the caveat kept"
+    ]
+   }
+  },
+  {
+   "corpus": "turns",
+   "job": "review",
+   "setting": "main",
+   "id": "V001",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"notes\": [{\"path\": \"billing/api/invoices.py\", \"says\": \"added cursor-based pagination to the invoice list endpoint in the billing-portal service\"}, {\"path\": \"tests/test_invoices_paging.py\", \"says\": \"wrote tests for the first page, the last page and an empty result\"}], \"risk_reason\": \"all 24 tests in the module pass now\", \"risk\": \"low\"}",
+     "finish": "stop",
+     "latency_ms": 1632,
+     "gen_ms": 1632.044625,
+     "out_tokens": 88,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2717,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "written",
+    "shown": "Changed (git): billing/api/invoices.py (+58 -12) — added cursor-based pagination to the invoice list endpoint in the billing-portal service; tests/test_invoices_paging.py (new, +74 -0) — wrote tests for the first page, the last page and an empty result\nLeft: nothing stated\nRisk: low (all 24 tests in the module pass now)",
+    "model_text": [
+     "added cursor-based pagination to the invoice list endpoint in the billing-portal service",
+     "wrote tests for the first page, the last page and an empty result",
+     "all 24 tests in the module pass now"
+    ],
+    "risk": "low",
+    "notes": []
+   }
+  },
+  {
+   "corpus": "turns",
+   "job": "review",
+   "setting": "main",
+   "id": "V002",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"notes\": [], \"risk_reason\": \"none\", \"risk\": \"low\"}",
+     "finish": "stop",
+     "latency_ms": 552,
+     "gen_ms": 551.349333,
+     "out_tokens": 17,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2713,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "written",
+    "shown": "Changed (git): no files changed\nReverted (git): rates/cache.py (the new cache module was created then removed again); rates/client.py (the cache wiring was undone; only docstring edits remain); history: reset: moving to HEAD~1\nLeft: nothing stated\nRisk: low",
+    "model_text": [],
+    "risk": "low",
+    "notes": []
+   }
+  },
+  {
+   "corpus": "turns",
+   "job": "review",
+   "setting": "main",
+   "id": "V003",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"notes\": [{\"path\": \"kunden/import_csv.py\", \"says\": \"Der Import der Kundendaten aus der CSV-Datei ist fast fertig. Ich habe den Parser umgebaut\"}, {\"path\": \"kunden/validate.py\", \"says\": \"die Validierung für Postleitzahlen ergänzt\"}], \"risk_reason\": \"FAILED tests/test_import.py::test_plz_five_digits - AssertionError: '1234' != '01234' | FA\", \"risk\": \"high\"}",
+     "finish": "stop",
+     "latency_ms": 2035,
+     "gen_ms": 2034.3976659999998,
+     "out_tokens": 111,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2790,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "written",
+    "shown": "Geändert (git): kunden/import_csv.py (+96 -41) — Der Import der Kundendaten aus der CSV-Datei ist fast fertig. Ich habe den Parser umgebaut; kunden/validate.py (+33 -2) — die Validierung für Postleitzahlen ergänzt; tests/test_import.py (+20 -3)\nNicht committet (git): True\nFehlgeschlagen: FAILED tests/test_import.py::test_plz_five_digits - AssertionError: '1234' != '01234'\nFehlgeschlagen: FAILED tests/test_import.py::test_empty_row_skipped - KeyError: 'name'\nFehlgeschlagen: FAILED tests/test_import.py::test_utf8_bom - UnicodeDecodeError\nFehlgeschlagen: FAILED tests/test_import.py::test_duplicate_ids - IndexError\nOffen: sonst nichts genannt\nRisiko: hoch (FAILED tests/test_import.py::test_plz_five_digits - AssertionError: '1234' != '01234' | FA)",
+    "model_text": [
+     "Der Import der Kundendaten aus der CSV-Datei ist fast fertig. Ich habe den Parser umgebaut",
+     "die Validierung für Postleitzahlen ergänzt",
+     "FAILED tests/test_import.py::test_plz_five_digits - AssertionError: '1234' != '01234' | FA"
+    ],
+    "risk": "high",
+    "notes": []
+   }
+  },
+  {
+   "corpus": "turns",
+   "job": "review",
+   "setting": "main",
+   "id": "V004",
+   "rep": 0,
+   "model_called": true,
+   "used": 2,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"notes\": [{\"path\": \"hooks/retry.py\", \"says\": \"the webhook retry logic now backs off exponentially with jitter, capped at ten minutes\"}, {\"path\": \"hooks/config.py\", \"says\": \"added configuration for retry settings\"}], \"risk_reason\": \"tests not run\", \"risk\": \"medium\"}",
+     "finish": "stop",
+     "latency_ms": 1249,
+     "gen_ms": 1248.871333,
+     "out_tokens": 66,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2705,
+     "cut": false,
+     "retry_note": false,
+     "errors": [
+      "'added configuration for retry settings': 2b: content word(s) not in the text: settings",
+      "risk reason: 2b: content word(s) not in the text: run, tests"
+     ],
+     "ok": false,
+     "soft": []
+    },
+    {
+     "attempt": 1,
+     "text": "{\"notes\": [{\"path\": \"hooks/retry.py\", \"says\": \"the webhook retry logic now backs off exponentially with jitter, capped at ten minutes\"}], \"risk_reason\": \"tests not run\", \"risk\": \"medium\"}",
+     "finish": "stop",
+     "latency_ms": 1091,
+     "gen_ms": 1090.7622909999998,
+     "out_tokens": 48,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2870,
+     "cut": false,
+     "retry_note": true,
+     "errors": [
+      "risk reason: 2b: content word(s) not in the text: run, tests"
+     ],
+     "ok": false,
+     "soft": []
+    },
+    {
+     "attempt": 2,
+     "text": "{\"notes\": [{\"path\": \"hooks/retry.py\", \"says\": \"the webhook retry logic now backs off exponentially with jitter, capped at ten minutes\"}], \"risk_reason\": \"none\", \"risk\": \"unknown\"}",
+     "finish": "stop",
+     "latency_ms": 1034,
+     "gen_ms": 1033.668083,
+     "out_tokens": 46,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2822,
+     "cut": false,
+     "retry_note": true,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "written",
+    "shown": "Changed (git): hooks/retry.py (+44 -10) — the webhook retry logic now backs off exponentially with jitter, capped at ten minutes; hooks/config.py (+6 -1)\nUncommitted (git): True\nQuestion: Tell me which way you want to go on keeping the legacy /v1/notify endpoint.\nNot checked: Tests (AI Juggler): not run\nLeft: nothing else stated\nRisk: not stated",
+    "model_text": [
+     "the webhook retry logic now backs off exponentially with jitter, capped at ten minutes"
+    ],
+    "risk": "unknown",
+    "notes": []
+   }
+  },
+  {
+   "corpus": "turns",
+   "job": "review",
+   "setting": "main",
+   "id": "V005",
+   "rep": 0,
+   "model_called": true,
+   "used": 1,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"notes\": [{\"path\": \"ui/login/LoginDialog.tsx\", \"says\": \"die Fehlermeldungen stehen jetzt direkt unter den Feldern und die Tab-Reihenfolge stimmt\"}, {\"path\": \"ui/login/LoginDialog.test.tsx\", \"says\": \"die 18 Komponententests laufen durch\"}, {\"path\": \"ui/login/errors.ts\", \"says\": \"neu hinzugefügt\"}], \"risk_reason\": \"die 18 Komponententests laufen durch\", \"risk\": \"low\"}",
+     "finish": "stop",
+     "latency_ms": 1984,
+     "gen_ms": 1983.793458,
+     "out_tokens": 113,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2737,
+     "cut": false,
+     "retry_note": false,
+     "errors": [
+      "'neu hinzugefügt': 2b: content word(s) not in the text: hinzugefügt, neu"
+     ],
+     "ok": false,
+     "soft": []
+    },
+    {
+     "attempt": 1,
+     "text": "{\"notes\": [{\"path\": \"ui/login/LoginDialog.tsx\", \"says\": \"die Fehlermeldungen stehen jetzt direkt unter den Feldern und die Tab-Reihenfolge stimmt\"}, {\"path\": \"ui/login/LoginDialog.test.tsx\", \"says\": \"die 18 Komponententests laufen durch\"}], \"risk_reason\": \"die 18 Komponententests laufen durch\", \"risk\": \"low\"}",
+     "finish": "stop",
+     "latency_ms": 2244,
+     "gen_ms": 2244.246333,
+     "out_tokens": 92,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2909,
+     "cut": false,
+     "retry_note": true,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "written",
+    "shown": "Geändert (git): ui/login/LoginDialog.tsx (+52 -19) — die Fehlermeldungen stehen jetzt direkt unter den Feldern und die Tab-Reihenfolge stimmt; ui/login/LoginDialog.test.tsx (+30 -4) — die 18 Komponententests laufen durch; ui/login/errors.ts (new, +12 -0)\nNicht committet (git): True\nOffen: nichts genannt\nRisiko: niedrig (die 18 Komponententests laufen durch)",
+    "model_text": [
+     "die Fehlermeldungen stehen jetzt direkt unter den Feldern und die Tab-Reihenfolge stimmt",
+     "die 18 Komponententests laufen durch",
+     "die 18 Komponententests laufen durch"
+    ],
+    "risk": "low",
+    "notes": []
+   }
+  },
+  {
+   "corpus": "turns",
+   "job": "review",
+   "setting": "main",
+   "id": "V006",
+   "rep": 0,
+   "model_called": true,
+   "used": "fallback",
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"notes\": [{\"path\": \"reports/filter.ts\", \"says\": \"the date-range filter now handles time zones correctly\"}, {\"path\": \"reports/filter.spec.ts\", \"says\": \"verified the whole suite: everything passes, including the DST edge cases\"}, {\"path\": \"CHANGELOG.md\", \"says\": \"updated the changelog entry for the reports module\"}], \"risk_reason\": \"FAIL reports/filter.spec.ts > dst spring forward > keeps 23h day | FAIL reports/filterspec\" , \"risk\": \"high\"}",
+     "finish": "stop",
+     "latency_ms": 2096,
+     "gen_ms": 2095.506041,
+     "out_tokens": 109,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2705,
+     "cut": false,
+     "retry_note": false,
+     "errors": [
+      "'verified the whole suite: everything pas': contradiction: a success claim on a failed turn",
+      "risk reason: invented: path reports/filterspec"
+     ],
+     "ok": false,
+     "soft": []
+    },
+    {
+     "attempt": 1,
+     "text": "{\"notes\": [{\"path\": \"reports/filter.ts\", \"says\": \"the date-range filter now handles time zones correctly\"}], \"risk_reason\": \"FAIL reports/filter.spec.ts > dst spring forward > keeps 23h day | FAIL reports/filterspec\", \"risk\": \"high\"}",
+     "finish": "stop",
+     "latency_ms": 1262,
+     "gen_ms": 1261.6975,
+     "out_tokens": 59,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2917,
+     "cut": false,
+     "retry_note": true,
+     "errors": [
+      "risk reason: invented: path reports/filterspec"
+     ],
+     "ok": false,
+     "soft": []
+    },
+    {
+     "attempt": 2,
+     "text": "{\"notes\": [{\"path\": \"reports/filter.ts\", \"says\": \"the date-range filter now handles time zones correctly\"}, {\"path\": \"reports/filter.spec.ts\", \"says\": \"verified the whole suite: everything passes, including the DST edge cases\"}, {\"path\": \"CHANGELOG.md\", \"says\": \"updated the changelog entry for the reports module\"}], \"risk_reason\": \"FAIL reports/filter.spec.ts > dst spring forward > keeps 23h day | FAIL reports/filterspec\", \"risk\": \"high\"}",
+     "finish": "stop",
+     "latency_ms": 1996,
+     "gen_ms": 1995.653208,
+     "out_tokens": 108,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2831,
+     "cut": false,
+     "retry_note": true,
+     "errors": [
+      "'verified the whole suite: everything pas': contradiction: a success claim on a failed turn",
+      "risk reason: invented: path reports/filterspec"
+     ],
+     "ok": false,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "baseline",
+    "shown": "Changed (git): reports/filter.ts (+37 -15); reports/filter.spec.ts (+41 -0); CHANGELOG.md (+3 -0)\nFailed: FAIL reports/filter.spec.ts > dst spring forward > keeps 23h day\nFailed: FAIL reports/filter.spec.ts > dst autumn > keeps 25h day\nLeft: nothing else stated\nRisk: high",
+    "model_text": [],
+    "risk": "high",
+    "notes": [
+     "every attempt failed its checks: the code-only review"
+    ]
+   }
+  },
+  {
+   "corpus": "turns",
+   "job": "review",
+   "setting": "main",
+   "id": "V007",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"notes\": [{\"path\": \"upload/logging.py\", \"says\": \"die Logausgabe etwas gekürzt\"}], \"risk_reason\": \"Die Tests habe ich nicht erneut ausgeführt\", \"risk\": \"medium\"}",
+     "finish": "stop",
+     "latency_ms": 986,
+     "gen_ms": 985.5928339999999,
+     "out_tokens": 47,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2688,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "written",
+    "shown": "Geändert (git): upload/logging.py (+8 -14) — die Logausgabe etwas gekürzt\nZurückgenommen (git): upload/limiter.py (der Rate-Limiter wurde angelegt und wieder entfernt); upload/routes.py (die Anbindung des Limiters wurde zurückgesetzt); Verlauf: reset: moving to HEAD~2\nNicht geprüft: Tests (AI Juggler): nicht ausgeführt; Die Tests habe ich nicht erneut ausgeführt.\nOffen: nichts genannt\nRisiko: mittel (Die Tests habe ich nicht erneut ausgeführt)",
+    "model_text": [
+     "die Logausgabe etwas gekürzt",
+     "Die Tests habe ich nicht erneut ausgeführt"
+    ],
+    "risk": "medium",
+    "notes": []
+   }
+  },
+  {
+   "corpus": "turns",
+   "job": "review",
+   "setting": "main",
+   "id": "V008",
+   "rep": 0,
+   "model_called": true,
+   "used": 2,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"notes\": [{\"path\": \"docs/CONTRIBUTING.md\", \"says\": \"the contributor guide rewritten so setup steps match current Makefile targets and outdated\"}], \"risk_reason\": \"I did not run the test suite\", \"risk\": \"medium\"}",
+     "finish": "stop",
+     "latency_ms": 1081,
+     "gen_ms": 1080.7427089999999,
+     "out_tokens": 54,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2639,
+     "cut": false,
+     "retry_note": false,
+     "errors": [
+      "'the contributor guide rewritten so setup': 2b: content word(s) not in the text: rewritten"
+     ],
+     "ok": false,
+     "soft": []
+    },
+    {
+     "attempt": 1,
+     "text": "{\"notes\": [{\"path\": \"docs/CONTRIBUTING.md\", \"says\": \"the contributor guide rewritten so setup steps match current Makefile targets and removed\"}], \"risk_reason\": \"I did not run the test suite\", \"risk\": \"medium\"}",
+     "finish": "stop",
+     "latency_ms": 1122,
+     "gen_ms": 1122.253167,
+     "out_tokens": 54,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2771,
+     "cut": false,
+     "retry_note": true,
+     "errors": [
+      "'the contributor guide rewritten so setup': 2b: content word(s) not in the text: rewritten"
+     ],
+     "ok": false,
+     "soft": []
+    },
+    {
+     "attempt": 2,
+     "text": "{\"notes\": [{\"path\": \"docs/CONTRIBUTING.md\", \"says\": \"the contributor guide setup steps match current Makefile targets and removed outdated Dock\"}], \"risk_reason\": \"I did not run the test suite\", \"risk\": \"medium\"}",
+     "finish": "stop",
+     "latency_ms": 1077,
+     "gen_ms": 1076.544042,
+     "out_tokens": 54,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2771,
+     "cut": false,
+     "retry_note": true,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "written",
+    "shown": "Changed (git): docs/CONTRIBUTING.md (+64 -48) — the contributor guide setup steps match current Makefile targets and removed outdated Dock\nNot checked: Tests (AI Juggler): not run; This is documentation only, so I did not run the test suite.\nLeft: nothing stated\nRisk: medium (I did not run the test suite)",
+    "model_text": [
+     "the contributor guide setup steps match current Makefile targets and removed outdated Dock",
+     "I did not run the test suite"
+    ],
+    "risk": "medium",
+    "notes": []
+   }
+  },
+  {
+   "corpus": "turns",
+   "job": "review",
+   "setting": "main",
+   "id": "V009",
+   "rep": 0,
+   "model_called": true,
+   "used": "fallback",
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"notes\": [{\"path\": \"db/migrations/0042_users_teams.sql\", \"says\": \"the migration to the new schema is half done, converted the users and teams tables\"}, {\"path\": \"db/backfill/users_teams.py\", \"says\": \"wrote the backfill script for them\"}], \"risk_reason\": \"the orders and refunds tables are still on the old layout and the script for them is not 1\", \"risk\": \"medium\"}",
+     "finish": "stop",
+     "latency_ms": 1703,
+     "gen_ms": 1703.2522079999999,
+     "out_tokens": 97,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2697,
+     "cut": false,
+     "retry_note": false,
+     "errors": [
+      "risk reason: invented: number 1"
+     ],
+     "ok": false,
+     "soft": []
+    },
+    {
+     "attempt": 1,
+     "text": "{\"notes\": [{\"path\": \"db/migrations/0042_users_teams.sql\", \"says\": \"the migration to the new schema is half done, converted the users and teams tables\"}, {\"path\": \"db/backfill/users_teams.py\", \"says\": \"wrote the backfill script for them\"}], \"risk_reason\": \"the orders and refunds tables are still on the old layout and the script for them is not 1\", \"risk\": \"medium\"}",
+     "finish": "stop",
+     "latency_ms": 1761,
+     "gen_ms": 1760.489292,
+     "out_tokens": 97,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2857,
+     "cut": false,
+     "retry_note": true,
+     "errors": [
+      "risk reason: invented: number 1"
+     ],
+     "ok": false,
+     "soft": []
+    },
+    {
+     "attempt": 2,
+     "text": "{\"notes\": [{\"path\": \"db/migrations/0042_users_teams.sql\", \"says\": \"the migration to the new schema is half done, converted the users and teams tables\"}, {\"path\": \"db/backfill/users_teams.py\", \"says\": \"wrote the backfill script for them\"}], \"risk_reason\": \"the orders and refunds tables are still on the old layout and the script for them is not 1\", \"risk\": \"medium\"}",
+     "finish": "stop",
+     "latency_ms": 1749,
+     "gen_ms": 1748.8911659999999,
+     "out_tokens": 97,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2857,
+     "cut": false,
+     "retry_note": true,
+     "errors": [
+      "risk reason: invented: number 1"
+     ],
+     "ok": false,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "baseline",
+    "shown": "Changed (git): db/migrations/0042_users_teams.sql (new, +88 -0); db/backfill/users_teams.py (new, +61 -0)\nUncommitted (git): True\nNot checked: Tests (AI Juggler): not run\nLeft: The orders and refunds tables are still on the old layout and the script for them is not written yet.\nRisk: medium",
+    "model_text": [],
+    "risk": "medium",
+    "notes": [
+     "every attempt failed its checks: the code-only review"
+    ]
+   }
+  },
+  {
+   "corpus": "turns",
+   "job": "review",
+   "setting": "main",
+   "id": "V010",
+   "rep": 0,
+   "model_called": true,
+   "used": 1,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"notes\": [{\"path\": \"export/pdf.py\", \"says\": \"der Export nach PDF Funktioniert jetzt mit eingebetteten Schriften\"}, {\"path\": \"export/fonts.py\", \"says\": \"neue Datei, mit eingebetteten Schriften\"}], \"risk_reason\": \"Soll ich die alte Export-Funktion für Word-Dateien ebenso entfernen oder bleibt sie vorerz\" , \"risk\": \"medium\"}",
+     "finish": "stop",
+     "latency_ms": 1774,
+     "gen_ms": 1773.756125,
+     "out_tokens": 95,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2683,
+     "cut": false,
+     "retry_note": false,
+     "errors": [
+      "'neue Datei, mit eingebetteten Schriften': 2b: content word(s) not in the text: neue",
+      "risk reason: 2b: content word(s) not in the text: ebenso"
+     ],
+     "ok": false,
+     "soft": []
+    },
+    {
+     "attempt": 1,
+     "text": "{\"notes\": [{\"path\": \"export/pdf.py\", \"says\": \"der Export nach PDF Funktioniert jetzt mit eingebetteten Schriften\"}], \"risk_reason\": \"Soll ich die alte Export-Funktion für Word-Dateien auch entfernen oder bleibt sie vorerst\", \"risk\": \"medium\"}",
+     "finish": "stop",
+     "latency_ms": 1360,
+     "gen_ms": 1359.554875,
+     "out_tokens": 67,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2862,
+     "cut": false,
+     "retry_note": true,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "written",
+    "shown": "Geändert (git): export/pdf.py (+71 -23) — der Export nach PDF Funktioniert jetzt mit eingebetteten Schriften; export/fonts.py (new, +40 -0)\nFrage: Soll ich die alte Export-Funktion für Word-Dateien ebenfalls entfernen oder bleibt sie vorerst drin?\nOffen: sonst nichts genannt\nRisiko: mittel (Soll ich die alte Export-Funktion für Word-Dateien auch entfernen oder bleibt sie vorerst)",
+    "model_text": [
+     "der Export nach PDF Funktioniert jetzt mit eingebetteten Schriften",
+     "Soll ich die alte Export-Funktion für Word-Dateien auch entfernen oder bleibt sie vorerst"
+    ],
+    "risk": "medium",
+    "notes": []
+   }
+  },
+  {
+   "corpus": "turns",
+   "job": "review",
+   "setting": "main",
+   "id": "V011",
+   "rep": 0,
+   "model_called": true,
+   "used": 1,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"notes\": [{\"path\": \"package.json\", \"says\": \"upgrade to the new bundler version\"}, {\"path\": \"build/vite.config.ts\", \"says\": \"the upgrade caused an error in the asset pipeline\"}], \"risk_reason\": \"the production build stops with an error in the asset pipeline\", \"risk\": \"high\"}",
+     "finish": "stop",
+     "latency_ms": 1310,
+     "gen_ms": 1309.722,
+     "out_tokens": 70,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2704,
+     "cut": false,
+     "retry_note": false,
+     "errors": [
+      "'the upgrade caused an error in the asset': 2b: content word(s) not in the text: caused"
+     ],
+     "ok": false,
+     "soft": []
+    },
+    {
+     "attempt": 1,
+     "text": "{\"notes\": [{\"path\": \"package.json\", \"says\": \"upgrade to the new bundler version\"}, {\"path\": \"build/vite.config.ts\", \"says\": \"the upgrade itself is in place but the production build stops with an error in the asset\"}], \"risk_reason\": \"the production build stops with an error in the asset\", \"risk\": \"high\"}",
+     "finish": "stop",
+     "latency_ms": 1435,
+     "gen_ms": 1434.8756250000001,
+     "out_tokens": 77,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2854,
+     "cut": false,
+     "retry_note": true,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "written",
+    "shown": "Changed (git): package.json (+5 -5) — upgrade to the new bundler version; build/vite.config.ts (+18 -9) — the upgrade itself is in place but the production build stops with an error in the asset\nUncommitted (git): True\nFailed: Error: Cannot find module 'asset-hash-plugin' imported from build/vite.config.ts\nFailed: npm ERR! code ELIFECYCLE\nFailed: build exited with code 1\nNot checked: Tests (AI Juggler): not run\nLeft: nothing else stated\nRisk: high (the production build stops with an error in the asset)",
+    "model_text": [
+     "upgrade to the new bundler version",
+     "the upgrade itself is in place but the production build stops with an error in the asset",
+     "the production build stops with an error in the asset"
+    ],
+    "risk": "high",
+    "notes": []
+   }
+  },
+  {
+   "corpus": "turns",
+   "job": "review",
+   "setting": "main",
+   "id": "V012",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"notes\": [{\"path\": \"telemetry/serialize.py\", \"says\": \"swapped the JSON serializer in the telemetry module for the faster one\"}, {\"path\": \"telemetry/settings.toml\", \"says\": \"toggled a flag while testing\"}], \"risk_reason\": \"nine tests pass\", \"risk\": \"low\"}",
+     "finish": "stop",
+     "latency_ms": 1262,
+     "gen_ms": 1261.725542,
+     "out_tokens": 68,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2693,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "written",
+    "shown": "Changed (git): telemetry/serialize.py (+27 -31) — swapped the JSON serializer in the telemetry module for the faster one; telemetry/settings.toml (+1 -1) — toggled a flag while testing\nReverted (git): telemetry/bench_runner.py (the benchmark runner rewrite was discarded)\nUncommitted (git): True\nLeft: nothing stated\nRisk: low (nine tests pass)",
+    "model_text": [
+     "swapped the JSON serializer in the telemetry module for the faster one",
+     "toggled a flag while testing",
+     "nine tests pass"
+    ],
+    "risk": "low",
+    "notes": []
+   }
+  },
+  {
+   "corpus": "turns",
+   "job": "review",
+   "setting": "main",
+   "id": "V013",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"notes\": [{\"path\": \"shop/ui/CartBadge.tsx\", \"says\": \"den Warenkorb-Zähler im Header behoben: Er zeigt jetzt auch nach dem Entfernen des letzten\" }, {\"path\": \"shop/ui/CartBadge.test.tsx\", \"says\": \"einen neuen Test, alle 41 Tests sind grün\"}], \"risk_reason\": \"alle 41 Tests sind grün\", \"risk\": \"low\"}",
+     "finish": "stop",
+     "latency_ms": 1898,
+     "gen_ms": 1898.077209,
+     "out_tokens": 98,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2668,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "written",
+    "shown": "Geändert (git): shop/ui/CartBadge.tsx (+11 -4) — den Warenkorb-Zähler im Header behoben: Er zeigt jetzt auch nach dem Entfernen des letzten; shop/ui/CartBadge.test.tsx (+22 -0) — einen neuen Test, alle 41 Tests sind grün\nOffen: nichts genannt\nRisiko: niedrig (alle 41 Tests sind grün)",
+    "model_text": [
+     "den Warenkorb-Zähler im Header behoben: Er zeigt jetzt auch nach dem Entfernen des letzten",
+     "einen neuen Test, alle 41 Tests sind grün",
+     "alle 41 Tests sind grün"
+    ],
+    "risk": "low",
+    "notes": []
+   }
+  },
+  {
+   "corpus": "turns",
+   "job": "review",
+   "setting": "main",
+   "id": "V014",
+   "rep": 0,
+   "model_called": true,
+   "used": 1,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"notes\": [{\"path\": \"search/ranking.py\", \"says\": \"the new search ranking is in and the relevance checks pass\"}, {\"path\": \"tests/test_ranking.py\", \"says\": \"new\"}], \"risk_reason\": \"FAILED tests/integration/test_autocomplete.py::test_prefix_timeout - TimeoutError after 5.\" , \"risk\": \"high\"}",
+     "finish": "stop",
+     "latency_ms": 1473,
+     "gen_ms": 1473.2537080000002,
+     "out_tokens": 77,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2697,
+     "cut": false,
+     "retry_note": false,
+     "errors": [
+      "risk reason: invented: number 5"
+     ],
+     "ok": false,
+     "soft": []
+    },
+    {
+     "attempt": 1,
+     "text": "{\"notes\": [{\"path\": \"search/ranking.py\", \"says\": \"the new search ranking is in and the relevance checks pass\"}, {\"path\": \"tests/test_ranking.py\", \"says\": \"new\"}], \"risk_reason\": \"one of the older integration tests for the autocomplete is flaky and failed on the lastrun\", \"risk\": \"medium\"}",
+     "finish": "stop",
+     "latency_ms": 1379,
+     "gen_ms": 1378.9972500000001,
+     "out_tokens": 75,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2834,
+     "cut": false,
+     "retry_note": true,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "written",
+    "shown": "Changed (git): search/ranking.py (+83 -29) — the new search ranking is in and the relevance checks pass; tests/test_ranking.py (new, +55 -0) — new\nFailed: FAILED tests/integration/test_autocomplete.py::test_prefix_timeout - TimeoutError after 5.0s\nLeft: nothing else stated\nRisk: medium (one of the older integration tests for the autocomplete is flaky and failed on the lastrun)",
+    "model_text": [
+     "the new search ranking is in and the relevance checks pass",
+     "new",
+     "one of the older integration tests for the autocomplete is flaky and failed on the lastrun"
+    ],
+    "risk": "medium",
+    "notes": []
+   }
+  },
+  {
+   "corpus": "turns",
+   "job": "review",
+   "setting": "main",
+   "id": "V015",
+   "rep": 0,
+   "model_called": true,
+   "used": 1,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"notes\": [{\"path\": \"billing/numbering.py\", \"says\": \"Die Rechnungsnummern werden jetzt lückenlos vergeben\"}, {\"path\": \"tests/test_numbering.py\", \"says\": \"die gesamte Testsuite laufen lassen und alles ist bestanden\"}], \"risk_reason\": \"FAILED tests/test_numbering.py::test_concurrent_allocation - AssertionError: duplicate num\", \"risk\": \"high\"}",
+     "finish": "stop",
+     "latency_ms": 1635,
+     "gen_ms": 1634.491584,
+     "out_tokens": 90,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2751,
+     "cut": false,
+     "retry_note": false,
+     "errors": [
+      "risk reason: 2b: content word(s) not in the text: num"
+     ],
+     "ok": false,
+     "soft": []
+    },
+    {
+     "attempt": 1,
+     "text": "{\"notes\": [{\"path\": \"billing/numbering.py\", \"says\": \"Die Rechnungsnummern werden jetzt lückenlos vergeben\"}, {\"path\": \"tests/test_numbering.py\", \"says\": \"die gesamte Testsuite laufen lassen und alles ist bestanden\"}], \"risk_reason\": \"FAILED tests/test_numbering.py::test_concurrent_allocation - AssertionError\", \"risk\": \"high\"}",
+     "finish": "stop",
+     "latency_ms": 1683,
+     "gen_ms": 1682.978166,
+     "out_tokens": 87,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2910,
+     "cut": false,
+     "retry_note": true,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "written",
+    "shown": "Geändert (git): billing/numbering.py (+64 -20) — Die Rechnungsnummern werden jetzt lückenlos vergeben; tests/test_numbering.py (new, +70 -0) — die gesamte Testsuite laufen lassen und alles ist bestanden\nFehlgeschlagen: FAILED tests/test_numbering.py::test_concurrent_allocation - AssertionError: duplicate number 1007\nFehlgeschlagen: FAILED tests/test_numbering.py::test_rollback_gap - AssertionError\nFehlgeschlagen: FAILED tests/test_numbering.py::test_year_rollover - ValueError\nOffen: sonst nichts genannt\nRisiko: hoch (FAILED tests/test_numbering.py::test_concurrent_allocation - AssertionError)",
+    "model_text": [
+     "Die Rechnungsnummern werden jetzt lückenlos vergeben",
+     "die gesamte Testsuite laufen lassen und alles ist bestanden",
+     "FAILED tests/test_numbering.py::test_concurrent_allocation - AssertionError"
+    ],
+    "risk": "high",
+    "notes": []
+   }
+  },
+  {
+   "corpus": "turns",
+   "job": "review",
+   "setting": "main",
+   "id": "V016",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"notes\": [{\"path\": \"media/worker.py\", \"says\": \"moved the image resizing out of the request path into a background worker\"}, {\"path\": \"media/views.py\", \"says\": \"the image resizing moved out of the request path\"}], \"risk_reason\": \"nothing is deployed yet, so either is easy to change\", \"risk\": \"unknown\"}",
+     "finish": "stop",
+     "latency_ms": 1488,
+     "gen_ms": 1488.275125,
+     "out_tokens": 76,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2709,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "written",
+    "shown": "Changed (git): media/worker.py (new, +92 -0) — moved the image resizing out of the request path into a background worker; media/views.py (+14 -37) — the image resizing moved out of the request path\nQuestion: Do you want the worker to run inside the main process for now, or should I set it up as a separate service?\nLeft: nothing else stated\nRisk: not stated (nothing is deployed yet, so either is easy to change)",
+    "model_text": [
+     "moved the image resizing out of the request path into a background worker",
+     "the image resizing moved out of the request path",
+     "nothing is deployed yet, so either is easy to change"
+    ],
+    "risk": "unknown",
+    "notes": []
+   }
+  },
+  {
+   "corpus": "turns",
+   "job": "review",
+   "setting": "main",
+   "id": "V017",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"notes\": [{\"path\": \"core/utils.py\", \"says\": \"the unused legacy importer module and its tests removed\"}], \"risk_reason\": \"the codebase compiles and 33 tests pass\", \"risk\": \"low\"}",
+     "finish": "stop",
+     "latency_ms": 1029,
+     "gen_ms": 1028.699375,
+     "out_tokens": 49,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2711,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "written",
+    "shown": "Changed (git): core/utils.py (+0 -15) — the unused legacy importer module and its tests removed\nReverted (git): core/legacy_import.py (deletion was undone, file restored); tests/test_legacy_import.py (deletion was undone, file restored); history: reset: moving to HEAD\nLeft: nothing stated\nRisk: low (the codebase compiles and 33 tests pass)",
+    "model_text": [
+     "the unused legacy importer module and its tests removed",
+     "the codebase compiles and 33 tests pass"
+    ],
+    "risk": "low",
+    "notes": []
+   }
+  },
+  {
+   "corpus": "turns",
+   "job": "review",
+   "setting": "main",
+   "id": "V018",
+   "rep": 0,
+   "model_called": true,
+   "used": 1,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"notes\": [{\"path\": \"locales/fr.json\", \"says\": \"die Übersetzungsdateien für Französisch ergänzt und die Schlüssel in der Reihenfolge der ö\"\n\n}, {\"path\": \"locales/es.json\", \"says\": \"die Übersetzungsdateien für Spanisch ergänzt und die Schlüssel in der Reihenfolge der engl\" }], \"risk_reason\": \"Tests wurden nicht ausgeführt, weil es nur Textdateien sind\", \"risk\": \"medium\"}",
+     "finish": "stop",
+     "latency_ms": 2092,
+     "gen_ms": 2092.047459,
+     "out_tokens": 114,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2695,
+     "cut": false,
+     "retry_note": false,
+     "errors": [
+      "'die Übersetzungsdateien für Spanisch erg': 2b: content word(s) not in the text: engl"
+     ],
+     "ok": false,
+     "soft": []
+    },
+    {
+     "attempt": 1,
+     "text": "{\"notes\": [{\"path\": \"locales/fr.json\", \"says\": \"die Übersetzungsdateien für Französisch ergänzt und die Schlüssel in der Reihenfolge der \"}, {\"path\": \"locales/es.json\", \"says\": \"die Übersetzungsdateien für Spanisch ergänzt und die Schlüssel in der Reihenfolge der \"}], \"risk_reason\": \"Tests wurden nicht ausgeführt, weil es nur Textdateien sind\", \"risk\": \"medium\"}",
+     "finish": "stop",
+     "latency_ms": 2047,
+     "gen_ms": 2047.193833,
+     "out_tokens": 110,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2872,
+     "cut": false,
+     "retry_note": true,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "written",
+    "shown": "Geändert (git): locales/fr.json (+140 -22) — die Übersetzungsdateien für Französisch ergänzt und die Schlüssel in der Reihenfolge der; locales/es.json (+138 -25) — die Übersetzungsdateien für Spanisch ergänzt und die Schlüssel in der Reihenfolge der\nNicht geprüft: Tests (AI Juggler): nicht ausgeführt; Tests wurden nicht ausgeführt, weil es nur Textdateien sind.\nOffen: nichts genannt\nRisiko: mittel (Tests wurden nicht ausgeführt, weil es nur Textdateien sind)",
+    "model_text": [
+     "die Übersetzungsdateien für Französisch ergänzt und die Schlüssel in der Reihenfolge der",
+     "die Übersetzungsdateien für Spanisch ergänzt und die Schlüssel in der Reihenfolge der",
+     "Tests wurden nicht ausgeführt, weil es nur Textdateien sind"
+    ],
+    "risk": "medium",
+    "notes": []
+   }
+  },
+  {
+   "corpus": "turns",
+   "job": "review",
+   "setting": "main",
+   "id": "V019",
+   "rep": 0,
+   "model_called": true,
+   "used": 1,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"notes\": [], \"risk_reason\": \"none\", \"risk\": \"low\"}",
+     "finish": "stop",
+     "latency_ms": 536,
+     "gen_ms": 536.250416,
+     "out_tokens": 17,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2661,
+     "cut": false,
+     "retry_note": false,
+     "errors": [
+      "contradiction: risk low with tests not run"
+     ],
+     "ok": false,
+     "soft": []
+    },
+    {
+     "attempt": 1,
+     "text": "{\"notes\": [], \"risk_reason\": \"none\", \"risk\": \"medium\"}",
+     "finish": "stop",
+     "latency_ms": 549,
+     "gen_ms": 548.74225,
+     "out_tokens": 17,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2734,
+     "cut": false,
+     "retry_note": true,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "written",
+    "shown": "Changed (git): no files changed\nNot checked: Tests (AI Juggler): not run\nLeft: nothing stated\nRisk: medium",
+    "model_text": [],
+    "risk": "medium",
+    "notes": []
+   }
+  },
+  {
+   "corpus": "turns",
+   "job": "review",
+   "setting": "main",
+   "id": "V020",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"notes\": [], \"risk_reason\": \"der Befehl wurde abgelehnt. Das Skript bricht ab, bevor es etwas schreibt. Ich habe also n\" , \"risk\": \"high\"}",
+     "finish": "stop",
+     "latency_ms": 1054,
+     "gen_ms": 1054.321083,
+     "out_tokens": 47,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2659,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "written",
+    "shown": "Geändert (git): keine Dateien geändert\nFehlgeschlagen: certctl renew --env staging: permission denied (keychain access refused)\nFehlgeschlagen: exit status 77\nNicht geprüft: Tests (AI Juggler): nicht ausgeführt\nOffen: sonst nichts genannt\nRisiko: hoch (der Befehl wurde abgelehnt. Das Skript bricht ab, bevor es etwas schreibt. Ich habe also n)",
+    "model_text": [
+     "der Befehl wurde abgelehnt. Das Skript bricht ab, bevor es etwas schreibt. Ich habe also n"
+    ],
+    "risk": "high",
+    "notes": []
+   }
+  },
+  {
+   "corpus": "turns",
+   "job": "review",
+   "setting": "main",
+   "id": "V021",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"notes\": [{\"path\": \"orders/pricing.py\", \"says\": \"split the 900-line order service into three modules\"}, {\"path\": \"orders/stock.py\", \"says\": \"split the 900-line order service into three modules\"}, {\"path\": \"orders/fulfilment.py\", \"says\": \"split the 900-line order service into three modules\"}, {\"path\": \"orders/service.py\", \"says\": \"public function names unchanged, imports updated everywhere\"}], \"risk_reason\": \"all 118 tests pass\", \"risk\": \"low\"}",
+     "finish": "stop",
+     "latency_ms": 2184,
+     "gen_ms": 2183.478125,
+     "out_tokens": 124,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2734,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "written",
+    "shown": "Changed (git): orders/pricing.py (new, +210 -0) — split the 900-line order service into three modules; orders/stock.py (new, +180 -0) — split the 900-line order service into three modules; orders/fulfilment.py (new, +240 -0) — split the 900-line order service into three modules; orders/service.py (+30 -760) — public function names unchanged, imports updated everywhere\nLeft: nothing stated\nRisk: low (all 118 tests pass)",
+    "model_text": [
+     "split the 900-line order service into three modules",
+     "split the 900-line order service into three modules",
+     "split the 900-line order service into three modules",
+     "public function names unchanged, imports updated everywhere",
+     "all 118 tests pass"
+    ],
+    "risk": "low",
+    "notes": []
+   }
+  },
+  {
+   "corpus": "turns",
+   "job": "review",
+   "setting": "main",
+   "id": "V022",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"notes\": [{\"path\": \"mail/templates/reset.html\", \"says\": \"die Passwort-Zurücksetzen-Mail mit dem neuen Absender versehen und den Betreff gekürzt\"}], \"risk_reason\": \"Zwölf Tests laufen erfolgreich\", \"risk\": \"low\"}",
+     "finish": "stop",
+     "latency_ms": 1275,
+     "gen_ms": 1274.8775,
+     "out_tokens": 61,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2713,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "written",
+    "shown": "Geändert (git): mail/templates/reset.html (+6 -6) — die Passwort-Zurücksetzen-Mail mit dem neuen Absender versehen und den Betreff gekürzt\nZurückgenommen (git): mail/sender.py (der Retry-Mechanismus wurde wieder zurückgenommen); Verlauf: reset: moving to HEAD~1\nOffen: nichts genannt\nRisiko: niedrig (Zwölf Tests laufen erfolgreich)",
+    "model_text": [
+     "die Passwort-Zurücksetzen-Mail mit dem neuen Absender versehen und den Betreff gekürzt",
+     "Zwölf Tests laufen erfolgreich"
+    ],
+    "risk": "low",
+    "notes": []
+   }
+  },
+  {
+   "corpus": "turns",
+   "job": "review",
+   "setting": "main",
+   "id": "V023",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"notes\": [{\"path\": \"app/settings/Notifications.tsx\", \"says\": \"the settings page now saves the notification preferences and shows a toast on success\"}, {\"path\": \"app/settings/Notifications.test.tsx\", \"says\": \"the component tests pass (14 of 14)\"}], \"risk_reason\": \"the component tests pass (14 of 14)\", \"risk\": \"low\"}",
+     "finish": "stop",
+     "latency_ms": 1561,
+     "gen_ms": 1560.646167,
+     "out_tokens": 86,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2716,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "written",
+    "shown": "Changed (git): app/settings/Notifications.tsx (+45 -8) — the settings page now saves the notification preferences and shows a toast on success; app/settings/Notifications.test.tsx (+39 -0) — the component tests pass (14 of 14)\nUncommitted (git): True\nLeft: nothing stated\nRisk: low (the component tests pass (14 of 14))",
+    "model_text": [
+     "the settings page now saves the notification preferences and shows a toast on success",
+     "the component tests pass (14 of 14)",
+     "the component tests pass (14 of 14)"
+    ],
+    "risk": "low",
+    "notes": []
+   }
+  },
+  {
+   "corpus": "turns",
+   "job": "review",
+   "setting": "main",
+   "id": "V024",
+   "rep": 0,
+   "model_called": true,
+   "used": 1,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"notes\": [{\"path\": \"search/history.ts\", \"says\": \"Die Suche merkt sich jetzt die letzten zehn Anfragen\"}, {\"path\": \"search/SearchBox.tsx\", \"says\": \"Andere Module habe ich dabei nicht gefasst, und die Schnittstellen bleiben so, wie sie vor\" }], \"risk_reason\": \"Gib bitte Bescheid, ob der Verlauf auch beim Abmelden gelöscht werden soll, sonst bleibter\" , \"risk\": \"medium\"}",
+     "finish": "stop",
+     "latency_ms": 1955,
+     "gen_ms": 1954.373791,
+     "out_tokens": 106,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2709,
+     "cut": false,
+     "retry_note": false,
+     "errors": [
+      "'Andere Module habe ich dabei nicht gefas': 2b: content word(s) not in the text: gefasst"
+     ],
+     "ok": false,
+     "soft": []
+    },
+    {
+     "attempt": 1,
+     "text": "{\"notes\": [{\"path\": \"search/history.ts\", \"says\": \"Die Suche merkt sich jetzt die letzten zehn Anfragen\"}, {\"path\": \"search/SearchBox.tsx\", \"says\": \"die Schnittstellen bleiben so, wie sie vorher waren\"}], \"risk_reason\": \"Gib bitte Bescheid, ob der Verlauf auch beim Abmelden gelöscht werden soll, sonst bleibter\", \"risk\": \"medium\"}",
+     "finish": "stop",
+     "latency_ms": 1811,
+     "gen_ms": 1810.900417,
+     "out_tokens": 95,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2886,
+     "cut": false,
+     "retry_note": true,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "written",
+    "shown": "Geändert (git): search/history.ts (+57 -3) — Die Suche merkt sich jetzt die letzten zehn Anfragen; search/SearchBox.tsx (+20 -6) — die Schnittstellen bleiben so, wie sie vorher waren\nFrage: Gib bitte Bescheid, ob der Verlauf auch beim Abmelden gelöscht werden soll.\nOffen: sonst nichts genannt\nRisiko: mittel (Gib bitte Bescheid, ob der Verlauf auch beim Abmelden gelöscht werden soll, sonst bleibter)",
+    "model_text": [
+     "Die Suche merkt sich jetzt die letzten zehn Anfragen",
+     "die Schnittstellen bleiben so, wie sie vorher waren",
+     "Gib bitte Bescheid, ob der Verlauf auch beim Abmelden gelöscht werden soll, sonst bleibter"
+    ],
+    "risk": "medium",
+    "notes": []
+   }
+  },
+  {
+   "corpus": "turns",
+   "job": "review",
+   "setting": "main",
+   "id": "V025",
+   "rep": 0,
+   "model_called": true,
+   "used": 2,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"notes\": [], \"risk_reason\": \"tests not run\", \"risk\": \"medium\"}",
+     "finish": "stop",
+     "latency_ms": 557,
+     "gen_ms": 557.217542,
+     "out_tokens": 19,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2622,
+     "cut": false,
+     "retry_note": false,
+     "errors": [
+      "risk reason: 2b: content word(s) not in the text: run, tests",
+      "risk reason: words: a negation with none in the source"
+     ],
+     "ok": false,
+     "soft": []
+    },
+    {
+     "attempt": 1,
+     "text": "{\"notes\": [], \"risk_reason\": \"none\", \"risk\": \"low\"}",
+     "finish": "stop",
+     "latency_ms": 551,
+     "gen_ms": 550.4878749999999,
+     "out_tokens": 17,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2719,
+     "cut": false,
+     "retry_note": true,
+     "errors": [
+      "contradiction: risk low with tests not run"
+     ],
+     "ok": false,
+     "soft": []
+    },
+    {
+     "attempt": 2,
+     "text": "{\"notes\": [], \"risk_reason\": \"none\", \"risk\": \"medium\"}",
+     "finish": "stop",
+     "latency_ms": 542,
+     "gen_ms": 541.594375,
+     "out_tokens": 17,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2695,
+     "cut": false,
+     "retry_note": true,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "written",
+    "shown": "Changed (git): no files changed\nNot checked: Tests (AI Juggler): not run\nLeft: nothing stated\nRisk: medium",
+    "model_text": [],
+    "risk": "medium",
+    "notes": []
+   }
+  },
+  {
+   "corpus": "turns",
+   "job": "review",
+   "setting": "main",
+   "id": "V026",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"notes\": [{\"path\": \"auth/middleware.py\", \"says\": \"refactored the auth middleware and extracted the token parsing\"}, {\"path\": \"auth/tokens.py\", \"says\": \"new file with token parsing\"}], \"risk_reason\": \"the suite crashes in the session store test\", \"risk\": \"high\"}",
+     "finish": "stop",
+     "latency_ms": 1326,
+     "gen_ms": 1325.537625,
+     "out_tokens": 68,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2731,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "written",
+    "shown": "Changed (git): auth/middleware.py (+39 -44) — refactored the auth middleware and extracted the token parsing; auth/tokens.py (new, +35 -0) — new file with token parsing\nReverted (git): tests/conftest.py (the session mock fixture was added then removed); history: reset: moving to HEAD~1\nFailed: FAILED tests/test_session_store.py::test_expiry_sweep - RuntimeError: event loop is closed\nFailed: 1 failed, 40 passed\nLeft: The tests did not finish: the suite crashes in the session store test.\nRisk: high (the suite crashes in the session store test)",
+    "model_text": [
+     "refactored the auth middleware and extracted the token parsing",
+     "new file with token parsing",
+     "the suite crashes in the session store test"
+    ],
+    "risk": "high",
+    "notes": []
+   }
+  },
+  {
+   "corpus": "turns",
+   "job": "review",
+   "setting": "main",
+   "id": "V027",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"notes\": [{\"path\": \"db/migrations/0051_stats_index.sql\", \"says\": \"der neue Index ist erst lokal angelegt; für die Produktion muss die Migration noch laufen\"}, {\"path\": \"stats/queries.py\", \"says\": \"die Abfrage mit einem Index beschleunigt habe\"}], \"risk_reason\": \"der neue Index ist erst lokal angelegt; für die Produktion muss die Migration noch laufen\", \"risk\": \"medium\"}",
+     "finish": "stop",
+     "latency_ms": 1826,
+     "gen_ms": 1825.708333,
+     "out_tokens": 100,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2679,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "written",
+    "shown": "Geändert (git): db/migrations/0051_stats_index.sql (new, +4 -0) — der neue Index ist erst lokal angelegt; für die Produktion muss die Migration noch laufen; stats/queries.py (+18 -22) — die Abfrage mit einem Index beschleunigt habe\nOffen: nichts genannt\nRisiko: mittel (der neue Index ist erst lokal angelegt; für die Produktion muss die Migration noch laufen)",
+    "model_text": [
+     "der neue Index ist erst lokal angelegt; für die Produktion muss die Migration noch laufen",
+     "die Abfrage mit einem Index beschleunigt habe",
+     "der neue Index ist erst lokal angelegt; für die Produktion muss die Migration noch laufen"
+    ],
+    "risk": "medium",
+    "notes": []
+   }
+  },
+  {
+   "corpus": "turns",
+   "job": "review",
+   "setting": "main",
+   "id": "V028",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"notes\": [], \"risk_reason\": \"none\", \"risk\": \"low\"}",
+     "finish": "stop",
+     "latency_ms": 543,
+     "gen_ms": 542.88925,
+     "out_tokens": 17,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2706,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "written",
+    "shown": "Changed (git): no files changed\nReverted (git): worker/log.py (the structured logging rewrite was fully reverted); worker/tasks.py (logging call sites restored to the old form); worker/__init__.py (import change undone); history: reset: moving to HEAD~3\nLeft: nothing stated\nRisk: low",
+    "model_text": [],
+    "risk": "low",
+    "notes": []
+   }
+  },
+  {
+   "corpus": "turns",
+   "job": "review",
+   "setting": "main",
+   "id": "V029",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"notes\": [{\"path\": \"geo/resolve.py\", \"says\": \"renamed the module geo/lookups.py to geo/resolve.py and updated all imports\"}, {\"path\": \"geo/api.py\", \"says\": \"none\"}, {\"path\": \"geo/cli.py\", \"says\": \"none\"}], \"risk_reason\": \"type checks and 22 tests pass\", \"risk\": \"low\"}",
+     "finish": "stop",
+     "latency_ms": 1598,
+     "gen_ms": 1597.6911249999998,
+     "out_tokens": 84,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2677,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "written",
+    "shown": "Changed (git): geo/resolve.py (renamed, +0 -0) — renamed the module geo/lookups.py to geo/resolve.py and updated all imports; geo/api.py (+3 -3); geo/cli.py (+2 -2)\nLeft: nothing stated\nRisk: low (type checks and 22 tests pass)",
+    "model_text": [
+     "renamed the module geo/lookups.py to geo/resolve.py and updated all imports",
+     "type checks and 22 tests pass"
+    ],
+    "risk": "low",
+    "notes": []
+   }
+  },
+  {
+   "corpus": "turns",
+   "job": "review",
+   "setting": "main",
+   "id": "V030",
+   "rep": 0,
+   "model_called": true,
+   "used": "fallback",
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"notes\": [], \"risk_reason\": \"none\", \"risk\": \"low\"}",
+     "finish": "stop",
+     "latency_ms": 548,
+     "gen_ms": 547.790209,
+     "out_tokens": 17,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2661,
+     "cut": false,
+     "retry_note": false,
+     "errors": [
+      "contradiction: risk low with tests not run"
+     ],
+     "ok": false,
+     "soft": []
+    },
+    {
+     "attempt": 1,
+     "text": "{\"notes\": [], \"risk_reason\": \"tests not run\", \"risk\": \"medium\"}",
+     "finish": "stop",
+     "latency_ms": 579,
+     "gen_ms": 578.4220829999999,
+     "out_tokens": 19,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2734,
+     "cut": false,
+     "retry_note": true,
+     "errors": [
+      "risk reason: 2b: content word(s) not in the text: run, tests"
+     ],
+     "ok": false,
+     "soft": []
+    },
+    {
+     "attempt": 2,
+     "text": "{\"notes\": [], \"risk_reason\": \"none\", \"risk\": \"low\"}",
+     "finish": "stop",
+     "latency_ms": 548,
+     "gen_ms": 548.163458,
+     "out_tokens": 17,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2742,
+     "cut": false,
+     "retry_note": true,
+     "errors": [
+      "contradiction: risk low with tests not run"
+     ],
+     "ok": false,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "baseline",
+    "shown": "Geändert (git): keine Dateien geändert\nFehlgeschlagen: Ich habe die Architektur der Ereigniswarteschlange durchgesehen und die Unterschiede zwischen den beiden Brokern beschrieben.\nNicht geprüft: Tests (AI Juggler): nicht ausgeführt\nOffen: sonst nichts genannt\nRisiko: mittel",
+    "model_text": [],
+    "risk": "medium",
+    "notes": [
+     "every attempt failed its checks: the code-only review"
+    ]
+   }
+  },
+  {
+   "corpus": "turns",
+   "job": "review",
+   "setting": "main",
+   "id": "V031",
+   "rep": 0,
+   "model_called": true,
+   "used": "fallback",
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"notes\": [{\"path\": \"web/signup/validate.ts\", \"says\": \"added input validation to the signup form and ran the suite, which passes\"}, {\"path\": \"web/signup/Form.tsx\", \"says\": \"did not touch any other modules, and the public interfaces of the package stay exactly as\"}], \"risk_reason\": \"tests not run\", \"risk\": \"medium\"}",
+     "finish": "stop",
+     "latency_ms": 1509,
+     "gen_ms": 1509.2057909999999,
+     "out_tokens": 80,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2682,
+     "cut": false,
+     "retry_note": false,
+     "errors": [
+      "'added input validation to the signup for': facts: no tests ran; the text says tests pass",
+      "risk reason: 2b: content word(s) not in the text: run, tests"
+     ],
+     "ok": false,
+     "soft": []
+    },
+    {
+     "attempt": 1,
+     "text": "{\"notes\": [{\"path\": \"web/signup/validate.ts\", \"says\": \"added input validation to the signup form and ran the suite, which passes\"}, {\"path\": \"web/signup/Form.tsx\", \"says\": \"did not touch any other modules, and the public interfaces of the package stay exactly as\"}], \"risk_reason\": \"tests not run\", \"risk\": \"medium\"}",
+     "finish": "stop",
+     "latency_ms": 1583,
+     "gen_ms": 1582.7830000000001,
+     "out_tokens": 80,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2862,
+     "cut": false,
+     "retry_note": true,
+     "errors": [
+      "'added input validation to the signup for': facts: no tests ran; the text says tests pass",
+      "risk reason: 2b: content word(s) not in the text: run, tests"
+     ],
+     "ok": false,
+     "soft": []
+    },
+    {
+     "attempt": 2,
+     "text": "{\"notes\": [{\"path\": \"web/signup/validate.ts\", \"says\": \"added input validation to the signup form and ran the suite, which passes\"}, {\"path\": \"web/signup/Form.tsx\", \"says\": \"did not touch any other modules, and the public interfaces of the package stay exactly as\"}], \"risk_reason\": \"tests not run\", \"risk\": \"medium\"}",
+     "finish": "stop",
+     "latency_ms": 1577,
+     "gen_ms": 1577.119833,
+     "out_tokens": 80,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2862,
+     "cut": false,
+     "retry_note": true,
+     "errors": [
+      "'added input validation to the signup for': facts: no tests ran; the text says tests pass",
+      "risk reason: 2b: content word(s) not in the text: run, tests"
+     ],
+     "ok": false,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "baseline",
+    "shown": "Changed (git): web/signup/validate.ts (+34 -2); web/signup/Form.tsx (+12 -5)\nNot checked: Tests (AI Juggler): not run\nLeft: nothing stated\nRisk: medium",
+    "model_text": [],
+    "risk": "medium",
+    "notes": [
+     "every attempt failed its checks: the code-only review"
+    ]
+   }
+  },
+  {
+   "corpus": "turns",
+   "job": "review",
+   "setting": "main",
+   "id": "V032",
+   "rep": 0,
+   "model_called": true,
+   "used": "fallback",
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"notes\": [{\"path\": \"reports/export_csv.py\", \"says\": \"Die Berichte lassen sich jetzt als CSV mit Semikolon als Trenner exportieren\"}], \"risk_reason\": \"Andere Module habe ich dabei nicht gefasst, und die Schnittstellen bleiben so, wie sie vor\" , \"risk\": \"medium\"}",
+     "finish": "stop",
+     "latency_ms": 1449,
+     "gen_ms": 1448.5204999999999,
+     "out_tokens": 71,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2685,
+     "cut": false,
+     "retry_note": false,
+     "errors": [
+      "risk reason: 2b: content word(s) not in the text: gefasst"
+     ],
+     "ok": false,
+     "soft": []
+    },
+    {
+     "attempt": 1,
+     "text": "{\"notes\": [{\"path\": \"reports/export_csv.py\", \"says\": \"Die Berichte lassen sich jetzt als CSV mit Semikolon als Trenner exportieren\"}], \"risk_reason\": \"Andere Module habe ich dabei nicht gefasst, und die Schnittstellen bleiben so, wie sie vor\", \"risk\": \"medium\"}",
+     "finish": "stop",
+     "latency_ms": 1463,
+     "gen_ms": 1462.559,
+     "out_tokens": 70,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2822,
+     "cut": false,
+     "retry_note": true,
+     "errors": [
+      "risk reason: 2b: content word(s) not in the text: gefasst"
+     ],
+     "ok": false,
+     "soft": []
+    },
+    {
+     "attempt": 2,
+     "text": "{\"notes\": [{\"path\": \"reports/export_csv.py\", \"says\": \"Die Berichte lassen sich jetzt als CSV mit Semikolon als Trenner exportieren\"}], \"risk_reason\": \"Andere Module habe ich dabei nicht gefasst, und die Schnittstellen bleiben so, wie sie vor\", \"risk\": \"medium\"}",
+     "finish": "stop",
+     "latency_ms": 1427,
+     "gen_ms": 1427.113417,
+     "out_tokens": 70,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2822,
+     "cut": false,
+     "retry_note": true,
+     "errors": [
+      "risk reason: 2b: content word(s) not in the text: gefasst"
+     ],
+     "ok": false,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "baseline",
+    "shown": "Geändert (git): reports/export_csv.py (+48 -7)\nNicht committet (git): True\nOffen: nichts genannt\nRisiko: niedrig",
+    "model_text": [],
+    "risk": "low",
+    "notes": [
+     "every attempt failed its checks: the code-only review"
+    ]
+   }
+  },
+  {
+   "corpus": "turns",
+   "job": "review",
+   "setting": "main",
+   "id": "V033",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"notes\": [{\"path\": \"billing/pdf/layout.py\", \"says\": \"the invoice PDF layout is updated\"}], \"risk_reason\": \"need two answers before continuing\", \"risk\": \"medium\"}",
+     "finish": "stop",
+     "latency_ms": 893,
+     "gen_ms": 893.3078330000001,
+     "out_tokens": 41,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2676,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "written",
+    "shown": "Changed (git): billing/pdf/layout.py (+66 -31) — the invoice PDF layout is updated\nUncommitted (git): True\nQuestion: Which logo file should go in the header?\nQuestion: Should the footer show the VAT number.\nLeft: nothing else stated\nRisk: medium (need two answers before continuing)",
+    "model_text": [
+     "the invoice PDF layout is updated",
+     "need two answers before continuing"
+    ],
+    "risk": "medium",
+    "notes": []
+   }
+  },
+  {
+   "corpus": "turns",
+   "job": "review",
+   "setting": "main",
+   "id": "V034",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"notes\": [{\"path\": \"db/pool.py\", \"says\": \"die Datenbankverbindung auf einen Pool umgestellt\"}], \"risk_reason\": \"FAILED tests/test_pool.py::test_reconnect_after_drop - Timeout >30s\", \"risk\": \"high\"}",
+     "finish": "stop",
+     "latency_ms": 1204,
+     "gen_ms": 1203.6709999999998,
+     "out_tokens": 58,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2718,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "written",
+    "shown": "Geändert (git): db/pool.py (+52 -10) — die Datenbankverbindung auf einen Pool umgestellt\nZurückgenommen (git): db/config.py (die Timeout-Änderungen wurden zurückgesetzt); Verlauf: reset: moving to HEAD~1\nFehlgeschlagen: FAILED tests/test_pool.py::test_reconnect_after_drop - Timeout >30s\nOffen: sonst nichts genannt\nRisiko: hoch (FAILED tests/test_pool.py::test_reconnect_after_drop - Timeout >30s)",
+    "model_text": [
+     "die Datenbankverbindung auf einen Pool umgestellt",
+     "FAILED tests/test_pool.py::test_reconnect_after_drop - Timeout >30s"
+    ],
+    "risk": "high",
+    "notes": []
+   }
+  },
+  {
+   "corpus": "turns",
+   "job": "review",
+   "setting": "main",
+   "id": "V035",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"notes\": [{\"path\": \"flags/beta_banner.py\", \"says\": \"deleted the obsolete feature-flag file and all references to the beta banner\"}, {\"path\": \"web/Layout.tsx\", \"says\": \"did not touch any other modules\"}, {\"path\": \"web/Layout.test.tsx\", \"says\": \"did not touch any other modules\"}], \"risk_reason\": \"Build and 47 tests pass\", \"risk\": \"low\"}",
+     "finish": "stop",
+     "latency_ms": 1684,
+     "gen_ms": 1684.182667,
+     "out_tokens": 92,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2703,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "written",
+    "shown": "Changed (git): flags/beta_banner.py (deleted, +0 -34) — deleted the obsolete feature-flag file and all references to the beta banner; web/Layout.tsx (+0 -18) — did not touch any other modules; web/Layout.test.tsx (+2 -20) — did not touch any other modules\nLeft: nothing stated\nRisk: low (Build and 47 tests pass)",
+    "model_text": [
+     "deleted the obsolete feature-flag file and all references to the beta banner",
+     "did not touch any other modules",
+     "did not touch any other modules",
+     "Build and 47 tests pass"
+    ],
+    "risk": "low",
+    "notes": []
+   }
+  },
+  {
+   "corpus": "turns",
+   "job": "review",
+   "setting": "main",
+   "id": "V036",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"notes\": [{\"path\": \"importer/parser.py\", \"says\": \"got the CSV importer to parse quoted fields with embedded newlines\"}, {\"path\": \"tests/test_parser.py\", \"says\": \"added tests for parser changes\"}], \"risk_reason\": \"still to do: the error report for malformed rows, and the progress bar in the UI\", \"risk\": \"medium\"}",
+     "finish": "stop",
+     "latency_ms": 1653,
+     "gen_ms": 1651.8365,
+     "out_tokens": 79,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2694,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "written",
+    "shown": "Changed (git): importer/parser.py (+72 -19) — got the CSV importer to parse quoted fields with embedded newlines; tests/test_parser.py (+48 -0) — added tests for parser changes\nUncommitted (git): True\nLeft: nothing stated\nRisk: medium (still to do: the error report for malformed rows, and the progress bar in the UI)",
+    "model_text": [
+     "got the CSV importer to parse quoted fields with embedded newlines",
+     "added tests for parser changes",
+     "still to do: the error report for malformed rows, and the progress bar in the UI"
+    ],
+    "risk": "medium",
+    "notes": []
+   }
+  },
+  {
+   "corpus": "turns",
+   "job": "review",
+   "setting": "main",
+   "id": "V037",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"notes\": [{\"path\": \"money/round.py\", \"says\": \"Die Währungsumrechnung rundet jetzt kaufmännisch\"}, {\"path\": \"tests/test_round.py\", \"says\": \"alle Tests sind erfolgreich, auch die Randfälle bei halben Cent-Beträgen\"}], \"risk_reason\": \"FAILED tests/test_round.py::test_half_cent_negative - assert Decimal('-0.01') == Decimal(-\"  \t\t\t\n\t\t, \"risk\": \"high\"}",
+     "finish": "stop",
+     "latency_ms": 2081,
+     "gen_ms": 2080.4729169999996,
+     "out_tokens": 107,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2743,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "written",
+    "shown": "Geändert (git): money/round.py (+21 -8) — Die Währungsumrechnung rundet jetzt kaufmännisch; tests/test_round.py (+44 -0) — alle Tests sind erfolgreich, auch die Randfälle bei halben Cent-Beträgen\nFehlgeschlagen: FAILED tests/test_round.py::test_half_cent_negative - assert Decimal('-0.01') == Decimal('-0.02')\nFehlgeschlagen: FAILED tests/test_round.py::test_half_cent_large - assert 1000000.01 == 1000000.02\nFehlgeschlagen: FAILED tests/test_round.py::test_jpy_zero_decimals\nOffen: sonst nichts genannt\nRisiko: hoch (FAILED tests/test_round.py::test_half_cent_negative - assert Decimal('-0.01') == Decimal(-)",
+    "model_text": [
+     "Die Währungsumrechnung rundet jetzt kaufmännisch",
+     "alle Tests sind erfolgreich, auch die Randfälle bei halben Cent-Beträgen",
+     "FAILED tests/test_round.py::test_half_cent_negative - assert Decimal('-0.01') == Decimal(-"
+    ],
+    "risk": "high",
+    "notes": []
+   }
+  },
+  {
+   "corpus": "turns",
+   "job": "review",
+   "setting": "main",
+   "id": "V038",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"notes\": [{\"path\": \"client/config.yaml\", \"says\": \"bumped the default request timeout from 10 to 20 seconds in the shared client config\"}, {\"path\": \"README.md\", \"says\": \"noted it in the README\"}], \"risk_reason\": \"the config loader tests pass (8 of 8)\", \"risk\": \"low\"}",
+     "finish": "stop",
+     "latency_ms": 1438,
+     "gen_ms": 1438.158875,
+     "out_tokens": 77,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2639,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "written",
+    "shown": "Changed (git): client/config.yaml (+1 -1) — bumped the default request timeout from 10 to 20 seconds in the shared client config; README.md (+2 -1) — noted it in the README\nLeft: nothing stated\nRisk: low (the config loader tests pass (8 of 8))",
+    "model_text": [
+     "bumped the default request timeout from 10 to 20 seconds in the shared client config",
+     "noted it in the README",
+     "the config loader tests pass (8 of 8)"
+    ],
+    "risk": "low",
+    "notes": []
+   }
+  },
+  {
+   "corpus": "turns",
+   "job": "review",
+   "setting": "main",
+   "id": "V039",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"notes\": [{\"path\": \"site/privacy.md\", \"says\": \"die Datenschutzseite um den neuen Abschnitt zu Cookies ergänzt\"}], \"risk_reason\": \"tests nicht nötig\", \"risk\": \"medium\"}",
+     "finish": "stop",
+     "latency_ms": 1020,
+     "gen_ms": 1020.1325420000001,
+     "out_tokens": 49,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2669,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "written",
+    "shown": "Geändert (git): site/privacy.md (+35 -6) — die Datenschutzseite um den neuen Abschnitt zu Cookies ergänzt\nNicht committet (git): True\nNicht geprüft: Tests (AI Juggler): nicht ausgeführt\nOffen: nichts genannt\nRisiko: mittel (tests nicht nötig)",
+    "model_text": [
+     "die Datenschutzseite um den neuen Abschnitt zu Cookies ergänzt",
+     "tests nicht nötig"
+    ],
+    "risk": "medium",
+    "notes": []
+   }
+  },
+  {
+   "corpus": "turns",
+   "job": "review",
+   "setting": "main",
+   "id": "V040",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"notes\": [{\"path\": \"thumbs/encode.py\", \"says\": \"lowering the JPEG quality stuck\"}], \"risk_reason\": \"the other two did not help, so I reverted them\", \"risk\": \"low\"}",
+     "finish": "stop",
+     "latency_ms": 1011,
+     "gen_ms": 1011.22925,
+     "out_tokens": 47,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2704,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "written",
+    "shown": "Changed (git): thumbs/encode.py (+3 -3) — lowering the JPEG quality stuck\nReverted (git): thumbs/pool.py (the process pool was reverted); thumbs/decode.py (the memoization was reverted); history: reset: moving to HEAD~2; history: reset: moving to HEAD~1\nLeft: nothing stated\nRisk: low (the other two did not help, so I reverted them)",
+    "model_text": [
+     "lowering the JPEG quality stuck",
+     "the other two did not help, so I reverted them"
+    ],
+    "risk": "low",
+    "notes": []
+   }
+  },
+  {
+   "corpus": "turns",
+   "job": "attention",
+   "setting": "main",
+   "id": "V001",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"evidence\": \"I added cursor-based pagination to the invoice list endpoint in the billing-portal service. The page\" , \"reason\": \"work_done\", \"suggest\": \"can_wait\"}",
+     "finish": "stop",
+     "latency_ms": 841,
+     "gen_ms": 841.208167,
+     "out_tokens": 40,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1863,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "calm",
+    "shown": "",
+    "model_text": [],
+    "needs_you": false,
+    "notes": [
+     "suggest can_wait"
+    ]
+   }
+  },
+  {
+   "corpus": "turns",
+   "job": "attention",
+   "setting": "main",
+   "id": "V002",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"evidence\": \"All 12 tests pass and the code is ready to review.\", \"reason\": \"work_done\", \"suggest\": \"can_wait\"}",
+     "finish": "stop",
+     "latency_ms": 724,
+     "gen_ms": 724.194333,
+     "out_tokens": 33,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1872,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "calm",
+    "shown": "",
+    "model_text": [],
+    "needs_you": false,
+    "notes": [
+     "suggest can_wait"
+    ]
+   }
+  },
+  {
+   "corpus": "turns",
+   "job": "attention",
+   "setting": "main",
+   "id": "V003",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "code",
+    "shown": "Braucht dich: etwas ist fehlgeschlagen: “FAILED tests/test_import.py::test_plz_five_digits - AssertionError: '1234' != '01234'”",
+    "model_text": [],
+    "needs_you": true,
+    "notes": [
+     "decided by the facts (no call)"
+    ]
+   }
+  },
+  {
+   "corpus": "turns",
+   "job": "attention",
+   "setting": "main",
+   "id": "V004",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "code",
+    "shown": "Needs you: the agent asks: “Tell me which way you want to go on keeping the legacy /v1/notify endpoint.”",
+    "model_text": [],
+    "needs_you": true,
+    "notes": [
+     "decided by the facts (no call)"
+    ]
+   }
+  },
+  {
+   "corpus": "turns",
+   "job": "attention",
+   "setting": "main",
+   "id": "V005",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"evidence\": \"Die 18 Komponententests laufen durch. Mehr war nicht nötig.\", \"reason\": \"work_done\", \"suggest\": \"can_wait\"}",
+     "finish": "stop",
+     "latency_ms": 819,
+     "gen_ms": 819.113875,
+     "out_tokens": 38,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1876,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "calm",
+    "shown": "",
+    "model_text": [],
+    "needs_you": false,
+    "notes": [
+     "suggest can_wait"
+    ]
+   }
+  },
+  {
+   "corpus": "turns",
+   "job": "attention",
+   "setting": "main",
+   "id": "V006",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "code",
+    "shown": "Needs you: something failed: “FAIL reports/filter.spec.ts > dst spring forward > keeps 23h day”",
+    "model_text": [],
+    "needs_you": true,
+    "notes": [
+     "decided by the facts (no call)"
+    ]
+   }
+  },
+  {
+   "corpus": "turns",
+   "job": "attention",
+   "setting": "main",
+   "id": "V007",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"evidence\": \"Die Tests habe ich nicht erneut ausgeführt.\", \"reason\": \"not_verified\", \"suggest\": \"can_wait\"}",
+     "finish": "stop",
+     "latency_ms": 693,
+     "gen_ms": 692.831209,
+     "out_tokens": 30,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1845,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "calm",
+    "shown": "",
+    "model_text": [],
+    "needs_you": false,
+    "notes": [
+     "suggest can_wait"
+    ]
+   }
+  },
+  {
+   "corpus": "turns",
+   "job": "attention",
+   "setting": "main",
+   "id": "V008",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"evidence\": \"I rewrote the contributor guide so the setup steps match the current Makefile targets and removedthe\" , \"reason\": \"work_done\", \"suggest\": \"can_wait\"}",
+     "finish": "stop",
+     "latency_ms": 847,
+     "gen_ms": 847.294333,
+     "out_tokens": 40,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1795,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "calm",
+    "shown": "",
+    "model_text": [],
+    "needs_you": false,
+    "notes": [
+     "suggest can_wait"
+    ]
+   }
+  },
+  {
+   "corpus": "turns",
+   "job": "attention",
+   "setting": "main",
+   "id": "V009",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"evidence\": \"The migration to the new schema is half done. I converted the users and teams tables and wrote the 2\", \"reason\": \"work_done\", \"suggest\": \"can_wait\"}",
+     "finish": "stop",
+     "latency_ms": 871,
+     "gen_ms": 870.792208,
+     "out_tokens": 42,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1842,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "calm",
+    "shown": "",
+    "model_text": [],
+    "needs_you": false,
+    "notes": [
+     "suggest can_wait"
+    ]
+   }
+  },
+  {
+   "corpus": "turns",
+   "job": "attention",
+   "setting": "main",
+   "id": "V010",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "code",
+    "shown": "Braucht dich: der Agent fragt: “Soll ich die alte Export-Funktion für Word-Dateien ebenfalls entfernen oder bleibt sie vorerst drin?”",
+    "model_text": [],
+    "needs_you": true,
+    "notes": [
+     "decided by the facts (no call)"
+    ]
+   }
+  },
+  {
+   "corpus": "turns",
+   "job": "attention",
+   "setting": "main",
+   "id": "V011",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "code",
+    "shown": "Needs you: something failed: “Error: Cannot find module 'asset-hash-plugin' imported from build/vite.config.ts”",
+    "model_text": [],
+    "needs_you": true,
+    "notes": [
+     "decided by the facts (no call)"
+    ]
+   }
+  },
+  {
+   "corpus": "turns",
+   "job": "attention",
+   "setting": "main",
+   "id": "V012",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"evidence\": \"Nine tests pass. A small leftover is the settings file where I toggled a flag while testing.\", \"reason\": \"work_done\", \"suggest\": \"can_wait\"}",
+     "finish": "stop",
+     "latency_ms": 821,
+     "gen_ms": 820.373542,
+     "out_tokens": 39,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1842,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "calm",
+    "shown": "",
+    "model_text": [],
+    "needs_you": false,
+    "notes": [
+     "suggest can_wait"
+    ]
+   }
+  },
+  {
+   "corpus": "turns",
+   "job": "attention",
+   "setting": "main",
+   "id": "V013",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"evidence\": \"Ich habe den Warenkorb-Zähler im Header behoben: Er zeigt jetzt auch nach dem Entfernen des letzten \", \"reason\": \"work_done\", \"suggest\": \"can_wait\"}",
+     "finish": "stop",
+     "latency_ms": 992,
+     "gen_ms": 991.871042,
+     "out_tokens": 48,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1815,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "calm",
+    "shown": "",
+    "model_text": [],
+    "needs_you": false,
+    "notes": [
+     "suggest can_wait"
+    ]
+   }
+  },
+  {
+   "corpus": "turns",
+   "job": "attention",
+   "setting": "main",
+   "id": "V014",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "code",
+    "shown": "Needs you: something failed: “FAILED tests/integration/test_autocomplete.py::test_prefix_timeout - TimeoutError after 5.0s”",
+    "model_text": [],
+    "needs_you": true,
+    "notes": [
+     "decided by the facts (no call)"
+    ]
+   }
+  },
+  {
+   "corpus": "turns",
+   "job": "attention",
+   "setting": "main",
+   "id": "V015",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "code",
+    "shown": "Braucht dich: etwas ist fehlgeschlagen: “FAILED tests/test_numbering.py::test_concurrent_allocation - AssertionError: duplicate number 1007”",
+    "model_text": [],
+    "needs_you": true,
+    "notes": [
+     "decided by the facts (no call)"
+    ]
+   }
+  },
+  {
+   "corpus": "turns",
+   "job": "attention",
+   "setting": "main",
+   "id": "V016",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "code",
+    "shown": "Needs you: the agent asks: “Do you want the worker to run inside the main process for now, or should I set it up as a separate service?”",
+    "model_text": [],
+    "needs_you": true,
+    "notes": [
+     "decided by the facts (no call)"
+    ]
+   }
+  },
+  {
+   "corpus": "turns",
+   "job": "attention",
+   "setting": "main",
+   "id": "V017",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"evidence\": \"I removed the unused legacy importer module and its tests; the codebase compiles and 33 tests pass.\", \"reason\": \"work_done\", \"suggest\": \"can_wait\"}",
+     "finish": "stop",
+     "latency_ms": 913,
+     "gen_ms": 912.63275,
+     "out_tokens": 43,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1869,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "calm",
+    "shown": "",
+    "model_text": [],
+    "needs_you": false,
+    "notes": [
+     "suggest can_wait"
+    ]
+   }
+  },
+  {
+   "corpus": "turns",
+   "job": "attention",
+   "setting": "main",
+   "id": "V018",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"evidence\": \"Tests were not performed because they are only text files.\", \"reason\": \"not_verified\", \"suggest\": \"can_wait\"}",
+     "finish": "stop",
+     "latency_ms": 680,
+     "gen_ms": 679.418333,
+     "out_tokens": 30,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1847,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "calm",
+    "shown": "",
+    "model_text": [],
+    "needs_you": false,
+    "notes": [
+     "suggest can_wait"
+    ]
+   }
+  },
+  {
+   "corpus": "turns",
+   "job": "attention",
+   "setting": "main",
+   "id": "V019",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"evidence\": \"I read through the scheduler code as asked and wrote up how the job queue picks the next task: prior\", \"reason\": \"work_done\", \"suggest\": \"can_wait\"}",
+     "finish": "stop",
+     "latency_ms": 872,
+     "gen_ms": 872.1822500000001,
+     "out_tokens": 41,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1820,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "calm",
+    "shown": "",
+    "model_text": [],
+    "needs_you": false,
+    "notes": [
+     "suggest can_wait"
+    ]
+   }
+  },
+  {
+   "corpus": "turns",
+   "job": "attention",
+   "setting": "main",
+   "id": "V020",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "code",
+    "shown": "Braucht dich: etwas ist fehlgeschlagen: “certctl renew --env staging: permission denied (keychain access refused)”",
+    "model_text": [],
+    "needs_you": true,
+    "notes": [
+     "decided by the facts (no call)"
+    ]
+   }
+  },
+  {
+   "corpus": "turns",
+   "job": "attention",
+   "setting": "main",
+   "id": "V021",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"evidence\": \"I split the 900-line order service into three modules: pricing, stock and fulfilment. Publicfunction\" , \"reason\": \"work_done\", \"suggest\": \"can_wait\"}",
+     "finish": "stop",
+     "latency_ms": 908,
+     "gen_ms": 907.816875,
+     "out_tokens": 44,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1873,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "calm",
+    "shown": "",
+    "model_text": [],
+    "needs_you": false,
+    "notes": [
+     "suggest can_wait"
+    ]
+   }
+  },
+  {
+   "corpus": "turns",
+   "job": "attention",
+   "setting": "main",
+   "id": "V022",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"evidence\": \"Zwölf Tests laufen erfolgreich.\", \"reason\": \"work_done\", \"suggest\": \"can_wait\"}",
+     "finish": "stop",
+     "latency_ms": 632,
+     "gen_ms": 631.545833,
+     "out_tokens": 28,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1869,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "calm",
+    "shown": "",
+    "model_text": [],
+    "needs_you": false,
+    "notes": [
+     "suggest can_wait"
+    ]
+   }
+  },
+  {
+   "corpus": "turns",
+   "job": "attention",
+   "setting": "main",
+   "id": "V023",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"evidence\": \"The settings page now saves the notification preferences and shows a toast on success. The component\" , \"reason\": \"work_done\", \"suggest\": \"can_wait\"}",
+     "finish": "stop",
+     "latency_ms": 789,
+     "gen_ms": 788.705083,
+     "out_tokens": 38,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1858,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "calm",
+    "shown": "",
+    "model_text": [],
+    "needs_you": false,
+    "notes": [
+     "suggest can_wait"
+    ]
+   }
+  },
+  {
+   "corpus": "turns",
+   "job": "attention",
+   "setting": "main",
+   "id": "V024",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "code",
+    "shown": "Braucht dich: der Agent fragt: “Gib bitte Bescheid, ob der Verlauf auch beim Abmelden gelöscht werden soll.”",
+    "model_text": [],
+    "needs_you": true,
+    "notes": [
+     "decided by the facts (no call)"
+    ]
+   }
+  },
+  {
+   "corpus": "turns",
+   "job": "attention",
+   "setting": "main",
+   "id": "V025",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"evidence\": \"I fixed the crash on startup when the config directory is missing; the app now creates it with the r\" , \"reason\": \"work_done\", \"suggest\": \"can_wait\"}",
+     "finish": "stop",
+     "latency_ms": 867,
+     "gen_ms": 867.1330419999999,
+     "out_tokens": 42,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1781,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "calm",
+    "shown": "",
+    "model_text": [],
+    "needs_you": false,
+    "notes": [
+     "suggest can_wait"
+    ]
+   }
+  },
+  {
+   "corpus": "turns",
+   "job": "attention",
+   "setting": "main",
+   "id": "V026",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "code",
+    "shown": "Needs you: something failed: “FAILED tests/test_session_store.py::test_expiry_sweep - RuntimeError: event loop is closed”",
+    "model_text": [],
+    "needs_you": true,
+    "notes": [
+     "decided by the facts (no call)"
+    ]
+   }
+  },
+  {
+   "corpus": "turns",
+   "job": "attention",
+   "setting": "main",
+   "id": "V027",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"evidence\": \"Der neue Index ist erst lokal angelegt; für die Produktion muss die Migration noch laufen.\", \"reason\": \"not_verified\", \"suggest\": \"can_wait\"}",
+     "finish": "stop",
+     "latency_ms": 875,
+     "gen_ms": 874.399458,
+     "out_tokens": 39,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1826,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "calm",
+    "shown": "",
+    "model_text": [],
+    "needs_you": false,
+    "notes": [
+     "suggest can_wait"
+    ]
+   }
+  },
+  {
+   "corpus": "turns",
+   "job": "attention",
+   "setting": "main",
+   "id": "V028",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"evidence\": \"I switched the logging library to structured output across the worker package and it all works. 19 1\", \"reason\": \"work_done\", \"suggest\": \"can_wait\"}",
+     "finish": "stop",
+     "latency_ms": 891,
+     "gen_ms": 891.127667,
+     "out_tokens": 42,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1865,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "calm",
+    "shown": "",
+    "model_text": [],
+    "needs_you": false,
+    "notes": [
+     "suggest can_wait"
+    ]
+   }
+  },
+  {
+   "corpus": "turns",
+   "job": "attention",
+   "setting": "main",
+   "id": "V029",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"evidence\": \"I renamed the module `geo/lookups.py` to `geo/resolve.py` and updated all imports. Type checks and 2\", \"reason\": \"work_done\", \"suggest\": \"can_wait\"}",
+     "finish": "stop",
+     "latency_ms": 996,
+     "gen_ms": 995.989,
+     "out_tokens": 48,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1827,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "calm",
+    "shown": "",
+    "model_text": [],
+    "needs_you": false,
+    "notes": [
+     "suggest can_wait"
+    ]
+   }
+  },
+  {
+   "corpus": "turns",
+   "job": "attention",
+   "setting": "main",
+   "id": "V030",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"evidence\": \"Ich habe die Architektur der Ereigniswarteschlange durchgesehen und die Unterschiede zwischen den be\"\n, \"reason\": \"work_done\", \"suggest\": \"can_wait\"}",
+     "finish": "stop",
+     "latency_ms": 977,
+     "gen_ms": 976.792375,
+     "out_tokens": 47,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1820,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "calm",
+    "shown": "",
+    "model_text": [],
+    "needs_you": false,
+    "notes": [
+     "suggest can_wait"
+    ]
+   }
+  },
+  {
+   "corpus": "turns",
+   "job": "attention",
+   "setting": "main",
+   "id": "V031",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"evidence\": \"The email check rejects addresses without a domain part.\", \"reason\": \"work_done\", \"suggest\": \"can_wait\"}",
+     "finish": "stop",
+     "latency_ms": 671,
+     "gen_ms": 670.996375,
+     "out_tokens": 29,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1831,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "calm",
+    "shown": "",
+    "model_text": [],
+    "needs_you": false,
+    "notes": [
+     "suggest can_wait"
+    ]
+   }
+  },
+  {
+   "corpus": "turns",
+   "job": "attention",
+   "setting": "main",
+   "id": "V032",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"evidence\": \"Die Berichte lassen sich jetzt als CSV mit Semikolon als Trenner exportieren. Zehn Tests laufen. Die\" , \"reason\": \"work_done\", \"suggest\": \"can_wait\"}",
+     "finish": "stop",
+     "latency_ms": 1009,
+     "gen_ms": 1008.56175,
+     "out_tokens": 48,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1841,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "calm",
+    "shown": "",
+    "model_text": [],
+    "needs_you": false,
+    "notes": [
+     "suggest can_wait"
+    ]
+   }
+  },
+  {
+   "corpus": "turns",
+   "job": "attention",
+   "setting": "main",
+   "id": "V033",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "code",
+    "shown": "Needs you: the agent asks: “Which logo file should go in the header?”",
+    "model_text": [],
+    "needs_you": true,
+    "notes": [
+     "decided by the facts (no call)"
+    ]
+   }
+  },
+  {
+   "corpus": "turns",
+   "job": "attention",
+   "setting": "main",
+   "id": "V034",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "code",
+    "shown": "Braucht dich: etwas ist fehlgeschlagen: “FAILED tests/test_pool.py::test_reconnect_after_drop - Timeout >30s”",
+    "model_text": [],
+    "needs_you": true,
+    "notes": [
+     "decided by the facts (no call)"
+    ]
+   }
+  },
+  {
+   "corpus": "turns",
+   "job": "attention",
+   "setting": "main",
+   "id": "V035",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"evidence\": \"I deleted the obsolete feature-flag file and all references to the beta banner, since the banner shi\", \"reason\": \"work_done\", \"suggest\": \"can_wait\"}",
+     "finish": "stop",
+     "latency_ms": 857,
+     "gen_ms": 856.98725,
+     "out_tokens": 40,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1849,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "calm",
+    "shown": "",
+    "model_text": [],
+    "needs_you": false,
+    "notes": [
+     "suggest can_wait"
+    ]
+   }
+  },
+  {
+   "corpus": "turns",
+   "job": "attention",
+   "setting": "main",
+   "id": "V036",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"evidence\": \"Still to do: the error report for malformed rows, and the progress bar in the UI. I stopped here vìe\", \"reason\": \"work_done\", \"suggest\": \"can_wait\"}",
+     "finish": "stop",
+     "latency_ms": 897,
+     "gen_ms": 897.050625,
+     "out_tokens": 44,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1844,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "calm",
+    "shown": "",
+    "model_text": [],
+    "needs_you": false,
+    "notes": [
+     "suggest can_wait"
+    ]
+   }
+  },
+  {
+   "corpus": "turns",
+   "job": "attention",
+   "setting": "main",
+   "id": "V037",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "code",
+    "shown": "Braucht dich: etwas ist fehlgeschlagen: “FAILED tests/test_round.py::test_half_cent_negative - assert Decimal('-0.01') == Decimal('-0.02')”",
+    "model_text": [],
+    "needs_you": true,
+    "notes": [
+     "decided by the facts (no call)"
+    ]
+   }
+  },
+  {
+   "corpus": "turns",
+   "job": "attention",
+   "setting": "main",
+   "id": "V038",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"evidence\": \"I bumped the default request timeout from 10 to 20 seconds in the shared client config and noted it \", \"reason\": \"work_done\", \"suggest\": \"can_wait\"}",
+     "finish": "stop",
+     "latency_ms": 914,
+     "gen_ms": 913.445875,
+     "out_tokens": 44,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1793,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "calm",
+    "shown": "",
+    "model_text": [],
+    "needs_you": false,
+    "notes": [
+     "suggest can_wait"
+    ]
+   }
+  },
+  {
+   "corpus": "turns",
+   "job": "attention",
+   "setting": "main",
+   "id": "V039",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"evidence\": \"Es gibt keine offenen Änderungen mehr, alles ist eingecheckt. Tests nicht nötig. Andere Module habe \"\n\n\n, \"reason\": \"work_done\", \"suggest\": \"can_wait\"}",
+     "finish": "stop",
+     "latency_ms": 1007,
+     "gen_ms": 1006.960791,
+     "out_tokens": 49,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1827,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "calm",
+    "shown": "",
+    "model_text": [],
+    "needs_you": false,
+    "notes": [
+     "suggest can_wait"
+    ]
+   }
+  },
+  {
+   "corpus": "turns",
+   "job": "attention",
+   "setting": "main",
+   "id": "V040",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"evidence\": \"I tried three ways to speed up the thumbnail job: a process pool, memoizing the decode step, and low\" , \"reason\": \"work_done\", \"suggest\": \"can_wait\"}",
+     "finish": "stop",
+     "latency_ms": 893,
+     "gen_ms": 892.63225,
+     "out_tokens": 44,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1861,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "calm",
+    "shown": "",
+    "model_text": [],
+    "needs_you": false,
+    "notes": [
+     "suggest can_wait"
+    ]
+   }
+  },
+  {
+   "corpus": "chat",
+   "job": "chat",
+   "setting": "main",
+   "id": "C501",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "dont_know",
+    "shown": "I can't say that for sure. Here's what I found:\n[s1] session \"session s1\"\n[s2] session \"session s2\"",
+    "model_text": [],
+    "refs": [
+     "s1",
+     "s2"
+    ],
+    "notes": [
+     "no record is about 'lantern api session'"
+    ]
+   }
+  },
+  {
+   "corpus": "chat",
+   "job": "chat",
+   "setting": "main",
+   "id": "C502",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "dont_know",
+    "shown": "I can't say that for sure. Here's what I found:\n[t1] turn \"Turn 9 in tidepool-cli\"\n[t2] turn \"Turn 8 in tidepool-cli\"",
+    "model_text": [],
+    "refs": [
+     "t1",
+     "t2"
+    ],
+    "notes": [
+     "no record is about 'turn sitzung'"
+    ]
+   }
+  },
+  {
+   "corpus": "chat",
+   "job": "chat",
+   "setting": "main",
+   "id": "C503",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "dont_know",
+    "shown": "I can't say that for sure. Here's what I found:\n[s1] session \"session s1\"",
+    "model_text": [],
+    "refs": [
+     "s1"
+    ],
+    "notes": [
+     "no record is about 'agent harbor sync session'"
+    ]
+   }
+  },
+  {
+   "corpus": "chat",
+   "job": "chat",
+   "setting": "main",
+   "id": "C504",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"answer\": \"The session with the branch feat/mailer is waiting.\", \"cites\": [\"s1\"]}",
+     "finish": "stop",
+     "latency_ms": 478,
+     "gen_ms": 477.958709,
+     "out_tokens": 23,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1141,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "answer",
+    "shown": "The session with the branch feat/mailer is waiting [s1]",
+    "model_text": [
+     "The session with the branch feat/mailer is waiting"
+    ],
+    "refs": [
+     "s1"
+    ],
+    "notes": [
+     "looked up: status"
+    ]
+   }
+  },
+  {
+   "corpus": "chat",
+   "job": "chat",
+   "setting": "main",
+   "id": "C505",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "dont_know",
+    "shown": "I can't say that for sure. Here's what I found:\n[f1] fact \"fact f1\"\n[f2] fact \"fact f2\"",
+    "model_text": [],
+    "refs": [
+     "f1",
+     "f2"
+    ],
+    "notes": [
+     "no record is about 'config limits yaml'"
+    ]
+   }
+  },
+  {
+   "corpus": "chat",
+   "job": "chat",
+   "setting": "main",
+   "id": "C506",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "dont_know",
+    "shown": "I can't say that for sure. Here's what I found:\n[s1] session \"session s1\"",
+    "model_text": [],
+    "refs": [
+     "s1"
+    ],
+    "notes": [
+     "no record is about 'maple ui session'"
+    ]
+   }
+  },
+  {
+   "corpus": "chat",
+   "job": "chat",
+   "setting": "main",
+   "id": "C507",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "dont_know",
+    "shown": "I can't say that for sure. Here's what I found:\n[t1] turn \"turn t1\"\n[t2] turn \"turn t2\"",
+    "model_text": [],
+    "refs": [
+     "t1",
+     "t2"
+    ],
+    "notes": [
+     "no record is about 'dateien turn geändert'"
+    ]
+   }
+  },
+  {
+   "corpus": "chat",
+   "job": "chat",
+   "setting": "main",
+   "id": "C508",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "dont_know",
+    "shown": "I can't say that for sure. Here's what I found:\n[t1] turn \"turn t1\"",
+    "model_text": [],
+    "refs": [
+     "t1"
+    ],
+    "notes": [
+     "no record is about 'nightly report turn'"
+    ]
+   }
+  },
+  {
+   "corpus": "chat",
+   "job": "chat",
+   "setting": "main",
+   "id": "C509",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "dont_know",
+    "shown": "I can't say that for sure. Here's what I found:\n[f1] fact \"Geänderte Datei\"\n[f2] fact \"fact f2\"",
+    "model_text": [],
+    "refs": [
+     "f1",
+     "f2"
+    ],
+    "notes": [
+     "no record is about 'geänderte konfigurationsdatei sitzung krill edge'"
+    ]
+   }
+  },
+  {
+   "corpus": "chat",
+   "job": "chat",
+   "setting": "main",
+   "id": "C510",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"answer\": \"The ledger-core session changed 14 files; the ledger-core older session changed 6 files.\", \"cites\": [\"s1\", \"s2\"]}",
+     "finish": "stop",
+     "latency_ms": 717,
+     "gen_ms": 716.595084,
+     "out_tokens": 36,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1160,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "answer",
+    "shown": "The ledger-core session changed 14 files; the ledger-core older session changed 6 files [s1] [s2]",
+    "model_text": [
+     "The ledger-core session changed 14 files; the ledger-core older session changed 6 files"
+    ],
+    "refs": [
+     "s1",
+     "s2"
+    ],
+    "notes": [
+     "looked up: files_changed, files_changed"
+    ]
+   }
+  },
+  {
+   "corpus": "chat",
+   "job": "chat",
+   "setting": "main",
+   "id": "C511",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "dont_know",
+    "shown": "I can't say that for sure. Here's what I found:\n[s1] session \"session s1\"\n[s2] session \"session s2\"",
+    "model_text": [],
+    "refs": [
+     "s1",
+     "s2"
+    ],
+    "notes": [
+     "no record is about 'pelican auth session'"
+    ]
+   }
+  },
+  {
+   "corpus": "chat",
+   "job": "chat",
+   "setting": "main",
+   "id": "C512",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "dont_know",
+    "shown": "I can't say that for sure. Here's what I found:\n[s1] session \"session s1\"",
+    "model_text": [],
+    "refs": [
+     "s1"
+    ],
+    "notes": [
+     "no record is about 'sitzung dune search'"
+    ]
+   }
+  },
+  {
+   "corpus": "chat",
+   "job": "chat",
+   "setting": "main",
+   "id": "C513",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "dont_know",
+    "shown": "I can't say that for sure. Here's what I found:\n[s1] session \"session s1\"\n[s2] session \"session s2\"",
+    "model_text": [],
+    "refs": [
+     "s1",
+     "s2"
+    ],
+    "notes": [
+     "no record is about 'cobalt gateway session working'"
+    ]
+   }
+  },
+  {
+   "corpus": "chat",
+   "job": "chat",
+   "setting": "main",
+   "id": "C514",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "dont_know",
+    "shown": "I can't say that for sure. Here's what I found:\n[s1] session \"session s1\"",
+    "model_text": [],
+    "refs": [
+     "s1"
+    ],
+    "notes": [
+     "no record is about 'auftrag sitzung vega forms gestartet'"
+    ]
+   }
+  },
+  {
+   "corpus": "chat",
+   "job": "chat",
+   "setting": "main",
+   "id": "C515",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "scope",
+    "shown": "I answer questions about what's happening in AI Juggler. For coding, ask your agent.",
+    "model_text": [],
+    "refs": [],
+    "notes": [
+     "not about AI Juggler's records"
+    ]
+   }
+  },
+  {
+   "corpus": "chat",
+   "job": "chat",
+   "setting": "main",
+   "id": "C516",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "dont_know",
+    "shown": "I can't say that for sure. Here's what I found:\n[t1] turn \"fjord-sync turn 5\"",
+    "model_text": [],
+    "refs": [
+     "t1"
+    ],
+    "notes": [
+     "the records about 'turn fjord sync' hold no tests_passed (a nearby record may: not the answer)"
+    ]
+   }
+  },
+  {
+   "corpus": "chat",
+   "job": "chat",
+   "setting": "main",
+   "id": "C517",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"asks_about\": \"when\", \"subject\": \"Sitzung ibis-mobile\", \"covered\": \"no\", \"parts\": []}",
+     "finish": "stop",
+     "latency_ms": 738,
+     "gen_ms": 737.867292,
+     "out_tokens": 29,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2680,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "dont_know",
+    "shown": "I can't say that for sure. Here's what I found:\n[s1] session \"session s1\"",
+    "model_text": [],
+    "refs": [
+     "s1"
+    ],
+    "notes": []
+   }
+  },
+  {
+   "corpus": "chat",
+   "job": "chat",
+   "setting": "main",
+   "id": "C518",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"asks_about\": \"what_changed\", \"subject\": \"turn 2 of mosaic-api\", \"covered\": \"yes\", \"parts\": [{\"states\": \"what_changed\", \"text\": \"In turn 2 of mosaic-api, handlers/user.go was changed with +30/-4 and handlers/user_test.go was changed with +22/-0.\", \"cites\": [\"t1\"]}] }",
+     "finish": "stop",
+     "latency_ms": 1657,
+     "gen_ms": 1656.908416,
+     "out_tokens": 82,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2742,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "answer",
+    "shown": "In turn 2 of mosaic-api, handlers/user.go was changed with +30/-4 and handlers/user_test.go was changed with +22/-0. [t1]",
+    "model_text": [
+     "In turn 2 of mosaic-api, handlers/user.go was changed with +30/-4 and handlers/user_test.go was changed with +22/-0."
+    ],
+    "refs": [
+     "t1"
+    ],
+    "notes": []
+   }
+  },
+  {
+   "corpus": "chat",
+   "job": "chat",
+   "setting": "main",
+   "id": "C519",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "dont_know",
+    "shown": "I can't say that for sure. Here's what I found:\n[s1] session \"Sitzung neon-board\"",
+    "model_text": [],
+    "refs": [
+     "s1"
+    ],
+    "notes": [
+     "no record is about 'hoch sitzung neon board'"
+    ]
+   }
+  },
+  {
+   "corpus": "chat",
+   "job": "chat",
+   "setting": "main",
+   "id": "C520",
+   "rep": 0,
+   "model_called": true,
+   "used": "fallback",
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"answer\": \"No session is currently running.\", \"cites\": [\"s1\", \"s2\"]}",
+     "finish": "stop",
+     "latency_ms": 451,
+     "gen_ms": 451.0905,
+     "out_tokens": 22,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1148,
+     "cut": false,
+     "retry_note": false,
+     "errors": [
+      "value: the answer doesn't say finished",
+      "value: the answer says ['running'], the record says finished",
+      "value: the answer doesn't say finished",
+      "value: the answer says ['running'], the record says finished"
+     ],
+     "ok": false,
+     "soft": []
+    },
+    {
+     "attempt": 1,
+     "text": "{\"answer\": \"No session is currently running.\", \"cites\": [\"s1\", \"s2\"]}",
+     "finish": "stop",
+     "latency_ms": 470,
+     "gen_ms": 470.35108399999996,
+     "out_tokens": 22,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1242,
+     "cut": false,
+     "retry_note": true,
+     "errors": [
+      "value: the answer doesn't say finished",
+      "value: the answer says ['running'], the record says finished",
+      "value: the answer doesn't say finished",
+      "value: the answer says ['running'], the record says finished"
+     ],
+     "ok": false,
+     "soft": []
+    },
+    {
+     "attempt": 2,
+     "text": "{\"answer\": \"No session is currently running.\", \"cites\": [\"s1\", \"s2\"]}",
+     "finish": "stop",
+     "latency_ms": 475,
+     "gen_ms": 474.50604200000004,
+     "out_tokens": 22,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1242,
+     "cut": false,
+     "retry_note": true,
+     "errors": [
+      "value: the answer doesn't say finished",
+      "value: the answer says ['running'], the record says finished",
+      "value: the answer doesn't say finished",
+      "value: the answer says ['running'], the record says finished"
+     ],
+     "ok": false,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "found_values",
+    "shown": "session s1 [s1]: finished\nsession s2 [s2]: finished",
+    "model_text": [],
+    "refs": [
+     "s1",
+     "s2"
+    ],
+    "notes": [
+     "every attempt failed its checks: the looked-up values, by code"
+    ]
+   }
+  },
+  {
+   "corpus": "chat",
+   "job": "chat",
+   "setting": "main",
+   "id": "C521",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "dont_know",
+    "shown": "I can't say that for sure. Here's what I found:\n[s1] session \"session s1\"",
+    "model_text": [],
+    "refs": [
+     "s1"
+    ],
+    "notes": [
+     "no record is about 'generated report stored sparrow etl session'"
+    ]
+   }
+  },
+  {
+   "corpus": "chat",
+   "job": "chat",
+   "setting": "main",
+   "id": "C522",
+   "rep": 0,
+   "model_called": true,
+   "used": 1,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"asks_about\": \"why\", \"subject\": \"Turn in cedar-shop als Frage markiert\", \"covered\": \"yes\", \"parts\": [{\"states\": \"why\", \"text\": \"Der Turn in cedar-shop wurde als Frage markiert, weil der Agent fragt, ob die alte Rabattlogik bleiben soll.\", \"cites\": [\"t1\"]}] }",
+     "finish": "stop",
+     "latency_ms": 1540,
+     "gen_ms": 1539.9978330000001,
+     "out_tokens": 76,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2686,
+     "cut": false,
+     "retry_note": false,
+     "errors": [
+      "off the question: no cited record holds a why"
+     ],
+     "ok": false,
+     "soft": []
+    },
+    {
+     "attempt": 1,
+     "text": "{\"asks_about\": \"why\", \"subject\": \"Turn in cedar-shop als Frage markiert\", \"covered\": \"no\", \"parts\": []}",
+     "finish": "stop",
+     "latency_ms": 789,
+     "gen_ms": 789.225083,
+     "out_tokens": 31,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2819,
+     "cut": false,
+     "retry_note": true,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "dont_know",
+    "shown": "I can't say that for sure. Here's what I found:\n[t1] turn \"cedar-shop Turn 7\"",
+    "model_text": [],
+    "refs": [
+     "t1"
+    ],
+    "notes": []
+   }
+  },
+  {
+   "corpus": "chat",
+   "job": "chat",
+   "setting": "main",
+   "id": "C523",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "dont_know",
+    "shown": "I can't say that for sure. Here's what I found:\n[t1] turn \"turn t1\"",
+    "model_text": [],
+    "refs": [
+     "t1"
+    ],
+    "notes": [
+     "no record is about 'turn nimbus queue'"
+    ]
+   }
+  },
+  {
+   "corpus": "chat",
+   "job": "chat",
+   "setting": "main",
+   "id": "C524",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "dont_know",
+    "shown": "I can't say that for sure. Here's what I found:\n[f1] fact \"fact f1\"\n[f2] fact \"fact f2\"",
+    "model_text": [],
+    "refs": [
+     "f1",
+     "f2"
+    ],
+    "notes": [
+     "no record is about 'commits sitzung rowan docs'"
+    ]
+   }
+  },
+  {
+   "corpus": "chat",
+   "job": "chat",
+   "setting": "main",
+   "id": "C525",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "dont_know",
+    "shown": "I can't say that for sure. Here's what I found:\n[s1] session \"session s1\"",
+    "model_text": [],
+    "refs": [
+     "s1"
+    ],
+    "notes": [
+     "no record is about 'flint etl session'"
+    ]
+   }
+  },
+  {
+   "corpus": "chat",
+   "job": "chat",
+   "setting": "main",
+   "id": "C526",
+   "rep": 0,
+   "model_called": true,
+   "used": 1,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"answer\": \"Die Sitzung gale-admin hat 9 Dateien geändert.\", \"cites\": [\"s1\", \"s2\"]}",
+     "finish": "stop",
+     "latency_ms": 643,
+     "gen_ms": 642.446916,
+     "out_tokens": 32,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1162,
+     "cut": false,
+     "retry_note": false,
+     "errors": [
+      "value: the answer leaves out ['3'] from the records"
+     ],
+     "ok": false,
+     "soft": []
+    },
+    {
+     "attempt": 1,
+     "text": "{\"answer\": \"Die Sitzung gale-admin hat 9 Dateien geändert; die Sitzung gale-admin zweiter Lauf hat 3 Dateien geändert.\", \"cites\": [\"s1\", \"s2\"]}",
+     "finish": "stop",
+     "latency_ms": 1025,
+     "gen_ms": 1024.370584,
+     "out_tokens": 52,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1246,
+     "cut": false,
+     "retry_note": true,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "answer",
+    "shown": "Die Sitzung gale-admin hat 9 Dateien geändert; die Sitzung gale-admin zweiter Lauf hat 3 Dateien geändert [s1] [s2]",
+    "model_text": [
+     "Die Sitzung gale-admin hat 9 Dateien geändert; die Sitzung gale-admin zweiter Lauf hat 3 Dateien geändert"
+    ],
+    "refs": [
+     "s1",
+     "s2"
+    ],
+    "notes": [
+     "looked up: files_changed, files_changed"
+    ]
+   }
+  },
+  {
+   "corpus": "chat",
+   "job": "chat",
+   "setting": "main",
+   "id": "C527",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "dont_know",
+    "shown": "I can't say that for sure. Here's what I found:\n[t1] turn \"turn t1\"",
+    "model_text": [],
+    "refs": [
+     "t1"
+    ],
+    "notes": [
+     "no record is about 'iris search turn'"
+    ]
+   }
+  },
+  {
+   "corpus": "chat",
+   "job": "chat",
+   "setting": "main",
+   "id": "C528",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "dont_know",
+    "shown": "I can't say that for sure. Here's what I found:\n[t1] turn \"onyx-api turn 2\"",
+    "model_text": [],
+    "refs": [
+     "t1"
+    ],
+    "notes": [
+     "no record is about 'failing test onyx api session'"
+    ]
+   }
+  },
+  {
+   "corpus": "chat",
+   "job": "chat",
+   "setting": "main",
+   "id": "C529",
+   "rep": 0,
+   "model_called": true,
+   "used": "fallback",
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"asks_about\": \"what_changed\", \"subject\": \"die Sitzung wren-kit\", \"covered\": \"yes\", \"parts\": [{\"states\": \"what_changed\", \"text\": \"Die Sitzung wren-kit änderte nichts, nur eine Erklärung.\", \"cites\": [\"t1\"]}] }",
+     "finish": "stop",
+     "latency_ms": 1369,
+     "gen_ms": 1368.7363750000002,
+     "out_tokens": 68,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2668,
+     "cut": false,
+     "retry_note": false,
+     "errors": [
+      "off the question: the cited record's what_changed is not about the subject"
+     ],
+     "ok": false,
+     "soft": []
+    },
+    {
+     "attempt": 1,
+     "text": "{\"asks_about\": \"what_changed\", \"subject\": \"die Sitzung wren-kit\", \"covered\": \"yes\", \"parts\": [{\"states\": \"what_changed\", \"text\": \"Die Sitzung wren-kit änderte nichts.\", \"cites\": [\"t1\"]}] }",
+     "finish": "stop",
+     "latency_ms": 1281,
+     "gen_ms": 1280.928291,
+     "out_tokens": 62,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2795,
+     "cut": false,
+     "retry_note": true,
+     "errors": [
+      "off the question: the cited record's what_changed is not about the subject"
+     ],
+     "ok": false,
+     "soft": []
+    },
+    {
+     "attempt": 2,
+     "text": "{\"asks_about\": \"what_changed\", \"subject\": \"was hat die Sitzung wren-kit zuletzt geändert\", \"covered\": \"yes\", \"parts\": [{\"states\": \"what_changed\", \"text\": \"Die Sitzung wren-kit änderte nichts.\", \"cites\": [\"t1\"]}] }",
+     "finish": "stop",
+     "latency_ms": 1435,
+     "gen_ms": 1435.1005420000001,
+     "out_tokens": 70,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2789,
+     "cut": false,
+     "retry_note": true,
+     "errors": [
+      "off the question: the cited record's what_changed is not about the subject"
+     ],
+     "ok": false,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "found_rows",
+    "shown": "I can't say that for sure. Here's what I found:\n[t1] turn \"turn t1\"",
+    "model_text": [],
+    "refs": [
+     "t1"
+    ],
+    "notes": [
+     "every attempt failed its checks: the found rows"
+    ]
+   }
+  },
+  {
+   "corpus": "chat",
+   "job": "chat",
+   "setting": "main",
+   "id": "C530",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"asks_about\": \"where\", \"subject\": \"branch of the last turn in basalt-ui\", \"covered\": \"no\", \"parts\": []}",
+     "finish": "stop",
+     "latency_ms": 824,
+     "gen_ms": 824.082417,
+     "out_tokens": 32,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2665,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "dont_know",
+    "shown": "I can't say that for sure. Here's what I found:\n[t1] turn \"turn t1\"",
+    "model_text": [],
+    "refs": [
+     "t1"
+    ],
+    "notes": []
+   }
+  },
+  {
+   "corpus": "chat",
+   "job": "chat",
+   "setting": "main",
+   "id": "C531",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"asks_about\": \"which\", \"subject\": \"turns of amber-sdk\", \"covered\": \"yes\", \"parts\": [{\"states\": \"which\", \"text\": \"Turn 6 of amber-sdk was reverted, with changes to src/client.ts reverted to HEAD~1.\", \"cites\": [\"f1\"]}]}",
+     "finish": "stop",
+     "latency_ms": 1409,
+     "gen_ms": 1409.1695829999999,
+     "out_tokens": 67,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2720,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "answer",
+    "shown": "Turn 6 of amber-sdk was reverted, with changes to src/client.ts reverted to HEAD~1. [f1]",
+    "model_text": [
+     "Turn 6 of amber-sdk was reverted, with changes to src/client.ts reverted to HEAD~1."
+    ],
+    "refs": [
+     "f1"
+    ],
+    "notes": []
+   }
+  },
+  {
+   "corpus": "chat",
+   "job": "chat",
+   "setting": "main",
+   "id": "C532",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "dont_know",
+    "shown": "I can't say that for sure. Here's what I found:\n[s1] session \"session s1\"",
+    "model_text": [],
+    "refs": [
+     "s1"
+    ],
+    "notes": [
+     "no record is about 'sitzung zephyr cms'"
+    ]
+   }
+  },
+  {
+   "corpus": "chat",
+   "job": "chat",
+   "setting": "main",
+   "id": "C533",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"asks_about\": \"count\", \"subject\": \"tests in turn 3 of lotus-pay\", \"covered\": \"yes\", \"parts\": [{\"states\": \"count\", \"text\": \"40 tests passed and 0 failed in turn 3 of lotus-pay.\", \"cites\": [\"t1\"]}] }",
+     "finish": "stop",
+     "latency_ms": 1408,
+     "gen_ms": 1408.066,
+     "out_tokens": 67,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2678,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "answer",
+    "shown": "40 tests passed and 0 failed in turn 3 of lotus-pay. [t1]",
+    "model_text": [
+     "40 tests passed and 0 failed in turn 3 of lotus-pay."
+    ],
+    "refs": [
+     "t1"
+    ],
+    "notes": []
+   }
+  },
+  {
+   "corpus": "chat",
+   "job": "chat",
+   "setting": "main",
+   "id": "C534",
+   "rep": 0,
+   "model_called": true,
+   "used": 1,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"asks_about\": \"why\", \"subject\": \"Tests in der Sitzung agate-feed sind nicht gelaufen\", \"covered\": \"yes\", \"parts\": [{\"states\": \"why\", \"text\": \"In der Sitzung agate-feed wurden die Tests nicht ausgeführt.\", \"cites\": [\"t1\"]}] }",
+     "finish": "stop",
+     "latency_ms": 1378,
+     "gen_ms": 1377.530583,
+     "out_tokens": 70,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2671,
+     "cut": false,
+     "retry_note": false,
+     "errors": [
+      "off the question: no cited record holds a why"
+     ],
+     "ok": false,
+     "soft": []
+    },
+    {
+     "attempt": 1,
+     "text": "{\"asks_about\": \"why\", \"subject\": \"Tests in der Sitzung agate-feed sind nicht gelaufen\", \"covered\": \"no\", \"parts\": []}",
+     "finish": "stop",
+     "latency_ms": 927,
+     "gen_ms": 926.926875,
+     "out_tokens": 37,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2794,
+     "cut": false,
+     "retry_note": true,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "dont_know",
+    "shown": "I can't say that for sure. Here's what I found:\n[t1] turn \"agate-feed Turn 2\"",
+    "model_text": [],
+    "refs": [
+     "t1"
+    ],
+    "notes": []
+   }
+  },
+  {
+   "corpus": "chat",
+   "job": "chat",
+   "setting": "main",
+   "id": "C535",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "dont_know",
+    "shown": "I can't say that for sure. Here's what I found:\n[f1] fact \"fact f1\"\n[f2] fact \"fact f2\"",
+    "model_text": [],
+    "refs": [
+     "f1",
+     "f2"
+    ],
+    "notes": [
+     "no record is about 'new migration created thistle db'"
+    ]
+   }
+  },
+  {
+   "corpus": "chat",
+   "job": "chat",
+   "setting": "main",
+   "id": "C536",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "dont_know",
+    "shown": "I can't say that for sure. Here's what I found:\n[s1] session \"session s1\"",
+    "model_text": [],
+    "refs": [
+     "s1"
+    ],
+    "notes": [
+     "no record is about 'approved merge sable app session'"
+    ]
+   }
+  },
+  {
+   "corpus": "chat",
+   "job": "chat",
+   "setting": "main",
+   "id": "C537",
+   "rep": 0,
+   "model_called": true,
+   "used": "fallback",
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"asks_about\": \"when\", \"subject\": \"der letzte Turn von pine-notes\", \"covered\": \"yes\", \"parts\": [{\"states\": \"when\", \"text\": \"Der letzte Turn von pine-notes endete am 2026-11-16 um 18:30.\", \"cites\": [\"t1\"]}] }",
+     "finish": "stop",
+     "latency_ms": 1549,
+     "gen_ms": 1548.693209,
+     "out_tokens": 77,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2714,
+     "cut": false,
+     "retry_note": false,
+     "errors": [
+      "off the question: the cited record's when is not about the subject"
+     ],
+     "ok": false,
+     "soft": []
+    },
+    {
+     "attempt": 1,
+     "text": "{\"asks_about\": \"when\", \"subject\": \"der letzte Turn von pine-notes\", \"covered\": \"yes\", \"parts\": [{\"states\": \"when\", \"text\": \"Der letzte Turn von pine-notes endete am 2026-11-16 um 18:30.\", \"cites\": [\"t1\"]}] }",
+     "finish": "stop",
+     "latency_ms": 1575,
+     "gen_ms": 1574.997292,
+     "out_tokens": 77,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2838,
+     "cut": false,
+     "retry_note": true,
+     "errors": [
+      "off the question: the cited record's when is not about the subject"
+     ],
+     "ok": false,
+     "soft": []
+    },
+    {
+     "attempt": 2,
+     "text": "{\"asks_about\": \"when\", \"subject\": \"der letzte Turn von pine-notes\", \"covered\": \"yes\", \"parts\": [{\"states\": \"when\", \"text\": \"Der letzte Turn von pine-notes endete am 2026-11-16 um 18:30.\", \"cites\": [\"t1\"]}] }",
+     "finish": "stop",
+     "latency_ms": 1616,
+     "gen_ms": 1615.267083,
+     "out_tokens": 77,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2838,
+     "cut": false,
+     "retry_note": true,
+     "errors": [
+      "off the question: the cited record's when is not about the subject"
+     ],
+     "ok": false,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "found_rows",
+    "shown": "I can't say that for sure. Here's what I found:\n[t1] turn \"turn t1\"\n[t2] turn \"turn t2\"",
+    "model_text": [],
+    "refs": [
+     "t1",
+     "t2"
+    ],
+    "notes": [
+     "every attempt failed its checks: the found rows"
+    ]
+   }
+  },
+  {
+   "corpus": "chat",
+   "job": "chat",
+   "setting": "main",
+   "id": "C538",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "dont_know",
+    "shown": "I can't say that for sure. Here's what I found:\n[s1] session \"session s1\"",
+    "model_text": [],
+    "refs": [
+     "s1"
+    ],
+    "notes": [
+     "no record is about 'moss cli session'"
+    ]
+   }
+  },
+  {
+   "corpus": "chat",
+   "job": "chat",
+   "setting": "main",
+   "id": "C539",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"asks_about\": \"why\", \"subject\": \"Zweck des Skripts scripts/cleanup.sh in der Sitzung birch-ov\", \"covered\": \"no\", \"parts\": []}",
+     "finish": "stop",
+     "latency_ms": 988,
+     "gen_ms": 987.467167,
+     "out_tokens": 43,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2680,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "dont_know",
+    "shown": "I can't say that for sure. Here's what I found:\n[f1] fact \"fact f1\"",
+    "model_text": [],
+    "refs": [
+     "f1"
+    ],
+    "notes": []
+   }
+  },
+  {
+   "corpus": "chat",
+   "job": "chat",
+   "setting": "main",
+   "id": "C540",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "scope",
+    "shown": "I answer questions about what's happening in AI Juggler. For coding, ask your agent.",
+    "model_text": [],
+    "refs": [],
+    "notes": [
+     "not about AI Juggler's records"
+    ]
+   }
+  }
+ ]
+}

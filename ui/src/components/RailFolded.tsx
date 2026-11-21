@@ -10,8 +10,14 @@
  *   each one is listed with its next step.
  * - **Open now**: every open session, AI Juggler's and the ones other apps
  *   run, by place in Open now's order (D-47), each as its app's icon with
- *   the profile's dot (D-38), its state's dot, and `!` when it needs you.
- *   Its name says the state first, then the title and where it runs.
+ *   the profile's dot (D-38) and one more mark: its state's dot, or when it
+ *   needs you its level's small mark at the corner (D-117 with AJ-E3603:
+ *   an amber dot at L2, a red ✕ at L3, never a filled badge). Its name
+ *   says the state first, then the
+ *   title and where it runs. A session that waits on you or broke (L2/L3)
+ *   is there open or not: one that stopped with an error has ended, and the
+ *   count's red ✕ named it while no icon did (CI run 43768776781's
+ *   69-rail-narrow capture).
  * - **All clear** only when nothing needs you, nothing is open and the
  *   computer is calm (`RailCalm`); while the sessions still load, round
  *   placeholders stand in, never a false "All clear" (AJ-E1503 Req.4, as
@@ -40,22 +46,30 @@ import { useKnownPlaces } from "../lib/places";
 import { useRailOrder } from "../lib/rail-order-store";
 import { arrangeGroups, rankOf, sortRows } from "../lib/rail-order";
 import { groupItems } from "../lib/rail-places";
-import { STATE_TONE, itemsOf, needWord, openNow, stateWord, type RailItem } from "../lib/rail-items";
+import { STATE_TONE, itemsOf, needWord, openNow, type RailItem } from "../lib/rail-items";
+import { appTone, brokenOf, brokenParts, counted, highest, itemLevel, levelTone, noticeLevel } from "../lib/attention";
 import { isSnoozed, type SnoozeState } from "../lib/railview";
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import type { ProjectInfo } from "../types/generated/ProjectInfo";
+import { SELECTED_FILL } from "./controls/selected";
 
 /** "4 things need you", as the bell says it. */
 export function needsYouWords(count: number): string {
   return `${count} ${count === 1 ? "thing needs" : "things need"} you`;
 }
 
-/** The open items in Open now's order: places as arranged, rows in them
+/** What the folded column shows: what is open, and what waits on you or
+ * broke (L2/L3, `counted`), open or not; a note (L1) only while open. */
+export function foldedShows(item: RailItem): boolean {
+  return openNow(item) || counted(itemLevel(item));
+}
+
+/** The folded items in Open now's order: places as arranged, rows in them
  * as arranged (pins first), Latest activity's rows by when they started
  * (the folded column holds still). */
 export function foldedOrder(items: RailItem[], mode: "yours" | "latest" | "name", places: readonly string[], rows: readonly string[]): RailItem[] {
   const rank = rankOf(rows);
-  return arrangeGroups(groupItems(items.filter(openNow), "place"), mode, places).flatMap((group) => sortRows(group.items, mode === "name" ? "name" : "yours", rank));
+  return arrangeGroups(groupItems(items.filter(foldedShows), "place"), mode, places).flatMap((group) => sortRows(group.items, mode === "name" ? "name" : "yours", rank));
 }
 
 export function FoldedRail({
@@ -94,6 +108,10 @@ export function FoldedRail({
   const { offRail } = useOffRail(useKnownPlaces());
   const open = foldedOrder(items, order.mode, order.groups.place, order.rows).filter((item) => item.need !== null || !offRail(item.place.key));
   const count = needs.count;
+  // D-117: the count takes its highest level (amber ⚠ n, red ✕ n), never
+  // a fill; what broke is said in its name.
+  const level = highest(needs.rows.map(noticeLevel).filter(counted));
+  const broken = brokenOf(needs.rows, noticeLevel, (row) => row.kind);
   // F11: one stop on the Tab path; ↑↓ move through the icons.
   const root = useRef<HTMLDivElement | null>(null);
   useRoving(root);
@@ -119,12 +137,14 @@ export function FoldedRail({
           data-rail-nav
           data-testid="rail-folded-needs-you"
           onClick={() => host.openHome?.()}
-          aria-label={`Needs you: ${needsYouWords(count)}. Open Home`}
+          aria-label={`Needs you: ${needsYouWords(count)}${broken.length > 0 ? `, ${brokenParts(broken)}` : ""}. Open Home`}
           title={`${needsYouWords(count)} — open Home`}
-          className="mb-1 flex min-h-6 items-center gap-0.5 rounded-full border border-warning/40 bg-warning-soft px-1.5 py-0.5 text-label font-bold text-warning outline-none transition-colors hover:bg-warning/20 focus-visible:ring-1 focus-visible:ring-accent/60"
+          data-level={level}
+          className={"mb-1 flex min-h-6 items-center gap-1 rounded-md px-1.5 py-0.5 text-label font-semibold tabular-nums outline-none transition-colors hover:bg-surface focus-visible:ring-1 focus-visible:ring-accent/60 " + (level >= 2 ? levelTone(level).text : "text-muted")}
         >
-          <span aria-hidden="true">!</span>
-          <span className="tabular-nums">{count}</span>
+          {/* The level's glyph (⚠ at L2, ✕ at L3): decoration. */}
+          {level >= 2 && <span aria-hidden="true" className="level-glyph" data-level={level} />}
+          <span aria-hidden="true">{count}</span>
         </button>
       )}
       {open.map((item) => (
@@ -144,16 +164,20 @@ export function FoldedRail({
 }
 
 /** One open session as its icon: the app's with the profile's dot, its
- * state's dot, `!` when it needs you; the words in its name and tooltip. */
+ * state's dot or, when it needs you, its level's mark; the words in its
+ * name and tooltip. */
 function FoldedRow({ item, selected, onSelect }: { item: RailItem; selected: boolean; onSelect: (id: string) => void }): JSX.Element {
   const primary = usePrimary(item, onSelect);
   const describedId = useId();
-  const needs = item.need !== null;
-  const word = needs ? needWord(item) : stateWord(item.state, item.probably);
+  // D-117: only what waits on you or broke (L2/L3) lights its corner and
+  // its icon; a note (L1, done, review it) keeps its word, calm.
+  const level = itemLevel(item);
+  const needs = level >= 2;
+  const word = needWord(item);
   // AI Juggler's own sessions: the tool and account they run on, as the
   // place's app and profile name the others.
   const where = item.session ? [item.project, providerDisplayName(item.tool), item.accountLabel].filter(Boolean).join(" · ") : whereWords(item);
-  const tone = needs ? STATE_TONE.asks_you : STATE_TONE[item.state];
+  const tone = STATE_TONE[item.state];
   // AI Juggler's own sessions keep their fuller summary (I-01..I-11).
   const more = item.session ? ariaSummary(item.session) : where;
   return (
@@ -167,8 +191,8 @@ function FoldedRow({ item, selected, onSelect }: { item: RailItem; selected: boo
       aria-describedby={describedId}
       onClick={primary}
       className={
-        "group relative flex size-9 shrink-0 items-center justify-center rounded-lg outline-none transition-colors focus-visible:ring-1 focus-visible:ring-accent/60 " +
-        (selected ? "bg-surface" : "hover:bg-surface")
+        "tone-host group relative flex size-9 shrink-0 items-center justify-center rounded-lg outline-none transition-colors focus-visible:ring-1 focus-visible:ring-accent/60 " +
+        (selected ? SELECTED_FILL : "hover:bg-surface")
       }
     >
       <span id={describedId} hidden>
@@ -178,19 +202,30 @@ function FoldedRow({ item, selected, onSelect }: { item: RailItem; selected: boo
       <span className="sr-only">
         {word}, {item.title}, {where}
       </span>
-      <span aria-hidden="true" className="flex">
+      {/* D-117: muted at rest; in full colour at L2/L3, when current, on hover or focus. */}
+      <span aria-hidden="true" className={"flex " + appTone(needs || selected)}>
         {item.session ? <OwnMark tool={item.tool} app={item.place.key} profile={item.accountLabel} /> : <PlaceMark place={item.place} profile={item.accountLabel} size={22} />}
       </span>
-      <span aria-hidden="true" data-state-dot={item.state} className={"absolute bottom-0.5 left-0.5 size-2 rounded-full ring-2 ring-canvas " + tone.dot} />
-      {needs && (
-        <span aria-hidden="true" data-testid="rail-folded-needs" className="absolute right-0 top-0 flex size-3.5 items-center justify-center rounded-full bg-warning text-label font-bold text-black">
-          !
+      {/* AJ-E3603 R5: one quiet mark per need. A need's is its level's
+          small mark at the corner (an amber dot, a ring for a guess, a red
+          ✕) on a calm backing, never a filled badge, and it is the icon's
+          only mark; a calm session keeps its state's dot (a static calm
+          dot while working, faint when idle). Decoration: its name leads
+          with the word. */}
+      {needs ? (
+        <span aria-hidden="true" data-testid="rail-folded-needs" data-level={level} className="absolute right-0 top-0 flex size-3 items-center justify-center rounded-full bg-canvas">
+          <span className="level-mark" data-level={level} data-probably={level === 2 && item.probably ? "true" : undefined} />
         </span>
+      ) : (
+        <span aria-hidden="true" data-state-dot={item.state} className={"absolute bottom-0.5 left-0.5 size-1.5 rounded-full ring-2 ring-canvas " + tone.dot} />
       )}
       {/* Hover and focus: the words, never a bare icon. */}
       <span aria-hidden="true" className="pointer-events-none absolute left-full top-0 z-30 ml-2 hidden w-56 rounded-lg border border-hairline bg-surface p-2.5 text-left shadow-card group-hover:block group-focus-visible:block">
         <span className="block truncate text-meta font-medium text-ink">{item.title}</span>
-        <span className={"block text-label font-semibold " + tone.text}>{word}</span>
+        <span className={"flex items-center gap-1.5 text-label " + (needs ? "font-medium text-ink-2" : "text-muted")}>
+          {needs && <span className="level-mark" data-level={level} data-probably={level === 2 && item.probably ? "true" : undefined} />}
+          {word}
+        </span>
         <span className="mt-0.5 block text-label leading-relaxed text-muted">{more}</span>
       </span>
     </button>

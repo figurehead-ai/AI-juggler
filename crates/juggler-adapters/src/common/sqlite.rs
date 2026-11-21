@@ -34,3 +34,270 @@ pub(crate) fn open_immutable(db: &Path) -> rusqlite::Result<Connection> {
             | OpenFlags::SQLITE_OPEN_URI,
     )
 }
+
+/// How long a read of a tool's own store waits for the tool's write.
+const TOOL_BUSY_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(2);
+
+/// A tool's own SQLite store (`OpenCode`'s, `ZCode`'s), opened read-only and
+/// never written beside, waiting briefly for the tool's own write.
+///
+/// While the tool runs, its write-ahead log sits beside the file and the
+/// read joins it as any reader does. When the tool is closed there is no
+/// log, and a read-only open would either fail (no `-shm` it may create:
+/// "unable to open database file", seen on `ZCode`'s) or create the log and
+/// its index in the user's folder; so the file is opened `immutable`: no
+/// log, no lock, nothing written. Should the tool start during that read,
+/// the read may fail; the next pass reads again.
+///
+/// # Errors
+///
+/// A plain message naming `tool` when the file is missing or can't be
+/// opened.
+pub(crate) fn open_tool_store(db: &Path, tool: &str) -> Result<Connection, String> {
+    if !db.is_file() {
+        return Err(format!("no {tool} database at {}", db.display()));
+    }
+    let mut wal = db.as_os_str().to_owned();
+    wal.push("-wal");
+    let flags = OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NO_MUTEX;
+    let conn = if Path::new(&wal).exists() {
+        juggler_core::storage::open_hardened_with(db, flags)
+    } else {
+        juggler_core::storage::open_hardened_with(
+            format!("file:{}?immutable=1", uri_path(db)),
+            flags | OpenFlags::SQLITE_OPEN_URI,
+        )
+    }
+    .map_err(|error| format!("{tool} database open (read-only): {error}"))?;
+    conn.busy_timeout(TOOL_BUSY_TIMEOUT)
+        .map_err(|error| format!("{tool} database busy timeout: {error}"))?;
+    Ok(conn)
+}
+
+/// The link to one session a tool keeps in its store: `<db>#<id>`, a
+/// path no file has, unique per session, so readers that open transcript
+/// files find nothing to misread and "already linked" checks compare
+/// sessions (AJ-E1602; `OpenCode`'s and `ZCode`'s stores).
+pub(crate) fn store_ref(db: &Path, id: &str) -> std::path::PathBuf {
+    let mut text = db.as_os_str().to_owned();
+    text.push("#");
+    text.push(id);
+    std::path::PathBuf::from(text)
+}
+
+/// The store and the session id inside a [`store_ref`], when `path` is one
+/// to a store file named `file`.
+pub(crate) fn store_ref_parts(path: &Path, file: &str) -> Option<(std::path::PathBuf, String)> {
+    let text = path.to_string_lossy();
+    let (db, id) = text.rsplit_once('#')?;
+    (db.ends_with(file) && !id.is_empty()).then(|| (std::path::PathBuf::from(db), id.to_owned()))
+}
+
+/// One session in a tool's SQLite store (`OpenCode`'s schema and `ZCode`'s
+/// fork of it), as the index and the launch locator read it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct StoreSession {
+    /// The tool's session id.
+    pub id: String,
+    /// Its title (may be empty).
+    pub title: String,
+    /// The folder it ran in.
+    pub directory: String,
+    /// Created, epoch ms.
+    pub created_ms: i64,
+    /// Last updated, epoch ms.
+    pub updated_ms: i64,
+}
+
+impl StoreSession {
+    /// The session as the conversation index keeps it, keyed by
+    /// [`store_ref`]; its folder becomes a project.
+    pub(crate) fn into_stored(
+        self,
+        db: &Path,
+        tokens: juggler_core::model::TokenCounts,
+    ) -> juggler_adapter::conversation::StoredConversation {
+        use juggler_adapter::conversation::{
+            ConversationSummary, StoredConversation, prompt_title, title_from,
+        };
+        StoredConversation {
+            key: store_ref(db, &self.id),
+            changed_ms: self.updated_ms,
+            summary: ConversationSummary {
+                cwd: (!self.directory.is_empty())
+                    .then(|| std::path::PathBuf::from(&self.directory)),
+                git_branch: None,
+                started_in: None,
+                by_script: false,
+                title: prompt_title(&self.title, 120),
+                opening: title_from(&self.title, 120),
+                started_ms: Some(self.created_ms),
+                last_ms: Some(self.updated_ms),
+                tokens,
+                id: self.id,
+            },
+        }
+    }
+}
+
+/// Each session's id and last change, in `sessions`' order (the watcher's
+/// list).
+pub(crate) fn changes(sessions: impl IntoIterator<Item = StoreSession>) -> Vec<(String, i64)> {
+    sessions
+        .into_iter()
+        .map(|session| (session.id, session.updated_ms))
+        .collect()
+}
+
+/// The one session of `sessions` in the store `db` that ran in `cwd`,
+/// created at or after `since_ms` (two seconds' slack), and not already
+/// linked (`taken`): its [`store_ref`] and id. Two candidates is an
+/// honest `None`, never a guess.
+pub(crate) fn locate_one(
+    db: &Path,
+    cwd: &Path,
+    since_ms: i64,
+    taken: &[std::path::PathBuf],
+    sessions: impl IntoIterator<Item = StoreSession>,
+) -> Option<(std::path::PathBuf, String)> {
+    let mut found = sessions
+        .into_iter()
+        .filter(|session| session.created_ms >= since_ms.saturating_sub(2_000))
+        .filter(|session| crate::claude_code::same_folder(&session.directory, cwd))
+        .map(|session| (store_ref(db, &session.id), session.id))
+        .filter(|(reference, _)| !taken.contains(reference));
+    let first = found.next()?;
+    found.next().is_none().then_some(first)
+}
+
+/// Each session in a store, `(id, last changed in epoch ms)`, newest
+/// first; an error when the store can't be read this time.
+pub(crate) type StoreSessions = fn(&Path) -> Result<Vec<(String, i64)>, String>;
+
+/// Polls a tool's store for its sessions: a new id is `Discovered`, a
+/// newer change time is `MessageAppended`, each linked by [`store_ref`].
+/// Read-only; an unreadable store yields nothing (watching degrades,
+/// never crashes).
+pub(crate) struct StoreWatcher {
+    db: std::path::PathBuf,
+    list: StoreSessions,
+    seen: std::collections::BTreeMap<String, i64>,
+    pending: std::collections::VecDeque<juggler_adapter::SessionEvent>,
+}
+
+impl StoreWatcher {
+    /// A watcher of the store at `db`, read by `list`.
+    pub(crate) fn new(db: std::path::PathBuf, list: StoreSessions) -> Self {
+        Self {
+            db,
+            list,
+            seen: std::collections::BTreeMap::new(),
+            pending: std::collections::VecDeque::new(),
+        }
+    }
+}
+
+impl juggler_adapter::SessionWatcher for StoreWatcher {
+    fn poll(
+        &mut self,
+        _timeout: std::time::Duration,
+    ) -> Result<Option<juggler_adapter::SessionEvent>, juggler_adapter::AdapterError> {
+        use juggler_adapter::SessionEvent;
+        if self.pending.is_empty()
+            && let Ok(sessions) = (self.list)(&self.db)
+        {
+            for (id, changed_ms) in sessions.into_iter().rev() {
+                let transcript_path = store_ref(&self.db, &id);
+                match self.seen.insert(id.clone(), changed_ms) {
+                    None => self.pending.push_back(SessionEvent::Discovered {
+                        native_id: id,
+                        transcript_path,
+                    }),
+                    Some(before) if before < changed_ms => {
+                        self.pending.push_back(SessionEvent::MessageAppended {
+                            native_id: id,
+                            transcript_path,
+                        });
+                    }
+                    Some(_) => {}
+                }
+            }
+        }
+        Ok(self.pending.pop_front())
+    }
+}
+
+#[cfg(test)]
+#[allow(
+    clippy::disallowed_methods,
+    reason = "a fixture tool's store, written as the tool itself writes it"
+)]
+mod tests {
+    use super::open_tool_store;
+
+    /// A tool's store in WAL mode, closed (no `-wal`, no `-shm` beside
+    /// it), as ZCode's is when ZCode isn't running.
+    fn closed_wal_store(dir: &std::path::Path) -> std::path::PathBuf {
+        let db = dir.join("db.sqlite");
+        let conn = rusqlite::Connection::open(&db).unwrap();
+        conn.execute_batch(
+            "PRAGMA journal_mode = WAL; CREATE TABLE session (id TEXT PRIMARY KEY);
+             INSERT INTO session VALUES ('sess_1');",
+        )
+        .unwrap();
+        drop(conn);
+        assert!(
+            !dir.join("db.sqlite-wal").exists(),
+            "a clean close leaves no log"
+        );
+        db
+    }
+
+    #[test]
+    fn a_closed_tools_store_opens_and_nothing_is_written_beside_it() {
+        let dir = tempfile::tempdir().unwrap();
+        let db = closed_wal_store(dir.path());
+        let before = std::fs::read(&db).unwrap();
+        let conn = open_tool_store(&db, "ZCode").unwrap();
+        let id: String = conn
+            .query_row("SELECT id FROM session", [], |row| row.get(0))
+            .unwrap();
+        assert_eq!(id, "sess_1");
+        drop(conn);
+        let mut beside: Vec<_> = std::fs::read_dir(dir.path())
+            .unwrap()
+            .map(|entry| entry.unwrap().file_name())
+            .collect();
+        beside.sort();
+        assert_eq!(
+            beside,
+            ["db.sqlite"],
+            "no -wal or -shm made in the tool's folder"
+        );
+        assert_eq!(std::fs::read(&db).unwrap(), before, "not a byte changed");
+    }
+
+    #[test]
+    fn a_running_tools_log_is_joined() {
+        let dir = tempfile::tempdir().unwrap();
+        let db = closed_wal_store(dir.path());
+        // The tool running: its connection holds the log open, with a row
+        // only the log has yet.
+        let tool = rusqlite::Connection::open(&db).unwrap();
+        tool.execute_batch("PRAGMA wal_autocheckpoint = 0; INSERT INTO session VALUES ('sess_2');")
+            .unwrap();
+        assert!(dir.path().join("db.sqlite-wal").exists());
+        let conn = open_tool_store(&db, "ZCode").unwrap();
+        let count: i64 = conn
+            .query_row("SELECT count(*) FROM session", [], |row| row.get(0))
+            .unwrap();
+        assert_eq!(count, 2, "the log's row is read");
+    }
+
+    #[test]
+    fn a_missing_store_says_so() {
+        let dir = tempfile::tempdir().unwrap();
+        let error = open_tool_store(&dir.path().join("db.sqlite"), "ZCode").unwrap_err();
+        assert!(error.starts_with("no ZCode database at "), "{error}");
+    }
+}

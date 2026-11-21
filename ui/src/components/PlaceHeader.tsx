@@ -18,9 +18,9 @@ import { AppIcon } from "./AppIcon";
 import { AppKindBadge } from "./AppKindBadge";
 import { useFitWhole } from "./use-fit-whole";
 import { appKindOfKey } from "../lib/app-kind";
-import { FoldButton } from "./rail-groups";
+import { FoldButton, HeadNeeds, headNeedsWords } from "./rail-groups";
 import { IconUpRight } from "./icons-places";
-import { IconAlert } from "./icons";
+import { appTone, type AttentionLevel } from "../lib/attention";
 import { DROP, Grip, type Arrangeable } from "./RowTools";
 import type { RailPlace } from "../lib/rail-items";
 
@@ -45,10 +45,24 @@ export function PlaceHeader({
   onRecent,
   onRestart,
   roomOf,
+  roomApp = null,
   onWarm,
   foldable = true,
   recent = null,
+  level = 0,
+  probably = false,
+  lit = false,
+  broken = [],
 }: {
+  /** D-117: each L3 thing's word here, said in its name (its red dot is
+   * decoration): "2 need you, 1 stopped with an error". */
+  broken?: readonly string[];
+  /** D-117: the highest level of what needs you here (its count's mark),
+   * a ring when every one is a guess; `lit`: it is current (a row of it
+   * is open). At L2/L3 or lit, its icon is in full colour. */
+  level?: AttentionLevel;
+  probably?: boolean;
+  lit?: boolean;
   /** 0.4.3: an App with something open: its past ones' count, shown on
    * hover and focus ("+3 recent", muted, as its count); a click shows them
    * under it, in place, and it stays shown while they do. */
@@ -62,6 +76,9 @@ export function PlaceHeader({
   /** 0.4.1: the folder whose Account's room it marks when out or low
    * ("Out · 9:06 PM", `RoomChip`). */
   roomOf?: string | null;
+  /** AJ-E3210: the desktop App the header is (its mark is its own
+   * Account's, not its folder's CLI's). */
+  roomApp?: string | null;
   place: RailPlace | null;
   label: string;
   count: number;
@@ -93,7 +110,7 @@ export function PlaceHeader({
   // ADR-0032: an App that runs with nothing open in it says so, folded or
   // not (its last ones may show under it, 0.4.3).
   const empty = count === 0 && folded === null;
-  const mark = useRoomMark(roomOf);
+  const mark = useRoomMark(roomOf, [], roomApp);
   const room = mark ? <RoomChip mark={mark} iconOnly testId="place-room" /> : null;
   const [menu, setMenu] = useState<MenuAt | null>(null);
   const extra = useRef<HTMLSpanElement | null>(null);
@@ -114,8 +131,10 @@ export function PlaceHeader({
       }}
       onPointerEnter={onWarm}
       onFocus={onWarm}
-      className={"group/head flex h-[30px] min-w-0 items-center gap-0.5 rounded-md pr-1" + (arrange?.dragging ? " opacity-50" : "") + (arrange?.drop ? DROP[arrange.drop] : "")}
+      className={"tone-host group/head flex h-[30px] min-w-0 items-center gap-0.5 rounded-md pr-1" + (arrange?.dragging ? " opacity-50" : "") + (arrange?.drop ? DROP[arrange.drop] : "")}
       data-testid="place-header"
+      data-lit={level >= 2 || lit ? "true" : undefined}
+      data-level={needs > 0 ? level : undefined}
       data-place={place?.key}
       data-order-head={arrange?.group}
     >
@@ -130,44 +149,56 @@ export function PlaceHeader({
         className="relative flex min-h-6 min-w-0 flex-1 items-center gap-1.5 rounded-md px-1 py-1 text-left outline-none hover:bg-surface/60 focus-visible:ring-1 focus-visible:ring-accent/60"
       >
         {/* 0.4.3: its Out or low mark in its name too (the mark itself is drawn aria-hidden). */}
-        <span className="sr-only">{[folded ?? `${name}, ${empty ? "nothing open" : `${count} open`}${needs > 0 ? `, ${needs} need you` : ""}`, mark?.title].filter(Boolean).join(", ")}</span>
+        <span className="sr-only">{[folded ?? `${name}, ${empty ? "nothing open" : `${count} open`}${needs > 0 ? `, ${headNeedsWords(needs, broken)}` : ""}`, mark?.title].filter(Boolean).join(", ")}</span>
         <span aria-hidden="true" className="flex min-w-0 flex-1 items-center gap-[3px]">
           {/* D-100: its kind beside its icon (a window, or >_), never over it. */}
           {children ?? (place && (
             <>
-              <AppIcon appId={place.appId} appPid={place.appPid} name={place.app} size={16} />
+              <AppIcon appId={place.appId} appPid={place.appPid} name={place.app} size={16} className={appTone(level >= 2 || lit)} />
               <AppKindBadge kind={appKindOfKey(place.key)} />
             </>
           ))}
-          {place?.profile && <ProfileBadge app={place.key} name={place.profile} size={6} />}
-          {/* D-100 (the 0.4.2 review): the App's own name gives way last.
-              It takes its own width (cut, at its end, its full name on
-              hover, only when nothing else is left to give); its secondary
-              words (its app's word, a folded App's summary) take what's
-              left, each whole or hidden (the kind mark
-              already says Desktop or CLI), "nothing open" before the app
-              word; the marks after it give way first, to their icon. */}
-          <span className="ml-0.5 min-w-0 truncate text-label font-semibold leading-[18px] text-ink" data-testid={place?.profile ? "place-profile" : undefined} title={name}>
+          {place?.profile && <ProfileBadge app={place.key} name={place.profile} size={6} className={appTone(level >= 2 || lit)} />}
+          {/* D-118's mock (round 3): the account, then the app, always
+              ("Work Max Claude app", "Work Max Claude Code CLI"): two Apps
+              on one Account read "Work Max" twice when the app word gave
+              way, told apart by their icons alone. Both take their own
+              width (cut at their end, the whole name on hover, only when
+              nothing else is left to give). An App with no profile
+              (ChatGPT) is its name alone. */}
+          <span className={"ml-0.5 min-w-0 truncate text-label font-semibold leading-[18px] text-ink" + (place?.profile ? " shrink-0 max-w-[55%]" : "")} data-testid={place?.profile ? "place-profile" : undefined} title={name}>
             {place?.profile ?? label}
           </span>
-          <span ref={extra} className="flex h-[18px] min-w-0 flex-1 basis-0 items-center gap-x-[3px] overflow-hidden" data-testid="place-name-line">
-            {place?.profile && <span className="shrink-0 whitespace-nowrap text-label leading-[18px] text-muted" data-testid="place-app-word">{label}</span>}
-            {folded !== null && needs === 0 && <span className="shrink-0 whitespace-nowrap text-label leading-[18px] text-muted">{folded.slice(folded.indexOf("·") + 1).trim()}</span>}
-            {/* 0.4.4: placed first, so it wins over the app word (the kind mark and icon say the app). */}
-            {empty && <span className="shrink-0 whitespace-nowrap text-label leading-[18px] text-muted" data-testid="place-nothing-open" data-fit="first">nothing open</span>}
-          </span>
-          {/* What the amber count is, on the chip itself (the review of
-              0.1.4: an unexplained "1"): the Needs you mark and a tooltip. */}
-          {needs > 0 && (
-            <span title={`${needs} here ${needs === 1 ? "needs" : "need"} you: ${needs === 1 ? "it's" : "they're"} at the top, under Needs you`} className="inline-flex min-w-[20px] shrink-[1000] items-center gap-0.5 overflow-hidden rounded-full bg-warning-soft px-1 text-label font-semibold leading-[18px] tabular-nums text-warning" data-testid="place-needs">
-              <IconAlert width={10} height={10} aria-hidden="true" />
-              {needs}
+          {place?.profile && (
+            // AJ-E3603: the app word gives way first: the profile is whole
+            // up to half the line or so (max 55 %), so a cut header reads
+            // "Work Max Claude Cod…", never "Work … Claude Cod…" (the 0.4.1
+            // gate's "Wor…").
+            <span className="min-w-0 truncate whitespace-nowrap text-label leading-[18px] text-muted" data-testid="place-app-word" title={name}>
+              {label}
             </span>
           )}
-          {/* 0.4.1: out of room or low, its mark; the count steps aside
-              for it (its rows show what's open; the name above keeps it),
-              so the profile's name keeps its room. */}
-          {room ?? (folded === null && !empty && <span className="min-w-0 shrink-[1000] overflow-hidden text-label tabular-nums text-muted" title={`${count} open here`}>{count}</span>)}
+          {/* D-100: what's left after the name holds the rest, each whole or
+              hidden (its spoken name says them all): its needs' mark first
+              (D-117; the loud copy is Needs you's row), "nothing open"
+              (0.4.4), a folded App's summary, then its Out or low mark
+              (0.4.1; the count steps aside for it) or its count, at the
+              end. */}
+          {/* AJ-E3603 (R15): its needs' mark always has its room: the names
+              give way for it (cut at their end, whole on hover), as the
+              mock draws "Work Max Claude Code ○ 1 3"; at the rail's 264 px
+              "Personal Claude Code CLI" left it none, so a group that
+              needed you never said so. */}
+          <span ref={extra} style={needs > 0 ? { minWidth: `calc(19px + ${String(needs).length}ch)` } : undefined} className={"flex h-[18px] min-w-0 flex-1 basis-0 items-center gap-x-[3px] overflow-hidden text-label tabular-nums" + (folded === null && !empty ? " justify-end" : "")} data-testid="place-name-line">
+            {folded !== null && needs === 0 && <span className="shrink-0 whitespace-nowrap text-label leading-[18px] text-muted">{folded.slice(folded.indexOf("·") + 1).trim()}</span>}
+            {empty && <span className="shrink-0 whitespace-nowrap text-label leading-[18px] text-muted" data-testid="place-nothing-open" data-fit="first">nothing open</span>}
+            {needs > 0 && (
+              <span className="flex shrink-0" data-fit="first">
+                <HeadNeeds needs={needs} level={level} probably={probably} />
+              </span>
+            )}
+            {room ? <span className="flex shrink-0">{room}</span> : folded === null && !empty && <span className="shrink-0 text-label tabular-nums text-muted" title={`${count} open here`}>{count}</span>}
+          </span>
         </span>
       </button>
       {arrange?.enabled && (

@@ -11,6 +11,7 @@ import { call, listen } from "./transport";
 import { listenWhileShown } from "../shown-window";
 import { hasLiveBackend } from "../bridge";
 import { pageOf, type Page, type PageRequest } from "../paged";
+import { counted, noticeLevel } from "../attention";
 import type { NeedSnoozeInfo } from "../../types/generated/NeedSnoozeInfo";
 import type { NoticeInfo } from "../../types/generated/NoticeInfo";
 import type { NoticeMuteInfo } from "../../types/generated/NoticeMuteInfo";
@@ -19,7 +20,10 @@ import type { NoticeSummaryInfo } from "../../types/generated/NoticeSummaryInfo"
 export type { NeedSnoozeInfo, NoticeInfo, NoticeMuteInfo, NoticeSummaryInfo };
 
 /** A need as the preview's stand-in for the backend hands it over. */
-export type StandInNeed = Pick<NoticeInfo, "kind" | "title" | "detail" | "project_id" | "project" | "target" | "action"> & { key: string };
+/** `since`: when the thing itself began to wait (an agent's message's
+ * time), the time the backend's tick first writes it within seconds of;
+ * else the stand-in spaces its rows a minute apart. */
+export type StandInNeed = Pick<NoticeInfo, "kind" | "title" | "detail" | "project_id" | "project" | "target" | "action"> & { key: string; since?: number };
 
 export type NoticeSection = "needs" | "earlier" | "banners";
 
@@ -93,8 +97,9 @@ function summaryOf(s: Stand): NoticeSummaryInfo {
   const quota = open.filter((row) => row.kind === "quota" && row.facts.resets_at_ms !== null).sort((a, b) => (a.facts.resets_at_ms ?? 0) - (b.facts.resets_at_ms ?? 0))[0];
   const count = (kind: string) => earlier.filter((row) => row.kind === kind).length;
   return {
-    // D-49: a snoozed need is out of the count until it wakes.
-    count: open.filter((row) => !row.snoozed).length,
+    // D-49: a snoozed need is out of the count until it wakes. D-117:
+    // only what waits or broke (L2, L3), as the backend counts.
+    count: open.filter((row) => !row.snoozed && counted(noticeLevel(row))).length,
     unread: open.filter((row) => row.unread).length + earlier.filter((row) => row.unread).length,
     snoozed: open.filter((row) => row.snoozed).length,
     muted: open.filter((row) => row.muted).length,
@@ -164,7 +169,7 @@ export function standInNeeds(needs: StandInNeed[]): NoticeSummaryInfo {
     const kept = s.keys.get(need.key);
     const row: NoticeInfo = kept
       ? { ...kept, kind: need.kind, title: need.title, detail: need.detail, project_id: need.project_id, project: need.project, target: need.target, action: need.action }
-      : { id: (s.next += 1), kind: need.kind, needs: true, title: need.title, detail: need.detail, project_id: need.project_id, project: need.project, target: need.target, facts: { window: null, resets_at_ms: null, sessions: null, version: null, channel: null, attempt: null, tries: null, account: null }, action: need.action, meter: null, created_ms: Date.now() - (needs.length - index) * 60_000, unread: true, subject: need.key, snoozed: false, snoozed_until_ms: null, muted: false, dismissed: false };
+      : { id: (s.next += 1), kind: need.kind, needs: true, title: need.title, detail: need.detail, project_id: need.project_id, project: need.project, target: need.target, facts: { window: null, resets_at_ms: null, sessions: null, version: null, channel: null, attempt: null, tries: null, account: null }, action: need.action, meter: null, created_ms: need.since ?? Date.now() - (needs.length - index) * 60_000, unread: true, subject: need.key, snoozed: false, snoozed_until_ms: null, muted: false, dismissed: false };
     keys.set(need.key, row);
     return row;
   });

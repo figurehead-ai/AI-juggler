@@ -33,6 +33,7 @@ import type { AccountInfo } from "../types/generated/AccountInfo";
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import type { ProjectInfo } from "../types/generated/ProjectInfo";
 import { OutsideSearchLink } from "../components/OutsideSearchSetting";
+import { SELECTED } from "../components/controls/selected";
 import { FacetChips, type FacetChip } from "../components/related/FacetChips";
 import { useBelongs } from "../components/related/local";
 import { NO_FILTERS, filtersOn, passesChosen, type FacetKind, type Filters } from "../components/related/order";
@@ -289,7 +290,7 @@ export function History({
               role="tab"
               aria-selected={list === tab.id}
               onClick={() => setList(tab.id)}
-              className={"rounded-md px-3 py-1 text-meta font-medium " + (list === tab.id ? "bg-surface-3 text-ink" : "text-muted hover:text-ink")}
+              className={"rounded-md px-3 py-1 text-meta " + (list === tab.id ? SELECTED : "font-medium text-muted hover:text-ink")}
               data-testid={`history-tab-${tab.id}`}
             >
               {tab.label}

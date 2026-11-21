@@ -73,11 +73,7 @@ pub fn scan_claude_environment(
     manager_roots: &[PathBuf],
     login_probe: &dyn Fn(&Path) -> LoginProbe,
 ) -> Vec<DiscoveredInstall> {
-    let mut candidates: Vec<(PathBuf, InstallOrigin)> =
-        vec![(home.join(".claude"), InstallOrigin::VendorDefault)];
-    if let Some(override_path) = env_override {
-        candidates.push((override_path.to_path_buf(), InstallOrigin::EnvOverride));
-    }
+    let mut candidates = crate::common::home::default_candidates(home, ".claude", env_override);
     // Other manager tools keep whole profile roots; each direct child that
     // looks like a config is one of their profiles.
     for root in manager_roots {
@@ -87,18 +83,12 @@ pub fn scan_claude_environment(
             }
         }
     }
-    if let Ok(entries) = std::fs::read_dir(home) {
-        for entry in entries.flatten() {
-            let name = entry.file_name();
-            let Some(name) = name.to_str() else { continue };
-            // Manual / other-tool / AI-created setups: anything dot-prefixed
-            // starting with `.claude`, except the default dir itself and
-            // the vendor's `.claude.json` state file.
-            if name.starts_with(".claude") && name != ".claude" && name != ".claude.json" {
-                candidates.push((entry.path(), InstallOrigin::HomePattern));
-            }
-        }
-    }
+    // Manual / other-tool / AI-created setups: anything dot-prefixed
+    // starting with `.claude`, except the default dir itself and the
+    // vendor's `.claude.json` state file.
+    candidates.extend(crate::common::home::home_variants(home, &|name| {
+        name.starts_with(".claude") && name != ".claude" && name != ".claude.json"
+    }));
 
     installs_from(&CLAUDE_LAYOUT, candidates, login_probe, &origin_notes)
 }

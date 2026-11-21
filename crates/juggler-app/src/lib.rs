@@ -1,10 +1,9 @@
 //! Tauri application shell (ADR-0001).
 //!
-//! Hosts the Tauri 2 commands and typed events that connect the webview UI
-//! (React + `TypeScript`) to the Rust core, plus updater wiring (M5) and the
-//! desktop entry point. The UI is a view: it holds no business logic; all
-//! state originates in Rust and arrives as pre-aggregated, typed events
-//! (`docs/plan/QUALITY.md` §4).
+//! Hosts the Tauri 2 commands and typed events that connect the webview UI (React +
+//! `TypeScript`) to the Rust core, plus updater wiring (M5) and the desktop entry point. The
+//! UI is a view: it holds no business logic; all state originates in Rust and arrives as
+//! pre-aggregated, typed events (`docs/plan/QUALITY.md` §4).
 //!
 //! Must not know: any tool's files, names or formats (it asks the adapters)
 //! or an operating system's specifics (it asks juggler-platform).
@@ -27,13 +26,13 @@ pub mod crash;
 pub mod crash_native;
 #[cfg(any(crash_sender, test))]
 pub mod crash_send;
+pub mod crash_sentry;
 pub mod crossmachine;
 pub mod ids;
 pub mod startup;
 #[cfg(test)]
 mod test_support;
-// The read-only test bridge (docs/qa/DEV-BRIDGE.md): debug builds with
-// the `dev-bridge` feature only.
+// The read-only test bridge (docs/qa/DEV-BRIDGE.md): debug builds with the `dev-bridge` feature only.
 #[cfg(all(debug_assertions, feature = "dev-bridge"))]
 pub mod dev_bridge;
 pub mod edition;
@@ -95,8 +94,7 @@ compile_error!("the `dev-bridge` feature is for debug builds only (docs/qa/DEV-B
 use crate::events::{AppEvent, EmitEvent as _};
 use std::sync::Arc;
 
-/// Name of the event emitted once the backend is ready; the payload is
-/// the `AppInfo` value.
+/// Name of the event emitted once the backend is ready; the payload is the `AppInfo` value.
 pub const EVENT_APP_READY: &str = AppEvent::AppReady.name();
 
 /// Name of the event carrying the refreshed session list.
@@ -108,25 +106,21 @@ pub const EVENT_SESSIONS_RESOURCES: &str = AppEvent::SessionsResources.name();
 /// This Mac (AJ-E1403) on the 5 s resource cadence.
 pub const EVENT_THIS_MAC: &str = AppEvent::ThisMac.name();
 
-/// Name of the 30 s quota tick (I-05 deltas, AJ-E401): one coalesced
-/// payload per tick; per-Instance `quota` stays `null` until a feed
-/// exists (AJ-E606+).
+/// Name of the 30 s quota tick (I-05 deltas, AJ-E401): one coalesced payload per tick;
+/// per-Instance `quota` stays `null` until a feed exists (AJ-E606+).
 pub const EVENT_SESSIONS_QUOTA: &str = AppEvent::SessionsQuota.name();
 
-/// Name of the event emitted when the global "Go to instance…"
-/// hotkey fires (AJ-E414 Req.4): the payload is empty — the UI lists
-/// live instances itself.
+/// Name of the event emitted when the global "Go to instance…" hotkey fires (AJ-E414
+/// Req.4): the payload is empty — the UI lists live instances itself.
 pub const EVENT_GO_TO: &str = AppEvent::GoTo.name();
 
 /// The app-settings key holding the "Go to instance…" hotkey binding.
 pub const GO_TO_HOTKEY_KEY: &str = "go_to_hotkey";
 
-/// Name of the live-preview frame event (AJ-E415): payload
-/// `PreviewFrameInfo`.
+/// Name of the live-preview frame event (AJ-E415): payload `PreviewFrameInfo`.
 pub const EVENT_PREVIEW_FRAME: &str = AppEvent::PreviewFrame.name();
 
-/// Name of the live-preview phase event (AJ-E415): payload
-/// `PreviewStateInfo`.
+/// Name of the live-preview phase event (AJ-E415): payload `PreviewStateInfo`.
 pub const EVENT_PREVIEW_STATE: &str = AppEvent::PreviewState.name();
 
 /// How a command treats the app, the Mac and the user's accounts.
@@ -254,6 +248,25 @@ macro_rules! app_commands {
             Write remote::fleet_remote_focus,
             Write remote::fleet_remote_clean,
             Read  overnight::overnight_summary,
+            Read  features::feed::commands::feed_page,
+            Write features::bot::commands::bot_ask,
+            Read  features::bot::commands::bot_page,
+            Read  features::bot::commands::bot_find,
+            Read  features::bot::commands::bot_count,
+            Write features::bot::commands::bot_new_topic,
+            Write features::bot::commands::bot_clear,
+            Write features::bot::commands::bot_wrong,
+            Read  features::bot::commands::bot_memories,
+            Write features::bot::commands::bot_forget,
+            Read  features::watches::commands::watches_list,
+            Read  features::watches::commands::watches_catalogue,
+            Read  features::watches::commands::watches_preview,
+            Read  features::watches::commands::watches_summary,
+            Write features::watches::commands::watches_create,
+            Write features::watches::commands::watches_update,
+            Write features::watches::commands::watches_pause,
+            Write features::watches::commands::watches_remove,
+            Write features::watches::commands::watches_restore,
             Write overnight::overnight_summary_seen,
             Write parked::instance_park,
             Write lifecycle::instance_mark_reviewed,
@@ -464,6 +477,21 @@ macro_rules! app_commands {
             Write features::cache::commands::cache_set_on,
             Write features::cache::commands::cache_set_limit,
             Write features::cache::commands::cache_clear,
+            Read  features::remote_config::commands::remote_config_values,
+            Read  features::remote_config::commands::remote_config_about,
+            Read  features::notices::commands::notices_list,
+            Write features::notices::commands::notices_dismiss,
+            Read  features::ai::commands::ai_jobs,
+            Write features::ai::commands::ai_beta_set,
+            Write features::ai::commands::ai_job_pick_set,
+            Read  features::ai::models::commands::ai_models_installed,
+            Read  features::ai::models::commands::ai_models_catalog,
+            Write features::ai::models::commands::ai_open_system_page,
+            Write features::ai::models::commands::ai_model_download_start,
+            Write features::ai::models::commands::ai_model_download_cancel,
+            Write features::ai::models::commands::ai_model_remove,
+            Write features::ai::models::commands::ai_model_approve_extra,
+            Write features::ai::models::commands::ai_model_decline_extra,
             Write features::switch::commands::switch_execute,
             Write features::switch::commands::switch_undo,
             Read  features::switch::commands::switch_back_plan,
@@ -1081,6 +1109,8 @@ pub fn run() {
                 app.handle(),
                 &tauri::Manager::state::<Arc<state::AppState>>(app),
             );
+            // AJ-E3814: the watches hear the observation bus from here on.
+            features::watches::runtime::start(&tauri::Manager::state::<Arc<state::AppState>>(app));
             // QA on real data: only with AIJ_DEV_BRIDGE=1, in a debug
             // build with the feature (docs/qa/DEV-BRIDGE.md). Before the
             // read model's first pass: a lab's scope (ADR-0027 conditions
@@ -1111,6 +1141,11 @@ pub fn run() {
             updates::spawn_launch_check(app.handle().clone(), update_state);
             // AJ-E1205: the backup schedule (nothing runs while Cloud
             // backup is off or the recovery code isn't saved).
+            // ADR-0037 §1.5: what a crash left goes; kept copies hold no memory.
+            backup::sweep_kept_copies(
+                &cloud_backup_state.data_dir,
+                juggler_core::model::Timestamp::now().millis(),
+            );
             cloud_backup::spawn_schedule(cloud_backup_state);
             // AJ-E1102: usage stats start only if the user opted in (and
             // no override says off); off creates nothing.
@@ -1201,9 +1236,8 @@ fn hand_over_to_the_running_instance(context: tauri::Context<tauri::Wry>) -> ! {
     );
 }
 
-/// How long a second launch waits for an AI Juggler that holds the data
-/// to answer: one still starting (a quick double-click) opens its socket
-/// within moments.
+/// How long a second launch waits for an AI Juggler that holds the data to answer: one still
+/// starting (a quick double-click) opens its socket within moments.
 const STARTING_WAIT: std::time::Duration = std::time::Duration::from_secs(10);
 
 /// How a second launch's wait for the open AI Juggler ended.

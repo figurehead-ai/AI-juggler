@@ -39,13 +39,19 @@ function board(density: "comfortable" | "compact") {
 }
 
 describe("density in the rail by place", () => {
-  it("Compact draws one-line rows, Comfortable two", async () => {
+  it("both draw one-line rows (D-118's mock): Comfortable 32 px, its where and when on hover; Compact 30 px with the time", async () => {
     const roomy = board("comfortable");
     const roomyBoard = await roomy.findByTestId("place-board");
     expect(roomyBoard.getAttribute("data-density")).toBe("comfortable");
     const roomyRow = roomyBoard.querySelector<HTMLElement>("[data-conversation-id='outside-1']")!.parentElement!;
-    // Two lines, 44 px.
-    expect(roomyRow.innerHTML).toContain("h-[44px]");
+    // One line, 32 px: the title and its state; project and time in its
+    // tooltip and its name, not drawn.
+    expect(roomyRow.innerHTML).toContain("h-[32px]");
+    expect(roomyRow.querySelector("[data-testid='state-word']")?.textContent).toBe("Working");
+    expect(roomyRow.querySelector("[data-testid='row-when']")).toBeNull();
+    const roomyTitle = roomyRow.querySelector<HTMLElement>("[data-testid='row-title']")!;
+    expect(roomyTitle.getAttribute("title")).toMatch(/^Refactor the settings screen — .+ · /);
+    expect(roomyRow.querySelector("button")!.getAttribute("aria-label") ?? roomyRow.querySelector("button")!.textContent).toMatch(/ago|viewed/);
     cleanup();
 
     const tight = board("compact");
@@ -54,7 +60,7 @@ describe("density in the rail by place", () => {
     const tightRow = tightBoard.querySelector<HTMLElement>("[data-conversation-id='outside-1']")!.parentElement!;
     // One line, 30 px: the title and the state's word, the rest in its name.
     expect(tightRow.innerHTML).toContain("h-[30px]");
-    expect(tightRow.innerHTML).not.toContain("h-[44px]");
+    expect(tightRow.innerHTML).not.toContain("h-[32px]");
     expect(tightRow.querySelector("[data-testid='state-word']")?.textContent).toBe("Working");
     expect(tightRow.querySelector("button")!.textContent).toContain("Refactor the settings screen");
   });

@@ -1,0 +1,29 @@
+{
+  "boxes": [
+    [
+      0,
+      0,
+      264,
+      1348
+    ],
+    [
+      1648,
+      8,
+      45,
+      40
+    ],
+    [
+      310,
+      1216,
+      270,
+      24
+    ]
+  ],
+  "checked_by_eye": true,
+  "file": "opencode-3c-second-turn.jpg",
+  "sha256": "01025cbedb6181550f52af458b876bffbeadeb8860c6d156607b1ae714f90410",
+  "size": [
+    1701,
+    1348
+  ]
+}

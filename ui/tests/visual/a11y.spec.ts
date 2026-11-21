@@ -590,7 +590,10 @@ for (const theme of ["dark", "light"] as const) {
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto("/");
     // The notification region renders in the work view (polite
-    // live-region semantics assertable before the modal opens).
+    // live-region semantics assertable before the modal opens). D-118 R2:
+    // past 3 pinned needs it waits behind "+n more need you", one click
+    // away.
+    await page.getByTestId("home-needs-more").click();
     await expect(page.getByTestId("home-need-quota")).toBeVisible();
     // D-87: a due reset reminder is on its session's own page, never in
     // the band over a screen.
@@ -1966,28 +1969,32 @@ for (const theme of ["dark", "light"] as const) {
   });
 }
 
-/** AJ-E1004 a11y (both themes): the morning summary — a labelled
- * region, one button per row, severity in words — scans axe-clean and
- * every row is reachable by keyboard; so is its "Older sessions" line,
- * named by its words (persona D3: the fixture's sessions are older than
- * the card's window). */
+/** AJ-E1004 / D-118 a11y (both themes): the away digest (it replaced the
+ * morning summary card) — a labelled article under the feed's divider,
+ * "Mark all seen" reachable by keyboard — scans axe-clean. */
 for (const theme of ["dark", "light"] as const) {
-  test(`morning summary — axe 0 — ${theme}`, async ({ page }) => {
+  test(`the away digest — axe 0 — ${theme}`, async ({ page }) => {
     await page.addInitScript(
       ({ fixture, theme: t }) => {
         const w = window as unknown as Record<string, unknown>;
         w.__AIJ_FIXTURE__ = fixture;
-        const tr = [{ from: "running", to: "failed", at_ms: Date.now() - 3_600_000 }];
-        w.__AIJ_SUMMARY__ = {
-          since_ms: Date.now() - 9 * 3_600_000,
-          generated_ms: Date.now(),
-          rows: [
-            { session_id: "sess-8", account_label: "Work Max", provider: "claude-code", project: "ai-juggler", group: "crashed", status: "failed", words: "Crashed", transitions: tr, tokens: null, leftovers: 1 },
-            { session_id: "sess-3", account_label: "Personal", provider: "claude-code", project: null, group: "needs_you", status: "waiting_user", words: "Needs you — waiting for an answer", transitions: tr, tokens: 1200, leftovers: 0 },
-          ],
-          counts: { crashed: 1, needs_you: 1 },
-          leftovers: 1,
-        };
+        // A pinned clock: nothing here depends on today's date.
+        const now = new Date(2026, 9, 26, 10, 0, 0).getTime();
+        Date.now = () => now;
+        w.__AIJ_SUMMARY__ = { since_ms: now - 9 * 3_600_000, generated_ms: now, default_window: false, rows: [], counts: {}, leftovers: 0 };
+        const author = { kind: "app", name: null, provider: "claude-code", folder: "claude-work", folder_label: "Work Max", desktop: false };
+        const facts = { project: "ai-juggler", project_id: null, cwd: "/Users/you/Dev/ai-juggler", duration_ms: 600_000, detail: null, attempt: null, tries: null, window: null, resets_at_ms: null, meter: null, sessions: null, credits: null, version: null, from_label: null, from_provider: null, to_label: null, to_provider: null, mechanism: null, fidelity: null, pool: null, pool_id: null, thread: null, thread_count: null, quote: null, change: null, need: null, line: null };
+        const target = { session_id: null, conversation_id: null, account_id: null, project_id: null, page: null, task_id: null, pool_id: null, thread_id: null };
+        const item = (id: string, ago: number, kind: string, subject: string) => ({
+          id, at_ms: now - ago, kind, category: kind === "failed" ? "needs" : "finished", level: kind === "failed" ? 3 : 0, mine: false,
+          coalesce: id, rollup: null, rollup_window_ms: 0, scope: null, subject, author, facts, target,
+        });
+        w.__AIJ_FEED__ = [
+          item("l:1", 1 * 3_600_000, "finished", "Refactor the router"),
+          item("l:2", 2 * 3_600_000, "failed", "Migrate the schema"),
+          item("l:3", 3 * 3_600_000, "finished", "Write the docs"),
+          item("l:4", 20 * 3_600_000, "finished", "Older session"),
+        ];
         localStorage.setItem("aij.theme", t);
         localStorage.setItem("aij.onboarding.dismissed", "1");
         sessionStorage.setItem("aij.ready.skipped", "1");
@@ -1997,14 +2004,13 @@ for (const theme of ["dark", "light"] as const) {
     await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/");
-    await expect(page.getByRole("region", { name: /^Since you last looked, / })).toBeVisible();
-    await page.getByTestId("summary-seen").focus();
-    await page.keyboard.press("Tab");
-    await expect(page.getByTestId("summary-row").first()).toBeFocused();
-    await page.keyboard.press("Tab");
-    await expect(page.getByTestId("summary-row").nth(1)).toBeFocused();
-    await page.keyboard.press("Tab");
-    await expect(page.getByRole("button", { name: "Older sessions: search ⌘K" })).toBeFocused();
+    await expect(page.getByTestId("feed-away")).toBeVisible();
+    await page.getByTestId("feed-digest-item").last().focus();
+    for (let step = 0; step < 4; step++) {
+      if (await page.getByTestId("feed-digest-seen").evaluate((node) => node === document.activeElement)) break;
+      await page.keyboard.press("Tab");
+    }
+    await expect(page.getByTestId("feed-digest-seen")).toBeFocused();
     expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
   });
 }
@@ -2027,8 +2033,8 @@ for (const theme of ["dark", "light"] as const) {
     await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/");
-    // AJ-E1021: the morning triage lives on Home.
-    await expect(page.getByTestId("home").getByRole("region", { name: /Needs you/ })).toBeVisible();
+    // AJ-E1021 / D-118: the triage is Home's pinned zone, "Needs you now".
+    await expect(page.getByTestId("home-needs-now-section").getByRole("region", { name: /Needs you/ })).toBeVisible();
     const rows = page.getByTestId("home").locator("[data-home-row]");
     await rows.first().focus();
     await page.keyboard.press("j");
@@ -2527,16 +2533,17 @@ for (const theme of ["dark", "light"] as const) {
 // Every room mark on that screen (tests/visual/fixtures/home-out.ts)
 // stays inside its card, its words whole: wrapped inside the mark, never
 // cut or hidden.
-test.describe("room marks on Home's narrowest app cards", () => {
+test.describe("room marks on Home's runway rows", () => {
   test.use(HOME_OUT_USE);
   test("stay inside their cards, their words whole — both themes", async ({ page }) => {
     for (const theme of ["dark", "light"] as const) {
       await showHomeOut(page, theme);
-      const marks = page.locator('[data-testid$="room"], [data-testid="room-chip"]');
-      await expect(marks).toHaveCount(4);
+      // D-118: the app rows carry no runway; the marks are the runway rows' Out chips.
+      const marks = page.getByTestId("home-runway-out");
+      await expect(marks).toHaveCount(2);
       const escaped = await marks.evaluateAll((all) =>
         all.flatMap((mark) => {
-          const card = mark.closest("li");
+          const card = mark.closest("[data-testid='home-runway-account']");
           if (!card) return [`${mark.textContent}: in no card`];
           const right = mark.getBoundingClientRect().right;
           const edge = card.getBoundingClientRect().right;

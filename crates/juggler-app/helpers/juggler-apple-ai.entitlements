@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- ADR-0033 §4.1: the Apple helper runs in the App Sandbox with no network
+     entitlement (and nothing else): it reads stdin, writes stdout and talks
+     to the system's on-device model. Signed with it locally
+     (scripts/build_apple_ai_helper.sh, ad hoc) and in the release
+     (scripts/sign_macos.sh, Developer ID). -->
+<plist version="1.0">
+<dict>
+    <key>com.apple.security.app-sandbox</key>
+    <true/>
+</dict>
+</plist>

@@ -4105,10 +4105,10 @@
       ]
     },
     {
-      "tool": "hermes",
+      "tool": "hermes-agent",
       "layer": "cli",
       "product": "Hermes Agent CLI/TUI (Nous Research, `hermes`, repo NousResearch/hermes-agent, MIT)",
-      "support": "planned",
+      "support": "built",
       "checked_version": null,
       "latest_version": "0.22.5",
       "version_feed": {
@@ -4116,7 +4116,7 @@
         "name": "NousResearch/hermes-agent"
       },
       "version_source": "https://github.com/NousResearch/hermes-agent/releases/tag/v0.22.5 (GitHub API, published 2026-10-23); not installed on this Mac (`type -a hermes`: not found)",
-      "checked_at": "2026-10-27",
+      "checked_at": "2026-11-13",
       "research": "hermes-muse.md",
       "capabilities": [
         {
@@ -4144,7 +4144,7 @@
             "https://github.com/NousResearch/hermes-agent/blob/main/website/docs/user-guide/multi-profile-gateways.md",
             "https://github.com/NousResearch/hermes-agent/blob/main/website/docs/developer-guide/session-storage.md"
           ],
-          "ai_juggler_uses": "not used (no adapter yet)"
+          "ai_juggler_uses": "gateway.pid read; a gateway AI Juggler starts runs `gateway run --external-supervisor` in its own process group; `gateway stop` for Hermes' own (AJ-E1607, `hermes_gateway.rs`)"
         },
         {
           "id": "tui-gateway-rpc",
@@ -4208,7 +4208,7 @@
           "sources": [
             "https://github.com/NousResearch/hermes-agent/blob/main/website/docs/reference/cli-commands.md"
           ],
-          "ai_juggler_uses": "not used (no adapter yet)"
+          "ai_juggler_uses": "`hermes usage --json` on the usage cadence, 5-hour and week windows as Hermes reports them (AJ-E1607, `hermes_usage.rs`)"
         },
         {
           "id": "isolation",
@@ -4222,7 +4222,7 @@
             "https://github.com/NousResearch/hermes-agent/blob/main/website/docs/user-guide/multi-profile-gateways.md",
             "https://portal.nousresearch.com/terms"
           ],
-          "ai_juggler_uses": "not used (no adapter yet)"
+          "ai_juggler_uses": "each account its own HERMES_HOME, gateway lock folder (HERMES_GATEWAY_LOCK_DIR) and shared sign-in folder (AJ-E1607, `hermes.rs`)"
         },
         {
           "id": "foreign-home-guard",
@@ -4239,7 +4239,7 @@
             "https://github.com/NousResearch/hermes-agent/blob/main/website/docs/user-guide/features/codex-app-server-runtime.md",
             "https://github.com/NousResearch/hermes-agent/blob/main/website/docs/user-guide/import-from-other-agents.md"
           ],
-          "ai_juggler_uses": "not used (no adapter yet)"
+          "ai_juggler_uses": "every run carries HERMES_MANAGED_DIR = the account's policy folder: auth.adopt_external_logins false, CODEX_HOME and CLAUDE_CONFIG_DIR at empty folders (AJ-E1607, `hermes_guard.rs`)"
         },
         {
           "id": "plugins",
@@ -4341,7 +4341,7 @@
             "https://github.com/NousResearch/hermes-agent/blob/main/website/docs/developer-guide/session-storage.md",
             "https://github.com/NousResearch/hermes-agent/blob/main/website/docs/reference/cli-commands.md"
           ],
-          "ai_juggler_uses": "not used (no adapter yet)"
+          "ai_juggler_uses": "sessions read from state.db, read-only with a format check (AJ-E1607, `hermes_sessions.rs`)"
         },
         {
           "id": "output-read",
@@ -4405,10 +4405,11 @@
           ],
           "ai_juggler_uses": "not used (no adapter yet)"
         }
-      ]
+      ],
+      "notes": "2026-11-13: built from the MIT source at 422ad186 (AJ-E1607, research hermes.md §10); not run live until AJ-E1612."
     },
     {
-      "tool": "hermes",
+      "tool": "hermes-agent",
       "layer": "desktop",
       "product": "Hermes Desktop (Hermes.app, Electron, bundle id com.nousresearch.hermes, Apple Silicon only)",
       "support": "planned",

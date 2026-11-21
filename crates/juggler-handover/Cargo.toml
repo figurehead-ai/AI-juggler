@@ -8,9 +8,9 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
-juggler-adapter = { version = "0.4.0", path = "../juggler-adapter" }
-juggler-core = { version = "0.4.0", path = "../juggler-core" }
-juggler-platform = { version = "0.4.0", path = "../juggler-platform" }
+juggler-adapter = { version = "0.5.0", path = "../juggler-adapter" }
+juggler-core = { version = "0.5.0", path = "../juggler-core" }
+juggler-platform = { version = "0.5.0", path = "../juggler-platform" }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 # AJ-E1507: the rules sync's line diff (Myers, with a deadline).

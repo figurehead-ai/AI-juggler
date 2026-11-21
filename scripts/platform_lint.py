@@ -54,6 +54,9 @@ SEAMS = (
     "crates/juggler-vm-stats/",
     "crates/juggler-proc-list/",
     "crates/juggler-adapter/src/system_tools.rs",
+    # D-131: the local-model helper is a macOS program (Apple silicon,
+    # Metal); its own workspace, never built for another system yet.
+    "crates/juggler-local-ai/",
 )
 SCAN = (("crates", (".rs",)), ("ui/src", (".ts", ".tsx")))
 EXEMPT_PARTS = words.EXEMPT_PARTS + ("/src/bin/fake_", "/build.rs")

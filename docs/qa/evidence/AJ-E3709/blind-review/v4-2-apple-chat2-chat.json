@@ -1,0 +1,112 @@
+[
+ {
+  "pair": "chat2-chat-001",
+  "item": "C203",
+  "question": "When did the quartz-etl session start?",
+  "records": [
+   "[s-q1] session\nSession 'quartz-etl' started 2026-03-04 at 08:30 and is still running.",
+   "[f-q1] fact\nFact: s-q1 runs on project path ~/work/quartz-etl.",
+   "[t-q1] turn\nTurn 3: agent asked which Parquet schema to use."
+  ],
+  "first": "The quartz-etl session started on 2026-03-04 at 08:30. [s-q1]",
+  "second": "[s-q1] session\nSession 'quartz-etl' started 2026-03-04 at 08:30 and is still running.\n[f-q1] fact\nFact: s-q1 runs on project path ~/work/quartz-etl.\n[t-q1] turn\nTurn 3: agent asked which Parquet schema to use."
+ },
+ {
+  "pair": "chat2-chat-002",
+  "item": "C204",
+  "question": "Why did the meadow-bot session stop?",
+  "records": [
+   "[s-m1] session\nSession 'meadow-bot' status: stopped.",
+   "[t-m1a] turn\nTurn 22: agent hit a rate limit (429) from the model provider and paused.",
+   "[t-m1b] turn\nTurn 23: user chose not to retry; session closed.",
+   "[f-m1] fact\nFact: s-m1 used 41k tokens."
+  ],
+  "first": "[s-m1] session\nSession 'meadow-bot' status: stopped.\n[t-m1a] turn\nTurn 22: agent hit a rate limit (429) from the model provider and paused.\n[t-m1b] turn\nTurn 23: user chose not to retry; session closed.\n[f-m1] fact\nFact: s-m1 used 41k tokens.",
+  "second": "The meadow-bot session stopped because the agent hit a rate limit from the model provider and paused. [t-m1a] The session closed because the user chose not to retry. [t-m1b]"
+ },
+ {
+  "pair": "chat2-chat-003",
+  "item": "C205",
+  "question": "Which session is working in /srv/fern/billing?",
+  "records": [
+   "[s-f1] session\nSession 'fern-billing' cwd /srv/fern/billing, agent Claude Code, status active.",
+   "[s-f2] session\nSession 'fern-docs' cwd /srv/fern/docs, agent Codex CLI, status idle.",
+   "[f-f1] fact\nFact: s-f2 last updated README.md."
+  ],
+  "first": "[s-f1] session\nSession 'fern-billing' cwd /srv/fern/billing, agent Claude Code, status active.\n[s-f2] session\nSession 'fern-docs' cwd /srv/fern/docs, agent Codex CLI, status idle.\n[f-f1] fact\nFact: s-f2 last updated README.md.",
+  "second": "The session 'fern-billing' is working in /srv/fern/billing. [s-f1]"
+ },
+ {
+  "pair": "chat2-chat-004",
+  "item": "C208",
+  "question": "What did the agent change in the maple-cli session, and how many lines?",
+  "records": [
+   "[s-p1] session\nSession 'maple-cli'.",
+   "[t-p1a] turn\nTurn 11: edited src/args.rs to add a --quiet flag.",
+   "[f-p1] fact\nFact: turn 11 diff was +18 lines, -4 lines.",
+   "[t-p1b] turn\nTurn 12: user asked for tests, not yet done."
+  ],
+  "first": "The agent edited src/args.rs to add a --quiet flag. [t-p1a] The turn 11 diff was +18 lines, -4 lines. [f-p1]",
+  "second": "[s-p1] session\nSession 'maple-cli'.\n[t-p1a] turn\nTurn 11: edited src/args.rs to add a --quiet flag.\n[f-p1] fact\nFact: turn 11 diff was +18 lines, -4 lines.\n[t-p1b] turn\nTurn 12: user asked for tests, not yet done."
+ },
+ {
+  "pair": "chat2-chat-005",
+  "item": "C219",
+  "question": "How long did the test suite take in the zinc-core session?",
+  "records": [
+   "[s-z1] session\nSession 'zinc-core'.",
+   "[t-z1] turn\nTurn 10: ran cargo test; all 340 tests passed.",
+   "[f-z1] fact\nFact: s-z1 total duration 47 minutes."
+  ],
+  "first": "The zinc-core session total duration was 47 minutes. [f-z1]",
+  "second": "[s-z1] session\nSession 'zinc-core'.\n[t-z1] turn\nTurn 10: ran cargo test; all 340 tests passed.\n[f-z1] fact\nFact: s-z1 total duration 47 minutes."
+ },
+ {
+  "pair": "chat2-chat-006",
+  "item": "C224",
+  "question": "Which session touched the payments module?",
+  "records": [
+   "[s-j1] session\nSession 'jade-shop' edited src/cart.ts.",
+   "[s-j2] session\nSession 'jade-pay' edited src/payments/refund.ts.",
+   "[t-j1] turn\nTurn 6 in s-j1: reviewed src/payments but did not change it."
+  ],
+  "first": "The 'jade-pay' session edited src/payments/refund.ts. [s-j2] Turn 6 in s-j1: reviewed src/payments but did not change it. [t-j1]",
+  "second": "[s-j1] session\nSession 'jade-shop' edited src/cart.ts.\n[s-j2] session\nSession 'jade-pay' edited src/payments/refund.ts.\n[t-j1] turn\nTurn 6 in s-j1: reviewed src/payments but did not change it."
+ },
+ {
+  "pair": "chat2-chat-007",
+  "item": "C225",
+  "question": "Which sessions are active right now?",
+  "records": [
+   "[s-u1] session\nSession 'umber-api' status: active.",
+   "[s-u2] session\nSession 'umber-web' status: finished 08:15.",
+   "[s-u3] session\nSession 'umber-ops' status: active."
+  ],
+  "first": "The 'umber-api' session is active. [s-u1] The 'umber-web' session is finished. [s-u2] The 'umber-ops' session is active. [s-u3]",
+  "second": "[s-u1] session\nSession 'umber-api' status: active.\n[s-u2] session\nSession 'umber-web' status: finished 08:15.\n[s-u3] session\nSession 'umber-ops' status: active."
+ },
+ {
+  "pair": "chat2-chat-008",
+  "item": "C230",
+  "question": "Wann wurde die Sitzung 'erle-sync' beendet?",
+  "records": [
+   "[s-er] session\nSitzung 'erle-sync' beendet am 2026-05-11 um 17:48.",
+   "[f-er] fact\nFakt: s-er lief 2 Stunden.",
+   "[t-er] turn\nZug 30: Agent meldete Abschluss."
+  ],
+  "first": "[s-er] session\nSitzung 'erle-sync' beendet am 2026-05-11 um 17:48.\n[f-er] fact\nFakt: s-er lief 2 Stunden.\n[t-er] turn\nZug 30: Agent meldete Abschluss.",
+  "second": "Die Sitzung 'erle-sync' wurde beendet am 2026-05-11 um 17:48. [s-er]"
+ },
+ {
+  "pair": "chat2-chat-009",
+  "item": "C234",
+  "question": "In welchem Verzeichnis arbeitet die Sitzung 'wald-ops'?",
+  "records": [
+   "[s-wa] session\nSitzung 'wald-ops', Verzeichnis /srv/wald/ops, aktiv.",
+   "[s-wb] session\nSitzung 'wald-web', Verzeichnis /srv/wald/web, beendet.",
+   "[f-wa] fact\nFakt: s-wa wurde um 08:00 gestartet."
+  ],
+  "first": "[s-wa] session\nSitzung 'wald-ops', Verzeichnis /srv/wald/ops, aktiv.\n[s-wb] session\nSitzung 'wald-web', Verzeichnis /srv/wald/web, beendet.\n[f-wa] fact\nFakt: s-wa wurde um 08:00 gestartet.",
+  "second": "Die Sitzung 'wald-ops' arbeitet im Verzeichnis /srv/wald/ops. [s-wa]"
+ }
+]

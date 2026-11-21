@@ -21,6 +21,7 @@ import { cliAppName } from "../../lib/app-name";
 import { errorText } from "../../lib/bridge";
 import { subscriptionsSetTerm, type SubscriptionInfo, type TermChoiceInfo } from "../../lib/ipc/subscriptions";
 import { chooseWords, choiceQuestion, isTerm, termConsequence, termNoun, termValueWords } from "../../lib/account-terms";
+import { SELECTED_CARD } from "../../components/controls/selected";
 
 /** The value chosen already: of renewal dates (`YYYY-MM-DD`), the
  * later, read after the other renewed; none for a plan or a fee. */
@@ -116,7 +117,7 @@ export function TermChoice({
               aria-pressed={done ? picked : undefined}
               className={
                 "flex min-w-36 cursor-pointer flex-col items-start gap-0.5 rounded-lg border px-3 py-1.5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 disabled:opacity-60 " +
-                (chosen ? "border-accent/60 bg-accent-soft hover:border-accent" : "border-hairline bg-surface-2 hover:border-accent/50 hover:bg-surface-3")
+                (chosen ? SELECTED_CARD : "border-hairline bg-surface-2 hover:border-accent/50 hover:bg-surface-3")
               }
               data-testid="account-term-option"
               data-preferred={option.value === preferred ? "true" : undefined}

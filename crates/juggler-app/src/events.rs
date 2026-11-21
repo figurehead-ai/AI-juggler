@@ -76,6 +76,18 @@ pub enum AppEvent {
     FloorUnavailable,
     /// The Floor's window is asked to open.
     FloorOpenRequest,
+    /// The remote configuration in effect changed, or a notice was
+    /// dismissed (ADR-0035, AJ-E2023).
+    RemoteConfigChanged,
+    /// The AI jobs' answer changed (ADR-0034 §3.4, AJ-E3802): ask `ai_jobs`
+    /// again.
+    AiJobsChanged,
+    /// The AI models on this Mac or the download changed (AJ-E3803,
+    /// AJ-E3813): ask `ai_models_installed` again.
+    AiModelsChanged,
+    /// A model download's progress (carries
+    /// [`crate::features::ai::models::dto::DownloadInfo`]).
+    AiModelsProgress,
     /// What a Go to it or an Open did, after it said it was still on it
     /// (0.4.6, the rc3c walk; carries its `GoToOutcomeInfo` and ticket).
     GoToLate,
@@ -83,7 +95,7 @@ pub enum AppEvent {
 
 impl AppEvent {
     /// Every event, in declaration order.
-    pub const ALL: [Self; 31] = [
+    pub const ALL: [Self; 35] = [
         Self::AppReady,
         Self::SessionsUpdated,
         Self::SessionsResources,
@@ -114,6 +126,10 @@ impl AppEvent {
         Self::FloorChanged,
         Self::FloorUnavailable,
         Self::FloorOpenRequest,
+        Self::RemoteConfigChanged,
+        Self::AiJobsChanged,
+        Self::AiModelsChanged,
+        Self::AiModelsProgress,
         Self::GoToLate,
     ];
 
@@ -151,6 +167,10 @@ impl AppEvent {
             Self::FloorChanged => "floor://changed",
             Self::FloorUnavailable => "floor://unavailable",
             Self::FloorOpenRequest => "floor://open-request",
+            Self::RemoteConfigChanged => "remote-config://changed",
+            Self::AiJobsChanged => "ai://jobs-changed",
+            Self::AiModelsChanged => "ai-models://changed",
+            Self::AiModelsProgress => "ai-models://progress",
             Self::GoToLate => "go-to://late",
         }
     }
@@ -192,19 +212,8 @@ mod tests {
     /// they move over).
     #[test]
     fn nothing_emits_by_a_bare_name() {
-        fn walk(dir: &std::path::Path, out: &mut Vec<std::path::PathBuf>) {
-            for entry in std::fs::read_dir(dir).unwrap().flatten() {
-                let path = entry.path();
-                if path.is_dir() {
-                    walk(&path, out);
-                } else if path.extension().is_some_and(|ext| ext == "rs") {
-                    out.push(path);
-                }
-            }
-        }
         let src = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src");
-        let mut files = Vec::new();
-        walk(&src, &mut files);
+        let files = crate::test_support::rust_files(&src);
         let mut bare = Vec::new();
         for file in files {
             let rel = file

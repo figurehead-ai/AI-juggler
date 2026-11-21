@@ -1,0 +1,6 @@
+{
+ "family": "qwen3-4b-instruct-2507",
+ "job": "attention",
+ "note": "script flags: candidates for Opus to confirm by eye, never verdicts",
+ "candidates": []
+}

@@ -1,0 +1,160 @@
+{
+ "family": "nemotron",
+ "job": "digest",
+ "note": "script flags: candidates for Opus to confirm by eye, never verdicts",
+ "candidates": [
+  {
+   "class": "omission",
+   "detector": "must_surface_missed",
+   "detail": "\"r3d17-a (dove-sched): time library switch reverted, old library in place\"",
+   "stage": "shown",
+   "agent": null,
+   "id": "R3-D17",
+   "corpus": "digest5r3"
+  },
+  {
+   "class": "omission",
+   "detector": "must_surface_missed",
+   "detail": "\"r3d25-a (glen-search): vector index experiment discarded, only a faster tokenizer remains\"",
+   "stage": "shown",
+   "agent": null,
+   "id": "R3-D25",
+   "corpus": "digest5r3"
+  },
+  {
+   "class": "omission",
+   "detector": "must_surface_missed",
+   "detail": "\"r3d28-a (stag-hub): three of four tasks done, retry banner still has a layout bug on narrow screens\"",
+   "stage": "shown",
+   "agent": null,
+   "id": "R3-D28",
+   "corpus": "digest5r3"
+  },
+  {
+   "id": "R3-D03",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "item for a2: 2b: content word(s) not in the text: the",
+   "stage": "caught",
+   "corpus": "digest5r3"
+  },
+  {
+   "id": "R3-D04",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_agent",
+   "detail": "item for a1: attribution: 'the new parser is 22 percent faster at p' holds a2's work, not a1's (invented: number 22, number 50; 2b: content word(s) not in the text: faster, parser, percent)",
+   "stage": "caught",
+   "corpus": "digest5r3"
+  },
+  {
+   "id": "R3-D08",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "item for a1: 2b: content word(s) not in the text: vollständig",
+   "stage": "caught",
+   "corpus": "digest5r3"
+  },
+  {
+   "id": "R3-D08",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "item for a1: 2b: content word(s) not in the text: vollständig",
+   "stage": "caught",
+   "corpus": "digest5r3"
+  },
+  {
+   "id": "R3-D08",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "item for a1: 2b: content word(s) not in the text: vollständig",
+   "stage": "caught",
+   "corpus": "digest5r3"
+  },
+  {
+   "id": "R3-D12",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "item for a1: 2b: content word(s) not in the text: bond, driver, erased, the",
+   "stage": "caught",
+   "corpus": "digest5r3"
+  },
+  {
+   "id": "R3-D12",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "item for a1: 2b: content word(s) not in the text: are, running",
+   "stage": "caught",
+   "corpus": "digest5r3"
+  },
+  {
+   "id": "R3-D12",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "item for a1: 2b: content word(s) not in the text: driver, erased, the",
+   "stage": "caught",
+   "corpus": "digest5r3"
+  },
+  {
+   "id": "R3-D12",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "item for a1: 2b: content word(s) not in the text: are, running",
+   "stage": "caught",
+   "corpus": "digest5r3"
+  },
+  {
+   "id": "R3-D12",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "item for a1: 2b: content word(s) not in the text: driver, erased, the",
+   "stage": "caught",
+   "corpus": "digest5r3"
+  },
+  {
+   "id": "R3-D27",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "outcome_against_facts",
+   "detail": "item for a3: verdict: stuck, but no stuck event of a3",
+   "stage": "caught",
+   "corpus": "digest5r3"
+  },
+  {
+   "id": "R3-D29",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "item for a3: 2b: content word(s) not in the text: ouvre",
+   "stage": "caught",
+   "corpus": "digest5r3"
+  },
+  {
+   "id": "R3-D29",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "item for a3: 2b: content word(s) not in the text: ouvre",
+   "stage": "caught",
+   "corpus": "digest5r3"
+  },
+  {
+   "id": "R3-D29",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "item for a3: 2b: content word(s) not in the text: ouvre",
+   "stage": "caught",
+   "corpus": "digest5r3"
+  }
+ ]
+}

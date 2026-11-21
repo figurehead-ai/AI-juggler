@@ -87,7 +87,7 @@ async function seed(page: Page, machine: string, alerts: unknown[], theme: "dark
   await page.goto("/");
 }
 
-/** Opens a session from the rail: the screens the banner is for. */
+/** Opens a session from the rail: a page an overload banner once sat over. */
 async function openSession(page: Page, title: RegExp) {
   // AJ-E2104: the rows named by state first are the place lens's; these
   // read the project board's. (The lens reloads the page, so the list is
@@ -95,15 +95,6 @@ async function openSession(page: Page, title: RegExp) {
   await projectLens(page);
   await openRailList(page);
   await page.getByTestId("instance-board").getByRole("button", { name: title }).first().click();
-}
-
-/** The banner takes its own space: it ends where the screen begins. */
-async function bannerAbove(page: Page) {
-  const banner = await page.getByTestId("notification-band").boundingBox();
-  const screen = await page.locator("[data-testid='notification-band'] + div").boundingBox();
-  expect(banner && screen).toBeTruthy();
-  expect(banner!.height).toBeGreaterThan(0);
-  expect(banner!.y + banner!.height).toBeLessThanOrEqual(screen!.y + 0.5);
 }
 
 async function axeClean(page: Page) {
@@ -119,8 +110,8 @@ for (const theme of ["dark", "light"] as const) {
     await expect(item).toContainText("Your Mac is under memory pressure");
     await expect(item).toContainText("ai-juggler is using 3.0 GB");
     // Home says it once, in Needs you: no banner; the headline counts it
-    // (AJ-E2105).
-    await expect(page.getByTestId("home-scroll").getByRole("heading", { level: 1 })).toHaveText("1 thing needs you");
+    // (AJ-E2105), its one count and then what it is (D-118).
+    await expect(page.getByTestId("home-scroll").getByRole("heading", { level: 1 })).toHaveText("1 needs you: Your Mac is under memory pressure");
     await expect(page.getByTestId("machine-alert")).toHaveCount(0);
     // (The rail's Needs you lists it too, from the same count: F2.)
     await expect(page.getByTestId("home-scroll").getByText("Your Mac is under memory pressure", { exact: true })).toHaveCount(1);
@@ -138,15 +129,18 @@ for (const theme of ["dark", "light"] as const) {
     await axeClean(page);
   });
 
-  // The 0.0.12 report: the banner overlapped and clipped the headline
-  // under it. On the other screens it takes its own space, at any width.
+  // D-87 (7eb4794cf, the rc4 walk): an overload alert is never a banner
+  // across a page (one came and went under load and moved the page under
+  // the pointer; the 0.0.12 report's clipped the headline under it). Home's
+  // Needs you and the bell tell it; a session's page starts at its own
+  // head, at any width. (Its captures keep their names.)
   for (const width of [1280, 1024]) {
-    test(`overload — the banner above a session, ${width} — ${theme}`, async ({ page }) => {
+    test(`overload — no banner above a session, ${width} — ${theme}`, async ({ page }) => {
       await seed(page, "tight", [MEMORY], theme);
       await page.setViewportSize({ width, height: 800 });
-      await openSession(page, /Fake Desk app Working/);
-      await expect(page.getByTestId("machine-alert")).toContainText("Your Mac is under memory pressure — macOS reports memory pressure");
-      await bannerAbove(page);
+      await openSession(page, /Working, fake-desktop on Fake Desk/);
+      await expect(page.getByRole("main").getByRole("heading", { name: "Sketch the pricing page" }).first()).toBeVisible();
+      await expect(page.getByTestId("machine-alert")).toHaveCount(0);
       await page.screenshot({ path: resolve(OUT, `banner-above-session-${width}x800-${theme}.png`) });
       await axeClean(page);
     });
@@ -154,12 +148,10 @@ for (const theme of ["dark", "light"] as const) {
 
   test(`overload — busy processor, the Claude app — ${theme}`, async ({ page }) => {
     await seed(page, "tight", [CPU], theme);
-    await openSession(page, /Fake Desk app Working/);
-    await expect(page.getByTestId("machine-alert")).toContainText("The Claude app is using CPU 140%");
-    await page.screenshot({ path: resolve(OUT, `busy-cpu-1280x800-${theme}.png`) });
-    // Told once: dismissing clears it, and nothing else is offered.
-    await page.getByTestId("machine-alert").getByRole("button", { name: /^Close/ }).click();
+    // Home's Needs you names it in its adapter's words; no banner.
+    await expect(page.getByTestId("home-need-mac")).toContainText("The Claude app is using CPU 140%");
     await expect(page.getByTestId("machine-alert")).toHaveCount(0);
+    await page.screenshot({ path: resolve(OUT, `busy-cpu-1280x800-${theme}.png`) });
     await axeClean(page);
   });
 

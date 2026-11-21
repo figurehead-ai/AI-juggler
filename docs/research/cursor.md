@@ -1,6 +1,6 @@
 # Research notes: Cursor
 
-Research date: 2026-10-21
+Research date: 2026-10-21; second pass 2026-11-15 (see the last section, which corrects a few lines above)
 
 > Deep dive on Cursor (Anysphere, Inc., now a SpaceX subsidiary) for AI Juggler, covering two surfaces: the **desktop app** (a VS Code fork, `Cursor.app`) and the **Cursor CLI** (`agent`, legacy name `cursor-agent`). It mirrors `codex.md`.
 > Nothing was installed, signed in or executed. No local Cursor state was read. Every claim below was read from the web on the date shown.
@@ -44,7 +44,7 @@ Research date: 2026-10-21
   - extracts it to **`~/.local/share/cursor-agent/versions/<ver>/`**;
   - creates **two symlinks**, `~/.local/bin/agent` (primary) and `~/.local/bin/cursor-agent` (legacy), both pointing at `…/versions/<ver>/cursor-agent`.
 
-  The version format is `YYYY.MM.DD-<shortsha>`, currently **`2026.10.19-6bbf2c4`**. — Source: https://cursor.com/install (accessed 2026-10-21)
+  The version format is `YYYY.MM.DD-<shortsha>`, currently **`2026.10.19-6bbf2c4`** (CORRECTED 2026-11-15: the script now names `2026.11.13-eacade1`). — Source: https://cursor.com/install (accessed 2026-10-21)
 - **[Verified-secondary]** The rename: "The new primary entrypoint is `agent` (`cursor-agent` still works as an alias)." This comes from a forum release post dated 2026-01-09. — Source: https://forum.cursor.com/t/cursor-cli-jan-8-2026-new-commands-and-performance-improvement/148372 (accessed 2026-10-21)
 - **[Negative-evidence]** No rename entry was found in Cursor's own CLI changelog by this search. The current docs use only `agent` (S-01).
 - **[Verified-secondary]** The Homebrew cask `cursor-cli` (2026.10.19-6bbf2c4) links **only `cursor-agent`**, not `agent`, into `$HOMEBREW_PREFIX/bin`. Its zap paths are `~/.config/cursor-agent`, `~/.local/share/cursor-agent` and `~/Library/Logs/CursorAgent`. — Source: https://formulae.brew.sh/api/cask/cursor-cli.json (accessed 2026-10-21)
@@ -386,3 +386,79 @@ All searches and fetches were run on 2026-10-21.
 - **S-11 (local usage file):** Same pages as S-09 and S-10, plus https://cursor.com/docs/cli/changelog (searched for "usage") and the third-party store.db analysis (ashiato #87: no usage in store.db). None found.
 - **S-12 (individual-plan quota API):** Fetched https://cursor.com/docs/api, /docs/account/teams/admin-api, /docs/cloud-agent/api/endpoints and /docs/sdk/typescript. The Admin, Analytics and Usage APIs are Enterprise-team only. The SDK and Cloud APIs report per-agent tokens and cost, not plan allowance.
 - **S-13 (multiple-accounts clause in terms):** Fetched https://cursor.com/terms-of-service (searched for "multiple", "one person", "share your account" and "automated means") and https://cursor.com/acceptable-use-policy twice. WebSearch `cursor.com acceptable use policy Anysphere`. No explicit clause.
+
+## Terms, re-read 2026-11-13
+
+Read for the maintainer's ruling (a Sonnet draft; each quote below checked against its page on Opus the same day). **The ruling:** D-105 gives this tool full support on every plan; this section keeps the vendor's own wording on record beside it.
+
+### What the terms say
+- Acceptable Use Policy, https://cursor.com/acceptable-use-policy ("Last updated August 11, 2026"). Under the bullet "Not complying with laws or regulations, including by:" the list includes: "Accessing the Service through automated or non-human means, whether through a bot, script, or otherwise". Violations may lead to "action against your account, up to suspension or termination". A forum thread asks whether API/SDK use is covered; no official answer found: https://forum.cursor.com/t/is-this-use-of-cursor-cloud-agents-permitted-under-cursor-s-terms/168633
+- CLI headless: https://cursor.com/docs/cli/headless : "Use Cursor CLI in scripts and automation workflows for code analysis, generation, and refactoring tasks." So the CLI's own `-p`/print mode is documented and offered by Cursor itself; docs pair it with an API key.
+- Authentication, https://cursor.com/docs/cli/reference/authentication : browser login (`agent login`) for interactive use; `CURSOR_API_KEY` (or `--api-key`) "for automation, scripts, and CI" (paraphrase of page). `agent status` shows the active account.
+- Multiple accounts: NOT FOUND in CLI docs or Terms (https://cursor.com/terms-of-service, last updated Sept 3, 2026, is silent). Config-dir env var: NOT FOUND in the authentication page (one stored login).
+- Plans (https://cursor.com/pricing, read today): Free, Plus $8, Premium $30, Super $100, Ultra $200, Teams, Enterprise. The "Pro / Pro+" names did NOT appear; tiers now seem sold as The X Subscription (announced 2026-10-12) with a shared Grok/Cursor usage pool: https://cursor.com/help/the-x-subscription/overview . Which plans include CLI: NOT FOUND. A forum report mentions CLI API keys breaking after the 2026-10-13 switch (truncated, unverified).
+
+### What it meant for AI Juggler, before the ruling
+(a) Launching the interactive CLI per account: UNCLEAR. A human typing in a terminal is not "automated"; our app only opens the terminal for the user. No ban on launching it, but no multi-account provision, and no documented per-account home folder.
+(b) Reading local sessions and usage: UNCLEAR (not addressed; no credential reads).
+(c) Headless runs: ALLOWED for the CLI's own print mode (documented for scripts), recommended with an API key.
+
+**The recommendation then:** build for API-key accounts first (clearly documented for automation), plus interactive launch for subscription logins as track-only until Cursor clarifies multi-account use.
+
+## Second pass, 2026-11-15 (AJ-E1609, D-106 undocumented routes)
+
+Reading only. Nothing was installed, signed in or run; Cursor is not on this Mac. Legend as above. Quotes are under 15 words.
+
+### 1. What ships
+- **[Verified-primary]** The CLI install script now names version `2026.11.13-eacade1`. It downloads `https://downloads.cursor.com/lab/<ver>/<darwin|linux>/<x64|arm64>/agent-cli-package.tar.gz`, unpacks into `$HOME/.local/share/cursor-agent/versions/<ver>`, and links both `~/.local/bin/agent` and `~/.local/bin/cursor-agent` to `.../cursor-agent`. It reads `HOME`, `CURSOR_CONFIG_DIR`, `XDG_CONFIG_HOME`, `NO_COLOR`, `SHELL` and `PATH`. The two config variables only place a file called `grok-switch.json`; nothing else on the web names that file, so what it holds is unknown. (CORRECTS the version in section 1.) — Source: https://cursor.com/install (accessed 2026-11-15)
+- **[Verified-primary]** Install, update and version commands are as in section 1: `curl https://cursor.com/install -fsS | bash`, `agent update`, `agent --version`. — Source: https://cursor.com/docs/cli/installation (accessed 2026-10-21)
+- **[Verified-secondary]** The app and the CLI are separate packages. The desktop `cursor` command runs the app's own Electron binary (`Contents/Resources/app/out/cli.js`). The CLI package holds `cursor-agent` and `cursor-askpass` wrappers plus helper binaries (`cursorsandbox`, `crepectl`, `rg`). This answers the old open question: no `agent` binary was found inside Cursor.app. The earlier "bundled CLI" remark in section 1 is likely just the app's own helpers. — Source: https://forum.cursor.com/t/cursor-in-cli-hangs-indefinitely/152204 ; https://forum.cursor.com/t/share-desktop-registers-as-enabled-on-macos-but-no-computer-use-helper-ships-in-2026-08-25/170150 ; https://mirror.iscas.ac.cn/homebrew-bottles/api/cask-source/cursor-cli.rb (accessed 2026-11-15)
+- **[Verified-primary]** Cursor's own CLI reference lists `acp` as a hidden subcommand, so the ACP mode is real but not shown in `--help`. — Source: https://cursor.com/docs/cli/reference/parameters (accessed 2026-11-15)
+
+### 2. Per-account isolation
+- **[Verified-primary]** `CURSOR_CONFIG_DIR` is documented as "custom directory path" for the CLI config; the page names only `cli-config.json` (and its `.bad` backup) as living there. — Source: https://cursor.com/docs/cli/reference/configuration (accessed 2026-11-15)
+- **[Verified-secondary]** Two sources disagree on whether it also moves the sign-in. A reading of the bundle (2026.09.18) says it moves only `cli-config.json` and that the macOS Keychain item is one per computer. A competitor (AgentsRoom) says one directory per account keeps the credentials apart and that a stored login beats an API key without any error. Neither is Cursor's own word, and the AgentsRoom page also says Cursor does not publish where credentials are written. — Source: https://agentsroom.dev/features/cursor-multi-account ; https://github.com/codepawl/orglet/pull/419 (the PR page returned 404 on 2026-11-15; the claim is carried from the 2026-10-21 read) (accessed 2026-11-15)
+- **[Verified-primary]** The authentication page says only that login is "securely stored locally"; it does not mention `AGENT_CLI_CREDENTIAL_STORE`, `CURSOR_CONFIG_DIR`, precedence or several accounts. The file-store switch is in the changelog (section 3). — Source: https://cursor.com/docs/cli/reference/authentication (accessed 2026-11-15)
+- **[Verified-secondary]** Names to expect (from staff, 2026-08-04): Keychain account `cursor-user`, services `cursor-access-token`, `cursor-refresh-token`, `cursor-api-key`; file mode writes `~/.cursor/auth.json`. — Source: https://forum.cursor.com/t/errsecitemnotfound-couldnt-find-your-saved-login-in-the-macos-keychain/167325 (read 2026-10-21)
+- **[Verified-secondary]** The app (a VS Code fork) keeps its own sign-in per `--user-data-dir`; staff: "Each instance keeps its own login." `~/.cursor` stays shared between instances. — Source: https://forum.cursor.com/t/feature-request-multi-account-support-fast-account-switching/166689 (read 2026-10-21)
+- **[Inferred]** Two accounts side by side: for the app, one `--user-data-dir` plus `--extensions-dir` per account, labelled "separate sign-in, shared Cursor folder". For the CLI, the plan to test live is a per-account `HOME` with `AGENT_CLI_CREDENTIAL_STORE=file` (moves `~/.cursor/auth.json`, chats and rules together), with `CURSOR_CONFIG_DIR` set as a second lever. The live check decides which of the three (HOME, CONFIG_DIR, API key) really separates the sign-in.
+
+### 3. Sessions
+- **[Verified-secondary]** Unchanged from section 4: CLI chats in `~/.cursor/chats/<hash>/<uuid>/store.db` plus `meta.json`; app and CLI agent transcripts as JSONL under `~/.cursor/projects/<path>/agent-transcripts/<id>/`.
+- **[Verified-secondary]** NEW: staff say CLI-made agents do not show in the desktop Agents Window or sidebar; the two "currently run on separate systems" and unifying them is tracked, not built (July 2026; no later answer). So AI Juggler must read both stores and never assume one session lives in both. — Source: https://forum.cursor.com/t/cli-agents-visible-in-desktop-app/159309 (accessed 2026-11-15)
+- **[Verified-primary]** Resume flags unchanged: `--resume [chatId]`, `--continue`, `resume`, `ls`, `create-chat`. — Source: https://cursor.com/docs/cli/reference/parameters (accessed 2026-11-15)
+- **[Verified-secondary]** NEW undocumented route, desktop app: a trade report (paywalled, one source) says build 3.16.17 has a hidden `cursor desktop` command ("Desktop Bridge") with `ls` and `send` for local agents in the running app. It finds a local socket and bearer token through records in `~/.cursor/desktop-bridge`, is behind a server flag plus an off-by-default beta toggle, and cannot create agents or return replies. Cursor's docs and changelog do not mention it (as of 2026-08-18). **[Inferred]** It is the only found route to list and message desktop-app sessions (D-66). It would use a credential-bearing record, so reading that record is not allowed for AI Juggler; only running Cursor's own `cursor desktop` command as the user could qualify, after a live look at the real command. — Source: https://runtimewire.com/article/cursor-built-a-hidden-terminal-command-for-steering-its-desktop-ai-agents (accessed 2026-11-15)
+- **[Negative-evidence]** No session index file beyond `glass.localAgentProjects.v1` in `state.vscdb` (which sits beside the sign-in token; do not open) was found (S-14).
+
+### 4. Usage and limits
+- **[Verified-primary]** Plans and pools unchanged (section 5). Where usage shows: The X Subscription, the Usage section at grok.com/dashboard plus editor settings; legacy plans, the Spending tab of the Cursor dashboard. On a limit the editor shows a notification; then prepaid credit, wait for the weekly reset, or upgrade (legacy: turn on on-demand). "Unused included usage does not roll over on either kind of plan." — Source: https://cursor.com/help/models-and-usage/usage-limits (accessed 2026-11-15)
+- **[Verified-secondary]** Per-turn token use IS reported by `-p --output-format json` and stream-json: a `usage` object with `inputTokens` (uncached only), `outputTokens`, `cacheReadTokens`, `cacheWriteTokens`. Total input is the sum of the three input fields. No cost field. The same numbers differ from the dashboard on some models. — Source: https://forum.cursor.com/t/discrepancies-between-cursor-cli-usage-and-billing/164471 ; https://forum.cursor.com/t/cursor-agent-acp-never-reports-token-usage-over-acp-though-p-output-format-json-does/171923 (accessed 2026-11-15)
+- **[Verified-secondary]** CORRECTS the ACP lines in section 6: ACP's `session/prompt` reply carries only `stopReason`; usage there is tracked with no date (a Cursor team member, 2026-09-17). Token counting must use print mode, not ACP. — Source: same ACP thread above.
+- **[Verified-primary]** The ACP page documents no token fields and no error codes. — Source: https://cursor.com/docs/cli/acp (accessed 2026-11-15)
+- **[Negative-evidence]** Still no local usage file, no documented individual-plan allowance endpoint, and `/usage` is still interactive only; no `agent usage` subcommand is in the parameters page (S-15). Quota stays unknown or estimated; there is no machine-readable hit signal beyond the in-product notice and a failed run (no documented exit codes).
+
+### 5. Driving it
+- **[Verified-primary]** Headless: `-p/--print`, `--output-format text|json|stream-json`, `--stream-partial-output`, `--trust`, `--workspace`, `--mode plan|ask`, `--force`, `--sandbox`. `status` and `about` take `--format json`. — Source: https://cursor.com/docs/cli/reference/parameters (accessed 2026-11-15)
+- **[Verified-primary]** ACP: `agent acp`, newline-delimited JSON-RPC 2.0 on stdin/stdout, logs to stderr. Root flags `--api-key`/`CURSOR_API_KEY`, `--auth-token`/`CURSOR_AUTH_TOKEN`, `-e` (endpoint). Methods `initialize`, `authenticate` (`cursor_login`), `session/new`, `session/load`, `session/prompt`, `session/update`, `session/request_permission` (`allow-once|allow-always|reject-once`), `session/cancel`; modes agent/plan/ask. Extensions: `cursor/ask_question`, `cursor/create_plan` (blocking), `cursor/update_todos`, `cursor/task`, `cursor/generate_image`. Team MCP servers do not load. Changelog 2026-10-08: ACP sessions fail after a team switch (new session needed). — Source: https://cursor.com/docs/cli/acp ; https://cursor.com/docs/cli/changelog (accessed 2026-11-15)
+- **[Verified-primary]** MCP config `~/.cursor/mcp.json` and `<project>/.cursor/mcp.json`; hooks `~/.cursor/hooks.json`; rules `.cursor/rules`, `AGENTS.md`, `CLAUDE.md`; all as in section 6. Hooks cannot be fully relied on: one report says some CLI builds skip `beforeSubmitPrompt`, `afterAgentResponse` and `stop` hooks and lose token usage (forum 169059, unread beyond the title). — Source: https://forum.cursor.com/t/cursor-cli-omits-beforesubmitprompt-afteragentresponse-and-stop-hooks-loses-token-usage-and-emits-inconsistent-generation-id-values/169059
+- **[Verified-primary]** `agent worker start` runs a private cloud worker (not needed for AI Juggler). — Source: parameters page above.
+- **[Verified-secondary]** One forum report says a runaway recursive CLI run burned about 318M tokens in 33 minutes: the adapter should bound runs. — Source: https://forum.cursor.com/t/critical-recursive-cursor-cli-agent-spawning-caused-318m-tokens-of-usage-in-33-minutes/175070 (title only)
+
+### 6. Terms (re-read 2026-11-15)
+- **[Verified-primary]** Acceptable Use Policy, "Last updated August 11, 2026": under "Not complying with laws or regulations": "Accessing the Service through automated or non-human means". Also "circumventing any rate limits or restrictions". — Source: https://cursor.com/acceptable-use-policy
+- **[Verified-primary]** Reselling line: "Scraping, harvesting or reselling any Input or Suggestion". Multiple accounts are not addressed; only "creating fake accounts" is named. — same page.
+- **[Verified-primary]** Cursor's own CLI docs offer print mode for scripts and automation, which sits beside that wording unresolved; a forum thread asking about cloud agents has no official answer (https://forum.cursor.com/t/is-this-use-of-cursor-cloud-agents-permitted-under-cursor-s-terms/168633). Under D-105 the wording stays on record and does not limit support.
+- **[Verified-secondary]** Staff, forum 166689: multiple accounts are "totally fine"; sharing one account between users is the limit.
+
+### 7. What a live lab check needs
+- **[Inferred]** Install source: `curl https://cursor.com/install -fsS | bash` (CLI) and cursor.com/download or `brew install --cask cursor` (app). Installing waits for the maintainer's yes (D-107).
+- **[Inferred]** The maintainer signs in once per lab home: one `agent login` with `HOME=<lab>/a` and `AGENT_CLI_CREDENTIAL_STORE=file`, one with `HOME=<lab>/b`, using two of his existing accounts (D-107); for the app, one `--user-data-dir` each. Agents then check: `agent status --format json` differs per home, no Keychain item written, `CURSOR_API_KEY` against a stored login (precedence), `CURSOR_CONFIG_DIR` alone (does the sign-in move?), a `-p --output-format stream-json` run and `--resume`, the usage field names, whether ACP `session/load` resumes a print-mode chat, `cursor desktop ls`, and what a limit hit looks like.
+
+### Gaps and what closes them
+- Whether `CURSOR_CONFIG_DIR` moves the sign-in, and API key against a stored login: closed only by the live check above.
+- `/usage` machine-readable form, individual allowance: not found; the live check can look at the CLI's own screens.
+- `cursor desktop` details: need the real app (3.16.17 or later) or Cursor's confirmation.
+- Contents of `grok-switch.json`: the live install, read only as a file name.
+- Exit codes and limit-hit output: live check.
+
+Search log additions: S-14 (session index) WebSearch on the forum threads above; S-15 (usage command) WebSearch `cursor agent CLI /usage ... status --format json` plus the parameters page; S-16 WebSearch `grok-switch.json` found nothing; S-17 the PR page `codepawl/orglet/pull/419` returned 404 on 2026-11-15.

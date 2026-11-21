@@ -87,15 +87,16 @@ fn registered_commands() -> Vec<&'static str> {
     names
 }
 
-/// AJ-E1516: the crash report sender (`src/crash_send.rs`) is built only
-/// into a release build given the reporting service's address. No
-/// workflow sets it, so no build has a sender until the service exists.
+/// AJ-E1516, D-108: the crash report sender (`src/crash_send.rs`) is built
+/// only into a release build given Sentry's address (a DSN:
+/// `https://<public key>@<host>/<project>`). No workflow sets it until the
+/// maintainer adds the secret, so no build has a sender until then.
 fn crash_sender() {
     println!("cargo::rustc-check-cfg=cfg(crash_sender)");
     println!("cargo::rerun-if-env-changed=AI_JUGGLER_CRASH_ENDPOINT");
     let address = std::env::var("AI_JUGGLER_CRASH_ENDPOINT").unwrap_or_default();
     let release = std::env::var("PROFILE").is_ok_and(|profile| profile == "release");
-    if release && address.starts_with("https://") {
+    if release && address.starts_with("https://") && address.contains('@') {
         println!("cargo::rustc-cfg=crash_sender");
     }
 }

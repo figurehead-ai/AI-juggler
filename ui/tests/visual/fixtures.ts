@@ -25,6 +25,24 @@ const baseProfiles = [
 // full AJ-E401 read model: nulls where a real row would have no source
 // (never zeros), quota/token/resource data only where measured.
 const T0 = 1_728_800_000_000; // pinned clock base (deterministic)
+/** AJ-E3603: each session's own title, as the tool names a session from
+ * its first prompt, so captures read like a real day ("Fix the flaky
+ * login test"), never "Session started 8:30 AM" in every row. A spec that
+ * tests the untitled fallback (D-96) clears `title` on the rows it means. */
+const SESSION_TITLES = [
+  "Set up the billing webhooks",
+  "Fix the flaky login test",
+  "Draft the migration plan",
+  "Refactor the read model",
+  "Tidy the blog's images",
+  "Add retries to the sync job",
+  "Plan the trip notes app",
+  "Port the settings parser",
+  "Write the onboarding copy",
+  "Sketch the pricing page",
+  "Summarise the support inbox",
+  "Rename the photo exports",
+] as const;
 const mk = (n: number, status: InstanceInfo["status"], label: string): InstanceInfo => {
   const work = label === "Work Max";
   const active = !["finished", "stopped", "failed", "handed_over"].includes(status);
@@ -46,6 +64,7 @@ const mk = (n: number, status: InstanceInfo["status"], label: string): InstanceI
         : null;
   return {
     id: `sess-${n}`,
+    title: SESSION_TITLES[(n - 1) % SESSION_TITLES.length],
     launch_recipe_id: work ? "p-1" : "p-2",
     provider: "claude-code",
     // AJ-E510: false by default; the recovery captures flip it per row.
@@ -98,7 +117,13 @@ const mk = (n: number, status: InstanceInfo["status"], label: string): InstanceI
   };
 };
 
+/** The clock `allStatuses` was written against (its times are T0 less a
+ * few minutes or hours): a spec that pins another clock sees them moved
+ * to it (`src/preview/fixtures.ts`). */
+const FIXTURE_NOW = T0;
+
 export const allStatuses: FixtureSet = {
+  now_ms: T0,
   accounts: baseAccounts,
   profiles: baseProfiles,
   sessions: [
@@ -396,6 +421,10 @@ export async function railViewAs(page: import("@playwright/test").Page, view: Re
   await page.evaluate((value) => localStorage.setItem("aij.rail.view.v1", JSON.stringify(value)), view);
   await page.reload();
   await expect(page.getByTestId("rail")).toBeVisible();
+  // The reload draws the rail's History projects before its sessions
+  // load (their rows wait behind "Loading sessions"): a spec that took
+  // the first project's ⋯ then got History's (marks-gallery, 0.5 triage).
+  await expect(page.getByTestId("rail").getByRole("status", { name: "Loading sessions" })).toHaveCount(0);
 }
 
 /**

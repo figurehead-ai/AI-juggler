@@ -2017,6 +2017,7 @@ release need a home that isn't the next minor.
   same day.
 - Risk: 0.4 grows without end. Its scope is this list; anything new goes
   to 0.5 or later unless the maintainer moves it.
+
 ### D-60 Deleting launch settings keeps their sessions — SETTLED (2026-10-30, 0.3.1)
 
 **Ruling.** A data-loss bug found while writing E29 (AJ-E2907's check of
@@ -2063,7 +2064,6 @@ the build tasks are written from what's approved.
 settled their model (AJ-E1701): members are single sessions AI Juggler
 started, the add list hides why others can't join, and nothing helps a
 user start.
-
 
 ### D-62 The 0.4 designs are approved, and every combination is validated by real use — SETTLED (2026-10-30)
 
@@ -2243,7 +2243,6 @@ and thing user do a lot."
 
 **Amends.** D-36 (the rail's "Also: inactive" line, in the App grouping),
 D-47 (an app that quits keeps its place among the apps).
-
 
 ### D-65 0.5 and 0.6 merged: the first Stable is a 0.5.x; no per-release VoiceOver pass; the Floor planned for 0.5 — SETTLED (2026-11-02)
 
@@ -2517,7 +2516,6 @@ helpful for very large sessions".
   a compaction drops it, and switch back never re-adds what was left out.
 - Evidence: this entry; E2's AJ-E211.
 
-
 ### D-77 A "finished task" is a session AI Juggler ran that ended on its own as finished — SETTLED (2026-11-04)
 
 **Ruling.** Taken by the goal (the maintainer's standing rule that design
@@ -2679,7 +2677,6 @@ no per-release VoiceOver pass. `docs/plan/ROADMAP.md` now names the first
 Stable under 0.4. Its 0.5 section stays as planned work that starts after
 the Stable.
 
-
 ### D-86 The Floor's new graphics are the default from 0.4.2 (0.4.1 since D-90) — SETTLED (2026-11-06)
 
 **Ruling.** The maintainer, 2026-11-06, on the Floor's design proposal
@@ -2700,7 +2697,6 @@ side by side): "Yes let's go with new graphics".
 - **0.4.0's flat look** stays in the code only while tests and rollback
   need it. The golden frames are re-baselined in the new look, every
   capture checked by eye.
-
 
 ### D-87 No page-top banners for an account or a session — SETTLED (2026-11-06)
 
@@ -2723,7 +2719,6 @@ bell.
 - **Toasts** confirm only the user's own actions. The centre's rows name
   their session; their Continue opens that session's switch.
 
-
 ### D-88 Code-owner review requests, doesn't block — SETTLED (2026-11-06)
 
 **Ruling.** The maintainer, 2026-11-06: branch protection stays as it is.
@@ -2738,7 +2733,6 @@ agents with the maintainer approving sensitive-path pull requests, was
 offered and declined for now. AJ-E2004's requirement that needs the
 setting is DEFERRED (D-88); docs/RELEASING.md, "Review for sensitive
 paths", says so.
-
 
 ### D-89 The second-Mac check is the maintainer's, after the release — SETTLED (2026-11-06)
 
@@ -2758,7 +2752,6 @@ there is something broken with it we can have a follow on release."
   recorded.
 - **The sheet:** `docs/qa/second-mac-check.md`, the maintainer's
   step-by-step for the second Mac.
-
 
 ### D-90 There is no 0.4.2: the Floor's redesign ships in 0.4.1 — SETTLED (2026-11-06)
 
@@ -2880,7 +2873,6 @@ Each ships with tests that fail without it and a design critique; the M2, D2 and
 - Never before its first report, at a question, mid-turn, or over the user's own typing.
 - Tools without it say so where the message waits: "reads its messages on its next turn".
 
-
 ### D-99 Release speed: beta promotes the tested nightly; CI build-once and change detection after 0.4.1 — SETTLED (2026-11-11)
 
 **Ruling.** The maintainer, 2026-11-11, on the release-speed research (`docs/research/release-speed.md`): "Do 1 through 5 after 0.4.1, skip paid runners. Check 6, see if it's free for open source." And, on point 1: "4.1 is our official release to the public anyway so this is a good time to start doing things the right way." So point 1 takes effect with 0.4.1; points 2 to 5 follow it, each on `main` right after the 0.4.1 merge as its own small PR. Paid runners are ruled out.
@@ -2897,7 +2889,6 @@ Each ships with tests that fail without it and a design critique; the M2, D2 and
 
 - Effective: point 1 with 0.4.1 (the nightly, beta and Stable workflows are changed to match, and RELEASING.md); points 2 to 5 after the 0.4.1 merge. Planned work: AJ-E2020, filed under 0.5 in the roadmap so no 0.4.x scope check requires it.
 - Sources: `docs/research/release-speed.md`.
-
 
 ### D-100 Presence is the process table: Open now, Running not added, Inactive; one owner per session — SETTLED (2026-11-11)
 
@@ -2951,6 +2942,77 @@ Each ships with tests that fail without it and a design critique; the M2, D2 and
 
 - **Amends:** D-102 ("Show all N" → "All N sessions ›"; the caption), D-97 (New session's default when a repo has its own Account).
 - Sources: `docs/qa/0.4-walks/personas/runs-0.4.3.md`; the R5 list in the coordinating session's notes.
+
+### D-104 0.5 work may start before the first Stable; 0.4.x fixes preempt it — SETTLED (2026-11-12)
+
+**Ruling.** The maintainer, 2026-11-12, with 0.4.4 finishing: "if you run out of things to work, you can start working on 0.5 version as planned".
+
+- **0.5 may start now**, on `release/0.5` cut from `main`, in the order of `docs/plan/0.5-order.md`, while 0.4.x is still on its way to the first Stable.
+- **0.4.x preempts it.** A 0.4.x finding (a bug in a shipped 0.4, a walk's or a persona's finding, a release step) is taken before any 0.5 work, and 0.5 work never holds a 0.4.x release back (no shared branch, no shared CI wait).
+- **The first Stable is still a 0.4.x.** D-85's other points stand: Stable comes when 0.4.x is tested, validated and fixed; 0.5 ships to Beta first and to Stable under D-24.
+- **Amends:** D-85 ("no 0.5 feature work starts until 0.4.x is fully tested, validated and fixed").
+- Sources: `docs/plan/0.5-order.md`.
+
+### D-105 Kiro, Cursor and Antigravity get full support on every plan — SETTLED (2026-11-13)
+
+**Ruling.** The maintainer, 2026-11-13, on the terms notes for AJ-E1606 (Kiro), AJ-E1609 (Cursor) and AJ-E1613 (Antigravity): "we are not wrapping the tools, since they are desktop apps, Openning the app does not count as automated control of it. I don't see any term violations the way I interpert it. OS system can reopen the app on load, does that mean OS should never reopen the app. Also bringing app into focus is still fine." And, the same day, correcting a first reading that kept prompts off for these three: "don't limit anything, on those tools, the way we build AI juggler we specifically designed it where we are not automating the way they don't want people. What they don't want is someone using their tokens and agent and wrapping it as something else, that is the abuse they are protecting against."
+
+- **Full support on every plan,** Antigravity's consumer plans included: AI Juggler opens each tool's own app or CLI for the right account, reopens it (Keep alive, at login), brings it into focus, reads its own files for sessions and usage, and offers everything it offers for the other tools: pools, the reply box, switching (a first prompt included).
+- **No track-only plan kind and no "never sends prompts" guardrail** for these three. Each requirement's "ruling first" step is met by this entry.
+- **A tool's own guideline still applies where it has one** (as Kimi's interactive-only rule on subscription accounts, AJ-E1603), decided per tool from its own documented rules, not from this entry.
+- **The vendors' own wording stays on record** beside the ruling, in `docs/research/kiro.md`, `cursor.md` and `antigravity.md` (§ "Terms, re-read 2026-11-13"): Kiro's FAQ bars "third-party automation harnesses … that route requests outside of Kiro's native interfaces"; Cursor's Acceptable Use Policy (updated 2026-08-11) bars access "through automated or non-human means"; Antigravity's FAQ calls using third-party software to access it "a violation of our Terms of Service" and says wrapping `agy` "is not supported under consumer plans". The maintainer's reading: AI Juggler runs each tool's own unmodified app or CLI for the user, under the user's own sign-in, and never reuses a tool's tokens or agent as something else.
+- **Amends:** AJ-E1609's handover note (no track-only fallback), AJ-E1613's goal, requirement 1 and guardrail (consumer plans no longer track-only).
+- Sources: the three research notes above; the coordinating session's relay of the maintainer's two messages, 2026-11-13.
+
+#### Antigravity's own guideline (2026-11-15)
+
+D-105 lets a tool's own guideline apply where it has one. Antigravity has one. Read on 2026-11-15 at https://antigravity.google/docs/faq.md:
+
+- Under "Can I use Antigravity CLI headless mode in third-party coding agents or automate account switching?": "Wrapping agy inside third-party coding agents or applications, or automating account rotation" … "is not supported under consumer plans." And: "Antigravity CLI headless mode (agy -p) is intended for direct scripting and CI workflows."
+- Under "Why can't I use third-party software (such as Claude Code, OpenClaw, or OpenCode) with my Antigravity login?": "Using third-party software, tools, or services to access Antigravity is a violation of our Terms of Service" and "Such actions can result in suspension or termination of your account."
+
+The design that follows from it:
+
+- **Consumer plans** (free, Pro, Ultra on a personal Google Account): AI Juggler opens, keeps alive and focuses the user's own Antigravity App or `agy` for the right account, and reads sessions and usage from its own records and screens. A switch the user starts by hand stays. There is no driven runtime (no `agy -p`, no `agy acp` session driving) and no automatic switching or rotation onto or off such an account.
+- **Workspace, Gemini Enterprise and API-key accounts:** full support, including the driven runtime over `agy acp` and automatic switching. Workspace needs the admin to provision Antigravity.
+- **Re-check:** the FAQ is re-read at each release under the reply-routes standing rule (D-66).
+
+### D-106 Kimi usage on by default, with one honest privacy exception; undocumented routes researched before any gap — SETTLED (2026-11-13)
+
+**Ruling.** The maintainer, 2026-11-13, on AJ-E1603 R3 (reading `kimi web`'s usage needs the home's `server.token`, which the Privacy page's "reads no tokens" contradicts): option C, Kimi usage on by default, with one honest exception line on the Privacy page. And a standing order, in their words: "have you tried researching undocumented ways, we've done many undocumented implementations across different tools, why stop here. That should be your standing order."
+
+- **Research first, keyless preferred.** Before building the `server.token` route, look for an undocumented usage source that needs no key (a `/usage` or `/status` command in the interactive CLI; quota fields in Kimi's session or wire records, logs or `server/instances/`; headers the CLI records; an unauthenticated route of `kimi web`; the app bundle's own code). Each finding is sourced, tested on fixtures and guarded by a format check, because undocumented routes change.
+- **If no keyless source works,** the `server.token` route: the key is read only to ask Kimi's own local server on 127.0.0.1, never stored, logged, copied (a bring-in still leaves it) or sent anywhere else; the usage shows labelled experimental.
+- **The Privacy page** (README § privacy, `docs/guide/trust.md`, SPEC §8 and the website's page) gains one plain exception line naming exactly what is read and where it goes, with the build; the "reads no tokens" and "no requests to AI providers" promises change only for that case, by name.
+- **Standing order, every tool:** before calling a capability a gap or asking for a ruling (usage, sessions, titles, reply routes), an undocumented-route research pass is run and its findings recorded; every adapter brief carries that step.
+- **Amends:** AJ-E1603 R3 ("labelled experimental" stands; the source is decided by the research pass).
+- **Design call (the coordinating session, 2026-11-13),** from the research pass (`docs/research/kimi.md` §12, `MoonshotAI/kimi-code` at `30e3ce44`): no keyless source of the windows exists, so R3 is built in three parts. (1) Keyless and always on: a turn that failed at the plan's limit (`turn.ended` `failed`, Kimi's quota error) says which window ran out (5-hour, weekly, monthly) and when, from the vendor's fixed message openings, matched then dropped; a later completed turn clears it. (2) Attach: a `kimi web` the user already runs for the home (a live instance record), healthz first, then `GET /api/v1/oauth/usage` with that home's `server.token`, read for that one request and sent only to 127.0.0.1. (3) Self-started: when none runs and the account's usage is wanted (the usage cadence or "Measure now"), `kimi web --no-open --port 0` with a per-run `KIMI_CODE_PASSWORD`, output discarded, stopped at once within a hard deadline, one at a time, never restarted; only for membership accounts. Not an agent run, so R4's interactive-only rule doesn't apply. Two corrections to the research: quota errors are HTTP 429 with `exceeded_current_quota_error` (not 403), and the server API page is `reference/server-api-service.md`.
+- Sources: the coordinating session's relay of the maintainer's words, 2026-11-13.
+
+### D-107 Live checks use the maintainer's existing accounts in separate lab profiles; the maintainer only signs in — SETTLED (2026-11-13)
+
+**Ruling.** The maintainer, 2026-11-13, restating earlier rulings: "you can use my existing accounts but create separate profiles". Never "spare accounts" again.
+
+- **Live checks** (AJ-E1612 for every new tool, AJ-E1701's bridge spike, and the like) run on the maintainer's existing accounts, each tool in **a separate lab profile or home** made for the lab (`KIMI_CODE_HOME`, `ZCODE_*`, `KIRO_HOME`, a per-account `HOME`…) under a throwaway lab project, set up through AI Juggler Dev. A tool's real home is never touched.
+- **The maintainer's part is the sign-ins only,** batched: each lab profile signed in once, all tools in one sitting, from one line per tool saying where.
+- **Agents drive every step** with guarded keystrokes (the frontmost and topmost check), one or two tools at a time, small tasks only; the evidence is recorded and every process reaped (the ledger back to 0).
+- **A tool not installed** is listed with what installing it needs; installing waits for the maintainer's yes.
+- **Amends:** AJ-E1612 and AJ-E1701 R2 ("spare accounts"); MAINTAINER-STEPS steps 16 and 17.
+- Sources: the coordinating session's relay of the maintainer's words, 2026-11-13.
+
+### D-108 Crash reports go to Sentry, through its SDK, behind D-19's setting and our scrubber — SETTLED (2026-11-13)
+
+**Ruling.** The maintainer, 2026-11-13, on AJ-E1107 and AJ-E1516: "I don't mind using Sentry" and "If we are going to use sentry than using sentry SDK is fine".
+
+- **Sentry receives crash reports,** sent by Sentry's own Rust SDK. This amends ADR-0015's rejection of a third-party SDK **for crash reports only**; usage statistics are unchanged (their own closed schema, no SDK).
+- **D-19 stands:** the Never / Ask / Always setting and the scrubbing on the Mac. The SDK sends only what the user agreed to: nothing on Never, a full read-only preview first on Ask.
+- **Every event passes through AI Juggler's own scrubber** in `before_send`, so the scrub corpus tests keep gating what leaves the Mac.
+- **`send_default_pii = false`:** no server name, no user, no IP; AI Juggler's own breadcrumbs only; no automatic integration that reads the environment, URLs or files.
+- **The address** (the DSN) comes from `AI_JUGGLER_CRASH_ENDPOINT` at compile time, in release builds only; debug builds never send.
+- **Wording:** `SECURITY.md`'s "never sent automatically" (already wrong under D-19's Always) and the Privacy pages are corrected with the build.
+- **The account:** the project is MIT and public; the maintainer creates the Sentry account and applies for Sentry's sponsored open-source plan. AJ-E1107 R5 waits for the secret.
+- **Amends:** ADR-0015 (the rejected "third-party analytics SDK" does not cover crash reports); AJ-E1107 R5.
+- Sources: the coordinating session's relay of the maintainer's words, 2026-11-13.
 
 ### D-109 A release's sign-off is the Stable approval on GitHub, recorded automatically; the old gate files are history — SETTLED (2026-11-13)
 
@@ -3138,6 +3200,14 @@ Each ships with tests that fail without it and a design critique; the M2, D2 and
   nightly every night; beta about weekly, as a nightly used for a couple
   of days; stable every 2–4 weeks after a clean soak.
 
+### D-115 0.5 adds no tools beyond its plan; Gemini CLI and GitHub Copilot CLI are candidates for 0.6 — SETTLED (2026-11-14)
+
+**Ruling.** The maintainer, 2026-11-14, asked by the coordinating session whether any more tools should join 0.5 (Gemini CLI, GitHub Copilot CLI, or others such as Amp, Qwen Code, Goose and Factory Droid): "None for now".
+
+- **0.5's tool list stays as planned** (the roadmap's 0.5 section and `docs/plan/0.5-order.md`); nothing is added to it.
+- **Gemini CLI and GitHub Copilot CLI are candidates for 0.6**, to be weighed when 0.6 is planned; the others named are not scheduled.
+- Sources: the coordinating session's relay of the maintainer's answer, 2026-11-14. D-111 to D-114 are release/0.4.5's.
+
 ### D-116 Desktop app sessions are full pool members in 0.4.6, through AI Juggler's connector (MCP and plugin), added with consent or guided — SETTLED (2026-11-14)
 
 - **Ruling** (maintainer, 2026-11-14; asked "Which release should carry
@@ -3186,6 +3256,44 @@ Each ships with tests that fail without it and a design critique; the M2, D2 and
   per-project and per-account switch stay as they are.
 - Sources: the coordinating session's relay of the maintainer's answer
   and words, 2026-11-14.
+
+### D-117 Calm attention: four levels, each need loud once per area, a quiet round-2 look, and every 0.5 screen on it — SETTLED (2026-11-14)
+
+**Ruling.** The maintainer, 2026-11-14, on Home and the rail: they "look like a Christmas tree… if users feel everything is a disaster then nothing is a disaster". On the round-2 mock: "calm it even more… subheadings and borders… more subtle but still readable", and "app icons different color tones, so those that have alerts and need attention are brighter… or those that are selected". Approving it: "Yes that is good, but don't lose the collapsable sections and subagent and session collapsables… I don't see them in your designs". On scope: "0.5 should revamp every screen we have with this new calm model." The research, the audit and the proposal are in `docs/research/calm-attention/`; the round-2 mock's captures in `docs/qa/evidence/AJ-E3601/`.
+
+1. **Four levels, one source.** `attentionLevel()` in `ui/src/lib/attention.ts`, beside `attentionWords`, is the one source the rail, Home, the bell and the tray read:
+   - **L3 Broken:** red, a glyph, at most one tinted block per area;
+   - **L2 Needs you:** an amber word and dot, no fills ("probably" states a hollow ring);
+   - **L1 Note:** a quiet glyph;
+   - **L0 Calm:** the grey hierarchy.
+
+   Each need is loud once per area. One filled primary button per view. No looping animation: 0.4.5's `.dot-live` three-iteration rule and `idle.spec.ts` stay.
+2. **Round 2's look.** Section labels in `--color-section` (small tracked capitals); no card borders (the surface tone separates); no row dividers; filled controls; ghost secondary buttons; the dark status tokens retuned. App icons and dots are muted at rest (`--tone-saturate` .25 and `--tone-opacity`) and in full colour at L2 and L3, when selected or current, and on hover or focus: a CSS treatment of the icons read at run time, nothing baked in. The token names, agreed with the 0.4 line, which reuses them for 0.4.6's pools: `--color-section`, `--color-fill`, `--tone-saturate`, `--tone-opacity`, `--color-divider`, `--color-count` / `--color-count-ink`, `--color-count-alarm` / its ink, `--level-3`, `--level-2`, `--level-1-done`, `--level-1-live`.
+3. **Every collapsible stays:** the rail's sections (Needs you, Open now, Inactive apps, Recent), App and profile group headers, session rows that unfold their subagents, and every other disclosure. Their chevrons stay, muted at rest, always visible on hover and focus, and operable from the keyboard.
+4. **One calm default, no classic mode.** It honours macOS Increase Contrast and Reduce Motion. A hidden `aij.attention=classic` flag exists only during the 0.5 beta, for side-by-side walks, and is removed before 0.5 goes Stable.
+5. **The shared count** (rail, bell, title) counts L2 and L3 only; "To review" items are listed, last, and not counted. **Amends D-47 point 2:** a session that needs you keeps its place and its word in Open now, shown as an amber dot with the word in normal ink; the loud copy is the Needs you row.
+6. **Every screen in 0.5,** no longer "phase C if scope allows": Home, the rail, Projects, Pools (on 0.4.6's calm pool redesign once it merges), Tasks, Accounts, Usage, History, This Mac, the session pages, Settings, first run, sheets, dialogs and toasts, the menu-bar menu and notifications, and the Floor's HUD where it applies. The 0.5 Stable does not ship with a screen left on the old look.
+
+- **Order:** the tokens and `attentionLevel()` first, then Home's new layout (D-118, which carries Home's calm pass), then the other screens.
+- **Tasks:** E36 (AJ-E3601…AJ-E3617); Home's pass is AJ-E3701.
+- **Amends:** D-47 point 2 (the colour of a need in Open now); the proposal's "phase C if the scope gate allows" (all of it is 0.5); the proposal's "remove `.dot-live`" (0.4.5's three-iteration rule stands instead).
+- Sources: the coordinating session's relays of the maintainer, 2026-11-14.
+
+### D-118 Home becomes a two-column activity feed in 0.5 — SETTLED (2026-11-14)
+
+**Ruling.** The maintainer, 2026-11-14: "it should go into 0.5"; "like a twitter feed… imagine we have an agent tweeting about what is going on with our system". Approving the proposal and its mock: "Love it lets do it". The research, the item catalogue, the proposal and the mock are in `docs/research/home-feed/`; the mock's captures in `docs/qa/evidence/AJ-E3701/`.
+
+1. **Layout,** for users with active Accounts: two columns that scroll on their own. The feed is `minmax(480px, 1fr)` with a 720 px reading cap; the right column is `clamp(320px, 30%, 400px)` with Your apps (running, then not running) and Runway by account, each collapsible. At narrow widths they stack, feed first, with one page and "Show more", and an "Apps & runway ↓" link. First run for new users is unchanged; the rail's Needs you is unchanged.
+2. **The feed:** open L2 and L3 needs pinned on top (Home's one loud mark per need), then a chronological stream with no ranking, items without borders. Rollups follow the proposal; nothing broken is ever folded into a quiet rollup. A "While you were away" divider and digest; an "N new updates" pill instead of moving the reader; filters: type chips and one Project, App, Pool or Account picker; three pages load by themselves, then Load more; the cached first page paints at once; seen and read are tracked apart. The voice: subject first, what changed, a link, no emoji.
+3. **Retired into the feed:** the overnight summary card becomes the away digest (it keeps its last-seen key); "Pick up where you left off" folds into the Finished filter.
+4. **The sentences:** templates over stored data (a), plus the agent's own final reply quoted, behind the existing "show last messages" setting (a+). Summaries written by a model (b) are not in 0.5: a later candidate that needs a terms reading per provider and its own ruling.
+5. **Phases, all in 0.5:** F1, the feed over the data that exists; F2, the gaps: a switch's completion time, runway threshold crossings, a turn ended, other apps' state changes, a daily usage digest, the files a session left (G2, G3, G4, G6, G7); F3, git commits and pull requests (G1) and the task-close note (G5), through adapters or the existing git reading, never a per-tool branch outside the adapters.
+6. **Accessibility:** the W3C feed pattern (`role="feed"`, `article`), Page Down and Page Up and J and K between items, one batched polite announcement for new items, round 2's contrast.
+
+- **Order:** D-117's tokens and `attentionLevel()` first, then this layout (Home's calm pass happens here, once), then the other screens.
+- **Tasks:** E37 (AJ-E3701…AJ-E3707).
+- **Amends:** AJ-E2105's Home layout (its needs and apps move into the feed's pinned zone and the right column); AJ-E1004 R2's morning summary card (its data and its last-seen key move into the away digest); the proposal's "placement is the maintainer's call" (it is 0.5).
+- Sources: the coordinating session's relays of the maintainer, 2026-11-14.
 
 ### D-119 A desktop Code-tab pool member is woken through Claude Code's own inbox, under the pool's waking rule — SETTLED (2026-11-15; its two-press approval superseded by D-139)
 
@@ -3246,6 +3354,54 @@ Each ships with tests that fail without it and a design critique; the M2, D2 and
 - Sources: the coordinating session's message, 2026-11-15; the research
   doc's §§1.1, 5.2, 8.
 
+### D-120 Feed summaries: A (agents' own excerpts) and B (on-device AI lines) in 0.5; C last, with providers' permission; D and E later — SETTLED (2026-11-16)
+
+**Ruling.** The maintainer, 2026-11-16, on the research in `docs/research/feed-summaries-and-orchestrator-options.md`: "Yes let's do A and B now in 0.5, C - let's save that for last, when we can actually get permissions from those providers. Plan D and E in follow on versions… Make sure that all of the features are implemented in smart way and gracefully degrade, for example if mac or some small model is supported and is not heavy and user machine can support it, we enable it and let user know and also have settings to disable it… research it all well from multiple angles… most important is ease of use, we should never ask user to download models… offer as much automation as possible."
+
+1. **A (0.5): the agents' own excerpts.** The Home feed carries per-agent excerpts from what agents already write: Claude Code's turn-end `last_assistant_message` through hooks, Codex exec and rollout events (agent message, plan update, file changes, commands), task lists where present, and git facts (files, tests, commits). All of it goes through each adapter, never a per-tool branch outside the adapters. Extends D-118's (a+) and F2 and F3.
+2. **B (0.5): on-device AI lines.** On-device AI turns an agent's own text into one clean line and never adds facts. It is automatic for Apple's own model when the Mac can do it comfortably; the user is told once and can switch it off in Settings. A downloaded model is never automatic (see "Amended 2026-11-16"). It degrades in order:
+   1. Apple's Foundation Models on macOS 26+ with Apple Intelligence on (no download);
+   2. else a small open model, offered to the user and downloaded only on their click (see "Amended 2026-11-16"), only on suitable hardware (Apple silicon, enough RAM and disk), on Wi-Fi or another unmetered link, on power, respecting Low Data Mode; checksummed, resumable, with a disk cap;
+   3. else A's excerpts only.
+
+   The user's own running Ollama or LM Studio may be used if present, never required. Nothing leaves the Mac.
+3. **C: last,** and only once the providers give permission (the user's own Claude, Codex or Gemini doing the summarising). **D and E** (a cloud service and the orchestrator bot) are a later release; the maintainer is choosing which. None of C, D or E is scheduled.
+4. **Process.** A Sonnet multi-angle research pass, then an Opus ADR for a pluggable `SummaryEngine` seam (Apple, local model and extractive implementations), with the design brought to the coordinating session before building. Shipping auto-download to users is product behaviour this ruling covers; downloads during development still need the maintainer's yes.
+
+- **Tasks:** AJ-E3708 (A), AJ-E3709 (B research), AJ-E3710 (B design, the ADR), AJ-E3711 (B build), in E37.
+- **Amended by D-121** (2026-11-16): the engines sit behind one AI-jobs router, at most one downloaded model, and Chat v1.
+- **Amends:** D-118 point 4 ("summaries written by a model (b) are not in 0.5"): on-device lines (b) are now in 0.5, as above; cloud and the user's-CLI routes stay out.
+- Sources: the coordinating session's relay of the maintainer, 2026-11-16, and `docs/research/feed-summaries-and-orchestrator-options.md`.
+
+**Amended 2026-11-16.** The maintainer, on the tier 2 download: "if we are going to download 2GB model for our users, than it should always be an option or as a backup to maybe mac … we can't download 2GB models without user approval". This replaces the automatic fetch in point 2 and the phrase "we should never ask user to download models" for tier 2 only.
+
+- **Tier 1 stays automatic.** Apple's on-device model needs no download: the user is told once and can switch it off in Settings.
+- **Tier 2 is offered, never auto-downloaded.** An offer card says what the user gets, the size (about 2 GB) and that the model stays on the Mac. One click downloads it, under all the safety rules: a SHA-256 pinned in the app, a revision-pinned source URL, Wi-Fi or another unmetered link and power, a disk cap, and resume. It can be removed in Settings. It is offered mainly on Macs without Apple Intelligence, and as an optional upgrade on the others. It is not offered on 8 GB Macs.
+- **Hosting and licence (decided by the coordinating session, 2026-11-16).** A SHA-256 compiled into the notarized app plus a Hugging Face URL pinned to a revision (no new signing key; a self-hosted mirror may come later behind the same hash). The model's licence must allow redistribution (Apache-2.0 or MIT preferred).
+- **Build order.** A, then tier 1 with the extractive check, then tier 2.
+- **Open idea, not scope.** Users who download the model might get "some conversation with it too" (asking questions about their sessions on-device). Noted for a later decision.
+- **Development download.** The maintainer approves the download used for measurement only after the coordinating session's model-selection study names the model and its pinned source.
+
+### D-121 AI jobs through one router; Chat v1 (read-only) in 0.5; one downloaded model at most — amends D-120 — SETTLED (2026-11-16)
+
+**Ruling.** The maintainer, 2026-11-16, after the on-device summary evaluation: "not every model needs to be used for everything… Mac models if available could be used for summarization, and querying about things, while maybe more powerful model enable bot orchestration capabilities… our system can be smart about it". On chat: "if we are going to use models from getgo, I think we should enable chat section, a separate icon top right allowing you to chat about everything that is going on with the model… Eventually that turns into also an orchestrator bot too". On disk: "multiple models… eat up user disk space, so all of that needs to be optional… we can have a router but we just have to be smart about disk space usage".
+
+1. **One router for AI jobs.** ADR-0033's `SummaryEngine` seam is generalised into one AI-jobs seam. Jobs (summarise, answer and look up, later orchestrate) declare what they need: how much context, whether they use tools, a quality tier. Engines (Apple's model, a local model, the user's own server, later a cloud engine) declare what they can do. The router picks the best available engine for each job. A job with no capable engine is hidden, never shown broken. An ADR (an amendment to 0033 or a new 0034) comes before any building.
+2. **Disk.**
+   1. Apple's model is preferred: it costs no disk.
+   2. At most one downloaded model by default, shared by every job it can serve, never one model per job.
+   3. A second or larger model only with the user's explicit approval, which shows its size.
+   4. Settings shows the total disk the AI models use, with a Remove button.
+   5. No download when free disk is below the model's size plus 10 GB.
+   6. The models are never touched by Clear cache.
+3. **Chat v1, read-only.** A chat icon at the top right opens a side panel. It answers questions through look-ups over AI Juggler's own data (sessions, feed events, tasks, pools, usage, runway), never by putting raw transcripts into the model's context (Apple's Foundation Models Tool protocol fits). Every answer cites its sources as links and says "I don't know" when the look-ups find nothing. It never acts: no sending, switching, stopping or approving. Acting comes with the orchestrator, behind pool levels and approvals. Chat history is local and clearable. The same faithfulness and injection guard applies, with tool results treated as quoted data. With no capable model, the icon opens a panel with suggested look-ups that need no AI and the approved download offer. Calm design, the ui-consistency rule, the a11y gates and a newcomer walk apply.
+4. **Order.** A (excerpts, AJ-E3708); then the router and Chat v1 on Apple's model; then B's calm-line rewriting, only if blind reviewers prefer it over A's excerpt on the realistic corpus with zero FAILs; then the local tier, after the download approval and the model tests.
+
+- **Not scheduled:** the orchestrator bot. It builds on the router and Chat, and needs its own ruling.
+- **Tasks:** E38 (AJ-E3801…AJ-E3809); AJ-E3711's handover now points at the router and B's shipping rule.
+- **Amends:** D-120 (point 2's tier list becomes engines behind the router; B's calm lines ship only on the rule in point 4; the "conversation" open idea becomes Chat v1).
+- Sources: the coordinating session's relay of the maintainer, 2026-11-16.
+
 ### D-122 The Codex app's thread identity (AJ-E3013 C2) stays in 0.4.6: the lab Codex sign-in comes first, in the planned sitting, before 0.4.6 ships — SETTLED (2026-11-16)
 
 - **Ruling** (the maintainer, through the coordinating session, 2026-11-16): asked whether C2 is proven before 0.4.6 goes Stable or deferred with a D-number, the maintainer chose **"I'll do the sitting first"**.
@@ -3253,6 +3409,349 @@ Each ships with tests that fail without it and a design critique; the M2, D2 and
 - **Why:** 0.4.6 is the first Stable candidate (D-114); the Stable gate (D-85, D-99) takes the whole 0.4, and the maintainer would rather do the sign-in than defer the route's proof.
 - **Also settled, the same answer round:** "jive-code-graph" and "Jive CLI" in PRINCIPLES.md, ADR-0032, the decision log and fixtures are fine in public ("They're fine public"); nothing changes.
 - Sources: the coordinating session's message, 2026-11-16, quoting the maintainer.
+
+### D-123 The orchestrator bot (option E) goes into 0.6; the tested open models' licences are accepted; the maintainer installs Hermes — SETTLED (2026-11-16)
+
+**Ruling.** The maintainer, 2026-11-16, answering where D and E go now that 0.6 is the Windows release (D-52): "Bot should go into 0.6". On the model-licence notes from the evaluation: "All those models are open source and fine to be used". On the skipped Hermes sign-in row: "I will install hermes … and let you know when done".
+
+1. **The orchestrator bot is scheduled for 0.6.**
+   - It builds on D-121's router and Chat v1. It grows in stages over the pool levels, as option E describes: first an advisor that triages and drafts; then actions inside pool rules, with approval gates, an audit log and cost caps; then more autonomy, earned over time.
+   - 0.6 is also Windows' first release (D-52), so the bot ships on both macOS and Windows.
+   - Its own design ruling (stages, approvals, engines) comes before any building.
+   - Option D, the cloud tier, is not placed by this ruling. It stays "later" unless the bot's design shows it needs one.
+2. **Licences.**
+   - The open models in the evaluation are accepted for use: Qwen3 (Apache-2.0), Granite (Apache-2.0), Gemma 4 (Apache-2.0), and NVIDIA Nemotron under the NVIDIA Nemotron Open Model License.
+   - The compliance steps stay. A shipped model carries its licence text and any required notice, and Nemotron's text comes from NVIDIA's page, because its repository only names it.
+   - The ship gates (D-120/D-121, ADR-0034) still decide which model, if any, is offered.
+3. **Hermes:** the maintainer installs it. Its sign-in row (AJ-E1612) stays "skipped, waiting for install" until they say it's done, and then it joins the second sitting.
+
+- **Amends:** D-120 ("D and E later" becomes "E in 0.6, D unplaced") and D-121 ("Not scheduled: the orchestrator bot" becomes 0.6).
+- Sources: the coordinating session's relay of the maintainer, 2026-11-16.
+
+### D-124 The final AI-summary check may use ~20 of the maintainer's own turn-end messages, redacted and local only — SETTLED (2026-11-16)
+
+**Ruling.** The maintainer, 2026-11-16, asked whether the real-message check before B's ship decision (D-120/D-121, ADR-0033) may use about 20 of their own agents' end-of-turn messages from this Mac's Claude Code sessions, chose "Use mine, redacted".
+
+1. **What's allowed:** about 20 turn-end messages (the agent's closing text only) from this Mac's Claude Code sessions.
+   - Each is redacted with the fail-closed tool and its sidecar before any harness reads it: names, home paths and emails removed.
+   - An item that fails redaction is dropped, never used raw.
+2. **Local only:**
+   - The items, model outputs and reviewer sheets stay in a git-ignored folder on this Mac.
+   - They're never committed, attached to a PR, captured into the evidence gallery, or sent to any service.
+   - **Clarified 2026-11-16 (the maintainer's answer, "Claude may read them"):** the Claude sessions doing this check may read the redacted items: the Sonnet extraction and redaction, the Opus eye check, and the fresh Opus blind reviewer. That sends the redacted text to Anthropic's API, the service those sessions already run on. No other service, gallery or API gets them.
+   - Only aggregate numbers, and item ids without their text, go into reports.
+   - The folder is deleted once B's ship decision is recorded.
+3. **Its role:** the held-out real-message check, reported separately from the tuned corpora and from the 24-item synthetic held-out set. No excerpt or prompt rule is tuned on it. If its numbers are clearly worse than the tuned ones, B's calm lines don't ship until the maintainer has seen them.
+4. **Scope:** this answer covers this one check. Any other use of the maintainer's transcripts needs a fresh yes (ADR-0033).
+
+- Sources: the maintainer's answer to the coordinating session's question, 2026-11-16.
+- **Amended 2026-11-16 (the maintainer's answer, "Keep for both checks"):** after Apple's model failed the blind review (ADR-0033, 855a92ee9: B doesn't ship on it), the redacted real-message set may be kept and used for two checks: A's excerpt-rule check (AJ-E3708 Req. 6d) and the downloadable-model (local tier) B check. It's still not used for tuning. The same rules apply: redacted, local, read only by the Claude sessions doing these checks. The folder is deleted once both results are recorded.
+
+### D-125 Test the next two local models: Granite 4.1 3B and Qwen3-4B-Instruct-2507 — SETTLED (2026-11-16)
+
+**Ruling.** The maintainer, 2026-11-16, after the first local-tier results (ADR-0033: Qwen3-1.7B at Q8 fails instruction-following; Nemotron 3 Nano 4B misses the entity bar, at 92.7 % and 91.7 % against 95 %; both safe), chose "Test both".
+
+1. **Test-only downloads:**
+   - Granite 4.1 3B, about 2.1 GB;
+   - Qwen3-4B-Instruct-2507, about 2.5 GB.
+
+   Each has a pinned revision, a SHA-256 checked before use, and its own empty folder outside the repo. Both are removed after the evaluation, unless one passes and becomes the offered download.
+2. **The same tests:** the frozen harness and gate (gate.py as at 7acec4f50), with llama.cpp guided generation, each GGUF's own template, and thinking off. Then the by-eye check of the script's flags, the blind review, and the real held-out check (D-124) before any ship call.
+3. **Quantisation:** prefer the official repository's Q4 build. If only a larger build is official, test it as the upper bound, under the Q8 rule.
+4. **If one passes,** it becomes the optional one-click download (D-120 amendment, D-121 disk rules). If neither passes, 0.5's feed ships A only, and B waits for a later engine.
+
+- **On hold (2026-11-16, later the same day):** the maintainer pointed out that the first results measured our zero-shot prompt (v3), not the models, and asked "why am I being asked for those 2 additional models, when we want to confirm first the existing ones?" So nothing is downloaded under D-125 until harness v4 (researched prompts, context, examples, structured fields, per-model settings, the four 0.5 jobs) has re-tested Apple's model, Qwen3-1.7B and Nemotron, and the maintainer has seen the results.
+- Sources: the maintainer's answer to the coordinating session's question, 2026-11-16.
+
+### D-126 Calm is for monitoring; making and editing screens get a rich, polished design — amends D-117 — SETTLED (2026-11-16)
+
+**Ruling.** The maintainer, 2026-11-16, on seeing the pool wizard (Who's in) and a new pool's canvas in a walk: "they are way too plainly looking. When I told you to not make screens to colorful and standing out, that was only on pages and area where we monitor things, But on wizards, create and edit CRUD pages, we need things to look great". And: "I said keep easy to see, I didn't say degrade our design to look so amateurish and basic."
+
+1. **Two design modes, chosen by the screen's job:**
+   - **Monitoring (calm, D-117)** covers surfaces watched over time: Home and its feed, the rail, session lists, Open now, usage and runway, History, a running pool's canvas, and status marks. They keep the four attention levels, quiet chrome and muted app icons.
+   - **Making and editing (rich)** covers wizards, create and edit forms, setup flows, onboarding, empty states that invite a first action, settings, and a pool still being set up. These get a polished, confident design:
+     - the app's accent colour and tinted surfaces;
+     - icons and app logos on every choice;
+     - visual choice cards with previews instead of bare checkboxes and chips;
+     - illustrations or diagrams that show what a choice does;
+     - clear step progress, and a live preview or summary that looks like the result;
+     - good use of the space, with no narrow column on an empty canvas;
+     - short copy, with depth behind "Learn more".
+2. **Calm never means plain.** Monitoring screens are still crafted: real type scale, hierarchy, considered spacing and depth. Calm limits *alarm colour and noise*, not design quality.
+3. **Scope and order:**
+   - **0.4.6:** the pool wizard and a new pool's setup state. It's 0.4.6's headline feature, and 0.4.6 isn't on beta yet.
+   - **0.5:** every other wizard, create/edit page and setup flow, as part of 0.5's revamp of every screen.
+   - Mock-ups in both themes go to the maintainer before building. Then the design critique, the a11y gate and the ui-consistency rule apply, as always.
+
+- **Amends:** D-117 (its calm rules apply to monitoring surfaces only).
+- Sources: the maintainer's messages with two screenshots, 2026-11-16.
+- **Clarified the same day:** the maintainer added "We keep going in circles, you keep swinging from one extreme to totally other side of extreme." D-126 is not a swing to colourful screens. It means one design language, with the same tokens, type, icons and craft on every screen. Only the amount of status and accent colour differs: scarce on monitoring screens, used for selection, progress and previews on making and editing screens. No decoration for its own sake. A wizard next to Home must read as the same product.
+- **Scope widened the same day:** "You need to check all the screens… and fix them all… In both things need to be easy to read and see." Every screen is audited, and each is classed as monitoring (dashboards, feeds, lists, where the user watches for things) or making and editing (where the user creates and adjusts). Both kinds must be easy to read and look polished. Recurring problems are fixed once, at the token and component level, then screen by screen.
+
+### D-127 Never show an option the user can't use on their setup; re-prove version-gated features when a tool updates — SETTLED (2026-11-18)
+
+**Ruling.** On 2026-11-18 the maintainer, testing a switch, found "Move to account" shown but disabled: "A move between Claude app profiles is proven for version 4.x; this one is 5.11492.5". Their words: "I thought you built in 4.* moving in place, but than when I tried it, it shows it is not there??? … we SHOULD NEVER EVER ENABLE IN UI/UX a not completed functionality, what is the purpose of that???"
+
+**The facts:**
+- Move in place was built and proven on 2026-11-08 (ADR-0031, D-93), on the Claude app 4.x.
+- The Claude app on this Mac has since updated to 5.11492.5.
+- The move's safety gate (`PROVEN_APP_MAJORS = ["4"]` in crates/juggler-adapters/src/claude_move.rs) refuses an unproven version, and the switch sheet showed the refused option, greyed out, with an engineering reason.
+
+**The ruling:**
+1. **Never show an option that can't work on the user's setup.**
+   - If a capability is unsupported for the user's versions, tools or disks, it's hidden. The working choice is shown alone, with no "not proven" text.
+   - An option is shown disabled only when the user can unblock it themselves, and it says how. For example: "4 sessions are working in this profile; Move becomes available once they finish."
+   - Reasons are in plain words, never internal ones ("proven", "major").
+2. **Version gates are watched, not left to rot.**
+   - When an app or CLI updates past a proven version, AI Juggler records it.
+   - The release flow's scope check lists every gate whose tool has moved past it on the reference Mac.
+   - That gate is re-proven in the lab and widened, or the hidden option stays hidden by design, before the next release.
+3. **Claude app 5.x moves:** re-prove move in place on the Claude app 5.x in the lab (the aij-test profile, ADR-0031's checklist). If the records and launch are unchanged, widen the gate. This is a 0.4.6 fix: a shipped feature that quietly disappeared after the app updated.
+
+- Sources: the maintainer's message with a screenshot, 2026-11-18.
+- **Extended the same day (the "Not proven yet" badge):** the maintainer saw "Same conversation, another app · Beta · Not proven yet" and the alert "This switch hasn't been proven on a real setup yet" on a Claude-to-Claude switch: "why are we still saying things have not been proven yet?? I thought we had proven it??"
+
+  **The facts** (crates/juggler-handover/data/fidelity-register.json):
+  - claude-code → claude-code passed 7 of 8 areas on 2026-11 lab runs, on Claude Code 2.1.310.
+  - file-history was never run.
+  - Every pair involving the Claude app (`claude-code+service`) has no runs at all.
+  - The register resets a PASS when the installed version differs *at all* from the run's. Claude Code is now 2.1.322, so even the passed cells read "not proven" within days of each auto-update.
+
+  **Ruling:**
+  1. **Before Stable (0.4.6),** every switch route the product offers is validated live in the lab on current versions, in every area, the Claude app pairs included.
+  2. **A PASS holds across patch updates of the same major.minor.** A minor or major bump triggers an automatic lab re-validation, and the release scope check lists any route that's due. The user never sees a re-check as "not proven".
+  3. **The switch sheet doesn't show "Beta · Not proven yet" or the warning alert on a route the product offers.**
+     - A route that isn't validated isn't offered by default (D-127).
+     - It appears only for a user who turned it on in Settings › Beta, and is labelled there in plain words.
+
+### D-128 Tool versions: never block on updates; check the data's shape, not the version number; a version watcher; a signed remote support list — SETTLED (2026-11-18)
+
+**Ruling.** The maintainer, 2026-11-18: "if claude upgrades the version… small patches, should we still block…? our tools will be unusable all of the time, since claude constantly upgrades. I just want us to have sensible way to do this", and asked for "some kind of script or system or github CI… that periodically checks versions of all of our tools… and if it finds change it alerts… so we can double check nothing broke", and whether version support can be updated "from a separate remote file so we don't have to recompile and deploy whole app".
+
+1. **Never block on a version number alone.**
+   - **Features that only read** (sessions, usage, Copy, handover) are never version-gated.
+   - **Features that write a tool's own files** (a move in place) check the *shape* of the data at run time: the record fields, file layout and schema markers they rely on. They proceed whenever the shape matches, on any version.
+   - **A mismatch** hides that one option (D-127) and records which tool and version, so we fix it. Copy and everything else keep working.
+   - **Validation records** (the fidelity register) hold across patch and minor updates. A major update marks the route due for an automatic re-check, and the user never sees "not proven" for it.
+2. **A version watcher,** in two parts:
+   - **A scheduled GitHub Actions job (daily)** reads the public latest versions of every tool we support: the npm registry for the CLIs, the GitHub releases, and the desktop apps' public update feeds. When one changes, it opens one issue per tool and version, labelled `tool-update`.
+   - **On the lab Mac,** a scheduled check runs the adapters' compatibility suite (parsers on fresh fixtures, the shape checks, the AJ-E808 switch routes) against the installed versions. It posts the result to that issue.
+
+   Agents pick up `tool-update` issues as queue items. A failure is a patch-release bug.
+3. **A signed remote support list:**
+   - The app fetches a small JSON compatibility list (per tool, per feature: allowed version ranges, shape-check versions, kill switches), signed with an ed25519 key pinned in the app.
+   - It's fetched at most daily, with no identifying data, and cached.
+   - On a missing or invalid file, or no network, the app falls back to the compiled-in list.
+   - The list can only switch features the code already has on or off and widen or narrow their ranges. It can never add behaviour.
+   - The signing key stays off the repo, in the release environment.
+   - It's published with the release tooling, and a change to it goes through the same review as a release note.
+
+**Releases:**
+- **0.4.6 (before Stable):** item 1 for the switch and move, already under way in rc3 under D-127; and the watcher's GitHub job, which is repo tooling and doesn't ship in the app.
+- **0.5:** the signed remote support list, and the lab-Mac compatibility run.
+
+- Sources: the maintainer's message, 2026-11-18.
+
+### D-129 The support list becomes one general, signed remote configuration with an account layer — amends D-128 §3 — SETTLED (2026-11-18)
+
+**Ruling.** The maintainer, 2026-11-18: "We should probably expand that support for that support list, so it is a general config file, this can be useful to disable or enable certain things or perform other control or maybe messages for the app. For logged in users we should have additional API level capabilities. … architecture this carefully so it is future proof as we keep expanding our app."
+
+**The design is [ADR-0035](../adr/0035-remote-config.md):**
+- **One signed envelope per channel,** with named sections, each owned by a typed feature module: compat, flags, notices, params, endpoints, and future ones.
+- **ed25519 with pinned key ids,** plus serial and expiry against rollback and replay.
+- **Layers, lowest first:** compiled defaults, then the public file, then the account file (signed by the server, linked users only), then user settings. User choices win over preferences, never over safety.
+- **Local targeting and rollout buckets,** so the anonymous fetch sends nothing.
+- **The file only selects behaviour that's already compiled in,** and flags declare in code whether remote may turn them on.
+- **The app works identically with no file.**
+- **Publishing:** reviewed by PR, validated by CI against old app versions, published and re-signed by an approved workflow.
+
+**Order:**
+- **0.5:** the crate, compat, the publish workflow, flags and notices.
+- **Later releases:** params and endpoints as features need them, and the account layer with the next account feature.
+
+The two open questions in ADR-0035 (hosting; the default on) go to the maintainer.
+
+- **Amends:** D-128 §3.
+- Sources: the maintainer's message, 2026-11-18.
+- **Hosting decided (2026-11-18):** the maintainer: "host it on our website - remote config". The public channel files are served from the Figurehead website's CDN, at a fixed URL per channel, and that host is added to the compiled endpoint allow-list. The default for "Check for configuration updates" is **on** (the coordinating session's call, as proposed in ADR-0035 §7): kill switches and version support must reach people, the fetch is anonymous, and the Privacy page says exactly what is fetched. The maintainer may reverse it.
+- **Publishing details (2026-11-18, coordinating session):**
+  - **Weekly re-signing** runs in a separate `config-resign` environment with no reviewer. It's limited to `main` and holds only the signing secret, and it may only re-sign the live content unchanged (serial and expiry). Content changes always pass the release-gated Publish config.
+  - **The `current` signing key** is generated on the maintainer's Mac and piped straight into the GitHub secret, never stored there.
+  - **The `next` and `emergency` keys** stay offline in the maintainer's password manager, like the updater's standby key.
+  - **No zone ID is needed:** files carry a 5-minute cache, so nothing is ever purged.
+
+### D-130 On-device AI: a failed test means optimise and retest, never stop; severity-based acceptance; ship as opt-in Beta when it passes — amends D-120, D-121 and the 0.5 verdicts in ADR-0033 — SETTLED (2026-11-18)
+
+**Ruling.** The maintainer, 2026-11-18, on hearing that 0.5 would ship no model-written text: "I didn't agree to skip models, just because you had a failed test, that doesn't mean we stop… No model is perfect… if you fail, you try to optimize more, with tooling and everything else." And they asked what was tested and what the acceptance criteria were.
+
+1. **No AI job is dropped for failing a round.** Each failed round produces a diagnosis and the next optimisation, and the work continues in 0.5. The "last round for 0.5" cap is withdrawn.
+2. **Optimisation levers, in this order:**
+   1. **Facts first:** the parts a model got wrong come from AI Juggler's own data instead. Git's diff and status give what changed and what was reverted, the adapter gives the turn's questions and failures, and Chat looks up the asked attribute in code. The model phrases; code supplies the truth.
+   2. **Verify and retry:** a failed check regenerates with the reason, up to two times, before falling back to the excerpt.
+   3. **Apple's adapter training** (the Foundation Models adapter toolkit) and LoRA on the open models, if prompt work plateaus.
+   4. **Larger contenders under D-125:** Granite 4.1 3B and Qwen3-4B-Instruct-2507. D-125's hold condition is met, since the existing models were re-tested and the maintainer has seen the results. Then Gemma 4 E2B.
+3. **Acceptance by severity, not "zero of anything":**
+   - **Critical:** an invented fact, a flipped outcome, a hidden question or failure to the user, an obeyed injection, an answer stated as fact for the wrong question. These must stay at 0 in what reaches the user. Every one must be caught by a check and fall back, measured on held-out sets.
+   - **Major:** a dropped detail or a misleading emphasis. At most 3 % of shown items.
+   - **Minor:** wording or style. Allowed.
+   - **Value:** blind reviewers prefer the AI output over the non-AI alternative in at least 60 % of decided pairs.
+4. **Shipping:** a job that passes ships in 0.5 as **opt-in Beta**, through the remote-config flag (ADR-0035):
+   - it's labelled "AI";
+   - one tap shows the source;
+   - there's a "this is wrong" button that records locally;
+   - the excerpt stays the default.
+
+   It becomes the default after a release of clean Beta use.
+
+- **Amends:** D-120, D-121, and the 0.5 verdicts recorded in ADR-0033, which become "not yet", not "not shipped".
+- Sources: the maintainer's message, 2026-11-18.
+- **Clarified the same day (the maintainer):** "remember this is only for chatting at the moment, not Bot which will make decisions for user. These models will only summarize, answer questions about things… it's ok if they drop or forget about a thing or two, as long as they are not constantly making up things and flat out lying. Bot models and its harnesses… will make decisions and that will require much higher confidence." Also: "Yes you can download larger ones for comparison."
+
+  So for 0.5's read-only jobs (feed line, turn review, attention *suggestion*, Chat answers):
+  - **Critical** means *fabrication* only: an invented fact, a contradiction of the source or facts (a failure stated as success, an undone change stated as done), a confident answer to a different question, or acting on planted instructions. Critical errors must be rare and mostly caught. The target is ≤1 % reaching the user, and none of them systematic.
+  - **Omissions** (a dropped detail, caveat or second point) are *not* critical. Up to about 10 % of shown items is acceptable.
+  - **Value:** preferred in ≥60 % of decided pairs.
+  - **Larger models** may be downloaded for comparison, without further approval: Granite 4.1 3B, Qwen3-4B-Instruct-2507, Gemma 4 E2B. Each has a pinned revision and SHA-256, and is test-only until one ships.
+  - **The orchestrator bot (0.6, D-123)** decides and acts for the user. It gets its own, much stricter harness and acceptance criteria. These 0.5 criteria never carry over to it.
+
+### D-131 A Models area: one recommended model per Mac, a short list of tested models to choose from, install and remove with sizes shown — amends D-121 §2 — SETTLED (2026-11-18)
+
+**Ruling.** The maintainer, 2026-11-18: "we should have an area where we managing these models in our tool, we should have a model we recommend to user, but should also allow users to select from few of the models we support and have tested our app."
+
+1. **Settings › AI › Models,** a making-and-editing screen in D-126's rich mode:
+   - **Recommended for this Mac:** one model, chosen from this Mac's chip, memory, free disk and whether Apple Intelligence is on. Apple's built-in model is first when it passes our tests, since it needs no download. It says why it's recommended in one plain line.
+   - **Other tested models:** a short list (3–5) of models that passed our harness. Each card shows:
+     - its download size and memory use;
+     - how fast it is on this Mac;
+     - which jobs it handles (feed lines, reviews, hints, Chat), with our test verdict in plain words;
+     - its licence.
+   - **Installed:** each model's disk use, with Remove; the total disk used by AI models; and which model each job uses now, with an optional per-job override (Automatic is the default, through D-121's router).
+2. **Nothing downloads without the user's click,** with the size shown and a check for free disk space (the model's size plus 10 GB). D-121's "at most one downloaded model by default" stays the *default*. A user may install more with explicit approval each time, and the total is always shown.
+3. **The supported list comes from the signed remote config** (ADR-0035): a `models` section with the model id, a pinned download URL on an allow-listed host, the SHA-256, size, licence, minimum hardware, and the test verdict per job.
+   - This lets us add a model that has passed our harness, or withdraw one, without an app release.
+   - The app runs only formats its engines already support (GGUF through the local engine, and Apple's model). The section can't add a new engine.
+   - A withdrawn model stays usable until removed, with a plain note.
+4. **Only tested models.** A model is listed only after it passes the D-130 criteria for at least one job on our harness, and its verdicts are shown per job.
+
+- **Amends:** D-121 §2.
+- Sources: the maintainer's message, 2026-11-18.
+
+### D-132 0.5's AI purpose: a cross-agent digest that consolidates notifications, and watches set up by talking to Chat — amends D-121 (Chat v1 read-only) — SETTLED (2026-11-18)
+
+**Ruling.** The maintainer, 2026-11-18: "the main benefits of these notification and chat models in 0.5 is the summaries of what agents are doing, and alerting and consolidating notifications. For example if someone has 7 agents we need a model to process messages from all 7 and summarize in short descriptions / almost like tweets, every once in a while on the feed, bringing noticeable things to user… instead of user constantly scanning and watching, chat summarizes and notifies it." And: "user should be able to chat and tell our system to watch for certain things. That should be feature of 0.5. Like: 'Hey chat, let me know when this and that agent finishes or it gets stuck'… All the things that are within our tool capabilities."
+
+1. **The digest is 0.5's main AI job.**
+   - Every so often (adaptive: about every 15–30 minutes while agents work, and at once when something notable happens), the model reads what *all* running agents did since the last digest and posts a few short, tweet-like items to the Home feed: what each agent is on, and what's notable (finished, stuck, asking, failing, big change).
+   - Related notifications are consolidated into one, so 7 agents finishing doesn't mean 7 pings.
+   - It's built on AI Juggler's facts and the agents' own text. The same fabrication rule applies (D-130): no invented progress, no failure stated as success. Omitting a minor item is fine.
+   - Without a capable model, the digest falls back to a non-AI rollup, built from facts and excerpts.
+2. **Watches through Chat:**
+   - The user says what to watch for in plain words ("tell me when the api and web agents finish or get stuck").
+   - The model turns that into a **typed watch**: a target (sessions, apps, a project, a pool, an account) and conditions from AI Juggler's closed set (finishes, gets stuck, asks or needs you, fails, idle for N min, usage or runway below X, leaves processes running, a pool message, and so on).
+   - The user sees the watch in plain words and confirms it.
+   - Monitoring is then **deterministic**, on AI Juggler's existing event stream, with no model in the loop. Alerts go through the existing notification path, with quiet hours, consolidation and dismissal.
+   - Watches are listed and editable in a Watches view (rich making-and-editing mode, D-126), with expiry options ("until it finishes", "today", "always").
+   - A request outside AI Juggler's capabilities gets a plain "I can't watch for that", with the nearest supported option. It never pretends.
+3. **Chat v1 is no longer read-only in one bounded way:** it may *create, change or remove watches* after the user confirms. It still never sends, switches, stops, approves or decides anything. Those remain the 0.6 bot's, with its stricter bar (D-123, D-130).
+4. **Tests (the D-130 criteria):**
+   - **The digest:** fabrication-critical; omissions tolerated; value judged against the non-AI rollup.
+   - **Watch parsing:** the rule shown must match the request, with ≥95 % exact rule matches on a blind set; 0 watches created without confirmation; 0 claimed watches for unsupported conditions.
+
+- **Amends:** D-121 (Chat v1 read-only, now plus watches) and D-118's feed (a digest item type).
+- Sources: the maintainer's message, 2026-11-18.
+
+### D-133 Chat has short- and long-term memory, with careful context budgeting — SETTLED (2026-11-18)
+
+**Ruling.** The maintainer, 2026-11-18: "0.5 should have a memory, short and long term, and being able to remember what user has previously asked the chat. But we have to be very smart with context." They pointed to jive-code-graph's smart-context and world-model memory as a source of ideas, not as a system to copy.
+
+1. **Short-term memory:** the current conversation, plus a rolling summary of earlier turns, kept within a fixed token budget.
+2. **Long-term memory:** what the user asked before, their standing requests and watches (D-132), and their stated preferences. Each memory carries where it came from and when. It's stored locally (SQLite), never synced, and visible, editable and clearable in Settings.
+3. **Facts about agents, projects and sessions are not memories.** They're read live from AI Juggler's own data when a question needs them, so they're never stale.
+4. **Context assembly works to a budget** that fits Apple's model (about 4K tokens on macOS 26, 8K on 27). Each section (instructions, memories, live facts, the conversation) gets a share, and retrieval ranks what earns a place.
+5. **Design:** an ADR (Opus), informed by a research pass over jive-code-graph's memory architecture, before building. It's tested through the same harness (D-130): a remembered answer must never be invented or outdated.
+
+- Sources: the maintainer's message, 2026-11-18.
+- **Extended the same day (design for 0.6 now):** the maintainer: "remember we have to think about 0.6 where bot comes in. Bot is not going to be a separate feature it is going to be an extension of our existing chat, with backend infrastructure to support bot capabilities… we should think for both. We don't want to be constantly rewriting our memory and context system."
+
+  So ADR-0037 designs **one** memory and context system for both 0.5 Chat and the 0.6 bot, and 0.5 builds the subset it needs on the final shape:
+  - **One store, one schema from day one.** Each memory carries:
+    - its *scope* (global, project, pool, session);
+    - its *kind* (preference, standing request or watch, remembered answer; reserved for 0.6: policy or rule, decision, action and outcome);
+    - its *authority* (said by the user, observed from AI Juggler's data, inferred by a model, written by the bot);
+    - its *provenance*, *confidence*, *as-of* time and *superseded-by* link.
+
+    Agent text never becomes a memory without "untrusted" provenance.
+  - **One context assembler, with pluggable sections and per-job budgets.** 0.5's small budgets (Apple 4K/8K) and 0.6's larger ones (local or cloud models, bot jobs) are the same code with different budget data.
+  - **One retrieval interface.** v1 is keyword, priority and recency. Embeddings or entity relations can be added behind it in 0.6 without changing callers.
+  - **An append-only event and audit log from 0.5.** Watches, alerts and chat turns are logged now, and the bot's decisions, approvals and actions join the same log in 0.6.
+  - **Bot-only parts are designed, not built, in 0.5:** policy memory, decision records, approval links, and stricter write rules.
+  - **Migrations are versioned,** so 0.6 only adds.
+- **Numbering note (2026-11-18):** the digest and watches design is ADR-0036; the memory and context design (D-133) is ADR-0037.
+- **Quiet hours (ADR-0036's question, the coordinating session's call):** a watch may break through quiet hours only if the user turns on "Even during quiet hours" for that watch. It's off by default and shown in plain words when the watch is confirmed. Every other alert waits for quiet hours to end, as before.
+- **Backups (ADR-0037's question, the coordinating session's call, 2026-11-18):** memory is split by what it is.
+  - **Watches and preferences the user stated** are settings. They go wherever settings go: local backups, and the encrypted cloud backup if the user has it on. That way a restore brings back what the user set up.
+  - **Chat history, remembered answers and model-inferred memories** go into local backups only, never the cloud backup, in line with D-121's "never off the Mac".
+  - **"Forget"** also removes the item from the next backup, and the backup page says so.
+- **2026-11-18, wrapping up (the maintainer):** "I think we almost have enough so lets start wrapping up testing of models so we are not wasting too many tokens for this. Make sure you clean up all the models after you are done. We should probably offer all of those models for management… and obviously have those we recommend."
+  - **Round 3 is the last evaluation round for 0.5.** The final table is produced from it, and no new rounds start.
+  - **The Models area lists all six tested models:** Apple's on-device model, Qwen3-1.7B, Nemotron 3 Nano 4B, Granite 4.1 3B, Qwen3-4B-Instruct-2507 and Gemma 4 E2B. Each shows its per-job verdicts from round 3, and the recommendation per Mac comes from those results. The shipped Qwen3-4B entry points at a GGUF we convert ourselves from the official weights, never the third-party test file.
+  - **After the final table,** every downloaded test model and the probe build are deleted from this Mac. The pinned manifest (source, revision, SHA-256) stays in the repo as the source for the remote-config `models` section.
+- **Qwen3-4B (2026-11-19, the maintainer's answer "Skip it for now"):** the Models area offers the five models with official downloads: Apple's on-device model, Qwen3-1.7B, Granite 4.1 3B, Nemotron 3 Nano 4B and Gemma 4 E2B. Qwen3-4B isn't offered, so there's no self-hosted model storage and no conversion download. It can be added later if users ask, through ADR-0035 §11's design.
+- **Local model engine (2026-11-19, the maintainer: "Yes, add it"):** `llama-cpp-2` (MIT, wraps llama.cpp with Metal) becomes an app dependency, run only in an out-of-process helper (ADR-0033 §4.2), so the downloaded models can serve the Beta jobs on Macs without Apple Intelligence.
+- **The coordinating session's calls, 2026-11-19:**
+  1. **Forward-merge release/0.4.6 into release/0.5 now,** at a commit the 0.4.6 session names as quiet, and again after each later 0.4.6 batch. That brings in the D-126 kit and V53. The merge is done on a still 0.5 tree with full local gates and no push.
+  2. **Model downloads use macOS low-priority disk I/O** (`setiopolicy_np`) through one audited `unsafe` carve-out in juggler-platform: a SAFETY comment, a test, and no other unsafe in the crate.
+  3. **Priya persona (R4) findings for 0.4.6 rc3b:**
+     - the project page's Agents card shows "Kept apart: no · Keep it apart…" in plain words;
+     - its "on their own: Work together" line leads with what's true of *this project*, for example "Agents here may message each other (Work together)".
+
+     Tying a project to its client's accounts, flagging off-account sessions and audit export is a feature for the maintainer to decide.
+
+### D-134 Linking a project to its client's accounts: later, tucked away, never on prime UI space — SETTLED (2026-11-19)
+The persona walk R4 asked to bind a project to a client's accounts, flag a session there running on another account, and export a per-project audit. The maintainer: "it is unlikely that many people will use that feature. It's ok to have it somewhere, but I would be careful using our prime real estate in our UI… take into account we only have so much UI space, what are the most likely use cases." They left the call to the coordinating session. The decision:
+1. **Scheduled for 0.6 or later, as a niche, opt-in feature.** It's not in 0.5.
+2. **It costs no space for people who don't use it:**
+   - the binding lives in the project's settings ("Accounts for this project", off by default);
+   - the export is an item in the project's "…" menu;
+   - the warning exists only for a project that has a binding, and then shows as an ordinary need. There are no new badges, columns or Home sections.
+3. **0.4.6 keeps only the small fixes already ruled:** one quiet "Kept apart" line on the existing Agents card, and the clearer "on their own" wording.
+- Sources: the maintainer's message, 2026-11-19.
+- **D-63 amended (2026-11-19, the coordinating session; AJ-E3210 Q1, option A):** a desktop App's Account may be taken from the **names** of its Code-record folders (`claude-code-sessions/<account>/<org>/`, the newest by activity). AI Juggler has already read those names since 0.1.5, for meter samples and Move. Nothing inside a credential, token or the app's storage is opened, so the rule "a desktop app's own sign-in isn't read" still holds for every credential and every byte of the app's data. Before its first Code record, a desktop App shows "Account not known yet", never a guess. The meter's `org` (option B) is used only as a cross-check.
+
+### D-135 Each App is on its own sign-in's Account; readings carry the Account they were read under (amends D-62 §3–4) — SETTLED (2026-11-19, AJ-E3210)
+F-rc3c-3: a Claude app profile and its CLI share one Claude Code folder that holds two sign-ins, and AI Juggler kept one Account per folder, so both Apps flipped to whichever program ran last. With D-63 amended (Q1-A), the AJ-E3210 build answered Q2–Q6 (`docs/research/split-sign-in-folder.md`) by the coordinating session's standard (read nothing new; Account = subscription; desktop-first; correct over clever). What changes:
+1. **D-62 item 3 now reads:** the Claude app and Claude Code on the same folder are two Apps, each on its own sign-in's Account; usually one, and two when their sign-ins differ.
+2. **Each App stores its Account** (`apps.subscription_id`, V55). A desktop App's comes from its newest Code record's folder names (D-63 as amended); before its first record it is "Account not known yet". A CLI App's is the folder's CLI sign-in; `accounts.subscription_id` stays that, for older readers, until they read by App.
+3. **A CLI App never moves on a read the Claude app wrote.** Only on a folder a desktop App shares: with no CLI credential there (existence only), the CLI App is "Not signed in"; a sign-in the desktop App isn't on was a CLI's; the desktop App's own sign-in doesn't move it when the newest `claude` run there was the app's.
+4. **Readings carry the Account they were read under** (`quota_samples.signed_in_as`, V55); an Account's room uses only its own.
+5. **A change is recorded once and told once:** one `account_audit` row and one notice ("Claude Code CLI · aij-test is signed in to Team now"); a read that changes nothing writes neither.
+- Sources: the maintainer's ruling on F-rc3c-3 ("0.5: a per-App Account needs a design that reconciles D-63"), the coordinating session's Q1 ruling (2026-11-19), the write-up's answers.
+
+### D-136 One Bot: a single continuous conversation, context-aware, panel and full page, the same Bot that grows in 0.6 — SETTLED (2026-11-19)
+The maintainer asked whether Chat should be its own page, whether there should be several chats or chats per app or session, how it flows with the 0.6 bot, and whether it knows which screen you're on: "if we confuse the user it is all going to be worthless." The maintainer approved the model below, and named it Bot: "Why don't we call Chat bot, and next version in 0.6 is just going to be a lot more functional bot."
+1. **It's called Bot,** from 0.5 on. 0.6's bot is the same Bot with more abilities: no rename, nothing to migrate. Its empty state says plainly what it can do today (answer questions about your work, set watches after you confirm) and that it doesn't talk to your agents.
+2. **One conversation, for good.** No separate chats or threads: AI Juggler already has many sessions (your agents'), and parallel threads would blur the two. A long history stays readable through day dividers, a "New topic" divider, search and clear. D-133's one memory goes with the one conversation.
+3. **Context-aware, visibly.** A question asked from a session, app or project page is scoped to it, shown as a chip on the question ("About: api ×"); one click widens it to everything. Never a silent guess: each answer says what it looked at. "Ask Bot about this" on session, app, project and feed items opens Bot with that scope filled in. That is how you ask about one App or session, not separate chats.
+4. **A docked panel and a full page, one conversation.** The panel (the top-right icon, ⌘J) is the default, for asking while looking at something. Expand opens a full Bot page: long reading, history search, "What Bot remembers", and later the bot's longer tasks. Switching never loses anything.
+5. **Bot only tells; acting needs a confirm card.** True from 0.5 (Watch this…); 0.6 adds more confirm cards (start, stop, hand over) in the same conversation.
+- Supersedes AJ-E3804..E3809's "Chat" naming, and the separate-panel-only layout of the 2026-11-19 mock-up.
+- Sources: the maintainer's messages, 2026-11-19.
+- **The mock-up approved (2026-11-19, the maintainer: "remove the placeholder and build it"):** `~/Dev/AIJuggler-design-refs/chat-panel/` (19 states, kept outside the repo for its vendor logos) is the design Bot is built to, with one change: the full page's dashed "Later · Longer tasks" card is removed. It drew a feature that doesn't exist (D-127) and returns in 0.6 with the feature. Two ADR lines change with it: ADR-0034 §6.8 (the question box stays in the no-model panel) and ADR-0037 §9 ("What Bot remembers" is a tab of the Bot page, not a Settings pane).
+
+### D-137 Every release works in batches: find everything, triage once, fix together, one build — STANDING RULE — SETTLED (2026-11-19)
+
+**Ruling.** The maintainer, 2026-11-19, after 0.4.6 went from rc3a to rc3h a few findings at a time: "I wish you would find these issues in batches and fix them in batches instead of one by one", and: "batch work should be standing rule for all other releases."
+
+**For every release from now on (0.4.x, 0.5 and all later):**
+1. **Find in a batch.** Each test round walks or captures every flow and screen in scope first, in parallel where labs allow, and collects every finding into one list. Nothing is fixed mid-walk unless the walk itself is blocked.
+2. **Triage once.** Blockers (data loss, a wrong account or action, a crash, a security or privacy issue, a broken core flow) go into this release. Everything else gets an E-id for the next.
+3. **Fix together.** The whole batch is fixed in parallel by area, then one build (one RC or one recapture), then one re-walk of what changed plus a short smoke walk of the core flows.
+4. **An exit line.** Each release names its last RC in advance. After it, only blockers change the build; everything else waits for the next release.
+5. **The same rule for design checks.** One complete critique list per screen against its mock-up, one fix batch, one recapture.
+
+Every session and agent brief carries this rule.
+
+- Sources: the maintainer's messages, 2026-11-19.
 
 ### D-138 Releases flow continuously; promotions are periodic, not per version (supersedes D-114's freeze) — STANDING RULE — SETTLED (2026-11-20)
 

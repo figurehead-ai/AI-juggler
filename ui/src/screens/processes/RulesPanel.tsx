@@ -8,7 +8,7 @@ import { useEffect, useState, type JSX } from "react";
 import { Button } from "../../components/primitives";
 import { cleanupPauseSet, cleanupTiersSet } from "../../lib/ipc/cleanup";
 import { processesDryRun, processesPolicy, type CleanupPolicyInfo, type RulePreviewInfo } from "../../lib/ipc/processes";
-import { folderAppName } from "../../lib/app-name";
+import { useFolderAppName } from "../../lib/apps";
 
 function Switch({ on, label, onChange, testId }: { on: boolean; label: string; onChange: (on: boolean) => void; testId: string }): JSX.Element {
   return (
@@ -46,6 +46,7 @@ function Preview({ preview }: { preview: RulePreviewInfo }): JSX.Element {
 }
 
 export function RulesPanel({ policy: seeded }: { policy?: CleanupPolicyInfo | null }): JSX.Element {
+  const folderAppName = useFolderAppName();
   const [policy, setPolicy] = useState<CleanupPolicyInfo | null>(seeded ?? null);
   const [preview, setPreview] = useState<RulePreviewInfo | null>(null);
   const [error, setError] = useState<string | null>(null);

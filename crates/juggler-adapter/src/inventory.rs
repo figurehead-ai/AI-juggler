@@ -219,6 +219,21 @@ pub struct Item {
     pub origin: Origin,
 }
 
+impl Item {
+    /// One of `tool`'s own items, for the whole account (its user scope).
+    #[must_use]
+    pub fn own(tool: &str, kind: ItemKind, name: &str, detail: Detail) -> Self {
+        Self {
+            tool: tool.to_owned(),
+            kind,
+            name: name.to_owned(),
+            scope: Scope::User,
+            detail,
+            origin: Origin::Own,
+        }
+    }
+}
+
 /// Where an item came from, as the source tool's files say
 /// (switch-setup-items.md, "Item classes").
 #[derive(Clone, PartialEq, Eq, Hash, Debug, Default, serde::Serialize)]

@@ -1,0 +1,44 @@
+[
+ {
+  "pair": "turns-attention-001",
+  "item": "R2T17",
+  "source": "Die neue Fehlerseite habe ich gebaut und dann wieder entfernt, weil das Design noch fehlt. Nur die Routen sind angelegt.",
+  "facts": {
+   "outcome": "completed",
+   "level": "L1",
+   "tests": {
+    "state": "passed",
+    "passed": 12,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "ui/routes.tsx",
+     "added": 7,
+     "removed": 0,
+     "status": "M"
+    }
+   ],
+   "reverted": [
+    {
+     "path": "ui/ErrorPage.tsx",
+     "note": "error page removed"
+    },
+    {
+     "path": "ui/error.css",
+     "note": "stylesheet removed"
+    }
+   ],
+   "reflog": [
+    "99ab88c reset --soft HEAD~1"
+   ],
+   "uncommitted": true
+  },
+  "first": "Might need you: “Die neue Fehlerseite habe ich gebaut und dann wieder entfernt, weil das Design noch fehlt.”",
+  "second": "Might need you: the agent reports something failed: “Die neue Fehlerseite habe ich gebaut und dann wieder entfernt, weil das Design noch fehlt. Nur die Routen sind angelegt.”"
+ }
+]

@@ -160,17 +160,10 @@ fn label(host: &Host) -> String {
     }
 }
 
-/// `path` for a `file` link: each byte outside the plain set as `%XX`.
+/// `path` for a `file` link: each byte outside the plain set as `%XX`
+/// (the one escape every app link uses, AJ-E1610).
 fn link_path(path: &Path) -> String {
-    let mut out = String::new();
-    for byte in path.to_string_lossy().bytes() {
-        if byte.is_ascii_alphanumeric() || b"/-._~".contains(&byte) {
-            out.push(char::from(byte));
-        } else {
-            let _ = write!(out, "%{byte:02X}");
-        }
-    }
-    out
+    juggler_adapter::desktop_app::link_escape(&path.to_string_lossy())
 }
 
 /// The window count and how many are minimised, through System Events:

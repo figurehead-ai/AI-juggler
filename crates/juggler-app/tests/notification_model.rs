@@ -19,6 +19,7 @@ use std::sync::{Arc, Mutex};
 
 use juggler_adapter::AdapterRegistry;
 use juggler_adapters::{CLAUDE_CODE_ID, ClaudeCodeAdapter};
+use juggler_app::features::notifications::batch::Opens;
 use juggler_app::features::notifications::centre::{self, NeedInput, NoticeTarget};
 use juggler_app::features::notifications::engine::{Kind, Target};
 use juggler_app::features::notifications::prefs::{self, SystemNotificationsInfo};
@@ -39,6 +40,9 @@ fn app_state(dir: &Path) -> Arc<AppState> {
 fn shown(state: &Arc<AppState>) -> Arc<Mutex<Vec<Outgoing>>> {
     let list = Arc::new(Mutex::new(Vec::new()));
     let sink = Arc::clone(&list);
+    // The rules before the batch (ADR-0036 §1.7 has its own tests): each
+    // item as it falls due.
+    state.notifier.set_batch_ms(0);
     state
         .notifier
         .set_sink(Box::new(move |outgoing: &Outgoing| {
@@ -172,7 +176,7 @@ fn a_crash_restarted_says_so_in_plain_words_and_may_interrupt() {
     );
     assert_eq!(
         state.notifier.target_of(told[0].id),
-        Some(Target::Session(again))
+        Some(Opens::Target(Target::Session(again)))
     );
 }
 
@@ -726,6 +730,8 @@ fn every_source(state: &Arc<AppState>, dir: &Path) -> needs::NeedSources {
             title: "An agent asks to read the roster".to_owned(),
             detail: "From reviewer".to_owned(),
             preview: None,
+            sender: None,
+            thread: None,
             at_ms: 1_000,
             line: None,
         }],
@@ -1072,7 +1078,7 @@ fn room_again_is_told_when_on_and_never_muted_or_snoozed() {
     }
     assert_eq!(
         state.notifier.target_of(list.lock().unwrap()[0].id),
-        Some(Target::Account("acct-a".to_owned()))
+        Some(Opens::Target(Target::Account("acct-a".to_owned())))
     );
 
     centre::mute(&state.storage.lock().unwrap(), "kind", "reset", "", now).unwrap();
@@ -1239,7 +1245,9 @@ fn archiving_another_apps_session_here_takes_its_need_away_at_once_and_unarchivi
 {
     let dir = tempfile::tempdir().unwrap();
     let state = app_state(dir.path());
-    let done = || theirs("c-done", "Codex", "codex-desktop", Some("done_review"));
+    // D-117: one that asks (counted), so the bell's step shows; a review
+    // is listed but never counted.
+    let done = || theirs("c-done", "Codex", "codex-desktop", Some("asks_you"));
     let sources = |archived_here: bool| needs::NeedSources {
         conversations: vec![needs_conversation(done(), archived_here)],
         computer: "Mac",
@@ -1255,7 +1263,7 @@ fn archiving_another_apps_session_here_takes_its_need_away_at_once_and_unarchivi
     };
     let now = Timestamp::now().millis();
     assert!(needs::refresh_from(&state, &sources(false), now));
-    assert_eq!(rows().len(), 1, "finished, not looked at: it needs you");
+    assert_eq!(rows().len(), 1, "it asks: it needs you");
     let bell = views::summary_now(&state).count;
 
     // Archived here: the next working out leaves it out ...

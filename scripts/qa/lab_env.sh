@@ -12,8 +12,9 @@
 # Kept: the basics (HOME, PATH, USER, LOGNAME, SHELL, TMPDIR, LANG,
 # LC_ALL, TERM), the build's (CARGO_*, RUSTFLAGS, RUSTUP_*, RUSTC_WRAPPER),
 # the test bridge's switches (AIJ_DEV_BRIDGE*), the lab's own (AIJ_LAB_*, AIJ_QA_* seeding, AJ_LAB_OUT, DISABLE_AUTOUPDATER, which it
-# sets to 1) and the tools' stand-ins it names (AI_JUGGLER_CLAUDE_BIN,
-# AI_JUGGLER_CODEX_BIN). Values are passed through, never printed.
+# sets to 1), the tools' stand-ins it names (AI_JUGGLER_CLAUDE_BIN,
+# AI_JUGGLER_CODEX_BIN), and on a dry run the stand-ins' AI_JUGGLER_*
+# overrides (below). Values are passed through, never printed.
 set -euo pipefail
 # 0.4.6 (the presence report): proof A's headless `claude -p`, typed by hand
 # inside a Code-tab session, inherited CLAUDE_CODE_ENTRYPOINT=claude-desktop
@@ -44,4 +45,16 @@ while IFS='=' read -r name _; do
     AI_JUGGLER_CLAUDE_BIN|AI_JUGGLER_CODEX_BIN) args+=("$name=${!name}") ;;
   esac
 done < <(env)
+# A dry run's stand-in tools (AJ-E1612, lab_scenario.sh --standins): the
+# adapters' test overrides pass only while AIJ_LAB_STANDINS names a lab's
+# stand-ins folder, and only those that point into it.
+case "${AIJ_LAB_STANDINS:-}" in
+  /tmp/aij-lab*/standins|/private/tmp/aij-lab*/standins)
+    for name in AI_JUGGLER_OPENCODE_BIN AI_JUGGLER_KIMI_BIN AI_JUGGLER_GROK_BIN AI_JUGGLER_MUSE_BIN AI_JUGGLER_HERMES_BIN AI_JUGGLER_ZCODE_ENGINE; do
+      value="${!name:-}"
+      case "$value" in
+        "$AIJ_LAB_STANDINS"/*) [[ "$value" == *..* ]] || args+=("$name=$value") ;;
+      esac
+    done ;;
+esac
 exec env -i "${args[@]}" DISABLE_AUTOUPDATER=1 "$@"

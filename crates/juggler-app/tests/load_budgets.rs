@@ -150,6 +150,25 @@ fn backend_cold_start_at_scale() {
     let mid = median(runs.clone());
     eprintln!("[perf] backend cold start at scale: median {mid:?} (runs {runs:?})");
     assert!(mid < Duration::from_millis(2500), "{mid:?}");
+    // `AIJ_KEEP_LOAD_FIXTURE=<folder>`: a copy of the seeded data folder,
+    // for the release app's own cold start
+    // (`scripts/qa/release_cold_start.sh`). Synthetic, no real data.
+    if let Some(keep) = std::env::var_os("AIJ_KEEP_LOAD_FIXTURE") {
+        copy_tree(dir.path(), Path::new(&keep));
+        eprintln!("[perf] load fixture kept at {}", Path::new(&keep).display());
+    }
+}
+
+fn copy_tree(from: &Path, to: &Path) {
+    std::fs::create_dir_all(to).unwrap();
+    for entry in std::fs::read_dir(from).unwrap().flatten() {
+        let target = to.join(entry.file_name());
+        if entry.file_type().unwrap().is_dir() {
+            copy_tree(&entry.path(), &target);
+        } else {
+            std::fs::copy(entry.path(), &target).unwrap();
+        }
+    }
 }
 
 /// Budget: terminal input echo < 50 ms local — from the dock's write to

@@ -17,6 +17,9 @@ juggler-account = ["juggler-platform"]
 # no state and only speaks to the app over its socket).
 juggler-agentbridge = []
 juggler-stats = []
+# ADR-0035: the signed remote configuration; knows no feature, so it
+# depends on nothing of ours (sections and the transport are handed in).
+juggler-remote-config = []
 juggler-scap-init = []
 # D-26: the audited SMAppService shim (open at login); depends on nothing of ours.
 juggler-login-item = []
@@ -28,11 +31,17 @@ juggler-proc-list = []
 # local sockets, program trust. Knows no tool and no product, so it sits
 # below everything and depends on nothing of ours.
 juggler-platform = []
-juggler-adapter = ["juggler-core", "juggler-platform"]
+# D-128, ADR-0035 §2: the adapters' compat section (each adapter declares
+# the features it gates; the remote file narrows or kills them).
+juggler-adapter = ["juggler-core", "juggler-platform", "juggler-remote-config"]
 juggler-adapters = ["juggler-adapter", "juggler-core"]
 juggler-supervisor = ["juggler-adapter", "juggler-core", "juggler-proc-list", "juggler-vm-stats"]
 juggler-handover = ["juggler-adapter", "juggler-core", "juggler-platform"]
 juggler-link = []
+# D-131, ADR-0033 §4.2: the local-model helper's protocol (pure data and
+# bounds), shared by the app's local engine and the helper itself
+# (crates/juggler-local-ai, its own workspace); depends on nothing of ours.
+juggler-local-ai-protocol = []
 juggler-app = [
   "juggler-account",
   "juggler-agentbridge",
@@ -43,9 +52,11 @@ juggler-app = [
   "juggler-floor-render",
   "juggler-handover",
   "juggler-link",
+  "juggler-local-ai-protocol",
   "juggler-login-item",
   "juggler-platform",
   "juggler-proc-list",
+  "juggler-remote-config",
   "juggler-scap-init",
   "juggler-stats",
   "juggler-supervisor",

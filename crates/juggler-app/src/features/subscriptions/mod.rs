@@ -18,7 +18,13 @@
 //! D-62 (AJ-E3202): each sign-in is stored as its Account, and its plan,
 //! renewal and fee are kept there ([`terms`]), moved from its folders
 //! where they agree; where they don't, the Account says what to choose.
+//!
+//! D-135 (AJ-E3210): each App is on its own sign-in's Account
+//! ([`app_accounts`]): a desktop App on its records' sign-in, a CLI App on
+//! its folder's, which a read the Claude app wrote into a shared folder
+//! never moves. An Account only desktop Apps are on is listed too.
 
+pub mod app_accounts;
 pub mod commands;
 pub mod terms;
 
@@ -162,16 +168,26 @@ pub fn group_linked(
     rows: Vec<ProfileRead>,
     linked: &BTreeMap<String, String>,
 ) -> Vec<SubscriptionInfo> {
+    group_held(rows, linked, &std::collections::BTreeSet::new())
+}
+
+/// [`group_linked`], with the folders whose read was held (AJ-E3210: the
+/// Claude app's sign-in in a folder it shares with a CLI): each stays in
+/// the Account it's linked to, as one that couldn't be checked does.
+#[must_use]
+pub fn group_held(
+    rows: Vec<ProfileRead>,
+    linked: &BTreeMap<String, String>,
+    held: &std::collections::BTreeSet<String>,
+) -> Vec<SubscriptionInfo> {
     let keys = account_keys(&rows, linked);
     let mut groups: Vec<(u8, String, SubscriptionInfo)> = Vec::new();
     let mut index: BTreeMap<String, usize> = BTreeMap::new();
     for row in rows {
         // 0.4.1: couldn't tell this time; it stays where it was.
-        let kept = row
-            .profile
-            .unchecked
-            .as_ref()
-            .and(linked.get(&row.profile.id))
+        let kept = (row.profile.unchecked.is_some() || held.contains(&row.profile.id))
+            .then(|| linked.get(&row.profile.id))
+            .flatten()
             .map(|account| {
                 keys.get(account)
                     .cloned()
@@ -412,7 +428,11 @@ pub fn list_impl(state: &Arc<AppState>) -> AppResult<Vec<SubscriptionInfo>> {
         (accounts, fees, accepted)
     };
     let mut services = crate::features::service_accounts::profile_services(state);
-    let rows: Vec<ProfileRead> = accounts
+    let dirs: BTreeMap<String, std::path::PathBuf> = accounts
+        .iter()
+        .map(|account| (account.id.to_string(), account.state_dir.clone()))
+        .collect();
+    let mut rows: Vec<ProfileRead> = accounts
         .iter()
         .map(|account| ProfileRead {
             service: services.remove(account.id.as_str()),
@@ -435,22 +455,29 @@ pub fn list_impl(state: &Arc<AppState>) -> AppResult<Vec<SubscriptionInfo>> {
             },
         })
         .collect();
+    // AJ-E3210: each desktop App's own sign-in; a shared folder's read the
+    // Claude app wrote is held (its folder keeps its Account).
+    let desktop = app_accounts::desktop_apps(state);
+    let held = app_accounts::hold_app_writes(state, &mut rows, &desktop, &dirs);
     let Links {
         accounts: stored,
         kept,
         moved,
     } = store_accounts(state, &rows);
-    let mut rows = rows;
+    let changed = app_accounts::store_app_accounts(state, (&rows, &stored), &desktop);
     for row in &mut rows {
-        if let (true, IdentityProbe::Unverifiable { reason }) =
-            (kept.contains(&row.profile.id), &row.probe)
-        {
+        if let (true, false, IdentityProbe::Unverifiable { reason }) = (
+            kept.contains(&row.profile.id),
+            held.contains(&row.profile.id),
+            &row.probe,
+        ) {
             row.profile.unchecked = Some(reason.clone());
         }
     }
     // A kept folder reads as who it was last (its email, its team).
     state.folder_accounts.remember(&mut rows, &kept);
-    let mut accounts = group_linked(rows, &stored);
+    let mut accounts = group_held(rows, &stored, &held);
+    with_app_only_accounts(&mut accounts, &desktop, &stored);
     let storage = lock_storage_arc(state)?;
     let names: BTreeMap<String, String> = storage
         .subscriptions()
@@ -460,10 +487,12 @@ pub fn list_impl(state: &Arc<AppState>) -> AppResult<Vec<SubscriptionInfo>> {
         .collect();
     let slots = storage.subscriptions().colour_slots()?;
     for account in &mut accounts {
-        account.account_id = account
-            .profiles
-            .iter()
-            .find_map(|profile| stored.get(&profile.id).cloned());
+        account.account_id = account.account_id.take().or_else(|| {
+            account
+                .profiles
+                .iter()
+                .find_map(|profile| stored.get(&profile.id).cloned())
+        });
         let Some(id) = account.account_id.clone() else {
             continue;
         };
@@ -484,7 +513,76 @@ pub fn list_impl(state: &Arc<AppState>) -> AppResult<Vec<SubscriptionInfo>> {
             )
         });
     }
+    tell_app_moves(state, &accounts, &changed);
     Ok(accounts)
+}
+
+/// AJ-E3210 (Q5): each App that moved Accounts, told once, by the
+/// Accounts' names now.
+fn tell_app_moves(
+    state: &Arc<AppState>,
+    accounts: &[SubscriptionInfo],
+    changed: &[app_accounts::Changed],
+) {
+    if changed.is_empty() {
+        return;
+    }
+    let names: BTreeMap<String, String> = accounts
+        .iter()
+        .filter_map(|account| Some((account.account_id.clone()?, account.display_name.clone())))
+        .collect();
+    app_accounts::tell(state, changed, |id| {
+        names
+            .get(id)
+            .cloned()
+            .unwrap_or_else(|| "another account".to_owned())
+    });
+}
+
+/// AJ-E3210: an Account only desktop Apps are on (no folder's CLI signed
+/// in to it) is listed too, after the signed-in ones: its Apps and room
+/// are its own.
+fn with_app_only_accounts(
+    accounts: &mut Vec<SubscriptionInfo>,
+    desktop: &[app_accounts::DesktopApp],
+    stored: &BTreeMap<String, String>,
+) {
+    // The Accounts a folder's group already stands for.
+    let mut seen: std::collections::BTreeSet<String> = stored.values().cloned().collect();
+    let at = accounts
+        .iter()
+        .position(|account| account.state != "signed_in")
+        .unwrap_or(accounts.len());
+    let mut extra = Vec::new();
+    for app in desktop {
+        let Some(id) = app.account.clone() else {
+            continue;
+        };
+        if !seen.insert(id.clone()) {
+            continue;
+        }
+        extra.push(SubscriptionInfo {
+            key: opaque(&format!("app|{id}")),
+            account_id: Some(id),
+            name: None,
+            display_name: String::new(),
+            colour_slot: None,
+            tool: app.tool.clone(),
+            state: "signed_in".to_owned(),
+            email: None,
+            organisation: None,
+            reason: None,
+            profiles: Vec::new(),
+            plan: None,
+            renewal_date: None,
+            fee_usd: None,
+            differs: Vec::new(),
+            choices: Vec::new(),
+            service: None,
+            apps: None,
+        });
+    }
+    accounts.splice(at..at, extra);
 }
 
 /// The window's list ([`list_impl`]), each Account with its Apps
@@ -499,8 +597,11 @@ pub fn list_with_apps_impl(state: &Arc<AppState>) -> AppResult<Vec<SubscriptionI
     Ok(accounts)
 }
 
-/// rc22 (A3): each Account's Apps, of the Apps list (`listed`): those on
-/// one of its profiles' folders.
+/// rc22 (A3): each Account's Apps, of the Apps list (`listed`). AJ-E3210
+/// (D-135): by each App's own Account (`StoredAppInfo::account_id`); a
+/// CLI App with none (not signed in, or a sign-in that can't be read)
+/// stays with its folder's group. A desktop App whose Account isn't known
+/// yet is on none: its row says so, never a guess.
 pub fn with_apps(
     accounts: &mut [SubscriptionInfo],
     listed: &[crate::features::apps::StoredAppInfo],
@@ -509,10 +610,15 @@ pub fn with_apps(
         account.apps = Some(
             listed
                 .iter()
-                .filter(|app| {
-                    app.folder_id
-                        .as_deref()
-                        .is_some_and(|folder| account.profiles.iter().any(|p| p.id == folder))
+                .filter(|app| match (&app.account_id, &account.account_id) {
+                    (Some(own), Some(id)) => own == id,
+                    (Some(_), None) => false,
+                    (None, _) => {
+                        app.kind == "cli"
+                            && app.folder_id.as_deref().is_some_and(|folder| {
+                                account.profiles.iter().any(|p| p.id == folder)
+                            })
+                    }
                 })
                 .map(|app| app.id.clone())
                 .collect(),

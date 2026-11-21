@@ -11,6 +11,7 @@ import { PAGE_UNDER } from "../lib/nav";
 import { ariaKeysOf, keysOf, SHORTCUTS, type ShortcutId } from "../lib/shortcuts";
 import { onBindingsChanged } from "../lib/shortcut-bindings";
 import { IconBroom } from "./icons-actions";
+import { NAV_CURRENT } from "./controls/selected";
 
 /** A tab's key from the one registry (0.3 polish: each tab's tooltip
  * names it, so the keys are learnt where the tabs are): "⌘⇧P", or the
@@ -21,11 +22,19 @@ export function navKeys(id: string): string | null {
 }
 
 // Snug below 1280 px, so the row fits at 1024 with the list open.
-// The lit one is never faded in: a fade WebKit pauses in a window not
-// shown (the 0.4.6 RC walk K2) left the old one lit over the new page.
-const NAV_BUTTON = "rounded-md px-1.5 py-1.5 text-meta outline-none focus-visible:ring-2 focus-visible:ring-accent/60 xl:px-2.5 ";
-// The lit tab is the page's title: raised, in ink, heavier.
-const lit = (current: boolean) => (current ? "bg-surface font-semibold text-ink sheen" : "font-medium text-muted hover:bg-surface/60 hover:text-ink");
+// Each tab is as wide as its words in semibold (a hidden copy after them),
+// so lighting another page moves none of them. The lit one is never faded
+// in: a fade WebKit pauses in a window not shown (the 0.4.6 RC walk K2)
+// left the old one lit over the new page.
+// AJ-E3603: in a bar under 820 px (1024 with the list open, a cleanup
+// count and the bell's) the tabs close up a little, so the bar keeps one
+// row; with Bot and the Floor added it wrapped the whole cluster under
+// the tabs.
+const NAV_BUTTON =
+  "inline-flex flex-col items-center rounded-md px-1.5 py-1.5 text-meta outline-none focus-visible:ring-2 focus-visible:ring-accent/60 after:invisible after:h-0 after:overflow-hidden after:font-semibold after:content-[attr(data-label)] @max-[820px]/header:px-1 ";
+// The lit tab is the page's title, as D-118's mock draws it: semibold ink,
+// no box (NAV_CURRENT); the others regular and muted, ink on hover.
+const lit = (current: boolean) => (current ? NAV_CURRENT : "font-normal text-muted hover:text-ink");
 
 /** Whether `id`'s tab is the page shown. */
 export function navLit(id: string, global: string | null, page: string): boolean {
@@ -53,7 +62,7 @@ export function MainNav<Id extends string>({
   useEffect(() => onBindingsChanged(() => bump((n) => n + 1)), []);
   const items = pairedCount > 0 ? [...primary, { id: "fleet" as Id, label: "Fleet" }] : primary;
   return (
-    <nav aria-label="Main" className="flex min-w-0 flex-wrap items-center gap-0.5 xl:gap-1" data-testid="main-nav">
+    <nav aria-label="Main" className="flex min-w-0 flex-wrap items-center gap-0.5 xl:gap-1 @max-[820px]/header:gap-0" data-testid="main-nav">
       {items.map((item) => {
         const current = navLit(item.id, global, page);
         const keys = navKeys(item.id);
@@ -67,6 +76,7 @@ export function MainNav<Id extends string>({
             onClick={() => onPick(item.id)}
             className={NAV_BUTTON + lit(current)}
             data-testid={`nav-${item.id}`}
+            data-label={item.label}
           >
             {item.label}
           </button>
@@ -85,7 +95,8 @@ export function CleanupPill({ count, shown, onOpen }: { count: number; shown: bo
       type="button"
       onClick={onOpen}
       title={words}
-      className="flex shrink-0 items-center whitespace-nowrap rounded-full border border-warning/40 bg-warning-soft px-2.5 py-1 text-meta font-medium text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
+      // D-117: a note (L1), so a ghost button in muted words, no tint.
+      className="btn-ghost flex shrink-0 items-center whitespace-nowrap rounded-full px-2 py-1 text-meta font-medium text-muted outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
       data-testid="nav-cleanup-pill"
     >
       {/* 0.3.2: a narrow bar (1024 px, the list open, Fleet's tab too)

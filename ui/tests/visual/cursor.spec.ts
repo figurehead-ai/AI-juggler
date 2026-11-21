@@ -58,9 +58,9 @@ async function notPointing(page: Page): Promise<{ count: number; wrong: string[]
   });
 }
 
-async function expectHands(page: Page, where: string) {
+async function expectHands(page: Page, where: string, least = 4) {
   const { count, wrong, disabledHands } = await notPointing(page);
-  expect(count, `${where}: some controls were checked`).toBeGreaterThan(3);
+  expect(count, `${where}: some controls were checked`).toBeGreaterThanOrEqual(least);
   expect(wrong, `${where}: clickable without the hand cursor`).toEqual([]);
   expect(disabledHands, `${where}: a disabled control shows the hand`).toEqual([]);
 }
@@ -92,7 +92,14 @@ test("every clickable control shows the hand — menus and the legend", async ({
   await expectHands(page, "notification centre");
   await page.keyboard.press("Escape");
   await page.getByTestId("rail").getByRole("button", { name: "Indicator legend" }).click();
-  await expectHands(page, "legend open");
+  // The legend has no control of its own and the page under it is inert
+  // (AJ-E3011 round 4): focus is on the legend, and nothing under it is
+  // checked (none can be pressed); its "?" shows the hand once it closes.
+  await expect(page.getByTestId("indicator-legend")).toBeFocused();
+  await expectHands(page, "legend open", 0);
+  await page.keyboard.press("Escape");
+  await expect(page.getByTestId("rail").getByRole("button", { name: "Indicator legend" })).toBeFocused();
+  await expectHands(page, "legend closed");
 });
 
 // AJ-E1021 / AJ-E1023: Home's triage controls (Resume, Mark reviewed,

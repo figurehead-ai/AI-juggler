@@ -1,0 +1,941 @@
+{
+ "family": "qwen3",
+ "job": "watch",
+ "note": "script flags: candidates for Opus to confirm by eye, never verdicts",
+ "candidates": [
+  {
+   "id": "R2-W02",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime (unsaid; ADR-0036's default) today != once",
+   "stage": "shown",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W03",
+   "class": "omission",
+   "detector": "no_watch",
+   "detail": "shown form",
+   "stage": "shown",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W04",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime (unsaid; ADR-0036's default) today != once",
+   "stage": "shown",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W06",
+   "class": "omission",
+   "detector": "no_watch",
+   "detail": "shown form",
+   "stage": "shown",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W07",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime today != once",
+   "stage": "shown",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W09",
+   "class": "omission",
+   "detector": "no_watch",
+   "detail": "shown form",
+   "stage": "shown",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W10",
+   "class": "omission",
+   "detector": "no_watch",
+   "detail": "shown form",
+   "stage": "shown",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W11",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime until_ends != always",
+   "stage": "shown",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W12",
+   "class": "omission",
+   "detector": "no_watch",
+   "detail": "shown form",
+   "stage": "shown",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W13",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime (unsaid; ADR-0036's default) today != once",
+   "stage": "shown",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W14",
+   "class": "omission",
+   "detector": "no_watch",
+   "detail": "shown form",
+   "stage": "shown",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W15",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "observes: has a task moved to (Playlist import)",
+   "stage": "shown",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W16",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime (unsaid; ADR-0036's default) today != once",
+   "stage": "shown",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W18",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime (unsaid; ADR-0036's default) today != once",
+   "stage": "shown",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W30",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime (unsaid; ADR-0036's default) today != once",
+   "stage": "shown",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W31",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime (unsaid; ADR-0036's default) today != once",
+   "stage": "shown",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W33",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime today != once",
+   "stage": "shown",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W34",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "conditions [('fails', None), ('stuck', None)] != [('fails', None)]",
+   "stage": "shown",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W35",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model: Bis Freitag: sag mir, wenn das Blog-Projekt fertig wird oder",
+   "stage": "shown",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W36",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "observes: has a task moved to (Cursor)",
+   "stage": "shown",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W38",
+   "class": "omission",
+   "detector": "no_watch",
+   "detail": "shown form",
+   "stage": "shown",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W46",
+   "class": "omission",
+   "detector": "no_watch",
+   "detail": "shown form",
+   "stage": "shown",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W50",
+   "class": "omission",
+   "detector": "no_watch",
+   "detail": "shown form",
+   "stage": "shown",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W51",
+   "class": "omission",
+   "detector": "no_watch",
+   "detail": "shown form",
+   "stage": "shown",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W52",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime (unsaid; ADR-0036's default) today != once",
+   "stage": "shown",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W53",
+   "class": "omission",
+   "detector": "no_watch",
+   "detail": "shown form",
+   "stage": "shown",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W54",
+   "class": "omission",
+   "detector": "no_watch",
+   "detail": "shown form",
+   "stage": "shown",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W55",
+   "class": "omission",
+   "detector": "no_watch",
+   "detail": "shown form",
+   "stage": "shown",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W56",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model: the mapa offline falla",
+   "stage": "shown",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W03",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s2 “Album sorting” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W03",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: app2 “Claude app · Home” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W03",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s2 “Album sorting” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W03",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: app2 “Claude app · Home” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W03",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s2 “Album sorting” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W03",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: app2 “Claude app · Home” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W06",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s6 “Archive pruning” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W06",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: acct1 “Studio Max” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W06",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s6 “Archive pruning” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W06",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: acct1 “Studio Max” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W06",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s6 “Archive pruning” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W06",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: acct1 “Studio Max” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W10",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s1 “Label printer fix” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W10",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s2 “Album sorting” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W10",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s3 “Playlist import” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W10",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s4 “Alert rules” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W10",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s6 “Archive pruning” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W10",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s1 “Label printer fix” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W10",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s2 “Album sorting” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W10",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s3 “Playlist import” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W10",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s4 “Alert rules” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W10",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s6 “Archive pruning” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W10",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s1 “Label printer fix” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W10",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s2 “Album sorting” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W10",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s3 “Playlist import” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W10",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s4 “Alert rules” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W10",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s6 “Archive pruning” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W44",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s1 “Monatsabschluss” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W44",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s2 “Haltestellen-Suche” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W44",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s3 “Inventur-Export” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W44",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s4 “Bilder skalieren” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W44",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s5 “Prognose-Cache” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W44",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s1 “Monatsabschluss” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W44",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s2 “Haltestellen-Suche” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W44",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s3 “Inventur-Export” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W44",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s4 “Bilder skalieren” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W44",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s5 “Prognose-Cache” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W44",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s1 “Monatsabschluss” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W44",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s2 “Haltestellen-Suche” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W44",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s3 “Inventur-Export” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W44",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s4 “Bilder skalieren” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W44",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s5 “Prognose-Cache” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W46",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s3 “Carrito de compra” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W46",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s4 “Mapa offline” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W46",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s5 “BTW-aangifte” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W46",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s3 “Carrito de compra” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W46",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s4 “Mapa offline” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W46",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s5 “BTW-aangifte” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W46",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s3 “Carrito de compra” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W46",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s4 “Mapa offline” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W46",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s5 “BTW-aangifte” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W55",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s2 “Géocodage” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W55",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s3 “Carrito de compra” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W55",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s4 “Mapa offline” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W55",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s5 “BTW-aangifte” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W55",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: app1 “Claude app · Travail” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W55",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: app2 “Claude Code CLI · Travail” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W55",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: app3 “Codex CLI · Casa” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W55",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: app4 “Cursor” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W55",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: app5 “Claude Code CLI · Thuis” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W55",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s2 “Géocodage” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W55",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s3 “Carrito de compra” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W55",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s4 “Mapa offline” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W55",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s5 “BTW-aangifte” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W55",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: app1 “Claude app · Travail” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W55",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: app2 “Claude Code CLI · Travail” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W55",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: app3 “Codex CLI · Casa” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W55",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: app4 “Cursor” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W55",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: app5 “Claude Code CLI · Thuis” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W55",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s2 “Géocodage” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W55",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s3 “Carrito de compra” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W55",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s4 “Mapa offline” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W55",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s5 “BTW-aangifte” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W55",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: app1 “Claude app · Travail” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W55",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: app2 “Claude Code CLI · Travail” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W55",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: app3 “Codex CLI · Casa” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W55",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: app4 “Cursor” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W55",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: app5 “Claude Code CLI · Thuis” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5r2"
+  }
+ ]
+}

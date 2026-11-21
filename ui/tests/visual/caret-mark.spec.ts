@@ -16,11 +16,21 @@ async function openSession(page: Page, id = "sess-live-1") {
   await page.addInitScript(() => {
     localStorage.setItem("aij.onboarding.dismissed", "1");
     localStorage.setItem("aij.smoother.dismissed", JSON.stringify(["all"]));
+    // P2 (the D3 persona walk): an ended session shows its terminal,
+    // replayed, only when its output was kept (SessionTerminal.tsx).
+    (window as unknown as { __AIJ_TERMINAL_KEPT__: string[] }).__AIJ_TERMINAL_KEPT__ = ["sess-done-1"];
     sessionStorage.setItem("aij.ready.skipped", "1");
   });
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.setViewportSize({ width: 1280, height: 800 });
+  // AJ-E816: the preview's sessions are dated from the clock, and the
+  // rail's `is:ended` lists what ended today (AJ-E2104), so the day is
+  // pinned late enough that sess-done-1 (ended ~22 h before) is today's.
+  await page.clock.setSystemTime(new Date(2026, 10, 16, 23, 30));
   await page.goto("/");
+  // AJ-E2104: the rail lists what is open; an ended session is found as a
+  // user would, by `is:ended`.
+  if (id.startsWith("sess-done")) await page.getByRole("searchbox", { name: /Search sessions/ }).fill("is:ended");
   await page.locator(`[data-instance-id="${id}"]`).first().click({ position: { x: 48, y: 10 } });
   await expect(page.locator(".xterm-helper-textarea")).toHaveCount(1, { timeout: 10_000 });
 }

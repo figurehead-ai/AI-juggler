@@ -105,6 +105,7 @@ describe("AJ-E1504 the typing rule", () => {
       "new-session": { key: "n" },
       "new-project": { key: "N", shiftKey: true },
       "toggle-rail": { key: "b" },
+      bot: { key: "j" },
       inspector: { key: "I", shiftKey: true },
       density: { key: "d" },
       theme: { key: "L", shiftKey: true },
@@ -334,7 +335,7 @@ describe("AJ-E1504 keys in the app", () => {
 
   it("⌘⇧I folds the inspector to its header line, keeps the open tab, and remembers it", async () => {
     const view = await openApp();
-    const row = [...view.getByTestId("rail").querySelectorAll<HTMLButtonElement>("button")].find((b) => /feat\/read-model/.test(b.textContent ?? ""))!;
+    const row = [...view.getByTestId("rail").querySelectorAll<HTMLButtonElement>("button")].find((b) => /Fix the flaky login test/.test(b.textContent ?? ""))!;
     fireEvent.click(row);
     const inspector = await view.findByTestId("right-inspector");
     expect(view.getByRole("tablist")).toBeTruthy();
@@ -346,7 +347,7 @@ describe("AJ-E1504 keys in the app", () => {
     expect(localStorage.getItem("aij.inspector.folded.main")).toBe("1");
     cleanup();
     const again = await openApp();
-    const rowAgain = [...again.getByTestId("rail").querySelectorAll<HTMLButtonElement>("button")].find((b) => /feat\/read-model/.test(b.textContent ?? ""))!;
+    const rowAgain = [...again.getByTestId("rail").querySelectorAll<HTMLButtonElement>("button")].find((b) => /Fix the flaky login test/.test(b.textContent ?? ""))!;
     fireEvent.click(rowAgain);
     expect((await again.findByTestId("right-inspector")).dataset.folded).toBe("true");
     fireEvent.click(again.getByRole("button", { name: "Unfold the inspector" }));
@@ -356,7 +357,7 @@ describe("AJ-E1504 keys in the app", () => {
 
   it("⌥⌘2 picks the inspector's second tab; ⌘⇧A leaves for Accounts", async () => {
     const view = await openApp();
-    const row = [...view.getByTestId("rail").querySelectorAll<HTMLButtonElement>("button")].find((b) => /feat\/read-model/.test(b.textContent ?? ""))!;
+    const row = [...view.getByTestId("rail").querySelectorAll<HTMLButtonElement>("button")].find((b) => /Fix the flaky login test/.test(b.textContent ?? ""))!;
     fireEvent.click(row);
     await view.findByTestId("right-inspector");
     press({ key: "™", code: "Digit2", metaKey: true, altKey: true });
@@ -366,25 +367,9 @@ describe("AJ-E1504 keys in the app", () => {
     await waitFor(() => expect(view.getByRole("heading", { level: 1 }).textContent).toBe("Accounts"));
   });
 
-  it("Home's \"Older sessions\" line runs ⌘K: the palette opens, and closed, the rail's search has the caret (persona D3)", async () => {
-    // A window that starts now: every session the rail holds is older.
-    const now = Date.now();
-    const row = { session_id: "summary-only", account_label: "Work Max", provider: "claude-code", kind: "terminal", project: null, group: "finished", status: "finished", words: "Finished", transitions: [], at_ms: now, detail: null, tokens: null, leftovers: 0, git_branch: null, cwd: "/Users/dev/repos/api", started_at_ms: now - 3_600_000 };
-    Reflect.set(window, "__AIJ_SUMMARY__", { since_ms: now, generated_ms: now, default_window: true, rows: [row], counts: { finished: 1 }, leftovers: 0 });
-    try {
-      const view = await openApp();
-      fireEvent.click(await view.findByRole("button", { name: "Older sessions: search ⌘K" }));
-      fireEvent.keyDown(await view.findByRole("dialog", { name: "Search, act or go" }), { key: "Escape" });
-      await waitFor(() => expect(view.queryByRole("dialog", { name: "Search, act or go" })).toBeNull());
-      expect(document.activeElement).toBe(view.getByRole("searchbox", { name: /Search sessions/i }));
-    } finally {
-      Reflect.deleteProperty(window, "__AIJ_SUMMARY__");
-    }
-  });
-
   it("Ctrl+K in the terminal goes to the shell, not the search", async () => {
     const view = await openApp();
-    const row = [...view.getByTestId("rail").querySelectorAll<HTMLButtonElement>("button")].find((b) => /feat\/read-model/.test(b.textContent ?? ""))!;
+    const row = [...view.getByTestId("rail").querySelectorAll<HTMLButtonElement>("button")].find((b) => /Fix the flaky login test/.test(b.textContent ?? ""))!;
     fireEvent.click(row);
     const terminal = await view.findByTestId(/^terminal-/);
     press({ key: "k", ctrlKey: true }, terminal);

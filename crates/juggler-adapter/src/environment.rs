@@ -52,6 +52,19 @@ pub enum LoginState {
     Unknown,
 }
 
+impl LoginState {
+    /// What a scan reports of it: signed in (a sign-in or a key), or not.
+    #[must_use]
+    pub fn probe(self) -> LoginProbe {
+        match self {
+            Self::SignedIn | Self::ApiKey => LoginProbe::LoggedIn,
+            Self::Partial | Self::Expired | Self::SsoPending | Self::LoggedOut | Self::Unknown => {
+                LoginProbe::LoggedOut
+            }
+        }
+    }
+}
+
 /// How a discovered install's location came to exist.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum InstallOrigin {
@@ -241,4 +254,25 @@ pub struct ManagerHint {
     pub detail: String,
     /// The probe's health.
     pub health: ScanHealth,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{LoginProbe, LoginState};
+
+    #[test]
+    fn a_scan_counts_a_sign_in_or_a_key_as_signed_in() {
+        for state in [LoginState::SignedIn, LoginState::ApiKey] {
+            assert_eq!(state.probe(), LoginProbe::LoggedIn, "{state:?}");
+        }
+        for state in [
+            LoginState::Partial,
+            LoginState::Expired,
+            LoginState::SsoPending,
+            LoginState::LoggedOut,
+            LoginState::Unknown,
+        ] {
+            assert_eq!(state.probe(), LoginProbe::LoggedOut, "{state:?}");
+        }
+    }
 }

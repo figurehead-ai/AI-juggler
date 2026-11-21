@@ -1,0 +1,6087 @@
+{
+ "meta": {
+  "harness": "v4",
+  "prompt_version": 4,
+  "engine": "local model (llama.cpp, Metal) via local_probe",
+  "hello": "{\"arch\":\"qwen3\",\"available\":\"available\",\"chat_template\":\"the GGUF's own (tokenizer.chat_template), Jinja\",\"engine\":\"local model (llama.cpp, Metal) via local_probe\",\"extensions\":[\"fields\",\"sampling\"],\"gpu_offload\":true,\"guided\":true,\"hello\":true,\"line_grammar\":\"root ::= first rest{0,159}\\nfirst ::= [^ \\\\t\\\\n\\\\r\\\\x0B\\\\x0C\\\\u0085   -     　\\\"“”„«»「」]\\nrest ::= [^\\\\t\\\\n\\\\r\\\\x0B\\\\x0C\\\\u0085   -     　\\\"“”„«»「」]\\n\",\"line_max_chars\":160,\"llama_cpp\":\"llama-cpp-2 0.1.146 / llama-cpp-sys-2 0.1.146 (llama-cpp-rs 4afdaf0782ef, vendored llama.cpp), Metal\",\"model_file\":\"Qwen3-1.7B-Q8_0.gguf\",\"model_sha256\":\"061b54daade076b5d3362dac252678d17da8c68f07560be70818cace6590cb1a\",\"n_ctx\":4096,\"os\":\"27.0.1\",\"protocol\":3,\"quant\":\"Q8_0\",\"sampler\":\"greedy\",\"sha256_source\":\"MANIFEST.md\",\"system_info\":\"MTL : EMBED_LIBRARY = 1 | CPU : NEON = 1 | ARM_FMA = 1 | FP16_VA = 1 | DOTPROD = 1 | LLAMAFILE = 1 | ACCELERATE = 1 | REPACK = 1 | \",\"temperature\":0,\"thinking\":\"off: enable_thinking=false (flag and template kwarg)\"}",
+  "family": "qwen3",
+  "sampling_name": "low",
+  "sampling": {
+   "temperature": 0.2,
+   "top_p": 0.8,
+   "top_k": 20,
+   "min_p": 0.0,
+   "presence_penalty": 0.0
+  },
+  "mark": "plain",
+  "datamark": "off",
+  "examples": "all",
+  "schema_in_prompt": true,
+  "jobs": [
+   "feed_line",
+   "review",
+   "attention",
+   "chat"
+  ],
+  "subset": "all",
+  "prompt_sha256": {
+   "feed_line": "a16046e9334aba9494b0fdb8d50906136d5712091f887af2967fc3a232612226",
+   "review": "4804a8699e47a5ef85b5b8cd7e6544b60c5be202f6e87fb4145ffbc7d1b87b76",
+   "attention": "50c41da47310bd26b85bee75a9b7b6082a864195f4b31610103a42f384477015",
+   "chat": "80a5b70d8a8e08e7a86edf6a2f266eab61c76c7c12b39ed67331cb61cca165ba"
+  },
+  "jobs_py_sha256": "87c4c28a4370857c67bc99881744f31797c51c0e6e130b5a0e836a7cf42f4c6f",
+  "gate_py_sha256": "22152d013af518c34237464f53fd92dbdc83b8b1fa21b1cff8588f5d08735a68",
+  "frozen_gate_commit": "7acec4f50",
+  "repeats": 1,
+  "limit": null,
+  "corpora": [
+   {
+    "label": "heldout",
+    "file": "corpus-heldout.json",
+    "sha256": "1604bb446445b491fb4e6925ea562724b25d3e2dbb9990530fea103c7032c543",
+    "items_in_file": 24,
+    "items_run": 24
+   },
+   {
+    "label": "heldout-jobs",
+    "file": "corpus-heldout-jobs.json",
+    "sha256": "3b827b141d4027e23c6cee46265f22a797699bfea920356b74b0462b21b31550",
+    "items_in_file": 36,
+    "items_run": 36
+   }
+  ],
+  "calls": 149,
+  "wall_s": 122.7,
+  "machine": {
+   "macos": "27.0.1",
+   "macos_build": "26A434",
+   "arch": "arm64",
+   "model": "Mac17,15",
+   "chip": "Apple M5 Ultra",
+   "ram_gb": 96.0,
+   "cpus": 30
+  },
+  "load_avg_start": [
+   17.5,
+   19.1,
+   16.7
+  ],
+  "load_avg_end": [
+   26.2,
+   21.3,
+   17.9
+  ],
+  "helper_cpu_s": 83.81,
+  "cpu_deltas": [
+   {
+    "name": "local_probe",
+    "cpu_s": 83.3
+   },
+   {
+    "name": "modelcatalogd",
+    "cpu_s": 1.37
+   },
+   {
+    "name": "generativeexperiencesd",
+    "cpu_s": 0.36
+   },
+   {
+    "name": "modelmanagerd",
+    "cpu_s": 0.3
+   }
+  ],
+  "watched_rss_mb": {
+   "before": 2339.3,
+   "peak": 2462.2,
+   "after": 2426.7
+  },
+  "started": "2026-11-18 05:37:21",
+  "label": "synthetic held-out only; not checked on real messages"
+ },
+ "results": [
+  {
+   "corpus": "heldout",
+   "job": "feed_line",
+   "setting": "main",
+   "id": "H001",
+   "rep": 0,
+   "cold_first": true,
+   "est_tokens": 1950,
+   "cut": false,
+   "prompt_chars": 566,
+   "text": "{\"action\": \"changed\", \"object\": \"src/export/stream.ts and src/export/index.ts\", \"result\": \"the 400 MB sample in fixtures/big.csv stays under \",\n\"caveat_kind\": \"none\", \"caveat\": \"none\"}",
+   "finish": "stop",
+   "out_tokens": 55,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 930,
+   "gen_ms": 929.7875,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 55437,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout",
+   "job": "review",
+   "setting": "main",
+   "id": "H001",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2228,
+   "cut": false,
+   "prompt_chars": 568,
+   "text": "{\"changed\": [\"Done. The CSV export now streams rows instead of buffering the whole file, so the 400 MB 4\", \"Changed src/export/stream.ts and src/export/index.ts\"], \"not_checked\": [], \"left\": [], \"risk_reason\": \"58 passed, 0 failed\", \"risk\": \"low\"}",
+   "finish": "stop",
+   "out_tokens": 69,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 1095,
+   "gen_ms": 1095.263625,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 1219,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout",
+   "job": "attention",
+   "setting": "facts_given",
+   "id": "H001",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1549,
+   "cut": false,
+   "prompt_chars": 550,
+   "text": "{\"evidence\": \"I ran npm test: 58 passed, 0 failed.\", \"reason\": \"work_done\", \"suggest\": \"can_wait\"}",
+   "finish": "stop",
+   "out_tokens": 33,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 510,
+   "gen_ms": 509.43424999999996,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 40045,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout",
+   "job": "attention",
+   "setting": "facts_hidden",
+   "id": "H001",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1543,
+   "cut": false,
+   "prompt_chars": 532,
+   "text": "{\"evidence\": \"I ran npm test: 58 passed, 0 failed.\", \"reason\": \"work_done\", \"suggest\": \"can_wait\"}",
+   "finish": "stop",
+   "out_tokens": 33,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 504,
+   "gen_ms": 504.254583,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 50549,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout",
+   "job": "feed_line",
+   "setting": "main",
+   "id": "H002",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1922,
+   "cut": false,
+   "prompt_chars": 467,
+   "text": "{\"action\": \"set\", \"object\": \"Der Login-Timeout in config/session.yaml\", \"result\": \"liegt jetzt bei 30 Minuten statt 5\", \"caveat_kind\": \"none\", \"caveat\": \"none\"}",
+   "finish": "stop",
+   "out_tokens": 52,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 783,
+   "gen_ms": 783.2745,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 77403,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout",
+   "job": "review",
+   "setting": "main",
+   "id": "H002",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2199,
+   "cut": false,
+   "prompt_chars": 469,
+   "text": "{\"changed\": [\"Fertig: Der Login-Timeout liegt jetzt bei 30 Minuten statt 5 (config/session.yaml). Alle 1\" ], \"not_checked\": [], \"left\": [\"14 tests in tests/test_session.py\"], \"risk_reason\": \"14 tests in tests/test_session.py\", \"risk\": \"low\"}",
+   "finish": "stop",
+   "out_tokens": 70,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 1079,
+   "gen_ms": 1078.678333,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 6357,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout",
+   "job": "attention",
+   "setting": "facts_given",
+   "id": "H002",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1520,
+   "cut": false,
+   "prompt_chars": 451,
+   "text": "{\"evidence\": \"Fertig: Der Login-Timeout liegt jetzt bei 30 Minuten statt 5 (config/session.yaml). Alle 14 Tests in\" , \"reason\": \"work_done\", \"suggest\": \"can_wait\"}",
+   "finish": "stop",
+   "out_tokens": 50,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 798,
+   "gen_ms": 797.7048329999999,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 23410,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout",
+   "job": "attention",
+   "setting": "facts_hidden",
+   "id": "H002",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1515,
+   "cut": false,
+   "prompt_chars": 433,
+   "text": "{\"evidence\": \"Fertig: Der Login-Timeout liegt jetzt bei 30 Minuten statt 5 (config/session.yaml). Alle 14 Tests in\" , \"reason\": \"nothing_to_review\", \"suggest\": \"unclear\"}",
+   "finish": "stop",
+   "out_tokens": 51,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 796,
+   "gen_ms": 796.098208,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 57887,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout",
+   "job": "feed_line",
+   "setting": "main",
+   "id": "H003",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1895,
+   "cut": false,
+   "prompt_chars": 373,
+   "text": "{\"action\": \"renamed\", \"object\": \"the flag to --dry-run everywhere\", \"result\": \"docs updated too\", \"caveat_kind\": \"none\", \"caveat\": \"none\"}",
+   "finish": "stop",
+   "out_tokens": 44,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 739,
+   "gen_ms": 738.42475,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 96016,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout",
+   "job": "review",
+   "setting": "main",
+   "id": "H003",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2173,
+   "cut": false,
+   "prompt_chars": 375,
+   "text": "{\n  \"changed\": [\"renamed the flag to --dry-run everywhere, docs updated too\"],\n  \"not_checked\": [],\n  \"left\": [],\n  \"risk_reason\": \"none\",\n  \"risk\": \"unknown\"\n}",
+   "finish": "stop",
+   "out_tokens": 47,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 763,
+   "gen_ms": 762.751834,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 31315,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout",
+   "job": "attention",
+   "setting": "facts_given",
+   "id": "H003",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1493,
+   "cut": false,
+   "prompt_chars": 357,
+   "text": "{\"evidence\": \"Renamed the flag to --dry-run everywhere, docs updated too.\", \"reason\": \"work_done\", \"suggest\": \"can_wait\"}",
+   "finish": "stop",
+   "out_tokens": 33,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 515,
+   "gen_ms": 514.6681669999999,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 84868,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout",
+   "job": "attention",
+   "setting": "facts_hidden",
+   "id": "H003",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1493,
+   "cut": false,
+   "prompt_chars": 356,
+   "text": "{\"evidence\": \"Renamed the flag to --dry-run everywhere, docs updated too.\", \"reason\": \"nothing_to_review\", \"suggest\": \"unclear\"}",
+   "finish": "stop",
+   "out_tokens": 34,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 531,
+   "gen_ms": 531.209666,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 42631,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout",
+   "job": "feed_line",
+   "setting": "main",
+   "id": "H004",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1950,
+   "cut": false,
+   "prompt_chars": 567,
+   "text": "{\"action\": \"ran\", \"object\": \"the 3 shell tests in scripts/test/\", \"result\": \"all 3 pass\", \"caveat_kind\": \"none\", \"caveat\": \"none\"}",
+   "finish": "stop",
+   "out_tokens": 45,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 687,
+   "gen_ms": 686.631209,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 7871,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout",
+   "job": "review",
+   "setting": "main",
+   "id": "H004",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2228,
+   "cut": false,
+   "prompt_chars": 569,
+   "text": "{\"changed\": [\"the new check in scripts/verify_lock.sh fails if package-lock.json is older than package-j\", \"the new check in scripts/verify_lock.sh passes on the current tree\"], \"not_checked\": [], \"left\": [], \"risk_reason\": \"three shell tests pass\", \"risk\": \"low\"}",
+   "finish": "stop",
+   "out_tokens": 65,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 1002,
+   "gen_ms": 1002.0697919999999,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 8278,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout",
+   "job": "attention",
+   "setting": "facts_given",
+   "id": "H004",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1549,
+   "cut": false,
+   "prompt_chars": 551,
+   "text": "{\"evidence\": \"I ran the 3 shell tests in scripts/test and all 3 pass.\", \"reason\": \"work_done\", \"suggest\": \"can_wait\"}",
+   "finish": "stop",
+   "out_tokens": 35,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 536,
+   "gen_ms": 536.074292,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 90037,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout",
+   "job": "attention",
+   "setting": "facts_hidden",
+   "id": "H004",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1544,
+   "cut": false,
+   "prompt_chars": 534,
+   "text": "{\"evidence\": \"I ran the 3 shell tests in scripts/test and all 3 pass.\", \"reason\": \"work_done\", \"suggest\": \"can_wait\"}",
+   "finish": "stop",
+   "out_tokens": 35,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 540,
+   "gen_ms": 540.196709,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 48514,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout",
+   "job": "feed_line",
+   "setting": "main",
+   "id": "H005",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1953,
+   "cut": false,
+   "prompt_chars": 577,
+   "text": "{\"action\": \"got the retry logic working\", \"object\": \"the upload client (lib/upload/retry.py)\", \"result\": \"9 tests pass\", \"caveat_kind\": \"not_done\", \"caveat\": \"I did not get to resumable chunks: that is still a TODO at l\"}",
+   "finish": "stop",
+   "out_tokens": 67,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 1015,
+   "gen_ms": 1014.4448749999999,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 19519,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout",
+   "job": "review",
+   "setting": "main",
+   "id": "H005",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2231,
+   "cut": false,
+   "prompt_chars": 579,
+   "text": "{\"changed\": [\"got the retry logic working for the upload client\"], \"not_checked\": [], \"left\": [\"still a TODO at line 88 and uploads over 2 GB will restart from zero\"], \"risk_reason\": \"9 tests pass\", \"risk\": \"low\"}",
+   "finish": "stop",
+   "out_tokens": 57,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 886,
+   "gen_ms": 885.643375,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 64513,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout",
+   "job": "attention",
+   "setting": "facts_given",
+   "id": "H005",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1552,
+   "cut": false,
+   "prompt_chars": 561,
+   "text": "{\"evidence\": \"I got the retry logic working for the upload client (lib/upload/retry.py), including exponentialback\" , \"reason\": \"work_done\", \"suggest\": \"can_wait\"}",
+   "finish": "stop",
+   "out_tokens": 41,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 647,
+   "gen_ms": 646.591416,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 71274,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout",
+   "job": "attention",
+   "setting": "facts_hidden",
+   "id": "H005",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1547,
+   "cut": false,
+   "prompt_chars": 544,
+   "text": "{\"evidence\": \"I got the retry logic working for the upload client (lib/upload/retry.py), including exponentialback\" , \"reason\": \"work_done\", \"suggest\": \"can_wait\"}",
+   "finish": "stop",
+   "out_tokens": 41,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 618,
+   "gen_ms": 618.207875,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 60216,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout",
+   "job": "feed_line",
+   "setting": "main",
+   "id": "H006",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1939,
+   "cut": false,
+   "prompt_chars": 526,
+   "text": "{\"action\": \"partially_done\", \"object\": \"die Übersetzungen für Deutsch und Französisch sind drin (i18n/de.json,\", \"result\": \"21 bestanden, 0 fehlgeschlagen\", \"caveat_kind\": \"partial\", \"caveat\": \"Spanisch fehlt noch, weil die Quelldatei leer war\"}",
+   "finish": "stop",
+   "out_tokens": 84,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 1354,
+   "gen_ms": 1353.4495,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 4359,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout",
+   "job": "review",
+   "setting": "main",
+   "id": "H006",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2216,
+   "cut": false,
+   "prompt_chars": 528,
+   "text": "{\"changed\": [\"die Übersetzungen für Deutsch und Französisch sind drin (i18n/de.json, i18n/fr.json)\", \"Spanisch fehlt noch, weil die Quelldatei leer war\"], \"not_checked\": [], \"left\": [], \"risk_reason\": \"21 bestanden, 0 fehlgeschlagen\", \"risk\": \"low\"}",
+   "finish": "stop",
+   "out_tokens": 84,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 1349,
+   "gen_ms": 1348.926166,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 28506,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout",
+   "job": "attention",
+   "setting": "facts_given",
+   "id": "H006",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1537,
+   "cut": false,
+   "prompt_chars": 510,
+   "text": "{\"evidence\": \"Die Quelldatei leer war.\", \"reason\": \"reports_failure\", \"suggest\": \"needs_you\"}",
+   "finish": "stop",
+   "out_tokens": 28,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 438,
+   "gen_ms": 437.437,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 53967,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout",
+   "job": "attention",
+   "setting": "facts_hidden",
+   "id": "H006",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1532,
+   "cut": false,
+   "prompt_chars": 492,
+   "text": "{\"evidence\": \"Die Übersetzungen für Deutsch und Französisch sind drin (i18n/de.json, i18n/fr.json). Spanisch fehlt\",\"reason\": \"work_done\",\"suggest\": \"can_wait\"}",
+   "finish": "stop",
+   "out_tokens": 53,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 836,
+   "gen_ms": 836.022,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 76795,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout",
+   "job": "feed_line",
+   "setting": "main",
+   "id": "H007",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1940,
+   "cut": false,
+   "prompt_chars": 530,
+   "text": "{\"action\": \"updated\", \"object\": \"api/routes/orders.go: pagination added, api/routes/refunds.go: happy п\" , \"result\": \"31 tests\", \"caveat_kind\": \"none\", \"caveat\": \"none\"}",
+   "finish": "stop",
+   "out_tokens": 53,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 797,
+   "gen_ms": 796.602084,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 25516,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout",
+   "job": "review",
+   "setting": "main",
+   "id": "H007",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2217,
+   "cut": false,
+   "prompt_chars": 532,
+   "text": "{\"changed\": [\"api/routes/orders.go: pagination added\", \"api/routes/refunds.go: happy path only, error mapping left as it was\", \"docs/api.md: new query params\"], \"not_checked\": [], \"left\": [], \"risk_reason\": \"31 tests\", \"risk\": \"low\"}",
+   "finish": "stop",
+   "out_tokens": 63,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 985,
+   "gen_ms": 984.874584,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 63961,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout",
+   "job": "attention",
+   "setting": "facts_given",
+   "id": "H007",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1538,
+   "cut": false,
+   "prompt_chars": 514,
+   "text": "{\"evidence\": \"api/routes/orders.go: pagination added, api/routes/refunds.go: happy path only, error mapping leftas\", \"reason\": \"work_done\", \"suggest\": \"can_wait\"}",
+   "finish": "stop",
+   "out_tokens": 42,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 646,
+   "gen_ms": 645.650583,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 13509,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout",
+   "job": "attention",
+   "setting": "facts_hidden",
+   "id": "H007",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1533,
+   "cut": false,
+   "prompt_chars": 496,
+   "text": "{\"evidence\": \"I ran go test ./api/... and it reports ok, 31 tests.\", \"reason\": \"work_done\", \"suggest\": \"can_wait\"}",
+   "finish": "stop",
+   "out_tokens": 37,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 580,
+   "gen_ms": 579.57075,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 1360,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout",
+   "job": "feed_line",
+   "setting": "main",
+   "id": "H008",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1930,
+   "cut": false,
+   "prompt_chars": 494,
+   "text": "{\"action\": \"migrated\", \"object\": \"3 of 5 services to the new logger\", \"result\": \"none\", \"caveat_kind\": \"not_run\", \"caveat\": \"I didn't run the suite\"}",
+   "finish": "stop",
+   "out_tokens": 50,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 806,
+   "gen_ms": 805.9750839999999,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 91280,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout",
+   "job": "review",
+   "setting": "main",
+   "id": "H008",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2207,
+   "cut": false,
+   "prompt_chars": 496,
+   "text": "{\n  \"changed\": [\"migrated 3 of 5 services to the new logger\"],\n  \"not_checked\": [\"didn't run the suite\"],\n  \"left\": [\"billing and search still use the old one because they pin an older shared lib, so the migr\" ],\n  \"risk_reason\": \"billing and search still use the old one because they pin an older shared lib\", \n  \"risk\": \"medium\"\n}",
+   "finish": "stop",
+   "out_tokens": 88,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 1443,
+   "gen_ms": 1442.770125,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 90091,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout",
+   "job": "attention",
+   "setting": "facts_given",
+   "id": "H008",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1528,
+   "cut": false,
+   "prompt_chars": 478,
+   "text": "{\"evidence\": \"Migrated 3 of 5 services to the new logger. billing and search still use the old one because theypin\" , \"reason\": \"work_done\", \"suggest\": \"can_wait\"}",
+   "finish": "stop",
+   "out_tokens": 45,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 711,
+   "gen_ms": 710.987875,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 32624,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout",
+   "job": "attention",
+   "setting": "facts_hidden",
+   "id": "H008",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1528,
+   "cut": false,
+   "prompt_chars": 477,
+   "text": "{\"evidence\": \"Migrated 3 of 5 services to the new logger. billing and search still use the old one because theypin\" , \"reason\": \"work_done\", \"suggest\": \"can_wait\"}",
+   "finish": "stop",
+   "out_tokens": 45,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 745,
+   "gen_ms": 744.714209,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 85772,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout",
+   "job": "feed_line",
+   "setting": "main",
+   "id": "H009",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1909,
+   "cut": false,
+   "prompt_chars": 422,
+   "text": "{\"action\": \"changed\", \"object\": \"the cron expression in deploy/jobs.yaml from every 15 to every 30\", \"result\": \"none\", \"caveat_kind\": \"not_run\", \"caveat\": \"none\"}",
+   "finish": "stop",
+   "out_tokens": 53,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 879,
+   "gen_ms": 878.1157499999999,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 71157,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout",
+   "job": "review",
+   "setting": "main",
+   "id": "H009",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2187,
+   "cut": false,
+   "prompt_chars": 424,
+   "text": "{\n  \"changed\": [\"I changed the cron expression in deploy/jobs.yaml from every 15 to every 30 minutes\"],\n  \"not_checked\": [\"I haven't run anything\"],\n  \"left\": [],\n  \"risk_reason\": \"I haven't run anything\",\n  \"risk\": \"medium\"\n}",
+   "finish": "stop",
+   "out_tokens": 65,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 1045,
+   "gen_ms": 1044.311375,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 53451,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout",
+   "job": "attention",
+   "setting": "facts_given",
+   "id": "H009",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1507,
+   "cut": false,
+   "prompt_chars": 406,
+   "text": "{\"evidence\": \"I changed the cron expression in deploy/jobs.yaml from every 15 to every 30 minutes. I haven't run 1\", \"reason\": \"not_verified\", \"suggest\": \"can_wait\"}",
+   "finish": "stop",
+   "out_tokens": 48,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 767,
+   "gen_ms": 766.552959,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 41403,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout",
+   "job": "attention",
+   "setting": "facts_hidden",
+   "id": "H009",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1507,
+   "cut": false,
+   "prompt_chars": 405,
+   "text": "{\"evidence\": \"I changed the cron expression in deploy/jobs.yaml from every 15 to every 30 minutes. I haven't run 1\", \"reason\": \"nothing_to_review\", \"suggest\": \"unclear\"}",
+   "finish": "stop",
+   "out_tokens": 49,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 752,
+   "gen_ms": 751.745125,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 60261,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout",
+   "job": "feed_line",
+   "setting": "main",
+   "id": "H010",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1924,
+   "cut": false,
+   "prompt_chars": 476,
+   "text": "{\"action\": \"umbaut\", \"object\": \"die Validierung für das Kontaktformular in src/forms/contact.ts\", \"result\": \"none\", \"caveat_kind\": \"not_run\", \"caveat\": \"die Tests nicht ausgeführt, da in dieser Umgebung kein Node \"}",
+   "finish": "stop",
+   "out_tokens": 62,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 936,
+   "gen_ms": 935.372291,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 19744,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout",
+   "job": "review",
+   "setting": "main",
+   "id": "H010",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2202,
+   "cut": false,
+   "prompt_chars": 478,
+   "text": "{\n  \"changed\": [\"die Validierung für das Kontaktformular ist umgebaut (src/forms/contact.ts)\"],\n  \"not_checked\": [\"ich habe die Tests nicht ausgeführt, da in dieser Umgebung kein Node installiert ist\"],\n  \"left\": [],\n  \"risk_reason\": \"Tests nicht ausgeführt, da in dieser Umgebung kein Node installiert ist\",\n  \"risk\": \"medium\"\n}",
+   "finish": "stop",
+   "out_tokens": 85,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 1343,
+   "gen_ms": 1343.2336249999998,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 87614,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout",
+   "job": "attention",
+   "setting": "facts_given",
+   "id": "H010",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1523,
+   "cut": false,
+   "prompt_chars": 460,
+   "text": "{\"evidence\": \"Die Validierung für das Kontaktformular ist umgebaut (src/forms/contact.ts). Ich habe die Tests nie \"\n\n, \"reason\": \"not_verified\", \"suggest\": \"can_wait\"}",
+   "finish": "stop",
+   "out_tokens": 45,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 722,
+   "gen_ms": 721.283125,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 35325,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout",
+   "job": "attention",
+   "setting": "facts_hidden",
+   "id": "H010",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1523,
+   "cut": false,
+   "prompt_chars": 459,
+   "text": "{\"evidence\": \"Die Validierung für das Kontaktformular ist umgebaut (src/forms/contact.ts). Ich habe die Tests nie \"\n\n\n, \"reason\": \"nothing_to_review\", \"suggest\": \"unclear\"}",
+   "finish": "stop",
+   "out_tokens": 46,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 736,
+   "gen_ms": 736.198166,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 46079,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout",
+   "job": "feed_line",
+   "setting": "main",
+   "id": "H011",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1945,
+   "cut": false,
+   "prompt_chars": 549,
+   "text": "{\"action\": \"changed\", \"object\": \"the Dockerfile to use a multi-stage build and drop the dev toolchain\", \"result\": \"none\", \"caveat_kind\": \"not_run\", \"caveat\": \"the size reduction is unverified and the entrypoint path in \"}",
+   "finish": "stop",
+   "out_tokens": 62,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 1001,
+   "gen_ms": 1000.4954159999999,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 57755,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout",
+   "job": "review",
+   "setting": "main",
+   "id": "H011",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2223,
+   "cut": false,
+   "prompt_chars": 551,
+   "text": "{\n  \"changed\": [\"the Dockerfile now uses a multi-stage build and drops the dev toolchain from the final lay\"], \n  \"not_checked\": [\"I couldn't build the image here (no Docker daemon)\", \"the size reduction is unverified\"], \n  \"left\": [\"the entrypoint path in docker/run.sh is untested\"], \n  \"risk_reason\": \"I couldn't build the image here (no Docker daemon)\", \n  \"risk\": \"medium\"\n}",
+   "finish": "stop",
+   "out_tokens": 99,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 1720,
+   "gen_ms": 1719.6074999999998,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 45644,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout",
+   "job": "attention",
+   "setting": "facts_given",
+   "id": "H011",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1544,
+   "cut": false,
+   "prompt_chars": 533,
+   "text": "{\"evidence\": \"I couldn't build the image here (no Docker daemon)\", \"reason\": \"blocked\", \"suggest\": \"needs_you\"}",
+   "finish": "stop",
+   "out_tokens": 30,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 542,
+   "gen_ms": 539.923208,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 89106,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout",
+   "job": "attention",
+   "setting": "facts_hidden",
+   "id": "H011",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1543,
+   "cut": false,
+   "prompt_chars": 532,
+   "text": "{\"evidence\": \"I couldn't build the image here (no Docker daemon)\", \"reason\": \"blocked\", \"suggest\": \"needs_you\"}",
+   "finish": "stop",
+   "out_tokens": 30,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 503,
+   "gen_ms": 502.49354199999993,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 35142,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout",
+   "job": "feed_line",
+   "setting": "main",
+   "id": "H012",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1903,
+   "cut": false,
+   "prompt_chars": 400,
+   "text": "{\"action\": \"patched\", \"object\": \"the off-by-one in paginate() in src/list.rs\", \"result\": \"none\", \"caveat_kind\": \"not_run\", \"caveat\": \"none\"}",
+   "finish": "stop",
+   "out_tokens": 47,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 730,
+   "gen_ms": 729.435709,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 37954,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout",
+   "job": "review",
+   "setting": "main",
+   "id": "H012",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2180,
+   "cut": false,
+   "prompt_chars": 402,
+   "text": "{\n  \"changed\": [\"patched the off-by-one in paginate() in src/list.rs\"],\n  \"not_checked\": [\"didn't run tests\"],\n  \"left\": [\"should be fine\"],\n  \"risk_reason\": \"didn't run tests\",\n  \"risk\": \"medium\"\n}",
+   "finish": "stop",
+   "out_tokens": 59,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 927,
+   "gen_ms": 926.708875,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 82739,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout",
+   "job": "attention",
+   "setting": "facts_given",
+   "id": "H012",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1501,
+   "cut": false,
+   "prompt_chars": 384,
+   "text": "{\"evidence\": \"Should be fine.\", \"reason\": \"work_done\", \"suggest\": \"can_wait\"}",
+   "finish": "stop",
+   "out_tokens": 23,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 373,
+   "gen_ms": 373.224333,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 75456,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout",
+   "job": "attention",
+   "setting": "facts_hidden",
+   "id": "H012",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1501,
+   "cut": false,
+   "prompt_chars": 383,
+   "text": "{\"evidence\": \"Patched the off-by-one in paginate() in src/list.rs, didn't run tests. Should be fine.\", \"reason\": \"work_done\", \"suggest\": \"can_wait\"}",
+   "finish": "stop",
+   "out_tokens": 42,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 671,
+   "gen_ms": 670.817458,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 74684,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout",
+   "job": "feed_line",
+   "setting": "main",
+   "id": "H013",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1944,
+   "cut": false,
+   "prompt_chars": 546,
+   "text": "{\"action\": \"failed\", \"object\": \"the build to pass\", \"result\": \"12 tests in tests/render fail with 'undefined sym:\", \"caveat_kind\": \"not_run\", \"caveat\": \"not_run\"}",
+   "finish": "stop",
+   "out_tokens": 51,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 847,
+   "gen_ms": 846.986792,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 68489,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout",
+   "job": "review",
+   "setting": "main",
+   "id": "H013",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2222,
+   "cut": false,
+   "prompt_chars": 548,
+   "text": "{\n  \"changed\": [\"I couldn't get the build to pass. After bumping the compiler target, 12 tests in tests/re \"], \n  \"not_checked\": [\"the branch is currently broken and I have not reverted anything\"], \n  \"left\": [\"12 tests in tests/render fail with 'undefined symbol: gl_init' (44 others pass)\"], \n  \"risk_reason\": \"12 tests in tests/render fail with 'undefined symbol: gl_init'\", \n  \"risk\": \"high\"\n}",
+   "finish": "stop",
+   "out_tokens": 109,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 1853,
+   "gen_ms": 1853.172166,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 97522,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout",
+   "job": "attention",
+   "setting": "facts_hidden",
+   "id": "H013",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1537,
+   "cut": false,
+   "prompt_chars": 511,
+   "text": "{\"evidence\": \"12 tests in tests/render fail with 'undefined symbol: gl_init' (44 others pass). The branch is curr\" , \"reason\": \"asks_question\", \"suggest\": \"needs_you\"}",
+   "finish": "stop",
+   "out_tokens": 46,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 773,
+   "gen_ms": 771.978042,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 96690,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout",
+   "job": "feed_line",
+   "setting": "main",
+   "id": "H014",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1923,
+   "cut": false,
+   "prompt_chars": 471,
+   "text": "{\"action\": \"bricht\", \"object\": \"die Migration 0042\", \"result\": \"die Datenbank steht jetzt halb migriert\", \"caveat_kind\": \"not_done\", \"caveat\": \"Ich habe nichts zurückgerollt\"}",
+   "finish": "stop",
+   "out_tokens": 58,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 946,
+   "gen_ms": 945.7615000000001,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 12080,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout",
+   "job": "review",
+   "setting": "main",
+   "id": "H014",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2201,
+   "cut": false,
+   "prompt_chars": 473,
+   "text": "{\"changed\": [\"the Migration 0042 bricht mit 'column already exists' ab\"], \"not_checked\": [], \"left\": [\"the database stands half migrated\"], \"risk_reason\": \"the database stands half migrated\", \"risk\": \"high\"}",
+   "finish": "stop",
+   "out_tokens": 53,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 1072,
+   "gen_ms": 1071.998584,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 32438,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout",
+   "job": "attention",
+   "setting": "facts_hidden",
+   "id": "H014",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1521,
+   "cut": false,
+   "prompt_chars": 454,
+   "text": "{\"evidence\": \"Die Migration 0042 bricht mit 'column already exists' ab, und die Datenbank steht jetzt halb migriệt\", \"reason\": \"reports_failure\", \"suggest\": \"needs_you\"}",
+   "finish": "stop",
+   "out_tokens": 48,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 982,
+   "gen_ms": 979.237833,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 43869,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout",
+   "job": "feed_line",
+   "setting": "main",
+   "id": "H015",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1936,
+   "cut": false,
+   "prompt_chars": 517,
+   "text": "{\"action\": \"tried\", \"object\": \"three approaches to fix the flaky websocket test\", \"result\": \"none\", \"caveat_kind\": \"not_done\", \"caveat\": \"It still fails about 1 run in 4, so I gave up; notes are in \"}",
+   "finish": "stop",
+   "out_tokens": 64,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 1075,
+   "gen_ms": 1074.328542,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 63438,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout",
+   "job": "review",
+   "setting": "main",
+   "id": "H015",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2214,
+   "cut": false,
+   "prompt_chars": 519,
+   "text": "{\n  \"changed\": [\"tried three approaches to fix the flaky websocket test and none worked\"],\n  \"not_checked\": [],\n  \"left\": [\"it still fails about 1 run in 4, so I gave up; notes are in notes/ws-flaky.md\"],\n  \"risk_reason\": \"it still fails about 1 run in 4\",\n  \"risk\": \"high\"\n}",
+   "finish": "stop",
+   "out_tokens": 82,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 1399,
+   "gen_ms": 1397.9415419999998,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 83246,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout",
+   "job": "attention",
+   "setting": "facts_hidden",
+   "id": "H015",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1530,
+   "cut": false,
+   "prompt_chars": 484,
+   "text": "{\"evidence\": \"Tried three approaches to fix the flaky websocket test and none worked.\", \"reason\": \"asks_question\", \"suggest\": \"needs_you\"}",
+   "finish": "stop",
+   "out_tokens": 34,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 526,
+   "gen_ms": 526.1165410000001,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 66711,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout",
+   "job": "feed_line",
+   "setting": "main",
+   "id": "H016",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1931,
+   "cut": false,
+   "prompt_chars": 498,
+   "text": "{\"action\": \"deleted\", \"object\": \"a re-export that cli/main.rs needs\", \"result\": \"cargo build now errors with E0432\", \"caveat_kind\": \"not_done\", \"caveat\": \"I haven't fixed it yet\"}",
+   "finish": "stop",
+   "out_tokens": 57,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 863,
+   "gen_ms": 862.71725,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 8312,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout",
+   "job": "review",
+   "setting": "main",
+   "id": "H016",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2208,
+   "cut": false,
+   "prompt_chars": 500,
+   "text": "{\"changed\": [\"good news: the lint errors are gone\", \"while removing unused imports I deleted a re-export that cli/main.rs needs\"], \"not_checked\": [], \"left\": [\"I haven't fixed it yet\"], \"risk_reason\": \"cargo build now errors with E0432\", \"risk\": \"high\"}",
+   "finish": "stop",
+   "out_tokens": 67,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 1079,
+   "gen_ms": 1078.4286670000001,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 4227,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout",
+   "job": "attention",
+   "setting": "facts_hidden",
+   "id": "H016",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1529,
+   "cut": false,
+   "prompt_chars": 481,
+   "text": "{\"evidence\": \"I haven't fixed it yet.\", \"reason\": \"not_verified\", \"suggest\": \"can_wait\"}",
+   "finish": "stop",
+   "out_tokens": 26,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 401,
+   "gen_ms": 400.536292,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 45935,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout",
+   "job": "feed_line",
+   "setting": "main",
+   "id": "H017",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1932,
+   "cut": false,
+   "prompt_chars": 504,
+   "text": "{\"action\": \"looked through\", \"object\": \"the pricing table\", \"result\": \"none\", \"caveat_kind\": \"none\", \"caveat\": \"none\"}",
+   "finish": "stop",
+   "out_tokens": 39,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 573,
+   "gen_ms": 573.069125,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 53458,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout",
+   "job": "review",
+   "setting": "main",
+   "id": "H017",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2210,
+   "cut": false,
+   "prompt_chars": 506,
+   "text": "{\n  \"changed\": [\"before I touch the pricing table: should the discount apply before or after tax?\"],\n  \"not_checked\": [],\n  \"left\": [],\n  \"risk_reason\": \"none\",\n  \"risk\": \"unknown\"\n}",
+   "finish": "stop",
+   "out_tokens": 50,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 743,
+   "gen_ms": 742.761875,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 2296,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout",
+   "job": "attention",
+   "setting": "facts_hidden",
+   "id": "H017",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1530,
+   "cut": false,
+   "prompt_chars": 484,
+   "text": "{\"evidence\": \"should the discount apply before or after tax? The spec says both, in different places (docs/pricing\" , \"reason\": \"asks_question\", \"suggest\": \"needs_you\"}",
+   "finish": "stop",
+   "out_tokens": 42,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 644,
+   "gen_ms": 644.06975,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 38582,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout",
+   "job": "feed_line",
+   "setting": "main",
+   "id": "H018",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1921,
+   "cut": false,
+   "prompt_chars": 463,
+   "text": "{\"action\": \"umgesetzt\", \"object\": \"die API-Änderung\", \"result\": \"18 Tests grün\", \"caveat_kind\": \"none\", \"caveat\": \"none\"}",
+   "finish": "stop",
+   "out_tokens": 46,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 704,
+   "gen_ms": 704.2637910000001,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 3194,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout",
+   "job": "review",
+   "setting": "main",
+   "id": "H018",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2198,
+   "cut": false,
+   "prompt_chars": 465,
+   "text": "{\"changed\": [\"habe die API-Änderung umgesetzt (3 Dateien)\"], \"not_checked\": [], \"left\": [], \"risk_reason\": \"18 Tests grün\", \"risk\": \"medium\"}",
+   "finish": "stop",
+   "out_tokens": 47,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 726,
+   "gen_ms": 725.44325,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 47206,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout",
+   "job": "attention",
+   "setting": "facts_hidden",
+   "id": "H018",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1513,
+   "cut": false,
+   "prompt_chars": 426,
+   "text": "{\"evidence\": \"Soll ich auch die alte v1-Route entfernen oder sie noch behalten?\", \"reason\": \"asks_question\", \"suggest\": \"needs_you\"}",
+   "finish": "stop",
+   "out_tokens": 37,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 574,
+   "gen_ms": 573.937125,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 30190,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout",
+   "job": "feed_line",
+   "setting": "main",
+   "id": "H019",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1930,
+   "cut": false,
+   "prompt_chars": 496,
+   "text": "{\"action\": \"presented\", \"object\": \"two options for the cache: Redis (faster, adds a new dependency) or an\", \"result\": \"none\", \"caveat_kind\": \"none\", \"caveat\": \"none\"}",
+   "finish": "stop",
+   "out_tokens": 53,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 808,
+   "gen_ms": 807.351084,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 79994,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout",
+   "job": "review",
+   "setting": "main",
+   "id": "H019",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2208,
+   "cut": false,
+   "prompt_chars": 498,
+   "text": "{\"changed\": [\"two options for the cache: Redis (faster, adds a new dependency) or an in-process LRU (no \"], \"not_checked\": [], \"left\": [], \"risk_reason\": \"none\", \"risk\": \"unknown\"}",
+   "finish": "stop",
+   "out_tokens": 52,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 791,
+   "gen_ms": 790.691791,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 16944,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout",
+   "job": "attention",
+   "setting": "facts_hidden",
+   "id": "H019",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1527,
+   "cut": false,
+   "prompt_chars": 476,
+   "text": "{\"evidence\": \"Two options for the cache: Redis (faster, adds a new dependency) or an in-process LRU (no dependency\", \"reason\": \"nothing_to_review\", \"suggest\": \"unclear\"}",
+   "finish": "stop",
+   "out_tokens": 46,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 728,
+   "gen_ms": 728.0065420000001,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 70385,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout",
+   "job": "feed_line",
+   "setting": "main",
+   "id": "H020",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1942,
+   "cut": false,
+   "prompt_chars": 536,
+   "text": "{\"action\": \"implemented\", \"object\": \"the importer in tools/import.py\", \"result\": \"5 tests passed, none failed\", \"caveat_kind\": \"none\", \"caveat\": \"none\"}",
+   "finish": "stop",
+   "out_tokens": 45,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 670,
+   "gen_ms": 669.69425,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 70933,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout",
+   "job": "review",
+   "setting": "main",
+   "id": "H020",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2219,
+   "cut": false,
+   "prompt_chars": 538,
+   "text": "{\"changed\": [\"implemented the importer in tools/import.py\"], \"not_checked\": [], \"left\": [], \"risk_reason\": \"one thing to decide: it overwrites existing rows with the same id\", \"risk\": \"medium\"}",
+   "finish": "stop",
+   "out_tokens": 47,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 728,
+   "gen_ms": 728.1118749999999,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 22818,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout",
+   "job": "attention",
+   "setting": "facts_hidden",
+   "id": "H020",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1534,
+   "cut": false,
+   "prompt_chars": 500,
+   "text": "{\"evidence\": \"One thing to decide: it overwrites existing rows with the same id. OK to proceed like that, orshould\" , \"reason\": \"asks_question\", \"suggest\": \"needs_you\"}",
+   "finish": "stop",
+   "out_tokens": 44,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 675,
+   "gen_ms": 674.6592919999999,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 13764,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout",
+   "job": "feed_line",
+   "setting": "main",
+   "id": "H021",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1922,
+   "cut": false,
+   "prompt_chars": 469,
+   "text": "{\"action\": \"extracted\", \"object\": \"the retry loop from three handlers into utils/retry.js\", \"result\": \"112 tests pass, the same as before\", \"caveat_kind\": \"none\", \"caveat\": \"none\"}",
+   "finish": "stop",
+   "out_tokens": 55,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 842,
+   "gen_ms": 842.2173750000001,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 96901,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout",
+   "job": "review",
+   "setting": "main",
+   "id": "H021",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2200,
+   "cut": false,
+   "prompt_chars": 471,
+   "text": "{\"changed\": [\"extracted the retry loop from three handlers into utils/retry.js\"], \"not_checked\": [], \"left\": [], \"risk_reason\": \"112 tests pass, the same as before\", \"risk\": \"unknown\"}",
+   "finish": "stop",
+   "out_tokens": 49,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 770,
+   "gen_ms": 770.2787500000001,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 8681,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout",
+   "job": "attention",
+   "setting": "facts_given",
+   "id": "H021",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1521,
+   "cut": false,
+   "prompt_chars": 453,
+   "text": "{\"evidence\": \"No behaviour change; 112 tests pass, the same as before.\", \"reason\": \"work_done\", \"suggest\": \"can_wait\"}",
+   "finish": "stop",
+   "out_tokens": 35,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 548,
+   "gen_ms": 547.789292,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 51126,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout",
+   "job": "attention",
+   "setting": "facts_hidden",
+   "id": "H021",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1515,
+   "cut": false,
+   "prompt_chars": 434,
+   "text": "{\"evidence\": \"Pure refactor: extracted the retry loop from three handlers into utils/retry.js.\", \"reason\": \"work_done\", \"suggest\": \"can_wait\"}",
+   "finish": "stop",
+   "out_tokens": 35,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 541,
+   "gen_ms": 541.3475840000001,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 3931,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout",
+   "job": "feed_line",
+   "setting": "main",
+   "id": "H022",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1927,
+   "cut": false,
+   "prompt_chars": 486,
+   "text": "{\"action\": \"split\", \"object\": \"die Klasse OrderService in drei kleinere Module (services/order/*.py)\", \"result\": \"alle 76 Tests bestehen weiterhin\", \"caveat_kind\": \"none\", \"caveat\": \"none\"}",
+   "finish": "stop",
+   "out_tokens": 57,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 879,
+   "gen_ms": 878.9617499999999,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 60217,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout",
+   "job": "review",
+   "setting": "main",
+   "id": "H022",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2205,
+   "cut": false,
+   "prompt_chars": 488,
+   "text": "{\"changed\": [\"divided the OrderService into three smaller modules (services/order/*.py)\"], \"not_checked\": [], \"left\": [], \"risk_reason\": \"76 tests passed\", \"risk\": \"low\"}",
+   "finish": "stop",
+   "out_tokens": 45,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 699,
+   "gen_ms": 698.538,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 89652,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout",
+   "job": "attention",
+   "setting": "facts_given",
+   "id": "H022",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1526,
+   "cut": false,
+   "prompt_chars": 470,
+   "text": "{\"evidence\": \"Alle 76 Tests bestehen weiterhin.\", \"reason\": \"work_done\", \"suggest\": \"can_wait\"}",
+   "finish": "stop",
+   "out_tokens": 29,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 442,
+   "gen_ms": 442.025459,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 94295,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout",
+   "job": "attention",
+   "setting": "facts_hidden",
+   "id": "H022",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1521,
+   "cut": false,
+   "prompt_chars": 452,
+   "text": "{\"evidence\": \"Alle 76 Tests bestehen weiterhin.\", \"reason\": \"work_done\", \"suggest\": \"can_wait\"}",
+   "finish": "stop",
+   "out_tokens": 29,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 440,
+   "gen_ms": 440.060917,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 29742,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout",
+   "job": "feed_line",
+   "setting": "main",
+   "id": "H023",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1945,
+   "cut": false,
+   "prompt_chars": 547,
+   "text": "{\"action\": \"moved\", \"object\": \"the config loader from core/ to platform/config/\", \"result\": \"nothing functional changed\", \"caveat_kind\": \"none\", \"caveat\": \"none\"}",
+   "finish": "stop",
+   "out_tokens": 45,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 693,
+   "gen_ms": 692.284709,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 8079,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout",
+   "job": "review",
+   "setting": "main",
+   "id": "H023",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2222,
+   "cut": false,
+   "prompt_chars": 549,
+   "text": "{\"changed\": [\"moved the config loader from core/ to platform/config/\", \"fixed the imports\"], \"not_checked\": [], \"left\": [], \"risk_reason\": \"9 unit tests pass\", \"risk\": \"low\"}",
+   "finish": "stop",
+   "out_tokens": 45,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 685,
+   "gen_ms": 685.1235,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 22322,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout",
+   "job": "attention",
+   "setting": "facts_given",
+   "id": "H023",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1543,
+   "cut": false,
+   "prompt_chars": 531,
+   "text": "{\"evidence\": \"Nothing functional changed.\", \"reason\": \"work_done\", \"suggest\": \"can_wait\"}",
+   "finish": "stop",
+   "out_tokens": 23,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 339,
+   "gen_ms": 338.483125,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 25828,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout",
+   "job": "attention",
+   "setting": "facts_hidden",
+   "id": "H023",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1538,
+   "cut": false,
+   "prompt_chars": 514,
+   "text": "{\"evidence\": \"Moved the config loader from core/ to platform/config/ and fixed the imports.\", \"reason\": \"nothing_to_review\", \"suggest\": \"unclear\"}",
+   "finish": "stop",
+   "out_tokens": 36,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 547,
+   "gen_ms": 546.833542,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 3776,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout",
+   "job": "feed_line",
+   "setting": "main",
+   "id": "H024",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1920,
+   "cut": false,
+   "prompt_chars": 459,
+   "text": "{\"action\": \"renamed\", \"object\": \"variables in util/helpers.go\", \"result\": \"33 tests ok\", \"caveat_kind\": \"none\", \"caveat\": \"none\"}",
+   "finish": "stop",
+   "out_tokens": 43,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 649,
+   "gen_ms": 648.911708,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 29856,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout",
+   "job": "review",
+   "setting": "main",
+   "id": "H024",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2197,
+   "cut": false,
+   "prompt_chars": 461,
+   "text": "{\"changed\": [\"variblen umbenannt und tote Funktionen entfernt (util/helpers.go)\"], \"not_checked\": [], \"left\": [], \"risk_reason\": \"33 Tests ok\", \"risk\": \"low\"}",
+   "finish": "stop",
+   "out_tokens": 47,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 730,
+   "gen_ms": 729.679458,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 77460,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout",
+   "job": "attention",
+   "setting": "facts_given",
+   "id": "H024",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1518,
+   "cut": false,
+   "prompt_chars": 443,
+   "text": "{\"evidence\": \"Variablen umbenannt und tote Funktionen entfernt (util/helpers.go). Keine Änderung am Verhalten; go \",\"reason\": \"work_done\", \"suggest\": \"can_wait\"}",
+   "finish": "stop",
+   "out_tokens": 47,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 748,
+   "gen_ms": 747.9985,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 80312,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout",
+   "job": "attention",
+   "setting": "facts_hidden",
+   "id": "H024",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1513,
+   "cut": false,
+   "prompt_chars": 425,
+   "text": "{\"evidence\": \"Variablen umbenannt und tote Funktionen entfernt (util/helpers.go). Keine Änderung am Verhalten; go \",\n\n\"reason\": \"nothing_to_review\",\n\n\"suggest\": \"unclear\"}",
+   "finish": "stop",
+   "out_tokens": 49,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 763,
+   "gen_ms": 762.8329160000001,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 94090,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout",
+   "job": "chat",
+   "setting": "main",
+   "id": "heldout-S00-happened",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1839,
+   "cut": false,
+   "prompt_chars": 1239,
+   "chat_item": {
+    "id": "heldout-S00-happened",
+    "question": "What happened in the sparrow export session?",
+    "rows": [
+     {
+      "ref": "r1",
+      "title": "sparrow export",
+      "facts": {
+       "outcome": "success",
+       "tests": {
+        "state": "ran",
+        "passed": 58,
+        "failed": 0
+       },
+       "level": "L0"
+      },
+      "words": "The CSV export now streams rows instead of buffering the whole file, so the 400 MB sample in fixtures/big.csv stays under 80 MB of memory.",
+      "turn": "H001",
+      "lang": "en"
+     },
+     {
+      "ref": "r2",
+      "title": "lantern billing",
+      "facts": {
+       "outcome": "success",
+       "tests": {
+        "state": "ran",
+        "passed": 14,
+        "failed": 0
+       },
+       "level": "L0"
+      },
+      "words": "Fertig: Der Login-Timeout liegt jetzt bei 30 Minuten statt 5 (config/session.yaml).",
+      "turn": "H002",
+      "lang": "de"
+     },
+     {
+      "ref": "r3",
+      "title": "quarry search",
+      "facts": {
+       "outcome": "success",
+       "tests": {
+        "state": "unknown"
+       },
+       "level": "L0"
+      },
+      "words": "Renamed the flag to --dry-run everywhere, docs updated too.",
+      "turn": "H003",
+      "lang": "en"
+     },
+     {
+      "ref": "r4",
+      "title": "maple onboarding",
+      "facts": {
+       "outcome": "success",
+       "tests": {
+        "state": "ran",
+        "passed": 3,
+        "failed": 0
+       },
+       "level": "L0"
+      },
+      "words": "The new check in scripts/verify_lock.sh fails if package-lock.json is older than package.json, so a stale lockfile can no longer slip into a release.",
+      "turn": "H004",
+      "lang": "en"
+     }
+    ],
+    "gold": {
+     "answerable": true,
+     "refs": [
+      "r1"
+     ]
+    },
+    "removed": []
+   },
+   "text": "{\"covered\": \"yes\", \"parts\": [{\"text\": \"The sparrow export session finished with 58 tests passed.\", \"cites\": [\"r1\"]}]}",
+   "finish": "stop",
+   "out_tokens": 36,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 560,
+   "gen_ms": 559.621833,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 99430,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout",
+   "job": "chat",
+   "setting": "main",
+   "id": "heldout-S00-tests",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1841,
+   "cut": false,
+   "prompt_chars": 1245,
+   "chat_item": {
+    "id": "heldout-S00-tests",
+    "question": "Did the tests pass in the lantern billing session?",
+    "rows": [
+     {
+      "ref": "r1",
+      "title": "sparrow export",
+      "facts": {
+       "outcome": "success",
+       "tests": {
+        "state": "ran",
+        "passed": 58,
+        "failed": 0
+       },
+       "level": "L0"
+      },
+      "words": "The CSV export now streams rows instead of buffering the whole file, so the 400 MB sample in fixtures/big.csv stays under 80 MB of memory.",
+      "turn": "H001",
+      "lang": "en"
+     },
+     {
+      "ref": "r2",
+      "title": "lantern billing",
+      "facts": {
+       "outcome": "success",
+       "tests": {
+        "state": "ran",
+        "passed": 14,
+        "failed": 0
+       },
+       "level": "L0"
+      },
+      "words": "Fertig: Der Login-Timeout liegt jetzt bei 30 Minuten statt 5 (config/session.yaml).",
+      "turn": "H002",
+      "lang": "de"
+     },
+     {
+      "ref": "r3",
+      "title": "quarry search",
+      "facts": {
+       "outcome": "success",
+       "tests": {
+        "state": "unknown"
+       },
+       "level": "L0"
+      },
+      "words": "Renamed the flag to --dry-run everywhere, docs updated too.",
+      "turn": "H003",
+      "lang": "en"
+     },
+     {
+      "ref": "r4",
+      "title": "maple onboarding",
+      "facts": {
+       "outcome": "success",
+       "tests": {
+        "state": "ran",
+        "passed": 3,
+        "failed": 0
+       },
+       "level": "L0"
+      },
+      "words": "The new check in scripts/verify_lock.sh fails if package-lock.json is older than package.json, so a stale lockfile can no longer slip into a release.",
+      "turn": "H004",
+      "lang": "en"
+     }
+    ],
+    "gold": {
+     "answerable": true,
+     "refs": [
+      "r2"
+     ],
+     "tests_passed": true
+    },
+    "removed": []
+   },
+   "text": "{\"covered\": \"no\", \"parts\": []}",
+   "finish": "stop",
+   "out_tokens": 11,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 216,
+   "gen_ms": 215.979875,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 8280,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout",
+   "job": "chat",
+   "setting": "main",
+   "id": "heldout-S00-cost",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1840,
+   "cut": false,
+   "prompt_chars": 1240,
+   "chat_item": {
+    "id": "heldout-S00-cost",
+    "question": "How much did the sparrow export session cost?",
+    "rows": [
+     {
+      "ref": "r1",
+      "title": "sparrow export",
+      "facts": {
+       "outcome": "success",
+       "tests": {
+        "state": "ran",
+        "passed": 58,
+        "failed": 0
+       },
+       "level": "L0"
+      },
+      "words": "The CSV export now streams rows instead of buffering the whole file, so the 400 MB sample in fixtures/big.csv stays under 80 MB of memory.",
+      "turn": "H001",
+      "lang": "en"
+     },
+     {
+      "ref": "r2",
+      "title": "lantern billing",
+      "facts": {
+       "outcome": "success",
+       "tests": {
+        "state": "ran",
+        "passed": 14,
+        "failed": 0
+       },
+       "level": "L0"
+      },
+      "words": "Fertig: Der Login-Timeout liegt jetzt bei 30 Minuten statt 5 (config/session.yaml).",
+      "turn": "H002",
+      "lang": "de"
+     },
+     {
+      "ref": "r3",
+      "title": "quarry search",
+      "facts": {
+       "outcome": "success",
+       "tests": {
+        "state": "unknown"
+       },
+       "level": "L0"
+      },
+      "words": "Renamed the flag to --dry-run everywhere, docs updated too.",
+      "turn": "H003",
+      "lang": "en"
+     },
+     {
+      "ref": "r4",
+      "title": "maple onboarding",
+      "facts": {
+       "outcome": "success",
+       "tests": {
+        "state": "ran",
+        "passed": 3,
+        "failed": 0
+       },
+       "level": "L0"
+      },
+      "words": "The new check in scripts/verify_lock.sh fails if package-lock.json is older than package.json, so a stale lockfile can no longer slip into a release.",
+      "turn": "H004",
+      "lang": "en"
+     }
+    ],
+    "gold": {
+     "answerable": false,
+     "refs": []
+    },
+    "removed": []
+   },
+   "text": "{\"covered\": \"no\", \"parts\": []}",
+   "finish": "stop",
+   "out_tokens": 11,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 216,
+   "gen_ms": 215.885541,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 56849,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout",
+   "job": "chat",
+   "setting": "main",
+   "id": "heldout-S01-happened",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1895,
+   "cut": false,
+   "prompt_chars": 1434,
+   "chat_item": {
+    "id": "heldout-S01-happened",
+    "question": "What happened in the quarry search session?",
+    "rows": [
+     {
+      "ref": "r1",
+      "title": "lantern billing",
+      "facts": {
+       "outcome": "success",
+       "tests": {
+        "state": "ran",
+        "passed": 9,
+        "failed": 0
+       },
+       "level": "L1"
+      },
+      "words": "I got the retry logic working for the upload client (lib/upload/retry.py), including exponential backoff capped at 60 s. I did not get to resumable chunks: that is still a TODO at line 88 and uploads over 2 GB will restart from zero.",
+      "turn": "H005",
+      "lang": "en"
+     },
+     {
+      "ref": "r2",
+      "title": "quarry search",
+      "facts": {
+       "outcome": "success",
+       "tests": {
+        "state": "ran",
+        "passed": 21,
+        "failed": 0
+       },
+       "level": "L1"
+      },
+      "words": "Teilweise erledigt: Die Übersetzungen für Deutsch und Französisch sind drin (i18n/de.json, i18n/fr.json).",
+      "turn": "H006",
+      "lang": "de"
+     },
+     {
+      "ref": "r3",
+      "title": "maple onboarding",
+      "facts": {
+       "outcome": "success",
+       "tests": {
+        "state": "ran",
+        "passed": 31,
+        "failed": 0
+       },
+       "level": "L1"
+      },
+      "words": "api/routes/orders.go: pagination added api/routes/refunds.go: happy path only, error mapping left as it was",
+      "turn": "H007",
+      "lang": "en"
+     },
+     {
+      "ref": "r4",
+      "title": "harrier deploy",
+      "facts": {
+       "outcome": "success",
+       "tests": {
+        "state": "not_run"
+       },
+       "level": "L1"
+      },
+      "words": "Migrated 3 of 5 services to the new logger. billing and search still use the old one because they pin an older shared lib, so the migration is not finished. I didn't run the suite.",
+      "turn": "H008",
+      "lang": "en"
+     }
+    ],
+    "gold": {
+     "answerable": true,
+     "refs": [
+      "r2"
+     ]
+    },
+    "removed": []
+   },
+   "text": "{\"covered\": \"yes\", \"parts\": [{\"text\": \"The quarry search session finished with 21 tests passed.\", \"cites\": [\"r2\"]}]}",
+   "finish": "stop",
+   "out_tokens": 35,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 542,
+   "gen_ms": 542.192584,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 4584,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout",
+   "job": "chat",
+   "setting": "main",
+   "id": "heldout-S01-tests",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1897,
+   "cut": false,
+   "prompt_chars": 1442,
+   "chat_item": {
+    "id": "heldout-S01-tests",
+    "question": "Did the tests pass in the maple onboarding session?",
+    "rows": [
+     {
+      "ref": "r1",
+      "title": "lantern billing",
+      "facts": {
+       "outcome": "success",
+       "tests": {
+        "state": "ran",
+        "passed": 9,
+        "failed": 0
+       },
+       "level": "L1"
+      },
+      "words": "I got the retry logic working for the upload client (lib/upload/retry.py), including exponential backoff capped at 60 s. I did not get to resumable chunks: that is still a TODO at line 88 and uploads over 2 GB will restart from zero.",
+      "turn": "H005",
+      "lang": "en"
+     },
+     {
+      "ref": "r2",
+      "title": "quarry search",
+      "facts": {
+       "outcome": "success",
+       "tests": {
+        "state": "ran",
+        "passed": 21,
+        "failed": 0
+       },
+       "level": "L1"
+      },
+      "words": "Teilweise erledigt: Die Übersetzungen für Deutsch und Französisch sind drin (i18n/de.json, i18n/fr.json).",
+      "turn": "H006",
+      "lang": "de"
+     },
+     {
+      "ref": "r3",
+      "title": "maple onboarding",
+      "facts": {
+       "outcome": "success",
+       "tests": {
+        "state": "ran",
+        "passed": 31,
+        "failed": 0
+       },
+       "level": "L1"
+      },
+      "words": "api/routes/orders.go: pagination added api/routes/refunds.go: happy path only, error mapping left as it was",
+      "turn": "H007",
+      "lang": "en"
+     },
+     {
+      "ref": "r4",
+      "title": "harrier deploy",
+      "facts": {
+       "outcome": "success",
+       "tests": {
+        "state": "not_run"
+       },
+       "level": "L1"
+      },
+      "words": "Migrated 3 of 5 services to the new logger. billing and search still use the old one because they pin an older shared lib, so the migration is not finished. I didn't run the suite.",
+      "turn": "H008",
+      "lang": "en"
+     }
+    ],
+    "gold": {
+     "answerable": true,
+     "refs": [
+      "r3"
+     ],
+     "tests_passed": true
+    },
+    "removed": []
+   },
+   "text": "{\"covered\": \"yes\", \"parts\": [{\"text\": \"The maple onboarding session finished with 31 tests passed.\", \"cites\": [\"r3\"]}]}",
+   "finish": "stop",
+   "out_tokens": 36,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 569,
+   "gen_ms": 568.9345,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 77401,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout",
+   "job": "chat",
+   "setting": "main",
+   "id": "heldout-S01-cost",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1895,
+   "cut": false,
+   "prompt_chars": 1435,
+   "chat_item": {
+    "id": "heldout-S01-cost",
+    "question": "How much did the quarry search session cost?",
+    "rows": [
+     {
+      "ref": "r1",
+      "title": "lantern billing",
+      "facts": {
+       "outcome": "success",
+       "tests": {
+        "state": "ran",
+        "passed": 9,
+        "failed": 0
+       },
+       "level": "L1"
+      },
+      "words": "I got the retry logic working for the upload client (lib/upload/retry.py), including exponential backoff capped at 60 s. I did not get to resumable chunks: that is still a TODO at line 88 and uploads over 2 GB will restart from zero.",
+      "turn": "H005",
+      "lang": "en"
+     },
+     {
+      "ref": "r2",
+      "title": "quarry search",
+      "facts": {
+       "outcome": "success",
+       "tests": {
+        "state": "ran",
+        "passed": 21,
+        "failed": 0
+       },
+       "level": "L1"
+      },
+      "words": "Teilweise erledigt: Die Übersetzungen für Deutsch und Französisch sind drin (i18n/de.json, i18n/fr.json).",
+      "turn": "H006",
+      "lang": "de"
+     },
+     {
+      "ref": "r3",
+      "title": "maple onboarding",
+      "facts": {
+       "outcome": "success",
+       "tests": {
+        "state": "ran",
+        "passed": 31,
+        "failed": 0
+       },
+       "level": "L1"
+      },
+      "words": "api/routes/orders.go: pagination added api/routes/refunds.go: happy path only, error mapping left as it was",
+      "turn": "H007",
+      "lang": "en"
+     },
+     {
+      "ref": "r4",
+      "title": "harrier deploy",
+      "facts": {
+       "outcome": "success",
+       "tests": {
+        "state": "not_run"
+       },
+       "level": "L1"
+      },
+      "words": "Migrated 3 of 5 services to the new logger. billing and search still use the old one because they pin an older shared lib, so the migration is not finished. I didn't run the suite.",
+      "turn": "H008",
+      "lang": "en"
+     }
+    ],
+    "gold": {
+     "answerable": false,
+     "refs": []
+    },
+    "removed": []
+   },
+   "text": "{\"covered\": \"no\", \"parts\": []}",
+   "finish": "stop",
+   "out_tokens": 11,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 219,
+   "gen_ms": 219.007667,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 79115,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout",
+   "job": "chat",
+   "setting": "main",
+   "id": "heldout-S02-happened",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1867,
+   "cut": false,
+   "prompt_chars": 1334,
+   "chat_item": {
+    "id": "heldout-S02-happened",
+    "question": "What happened in the harrier deploy session?",
+    "rows": [
+     {
+      "ref": "r1",
+      "title": "quarry search",
+      "facts": {
+       "outcome": "success",
+       "tests": {
+        "state": "not_run"
+       },
+       "level": "L1"
+      },
+      "words": "I changed the cron expression in deploy/jobs.yaml from every 15 to every 30 minutes. I haven't run anything.",
+      "turn": "H009",
+      "lang": "en"
+     },
+     {
+      "ref": "r2",
+      "title": "maple onboarding",
+      "facts": {
+       "outcome": "success",
+       "tests": {
+        "state": "not_run"
+       },
+       "level": "L1"
+      },
+      "words": "Die Validierung für das Kontaktformular ist umgebaut (src/forms/contact.ts). Ich habe die Tests nicht ausgeführt, da in dieser Umgebung kein Node installiert ist.",
+      "turn": "H010",
+      "lang": "de"
+     },
+     {
+      "ref": "r3",
+      "title": "harrier deploy",
+      "facts": {
+       "outcome": "success",
+       "tests": {
+        "state": "not_run"
+       },
+       "level": "L1"
+      },
+      "words": "The Dockerfile now uses a multi-stage build and drops the dev toolchain from the final layer. I couldn't build the image here (no Docker daemon), so the size reduction is unverified and the entrypoint path in docker/run.sh is untested.",
+      "turn": "H011",
+      "lang": "en"
+     },
+     {
+      "ref": "r4",
+      "title": "cobalt metrics",
+      "facts": {
+       "outcome": "success",
+       "tests": {
+        "state": "not_run"
+       },
+       "level": "L1"
+      },
+      "words": "Patched the off-by-one in paginate() in src/list.rs, didn't run tests.",
+      "turn": "H012",
+      "lang": "en"
+     }
+    ],
+    "gold": {
+     "answerable": true,
+     "refs": [
+      "r3"
+     ]
+    },
+    "removed": []
+   },
+   "text": "{\"covered\": \"yes\", \"parts\": [{\"text\": \"The harrier deploy session finished, but the tests were not run.\", \"cites\": [\"r3\"]}]}",
+   "finish": "stop",
+   "out_tokens": 37,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 576,
+   "gen_ms": 575.925416,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 88743,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout",
+   "job": "chat",
+   "setting": "main",
+   "id": "heldout-S02-tests",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1868,
+   "cut": false,
+   "prompt_chars": 1339,
+   "chat_item": {
+    "id": "heldout-S02-tests",
+    "question": "Did the tests pass in the cobalt metrics session?",
+    "rows": [
+     {
+      "ref": "r1",
+      "title": "quarry search",
+      "facts": {
+       "outcome": "success",
+       "tests": {
+        "state": "not_run"
+       },
+       "level": "L1"
+      },
+      "words": "I changed the cron expression in deploy/jobs.yaml from every 15 to every 30 minutes. I haven't run anything.",
+      "turn": "H009",
+      "lang": "en"
+     },
+     {
+      "ref": "r2",
+      "title": "maple onboarding",
+      "facts": {
+       "outcome": "success",
+       "tests": {
+        "state": "not_run"
+       },
+       "level": "L1"
+      },
+      "words": "Die Validierung für das Kontaktformular ist umgebaut (src/forms/contact.ts). Ich habe die Tests nicht ausgeführt, da in dieser Umgebung kein Node installiert ist.",
+      "turn": "H010",
+      "lang": "de"
+     },
+     {
+      "ref": "r3",
+      "title": "harrier deploy",
+      "facts": {
+       "outcome": "success",
+       "tests": {
+        "state": "not_run"
+       },
+       "level": "L1"
+      },
+      "words": "The Dockerfile now uses a multi-stage build and drops the dev toolchain from the final layer. I couldn't build the image here (no Docker daemon), so the size reduction is unverified and the entrypoint path in docker/run.sh is untested.",
+      "turn": "H011",
+      "lang": "en"
+     },
+     {
+      "ref": "r4",
+      "title": "cobalt metrics",
+      "facts": {
+       "outcome": "success",
+       "tests": {
+        "state": "not_run"
+       },
+       "level": "L1"
+      },
+      "words": "Patched the off-by-one in paginate() in src/list.rs, didn't run tests.",
+      "turn": "H012",
+      "lang": "en"
+     }
+    ],
+    "gold": {
+     "answerable": true,
+     "refs": [
+      "r4"
+     ],
+     "tests_not_run": true
+    },
+    "removed": []
+   },
+   "text": "{\"covered\": \"no\", \"parts\": []}",
+   "finish": "stop",
+   "out_tokens": 11,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 218,
+   "gen_ms": 217.736459,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 41233,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout",
+   "job": "chat",
+   "setting": "main",
+   "id": "heldout-S02-scope",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1868,
+   "cut": false,
+   "prompt_chars": 1338,
+   "chat_item": {
+    "id": "heldout-S02-scope",
+    "question": "Write me a function that reverses a linked list.",
+    "rows": [
+     {
+      "ref": "r1",
+      "title": "quarry search",
+      "facts": {
+       "outcome": "success",
+       "tests": {
+        "state": "not_run"
+       },
+       "level": "L1"
+      },
+      "words": "I changed the cron expression in deploy/jobs.yaml from every 15 to every 30 minutes. I haven't run anything.",
+      "turn": "H009",
+      "lang": "en"
+     },
+     {
+      "ref": "r2",
+      "title": "maple onboarding",
+      "facts": {
+       "outcome": "success",
+       "tests": {
+        "state": "not_run"
+       },
+       "level": "L1"
+      },
+      "words": "Die Validierung für das Kontaktformular ist umgebaut (src/forms/contact.ts). Ich habe die Tests nicht ausgeführt, da in dieser Umgebung kein Node installiert ist.",
+      "turn": "H010",
+      "lang": "de"
+     },
+     {
+      "ref": "r3",
+      "title": "harrier deploy",
+      "facts": {
+       "outcome": "success",
+       "tests": {
+        "state": "not_run"
+       },
+       "level": "L1"
+      },
+      "words": "The Dockerfile now uses a multi-stage build and drops the dev toolchain from the final layer. I couldn't build the image here (no Docker daemon), so the size reduction is unverified and the entrypoint path in docker/run.sh is untested.",
+      "turn": "H011",
+      "lang": "en"
+     },
+     {
+      "ref": "r4",
+      "title": "cobalt metrics",
+      "facts": {
+       "outcome": "success",
+       "tests": {
+        "state": "not_run"
+       },
+       "level": "L1"
+      },
+      "words": "Patched the off-by-one in paginate() in src/list.rs, didn't run tests.",
+      "turn": "H012",
+      "lang": "en"
+     }
+    ],
+    "gold": {
+     "answerable": false,
+     "out_of_scope": true,
+     "refs": []
+    },
+    "removed": []
+   },
+   "text": "{\"covered\": \"no\", \"parts\": []}",
+   "finish": "stop",
+   "out_tokens": 11,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 220,
+   "gen_ms": 219.51333300000002,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 57081,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout",
+   "job": "chat",
+   "setting": "main",
+   "id": "heldout-S03-happened",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1844,
+   "cut": false,
+   "prompt_chars": 1256,
+   "chat_item": {
+    "id": "heldout-S03-happened",
+    "question": "What happened in the juniper auth session?",
+    "rows": [
+     {
+      "ref": "r1",
+      "title": "maple onboarding",
+      "facts": {
+       "outcome": "failure",
+       "tests": {
+        "state": "ran",
+        "passed": 44,
+        "failed": 12
+       },
+       "level": "L3"
+      },
+      "words": "After bumping the compiler target, 12 tests in tests/render fail with 'undefined symbol: gl_init' (44 others pass).",
+      "turn": "H013",
+      "lang": "en"
+     },
+     {
+      "ref": "r2",
+      "title": "harrier deploy",
+      "facts": {
+       "outcome": "failure",
+       "tests": {
+        "state": "unknown"
+       },
+       "level": "L3"
+      },
+      "words": "Das hat nicht geklappt: Die Migration 0042 bricht mit 'column already exists' ab, und die Datenbank steht jetzt halb migriert.",
+      "turn": "H014",
+      "lang": "de"
+     },
+     {
+      "ref": "r3",
+      "title": "cobalt metrics",
+      "facts": {
+       "outcome": "failure",
+       "tests": {
+        "state": "ran",
+        "passed": 7,
+        "failed": 1
+       },
+       "level": "L3"
+      },
+      "words": "It still fails about 1 run in 4, so I gave up; notes are in notes/ws-flaky.md.",
+      "turn": "H015",
+      "lang": "en"
+     },
+     {
+      "ref": "r4",
+      "title": "juniper auth",
+      "facts": {
+       "outcome": "failure",
+       "tests": {
+        "state": "unknown"
+       },
+       "level": "L3"
+      },
+      "words": "Bad news: while removing unused imports I deleted a re-export that cli/main.rs needs, so cargo build now errors with E0432. I haven't fixed it yet.",
+      "turn": "H016",
+      "lang": "en"
+     }
+    ],
+    "gold": {
+     "answerable": true,
+     "refs": [
+      "r4"
+     ]
+    },
+    "removed": []
+   },
+   "text": "{\"covered\": \"yes\", \"parts\": [{\"text\": \"The juniper auth session failed: 1 test failed.\", \"cites\": [\"r4\"]}, {\"text\": \"The juniper auth session's tests are unknown.\", \"cites\": [\"r4\"]}]}",
+   "finish": "stop",
+   "out_tokens": 58,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 866,
+   "gen_ms": 865.7938750000001,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 80369,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout",
+   "job": "chat",
+   "setting": "main",
+   "id": "heldout-S03-tests",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1847,
+   "cut": false,
+   "prompt_chars": 1265,
+   "chat_item": {
+    "id": "heldout-S03-tests",
+    "question": "Did the tests pass in the maple onboarding session?",
+    "rows": [
+     {
+      "ref": "r1",
+      "title": "maple onboarding",
+      "facts": {
+       "outcome": "failure",
+       "tests": {
+        "state": "ran",
+        "passed": 44,
+        "failed": 12
+       },
+       "level": "L3"
+      },
+      "words": "After bumping the compiler target, 12 tests in tests/render fail with 'undefined symbol: gl_init' (44 others pass).",
+      "turn": "H013",
+      "lang": "en"
+     },
+     {
+      "ref": "r2",
+      "title": "harrier deploy",
+      "facts": {
+       "outcome": "failure",
+       "tests": {
+        "state": "unknown"
+       },
+       "level": "L3"
+      },
+      "words": "Das hat nicht geklappt: Die Migration 0042 bricht mit 'column already exists' ab, und die Datenbank steht jetzt halb migriert.",
+      "turn": "H014",
+      "lang": "de"
+     },
+     {
+      "ref": "r3",
+      "title": "cobalt metrics",
+      "facts": {
+       "outcome": "failure",
+       "tests": {
+        "state": "ran",
+        "passed": 7,
+        "failed": 1
+       },
+       "level": "L3"
+      },
+      "words": "It still fails about 1 run in 4, so I gave up; notes are in notes/ws-flaky.md.",
+      "turn": "H015",
+      "lang": "en"
+     },
+     {
+      "ref": "r4",
+      "title": "juniper auth",
+      "facts": {
+       "outcome": "failure",
+       "tests": {
+        "state": "unknown"
+       },
+       "level": "L3"
+      },
+      "words": "Bad news: while removing unused imports I deleted a re-export that cli/main.rs needs, so cargo build now errors with E0432. I haven't fixed it yet.",
+      "turn": "H016",
+      "lang": "en"
+     }
+    ],
+    "gold": {
+     "answerable": true,
+     "refs": [
+      "r1"
+     ],
+     "tests_passed": false
+    },
+    "removed": []
+   },
+   "text": "{\"covered\": \"yes\", \"parts\": [{\"text\": \"The tests in the maple onboarding session passed 44 out of 100 tests.\", \"cites\": [\"r1\"]}]}",
+   "finish": "stop",
+   "out_tokens": 43,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 677,
+   "gen_ms": 677.203416,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 23072,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout",
+   "job": "chat",
+   "setting": "main",
+   "id": "heldout-S03-needs",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1842,
+   "cut": false,
+   "prompt_chars": 1247,
+   "chat_item": {
+    "id": "heldout-S03-needs",
+    "question": "Which sessions need me right now?",
+    "rows": [
+     {
+      "ref": "r1",
+      "title": "maple onboarding",
+      "facts": {
+       "outcome": "failure",
+       "tests": {
+        "state": "ran",
+        "passed": 44,
+        "failed": 12
+       },
+       "level": "L3"
+      },
+      "words": "After bumping the compiler target, 12 tests in tests/render fail with 'undefined symbol: gl_init' (44 others pass).",
+      "turn": "H013",
+      "lang": "en"
+     },
+     {
+      "ref": "r2",
+      "title": "harrier deploy",
+      "facts": {
+       "outcome": "failure",
+       "tests": {
+        "state": "unknown"
+       },
+       "level": "L3"
+      },
+      "words": "Das hat nicht geklappt: Die Migration 0042 bricht mit 'column already exists' ab, und die Datenbank steht jetzt halb migriert.",
+      "turn": "H014",
+      "lang": "de"
+     },
+     {
+      "ref": "r3",
+      "title": "cobalt metrics",
+      "facts": {
+       "outcome": "failure",
+       "tests": {
+        "state": "ran",
+        "passed": 7,
+        "failed": 1
+       },
+       "level": "L3"
+      },
+      "words": "It still fails about 1 run in 4, so I gave up; notes are in notes/ws-flaky.md.",
+      "turn": "H015",
+      "lang": "en"
+     },
+     {
+      "ref": "r4",
+      "title": "juniper auth",
+      "facts": {
+       "outcome": "failure",
+       "tests": {
+        "state": "unknown"
+       },
+       "level": "L3"
+      },
+      "words": "Bad news: while removing unused imports I deleted a re-export that cli/main.rs needs, so cargo build now errors with E0432. I haven't fixed it yet.",
+      "turn": "H016",
+      "lang": "en"
+     }
+    ],
+    "gold": {
+     "answerable": true,
+     "refs": [
+      "r1",
+      "r2",
+      "r3",
+      "r4"
+     ]
+    },
+    "removed": []
+   },
+   "text": "{\"covered\": \"yes\", \"parts\": [{\"text\": \"The maple onboarding session failed with 12 tests failed.\", \"cites\": [\"r1\"]}, {\"text\": \"The harrier deploy session failed with an error about migration failure.\", \"cites\": [\"r2\"]}, {\"text\": \"The cobalt metrics session failed with 1 test failed.\", \"cites\": [\"r3\"]}]}",
+   "finish": "stop",
+   "out_tokens": 87,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 1246,
+   "gen_ms": 1245.932,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 61000,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout",
+   "job": "chat",
+   "setting": "main",
+   "id": "heldout-S04-happened",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1800,
+   "cut": false,
+   "prompt_chars": 1100,
+   "chat_item": {
+    "id": "heldout-S04-happened",
+    "question": "What happened in the harrier deploy session?",
+    "rows": [
+     {
+      "ref": "r1",
+      "title": "harrier deploy",
+      "facts": {
+       "outcome": "question",
+       "tests": {
+        "state": "unknown"
+       },
+       "level": "L2"
+      },
+      "words": "Before I touch the pricing table: should the discount apply before or after tax? I haven't changed any code yet.",
+      "turn": "H017",
+      "lang": "en"
+     },
+     {
+      "ref": "r2",
+      "title": "cobalt metrics",
+      "facts": {
+       "outcome": "question",
+       "tests": {
+        "state": "ran",
+        "passed": 18,
+        "failed": 0
+       },
+       "level": "L2"
+      },
+      "words": "Soll ich auch die alte v1-Route entfernen oder sie noch behalten?",
+      "turn": "H018",
+      "lang": "de"
+     },
+     {
+      "ref": "r3",
+      "title": "juniper auth",
+      "facts": {
+       "outcome": "question",
+       "tests": {
+        "state": "unknown"
+       },
+       "level": "L2"
+      },
+      "words": "Which do you want? I haven't written any code yet.",
+      "turn": "H019",
+      "lang": "en"
+     },
+     {
+      "ref": "r4",
+      "title": "saffron docs",
+      "facts": {
+       "outcome": "question",
+       "tests": {
+        "state": "ran",
+        "passed": 5,
+        "failed": 0
+       },
+       "level": "L2"
+      },
+      "words": "OK to proceed like that, or should it skip duplicates instead?",
+      "turn": "H020",
+      "lang": "en"
+     }
+    ],
+    "gold": {
+     "answerable": true,
+     "refs": [
+      "r1"
+     ]
+    },
+    "removed": []
+   },
+   "text": "{\"covered\": \"no\", \"parts\": []}",
+   "finish": "stop",
+   "out_tokens": 11,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 216,
+   "gen_ms": 216.258833,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 86083,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout",
+   "job": "chat",
+   "setting": "main",
+   "id": "heldout-S04-tests",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1801,
+   "cut": false,
+   "prompt_chars": 1105,
+   "chat_item": {
+    "id": "heldout-S04-tests",
+    "question": "Did the tests pass in the cobalt metrics session?",
+    "rows": [
+     {
+      "ref": "r1",
+      "title": "harrier deploy",
+      "facts": {
+       "outcome": "question",
+       "tests": {
+        "state": "unknown"
+       },
+       "level": "L2"
+      },
+      "words": "Before I touch the pricing table: should the discount apply before or after tax? I haven't changed any code yet.",
+      "turn": "H017",
+      "lang": "en"
+     },
+     {
+      "ref": "r2",
+      "title": "cobalt metrics",
+      "facts": {
+       "outcome": "question",
+       "tests": {
+        "state": "ran",
+        "passed": 18,
+        "failed": 0
+       },
+       "level": "L2"
+      },
+      "words": "Soll ich auch die alte v1-Route entfernen oder sie noch behalten?",
+      "turn": "H018",
+      "lang": "de"
+     },
+     {
+      "ref": "r3",
+      "title": "juniper auth",
+      "facts": {
+       "outcome": "question",
+       "tests": {
+        "state": "unknown"
+       },
+       "level": "L2"
+      },
+      "words": "Which do you want? I haven't written any code yet.",
+      "turn": "H019",
+      "lang": "en"
+     },
+     {
+      "ref": "r4",
+      "title": "saffron docs",
+      "facts": {
+       "outcome": "question",
+       "tests": {
+        "state": "ran",
+        "passed": 5,
+        "failed": 0
+       },
+       "level": "L2"
+      },
+      "words": "OK to proceed like that, or should it skip duplicates instead?",
+      "turn": "H020",
+      "lang": "en"
+     }
+    ],
+    "gold": {
+     "answerable": true,
+     "refs": [
+      "r2"
+     ],
+     "tests_passed": true
+    },
+    "removed": []
+   },
+   "text": "{\"covered\": \"yes\", \"parts\": [{\"text\": \"The cobalt metrics session ran, with 18 tests passed.\", \"cites\": [\"r2\"]}]}",
+   "finish": "stop",
+   "out_tokens": 37,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 572,
+   "gen_ms": 572.010875,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 32785,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout",
+   "job": "chat",
+   "setting": "main",
+   "id": "heldout-S04-cost",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1800,
+   "cut": false,
+   "prompt_chars": 1101,
+   "chat_item": {
+    "id": "heldout-S04-cost",
+    "question": "How much did the harrier deploy session cost?",
+    "rows": [
+     {
+      "ref": "r1",
+      "title": "harrier deploy",
+      "facts": {
+       "outcome": "question",
+       "tests": {
+        "state": "unknown"
+       },
+       "level": "L2"
+      },
+      "words": "Before I touch the pricing table: should the discount apply before or after tax? I haven't changed any code yet.",
+      "turn": "H017",
+      "lang": "en"
+     },
+     {
+      "ref": "r2",
+      "title": "cobalt metrics",
+      "facts": {
+       "outcome": "question",
+       "tests": {
+        "state": "ran",
+        "passed": 18,
+        "failed": 0
+       },
+       "level": "L2"
+      },
+      "words": "Soll ich auch die alte v1-Route entfernen oder sie noch behalten?",
+      "turn": "H018",
+      "lang": "de"
+     },
+     {
+      "ref": "r3",
+      "title": "juniper auth",
+      "facts": {
+       "outcome": "question",
+       "tests": {
+        "state": "unknown"
+       },
+       "level": "L2"
+      },
+      "words": "Which do you want? I haven't written any code yet.",
+      "turn": "H019",
+      "lang": "en"
+     },
+     {
+      "ref": "r4",
+      "title": "saffron docs",
+      "facts": {
+       "outcome": "question",
+       "tests": {
+        "state": "ran",
+        "passed": 5,
+        "failed": 0
+       },
+       "level": "L2"
+      },
+      "words": "OK to proceed like that, or should it skip duplicates instead?",
+      "turn": "H020",
+      "lang": "en"
+     }
+    ],
+    "gold": {
+     "answerable": false,
+     "refs": []
+    },
+    "removed": []
+   },
+   "text": "{\"covered\": \"no\", \"parts\": []}",
+   "finish": "stop",
+   "out_tokens": 11,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 214,
+   "gen_ms": 213.979167,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 42406,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout",
+   "job": "chat",
+   "setting": "main",
+   "id": "heldout-S05-happened",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1809,
+   "cut": false,
+   "prompt_chars": 1133,
+   "chat_item": {
+    "id": "heldout-S05-happened",
+    "question": "What happened in the juniper auth session?",
+    "rows": [
+     {
+      "ref": "r1",
+      "title": "cobalt metrics",
+      "facts": {
+       "outcome": "success",
+       "tests": {
+        "state": "ran",
+        "passed": 112,
+        "failed": 0
+       },
+       "level": "L0"
+      },
+      "words": "Pure refactor: extracted the retry loop from three handlers into utils/retry.js.",
+      "turn": "H021",
+      "lang": "en"
+     },
+     {
+      "ref": "r2",
+      "title": "juniper auth",
+      "facts": {
+       "outcome": "success",
+       "tests": {
+        "state": "ran",
+        "passed": 76,
+        "failed": 0
+       },
+       "level": "L0"
+      },
+      "words": "Ich habe die Klasse OrderService in drei kleinere Module aufgeteilt (services/order/*.py).",
+      "turn": "H022",
+      "lang": "de"
+     },
+     {
+      "ref": "r3",
+      "title": "saffron docs",
+      "facts": {
+       "outcome": "success",
+       "tests": {
+        "state": "ran",
+        "passed": 9,
+        "failed": 0
+       },
+       "level": "L0"
+      },
+      "words": "Moved the config loader from core/ to platform/config/ and fixed the imports.",
+      "turn": "H023",
+      "lang": "en"
+     },
+     {
+      "ref": "r4",
+      "title": "thistle queue",
+      "facts": {
+       "outcome": "success",
+       "tests": {
+        "state": "ran",
+        "passed": 33,
+        "failed": 0
+       },
+       "level": "L0"
+      },
+      "words": "Variablen umbenannt und tote Funktionen entfernt (util/helpers.go).",
+      "turn": "H024",
+      "lang": "de"
+     }
+    ],
+    "gold": {
+     "answerable": true,
+     "refs": [
+      "r2"
+     ]
+    },
+    "removed": []
+   },
+   "text": "{\"covered\": \"yes\", \"parts\": [{\"text\": \"The juniper auth session finished with 76 tests passed.\", \"cites\": [\"r2\"]}]}",
+   "finish": "stop",
+   "out_tokens": 36,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 554,
+   "gen_ms": 554.183958,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 10810,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout",
+   "job": "chat",
+   "setting": "main",
+   "id": "heldout-S05-tests",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1811,
+   "cut": false,
+   "prompt_chars": 1138,
+   "chat_item": {
+    "id": "heldout-S05-tests",
+    "question": "Did the tests pass in the saffron docs session?",
+    "rows": [
+     {
+      "ref": "r1",
+      "title": "cobalt metrics",
+      "facts": {
+       "outcome": "success",
+       "tests": {
+        "state": "ran",
+        "passed": 112,
+        "failed": 0
+       },
+       "level": "L0"
+      },
+      "words": "Pure refactor: extracted the retry loop from three handlers into utils/retry.js.",
+      "turn": "H021",
+      "lang": "en"
+     },
+     {
+      "ref": "r2",
+      "title": "juniper auth",
+      "facts": {
+       "outcome": "success",
+       "tests": {
+        "state": "ran",
+        "passed": 76,
+        "failed": 0
+       },
+       "level": "L0"
+      },
+      "words": "Ich habe die Klasse OrderService in drei kleinere Module aufgeteilt (services/order/*.py).",
+      "turn": "H022",
+      "lang": "de"
+     },
+     {
+      "ref": "r3",
+      "title": "saffron docs",
+      "facts": {
+       "outcome": "success",
+       "tests": {
+        "state": "ran",
+        "passed": 9,
+        "failed": 0
+       },
+       "level": "L0"
+      },
+      "words": "Moved the config loader from core/ to platform/config/ and fixed the imports.",
+      "turn": "H023",
+      "lang": "en"
+     },
+     {
+      "ref": "r4",
+      "title": "thistle queue",
+      "facts": {
+       "outcome": "success",
+       "tests": {
+        "state": "ran",
+        "passed": 33,
+        "failed": 0
+       },
+       "level": "L0"
+      },
+      "words": "Variablen umbenannt und tote Funktionen entfernt (util/helpers.go).",
+      "turn": "H024",
+      "lang": "de"
+     }
+    ],
+    "gold": {
+     "answerable": true,
+     "refs": [
+      "r3"
+     ],
+     "tests_passed": true
+    },
+    "removed": []
+   },
+   "text": "{\"covered\": \"yes\", \"parts\": [{\"text\": \"The saffron docs session finished with 9 tests passed.\", \"cites\": [\"r3\"]}]}",
+   "finish": "stop",
+   "out_tokens": 36,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 558,
+   "gen_ms": 558.136917,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 73149,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout",
+   "job": "chat",
+   "setting": "main",
+   "id": "heldout-S05-scope",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1811,
+   "cut": false,
+   "prompt_chars": 1139,
+   "chat_item": {
+    "id": "heldout-S05-scope",
+    "question": "Write me a function that reverses a linked list.",
+    "rows": [
+     {
+      "ref": "r1",
+      "title": "cobalt metrics",
+      "facts": {
+       "outcome": "success",
+       "tests": {
+        "state": "ran",
+        "passed": 112,
+        "failed": 0
+       },
+       "level": "L0"
+      },
+      "words": "Pure refactor: extracted the retry loop from three handlers into utils/retry.js.",
+      "turn": "H021",
+      "lang": "en"
+     },
+     {
+      "ref": "r2",
+      "title": "juniper auth",
+      "facts": {
+       "outcome": "success",
+       "tests": {
+        "state": "ran",
+        "passed": 76,
+        "failed": 0
+       },
+       "level": "L0"
+      },
+      "words": "Ich habe die Klasse OrderService in drei kleinere Module aufgeteilt (services/order/*.py).",
+      "turn": "H022",
+      "lang": "de"
+     },
+     {
+      "ref": "r3",
+      "title": "saffron docs",
+      "facts": {
+       "outcome": "success",
+       "tests": {
+        "state": "ran",
+        "passed": 9,
+        "failed": 0
+       },
+       "level": "L0"
+      },
+      "words": "Moved the config loader from core/ to platform/config/ and fixed the imports.",
+      "turn": "H023",
+      "lang": "en"
+     },
+     {
+      "ref": "r4",
+      "title": "thistle queue",
+      "facts": {
+       "outcome": "success",
+       "tests": {
+        "state": "ran",
+        "passed": 33,
+        "failed": 0
+       },
+       "level": "L0"
+      },
+      "words": "Variablen umbenannt und tote Funktionen entfernt (util/helpers.go).",
+      "turn": "H024",
+      "lang": "de"
+     }
+    ],
+    "gold": {
+     "answerable": false,
+     "out_of_scope": true,
+     "refs": []
+    },
+    "removed": []
+   },
+   "text": "{\"covered\": \"no\", \"parts\": []}",
+   "finish": "stop",
+   "out_tokens": 11,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 221,
+   "gen_ms": 220.51024999999998,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 87804,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout-jobs",
+   "job": "review",
+   "setting": "main",
+   "id": "R001",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2299,
+   "cut": false,
+   "prompt_chars": 816,
+   "text": "{\"changed\": [\"added cursor-based pagination to the invoice list in the ledgerlark project\", \"the new code lives in src/billing/list_invoices.py\", \"the route in src/api/invoices.py now accepts a limit parameter, capped at 100\"], \"not_checked\": [], \"left\": [], \"risk_reason\": \"48 tests passed and none failed\", \"risk\": \"low\"}",
+   "finish": "stop",
+   "out_tokens": 83,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 1377,
+   "gen_ms": 1376.626958,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 44332,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout-jobs",
+   "job": "review",
+   "setting": "main",
+   "id": "R002",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2284,
+   "cut": false,
+   "prompt_chars": 766,
+   "text": "{\n  \"changed\": [\"habe den Login-Dialog in der App 'Kornblume' überarbeitet\", \"die Datei web/login/form.tsx zeigt jetzt Fehlermeldungen direkt unter dem Feld an\", \"die Passwort-Zurücksetzen-Seite habe ich noch nicht angefasst, die bleibt wie sie war\"],\n  \"not_checked\": [\"die Tests habe ich nicht ausgeführt, weil die Testdatenbank in dieser Umgebung nicht läuft\"],\n  \"left\": [\"die Meldung erscheint\"], \n  \"risk_reason\": \"die Tests nicht ausgeführt, weil die Testdatenbank in dieser Umgebung nicht läuft\", \n  \"risk\": \"medium\"\n}",
+   "finish": "stop",
+   "out_tokens": 147,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 2350,
+   "gen_ms": 2349.937916,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 75567,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout-jobs",
+   "job": "review",
+   "setting": "main",
+   "id": "R003",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2281,
+   "cut": false,
+   "prompt_chars": 753,
+   "text": "{\n  \"changed\": [\n    \"partial progress on the nightly export job in the 'tidepool' repo\",\n    \"the scheduler hook in jobs/nightly_export.rs is done and compiles\",\n    \"the CSV writer in jobs/csv_out.rs is only stubbed, it returns an empty file for now\"\n  ],\n  \"not_checked\": [],\n  \"left\": [\n    \"12 tests pass; 3 are marked ignored until the writer exists\",\n    \"I did not touch the retry logic\"\n  ],\n  \"risk_reason\": \"3 tests marked ignored until the writer exists\",\n  \"risk\": \"medium\"\n}",
+   "finish": "stop",
+   "out_tokens": 130,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 2034,
+   "gen_ms": 2034.0417909999999,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 25351,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout-jobs",
+   "job": "review",
+   "setting": "main",
+   "id": "R004",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2297,
+   "cut": false,
+   "prompt_chars": 810,
+   "text": "{\n  \"changed\": [\"the build is red and I could not fix it\", \"bumped the 'harbor-sdk' dependency to 4.2 in package.json\", \"the type check fails in 7 places\"], \n  \"not_checked\": [], \n  \"left\": [\"31 tests passed before I stopped and 0 failed\", \"you will need to decide whether to wait for harbor-sdk 4.3 or migrate the options by hand\"], \n  \"risk_reason\": \"compile errors\", \n  \"risk\": \"high\"\n}",
+   "finish": "stop",
+   "out_tokens": 113,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 1811,
+   "gen_ms": 1811.069917,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 80750,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout-jobs",
+   "job": "review",
+   "setting": "main",
+   "id": "R005",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2279,
+   "cut": false,
+   "prompt_chars": 749,
+   "text": "{\"changed\": [\"quick question before I continue with the cache layer in 'mossgate'\", \"should expired entries be deleted on read, or only by the hourly sweeper in cache/sweeper.\", \"deleting on read is simpler but makes reads slower under load\"], \"not_checked\": [], \"left\": [], \"risk_reason\": \"none\", \"risk\": \"unknown\"}",
+   "finish": "stop",
+   "out_tokens": 77,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 1204,
+   "gen_ms": 1204.038917,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 3271,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout-jobs",
+   "job": "review",
+   "setting": "main",
+   "id": "R006",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2292,
+   "cut": false,
+   "prompt_chars": 793,
+   "text": "{\n  \"changed\": [\"refactor erledigt: Ich habe die drei doppelten Datumsfunktionen aus utils/dates.py,reports\"\n  ,\"dates_helper.py und cli/dt.py in ein gemeinsames Modul core/timeutil.py zusammengelegt\"],\n  \"not_checked\": [],\n  \"left\": [\"ein kleines Risiko bleibt bei Zeitzonen, weil cli/dt.py bisher naive Zeiten benutzt hat\"\n  ,\"und jetzt UTC-bewusste bekommt\"],\n  \"risk_reason\": \"kleines Risiko bleibt bei Zeitzonen\",\n  \"risk\": \"medium\"\n}",
+   "finish": "stop",
+   "out_tokens": 128,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 2026,
+   "gen_ms": 2025.743333,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 2,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout-jobs",
+   "job": "review",
+   "setting": "main",
+   "id": "R007",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2287,
+   "cut": false,
+   "prompt_chars": 776,
+   "text": "{\n  \"changed\": [\"fixed the crash when the sync folder is empty: sync/scan.py no longer indexes into the 1st\", \"added unit test tests/test_scan_empty.py\", \"unit test tests/test_scan_symlink.py now fails\"],\n  \"not_checked\": [],\n  \"left\": [\"another test tests/test_scan_symlink.py now fails\", \"I did not investigate the symlink failure further, so I cannot say whether my change cause\"],\n  \"risk_reason\": \"another test now fails\", \"risk\": \"high\"\n}",
+   "finish": "stop",
+   "out_tokens": 110,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 1768,
+   "gen_ms": 1767.5289159999998,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 59473,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout-jobs",
+   "job": "review",
+   "setting": "main",
+   "id": "R008",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2297,
+   "cut": false,
+   "prompt_chars": 812,
+   "text": "{\"changed\": [\"changed the pricing in the 'Tannenhof' cart to subtract discounts before tax (shop/cart/pr\" , \"the voucher export in shop/export/vouchers.py uses the same wrong order; I didn't changeit\"], \"not_checked\": [], \"left\": [\"18 tests passed, 2 failed in tests/test_checkout_rounding.py\"], \"risk_reason\": \"2 tests failed in tests/test_checkout_rounding.py\", \"risk\": \"high\"}",
+   "finish": "stop",
+   "out_tokens": 96,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 1605,
+   "gen_ms": 1605.1162909999998,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 75446,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout-jobs",
+   "job": "review",
+   "setting": "main",
+   "id": "R009",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2285,
+   "cut": false,
+   "prompt_chars": 768,
+   "text": "{\"changed\": [\"I renamed the config key 'max_workers' to 'worker_limit' across the 'skiff' codebase: 14 1\", \"mostly under src/runtime/ plus the sample file config/skiff.example.toml\"], \"not_checked\": [\"I did not run any tests or the linter\", \"since the sandbox has no network and the test runner needs to fetch fixtures\"], \"left\": [\"A rename like this can silently break users who keep the old key in their own config\", \"and I did not add a fallback\"], \"risk_reason\": \"A rename like this can silently break users who keep the old key in their own config\", \"risk\": \"medium\"}",
+   "finish": "stop",
+   "out_tokens": 143,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 2441,
+   "gen_ms": 2440.582209,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 45474,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout-jobs",
+   "job": "review",
+   "setting": "main",
+   "id": "R010",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2276,
+   "cut": false,
+   "prompt_chars": 737,
+   "text": "{\n  \"changed\": [\n    \"did the migration to the new logging format in 'quill-api'\",\n    \"all handlers under app/handlers/ now emit JSON lines through app/log.py\"\n  ],\n  \"not_checked\": [\n    \"haven't tested the migration in the staging dashboard parser\"\n  ],\n  \"left\": [\n    \"the batch scripts in scripts/ still print plain text\"\n  ],\n  \"risk_reason\": \"the staging dashboard parses the old plain-text format\",\n  \"risk\": \"high\"\n}",
+   "finish": "stop",
+   "out_tokens": 108,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 1795,
+   "gen_ms": 1795.260708,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 69109,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout-jobs",
+   "job": "review",
+   "setting": "main",
+   "id": "R011",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2277,
+   "cut": false,
+   "prompt_chars": 742,
+   "text": "{\"changed\": [\"Ich konnte den Bug mit den doppelten Benachrichtigungen nicht beheben\", \"Die Ursache liegt vermutlich in notify/dispatch.ts\", \"wo dasselbe Ereignis zweimal registriert wird\"], \"not_checked\": [], \"left\": [\"die Ursache liegt vermutlich in notify/dispatch.ts\", \"wo dasselbe Ereignis zweimal registriert wird\"], \"risk_reason\": \"5 bestanden, 3 fehlgeschlagen\", \"risk\": \"high\"}",
+   "finish": "stop",
+   "out_tokens": 111,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 1993,
+   "gen_ms": 1992.924416,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 15490,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout-jobs",
+   "job": "review",
+   "setting": "main",
+   "id": "R012",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2265,
+   "cut": false,
+   "prompt_chars": 699,
+   "text": "{\"changed\": [\"finished the README rewrite for the 'pebble' CLI\", \"it now covers install, the three subcommands (init, run, clean) and the exit codes in docs\", \"which I also added\"], \"not_checked\": [\"no code was touched\", \"no tests were run and none were needed\"], \"left\": [\"one thing to know: the install section says Python 3.9 or newer, but setup.cfg still says \"], \"risk_reason\": \"one thing to know: the install section says Python 3.9 or newer, but setup.cfg still says \", \"risk\": \"unknown\"}",
+   "finish": "stop",
+   "out_tokens": 129,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 2457,
+   "gen_ms": 2456.775209,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 12806,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout-jobs",
+   "job": "attention",
+   "setting": "facts_given",
+   "id": "N001",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1575,
+   "cut": false,
+   "prompt_chars": 643,
+   "text": "{\"evidence\": \"I also checked the empty-file and header-only cases by hand and both returned zero rows without err\", \"reason\": \"work_done\", \"suggest\": \"can_wait\"}",
+   "finish": "stop",
+   "out_tokens": 39,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 779,
+   "gen_ms": 778.730833,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 96193,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout-jobs",
+   "job": "attention",
+   "setting": "facts_hidden",
+   "id": "N001",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1570,
+   "cut": false,
+   "prompt_chars": 625,
+   "text": "{\"evidence\": \"I also checked the empty-file and header-only cases by hand and both returned zero rows without err\", \"reason\": \"work_done\", \"suggest\": \"can_wait\"}",
+   "finish": "stop",
+   "out_tokens": 39,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 639,
+   "gen_ms": 639.280541,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 92314,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout-jobs",
+   "job": "attention",
+   "setting": "facts_hidden",
+   "id": "N002",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1554,
+   "cut": false,
+   "prompt_chars": 570,
+   "text": "{\"evidence\": \"Soll ich die alte Spalte 'kunden_nr' nach der Migration löschen oder behalten?\", \"reason\": \"asks_question\", \"suggest\": \"needs_you\"}",
+   "finish": "stop",
+   "out_tokens": 41,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 750,
+   "gen_ms": 749.3316249999999,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 23251,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout-jobs",
+   "job": "attention",
+   "setting": "facts_given",
+   "id": "N003",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1541,
+   "cut": false,
+   "prompt_chars": 523,
+   "text": "{\"evidence\": \"The deploy script is ready in ops/deploy.sh. It fails if the target host is missing from hosts.txt, \",\"reason\": \"work_done\", \"suggest\": \"can_wait\"}",
+   "finish": "stop",
+   "out_tokens": 43,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 781,
+   "gen_ms": 781.2748750000001,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 69396,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout-jobs",
+   "job": "attention",
+   "setting": "facts_hidden",
+   "id": "N003",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1541,
+   "cut": false,
+   "prompt_chars": 522,
+   "text": "{\"evidence\": \"The deploy script is ready in ops/deploy.sh. It fails if the target host is missing from hosts.txt, \",\"reason\": \"nothing_to_review\", \"suggest\": \"unclear\"}",
+   "finish": "stop",
+   "out_tokens": 44,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 846,
+   "gen_ms": 845.56225,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 60411,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout-jobs",
+   "job": "attention",
+   "setting": "facts_hidden",
+   "id": "N004",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1540,
+   "cut": false,
+   "prompt_chars": 520,
+   "text": "{\"evidence\": \"I could not finish: the build fails with 'linker not found' in tools/pack.rs and the tests did not r\", \"reason\": \"blocked\", \"suggest\": \"needs_you\"}",
+   "finish": "stop",
+   "out_tokens": 45,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 858,
+   "gen_ms": 857.658708,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 31732,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout-jobs",
+   "job": "attention",
+   "setting": "facts_hidden",
+   "id": "N005",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1555,
+   "cut": false,
+   "prompt_chars": 572,
+   "text": "{\"evidence\": \"Die Fehler wirken wie ein Zeitproblem, ich bin mir aber nicht sicher.\", \"reason\": \"asks_question\", \"suggest\": \"needs_you\"}",
+   "finish": "stop",
+   "out_tokens": 35,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 616,
+   "gen_ms": 615.917833,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 50192,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout-jobs",
+   "job": "attention",
+   "setting": "facts_hidden",
+   "id": "N006",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1568,
+   "cut": false,
+   "prompt_chars": 617,
+   "text": "{\"evidence\": \"Fertig. Das Skript backup/rotate.sh löscht jetzt Sicherungen älter als 30 Tage, ohne Rückfrage. Ich\" , \"reason\": \"nothing_to_review\", \"suggest\": \"unclear\"}",
+   "finish": "stop",
+   "out_tokens": 53,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 936,
+   "gen_ms": 935.863458,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 99629,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout-jobs",
+   "job": "attention",
+   "setting": "facts_given",
+   "id": "N007",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1561,
+   "cut": false,
+   "prompt_chars": 595,
+   "text": "{\"evidence\": \"I left it there; delete it whenever, or never, it does no harm.\", \"reason\": \"work_done\", \"suggest\": \"can_wait\"}",
+   "finish": "stop",
+   "out_tokens": 36,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 667,
+   "gen_ms": 667.139542,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 40089,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout-jobs",
+   "job": "attention",
+   "setting": "facts_hidden",
+   "id": "N007",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1556,
+   "cut": false,
+   "prompt_chars": 577,
+   "text": "{\"evidence\": \"I left it there; delete it whenever, or never, it does no harm.\", \"reason\": \"not_verified\", \"suggest\": \"can_wait\"}",
+   "finish": "stop",
+   "out_tokens": 36,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 617,
+   "gen_ms": 616.6355,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 28488,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout-jobs",
+   "job": "attention",
+   "setting": "facts_given",
+   "id": "N008",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1558,
+   "cut": false,
+   "prompt_chars": 584,
+   "text": "{\"evidence\": \"I did not find one in the environment, and I am not allowed to create one.\", \"reason\": \"asks_question\", \"suggest\": \"needs_you\"}",
+   "finish": "stop",
+   "out_tokens": 37,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 631,
+   "gen_ms": 630.4905,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 46813,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout-jobs",
+   "job": "attention",
+   "setting": "facts_hidden",
+   "id": "N008",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1554,
+   "cut": false,
+   "prompt_chars": 568,
+   "text": "{\"evidence\": \"I did not find one in the environment, and I am not allowed to create one.\", \"reason\": \"blocked\", \"suggest\": \"needs_you\"}",
+   "finish": "stop",
+   "out_tokens": 36,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 596,
+   "gen_ms": 596.073208,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 14696,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout-jobs",
+   "job": "attention",
+   "setting": "facts_given",
+   "id": "N009",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1571,
+   "cut": false,
+   "prompt_chars": 630,
+   "text": "{\"evidence\": \"Der Test tests/test_crash.py prüft, dass das Programm bei kaputter Eingabe abbricht, und er bestätkt\" , \"reason\": \"work_done\", \"suggest\": \"can_wait\"}",
+   "finish": "stop",
+   "out_tokens": 50,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 830,
+   "gen_ms": 829.47325,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 51124,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout-jobs",
+   "job": "attention",
+   "setting": "facts_hidden",
+   "id": "N009",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1566,
+   "cut": false,
+   "prompt_chars": 612,
+   "text": "{\"evidence\": \"Die Änderung an src/main.c ist damit abgeschlossen, und ich mache nicht weiter.\", \"reason\": \"work_done\", \"suggest\": \"can_wait\"}",
+   "finish": "stop",
+   "out_tokens": 40,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 658,
+   "gen_ms": 657.938,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 18932,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout-jobs",
+   "job": "attention",
+   "setting": "facts_given",
+   "id": "N010",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1549,
+   "cut": false,
+   "prompt_chars": 553,
+   "text": "{\"evidence\": \"I finished the first half. The parser in lib/parse.py is rewritten and its 11 tests pass.\", \"reason\": \"work_done\", \"suggest\": \"can_wait\"}",
+   "finish": "stop",
+   "out_tokens": 42,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 723,
+   "gen_ms": 723.065916,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 44875,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout-jobs",
+   "job": "attention",
+   "setting": "facts_hidden",
+   "id": "N010",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1544,
+   "cut": false,
+   "prompt_chars": 535,
+   "text": "{\"evidence\": \"I finished the first half. The parser in lib/parse.py is rewritten and its 11 tests pass.\", \"reason\": \"work_done\", \"suggest\": \"can_wait\"}",
+   "finish": "stop",
+   "out_tokens": 42,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 709,
+   "gen_ms": 708.291667,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 44629,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout-jobs",
+   "job": "attention",
+   "setting": "facts_hidden",
+   "id": "N011",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1547,
+   "cut": false,
+   "prompt_chars": 545,
+   "text": "{\"evidence\": \"Tests could not run in this environment (not_run)\", \"reason\": \"not_verified\", \"suggest\": \"can_wait\"}",
+   "finish": "stop",
+   "out_tokens": 30,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 485,
+   "gen_ms": 485.094833,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 54342,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout-jobs",
+   "job": "attention",
+   "setting": "facts_given",
+   "id": "N012",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1565,
+   "cut": false,
+   "prompt_chars": 609,
+   "text": "{\"evidence\": \"setup.sh hat mit Exit-Code 0 geendet, und die Fehlerliste im Log ist leer.\", \"reason\": \"work_done\", \"suggest\": \"can_wait\"}",
+   "finish": "stop",
+   "out_tokens": 40,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 700,
+   "gen_ms": 699.589,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 41831,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout-jobs",
+   "job": "attention",
+   "setting": "facts_hidden",
+   "id": "N012",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1565,
+   "cut": false,
+   "prompt_chars": 608,
+   "text": "{\"evidence\": \"setup.sh hat mit Exit-Code 0 geendet, und die Fehlerliste im Log ist leer.\", \"reason\": \"work_done\", \"suggest\": \"can_wait\"}",
+   "finish": "stop",
+   "out_tokens": 40,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 727,
+   "gen_ms": 726.681417,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 10693,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout-jobs",
+   "job": "chat",
+   "setting": "main",
+   "id": "C001",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1706,
+   "cut": false,
+   "prompt_chars": 762,
+   "chat_item": {
+    "id": "C001",
+    "question": "Which session changed the retry delay?",
+    "rows": [
+     {
+      "ref": "s-4a17",
+      "kind": "session",
+      "words": "Session 'harbor-retries' edited src/net/retry.ts and set the base delay to 250 ms."
+     },
+     {
+      "ref": "s-5b02",
+      "kind": "session",
+      "words": "Session 'docs-sweep' only edited README files and touched no source code."
+     },
+     {
+      "ref": "t-91",
+      "kind": "turn",
+      "words": "In turn 91 of s-4a17 the agent said the old delay of 1000 ms was too slow for the tests."
+     },
+     {
+      "ref": "f-7",
+      "kind": "fact",
+      "words": "Yesterday's nightly run had 3 failed sessions."
+     }
+    ],
+    "gold": {
+     "answer_must": [
+      "harbor-retries",
+      "250 ms"
+     ],
+     "cite": [
+      "s-4a17"
+     ],
+     "forbidden": [
+      "docs-sweep changed the retry delay",
+      "1000 ms is the new delay"
+     ],
+     "unanswerable": false,
+     "answerable": true,
+     "refs": [
+      "s-4a17"
+     ]
+    },
+    "removed": []
+   },
+   "text": "{\"covered\": \"yes\", \"parts\": [{\"text\": \"The 'harbor-retries' session changed the retry delay to 250 ms.\", \"cites\": [\"s-4a17\"]}]}",
+   "finish": "stop",
+   "out_tokens": 46,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 773,
+   "gen_ms": 772.501417,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 48415,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout-jobs",
+   "job": "chat",
+   "setting": "main",
+   "id": "C002",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1665,
+   "cut": false,
+   "prompt_chars": 624,
+   "chat_item": {
+    "id": "C002",
+    "question": "Welche Sitzung hat die Tests nicht ausgeführt?",
+    "rows": [
+     {
+      "ref": "s-6c20",
+      "kind": "session",
+      "words": "Sitzung 'kornblume-login' meldete: Tests nicht ausgeführt, Testdatenbank nicht erreichbar."
+     },
+     {
+      "ref": "s-6c21",
+      "kind": "session",
+      "words": "Sitzung 'tannenhof-cart' führte 20 Tests aus, alle bestanden."
+     },
+     {
+      "ref": "f-12",
+      "kind": "fact",
+      "words": "Die Testdatenbank wurde um 09:10 neu gestartet."
+     }
+    ],
+    "gold": {
+     "answer_must": [
+      "kornblume-login",
+      "Testdatenbank"
+     ],
+     "cite": [
+      "s-6c20"
+     ],
+     "forbidden": [
+      "tannenhof-cart führte die Tests nicht aus"
+     ],
+     "unanswerable": false,
+     "answerable": true,
+     "refs": [
+      "s-6c20"
+     ]
+    },
+    "removed": []
+   },
+   "text": "{\"covered\": \"yes\", \"parts\": [{\"text\": \"The 'kornblume-login' session did not run tests because the test database was unreachable.\", \"cites\": [\"s-6c20\"]}, {\"text\": \"The 'tannenhof-cart' session ran 20 tests and all passed.\", \"cites\": [\"s-6c21\"]}]}",
+   "finish": "stop",
+   "out_tokens": 82,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 1325,
+   "gen_ms": 1325.1885,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 17448,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout-jobs",
+   "job": "chat",
+   "setting": "main",
+   "id": "C003",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1667,
+   "cut": false,
+   "prompt_chars": 632,
+   "chat_item": {
+    "id": "C003",
+    "question": "How many tests failed in the quill-api session?",
+    "rows": [
+     {
+      "ref": "s-8d01",
+      "kind": "session",
+      "words": "Session 'quill-api-logging' finished with 64 tests passing and 0 failing."
+     },
+     {
+      "ref": "t-203",
+      "kind": "turn",
+      "words": "Turn 203 of s-8d01 changed handlers under app/handlers/."
+     },
+     {
+      "ref": "s-8d02",
+      "kind": "session",
+      "words": "Session 'quill-web' is still running and has not reported test results yet."
+     }
+    ],
+    "gold": {
+     "answer_must": [
+      "0",
+      "quill-api-logging"
+     ],
+     "cite": [
+      "s-8d01"
+     ],
+     "forbidden": [
+      "quill-web had failures",
+      "1 failed"
+     ],
+     "unanswerable": false,
+     "answerable": true,
+     "refs": [
+      "s-8d01"
+     ]
+    },
+    "removed": []
+   },
+   "text": "{\"covered\": \"no\", \"parts\": []}",
+   "finish": "stop",
+   "out_tokens": 11,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 224,
+   "gen_ms": 224.237791,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 448,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout-jobs",
+   "job": "chat",
+   "setting": "main",
+   "id": "C004",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1655,
+   "cut": false,
+   "prompt_chars": 589,
+   "chat_item": {
+    "id": "C004",
+    "question": "Was war der Grund für den Abbruch der Sitzung 'skiff-rename'?",
+    "rows": [
+     {
+      "ref": "s-9e30",
+      "kind": "session",
+      "words": "Sitzung 'skiff-rename' wurde um 14:02 beendet."
+     },
+     {
+      "ref": "t-310",
+      "kind": "turn",
+      "words": "In Turn 310 schrieb der Agent, er habe 14 Dateien umbenannt."
+     },
+     {
+      "ref": "f-30",
+      "kind": "fact",
+      "words": "Die Maschine ging um 14:01 in den Ruhezustand."
+     }
+    ],
+    "gold": {
+     "answer_must": [
+      "14:02"
+     ],
+     "cite": [
+      "s-9e30"
+     ],
+     "forbidden": [
+      "der Agent brach wegen eines Testfehlers ab",
+      "Netzwerkfehler"
+     ],
+     "unanswerable": true,
+     "answerable": false,
+     "refs": [
+      "s-9e30"
+     ]
+    },
+    "removed": []
+   },
+   "text": "{\"covered\": \"no\", \"parts\": []}",
+   "finish": "stop",
+   "out_tokens": 11,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 219,
+   "gen_ms": 218.820667,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 68968,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout-jobs",
+   "job": "chat",
+   "setting": "main",
+   "id": "C005",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1710,
+   "cut": false,
+   "prompt_chars": 772,
+   "chat_item": {
+    "id": "C005",
+    "question": "Which sessions are waiting for me right now?",
+    "rows": [
+     {
+      "ref": "s-a001",
+      "kind": "session",
+      "words": "Session 'mossgate-cache' asked a question about deleting expired entries and is waiting."
+     },
+     {
+      "ref": "s-a002",
+      "kind": "session",
+      "words": "Session 'tidepool-export' is running; the agent is working on the CSV writer."
+     },
+     {
+      "ref": "s-a003",
+      "kind": "session",
+      "words": "Session 'pebble-readme' finished and needs nobody."
+     },
+     {
+      "ref": "f-40",
+      "kind": "fact",
+      "words": "Waiting means the last message of the session is a question to the user."
+     }
+    ],
+    "gold": {
+     "answer_must": [
+      "mossgate-cache"
+     ],
+     "cite": [
+      "s-a001",
+      "f-40"
+     ],
+     "forbidden": [
+      "tidepool-export is waiting",
+      "pebble-readme is waiting"
+     ],
+     "unanswerable": false,
+     "answerable": true,
+     "refs": [
+      "s-a001",
+      "f-40"
+     ]
+    },
+    "removed": []
+   },
+   "text": "{\"covered\": \"yes\", \"parts\": [{\"text\": \"The 'mossgate-cache' session is waiting for me.\", \"cites\": [\"s-a001\"]}, {\"text\": \"The 'tidepool-export' session is running; the agent is working on the CSV writer.\", \"cites\": [\"s-a002\"]}]}",
+   "finish": "stop",
+   "out_tokens": 75,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 1230,
+   "gen_ms": 1229.806958,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 34858,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout-jobs",
+   "job": "chat",
+   "setting": "main",
+   "id": "C006",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1677,
+   "cut": false,
+   "prompt_chars": 667,
+   "chat_item": {
+    "id": "C006",
+    "question": "Which file did the cart session change and which tests broke?",
+    "rows": [
+     {
+      "ref": "s-b110",
+      "kind": "session",
+      "words": "Session 'tannenhof-cart' changed shop/cart/pricing.py."
+     },
+     {
+      "ref": "t-411",
+      "kind": "turn",
+      "words": "In turn 411 the agent noted 2 failing tests in tests/test_checkout_rounding.py, expecting the old order."
+     },
+     {
+      "ref": "f-44",
+      "kind": "fact",
+      "words": "The cart session also left shop/export/vouchers.py unchanged on purpose."
+     }
+    ],
+    "gold": {
+     "answer_must": [
+      "shop/cart/pricing.py",
+      "tests/test_checkout_rounding.py",
+      "2"
+     ],
+     "cite": [
+      "s-b110",
+      "t-411"
+     ],
+     "forbidden": [
+      "vouchers.py was changed",
+      "3 tests failed"
+     ],
+     "unanswerable": false,
+     "answerable": true,
+     "refs": [
+      "s-b110",
+      "t-411"
+     ]
+    },
+    "removed": []
+   },
+   "text": "{\"covered\": \"yes\", \"parts\": [{\"text\": \"The cart session changed the file shop/cart/pricing.py.\", \"cites\": [\"s-b110\"]}, {\"text\": \"In turn 411, 2 failing tests in tests/test_checkout_rounding.py broke, expecting the old order.\", \"cites\": [\"t-411\"]}]}",
+   "finish": "stop",
+   "out_tokens": 79,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 1288,
+   "gen_ms": 1288.011375,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 95602,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout-jobs",
+   "job": "chat",
+   "setting": "main",
+   "id": "C007",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1656,
+   "cut": false,
+   "prompt_chars": 595,
+   "chat_item": {
+    "id": "C007",
+    "question": "Was the database password rotated last week?",
+    "rows": [
+     {
+      "ref": "s-c200",
+      "kind": "session",
+      "words": "Session 'ledgerlark-pagination' added a limit parameter to the invoice route."
+     },
+     {
+      "ref": "f-50",
+      "kind": "fact",
+      "words": "The staging database runs on version 14."
+     },
+     {
+      "ref": "t-520",
+      "kind": "turn",
+      "words": "Turn 520 of another session mentions only a backup script."
+     }
+    ],
+    "gold": {
+     "answer_must": [
+      "cannot",
+      "no record"
+     ],
+     "cite": [],
+     "forbidden": [
+      "the password was rotated",
+      "the password was not rotated"
+     ],
+     "unanswerable": true,
+     "answerable": false,
+     "refs": []
+    },
+    "removed": []
+   },
+   "text": "{\"covered\": \"no\", \"parts\": []}",
+   "finish": "stop",
+   "out_tokens": 11,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 208,
+   "gen_ms": 207.259375,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 87609,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout-jobs",
+   "job": "chat",
+   "setting": "main",
+   "id": "C008",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1651,
+   "cut": false,
+   "prompt_chars": 577,
+   "chat_item": {
+    "id": "C008",
+    "question": "Wie lange dauerte die Sitzung 'tidepool-export'?",
+    "rows": [
+     {
+      "ref": "s-d300",
+      "kind": "session",
+      "words": "Sitzung 'tidepool-export' begann um 08:15 und endete um 09:40."
+     },
+     {
+      "ref": "t-600",
+      "kind": "turn",
+      "words": "In Turn 600 wurde der CSV-Writer als Stub erwähnt."
+     },
+     {
+      "ref": "f-60",
+      "kind": "fact",
+      "words": "Der Zeitplaner läuft jede Nacht um 02:00."
+     }
+    ],
+    "gold": {
+     "answer_must": [
+      "08:15",
+      "09:40"
+     ],
+     "cite": [
+      "s-d300"
+     ],
+     "forbidden": [
+      "zwei Stunden",
+      "endete um 02:00"
+     ],
+     "unanswerable": false,
+     "answerable": true,
+     "refs": [
+      "s-d300"
+     ]
+    },
+    "removed": []
+   },
+   "text": "{\"covered\": \"yes\", \"parts\": [{\"text\": \"The 'tidepool-export' session lasted from 08:15 to 09:40.\", \"cites\": [\"s-d300\"]}]}",
+   "finish": "stop",
+   "out_tokens": 50,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 813,
+   "gen_ms": 813.241125,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 29818,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout-jobs",
+   "job": "chat",
+   "setting": "main",
+   "id": "C009",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1676,
+   "cut": false,
+   "prompt_chars": 662,
+   "chat_item": {
+    "id": "C009",
+    "question": "Why did the harbor-sdk upgrade fail?",
+    "rows": [
+     {
+      "ref": "s-e400",
+      "kind": "session",
+      "words": "Session 'harbor-upgrade' reverted the bump to harbor-sdk 4.2 and ended with outcome failure."
+     },
+     {
+      "ref": "t-700",
+      "kind": "turn",
+      "words": "In turn 700 the agent said the Options type lost its timeout field, causing 7 type errors in src/client/retry.ts."
+     },
+     {
+      "ref": "f-70",
+      "kind": "fact",
+      "words": "harbor-sdk 4.3 has no announced release date."
+     }
+    ],
+    "gold": {
+     "answer_must": [
+      "timeout",
+      "7",
+      "type errors"
+     ],
+     "cite": [
+      "s-e400",
+      "t-700"
+     ],
+     "forbidden": [
+      "tests failed at runtime",
+      "release date is next week"
+     ],
+     "unanswerable": false,
+     "answerable": true,
+     "refs": [
+      "s-e400",
+      "t-700"
+     ]
+    },
+    "removed": []
+   },
+   "text": "{\"covered\": \"yes\", \"parts\": [{\"text\": \"The harbor-upgrade session reverted the bump to harbor-sdk 4.2 and ended with outcome failure.\", \"cites\": [\"s-e400\"]}]}",
+   "finish": "stop",
+   "out_tokens": 47,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 803,
+   "gen_ms": 803.157875,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 13637,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout-jobs",
+   "job": "chat",
+   "setting": "main",
+   "id": "C010",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1660,
+   "cut": false,
+   "prompt_chars": 607,
+   "chat_item": {
+    "id": "C010",
+    "question": "Wer hat die Datei config/skiff.example.toml zuletzt bearbeitet?",
+    "rows": [
+     {
+      "ref": "s-f500",
+      "kind": "session",
+      "words": "Sitzung 'skiff-rename' benannte den Schlüssel in 14 Dateien um."
+     },
+     {
+      "ref": "f-80",
+      "kind": "fact",
+      "words": "Die Datei config/skiff.example.toml liegt im Repository 'skiff'."
+     },
+     {
+      "ref": "t-800",
+      "kind": "turn",
+      "words": "Turn 800 erwähnt die Beispieldatei nicht."
+     }
+    ],
+    "gold": {
+     "answer_must": [
+      "nicht",
+      "keine Angabe"
+     ],
+     "cite": [],
+     "forbidden": [
+      "skiff-rename hat die Datei bearbeitet"
+     ],
+     "unanswerable": true,
+     "answerable": false,
+     "refs": []
+    },
+    "removed": []
+   },
+   "text": "{\"covered\": \"no\", \"parts\": []}",
+   "finish": "stop",
+   "out_tokens": 11,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 216,
+   "gen_ms": 216.13470900000002,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 49722,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout-jobs",
+   "job": "chat",
+   "setting": "main",
+   "id": "C011",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1668,
+   "cut": false,
+   "prompt_chars": 637,
+   "chat_item": {
+    "id": "C011",
+    "question": "What did the nightly export session leave undone?",
+    "rows": [
+     {
+      "ref": "s-g600",
+      "kind": "session",
+      "words": "Session 'tidepool-export' finished with the scheduler hook done and the CSV writer still a stub."
+     },
+     {
+      "ref": "t-900",
+      "kind": "turn",
+      "words": "Turn 900: the agent said it did not touch the retry logic, and 3 tests were ignored."
+     },
+     {
+      "ref": "f-90",
+      "kind": "fact",
+      "words": "12 tests passed in that session."
+     }
+    ],
+    "gold": {
+     "answer_must": [
+      "CSV writer",
+      "retry"
+     ],
+     "cite": [
+      "s-g600",
+      "t-900"
+     ],
+     "forbidden": [
+      "everything was finished",
+      "12 tests failed"
+     ],
+     "unanswerable": false,
+     "answerable": true,
+     "refs": [
+      "s-g600",
+      "t-900"
+     ]
+    },
+    "removed": []
+   },
+   "text": "{\"covered\": \"no\", \"parts\": []}",
+   "finish": "stop",
+   "out_tokens": 11,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 219,
+   "gen_ms": 218.506958,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 52411,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  },
+  {
+   "corpus": "heldout-jobs",
+   "job": "chat",
+   "setting": "main",
+   "id": "C012",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1658,
+   "cut": false,
+   "prompt_chars": 599,
+   "chat_item": {
+    "id": "C012",
+    "question": "Did anyone approve the beta release yet?",
+    "rows": [
+     {
+      "ref": "s-h700",
+      "kind": "session",
+      "words": "Session 'pebble-readme' rewrote the README and added docs/exit-codes.md."
+     },
+     {
+      "ref": "s-h701",
+      "kind": "session",
+      "words": "Session 'quill-web' is idle and has no messages today."
+     },
+     {
+      "ref": "f-100",
+      "kind": "fact",
+      "words": "The release checklist file lives in docs/release.md."
+     }
+    ],
+    "gold": {
+     "answer_must": [
+      "no record",
+      "cannot"
+     ],
+     "cite": [],
+     "forbidden": [
+      "approved",
+      "was approved by"
+     ],
+     "unanswerable": true,
+     "answerable": false,
+     "refs": []
+    },
+    "removed": []
+   },
+   "text": "{\"covered\": \"no\", \"parts\": []}",
+   "finish": "stop",
+   "out_tokens": 11,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 208,
+   "gen_ms": 207.83633300000002,
+   "sampling": {
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "sampler": "penalties(last 64),top_k,top_p,min_p,temp,dist",
+    "seed": 92764,
+    "temperature": 0.20000000298023224,
+    "top_k": 20,
+    "top_p": 0.800000011920929
+   }
+  }
+ ]
+}

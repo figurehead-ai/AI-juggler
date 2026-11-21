@@ -15,3 +15,4 @@ export { TimeField } from "./TimeField";
 export { CheckRow, RowList, ToggleRow } from "./ControlRow";
 export { CheckCard, RadioCard, RadioCards } from "./RadioCard";
 export { CARD_FOCUS, CHOSEN_CARD } from "./selected";
+export { FoldChevron } from "./FoldChevron";

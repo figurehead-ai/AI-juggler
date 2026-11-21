@@ -77,6 +77,10 @@ for (const theme of ["dark", "light"] as const) {
       quota: false,
       crash: false,
       reset: false,
+      // AJ-E3817: a watch the user set notifies (they asked for each when
+      // they confirmed it); AJ-E3712: the digest is off until chosen.
+      watch: true,
+      digest: false,
     });
     await expect(card.getByTestId("quiet-hours")).toContainText("The digest and notifications wait until the quiet hours end");
     await page.mouse.move(0, 0);

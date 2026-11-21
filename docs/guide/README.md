@@ -44,6 +44,8 @@
   shared documents, and the pool's tasks.
 - [The Floor](the-floor.md): all your AI work as an office, what each
   sign on it means, getting to what needs you, and moving around.
+- [AI models](ai-models.md) (beta): the model AI Juggler recommends for
+  your Mac, what it costs in disk, and how we test models.
 
 - [What AI Juggler touches](trust.md): what it reads, changes and sends,
   and what it never does, each line checked by tests.

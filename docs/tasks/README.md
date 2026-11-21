@@ -12,10 +12,10 @@
 1. [AGENT-HANDOVER.md](../internal/AGENT-HANDOVER.md) — state snapshot, invariants,
    claiming protocol, compaction-recovery steps.
 2. [../review/decision-log.md](../review/decision-log.md) — settled
-   decisions D-01..D-140 (D-120, D-121 and D-123–D-137 are release/0.5's). Do not re-litigate them; supersede only via a
+   decisions D-01..D-140. Do not re-litigate them; supersede only via a
    new recorded decision.
 3. [TASK-CATALOG.md](TASK-CATALOG.md) — every task ID, epic, priority.
-4. The epic file for the task you claim (E1-E35 below).
+4. The epic file for the task you claim (E1-E38 below).
 5. Source research cited inside that task (pass2/deep reports, SPEC,
    code at the cited lines) — read before editing anything.
 
@@ -30,7 +30,7 @@
 | [E5-process-ownership-and-cleanup.md](E5-process-ownership-and-cleanup.md) | Spawn ledger, zombies, Cleanup Centre | AJ-E501-E512 |
 | [E6-quota-cost-and-billing-research.md](E6-quota-cost-and-billing-research.md) | Quota/cost engines + billing API research | AJ-E601-E611 |
 | [E7-fleet-at-launch.md](E7-fleet-at-launch.md) | Fleet at launch (beta) | AJ-E701-E711 |
-| [E8-validation-visual-performance-quality.md](E8-validation-visual-performance-quality.md) | Evidence, visual, a11y, perf, gates | AJ-E801-E815 |
+| [E8-validation-visual-performance-quality.md](E8-validation-visual-performance-quality.md) | Evidence, visual, a11y, perf, gates | AJ-E801-E819 |
 | [E9-docs-adrs-and-plan-rewrite.md](E9-docs-adrs-and-plan-rewrite.md) | Stage-1 docs, ADRs, plan rewrite | AJ-E901-E910 |
 | [E10-derived-workflows-and-beta.md](E10-derived-workflows-and-beta.md) | Derived workflows, safety nets, beta ops | AJ-E1001-E1025 |
 | [E11-usage-statistics.md](E11-usage-statistics.md) | Opt-in usage statistics | AJ-E1101-E1109 |
@@ -38,12 +38,12 @@
 | [E13-codex-adapter.md](E13-codex-adapter.md) | Codex, the second Provider | AJ-E1301-E1306 |
 | [E14-machine-health.md](E14-machine-health.md) | Machine health and resource monitoring | AJ-E1401-E1410 |
 | [E15-spec-gaps.md](E15-spec-gaps.md) | Spec gaps: what the specs promised and no task covered | AJ-E1501-E1544 |
-| [E16-more-tools.md](E16-more-tools.md) | More tools: OpenCode, Kimi, Grok, ZCode, Kiro, Hermes, Muse, Cursor, desktop apps | AJ-E1601-E1613 |
+| [E16-more-tools.md](E16-more-tools.md) | More tools: OpenCode, Kimi, Grok, ZCode, Kiro, Hermes, Muse, Cursor, desktop apps | AJ-E1601-E1615 |
 | [E17-agent-pools.md](E17-agent-pools.md) | Agent pools and the agent bridge | AJ-E1701-E1705 |
 | [E18-agent-messaging.md](E18-agent-messaging.md) | Messaging between agents | AJ-E1801-E1805 |
 | [E19-agent-tasks.md](E19-agent-tasks.md) | Task management shared by pools | AJ-E1901-E1907 |
 | [E20-engineering-and-security.md](E20-engineering-and-security.md) | Engineering and security foundations | AJ-E2001-E2025 |
-| [E21-desktop-first.md](E21-desktop-first.md) | Desktop first: what's open, where, and one click to it | AJ-E2101-E2112 |
+| [E21-desktop-first.md](E21-desktop-first.md) | Desktop first: what's open, where, and one click to it | AJ-E2101-E2113 |
 | [E22-visual-usage.md](E22-visual-usage.md) | Usage and projects you can read at a glance | AJ-E2201-E2207 |
 | [E23-session-runtime.md](E23-session-runtime.md) | A runtime per tool: driven sessions, exact state, answers from AI Juggler | AJ-E2301-E2311 |
 | [E24-processes.md](E24-processes.md) | The Processes view: every app, session and process, one model | AJ-E2401-E2407 |
@@ -54,10 +54,13 @@
 | [E29-trust-and-the-finished-basics.md](E29-trust-and-the-finished-basics.md) | Trust and the finished basics: what the spec promised for the daily loop (0.4, D-59) | AJ-E2901-E2912 |
 | [E30-pools-redesign.md](E30-pools-redesign.md) | Pools, redesigned from how people work (0.4, D-61; AJ-E3011–E3013 in 0.4.6; AJ-E3014 in 0.4.7; AJ-E3010 in 0.5) | AJ-E3001-E3014 |
 | [E31-everything-links.md](E31-everything-links.md) | Everything links to everything: each page leads to what's related (0.4, D-61) | AJ-E3101-E3106 |
-| [E32-account-and-app.md](E32-account-and-app.md) | Account and App: one word per thing, stored, each with its page; New session redesigned (0.4, D-62) | AJ-E3201-E3209 |
+| [E32-account-and-app.md](E32-account-and-app.md) | Account and App: one word per thing, stored, each with its page; New session redesigned (0.4, D-62) | AJ-E3201-E3210 |
 | [E33-validated-by-use.md](E33-validated-by-use.md) | 0.4 validated by use: every combination, every real use case (0.4, D-62) | AJ-E3301-E3308 |
 | [E34-reply-and-read.md](E34-reply-and-read.md) | Reply and read: a richer conversation, find, one composer, and an honest reply area (0.5, D-66) | AJ-E3401-E3405 |
 | [E35-the-floor.md](E35-the-floor.md) | The Floor: the whole company as a live office in its own native window (0.4, D-67, D-68; 0.4.1 findings AJ-E3515-E3521, D-90) | AJ-E3501-E3521 |
+| [E36-calm-attention.md](E36-calm-attention.md) | Calm attention: only what needs you is loud, on every screen (0.5, D-117) | AJ-E3601-E3619 |
+| [E37-home-activity-feed.md](E37-home-activity-feed.md) | Home as an activity feed: what happened, what needs you, your apps and runway (0.5, D-118) | AJ-E3701-E3712 |
+| [E38-chat.md](E38-chat.md) | AI jobs through one router, and Chat (read-only) (0.5, D-121) | AJ-E3801-E3820 |
 | [CRITIC-CHECKS.md](CRITIC-CHECKS.md) | Cross-epic audit of this system | — |
 
 ## Task format (every task, no exceptions)

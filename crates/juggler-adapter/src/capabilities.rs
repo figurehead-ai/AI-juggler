@@ -63,6 +63,13 @@ bitflags::bitflags! {
         /// while the session stays open (`crate::ToolQuota::limit_hit` reads
         /// it), so an open session can say it hit its limit.
         const LIMIT_HITS = 1 << 16;
+        /// AJ-E1605: its limits are its plan's caps, which the user
+        /// enters (`ZCode`'s 5-hour and weekly credits); what it used
+        /// against them is computed from its own records, never read from
+        /// the vendor. The core shows those windows against the caps, as
+        /// for a tool that reports its limits, each reading labelled with
+        /// its own confidence (no vendor reading is ever claimed).
+        const LIMITS_FROM_PLAN_CAPS = 1 << 17;
     }
 }
 

@@ -1,0 +1,434 @@
+# scripts/js_number_lint.py: every 64-bit integer (u64, i64, u128, i128,
+# usize, isize) that reaches the window typed as a number, with why it stays
+# below 2^53, where the window's numbers (f64) stop being exact. AJ-E1612
+# (045c97acb): the notices' version, a wrapping sum plus a hash, lost its
+# last bits there and the rail went stale.
+# Format: <Type.field | command name(arg) | command name->>  # why
+# A value bounded by code, not by what it is, names the function that
+# bounds it: [bound: <file>::<fn>]; that function must keep masking with a
+# `(1 << 53) - 1` const. A hash, random id, nanosecond time or wrapping sum
+# never goes here unbounded: mask it, or send it as a string.
+AccountAuditInfo.at                                # ms epoch, < 2^53 until year 287396
+AccountInfo.imported_at                            # ms epoch, < 2^53 until year 287396
+AccountMacsInfo.read_at_ms                         # ms epoch, < 2^53 until year 287396
+AccountQualityInfo.errors                          # a count of things on this Mac, far below 2^53
+AccountQualityInfo.tokens_per_finished             # tokens, < 2^53 is 9e15 tokens
+AccountQualityInfo.turns                           # a count of things on this Mac, far below 2^53
+AccountStorageInfo.index_lines                     # a count of things on this Mac, far below 2^53
+AccountStorageInfo.transcript_bytes                # bytes, < 2^53 is 8 PiB
+AgentRuleInfo.created_at                           # ms epoch, < 2^53 until year 287396
+AgentRuleInfo.id                                   # SQLite rowid, counts up from 1 per insert
+AlertEventInfo.at_ms                               # ms epoch, < 2^53 until year 287396
+AlertQuotaInfo.resets_at_ms                        # ms epoch, < 2^53 until year 287396
+AnnouncedInfo.date_ms                              # ms epoch, < 2^53 until year 287396
+ApprovalInfo.size_bytes                            # bytes, < 2^53 is 8 PiB
+ApprovalInfo.total_after_bytes                     # bytes, < 2^53 is 8 PiB
+AskInfo.asked_at_ms                                # ms epoch, < 2^53 until year 287396
+AttentionInfo.since_ms                             # ms epoch, < 2^53 until year 287396
+BackupExportInfo.bytes                             # bytes, < 2^53 is 8 PiB
+BackupFileInfo.bytes                               # bytes, < 2^53 is 8 PiB
+BackupManifestInfo.counts                          # a count of things on this Mac, far below 2^53
+BackupManifestInfo.created_at_ms                   # ms epoch, < 2^53 until year 287396
+BackupManifestInfo.schema_version                  # database schema version, a small integer
+BugContextArgs.at_ms                               # ms epoch, < 2^53 until year 287396
+BusySessionInfo.started_at_ms                      # ms epoch, < 2^53 until year 287396
+CacheInfo.budget_bytes                             # bytes, < 2^53 is 8 PiB
+CacheInfo.free_bytes                               # bytes, < 2^53 is 8 PiB
+CacheInfo.limit_mb                                 # megabytes, < 2^53
+CacheInfo.used_bytes                               # bytes, < 2^53 is 8 PiB
+CacheRowInfo.bytes                                 # bytes, < 2^53 is 8 PiB
+CacheRowInfo.entries                               # a count of things on this Mac, far below 2^53
+CanvasEdgeInfo.last_at_ms                          # ms epoch, < 2^53 until year 287396
+CatalogModel.free_disk_needed_bytes                # bytes, < 2^53 is 8 PiB
+CatalogModel.min_memory_gb                         # GB, the list caps it at 256
+CatalogModel.size_bytes                            # bytes, < 2^53 is 8 PiB
+CleanupEventInfo.at_ms                             # ms epoch, < 2^53 until year 287396
+CleanupEventInfo.id                                # SQLite rowid, counts up from 1 per insert
+CleanupPolicyInfo.suspended_until_ms               # ms epoch, < 2^53 until year 287396
+CleanupStatusInfo.suspended_until_ms               # ms epoch, < 2^53 until year 287396
+CloudBackupInfo.size_bytes                         # bytes, < 2^53 is 8 PiB
+CloudBackupStatusInfo.limit_bytes                  # bytes, < 2^53 is 8 PiB
+ContextCard.last_activity_ms                       # ms epoch, < 2^53 until year 287396
+ConversationDeltaInfo.dropped_before               # a transcript offset (lines/bytes), < 2^53
+ConversationDeltaInfo.earlier                      # a transcript offset (lines/bytes), < 2^53
+ConversationDeltaInfo.revision                     # in-process counter, fetch_add from 0/1: one per event, never near 2^53
+ConversationDeltaInfo.subscription                 # in-process counter, fetch_add from 0/1: one per event, never near 2^53
+ConversationInfo.last_activity_ms                  # ms epoch, < 2^53 until year 287396
+ConversationInfo.started_ms                        # ms epoch, < 2^53 until year 287396
+ConversationInfo.subtask_count                     # a count of things on this Mac, far below 2^53
+ConversationInfo.viewed_ms                         # ms epoch, < 2^53 until year 287396
+ConversationItemInfo.at_ms                         # ms epoch, < 2^53 until year 287396
+ConversationSnapshotInfo.earlier                   # a transcript offset (lines/bytes), < 2^53
+ConversationSnapshotInfo.revision                  # in-process counter, fetch_add from 0/1: one per event, never near 2^53
+ConversationSnapshotInfo.subscription              # in-process counter, fetch_add from 0/1: one per event, never near 2^53
+CostRollupsInfo.pricing_last_synced_ms             # ms epoch, < 2^53 until year 287396
+CrashReport.at_ms                                  # ms epoch, < 2^53 until year 287396
+CreditsDisplay.as_of_ms                            # ms epoch, < 2^53 until year 287396
+DebugModeInfo.bytes                                # bytes, < 2^53 is 8 PiB
+DebugModeInfo.lines                                # a count of things on this Mac, far below 2^53
+DebugModeInfo.until_ms                             # ms epoch, < 2^53 until year 287396
+DiagnosticsSavedInfo.bytes                         # bytes, < 2^53 is 8 PiB
+DigestInfo.end_ms                                  # ms epoch, < 2^53 until year 287396
+DigestInfo.start_ms                                # ms epoch, < 2^53 until year 287396
+DigestLineInfo.at_ms                               # ms epoch, < 2^53 until year 287396
+DiscoveredInfo.bytes                               # bytes, < 2^53 is 8 PiB
+DiscoveredInfo.last_used_secs                      # seconds, < 2^53 s
+DivergenceInfo.last_activity_ms                    # ms epoch, < 2^53 until year 287396
+DivergenceRecordInfo.at_ms                         # ms epoch, < 2^53 until year 287396
+DivergenceRecordInfo.last_activity_ms              # ms epoch, < 2^53 until year 287396
+DocInfo.at_ms                                      # ms epoch, < 2^53 until year 287396
+DocInfo.size_bytes                                 # bytes, < 2^53 is 8 PiB
+DownloadInfo.done_bytes                            # bytes, < 2^53 is 8 PiB
+DownloadInfo.size_bytes                            # bytes, < 2^53 is 8 PiB
+EarlierPageInfo.earlier                            # a transcript offset (lines/bytes), < 2^53
+FacetInfo.count                                    # a count of things on this Mac, far below 2^53
+FeedFactsInfo.duration_ms                          # ms duration, < 2^53 ms is 285,000 years
+FeedFactsInfo.meter                                # percent, 0..100
+FeedFactsInfo.resets_at_ms                         # ms epoch, < 2^53 until year 287396
+FeedFactsInfo.thread_count                         # a count of things on this Mac, far below 2^53
+FeedItemInfo.at_ms                                 # ms epoch, < 2^53 until year 287396
+FeedItemInfo.rollup_window_ms                      # ms duration, < 2^53 ms is 285,000 years
+FigureheadLinkInfo.expires_at_ms                   # ms epoch, < 2^53 until year 287396
+FigureheadStatusInfo.refreshed_at_ms               # ms epoch, < 2^53 until year 287396
+FleetPeerInfo.last_seen_ms                         # ms epoch, < 2^53 until year 287396
+FleetPeerInfo.paired_at_ms                         # ms epoch, < 2^53 until year 287396
+FleetPeerInfo.queued_changes                       # a count of things on this Mac, far below 2^53
+FleetPromptInfo.expires_at_ms                      # ms epoch, < 2^53 until year 287396
+FleetPromptInfo.id                                 # in-process counter, fetch_add from 0/1: one per event, never near 2^53
+FleetSwitchProgressInfo.received_bytes             # bytes, < 2^53 is 8 PiB
+FleetSwitchProgressInfo.total_bytes                # bytes, < 2^53 is 8 PiB
+FloorAccount.last_used_ms                          # ms epoch, < 2^53 until year 287396
+FloorAccount.resets_ms                             # ms epoch, < 2^53 until year 287396
+FloorApp.hot_since_ms                              # ms epoch, < 2^53 until year 287396
+FloorApp.last_active_ms                            # ms epoch, < 2^53 until year 287396
+FloorMachine.alert_since_ms                        # ms epoch, < 2^53 until year 287396
+FloorSession.last_ms                               # ms epoch, < 2^53 until year 287396
+FloorSession.started_ms                            # ms epoch, < 2^53 until year 287396
+FloorSnapshot.at_ms                                # ms epoch, < 2^53 until year 287396
+FolderSizeInfo.bytes                               # bytes, < 2^53 is 8 PiB
+GitStatusInfo.ahead                                # a count of things on this Mac, far below 2^53
+GitStatusInfo.behind                               # a count of things on this Mac, far below 2^53
+GitStatusInfo.changed                              # a count of things on this Mac, far below 2^53
+GitStatusInfo.untracked                            # a count of things on this Mac, far below 2^53
+GoingBackInfo.kept_at_ms                           # ms epoch, < 2^53 until year 287396
+GoingBackInfo.schema                               # database schema version, a small integer
+HandoverSheetInfo.created_at_ms                    # ms epoch, < 2^53 until year 287396
+HistoryEventInfo.at_ms                             # ms epoch, < 2^53 until year 287396
+HogFactInfo.rss_bytes                              # bytes, < 2^53 is 8 PiB
+ImportResult.bytes_copied                          # bytes, < 2^53 is 8 PiB
+ImportResult.files_copied                          # a count of things on this Mac, far below 2^53
+InstalledModelInfo.installed_at_ms                 # ms epoch, < 2^53 until year 287396
+InstalledModelInfo.size_bytes                      # bytes, < 2^53 is 8 PiB
+InstanceInfo.git_ahead                             # a count of things on this Mac, far below 2^53
+InstanceInfo.git_behind                            # a count of things on this Mac, far below 2^53
+InstanceInfo.git_dirty_count                       # a count of things on this Mac, far below 2^53
+InstanceInfo.last_activity_ms                      # ms epoch, < 2^53 until year 287396
+InstanceInfo.lifecycle_at_ms                       # ms epoch, < 2^53 until year 287396
+InstanceInfo.parked_resets_at_ms                   # ms epoch, < 2^53 until year 287396
+InstanceInfo.rss_bytes                             # bytes, < 2^53 is 8 PiB
+InstanceInfo.started_at_ms                         # ms epoch, < 2^53 until year 287396
+InstanceInfo.subtask_count                         # a count of things on this Mac, far below 2^53
+InstanceResourcesInfo.rss_bytes                    # bytes, < 2^53 is 8 PiB
+KillVerifyInfo.grace_secs                          # seconds, < 2^53 s
+KnownPlaceInfo.seen_ms                             # ms epoch, < 2^53 until year 287396
+LastBackupInfo.at_ms                               # ms epoch, < 2^53 until year 287396
+LastBackupInfo.size_bytes                          # bytes, < 2^53 is 8 PiB
+LastMessagesInfo.earlier                           # a transcript offset (lines/bytes), < 2^53
+LedgerPriceRow.effective_from_ms                   # ms epoch, < 2^53 until year 287396
+Lifetime::Until.at_ms                              # ms epoch, < 2^53 until year 287396
+LifetimeChoice::Until.at_ms                        # ms epoch, < 2^53 until year 287396
+LimitWindowInfo.resets_at_ms                       # ms epoch, < 2^53 until year 287396
+LongContext.over_prompt_tokens                     # tokens, < 2^53 is 9e15 tokens
+MacInfo.free_disk_bytes                            # bytes, < 2^53 is 8 PiB
+MacInfo.memory_bytes                               # bytes, < 2^53 is 8 PiB
+MacInfo.memory_gb                                  # GB of this Mac's memory, far below 2^53
+MachineAdviceInfo.projected_bytes                  # bytes, < 2^53 is 8 PiB
+MachineAdviceInfo.relief_bytes                     # bytes, < 2^53 is 8 PiB
+MachineHealthInfo.memory_available                 # bytes, < 2^53 is 8 PiB
+MachineHealthInfo.memory_compressed                # bytes, < 2^53 is 8 PiB
+MachineHealthInfo.memory_total                     # bytes, < 2^53 is 8 PiB
+MachineHealthInfo.memory_used                      # bytes, < 2^53 is 8 PiB
+MachineHealthInfo.swap_total                       # bytes, < 2^53 is 8 PiB
+MachineHealthInfo.swap_used                        # bytes, < 2^53 is 8 PiB
+MachinePointInfo.at_ms                             # ms epoch, < 2^53 until year 287396
+MachinePointInfo.memory_used                       # bytes, < 2^53 is 8 PiB
+MachineUsageInfo.as_of_ms                          # ms epoch, < 2^53 until year 287396
+MachineUsageInfo.used_units                        # tokens, < 2^53 is 9e15 tokens
+MessageInfo.at_ms                                  # ms epoch, < 2^53 until year 287396
+MessageNeedInfo.at_ms                              # ms epoch, < 2^53 until year 287396
+ModelsInfo.total_bytes                             # bytes, < 2^53 is 8 PiB
+MoveOfferInfo.bytes                                # bytes, < 2^53 is 8 PiB
+MoveOfferInfo.kept_outputs                         # a count of things on this Mac, far below 2^53
+MoveRecordInfo.at_ms                               # ms epoch, < 2^53 until year 287396
+NeedSnoozeInfo.until_ms                            # ms epoch, < 2^53 until year 287396
+NodeAskInfo.at_ms                                  # ms epoch, < 2^53 until year 287396
+NoticeDigestInfo.next_reset_ms                     # ms epoch, < 2^53 until year 287396
+NoticeFacts.resets_at_ms                           # ms epoch, < 2^53 until year 287396
+NoticeInfo.created_ms                              # ms epoch, < 2^53 until year 287396
+NoticeInfo.id                                      # SQLite rowid, counts up from 1 per insert
+NoticeInfo.meter                                   # percent, 0..100
+NoticeInfo.snoozed_until_ms                        # ms epoch, < 2^53 until year 287396
+NoticeSummaryInfo.version                          # a hash masked to 53 bits [bound: crates/juggler-app/src/features/notifications/centre.rs::version_of]
+OtherAppInfo.rss_bytes                             # bytes, < 2^53 is 8 PiB
+OutsideSearchEstimateInfo.size_bytes               # bytes, < 2^53 is 8 PiB
+OutsideSearchInfo.size_bytes                       # bytes, < 2^53 is 8 PiB
+OverloadAlertInfo.since_ms                         # ms epoch, < 2^53 until year 287396
+OverloadAlertInfo.subject_bytes                    # bytes, < 2^53 is 8 PiB
+OvernightSummaryInfo.generated_ms                  # ms epoch, < 2^53 until year 287396
+OvernightSummaryInfo.since_ms                      # ms epoch, < 2^53 until year 287396
+OwnInfo.rss_bytes                                  # bytes, < 2^53 is 8 PiB
+PackOpenInfo.created_at_ms                         # ms epoch, < 2^53 until year 287396
+Page.total                                         # a count of things on this Mac, far below 2^53
+PairingStateInfo.expires_at_ms                     # ms epoch, < 2^53 until year 287396
+ParkedInfo.parked_at_ms                            # ms epoch, < 2^53 until year 287396
+ParkedInfo.resets_at_ms                            # ms epoch, < 2^53 until year 287396
+PauseInfo.at_ms                                    # ms epoch, < 2^53 until year 287396
+PendingInfo.at_ms                                  # ms epoch, < 2^53 until year 287396
+PoolCanvasInfo.since_ms                            # ms epoch, < 2^53 until year 287396
+PoolRuleInfo.joined_at                             # ms epoch, < 2^53 until year 287396
+PortRowInfo.listener_age_ms                        # ms duration, < 2^53 ms is 285,000 years
+PortWarningInfo.age_ms                             # ms duration, < 2^53 ms is 285,000 years
+PreviewFrameInfo.at_ms                             # ms epoch, < 2^53 until year 287396
+PreviewFrameInfo.seq                               # in-process counter, fetch_add from 0/1: one per event, never near 2^53
+PricingCatalog.last_synced_ms                      # ms epoch, < 2^53 until year 287396
+ProbeStatusInfo.last_run_ms                        # ms epoch, < 2^53 until year 287396
+ProcRowInfo.age_ms                                 # ms duration, < 2^53 ms is 285,000 years
+ProcRowInfo.cpu_time_ms                            # ms duration, < 2^53 ms is 285,000 years
+ProcRowInfo.mark_until_ms                          # ms epoch, < 2^53 until year 287396
+ProcRowInfo.peak_rss                               # bytes, < 2^53 is 8 PiB
+ProcRowInfo.start_time                             # epoch seconds, < 2^53
+ProcessGraphChangedInfo.version                    # in-process counter, fetch_add from 0/1: one per event, never near 2^53
+ProcessGraphRowInfo.rss_bytes                      # bytes, < 2^53 is 8 PiB
+ProcessRecordInfo.first_seen_ms                    # ms epoch, < 2^53 until year 287396
+ProcessRecordInfo.last_seen_ms                     # ms epoch, < 2^53 until year 287396
+ProcessRecordInfo.pid                              # pid, 32-bit
+ProcessRowInfo.age_ms                              # ms duration, < 2^53 ms is 285,000 years
+ProcessRowInfo.rss_bytes                           # bytes, < 2^53 is 8 PiB
+ProcessSessionInfo.started_ms                      # ms epoch, < 2^53 until year 287396
+ProcessStatusInfo.built_ms                         # ms epoch, < 2^53 until year 287396
+ProcessStatusInfo.version                          # in-process counter, fetch_add from 0/1: one per event, never near 2^53
+ProjectInfo.history_last_used_ms                   # ms epoch, < 2^53 until year 287396
+ProjectInfo.history_sessions                       # a count of things on this Mac, far below 2^53
+ProjectInfo.instance_count                         # a count of things on this Mac, far below 2^53
+ProjectInfo.last_activity_ms                       # ms epoch, < 2^53 until year 287396
+QualitySignalsInfo.context_used                    # tokens, < 2^53 is 9e15 tokens
+QualitySignalsInfo.context_window                  # tokens, < 2^53 is 9e15 tokens
+QualitySignalsInfo.end_context                     # tokens, < 2^53 is 9e15 tokens
+QualitySignalsInfo.tokens_bars                     # tokens, < 2^53 is 9e15 tokens
+QuotaSnapshotInfo.resets_at_ms                     # ms epoch, < 2^53 until year 287396
+RecommendationInfo.needed_bytes                    # bytes, < 2^53 is 8 PiB
+RecoverySummaryInfo.adopted                        # a count of things on this Mac, far below 2^53
+RecoverySummaryInfo.left_behind                    # a count of things on this Mac, far below 2^53
+RecoverySummaryInfo.unverifiable                   # a count of things on this Mac, far below 2^53
+RelatedIdsInfo.sessions                            # a count of things on this Mac, far below 2^53
+RelationCountsInfo.apps                            # a count of things on this Mac, far below 2^53
+RelationCountsInfo.folders                         # a count of things on this Mac, far below 2^53
+RelationCountsInfo.launch_settings                 # a count of things on this Mac, far below 2^53
+RelationCountsInfo.machines                        # a count of things on this Mac, far below 2^53
+RelationCountsInfo.pools                           # a count of things on this Mac, far below 2^53
+RelationCountsInfo.projects                        # a count of things on this Mac, far below 2^53
+RelationCountsInfo.subscriptions                   # a count of things on this Mac, far below 2^53
+RelationCountsInfo.tools                           # a count of things on this Mac, far below 2^53
+RemoteAboutInfo.last_checked_ms                    # ms epoch, < 2^53 until year 287396
+RemoteAlertInfo.at_ms                              # ms epoch, < 2^53 until year 287396
+RemoteFileInfo.expires_at_ms                       # ms epoch, < 2^53 until year 287396
+RemoteFileInfo.issued_at_ms                        # ms epoch, < 2^53 until year 287396
+RemoteFileInfo.serial                              # +1 per published file, < 2^53 for millions of years
+RemoteInstanceInfo.last_activity_ms                # ms epoch, < 2^53 until year 287396
+RemoteInstanceInfo.measured_at_ms                  # ms epoch, < 2^53 until year 287396
+RemoteInstanceInfo.rss_bytes                       # bytes, < 2^53 is 8 PiB
+RemoteInstanceInfo.started_at_ms                   # ms epoch, < 2^53 until year 287396
+RemoteMachineInfo.clock_skew_ms                    # ms duration, < 2^53 ms is 285,000 years
+RemoteMachineInfo.last_heard_ms                    # ms epoch, < 2^53 until year 287396
+RemoteMachineInfo.synced_at_ms                     # ms epoch, < 2^53 until year 287396
+RemoteProcessInfo.age_ms                           # ms duration, < 2^53 ms is 285,000 years
+RemoteProcessInfo.measured_at_ms                   # ms epoch, < 2^53 until year 287396
+RemoteProcessInfo.rss_bytes                        # bytes, < 2^53 is 8 PiB
+RemoteResourcesInfo.measured_at_ms                 # ms epoch, < 2^53 until year 287396
+RemoteResourcesInfo.memory_total_bytes             # bytes, < 2^53 is 8 PiB
+RemoteResourcesInfo.memory_used_bytes              # bytes, < 2^53 is 8 PiB
+ReplayInfo.bytes                                   # bytes, < 2^53 is 8 PiB
+ResetQueueInfo.resume_at_ms                        # ms epoch, < 2^53 until year 287396
+RestoreResultInfo.counts                           # a count of things on this Mac, far below 2^53
+RetentionRowInfo.last_active_ms                    # ms epoch, < 2^53 until year 287396
+ReviewedAllInfo.at_ms                              # ms epoch, < 2^53 until year 287396
+ReviewedAllInfo.count                              # a count of sessions on this Mac, far below 2^53
+RollupInfo.rss_bytes                               # bytes, < 2^53 is 8 PiB
+RoomBackDisplay.at_ms                              # ms epoch, < 2^53 until year 287396
+Row.at                                             # ms epoch, < 2^53 until year 287396
+RulesFileInfo.modified_ms                          # ms epoch, < 2^53 until year 287396
+RunwayDisplay.exhausts_at_ms                       # ms epoch, < 2^53 until year 287396
+RunwayDisplay.resets_at_ms                         # ms epoch, < 2^53 until year 287396
+RunwayDisplay.series                               # (ms epoch, value) points; ms epoch < 2^53 until year 287396
+RunwayDisplay.sessions_counted                     # a count of things on this Mac, far below 2^53
+RunwayDisplay.starts_ms                            # ms epoch, < 2^53 until year 287396
+SessionEventInfo.at_ms                             # ms epoch, < 2^53 until year 287396
+SessionsCountsInfo.all                             # a count of things on this Mac, far below 2^53
+SessionsCountsInfo.archived                        # a count of things on this Mac, far below 2^53
+SessionsCountsInfo.ended                           # a count of things on this Mac, far below 2^53
+SessionsCountsInfo.open                            # a count of things on this Mac, far below 2^53
+SessionsQuery.since_ms                             # ms epoch, < 2^53 until year 287396
+SetUpInfo.at_ms                                    # ms epoch, < 2^53 until year 287396
+SourceHealthInfo.last_event_at                     # ms epoch, < 2^53 until year 287396
+SourceHealthInfo.parse_errors                      # a count of things on this Mac, far below 2^53
+SourceInspectInfo.ceiling_bytes                    # bytes, < 2^53 is 8 PiB
+SourceInspectInfo.file_count                       # a count of things on this Mac, far below 2^53
+SourceInspectInfo.total_bytes                      # bytes, < 2^53 is 8 PiB
+StagedSwitchInfo.prepared_at_ms                    # ms epoch, < 2^53 until year 287396
+StartInfo.free_bytes                               # bytes, < 2^53 is 8 PiB
+StartInfo.needed_bytes                             # bytes, < 2^53 is 8 PiB
+StartInfo.size_bytes                               # bytes, < 2^53 is 8 PiB
+StartInfo.total_after_bytes                        # bytes, < 2^53 is 8 PiB
+StartedSessionInfo.last_activity_ms                # ms epoch, < 2^53 until year 287396
+StatsInfo.accounts                                 # a count of things on this Mac, far below 2^53
+StatsInfo.active_sessions                          # a count of things on this Mac, far below 2^53
+StatsInfo.profiles                                 # a count of things on this Mac, far below 2^53
+StoredAppInfo.last_seen_ms                         # ms epoch, < 2^53 until year 287396
+StreamLineInfo.at_ms                               # ms epoch, < 2^53 until year 287396
+SubagentGroupInfo.at_ms                            # ms epoch, < 2^53 until year 287396
+SubagentGroupInfo.tokens                           # tokens, < 2^53 is 9e15 tokens
+SubagentInfo.duration_ms                           # ms duration, < 2^53 ms is 285,000 years
+SubagentInfo.ended_ms                              # ms epoch, < 2^53 until year 287396
+SubagentInfo.last_activity_ms                      # ms epoch, < 2^53 until year 287396
+SubagentInfo.own_tokens                            # tokens, < 2^53 is 9e15 tokens
+SubagentInfo.started_ms                            # ms epoch, < 2^53 until year 287396
+SubagentInfo.tokens                                # tokens, < 2^53 is 9e15 tokens
+SubagentLinesInfo.added                            # a count of things on this Mac, far below 2^53
+SubagentLinesInfo.removed                          # a count of things on this Mac, far below 2^53
+SubagentProcessInfo.rss_bytes                      # bytes, < 2^53 is 8 PiB
+SubagentsSummaryInfo.tokens                        # tokens, < 2^53 is 9e15 tokens
+SummaryRowInfo.at_ms                               # ms epoch, < 2^53 until year 287396
+SummaryRowInfo.started_at_ms                       # ms epoch, < 2^53 until year 287396
+SummaryRowInfo.tokens                              # tokens, < 2^53 is 9e15 tokens
+SwitchCutArgs.before_ms                            # ms epoch, < 2^53 until year 287396
+SwitchCutInfo.bytes                                # bytes, < 2^53 is 8 PiB
+SwitchCutInfo.bytes_left_out                       # bytes, < 2^53 is 8 PiB
+SwitchCutInfo.first_ms                             # ms epoch, < 2^53 until year 287396
+SwitchCutInfo.from_ms                              # ms epoch, < 2^53 until year 287396
+SwitchCutInfo.last_ms                              # ms epoch, < 2^53 until year 287396
+SwitchSpaceInfo.carried_bytes                      # bytes, < 2^53 is 8 PiB
+SwitchSpaceInfo.free_bytes                         # bytes, < 2^53 is 8 PiB
+SwitchSpaceInfo.writes_bytes                       # bytes, < 2^53 is 8 PiB
+TaskEventInfo.at_ms                                # ms epoch, < 2^53 until year 287396
+TaskEventInfo.id                                   # SQLite rowid, counts up from 1 per insert
+TaskInfo.updated_at_ms                             # ms epoch, < 2^53 until year 287396
+TaskIssueInfo.checked_at_ms                        # ms epoch, < 2^53 until year 287396
+TaskNeedInfo.at_ms                                 # ms epoch, < 2^53 until year 287396
+TaskSessionInfo.at_ms                              # ms epoch, < 2^53 until year 287396
+TaskThreadInfo.at_ms                               # ms epoch, < 2^53 until year 287396
+ThreadInfo.updated_at_ms                           # ms epoch, < 2^53 until year 287396
+Tier2NoticeInfo.deadline_ms                        # ms epoch, < 2^53 until year 287396
+TokenCounts.cache_read                             # tokens, < 2^53 is 9e15 tokens
+TokenCounts.cache_write                            # tokens, < 2^53 is 9e15 tokens
+TokenCounts.input                                  # tokens, < 2^53 is 9e15 tokens
+TokenCounts.output                                 # tokens, < 2^53 is 9e15 tokens
+TokenCounts.reasoning                              # tokens, < 2^53 is 9e15 tokens
+TokenCountsInfo.cache_read                         # tokens, < 2^53 is 9e15 tokens
+TokenCountsInfo.cache_write                        # tokens, < 2^53 is 9e15 tokens
+TokenCountsInfo.input                              # tokens, < 2^53 is 9e15 tokens
+TokenCountsInfo.output                             # tokens, < 2^53 is 9e15 tokens
+TokenCountsInfo.reasoning                          # tokens, < 2^53 is 9e15 tokens
+ToolTotalsInfo.rss_bytes                           # bytes, < 2^53 is 8 PiB
+ToolTreeInfo.rss_bytes                             # bytes, < 2^53 is 8 PiB
+ToolUpdateInfo.checked_ms                          # ms epoch, < 2^53 until year 287396
+TransitionInfo.at_ms                               # ms epoch, < 2^53 until year 287396
+TreeSampleInfo.at_ms                               # ms epoch, < 2^53 until year 287396
+TreeSampleInfo.rss_bytes                           # bytes, < 2^53 is 8 PiB
+TurnBlockInfo.at_ms                                # ms epoch, < 2^53 until year 287396
+TurnCallInfo.at_ms                                 # ms epoch, < 2^53 until year 287396
+TurnInfo.at_ms                                     # ms epoch, < 2^53 until year 287396
+TurnInfo.offset                                    # a transcript offset (lines/bytes), < 2^53
+TurnOnInfo.at_ms                                   # ms epoch, < 2^53 until year 287396
+UpdateStatusInfo.checked_at_ms                     # ms epoch, < 2^53 until year 287396
+UsageAccountCostInfo.cache                         # tokens, < 2^53 is 9e15 tokens
+UsageAccountCostInfo.io                            # tokens, < 2^53 is 9e15 tokens
+UsageCutInfo.io                                    # tokens, < 2^53 is 9e15 tokens
+UsageHistoryInfo.active_hours                      # ms epoch, < 2^53 until year 287396
+UsageHistoryInfo.edges_ms                          # ms epoch, < 2^53 until year 287396
+UsageHistoryInfo.reading                           # tokens, < 2^53 is 9e15 tokens
+UsagePartInfo.io                                   # tokens, < 2^53 is 9e15 tokens
+UsageQueryInput.edges_ms                           # ms epoch, < 2^53 until year 287396
+UsageReportRow.bytes                               # bytes, < 2^53 is 8 PiB
+UsageReportRow.next_try_ms                         # ms epoch, < 2^53 until year 287396
+UsageReportRow.upload_at_ms                        # ms epoch, < 2^53 until year 287396
+UsageSeriesInfo.io                                 # tokens, < 2^53 is 9e15 tokens
+UsageSessionInfo.cache                             # tokens, < 2^53 is 9e15 tokens
+UsageSessionInfo.first_ms                          # ms epoch, < 2^53 until year 287396
+UsageSessionInfo.io                                # tokens, < 2^53 is 9e15 tokens
+UsageSessionInfo.last_ms                           # ms epoch, < 2^53 until year 287396
+UsageShareInfo.cache                               # tokens, < 2^53 is 9e15 tokens
+UsageShareInfo.io                                  # tokens, < 2^53 is 9e15 tokens
+UsageStatsInfo.decided_at_ms                       # ms epoch, < 2^53 until year 287396
+UsageStatsOverview.next_upload_ms                  # ms epoch, < 2^53 until year 287396
+UsageSwitchInfo.at_ms                              # ms epoch, < 2^53 until year 287396
+UsageTopProjectInfo.io                             # tokens, < 2^53 is 9e15 tokens
+UsageTurnInfo.at_ms                                # ms epoch, < 2^53 until year 287396
+UsageWindowHistoryInfo.points                      # (ms epoch, value) points; ms epoch < 2^53 until year 287396
+UsageWindowPeakInfo.first_ms                       # ms epoch, < 2^53 until year 287396
+UsageWindowPeakInfo.resets_ms                      # ms epoch, < 2^53 until year 287396
+UsageWindowShareInfo.profile_io                    # tokens, < 2^53 is 9e15 tokens
+UsageWindowShareInfo.session_io                    # tokens, < 2^53 is 9e15 tokens
+UsageWindowShareInfo.since_ms                      # ms epoch, < 2^53 until year 287396
+VolumeInfo.available_bytes                         # bytes, < 2^53 is 8 PiB
+VolumeInfo.total_bytes                             # bytes, < 2^53 is 8 PiB
+Wait::DiskShort.free                               # bytes, < 2^53 is 8 PiB
+Wait::DiskShort.needed                             # bytes, < 2^53 is 8 PiB
+Watch.created_ms                                   # ms epoch, < 2^53 until year 287396
+WatchInfo.told                                     # a count of a watch's alerts (log rows on this Mac), far below 2^53
+WatchInfo.version                                  # a watch's version count (one per edit, pause or resume), far below 2^53
+WindowDisplay.burned_io_tokens                     # tokens, < 2^53 is 9e15 tokens
+WindowDisplay.burned_tokens                        # tokens, < 2^53 is 9e15 tokens
+WindowDisplay.measured_at_ms                       # ms epoch, < 2^53 until year 287396
+WindowDisplay.resets_at_ms                         # ms epoch, < 2^53 until year 287396
+WindowDisplay.stale_note_ms                        # ms duration, < 2^53 ms is 285,000 years
+WorktreeRemovalInfo.changed                        # a count of things on this Mac, far below 2^53
+WorktreeRemovalInfo.untracked                      # a count of things on this Mac, far below 2^53
+command budgets_list(month_start_ms)               # ms epoch, < 2^53 until year 287396
+command budgets_seen(month_start_ms)               # ms epoch, < 2^53 until year 287396
+command cache_set_limit(limit_mb)                  # megabytes, < 2^53
+command conversations_earlier(before)              # a transcript offset (lines/bytes), < 2^53
+command conversations_earlier(subscription)        # in-process counter, fetch_add from 0/1: one per event, never near 2^53
+command conversations_keep(subscriptions)          # in-process counter, fetch_add from 0/1: one per event, never near 2^53
+command conversations_keep->                       # in-process counter, fetch_add from 0/1: one per event, never near 2^53
+command conversations_last_messages(before)        # a transcript offset (lines/bytes), < 2^53
+command conversations_last_messages(from)          # a transcript offset (lines/bytes), < 2^53
+command conversations_unfollow(subscription)       # in-process counter, fetch_add from 0/1: one per event, never near 2^53
+command cost_csv_export(from_ms)                   # ms epoch, < 2^53 until year 287396
+command cost_csv_export(to_ms)                     # ms epoch, < 2^53 until year 287396
+command fleet_prompt_decide(id)                    # in-process counter, fetch_add from 0/1: one per event, never near 2^53 (FleetPromptInfo.id)
+command going_back_prepare(schema)                 # database schema version, a small integer
+command instance_archive->                         # the lifecycle row's time, ms epoch, < 2^53 until year 287396
+command instance_mark_reviewed->                   # the lifecycle row's time, ms epoch, < 2^53 until year 287396
+command instance_unarchive->                       # the lifecycle row's time, ms epoch, < 2^53 until year 287396
+command instance_unmark_reviewed->                 # the lifecycle row's time, ms epoch, < 2^53 until year 287396
+command instances_mark_reviewed->                  # the lifecycle row's time, ms epoch, < 2^53 until year 287396
+command instances_unmark_reviewed->                # the lifecycle row's time, ms epoch, < 2^53 until year 287396
+command notifications_dismiss(id)                  # SQLite rowid, counts up from 1 per insert
+command notifications_read(id)                     # SQLite rowid, counts up from 1 per insert
+command notifications_snooze(until_ms)             # ms epoch, < 2^53 until year 287396
+command overnight_summary(since_ms)                # ms epoch, < 2^53 until year 287396
+command pools_revoke_rule(rule_id)                 # SQLite rowid, counts up from 1 per insert
+command pricing_override_clear(effective_from_ms)  # ms epoch, < 2^53 until year 287396
+command processes_mark(start_time)                 # epoch seconds, < 2^53
+command processes_observed_stop(start_time)        # epoch seconds, < 2^53
+command processes_observed_verify(start_time)      # epoch seconds, < 2^53
+command reset_queue_queue(resume_at_ms)            # ms epoch, < 2^53 until year 287396
+command sessions_unmark_reviewed(at_ms)            # ms epoch (a batch's stamp), < 2^53 until year 287396
+command sessions_unmark_reviewed->                 # a count of sessions on this Mac, far below 2^53
+command subagents_conversation(before)             # a transcript offset (lines/bytes), < 2^53
+command subagents_conversation(from)               # a transcript offset (lines/bytes), < 2^53
+command usage_history_first->                      # ms epoch, < 2^53 until year 287396
+command usage_history_limits(end_ms)               # ms epoch, < 2^53 until year 287396
+command usage_history_limits(start_ms)             # ms epoch, < 2^53 until year 287396
+WatchInfo.changed_ms                               # ms epoch, < 2^53 until year 287396
+WatchInfo.ended_ms                                 # ms epoch, < 2^53 until year 287396
+WatchInfo.last_told_ms                             # ms epoch, < 2^53 until year 287396
+BotCountInfo.since_ms                              # ms epoch, < 2^53 until year 287396
+BotFoundInfo.at_ms                                 # ms epoch, < 2^53 until year 287396
+BotMemoryInfo.at_ms                                # ms epoch, < 2^53 until year 287396
+BotRowInfo.at_ms                                   # ms epoch, < 2^53 until year 287396
+BotRowInfo.resets_at_ms                            # ms epoch, < 2^53 until year 287396
+BotRowInfo.started_ms                              # ms epoch, < 2^53 until year 287396
+BotTopicInfo.started_ms                            # ms epoch, < 2^53 until year 287396
+BotTurnInfo.at_ms                                  # ms epoch, < 2^53 until year 287396
+command bot_page(before_ms)                        # ms epoch, < 2^53 until year 287396

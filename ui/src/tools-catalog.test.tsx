@@ -28,7 +28,7 @@ const ACME: ToolSpecInfo = {
   scan_hint: "Your Acme homes. Nothing is changed.",
   setup_groups: [{ id: "acme-homes", title: "Your Acme homes", path_contains: null, origin: null, shows_install: true }],
   default_label: "Acme",
-  flow: { first_run: true, primary: true },
+  flow: { first_run: true, primary: true, live_verified: true },
   supports: { in_place: true, limits: false, app_meter: false, thread_link: false, agent_tools: false, resume: false },
 };
 

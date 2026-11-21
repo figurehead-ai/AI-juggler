@@ -8,6 +8,7 @@
  */
 import type { JSX } from "react";
 import { Picker } from "../controls";
+import { SELECTED_CARD } from "../controls/selected";
 
 export interface ChipOption {
   id: string;
@@ -47,7 +48,7 @@ export function FilterChip({
     <span
       className={
         "inline-flex h-8 items-center overflow-hidden rounded-full border px-0.5 text-meta transition-colors " +
-        (value !== null ? "border-accent/45 bg-accent-soft text-ink" : "border-hairline bg-surface text-muted hover:text-ink")
+        (value !== null ? SELECTED_CARD + " font-semibold text-selected-ink" : "border-hairline bg-surface text-muted hover:text-ink")
       }
     >
       <Picker

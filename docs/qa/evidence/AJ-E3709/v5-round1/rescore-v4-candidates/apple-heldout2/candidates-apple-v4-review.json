@@ -1,0 +1,88 @@
+{
+ "family": "apple-v4",
+ "job": "review",
+ "note": "script flags: candidates for Opus to confirm by eye, never verdicts",
+ "candidates": [
+  {
+   "class": "omission",
+   "detector": "detail_dropped",
+   "detail": "backoff.py",
+   "stage": "shown",
+   "attempt": null,
+   "id": "R202",
+   "corpus": "review2"
+  },
+  {
+   "class": "omission",
+   "detector": "detail_dropped",
+   "detail": "null check; slots.py",
+   "stage": "shown",
+   "attempt": null,
+   "id": "R207",
+   "corpus": "review2"
+  },
+  {
+   "class": "omission",
+   "detector": "detail_dropped",
+   "detail": "no code changes",
+   "stage": "shown",
+   "attempt": null,
+   "id": "R214",
+   "corpus": "review2"
+  },
+  {
+   "class": "omission",
+   "detector": "detail_dropped",
+   "detail": "format.js",
+   "stage": "shown",
+   "attempt": null,
+   "id": "R215",
+   "corpus": "review2"
+  },
+  {
+   "class": "omission",
+   "detector": "detail_dropped",
+   "detail": "comment; chunk writer",
+   "stage": "shown",
+   "attempt": null,
+   "id": "R216",
+   "corpus": "review2"
+  },
+  {
+   "class": "omission",
+   "detector": "detail_dropped",
+   "detail": "deprecated alias",
+   "stage": "shown",
+   "attempt": null,
+   "id": "R223",
+   "corpus": "review2"
+  },
+  {
+   "class": "omission",
+   "detector": "detail_dropped",
+   "detail": "sort.vue",
+   "stage": "shown",
+   "attempt": null,
+   "id": "R227",
+   "corpus": "review2"
+  },
+  {
+   "class": "critical",
+   "detector": "undone_as_done",
+   "detail": "'measured it' names: I explored using a connection pool for the metrics collector, wrote a prototype in a scratch branch, measured it, and th",
+   "stage": "shown",
+   "attempt": null,
+   "id": "R230",
+   "corpus": "review2"
+  },
+  {
+   "class": "omission",
+   "detector": "detail_dropped",
+   "detail": "thumbs.py; decodes each image twice; 70 percent",
+   "stage": "shown",
+   "attempt": null,
+   "id": "R232",
+   "corpus": "review2"
+  }
+ ]
+}

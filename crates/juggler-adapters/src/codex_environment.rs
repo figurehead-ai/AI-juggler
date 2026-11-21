@@ -24,7 +24,7 @@
 //! Skips apply to the home's own top-level entries only: a `log/` or
 //! `packages/` inside, say, a skill is the user's and is copied.
 
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use juggler_adapter::environment::{
     DiscoveredInstall, ImportOutcome, InstallOrigin, LoginProbe, SourceInspect,
@@ -85,20 +85,10 @@ pub fn scan_codex_environment(
     env_override: Option<&Path>,
     login_probe: &dyn Fn(&Path) -> LoginProbe,
 ) -> Vec<DiscoveredInstall> {
-    let mut candidates: Vec<(PathBuf, InstallOrigin)> =
-        vec![(home.join(".codex"), InstallOrigin::VendorDefault)];
-    if let Some(override_path) = env_override {
-        candidates.push((override_path.to_path_buf(), InstallOrigin::EnvOverride));
-    }
-    if let Ok(entries) = std::fs::read_dir(home) {
-        for entry in entries.flatten() {
-            let name = entry.file_name();
-            let Some(name) = name.to_str() else { continue };
-            if name.starts_with(".codex") && name != ".codex" {
-                candidates.push((entry.path(), InstallOrigin::HomePattern));
-            }
-        }
-    }
+    let mut candidates = home::default_candidates(home, ".codex", env_override);
+    candidates.extend(home::home_variants(home, &|name| {
+        name.starts_with(".codex") && name != ".codex"
+    }));
     home::installs_from(&CODEX_LAYOUT, candidates, login_probe, &origin_notes)
 }
 

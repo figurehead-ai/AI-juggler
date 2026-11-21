@@ -30,6 +30,7 @@ import { LastMessages } from "./LastMessages";
 import { fromConversation, type SessionModel } from "./model";
 import type { FeedSource } from "./useConversation";
 import { useHeardSubagentCounts } from "./useSubagents";
+import { SELECTED } from "../../components/controls/selected";
 
 /** How many ended subagents the folded list shows. */
 const DONE_SHOWN = 8;
@@ -264,7 +265,7 @@ function Root({ picked, onClick, live, title, meta }: { picked: boolean; onClick
       title={title}
       className={
         "flex w-full min-w-0 items-start gap-2 rounded-lg px-1.5 py-1.5 text-left outline-none transition-colors focus-visible:ring-1 focus-visible:ring-accent/60 " +
-        (picked ? "bg-surface-2 text-ink" : "text-ink-2 hover:bg-surface-2/60 hover:text-ink")
+        (picked ? SELECTED : "text-ink-2 hover:bg-surface-2/60 hover:text-ink")
       }
       data-testid="switcher-own"
     >
@@ -309,7 +310,7 @@ function Leaf({ last, picked, onClick, mark, live = false, danger = false, title
         title={title}
         className={
           "flex w-full min-w-0 items-start gap-1.5 rounded-lg px-1.5 py-1 text-left outline-none transition-colors focus-visible:ring-1 focus-visible:ring-accent/60 " +
-          (picked ? "bg-surface-2 text-ink" : "text-ink-2 hover:bg-surface-2/60 hover:text-ink")
+          (picked ? SELECTED : "text-ink-2 hover:bg-surface-2/60 hover:text-ink")
         }
         data-testid={testId}
       >

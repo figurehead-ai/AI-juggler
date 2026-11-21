@@ -195,9 +195,12 @@ test("flow (e): launch in 1 click; Profile never a sheet noun; verdict words not
   // (or ⌘↩) starts it.
   const preselected = page.getByTestId("launch-preselected");
   await expect(preselected).toBeVisible();
-  await expect(preselected).toContainText("Tight — this session may use most of the room left");
-  // Words, never a fabricated percentage (Req.8 regression).
-  await expect(preselected).not.toContainText("%");
+  const verdict = preselected.getByTestId("launch-verdict");
+  await expect(verdict).toHaveText("Tight — this session may use most of the room left");
+  // The verdict is words, never a fabricated percentage (Req.8
+  // regression); the Account's own line says its measured room as the
+  // Runway does (AJ-E3207: "58% left, from its latest session").
+  await expect(verdict).not.toContainText("%");
   await page.getByTestId("launch-now").click();
   await expect(page.getByText("Preview mode — no backend connected.")).toBeVisible();
   // The D-02/D-10 noun law: "Profile" never names a sheet thing. The

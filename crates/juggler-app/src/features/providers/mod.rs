@@ -41,9 +41,7 @@ pub fn providers_capabilities_impl(state: &Arc<AppState>) -> Vec<ProviderCapabil
                 .map(|adapter| ProviderCapabilityInfo {
                     provider: id.to_string(),
                     can_use_in_place: adapter.can_use_in_place(),
-                    reports_limits: adapter
-                        .capabilities()
-                        .contains(juggler_adapter::Capabilities::USAGE_QUOTA_FEED),
+                    reports_limits: crate::features::quota::shows_limits(adapter.capabilities()),
                 })
         })
         .collect()

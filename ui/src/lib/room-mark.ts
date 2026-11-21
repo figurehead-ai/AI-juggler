@@ -15,7 +15,7 @@
  * window has reset since isn't a mark at all (`windowNow`).
  */
 import { runwayOf } from "../components/AccountRunway";
-import { accountDisplay, accountOfProfile, type SubscriptionInfo } from "./subscriptions";
+import { accountDisplay, accountOfApp, accountOfProfile, listsApps, type SubscriptionInfo } from "./subscriptions";
 import { LOW_LEFT } from "./room";
 import { whenWords } from "./time-words";
 import type { QuotaDisplayData, WindowDisplay } from "./ipc/quota";
@@ -92,6 +92,17 @@ export function roomMarkOfProfile(
   const display = account ? accountDisplay(account, [...displays]) : displays.find((d) => d.account === profileId);
   const theirs = account ? sessions.filter((s) => account.profiles.some((p) => p.id === s.account_id)) : sessions.filter((s) => s.account_id === profileId);
   return roomMarkOf(display, theirs, now);
+}
+
+/** AJ-E3210 (D-135): the mark for an App, by the Account it's on: a
+ * desktop App (`app:…`) by its own sign-in's Account (none while that
+ * isn't known yet, never its folder's guess); a CLI App, or an App not
+ * named, by its folder (`roomMarkOfProfile`), whose Account is its CLI's. */
+export function roomMarkOfApp(appId: string | null | undefined, ...folder: Parameters<typeof roomMarkOfProfile>): RoomMark | null {
+  const [, accounts, displays, , now = Date.now()] = folder;
+  if (!appId?.startsWith("app:") || (accounts !== null && !listsApps(accounts))) return roomMarkOfProfile(...folder);
+  const account = accounts ? accountOfApp(accounts, appId) : undefined;
+  return account ? roomMarkOf(accountDisplay(account, [...displays]), [], now) : null;
 }
 
 /** An Account's mark as the top bar counts it, and Accounts' "Out"

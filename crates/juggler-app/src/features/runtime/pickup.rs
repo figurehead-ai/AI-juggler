@@ -295,17 +295,22 @@ fn come_back(
         let written = mark.written && !gone;
         // `kept`: its terminal, if it runs there, keeps the conversation id.
         let (terminal, resume, fresh_id, kept) = if written {
-            let terminal = crate::features::launch::resume_gate::resume_spec(
-                state,
-                &account,
-                &profile,
+            let terminal = crate::features::sessions::spawn::planned_terminal(
+                crate::features::launch::resume_gate::adapter_of(state, &account)?.as_ref(),
                 &record.cwd,
-                native_id,
+                crate::features::launch::resume_gate::resume_spec(
+                    state,
+                    &account,
+                    &profile,
+                    &record.cwd,
+                    native_id,
+                ),
             )?;
             (terminal, Some(native_id.to_owned()), None, true)
         } else {
-            let fresh = fresh_start(state, session, &account, &profile, &record.cwd, native_id)?;
-            (fresh.spec, None, Some(native_id.to_owned()), fresh.kept)
+            let (terminal, kept) =
+                fresh_start(state, session, &account, &profile, &record.cwd, native_id)?;
+            (terminal, None, Some(native_id.to_owned()), kept)
         };
         // The one path: its own row is starting again before its process
         // does (intent before spawn), then the runtime.
@@ -330,6 +335,7 @@ fn come_back(
                 fresh_id,
                 requested: Some(Runtime::Driven),
                 terminal,
+                history: None,
             },
         )?;
         if started.session != *session {
@@ -383,6 +389,9 @@ fn file_gone(transcript: Option<&juggler_core::model::TranscriptRef>) -> bool {
 /// tool never wrote it): under the same id where the tool takes the
 /// caller's. Its row forgets the id until the tool names it at its start
 /// (the same id, for a tool that takes the caller's).
+///
+/// A tool with no terminal (AJ-E1605 R3): why it has none, in place of the
+/// launch (its driven start still takes the id), the id not kept.
 fn fresh_start(
     state: &Arc<AppState>,
     session: &SessionId,
@@ -390,15 +399,24 @@ fn fresh_start(
     profile: &juggler_core::model::Profile,
     cwd: &std::path::Path,
     native_id: &str,
-) -> AppResult<crate::features::launch::resume_gate::FreshStart> {
-    let terminal =
-        crate::features::launch::resume_gate::fresh_spec(state, account, profile, cwd, native_id)?;
+) -> AppResult<(crate::features::sessions::spawn::Terminal, bool)> {
+    let (launch, kept) =
+        crate::features::launch::resume_gate::fresh_spec(state, account, profile, cwd, native_id)
+            .map_or_else(
+                |error| (Err(error), false),
+                |fresh| (Ok(fresh.spec), fresh.kept),
+            );
+    let terminal = crate::features::sessions::spawn::planned_terminal(
+        crate::features::launch::resume_gate::adapter_of(state, account)?.as_ref(),
+        cwd,
+        launch,
+    )?;
     let storage = state.storage.lock().map_err(|_| AppError::StatePoisoned)?;
     let mut record = storage.sessions().get(session)?;
     record.conversation = None;
     record.transcript_ref = None;
     storage.sessions().update(&record)?;
-    Ok(terminal)
+    Ok((terminal, kept))
 }
 
 /// The user's Resume on a session whose turn was cut off: its

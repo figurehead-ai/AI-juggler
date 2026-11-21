@@ -8,6 +8,7 @@ import { errorText } from "../lib/bridge";
 import { redactionPolicyGet, redactionPolicySetGlobal, redactionPolicySetOverride, type RedactionInfoData } from "../lib/ipc/redaction";
 import { CardTitle } from "./CardTitle";
 import { Picker, Radio } from "./controls";
+import { SELECTED_CARD } from "./controls/selected";
 
 /**
  * AJ-E309 Req.2 / AJ-E208 (D-14): Accounts → Pack secrets. The GLOBAL
@@ -78,7 +79,7 @@ export function PackSecretsCard({ providers }: { providers: string[] }): JSX.Ele
               key={option.value}
               className={
                 "flex items-start gap-2.5 rounded-lg border px-3 py-2 text-xs transition-colors " +
-                (global === option.value ? "border-accent/40 bg-accent-soft" : "border-hairline hover:border-accent/30")
+                (global === option.value ? SELECTED_CARD : "border-hairline hover:border-accent/30")
               }
             >
               <Radio

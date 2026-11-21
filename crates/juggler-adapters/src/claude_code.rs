@@ -152,6 +152,9 @@ impl ToolIdentity for ClaudeCodeAdapter {
     fn verified_against(&self) -> &'static [&'static str] {
         VERIFIED_AGAINST
     }
+    fn compat_features(&self) -> &'static [juggler_adapter::compat::CompatFeature] {
+        crate::claude_move::COMPAT
+    }
 }
 
 impl ToolDiscovery for ClaudeCodeAdapter {
@@ -415,6 +418,15 @@ impl ToolSignIn for ClaudeCodeAdapter {
     /// Keychain or `.credentials.json`) and are never opened.
     fn probe_identity(&self, account: &Account) -> juggler_adapter::IdentityProbe {
         probe_claude_identity(&account.state_dir)
+    }
+    /// AJ-E3210 (D-63 as amended): the Claude app's own sign-in in an
+    /// instance, by its records' folder names only.
+    fn desktop_sign_in(&self, instance_dir: &Path) -> Option<juggler_adapter::SignInNames> {
+        crate::claude_sign_ins::desktop_sign_in(instance_dir)
+    }
+    /// AJ-E3210 (Q2): the kind of the newest run in the folder.
+    fn sign_in_writer(&self, state_dir: &Path) -> juggler_adapter::SignInWriter {
+        crate::claude_sign_ins::writer(state_dir)
     }
     fn login_state(&self, state_dir: &Path) -> LoginState {
         ClaudeCodeAdapter::login_state(self, state_dir)
@@ -1378,6 +1390,8 @@ pub fn claude_code_spec() -> juggler_adapter::ToolSpec {
         flags: ToolFlags {
             first_run: true,
             primary: true,
+            // P2, live with the Lab App (2026-11-07).
+            live_verified: Some("docs/qa/0.4-walks/P2.md"),
         },
         // Checked against the terms on 2026-10-23 (AJ-E1518's register).
         terms: Some(ToolTerms {
@@ -1399,6 +1413,11 @@ pub fn claude_code_spec() -> juggler_adapter::ToolSpec {
         update_command: Some("claude update".to_owned()),
         // The Floor: a warm workshop for the CLI, a pale studio for the
         // Claude app (SPEC §9.7).
+        // ADR-0036 §2.2: inside `ToolObserves::backed_by` its capabilities.
+        observes: juggler_adapter::ToolObserves {
+            cli: juggler_adapter::Observes::TERMINAL_TURNS.union(juggler_adapter::Observes::RUNWAY),
+            desktop: juggler_adapter::Observes::RESTARTS.union(juggler_adapter::Observes::RUNWAY),
+        },
         floor: juggler_adapter::FloorFamilies {
             desktop: Some("studio".to_owned()),
             ..juggler_adapter::FloorFamilies::all("workshop")

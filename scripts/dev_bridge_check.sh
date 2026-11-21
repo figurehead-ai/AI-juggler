@@ -5,6 +5,9 @@
 #  2. no release workflow builds with them or with --all-features;
 #  3. a release build with either doesn't compile (lib.rs compile_error!;
 #     `lab-bridge` turns `dev-bridge` on).
+# The same for the lab's Muse switch (`juggler-adapters/lab-sign-ins`,
+# AJ-E1612), which only `lab-bridge` turns on: off by default, in no
+# release workflow, refused by a release build (muse.rs compile_error!).
 set -euo pipefail
 cd "$(dirname "$0")/.."
 on='juggler-app feature "dev-bridge"'
@@ -19,13 +22,24 @@ if ! features --features lab-bridge | grep -qF "$on"; then
   echo "dev-bridge: lab-bridge doesn't turn dev-bridge (and its release guard) on" >&2
   exit 1
 fi
+# The lab's Muse switch: never in a default build, always with lab-bridge.
+sign_ins='juggler-adapters feature "lab-sign-ins"'
+adapter_features() { cargo tree -p juggler-app -e features -i juggler-adapters --prefix none "$@" 2>/dev/null; }
+if adapter_features | grep -qF "$sign_ins"; then
+  echo "dev-bridge: the default build includes the lab's Muse switch (lab-sign-ins)" >&2
+  exit 1
+fi
+if ! adapter_features --features lab-bridge | grep -qF "$sign_ins"; then
+  echo "dev-bridge: lab-bridge doesn't carry the lab's Muse switch, or the check can't see it" >&2
+  exit 1
+fi
 # The check can see the feature when it is on.
 if ! features --features dev-bridge | grep -qF "$on"; then
   echo "dev-bridge: cargo tree doesn't show the feature even when asked for" >&2
   exit 1
 fi
 release=(.github/workflows/build-macos.yml .github/workflows/nightly.yml .github/workflows/promote.yml)
-if grep -nE -- '--all-features|dev-bridge|lab-bridge|--profile[ =]walk' "${release[@]}"; then
+if grep -nE -- '--all-features|dev-bridge|lab-bridge|lab-sign-ins|--profile[ =]walk' "${release[@]}"; then
   echo "dev-bridge: a release workflow turns the feature on" >&2
   exit 1
 fi
@@ -43,6 +57,15 @@ if [[ "${1:-}" != "--quick" ]]; then
   fi
   if cargo check --release -q -p juggler-app --features lab-bridge >"$log" 2>&1; then
     echo "dev-bridge: a release build with lab-bridge compiled" >&2
+    exit 1
+  fi
+  if cargo check --release -q -p juggler-adapters --features lab-sign-ins >"$log" 2>&1; then
+    echo "dev-bridge: a release build with the lab's Muse switch compiled" >&2
+    exit 1
+  fi
+  if ! grep -q 'the `lab-sign-ins` feature is for debug lab builds only' "$log"; then
+    echo "dev-bridge: the Muse switch's release check failed for another reason:" >&2
+    tail -20 "$log" >&2
     exit 1
   fi
 fi
@@ -64,4 +87,4 @@ if [[ "${1:-}" != "--quick" && -x "$debug_agent" ]]; then
     exit 1
   fi
 fi
-echo "dev-bridge: off by default, in no release workflow, refused by release builds"
+echo "dev-bridge: off by default, in no release workflow, refused by release builds (and the lab's Muse switch with it)"

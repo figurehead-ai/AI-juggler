@@ -1,0 +1,159 @@
+[
+  {
+    "id": "claude-app", "name": "Claude", "bundle": "Claude.app", "bundle_id": "com.anthropic.claudefordesktop", "kind": "desktop",
+    "instance_arg": "--user-data-dir", "default_instance": "Library/Application Support/Claude",
+    "shown": "Claude app", "siblings": true, "folder_env": "CLAUDE_CONFIG_DIR",
+    "handoff_link": "claude://resume?session={id}", "handoff_record": "claude-code-sessions",
+    "session_link": "claude://claude.ai/epitaxy/{id}",
+    "desktop": {
+      "tool": "claude-code", "seen": "installed",
+      "routes": [
+        { "action": "new_chat", "link": "claude://claude.ai/new", "status": "documented",
+          "source": "https://support.claude.com/en/articles/14729294-open-claude-desktop-with-a-link" },
+        { "action": "open_chat", "link": "claude://claude.ai/chat/{id}", "status": "documented",
+          "source": "https://support.claude.com/en/articles/14729294-open-claude-desktop-with-a-link" },
+        { "action": "new_in_folder", "link": "claude://code/new?folder={folder}", "status": "documented",
+          "source": "https://support.claude.com/en/articles/14729294-open-claude-desktop-with-a-link (the app asks before it opens a folder)" },
+        { "action": "open_session", "link": "claude://claude.ai/epitaxy/{id}", "status": "live_checked",
+          "source": "docs/qa/evidence/AJ-E2102/manifest.md, live row of 2026-11-07" },
+        { "action": "continue_session", "link": "claude://code/continue?session={id}", "status": "unverified",
+          "source": "docs/research/desktop-apps.md 1.4 (the app's own link handler; gated by an in-app switch)" },
+        { "action": "needs_input", "link": "claude://code/needs-input", "status": "unverified",
+          "source": "docs/research/desktop-apps.md 1.4 (the app's own link handler; gated by an in-app switch)" },
+        { "action": "read_sessions", "status": "documented",
+          "source": "docs/research/desktop-apps.md 1.3 (its claude-code-sessions records and Claude Code's own files)" }
+      ],
+      "track_only": [
+        { "part": "reply", "why": "The Claude app has no way for another app to answer its sessions, so open the session and answer it there." },
+        { "part": "sessions", "why": "Chat and Cowork conversations live on claude.ai, not on this Mac, so only Code sessions show here." }
+      ]
+    }
+  },
+  {
+    "id": "codex-app", "name": "ChatGPT", "bundle": "ChatGPT.app", "bundle_id": "com.openai.codex", "kind": "desktop",
+    "thread_link": "codex://threads/{id}", "shown": "Codex app", "default_folder": ".codex",
+    "desktop": {
+      "tool": "codex", "seen": "installed",
+      "routes": [
+        { "action": "open_session", "link": "codex://threads/{id}", "status": "documented",
+          "source": "docs/research/codex.md Misc (its codex:// links, in the vendor's changelog)" },
+        { "action": "read_sessions", "status": "documented",
+          "source": "docs/research/codex.md (the app runs on ~/.codex, read by the Codex adapter)" }
+      ],
+      "track_only": [
+        { "part": "account", "why": "The Codex app runs on one Codex home, so it opens on the account that home holds." },
+        { "part": "reply", "why": "The Codex app has no way for another app to answer its threads, so answer them there." }
+      ]
+    }
+  },
+  {
+    "id": "cursor", "name": "Cursor", "bundle": "Cursor.app", "bundle_id": "com.todesktop.230313mzl4w4u92", "kind": "editor",
+    "folder_link": "cursor://file/{folder}",
+    "desktop": {
+      "tool": "cursor", "editor_app": true, "seen": "source",
+      "routes": [],
+      "track_only": [
+        { "part": "account", "why": "Cursor has no documented way to open it on one account, so it opens as you last used it." },
+        { "part": "session_link", "why": "Cursor has no link that opens one agent chat, so it comes forward and you pick the chat." },
+        { "part": "sessions", "why": "Cursor keeps its chats in files with no published format, so AI Juggler doesn't list them yet." },
+        { "part": "reply", "why": "Cursor offers no sanctioned way for another app to answer its chats, so answer them in Cursor." }
+      ]
+    }
+  },
+  {
+    "id": "kiro-ide", "name": "Kiro", "bundle": "Kiro.app", "bundle_id": "dev.kiro.desktop", "kind": "editor",
+    "shown": "Kiro IDE",
+    "desktop": {
+      "tool": "kiro", "editor_app": true, "seen": "source",
+      "routes": [],
+      "track_only": [
+        { "part": "account", "why": "Kiro IDE has no documented way to open it on one account, so it opens as you last used it." },
+        { "part": "session_link", "why": "Kiro IDE has no link that opens one session, so it comes forward and you pick the session." },
+        { "part": "sessions", "why": "Kiro IDE doesn't document where it keeps its sessions, so AI Juggler doesn't list them yet." },
+        { "part": "reply", "why": "Kiro IDE offers no way for another app to answer its sessions, so answer them in Kiro." }
+      ]
+    }
+  },
+  {
+    "id": "antigravity-app", "name": "Antigravity", "bundle": "Antigravity.app", "bundle_id": "com.google.antigravity", "kind": "desktop",
+    "shown": "Antigravity app",
+    "desktop": {
+      "tool": "antigravity", "seen": "source", "driving": "not_on_consumer_plans",
+      "routes": [],
+      "track_only": [
+        { "part": "account", "why": "Antigravity has no documented way to open the app on one account, so it opens as you last used it." },
+        { "part": "session_link", "why": "Antigravity has no link that opens one conversation, so it comes forward and you pick it." },
+        { "part": "sessions", "why": "The Antigravity app keeps its conversations in a store with no published format, so AI Juggler doesn't list them yet." },
+        { "part": "reply", "why": "Google's consumer plans don't allow other apps to drive Antigravity, so answer it in Antigravity." }
+      ]
+    }
+  },
+  {
+    "id": "antigravity-ide", "name": "Antigravity IDE", "bundle": "Antigravity IDE.app", "bundle_id": "com.google.antigravity-ide", "kind": "editor",
+    "desktop": {
+      "tool": "antigravity", "editor_app": true, "seen": "source", "driving": "not_on_consumer_plans",
+      "routes": [],
+      "track_only": [
+        { "part": "account", "why": "Antigravity IDE has no documented way to open it on one account, so it opens as you last used it." },
+        { "part": "session_link", "why": "Antigravity IDE has no link that opens one conversation, so it comes forward and you pick it." },
+        { "part": "sessions", "why": "Antigravity IDE keeps its conversations in files with no published format, so AI Juggler doesn't list them yet." },
+        { "part": "reply", "why": "Google's consumer plans don't allow other apps to drive Antigravity, so answer it in Antigravity IDE." }
+      ]
+    }
+  },
+  {
+    "id": "opencode-app", "name": "OpenCode", "bundle": "OpenCode.app", "bundle_id": "ai.opencode.desktop", "kind": "desktop",
+    "shown": "OpenCode app", "default_folder": ".local/share/opencode",
+    "desktop": {
+      "tool": "opencode", "seen": "source",
+      "other_bundle_ids": ["ai.opencode.desktop.beta", "ai.opencode.desktop.dev"],
+      "routes": [
+        { "action": "read_sessions", "status": "documented",
+          "source": "docs/research/desktop-apps.md 2 (the app and the CLI share one opencode.db)" },
+        { "action": "reply", "status": "unverified",
+          "source": "docs/research/desktop-apps.md 2 (through the CLI's own server; whether the open window shows it is unknown)" }
+      ],
+      "track_only": [
+        { "part": "account", "why": "Every OpenCode window shares one data folder, so it opens on the account that folder holds." },
+        { "part": "session_link", "why": "OpenCode has no known link that opens one session, so it comes forward and you pick the session." },
+        { "part": "reply", "why": "A reply sent from outside may not show in OpenCode's open window, so answer it in OpenCode for now." }
+      ]
+    }
+  },
+  {
+    "id": "kimi-code-app", "name": "Kimi Code", "bundle": "Kimi Code.app", "kind": "desktop",
+    "shown": "Kimi Code app", "default_folder": ".kimi-code",
+    "desktop": {
+      "tool": "kimi-code", "seen": "source",
+      "install_folder": "Library/Application Support/kimi-code-app",
+      "routes": [
+        { "action": "new_in_folder", "link": "kimi-code://open?root={folder}&new=1", "status": "documented",
+          "source": "https://moonshotai.github.io/kimi-code/en/reference/kimi-command.md (`kimi app` opens this link)" },
+        { "action": "read_sessions", "status": "documented",
+          "source": "docs/research/desktop-apps.md 3 (the app and the CLI share ~/.kimi-code)" }
+      ],
+      "track_only": [
+        { "part": "account", "why": "Kimi Code's app shares one home with its CLI, so it opens on the account that home holds." },
+        { "part": "session_link", "why": "Kimi Code's only link starts a new chat in a folder, so it can't open one session." },
+        { "part": "reply", "why": "Kimi Code's plans are for interactive use and its app takes no outside reply, so answer it in Kimi Code." }
+      ]
+    }
+  },
+  {
+    "id": "hermes-app", "name": "Hermes", "bundle": "Hermes.app", "bundle_id": "com.nousresearch.hermes", "kind": "desktop",
+    "shown": "Hermes app", "default_folder": ".hermes",
+    "desktop": {
+      "tool": "hermes-agent", "seen": "source",
+      "routes": [
+        { "action": "read_sessions", "status": "documented",
+          "source": "docs/research/desktop-apps.md 4 (state.db under the home; the gateway is its one writer)" },
+        { "action": "reply", "status": "documented",
+          "source": "docs/research/hermes.md 10.5-10.6 (the profile's gateway, through the Hermes adapter; the app shows what the gateway writes)" }
+      ],
+      "track_only": [
+        { "part": "account", "why": "Hermes Desktop has no documented way to open it on one profile, so it opens on its own home." },
+        { "part": "session_link", "why": "Hermes Desktop has no link that opens one session, so it comes forward and you pick the session." }
+      ]
+    }
+  }
+]

@@ -7,7 +7,6 @@ use juggler_core::model::{Account, Timestamp};
 use crate::commands::lock_storage_arc;
 use crate::error::{AppError, AppResult};
 use crate::features::redaction::redaction_global_of;
-use crate::features::switch::back::transcript_side;
 use crate::features::switch::resume::find_epoch_with_session;
 use crate::ids::unique_suffix;
 use crate::state::AppState;
@@ -100,9 +99,7 @@ pub(crate) fn write_session_pack(
             message: "This step has no conversation to save.".to_owned(),
         })?;
     let turns = turns.unwrap_or_else(|| {
-        transcript_side(&reference.path)
-            .map(|(_, turns)| turns)
-            .unwrap_or_default()
+        crate::features::switch::back::conversation_turns(state, &account.harness, &reference.path)
     });
     let input = PackInput {
         pack_id: format!("pack-{}", unique_suffix()),

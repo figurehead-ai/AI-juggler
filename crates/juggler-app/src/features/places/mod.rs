@@ -26,6 +26,7 @@ use link::folder_for_profile;
 use link::link_its_folder;
 pub mod open_session;
 pub mod profiles;
+pub mod reach;
 mod records;
 pub use records::{RecordIndex, record_index};
 pub mod start;
@@ -88,6 +89,48 @@ pub struct Places {
     /// it ran: the window hears a change at once, and a full look runs at
     /// least every [`RECONCILE_EVERY_MS`].
     pub(crate) presence: Mutex<(std::collections::BTreeSet<String>, i64)>,
+    /// A test's made-up Mac in place of this one ([`MadeUpMac`]), so no
+    /// test depends on what runs here. Unset: this Mac.
+    #[doc(hidden)]
+    pub made_up: OnceLock<MadeUpMac>,
+}
+
+/// A made-up Mac for a test: the processes running on it, and the home
+/// its tools' folders are under.
+#[derive(Debug, Clone, Default)]
+pub struct MadeUpMac {
+    /// Every process running.
+    pub table: procs::Table,
+    /// The user's home.
+    pub home: std::path::PathBuf,
+}
+
+impl Places {
+    /// Every process running ([`procs::table`]).
+    pub(crate) fn table(&self) -> procs::Table {
+        self.made_up
+            .get()
+            .map_or_else(procs::table, |mac| mac.table.clone())
+    }
+
+    /// These processes, as they are now ([`procs::some`]).
+    pub(crate) fn some(&self, pids: &[u32]) -> procs::Table {
+        match self.made_up.get() {
+            Some(mac) => pids
+                .iter()
+                .filter_map(|pid| Some((*pid, mac.table.get(pid)?.clone())))
+                .collect(),
+            None => procs::some(pids),
+        }
+    }
+
+    /// The user's home, its tools' folders under it.
+    pub(crate) fn home(&self) -> std::path::PathBuf {
+        self.made_up.get().map_or_else(
+            || juggler_platform::user::home().unwrap_or_default(),
+            |mac| mac.home.clone(),
+        )
+    }
 }
 
 pub use crate::features::presence::watch::{RECONCILE_EVERY_MS, reconcile, running_at_last_look};
@@ -189,8 +232,9 @@ pub fn with_book<T>(state: &Arc<AppState>, body: impl FnOnce(&mut Book) -> T) ->
     Ok(answer)
 }
 
-/// The tool whose desktop app `host` is (the host's id when no adapter
-/// names it).
+/// The tool whose desktop app `host` is: its adapter's, else (AJ-E1610)
+/// the tool the shared table names for it (a tool whose adapter isn't
+/// built yet), else the host's id.
 fn tool_of(state: &Arc<AppState>, host: &str) -> String {
     state
         .registry
@@ -202,14 +246,20 @@ fn tool_of(state: &Arc<AppState>, host: &str) -> String {
                 .get(id)
                 .is_some_and(|adapter| adapter.host_apps().iter().any(|app| app.id == host))
         })
-        .map_or_else(|| host.to_owned(), |id| id.to_string())
+        .map(|id| id.to_string())
+        .or_else(|| {
+            HostRegistry::of(&state.registry)
+                .by_id(host)
+                .and_then(|app| app.desktop.tool.clone())
+        })
+        .unwrap_or_else(|| host.to_owned())
 }
 
 /// The live view's full scan found `running` with `entries` open: they
 /// are remembered, and each running place's process noted.
 pub fn observe(state: &Arc<AppState>, running: &[RunningApp], entries: &[LiveEntry]) {
     let hosts = HostRegistry::of(&state.registry);
-    let home = juggler_platform::user::home().unwrap_or_default();
+    let home = state.places.home();
     let now = crate::commands::now_millis();
     let Ok((changed_book, watched, new_offers)) = with_book(state, |book| {
         let before: std::collections::BTreeSet<String> = book.places.keys().cloned().collect();
@@ -719,7 +769,7 @@ pub fn tick_with(
         .iter()
         .filter_map(|(id, _)| watch.pid_of(id).map(|(pid, _)| pid))
         .collect();
-    let alive = procs::some(&pids);
+    let alive = state.places.some(&pids);
     // A place with no known process: looked for in the whole list, at
     // most every 10 s.
     let lost = kept.iter().any(|(id, _)| watch.pid_of(id).is_none());
@@ -730,8 +780,7 @@ pub fn tick_with(
     let found = if search {
         watch.searched_ms = Some(now);
         let hosts = HostRegistry::of(&state.registry);
-        let home = juggler_platform::user::home().unwrap_or_default();
-        running_apps(&procs::table(), &hosts, &home)
+        running_apps(&state.places.table(), &hosts, &state.places.home())
     } else {
         Vec::new()
     };
@@ -866,8 +915,7 @@ pub fn stopped_here(state: &Arc<AppState>, pid: u32) {
     // look (up to 10 s, the live walk of 0.3.3): the process list says.
     let id = known.or_else(|| {
         let hosts = HostRegistry::of(&state.registry);
-        let home = juggler_platform::user::home().unwrap_or_default();
-        running_apps(&procs::table(), &hosts, &home)
+        running_apps(&state.places.table(), &hosts, &state.places.home())
             .into_iter()
             .find(|app| app.pid == pid)
             .map(|app| book::place_id(&app.app_id, app.instance.as_deref()))
@@ -1053,15 +1101,16 @@ pub(crate) fn running_now(state: &Arc<AppState>, id: &str) -> Option<(u32, Optio
         .unwrap_or_default();
     let exe = exe.unwrap_or_default();
     if let Some((pid, start)) = known
-        && procs::some(&[pid])
+        && state
+            .places
+            .some(&[pid])
             .get(&pid)
             .is_some_and(|process| is_its_process(&exe, start, process))
     {
         return Some((pid, start));
     }
     let hosts = HostRegistry::of(&state.registry);
-    let home = juggler_platform::user::home().unwrap_or_default();
-    let app = running_apps(&procs::table(), &hosts, &home)
+    let app = running_apps(&state.places.table(), &hosts, &state.places.home())
         .into_iter()
         .find(|app| book::place_id(&app.app_id, app.instance.as_deref()) == id)?;
     if let Ok(mut watch) = state.places.watch.lock() {
@@ -1482,6 +1531,8 @@ pub(crate) fn remember_test_profile(
 
 #[cfg(test)]
 mod d84_tests;
+#[cfg(test)]
+mod desktop_apps_tests;
 #[cfg(test)]
 pub(crate) mod fakes;
 #[cfg(test)]

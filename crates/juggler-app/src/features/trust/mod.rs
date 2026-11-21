@@ -12,7 +12,7 @@ use crate::state::AppState;
 /// Where the repository's files and its private report live.
 const REPOSITORY: &str = "https://github.com/figurehead-ai/AI-juggler";
 /// The user guide's pages the app links to (docs/guide).
-const GUIDE_PAGES: &[&str] = &["switching", "accounts", "first-run", "pools"];
+const GUIDE_PAGES: &[&str] = &["switching", "accounts", "first-run", "pools", "ai-models"];
 
 /// The claims the page shows, as the app was built with them.
 const CLAIMS: &str = include_str!("../../../../../ui/src/lib/trust-claims.json");
@@ -41,7 +41,8 @@ fn cited_files() -> Vec<String> {
 ///
 /// - `terms`, a tool's id: that tool's terms, from its adapter;
 /// - `source`, a file a claim cites: the file in the repository;
-/// - `report`, nothing: the repository's private security report.
+/// - `report`, nothing: the repository's private security report;
+/// - `licence`, a model's id: its licence text, as the list names it.
 #[must_use]
 pub fn link_url(state: &Arc<AppState>, kind: &str, id: &str) -> Option<String> {
     match kind {
@@ -56,6 +57,9 @@ pub fn link_url(state: &Arc<AppState>, kind: &str, id: &str) -> Option<String> {
             .any(|file| file == id)
             .then(|| format!("{REPOSITORY}/blob/main/{id}")),
         "report" => Some(format!("{REPOSITORY}/security/advisories/new")),
+        // A tested model's licence (Settings › AI › Models): the address
+        // the signed list carries, on its allowed hosts.
+        "licence" => crate::features::ai::models::commands::licence_url(state, id),
         // A section of the user guide ("switching#keep-or-stop-the-
         // original"): a page the guide has, and a plain anchor.
         "guide" => {
@@ -135,6 +139,10 @@ mod tests {
         assert_eq!(link_url(&state, "source", "README.md"), None);
         assert_eq!(link_url(&state, "source", "https://example.com/x"), None);
         assert_eq!(link_url(&state, "terms", "no-such-tool"), None);
+        // A model's licence only as the list names it: Apple's model has
+        // none, and an unknown id opens nothing.
+        assert_eq!(link_url(&state, "licence", "apple-on-device"), None);
+        assert_eq!(link_url(&state, "licence", "https://example.com"), None);
         assert_eq!(link_url(&state, "https", "example.com"), None);
         assert!(
             link_url(&state, "report", "")

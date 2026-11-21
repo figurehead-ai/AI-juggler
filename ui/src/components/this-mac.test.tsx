@@ -120,7 +120,7 @@ describe("Home's Needs you (AJ-E1404 Req.3)", () => {
         thisMac={mac}
       />,
     );
-    expect((screen.getByRole("heading", { level: 1 }))!.textContent).toBe("1 thing needs you");
+    expect((screen.getByRole("heading", { level: 1 }))!.textContent).toBe("1 needs you: Working your Mac hard — 3.2 GB");
     const item = screen.getByTestId("home-need-heavy");
     expect((item)!.textContent).toContain("Working your Mac hard — 3.2 GB");
     expect((item)!.textContent).toContain("heavy-one · Work Max · 5 more processes");
@@ -147,7 +147,7 @@ describe("Home's Needs you (AJ-E1404 Req.3)", () => {
       />,
     );
     // Said once, in Needs you; the headline counts it (AJ-E2105).
-    expect((screen.getByRole("heading", { level: 1 }))!.textContent).toBe("1 thing needs you");
+    expect((screen.getByRole("heading", { level: 1 }))!.textContent).toBe("1 needs you: Your Mac is under pressure");
     const item = screen.getByTestId("home-need-mac");
     expect(item.textContent).toContain("Your Mac is under pressure");
     expect(item.textContent).toContain("macOS reports critical memory pressure; swap is growing — 620 MB a minute");
@@ -234,7 +234,7 @@ describe("overload alerts and recommendations (AJ-E1408, AJ-E1409)", () => {
         thisMac={mac}
       />,
     );
-    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("1 thing needs you");
+    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("1 needs you: Your Mac is under memory pressure");
     const item = screen.getByTestId("home-need-mac");
     expect(item.textContent).toContain("Your Mac is under memory pressure");
     expect(screen.getAllByText("Your Mac is under memory pressure")).toHaveLength(1);

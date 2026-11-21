@@ -1,0 +1,308 @@
+[
+ {
+  "pair": "chat-chat-001",
+  "item": "R2C12",
+  "question": "Which tests failed?",
+  "records": [
+   {
+    "id": "r1",
+    "kind": "test_run",
+    "fields": {
+     "tests_passed": 70,
+     "tests_failed": 2,
+     "status": "failed"
+    },
+    "text": "suite run"
+   }
+  ],
+  "first": "Tests failed: 2 failed. [r1]",
+  "second": "I can't say that for sure. Here's what I found:\n[r1] test_run \"test_run r1\""
+ },
+ {
+  "pair": "chat-chat-002",
+  "item": "R2C17",
+  "question": "How long did the session last?",
+  "records": [
+   {
+    "id": "r1",
+    "kind": "session",
+    "fields": {
+     "duration_s": 5400,
+     "status": "done"
+    },
+    "text": "checkout session"
+   },
+   {
+    "id": "r2",
+    "kind": "test_run",
+    "fields": {
+     "duration_s": 312,
+     "tests_passed": 64,
+     "tests_failed": 0
+    },
+    "text": "checkout tests"
+   }
+  ],
+  "first": "The session r1 lasted 90 min [r1]",
+  "second": "session r1 [r1]: 90 min"
+ },
+ {
+  "pair": "chat-chat-003",
+  "item": "R2C18",
+  "question": "Wann hat die Sitzung angefangen?",
+  "records": [
+   {
+    "id": "r1",
+    "kind": "session",
+    "fields": {
+     "started_at": "2026-11-12T09:12:00Z",
+     "ended_at": "2026-11-12T11:40:00Z",
+     "status": "done"
+    },
+    "text": "Sitzung search-tune"
+   }
+  ],
+  "first": "session r1 [r1]: 2026-11-12 09:12 UTC",
+  "second": "Die Sitzung hat begonnen am 2026-11-12 09:12 UTC [r1]"
+ },
+ {
+  "pair": "chat-chat-004",
+  "item": "R2C19",
+  "question": "When did the session end?",
+  "records": [
+   {
+    "id": "r1",
+    "kind": "session",
+    "fields": {
+     "started_at": "2026-11-12T09:12:00Z",
+     "ended_at": "2026-11-12T11:40:00Z",
+     "status": "done"
+    },
+    "text": "session search-tune"
+   }
+  ],
+  "first": "The session r1 ended on 2026-11-12 11:40 UTC [r1]",
+  "second": "session r1 [r1]: 2026-11-12 11:40 UTC"
+ },
+ {
+  "pair": "chat-chat-005",
+  "item": "R2C20",
+  "question": "How many tests passed?",
+  "records": [
+   {
+    "id": "r1",
+    "kind": "test_run",
+    "fields": {
+     "tests_passed": 64,
+     "tests_failed": 2,
+     "files_changed": 9
+    },
+    "text": "parser run"
+   }
+  ],
+  "first": "test_run r1 [r1]: 64 passed",
+  "second": "64 passed [r1]"
+ },
+ {
+  "pair": "chat-chat-006",
+  "item": "R2C21",
+  "question": "Wie viele Dateien wurden geändert?",
+  "records": [
+   {
+    "id": "r1",
+    "kind": "test_run",
+    "fields": {
+     "tests_passed": 212,
+     "tests_failed": 0,
+     "files_changed": 7
+    },
+    "text": "Lauf 31"
+   }
+  ],
+  "first": "test_run r1 [r1]: 7",
+  "second": "7 Dateien wurden geändert [r1]"
+ },
+ {
+  "pair": "chat-chat-007",
+  "item": "R2C22",
+  "question": "How long did the test run take?",
+  "records": [
+   {
+    "id": "r1",
+    "kind": "session",
+    "fields": {
+     "duration_s": 5400
+    },
+    "text": "checkout session"
+   },
+   {
+    "id": "r2",
+    "kind": "test_run",
+    "fields": {
+     "duration_s": 312
+    },
+    "text": "checkout tests"
+   }
+  ],
+  "first": "test_run r2 [r2]: 5 min",
+  "second": "The test run took 5 min [r2]"
+ },
+ {
+  "pair": "chat-chat-008",
+  "item": "R2C23",
+  "question": "Wie viele Tests sind fehlgeschlagen?",
+  "records": [
+   {
+    "id": "r1",
+    "kind": "test_run",
+    "fields": {
+     "tests_passed": 40,
+     "tests_failed": 3,
+     "files_changed": 5
+    },
+    "text": "Lauf 77"
+   }
+  ],
+  "first": "test_run r1 [r1]: 3 failed",
+  "second": "3 Tests sind fehlgeschlagen [r1]"
+ },
+ {
+  "pair": "chat-chat-009",
+  "item": "R2C25",
+  "question": "Wer hat den Commit gemacht?",
+  "records": [
+   {
+    "id": "r1",
+    "kind": "commit",
+    "fields": {
+     "author": "dana@example.com",
+     "branch": "fix/timeout-guard"
+    },
+    "text": "fix timeout guard"
+   },
+   {
+    "id": "r2",
+    "kind": "session",
+    "fields": {
+     "status": "done"
+    },
+    "text": "Sitzung timeout"
+   }
+  ],
+  "first": "The commit was made by dana@example.com [r1]",
+  "second": "commit r1 [r1]: dana@example.com"
+ },
+ {
+  "pair": "chat-chat-010",
+  "item": "R2C27",
+  "question": "What did the session cost?",
+  "records": [
+   {
+    "id": "r1",
+    "kind": "session",
+    "fields": {
+     "cost_usd": 1.84
+    },
+    "text": "report session"
+   },
+   {
+    "id": "r2",
+    "kind": "test_run",
+    "fields": {
+     "cost_usd": 0.31
+    },
+    "text": "report tests"
+   }
+  ],
+  "first": "The session cost $1.84 [r1]",
+  "second": "session r1 [r1]: $1.84"
+ },
+ {
+  "pair": "chat-chat-011",
+  "item": "R2C29",
+  "question": "What changed in the parser session?",
+  "records": [
+   {
+    "id": "r1",
+    "kind": "session",
+    "fields": {
+     "files_changed": 3,
+     "tests_passed": 88
+    },
+    "text": "parser session: added nested list support to the tokenizer and fixed an off-by-one in the line counter"
+   }
+  ],
+  "first": "I can't say that for sure. Here's what I found:\n[r1] session \"parser session\"",
+  "second": "Nested list support was added to the tokenizer and an off-by-one error in the line counter was fixed. [r1]"
+ },
+ {
+  "pair": "chat-chat-012",
+  "item": "R2C30",
+  "question": "Warum wurde der Zugriff gesperrt?",
+  "records": [
+   {
+    "id": "r1",
+    "kind": "task",
+    "fields": {
+     "status": "done"
+    },
+    "text": "Zugriff gesperrt, weil das Rate-Limit überschritten wurde"
+   }
+  ],
+  "first": "Das Zugriff wurde gespertert, weil das Rate-Limit überschritten wurde. [r1]",
+  "second": "I can't say that for sure. Here's what I found:\n[r1] task \"task r1\""
+ },
+ {
+  "pair": "chat-chat-013",
+  "item": "R2C39",
+  "question": "What did the session cost?",
+  "records": [
+   {
+    "id": "r1",
+    "kind": "session",
+    "fields": {
+     "cost_usd": 2.1
+    },
+    "text": "report session."
+   }
+  ],
+  "first": "session r1 [r1]: $2.10",
+  "second": "The session cost $2.10 [r1]"
+ },
+ {
+  "pair": "chat-chat-014",
+  "item": "R2C43",
+  "question": "Wie viele Tests haben bestanden?",
+  "records": [
+   {
+    "id": "r1",
+    "kind": "test_run",
+    "fields": {
+     "tests_passed": 118,
+     "tests_failed": 2,
+     "files_changed": 12
+    },
+    "text": "Lauf 5 von heute"
+   }
+  ],
+  "first": "test_run r1 [r1]: 118 passed",
+  "second": "118 passed [r1]"
+ },
+ {
+  "pair": "chat-chat-015",
+  "item": "R2C46",
+  "question": "Warum wurde die Aufgabe pausiert?",
+  "records": [
+   {
+    "id": "r1",
+    "kind": "task",
+    "fields": {
+     "status": "paused"
+    },
+    "text": "Aufgabe pausiert, weil der Zugangstoken abgelaufen ist"
+   }
+  ],
+  "first": "I can't say that for sure. Here's what I found:\n[r1] task \"task r1\"",
+  "second": "Die Aufgabe wurde pausiert, weil das Zugangstoken abgelaufen ist. [r1]"
+ }
+]

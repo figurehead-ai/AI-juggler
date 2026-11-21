@@ -1,0 +1,408 @@
+{
+ "family": "gemma-4-e2b",
+ "job": "watch",
+ "note": "script flags: candidates for Opus to confirm by eye, never verdicts",
+ "candidates": [
+  {
+   "id": "R3-W02",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime (unsaid; ADR-0036's default) today != once",
+   "stage": "shown",
+   "corpus": "watch5r3"
+  },
+  {
+   "id": "R3-W03",
+   "class": "omission",
+   "detector": "no_watch",
+   "detail": "shown form",
+   "stage": "shown",
+   "corpus": "watch5r3"
+  },
+  {
+   "id": "R3-W04",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "target [('session', 's-ses')] != ('project', 'p-ses'); lifetime (unsaid; ADR-0036's default) today != always",
+   "stage": "shown",
+   "corpus": "watch5r3"
+  },
+  {
+   "id": "R3-W05",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime (unsaid; ADR-0036's default) today != once",
+   "stage": "shown",
+   "corpus": "watch5r3"
+  },
+  {
+   "id": "R3-W06",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime (unsaid; ADR-0036's default) today != once",
+   "stage": "shown",
+   "corpus": "watch5r3"
+  },
+  {
+   "id": "R3-W10",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model: wake me at night",
+   "stage": "shown",
+   "corpus": "watch5r3"
+  },
+  {
+   "id": "R3-W11",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model: tell me when the yield import finishes, but only this even",
+   "stage": "shown",
+   "corpus": "watch5r3"
+  },
+  {
+   "id": "R3-W12",
+   "class": "omission",
+   "detector": "no_watch",
+   "detail": "shown form",
+   "stage": "shown",
+   "corpus": "watch5r3"
+  },
+  {
+   "id": "R3-W14",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime (unsaid; ADR-0036's default) today != once",
+   "stage": "shown",
+   "corpus": "watch5r3"
+  },
+  {
+   "id": "R3-W15",
+   "class": "omission",
+   "detector": "no_watch",
+   "detail": "shown form",
+   "stage": "shown",
+   "corpus": "watch5r3"
+  },
+  {
+   "id": "R3-W18",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model: keep quiet during quiet hours",
+   "stage": "shown",
+   "corpus": "watch5r3"
+  },
+  {
+   "id": "R3-W19",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model: when the weekly totals one fails",
+   "stage": "shown",
+   "corpus": "watch5r3"
+  },
+  {
+   "id": "R3-W20",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime (unsaid; ADR-0036's default) today != once",
+   "stage": "shown",
+   "corpus": "watch5r3"
+  },
+  {
+   "id": "R3-W22",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime always != once; quiet: asked to break quiet hours, drafted off",
+   "stage": "shown",
+   "corpus": "watch5r3"
+  },
+  {
+   "id": "R3-W23",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime (unsaid; ADR-0036's default) today != once",
+   "stage": "shown",
+   "corpus": "watch5r3"
+  },
+  {
+   "id": "R3-W25",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model: jeden Fehler im Angebotshelfer",
+   "stage": "shown",
+   "corpus": "watch5r3"
+  },
+  {
+   "id": "R3-W26",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime (unsaid; ADR-0036's default) today != once",
+   "stage": "shown",
+   "corpus": "watch5r3"
+  },
+  {
+   "id": "R3-W27",
+   "class": "omission",
+   "detector": "no_watch",
+   "detail": "shown form",
+   "stage": "shown",
+   "corpus": "watch5r3"
+  },
+  {
+   "id": "R3-W29",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model: Jedes Mal wenn in zugfinder eine Sitzung startet, melde es",
+   "stage": "shown",
+   "corpus": "watch5r3"
+  },
+  {
+   "id": "R3-W30",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model: Wenn irgendeine Sitzung 30 Minuten hängt, sag Bescheid",
+   "stage": "shown",
+   "corpus": "watch5r3"
+  },
+  {
+   "id": "R3-W32",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model: échoue",
+   "stage": "shown",
+   "corpus": "watch5r3"
+  },
+  {
+   "id": "R3-W33",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime (unsaid; ADR-0036's default) today != once",
+   "stage": "shown",
+   "corpus": "watch5r3"
+  },
+  {
+   "id": "R3-W35",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model: jardin-app échoue cette nuit",
+   "stage": "shown",
+   "corpus": "watch5r3"
+  },
+  {
+   "id": "R3-W36",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model: les recettes sont prêtes",
+   "stage": "shown",
+   "corpus": "watch5r3"
+  },
+  {
+   "id": "R3-W37",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model: posent une question",
+   "stage": "shown",
+   "corpus": "watch5r3"
+  },
+  {
+   "id": "R3-W39",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model: Dime si las citas se quedan colgadas durante 25 minutos",
+   "stage": "shown",
+   "corpus": "watch5r3"
+  },
+  {
+   "id": "R3-W40",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime (unsaid; ADR-0036's default) today != once",
+   "stage": "shown",
+   "corpus": "watch5r3"
+  },
+  {
+   "id": "R3-W42",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model: no en horas de silencio",
+   "stage": "shown",
+   "corpus": "watch5r3"
+  },
+  {
+   "id": "R3-W43",
+   "class": "omission",
+   "detector": "no_watch",
+   "detail": "shown form",
+   "stage": "shown",
+   "corpus": "watch5r3"
+  },
+  {
+   "id": "R3-W44",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model: cada vez que algo pregunte en mapa-rutas",
+   "stage": "shown",
+   "corpus": "watch5r3"
+  },
+  {
+   "id": "R3-W46",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime (unsaid; ADR-0036's default) today != once",
+   "stage": "shown",
+   "corpus": "watch5r3"
+  },
+  {
+   "id": "R3-W47",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime (unsaid; ADR-0036's default) today != once",
+   "stage": "shown",
+   "corpus": "watch5r3"
+  },
+  {
+   "id": "R3-W49",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model: finisce quella dei treni",
+   "stage": "shown",
+   "corpus": "watch5r3"
+  },
+  {
+   "id": "R3-W51",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model: Geef een seintje als de dagafsluiting klaar is",
+   "stage": "shown",
+   "corpus": "watch5r3"
+  },
+  {
+   "id": "R3-W52",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model: vastloopt",
+   "stage": "shown",
+   "corpus": "watch5r3"
+  },
+  {
+   "id": "R3-W53",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime (unsaid; ADR-0036's default) today != once",
+   "stage": "shown",
+   "corpus": "watch5r3"
+  },
+  {
+   "id": "R3-W54",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model: niet in de stille uren",
+   "stage": "shown",
+   "corpus": "watch5r3"
+  },
+  {
+   "id": "R3-W56",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model: keep an eye on anything that fails between now and Friday",
+   "stage": "shown",
+   "corpus": "watch5r3"
+  },
+  {
+   "id": "R3-W57",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime (unsaid; ADR-0036's default) today != once; quiet: asked to break quiet hours, drafted off",
+   "stage": "shown",
+   "corpus": "watch5r3"
+  },
+  {
+   "id": "R3-W60",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime (unsaid; ADR-0036's default) today != once",
+   "stage": "shown",
+   "corpus": "watch5r3"
+  },
+  {
+   "id": "R3-W03",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: “Claude Code CLI · Garage” resolves to app4 from the request's other words, not app6",
+   "stage": "caught",
+   "corpus": "watch5r3"
+  },
+  {
+   "id": "R3-W03",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: “Claude Code CLI · Garage” resolves to app4 from the request's other words, not app6",
+   "stage": "caught",
+   "corpus": "watch5r3"
+  },
+  {
+   "id": "R3-W03",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: “Claude Code CLI · Garage” resolves to app4 from the request's other words, not app6",
+   "stage": "caught",
+   "corpus": "watch5r3"
+  },
+  {
+   "id": "R3-W12",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s3 “Motion alerts” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5r3"
+  },
+  {
+   "id": "R3-W12",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s3 “Motion alerts” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5r3"
+  },
+  {
+   "id": "R3-W12",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s3 “Motion alerts” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5r3"
+  },
+  {
+   "id": "R3-W15",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "invented",
+   "detail": "invented: unsupported_asked is not the request's words (number 7)",
+   "stage": "caught",
+   "corpus": "watch5r3"
+  },
+  {
+   "id": "R3-W15",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "invented",
+   "detail": "invented: unsupported_asked is not the request's words (number 7)",
+   "stage": "caught",
+   "corpus": "watch5r3"
+  },
+  {
+   "id": "R3-W15",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "invented",
+   "detail": "invented: unsupported_asked is not the request's words (number 7)",
+   "stage": "caught",
+   "corpus": "watch5r3"
+  }
+ ]
+}

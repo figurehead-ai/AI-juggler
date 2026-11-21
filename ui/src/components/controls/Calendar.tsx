@@ -8,9 +8,9 @@ import { useEffect, useId, useRef, useState, type JSX, type KeyboardEvent } from
 import { useInertOutside } from "../../lib/inert";
 import { createPortal } from "react-dom";
 import { useAnchoredPlace } from "../RowMenu";
-import { PRIMARY_FILL } from "../primitives";
 import { IconChevronLeft, IconChevronRight } from "../icons-controls";
 import { isoDay } from "../../lib/date-text";
+import { SELECTED } from "./selected";
 
 const pad = (n: number) => String(n).padStart(2, "0");
 const isoOf = (date: Date) => `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
@@ -191,7 +191,7 @@ export function Calendar({
                       onClick={() => onPick(iso)}
                       className={
                         "size-8 rounded-lg text-xs tabular-nums outline-none focus-visible:ring-2 focus-visible:ring-accent/60 disabled:cursor-not-allowed disabled:text-muted/50 " +
-                        (chosen ? `${PRIMARY_FILL} font-semibold` : iso === today ? "font-semibold text-accent-hi hover:bg-surface-2" : "text-ink hover:bg-surface-2")
+                        (chosen ? SELECTED : iso === today ? "font-semibold text-accent-hi hover:bg-surface-2" : "text-ink hover:bg-surface-2")
                       }
                     >
                       {Number(iso.slice(8))}

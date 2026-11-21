@@ -9,35 +9,6 @@ use std::sync::Arc;
 use crate::events::{AppEvent, EmitEvent as _};
 use crate::{commands, features, history, machine_health, state, ticks};
 
-/// AJ-E1529: every account's conversations and which are live, read from
-/// the tools' own files every 15 s (only changed files are read again);
-/// the UI hears of it only when something changed. The first pass waits
-/// for the window's first paint (at most 5 s) and runs at the lowest
-/// priority: a first start reads every transcript (about 40 s on a long
-/// history) while the window stays responsive.
-fn spawn_conversation_tick(app: tauri::AppHandle, state: Arc<state::AppState>) {
-    state.conversations.read_in_background();
-    ticks::every_after_paint(
-        "conversations",
-        std::time::Duration::from_secs(5),
-        std::time::Duration::from_secs(15),
-        move || {
-            // QA batch 8: a long first pass tells the UI as it goes.
-            let tell = || {
-                app.emit_event(
-                    AppEvent::ConversationsChanged,
-                    features::conversations::CHANGED_INDEX,
-                );
-            };
-            features::conversations::list_build::tick_and_tell(
-                &state,
-                features::conversations::PROGRESS_EVERY,
-                &tell,
-            );
-        },
-    );
-}
-
 /// Read-model ticks (AJ-E401 Req.4): `session://updated` stays event-driven
 /// (<300 ms via the lifecycle forwarder); these two add the 5 s resource
 /// and 30 s quota refreshes as separate, coalesced emissions. Each tick
@@ -85,6 +56,7 @@ pub(crate) fn spawn_read_model_ticks(
     let processes_app = app.clone();
     let subagents_app = app.clone();
     let conversations_app = app.clone();
+    features::remote_config::spawn(app.clone(), quota_state.clone()); // ADR-0035: daily, after paint.
     let index_state = quota_state.clone();
     ticks::every("resources", std::time::Duration::from_secs(5), move || {
         let _ = features::sessions::read_model::emit_resources(&app, &resource_state);
@@ -134,7 +106,7 @@ pub(crate) fn spawn_read_model_ticks(
         features::tasks::launch::sweep_briefs(&quota_state, commands::now_millis());
     });
     let live_app = conversations_app.clone();
-    spawn_conversation_tick(conversations_app, index_state.clone());
+    features::conversations::spawn_tick(conversations_app, index_state.clone());
     // AJ-E2101: what is open now, from the tools' own session files and
     // the process table (never an environment): small files every 2 s,
     // known pids every 5 s, the whole table at most once a minute. The UI
@@ -167,16 +139,6 @@ pub(crate) fn spawn_read_model_ticks(
     features::cache::start(&index_state);
     // AJ-E3102: every page's counts, built once the app is up.
     features::relations::start(&index_state);
-    // AJ-E1611: new tool versions, once a day, well after start.
-    features::tool_updates::spawn(index_state.clone());
-    // AJ-E1007: the transcript search index, kept up to date in the
-    // background (incremental: unchanged transcripts cost one metadata
-    // read), so a search never waits for a first build.
-    ticks::every(
-        "transcript-index",
-        std::time::Duration::from_secs(60),
-        move || {
-            let _ = history::index_transcripts(&index_state);
-        },
-    );
+    features::tool_updates::spawn(index_state.clone()); // AJ-E1611: tool versions, daily.
+    history::spawn_index(index_state); // AJ-E1007: the transcript search index, every minute.
 }

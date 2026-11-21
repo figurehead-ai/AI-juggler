@@ -211,7 +211,9 @@ for (const theme of ["dark", "light"] as const) {
     await count.scrollIntoViewIfNeeded();
     await expect(count).toBeInViewport();
     await shoot(page, "row-count", theme);
-    await page.locator(`[data-instance-id="${SESSION}"]`).first().click();
+    // By its title: D-118's one-line row puts "+3 agents" (its own way to
+    // the Subagents tab) over the row's middle, where a bare click lands.
+    await page.locator(`[data-instance-id="${SESSION}"]`).first().click({ position: { x: 24, y: 14 } });
     await page.getByRole("tab", { name: "Overview" }).click();
     const line = page.getByTestId("session-subagents-line");
     await expect(line).toContainText("10 subagents · 3 running");

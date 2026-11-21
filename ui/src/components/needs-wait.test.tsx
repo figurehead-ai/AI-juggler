@@ -54,8 +54,9 @@ describe("AJ-E3307 — how long it has waited, one rule", () => {
   it("says on each of Home's rows how long it has waited", () => {
     const needs = homeNeedsOf([notice("web"), notice("api")], railItems(), [], [late, early], null, NOW);
     render(<HomeNeeds needs={needs} now={NOW} handlers={{ onOpenSession: vi.fn() }} />);
-    expect(screen.getByTestId("need-wait").textContent).toBe("waiting 7 h");
-    expect(screen.getByTestId("need-line").textContent).toContain("Asks you · waiting 1 h");
+    // D-118's cards: each says its wait at its by-line's end, longest first.
+    expect(screen.getAllByTestId("need-wait").map((el) => el.textContent)).toEqual(["waiting 7 h", "waiting 1 h"]);
+    expect(screen.getAllByTestId("need-state").map((el) => el.textContent)).toEqual(["asks you", "asks you"]);
   });
 
   it("the rail's row, the session's header and the bell say the same wait", () => {
@@ -72,8 +73,8 @@ describe("AJ-E3307 — what it asks, when its tool said (deep/11 §10)", () => {
   it("shows the ask's own words on Home's rows: `waiting {t} — “{excerpt}”`", () => {
     const needs = homeNeedsOf([notice("web"), notice("api")], railItems(), [], [late, early], null, NOW);
     render(<HomeNeeds needs={needs} now={NOW} handlers={{ onOpenSession: vi.fn() }} />);
-    expect(screen.getByTestId("need-asks").textContent).toBe("“Claude needs your permission to use Bash”");
-    expect(screen.getByTestId("need-line").textContent).toContain("waiting 1 h — “Claude needs your permission to use Bash”");
+    // Inline after what it needs, on every card (D-118's mock): "… asks you: “…”".
+    expect(screen.getAllByTestId("need-asks").map((el) => el.textContent)).toEqual([": “Claude needs your permission to use Bash”", ": “Claude needs your permission to use Bash”"]);
   });
 
   it("says nothing it wasn't told — \"open it to see\" — and keeps an ask to its first line", () => {

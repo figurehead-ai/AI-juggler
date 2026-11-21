@@ -110,7 +110,7 @@ describe("an old reading says how old", () => {
     render(<HomeRunway accounts={[folder]} quota={[lab(week(66, 2 * DAY), { refreshing: true })]} sessions={[]} />);
     const row = (await screen.findAllByTestId("home-runway-account"))[0]!;
     expect(row.textContent).toContain("34% left");
-    expect(within(row).getByTestId("home-runway-detail").textContent).toBe(`Week ${resetsWords(RESET, NOW)} · as of 2 days ago, refreshing…`);
+    expect(within(row).getByTestId("home-runway-facts").textContent).toBe(`Week ${resetsWords(RESET, NOW)} · as of 2 days ago, refreshing…`);
   });
 });
 

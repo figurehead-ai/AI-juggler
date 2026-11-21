@@ -1,0 +1,878 @@
+[
+ {
+  "id": "R201",
+  "job": "review",
+  "source": "Migrated the invoice-export module in /srv/ledgerlite/export to streaming CSV writes. Memory use on the 2 GB sample drops from about 1.4 GB to 90 MB. The unit tests for the writer pass (31 passed). I did not touch the Excel exporter, which still loads every row into memory, and the docs page still describes the old behaviour. Should I also convert the Excel exporter to streaming, even though that adds a new dependency?",
+  "facts": {
+   "outcome": "question",
+   "tests": {
+    "state": "ran",
+    "passed": 31,
+    "failed": 0
+   },
+   "level": "L2"
+  },
+  "gold": {
+   "changed": [
+    "streaming CSV",
+    "invoice-export"
+   ],
+   "risk": "Excel exporter still loads everything in memory",
+   "left": "decision on converting the Excel exporter; docs outdated",
+   "forbidden": [
+    "Excel exporter was converted",
+    "all exporters stream"
+   ]
+  },
+  "facts_how": "Agent ends with a question, so outcome question and L2; tests reported 31 passed, 0 failed."
+ },
+ {
+  "id": "R202",
+  "job": "review",
+  "source": "Quick question before I go further: should the retry limit in the sync worker be 3 or 5? I added exponential backoff to /opt/tidepool/sync/worker.py and hardcoded 3 for now, so nothing blocks you either way. The jitter helper lives in a new file, sync/backoff.py. I have not run any tests yet because the fixture server is not started in this sandbox, so the backoff timings are unverified.",
+  "facts": {
+   "outcome": "question",
+   "tests": {
+    "state": "not_run",
+    "passed": 0,
+    "failed": 0
+   },
+   "level": "L2"
+  },
+  "gold": {
+   "changed": [
+    "exponential backoff",
+    "worker.py",
+    "backoff.py"
+   ],
+   "risk": "backoff timings unverified, tests not run",
+   "left": "choose retry limit 3 or 5; run tests",
+   "forbidden": [
+    "tests passed",
+    "retry limit is 5"
+   ]
+  },
+  "facts_how": "Question at the start gives outcome question, L2; the agent says tests were not run."
+ },
+ {
+  "id": "R203",
+  "job": "review",
+  "source": "Ich habe den Cache-Layer in src/katalog/cache.ts auf eine LRU-Strategie umgestellt und die alte Map-Variante entfernt. Sag mir bitte, ob die maximale Größe fest bei 500 Einträgen bleiben soll oder aus der Konfiguration kommen soll, dann ziehe ich das nach. Die Tests habe ich nicht ausgeführt, weil der lokale Datenbankdienst gerade nicht läuft. Die Eviction-Logik ist daher bisher nur durch Lesen geprüft.",
+  "facts": {
+   "outcome": "question",
+   "tests": {
+    "state": "not_run",
+    "passed": 0,
+    "failed": 0
+   },
+   "level": "L2"
+  },
+  "gold": {
+   "changed": [
+    "LRU",
+    "cache.ts"
+   ],
+   "risk": "Eviction-Logik ungetestet",
+   "left": "Entscheidung zur Cache-Größe; Tests ausführen",
+   "forbidden": [
+    "Tests bestanden",
+    "Größe ist konfigurierbar"
+   ]
+  },
+  "facts_how": "Frage ohne Fragezeichen in der Mitte, daher question und L2; Tests nicht ausgeführt."
+ },
+ {
+  "id": "R204",
+  "job": "review",
+  "source": "The new rate limiter for the public API in api/limits.go is in place and wired into the router. Requests over the quota now get a 429 with a Retry-After header. There are two ways to count usage: per API key, or per IP address. Both are implemented behind a flag, and per key is the default. Let me know which you prefer and I will remove the other. All 24 limiter tests pass.",
+  "facts": {
+   "outcome": "question",
+   "tests": {
+    "state": "ran",
+    "passed": 24,
+    "failed": 0
+   },
+   "level": "L2"
+  },
+  "gold": {
+   "changed": [
+    "rate limiter",
+    "limits.go",
+    "429"
+   ],
+   "risk": "two counting modes both left in; default may not match intent",
+   "left": "pick per key or per IP and remove the other",
+   "forbidden": [
+    "per IP was removed",
+    "only one mode exists"
+   ]
+  },
+  "facts_how": "Closing request phrased without a question mark still counts as a question; 24 tests passed."
+ },
+ {
+  "id": "R205",
+  "job": "review",
+  "source": "I refactored the notification settings screen in app/settings/notify.tsx into three smaller components. While doing it I found that the quiet-hours toggle silently ignores the user's time zone, so is that something you want fixed in this change or in a separate one? I left it as it was to keep the diff reviewable. The snapshot tests were updated and pass: 18 passed, 0 failed.",
+  "facts": {
+   "outcome": "question",
+   "tests": {
+    "state": "ran",
+    "passed": 18,
+    "failed": 0
+   },
+   "level": "L2"
+  },
+  "gold": {
+   "changed": [
+    "notify.tsx",
+    "three smaller components"
+   ],
+   "risk": "quiet-hours toggle ignores time zone",
+   "left": "decide whether to fix the time zone bug now",
+   "forbidden": [
+    "time zone bug was fixed",
+    "quiet-hours works correctly"
+   ]
+  },
+  "facts_how": "Question in the middle, outcome question, L2; snapshot tests 18 passed."
+ },
+ {
+  "id": "R206",
+  "job": "review",
+  "source": "Soll ich die alte Exportfunktion in tools/bericht/export.py behalten oder löschen? Ich habe die neue PDF-Ausgabe fertig und an die Kommandozeile angeschlossen, die alte CSV-Ausgabe läuft aber noch parallel. Bis zu deiner Antwort habe ich nichts gelöscht. Getestet habe ich nur die neue Ausgabe von Hand mit einer Beispieldatei, automatische Tests wurden nicht ausgeführt.",
+  "facts": {
+   "outcome": "question",
+   "tests": {
+    "state": "not_run",
+    "passed": 0,
+    "failed": 0
+   },
+   "level": "L2"
+  },
+  "gold": {
+   "changed": [
+    "PDF-Ausgabe",
+    "export.py"
+   ],
+   "risk": "alte CSV-Ausgabe läuft parallel weiter",
+   "left": "Entscheidung über die alte Funktion; automatische Tests",
+   "forbidden": [
+    "alte Funktion wurde gelöscht",
+    "alle Tests bestanden"
+   ]
+  },
+  "facts_how": "Frage am Anfang, daher question und L2; Tests nicht ausgeführt."
+ },
+ {
+  "id": "R207",
+  "job": "review",
+  "source": "I tried swapping the date library in the booking service for a lighter one, but the new one parses week numbers differently, so I reverted the swap and the service is back on the original library. The only change that stays is a small null check in booking/slots.py. Do you want me to try the other candidate library, or leave the date handling alone? The 40 existing tests pass again after the revert.",
+  "facts": {
+   "outcome": "question",
+   "tests": {
+    "state": "ran",
+    "passed": 40,
+    "failed": 0
+   },
+   "level": "L2"
+  },
+  "gold": {
+   "changed": [
+    "null check",
+    "slots.py"
+   ],
+   "risk": "week numbers parse differently in the lighter library",
+   "left": "decide whether to try another library",
+   "forbidden": [
+    "date library was swapped",
+    "lighter library is in use"
+   ]
+  },
+  "facts_how": "Swap reverted so it must not be listed as made; ends with a question, so L2; 40 tests pass."
+ },
+ {
+  "id": "R208",
+  "job": "review",
+  "source": "The nightly cleanup job in ops/cleanup.sh now removes build artifacts older than 14 days and logs what it deleted. Tell me whether you want a dry-run flag before this goes onto the shared runner, since a wrong path would delete real files. I have only exercised it against a scratch folder I created, and no test suite covers the script. The cron entry itself is unchanged.",
+  "facts": {
+   "outcome": "question",
+   "tests": {
+    "state": "not_run",
+    "passed": 0,
+    "failed": 0
+   },
+   "level": "L2"
+  },
+  "gold": {
+   "changed": [
+    "cleanup.sh",
+    "14 days",
+    "logs what it deleted"
+   ],
+   "risk": "a wrong path could delete real files",
+   "left": "decide on a dry-run flag; no test coverage",
+   "forbidden": [
+    "a dry-run flag exists",
+    "cron entry was updated"
+   ]
+  },
+  "facts_how": "Request phrased without a question mark in the middle; tests not run."
+ },
+ {
+  "id": "R209",
+  "job": "review",
+  "source": "Ich habe die Anmeldemaske in web/login/form.vue überarbeitet: bessere Fehlermeldungen, ein Fokus-Ring und ein Knopf zum Anzeigen des Passworts. Alle 22 Komponententests laufen durch. Offen ist noch die Anbindung an die zweite Stufe der Anmeldung, die ich bewusst nicht angefasst habe. Möchtest du, dass ich diese in derselben Änderung mache, oder lieber getrennt?",
+  "facts": {
+   "outcome": "question",
+   "tests": {
+    "state": "ran",
+    "passed": 22,
+    "failed": 0
+   },
+   "level": "L2"
+  },
+  "gold": {
+   "changed": [
+    "form.vue",
+    "Fehlermeldungen",
+    "Passwort"
+   ],
+   "risk": "zweite Anmeldestufe nicht angeschlossen",
+   "left": "Entscheidung über die zweite Stufe",
+   "forbidden": [
+    "zweite Stufe wurde angeschlossen"
+   ]
+  },
+  "facts_how": "Frage am Ende; 22 Tests bestanden; daher question und L2."
+ },
+ {
+  "id": "R210",
+  "job": "review",
+  "source": "Tell me whether the report generator should include archived projects by default. I changed reports/summary_builder.rb so the filter is read from a new setting, and for now the default excludes archived projects, which matches how the dashboard behaves today. The spec file for the builder was extended with two cases and I ran it: 9 examples, 0 failures. No other report types use the setting yet.",
+  "facts": {
+   "outcome": "question",
+   "tests": {
+    "state": "ran",
+    "passed": 9,
+    "failed": 0
+   },
+   "level": "L2"
+  },
+  "gold": {
+   "changed": [
+    "summary_builder.rb",
+    "setting",
+    "excludes archived"
+   ],
+   "risk": "default may not match what you want",
+   "left": "decide default for archived projects",
+   "forbidden": [
+    "archived projects are included by default"
+   ]
+  },
+  "facts_how": "Question phrased as an instruction at the start; 9 examples passed."
+ },
+ {
+  "id": "R211",
+  "job": "review",
+  "source": "Lint passes, but the build now fails. I moved the shared types from packages/core/types.ts into a new packages/types package and updated the imports in 14 files. ESLint is clean. The TypeScript build stops at packages/ui with 'Cannot find module @fig/types', which I believe is a missing path alias in the root tsconfig, but I have not confirmed that. Tests have not been run since the build does not complete.",
+  "facts": {
+   "outcome": "failure",
+   "tests": {
+    "state": "not_run",
+    "passed": 0,
+    "failed": 0
+   },
+   "level": "L3"
+  },
+  "gold": {
+   "changed": [
+    "packages/types",
+    "14 files",
+    "imports"
+   ],
+   "risk": "build fails with Cannot find module @fig/types",
+   "left": "fix the path alias; run tests",
+   "forbidden": [
+    "build passes",
+    "migration is complete"
+   ]
+  },
+  "facts_how": "A reported build failure sets failure and L3; lint passing is mixed news; tests not run."
+ },
+ {
+  "id": "R212",
+  "job": "review",
+  "source": "Die Umstellung auf die neue Datenbankversion ist fehlgeschlagen. Ich habe das Skript db/upgrade.sql angepasst, aber 5 von 37 Tests schlagen jetzt fehl, alle im Modul Abrechnung, weil eine Spalte umbenannt wurde. Die übrigen 32 Tests laufen. Ich habe die Ursache gefunden, aber noch nicht behoben. Bis dahin sollte die Änderung nicht zusammengeführt werden.",
+  "facts": {
+   "outcome": "failure",
+   "tests": {
+    "state": "ran",
+    "passed": 32,
+    "failed": 5
+   },
+   "level": "L3"
+  },
+  "gold": {
+   "changed": [
+    "upgrade.sql"
+   ],
+   "risk": "5 Tests im Modul Abrechnung schlagen fehl",
+   "left": "umbenannte Spalte beheben",
+   "forbidden": [
+    "alle Tests bestanden",
+    "Umstellung abgeschlossen"
+   ]
+  },
+  "facts_how": "Fehlschlag gemeldet: failure und L3; 32 bestanden, 5 fehlgeschlagen."
+ },
+ {
+  "id": "R213",
+  "job": "review",
+  "source": "The schema migration failed halfway on the staging copy: step 3 of 5 raised a unique-constraint error in the orders table. I rolled the migration back, so the staging database is at its previous version and none of the new columns exist. The only change I kept is the extra logging in db/migrate.py. The failing rows need cleaning by someone who knows the data. No tests were run.",
+  "facts": {
+   "outcome": "failure",
+   "tests": {
+    "state": "not_run",
+    "passed": 0,
+    "failed": 0
+   },
+   "level": "L3"
+  },
+  "gold": {
+   "changed": [
+    "logging",
+    "migrate.py"
+   ],
+   "risk": "unique-constraint error in the orders table",
+   "left": "clean the duplicate rows and rerun the migration",
+   "forbidden": [
+    "new columns were added",
+    "migration succeeded"
+   ]
+  },
+  "facts_how": "Failure and a rollback: the migration is reverted, so only logging counts as made; L3."
+ },
+ {
+  "id": "R214",
+  "job": "review",
+  "source": "I could not install the PDF dependency. The package build for pdfkit in the invoices app fails on this machine with a missing system header, and the install exits with an error after about a minute. I made no code changes, since the feature depends on it. Pinning an older version might avoid the header, but I have not tried that. Nothing was tested.",
+  "facts": {
+   "outcome": "failure",
+   "tests": {
+    "state": "not_run",
+    "passed": 0,
+    "failed": 0
+   },
+   "level": "L3"
+  },
+  "gold": {
+   "changed": [
+    "no code changes"
+   ],
+   "risk": "pdfkit install fails with a missing system header",
+   "left": "try an older version or install the header",
+   "forbidden": [
+    "dependency installed",
+    "feature implemented"
+   ]
+  },
+  "facts_how": "Reports a failed install; outcome failure, L3; nothing changed."
+ },
+ {
+  "id": "R215",
+  "job": "review",
+  "source": "Lint ist sauber, aber der Build schlägt jetzt fehl. Ich habe die Formatierungsfunktion in lib/zeit/format.js auf die neue Intl-API umgestellt. Der Linter meldet nichts, doch beim Bauen bricht der Bundler mit einer Fehlermeldung zu einem nicht unterstützten Import in lib/zeit/zone.js ab. Die Tests habe ich deshalb nicht gestartet. Die Ursache vermute ich in einer veralteten Bundler-Version.",
+  "facts": {
+   "outcome": "failure",
+   "tests": {
+    "state": "not_run",
+    "passed": 0,
+    "failed": 0
+   },
+   "level": "L3"
+  },
+  "gold": {
+   "changed": [
+    "format.js",
+    "Intl"
+   ],
+   "risk": "Build bricht bei zone.js ab",
+   "left": "Import beheben; Tests starten",
+   "forbidden": [
+    "Build erfolgreich",
+    "Tests bestanden"
+   ]
+  },
+  "facts_how": "Gemischte Nachricht: Lint ok, Build fehlgeschlagen; failure und L3; Tests nicht ausgeführt."
+ },
+ {
+  "id": "R216",
+  "job": "review",
+  "source": "I tried to fix the flaky upload test and it did not work. I changed the timeout in tests/upload_spec.py, then reverted that change because the failures got worse. Three tests still fail intermittently: test_resume, test_chunk_order and test_cancel (61 passed, 3 failed in my last run). The code is back to how it started, with one added comment explaining the suspected race in the chunk writer.",
+  "facts": {
+   "outcome": "failure",
+   "tests": {
+    "state": "ran",
+    "passed": 61,
+    "failed": 3
+   },
+   "level": "L3"
+  },
+  "gold": {
+   "changed": [
+    "comment",
+    "chunk writer"
+   ],
+   "risk": "three upload tests still fail intermittently",
+   "left": "find the race in the chunk writer",
+   "forbidden": [
+    "timeout was changed",
+    "flaky test fixed"
+   ]
+  },
+  "facts_how": "Failure with a revert: the timeout change is undone and must not be listed; 61 passed, 3 failed."
+ },
+ {
+  "id": "R217",
+  "job": "review",
+  "source": "The deploy of the docs site to the preview host timed out. The build step finished and the output in site/dist looks right, but the upload to the host stopped after 40 percent and the script exited with code 124. The preview URL therefore still shows the old pages. I added a retry loop to deploy/push.sh, but have not been able to test it, since the host is unreachable from here.",
+  "facts": {
+   "outcome": "failure",
+   "tests": {
+    "state": "not_run",
+    "passed": 0,
+    "failed": 0
+   },
+   "level": "L3"
+  },
+  "gold": {
+   "changed": [
+    "retry loop",
+    "push.sh"
+   ],
+   "risk": "upload stopped at 40 percent; preview still old",
+   "left": "rerun the deploy when the host is reachable",
+   "forbidden": [
+    "deploy succeeded",
+    "preview shows new pages"
+   ]
+  },
+  "facts_how": "Deploy failure reported: failure and L3; the retry loop could not be tested."
+ },
+ {
+  "id": "R218",
+  "job": "review",
+  "source": "Der Typcheck schlägt fehl. Ich habe die Konfiguration in src/einstellungen/laden.ts um optionale Felder erweitert, die Laufzeit ist damit zufrieden, aber tsc meldet 7 Fehler in drei Dateien, vor allem fehlende Null-Prüfungen in src/einstellungen/zusammenfuehren.ts. Von 15 Tests laufen 15 durch, weil sie nicht typgeprüft werden. Der Typcheck muss vor dem Zusammenführen grün sein, das ist noch offen.",
+  "facts": {
+   "outcome": "failure",
+   "tests": {
+    "state": "ran",
+    "passed": 15,
+    "failed": 0
+   },
+   "level": "L3"
+  },
+  "gold": {
+   "changed": [
+    "laden.ts",
+    "optionale Felder"
+   ],
+   "risk": "tsc meldet 7 Typfehler",
+   "left": "Null-Prüfungen ergänzen",
+   "forbidden": [
+    "Typcheck bestanden",
+    "keine Fehler"
+   ]
+  },
+  "facts_how": "Typcheck-Fehler gemeldet: failure, L3; Tests 15 bestanden, 0 fehlgeschlagen."
+ },
+ {
+  "id": "R219",
+  "job": "review",
+  "source": "Unit tests pass but the integration tests fail. I added pagination to the /v2/orders endpoint in services/orders/list.py. 40 unit tests pass, while 2 integration tests fail with a 500 error when the page size is zero. I have not fixed the zero case yet. The cursor logic itself looks right in manual calls. Please do not release this until the zero page size case is handled.",
+  "facts": {
+   "outcome": "failure",
+   "tests": {
+    "state": "ran",
+    "passed": 40,
+    "failed": 2
+   },
+   "level": "L3"
+  },
+  "gold": {
+   "changed": [
+    "pagination",
+    "/v2/orders",
+    "list.py"
+   ],
+   "risk": "500 error when page size is zero",
+   "left": "handle page size zero",
+   "forbidden": [
+    "all tests pass",
+    "pagination is complete"
+   ]
+  },
+  "facts_how": "Mixed result with failing integration tests: failure and L3; 40 passed, 2 failed."
+ },
+ {
+  "id": "R220",
+  "job": "review",
+  "source": "I could not reproduce or fix the crash on startup. I ran the desktop client in the lab folder about 20 times and it started every time, so the reported crash in client/boot.rs stays unexplained. I added a panic hook that writes a short report to the log folder, which should help the next time it happens. No tests were run, and the crash itself remains an open problem.",
+  "facts": {
+   "outcome": "failure",
+   "tests": {
+    "state": "not_run",
+    "passed": 0,
+    "failed": 0
+   },
+   "level": "L3"
+  },
+  "gold": {
+   "changed": [
+    "panic hook",
+    "boot.rs"
+   ],
+   "risk": "the startup crash is unexplained and may still happen",
+   "left": "wait for the next crash report",
+   "forbidden": [
+    "crash fixed",
+    "crash reproduced"
+   ]
+  },
+  "facts_how": "Reports it could not fix the problem: failure and L3."
+ },
+ {
+  "id": "R221",
+  "job": "review",
+  "source": "Two of the three endpoints are done: GET and POST on /notes in the memo service now work with validation. The DELETE endpoint is still a stub that returns 501, and the permissions check for editing is not written yet. All 14 tests for the finished parts pass. I stopped here because the delete rules (soft or hard delete) are not specified in the ticket.",
+  "facts": {
+   "outcome": "success",
+   "tests": {
+    "state": "ran",
+    "passed": 14,
+    "failed": 0
+   },
+   "level": "L1"
+  },
+  "gold": {
+   "changed": [
+    "GET and POST",
+    "/notes",
+    "validation"
+   ],
+   "risk": "delete endpoint is only a stub returning 501",
+   "left": "DELETE endpoint and edit permissions",
+   "forbidden": [
+    "DELETE endpoint works",
+    "all endpoints done"
+   ]
+  },
+  "facts_how": "Partial work, no failure and no question: success, L1; 14 tests pass."
+ },
+ {
+  "id": "R222",
+  "job": "review",
+  "source": "Ich habe die README von gartenplaner angepasst: Installationsschritte für macOS ergänzt, den veralteten Abschnitt zur Konfiguration entfernt und die Beispielbefehle geprüft. Es wurde kein Code verändert. Tests habe ich nicht ausgeführt, da es sich nur um Dokumentation handelt. Die englische Übersetzung der README stimmt jetzt nicht mehr mit der deutschen überein und müsste nachgezogen werden.",
+  "facts": {
+   "outcome": "success",
+   "tests": {
+    "state": "not_run",
+    "passed": 0,
+    "failed": 0
+   },
+   "level": "L0"
+  },
+  "gold": {
+   "changed": [
+    "README",
+    "macOS",
+    "Konfiguration"
+   ],
+   "risk": "englische Übersetzung nicht mehr aktuell",
+   "left": "englische README nachziehen",
+   "forbidden": [
+    "Code wurde geändert",
+    "Übersetzung aktualisiert"
+   ]
+  },
+  "facts_how": "Reine Dokumentation, kein Fehler, keine Frage: success, L0; Tests nicht ausgeführt."
+ },
+ {
+  "id": "R223",
+  "job": "review",
+  "source": "Renamed the helper formatPrice to formatMoney across the storefront package and updated all 26 call sites in packages/storefront/src. The build compiles and the type check is clean. I did not run the test suite, and the test status is unknown to me because the CI config only runs it on pull requests. Old name is kept as a deprecated alias for one release so outside plugins keep working.",
+  "facts": {
+   "outcome": "success",
+   "tests": {
+    "state": "unknown",
+    "passed": 0,
+    "failed": 0
+   },
+   "level": "L0"
+  },
+  "gold": {
+   "changed": [
+    "formatPrice",
+    "formatMoney",
+    "26 call sites",
+    "deprecated alias"
+   ],
+   "risk": "external plugins still using the old name until it is removed",
+   "left": "run the tests; remove alias later",
+   "forbidden": [
+    "tests passed",
+    "old name was removed"
+   ]
+  },
+  "facts_how": "Plain refactor with no failure or question: success, L0; test state unknown because it was never reported."
+ },
+ {
+  "id": "R224",
+  "job": "review",
+  "source": "I undid the formatting pass. Running the formatter across src/parsers produced a diff of 900 lines that hid the real change, so I reverted all of it. What remains is the one-line fix in src/parsers/csv.py that handles a trailing delimiter. The parser tests pass: 27 passed, 0 failed. The formatter config is untouched, so the style drift in that folder is still there.",
+  "facts": {
+   "outcome": "success",
+   "tests": {
+    "state": "ran",
+    "passed": 27,
+    "failed": 0
+   },
+   "level": "L1"
+  },
+  "gold": {
+   "changed": [
+    "trailing delimiter",
+    "csv.py"
+   ],
+   "risk": "style drift in the parsers folder remains",
+   "left": "format the folder in a separate change",
+   "forbidden": [
+    "the formatting pass was applied",
+    "900 line diff"
+   ]
+  },
+  "facts_how": "Formatting reverted so it must not be listed; the one-line fix stays; 27 tests pass."
+ },
+ {
+  "id": "R225",
+  "job": "review",
+  "source": "Started the plugin loader. I created plugins/loader.ts with the manifest reader and the version check, and added a skeleton for sandboxed loading that currently just throws 'not implemented'. Nothing calls the loader yet, so the app behaves exactly as before. Roughly a third of the planned work is done. I ran the type check, which is clean, but wrote no tests.",
+  "facts": {
+   "outcome": "success",
+   "tests": {
+    "state": "not_run",
+    "passed": 0,
+    "failed": 0
+   },
+   "level": "L0"
+  },
+  "gold": {
+   "changed": [
+    "loader.ts",
+    "manifest reader",
+    "version check"
+   ],
+   "risk": "sandboxed loading is not implemented",
+   "left": "sandboxed loading; wiring; tests",
+   "forbidden": [
+    "plugins load in the app",
+    "sandboxing works"
+   ]
+  },
+  "facts_how": "Partial work, no failure or question: success, L0; no tests written or run."
+ },
+ {
+  "id": "R226",
+  "job": "review",
+  "source": "Die Änderung an der Zeitüberschreitung habe ich zurückgenommen. Ich hatte das Timeout im Client client/netz.go von 10 auf 60 Sekunden gesetzt, aber dadurch hängt die Oberfläche bei Netzausfall zu lange, also ist der Wert wieder 10. Geblieben ist nur eine bessere Fehlermeldung beim Abbruch. Von 12 Tests laufen alle durch. Das ursprüngliche Problem mit langsamen Verbindungen bleibt damit offen.",
+  "facts": {
+   "outcome": "success",
+   "tests": {
+    "state": "ran",
+    "passed": 12,
+    "failed": 0
+   },
+   "level": "L1"
+  },
+  "gold": {
+   "changed": [
+    "Fehlermeldung",
+    "netz.go"
+   ],
+   "risk": "langsame Verbindungen weiter problematisch",
+   "left": "anderen Ansatz für langsame Verbindungen",
+   "forbidden": [
+    "Timeout steht auf 60",
+    "Timeout wurde erhöht"
+   ]
+  },
+  "facts_how": "Timeout-Änderung zurückgenommen, darf nicht als gemacht gelten; 12 Tests bestanden."
+ },
+ {
+  "id": "R227",
+  "job": "review",
+  "source": "Of the three changes I started, I kept one. The new sorting option in the gallery grid is in, in gallery/sort.vue. I reverted the lazy-loading change because it broke the scroll position on back navigation, and I also reverted the thumbnail cache rewrite, which showed no measurable gain. Tests: 33 passed, 0 failed. The scroll position issue exists independently and still needs a look.",
+  "facts": {
+   "outcome": "success",
+   "tests": {
+    "state": "ran",
+    "passed": 33,
+    "failed": 0
+   },
+   "level": "L1"
+  },
+  "gold": {
+   "changed": [
+    "sorting option",
+    "sort.vue"
+   ],
+   "risk": "scroll position bug on back navigation still exists",
+   "left": "investigate the scroll position issue",
+   "forbidden": [
+    "lazy-loading was added",
+    "thumbnail cache was rewritten"
+   ]
+  },
+  "facts_how": "Two of three changes reverted; only sorting counts as made; 33 tests passed."
+ },
+ {
+  "id": "R228",
+  "job": "review",
+  "source": "Updated the default log level in config/defaults.yaml from info to warn and added a comment above it. I also corrected two typos in the same file. Nothing else was touched. I did not run any tests, since the file is only read at startup and no test covers it. Anyone relying on info lines in the nightly logs will notice they are gone once this ships.",
+  "facts": {
+   "outcome": "success",
+   "tests": {
+    "state": "not_run",
+    "passed": 0,
+    "failed": 0
+   },
+   "level": "L0"
+  },
+  "gold": {
+   "changed": [
+    "log level",
+    "warn",
+    "defaults.yaml"
+   ],
+   "risk": "info lines disappear from the nightly logs",
+   "left": "nothing",
+   "forbidden": [
+    "tests passed",
+    "log level is info"
+   ]
+  },
+  "facts_how": "Small config change, no failure or question; tests not run."
+ },
+ {
+  "id": "R229",
+  "job": "review",
+  "source": "Die Suche im Verzeichnis ist nur teilweise fertig. Ich habe die Indexierung in suche/index.py geschrieben und sie läuft für Titel und Schlagwörter, die Volltextsuche über Beschreibungen fehlt aber noch. Neun Tests für die Indexierung bestehen. Die Oberfläche zeigt die Suchleiste noch nicht an, deshalb ist für Nutzer nichts sichtbar. Die Sortierung nach Relevanz plane ich als nächsten Schritt.",
+  "facts": {
+   "outcome": "success",
+   "tests": {
+    "state": "ran",
+    "passed": 9,
+    "failed": 0
+   },
+   "level": "L1"
+  },
+  "gold": {
+   "changed": [
+    "Indexierung",
+    "index.py",
+    "Titel und Schlagwörter"
+   ],
+   "risk": "Volltextsuche fehlt, Suchleiste noch nicht sichtbar",
+   "left": "Volltextsuche; Oberfläche; Relevanzsortierung",
+   "forbidden": [
+    "Volltextsuche funktioniert",
+    "Suche ist fertig"
+   ]
+  },
+  "facts_how": "Teilarbeit ohne Fehler und Frage: success, L1; 9 Tests bestanden."
+ },
+ {
+  "id": "R230",
+  "job": "review",
+  "source": "I explored using a connection pool for the metrics collector, wrote a prototype in a scratch branch, measured it, and then threw it away with a hard reset because it was slower than the current single connection under the sample load. The repository is back at the starting commit and no files differ. The measurements were 410 requests per second pooled against 520 for the existing code. No tests were needed.",
+  "facts": {
+   "outcome": "none",
+   "tests": {
+    "state": "unknown",
+    "passed": 0,
+    "failed": 0
+   },
+   "level": "L0"
+  },
+  "gold": {
+   "changed": [
+    "measured",
+    "pool"
+   ],
+   "risk": "none",
+   "left": "nothing",
+   "forbidden": [
+    "a connection pool was added",
+    "metrics collector was changed"
+   ]
+  },
+  "facts_how": "Prototype discarded, nothing left; outcome none, L0; tests not applicable so unknown."
+ },
+ {
+  "id": "R231",
+  "job": "review",
+  "source": "Ich habe den Zeitplan-Export um das Feld 'Raum' erweitert. Betroffen sind export/zeitplan.py und die Vorlage templates/plan.html. Alle 58 Tests laufen durch, darunter zwei neue für das Feld. Alte Exportdateien ohne Raum werden weiterhin gelesen, das Feld bleibt dort leer. Die Dokumentation habe ich nicht angepasst.",
+  "facts": {
+   "outcome": "success",
+   "tests": {
+    "state": "ran",
+    "passed": 58,
+    "failed": 0
+   },
+   "level": "L0"
+  },
+  "gold": {
+   "changed": [
+    "Raum",
+    "zeitplan.py",
+    "plan.html"
+   ],
+   "risk": "Dokumentation nicht angepasst",
+   "left": "Dokumentation aktualisieren",
+   "forbidden": [
+    "Dokumentation aktualisiert",
+    "Tests fehlgeschlagen"
+   ]
+  },
+  "facts_how": "Erfolg ohne Fehler und Frage, L0; 58 Tests bestanden."
+ },
+ {
+  "id": "R232",
+  "job": "review",
+  "source": "I looked into why the thumbnail job is slow and changed nothing. The profile shows 70 percent of the time in the resize call in media/thumbs.py, which decodes each image twice. Fixing it means touching the shared decoder, which three other services use, so I would rather you decide when to take that on. No code, tests or config were changed during this investigation.",
+  "facts": {
+   "outcome": "none",
+   "tests": {
+    "state": "unknown",
+    "passed": 0,
+    "failed": 0
+   },
+   "level": "L0"
+  },
+  "gold": {
+   "changed": [
+    "thumbs.py",
+    "decodes each image twice",
+    "70 percent"
+   ],
+   "risk": "fix would touch the shared decoder used by other services",
+   "left": "fix the double decoding",
+   "forbidden": [
+    "the slowness was fixed",
+    "code was changed"
+   ]
+  },
+  "facts_how": "Investigation only, no changes: outcome none, L0; the closing words are a statement, not a question."
+ }
+]

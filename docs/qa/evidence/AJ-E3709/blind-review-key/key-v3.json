@@ -1,0 +1,1107 @@
+[
+ {
+  "review_id": "P001",
+  "type": "pair",
+  "item": "T024",
+  "bucket": "not_run",
+  "level": "L1",
+  "order": [
+   "A",
+   "B:ladder"
+  ],
+  "lines": [
+   "Changed the timeout default from 10 s to 30 s in net/config.rs.\nI did not run the tests; the sandbox has no network and the suite needs it.",
+   "Changed the timeout default in net/config.rs but did not run the tests."
+  ],
+  "b_rows": {
+   "B:ladder": {
+    "kind": "written",
+    "shown": "Changed the timeout default in net/config.rs but did not run the tests.",
+    "excerpt": "Changed the timeout default from 10 s to 30 s in `net/config.rs`.\nI did not run the tests; the sandbox has no network and the suite needs it.",
+    "trace": [
+     "write passed the gate"
+    ],
+    "draft": "Changed the timeout default in `net/config.rs` but did not run the tests.",
+    "choose_pick": "1"
+   }
+  },
+  "engine": "Apple on-device Foundation Model (prompt v3, guided output) with gate eval-3"
+ },
+ {
+  "review_id": "P002",
+  "type": "pair",
+  "item": "T063",
+  "bucket": "refactor",
+  "level": "L0",
+  "order": [
+   "B:ladder",
+   "A"
+  ],
+  "lines": [
+   "Moved CSS to per-component modules and checked three screens by eye.",
+   "Moved the CSS from App.css into per-component modules (11 files)."
+  ],
+  "b_rows": {
+   "B:ladder": {
+    "kind": "written",
+    "shown": "Moved CSS to per-component modules and checked three screens by eye.",
+    "excerpt": "Moved the CSS from `App.css` into per-component modules (11 files).",
+    "trace": [
+     "write passed the gate"
+    ],
+    "draft": "Moved CSS to per-component modules and checked three screens by eye.",
+    "choose_pick": "1"
+   }
+  },
+  "engine": "Apple on-device Foundation Model (prompt v3, guided output) with gate eval-3"
+ },
+ {
+  "review_id": "P003",
+  "type": "pair",
+  "item": "T017",
+  "bucket": "partial",
+  "level": "L1",
+  "order": [
+   "B:choose_only",
+   "A",
+   "B:ladder"
+  ],
+  "lines": [
+   "Unit tests for GET retry pass (12).",
+   "The retry logic works for GET requests only.",
+   "Retry logic works for GET requests; POST retries disabled; unit tests for GET retry pass."
+  ],
+  "b_rows": {
+   "B:choose_only": {
+    "kind": "quoted",
+    "shown": "Unit tests for GET retry pass (12).",
+    "excerpt": "The retry logic works for GET requests only.",
+    "trace": [
+     "choose (3) passed the gate"
+    ],
+    "draft": null,
+    "choose_pick": "3"
+   },
+   "B:ladder": {
+    "kind": "written",
+    "shown": "Retry logic works for GET requests; POST retries disabled; unit tests for GET retry pass.",
+    "excerpt": "The retry logic works for GET requests only.",
+    "trace": [
+     "write passed the gate"
+    ],
+    "draft": "Retry logic works for GET requests; POST retries disabled; unit tests for GET retry pass.",
+    "choose_pick": "3"
+   }
+  },
+  "engine": "Apple on-device Foundation Model (prompt v3, guided output) with gate eval-3"
+ },
+ {
+  "review_id": "S001",
+  "type": "single",
+  "item": "T053",
+  "bucket": "question",
+  "level": "L2",
+  "setting": "main",
+  "kind": "excerpt_routed",
+  "line": "Soll `lösche_alte_logs()` auch die komprimierten `.gz`-Dateien entfernen?",
+  "trace": [
+   "section 2: L2/L3 show the agent's own words; no engine called"
+  ],
+  "engine": "Apple on-device Foundation Model (prompt v3, guided output) with gate eval-3"
+ },
+ {
+  "review_id": "S002",
+  "type": "single",
+  "item": "T028",
+  "bucket": "not_run",
+  "level": "L1",
+  "setting": "main (B shows A's excerpt)",
+  "kind": "excerpt",
+  "line": "The fix for the flaky `test_sync_order` is in: I replaced the `sleep(0.1)` with an event wait in `tests/test_sync.py`.\nI did not run it repeatedly, so I cannot say yet whether the flake is gone.",
+  "trace": [
+   "write failed step(s) 2b,3",
+   "step 0/3/5: straight to the excerpt"
+  ],
+  "engine": "Apple on-device Foundation Model (prompt v3, guided output) with gate eval-3"
+ },
+ {
+  "review_id": "S003",
+  "type": "single",
+  "item": "T042",
+  "bucket": "failed",
+  "level": "L3",
+  "setting": "main",
+  "kind": "excerpt_routed",
+  "line": "Die Kompilierung scheitert: `src/netz/sock.rs:77: error: cannot borrow 'self' as mutable more than once`.",
+  "trace": [
+   "section 2: L2/L3 show the agent's own words; no engine called"
+  ],
+  "engine": "Apple on-device Foundation Model (prompt v3, guided output) with gate eval-3"
+ },
+ {
+  "review_id": "S004",
+  "type": "single",
+  "item": "T032",
+  "bucket": "not_run",
+  "level": "L1",
+  "setting": "main (B shows A's excerpt)",
+  "kind": "quoted",
+  "line": "Die Migration 0017_add_index.sql ist geschrieben, aber noch nicht gegen eine Datenbank gelaufen.",
+  "trace": [
+   "write failed step(s) 2b",
+   "choose (1) passed the gate"
+  ],
+  "engine": "Apple on-device Foundation Model (prompt v3, guided output) with gate eval-3"
+ },
+ {
+  "review_id": "S005",
+  "type": "single",
+  "item": "T051",
+  "bucket": "question",
+  "level": "L2",
+  "setting": "main",
+  "kind": "excerpt_routed",
+  "line": "Can I change it to run as `svc-sync`?",
+  "trace": [
+   "section 2: L2/L3 show the agent's own words; no engine called"
+  ],
+  "engine": "Apple on-device Foundation Model (prompt v3, guided output) with gate eval-3"
+ },
+ {
+  "review_id": "S006",
+  "type": "single",
+  "item": "T035",
+  "bucket": "not_run",
+  "level": "L1",
+  "setting": "main (B shows A's excerpt)",
+  "kind": "excerpt",
+  "line": "Skipped the test step: the CI image lacks `libfoo`, so `make check` stops before tests.",
+  "trace": [
+   "write failed step(s) 3",
+   "step 0/3/5: straight to the excerpt"
+  ],
+  "engine": "Apple on-device Foundation Model (prompt v3, guided output) with gate eval-3"
+ },
+ {
+  "review_id": "S007",
+  "type": "single",
+  "item": "T029",
+  "bucket": "not_run",
+  "level": "L1",
+  "setting": "main (B shows A's excerpt)",
+  "kind": "excerpt",
+  "line": "Added input validation to `POST /orders` (`handlers/orders.go`): quantity must be 1 to 999.",
+  "trace": [
+   "write failed step(s) 3",
+   "step 0/3/5: straight to the excerpt"
+  ],
+  "engine": "Apple on-device Foundation Model (prompt v3, guided output) with gate eval-3"
+ },
+ {
+  "review_id": "S008",
+  "type": "single",
+  "item": "T016",
+  "bucket": "partial",
+  "level": "L1",
+  "setting": "main (B shows A's excerpt)",
+  "kind": "excerpt",
+  "line": "Search now finds titles, but not body text yet.\nI did not run the e2e suite.",
+  "trace": [
+   "write failed step(s) 2b",
+   "chosen sentence 2 failed step(s) 3"
+  ],
+  "engine": "Apple on-device Foundation Model (prompt v3, guided output) with gate eval-3"
+ },
+ {
+  "review_id": "S009",
+  "type": "single",
+  "item": "T040",
+  "bucket": "failed",
+  "level": "L3",
+  "setting": "main",
+  "kind": "excerpt_routed",
+  "line": "Deploy script crashed halfway: `scp: /srv/app/release: Permission denied`.",
+  "trace": [
+   "section 2: L2/L3 show the agent's own words; no engine called"
+  ],
+  "engine": "Apple on-device Foundation Model (prompt v3, guided output) with gate eval-3"
+ },
+ {
+  "review_id": "S010",
+  "type": "single",
+  "item": "T055",
+  "bucket": "question",
+  "level": "L2",
+  "setting": "main",
+  "kind": "excerpt_routed",
+  "line": "Is a 2-minute downtime acceptable?",
+  "trace": [
+   "section 2: L2/L3 show the agent's own words; no engine called"
+  ],
+  "engine": "Apple on-device Foundation Model (prompt v3, guided output) with gate eval-3"
+ },
+ {
+  "review_id": "S011",
+  "type": "single",
+  "item": "T047",
+  "bucket": "question",
+  "level": "L2",
+  "setting": "main",
+  "kind": "excerpt_routed",
+  "line": "Before I touch `billing/proration.py`: should prorated refunds round half-up or half-even?",
+  "trace": [
+   "section 2: L2/L3 show the agent's own words; no engine called"
+  ],
+  "engine": "Apple on-device Foundation Model (prompt v3, guided output) with gate eval-3"
+ },
+ {
+  "review_id": "S012",
+  "type": "single",
+  "item": "T043",
+  "bucket": "failed",
+  "level": "L3",
+  "setting": "main",
+  "kind": "excerpt_routed",
+  "line": "Fehlgeschlagen: 5 von 140 Tests (`tests/test_zeit.py`) rot, darunter `test_sommerzeit` mit `AssertionError: 7200 != 3600`.",
+  "trace": [
+   "section 2: L2/L3 show the agent's own words; no engine called"
+  ],
+  "engine": "Apple on-device Foundation Model (prompt v3, guided output) with gate eval-3"
+ },
+ {
+  "review_id": "S013",
+  "type": "single",
+  "item": "T046",
+  "bucket": "failed",
+  "level": "L3",
+  "setting": "main",
+  "kind": "excerpt_routed",
+  "line": "The e2e run did not finish: Playwright reported `Timeout 30000ms exceeded` waiting for `#checkout-button` on 6 of 9 scenarios.",
+  "trace": [
+   "section 2: L2/L3 show the agent's own words; no engine called"
+  ],
+  "engine": "Apple on-device Foundation Model (prompt v3, guided output) with gate eval-3"
+ },
+ {
+  "review_id": "P004",
+  "type": "pair",
+  "item": "T062",
+  "bucket": "refactor",
+  "level": "L0",
+  "order": [
+   "B:ladder",
+   "A"
+  ],
+  "lines": [
+   "Converted config/loader.js to async/await with identical behaviour but tests not run.",
+   "Converted config/loader.js from callbacks to async/await.\nTests were not run."
+  ],
+  "b_rows": {
+   "B:ladder": {
+    "kind": "written",
+    "shown": "Converted config/loader.js to async/await with identical behaviour but tests not run.",
+    "excerpt": "Converted `config/loader.js` from callbacks to `async/await`.\nTests were not run.",
+    "trace": [
+     "write passed the gate"
+    ],
+    "draft": "Converted `config/loader.js` to `async/await` with identical behaviour but tests not run.",
+    "choose_pick": "1"
+   }
+  },
+  "engine": "Apple on-device Foundation Model (prompt v3, guided output) with gate eval-3"
+ },
+ {
+  "review_id": "S014",
+  "type": "single",
+  "item": "T036",
+  "bucket": "failed",
+  "level": "L3",
+  "setting": "main",
+  "kind": "excerpt_routed",
+  "line": "The build fails.",
+  "trace": [
+   "section 2: L2/L3 show the agent's own words; no engine called"
+  ],
+  "engine": "Apple on-device Foundation Model (prompt v3, guided output) with gate eval-3"
+ },
+ {
+  "review_id": "P005",
+  "type": "pair",
+  "item": "T058",
+  "bucket": "refactor",
+  "level": "L0",
+  "order": [
+   "B:ladder",
+   "A"
+  ],
+  "lines": [
+   "Moved URL helpers to net/urls.py and updated 9 imports.",
+   "Refactor only, no behaviour change: moved the URL helpers from utils.py into net/urls.py and updated the 9 imports."
+  ],
+  "b_rows": {
+   "B:ladder": {
+    "kind": "quoted",
+    "shown": "Moved URL helpers to net/urls.py and updated 9 imports.",
+    "excerpt": "Refactor only, no behaviour change: moved the URL helpers from `utils.py` into `net/urls.py` and updated the 9 imports.",
+    "trace": [
+     "write passed the gate"
+    ],
+    "draft": "Moved URL helpers to net/urls.py and updated 9 imports.",
+    "choose_pick": "1"
+   }
+  },
+  "engine": "Apple on-device Foundation Model (prompt v3, guided output) with gate eval-3"
+ },
+ {
+  "review_id": "P006",
+  "type": "pair",
+  "item": "T067",
+  "bucket": "refactor",
+  "level": "L0",
+  "order": [
+   "B:choose_only",
+   "A",
+   "B:ladder"
+  ],
+  "lines": [
+   "66 tests pass, 5 now use the fake clock.",
+   "Introduced a Clock trait in core/time.rs so tests can inject time.",
+   "Introduced a Clock trait in core/time.rs for test time injection."
+  ],
+  "b_rows": {
+   "B:choose_only": {
+    "kind": "quoted",
+    "shown": "66 tests pass, 5 now use the fake clock.",
+    "excerpt": "Introduced a `Clock` trait in `core/time.rs` so tests can inject time.",
+    "trace": [
+     "choose (3) passed the gate"
+    ],
+    "draft": null,
+    "choose_pick": "3"
+   },
+   "B:ladder": {
+    "kind": "written",
+    "shown": "Introduced a Clock trait in core/time.rs for test time injection.",
+    "excerpt": "Introduced a `Clock` trait in `core/time.rs` so tests can inject time.",
+    "trace": [
+     "write passed the gate"
+    ],
+    "draft": "Introduced a `Clock` trait in `core/time.rs` for test time injection.",
+    "choose_pick": "3"
+   }
+  },
+  "engine": "Apple on-device Foundation Model (prompt v3, guided output) with gate eval-3"
+ },
+ {
+  "review_id": "P007",
+  "type": "pair",
+  "item": "T064",
+  "bucket": "refactor",
+  "level": "L0",
+  "order": [
+   "B:ladder",
+   "A"
+  ],
+  "lines": [
+   "Deleted 4 unused feature flags and their branches from flags.rs, and replaced two nested match blocks with early returns.",
+   "Pure clean-up: deleted 4 unused feature flags and their branches from flags.rs, and replaced two nested match blocks with early returns."
+  ],
+  "b_rows": {
+   "B:ladder": {
+    "kind": "quoted",
+    "shown": "Deleted 4 unused feature flags and their branches from flags.rs, and replaced two nested match blocks with early returns.",
+    "excerpt": "Pure clean-up: deleted 4 unused feature flags and their branches from `flags.rs`, and replaced two nested `match` blocks with early returns.",
+    "trace": [
+     "write passed the gate"
+    ],
+    "draft": "Deleted 4 unused feature flags and their branches from `flags.rs`, and replaced two nested `match` blocks with early returns.",
+    "choose_pick": "1"
+   }
+  },
+  "engine": "Apple on-device Foundation Model (prompt v3, guided output) with gate eval-3"
+ },
+ {
+  "review_id": "P008",
+  "type": "pair",
+  "item": "T008",
+  "bucket": "finished",
+  "level": "L0",
+  "order": [
+   "B:ladder",
+   "A"
+  ],
+  "lines": [
+   "Login redirect works after decoding URL-encoded next and adding tests with 4 passing cases.",
+   "Login redirect works again."
+  ],
+  "b_rows": {
+   "B:ladder": {
+    "kind": "written",
+    "shown": "Login redirect works after decoding URL-encoded next and adding tests with 4 passing cases.",
+    "excerpt": "Login redirect works again.",
+    "trace": [
+     "write passed the gate"
+    ],
+    "draft": "Login redirect works after decoding URL-encoded `next` and adding tests with 4 passing cases.",
+    "choose_pick": "1"
+   }
+  },
+  "engine": "Apple on-device Foundation Model (prompt v3, guided output) with gate eval-3"
+ },
+ {
+  "review_id": "P009",
+  "type": "pair",
+  "item": "T006",
+  "bucket": "finished",
+  "level": "L0",
+  "order": [
+   "B:choose_only",
+   "B:ladder",
+   "A"
+  ],
+  "lines": [
+   "It lists the three environment variables the demo reads (DEMO_PORT, DEMO_SEED, DEMO_LOG).",
+   "Added a README section listing three environment variables for running the demo with make demo.",
+   "Renamed nothing, removed nothing; just added a README section on running the demo with make demo."
+  ],
+  "b_rows": {
+   "B:choose_only": {
+    "kind": "quoted",
+    "shown": "It lists the three environment variables the demo reads (DEMO_PORT, DEMO_SEED, DEMO_LOG).",
+    "excerpt": "Renamed nothing, removed nothing; just added a README section on running the demo with `make demo`.",
+    "trace": [
+     "choose (2) passed the gate"
+    ],
+    "draft": null,
+    "choose_pick": "2"
+   },
+   "B:ladder": {
+    "kind": "written",
+    "shown": "Added a README section listing three environment variables for running the demo with make demo.",
+    "excerpt": "Renamed nothing, removed nothing; just added a README section on running the demo with `make demo`.",
+    "trace": [
+     "write passed the gate"
+    ],
+    "draft": "Added a README section listing three environment variables for running the demo with make demo.",
+    "choose_pick": "2"
+   }
+  },
+  "engine": "Apple on-device Foundation Model (prompt v3, guided output) with gate eval-3"
+ },
+ {
+  "review_id": "S015",
+  "type": "single",
+  "item": "T041",
+  "bucket": "failed",
+  "level": "L3",
+  "setting": "main",
+  "kind": "excerpt_routed",
+  "line": "Ran the suite: 301 tests, 17 failed, all in `tests/render/`.",
+  "trace": [
+   "section 2: L2/L3 show the agent's own words; no engine called"
+  ],
+  "engine": "Apple on-device Foundation Model (prompt v3, guided output) with gate eval-3"
+ },
+ {
+  "review_id": "P010",
+  "type": "pair",
+  "item": "T026",
+  "bucket": "not_run",
+  "level": "L1",
+  "order": [
+   "A",
+   "B:ladder"
+  ],
+  "lines": [
+   "Refactored the date picker to use Intl.DateTimeFormat.\nI haven't run the browser tests (npm run e2e), so locale behaviour is unverified, especially for ar and ja.",
+   "Refactored the date picker to use Intl.DateTimeFormat but browser tests not run."
+  ],
+  "b_rows": {
+   "B:ladder": {
+    "kind": "written",
+    "shown": "Refactored the date picker to use Intl.DateTimeFormat but browser tests not run.",
+    "excerpt": "Refactored the date picker to use `Intl.DateTimeFormat`.\nI haven't run the browser tests (`npm run e2e`), so locale behaviour is unverified, especially for `ar` and `ja`.",
+    "trace": [
+     "write passed the gate"
+    ],
+    "draft": "Refactored the date picker to use Intl.DateTimeFormat but browser tests not run.",
+    "choose_pick": "1"
+   }
+  },
+  "engine": "Apple on-device Foundation Model (prompt v3, guided output) with gate eval-3"
+ },
+ {
+  "review_id": "S016",
+  "type": "single",
+  "item": "T049",
+  "bucket": "question",
+  "level": "L2",
+  "setting": "main",
+  "kind": "excerpt_routed",
+  "line": "Is that intended, or should I filter them out?",
+  "trace": [
+   "section 2: L2/L3 show the agent's own words; no engine called"
+  ],
+  "engine": "Apple on-device Foundation Model (prompt v3, guided output) with gate eval-3"
+ },
+ {
+  "review_id": "P011",
+  "type": "pair",
+  "item": "T009",
+  "bucket": "finished",
+  "level": "L0",
+  "order": [
+   "B:ladder",
+   "A"
+  ],
+  "lines": [
+   "The dark theme toggle was implemented and tests passed.",
+   "Implemented the dark theme toggle in src/ui/ThemeSwitch.vue and wired it to prefers-color-scheme."
+  ],
+  "b_rows": {
+   "B:ladder": {
+    "kind": "written",
+    "shown": "The dark theme toggle was implemented and tests passed.",
+    "excerpt": "Implemented the dark theme toggle in `src/ui/ThemeSwitch.vue` and wired it to `prefers-color-scheme`.",
+    "trace": [
+     "write passed the gate"
+    ],
+    "draft": "The dark theme toggle was implemented and tests passed.",
+    "choose_pick": "1"
+   }
+  },
+  "engine": "Apple on-device Foundation Model (prompt v3, guided output) with gate eval-3"
+ },
+ {
+  "review_id": "P012",
+  "type": "pair",
+  "item": "T015",
+  "bucket": "partial",
+  "level": "L1",
+  "order": [
+   "B:choose_only",
+   "A"
+  ],
+  "lines": [
+   "The model tests pass, 9 of 9.",
+   "First half is in: the Invoice model and its migration 0042_invoice.sql."
+  ],
+  "b_rows": {
+   "B:choose_only": {
+    "kind": "quoted",
+    "shown": "The model tests pass, 9 of 9.",
+    "excerpt": "First half is in: the `Invoice` model and its migration `0042_invoice.sql`.",
+    "trace": [
+     "choose (3) passed the gate"
+    ],
+    "draft": null,
+    "choose_pick": "3"
+   }
+  },
+  "engine": "Apple on-device Foundation Model (prompt v3, guided output) with gate eval-3"
+ },
+ {
+  "review_id": "P013",
+  "type": "pair",
+  "item": "T033",
+  "bucket": "not_run",
+  "level": "L1",
+  "order": [
+   "B:ladder",
+   "A"
+  ],
+  "lines": [
+   "Switched logger to structured output and type check passed but unit tests not run.",
+   "Switched the logger to structured output in log/emit.ts.\nType check passes (tsc --noEmit), but the unit tests were not run in this turn."
+  ],
+  "b_rows": {
+   "B:ladder": {
+    "kind": "written",
+    "shown": "Switched logger to structured output and type check passed but unit tests not run.",
+    "excerpt": "Switched the logger to structured output in `log/emit.ts`.\nType check passes (`tsc --noEmit`), but the unit tests were not run in this turn.",
+    "trace": [
+     "write passed the gate"
+    ],
+    "draft": "Switched logger to structured output and type check passed but unit tests not run.",
+    "choose_pick": "1"
+   }
+  },
+  "engine": "Apple on-device Foundation Model (prompt v3, guided output) with gate eval-3"
+ },
+ {
+  "review_id": "S017",
+  "type": "single",
+  "item": "T068",
+  "bucket": "refactor",
+  "level": "L0",
+  "setting": "main (B shows A's excerpt)",
+  "kind": "quoted",
+  "line": "Replaced the hand-written query string builder with URLSearchParams in api/query.ts.",
+  "trace": [
+   "write failed step(s) 2b",
+   "choose (1) passed the gate"
+  ],
+  "engine": "Apple on-device Foundation Model (prompt v3, guided output) with gate eval-3"
+ },
+ {
+  "review_id": "S018",
+  "type": "single",
+  "item": "T052",
+  "bucket": "question",
+  "level": "L2",
+  "setting": "main",
+  "kind": "excerpt_routed",
+  "line": "Do you want the new endpoint under `/v2/reports` or under the existing `/v1/reports` with a `version` parameter?",
+  "trace": [
+   "section 2: L2/L3 show the agent's own words; no engine called"
+  ],
+  "engine": "Apple on-device Foundation Model (prompt v3, guided output) with gate eval-3"
+ },
+ {
+  "review_id": "P014",
+  "type": "pair",
+  "item": "T001",
+  "bucket": "finished",
+  "level": "L0",
+  "order": [
+   "A",
+   "B:ladder"
+  ],
+  "lines": [
+   "Added the --json flag to tally export in src/cli/export.rs.",
+   "Added --json flag to tally export and added three tests with 58 passed, 0 failed."
+  ],
+  "b_rows": {
+   "B:ladder": {
+    "kind": "written",
+    "shown": "Added --json flag to tally export and added three tests with 58 passed, 0 failed.",
+    "excerpt": "Added the `--json` flag to `tally export` in `src/cli/export.rs`.",
+    "trace": [
+     "write passed the gate"
+    ],
+    "draft": "Added --json flag to tally export and added three tests with 58 passed, 0 failed.",
+    "choose_pick": "1"
+   }
+  },
+  "engine": "Apple on-device Foundation Model (prompt v3, guided output) with gate eval-3"
+ },
+ {
+  "review_id": "S019",
+  "type": "single",
+  "item": "T050",
+  "bucket": "question",
+  "level": "L2",
+  "setting": "main",
+  "kind": "excerpt_routed",
+  "line": "Which one wins in production?",
+  "trace": [
+   "section 2: L2/L3 show the agent's own words; no engine called"
+  ],
+  "engine": "Apple on-device Foundation Model (prompt v3, guided output) with gate eval-3"
+ },
+ {
+  "review_id": "P015",
+  "type": "pair",
+  "item": "T011",
+  "bucket": "finished",
+  "level": "L0",
+  "order": [
+   "B:choose_only",
+   "A"
+  ],
+  "lines": [
+   "exportiere_csv() in lib/export.rs schreibt jetzt UTF-8 mit BOM, damit Excel die Umlaute richtig zeigt.",
+   "Der Export nach CSV ist fertig."
+  ],
+  "b_rows": {
+   "B:choose_only": {
+    "kind": "quoted",
+    "shown": "exportiere_csv() in lib/export.rs schreibt jetzt UTF-8 mit BOM, damit Excel die Umlaute richtig zeigt.",
+    "excerpt": "Der Export nach CSV ist fertig.",
+    "trace": [
+     "choose (2) passed the gate"
+    ],
+    "draft": null,
+    "choose_pick": "2"
+   }
+  },
+  "engine": "Apple on-device Foundation Model (prompt v3, guided output) with gate eval-3"
+ },
+ {
+  "review_id": "S020",
+  "type": "single",
+  "item": "T039",
+  "bucket": "failed",
+  "level": "L3",
+  "setting": "main",
+  "kind": "excerpt_routed",
+  "line": "The linter reports 12 errors after my change, all `no-unused-vars` in `src/store/*.ts`.",
+  "trace": [
+   "section 2: L2/L3 show the agent's own words; no engine called"
+  ],
+  "engine": "Apple on-device Foundation Model (prompt v3, guided output) with gate eval-3"
+ },
+ {
+  "review_id": "S021",
+  "type": "single",
+  "item": "T057",
+  "bucket": "question",
+  "level": "L2",
+  "setting": "main",
+  "kind": "excerpt_routed",
+  "line": "Do you want me to keep the old `legacy_export()` alongside the new one for one release, or delete it now?",
+  "trace": [
+   "section 2: L2/L3 show the agent's own words; no engine called"
+  ],
+  "engine": "Apple on-device Foundation Model (prompt v3, guided output) with gate eval-3"
+ },
+ {
+  "review_id": "S022",
+  "type": "single",
+  "item": "T045",
+  "bucket": "failed",
+  "level": "L3",
+  "setting": "main",
+  "kind": "excerpt_routed",
+  "line": "Could not reproduce the login bug and my fix attempt made it worse: `tests/auth/test_session.py` now has 4 failures (`SessionExpired` raised too early).",
+  "trace": [
+   "section 2: L2/L3 show the agent's own words; no engine called"
+  ],
+  "engine": "Apple on-device Foundation Model (prompt v3, guided output) with gate eval-3"
+ },
+ {
+  "review_id": "S023",
+  "type": "single",
+  "item": "T038",
+  "bucket": "failed",
+  "level": "L3",
+  "setting": "main",
+  "kind": "excerpt_routed",
+  "line": "`alembic upgrade head` fails with `psycopg2.errors.UndefinedTable: relation \"accounts\" does not exist`.",
+  "trace": [
+   "section 2: L2/L3 show the agent's own words; no engine called"
+  ],
+  "engine": "Apple on-device Foundation Model (prompt v3, guided output) with gate eval-3"
+ },
+ {
+  "review_id": "P016",
+  "type": "pair",
+  "item": "T013",
+  "bucket": "partial",
+  "level": "L1",
+  "order": [
+   "B:choose_only",
+   "A"
+  ],
+  "lines": [
+   "CSV/TSV tests pass (14).",
+   "The importer now handles CSV and TSV (importer/mod.rs), but XLSX is still stubbed: read_xlsx() returns Err(Unsupported)."
+  ],
+  "b_rows": {
+   "B:choose_only": {
+    "kind": "quoted",
+    "shown": "CSV/TSV tests pass (14).",
+    "excerpt": "The importer now handles CSV and TSV (`importer/mod.rs`), but XLSX is still stubbed: `read_xlsx()` returns `Err(Unsupported)`.",
+    "trace": [
+     "choose (3) passed the gate"
+    ],
+    "draft": null,
+    "choose_pick": "3"
+   }
+  },
+  "engine": "Apple on-device Foundation Model (prompt v3, guided output) with gate eval-3"
+ },
+ {
+  "review_id": "P017",
+  "type": "pair",
+  "item": "T023",
+  "bucket": "partial",
+  "level": "L1",
+  "order": [
+   "B:ladder",
+   "B:choose_only",
+   "A"
+  ],
+  "lines": [
+   "Added rate limiter with 100 requests per minute per key but counters in memory.",
+   "A shared store is the next step.",
+   "I added the rate limiter (middleware/limit.js, 100 requests per minute per key), but it keeps its counters in memory, so it does not work across the two server instances yet."
+  ],
+  "b_rows": {
+   "B:ladder": {
+    "kind": "quoted",
+    "shown": "Added rate limiter with 100 requests per minute per key but counters in memory.",
+    "excerpt": "I added the rate limiter (`middleware/limit.js`, 100 requests per minute per key), but it keeps its counters in memory, so it does not work across the two server instances yet.",
+    "trace": [
+     "write passed the gate"
+    ],
+    "draft": "Added rate limiter with 100 requests per minute per key but counters in memory.",
+    "choose_pick": "2"
+   },
+   "B:choose_only": {
+    "kind": "quoted",
+    "shown": "A shared store is the next step.",
+    "excerpt": "I added the rate limiter (`middleware/limit.js`, 100 requests per minute per key), but it keeps its counters in memory, so it does not work across the two server instances yet.",
+    "trace": [
+     "choose (2) passed the gate"
+    ],
+    "draft": null,
+    "choose_pick": "2"
+   }
+  },
+  "engine": "Apple on-device Foundation Model (prompt v3, guided output) with gate eval-3"
+ },
+ {
+  "review_id": "P018",
+  "type": "pair",
+  "item": "T007",
+  "bucket": "finished",
+  "level": "L0",
+  "order": [
+   "A",
+   "B:ladder",
+   "B:choose_only"
+  ],
+  "lines": [
+   "The nightly cleanup job now deletes exports older than 14 days (jobs/cleanup.ts).",
+   "The nightly cleanup job deleted 9 files, kept 3, and 27 unit tests passed.",
+   "I ran the job against the seed data: 9 files removed, 3 kept."
+  ],
+  "b_rows": {
+   "B:ladder": {
+    "kind": "written",
+    "shown": "The nightly cleanup job deleted 9 files, kept 3, and 27 unit tests passed.",
+    "excerpt": "The nightly cleanup job now deletes exports older than 14 days (`jobs/cleanup.ts`).",
+    "trace": [
+     "write passed the gate"
+    ],
+    "draft": "The nightly cleanup job deleted 9 files, kept 3, and 27 unit tests passed.",
+    "choose_pick": "3"
+   },
+   "B:choose_only": {
+    "kind": "quoted",
+    "shown": "I ran the job against the seed data: 9 files removed, 3 kept.",
+    "excerpt": "The nightly cleanup job now deletes exports older than 14 days (`jobs/cleanup.ts`).",
+    "trace": [
+     "choose (3) passed the gate"
+    ],
+    "draft": null,
+    "choose_pick": "3"
+   }
+  },
+  "engine": "Apple on-device Foundation Model (prompt v3, guided output) with gate eval-3"
+ },
+ {
+  "review_id": "S024",
+  "type": "single",
+  "item": "T065",
+  "bucket": "refactor",
+  "level": "L0",
+  "setting": "main (B shows A's excerpt)",
+  "kind": "excerpt",
+  "line": "Das Modul `db/abfragen.py` ist aufgeteilt in `db/lesen.py` und `db/schreiben.py`.",
+  "trace": [
+   "write failed step(s) 2,2b,3",
+   "step 0/3/5: straight to the excerpt"
+  ],
+  "engine": "Apple on-device Foundation Model (prompt v3, guided output) with gate eval-3"
+ },
+ {
+  "review_id": "P019",
+  "type": "pair",
+  "item": "T060",
+  "bucket": "refactor",
+  "level": "L0",
+  "order": [
+   "B:ladder",
+   "A"
+  ],
+  "lines": [
+   "Extracted retry loop from fetchAll() into withRetry() in lib/retry.ts with 31 tests passing.",
+   "Extracted the retry loop from fetchAll() into withRetry() in lib/retry.ts."
+  ],
+  "b_rows": {
+   "B:ladder": {
+    "kind": "written",
+    "shown": "Extracted retry loop from fetchAll() into withRetry() in lib/retry.ts with 31 tests passing.",
+    "excerpt": "Extracted the retry loop from `fetchAll()` into `withRetry()` in `lib/retry.ts`.",
+    "trace": [
+     "write passed the gate"
+    ],
+    "draft": "Extracted retry loop from fetchAll() into withRetry() in lib/retry.ts with 31 tests passing.",
+    "choose_pick": "1"
+   }
+  },
+  "engine": "Apple on-device Foundation Model (prompt v3, guided output) with gate eval-3"
+ },
+ {
+  "review_id": "S025",
+  "type": "single",
+  "item": "T044",
+  "bucket": "failed",
+  "level": "L3",
+  "setting": "main",
+  "kind": "excerpt_routed",
+  "line": "After the schema change, `/health` returned 500 and the integration test `test_health` fails with `KeyError: 'version'`.",
+  "trace": [
+   "section 2: L2/L3 show the agent's own words; no engine called"
+  ],
+  "engine": "Apple on-device Foundation Model (prompt v3, guided output) with gate eval-3"
+ },
+ {
+  "review_id": "P020",
+  "type": "pair",
+  "item": "T004",
+  "bucket": "finished",
+  "level": "L0",
+  "order": [
+   "B:ladder",
+   "A"
+  ],
+  "lines": [
+   "Fixed off-by-one in paginate, added regression test, tests passed.",
+   "Fixed the off-by-one in paginate() (api/list.go): the last page no longer repeats the final item."
+  ],
+  "b_rows": {
+   "B:ladder": {
+    "kind": "written",
+    "shown": "Fixed off-by-one in paginate, added regression test, tests passed.",
+    "excerpt": "Fixed the off-by-one in `paginate()` (`api/list.go`): the last page no longer repeats the final item.",
+    "trace": [
+     "write passed the gate"
+    ],
+    "draft": "Fixed off-by-one in paginate, added regression test, tests passed.",
+    "choose_pick": "1"
+   }
+  },
+  "engine": "Apple on-device Foundation Model (prompt v3, guided output) with gate eval-3"
+ },
+ {
+  "review_id": "S026",
+  "type": "single",
+  "item": "T048",
+  "bucket": "question",
+  "level": "L2",
+  "setting": "main",
+  "kind": "excerpt_routed",
+  "line": "Which do you prefer?",
+  "trace": [
+   "section 2: L2/L3 show the agent's own words; no engine called"
+  ],
+  "engine": "Apple on-device Foundation Model (prompt v3, guided output) with gate eval-3"
+ },
+ {
+  "review_id": "S027",
+  "type": "single",
+  "item": "T056",
+  "bucket": "question",
+  "level": "L2",
+  "setting": "main",
+  "kind": "excerpt_routed",
+  "line": "Shall I move it to Node 22 in `.github/workflows/ci.yml`?",
+  "trace": [
+   "section 2: L2/L3 show the agent's own words; no engine called"
+  ],
+  "engine": "Apple on-device Foundation Model (prompt v3, guided output) with gate eval-3"
+ },
+ {
+  "review_id": "S028",
+  "type": "single",
+  "item": "T014",
+  "bucket": "partial",
+  "level": "L1",
+  "setting": "main (B shows A's excerpt)",
+  "kind": "quoted",
+  "line": "Migrated 7 of the 11 endpoints to the new auth middleware.",
+  "trace": [
+   "write passed the gate"
+  ],
+  "engine": "Apple on-device Foundation Model (prompt v3, guided output) with gate eval-3"
+ },
+ {
+  "review_id": "S029",
+  "type": "single",
+  "item": "T031",
+  "bucket": "not_run",
+  "level": "L1",
+  "setting": "main (B shows A's excerpt)",
+  "kind": "excerpt",
+  "line": "Das neue Feld `phone` ist im Formular `forms/signup.vue` und in der Validierung drin.\nIch habe die Tests nicht ausgeführt, weil die Datenbank lokal nicht läuft.",
+  "trace": [
+   "write failed step(s) 2b,4",
+   "chosen sentence 1 failed step(s) 3"
+  ],
+  "engine": "Apple on-device Foundation Model (prompt v3, guided output) with gate eval-3"
+ },
+ {
+  "review_id": "S030",
+  "type": "single",
+  "item": "T037",
+  "bucket": "failed",
+  "level": "L3",
+  "setting": "main",
+  "kind": "excerpt_routed",
+  "line": "Tests failed: 3 of 87 (`test_upload_large`, `test_upload_resume`, `test_checksum`).",
+  "trace": [
+   "section 2: L2/L3 show the agent's own words; no engine called"
+  ],
+  "engine": "Apple on-device Foundation Model (prompt v3, guided output) with gate eval-3"
+ },
+ {
+  "review_id": "S031",
+  "type": "single",
+  "item": "T030",
+  "bucket": "not_run",
+  "level": "L1",
+  "setting": "main (B shows A's excerpt)",
+  "kind": "excerpt",
+  "line": "Typo fixes in `docs/` only (14 files).",
+  "trace": [
+   "write failed step(s) 2b,3",
+   "step 0/3/5: straight to the excerpt"
+  ],
+  "engine": "Apple on-device Foundation Model (prompt v3, guided output) with gate eval-3"
+ },
+ {
+  "review_id": "P021",
+  "type": "pair",
+  "item": "T061",
+  "bucket": "refactor",
+  "level": "L0",
+  "order": [
+   "B:ladder",
+   "A"
+  ],
+  "lines": [
+   "Renamed getUsr to getUser and removed legacy_fmt with no functional change.",
+   "Renamed getUsr to getUser across src/ (43 call sites) and removed the dead helper legacy_fmt."
+  ],
+  "b_rows": {
+   "B:ladder": {
+    "kind": "written",
+    "shown": "Renamed getUsr to getUser and removed legacy_fmt with no functional change.",
+    "excerpt": "Renamed `getUsr` to `getUser` across `src/` (43 call sites) and removed the dead helper `legacy_fmt`.",
+    "trace": [
+     "write passed the gate"
+    ],
+    "draft": "Renamed `getUsr` to `getUser` and removed `legacy_fmt` with no functional change.",
+    "choose_pick": "1"
+   }
+  },
+  "engine": "Apple on-device Foundation Model (prompt v3, guided output) with gate eval-3"
+ },
+ {
+  "review_id": "S032",
+  "type": "single",
+  "item": "T054",
+  "bucket": "question",
+  "level": "L2",
+  "setting": "main",
+  "kind": "excerpt_routed",
+  "line": "Welche soll ich nehmen?",
+  "trace": [
+   "section 2: L2/L3 show the agent's own words; no engine called"
+  ],
+  "engine": "Apple on-device Foundation Model (prompt v3, guided output) with gate eval-3"
+ }
+]

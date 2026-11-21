@@ -6,7 +6,7 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::time::{Duration, SystemTime};
 
-use juggler_adapter::live::{HostApp, HostKind};
+use juggler_adapter::live::HostApp;
 
 use super::bundle::{self, Ask, Bundle, Lookup, OWN_APP_ID};
 use super::cache::IconCache;
@@ -63,20 +63,10 @@ fn hosts() -> HostRegistry {
         name: "An App".into(),
         bundle: "An App.app".into(),
         bundle_id: Some("dev.example.an-app".into()),
-        kind: HostKind::Desktop,
         instance_arg: None,
         default_instance: None,
-        thread_link: None,
-        folder_link: None,
-        folder_command: None,
-        tab_script: None,
-        shown: None,
         siblings: false,
-        folder_env: None,
-        handoff_link: None,
-        handoff_record: None,
-        session_link: None,
-        default_folder: None,
+        ..crate::test_support::claude_app_host(None)
     }])
 }
 

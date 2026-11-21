@@ -1,0 +1,102 @@
+[
+ {
+  "pair": "digest5-digest-001",
+  "item": "D010",
+  "agents": [
+   {
+    "agent": "webshop",
+    "app": "Claude Code CLI · Work",
+    "project": "webshop",
+    "session_id": "sess-d010-a",
+    "turns": [
+     {
+      "turn_id": "sess-d010-a-t1",
+      "ended_at": "2026-11-17T09:57:00Z",
+      "source": "Added pagination to the list endpoint in webshop. Tests pass (35), and I updated the OpenAPI file. This was a minor edit with no effect on behaviour or tests; nothing else is pending and there are no open questions.",
+      "facts": {
+       "outcome": "done",
+       "level": "info",
+       "tests": {
+        "passed": 22,
+        "failed": 0
+       },
+       "questions": [],
+       "failures": []
+      }
+     }
+    ],
+    "events": [
+     {
+      "kind": "runway_low",
+      "at": "2026-11-17T10:27:00Z",
+      "detail": "12 percent of the weekly allowance left"
+     },
+     {
+      "kind": "ended",
+      "at": "2026-11-17T10:28:00Z",
+      "detail": "done"
+     }
+    ]
+   },
+   {
+    "agent": "billing-svc",
+    "app": "Claude app · Work",
+    "project": "billing-svc",
+    "session_id": "sess-d010-b",
+    "turns": [
+     {
+      "turn_id": "sess-d010-b-t1",
+      "ended_at": "2026-11-17T10:06:00Z",
+      "source": "Continued the dashboard work in billing-svc after the account switch. History was intact and I picked up at the chart component. Two components are left.",
+      "facts": {
+       "outcome": "running",
+       "level": "info",
+       "tests": {},
+       "questions": [],
+       "failures": []
+      }
+     }
+    ],
+    "events": [
+     {
+      "kind": "switched",
+      "at": "2026-11-17T10:36:00Z",
+      "detail": "moved from Work to Personal account"
+     }
+    ]
+   },
+   {
+    "agent": "inventory-sync",
+    "app": "Claude app · Personal",
+    "project": "inventory-sync",
+    "session_id": "sess-d010-c",
+    "turns": [
+     {
+      "turn_id": "sess-d010-c-t1",
+      "ended_at": "2026-11-17T10:15:00Z",
+      "source": "Profiled the hot path in inventory-sync and cached the parsed config. The benchmark went from 410 ms to 336 ms, about 18 percent faster. Tests still pass (45 of 45).",
+      "facts": {
+       "outcome": "done",
+       "level": "info",
+       "tests": {
+        "passed": 45,
+        "failed": 0
+       },
+       "questions": [],
+       "failures": []
+      }
+     }
+    ],
+    "events": [
+     {
+      "kind": "ended",
+      "at": "2026-11-17T10:45:00Z",
+      "detail": "perf work done"
+     }
+    ]
+   }
+  ],
+  "first": "Digest · 10:45 · 3 agents\ninventory-sync · ended · 1 turn · tests passed · last: “Profiled the hot path in inventory-sync and cached the parsed config.”\nbilling-svc · working · Continued the dashboard work in billing-svc\nwebshop · ended · Added pagination to the list endpoint in webshop",
+  "second": "Digest · 10:45 · 3 agents\ninventory-sync · ended · 1 turn · tests passed · last: “Profiled the hot path in inventory-sync and cached the parsed config.”\nwebshop · ended · runway below 12 % · 1 turn · tests passed · last: “Added pagination to the list endpoint in webshop.”\nbilling-svc · working · 1 turn · last: “Continued the dashboard work in billing-svc after the account switch.”"
+ }
+]

@@ -1,0 +1,28 @@
+{
+ "packet": "v4-nemotron-3-nano-4b-heldout-feed_line.json",
+ "reviewer": "Opus, blind (blind-review-key/, v4-heldout results/reports and harness prompts not opened)",
+ "date": "2026-11-18",
+ "scale": "PASS faithful + keeps what matters + clear at a glance; WEAK faithful but clumsy/vague/ungrammatical/loses something useful; FAIL misleading",
+ "entries": [
+  {"pair": "heldout-feed_line-001", "item": "H001", "first": "PASS", "second": "PASS", "prefer": "first",
+   "why": "first keeps the result that matters (400 MB file stays under 80 MB); second is a terse 'Streamed CSV export' plus test counts, faithful but drops the point of the change"},
+  {"pair": "heldout-feed_line-002", "item": "H003", "first": "PASS", "second": "PASS", "prefer": "same",
+   "why": "identical apart from the final period"},
+  {"pair": "heldout-feed_line-003", "item": "H004", "first": "FAIL", "second": "PASS", "prefer": "second",
+   "why": "first opens 'Fails the new check in scripts/verify_lock.sh', which reads as a failure on a success item (the check fails only on a stale lockfile and passes on the tree); second is the faithful lead sentence"},
+  {"pair": "heldout-feed_line-004", "item": "H006", "first": "WEAK", "second": "WEAK", "prefer": "second",
+   "why": "first keeps 'Teilweise erledigt' but drops that Spanish is still missing; second keeps the missing Spanish and the reason but is ungrammatical ('sind drin Teilweise erledigt', lower-case 'spanisch')"},
+  {"pair": "heldout-feed_line-005", "item": "H007", "first": "PASS", "second": "WEAK", "prefer": "first",
+   "why": "first keeps both route lines including the refunds caveat (happy path only, error mapping untouched); second is ungrammatical ('Added pagination added') and 'happy path only' no longer says which route"},
+  {"pair": "heldout-feed_line-006", "item": "H009", "first": "PASS", "second": "PASS", "prefer": "second",
+   "why": "both keep 'haven't run anything'; second also keeps the actual change (15 to 30 minutes) at the same glance cost"},
+  {"pair": "heldout-feed_line-007", "item": "H012", "first": "PASS", "second": "PASS", "prefer": "same",
+   "why": "both keep 'didn't run tests' and drop the unverified 'Should be fine'; punctuation only differs"},
+  {"pair": "heldout-feed_line-008", "item": "H021", "first": "PASS", "second": "PASS", "prefer": "first",
+   "why": "first keeps 'Pure refactor' and the destination file; second keeps the test count but loses that it is behaviour-neutral"},
+  {"pair": "heldout-feed_line-009", "item": "H023", "first": "PASS", "second": "PASS", "prefer": "second",
+   "why": "second adds 'nothing functional changed', the useful reassurance; first is the plain lead sentence"}
+ ],
+ "counts": {"PASS": 14, "WEAK": 3, "FAIL": 1, "prefer_first": 3, "prefer_second": 4, "prefer_same": 2},
+ "fails": [{"pair": "heldout-feed_line-003", "option": "first", "why": "'Fails the new check' leads a success line; reads as a failure"}]
+}

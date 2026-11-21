@@ -11,11 +11,12 @@ import { toolSpec } from "../../lib/tools";
 import { SwitchFreezeChoice, type FreezeChoice } from "../SwitchFreezeChoice";
 import { CarryList } from "./CarryList";
 import { Checkbox, Radio } from "../controls";
+import { SELECTED_CARD } from "../controls/selected";
 
 export type Mechanism = "transplant" | "replay";
 
 const OPTION = "flex items-start gap-2.5 rounded-lg border px-3 py-2 text-body";
-const picked = (on: boolean) => (on ? " border-accent/60 bg-accent-soft" : " border-hairline");
+const picked = (on: boolean) => (on ? " " + SELECTED_CARD : " border-hairline");
 
 /** The fidelity badge, under the title, as this Mac's switch shows it. */
 export function Badge({ words }: { words: string }): JSX.Element {

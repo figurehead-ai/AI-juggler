@@ -31,7 +31,8 @@ const PEER = {
   connection_detail: null,
 };
 
-const PANES = ["General", "Desktop apps", "The Floor", "Accounts", "Sessions", "Switching", "Agent access", "Notifications", "Privacy", "Keyboard", "Advanced"];
+// AJ-E3812: AI is a group's row, with Jobs and Models under it.
+const PANES = ["General", "Desktop apps", "The Floor", "Accounts", "Sessions", "Switching", "AI", "Jobs", "Models", "Agent access", "Notifications", "Privacy", "Keyboard", "Advanced"];
 
 afterEach(cleanup);
 beforeEach(() => {
@@ -49,7 +50,9 @@ describe("AJ-E2110 — Settings panes", () => {
     const nav = getByTestId("settings-nav");
     expect(nav.closest("nav")?.getAttribute("aria-label")).toBe("Settings");
     expect(navNames(nav)).toEqual(PANES);
-    for (const button of within(nav).getAllByRole("button")) {
+    // A group's panes (AI › Jobs, Models) sit under its row, with no tile.
+    const grouped = new Set(PANE_SPECS.filter((spec) => spec.group).map((spec) => spec.id as string));
+    for (const button of within(nav).getAllByRole("button").filter((row) => !grouped.has(row.dataset.pane ?? ""))) {
       expect(button.querySelector("span[aria-hidden='true'] svg")).not.toBeNull();
     }
     expect(within(nav).getByRole("button", { name: "General" }).getAttribute("aria-current")).toBe("page");
@@ -66,7 +69,7 @@ describe("AJ-E2110 — Settings panes", () => {
     w().__AIJ_FLEET_PEERS__ = [PEER];
     const { getByTestId } = render(<SettingsScreen />);
     await waitFor(() => expect(navNames(getByTestId("settings-nav"))).toContain("Your Macs"));
-    expect(navNames(getByTestId("settings-nav"))).toEqual([...PANES.slice(0, 9), "Your Macs", "Keyboard", "Advanced"]);
+    expect(navNames(getByTestId("settings-nav"))).toEqual([...PANES.slice(0, 12), "Your Macs", "Keyboard", "Advanced"]);
   });
 
   it("Agent access (AJ-E1702): always there, every pool's level, and the rules you made", async () => {
@@ -171,6 +174,10 @@ describe("AJ-E2110 R2: every pane's sections", () => {
       // first area, says once what every row does.
       for (const section of spec.id === "keyboard" ? sections.slice(0, 1) : sections) {
         expect(section.querySelector("h3")?.textContent, section.id).toBeTruthy();
+        // AJ-E3812 (D-126 rich mode, the approved mock): the AI panes put
+        // their one line of help beside the heading (the kit's Section),
+        // and their groups end in cards, not a footer.
+        if (spec.group) continue;
         expect(section.lastElementChild?.tagName, `${section.id}'s footer`).toBe("P");
         expect(section.lastElementChild?.textContent?.trim(), `${section.id}'s footer`).toBeTruthy();
       }

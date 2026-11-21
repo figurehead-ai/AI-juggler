@@ -11,7 +11,8 @@ import { IconGaugeEmpty, IconGaugeLow } from "./icons";
 import type { RoomMark } from "../lib/room-mark";
 import { READINGS_EVERY_MS, useQuotaDisplays } from "../lib/kept-reads";
 import { useSubscriptions } from "../lib/subscriptions";
-import { roomCountWords, roomCounts, roomMarkOfProfile } from "../lib/room-mark";
+import { accountMark, roomCountWords, roomCounts, roomMarkOfApp } from "../lib/room-mark";
+import type { SubscriptionInfo } from "../lib/subscriptions";
 import { clocksWhole } from "../lib/time-words";
 import { openAccounts } from "../lib/accounts-filter";
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
@@ -26,9 +27,12 @@ export function RoomChip({ mark, size = "sm", compact = false, iconOnly = false,
   const Icon = mark.kind === "out" ? IconGaugeEmpty : IconGaugeLow;
   // D-100 (the 0.4.2 review): in the rail's App header the mark is its
   // icon alone (its words on hover), so the App's name keeps the room.
+  // D-118 (one quiet mark per need, the rail calm): a glyph, no amber or
+  // red disc: low room is a note (muted), Out its danger glyph; the loud
+  // copy of a need is its Needs you row.
   if (iconOnly) {
     return (
-      <span title={mark.title} data-testid={testId} data-kind={mark.kind} className={`inline-flex size-[18px] shrink-0 items-center justify-center rounded-full border ${TONE[mark.kind]}`}>
+      <span title={mark.title} data-testid={testId} data-kind={mark.kind} className={`inline-flex size-[18px] shrink-0 items-center justify-center ${mark.kind === "out" ? "text-danger" : "text-muted"}`}>
         <Icon aria-hidden="true" width={11} height={11} />
         <span className="sr-only">{mark.title}</span>
       </span>
@@ -79,21 +83,36 @@ export function RoomChip({ mark, size = "sm", compact = false, iconOnly = false,
  * the Accounts are read as often as the readings (a mark stays drawn in
  * the rail; read once, a folder that moved Accounts was still counted in
  * the one it left, its new reading marking that one Out). */
-export function useRoomMark(profileId: string | null | undefined, sessions: readonly InstanceInfo[] = []): RoomMark | null {
+export function useRoomMark(profileId: string | null | undefined, sessions: readonly InstanceInfo[] = [], appId: string | null = null): RoomMark | null {
   const { displays } = useQuotaDisplays();
-  const accounts = useSubscriptions(0, !!profileId, READINGS_EVERY_MS);
-  return roomMarkOfProfile(profileId, accounts, displays, sessions);
+  const accounts = useSubscriptions(0, !!profileId || !!appId, READINGS_EVERY_MS);
+  // AJ-E3210: an App's mark is its own Account's (a Claude app profile
+  // and its CLI on one folder can be on two).
+  return roomMarkOfApp(appId, profileId, accounts, displays, sessions);
 }
 
-/** The chip for folder `profileId`, read where it's drawn. */
-export function ProfileRoomChip({ profileId, size, compact, testId }: { profileId: string | null | undefined; size?: "sm" | "md"; compact?: boolean; testId?: string }): JSX.Element | null {
-  return <RoomChip mark={useRoomMark(profileId)} size={size} compact={compact} testId={testId} />;
+/** The chip for folder `profileId`, read where it's drawn; `appId`: the
+ * App it marks (AJ-E3210: by that App's own Account). */
+export function ProfileRoomChip({ profileId, appId = null, size, compact, testId }: { profileId: string | null | undefined; appId?: string | null; size?: "sm" | "md"; compact?: boolean; testId?: string }): JSX.Element | null {
+  return <RoomChip mark={useRoomMark(profileId, [], appId)} size={size} compact={compact} testId={testId} />;
+}
+
+/** An Account's own mark (its page's header): by its readings, wherever
+ * they were read (AJ-E3210: an Account only a Claude app profile is on
+ * has no folder of its own). */
+export function useAccountRoomMark(account: SubscriptionInfo): RoomMark | null {
+  const { displays } = useQuotaDisplays();
+  return accountMark(account, displays);
 }
 
 /** D-87, 0.4.1: the top bar's calm count of Accounts out of room or low
  * ("1 account out"), with the gauge, beside This Mac's line; a click
  * opens Accounts on the out ones (0.4.2), or the low ones when none is
- * out. Nothing when every account has room. */
+ * out. Nothing when every account has room. D-117 (c2) and D-118's mock:
+ * chrome spends no colour on a note: a ghost button, no fill or border
+ * (no amber fill anywhere, budget rule 2); low room is a note (L1) in
+ * muted words, Out keeps the danger word. Runway by account and Needs
+ * you carry the loud copy when live work is on it. */
 export function RoomCount(): JSX.Element | null {
   const { displays } = useQuotaDisplays();
   const accounts = useSubscriptions(0, true, READINGS_EVERY_MS);
@@ -111,7 +130,7 @@ export function RoomCount(): JSX.Element | null {
       title={`${words}: show ${counts[out ? "out" : "low"] === 1 ? "it" : "them"} in Accounts`}
       data-testid="header-room-count"
       data-kind={out ? "out" : "low"}
-      className={`inline-flex h-7 shrink-0 items-center gap-1 whitespace-nowrap rounded-full border px-2 text-label font-semibold outline-none transition-colors focus-visible:ring-2 focus-visible:ring-accent/60 ${TONE[out ? "out" : "low"]}`}
+      className={`btn-ghost inline-flex h-7 shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-1.5 text-meta font-medium outline-none focus-visible:ring-2 focus-visible:ring-accent/60 ${out ? "text-danger" : "text-muted"}`}
     >
       <Icon aria-hidden="true" width={13} height={13} />
       {/* Its number alone until the bar has room for its words (the

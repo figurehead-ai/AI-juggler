@@ -34,7 +34,9 @@ pub struct StoredAppInfo {
     /// The config folder it uses (a CLI App's own; a desktop App's once
     /// its sessions name one).
     pub folder_id: Option<String>,
-    /// The stored Account its folder was last read as.
+    /// AJ-E3210 (D-135): the Account it's on: a CLI App's folder's (its
+    /// CLI sign-in), a desktop App's own (its records'); `null` when it
+    /// isn't signed in, or a desktop App's isn't known yet.
     pub account_id: Option<String>,
     /// When it was last seen running, epoch ms (a CLI App: when made).
     #[ts(type = "number")]
@@ -72,14 +74,18 @@ pub fn list_impl(state: &Arc<AppState>) -> AppResult<Vec<StoredAppInfo>> {
     }
     let accounts: BTreeMap<String, Option<String>> =
         storage.subscriptions().folders()?.into_iter().collect();
+    let own = storage.apps().accounts()?;
     let slots = storage.apps().colour_slots()?;
     Ok(users_apps(storage.apps().list()?, &in_use, &counted)
         .into_iter()
         .map(|app| StoredAppInfo {
-            account_id: app
-                .folder_id
-                .as_ref()
-                .and_then(|folder| accounts.get(folder).cloned().flatten()),
+            account_id: if app.kind == "desktop" {
+                own.get(&app.id).cloned().flatten()
+            } else {
+                app.folder_id
+                    .as_ref()
+                    .and_then(|folder| accounts.get(folder).cloned().flatten())
+            },
             colour_slot: slots.get(&app.id).copied(),
             id: app.id,
             kind: app.kind,

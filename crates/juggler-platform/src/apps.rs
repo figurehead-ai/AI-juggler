@@ -19,6 +19,10 @@
 //!   running with no window and no place in the apps the system knows: it
 //!   can't be brought forward or sent a link, and starting a second one on
 //!   the same profile folder risks its data. [`quit`] asks it to end.
+//!
+//! - [`install_folders`], [`installed_app`], [`resources_of`] (AJ-E1605):
+//!   where an app the user installed is, by its name, and the folder it
+//!   keeps its own files in (a tool whose engine ships inside its app).
 
 use std::path::Path;
 
@@ -247,21 +251,7 @@ pub fn session_since() -> Option<i64> {
 ///
 /// The process is gone or isn't this user's, or this system can't yet.
 pub fn quit(pid: u32) -> std::io::Result<()> {
-    #[cfg(unix)]
-    {
-        use nix::sys::signal::{Signal, kill};
-        use nix::unistd::Pid;
-        let pid = i32::try_from(pid)
-            .ok()
-            .filter(|pid| *pid > 1)
-            .ok_or_else(|| std::io::Error::other("that isn't an app's process"))?;
-        kill(Pid::from_raw(pid), Signal::SIGTERM).map_err(std::io::Error::from)
-    }
-    #[cfg(not(unix))]
-    {
-        let _ = pid;
-        Err(crate::unsupported("quitting an app"))
-    }
+    crate::process::ask_to_end(pid, "that isn't an app's process", "quitting an app")
 }
 
 /// The version an app bundle says it is (macOS: `CFBundleShortVersionString`
@@ -269,6 +259,30 @@ pub fn quit(pid: u32) -> std::io::Result<()> {
 /// other system, answers `None`). Read only, at most 1 MB.
 #[must_use]
 pub fn bundle_version(bundle: &std::path::Path) -> Option<String> {
+    plist_word(bundle, "CFBundleShortVersionString", |c| {
+        c.is_ascii_alphanumeric() || c == '.' || c == '-'
+    })
+}
+
+/// AJ-E1610: the bundle id an app bundle declares (macOS:
+/// `CFBundleIdentifier` in its `Contents/Info.plist`, an XML property
+/// list; a binary one, or any other system, answers `None`). Read only,
+/// at most 1 MB: how an app the user renamed, or a beta build, is still
+/// known.
+#[must_use]
+pub fn bundle_identifier(bundle: &std::path::Path) -> Option<String> {
+    plist_word(bundle, "CFBundleIdentifier", |c| {
+        c.is_ascii_alphanumeric() || c == '.' || c == '-' || c == '_'
+    })
+}
+
+/// One short string value of `key` in a bundle's XML `Info.plist`, when
+/// every character passes `allowed`.
+fn plist_word(
+    bundle: &std::path::Path,
+    key: &str,
+    allowed: impl Fn(char) -> bool,
+) -> Option<String> {
     use std::io::Read as _;
     let mut text = String::new();
     std::fs::File::open(bundle.join("Contents/Info.plist"))
@@ -276,17 +290,61 @@ pub fn bundle_version(bundle: &std::path::Path) -> Option<String> {
         .take(1 << 20)
         .read_to_string(&mut text)
         .ok()?;
-    let key = text.find("<key>CFBundleShortVersionString</key>")?;
-    let rest = &text[key..];
+    let at = text.find(&format!("<key>{key}</key>"))?;
+    let rest = &text[at..];
     let open = rest.find("<string>")? + "<string>".len();
     let close = rest[open..].find("</string>")?;
-    let version = rest[open..open + close].trim();
-    (!version.is_empty()
-        && version.len() <= 64
-        && version
-            .chars()
-            .all(|c| c.is_ascii_alphanumeric() || c == '.' || c == '-'))
-    .then(|| version.to_owned())
+    let word = rest[open..open + close].trim();
+    (!word.is_empty() && word.len() <= 128 && word.chars().all(allowed)).then(|| word.to_owned())
+}
+
+/// The folders this system installs apps in, for the user whose home is
+/// `home` (AJ-E1605): on macOS `/Applications`, then `~/Applications`.
+/// None yet on other systems.
+#[must_use]
+pub fn install_folders(home: Option<&std::path::Path>) -> Vec<std::path::PathBuf> {
+    if !cfg!(target_os = "macos") {
+        return Vec::new();
+    }
+    let mut folders = vec![std::path::PathBuf::from("/Applications")];
+    folders.extend(home.map(|home| home.join("Applications")));
+    folders
+}
+
+/// The app called `name` (as the system shows it) installed in `folder`:
+/// on macOS its bundle, `<folder>/<name>.app`, when it is there. `None`
+/// on other systems yet.
+#[must_use]
+pub fn installed_app(folder: &std::path::Path, name: &str) -> Option<std::path::PathBuf> {
+    if !cfg!(target_os = "macos") {
+        return None;
+    }
+    let app = folder.join(format!("{name}.app"));
+    app.is_dir().then_some(app)
+}
+
+/// The folder an installed app keeps its own files in (macOS: its
+/// bundle's `Contents/Resources`).
+#[must_use]
+pub fn resources_of(app: &std::path::Path) -> std::path::PathBuf {
+    app.join("Contents").join("Resources")
+}
+
+/// An installed app's own program, `name` (macOS: its bundle's
+/// `Contents/MacOS/<name>`). AJ-E1605: `ZCode` runs its engine on it.
+#[must_use]
+pub fn executable_of(app: &std::path::Path, name: &str) -> std::path::PathBuf {
+    app.join("Contents").join("MacOS").join(name)
+}
+
+/// The app bundle a file of an app lies in (macOS: the nearest folder
+/// above it named `*.app`); `None` when it isn't in one.
+#[must_use]
+pub fn bundle_of(file: &std::path::Path) -> Option<std::path::PathBuf> {
+    file.ancestors()
+        .skip(1)
+        .find(|dir| dir.extension().is_some_and(|ext| ext == "app"))
+        .map(std::path::Path::to_path_buf)
 }
 
 #[cfg(target_os = "macos")]
@@ -361,6 +419,28 @@ mod tests {
     use std::path::PathBuf;
 
     #[test]
+    fn an_app_is_found_by_its_name_in_the_install_folders() {
+        let tmp = tempfile::tempdir().unwrap();
+        let home = tmp.path().join("home");
+        // Where macOS installs apps; no such folders elsewhere yet.
+        let expected: Vec<PathBuf> = if cfg!(target_os = "macos") {
+            vec![PathBuf::from("/Applications"), home.join("Applications")]
+        } else {
+            Vec::new()
+        };
+        assert_eq!(install_folders(Some(&home)), expected);
+        if !cfg!(target_os = "macos") {
+            return;
+        }
+        let folder = tmp.path().join("Apps");
+        assert_eq!(installed_app(&folder, "Tool"), None);
+        std::fs::create_dir_all(folder.join("Tool.app/Contents/Resources")).unwrap();
+        let app = installed_app(&folder, "Tool").unwrap();
+        assert_eq!(app, folder.join("Tool.app"));
+        assert!(resources_of(&app).is_dir());
+    }
+
+    #[test]
     fn a_bundles_version_is_read_from_its_xml_plist() {
         let tmp = tempfile::tempdir().unwrap();
         std::fs::create_dir_all(tmp.path().join("Contents")).unwrap();
@@ -372,6 +452,31 @@ mod tests {
         assert_eq!(bundle_version(tmp.path()).as_deref(), Some("4.16336.0"));
         std::fs::write(tmp.path().join("Contents/Info.plist"), "bplist00…").unwrap();
         assert_eq!(bundle_version(tmp.path()), None);
+    }
+
+    /// AJ-E1610: a renamed app, or a beta build, is known by its id.
+    #[test]
+    fn a_bundles_id_is_read_from_its_xml_plist_and_a_strange_one_is_not() {
+        let tmp = tempfile::tempdir().unwrap();
+        std::fs::create_dir_all(tmp.path().join("Contents")).unwrap();
+        let plist = |id: &str| {
+            std::fs::write(
+                tmp.path().join("Contents/Info.plist"),
+                format!("<plist><dict><key>CFBundleIdentifier</key>\n<string>{id}</string></dict></plist>"),
+            )
+            .unwrap();
+        };
+        plist("ai.opencode.desktop.beta");
+        assert_eq!(
+            bundle_identifier(tmp.path()).as_deref(),
+            Some("ai.opencode.desktop.beta")
+        );
+        plist("a b");
+        assert_eq!(bundle_identifier(tmp.path()), None);
+        plist("");
+        assert_eq!(bundle_identifier(tmp.path()), None);
+        std::fs::remove_file(tmp.path().join("Contents/Info.plist")).unwrap();
+        assert_eq!(bundle_identifier(tmp.path()), None);
     }
 
     #[test]

@@ -61,6 +61,19 @@ checksum:
 
 Before anything is published, the sign job checks:
 - the app's signature, hardened runtime and lack of entitlements;
+- each helper in `Contents/MacOS`, signed on its own before the app:
+  `juggler-agent` with no entitlements, and the Apple model's helper
+  `juggler-apple-ai` (AJ-E3802) with exactly its App Sandbox entitlement,
+  its identifier, arm64, no Private Cloud Compute symbol and the app's own
+  team (`scripts/build_apple_ai_helper.sh check`), and the local model's
+  helper `juggler-local-ai` (D-131: llama.cpp, built offline from its own
+  workspace `crates/juggler-local-ai`) with exactly its App Sandbox
+  entitlements (no network; read-only access to the models' folders), its
+  identifier, arm64, no network call imported and the app's own team
+  (`scripts/build_local_ai_helper.sh check`). The app checks the same
+  signature and team again before it runs either
+  (`juggler_platform::code_trust`); a helper that fails is treated as
+  missing, and the AI jobs it serves are hidden;
 - Gatekeeper, for the app and the disk image;
 - both stapled tickets;
 - the updater signature, against the public key baked into the app, and
@@ -291,7 +304,7 @@ low-load check before a push. A release goes like this:
    | `visual (1/4)`…`(4/4)`, **`visual`** | the visual gate in the pinned x64 container, split by test; `visual` checks the baseline notes and merges the reports |
    | `a11y (1/6)`…`(6/6)`, `a11y` | the accessibility gate, split by test |
    | **`build-macos`**, **`build-linux`**, **`build-windows`** | the cross-platform builds |
-   | `rc-dev-app` | the release candidate: AI Juggler Dev, release profile, arm64, unsigned, built by `scripts/build_dev_app.sh` (as `just app`); its bundle checked, the first open after an update on the synthetic v49 database (headless measure, then the real-window check); uploaded as `rc-dev-app-<commit>`. `verify` needs it |
+   | `rc-dev-app`, `rc-v49`, `rc-first-open` | the release candidate: AI Juggler Dev, release profile, arm64, unsigned, built by `scripts/build_dev_app.sh` (as `just app`) with its bundle checked (`rc-dev-app`); beside it, the synthetic v49 database and the headless measure of its first open (`rc-v49`, its own release test build); then the first open after an update in a real window on both (`rc-first-open`), which uploads the app as `rc-dev-app-<commit>`. Side by side since AJ-E2020 R5 (one job, the two builds took ~40 min). `verify` needs all three |
 
    The checks in bold are the ones main's ruleset requires; they kept their
    names, so the ruleset didn't change. A merge needs every one green on the
@@ -329,10 +342,11 @@ Measured (2026-11-02):
 
 Release candidates are built on GitHub, not on the shared Mac (2026-11-11:
 local release builds filled its disk and swap). Every CI run builds one in
-`rc-dev-app` (above). To walk it:
+`rc-dev-app` and, once `rc-first-open` has checked it, uploads it (above).
+To walk it:
 
 ```sh
-scripts/qa/fetch_rc.sh <commit>    # the PR's head commit, once rc-dev-app passed
+scripts/qa/fetch_rc.sh <commit>    # the PR's head commit, once rc-first-open passed
 ```
 
 It downloads `rc-dev-app-<commit>` into
@@ -353,11 +367,20 @@ What differs from an app built on this Mac with `just app`, for a walk:
 | Version | Not stamped: it reports the workspace version, as `just app`'s did | `COMMIT` beside the app names the commit |
 | Commit | The pull request's head commit itself (not GitHub's merge of it), committed state only | The artifact's `COMMIT` is checked against the one asked for |
 | juggler-agent | Built by the same script, arm64, in `Contents/MacOS`; `bundle_check.py` runs in CI and again after the fetch | The owner-only folder and its ancestors are checked for the helper's trust rule |
+| juggler-apple-ai | Built by the same script with the runner's Swift compiler, signed ad hoc with its sandbox, in `Contents/MacOS`; `build_apple_ai_helper.sh check` runs on the bundled copy. The app has no team, so it runs the helper on a valid signature with the helper's identifier | The same owner-only rule; a re-signed or changed helper is refused (Apple's model then shows as unavailable) |
+| juggler-local-ai | Built by the same script from its own workspace (`build_local_ai_helper.sh`, offline from the fetched crates, arm64), signed ad hoc with its sandbox, in `Contents/MacOS`; its check runs on the bundled copy. The app runs it on a valid signature with its identifier, as for the Apple helper | The same owner-only rule; a re-signed or changed helper is refused (downloaded models then show the helper as missing) |
 | Architecture | arm64 only, like a local build; releases are universal | x86_64 is built by `build-macos`'s cross-check and by every nightly |
 | Toolchain | The release build's pinned tauri-cli, pnpm and Node (`.github/actions/macos-app-toolchain`), the runner's Xcode SDK | Closer to the release than a local build |
 | First open | Checked on the runner in a real window, through System Events (the runner's Accessibility and Automation grants); a probe fails the job with that reason if a runner lacks them | The headless `first_open_measure` runs first either way |
 
 ## Each release
+
+**Work in batches (D-137, a standing rule).** Every release, walk and design check:
+- find everything in scope first, into one list;
+- triage it once (blockers vs the next release);
+- fix together, then one build or recapture, then one re-walk;
+- name the exit RC in advance.
+Never round after round of single fixes. See the decision log for the full rule.
 
 **Nightly** needs nothing from you: every day (03:00 UTC) that something
 that ships has changed on `main` since the newest `vX.Y.Z` tag,
@@ -379,7 +402,7 @@ only a test, v0.1.7 only release notes), and that release had to be renamed.
 | `crates/**`, except the next row | The app: Rust code, build scripts, the Tauri configuration, capabilities, icons, `Info.plist`, entitlements |
 | `ui/**`, except the next row | What `pnpm build` bundles, with its packages and lockfile |
 | `Cargo.toml`, `Cargo.lock`, `rust-toolchain.toml` | The version, the exact dependencies, the compiler |
-| `.github/workflows/build-macos.yml`, `nightly.yml`, and the scripts they run (`release_version.py`, `release_ships.py`, `sign_macos.sh`, `install_tauri_cli.sh`, `edition_icon.swift`, `apple_retry.py`, `updater_sig_check.py`, `release_seams_check.sh`, `nightly_notes.py`, `downgrade_note.py`, `release_notes_check.sh`) | How it's built, signed and published, and the notes its feed carries |
+| `.github/workflows/build-macos.yml`, `nightly.yml`, and the scripts they run (`release_version.py`, `release_ships.py`, `sign_macos.sh`, `build_apple_ai_helper.sh`, `build_local_ai_helper.sh`, `install_tauri_cli.sh`, `edition_icon.swift`, `apple_retry.py`, `updater_sig_check.py`, `release_seams_check.sh`, `nightly_notes.py`, `downgrade_note.py`, `release_notes_check.sh`) | How it's built, signed and published, and the notes its feed carries |
 
 | Doesn't ship | Why |
 |---|---|
@@ -591,6 +614,77 @@ What goes in is checked before it's built:
   sets `persist-credentials: false`, and every workflow starts from
   read-only or empty permissions.
 
+## Remote configuration (ADR-0035, D-128, D-129)
+
+The app reads one signed file per channel from
+`https://config.figurehead.ai/v1/<channel>.json` (the only host it allows;
+no redirects). Until public keys are compiled in, it fetches nothing and
+runs on its compiled defaults.
+
+**What it governs today:** the `compat` section (D-128). Each adapter
+declares the features it offers only for some tool versions; for each,
+the file can turn it off (`<key>_on: false`), narrow its tool versions or
+widen them up to the compiled hard limits (`<key>_versions`), or require a
+newer shape check (`<key>_shape`). It can't add behaviour.
+`config/remote/schema.json` lists every control (a test keeps it equal to
+the app's build).
+
+**A change** is a pull request to `config/remote/<channel>.json`. Then run
+**Publish config** (`publish-config.yml`) for the channel: it validates,
+stamps the next serial and 14 days, signs, verifies as the app does,
+uploads, and checks the public URL. It runs in the `config-publish`
+environment and waits for its required reviewer. New or changed content
+only ever goes this way.
+
+**Unattended, weekly:** every Monday each live file is re-signed with only
+a new serial and dates, in the `config-resign` environment (no reviewer).
+`remote-config-publish resign` reads no source and refuses a result whose
+canonical content differs from the live file's by a byte; the same check
+runs again against the live file just before the upload, then the file is
+verified, uploaded and smoke-checked. Every day a job with no secret fails
+if a live file is within 3 days of expiry.
+
+**Setup (maintainer):** the two environments exist, the
+`figurehead-config` bucket is created, `config.figurehead.ai` is
+connected as its custom domain, and Logpush is off. What's left:
+
+1. **The environments' secrets.** Both get the same three:
+   `REMOTE_CONFIG_SIGNING_KEY` (step 2), `R2_CONFIG_ACCESS_KEY_ID` and
+   `R2_CONFIG_SECRET_ACCESS_KEY` (step 4).
+   - `config-publish`: a required reviewer; deployment branches: `main`
+     only.
+   - `config-resign`: no reviewer; deployment branches: `main` only.
+
+   Not `release`: it has no required reviewer for these jobs.
+2. **The `current` key.** On a Mac with the repository, in zsh or bash:
+   `cargo run -q -p juggler-remote-config --bin remote-config-publish -- keygen --id rc-2026-a | tee >(gh secret set REMOTE_CONFIG_SIGNING_KEY --env config-publish) | gh secret set REMOTE_CONFIG_SIGNING_KEY --env config-resign`
+   The seed passes through memory only, straight into both secrets; it is
+   never shown or stored on the Mac. The public line `keygen` prints goes
+   into `crates/juggler-remote-config/src/keys.rs`, `COMPILED_KEYS`, as
+   `KeyRole::Current`.
+3. **The `next` and `emergency` keys** (standby, like the updater's): their
+   private halves stay offline in your password manager, never as GitHub
+   secrets. For each, run `… keygen --id rc-2026-b` with nothing after it:
+   the seed is printed once in the terminal. Paste it into a new
+   password-manager item, then clear the terminal (⌘K). Printing once is
+   the safer of the two ways: a file written and then deleted can't be
+   reliably erased from the Mac's disk (copy-on-write, Time Machine,
+   Spotlight, synced folders), while terminal text is only in memory. Don't
+   copy it through the clipboard either (clipboard history and Universal
+   Clipboard keep it). Their public lines go into `COMPILED_KEYS` as
+   `KeyRole::Next` and `KeyRole::Emergency`. The same change fills
+   `COMPILED_FLOORS` in `state.rs` (a build that pins keys without floors
+   doesn't compile): `(Channel::Stable, 0)` and so on before the first
+   file. At a rotation, `next`'s seed goes from the password manager into
+   the two secrets the same way.
+4. **The storage token.** In Cloudflare, an R2 API token with Object Read
+   and Write on the `figurehead-config` bucket only. Its access key id and
+   secret go into `config-publish` and `config-resign` as
+   `R2_CONFIG_ACCESS_KEY_ID` and `R2_CONFIG_SECRET_ACCESS_KEY`.
+
+The workflow needs no zone ID: files are cached for 5 minutes at most
+(`max-age=300`), so nothing is purged.
+
 ## If a key leaks (AJ-E2009)
 
 Act first, explain after. Each step names who does it. "Maintainer" means
@@ -797,6 +891,7 @@ saved (it never risks it). So:
 | 0.4.0 | 46 (40–42: the Account and the App stored, with their colours; 43–44: the relation counts; 45: the pools model, D-62, with 0.3's pools moved over; 46: the Floor's areas) | yes | **no** — 0.4's notes carry the downgrade note ("Going back to 0.3 from 0.4"); 0.4 keeps a `before-v39` copy, so "Go back to an earlier version" can return to 0.3.9 |
 | 0.4.1–0.4.5 | 52 (47: Apps only the user adds, D-84; 48: pool membership kept in memory; 49: Lead is one session's role, D-92; 50: a held quota reading is one row; 51: the usage holders by number; 52: an Account named as its Apps were imported) | yes | **no** — 0.4.1's notes carry the downgrade note ("Going back to 0.4.0 from 0.4.1"); it keeps a `before-v46` copy, so "Go back to an earlier version" can return to 0.4.0 |
 | 0.4.6 | 53 (an App's next session may lead a pool, AJ-E3011) | yes | **no** — 0.4.6's notes carry the downgrade note ("Going back to 0.4.5"); it keeps a `before-v52` copy, so "Go back to an earlier version" can return to 0.4.5 |
+| 0.5.0 | 55 (54: the memory store and the AI log, ADR-0037 §1.7; 55: each App's own Account, AJ-E3210, D-135) | yes | **no** — 0.5's notes need the downgrade note ("Going back to 0.4.6"); it keeps a `before-v53` copy, so "Go back to an earlier version" can return to 0.4.6 |
 
 Tests: `cargo test -p juggler-core --test pre_migration_copy` (the copy
 holds exactly the rows the database had, two are kept, a fresh database

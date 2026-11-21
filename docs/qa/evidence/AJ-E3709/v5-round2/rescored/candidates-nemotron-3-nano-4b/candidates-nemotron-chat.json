@@ -1,0 +1,322 @@
+{
+ "family": "nemotron",
+ "job": "chat",
+ "note": "script flags: candidates for Opus to confirm by eye, never verdicts",
+ "candidates": [
+  {
+   "class": "omission",
+   "detector": "no_answer_on_answerable",
+   "detail": "shown: found_rows",
+   "stage": "shown",
+   "attempt": null,
+   "id": "R2C29",
+   "corpus": "chat"
+  },
+  {
+   "class": "omission",
+   "detector": "no_answer_on_answerable",
+   "detail": "shown: found_rows",
+   "stage": "shown",
+   "attempt": null,
+   "id": "R2C30",
+   "corpus": "chat"
+  },
+  {
+   "class": "omission",
+   "detector": "no_answer_on_answerable",
+   "detail": "shown: found_rows",
+   "stage": "shown",
+   "attempt": null,
+   "id": "R2C40",
+   "corpus": "chat"
+  },
+  {
+   "class": "omission",
+   "detector": "no_answer_on_answerable",
+   "detail": "shown: dont_know",
+   "stage": "shown",
+   "attempt": null,
+   "id": "R2C44",
+   "corpus": "chat"
+  },
+  {
+   "class": "omission",
+   "detector": "no_answer_on_answerable",
+   "detail": "shown: found_rows",
+   "stage": "shown",
+   "attempt": null,
+   "id": "R2C46",
+   "corpus": "chat"
+  },
+  {
+   "class": "omission",
+   "detector": "no_answer_on_answerable",
+   "detail": "shown: dont_know",
+   "stage": "shown",
+   "attempt": null,
+   "id": "R2C50",
+   "corpus": "chat"
+  },
+  {
+   "class": "omission",
+   "detector": "no_answer_on_answerable",
+   "detail": "shown: dont_know",
+   "stage": "shown",
+   "attempt": null,
+   "id": "R2C51",
+   "corpus": "chat"
+  },
+  {
+   "id": "R2C05",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_question",
+   "detail": "off the question: no cited record holds a why",
+   "stage": "caught",
+   "corpus": "chat"
+  },
+  {
+   "id": "R2C05",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_question",
+   "detail": "off the question: no cited record holds a why",
+   "stage": "caught",
+   "corpus": "chat"
+  },
+  {
+   "id": "R2C05",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "wrong_question",
+   "detail": "off the question: no cited record holds a why",
+   "stage": "caught",
+   "corpus": "chat"
+  },
+  {
+   "id": "R2C05",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "wrong_question",
+   "detail": "off the question: no cited record holds a why",
+   "stage": "caught",
+   "corpus": "chat"
+  },
+  {
+   "id": "R2C05",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "wrong_question",
+   "detail": "off the question: no cited record holds a why",
+   "stage": "caught",
+   "corpus": "chat"
+  },
+  {
+   "id": "R2C05",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "wrong_question",
+   "detail": "off the question: no cited record holds a why",
+   "stage": "caught",
+   "corpus": "chat"
+  },
+  {
+   "id": "R2C11",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_question",
+   "detail": "off the question: states status, but its text gives none",
+   "stage": "caught",
+   "corpus": "chat"
+  },
+  {
+   "id": "R2C11",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "wrong_question",
+   "detail": "off the question: states status, but its text gives none",
+   "stage": "caught",
+   "corpus": "chat"
+  },
+  {
+   "id": "R2C11",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "wrong_question",
+   "detail": "off the question: states status, but its text gives none",
+   "stage": "caught",
+   "corpus": "chat"
+  },
+  {
+   "id": "R2C12",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_question",
+   "detail": "off the question: the cited record's which is not about the subject",
+   "stage": "caught",
+   "corpus": "chat"
+  },
+  {
+   "id": "R2C12",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "wrong_question",
+   "detail": "off the question: the cited record's which is not about the subject",
+   "stage": "caught",
+   "corpus": "chat"
+  },
+  {
+   "id": "R2C12",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "wrong_question",
+   "detail": "off the question: the cited record's which is not about the subject",
+   "stage": "caught",
+   "corpus": "chat"
+  },
+  {
+   "id": "R2C29",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_question",
+   "detail": "off the question: the cited record's what_changed is not about the subject",
+   "stage": "caught",
+   "corpus": "chat"
+  },
+  {
+   "id": "R2C29",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "wrong_question",
+   "detail": "off the question: the cited record's what_changed is not about the subject",
+   "stage": "caught",
+   "corpus": "chat"
+  },
+  {
+   "id": "R2C29",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "wrong_question",
+   "detail": "off the question: the cited record's what_changed is not about the subject",
+   "stage": "caught",
+   "corpus": "chat"
+  },
+  {
+   "id": "R2C30",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_question",
+   "detail": "off the question: the cited record's why is not about the subject",
+   "stage": "caught",
+   "corpus": "chat"
+  },
+  {
+   "id": "R2C30",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "wrong_question",
+   "detail": "off the question: the cited record's why is not about the subject",
+   "stage": "caught",
+   "corpus": "chat"
+  },
+  {
+   "id": "R2C30",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "wrong_question",
+   "detail": "off the question: the cited record's why is not about the subject",
+   "stage": "caught",
+   "corpus": "chat"
+  },
+  {
+   "id": "R2C40",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_question",
+   "detail": "off the question: the cited record's count is not about the subject",
+   "stage": "caught",
+   "corpus": "chat"
+  },
+  {
+   "id": "R2C40",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_question",
+   "detail": "off the question: the cited record's count is not about the subject",
+   "stage": "caught",
+   "corpus": "chat"
+  },
+  {
+   "id": "R2C40",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "wrong_question",
+   "detail": "off the question: the cited record's count is not about the subject",
+   "stage": "caught",
+   "corpus": "chat"
+  },
+  {
+   "id": "R2C40",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "wrong_question",
+   "detail": "off the question: the cited record's count is not about the subject",
+   "stage": "caught",
+   "corpus": "chat"
+  },
+  {
+   "id": "R2C40",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "wrong_question",
+   "detail": "off the question: the cited record's count is not about the subject",
+   "stage": "caught",
+   "corpus": "chat"
+  },
+  {
+   "id": "R2C40",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "wrong_question",
+   "detail": "off the question: the cited record's count is not about the subject",
+   "stage": "caught",
+   "corpus": "chat"
+  },
+  {
+   "id": "R2C46",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_question",
+   "detail": "off the question: the cited record's why is not about the subject",
+   "stage": "caught",
+   "corpus": "chat"
+  },
+  {
+   "id": "R2C46",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "wrong_question",
+   "detail": "off the question: the cited record's why is not about the subject",
+   "stage": "caught",
+   "corpus": "chat"
+  },
+  {
+   "id": "R2C46",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "wrong_question",
+   "detail": "off the question: the cited record's why is not about the subject",
+   "stage": "caught",
+   "corpus": "chat"
+  },
+  {
+   "id": "R2C50",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_question",
+   "detail": "off the question: the cited record's cost is not about the subject",
+   "stage": "caught",
+   "corpus": "chat"
+  }
+ ]
+}

@@ -117,7 +117,11 @@ fn an_older_build_refuses_newer_data_and_offers_the_backup_from_before() {
     let (title, text, button) = newer_data::launch_message("AI Juggler Dev", "0.0.8", Some(&offer));
     assert_eq!(title, "This data is from a newer AI Juggler Dev");
     assert!(text.contains("AI Juggler Dev 0.0.8 can't open"), "{text}");
-    assert!(text.contains("nothing is deleted"), "{text}");
+    assert!(
+        text.contains("leaves out Bot's memory and conversation history"),
+        "{text}"
+    );
+    assert!(text.contains("nothing else changes"), "{text}");
     assert!(button.unwrap().starts_with("Use the backup from "));
     assert!(
         text.contains("sign in to each account again"),
@@ -216,6 +220,8 @@ fn the_launch_offers_the_copy_kept_before_the_upgrade() {
                 Storage::schema_version()
             )))
             .unwrap();
+        // The newer data holds a memory (ADR-0037).
+        remember_canary(&storage);
         storage
             .raw_conn()
             .pragma_update(None, "user_version", Storage::schema_version() + 1)
@@ -229,8 +235,41 @@ fn the_launch_offers_the_copy_kept_before_the_upgrade() {
     let went = newer_data::go_back(&dir, &offer, &open).unwrap();
     assert!(went.next_steps.is_empty(), "the copy is the data as it was");
     assert_eq!(schema_of(&went.kept), Storage::schema_version() + 1);
+    assert!(
+        !holds_canary(&went.kept),
+        "the newer data kept aside holds a memory"
+    );
     let state = open(dir.clone()).expect("starts on the copy");
     assert_eq!(labels(&state), ["Work"]);
+}
+
+const CANARY: &str = "qzxwvgobackcanary";
+
+/// A memory holding [`CANARY`], written as the store writes it.
+fn remember_canary(storage: &Storage) {
+    storage
+        .raw_conn()
+        .execute(
+            "INSERT INTO memory_records (id, subject_key, subject_id, version, kind, scope_kind,
+                 tier, priority, authority, untrusted, source_kind, confidence, as_of_ms, text,
+                 created_ms)
+             VALUES ('r1', 'note:c', 'sub-c', 1, 'note', 'global', 'long', 1, 'user', 0,
+                     'settings', 1, 1, ?1, 1)",
+            [format!("remember {CANARY}")],
+        )
+        .unwrap();
+}
+
+/// The file, its WAL or its shared memory holds [`CANARY`].
+fn holds_canary(path: &Path) -> bool {
+    ["", "-wal", "-shm"].iter().any(|suffix| {
+        let mut name = path.as_os_str().to_owned();
+        name.push(suffix);
+        std::fs::read(std::path::PathBuf::from(name))
+            .unwrap_or_default()
+            .windows(CANARY.len())
+            .any(|w| w == CANARY.as_bytes())
+    })
 }
 
 /// A database exactly as schema `version` left it, with one account.
@@ -289,6 +328,10 @@ fn the_newer_build_prepares_going_back_to_the_version_before() {
         .accounts()
         .insert(&account(&dir, "added", "Added after the update"))
         .unwrap();
+    {
+        let storage = state.storage.lock().unwrap();
+        remember_canary(&storage);
+    }
     let options = newer_data::going_back_options_impl(&state).unwrap();
     assert_eq!(options.len(), 1, "{options:?}");
     assert_eq!(options[0].schema, previous);
@@ -328,7 +371,8 @@ fn the_newer_build_prepares_going_back_to_the_version_before() {
         as_older_build_reads(&dir.join("juggler.sqlite")),
         (previous, vec!["Work".to_owned()])
     );
-    // What was there is kept, untouched.
+    // What was there is kept, without its memory (ADR-0037 §1.5).
+    assert!(!holds_canary(&kept), "the data kept aside holds a memory");
     assert_eq!(
         as_older_build_reads(&kept),
         (

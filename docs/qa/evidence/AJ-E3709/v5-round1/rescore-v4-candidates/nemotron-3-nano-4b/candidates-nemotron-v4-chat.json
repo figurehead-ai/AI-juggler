@@ -1,0 +1,106 @@
+{
+ "family": "nemotron-v4",
+ "job": "chat",
+ "note": "script flags: candidates for Opus to confirm by eye, never verdicts",
+ "candidates": [
+  {
+   "class": "omission",
+   "detector": "no_answer_on_answerable",
+   "detail": "shown: dont_know",
+   "stage": "shown",
+   "attempt": null,
+   "id": "heldout-S02-happened",
+   "corpus": "heldout"
+  },
+  {
+   "class": "omission",
+   "detector": "no_answer_on_answerable",
+   "detail": "shown: dont_know",
+   "stage": "shown",
+   "attempt": null,
+   "id": "heldout-S02-tests",
+   "corpus": "heldout"
+  },
+  {
+   "class": "omission",
+   "detector": "no_answer_on_answerable",
+   "detail": "shown: dont_know",
+   "stage": "shown",
+   "attempt": null,
+   "id": "heldout-S03-tests",
+   "corpus": "heldout"
+  },
+  {
+   "class": "omission",
+   "detector": "no_answer_on_answerable",
+   "detail": "shown: dont_know",
+   "stage": "shown",
+   "attempt": null,
+   "id": "heldout-S03-needs",
+   "corpus": "heldout"
+  },
+  {
+   "class": "omission",
+   "detector": "no_answer_on_answerable",
+   "detail": "shown: dont_know",
+   "stage": "shown",
+   "attempt": null,
+   "id": "heldout-S04-tests",
+   "corpus": "heldout"
+  },
+  {
+   "class": "omission",
+   "detector": "no_answer_on_answerable",
+   "detail": "shown: dont_know",
+   "stage": "shown",
+   "attempt": null,
+   "id": "C002",
+   "corpus": "heldout-jobs"
+  },
+  {
+   "class": "omission",
+   "detector": "detail_dropped",
+   "detail": "quill-api-logging",
+   "stage": "shown",
+   "attempt": null,
+   "id": "C003",
+   "corpus": "heldout-jobs"
+  },
+  {
+   "class": "omission",
+   "detector": "no_answer_on_answerable",
+   "detail": "shown: dont_know",
+   "stage": "shown",
+   "attempt": null,
+   "id": "C006",
+   "corpus": "heldout-jobs"
+  },
+  {
+   "class": "omission",
+   "detector": "no_answer_on_answerable",
+   "detail": "shown: dont_know",
+   "stage": "shown",
+   "attempt": null,
+   "id": "C008",
+   "corpus": "heldout-jobs"
+  },
+  {
+   "class": "omission",
+   "detector": "no_answer_on_answerable",
+   "detail": "shown: dont_know",
+   "stage": "shown",
+   "attempt": null,
+   "id": "C009",
+   "corpus": "heldout-jobs"
+  },
+  {
+   "class": "omission",
+   "detector": "detail_dropped",
+   "detail": "retry",
+   "stage": "shown",
+   "attempt": null,
+   "id": "C011",
+   "corpus": "heldout-jobs"
+  }
+ ]
+}

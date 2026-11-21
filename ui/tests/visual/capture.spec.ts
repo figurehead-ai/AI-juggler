@@ -19,6 +19,7 @@ import { EXAMPLE_GITHUB_OFFER } from "../../src/preview/mcp-secret-offer";
 import { EXAMPLE_SETUP_NOTES, EXAMPLE_SETUP_NOTES_HANDOVER } from "../../src/preview/switch-setup";
 import { previewMac } from "../../src/preview/processes-fixture";
 import { allStatuses, honestEmpty, openRailGroup, readyHome, goTo, groupBy, openFilters, openSwitch, expectRail, openRailList, settingsPane, onlyMac, projectBoardByDefault, terminalDrawn, NARROW_RAIL_PX, switchRows, openRailSession } from "./fixtures";
+import { away, digestFeed } from "./fixtures/home-feed";
 
 // AJ-E2104: these galleries read the project board, every status drawn.
 projectBoardByDefault(test);
@@ -1675,7 +1676,7 @@ function adoptedMac() {
     for (const app of mac.apps)
       for (const session of app.sessions)
         if (session.session_id === "s-web") {
-          Object.assign(session, { session_id: "sess-2", key: "s:ours:sess-2", title: "feat/read-model", project_id: "proj-1" });
+          Object.assign(session, { session_id: "sess-2", key: "s:ours:sess-2", title: "Fix the flaky login test", project_id: "proj-1" });
           session.processes = session.processes.map((node, index) => (index === 0 ? { ...node, state: "picked_up" } : node));
         }
     return mac;
@@ -2192,7 +2193,16 @@ for (const theme of THEMES) {
       // AJ-E2501: on Home the account almost out of room is a Needs you
       // item (its banner is for the other screens); the renewal line is
       // under Earlier in the notification centre, never a window alert.
-      await expect(page.getByTestId("home-need-quota")).toContainText("Claude Max 20x is almost out of room");
+      // D-118 R2: past 3 pinned needs it waits behind "+n more need you",
+      // one click away; the heading says it among its parts.
+      await expect(page.getByTestId("home-heading-parts")).toContainText("Claude Max 20x is almost out of room");
+      await page.getByTestId("home-needs-more").click();
+      const quotaNeed = page.getByTestId("home-need-quota");
+      await expect(quotaNeed).toContainText("Claude Max 20x is almost out of room");
+      await expect(quotaNeed).toContainText("8% of its 5-hour window left");
+      await expect(quotaNeed.getByRole("button", { name: "Continue in another app… — Claude Max 20x is almost out of room" })).toBeVisible(); // its hand-over
+      // D-118: the renewal line is also one of the feed's items (what happened).
+      await expect(page.getByTestId("feed")).toContainText("p…@example.com: Renews in 6 days — check your plan");
       await page.getByTestId("notification-bell").click();
       await expect(page.getByTestId("notices-earlier")).toContainText("p…@example.com: Renews in 6 days — check your plan");
       await page.screenshot({
@@ -3266,14 +3276,18 @@ for (const theme of THEMES) {
 
     test(`beta — matrix, all pairs open debt — ${vp.name} — ${theme}`, gate("33-beta"), async ({ page }) => {
       await openProfiles(page);
-      // E16 (AJ-E1602) brings a tool more, so the fixture's matrix has a
-      // fifth switch.
+      // E16 brings tools more (OpenCode, AJ-E1602; ZCode, AJ-E1605), so
+      // the fixture's matrix has ten switches.
       await expect(page.getByTestId("beta-matrix-summary")).toContainText(
-        "None of the 5 switches is tested in every part yet",
+        "None of the 10 switches is tested in every part yet",
       );
       await expect(page.getByTestId("beta-matrix-row").first()).toContainText(
         "Beta: still being tested",
       );
+      // Ten rows are taller than the screen: the matrix's top (its summary
+      // line) in view, not its middle, so no sentence is cut.
+      await page.getByTestId("beta-matrix").evaluate((matrix) => matrix.scrollIntoView({ block: "start" }));
+      await page.evaluate(() => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))));
       await page.screenshot({
         path: resolve(GALLERY, `33-beta/matrix-default-${vp.name}-${theme}.png`),
       });
@@ -5052,85 +5066,65 @@ for (const theme of THEMES) {
 }
 
 // ---------------------------------------------------------------------
-// AJ-E1004 — 54-summary: the morning summary on the home view —
-// severity-ordered groups with words and an icon, a row opening its
-// Instance, the rail's needs-you badge alongside — 1440×900 and
-// 1024×680, light/dark.
+// AJ-E1004 / D-118 — 54-summary: the away digest on Home (it replaced the
+// morning summary card): the "While you were away" divider and digest in
+// the feed, a digest item opening its session — 1440×900 and 1024×680,
+// light/dark.
 // ---------------------------------------------------------------------
-
-// Every SummaryRowInfo field, as the backend sends it: `at_ms` is when
-// it entered its group (began to wait, or ended), the time its row says;
-// null only while it runs (the 0.4.1 baseline pass: rows without it
-// read "waiting NaN d" and "ended Invalid Date").
-const summaryRow = (id: string, label: string, group: string, status: string, words: string, over: Record<string, unknown> = {}, ago = 2 * 3_600_000) => ({
-  session_id: id, account_label: label, provider: "claude-code", kind: "terminal", project: "ai-juggler", group, status, words,
-  transitions: [
-    { from: null, to: "starting", at_ms: T0 - 8 * 3_600_000 },
-    { from: "starting", to: "running", at_ms: T0 - 8 * 3_600_000 + 4_000 },
-    ...(status === "running" ? [] : [{ from: "running", to: status, at_ms: T0 - ago }]),
-  ],
-  at_ms: status === "running" ? null : T0 - ago,
-  detail: null, tokens: null, leftovers: 0, ...over,
-});
-
-const morningSummary = {
-  since_ms: T0 - 9 * 3_600_000,
-  generated_ms: T0,
-  rows: [
-    summaryRow("sess-8", "Work Max", "crashed", "failed", "Crashed", { leftovers: 2 }, 3 * 3_600_000 + 40 * 60_000),
-    summaryRow("sess-3", "Personal", "needs_you", "waiting_user", "Needs you — waiting for an answer", {}, 2 * 3_600_000 + 10 * 60_000),
-    summaryRow("sess-4", "Work Max", "needs_you", "stuck", "Needs you — no output for a while", {}, 70 * 60_000),
-    summaryRow("sess-5", "Personal", "needs_you", "quota_blocked", "Needs you — quota reached", {}, 25 * 60_000),
-    summaryRow("sess-2", "Work Max", "running", "running", "Still running", { tokens: 19_134 }),
-    summaryRow("sess-6", "Work Max", "finished", "finished", "Finished", {}, 5 * 3_600_000 + 15 * 60_000),
-    summaryRow("sess-7", "Personal", "ended", "stopped", "Ended", {}, 6 * 3_600_000 + 50 * 60_000),
-  ],
-  counts: { crashed: 1, needs_you: 3, running: 1, finished: 1, ended: 1 },
-  leftovers: 2,
-};
 
 for (const theme of THEMES) {
   for (const vp of [
     { name: "1440x900", width: 1440, height: 900 },
     { name: "1024x680", width: 1024, height: 680 },
   ] as const) {
-    test(`54 summary — home view and a row into its Instance — ${vp.name} — ${theme}`, gate("54-summary"), async ({ page }) => {
+    test(`54 summary — the away digest and an item into its session — ${vp.name} — ${theme}`, gate("54-summary"), async ({ page }) => {
+      // The digest's items open real fixture sessions (ended, so a page, not a terminal).
+      const ids = ["sess-6", "sess-8", "sess-7", "sess-6"];
+      const feed = digestFeed(T0).map((item, n) => ({ ...item, target: { ...item.target, session_id: ids[n] ?? null } }));
       await page.addInitScript(
-        ({ fixture, t, t0, summary }) => {
+        ({ fixture, t, t0, since, items }) => {
           const w = window as unknown as Record<string, unknown>;
           w.__AIJ_FIXTURE__ = fixture;
-          w.__AIJ_SUMMARY__ = summary;
+          w.__AIJ_SUMMARY__ = since;
+          w.__AIJ_FEED__ = items;
           localStorage.setItem("aij.theme", t);
           localStorage.setItem("aij.onboarding.dismissed", "1");
           sessionStorage.setItem("aij.ready.skipped", "1");
           Date.now = () => t0;
         },
-        { fixture: allStatuses, t: theme, t0: T0, summary: morningSummary },
+        { fixture: allStatuses, t: theme, t0: T0, since: away(T0, 9), items: feed },
       );
       await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
       await page.setViewportSize({ width: vp.width, height: vp.height });
       await page.goto("/");
-      await expect(page.getByTestId("summary-headline")).toContainText("3 needs you · 1 still running · 3 ended: 1 finished, 1 crashed, 1 not known how · 2 leftover processes to clean up"); // D-96 C: how runs ended
-      // Each row says its time in words, never "NaN" or "Invalid Date".
-      await expect(page.getByTestId("summary-when").first()).toBeVisible();
-      for (const when of await page.getByTestId("summary-when").allTextContents()) expect(when).not.toMatch(/NaN|Invalid Date/);
-      // As the backend sends them: Needs you waiting longest first.
-      await expect(page.locator("[data-testid='summary-row'][data-group='needs_you'] [data-testid='summary-when']")).toHaveText(["waiting 2 h", "waiting 1 h", "waiting 25 min"]);
+      await expect(page.getByTestId("feed-away")).toBeVisible();
+      await expect(page.getByTestId("feed-digest-words")).toBeVisible();
+      await expect(page.getByTestId("feed-digest")).not.toContainText(/NaN|Invalid Date/);
+      // R5: the night is the digest's only, never a stream card as well
+      // (CI run 43857640404 showed its three twice).
+      const shownIds = (testId: string) =>
+        page.getByTestId(testId).evaluateAll((nodes) => nodes.flatMap((node) => (node.getAttribute("data-feed-ids") ?? "").split(" ").filter(Boolean)));
+      const stream = await shownIds("feed-card");
+      expect((await shownIds("feed-digest-item")).filter((id) => stream.includes(id))).toEqual([]);
+      await page.getByTestId("feed-away").scrollIntoViewIfNeeded();
+      if (vp.name === "1440x900") {
+        // The digest is in view at once: the feed column isn't scrolled, so
+        // the pinned zone shows with its label and no scrolled-edge rule.
+        await expect(page.getByTestId("home-main")).not.toHaveAttribute("data-scrolled");
+        await expect(page.getByTestId("home-needs-now-fold")).toBeInViewport();
+      }
       await page.screenshot({ path: resolve(GALLERY, `54-summary/home-${vp.name}-${theme}.png`) });
-      await page.getByTestId("summary-row").first().click();
+      await page.getByTestId("feed-digest-item").first().click();
       await expect(page.getByTestId("page-header")).toBeVisible(); // AJ-E1533: the item's page
-      // An ended session whose output wasn't kept shows its conversation,
-      // never an empty terminal under "replayed" (0.4.4 P2, D-103.11).
-      await expect(page.getByText("Its terminal output wasn't kept, so this is its conversation.")).toBeVisible();
       await page.screenshot({ path: resolve(GALLERY, `54-summary/opened-${vp.name}-${theme}.png`) });
     });
   }
 }
 
 // ---------------------------------------------------------------------
-// AJ-E1005 / AJ-E1021 — 55-triage: the morning triage, now on Home (D-25
-// amendment): needs you, parked, running, finished — not reviewed — and
-// empty, at 1440×900 and 1024×680, light/dark, comfortable and compact.
+// AJ-E1005 / AJ-E1021 / D-118 — 55-triage: the morning triage, on Home
+// (D-25 amendment): the pinned zone (needs you now), parked, the feed's
+// Finished filter (it replaced "Pick up where you left off") and empty, at 1440×900 and 1024×680, light/dark, comfortable and compact.
 // ---------------------------------------------------------------------
 
 for (const theme of THEMES) {
@@ -5158,6 +5152,10 @@ for (const theme of THEMES) {
         await expect(page.getByTestId("home-parked")).toContainText("2h 13m");
         await expect(page.getByTestId("home-needs").getByRole("button").first()).toBeVisible();
         await page.screenshot({ path: resolve(GALLERY, `55-triage/home-populated-${vp.name}-${density}-${theme}.png`) });
+        // D-118: finished, not reviewed, is the feed's Finished filter.
+        await page.getByTestId("feed-chip-finished").click();
+        await expect(page.getByTestId("feed-card").first()).toBeVisible();
+        await page.screenshot({ path: resolve(GALLERY, `55-triage/home-finished-${vp.name}-${density}-${theme}.png`) });
       });
     }
     test(`55 triage — empty — ${vp.name} — ${theme}`, async ({ page }) => {
@@ -5175,7 +5173,7 @@ for (const theme of THEMES) {
       await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
       await page.setViewportSize({ width: vp.width, height: vp.height });
       await page.goto("/");
-      await expect(page.getByTestId("home")).toContainText("Ready when you are");
+      await expect(page.getByTestId("feed-empty")).toBeVisible(); // D-118: replaces the first-session card
       await page.screenshot({ path: resolve(GALLERY, `55-triage/home-empty-${vp.name}-${theme}.png`) });
     });
   }
@@ -5959,6 +5957,9 @@ for (const theme of THEMES) {
     await expect(page.getByTestId("toast")).toContainText("reviewed.");
     await page.mouse.move(0, 0);
     await page.screenshot({ path: resolve(GALLERY, `75-feedback/reviewed-1280x800-${theme}.png`) });
+    // AJ-E1503: Undo puts it back on the list.
+    await page.getByTestId("toast").getByTestId("toast-undo").click();
+    await expect(page.getByTestId("toast-undone")).toContainText("is back on the list.");
   });
 
   test(`75 feedback — the quit sheet — ${theme}`, async ({ page }) => {

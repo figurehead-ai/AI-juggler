@@ -1,0 +1,12 @@
+cold-start: macOS 27.0.1, Mac17,15, 30 cores, load 3.99
+cold-start: app 0.4.3, fixture be79e7995591
+cold-start: warm-up {"pid":19374,"open_to_process_ms":438,"process_to_shell_ms":182,"open_to_shell_ms":620}
+cold-start: run 1 {"pid":19415,"open_to_process_ms":437,"process_to_shell_ms":115,"open_to_shell_ms":552}
+cold-start: run 2 {"pid":19460,"open_to_process_ms":437,"process_to_shell_ms":144,"open_to_shell_ms":582}
+cold-start: run 3 {"pid":19500,"open_to_process_ms":436,"process_to_shell_ms":188,"open_to_shell_ms":625}
+cold-start: run 4 {"pid":19554,"open_to_process_ms":437,"process_to_shell_ms":129,"open_to_shell_ms":567}
+cold-start: run 5 {"pid":19598,"open_to_process_ms":438,"process_to_shell_ms":151,"open_to_shell_ms":589}
+cold-start: open_to_process_ms: median 437 (runs [436, 437, 437, 437, 438])
+cold-start: process_to_shell_ms: median 144 (runs [115, 129, 144, 151, 188])
+cold-start: open_to_shell_ms: median 582 (runs [552, 567, 582, 589, 625])
+cold-start: PASS open to an interactive shell, median 582 ms (budget 2500 ms)

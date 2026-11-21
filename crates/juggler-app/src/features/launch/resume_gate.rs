@@ -146,7 +146,7 @@ pub fn new_conversation_words(state: &Arc<AppState>, account: &Account) -> Strin
     )
 }
 
-fn adapter_of(
+pub(crate) fn adapter_of(
     state: &Arc<AppState>,
     account: &Account,
 ) -> AppResult<juggler_adapter::SharedAdapter> {

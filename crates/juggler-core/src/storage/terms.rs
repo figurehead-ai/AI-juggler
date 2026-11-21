@@ -242,21 +242,14 @@ impl<'a> TermsRepo<'a> {
             .optional()?)
     }
 
-    /// The Account folder `folder_id` was last read as, if any.
+    /// The Account folder `folder_id` was last read as, if any
+    /// ([`super::entities::SubscriptionsRepo::of_folder`]).
     ///
     /// # Errors
     ///
     /// The database fails.
     pub fn owner(&self, folder_id: &str) -> Result<Option<String>, CoreError> {
-        Ok(self
-            .conn
-            .query_row(
-                "SELECT subscription_id FROM accounts WHERE id = ?1",
-                params![folder_id],
-                |row| row.get::<_, Option<String>>(0),
-            )
-            .optional()?
-            .flatten())
+        super::entities::SubscriptionsRepo::new(self.conn).of_folder(folder_id)
     }
 
     /// What applies to folder `folder_id`: per term, its Account's once

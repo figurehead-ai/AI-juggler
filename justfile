@@ -35,10 +35,18 @@ verify-static:
     just tool-literals
     just platform
     just webview
+    python3 scripts/guard_fixture_same.py --selftest
+    python3 scripts/guard_fixture_same.py
+    python3 scripts/portable_paths.py --selftest
+    python3 scripts/portable_paths.py
     python3 scripts/spawn_lint.py --selftest
     python3 scripts/spawn_lint.py
     python3 scripts/cleartext_lint.py --selftest
     python3 scripts/cleartext_lint.py
+    python3 scripts/migration_clash.py --selftest
+    python3 scripts/migration_clash.py
+    python3 scripts/js_number_lint.py --selftest
+    python3 scripts/js_number_lint.py
     python3 scripts/architecture_fresh.py --selftest
     python3 scripts/architecture_fresh.py
     just structure
@@ -64,6 +72,7 @@ verify-static:
     just supply-chain
     just stats-events
     cargo deny check
+    cargo deny --manifest-path crates/juggler-local-ai/Cargo.toml check
 
 # nextest: .config/nextest.toml (a process per test, the timing-sensitive
 # ones apart, no retries); nextest doesn't run doctests, cargo test does.
@@ -148,11 +157,15 @@ load-gate:
     cd ui && AJ_LOAD_GATE=1 pnpm exec playwright test tests/visual/load.spec.ts
     # AJ-E1906: 200 task rows in under 100 ms (a wall clock, so timed here only).
     cd ui && AJ_LOAD_GATE=1 pnpm exec vitest run src/pages/tasks/tasks.test.tsx -t "200 tasks"
+    # AJ-E817: the palette's open and keystroke budgets (AJ-E2901).
+    cd ui && AJ_LOAD_GATE=1 pnpm exec vitest run src/components/palette/palette-timing.test.ts
     cargo test -p juggler-app --test load_budgets -- --nocapture
     cargo test -p juggler-app --test load_budgets -- --ignored --test-threads=1 --nocapture
     cargo test -p juggler-handover --test pack_load -- --nocapture
     # AJ-E2902: "Usage cost cuts, 2,000 sessions", and the dollars reconciled.
     cargo test -p juggler-app --test cost_cuts_load -- --ignored --nocapture
+    # AJ-E817: tokens/min over 100k events, the old 5 ms budget reported only.
+    cargo test -p juggler-core --test quality_signals -- --ignored --nocapture
 
 # The system's own file events reach the folder wake (not in the default
 # run: FSEvents' delivery time is the OS's, minutes on a loaded Mac; the
@@ -252,10 +265,17 @@ structure:
     python3 scripts/machine_state_lint.py --selftest
     python3 scripts/machine_state_lint.py
 
+# Trim a shared build target safely (dry run unless --apply): older copies of
+# each artifact past 3 h and old incremental folders; refuses while a build
+# uses it. Run after every merge, RC build and big agent build (2026-11-19).
+trim-target dir *flags:
+    python3 scripts/trim_target.py {{dir}} {{flags}}
+
 # The docs that quote task counts and ranges agree with the epic files.
 task-counts:
     python3 scripts/check_task_counts.py --selftest
     python3 scripts/check_task_counts.py
+    python3 scripts/trim_target.py --selftest
 
 # UI gate (AJ-E806): typecheck + build. Visual (AJ-E803) and a11y (AJ-E804)
 # gates attach to UI-changing PRs; perf (AJ-E805) at milestones.
@@ -406,6 +426,11 @@ lab-scenario cmd id:
 replica:
     python3 -I scripts/replica.py build --home {{replica_home}}
 
+# AJ-E3210: the split folder (a Claude app profile and its CLI on two
+# sign-ins, the app wrote last), added to the replica.
+replica-split:
+    python3 -I scripts/replica.py split --home {{replica_home}}
+
 # Live sessions on the replica while a walk runs (Ctrl-C stops them all).
 replica-live minutes="60" *args="":
     cargo build -q -p juggler-adapters --bins
@@ -550,6 +575,7 @@ visual-sweep base="origin/main" head="HEAD":
 supply-chain:
     cargo machete
     cargo vet --locked
+    cargo vet --locked --manifest-path crates/juggler-local-ai/Cargo.toml
     python3 scripts/vet_exemptions.py --selftest
     python3 scripts/vet_exemptions.py
     python3 scripts/js_sbom.py --selftest

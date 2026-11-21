@@ -10,6 +10,7 @@ import { renewalLabel, renewalRowVisible } from "../lib/renewal";
 import { accountNameOf, useSubscriptions } from "../lib/subscriptions";
 import { subagentsRunning } from "../lib/subagents";
 import { STATE_TONE, stateWord, type RailState } from "../lib/rail-items";
+import { LegendLevels } from "./LegendLevels";
 import {
   IconFork,
   IconGitBranch,
@@ -292,12 +293,13 @@ export function GitBadge({ session }: { session: InstanceInfo }): ReactNode {
  * `stale - Nm` caption chip (Req.5). Contrast-safe by construction: the
  * value keeps its full text colour (never dimmed below 4.5:1) and the
  * caption carries the meaning — the manual-contrast fallback the task
- * prescribes when dimming would break contrast.
+ * prescribes when dimming would break contrast. A calm note (D-117 L1,
+ * AJ-E3603): muted words in a hairline, never an amber pill.
  */
 export function StaleChip({ caption }: { caption: string | null }) {
   if (caption === null) return null;
   return (
-    <span className="inline-flex shrink-0 items-center rounded border border-warning/40 bg-warning-soft px-1 text-label font-medium whitespace-nowrap text-warning" title={`Value is ${caption} — older than 2× its refresh interval`}>
+    <span className="inline-flex shrink-0 items-center rounded border border-hairline px-1 text-label font-medium whitespace-nowrap text-muted" title={`Value is ${caption} — older than 2× its refresh interval`}>
       {caption}
     </span>
   );
@@ -335,7 +337,8 @@ const LEGEND_STATES: { state: RailState; probably?: boolean; meaning: string }[]
 /** The notes a rail row adds only when they matter (D-25). */
 const LEGEND_NOTES: { sample: string; tone: string; meaning: string }[] = [
   { sample: "Limit reached", tone: "text-warning", meaning: "why it needs you" },
-  { sample: "18% left", tone: "text-warning", meaning: "its account is running low" },
+  // D-117: in the row's own colour (amber only when it waits on you).
+  { sample: "18% left", tone: "text-muted", meaning: "its account is running low" },
   { sample: "Parked 2h 10m", tone: "text-ink", meaning: "waiting for the limit to reset" },
   { sample: "3 changed", tone: "text-muted", meaning: "files not committed yet" },
   { sample: "not signed in", tone: "text-muted", meaning: "its app needs you to sign in" },
@@ -376,7 +379,8 @@ export function IndicatorLegend({ compact = false }: { compact?: boolean }) {
           <dd className="text-muted">a reading stopped updating</dd>
         </div>
       </dl>
-      <span className="border-t border-hairline pt-1.5 text-muted">A row's left edge is its app's colour.</span>
+      <LegendLevels />
+      <span className="border-t border-hairline pt-1.5 text-muted">An App's icon is in full colour while it needs you or is open; muted otherwise.</span>
     </div>
   );
 }

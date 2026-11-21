@@ -1,0 +1,286 @@
+{
+ "family": "qwen3-4b-instruct-2507",
+ "job": "review",
+ "note": "script flags: candidates for Opus to confirm by eye, never verdicts",
+ "candidates": [
+  {
+   "id": "R2T01",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the Nutzertabelle auf das neue Schema ge': 2b: content word(s) not in the text: the",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T02",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'deleted': 2b: content word(s) not in the text: deleted",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T02",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'all tests pass': contradiction: a success claim ('all tests pass') on a turn AI Juggler's facts show failed; never repeat it, even as the agent's",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T02",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'all tests pass': contradiction: a success claim on a failed turn",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T02",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "invented",
+   "detail": "risk reason: invented: code py::test_1",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T02",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "invented",
+   "detail": "risk reason: invented: code py::test_1",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T02",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "invented",
+   "detail": "risk reason: invented: code py::test_1",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T03",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the CSV export now has headers': 2b: content word(s) not in the text: has, headers, the",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T03",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'CSV export now has headers': 2b: content word(s) not in the text: has, headers",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T03",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'Fertig, alles funktioniert wie gewünscht': contradiction: a success claim ('alles funktioniert') on a turn AI Juggler's facts show failed; never repeat it, even as the agent's",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T05",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'gelöscht': 2b: content word(s) not in the text: gelöscht",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T06",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "invented",
+   "detail": "risk reason: invented: code py::testretry",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T06",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "invented",
+   "detail": "risk reason: invented: code py::testretry",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T06",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "invented",
+   "detail": "risk reason: invented: code py::testretry",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T07",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the translations updated': 2b: content word(s) not in the text: the, translations, updated",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T07",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the translations updated': 2b: content word(s) not in the text: the, translations, updated",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T07",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the translations updated': 2b: content word(s) not in the text: the, translations, updated",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T09",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the parser now handles nested lists': 2b: content word(s) not in the text: handles, nested, the",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T09",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'Alle 120 Tests bestanden': contradiction: a success claim ('Alle 120 Tests bestanden') on a turn AI Juggler's facts show failed; never repeat it, even as the agent's",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T12",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'Ich habe versucht, den Router auf async ': 2b: content word(s) not in the text: ver",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T12",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'Ich habe versucht, den Router auf async ': contradiction: describes a change that was undone (git: src/router_async.rs was undone (names async))",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T14",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'switched the date picker to a new librar': contradiction: calls 'then' undone; git's reverts don't name it",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T19",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'die Datenbankindizes geändert': contradiction: describes a change that was undone (Ich habe die Datenbankindizes geändert und dann zurückgenommen, da die Abfragen langsamer )",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T23",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "invented",
+   "detail": "risk reason: invented: number 12",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T38",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "risk reason: 2b: content word(s) not in the text: uncommitted",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T41",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'the webhook signature check is done and ': contradiction: a success claim ('everything works') on a turn AI Juggler's facts show failed; never repeat it, even as the agent's",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T41",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'the webhook signature check is done and ': contradiction: a success claim on a failed turn",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T42",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'Alle Tests bestanden, alles funktioniert': contradiction: a success claim ('Alle Tests bestanden') on a turn AI Juggler's facts show failed; never repeat it, even as the agent's",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T46",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "invented",
+   "detail": "'die Rolleprüfung ergänzt': invented: proper rollepr",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T46",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'Alles läuft, alle Tests sind grün': contradiction: a success claim ('alle Tests sind grün') on a turn AI Juggler's facts show failed; never repeat it, even as the agent's",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T46",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "invented",
+   "detail": "'die Rolleprüfung ergänzt': invented: proper rollepr",
+   "stage": "caught",
+   "corpus": "turns"
+  }
+ ]
+}

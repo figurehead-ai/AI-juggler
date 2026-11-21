@@ -1,0 +1,74 @@
+[
+ {
+  "pair": "chat3-chat-001",
+  "item": "C301",
+  "question": "How long did the test suite take in the ledger-sync session?",
+  "records": [
+   "[s-301a] session\nSession ledger-sync ran 48 minutes in total on branch fix-rounding.",
+   "[t-301b] turn\nRan cargo test in crates/ledger; 212 tests passed, 3 ignored.",
+   "[f-301c] fact\nBranch fix-rounding was created from main on Monday."
+  ],
+  "first": "[s-301a] session\nSession ledger-sync ran 48 minutes in total on branch fix-rounding.\n[t-301b] turn\nRan cargo test in crates/ledger; 212 tests passed, 3 ignored.\n[f-301c] fact\nBranch fix-rounding was created from main on Monday.",
+  "second": "The ledger-sync session ran 48 minutes in total. [s-301a]"
+ },
+ {
+  "pair": "chat3-chat-002",
+  "item": "C304",
+  "question": "How long did the build of 9 March take?",
+  "records": [
+   "[f-304a] fact\nBuild of 9 March took 7m 40s.",
+   "[f-304b] fact\nBuild of 10 March took 11m 05s.",
+   "[t-304c] turn\nThe 10 March build was slower because the cache was cold."
+  ],
+  "first": "[f-304a] fact\nBuild of 9 March took 7m 40s.\n[f-304b] fact\nBuild of 10 March took 11m 05s.\n[t-304c] turn\nThe 10 March build was slower because the cache was cold.",
+  "second": "The build of 9 March took 7m 40s. [f-304a]"
+ },
+ {
+  "pair": "chat3-chat-003",
+  "item": "C310",
+  "question": "What is the timeout of the upload step?",
+  "records": [
+   "[f-310a] fact\nThe upload step has a timeout of 90 seconds.",
+   "[f-310b] fact\nThe download step has a timeout of 30 seconds.",
+   "[t-310c] turn\nRaised no timeouts in this session."
+  ],
+  "first": "The upload step has a timeout of 90 seconds. [f-310a]",
+  "second": "[f-310a] fact\nThe upload step has a timeout of 90 seconds.\n[f-310b] fact\nThe download step has a timeout of 30 seconds.\n[t-310c] turn\nRaised no timeouts in this session."
+ },
+ {
+  "pair": "chat3-chat-004",
+  "item": "C312",
+  "question": "How many tests were added across the parser and lexer turns?",
+  "records": [
+   "[t-312a] turn\nAdded 5 tests in the parser module.",
+   "[t-312b] turn\nAdded 3 tests in the lexer module.",
+   "[f-312c] fact\nTest files follow the pattern *_spec.rs."
+  ],
+  "first": "3 tests were added in the lexer module. [t-312b]",
+  "second": "[t-312a] turn\nAdded 5 tests in the parser module.\n[t-312b] turn\nAdded 3 tests in the lexer module.\n[f-312c] fact\nTest files follow the pattern *_spec.rs."
+ },
+ {
+  "pair": "chat3-chat-005",
+  "item": "C317",
+  "question": "How many retries are configured for the sync job?",
+  "records": [
+   "[f-317a] fact\nThe sync job retries 3 times.",
+   "[f-317b] fact\nThe sync job's maximum backoff is 45 seconds.",
+   "[s-317c] session\nSession sync-tune adjusted job settings."
+  ],
+  "first": "[f-317a] fact\nThe sync job retries 3 times.\n[f-317b] fact\nThe sync job's maximum backoff is 45 seconds.\n[s-317c] session\nSession sync-tune adjusted job settings.",
+  "second": "The sync job retries 3 times. [f-317a]"
+ },
+ {
+  "pair": "chat3-chat-006",
+  "item": "C335",
+  "question": "How many commits were squashed?",
+  "records": [
+   "[t-335a] turn\nSquashed 6 commits into one before opening the review.",
+   "[f-335b] fact\nThe branch is named feature/export-v2.",
+   "[s-335c] session\nSession mist-export finished."
+  ],
+  "first": "6 commits were squashed. [t-335a]",
+  "second": "[t-335a] turn\nSquashed 6 commits into one before opening the review.\n[f-335b] fact\nThe branch is named feature/export-v2.\n[s-335c] session\nSession mist-export finished."
+ }
+]

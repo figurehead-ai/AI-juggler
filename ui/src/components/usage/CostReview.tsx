@@ -18,9 +18,10 @@ import { newTokens } from "../../lib/usage/tokens";
 import { firstDayOfWeek, lastFullWeek, weekWords } from "../../lib/usage/week";
 import { CostByAccount, CostCutTiles } from "./CostCuts";
 import { SessionRow, SessionsHeader } from "./TopLists";
-import { folderAppName } from "../../lib/app-name";
+import { useFolderAppName } from "../../lib/apps";
 
 export function CostReview({ onClose, now = Date.now(), firstDay = firstDayOfWeek() }: { onClose: () => void; now?: number; firstDay?: number }): JSX.Element {
+  const folderAppName = useFolderAppName();
   const week = useMemo(() => lastFullWeek(now, firstDay), [now, firstDay]);
   const input: UsageQueryInput = { edges_ms: [week.start, week.end], group_by: "profile", profile: null, project: null, top: 5 };
   const history = useCached<UsageHistoryInfo>(`review:${week.start}`, () => usageHistory(input), 60_000);

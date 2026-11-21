@@ -1,0 +1,178 @@
+{
+ "family": "apple-v4",
+ "job": "chat",
+ "note": "script flags: candidates for Opus to confirm by eye, never verdicts",
+ "candidates": [
+  {
+   "class": "critical",
+   "detector": "answered_unanswerable",
+   "detail": "'The ledger-sync session ran 48 minutes in total. [s-301a]' (gold: unanswerable, near miss)",
+   "stage": "shown",
+   "attempt": null,
+   "id": "C301",
+   "corpus": "chat3"
+  },
+  {
+   "class": "critical",
+   "detector": "gold_forbidden",
+   "detail": "/48 minutes/",
+   "stage": "shown",
+   "attempt": null,
+   "id": "C301",
+   "corpus": "chat3"
+  },
+  {
+   "class": "omission",
+   "detector": "no_answer_on_answerable",
+   "detail": "shown: dont_know",
+   "stage": "shown",
+   "attempt": null,
+   "id": "C302",
+   "corpus": "chat3"
+  },
+  {
+   "class": "omission",
+   "detector": "no_answer_on_answerable",
+   "detail": "shown: dont_know",
+   "stage": "shown",
+   "attempt": null,
+   "id": "C308",
+   "corpus": "chat3"
+  },
+  {
+   "class": "omission",
+   "detector": "no_answer_on_answerable",
+   "detail": "shown: dont_know",
+   "stage": "shown",
+   "attempt": null,
+   "id": "C309",
+   "corpus": "chat3"
+  },
+  {
+   "class": "omission",
+   "detector": "detail_dropped",
+   "detail": "8",
+   "stage": "shown",
+   "attempt": null,
+   "id": "C312",
+   "corpus": "chat3"
+  },
+  {
+   "class": "omission",
+   "detector": "no_answer_on_answerable",
+   "detail": "shown: dont_know",
+   "stage": "shown",
+   "attempt": null,
+   "id": "C316",
+   "corpus": "chat3"
+  },
+  {
+   "class": "omission",
+   "detector": "no_answer_on_answerable",
+   "detail": "shown: dont_know",
+   "stage": "shown",
+   "attempt": null,
+   "id": "C318",
+   "corpus": "chat3"
+  },
+  {
+   "class": "omission",
+   "detector": "no_answer_on_answerable",
+   "detail": "shown: dont_know",
+   "stage": "shown",
+   "attempt": null,
+   "id": "C321",
+   "corpus": "chat3"
+  },
+  {
+   "class": "omission",
+   "detector": "no_answer_on_answerable",
+   "detail": "shown: dont_know",
+   "stage": "shown",
+   "attempt": null,
+   "id": "C323",
+   "corpus": "chat3"
+  },
+  {
+   "class": "omission",
+   "detector": "no_answer_on_answerable",
+   "detail": "shown: dont_know",
+   "stage": "shown",
+   "attempt": null,
+   "id": "C325",
+   "corpus": "chat3"
+  },
+  {
+   "class": "omission",
+   "detector": "no_answer_on_answerable",
+   "detail": "shown: dont_know",
+   "stage": "shown",
+   "attempt": null,
+   "id": "C326",
+   "corpus": "chat3"
+  },
+  {
+   "class": "omission",
+   "detector": "no_answer_on_answerable",
+   "detail": "shown: dont_know",
+   "stage": "shown",
+   "attempt": null,
+   "id": "C329",
+   "corpus": "chat3"
+  },
+  {
+   "class": "omission",
+   "detector": "no_answer_on_answerable",
+   "detail": "shown: dont_know",
+   "stage": "shown",
+   "attempt": null,
+   "id": "C333",
+   "corpus": "chat3"
+  },
+  {
+   "class": "omission",
+   "detector": "no_answer_on_answerable",
+   "detail": "shown: dont_know",
+   "stage": "shown",
+   "attempt": null,
+   "id": "C334",
+   "corpus": "chat3"
+  },
+  {
+   "class": "omission",
+   "detector": "no_answer_on_answerable",
+   "detail": "shown: dont_know",
+   "stage": "shown",
+   "attempt": null,
+   "id": "C336",
+   "corpus": "chat3"
+  },
+  {
+   "class": "omission",
+   "detector": "no_answer_on_answerable",
+   "detail": "shown: dont_know",
+   "stage": "shown",
+   "attempt": null,
+   "id": "C337",
+   "corpus": "chat3"
+  },
+  {
+   "class": "omission",
+   "detector": "no_answer_on_answerable",
+   "detail": "shown: dont_know",
+   "stage": "shown",
+   "attempt": null,
+   "id": "C339",
+   "corpus": "chat3"
+  },
+  {
+   "class": "omission",
+   "detector": "no_answer_on_answerable",
+   "detail": "shown: dont_know",
+   "stage": "shown",
+   "attempt": null,
+   "id": "C340",
+   "corpus": "chat3"
+  }
+ ]
+}

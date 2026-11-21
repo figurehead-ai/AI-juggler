@@ -39,4 +39,14 @@ crash: boolean,
 /**
  * AJ-E2501: an account has room again.
  */
-reset: boolean, };
+reset: boolean, 
+/**
+ * AJ-E3817: a watch the user set fired ("Watches you set"; on unless
+ * turned off).
+ */
+watch: boolean, 
+/**
+ * AJ-E3712: the agent digest, with the finishes it carries instead of
+ * one notification each (off by default, like every other kind).
+ */
+digest: boolean, };

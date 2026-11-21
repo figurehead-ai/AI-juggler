@@ -1,0 +1,19 @@
+[package]
+name = "juggler-local-ai-protocol"
+description = "The local-model helper's wire protocol (ADR-0033 §4.2): bounded, strictly parsed lines both ways, shared by the app and the helper."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+# Pure data and checks: no I/O, no process, no model. The app
+# (juggler-app's local engine) and the helper (crates/juggler-local-ai,
+# outside this workspace so llama.cpp never builds in `just verify`) both
+# read the protocol from here, so its bounds have one source.
+[lints]
+workspace = true
+
+[dependencies]
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }

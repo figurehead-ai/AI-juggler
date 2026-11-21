@@ -28,11 +28,18 @@ function take(parts: readonly HTMLElement[], step: number): void {
   for (const part of parts) part.toggleAttribute("data-gone", goneAt(part, step));
 }
 
-/** What `row` needs with nothing in it shrunk. */
+/** What `row` needs with nothing in it shrunk. A row that is itself a
+ * flex item is taken out of its line's sizing while measured: as the top
+ * bar's cluster (`grow basis-0`), its basis won over the width and it
+ * measured only the room it had, so This Mac's words never gave way and
+ * the cluster ran left over the page tabs ("History" under "This Mac ·
+ * Plenty of room" at 1280 with the list open: the 0.5 gate triage). */
 function unshrunk(row: HTMLElement): number {
+  row.style.flex = "none";
   row.style.width = "max-content";
   row.style.maxWidth = "none";
   const width = row.getBoundingClientRect().width;
+  row.style.flex = "";
   row.style.width = "";
   row.style.maxWidth = "";
   return width;

@@ -122,6 +122,9 @@ fn meter(instance: &Path, samples: &[(i64, f64, Option<f64>)]) {
 }
 
 fn display(setup: &Setup) -> juggler_app::features::quota::QuotaDisplayInfo {
+    // AJ-E3210: a folder's readings are its Account's, as its sign-in was
+    // last read (the window reads the Accounts as it opens).
+    juggler_app::features::subscriptions::list_impl(&setup.state).unwrap();
     let storage = setup.state.storage.lock().unwrap();
     let account = storage
         .accounts()
@@ -193,6 +196,9 @@ fn at_start_the_apps_reading_lands_before_the_first_walk_is_stored() {
         .unwrap();
     }
     let shown = |setup: &Setup| {
+        // AJ-E3210: a folder's readings are its Account's, as its sign-in
+        // was last read (as `display` does).
+        juggler_app::features::subscriptions::list_impl(&setup.state).unwrap();
         let storage = setup.state.storage.lock().unwrap();
         let account = storage
             .accounts()
@@ -574,6 +580,8 @@ fn qa_real_readonly_claude_limits_per_profile() {
         let mut push = |kind: WindowKind, sample: QuotaSample, source: UsageSource| match kind {
             WindowKind::FiveHour => five.push((sample, Some(source))),
             WindowKind::Weekly { .. } => week.push((sample, Some(source))),
+            // Claude names no month.
+            WindowKind::Monthly => {}
         };
         let limits = claude_limits::profile_limits(&dir).unwrap_or_default();
         let mut counts = [0usize; 3];

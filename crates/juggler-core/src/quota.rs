@@ -17,6 +17,9 @@ use crate::model::{Confidence, TokenCounts};
 pub const FIVE_HOURS_MS: i64 = 5 * 60 * 60 * 1000;
 /// Weekly window length, milliseconds.
 pub const WEEK_MS: i64 = 7 * 24 * 60 * 60 * 1000;
+/// Monthly window length, milliseconds: 30 days, the span a month's
+/// readings are summed over when the vendor gives no reset of its own.
+pub const MONTH_MS: i64 = 30 * 24 * 60 * 60 * 1000;
 /// A Measured reading older than this demotes `Tracking` to `Stale`
 /// (§Q8: Stale applies to Measured freshness only — Computed/Estimated
 /// burn never claims freshness in the first place).
@@ -42,6 +45,10 @@ pub enum UsageSource {
     /// The tool's own last reading of the account's limits, kept in its
     /// state file (what its usage command showed last).
     UsageCache,
+    /// D-106: the tool's own local server, asked for the account's limits
+    /// (Kimi Code's `kimi web`, which asks the vendor's account service).
+    /// Labelled experimental where it is shown.
+    LocalServer,
     /// The tool's own report of its account's limits to a session AI
     /// Juggler runs (a driven session's limits update, as it works):
     /// percent used, with the reset when the tool gives one. An update may
@@ -61,6 +68,7 @@ impl UsageSource {
             UsageSource::ApiRetry => "api_retry",
             UsageSource::DesktopApp => "desktop_app",
             UsageSource::UsageCache => "usage_cache",
+            UsageSource::LocalServer => "local_server",
             UsageSource::Driven => "driven",
         }
     }
@@ -76,6 +84,7 @@ impl UsageSource {
             "api_retry" => Some(UsageSource::ApiRetry),
             "desktop_app" => Some(UsageSource::DesktopApp),
             "usage_cache" => Some(UsageSource::UsageCache),
+            "local_server" => Some(UsageSource::LocalServer),
             "driven" => Some(UsageSource::Driven),
             _ => None,
         }
@@ -92,6 +101,7 @@ impl UsageSource {
                 | UsageSource::Rollout
                 | UsageSource::DesktopApp
                 | UsageSource::UsageCache
+                | UsageSource::LocalServer
         )
     }
 
@@ -290,15 +300,19 @@ pub enum WindowKind {
         /// Phase anchor, UTC epoch milliseconds, if anchored.
         anchor_ms: Option<i64>,
     },
+    /// The monthly pool (Kimi Code's monthly limit), reset when the vendor
+    /// says; 30 days when it doesn't.
+    Monthly,
 }
 
 impl WindowKind {
-    /// Stable storage name (`five_hour` | `weekly`).
+    /// Stable storage name (`five_hour` | `weekly` | `monthly`).
     #[must_use]
     pub const fn as_str(self) -> &'static str {
         match self {
             WindowKind::FiveHour => "five_hour",
             WindowKind::Weekly { .. } => "weekly",
+            WindowKind::Monthly => "monthly",
         }
     }
 
@@ -308,6 +322,7 @@ impl WindowKind {
         match self {
             WindowKind::FiveHour => FIVE_HOURS_MS,
             WindowKind::Weekly { .. } => WEEK_MS,
+            WindowKind::Monthly => MONTH_MS,
         }
     }
 }
@@ -752,7 +767,7 @@ pub fn window_burn<'a>(
     now_ms: i64,
 ) -> WindowBurn {
     let (lo, hi) = match kind {
-        WindowKind::FiveHour => window_bounds(kind, now_ms),
+        WindowKind::FiveHour | WindowKind::Monthly => window_bounds(kind, now_ms),
         WindowKind::Weekly { anchor_ms } => weekly_phase_bounds(anchor_ms, now_ms),
     };
     let mut burn = WindowBurn::default();

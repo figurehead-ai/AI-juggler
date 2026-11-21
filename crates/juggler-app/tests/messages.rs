@@ -179,6 +179,38 @@ fn a_shared_name_is_told_apart_for_the_sender_as_for_the_receiver() {
     assert_ne!(from, to, "each its own");
 }
 
+/// D-118's mock (Home round 3): an agent's question to the user says who
+/// asks and what it is about, plainly, beside its own words: Home's card
+/// leads with the sender ("builder-1 · Release pool · Export flow") and
+/// shows the question inline; the rail's row leads with the thread.
+#[test]
+fn a_question_to_the_user_carries_its_sender_its_thread_and_its_words() {
+    let lab = Lab::new();
+    let (_b, b) = lab.agent("s-b1", "builder-1");
+    let sent = lab.send(
+        &b,
+        SendArgs {
+            to: "user".into(),
+            kind: Some("question".into()),
+            subject: Some("Export flow".into()),
+            body: "Use the v2 export API, or keep v1 for this release?".into(),
+            ..SendArgs::default()
+        },
+    );
+    assert!(sent.refused.is_none(), "{sent:?}");
+    let question = needs::needs(&lab.state)
+        .unwrap()
+        .into_iter()
+        .find(|need| need.kind == "question")
+        .expect("the question waits on the user");
+    assert_eq!(question.sender.as_deref(), Some("builder-1"));
+    assert_eq!(question.thread.as_deref(), Some("Export flow"));
+    assert_eq!(
+        question.preview.as_deref(),
+        Some("Use the v2 export API, or keep v1 for this release?")
+    );
+}
+
 #[test]
 fn a_ping_pong_between_two_fake_agents_stops_at_the_cap() {
     let lab = Lab::new();

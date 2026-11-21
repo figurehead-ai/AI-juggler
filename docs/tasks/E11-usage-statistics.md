@@ -135,7 +135,7 @@
 **Visual testing**: the ask dialog and the setting, 1280×800 both themes.
 **Files to touch**: `crates/juggler-app/src/crash.rs`, Settings ▸ Privacy.
 **Research basis**: spec §10.
-**Handover note**: Needs a signed, notarized build to verify minidumps — that is the maintainer's step (AJ-E1010).
+**Handover note**: R1–R4 and R5's code side are done (2026-11-13, D-108): reports go to Sentry as events built by Sentry's SDK (`crash_sentry.rs`, defaults off, our scrubber in `before_send`), sent by `crash_send.rs` over the app's own HTTPS client. Left for the maintainer: the Sentry project and its DSN as the `AI_JUGGLER_CRASH_ENDPOINT` release secret, then one report sent from a signed build. Minidumps are not built (plan and cost in the manifest); if built later they stay off until a signed, notarized build's test (AJ-E1010).
 
 ### AJ-E1108 Puzzle solver and the user agent | Status: DONE-EVIDENCED | Priority P1 | Effort S | Depends: AJ-E1104
 **Goal**: Keep honest uploads working when the service asks for a proof of work, at no cost the rest of the time.

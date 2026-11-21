@@ -182,12 +182,7 @@ pub fn import_opencode_data(
     login_probe: &dyn Fn(&Path) -> LoginProbe,
     degraded: bool,
 ) -> Result<ImportOutcome, AdapterError> {
-    if dest.exists() {
-        return Err(AdapterError::AccountDir {
-            path: dest.to_path_buf(),
-            message: "destination already exists".to_string(),
-        });
-    }
+    home::refuse_existing(dest)?;
     let data = managed_data_dir(dest);
     let skips: &[&str] = if degraded {
         OPENCODE_LAYOUT.history
@@ -207,7 +202,7 @@ pub fn import_opencode_data(
         let _ = std::fs::remove_file(data.join(crate::claude_code::MANAGED_MARKER));
         crate::claude_code::prepare_managed_dir_for(dest, OPENCODE_ID)?;
         for dir in [managed_config_dir(dest), managed_state_dir(dest)] {
-            crate::claude_code::create_private_dir(&dir).map_err(|error| account_error(dest, &error))?;
+            crate::claude_code::create_private_dir(&dir).map_err(|error| home::unfinished_copy(dest, &error))?;
         }
         let db = source.join(DB_FILE);
         if !degraded && db.is_file() {
@@ -225,7 +220,7 @@ pub fn import_opencode_data(
         if let Some(settings) = settings.filter(|dir| dir.is_dir()) {
             let mut copied = Copied::default();
             copy_settings(settings, &managed_config_dir(dest), &mut copied)
-                .map_err(|error| account_error(dest, &error))?;
+                .map_err(|error| home::unfinished_copy(dest, &error))?;
             outcome.files_copied += copied.files;
             outcome.bytes_copied = outcome.bytes_copied.saturating_add(copied.bytes);
             outcome.skipped.extend(copied.kept_back);
@@ -238,13 +233,6 @@ pub fn import_opencode_data(
         let _ = std::fs::remove_dir_all(dest);
     }
     result
-}
-
-fn account_error(dest: &Path, error: &std::io::Error) -> AdapterError {
-    AdapterError::AccountDir {
-        path: dest.to_path_buf(),
-        message: format!("couldn't finish the copy — the partial copy was removed ({error})"),
-    }
 }
 
 /// A consistent copy of `db` at `to` with every [`PRIVATE_TABLES`] row

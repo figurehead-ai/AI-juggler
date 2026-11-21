@@ -72,6 +72,8 @@ export const SESSION: ActionSpec<"session">[] = [
     run: (row, h) => h.continueSession!(row),
   },
   { id: "rename", label: "Rename…", icon: "rename", group: "work", rank: 30, applies: (_, h) => has(h.renameSession), run: (row, h) => h.renameSession!(row) },
+  // AJ-E3816 (ADR-0036 §2.6): the Watches form with this session picked.
+  { id: "watch", label: "Watch…", icon: "watch", group: "work", rank: 32, applies: (row, h) => has(h.watchSession) && isLive(row), run: (row, h) => h.watchSession!(row) },
   // AJ-E1702: its pool (the pool sheet; with no pool of yours yet, it makes one).
   { id: "pool", label: "Move to pool…", icon: "pool", group: "work", rank: 35, applies: (_, h) => has(h.moveSessionToPool), run: (row, h) => h.moveSessionToPool!(row) },
   // Shows instead of the snoozes, where they would be.

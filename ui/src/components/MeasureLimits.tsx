@@ -1,7 +1,7 @@
 /**
  * 0.4.4 (main's finding): "Measure its limits" measured nothing; it only
- * opened a page. One control for every place that offers it (Home's Next
- * steps and Runway, the Accounts card, the Account page), measuring where
+ * opened a page. One control for every place that offers it (Home's
+ * Runway, the Accounts card, the Account page), measuring where
  * it is through D-39's ask (the tool's own usage check, `quota_probe_run`:
  * an async command, so the window never waits on it):
  * - on for the account: a click asks ("Measuring…"), then reads its limits
@@ -14,7 +14,6 @@
  *   place or in the caller's own fold (`how`).
  */
 import { useEffect, useId, useRef, useState, type JSX } from "react";
-import { Button } from "./primitives";
 import { rememberTab } from "../pages/registry";
 import { openApp } from "../lib/apps";
 import { cliAppId } from "../lib/app-name";
@@ -39,7 +38,7 @@ export function unmeasuredWords(tool: string): string {
 }
 
 /** A caller that shows where limits come from itself (the Accounts
- * card's fold, a Next steps row): whether it's open, and the toggle. */
+ * card's fold): whether it's open, and the toggle. */
 type HowShown = { open: boolean; onToggle: () => void };
 
 /** How an ask ended, in words (`ProbeStatusInfo.last_outcome`). */
@@ -86,7 +85,6 @@ export function MeasureLimits({
   folders,
   tool,
   name,
-  look = "link",
   onMeasured,
   readAgainMs = READ_AGAIN_MS,
   how,
@@ -97,8 +95,6 @@ export function MeasureLimits({
   tool: string;
   /** The account's name, for screen readers. */
   name: string;
-  /** A button (Home's Next steps) or a link (in a line of words). */
-  look?: "button" | "link";
   /** After each read again: a page reading its own limits reads them too. */
   onMeasured?: () => void;
   readAgainMs?: readonly number[];
@@ -121,7 +117,7 @@ export function MeasureLimits({
   }, [key]);
   const toolName = providerDisplayName(tool);
   if (door === undefined) return null;
-  if (door === null) return <HowMeasured tool={tool} name={name} look={look} how={how} />;
+  if (door === null) return <HowMeasured tool={tool} name={name} how={how} />;
   if (door.status.state !== "on") {
     return (
       <span className="text-label text-muted" data-testid="measure-limits-off">
@@ -162,17 +158,11 @@ export function MeasureLimits({
   const label = measuring ? "Measuring…" : "Measure its limits";
   return (
     <span className="inline-flex flex-wrap items-baseline gap-x-2 gap-y-1" data-testid="measure-limits">
-      {look === "button" ? (
-        <Button size="sm" variant="secondary" disabled={measuring} aria-busy={measuring} aria-label={`${label} — ${name}`} onClick={() => void measure()} data-testid="measure-limits-run">
-          {label}
-        </Button>
-      ) : (
-        <button type="button" disabled={measuring} aria-busy={measuring} onClick={() => void measure()} className={`text-label ${LINK}`} data-testid="measure-limits-run">
-          {label}
-          {!measuring && " ›"}
-          <span className="sr-only"> — {name}</span>
-        </button>
-      )}
+      <button type="button" disabled={measuring} aria-busy={measuring} onClick={() => void measure()} className={`text-label ${LINK}`} data-testid="measure-limits-run">
+        {label}
+        {!measuring && " ›"}
+        <span className="sr-only"> — {name}</span>
+      </button>
       {said && (
         <output className={`text-label ${said.problem ? "text-warning" : "text-muted"}`} data-testid="measure-limits-said">
           {said.words}
@@ -184,7 +174,7 @@ export function MeasureLimits({
 
 /** D-103.4: no check for this tool, so nothing to measure here: "How it's
  * measured ›" opens where its limits come from. */
-function HowMeasured({ tool, name, look, how }: { tool: string; name: string; look: "button" | "link"; how?: HowShown }): JSX.Element {
+function HowMeasured({ tool, name, how }: { tool: string; name: string; how?: HowShown }): JSX.Element {
   const [mine, setMine] = useState(false);
   const id = useId();
   const open = how ? how.open : mine;
@@ -194,15 +184,9 @@ function HowMeasured({ tool, name, look, how }: { tool: string; name: string; lo
   const label = "How it's measured";
   return (
     <span className="inline-flex flex-wrap items-baseline gap-x-2 gap-y-1" data-testid="measure-limits-how">
-      {look === "button" ? (
-        <Button size="sm" variant="secondary" aria-expanded={open} aria-controls={controls} aria-label={`${label} — ${name}`} onClick={toggle} data-testid="measure-limits-how-open">
-          {label}
-        </Button>
-      ) : (
-        <button type="button" aria-expanded={open} aria-controls={controls} onClick={toggle} className={`text-label ${LINK}`} data-testid="measure-limits-how-open">
-          {label} ›<span className="sr-only"> — {name}</span>
-        </button>
-      )}
+      <button type="button" aria-expanded={open} aria-controls={controls} onClick={toggle} className={`text-label ${LINK}`} data-testid="measure-limits-how-open">
+        {label} ›<span className="sr-only"> — {name}</span>
+      </button>
       {!how && open && (
         <span id={id} className="basis-full text-label text-muted" data-testid="measure-limits-how-words">
           {unmeasuredWords(tool)}

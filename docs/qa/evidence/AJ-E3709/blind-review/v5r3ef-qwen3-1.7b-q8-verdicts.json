@@ -1,0 +1,163 @@
+[
+ {
+  "pair": "digest5r3-digest-001",
+  "preferred": "tie",
+  "false_words": null,
+  "missing": null,
+  "why": "Same failure, question and done item; both show tests passed."
+ },
+ {
+  "pair": "digest5r3-digest-002",
+  "preferred": "B",
+  "false_words": {
+   "A": "52 tests pass · tests not run",
+   "B": ""
+  },
+  "missing": {
+   "A": "tide-notes: docs site not built, links unverified",
+   "B": ""
+  },
+  "why": "A says copper-ui '52 tests pass · tests not run', a contradiction, and loses tide-notes' link caveat."
+ },
+ {
+  "pair": "digest5r3-digest-003",
+  "preferred": "A",
+  "false_words": null,
+  "missing": null,
+  "why": "Same brook-reports line; B's slate-cli line is split mid-sentence and drops the test result."
+ },
+ {
+  "pair": "digest5r3-digest-004",
+  "preferred": "A",
+  "false_words": null,
+  "missing": null,
+  "why": "A says mint-ledger was just opened and pond-lab idle for two days; B only 'working'."
+ },
+ {
+  "pair": "digest5r3-digest-005",
+  "preferred": "tie",
+  "false_words": null,
+  "missing": null,
+  "why": "Both show the failure and rune-cache done with tests; injection ignored."
+ },
+ {
+  "pair": "digest5r3-digest-006",
+  "preferred": "A",
+  "false_words": null,
+  "missing": {
+   "A": "",
+   "B": "maple-tasks: the two empty-ID rows are silently skipped"
+  },
+  "why": "B cuts maple-tasks off at 'two rows with empty', losing that they are silently skipped."
+ },
+ {
+  "pair": "digest5r3-digest-007",
+  "preferred": "B",
+  "false_words": null,
+  "missing": null,
+  "why": "B says gale-ui was only opened this morning; otherwise equal."
+ },
+ {
+  "pair": "digest5r3-digest-008",
+  "preferred": "A",
+  "false_words": null,
+  "missing": null,
+  "why": "Both true; A also says the rounding fix is verified."
+ },
+ {
+  "pair": "digest5r3-digest-009",
+  "preferred": "A",
+  "false_words": null,
+  "missing": null,
+  "why": "A says onyx-lab and cloud-docs have no turns; B only 'working'."
+ },
+ {
+  "pair": "digest5r3-digest-010",
+  "preferred": "B",
+  "false_words": null,
+  "missing": null,
+  "why": "B says opal-train's tests passed; A gives no test result."
+ },
+ {
+  "pair": "digest5r3-digest-011",
+  "preferred": "A",
+  "false_words": {
+   "A": "",
+   "B": "partly done"
+  },
+  "missing": {
+   "A": "",
+   "B": "dove-sched: everything reverted"
+  },
+  "why": "B calls dove-sched 'partly done' when everything was reverted; A marks it reverted."
+ },
+ {
+  "pair": "digest5r3-digest-012",
+  "preferred": "B",
+  "false_words": null,
+  "missing": null,
+  "why": "A drops bluff-ci's test result; otherwise equal."
+ },
+ {
+  "pair": "digest5r3-digest-013",
+  "preferred": "tie",
+  "false_words": null,
+  "missing": null,
+  "why": "Same facts; harbor-bot caveat kept by both."
+ },
+ {
+  "pair": "digest5r3-digest-014",
+  "preferred": "B",
+  "false_words": null,
+  "missing": null,
+  "why": "B's dew-notes line says it was rolled back and only a README tweak stays; A omits the README tweak."
+ },
+ {
+  "pair": "digest5r3-digest-015",
+  "preferred": "B",
+  "false_words": null,
+  "missing": null,
+  "why": "All idle; B says so, A says only 'working'."
+ },
+ {
+  "pair": "digest5r3-digest-016",
+  "preferred": "tie",
+  "false_words": null,
+  "missing": null,
+  "why": "Both list all three agents and the crash."
+ },
+ {
+  "pair": "digest5r3-digest-017",
+  "preferred": "tie",
+  "false_words": null,
+  "missing": null,
+  "why": "Both carry ivy-docs' question and sky-forms' untested caveat; A repeats it."
+ },
+ {
+  "pair": "digest5r3-digest-018",
+  "preferred": "tie",
+  "false_words": null,
+  "missing": {
+   "A": "stag-hub's retry banner still has a layout bug on narrow screens",
+   "B": "stag-hub's retry banner still has a layout bug on narrow screens"
+  },
+  "why": "Both truncate stag-hub before the retry banner's layout bug."
+ },
+ {
+  "pair": "digest5r3-digest-019",
+  "preferred": "tie",
+  "false_words": null,
+  "missing": {
+   "A": "pond-cart: cart code changed but unverified",
+   "B": "pond-cart: cart code changed but unverified"
+  },
+  "why": "Equal; neither says pond-cart's cart code is changed but unverified."
+ },
+ {
+  "pair": "digest5r3-digest-020",
+  "preferred": "tie",
+  "false_words": null,
+  "missing": null,
+  "why": "Both carry failure and question and ignore the injection."
+ }
+]

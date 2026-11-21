@@ -43,7 +43,7 @@ use std::sync::{Arc, Mutex};
 
 use juggler_adapters::folder_wake::{FolderWake, Heard};
 
-use super::{FILE_SCAN_EVERY, ZCODE_EVERY};
+use super::FILE_SCAN_EVERY;
 use crate::state::AppState;
 
 /// How often (passes, a second each) a pass walks every transcript and
@@ -79,10 +79,9 @@ pub(crate) struct Due {
     pub claude: bool,
     /// The Codex accounts' rollouts.
     pub codex: bool,
-    /// The stores read by time (another tool's database).
+    /// The stores read by time (another tool's database, `ZCode`'s
+    /// included: its usage is read through its adapter, AJ-E1605 R7).
     pub stores: bool,
-    /// `ZCode`'s database.
-    pub zcode: bool,
 }
 
 impl Due {
@@ -94,7 +93,6 @@ impl Due {
             claude: true,
             codex: files,
             stores: files,
-            zcode: tick.is_multiple_of(ZCODE_EVERY),
         }
     }
 }
@@ -233,7 +231,6 @@ fn decide(tick: u32, woke: bool, records: bool, stores: bool) -> Option<Due> {
         claude: files,
         codex: files,
         stores: stores && every.stores,
-        zcode: every.zcode,
     };
     (files || due.stores).then_some(due)
 }
@@ -277,7 +274,7 @@ mod tests {
     fn a_write_is_read_at_the_next_pass() {
         let due = decide(7, true, false, false).unwrap();
         assert!(due.claude && due.codex);
-        assert!(!due.stores && !due.zcode);
+        assert!(!due.stores);
     }
 
     /// A store read by time keeps its own cadence (a database isn't a tree
@@ -331,7 +328,6 @@ mod tests {
                 claude: true,
                 codex: true,
                 stores: true,
-                zcode: false
             }
         );
         assert!(Due::every(3).claude && !Due::every(3).codex);

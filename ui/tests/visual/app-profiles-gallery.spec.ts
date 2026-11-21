@@ -135,8 +135,10 @@ for (const theme of ["dark", "light"] as const) {
     await openWork(page);
     await findThem(page);
     await goTo(page, "Home");
-    // Found, never used: after the apps you've used, behind "Show 2 more".
-    await page.getByTestId("home-apps-more").click();
+    // Found, never used: after the apps you've used; D-118: the list is cut
+    // only past 9 apps ("Show all N"), so open it only when it is.
+    const more = page.getByTestId("home-apps-more");
+    if (await more.isVisible()) await more.click();
     const closed = page.locator('[data-testid="home-app-closed"]', { hasText: "Design" });
     // The 0.4 design review (62): no "Not running" on a tile that offers Start.
     await expect(closed).toContainText("Found with your other profiles");

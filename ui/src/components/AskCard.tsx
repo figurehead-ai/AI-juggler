@@ -97,7 +97,7 @@ function QuestionForm({ ask, busy, reply }: { ask: AskInfo; busy: boolean; reply
                   <Button
                     key={choice.label}
                     size="sm"
-                    variant={on ? "primary" : "secondary"}
+                    variant={on ? "chosen" : "secondary"}
                     aria-pressed={on}
                     title={choice.description ?? undefined}
                     disabled={busy}

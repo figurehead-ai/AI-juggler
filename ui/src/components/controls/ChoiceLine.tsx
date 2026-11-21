@@ -9,6 +9,7 @@
 import { useId, type JSX, type ReactNode, type SVGProps } from "react";
 import { IconCheck } from "../icons-controls";
 import { Checkbox, Radio, type ToggleProps } from "./Toggle";
+import { SELECTED_CARD } from "./selected";
 
 export type ControlIcon = (props: SVGProps<SVGSVGElement>) => JSX.Element;
 
@@ -120,7 +121,7 @@ export function ChoiceOption({
       className={
         "flex rounded-lg text-body transition-colors " +
         (look === "card"
-          ? "border px-3 py-2 " + (input.checked ? "border-accent/60 bg-accent-soft " : "border-hairline ")
+          ? "border px-3 py-2 " + (input.checked ? SELECTED_CARD + " " : "border-hairline ")
           : "px-2 py-1.5 ") +
         (input.disabled ? "text-muted" : look === "card" && input.checked ? "text-ink" : "text-ink hover:bg-surface-2") +
         (className ? ` ${className}` : "")

@@ -1,6 +1,6 @@
 {
   "name": "ai-juggler",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "AI Juggler's pool tools, a skill for working the pool's tasks, and a note when pool messages are waiting. Works while AI Juggler runs, in sessions it started and in Claude app sessions it confirms; anywhere else each tool says why it can't.",
   "author": {
     "name": "Figurehead"

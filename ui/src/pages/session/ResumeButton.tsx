@@ -91,7 +91,9 @@ export function ResumeButton({
       live = false;
     };
   }, [session.account_id]);
-  const room = useTargetRoom(session.account_id ?? undefined);
+  // AJ-E3210: a session launched in a desktop App reads that App's own
+  // Account's room; a terminal run, its folder's CLI App's.
+  const room = useTargetRoom(session.account_id ?? undefined, !!session.app_id, session.app_id ?? null);
   const out = room?.kind === "out" ? `${room.account ?? account?.label ?? "This account"} is ${outOfRoomWords(room.resetsAtMs).replace(/^Out/, "out")}` : null;
   const blocked = resumeBlocked({ session, account, out, openIn });
   // 0.4.6 (the rc3c walk): AI Juggler's run of a conversation an app had

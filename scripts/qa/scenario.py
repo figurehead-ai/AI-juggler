@@ -12,6 +12,8 @@ A scenario file (TOML, the subset below) says:
     layers = ["L2", "L3", "L4"]
     exercises = ["App member", "Reviewer"]
     needs = ["lab"]                 # replica | lab | live-claude | live-codex | rc
+    sheet = "docs/qa/0.5-walks/X.md" # optional: its walk sheet, when not
+                                    # docs/qa/0.4-walks/<id>.md (a hand-written one)
 
     [setup]                         # the starting state, as data
     projects = ["web"]
@@ -57,6 +59,7 @@ Usage:
   scenario.py check                 every file parses and has what it needs: every
                                     setup key read by a seeder, a tracked walk sheet
   scenario.py sheet ID [--out F]    the walk sheet for one scenario
+  scenario.py sheet-path ID         where its tracked walk sheet is
   scenario.py seed ID               the setup as JSON (the lab seeder reads it)
   scenario.py list                  id, title, needs
   scenario.py --selftest
@@ -276,6 +279,14 @@ def empty_template_pools(scenario: dict, name: str, templates: set[str]) -> list
 
 
 def sheet_path(scenario: dict) -> Path:
+    """Its walk sheet: the one it names (`sheet`, a hand-written sheet
+    under docs/qa/), else docs/qa/0.4-walks/<id>.md."""
+    named = scenario.get("sheet")
+    if named:
+        path = (ROOT / named).resolve()
+        if not path.is_relative_to(ROOT / "docs" / "qa") or path.suffix != ".md":
+            raise SystemExit(f"scenario {scenario.get('id')}: sheet {named!r} isn't a .md under docs/qa/")
+        return path
     return WALKS / f"{scenario['id']}.md"
 
 
@@ -298,7 +309,7 @@ def tracked_files() -> set[str]:
     import subprocess
 
     listed = subprocess.run(
-        ["git", "-C", str(ROOT), "ls-files", "--", "docs/qa/0.4-walks"],
+        ["git", "-C", str(ROOT), "ls-files", "--", "docs/qa"],
         capture_output=True, text=True, check=True,
     )
     return set(listed.stdout.split())
@@ -444,6 +455,17 @@ expect = "b"
         "Z2-b.toml: no tracked walk sheet docs/qa/0.4-walks/Z2.md "
         "(scenario.py sheet Z2 --out docs/qa/0.4-walks/Z2.md, then commit it)"
     ]
+    # A scenario may name a hand-written sheet under docs/qa/ (T16).
+    named = {"Z3-c.toml": {"id": "Z3", "sheet": "docs/qa/0.5-walks/Z3.md"}}
+    assert sheet_path(named["Z3-c.toml"]) == ROOT / "docs/qa/0.5-walks/Z3.md"
+    assert missing_sheets(named, {"docs/qa/0.5-walks/Z3.md"}) == []
+    assert missing_sheets(named, {"docs/qa/0.4-walks/Z3.md"})
+    for bad in ("../README.md", "docs/qa/0.5-walks/Z3.txt", "docs/other/Z3.md"):
+        try:
+            sheet_path({"id": "Z3", "sheet": bad})
+            raise AssertionError(f"accepted sheet {bad!r}")
+        except SystemExit:
+            pass
     assert setup_writes_into_the_repo('python3 "$root/scripts/qa/scenario.py" sheet "$id" --out "$sheet"')
     assert setup_writes_into_the_repo('echo x > "$root/docs/x.md"')
     assert not setup_writes_into_the_repo('python3 "$root/x.py" seed "$id" > "$lab/scenario-seed.json"')
@@ -487,6 +509,9 @@ def main(argv: list[str]) -> int:
             Path(argv[argv.index("--out") + 1]).write_text(text)
         else:
             print(text)
+        return 0
+    if argv[0] == "sheet-path" and len(argv) == 2:
+        print(sheet_path(by_id(argv[1])).relative_to(ROOT).as_posix())
         return 0
     if argv[0] == "seed" and len(argv) == 2:
         print(json.dumps(by_id(argv[1]).get("setup", {}), indent=2))

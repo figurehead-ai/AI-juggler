@@ -10,7 +10,7 @@
  * The preview keeps its own messages, seeded by `__AIJ_MESSAGES__`, and
  * records the calls that change them in `__AIJ_MESSAGES_CALLS__`.
  */
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { call } from "./transport";
 import { listenWhileShown } from "../shown-window";
 import { hasLiveBackend, refused } from "../bridge";
@@ -186,14 +186,23 @@ export async function messagesDeliverWaiting(sessionId: string): Promise<number>
 }
 
 let focused: string | null = null;
-/** The thread a pool's Messages tab opens on next (from Needs you). */
-export function focusThread(threadId: string | null): void {
+let replying: string | null = null;
+/** The thread a pool's Messages tab opens on next (from Needs you);
+ * `reply`: its reply box takes the focus (Home's Reply, D-118's mock). */
+export function focusThread(threadId: string | null, reply = false): void {
   focused = threadId;
+  replying = reply ? threadId : null;
   // E19: a Messages tab already open (a task's thread) takes it now.
   window.dispatchEvent(new Event(FOCUS_THREAD));
 }
 /** The event a Messages tab already open listens for. */
 export const FOCUS_THREAD = "aij:focus-thread";
+/** Whether this thread's reply box was asked for (taken once). */
+export function takeReplyFocus(threadId: string): boolean {
+  if (replying !== threadId) return false;
+  replying = null;
+  return true;
+}
 /** …taken once. */
 export function takeFocusedThread(): string | null {
   const thread = focused;
@@ -324,6 +333,19 @@ export function onMessagesChanged(handler: () => void): () => void {
 }
 
 /** What waits on you about messages, kept current. */
+/** D-118's mock (Home round 3): what an agent's question or waiting
+ * message is about, by its Needs you subject (`message:<key>`): its
+ * thread ("Export flow") and its pool, so the rail's row leads with the
+ * subject, as a session's row leads with its title. */
+export function useMessageAbout(): ReadonlyMap<string, { subject: string; context: string }> {
+  const needs = useMessageNeeds();
+  return useMemo(() => {
+    const out = new Map<string, { subject: string; context: string }>();
+    for (const need of needs) if ((need.kind === "question" || need.kind === "waiting") && need.thread) out.set(`message:${need.key}`, { subject: need.thread, context: need.pool_name });
+    return out;
+  }, [needs]);
+}
+
 export function useMessageNeeds(): MessageNeedInfo[] {
   const [needs, setNeeds] = useState<MessageNeedInfo[]>([]);
   useEffect(() => {

@@ -94,6 +94,18 @@ export async function placesOpen(id: string, conversationId: string | null = nul
   return call("places_open", { id, conversationId });
 }
 
+/** AJ-E1610: "Open here": the app's own documented link for `action`
+ * (`new_chat`, `new_in_folder` with a project's `folder`), sent to the
+ * running app or profile `id` alone. */
+export async function placesOpenRoute(id: string, action: string, folder: string | null = null): Promise<GoToOutcomeInfo> {
+  if (!hasLiveBackend()) {
+    const place = preview().places.find((row) => row.id === id);
+    if (!place || place.app_pid === null) return { outcome: "Start it first", reached: "none" };
+    return { outcome: action === "new_chat" ? `Opened a new chat in ${place.label}` : `Opened a new session in ${place.label}`, reached: "thread" };
+  }
+  return call("places_open", { id, conversationId: null, action, folder });
+}
+
 /** 0.3.8: quits an app or profile that lost its window when macOS
  * restarted its display, and starts it again as it ran. D-71: with
  * `confirmed`, a running one with its window too (the user confirmed what

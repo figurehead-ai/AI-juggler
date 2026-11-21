@@ -33,9 +33,8 @@ afterEach(() => {
   sessionStorage.clear();
 });
 
-/** Home's heading's count: "2 things need you", or "3 sessions and 2
- * more things need you" (both parts). */
-const count = (heading: string) => [...heading.matchAll(/(\d+) (?:sessions?|more|things?)/g)].reduce((sum, match) => sum + Number(match[1]), 0);
+/** Home's heading's count: "3 need you" (D-118's mock: one number). */
+const count = (heading: string) => Number(/^(\d+) needs? you/.exec(heading)?.[1] ?? 0);
 
 it("the bell, Home and the rail show one Needs you count, the model's own needs included", async () => {
   w().__AIJ_NOTICES__ = {
@@ -84,4 +83,51 @@ it("the bell, Home and the rail show one Needs you count, the model's own needs 
   const { FloorList } = await import("./pages/floor/FloorList");
   const floor = render(<FloorList />);
   await waitFor(() => expect(floor.getByTestId("floor-list-summary").textContent).toMatch(new RegExp(`· ${home} needs? you`)));
+});
+
+/** D-117 (AJ-E3602): the one count holds L2 and L3 only. A note — here an
+ * Account low (18 %) with a session live on it, L1 — is listed (the rail's
+ * "To review", Home's counts line) and counted nowhere: the bell, Home's
+ * heading and the rail's head still agree. */
+it("a note is listed but never counted, and the three counts still agree (D-117)", async () => {
+  const quota = (id: number, meter: number, account: string) => ({
+    id,
+    kind: "quota",
+    needs: true,
+    title: `${account} is running low`,
+    detail: `${meter}% of its 5-hour window left`,
+    project_id: null,
+    project: null,
+    target: { session_id: null, conversation_id: null, account_id: `acct-${id}`, project_id: null, page: null, task_id: null, pool_id: null },
+    facts: { window: "5-hour", resets_at_ms: T0 + 3_600_000, sessions: 1, version: null, channel: null, attempt: null, tries: null, account },
+    action: "hand-over",
+    meter,
+    created_ms: T0,
+    unread: true,
+    subject: `quota:acct-${id}`,
+    snoozed: false,
+    snoozed_until_ms: null,
+    muted: false,
+    dismissed: false,
+  });
+  w().__AIJ_NOTICES__ = { app: [quota(11, 18, "Side Pro")] };
+  const { default: App } = await import("./App");
+  const view = render(<App />);
+  const heading = await view.findByTestId("home-heading");
+  // D-118: Home pins L2 and L3 only; the note is named in its counts line.
+  await waitFor(() => expect(view.getByTestId("home-counts").textContent).toMatch(/\d+ to review/));
+  expect(view.queryByTestId("home-needs")?.textContent ?? "").not.toContain("Side Pro is running low");
+  await waitFor(() => {
+    const shown = count(heading.textContent ?? "");
+    expect(shown).toBeGreaterThanOrEqual(1);
+    expect(view.getByTestId("bell-count").textContent).toBe(String(shown));
+  });
+  const home = count(heading.textContent ?? "");
+  await waitFor(() => expect(/Needs you\D*(\d+)/.exec(view.getByTestId("rail-needs-you").textContent ?? "")?.[1]).toBe(String(home)));
+  // Listed: under the rail's To review, and named in Home's counts line.
+  const toReview = view.getByTestId("rail-to-review");
+  const low = view.getAllByTestId("rail-notice").find((row) => row.textContent?.includes("Side Pro is running low"))!;
+  expect(toReview.compareDocumentPosition(low) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  expect(low.getAttribute("data-level")).toBe("1");
+  expect(view.getByTestId("home-counts").textContent).toMatch(/\d+ to review/);
 });

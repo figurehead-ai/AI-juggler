@@ -1,0 +1,196 @@
+{
+ "family": "apple",
+ "job": "feed_line",
+ "note": "script flags: candidates for Opus to confirm by eye, never verdicts",
+ "candidates": [
+  {
+   "id": "R2T12",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "gate step 2b: 2b: content word(s) not in the text: attempted",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T12",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "gate step 2b: 2b: content word(s) not in the text: attempted",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T12",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "gate step 2b: 2b: content word(s) not in the text: attempted",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T13",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "gate step 2b: 2b: content word(s) not in the text: became, correction, modules, the, too, undone",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T13",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "contradiction: calls 'only a typo correction' undone; git's reverts don't name it",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T13",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "gate step 2b: 2b: content word(s) not in the text: became, correction, modules, the, too, undone",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T13",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "contradiction: calls 'only a typo correction' undone; git's reverts don't name it",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T13",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "gate step 2b: 2b: content word(s) not in the text: became, correction, modules, the, too, undone",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T13",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "contradiction: calls 'only a typo correction' undone; git's reverts don't name it",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T17",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "gate step 2b: 2b: content word(s) not in the text: and, built",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T17",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "gate step 2b: 2b: content word(s) not in the text: and, built",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T17",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "gate step 2b: 2b: content word(s) not in the text: and, built",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T18",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "gate step 2b: 2b: content word(s) not in the text: rewerted",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T18",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "gate step 2b: 2b: content word(s) not in the text: rewerted",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T18",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "gate step 2b: 2b: content word(s) not in the text: rewerted",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T35",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "gate step 2b: 2b: content word(s) not in the text: updated",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T35",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "gate step 2b: 2b: content word(s) not in the text: updated",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T35",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "gate step 2b: 2b: content word(s) not in the text: updated",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T36",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "gate step 2b: 2b: content word(s) not in the text: adjusted",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T36",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "gate step 2b: 2b: content word(s) not in the text: adjusted",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T36",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "gate step 2b: 2b: content word(s) not in the text: adjusted",
+   "stage": "caught",
+   "corpus": "turns"
+  }
+ ]
+}

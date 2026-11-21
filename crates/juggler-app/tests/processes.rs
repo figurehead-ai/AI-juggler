@@ -107,6 +107,7 @@ fn harness_spec(extra: &[&str], cwd: &Path) -> LaunchSpec {
 fn drive_orphan_fixture(state: &Arc<AppState>, dir: &Path, id: &str) -> (SessionId, u32) {
     let session = seed_instance(state, dir, id);
     let go = dir.join(format!("{id}.go"));
+    let child_file = dir.join(format!("{id}.child"));
     state
         .supervisor
         .spawn(
@@ -130,6 +131,8 @@ fn drive_orphan_fixture(state: &Arc<AppState>, dir: &Path, id: &str) -> (Session
                     "/bin/sleep",
                     "--child-args",
                     "120",
+                    "--child-pid-file",
+                    child_file.to_str().unwrap(),
                     "--exit",
                     "7",
                 ],
@@ -139,8 +142,26 @@ fn drive_orphan_fixture(state: &Arc<AppState>, dir: &Path, id: &str) -> (Session
         )
         .unwrap();
 
-    // Tick until the tree shows root + child (the snapshot source); room
-    // for a loaded shared Mac.
+    // The child's own signal first: the harness writes its pid once it
+    // runs. Starting a harness and its child is what a loaded Mac slows
+    // (at a load of about 24 the 0.5 release PR's preflight ran out of a
+    // single 45 s clock), so that wait has no deadline of its own but the
+    // harness's (it ends within two minutes anyway).
+    let started = Instant::now();
+    let spawned: u32 = loop {
+        if let Some(pid) = std::fs::read_to_string(&child_file)
+            .ok()
+            .and_then(|text| text.trim().parse().ok())
+        {
+            break pid;
+        }
+        assert!(
+            started.elapsed() < Duration::from_secs(180),
+            "the harness never started its child"
+        );
+        std::thread::sleep(Duration::from_millis(50));
+    };
+    // Then the collector: tick until the session's tree shows that child.
     let deadline = Instant::now() + Duration::from_secs(45);
     let mut child_pid = 0_u32;
     let state_ref = &state;
@@ -151,13 +172,16 @@ fn drive_orphan_fixture(state: &Arc<AppState>, dir: &Path, id: &str) -> (Session
             &session.to_string(),
         )
         .unwrap();
-        if let Some(row) = info.rows.iter().find(|row| row.name.contains("sleep")) {
+        if let Some(row) = info.rows.iter().find(|row| row.pid == spawned) {
             child_pid = row.pid;
             break;
         }
         std::thread::sleep(Duration::from_millis(200));
     }
-    assert!(child_pid != 0, "processes command never saw the child");
+    assert!(
+        child_pid != 0,
+        "processes command never saw the child {spawned}"
+    );
     // Seen: the harness may end now.
     std::fs::write(&go, b"").unwrap();
 

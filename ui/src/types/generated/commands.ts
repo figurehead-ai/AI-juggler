@@ -9,13 +9,23 @@ import type { AccountQualityInfo } from "./AccountQualityInfo";
 import type { AccountRemovedInfo } from "./AccountRemovedInfo";
 import type { AccountStorageInfo } from "./AccountStorageInfo";
 import type { AgentBridgeInfo } from "./AgentBridgeInfo";
+import type { AiJob } from "./AiJob";
+import type { AiJobInfo } from "./AiJobInfo";
 import type { AlertEventInfo } from "./AlertEventInfo";
 import type { AnswerInput } from "./AnswerInput";
 import type { AppInfo } from "./AppInfo";
 import type { AppUserInfo } from "./AppUserInfo";
 import type { AppliedInfo } from "./AppliedInfo";
+import type { ApprovalInfo } from "./ApprovalInfo";
 import type { AskInfo } from "./AskInfo";
 import type { BackupExportInfo } from "./BackupExportInfo";
+import type { BotAskInput } from "./BotAskInput";
+import type { BotCountInfo } from "./BotCountInfo";
+import type { BotFoundInfo } from "./BotFoundInfo";
+import type { BotMemoriesInfo } from "./BotMemoriesInfo";
+import type { BotPageInfo } from "./BotPageInfo";
+import type { BotTopicInfo } from "./BotTopicInfo";
+import type { BotTurnInfo } from "./BotTurnInfo";
 import type { BudgetInfo } from "./BudgetInfo";
 import type { BudgetInput } from "./BudgetInput";
 import type { BugComposedInfo } from "./BugComposedInfo";
@@ -25,6 +35,7 @@ import type { CacheInfo } from "./CacheInfo";
 import type { CaptureOffInfo } from "./CaptureOffInfo";
 import type { CapturePreviewInfo } from "./CapturePreviewInfo";
 import type { CaptureStatusInfo } from "./CaptureStatusInfo";
+import type { CatalogueEntry } from "./CatalogueEntry";
 import type { CleanupAlertsInfo } from "./CleanupAlertsInfo";
 import type { CleanupEventInfo } from "./CleanupEventInfo";
 import type { CleanupPolicyInfo } from "./CleanupPolicyInfo";
@@ -61,6 +72,8 @@ import type { EntityKind } from "./EntityKind";
 import type { EntityRef } from "./EntityRef";
 import type { ExpertSetupInfo } from "./ExpertSetupInfo";
 import type { FacetFilters } from "./FacetFilters";
+import type { FeedFiltersInfo } from "./FeedFiltersInfo";
+import type { FeedItemInfo } from "./FeedItemInfo";
 import type { FigureheadStatusInfo } from "./FigureheadStatusInfo";
 import type { FindProfilesInfo } from "./FindProfilesInfo";
 import type { FleetPeerInfo } from "./FleetPeerInfo";
@@ -89,6 +102,7 @@ import type { IsolationRowInfo } from "./IsolationRowInfo";
 import type { KillExecuteInfo } from "./KillExecuteInfo";
 import type { KillVerifyInfo } from "./KillVerifyInfo";
 import type { KnownPlaceInfo } from "./KnownPlaceInfo";
+import type { Lang } from "./Lang";
 import type { LastBackupInfo } from "./LastBackupInfo";
 import type { LastMessagesInfo } from "./LastMessagesInfo";
 import type { LaunchMachineInfo } from "./LaunchMachineInfo";
@@ -104,6 +118,8 @@ import type { MachineUsageInfo } from "./MachineUsageInfo";
 import type { MarkChoice } from "./MarkChoice";
 import type { MessageInfo } from "./MessageInfo";
 import type { MessageNeedInfo } from "./MessageNeedInfo";
+import type { ModelsCatalog } from "./ModelsCatalog";
+import type { ModelsInfo } from "./ModelsInfo";
 import type { MoveDoneInfo } from "./MoveDoneInfo";
 import type { MoveOfferInfo } from "./MoveOfferInfo";
 import type { MoveRecordInfo } from "./MoveRecordInfo";
@@ -158,9 +174,13 @@ import type { RecoverySummaryInfo } from "./RecoverySummaryInfo";
 import type { RedactionPolicyInfo } from "./RedactionPolicyInfo";
 import type { RelatedIdsInfo } from "./RelatedIdsInfo";
 import type { RelationCountsInfo } from "./RelationCountsInfo";
+import type { RemoteAboutInfo } from "./RemoteAboutInfo";
 import type { RemoteCommandOutcomeInfo } from "./RemoteCommandOutcomeInfo";
 import type { RemoteMachineInfo } from "./RemoteMachineInfo";
+import type { RemoteNoticeInfo } from "./RemoteNoticeInfo";
+import type { RemoteSection } from "./RemoteSection";
 import type { RemoteSwitchTargetInfo } from "./RemoteSwitchTargetInfo";
+import type { RemoteValuesInfo } from "./RemoteValuesInfo";
 import type { ReopenBlockInfo } from "./ReopenBlockInfo";
 import type { ReplayInfo } from "./ReplayInfo";
 import type { ResetQueueInfo } from "./ResetQueueInfo";
@@ -190,6 +210,7 @@ import type { SetupCheckInfo } from "./SetupCheckInfo";
 import type { SourceHealthInfo } from "./SourceHealthInfo";
 import type { SourceInspectInfo } from "./SourceInspectInfo";
 import type { StagedSwitchInfo } from "./StagedSwitchInfo";
+import type { StartInfo } from "./StartInfo";
 import type { StartedSessionInfo } from "./StartedSessionInfo";
 import type { StatsInfo } from "./StatsInfo";
 import type { StoredAppInfo } from "./StoredAppInfo";
@@ -207,6 +228,7 @@ import type { SwitchPoolLineInfo } from "./SwitchPoolLineInfo";
 import type { SwitchSpaceInfo } from "./SwitchSpaceInfo";
 import type { SwitchTargetInfo } from "./SwitchTargetInfo";
 import type { SystemNotificationsInfo } from "./SystemNotificationsInfo";
+import type { SystemPage } from "./SystemPage";
 import type { TaskBoardRow } from "./TaskBoardRow";
 import type { TaskCounts } from "./TaskCounts";
 import type { TaskDetail } from "./TaskDetail";
@@ -236,6 +258,13 @@ import type { UsageStatsSetResult } from "./UsageStatsSetResult";
 import type { UsageWastedInfo } from "./UsageWastedInfo";
 import type { ValidationCellInfo } from "./ValidationCellInfo";
 import type { VaultStatusInfo } from "./VaultStatusInfo";
+import type { WatchDraftInfo } from "./WatchDraftInfo";
+import type { WatchId } from "./WatchId";
+import type { WatchInfo } from "./WatchInfo";
+import type { WatchListWhich } from "./WatchListWhich";
+import type { WatchPreviewInfo } from "./WatchPreviewInfo";
+import type { WatchSummaryInfo } from "./WatchSummaryInfo";
+import type { WatchTarget } from "./WatchTarget";
 import type { WatchedMemberInfo } from "./WatchedMemberInfo";
 import type { WorkGraphInfo } from "./WorkGraphInfo";
 import type { WorktreeRemovalInfo } from "./WorktreeRemovalInfo";
@@ -284,6 +313,28 @@ export interface Commands {
   agent_bridge_get: { args: Record<string, never>; result: AgentBridgeInfo };
   /** Write features::agent_bridge::commands::agent_bridge_set */
   agent_bridge_set: { args: { scope: string; id: string; on: boolean }; result: AgentBridgeInfo };
+  /** Write features::ai::commands::ai_beta_set */
+  ai_beta_set: { args: { job: AiJob; on: boolean }; result: AiJobInfo[] };
+  /** Write features::ai::commands::ai_job_pick_set */
+  ai_job_pick_set: { args: { job: AiJob; modelId?: string | null }; result: AiJobInfo[] };
+  /** Read features::ai::commands::ai_jobs */
+  ai_jobs: { args: Record<string, never>; result: AiJobInfo[] };
+  /** Write features::ai::models::commands::ai_model_approve_extra */
+  ai_model_approve_extra: { args: { modelId: string }; result: ApprovalInfo };
+  /** Write features::ai::models::commands::ai_model_decline_extra */
+  ai_model_decline_extra: { args: { modelId: string }; result: ModelsInfo };
+  /** Write features::ai::models::commands::ai_model_download_cancel */
+  ai_model_download_cancel: { args: { modelId: string }; result: ModelsInfo };
+  /** Write features::ai::models::commands::ai_model_download_start */
+  ai_model_download_start: { args: { modelId: string; approval?: string | null }; result: StartInfo };
+  /** Write features::ai::models::commands::ai_model_remove */
+  ai_model_remove: { args: { modelId: string }; result: ModelsInfo };
+  /** Read features::ai::models::commands::ai_models_catalog */
+  ai_models_catalog: { args: Record<string, never>; result: ModelsCatalog };
+  /** Read features::ai::models::commands::ai_models_installed */
+  ai_models_installed: { args: Record<string, never>; result: ModelsInfo };
+  /** Write features::ai::models::commands::ai_open_system_page */
+  ai_open_system_page: { args: { page: SystemPage }; result: void };
   /** Write features::alerts::commands::alerts_tick */
   alerts_tick: { args: { localHour?: number | null }; result: AlertEventInfo[] };
   /** Write features::app::diagnostics::app_bug_report_compose */
@@ -350,6 +401,24 @@ export interface Commands {
   backup_restore: { args: { path: string; token: string }; result: RestoreResultInfo };
   /** Write backup::backup_verify */
   backup_verify: { args: { path: string }; result: RestorePlanInfo };
+  /** Write features::bot::commands::bot_ask */
+  bot_ask: { args: { input: BotAskInput }; result: BotTurnInfo };
+  /** Write features::bot::commands::bot_clear */
+  bot_clear: { args: Record<string, never>; result: number };
+  /** Read features::bot::commands::bot_count */
+  bot_count: { args: Record<string, never>; result: BotCountInfo };
+  /** Read features::bot::commands::bot_find */
+  bot_find: { args: { words: string }; result: BotFoundInfo[] };
+  /** Write features::bot::commands::bot_forget */
+  bot_forget: { args: { key: string }; result: void };
+  /** Read features::bot::commands::bot_memories */
+  bot_memories: { args: Record<string, never>; result: BotMemoriesInfo };
+  /** Write features::bot::commands::bot_new_topic */
+  bot_new_topic: { args: Record<string, never>; result: BotTopicInfo };
+  /** Read features::bot::commands::bot_page */
+  bot_page: { args: { beforeMs?: number | null; beforeId?: string | null; limit?: number | null }; result: BotPageInfo };
+  /** Write features::bot::commands::bot_wrong */
+  bot_wrong: { args: { turn: string }; result: void };
   /** Read features::budgets::commands::budgets_list */
   budgets_list: { args: { monthStartMs: number }; result: BudgetInfo[] };
   /** Write features::budgets::commands::budgets_remove */
@@ -474,6 +543,8 @@ export interface Commands {
   expert_reveal: { args: { provider: string; accountId?: string | null }; result: void };
   /** Write features::expert::commands::expert_setup_info */
   expert_setup_info: { args: { provider: string; accountId?: string | null; recipeId?: string | null }; result: ExpertSetupInfo };
+  /** Read features::feed::commands::feed_page */
+  feed_page: { args: { request: PageRequest; filters: FeedFiltersInfo }; result: Page<FeedItemInfo> };
   /** Write figurehead::figurehead_claim */
   figurehead_claim: { args: { code: string; name?: string | null }; result: FigureheadStatusInfo };
   /** Write figurehead::figurehead_dismiss_notice */
@@ -680,6 +751,10 @@ export interface Commands {
   messages_threads: { args: { poolId?: string | null; sessionId?: string | null; cursor?: string | null }; result: ThreadsPage };
   /** Write features::messages::commands::messages_typing */
   messages_typing: { args: { sessionId: string; typing: boolean }; result: void };
+  /** Write features::notices::commands::notices_dismiss */
+  notices_dismiss: { args: { id: string }; result: RemoteNoticeInfo[] };
+  /** Read features::notices::commands::notices_list */
+  notices_list: { args: Record<string, never>; result: RemoteNoticeInfo[] };
   /** Read settings_policy::notification_prefs_get */
   notification_prefs_get: { args: Record<string, never>; result: NotificationPrefsInfo };
   /** Write settings_policy::notification_prefs_set */
@@ -775,7 +850,7 @@ export interface Commands {
   /** Read features::places::commands::places_offers */
   places_offers: { args: Record<string, never>; result: PlaceOfferInfo[] };
   /** Write features::places::commands::places_open */
-  places_open: { args: { id: string; conversationId?: string | null }; result: GoToOutcomeInfo };
+  places_open: { args: { id: string; conversationId?: string | null; action?: string | null; folder?: string | null }; result: GoToOutcomeInfo };
   /** Read features::places::commands::places_profiles */
   places_profiles: { args: Record<string, never>; result: FindProfilesInfo };
   /** Write features::places::commands::places_profiles_set */
@@ -958,6 +1033,10 @@ export interface Commands {
   relations_counts: { args: { entities: EntityRef[] }; result: RelationCountsInfo[] };
   /** Read features::relations::commands::relations_related */
   relations_related: { args: { entity: EntityRef; of: EntityKind }; result: RelatedIdsInfo };
+  /** Read features::remote_config::commands::remote_config_about */
+  remote_config_about: { args: Record<string, never>; result: RemoteAboutInfo };
+  /** Read features::remote_config::commands::remote_config_values */
+  remote_config_values: { args: { section: RemoteSection }; result: RemoteValuesInfo };
   /** Write features::reset_queue::commands::reset_queue_dismiss */
   reset_queue_dismiss: { args: { id: string }; result: void };
   /** Read features::reset_queue::commands::reset_queue_list */
@@ -1232,6 +1311,24 @@ export interface Commands {
   vault_setup: { args: Record<string, never>; result: RecoveryCodeInfo };
   /** Write vault::vault_status */
   vault_status: { args: Record<string, never>; result: VaultStatusInfo };
+  /** Read features::watches::commands::watches_catalogue */
+  watches_catalogue: { args: { target: WatchTarget; lang?: Lang | null }; result: CatalogueEntry[] };
+  /** Write features::watches::commands::watches_create */
+  watches_create: { args: { draft: WatchDraftInfo; lang?: Lang | null }; result: WatchInfo };
+  /** Read features::watches::commands::watches_list */
+  watches_list: { args: { request: PageRequest; which?: WatchListWhich | null; lang?: Lang | null }; result: Page<WatchInfo> };
+  /** Write features::watches::commands::watches_pause */
+  watches_pause: { args: { id: WatchId; paused: boolean; lang?: Lang | null }; result: WatchInfo };
+  /** Read features::watches::commands::watches_preview */
+  watches_preview: { args: { draft: WatchDraftInfo; lang?: Lang | null }; result: WatchPreviewInfo };
+  /** Write features::watches::commands::watches_remove */
+  watches_remove: { args: { id: WatchId; lang?: Lang | null }; result: WatchInfo };
+  /** Write features::watches::commands::watches_restore */
+  watches_restore: { args: { id: WatchId; lang?: Lang | null }; result: WatchInfo };
+  /** Read features::watches::commands::watches_summary */
+  watches_summary: { args: Record<string, never>; result: WatchSummaryInfo };
+  /** Write features::watches::commands::watches_update */
+  watches_update: { args: { id: WatchId; draft: WatchDraftInfo; lang?: Lang | null }; result: WatchInfo };
   /** Write worktree::worktree_create */
   worktree_create: { args: { cwd: string; path: string; branch: string }; result: string };
   /** Write worktree::worktree_removal_preview */

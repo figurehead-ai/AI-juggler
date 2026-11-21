@@ -1,0 +1,25 @@
+{
+ "family": "qwen3-v4",
+ "job": "attention:facts_hidden",
+ "note": "script flags: candidates for Opus to confirm by eye, never verdicts",
+ "candidates": [
+  {
+   "class": "omission",
+   "detector": "attention_miss",
+   "detail": "gold: needs the user; no note",
+   "stage": "shown",
+   "attempt": null,
+   "id": "N006",
+   "corpus": "heldout-jobs"
+  },
+  {
+   "class": "omission",
+   "detector": "attention_miss",
+   "detail": "gold: needs the user; no note",
+   "stage": "shown",
+   "attempt": null,
+   "id": "N011",
+   "corpus": "heldout-jobs"
+  }
+ ]
+}

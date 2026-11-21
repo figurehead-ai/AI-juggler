@@ -12,6 +12,7 @@
 import { useEffect, type JSX, type ReactNode, type RefObject } from "react";
 import { PRIMARY_FILL } from "../primitives";
 import { IconCheck } from "../icons-controls";
+import { SELECTED_CARD } from "../controls/selected";
 
 export const BUTTON = "min-h-8 rounded-lg border px-3.5 text-body";
 export const SECONDARY = `${BUTTON} border-hairline text-ink hover:bg-surface-2`;
@@ -39,7 +40,7 @@ export function StepMarks({ steps, step, testId }: { steps: readonly string[]; s
             className={
               "inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-label " +
               (index === step
-                ? "border-accent/60 bg-accent-soft font-semibold text-accent-hi"
+                ? SELECTED_CARD + " font-semibold text-selected-ink"
                 : index < step
                   ? "border-success/30 bg-success-soft text-success"
                   : "border-hairline text-muted")

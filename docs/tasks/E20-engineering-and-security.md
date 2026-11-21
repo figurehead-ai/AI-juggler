@@ -343,7 +343,7 @@ Every check starts with an allowlist that may only shrink.
 **Research basis**: the engineering guide (IPC).
 **Handover note**: —
 
-### AJ-E2020 Release speed: promote the tested nightly, build CI once, test only what changed | Status: TODO | Priority P1 | Effort L | Depends: AJ-E2019
+### AJ-E2020 Release speed: promote the tested nightly, build CI once, test only what changed | Status: IN-PROGRESS (R1 to R5 evidenced: the full CI run 27 min against 43, three probe runs, main requires verify alone; R6 the Happo amendment) | Priority P1 | Effort L | Depends: AJ-E2019
 **Goal**: A release is the promotion of a tested build, and a pull request's CI builds once and runs only what its change touches.
 **User story**: As the maintainer, I ship a beta without a rebuild or a full re-walk, and a UI-only or Rust-only fix doesn't wait on the other half of CI.
 **Requirements**:
@@ -362,7 +362,85 @@ Every check starts with an allowlist that may only shrink.
 **Research basis**: [release-speed.md](../research/release-speed.md); D-99 in the [decision log](../review/decision-log.md).
 **Handover note**: Planned after 0.4.1 (R2 to R5 each a small PR on main right after the 0.4.1 merge); filed under 0.5 in the roadmap so no 0.4.x check requires it.
 
-### AJ-E2025 0.4.6's deferred architecture findings: Claude's turn-end codes into the adapter, and placing an external-terminal session by its process before indexing | Status: IN-PROGRESS (0.4.7: built in batch 1 on release/0.4.7, the coordinating session's call under D-138) | Priority P1 | Effort M | Depends: —
+### AJ-E2021 Remote configuration, step 1: the signed envelope and its trust rules (ADR-0035, D-129) | Status: IN-PROGRESS (2026-11-18: the `juggler-remote-config` crate is built and has had its security review: 892c73813 (canonical bytes, pinned-key verification before any parse, rollback/expiry/channel state, section registry, layer merge, targeting and buckets, fetch through an injected transport), 832eb3b9e (the step-1 tests), 2999e19d1 (the real transport over `juggler-account`'s HTTPS client), the review's fixes 1fa860c64 and 0e2c06e9c and 24fe4cefd, the review itself 2bf8ad4a9, the ADR's updates 9847a53ab; hosting and the default decided in D-129 (4a61042eb). Not done: R4 to R6) | Priority P0 | Effort L | Depends: ADR-0035
+**Goal**: The app can verify and apply one signed configuration file without trusting the network, and works identically with no file.
+**User story**: As the maintainer, I can switch a feature off or narrow a tool's versions for everyone without a release, and nobody can forge or roll back that file.
+**Requirements**:
+1. The crate SHALL verify an ed25519 signature against pinned key ids before it parses anything, and refuse a bad signature, an unknown or revoked key, a lower serial, an expired or future-dated file, the wrong channel and an oversize file (ADR-0035 §3, §7).
+2. Trust state (the highest serial, revocations) SHALL be durable, checksummed and written atomically, fail safe to a compiled baseline, and never live in the cache (ADR-0035 §3).
+3. Sections SHALL be tolerant: a value an older app can't read drops only that control, and kills and narrowing still apply (ADR-0035 §1, §10; 1fa860c64).
+4. The fetch SHALL send no identifying header or query, at most daily, from the Figurehead website's fixed URL per channel (D-129 hosting), with the "Check for configuration updates" setting on by default; the host is on the compiled endpoint allow-list.
+5. The app SHALL start and work identically with no file, a truncated file or a down host (fault-injection run, ADR-0035 §10).
+6. A golden file per channel and the dry run against old app versions SHALL run in CI.
+**UI/UX reasoning**: invisible by design; the one visible part is the Settings switch and its privacy line (AJ-E2023).
+**Performance budget**: one request a day; verification under 5 ms; nothing at idle.
+**Quality gates**: verify-static; `cargo test -p juggler-remote-config`; the layering check (the crate knows no feature); the security review's findings fixed (security findings block merges).
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E2021/manifest.md`, R1 to R6 (not yet written).
+**Visual testing**: n/a.
+**Files to touch**: `crates/juggler-remote-config/`, `crates/juggler-account/`, `docs/adr/0035-remote-config.md`.
+**Research basis**: [ADR-0035](../adr/0035-remote-config.md); D-128 and D-129.
+**Handover note**: ADR-0035's order of work: step 1 (this crate and the compat section) and step 2 (flags and notices) are 0.5; steps 3 (params and endpoints) and 4 (the account layer and the server key) come with the features that need them, in later releases (D-129), and have no task yet.
+
+### AJ-E2022 Remote configuration, steps 2–3: the compat section, the app's wiring and the Publish config workflow (ADR-0035, D-128 point 3, D-129) | Status: TODO | Priority P0 | Effort L | Depends: AJ-E2021
+**Goal**: A tool's allowed versions, shape-check versions and kill switches can change without a release, and a bad file can't reach people.
+**User story**: As the maintainer, when a tool update breaks a switch route I hide just that route for everyone in a day, and it comes back when I fix it.
+**Requirements**:
+1. A `compat` section module SHALL carry, per tool and feature, allowed version ranges, shape-check versions and kill switches; it can only switch compiled-in features on or off and widen or narrow their ranges (ADR-0035 §2).
+2. The switch and move paths SHALL read the section through the registry, and fall back to the compiled-in list on no file (D-128 point 3).
+3. A publish workflow SHALL validate the file in CI against old app versions, sign it with the key kept in the release environment (never the repo) and publish it to the website's fixed URL per channel; a change goes through the same review as a release note.
+4. A compat entry that hides an option SHALL record which tool and version, in plain words in the option's place (D-127).
+**UI/UX reasoning**: D-127: an option the setup can't use is never shown; the user sees nothing broken.
+**Performance budget**: reading a compat answer under 1 ms, no I/O.
+**Quality gates**: verify-static; tests for each fallback and for a hostile file; the CI dry run against the last three app versions.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E2022/manifest.md`, R1 to R4.
+**Visual testing**: the switch menu with a route hidden by the file.
+**Files to touch**: `crates/juggler-remote-config/`, `crates/juggler-app/src/remote_config.rs`, `.github/workflows/`, `docs/RELEASING.md`.
+**Research basis**: ADR-0035; D-128 point 3; D-129 order.
+**Handover note**: the signing key stays off the repo; Opus owns the review of the workflow.
+
+### AJ-E2023 Remote configuration, step 4: flags (remote: OffOnly, OnOff or Rollout) and notices, with their UI through the D-126 Alert (ADR-0035, D-129) | Status: TODO | Priority P1 | Effort M | Depends: AJ-E2021
+**Goal**: A feature can be turned on or off for a share of people, and a short message can reach everyone, both without a release.
+**User story**: As a user, I see a short notice when something needs my attention (a known problem with a tool update), and I can switch off "Check for configuration updates" in Settings.
+**Requirements**:
+1. A `flags` section SHALL set a flag only where the flag declares in code that remote may set it (`remote:` mode); user choices win over preferences, never over safety (ADR-0035 §4).
+2. A `notices` section SHALL show a calm one-line notice (D-117), dismissible, with plain words from the words file.
+3. Settings SHALL have "Check for configuration updates", on by default (D-129), with a privacy line saying what is fetched and that nothing identifying is sent.
+4. Rollout buckets SHALL be computed on the Mac; the fetch sends nothing to choose them.
+**UI/UX reasoning**: calm, one level; the setting is explained in plain words with a docs link.
+**Performance budget**: flags answer from memory; the notice adds no polling.
+**Quality gates**: verify-static; component tests (notice shown, dismissed, none); the a11y gate on the notice and the setting; the plain-words lint.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E2023/manifest.md`, R1 to R4.
+**Visual testing**: a notice, the Settings row on and off; both themes.
+**Files to touch**: `crates/juggler-remote-config/`, `crates/juggler-app/src/remote_config.rs`, Settings UI, `ui/src/lib/`.
+**Research basis**: ADR-0035 §1, §4, §5; D-129.
+**Handover note**: params and endpoints (ADR-0035 order step 3) and the account layer (step 4) are not 0.5.
+**Progress (2026-11-18, backend and data layer built):**
+- The crate's list sections (`juggler-remote-config/src/list.rs`): records whose fields are as closed as a control (plain text, a compiled option, a flag, a time, an `https` link to compiled hosts only), targeted on this Mac, tolerant by record, strict for the publisher.
+- `features/flags`: each feature declares a `Flag` (`remote: OffOnly | OnOff | Rollout`) in its own module; `flags::DECLARED` is the one list; `flags::is_on` reads memory. The first flag is `notices_on` (OffOnly), the notices' own kill switch.
+- `features/notices`: the `notices` section (level, title, body, link to figurehead.ai only, link label, dismissable, expiry); the level is capped to what the targeting justifies (L3 only for a version this Mac runs, L2 only for this setup, else L1); dismissals kept in the app settings (`remote_notices_dismissed`, the newest 200).
+- Commands (named by the IPC audit's `<feature>_<verb>` rule): `remote_config_values(section)`, `remote_config_about`, `notices_list`, `notices_dismiss(id)`; the event `remote-config://changed`.
+- UI data layer: `useRemote(section)` (`ui/src/lib/remote.ts`) and `useNotices()` (`ui/src/lib/remote-notices.ts`), cached, lazy, refreshed on the event, no timer; the calls in `ui/src/lib/ipc/remote.ts`.
+
+**Left until the 0.4.6 → 0.5 merge brings D-126's Alert (`ui/src/components/Alert.tsx`; never copied into 0.5):** the notice screens (the Alert for needs-you and broken, a quiet Home banner for info, words from the words file), the Settings › Privacy "Check for configuration updates" row with its privacy line, the Settings › Advanced "About this configuration" view over `remoteAbout()`, their component tests (notice shown, dismissed, none), the a11y gate, both themes' captures, and the evidence manifest R1 to R4.
+
+### AJ-E2024 Numbers the window can't hold: a 64-bit value reaches the UI only below 2^53 | Status: DONE-EVIDENCED (2026-11-18: 2ffdedf4c and 94289f074; the lint runs in `just verify-static` and CI; found by AJ-E1612's dry run 2, fixed first in 045c97acb) | Priority P1 | Effort S | Depends: —
+**Goal**: A 64-bit integer that the window reads as a float can never silently lose its low bits again.
+**User story**: As a user, the rail and Home agree after a need ends; nothing is stale because a counter or hash rounded to the same number.
+**Requirements**:
+1. `scripts/js_number_lint.py` SHALL scan every ts-rs type's fields and every Tauri command's arguments and result for `u64`, `i64`, `u128`, `i128`, `usize` and `isize` sent as a number, and the generated TypeScript for `bigint`.
+2. Each crossing SHALL be listed in `scripts/js_number.allow` with why it stays exact (a millisecond epoch, bytes, tokens, a rowid, a counter); a left-over entry fails.
+3. A value bounded by code SHALL name its function (`[bound: file::fn]`), which must keep masking with a `(1 << 53) - 1` constant.
+4. The check SHALL run in `just verify-static` and in CI, with a selftest that fails on a stale entry, an unlisted new 64-bit field, a `bigint` and the pre-fix `version_of`.
+**UI/UX reasoning**: n/a (a static gate).
+**Performance budget**: n/a.
+**Quality gates**: the lint and its selftest; the notices' version masked (045c97acb); `AccountInfo.imported_at` typed as a number (94289f074).
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E2024/manifest.md`, R1 to R4.
+**Visual testing**: n/a.
+**Files to touch**: `scripts/js_number_lint.py`, `scripts/js_number.allow`, `justfile`, `.github/workflows/ci.yml`.
+**Research basis**: the dry run 2 finding ([dry-run-2.md](../qa/evidence/AJ-E1612/dry-run-2.md)).
+**Handover note**: the inventory was 376 crossings, all judged below 2^53.
+
+### AJ-E2025 0.4.6's deferred architecture findings: Claude's turn-end codes into the adapter, and placing an external-terminal session by its process before indexing | Status: DONE in 0.4.7 (built in batch 1 on release/0.4.7 under D-138, merged to main as e082091ca; R2 is checked on the 0.4.7 nightly) | Priority P1 | Effort M | Depends: —
 **Deferred from 0.4.6's exit RC (rc3h), 2026-11-19 (D-114: the 0.4 line takes blockers only after beta).** The source list, with the walk rows that stay open and their reasons: [docs/research/0.4.6-deferred-to-0.5.md](../research/0.4.6-deferred-to-0.5.md). Work it as one batch (D-137): find, triage, fix together, one build.
 **Requirements**:
 1. **(rc3h item 16)** Move Claude's turn-end codes (`error_during_execution`, `error_max_turns` …) out of the UI's `turn-words.ts` into the claude_stream adapter, as a neutral turn-end kind on the note (from 2e9887601).

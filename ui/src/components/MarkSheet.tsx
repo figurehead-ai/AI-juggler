@@ -16,6 +16,7 @@ import type { MarkChoice } from "../types/generated/MarkChoice";
 import type { MarkShows } from "../types/generated/MarkShows";
 import type { ProjectMarkInfo } from "../types/generated/ProjectMarkInfo";
 import { Radio } from "./controls";
+import { SELECTED_CARD } from "./controls/selected";
 
 export function MarkSheet({ project, onClose, onDone }: { project: ProjectInfo; onClose: () => void; onDone: () => void }): JSX.Element {
   const mark: ProjectMarkInfo = project.mark ?? { letters: initialsOf(project.name), swatch: 0, shows: "letters" };
@@ -99,7 +100,7 @@ export function MarkSheet({ project, onClose, onDone }: { project: ProjectInfo; 
             ).map((option) => (
               <label
                 key={option.id}
-                className={"flex items-center gap-2 rounded-lg border px-3 py-1.5 text-sm " + (shows === option.id ? "border-accent/60 bg-accent-soft" : "border-hairline")}
+                className={"flex items-center gap-2 rounded-lg border px-3 py-1.5 text-sm " + (shows === option.id ? SELECTED_CARD : "border-hairline")}
               >
                 <Radio name="mark-shows" checked={shows === option.id} onChange={() => setShows(option.id)} data-testid={`mark-shows-${option.id}`} />
                 {option.label}

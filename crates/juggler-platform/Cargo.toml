@@ -7,13 +7,30 @@ rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
 
-# The workspace lint baseline applies (`unsafe_code = "forbid"`): every
-# seam here is built on safe bindings. Where a platform needs `unsafe`
-# (a Windows named pipe's client identity, an owner-only ACL), that
-# platform says "not available on this system yet" until a vetted
-# wrapper crate or an audited carve-out is decided.
-[lints]
-workspace = true
+# The workspace lint baseline, restated with ONE change: `unsafe_code` is
+# "deny" here rather than "forbid", because D-131 (2026-11-19) approved one
+# audited carve-out in this crate: `thread::background_io`, the single
+# `setiopolicy_np` call (macOS low-priority disk I/O for model downloads),
+# with its `#[allow(unsafe_code, reason)]`, its SAFETY note and its test.
+# Nothing else here is unsafe: every other seam is built on safe bindings.
+# Where a platform needs more `unsafe` (a Windows named pipe's client
+# identity, an owner-only ACL), that platform says "not available on this
+# system yet" until a vetted wrapper crate or another recorded decision.
+# Keep the rest in step with the root Cargo.toml's [workspace.lints].
+[lints.rust]
+unsafe_code = "deny"
+missing_docs = "deny"
+
+[lints.clippy]
+pedantic = { level = "warn", priority = -1 }
+unwrap_used = "warn"
+expect_used = "warn"
+panic = "warn"
+todo = "warn"
+unimplemented = "warn"
+print_stdout = "deny"
+print_stderr = "deny"
+dbg_macro = "deny"
 
 [dependencies]
 # AsyncRead / AsyncWrite for the local connection's stream; the Unix
@@ -38,11 +55,14 @@ objc2-app-kit = { version = "0.3.2", default-features = false, features = ["std"
 # D-96: the date formatters `clock` keeps, by their retained handle (already
 # in the tree through juggler-app).
 objc2 = { workspace = true }
-# AJ-E3013 (M1): a running process's code checked against an explicit
-# code-signing requirement (SecCodeCopyGuestWithAttributes,
-# SecCodeCheckValidity) through the crate's safe API; already the
-# workspace's (juggler-account's Keychain), so no new crate and no `unsafe`.
+# AJ-E3802: a helper's code signature is checked before it runs
+# (`code_trust`); AJ-E3013 (M1): a running process's code checked against
+# an explicit code-signing requirement (`code_sign`:
+# SecCodeCopyGuestWithAttributes, SecCodeCheckValidity). Both through
+# Security's safe API (no `unsafe` here); already in the tree through
+# juggler-account, so no new crate.
 security-framework = "3"
+core-foundation = "0.10"
 
 [target."cfg(unix)".dependencies]
 # The effective user id (safe bindings; no `unsafe` here); 0.3.8: asking an
@@ -53,4 +73,7 @@ nix = { workspace = true, features = ["user", "fs", "signal", "socket"] }
 
 [dev-dependencies]
 tempfile = { workspace = true }
+# D-131 (the review's I1): the single-`unsafe` test counts Rust tokens, not
+# text. Already in the tree (serde_derive, tauri's macros).
+proc-macro2 = "1.0.107"
 tokio = { version = "1.53.3", default-features = false, features = ["net", "rt", "macros", "io-util", "time"] }

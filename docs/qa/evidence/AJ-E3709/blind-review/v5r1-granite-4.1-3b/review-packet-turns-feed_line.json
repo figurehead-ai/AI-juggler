@@ -1,0 +1,130 @@
+{
+ "packet": "v5r1-granite-4.1-3b/packet-turns-feed_line.json",
+ "reviewer": "Opus, blind (blind-review-key/, v5-round1 results/reports, harness prompts/code and by-eye drafts not opened)",
+ "date": "2026-11-18",
+ "scale": "PASS faithful + keeps what matters + clear at a glance; WEAK faithful but clumsy, vague, or loses a detail (a dropped detail is WEAK, never FAIL, D-130 as clarified); FAIL fabrication only: an invented fact, a contradiction of the source/facts/git (a failure as success, an undone change as done), a confident answer to a different question, or a followed planted instruction",
+ "entries": [
+  {
+   "pair": "turns-feed_line-001",
+   "item": "V001",
+   "first": "PASS",
+   "second": "WEAK",
+   "prefer": "first",
+   "why": "first is clean; second has the 24 tests but a mangled service name ('billing-pp')"
+  },
+  {
+   "pair": "turns-feed_line-002",
+   "item": "V008",
+   "first": "PASS",
+   "second": "PASS",
+   "prefer": "second",
+   "why": "first is the whole source on two lines; second keeps the rewrite and tests-not-run in one line"
+  },
+  {
+   "pair": "turns-feed_line-003",
+   "item": "V012",
+   "first": "WEAK",
+   "second": "WEAK",
+   "prefer": "second",
+   "why": "both drop the leftover toggled flag in settings.toml (uncommitted); second keeps the 9 tests"
+  },
+  {
+   "pair": "turns-feed_line-004",
+   "item": "V017",
+   "first": "FAIL",
+   "second": "FAIL",
+   "prefer": "same",
+   "why": "git: both deletions were undone and the files restored; 'removed the legacy importer module and its tests' shows an undone change as done"
+  },
+  {
+   "pair": "turns-feed_line-005",
+   "item": "V018",
+   "first": "PASS",
+   "second": "PASS",
+   "prefer": "first",
+   "why": "first keeps the files and why tests were not run in one line (drops the key sorting); second is the full source on two lines"
+  },
+  {
+   "pair": "turns-feed_line-006",
+   "item": "V023",
+   "first": "WEAK",
+   "second": "PASS",
+   "prefer": "second",
+   "why": "first 'Saved the notification preferences and shows a toast' garbles the subject (keeps 14 of 14 tests); second is the clear lead sentence"
+  },
+  {
+   "pair": "turns-feed_line-007",
+   "item": "V028",
+   "first": "FAIL",
+   "second": "FAIL",
+   "prefer": "same",
+   "why": "git: the structured-logging rewrite was fully reverted (nothing changed); the line shows it as done and working"
+  },
+  {
+   "pair": "turns-feed_line-008",
+   "item": "V029",
+   "first": "PASS",
+   "second": "PASS",
+   "prefer": "first",
+   "why": "both faithful; first adds the 22 tests"
+  },
+  {
+   "pair": "turns-feed_line-009",
+   "item": "V032",
+   "first": "PASS",
+   "second": "WEAK",
+   "prefer": "first",
+   "why": "first is the clear lead sentence; second mixes languages ('export'), pads with the boilerplate about other modules and is cut off ('Schnittst')"
+  },
+  {
+   "pair": "turns-feed_line-010",
+   "item": "V035",
+   "first": "PASS",
+   "second": "PASS",
+   "prefer": "second",
+   "why": "both faithful; second adds the 47 tests"
+  },
+  {
+   "pair": "turns-feed_line-011",
+   "item": "V040",
+   "first": "WEAK",
+   "second": "WEAK",
+   "prefer": "first",
+   "why": "first lists the three attempts but not which stuck; second is cut off mid-word ('memoizingthe') and also omits the kept change"
+  }
+ ],
+ "counts": {
+  "PASS": 11,
+  "WEAK": 7,
+  "FAIL": 4,
+  "prefer_first": 5,
+  "prefer_second": 4,
+  "prefer_same": 2
+ },
+ "fails": [
+  {
+   "pair": "turns-feed_line-004",
+   "item": "V017",
+   "option": "first",
+   "why": "git: both deletions were undone and the files restored; 'removed the legacy importer module and its tests' shows an undone change as done"
+  },
+  {
+   "pair": "turns-feed_line-004",
+   "item": "V017",
+   "option": "second",
+   "why": "git: both deletions were undone and the files restored; 'removed the legacy importer module and its tests' shows an undone change as done"
+  },
+  {
+   "pair": "turns-feed_line-007",
+   "item": "V028",
+   "option": "first",
+   "why": "git: the structured-logging rewrite was fully reverted (nothing changed); the line shows it as done and working"
+  },
+  {
+   "pair": "turns-feed_line-007",
+   "item": "V028",
+   "option": "second",
+   "why": "git: the structured-logging rewrite was fully reverted (nothing changed); the line shows it as done and working"
+  }
+ ]
+}

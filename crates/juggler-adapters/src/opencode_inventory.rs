@@ -28,8 +28,8 @@ use std::path::{Path, PathBuf};
 
 use juggler_adapter::error::AdapterError;
 use juggler_adapter::inventory::{
-    Applied, ConfigFormat, Detail, Item, ItemKind, McpServer, McpTransport, Scope, SetUp, Undo,
-    Value, secret_variable, value_of,
+    Applied, ConfigFormat, Detail, Item, ItemKind, McpServer, McpTransport, Scope, SetUp, Value,
+    secret_variable, value_of,
 };
 
 use crate::inventory_files::secret_names;
@@ -283,19 +283,10 @@ fn add_mcp(
         Shape::V2 => crate::config_edit::json_pointer(&["mcp", "servers", name]),
     };
     let value = opencode_entry(name, server).to_string();
-    crate::config_edit::set(&file, ConfigFormat::Json, &[(key.clone(), value.clone())])
-        .map_err(AdapterError::Unsupported)?;
+    let undo = crate::config_edit::set_undoably(file, ConfigFormat::Json, &[(key, value)])?;
     Ok(Applied {
         summary: format!("Added the MCP server {name} to OpenCode"),
-        // The value's fingerprint, never the value itself.
-        undo: Undo::RemoveSetting {
-            file,
-            format: ConfigFormat::Json,
-            entries: vec![(
-                key,
-                crate::config_edit::fingerprint(ConfigFormat::Json, &value),
-            )],
-        },
+        undo,
         note: None,
     })
 }
@@ -404,14 +395,7 @@ fn mcp_item(name: &str, entry: &serde_json::Value) -> Option<Item> {
 }
 
 fn item(kind: ItemKind, name: &str, detail: Detail) -> Item {
-    Item {
-        tool: OPENCODE_ID.to_owned(),
-        kind,
-        name: name.to_owned(),
-        scope: Scope::User,
-        detail,
-        origin: juggler_adapter::inventory::Origin::Own,
-    }
+    Item::own(OPENCODE_ID, kind, name, detail)
 }
 
 #[cfg(test)]
@@ -475,21 +459,11 @@ mod tests {
         let file = dir.path().join("opencode.json");
         let before = "{\n  \"theme\": \"system\"\n}\n";
         std::fs::write(&file, before).unwrap();
-        let item = Item {
-            tool: "other-tool".into(),
-            kind: ItemKind::McpServer,
-            name: "files".into(),
-            scope: Scope::User,
-            detail: Detail::Mcp(McpServer {
-                transport: McpTransport::Stdio {
-                    command: "npx".into(),
-                    args: vec!["files-mcp".into()],
-                    env: vec![("API_KEY".into(), Value::Secret)],
-                },
-                oauth: false,
-            }),
-            origin: juggler_adapter::inventory::Origin::Own,
-        };
+        let item = crate::common::inventory_sample::others_server(
+            "files",
+            "files-mcp",
+            vec![("API_KEY".into(), Value::Secret)],
+        );
         assert!(matches!(can_set_up(&item), SetUp::NeedsYou(_)));
         let applied = set_up(dir.path(), &item, Some(Line::V1)).unwrap();
         let now = juggler_adapter::jsonc::parse(&std::fs::read_to_string(&file).unwrap()).unwrap();
@@ -501,16 +475,7 @@ mod tests {
         assert_eq!(now["theme"], "system");
         // Never over one it has.
         assert!(set_up(dir.path(), &item, Some(Line::V1)).is_err());
-        let (undo_file, format, entries) = match applied.undo {
-            Undo::RemoveSetting {
-                file,
-                format,
-                entries,
-            } => Some((file, format, entries)),
-            _ => None,
-        }
-        .unwrap();
-        crate::config_edit::remove(&undo_file, format, &entries).unwrap();
+        crate::common::inventory_sample::undo_setting(applied);
         let after =
             juggler_adapter::jsonc::parse(&std::fs::read_to_string(&file).unwrap()).unwrap();
         assert_eq!(after, serde_json::json!({"theme": "system", "mcp": {}}));
@@ -552,21 +517,7 @@ mod tests {
     }
 
     fn files_server(name: &str) -> Item {
-        Item {
-            tool: "other-tool".into(),
-            kind: ItemKind::McpServer,
-            name: name.into(),
-            scope: Scope::User,
-            detail: Detail::Mcp(McpServer {
-                transport: McpTransport::Stdio {
-                    command: "npx".into(),
-                    args: vec!["files-mcp".into()],
-                    env: Vec::new(),
-                },
-                oauth: false,
-            }),
-            origin: juggler_adapter::inventory::Origin::Own,
-        }
+        crate::common::inventory_sample::others_server(name, "files-mcp", Vec::new())
     }
 
     fn read(file: &Path) -> serde_json::Value {
@@ -654,16 +605,7 @@ mod tests {
         );
         assert_eq!(names(dir.path()), ["files"]);
         // Its undo takes out what it added, nothing else.
-        let (undo_file, format, entries) = match applied.undo {
-            Undo::RemoveSetting {
-                file,
-                format,
-                entries,
-            } => Some((file, format, entries)),
-            _ => None,
-        }
-        .unwrap();
-        crate::config_edit::remove(&undo_file, format, &entries).unwrap();
+        crate::common::inventory_sample::undo_setting(applied);
         assert!(names(dir.path()).is_empty());
         assert_eq!(read(&file)["theme"], "system");
 

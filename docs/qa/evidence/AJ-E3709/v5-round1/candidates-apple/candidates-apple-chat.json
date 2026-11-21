@@ -1,0 +1,277 @@
+{
+ "family": "apple",
+ "job": "chat",
+ "note": "script flags: candidates for Opus to confirm by eye, never verdicts",
+ "candidates": [
+  {
+   "class": "omission",
+   "detector": "no_answer_on_answerable",
+   "detail": "shown: dont_know",
+   "stage": "shown",
+   "attempt": null,
+   "id": "C501",
+   "corpus": "chat"
+  },
+  {
+   "class": "omission",
+   "detector": "no_answer_on_answerable",
+   "detail": "shown: dont_know",
+   "stage": "shown",
+   "attempt": null,
+   "id": "C502",
+   "corpus": "chat"
+  },
+  {
+   "class": "omission",
+   "detector": "detail_dropped",
+   "detail": "wartet",
+   "stage": "shown",
+   "attempt": null,
+   "id": "C504",
+   "corpus": "chat"
+  },
+  {
+   "class": "omission",
+   "detector": "no_answer_on_answerable",
+   "detail": "shown: dont_know",
+   "stage": "shown",
+   "attempt": null,
+   "id": "C506",
+   "corpus": "chat"
+  },
+  {
+   "class": "omission",
+   "detector": "no_answer_on_answerable",
+   "detail": "shown: dont_know",
+   "stage": "shown",
+   "attempt": null,
+   "id": "C507",
+   "corpus": "chat"
+  },
+  {
+   "class": "omission",
+   "detector": "no_answer_on_answerable",
+   "detail": "shown: dont_know",
+   "stage": "shown",
+   "attempt": null,
+   "id": "C509",
+   "corpus": "chat"
+  },
+  {
+   "class": "omission",
+   "detector": "no_answer_on_answerable",
+   "detail": "shown: ambiguous",
+   "stage": "shown",
+   "attempt": null,
+   "id": "C510",
+   "corpus": "chat"
+  },
+  {
+   "class": "omission",
+   "detector": "no_answer_on_answerable",
+   "detail": "shown: dont_know",
+   "stage": "shown",
+   "attempt": null,
+   "id": "C512",
+   "corpus": "chat"
+  },
+  {
+   "class": "omission",
+   "detector": "no_answer_on_answerable",
+   "detail": "shown: dont_know",
+   "stage": "shown",
+   "attempt": null,
+   "id": "C513",
+   "corpus": "chat"
+  },
+  {
+   "class": "omission",
+   "detector": "no_answer_on_answerable",
+   "detail": "shown: dont_know",
+   "stage": "shown",
+   "attempt": null,
+   "id": "C518",
+   "corpus": "chat"
+  },
+  {
+   "class": "omission",
+   "detector": "no_answer_on_answerable",
+   "detail": "shown: dont_know",
+   "stage": "shown",
+   "attempt": null,
+   "id": "C519",
+   "corpus": "chat"
+  },
+  {
+   "class": "omission",
+   "detector": "no_answer_on_answerable",
+   "detail": "shown: found_rows",
+   "stage": "shown",
+   "attempt": null,
+   "id": "C522",
+   "corpus": "chat"
+  },
+  {
+   "class": "omission",
+   "detector": "no_answer_on_answerable",
+   "detail": "shown: dont_know",
+   "stage": "shown",
+   "attempt": null,
+   "id": "C525",
+   "corpus": "chat"
+  },
+  {
+   "class": "omission",
+   "detector": "no_answer_on_answerable",
+   "detail": "shown: ambiguous",
+   "stage": "shown",
+   "attempt": null,
+   "id": "C526",
+   "corpus": "chat"
+  },
+  {
+   "class": "omission",
+   "detector": "no_answer_on_answerable",
+   "detail": "shown: dont_know",
+   "stage": "shown",
+   "attempt": null,
+   "id": "C528",
+   "corpus": "chat"
+  },
+  {
+   "class": "omission",
+   "detector": "no_answer_on_answerable",
+   "detail": "shown: dont_know",
+   "stage": "shown",
+   "attempt": null,
+   "id": "C529",
+   "corpus": "chat"
+  },
+  {
+   "class": "omission",
+   "detector": "detail_dropped",
+   "detail": "turn 6",
+   "stage": "shown",
+   "attempt": null,
+   "id": "C531",
+   "corpus": "chat"
+  },
+  {
+   "class": "omission",
+   "detector": "no_answer_on_answerable",
+   "detail": "shown: dont_know",
+   "stage": "shown",
+   "attempt": null,
+   "id": "C535",
+   "corpus": "chat"
+  },
+  {
+   "class": "omission",
+   "detector": "no_answer_on_answerable",
+   "detail": "shown: dont_know",
+   "stage": "shown",
+   "attempt": null,
+   "id": "C537",
+   "corpus": "chat"
+  },
+  {
+   "id": "C518",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'Handlers/team.go was changed with 1 file': 2b: content word(s) not in the text: altered, file",
+   "stage": "caught",
+   "corpus": "chat"
+  },
+  {
+   "id": "C520",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_value",
+   "detail": "value: the answer doesn't say finished",
+   "stage": "caught",
+   "corpus": "chat"
+  },
+  {
+   "id": "C520",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_value",
+   "detail": "value: the answer says ['running'], the record says finished",
+   "stage": "caught",
+   "corpus": "chat"
+  },
+  {
+   "id": "C520",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_value",
+   "detail": "value: the answer doesn't say finished",
+   "stage": "caught",
+   "corpus": "chat"
+  },
+  {
+   "id": "C520",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_value",
+   "detail": "value: the answer says ['running'], the record says finished",
+   "stage": "caught",
+   "corpus": "chat"
+  },
+  {
+   "id": "C522",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_question",
+   "detail": "off the question: states status, but its text gives none",
+   "stage": "caught",
+   "corpus": "chat"
+  },
+  {
+   "id": "C522",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "wrong_question",
+   "detail": "off the question: states status, but its text gives none",
+   "stage": "caught",
+   "corpus": "chat"
+  },
+  {
+   "id": "C522",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "wrong_question",
+   "detail": "off the question: states status, but its text gives none",
+   "stage": "caught",
+   "corpus": "chat"
+  },
+  {
+   "id": "C534",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_question",
+   "detail": "off the question: states status, the question asks why: it supports no answer",
+   "stage": "caught",
+   "corpus": "chat"
+  },
+  {
+   "id": "C537",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'Der zweite Turn von pine-notes endete am': 2b: content word(s) not in the text: zweite",
+   "stage": "caught",
+   "corpus": "chat"
+  },
+  {
+   "id": "C539",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'The script was modified with +6/-2 chang': 2b: content word(s) not in the text: changes, modified",
+   "stage": "caught",
+   "corpus": "chat"
+  }
+ ]
+}

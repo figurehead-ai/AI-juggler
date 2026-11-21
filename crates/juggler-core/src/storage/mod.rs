@@ -26,11 +26,13 @@ mod sessions;
 mod cleanup_audit;
 mod cleanup_settings;
 mod entities;
+pub mod feed;
 mod fleet_sync;
 mod floor;
 mod footprints;
 pub mod foreign;
 mod identity;
+pub mod memory;
 mod messages;
 mod notices;
 mod pool_canvas;
@@ -108,7 +110,8 @@ pub use transcript_index::{
     IndexState, IndexedLine, SearchIndexFile, TranscriptIndexRepo, fts_expression, line_text,
 };
 pub use usage::{
-    CostDay, HitMove, RepriceCursor, Stored, UsageRepo, anchor_settings_key, cap_settings_key,
+    CostDay, HitMove, RepriceCursor, SignedInAs, SignedSamples, Stored, UsageRepo,
+    anchor_settings_key, cap_settings_key,
 };
 pub use usage_history::{
     GroupCost, HOUR_MS, HourRow, ModelRow, Replace, Rollup, SETTLED_MS, SwitchRow, TurnRow,
@@ -826,11 +829,70 @@ CREATE INDEX idx_usage_holds_msg ON usage_holds(msg);
 const V52: &str = accounts::IMPORT_NAMES;
 /// 0.4.6 (AJ-E3011): a pool may wait for an App's next session to lead.
 const V53: &str = pools::LEAD_NEXT_MIGRATION;
+/// 0.5 (AJ-E3210, D-135): each App's own Account, and the Account each
+/// reading was read under ([`entities::APP_ACCOUNTS_MIGRATION`]).
+const V55: &str = entities::APP_ACCOUNTS_MIGRATION;
 
+/// The runner's list: a version is its index + 1. 0.5's `memory::V54` (the
+/// memory store and the AI log, ADR-0037 §1.7) follows 0.4.6's V53, its L1
+/// pieces in place (`scripts/migration_clash.py`'s `V54_GATE`); V55 is
+/// AJ-E3210's per-App Account.
 const MIGRATIONS: &[&str] = &[
-    V1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V11, V12, V13, V14, V15, V16, V17, V18, V19, V20, V21,
-    V22, V23, V24, V25, V26, V27, V28, V29, V30, V31, V32, V33, V34, V35, V36, V37, V38, V39, V40,
-    V41, V42, V43, V44, V45, V46, V47, V48, V49, V50, V51, V52, V53,
+    V1,
+    V2,
+    V3,
+    V4,
+    V5,
+    V6,
+    V7,
+    V8,
+    V9,
+    V10,
+    V11,
+    V12,
+    V13,
+    V14,
+    V15,
+    V16,
+    V17,
+    V18,
+    V19,
+    V20,
+    V21,
+    V22,
+    V23,
+    V24,
+    V25,
+    V26,
+    V27,
+    V28,
+    V29,
+    V30,
+    V31,
+    V32,
+    V33,
+    V34,
+    V35,
+    V36,
+    V37,
+    V38,
+    V39,
+    V40,
+    V41,
+    V42,
+    V43,
+    V44,
+    V45,
+    V46,
+    V47,
+    V48,
+    V49,
+    V50,
+    V51,
+    V52,
+    V53,
+    memory::V54,
+    V55,
 ];
 
 /// Owner-only (`0600`) on Unix: AI Juggler's data and its copies are no one
@@ -852,8 +914,7 @@ fn owner_only(path: &Path) {
 /// another. Set explicitly, not left to the driver's default.
 pub const BUSY_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(5);
 
-/// Applies [`BUSY_TIMEOUT`] to a connection on the app database and
-/// switches it to WAL.
+/// Applies [`BUSY_TIMEOUT`] to a connection on the app database and switches it to WAL.
 ///
 /// # Errors
 ///
@@ -992,6 +1053,7 @@ impl Storage {
         storage.conn.execute_batch(accounts::IMPORT_NAMES)?;
         storage.conn.execute_batch(usage_history::HISTORY_DERIVED)?;
         storage.conn.execute_batch(usage_history::ROLLUP_DERIVED)?;
+        storage.conn.execute_batch(feed::FEED_DERIVED)?;
         if path.is_some() {
             open_steps::tidy(&storage.conn, room, watch);
         }
@@ -1005,8 +1067,7 @@ impl Storage {
         self.migrated
     }
 
-    /// Runs pending forward migrations from the current schema version;
-    /// `true` when any ran.
+    /// Runs pending forward migrations from the current schema version; `true` when any ran.
     fn migrate(&self, current: i64) -> Result<bool, CoreError> {
         let supported = i64::try_from(MIGRATIONS.len()).unwrap_or(i64::MAX);
         if current > supported {

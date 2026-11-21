@@ -7,7 +7,8 @@ import { useState, type JSX } from "react";
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import type { ProjectInfo } from "../types/generated/ProjectInfo";
 import { lastWorked } from "../lib/project-words";
-import { attentionBadge } from "./indicator";
+import { attentionLevel, brokenParts, brokenWord, type AttentionLevel } from "../lib/attention";
+import { needOfAttention } from "../lib/rail-items";
 import type { SectionId } from "../lib/rail-lines";
 
 const FOLDED_KEY = "aij.rail.folded";
@@ -100,14 +101,19 @@ export function repoGroups(projects: ProjectInfo[]): { key: string; name: string
 
 /**
  * A folded group still says what needs you inside it (0.0.11 walk, Q7):
- * the same "!" mark the session rows' icons carry, and how many. The fold
+ * its level's mark and how many (D-117: no filled badge). The fold
  * stays the user's choice — nothing unfolds by itself.
  */
 export function FoldedNeeds({ rows, isNeed, onOpen }: { rows: InstanceInfo[]; isNeed: (row: InstanceInfo) => boolean; onOpen?: () => void }): JSX.Element | null {
   // D-49: in Needs you as the backend says (a snoozed one is not).
   const count = rows.filter(isNeed).length;
   if (count === 0) return null;
-  const danger = rows.some((row) => isNeed(row) && attentionBadge(row)?.tone === "danger");
+  // D-117: one source of levels (a failure is broken, L3).
+  const broken = rows.flatMap((row) => {
+    const need = isNeed(row) ? needOfAttention(row.needs_attention ?? row.status) : null;
+    return need && attentionLevel({ need }) === 3 ? [brokenWord(need)] : [];
+  });
+  const danger = broken.length > 0;
   // The 0.4.1 persona walk: a "!1" that did nothing when clicked. A click
   // unfolds its group, so what needs you shows (still the user's click).
   const Mark = onOpen ? "button" : "span";
@@ -123,21 +129,43 @@ export function FoldedNeeds({ rows, isNeed, onOpen }: { rows: InstanceInfo[]; is
             title: "Show what needs you",
           }
         : {})}
-      className={"flex items-center gap-1 rounded text-label font-semibold outline-none focus-visible:ring-1 focus-visible:ring-accent/60 " + (danger ? "text-danger" : "text-warning")}
+      // D-117: a mark, never a filled badge: the number in ink beside the
+      // amber dot (L2), or a red one when one is broken (L3); the loud
+      // copy is its Needs you row.
+      className="flex items-center gap-1 rounded text-label font-semibold text-ink outline-none focus-visible:ring-1 focus-visible:ring-accent/60"
       data-testid="rail-folded-needs"
+      data-level={danger ? 3 : 2}
     >
-      <span
-        aria-hidden="true"
-        className={
-          "flex size-3.5 items-center justify-center rounded-full text-label font-bold " +
-          (danger ? "bg-danger text-white" : "bg-warning text-black")
-        }
-      >
-        !
-      </span>
+      <span aria-hidden="true" className="level-mark" data-level={danger ? 3 : 2} />
       <span className="tabular-nums">{count}</span>
-      <span className="sr-only">{count === 1 ? "needs you" : "need you"},</span>
+      {/* Its red dot is decoration: what broke is said in words. */}
+      <span className="sr-only">{count === 1 ? "needs you" : "need you"}{danger ? `, ${brokenParts(broken)}` : ""},</span>
     </Mark>
+  );
+}
+
+/** A head's needs, said in its name (D-117: its mark is decoration):
+ * "2 need you, 1 stopped with an error"; empty for none. */
+export function headNeedsWords(needs: number, broken: readonly string[]): string {
+  if (needs === 0) return "";
+  return `${needs} ${needs === 1 ? "needs" : "need"} you${broken.length > 0 ? `, ${brokenParts(broken)}` : ""}`;
+}
+
+/**
+ * A head's count of what needs you (an App's, a project's; D-117): a
+ * mark, never a pill: the number in ink beside its level's dot (a ring
+ * when every one is a guess) at L2, a red dot at L3. The dot is hidden;
+ * the head's name says it in words (`headNeedsWords`). What the count is
+ * is on the mark itself, as a tooltip (the review of 0.1.4: an
+ * unexplained "1").
+ */
+export function HeadNeeds({ needs, level, probably = false, testId = "place-needs", className = "" }: { needs: number; level: AttentionLevel; probably?: boolean; testId?: string; className?: string }): JSX.Element | null {
+  if (needs === 0) return null;
+  return (
+    <span title={`${needs} here ${needs === 1 ? "needs" : "need"} you: ${needs === 1 ? "it's" : "they're"} at the top, under Needs you`} className={"inline-flex min-w-[20px] items-center gap-1 overflow-hidden px-1 text-label font-semibold leading-[18px] tabular-nums text-ink " + className} data-testid={testId} data-level={level}>
+      <span aria-hidden="true" className="level-mark" data-level={level === 3 ? 3 : 2} data-probably={probably ? "true" : undefined} />
+      {needs}
+    </span>
   );
 }
 
@@ -161,7 +189,8 @@ export function FoldButton({
       aria-expanded={open}
       aria-controls={controls}
       aria-label={open ? `Fold ${label}` : `Unfold ${label}`}
-      className="flex size-6 shrink-0 items-center justify-center rounded-md text-muted outline-none hover:bg-surface/60 hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60"
+      // D-117: muted at rest (faint), never hidden; ink on hover and focus.
+      className="flex size-6 shrink-0 items-center justify-center rounded-md text-faint outline-none hover:bg-surface/60 hover:text-ink focus-visible:text-ink focus-visible:ring-1 focus-visible:ring-accent/60"
       data-testid="rail-fold"
     >
       <svg

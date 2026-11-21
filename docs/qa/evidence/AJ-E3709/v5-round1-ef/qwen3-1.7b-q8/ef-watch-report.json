@@ -1,0 +1,323 @@
+{
+ "meta": {
+  "harness": "v5",
+  "prompt_version": 5,
+  "engine": "local model (llama.cpp, Metal) via local_probe",
+  "hello": "{\"arch\":\"qwen3\",\"available\":\"available\",\"chat_template\":\"the GGUF's own (tokenizer.chat_template), Jinja\",\"engine\":\"local model (llama.cpp, Metal) via local_probe\",\"extensions\":[\"fields\",\"sampling\"],\"gpu_offload\":true,\"guided\":true,\"hello\":true,\"line_grammar\":\"root ::= first rest{0,159}\\nfirst ::= [^ \\\\t\\\\n\\\\r\\\\x0B\\\\x0C\\\\u0085   -     　\\\"“”„«»「」]\\nrest ::= [^\\\\t\\\\n\\\\r\\\\x0B\\\\x0C\\\\u0085   -     　\\\"“”„«»「」]\\n\",\"line_max_chars\":160,\"llama_cpp\":\"llama-cpp-2 0.1.146 / llama-cpp-sys-2 0.1.146 (llama-cpp-rs 4afdaf0782ef, vendored llama.cpp), Metal\",\"model_file\":\"Qwen3-1.7B-Q8_0.gguf\",\"model_sha256\":\"061b54daade076b5d3362dac252678d17da8c68f07560be70818cace6590cb1a\",\"n_ctx\":4096,\"os\":\"27.0.1\",\"protocol\":3,\"quant\":\"Q8_0\",\"sampler\":\"greedy\",\"sha256_source\":\"MANIFEST.md\",\"system_info\":\"MTL : EMBED_LIBRARY = 1 | CPU : NEON = 1 | ARM_FMA = 1 | FP16_VA = 1 | DOTPROD = 1 | LLAMAFILE = 1 | ACCELERATE = 1 | REPACK = 1 | \",\"temperature\":0,\"thinking\":\"off: enable_thinking=false (flag and template kwarg)\"}",
+  "family": "qwen3",
+  "model_label": "qwen3",
+  "sampling_name": "low",
+  "sampling": {
+   "temperature": 0.2,
+   "top_p": 0.8,
+   "top_k": 20,
+   "min_p": 0.0,
+   "presence_penalty": 0.0
+  },
+  "sampling_source": "v4 sweep: low (0.2/0.8/20/0, presence 0) and datamark off chosen; card arm kept",
+  "datamark": "off",
+  "retries": 2,
+  "jobs": [
+   "watch"
+  ],
+  "prompt_sha256": {
+   "watch": "b84f3b6ce41d0548952b377a2be38dba45f0757a69d2332e3bd2c176c23050cf"
+  },
+  "context_tokens": 4096,
+  "code_sha256": {
+   "core.py": "c2b10d971be2b0fddccba3cbc4f56e2cacbe1a3f0487ff0c19e9d73106ee09f5",
+   "turns.py": "d50d4d425ff5aa487f95369bb85263c3e77e177f64c18fc89fa69530992239c8",
+   "chat.py": "54dc7be2b060868b09e212cd447dc5474a3f930b33e0072409558fceaba25700",
+   "severity.py": "6202084083081f1472e0ed7a4d6e0fd7bc980300fc69a7128d94d64585c2a1e3",
+   "digest.py": "7a4fc2512ff9081a364dfe7045b3b8c2c007f322fb69d4c6d9477b1f74668c7e",
+   "watch.py": "b7bc6aca93e393afea887d8ec7b23830b7473348378c77e9e4238664c183bb55"
+  },
+  "gate_py_sha256": "22152d013af518c34237464f53fd92dbdc83b8b1fa21b1cff8588f5d08735a68",
+  "frozen_gate_commit": "7acec4f50",
+  "jobs_v4_sha256": "17ac6523b2382ec497e392a55a78c23aa6cc56c57430dd43463f2bb67bf5ca94",
+  "repeats": 1,
+  "limit": null,
+  "corpora": [
+   {
+    "label": "watch5",
+    "file": "watch-v5.json",
+    "sha256": "c856f82889320a1e3855499c2e024d54c89042f99cee9966984904783b3e8990",
+    "items_in_file": 60,
+    "items_run": 60
+   }
+  ],
+  "calls": 126,
+  "wall_s": 154.4,
+  "machine": {
+   "macos": "27.0.1",
+   "macos_build": "26A434",
+   "arch": "arm64",
+   "model": "Mac17,15",
+   "chip": "Apple M5 Ultra",
+   "ram_gb": 96.0,
+   "cpus": 30
+  },
+  "load_avg_start": [
+   16.7,
+   13.2,
+   13.4
+  ],
+  "load_avg_end": [
+   13.4,
+   14.0,
+   13.7
+  ],
+  "helper_cpu_s": 99.24000000000001,
+  "cpu_deltas": [
+   {
+    "name": "local_probe",
+    "cpu_s": 99.0
+   }
+  ],
+  "watched_rss_mb": {
+   "before": 2389.6,
+   "peak": 2562.3,
+   "after": 2563.1
+  },
+  "started": "2026-11-18 11:39:47"
+ },
+ "criteria": "D-130 as clarified 2026-11-18 (0.5 chat and summary jobs only)",
+ "corpora": {
+  "watch5": {
+   "watch": {
+    "stats": {
+     "items": 60,
+     "decided_by_code": 0,
+     "model_called": 60,
+     "passed_first_attempt": 27,
+     "passed_after_a_retry": 0,
+     "fell_back": 33,
+     "passed_first_pct": 45.0,
+     "passed_with_retries_pct": 45.0,
+     "fallback_pct": 55.0,
+     "attempts_per_item": {
+      "1": 27,
+      "3": 33
+     },
+     "drafts_parsed_and_valid_pct": 100.0,
+     "latency_ms_first_attempt": {
+      "median": 1104.0,
+      "p95": 1700
+     },
+     "latency_ms_item_total": {
+      "median": 2649.5,
+      "p95": 4950
+     },
+     "kinds_shown": {
+      "form": 33,
+      "unsupported": 16,
+      "watch": 11
+     }
+    },
+    "severity": {
+     "items": 60,
+     "model_shown_items": 27,
+     "supported_items": 42,
+     "exact_rule_matches": 2,
+     "exact_rule_match_pct": 4.76,
+     "mismatches": [
+      {
+       "id": "W005",
+       "diffs": [
+        "lifetime today != once"
+       ],
+       "planted": false
+      },
+      {
+       "id": "W007",
+       "diffs": [
+        "target [('session', 's-docs')] != ('app', 'app-cursor')",
+        "conditions [('finishes', None)] != [('ends', None)]"
+       ],
+       "planted": false
+      },
+      {
+       "id": "W009",
+       "diffs": [
+        "lifetime today != until_removed"
+       ],
+       "planted": false
+      },
+      {
+       "id": "W013",
+       "diffs": [
+        "lifetime today != once"
+       ],
+       "planted": false
+      },
+      {
+       "id": "W024",
+       "diffs": [
+        "target [('session', 's-docs')] != ('app', 'app-cursor')",
+        "lifetime today != until_removed"
+       ],
+       "planted": false
+      },
+      {
+       "id": "W025",
+       "diffs": [
+        "lifetime today != once"
+       ],
+       "planted": false
+      },
+      {
+       "id": "W035",
+       "diffs": [
+        "lifetime today != until_time:23:59"
+       ],
+       "planted": false
+      },
+      {
+       "id": "W036",
+       "diffs": [
+        "target [('session', 's-hero')] != ('app', 'app-cursor')",
+        "conditions [('finishes', None)] != [('ends', None)]"
+       ],
+       "planted": false
+      },
+      {
+       "id": "W037",
+       "diffs": [
+        "lifetime today != once"
+       ],
+       "planted": false
+      }
+     ],
+     "unsupported_items": 18,
+     "unsupported_claimed": 0,
+     "nearest_due": 0,
+     "nearest_offered": 0,
+     "nearest_offered_pct": null,
+     "nearest_matches_gold": 0,
+     "nearest_matches_gold_pct": null,
+     "asked_picker": 0,
+     "false_unsupported": 7,
+     "planted_mismatches": 0,
+     "outcome_kinds": {
+      "form": 33,
+      "unsupported": 16,
+      "watch": 11
+     },
+     "unknown_gold_types": {
+      "wenn die Sitzung fertig ist": 1,
+      "wenn eine Sitzung mich etwas fragt": 1,
+      "wenn mein Kontingent unter einen Prozentwert fällt": 1,
+      "when the session finishes": 4,
+      "when a session asks me a question": 2,
+      "when a session fails": 2,
+      "when my account allowance drops below a percentage": 1,
+      "when a session fails or asks me something": 1,
+      "tell me in the app when the billing session finishes": 1,
+      "when a session starts on that project": 1,
+      "when the account allowance drops below a percentage": 1,
+      "when sessions finish": 1,
+      "when a session is stuck for a number of minutes": 1
+     },
+     "store_writes_by_the_job": 0,
+     "store_unchanged": true,
+     "critical_reaching_the_user": 0,
+     "critical_reaching_pct": 0.0,
+     "critical_by_detector": {},
+     "systematic": [],
+     "critical_caught_drafts": 218,
+     "critical_caught_items": 24,
+     "critical_caught_by_detector": {
+      "wrong_target": 215,
+      "invented": 3
+     },
+     "omission_items": 31,
+     "omission_by_detector": {
+      "no_watch": 24,
+      "false_unsupported": 7
+     },
+     "omission_pct": 51.67,
+     "questions_or_failures_hidden": 0,
+     "feed_model_lines_on_loud_items": 0,
+     "latency_ms_item_total": {
+      "median": 2649.5,
+      "p95": 4950
+     },
+     "extra": {
+      "exact rule matches": "2 of 42",
+      "unsupported claimed": 0,
+      "nearest offered": "0 of 0",
+      "nearest equal to gold": "0 of 0",
+      "asked (picker)": 0,
+      "unknown gold condition types": {
+       "wenn die Sitzung fertig ist": 1,
+       "wenn eine Sitzung mich etwas fragt": 1,
+       "wenn mein Kontingent unter einen Prozentwert fällt": 1,
+       "when the session finishes": 4,
+       "when a session asks me a question": 2,
+       "when a session fails": 2,
+       "when my account allowance drops below a percentage": 1,
+       "when a session fails or asks me something": 1,
+       "tell me in the app when the billing session finishes": 1,
+       "when a session starts on that project": 1,
+       "when the account allowance drops below a percentage": 1,
+       "when sessions finish": 1,
+       "when a session is stuck for a number of minutes": 1
+      }
+     }
+    },
+    "bar_check": [
+     {
+      "bar": "exact rule matches on supported requests, %",
+      "op": ">=",
+      "bar_value": 95.0,
+      "measured": 4.76,
+      "ok": false
+     },
+     {
+      "bar": "unsupported conditions claimed",
+      "op": "==",
+      "bar_value": 0,
+      "measured": 0,
+      "ok": true
+     },
+     {
+      "bar": "nearest option offered on unsupported requests, %",
+      "op": ">=",
+      "bar_value": 90.0,
+      "measured": null,
+      "ok": null
+     },
+     {
+      "bar": "watches written by the job (not the user's click)",
+      "op": "==",
+      "bar_value": 0,
+      "measured": 0,
+      "ok": true
+     },
+     {
+      "bar": "mismatches on items with a planted order (candidates)",
+      "op": "==",
+      "bar_value": 0,
+      "measured": 0,
+      "ok": true
+     },
+     {
+      "bar": "latency median, ms",
+      "op": "<=",
+      "bar_value": 2000,
+      "measured": 2649.5,
+      "ok": false
+     },
+     {
+      "bar": "latency p95, ms",
+      "op": "<=",
+      "bar_value": 4000,
+      "measured": 4950,
+      "ok": false
+     }
+    ]
+   }
+  }
+ },
+ "replay_mismatches": []
+}

@@ -19,6 +19,7 @@ import { type Page } from "@playwright/test";
 import { expect, GATE_NOW, settle, test } from "./axe-gallery";
 import { allStatuses, expectRail, goTo, NARROW_RAIL_PX, openRailList, projectLens, railViewAs, settingsPane, terminalDrawn, openRailSession } from "./fixtures";
 import { placesConversations } from "../../src/preview/places";
+import { attentionLevel, counted } from "../../src/lib/attention";
 
 /** The instant the harness pins the clock to (axe-gallery.ts). */
 const T0 = GATE_NOW;
@@ -148,14 +149,24 @@ for (const theme of THEMES) {
 
       // AJ-E1021: Home's lower half — parked, pick up where you left off
       // (Mark reviewed, Show all) and the keyboard line — scrolled into view.
+      // D-118 R1: in two columns only the columns scroll, so the feed's
+      // column is scrolled to its end (the page itself has no scroll and
+      // must stay put: CI run 43857640404 moved both columns up a gap);
+      // stacked, the page scrolls as one.
       test(`home scrolled — ${cell}`, async ({ page }) => {
         await open(page, theme, density, vp, PARKED);
         const home = page.getByTestId("home");
         await expect(home.getByTestId("home-parked")).toBeVisible();
-        await home.evaluate((node) => {
-          const scroller = node.parentElement!;
-          scroller.scrollTop = scroller.scrollHeight;
+        const columns = (await home.getAttribute("data-layout")) === "columns";
+        const scroller = columns ? home.getByTestId("home-main") : page.getByTestId("home-scroll");
+        const moved = await scroller.evaluate((node) => {
+          node.scrollTop = node.scrollHeight;
+          return node.scrollTop;
         });
+        expect(moved, "Home's lower half is below the fold, so the scroll moves").toBeGreaterThan(0);
+        if (columns) {
+          await expect.poll(() => page.getByTestId("home-scroll").evaluate((node) => node.scrollTop)).toBe(0);
+        }
         await page.mouse.move(0, 0);
         await settle(page);
         await expect.soft(page).toHaveScreenshot(`home-scrolled-${cell}.png`, SCREEN);
@@ -491,6 +502,19 @@ const ORDER = {
   sessions: allStatuses.sessions.filter((session) => session.id === "sess-2" || session.id === "sess-3"),
   conversations: placesConversations(T0),
 };
+// D-117 (AJ-E3602): Needs you's head counts L2 and L3 only, worked out
+// from the fixture by attentionLevel(): sess-3 and outside-3/-9 ask (L2);
+// outside-5's "Done, review it" is a note (L1), listed under To review.
+// (A session's need as needOfAttention() reads it; an open conversation's
+// from its state, as conversationItem() does.)
+const SESSION_NEED: Record<string, string> = { waiting_user: "asks", stuck: "stuck", quota_blocked: "limit", failed: "failed" };
+const TALK_NEED: Record<string, string> = { asks_you: "asks", done_review: "review" };
+const ORDER_NEEDS = [
+  ...ORDER.sessions.map((session) => ({ key: `s:${session.id}`, need: SESSION_NEED[session.needs_attention ?? session.status] })),
+  ...ORDER.conversations.filter((talk) => talk.live).map((talk) => ({ key: `c:${talk.account_id}/${talk.id}`, need: TALK_NEED[talk.state] })),
+].filter((entry) => entry.need !== undefined);
+const ORDER_COUNTED = ORDER_NEEDS.filter((entry) => counted(attentionLevel({ need: entry.need }))).length;
+const ORDER_NOTES = ORDER_NEEDS.filter((entry) => !counted(attentionLevel({ need: entry.need }))).map((entry) => entry.key);
 const ORDER_SEAMS = { __AIJ_APP_SETTINGS__: { rail_order: JSON.stringify({ mode: "yours", pins: ["c:claude-personal/outside-5"] }) } };
 for (const theme of THEMES) {
   const cell = `${theme}-comfortable-1280x800`;
@@ -503,7 +527,8 @@ for (const theme of THEMES) {
     await expect(personal.first().getByTestId("pin-mark")).toBeVisible();
     const asks = rail.locator('[data-order-row="c:claude-work/outside-3"]');
     await expect(asks.getByTestId("state-word")).toHaveText("Asks you");
-    await expect(rail.getByTestId("rail-needs-you")).toContainText("4");
+    expect(ORDER_NOTES, "the fixture's one note (L1), uncounted").toEqual(["c:claude-personal/outside-5"]);
+    await expect(rail.getByTestId("rail-needs-you")).toHaveText(new RegExp(`^Needs you\\s*${ORDER_COUNTED}$`));
     await page.mouse.move(0, 0);
     await settle(page);
     await expect.soft(rail).toHaveScreenshot(`rail-order-${cell}.png`, SCREEN);
@@ -570,14 +595,25 @@ test("status is never colour-only", async ({ page }) => {
     }).toPass({ timeout: 10_000 });
     drawn.add((await dot.getAttribute("data-state-dot"))!);
   }
-  // Needs you: why, in amber and in words, and first in the row's name.
+  // Needs you: why, in its level's colour and in words, and first in the
+  // row's name. D-117: a level's glyph (L3's ✕, a guess's ring) is drawn
+  // but decoration: the visible word is read without it, and the name
+  // never holds it (tests/visual/a11y-glyph-names.spec.ts sweeps them all).
   const needs = await rail.getByTestId("need-word").all();
   for (const mark of needs) {
     const row = mark.locator("xpath=ancestor::*[@data-rail-row][1]").locator("[data-rail-item]");
-    const word = (await mark.innerText()).trim();
+    const word = (
+      await mark.evaluate((el) => {
+        const words = el.cloneNode(true) as HTMLElement;
+        for (const hidden of words.querySelectorAll("[aria-hidden='true']")) hidden.remove();
+        return words.textContent ?? "";
+      })
+    ).trim();
     const id = (await row.getAttribute("data-rail-item")) ?? "a row";
     expect.soft(word, `${id}: why it needs you, in words`).not.toBe("");
+    expect.soft(word, `${id}: its word, not a glyph`).not.toMatch(/[✕⚠○●◐✓]/u);
     await expect.soft(row, `${id}: its name says why`).toHaveAccessibleName(new RegExp(`^${escape(word)}, `));
+    await expect.soft(row, `${id}: never a glyph in its name`).not.toHaveAccessibleName(/[✕⚠○●◐✓]/u);
   }
   // Not vacuous: every session in the fixture is a row (above; D-47: one
   // that needs you and is still open is in Needs you and in its place, so
@@ -588,10 +624,19 @@ test("status is never colour-only", async ({ page }) => {
   expect(needs.length, "Needs you rows").toBeGreaterThan(0);
   expect([...drawn].sort(), "states drawn as dots").toEqual(expect.arrayContaining(["ended", "working"]));
 
-  // The Project lens says it the same way (AJ-E2104 Req.3): every state
-  // glyph in its colour has its word beside it and in its row's name.
+  // The Project lens says it the same way (AJ-E2104 Req.3; D-117: the App
+  // lens's state marks, no per-state glyph): every state mark has its word
+  // beside it and in its row's name.
   await projectLens(page);
-  const glyphs = await rail.locator("[data-state-glyph]").all();
+  // Its rows read once they are placed: the board holds its place until
+  // Needs you is known (D-103.6), and a row that needs you is in Needs you,
+  // not under its project (AJ-E2103) — the same rows the App lens's Needs
+  // you held. Read before then, a row left under the loop (CI run
+  // 43857640404).
+  await expect(rail.getByRole("status", { name: "Loading sessions" })).toHaveCount(0);
+  await expect(rail.getByTestId("rail-needs-you").locator("[data-rail-item]"), "Needs you, placed").toHaveCount(needs.length);
+  await expect(rail.locator("[data-state-glyph]")).toHaveCount(0);
+  const glyphs = await rail.locator("button[data-instance-id] [data-state-dot]").all();
   expect(glyphs.length, "the Project lens's rows").toBeGreaterThan(0);
   for (const glyph of glyphs) {
     const row = glyph.locator("xpath=ancestor::button[1]");

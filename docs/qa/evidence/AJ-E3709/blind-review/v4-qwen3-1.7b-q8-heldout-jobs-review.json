@@ -1,0 +1,130 @@
+[
+ {
+  "pair": "heldout-jobs-review-001",
+  "item": "R001",
+  "source": "I added cursor-based pagination to the invoice list in the ledgerlark project. The new code lives in src/billing/list_invoices.py and the route in src/api/invoices.py now accepts a limit parameter, capped at 100. I also updated the OpenAPI file docs/openapi.yaml so the cursor field is documented. I ran the whole suite: 48 tests passed and none failed. Old clients that send no limit still get the first 25 rows, so nothing breaks for them. Nothing else is outstanding on this task.",
+  "facts": {
+   "outcome": "success",
+   "tests": {
+    "state": "ran",
+    "passed": 48,
+    "failed": 0
+   },
+   "level": "L1"
+  },
+  "first": "Changed: I added cursor-based pagination to the invoice list in the ledgerlark project.\nLeft: nothing stated\nRisk: low",
+  "second": "Changed: added cursor-based pagination to the invoice list in the ledgerlark project; the new code lives in src/billing/list_invoices.py; the route in src/api/invoices.py now accepts a limit parameter, capped at 100\nLeft: nothing stated\nRisk: low (48 tests passed and none failed)"
+ },
+ {
+  "pair": "heldout-jobs-review-002",
+  "item": "R003",
+  "source": "Partial progress on the nightly export job in the 'tidepool' repo. The scheduler hook in jobs/nightly_export.rs is done and compiles. The CSV writer in jobs/csv_out.rs is only stubbed, it returns an empty file for now. 12 tests pass; 3 are marked ignored until the writer exists. I did not touch the retry logic. Next step is the real writer, then the retry policy, which together are probably another hour of work.",
+  "facts": {
+   "outcome": "none",
+   "tests": {
+    "state": "ran",
+    "passed": 12,
+    "failed": 0
+   },
+   "level": "L2"
+  },
+  "first": "Changed: Partial progress on the nightly export job in the 'tidepool' repo.\nLeft: Partial progress on the nightly export job in the 'tidepool' repo.; The CSV writer in jobs/csv_out.rs is only stubbed, it returns an empty file for now.\nRisk: medium",
+  "second": "Changed: partial progress on the nightly export job in the 'tidepool' repo; the scheduler hook in jobs/nightly_export.rs is done and compiles; the CSV writer in jobs/csv_out.rs is only stubbed, it returns an empty file for now\nLeft: 12 tests pass; 3 are marked ignored until the writer exists; I did not touch the retry logic\nRisk: medium (3 tests marked ignored until the writer exists)"
+ },
+ {
+  "pair": "heldout-jobs-review-003",
+  "item": "R004",
+  "source": "The build is red and I could not fix it. I tried to bump the 'harbor-sdk' dependency to 4.2 in package.json, but the type check fails in 7 places, mostly in src/client/retry.ts, because the Options type lost its timeout field. I reverted the bump, so the tree is as you left it. 31 tests passed before I stopped and 0 failed, since the failures are compile errors, not test failures. You will need to decide whether to wait for harbor-sdk 4.3 or migrate the options by hand.",
+  "facts": {
+   "outcome": "failure",
+   "tests": {
+    "state": "ran",
+    "passed": 31,
+    "failed": 0
+   },
+   "level": "L2"
+  },
+  "first": "Changed: the build is red and I could not fix it; bumped the 'harbor-sdk' dependency to 4.2 in package.json; the type check fails in 7 places\nNot checked: not test failures\nLeft: 31 tests passed before I stopped and 0 failed; you will need to decide whether to wait for harbor-sdk 4.3 or migrate the options by hand\nRisk: high (compile errors)",
+  "second": "Changed: The build is red and I could not fix it.\nNot checked: 31 tests passed before I stopped and 0 failed, since the failures are compile errors, not test failures.\nLeft: nothing stated\nRisk: high"
+ },
+ {
+  "pair": "heldout-jobs-review-004",
+  "item": "R006",
+  "source": "Refactor erledigt: Ich habe die drei doppelten Datumsfunktionen aus utils/dates.py, reports/dates_helper.py und cli/dt.py in ein gemeinsames Modul core/timeutil.py zusammengelegt. Das Verhalten soll unverändert bleiben. Die Testsuite lief durch: 212 bestanden, 0 fehlgeschlagen. Ein kleines Risiko bleibt bei Zeitzonen, weil cli/dt.py bisher naive Zeiten benutzt hat und jetzt UTC-bewusste bekommt. Offen ist nichts außer einem Blick auf die CLI-Ausgabe.",
+  "facts": {
+   "outcome": "success",
+   "tests": {
+    "state": "ran",
+    "passed": 212,
+    "failed": 0
+   },
+   "level": "L2"
+  },
+  "first": "Geändert: refactor erledigt: Ich habe die drei doppelten Datumsfunktionen aus utils/dates.py,reports; dates_helper.py und cli/dt.py in ein gemeinsames Modul core/timeutil.py zusammengelegt\nOffen: ein kleines Risiko bleibt bei Zeitzonen, weil cli/dt.py bisher naive Zeiten benutzt hat; und jetzt UTC-bewusste bekommt\nRisiko: mittel (kleines Risiko bleibt bei Zeitzonen)",
+  "second": "Geändert: Refactor erledigt: Ich habe die drei doppelten Datumsfunktionen aus utils/dates.py, reports/dates_helper.py und cli/dt.py in ein gemeinsames Modul core/timeutil.py zusammengelegt.\nOffen: nichts genannt\nRisiko: niedrig"
+ },
+ {
+  "pair": "heldout-jobs-review-005",
+  "item": "R007",
+  "source": "Fixed the crash when the sync folder is empty: sync/scan.py no longer indexes into the first entry blindly. The unit test I added, tests/test_scan_empty.py, passes, but another test, tests/test_scan_symlink.py, now fails. I think it was already flaky because it depends on the temp directory name. That makes 40 passing and 1 failing overall. I did not investigate the symlink failure further, so I cannot say whether my change caused it.",
+  "facts": {
+   "outcome": "success",
+   "tests": {
+    "state": "ran",
+    "passed": 40,
+    "failed": 1
+   },
+   "level": "L2"
+  },
+  "first": "Changed: Fixed the crash when the sync folder is empty: sync/scan.py no longer indexes into the first entry blindly.\nNot checked: I did not investigate the symlink failure further, so I cannot say whether my change caused it.\nLeft: nothing stated\nRisk: high",
+  "second": "Changed: fixed the crash when the sync folder is empty: sync/scan.py no longer indexes into the 1st; added unit test tests/test_scan_empty.py; unit test tests/test_scan_symlink.py now fails\nLeft: another test tests/test_scan_symlink.py now fails; I did not investigate the symlink failure further, so I cannot say whether my change cause\nRisk: high (another test now fails)"
+ },
+ {
+  "pair": "heldout-jobs-review-006",
+  "item": "R010",
+  "source": "Did the migration to the new logging format in 'quill-api'. All handlers under app/handlers/ now emit JSON lines through app/log.py. Good news: 64 tests pass. Bad news: the staging dashboard parses the old plain-text format, so its alerts will stop matching until someone updates the parser, and I have no access to that config. Also left as is: the batch scripts in scripts/ still print plain text.",
+  "facts": {
+   "outcome": "success",
+   "tests": {
+    "state": "ran",
+    "passed": 64,
+    "failed": 0
+   },
+   "level": "L2"
+  },
+  "first": "Changed: did the migration to the new logging format in 'quill-api'; all handlers under app/handlers/ now emit JSON lines through app/log.py\nNot checked: haven't tested the migration in the staging dashboard parser\nLeft: the batch scripts in scripts/ still print plain text\nRisk: high (the staging dashboard parses the old plain-text format)",
+  "second": "Changed: Did the migration to the new logging format in 'quill-api'.\nLeft: nothing stated\nRisk: low"
+ },
+ {
+  "pair": "heldout-jobs-review-007",
+  "item": "R011",
+  "source": "Ich konnte den Bug mit den doppelten Benachrichtigungen nicht beheben. Die Ursache liegt vermutlich in notify/dispatch.ts, wo dasselbe Ereignis zweimal registriert wird, aber mein Patch hat den Test tests/dispatch.test.ts nicht grün bekommen: 5 bestanden, 3 fehlgeschlagen. Ich habe den Patch zurückgenommen. Wenn du mir sagst, ob Ereignisse idempotent sein sollen, versuche ich es mit einem anderen Ansatz.",
+  "facts": {
+   "outcome": "failure",
+   "tests": {
+    "state": "ran",
+    "passed": 5,
+    "failed": 3
+   },
+   "level": "L2"
+  },
+  "first": "Geändert: Ich konnte den Bug mit den doppelten Benachrichtigungen nicht beheben.\nOffen: nichts genannt\nRisiko: hoch",
+  "second": "Geändert: Ich konnte den Bug mit den doppelten Benachrichtigungen nicht beheben; Die Ursache liegt vermutlich in notify/dispatch.ts; wo dasselbe Ereignis zweimal registriert wird\nOffen: die Ursache liegt vermutlich in notify/dispatch.ts; wo dasselbe Ereignis zweimal registriert wird\nRisiko: hoch (5 bestanden, 3 fehlgeschlagen)"
+ },
+ {
+  "pair": "heldout-jobs-review-008",
+  "item": "R012",
+  "source": "Finished the README rewrite for the 'pebble' CLI. It now covers install, the three subcommands (init, run, clean) and the exit codes in docs/exit-codes.md, which I also added. No code was touched, so no tests were run and none were needed. One thing to know: the install section says Python 3.9 or newer, but setup.cfg still says 3.8, and I left that mismatch alone. Please pick one.",
+  "facts": {
+   "outcome": "success",
+   "tests": {
+    "state": "not_run",
+    "passed": 0,
+    "failed": 0
+   },
+   "level": "L0"
+  },
+  "first": "Changed: finished the README rewrite for the 'pebble' CLI; it now covers install, the three subcommands (init, run, clean) and the exit codes in docs; which I also added\nNot checked: no code was touched; no tests were run and none were needed\nLeft: one thing to know: the install section says Python 3.9 or newer, but setup.cfg still says\nRisk: not stated (one thing to know: the install section says Python 3.9 or newer, but setup.cfg still says)",
+  "second": "Changed: Finished the README rewrite for the 'pebble' CLI.\nNot checked: No code was touched, so no tests were run and none were needed.\nLeft: nothing stated\nRisk: medium"
+ }
+]

@@ -1,0 +1,215 @@
+{
+ "family": "nemotron",
+ "job": "watch",
+ "note": "script flags: candidates for Opus to confirm by eye, never verdicts",
+ "candidates": [
+  {
+   "id": "R2-W02",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime (unsaid; ADR-0036's default) today != once",
+   "stage": "shown",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W03",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime (unsaid; ADR-0036's default) today != once",
+   "stage": "shown",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W04",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime (unsaid; ADR-0036's default) today != once",
+   "stage": "shown",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W06",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime (unsaid; ADR-0036's default) today != once",
+   "stage": "shown",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W07",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime (unsaid; ADR-0036's default) today != once",
+   "stage": "shown",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W11",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime until_ends != always",
+   "stage": "shown",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W12",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model: through Sunday",
+   "stage": "shown",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W13",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime (unsaid; ADR-0036's default) today != once",
+   "stage": "shown",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W15",
+   "class": "omission",
+   "detector": "no_watch",
+   "detail": "shown form",
+   "stage": "shown",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W16",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime (unsaid; ADR-0036's default) today != once",
+   "stage": "shown",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W18",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime (unsaid; ADR-0036's default) today != once",
+   "stage": "shown",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W30",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime (unsaid; ADR-0036's default) today != once",
+   "stage": "shown",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W31",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime (unsaid; ADR-0036's default) today != once",
+   "stage": "shown",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W32",
+   "class": "omission",
+   "detector": "no_watch",
+   "detail": "shown form",
+   "stage": "shown",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W33",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime (unsaid; ADR-0036's default) today != once",
+   "stage": "shown",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W35",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime until_time:15:00 != today",
+   "stage": "shown",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W36",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "conditions [('finishes', None)] != [('ends', None)]; lifetime (unsaid; ADR-0036's default) today != once",
+   "stage": "shown",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W39",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model: Inventur",
+   "stage": "shown",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W46",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime (unsaid; ADR-0036's default) today != once",
+   "stage": "shown",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W49",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model: klaar",
+   "stage": "shown",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W50",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model: seulement aujourd'hui",
+   "stage": "shown",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W51",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime until_time:17:00 != today",
+   "stage": "shown",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W52",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime today != once",
+   "stage": "shown",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W53",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model: la tienda falla",
+   "stage": "shown",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W54",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime (unsaid; ADR-0036's default) today != once",
+   "stage": "shown",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W56",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime (unsaid; ADR-0036's default) today != once",
+   "stage": "shown",
+   "corpus": "watch5r2"
+  }
+ ]
+}

@@ -12,6 +12,7 @@ import { ISOLATION_OFFER_EVENT, type IsolationDecision, type IsolationOfferReque
 import { Radio } from "./controls";
 import { PRIMARY_FILL } from "./primitives";
 import { sessionsInWords } from "../lib/session-titles";
+import { SELECTED_CARD } from "./controls/selected";
 
 export function IsolationOfferDialog(): JSX.Element | null {
   const [request, setRequest] = useState<IsolationOfferRequest | null>(null);
@@ -96,7 +97,7 @@ export function IsolationOfferDialog(): JSX.Element | null {
           <label
             className={
               "flex items-start gap-2 rounded-lg border px-2.5 py-2 text-label " +
-              (choice === "worktree" ? "border-accent/60 bg-accent-soft" : "border-hairline") +
+              (choice === "worktree" ? SELECTED_CARD : "border-hairline") +
               (offer.available ? "" : " opacity-70")
             }
           >
@@ -134,7 +135,7 @@ export function IsolationOfferDialog(): JSX.Element | null {
           <label
             className={
               "flex items-start gap-2 rounded-lg border px-2.5 py-2 text-label " +
-              (choice === "shared" ? "border-accent/60 bg-accent-soft" : "border-hairline")
+              (choice === "shared" ? SELECTED_CARD : "border-hairline")
             }
           >
             <Radio

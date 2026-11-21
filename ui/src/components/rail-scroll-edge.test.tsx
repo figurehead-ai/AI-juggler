@@ -51,6 +51,22 @@ describe("the rail's list under its head", () => {
     expect(list.hasAttribute("data-scrolled")).toBe(false);
   });
 
+  it("fades its foot only while more is below", () => {
+    const view = rail();
+    const list = view.getByTestId("rail-list");
+    Object.defineProperty(list, "clientHeight", { configurable: true, value: 300 });
+    Object.defineProperty(list, "scrollHeight", { configurable: true, value: 900 });
+    scrollTo(list, 0);
+    expect(list.hasAttribute("data-more")).toBe(true);
+    scrollTo(list, 600);
+    expect(list.hasAttribute("data-more")).toBe(false);
+    // Its last 20 px fade by a mask (any surface behind), only while more is below.
+    const rule = /\.scroll-edge\[data-more\]\s*\{([^}]*)\}/.exec(css)?.[1] ?? "";
+    expect(rule).toMatch(/(?:^|[^-])mask-image:\s*linear-gradient\(to bottom, #000 calc\(100% - 20px\), transparent\);/);
+    expect(rule).toMatch(/-webkit-mask-image:/);
+    expect(css).not.toMatch(/\.scroll-edge\s*\{[^}]*mask-image/);
+  });
+
   it("the edge is drawn at rest invisible, in the flow zero high, in both themes, and fades only with motion", () => {
     const rule = /\.scroll-edge::before\s*\{([^}]*)\}/.exec(css)?.[1] ?? "";
     expect(rule).toMatch(/position:\s*sticky/);

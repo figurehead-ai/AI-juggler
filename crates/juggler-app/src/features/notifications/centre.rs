@@ -8,9 +8,11 @@
 //! Rules (the approved design, 2026-10-27, and D-49):
 //! - **One count.** The number on the bell, the badge, the menu-bar item,
 //!   the rail and Home is the open needs that aren't snoozed: the Needs
-//!   you count. A snoozed need leaves the count until its snooze ends (it
-//!   comes back by itself, on the backend's tick); a muted one is still
-//!   counted and only stops interrupting.
+//!   you count. Since 0.5 (D-117) only the needs at attention level 2 or 3
+//!   ([`attention_level`]): a review is listed, never counted. A snoozed
+//!   need leaves the count until its snooze ends (it comes back by
+//!   itself, on the backend's tick); a muted one is still counted and
+//!   only stops interrupting.
 //! - **Told once.** What happened is written once per key; a need is open
 //!   once per key ([`juggler_core::storage::NoticesRepo`]).
 //! - **Nothing acts by itself.** A notice says what happened and offers
@@ -61,6 +63,7 @@ pub const APP_KINDS: &[(&str, &str)] = &[
     ("found", "Apps found on this computer"),
     ("secrets-in-files", "Keys kept in a private file"),
     ("debug", "Debug mode"),
+    ("watch", "Watches you set"),
 ];
 
 /// The kinds that come up as a banner while they need the user (at most
@@ -77,6 +80,86 @@ pub fn kind_label(kind: &str) -> Option<&'static str> {
         .chain(APP_KINDS)
         .find(|(id, _)| *id == kind)
         .map(|(_, label)| *label)
+}
+
+/// 0.5 (D-117, the attention budget) — the facts a need's level is
+/// worked out from, beside its kind.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct LevelFacts {
+    /// A quota need: the room left, in percent.
+    pub left: Option<i64>,
+    /// A quota need: live sessions on the Account.
+    pub live_sessions: Option<u32>,
+    /// A limit with no Account that has room to go on.
+    pub no_room: bool,
+    /// This computer at critical pressure.
+    pub critical: bool,
+    /// A session parked until its reset (AJ-E1003): calm (level 0),
+    /// whatever its need: AI Juggler holds it, and the reset raises its
+    /// one offer (a notice). A need at level 0 is no need.
+    pub parked: bool,
+}
+
+/// A need's attention level (0.5, D-117), the backend's mirror of the
+/// window's `attentionLevel()` (`ui/src/lib/attention.ts`); both are held
+/// to one table (`ui/src/lib/fixtures/attention-levels.json`, read by the
+/// tests of each). 3: broken (work stopped, only the user recovers it);
+/// 2: needs the user (a decision waits, nothing is lost while it does);
+/// 1: a note (finished work to review, low room nothing live depends on,
+/// processes left running). An unknown kind is a need (2) until placed.
+#[must_use]
+pub fn attention_level(kind: &str, facts: LevelFacts) -> u8 {
+    if facts.parked {
+        return 0;
+    }
+    match kind {
+        // A session stopped with an error or crashed, a switch that failed
+        // or rolled back, readings that degraded.
+        "failed" | "crashed" | "switch_failed" | "degraded" => 3,
+        "limit" => {
+            if facts.no_room {
+                3
+            } else {
+                2
+            }
+        }
+        "room" => {
+            if facts.critical {
+                3
+            } else {
+                2
+            }
+        }
+        "quota" => {
+            let live = facts.live_sessions.unwrap_or(0) > 0;
+            match facts.left {
+                Some(left) if live && left <= 0 => 3,
+                Some(left) if live && left <= 10 => 2,
+                _ => 1,
+            }
+        }
+        // Notes: done work to review, leftovers, an update, a renewal, kept
+        // alive or paused, not measured yet, uncommitted files, a watch's
+        // alert (AJ-E3817: a watch on a need inherits the need's level,
+        // and the need is the loud copy).
+        "review" | "leftovers" | "update" | "renewal" | "app-started" | "keep-alive-paused"
+        | "unmeasured" | "uncommitted" | "watch" => 1,
+        _ => 2,
+    }
+}
+
+/// The one count holds a need at level 2 or 3 (D-117 amends D-47 point
+/// 2): "To review" stays listed, last, and uncounted.
+#[must_use]
+pub fn counted(row: &NoticeInfo) -> bool {
+    attention_level(
+        &row.kind,
+        LevelFacts {
+            left: row.meter,
+            live_sessions: row.facts.sessions,
+            ..LevelFacts::default()
+        },
+    ) >= 2
 }
 
 /// What a click opens. Every field is optional; the UI opens the first
@@ -149,6 +232,11 @@ pub struct NoticeFacts {
     #[serde(default)]
     #[ts(optional = nullable)]
     pub credits: Option<String>,
+    /// AJ-E3817: a watch's alert: what happened, in the app's words
+    /// ("finished"), said after the name.
+    #[serde(default)]
+    #[ts(optional = nullable)]
+    pub told: Option<String>,
 }
 
 #[derive(Default, serde::Serialize, serde::Deserialize)]
@@ -634,7 +722,8 @@ pub fn summary(storage: &Storage, clock: Clock) -> AppResult<NoticeSummaryInfo> 
         .count()
         .min(BANNERS_SHOWN);
     Ok(NoticeSummaryInfo {
-        count: count_of(&|row| !row.snoozed),
+        // D-117: what waits on the user or broke (L2, L3), not a note.
+        count: count_of(&|row| !row.snoozed && counted(row)),
         unread: count_of(&|row| row.unread)
             .saturating_add(u32::try_from(earlier_unread).unwrap_or(u32::MAX)),
         snoozed: count_of(&|row| row.snoozed),

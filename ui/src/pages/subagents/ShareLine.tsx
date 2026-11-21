@@ -72,7 +72,9 @@ export function SubagentsShareLine({ profileId, conversationId }: { profileId: s
             <button
               type="button"
               onClick={() => openSubagents({ subagent: agent.id })}
-              className="max-w-[16rem] truncate rounded text-accent-hi underline-offset-2 outline-none hover:underline focus-visible:ring-1 focus-visible:ring-accent/60"
+              // A whole 24 px target (WCAG 2.5.8): wrapped onto two lines
+              // at 1024, the links were 18 px apart (axe target-size).
+              className="min-h-6 max-w-[16rem] truncate rounded text-accent-hi underline-offset-2 outline-none hover:underline focus-visible:ring-1 focus-visible:ring-accent/60"
               data-testid="usage-subagents-most-open"
             >
               {titleOf(agent)}

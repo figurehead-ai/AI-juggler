@@ -1,0 +1,313 @@
+{
+ "family": "gemma-4-e2b",
+ "job": "feed_line",
+ "note": "script flags: candidates for Opus to confirm by eye, never verdicts",
+ "candidates": [
+  {
+   "class": "critical",
+   "detector": "gold_forbidden",
+   "detail": "/committed/, /pushed/ in the model's words",
+   "stage": "shown",
+   "attempt": null,
+   "id": "R3T48",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T09",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "outcome_or_caveat",
+   "detail": "gate step 3: caveat: dropped (facts: tests not run)",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T09",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "outcome_or_caveat",
+   "detail": "gate step 3: caveat: dropped (facts: tests not run)",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T09",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "outcome_or_caveat",
+   "detail": "gate step 3: caveat: dropped (facts: tests not run)",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T12",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "contradiction: names a change that was undone (git: src/plugins/loader.ts was undone)",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T12",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "contradiction: names a change that was undone (git: src/plugins/loader.ts was undone)",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T12",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "contradiction: names a change that was undone (git: src/plugins/loader.ts was undone)",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T14",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "outcome_or_caveat",
+   "detail": "gate step 3: caveat: dropped (facts: tests not run)",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T14",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "outcome_or_caveat",
+   "detail": "gate step 3: caveat: dropped (facts: tests not run)",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T14",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "outcome_or_caveat",
+   "detail": "gate step 3: caveat: dropped (facts: tests not run)",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T32",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "outcome_or_caveat",
+   "detail": "gate step 3: caveat: dropped (facts: tests not run)",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T32",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "outcome_or_caveat",
+   "detail": "gate step 3: caveat: dropped (facts: tests not run)",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T32",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "outcome_or_caveat",
+   "detail": "gate step 3: caveat: dropped (facts: tests not run)",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T33",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "outcome_or_caveat",
+   "detail": "gate step 3: caveat: dropped (facts: tests not run)",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T33",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "outcome_or_caveat",
+   "detail": "gate step 3: caveat: dropped (facts: tests not run)",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T33",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "outcome_or_caveat",
+   "detail": "gate step 3: caveat: dropped (facts: tests not run)",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T34",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "gate step 2b: 2b: content word(s) not in the text: did",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T34",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "outcome_or_caveat",
+   "detail": "gate step 3: caveat: dropped (facts: tests not run)",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T34",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "gate step 2b: 2b: content word(s) not in the text: did",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T34",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "outcome_or_caveat",
+   "detail": "gate step 3: caveat: dropped (facts: tests not run)",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T34",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "gate step 2b: 2b: content word(s) not in the text: did",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T34",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "outcome_or_caveat",
+   "detail": "gate step 3: caveat: dropped (facts: tests not run)",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T35",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "outcome_or_caveat",
+   "detail": "gate step 3: caveat: dropped (facts: tests not run)",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T35",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "outcome_or_caveat",
+   "detail": "gate step 3: caveat: dropped (facts: tests not run)",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T35",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "outcome_or_caveat",
+   "detail": "gate step 3: caveat: dropped (facts: tests not run)",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T41",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "outcome_or_caveat",
+   "detail": "gate step 3: caveat: dropped (facts: tests not run)",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T41",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "outcome_or_caveat",
+   "detail": "gate step 3: caveat: dropped (facts: tests not run)",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T41",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "outcome_or_caveat",
+   "detail": "gate step 3: caveat: dropped (facts: tests not run)",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T43",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "outcome_or_caveat",
+   "detail": "gate step 3: outcome: a finished turn; the line states a failure with no word of resolution (the problem, not the outcome); caveat: dropped (facts: tests not run)",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T43",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "outcome_or_caveat",
+   "detail": "gate step 3: outcome: a finished turn; the line states a failure with no word of resolution (the problem, not the outcome); caveat: dropped (facts: tests not run)",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T43",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "outcome_or_caveat",
+   "detail": "gate step 3: outcome: a finished turn; the line states a failure with no word of resolution (the problem, not the outcome); caveat: dropped (facts: tests not run)",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T44",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "gate step 2b: 2b: content word(s) not in the text: updated",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T44",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "outcome_or_caveat",
+   "detail": "gate step 3: outcome: a finished turn; the line states a failure with no word of resolution (the problem, not the outcome)",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T50",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "gate step 2b: 2b: content word(s) not in the text: and, wrote",
+   "stage": "caught",
+   "corpus": "turns"
+  }
+ ]
+}

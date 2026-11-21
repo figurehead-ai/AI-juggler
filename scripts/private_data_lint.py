@@ -47,7 +47,7 @@ EMAIL_ALLOW = {
     "a@b.co", "sam@work.com", "o@work.com",
 }
 # Third-party records (cargo-vet's imported audits name their auditors).
-SKIP_PREFIXES = ("supply-chain/",)
+SKIP_PREFIXES = ("supply-chain/", "crates/juggler-local-ai/supply-chain/")
 
 HOME = re.compile(r"/Users/([A-Za-z0-9._-]+)|-Users-([A-Za-z0-9._]+)-")
 PROFILE = re.compile(r"Claude(?:Code)?Profiles/([A-Za-z0-9._<>-]+)")

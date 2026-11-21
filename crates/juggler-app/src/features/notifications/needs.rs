@@ -173,8 +173,15 @@ fn join(parts: impl IntoIterator<Item = Option<String>>) -> String {
         .join(" · ")
 }
 
-/// An own session's need: its attention, else a status that is one.
+/// An own session's need: its attention, else a status that is one;
+/// none at level 0 (D-117, the shared table: a session parked until its
+/// reset is calm whatever its need), as the window reads it, so the count
+/// and the window's lit marks never part.
 fn session_kind(row: &InstanceInfo) -> Option<&'static str> {
+    let facts = centre::LevelFacts {
+        parked: row.parked.is_some(),
+        ..centre::LevelFacts::default()
+    };
     kind_of(
         row.needs_attention,
         &row.status,
@@ -182,6 +189,7 @@ fn session_kind(row: &InstanceInfo) -> Option<&'static str> {
             .as_ref()
             .and_then(|runtime| runtime.state.as_deref()),
     )
+    .filter(|kind| centre::attention_level(kind, facts) > 0)
 }
 
 /// [`session_kind`] from its parts: `exact`, the state its tool itself
@@ -364,8 +372,7 @@ pub fn work_out<S: std::hash::BuildHasher>(
     let mut open = OpenNowInput::default();
     let mut by_app: HashMap<String, u32> = HashMap::new();
     for row in &sources.sessions {
-        let gone = row.parked.is_some()
-            || row.lifecycle.as_deref() == Some("archived")
+        let gone = row.lifecycle.as_deref() == Some("archived")
             || row
                 .project_id
                 .as_ref()
@@ -374,13 +381,17 @@ pub fn work_out<S: std::hash::BuildHasher>(
             continue;
         }
         let key = format!("s:{}", row.id);
+        // D-117: a parked one has no need (its level is 0, the shared
+        // table), and nothing of it is open now: it waits on its reset.
+        let parked = row.parked.is_some();
         let kind = session_kind(row);
         // D-47: a session that needs you is open now too (in its place);
         // an ended one only while pinned. A snoozed need waits in its place.
         let asking = kind.is_some_and(|kind| kind != "failed") && !now_snoozed.contains(&key);
-        if row.pinned == Some(true)
-            || matches!(row.status.as_str(), "running" | "starting")
-            || asking
+        if !parked
+            && (row.pinned == Some(true)
+                || matches!(row.status.as_str(), "running" | "starting")
+                || asking)
         {
             open.total += 1;
             open.working += u32::from(row.status == "running");

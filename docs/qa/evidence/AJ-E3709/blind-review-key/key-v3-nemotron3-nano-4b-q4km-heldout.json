@@ -1,0 +1,457 @@
+[
+ {
+  "review_id": "S001",
+  "type": "single",
+  "item": "H012",
+  "bucket": "not_run",
+  "level": "L1",
+  "setting": "main (B shows A's excerpt)",
+  "kind": "excerpt",
+  "line": "Patched the off-by-one in paginate() in src/list.rs, didn't run tests.",
+  "trace": [
+   "write failed step(s) 3",
+   "step 0/3/5: straight to the excerpt"
+  ],
+  "engine": "Apple on-device Foundation Model (prompt v3, guided output) with gate eval-3"
+ },
+ {
+  "review_id": "S002",
+  "type": "single",
+  "item": "H019",
+  "bucket": "question",
+  "level": "L2",
+  "setting": "main",
+  "kind": "excerpt_routed",
+  "line": "Which do you want?",
+  "trace": [
+   "section 2: L2/L3 show the agent's own words; no engine called"
+  ],
+  "engine": "Apple on-device Foundation Model (prompt v3, guided output) with gate eval-3"
+ },
+ {
+  "review_id": "S003",
+  "type": "single",
+  "item": "H015",
+  "bucket": "failed",
+  "level": "L3",
+  "setting": "main",
+  "kind": "excerpt_routed",
+  "line": "It still fails about 1 run in 4, so I gave up; notes are in notes/ws-flaky.md.",
+  "trace": [
+   "section 2: L2/L3 show the agent's own words; no engine called"
+  ],
+  "engine": "Apple on-device Foundation Model (prompt v3, guided output) with gate eval-3"
+ },
+ {
+  "review_id": "S004",
+  "type": "single",
+  "item": "H001",
+  "bucket": "finished",
+  "level": "L0",
+  "setting": "main (B shows A's excerpt)",
+  "kind": "excerpt",
+  "line": "The CSV export now streams rows instead of buffering the whole file, so the 400 MB sample in fixtures/big.csv stays under 80 MB of memory.",
+  "trace": [
+   "write failed step(s) 2b",
+   "chosen sentence 1 failed step(s) 4"
+  ],
+  "engine": "Apple on-device Foundation Model (prompt v3, guided output) with gate eval-3"
+ },
+ {
+  "review_id": "S005",
+  "type": "single",
+  "item": "H009",
+  "bucket": "not_run",
+  "level": "L1",
+  "setting": "main (B shows A's excerpt)",
+  "kind": "excerpt",
+  "line": "I changed the cron expression in deploy/jobs.yaml from every 15 to every 30 minutes.\nI haven't run anything.",
+  "trace": [
+   "write failed step(s) 3",
+   "step 0/3/5: straight to the excerpt"
+  ],
+  "engine": "Apple on-device Foundation Model (prompt v3, guided output) with gate eval-3"
+ },
+ {
+  "review_id": "S006",
+  "type": "single",
+  "item": "H016",
+  "bucket": "failed",
+  "level": "L3",
+  "setting": "main",
+  "kind": "excerpt_routed",
+  "line": "Good news: the lint errors are gone.",
+  "trace": [
+   "section 2: L2/L3 show the agent's own words; no engine called"
+  ],
+  "engine": "Apple on-device Foundation Model (prompt v3, guided output) with gate eval-3"
+ },
+ {
+  "review_id": "P001",
+  "type": "pair",
+  "item": "H011",
+  "bucket": "not_run",
+  "level": "L1",
+  "order": [
+   "A",
+   "B:ladder"
+  ],
+  "lines": [
+   "The Dockerfile now uses a multi-stage build and drops the dev toolchain from the final layer.\nI couldn't build the image here (no Docker daemon), so the size reduction is unverified and the entrypoint path in docker/run.sh is untested.",
+   "Dockerfile uses multi-stage build but size reduction unverified and entrypoint untested."
+  ],
+  "b_rows": {
+   "B:ladder": {
+    "kind": "written",
+    "shown": "Dockerfile uses multi-stage build but size reduction unverified and entrypoint untested.",
+    "excerpt": "The Dockerfile now uses a multi-stage build and drops the dev toolchain from the final layer.\nI couldn't build the image here (no Docker daemon), so the size reduction is unverified and the entrypoint path in docker/run.sh is untested.",
+    "trace": [
+     "write passed the gate"
+    ],
+    "draft": "Dockerfile uses multi-stage build but size reduction unverified and entrypoint untested.",
+    "choose_pick": "1"
+   }
+  },
+  "engine": "Apple on-device Foundation Model (prompt v3, guided output) with gate eval-3"
+ },
+ {
+  "review_id": "S007",
+  "type": "single",
+  "item": "H018",
+  "bucket": "question",
+  "level": "L2",
+  "setting": "main",
+  "kind": "excerpt_routed",
+  "line": "Soll ich auch die alte v1-Route entfernen oder sie noch behalten?",
+  "trace": [
+   "section 2: L2/L3 show the agent's own words; no engine called"
+  ],
+  "engine": "Apple on-device Foundation Model (prompt v3, guided output) with gate eval-3"
+ },
+ {
+  "review_id": "P002",
+  "type": "pair",
+  "item": "H023",
+  "bucket": "refactor",
+  "level": "L0",
+  "order": [
+   "B:ladder",
+   "A"
+  ],
+  "lines": [
+   "Moved config loader and fixed imports, no functional change, CI passes, 9 tests pass.",
+   "Moved the config loader from core/ to platform/config/ and fixed the imports."
+  ],
+  "b_rows": {
+   "B:ladder": {
+    "kind": "written",
+    "shown": "Moved config loader and fixed imports, no functional change, CI passes, 9 tests pass.",
+    "excerpt": "Moved the config loader from core/ to platform/config/ and fixed the imports.",
+    "trace": [
+     "write passed the gate"
+    ],
+    "draft": "Moved config loader and fixed imports, no functional change, CI passes, 9 tests pass.",
+    "choose_pick": "1"
+   }
+  },
+  "engine": "Apple on-device Foundation Model (prompt v3, guided output) with gate eval-3"
+ },
+ {
+  "review_id": "P003",
+  "type": "pair",
+  "item": "H007",
+  "bucket": "partial",
+  "level": "L1",
+  "order": [
+   "A",
+   "B:ladder"
+  ],
+  "lines": [
+   "api/routes/orders.go: pagination added",
+   "Pagination added to orders API, happy path only in refunds API, new query params in docs, 31 tests passed."
+  ],
+  "b_rows": {
+   "B:ladder": {
+    "kind": "written",
+    "shown": "Pagination added to orders API, happy path only in refunds API, new query params in docs, 31 tests passed.",
+    "excerpt": "api/routes/orders.go: pagination added",
+    "trace": [
+     "write passed the gate"
+    ],
+    "draft": "Pagination added to orders API, happy path only in refunds API, new query params in docs, 31 tests passed.",
+    "choose_pick": "1"
+   }
+  },
+  "engine": "Apple on-device Foundation Model (prompt v3, guided output) with gate eval-3"
+ },
+ {
+  "review_id": "S008",
+  "type": "single",
+  "item": "H006",
+  "bucket": "partial",
+  "level": "L1",
+  "setting": "main (B shows A's excerpt)",
+  "kind": "excerpt",
+  "line": "Teilweise erledigt: Die Übersetzungen für Deutsch und Französisch sind drin (i18n/de.json, i18n/fr.json).",
+  "trace": [
+   "write failed step(s) 2,2b,3",
+   "step 0/3/5: straight to the excerpt"
+  ],
+  "engine": "Apple on-device Foundation Model (prompt v3, guided output) with gate eval-3"
+ },
+ {
+  "review_id": "P004",
+  "type": "pair",
+  "item": "H021",
+  "bucket": "refactor",
+  "level": "L0",
+  "order": [
+   "B:ladder",
+   "A"
+  ],
+  "lines": [
+   "The retry loop was extracted into utils/retry.js with no behaviour change and 112 tests still pass.",
+   "Pure refactor: extracted the retry loop from three handlers into utils/retry.js."
+  ],
+  "b_rows": {
+   "B:ladder": {
+    "kind": "written",
+    "shown": "The retry loop was extracted into utils/retry.js with no behaviour change and 112 tests still pass.",
+    "excerpt": "Pure refactor: extracted the retry loop from three handlers into utils/retry.js.",
+    "trace": [
+     "write passed the gate"
+    ],
+    "draft": "The retry loop was extracted into utils/retry.js with no behaviour change and 112 tests still pass.",
+    "choose_pick": "1"
+   }
+  },
+  "engine": "Apple on-device Foundation Model (prompt v3, guided output) with gate eval-3"
+ },
+ {
+  "review_id": "S009",
+  "type": "single",
+  "item": "H022",
+  "bucket": "refactor",
+  "level": "L0",
+  "setting": "main (B shows A's excerpt)",
+  "kind": "quoted",
+  "line": "Ich habe die Klasse OrderService in drei kleinere Module aufgeteilt (services/order/*.py).",
+  "trace": [
+   "write failed step(s) 2,2b",
+   "choose (1) passed the gate"
+  ],
+  "engine": "Apple on-device Foundation Model (prompt v3, guided output) with gate eval-3"
+ },
+ {
+  "review_id": "P005",
+  "type": "pair",
+  "item": "H004",
+  "bucket": "finished",
+  "level": "L0",
+  "order": [
+   "B:ladder",
+   "B:choose_only",
+   "A"
+  ],
+  "lines": [
+   "The new check in verify_lock.sh fails if package-lock.json is older than package.json, but all 3 shell tests pass.",
+   "I ran the 3 shell tests in scripts/test/ and all 3 pass.",
+   "The new check in scripts/verify_lock.sh fails if package-lock.json is older than package.json, so a stale lockfile can no longer slip into a release."
+  ],
+  "b_rows": {
+   "B:ladder": {
+    "kind": "written",
+    "shown": "The new check in verify_lock.sh fails if package-lock.json is older than package.json, but all 3 shell tests pass.",
+    "excerpt": "The new check in scripts/verify_lock.sh fails if package-lock.json is older than package.json, so a stale lockfile can no longer slip into a release.",
+    "trace": [
+     "write passed the gate"
+    ],
+    "draft": "The new check in verify_lock.sh fails if package-lock.json is older than package.json, but all 3 shell tests pass.",
+    "choose_pick": "3"
+   },
+   "B:choose_only": {
+    "kind": "quoted",
+    "shown": "I ran the 3 shell tests in scripts/test/ and all 3 pass.",
+    "excerpt": "The new check in scripts/verify_lock.sh fails if package-lock.json is older than package.json, so a stale lockfile can no longer slip into a release.",
+    "trace": [
+     "choose (3) passed the gate"
+    ],
+    "draft": null,
+    "choose_pick": "3"
+   }
+  },
+  "engine": "Apple on-device Foundation Model (prompt v3, guided output) with gate eval-3"
+ },
+ {
+  "review_id": "S010",
+  "type": "single",
+  "item": "H008",
+  "bucket": "partial",
+  "level": "L1",
+  "setting": "main (B shows A's excerpt)",
+  "kind": "excerpt",
+  "line": "Migrated 3 of 5 services to the new logger. billing and search still use the old one because they pin an older shared lib, so the migration is not finished.",
+  "trace": [
+   "write failed step(s) 2b,4",
+   "chosen sentence 1 failed step(s) 4"
+  ],
+  "engine": "Apple on-device Foundation Model (prompt v3, guided output) with gate eval-3"
+ },
+ {
+  "review_id": "P006",
+  "type": "pair",
+  "item": "H003",
+  "bucket": "finished",
+  "level": "L0",
+  "order": [
+   "A",
+   "B:ladder"
+  ],
+  "lines": [
+   "Renamed the flag to --dry-run everywhere, docs updated too.",
+   "Renamed the flag to --dry-run everywhere and updated the docs."
+  ],
+  "b_rows": {
+   "B:ladder": {
+    "kind": "quoted",
+    "shown": "Renamed the flag to --dry-run everywhere and updated the docs.",
+    "excerpt": "Renamed the flag to --dry-run everywhere, docs updated too.",
+    "trace": [
+     "write passed the gate"
+    ],
+    "draft": "Renamed the flag to --dry-run everywhere and updated the docs.",
+    "choose_pick": "1"
+   }
+  },
+  "engine": "Apple on-device Foundation Model (prompt v3, guided output) with gate eval-3"
+ },
+ {
+  "review_id": "S011",
+  "type": "single",
+  "item": "H013",
+  "bucket": "failed",
+  "level": "L3",
+  "setting": "main",
+  "kind": "excerpt_routed",
+  "line": "After bumping the compiler target, 12 tests in tests/render fail with 'undefined symbol: gl_init' (44 others pass).",
+  "trace": [
+   "section 2: L2/L3 show the agent's own words; no engine called"
+  ],
+  "engine": "Apple on-device Foundation Model (prompt v3, guided output) with gate eval-3"
+ },
+ {
+  "review_id": "S012",
+  "type": "single",
+  "item": "H020",
+  "bucket": "question",
+  "level": "L2",
+  "setting": "main",
+  "kind": "excerpt_routed",
+  "line": "OK to proceed like that, or should it skip duplicates instead?",
+  "trace": [
+   "section 2: L2/L3 show the agent's own words; no engine called"
+  ],
+  "engine": "Apple on-device Foundation Model (prompt v3, guided output) with gate eval-3"
+ },
+ {
+  "review_id": "P007",
+  "type": "pair",
+  "item": "H002",
+  "bucket": "finished",
+  "level": "L0",
+  "order": [
+   "B:choose_only",
+   "A"
+  ],
+  "lines": [
+   "Alle 14 Tests in tests/test_session.py laufen durch.",
+   "Fertig: Der Login-Timeout liegt jetzt bei 30 Minuten statt 5 (config/session.yaml)."
+  ],
+  "b_rows": {
+   "B:choose_only": {
+    "kind": "quoted",
+    "shown": "Alle 14 Tests in tests/test_session.py laufen durch.",
+    "excerpt": "Fertig: Der Login-Timeout liegt jetzt bei 30 Minuten statt 5 (config/session.yaml).",
+    "trace": [
+     "choose (2) passed the gate"
+    ],
+    "draft": null,
+    "choose_pick": "2"
+   }
+  },
+  "engine": "Apple on-device Foundation Model (prompt v3, guided output) with gate eval-3"
+ },
+ {
+  "review_id": "S013",
+  "type": "single",
+  "item": "H024",
+  "bucket": "refactor",
+  "level": "L0",
+  "setting": "main (B shows A's excerpt)",
+  "kind": "excerpt",
+  "line": "Variablen umbenannt und tote Funktionen entfernt (util/helpers.go).",
+  "trace": [
+   "write failed step(s) 2b,3",
+   "step 0/3/5: straight to the excerpt"
+  ],
+  "engine": "Apple on-device Foundation Model (prompt v3, guided output) with gate eval-3"
+ },
+ {
+  "review_id": "S014",
+  "type": "single",
+  "item": "H005",
+  "bucket": "partial",
+  "level": "L1",
+  "setting": "main (B shows A's excerpt)",
+  "kind": "quoted",
+  "line": "I got the retry logic working for the upload client (lib/upload/retry.py), including exponential backoff capped at 60 s.",
+  "trace": [
+   "write failed step(s) 2b",
+   "choose (1) passed the gate"
+  ],
+  "engine": "Apple on-device Foundation Model (prompt v3, guided output) with gate eval-3"
+ },
+ {
+  "review_id": "S015",
+  "type": "single",
+  "item": "H017",
+  "bucket": "question",
+  "level": "L2",
+  "setting": "main",
+  "kind": "excerpt_routed",
+  "line": "Before I touch the pricing table: should the discount apply before or after tax?",
+  "trace": [
+   "section 2: L2/L3 show the agent's own words; no engine called"
+  ],
+  "engine": "Apple on-device Foundation Model (prompt v3, guided output) with gate eval-3"
+ },
+ {
+  "review_id": "S016",
+  "type": "single",
+  "item": "H014",
+  "bucket": "failed",
+  "level": "L3",
+  "setting": "main",
+  "kind": "excerpt_routed",
+  "line": "Das hat nicht geklappt: Die Migration 0042 bricht mit 'column already exists' ab, und die Datenbank steht jetzt halb migriert.",
+  "trace": [
+   "section 2: L2/L3 show the agent's own words; no engine called"
+  ],
+  "engine": "Apple on-device Foundation Model (prompt v3, guided output) with gate eval-3"
+ },
+ {
+  "review_id": "S017",
+  "type": "single",
+  "item": "H010",
+  "bucket": "not_run",
+  "level": "L1",
+  "setting": "main (B shows A's excerpt)",
+  "kind": "excerpt",
+  "line": "Die Validierung für das Kontaktformular ist umgebaut (src/forms/contact.ts).\nIch habe die Tests nicht ausgeführt, da in dieser Umgebung kein Node installiert ist.",
+  "trace": [
+   "write failed step(s) 2b",
+   "chosen sentence 1 failed step(s) 3"
+  ],
+  "engine": "Apple on-device Foundation Model (prompt v3, guided output) with gate eval-3"
+ }
+]

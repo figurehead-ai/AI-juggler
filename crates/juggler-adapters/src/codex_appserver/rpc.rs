@@ -63,6 +63,16 @@ pub fn classify(line: &str) -> Option<Incoming> {
     }
 }
 
+/// A line from the server as a message; one that isn't is counted in
+/// `unknown` (skipped, never guessed).
+pub fn message(line: &str, unknown: &mut usize) -> Option<Incoming> {
+    let message = classify(line);
+    if message.is_none() {
+        *unknown += 1;
+    }
+    message
+}
+
 /// A request line (a method without parameters sends none).
 #[must_use]
 pub fn request(id: i64, method: &str, params: Value) -> Value {
@@ -96,7 +106,7 @@ pub fn refusal(id: &Value, message: &str) -> Value {
 
 #[cfg(test)]
 mod tests {
-    use super::{Incoming, classify};
+    use super::{Incoming, classify, message};
     use serde_json::json;
 
     #[test]
@@ -125,5 +135,9 @@ mod tests {
         ));
         assert_eq!(classify("not json"), None);
         assert_eq!(classify(r#"{"x":1}"#), None);
+        let mut unknown = 0;
+        assert!(message(r#"{"method":"m"}"#, &mut unknown).is_some());
+        assert_eq!(message("not json", &mut unknown), None);
+        assert_eq!(unknown, 1, "only the stray line is counted");
     }
 }

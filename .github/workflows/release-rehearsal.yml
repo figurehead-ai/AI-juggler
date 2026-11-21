@@ -16,6 +16,12 @@ on:
       - .github/workflows/nightly.yml
       - .github/workflows/release-rehearsal.yml
       - scripts/sign_macos.sh
+      - scripts/build_apple_ai_helper.sh
+      - scripts/build_local_ai_helper.sh
+      - crates/juggler-local-ai/**
+      - crates/juggler-local-ai-protocol/**
+      - crates/juggler-app/helpers/**
+      - crates/juggler-app/tauri.bundle.json
       - scripts/install_tauri_cli.sh
       - scripts/updater_sig_check.py
       - scripts/apple_retry.py

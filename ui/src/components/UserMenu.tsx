@@ -50,7 +50,7 @@ function settings(section?: string): void {
 
 function Avatar({ initial, size }: { initial: string; size: number }): JSX.Element {
   return (
-    <span aria-hidden="true" style={{ width: size, height: size }} className="flex shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-accent to-live text-meta font-semibold text-canvas">
+    <span aria-hidden="true" style={{ width: size, height: size }} className="flex shrink-0 items-center justify-center rounded-full bg-surface-3 text-meta font-semibold text-ink">
       {initial}
     </span>
   );

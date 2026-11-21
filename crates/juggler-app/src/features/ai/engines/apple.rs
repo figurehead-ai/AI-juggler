@@ -1,0 +1,422 @@
+//! ADR-0033 §4.1 (AJ-E3802): Apple's on-device model, through AI
+//! Juggler's Swift helper `juggler-apple-ai`
+//! (`crates/juggler-app/helpers/juggler-apple-ai.swift`, built by
+//! `scripts/build_apple_ai_helper.sh`).
+//!
+//! **It works only when Apple Intelligence is available and on.** The OS
+//! seam answers first ([`juggler_platform::ai::system_model`]): on an
+//! Intel Mac, a macOS before 26, Windows or Linux the helper is never
+//! started. Otherwise the helper's `hello` carries the model's own
+//! availability (`SystemLanguageModel.default.availability`) and context
+//! size; a probe starts it, reads that line and lets it go. No model is
+//! loaded until a job asks ([`AiEngine::respond`]); the helper then stays
+//! for the next request and exits by itself after 60 s idle.
+//!
+//! It serves the `models` section's `apple_builtin` entry and nothing
+//! else: no download, `Basic` tier, look-ups through guided steps.
+//!
+//! The helper also reads the network path (`NWPathMonitor`, a Swift-only
+//! API, ADR-0033 §10) for the model download's pause: [`network_path`],
+//! on any macOS, from a helper of its own that goes when it answered.
+
+use std::path::PathBuf;
+use std::sync::Mutex;
+use std::time::{Duration, Instant};
+
+use juggler_platform::ai::SystemModel;
+
+use super::helper::{Health, Helper};
+use crate::features::ai::{
+    engine::{AiEngine, Card, Draft, EngineError, Finish, Readiness, Reason, Request, Stop, Tier},
+    models::{Engine as ModelEngine, ModelEntry, recommend::AppleAi},
+};
+
+/// The helper's file name, beside AI Juggler's own executable.
+pub const PROGRAM: &str = "juggler-apple-ai";
+
+/// The identifier the helper is signed as (its embedded Info.plist,
+/// `helpers/juggler-apple-ai.Info.plist`); the app runs no helper signed
+/// as anything else.
+pub const IDENTIFIER: &str = "ai.figurehead.juggler.apple-ai";
+
+/// The protocol version this build speaks (2: the `network` request).
+pub const PROTOCOL: u64 = 2;
+
+/// How long a network-path reading may take, the helper's start included.
+const NETWORK_WAIT: Duration = Duration::from_secs(5);
+
+/// The network path as the system's monitor sees it now.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct NetworkPath {
+    /// A path is up.
+    pub satisfied: bool,
+    /// It costs money or data: a hotspot, cellular.
+    pub expensive: bool,
+    /// Low Data Mode is on for it.
+    pub constrained: bool,
+}
+
+/// The network path, read by a short-lived helper at `program` (the
+/// app's own when `None`); `None` when there is no helper, it isn't on
+/// this protocol, or it couldn't tell.
+#[must_use]
+pub fn network_path(program: Option<PathBuf>) -> Option<NetworkPath> {
+    let engine = Apple::with_program(program);
+    let program = engine.program()?;
+    let mut helper = Helper::start(&program, HELLO_WAIT).ok()?;
+    if helper.hello["protocol"].as_u64() != Some(PROTOCOL) {
+        return None;
+    }
+    let stop = Stop::at(Instant::now() + NETWORK_WAIT);
+    let answer = helper
+        .ask(&serde_json::json!({ "id": 1, "op": "network" }), &stop)
+        .ok()?;
+    if answer["id"].as_u64() != Some(1) || !answer["error"].is_null() {
+        return None;
+    }
+    Some(NetworkPath {
+        satisfied: answer["satisfied"].as_bool()?,
+        expensive: answer["expensive"].as_bool()?,
+        constrained: answer["constrained"].as_bool()?,
+    })
+}
+
+/// How long a starting helper may take to say hello.
+const HELLO_WAIT: Duration = Duration::from_secs(5);
+
+/// The context the model is assumed to have when the helper doesn't say
+/// (macOS 26's figure).
+const DEFAULT_CONTEXT: u32 = 4_096;
+
+/// The model's own answer, from the helper's hello.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Availability {
+    /// On and ready.
+    Available,
+    /// This Mac can't run it.
+    NotEligible,
+    /// Apple Intelligence is turned off.
+    NotEnabled,
+    /// The system is still getting the model.
+    NotReady,
+    /// The helper ran on a macOS without the model.
+    NotThisOs,
+    /// A word this build doesn't know: unknown fails closed.
+    Unknown,
+}
+
+impl Availability {
+    fn from_word(word: &str) -> Self {
+        match word {
+            "available" => Self::Available,
+            "device_not_eligible" => Self::NotEligible,
+            "apple_intelligence_not_enabled" => Self::NotEnabled,
+            "model_not_ready" => Self::NotReady,
+            "not_this_os" => Self::NotThisOs,
+            _ => Self::Unknown,
+        }
+    }
+}
+
+/// What the engine last saw.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Seen {
+    /// Not asked yet.
+    NotAsked,
+    /// The OS seam said no; the helper wasn't started.
+    Os(SystemModel),
+    /// The helper isn't in the app (or isn't safe to run: its owner or
+    /// its code signature).
+    Missing,
+    /// The helper said this.
+    Model {
+        /// The model's availability.
+        availability: Availability,
+        /// Its context, in tokens.
+        context_tokens: u32,
+    },
+    /// The helper didn't answer properly.
+    Failed,
+}
+
+impl Seen {
+    /// The card's readiness for what was seen.
+    #[must_use]
+    pub const fn readiness(self) -> Readiness {
+        match self {
+            Self::Model {
+                availability: Availability::Available,
+                ..
+            } => Readiness::Ready,
+            Self::Model {
+                availability: Availability::NotReady,
+                ..
+            } => Readiness::Preparing(Reason::GettingReady),
+            Self::Model {
+                availability: Availability::NotEnabled,
+                ..
+            } => Readiness::NotHere(Reason::TurnedOff),
+            Self::Model {
+                availability: Availability::NotEligible,
+                ..
+            }
+            | Self::Os(SystemModel::NotThisChip | SystemModel::NotThisVersion) => {
+                Readiness::NotHere(Reason::NotThisComputer)
+            }
+            Self::Model {
+                availability: Availability::NotThisOs,
+                ..
+            }
+            | Self::Os(SystemModel::NotThisSystem) => Readiness::NotHere(Reason::NotThisSystem),
+            Self::Missing => Readiness::NotHere(Reason::HelperMissing),
+            Self::Os(SystemModel::MayHave)
+            | Self::NotAsked
+            | Self::Failed
+            | Self::Model {
+                availability: Availability::Unknown,
+                ..
+            } => Readiness::NotHere(Reason::Unknown),
+        }
+    }
+
+    /// Apple Intelligence for the recommendation (AJ-E3811).
+    #[must_use]
+    pub const fn apple_ai(self) -> AppleAi {
+        match self {
+            Self::Model {
+                availability: Availability::Available,
+                ..
+            } => AppleAi::On,
+            Self::Model {
+                availability: Availability::NotEnabled | Availability::NotReady,
+                ..
+            } => AppleAi::Off,
+            _ => AppleAi::Unavailable,
+        }
+    }
+
+    const fn context_tokens(self) -> u32 {
+        match self {
+            Self::Model { context_tokens, .. } if context_tokens > 0 => context_tokens,
+            _ => DEFAULT_CONTEXT,
+        }
+    }
+}
+
+/// The Apple engine.
+#[derive(Debug)]
+pub struct Apple {
+    /// The helper, when a test names it; otherwise beside the app.
+    program: Option<PathBuf>,
+    helper: Mutex<Option<Helper>>,
+    health: Health<Seen>,
+    next_id: Mutex<u64>,
+}
+
+impl Apple {
+    /// The engine, its helper beside AI Juggler's executable.
+    #[must_use]
+    pub fn new() -> Self {
+        Self::with_program(None)
+    }
+
+    /// The engine with its helper at `program` (tests).
+    #[must_use]
+    pub fn with_program(program: Option<PathBuf>) -> Self {
+        Self {
+            program,
+            helper: Mutex::new(None),
+            health: Health::new(Seen::NotAsked),
+            next_id: Mutex::new(0),
+        }
+    }
+
+    /// What it last saw.
+    #[must_use]
+    pub fn seen(&self) -> Seen {
+        self.health.seen(Seen::Failed)
+    }
+
+    /// The helper to run: a test's, or the app's own through the one
+    /// resolver ([`juggler_platform::code_trust::own_helper`]): in the
+    /// app's bundle (or beside it in a development build), ours or
+    /// root's and writable by no one else, and signed as [`IDENTIFIER`]
+    /// by the app's own team. Anything else is missing (fails closed).
+    fn program(&self) -> Option<PathBuf> {
+        if let Some(program) = &self.program {
+            return program.is_file().then(|| program.clone());
+        }
+        juggler_platform::code_trust::own_helper(PROGRAM, IDENTIFIER)
+    }
+
+    /// Starts the helper and reads what its hello says.
+    fn start(&self, program: &std::path::Path) -> Result<Helper, EngineError> {
+        let helper = Helper::start(program, HELLO_WAIT)?;
+        let hello = &helper.hello;
+        if hello["protocol"].as_u64() != Some(PROTOCOL) {
+            self.health.see(Seen::Failed);
+            return Err(EngineError::Crashed);
+        }
+        let availability = Availability::from_word(hello["available"].as_str().unwrap_or(""));
+        let context_tokens = hello["context_size"]
+            .as_u64()
+            .and_then(|n| u32::try_from(n).ok())
+            .unwrap_or(0);
+        self.health.see(Seen::Model {
+            availability,
+            context_tokens,
+        });
+        Ok(helper)
+    }
+
+    fn running(&self) -> bool {
+        self.helper
+            .lock()
+            .is_ok_and(|mut helper| helper.as_mut().is_some_and(Helper::alive))
+    }
+}
+
+impl Default for Apple {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl AiEngine for Apple {
+    fn cards(&self, engine: usize, models: &[ModelEntry]) -> Vec<Card> {
+        let Some(entry) = models
+            .iter()
+            .find(|m| m.engine == ModelEngine::AppleBuiltin)
+        else {
+            return Vec::new();
+        };
+        let seen = self.seen();
+        let ready = match seen.readiness() {
+            Readiness::Ready if self.health.unhealthy() => Readiness::NotHere(Reason::Unhealthy),
+            ready => ready,
+        };
+        vec![Card {
+            engine,
+            model: entry.id.clone(),
+            context_tokens: seen.context_tokens(),
+            tools: true,
+            tier: Tier::Basic,
+            uses_download: false,
+            running: self.running(),
+            ready,
+        }]
+    }
+
+    fn probe(&self) {
+        let os = juggler_platform::ai::system_model();
+        if os != SystemModel::MayHave && self.program.is_none() {
+            self.health.see(Seen::Os(os));
+            return;
+        }
+        let Some(program) = self.program() else {
+            self.health.see(Seen::Missing);
+            return;
+        };
+        match self.start(&program) {
+            Ok(helper) => {
+                if self.seen().readiness() == Readiness::Ready {
+                    self.health.healed();
+                }
+                drop(helper);
+            }
+            Err(_) => self.health.see(Seen::Failed),
+        }
+    }
+
+    fn respond(&self, model: &str, request: &Request, stop: &Stop) -> Result<Draft, EngineError> {
+        // It runs one model, the one its card named; the router sends no other.
+        if model.is_empty() {
+            return Err(EngineError::Unsupported);
+        }
+        if self.health.unhealthy() {
+            return Err(EngineError::NotHere(Reason::Unhealthy));
+        }
+        if let Readiness::NotHere(why) | Readiness::Preparing(why) = self.seen().readiness() {
+            return Err(EngineError::NotHere(why));
+        }
+        let program = self
+            .program()
+            .ok_or(EngineError::NotHere(Reason::HelperMissing))?;
+        let mut slot = self.helper.lock().map_err(|_| EngineError::Crashed)?;
+        if !slot.as_mut().is_some_and(Helper::alive) {
+            *slot = Some(self.start(&program).inspect_err(|_| self.health.failed())?);
+        }
+        if let Readiness::NotHere(why) | Readiness::Preparing(why) = self.seen().readiness() {
+            *slot = None;
+            return Err(EngineError::NotHere(why));
+        }
+        let id = self.next_id.lock().map_or(0, |mut next| {
+            *next += 1;
+            *next
+        });
+        let mut line = serde_json::json!({
+            "id": id,
+            "op": "respond",
+            "instructions": request.instructions,
+            "prompt": request.prompt,
+            "max_tokens": request.max_tokens,
+        });
+        if let Some(shape) = &request.shape {
+            line["schema"] = shape.clone();
+        }
+        let Some(helper) = slot.as_mut() else {
+            return Err(EngineError::Crashed);
+        };
+        let answer = match helper.ask(&line, stop) {
+            Ok(answer) if answer["id"].as_u64() == Some(id) => answer,
+            Ok(_) | Err(EngineError::Crashed) => {
+                *slot = None;
+                self.health.failed();
+                return Err(EngineError::Crashed);
+            }
+            Err(error) => {
+                // Stopped, timed out or too long: never wait on it again.
+                *slot = None;
+                return Err(error);
+            }
+        };
+        draft(&answer).inspect_err(|error| {
+            if *error == EngineError::NotHere(Reason::Unknown) {
+                *slot = None;
+                self.health.see(Seen::Failed);
+            }
+        })
+    }
+
+    fn release(&self) {
+        if let Ok(mut slot) = self.helper.lock() {
+            *slot = None;
+        }
+    }
+}
+
+/// The helper's answer as a draft, or its error.
+fn draft(answer: &serde_json::Value) -> Result<Draft, EngineError> {
+    match answer["error"].as_str() {
+        None => Ok(Draft {
+            text: answer["text"].as_str().unwrap_or_default().to_owned(),
+            // Only "stop" is finished (the helper sends it only when the
+            // answer is known whole: counted, or guided and decoded);
+            // "length" or anything else is possibly cut, and the job's
+            // gate rejects it. Never fail open.
+            finish: if answer["finish"].as_str() == Some("stop") {
+                Finish::Stop
+            } else {
+                Finish::Length
+            },
+        }),
+        Some("refused") => Err(EngineError::Refused),
+        Some("too_long") => Err(EngineError::TooLong),
+        Some("unavailable") => Err(EngineError::NotHere(Reason::Unknown)),
+        Some(_) => Err(EngineError::Crashed),
+    }
+}
+
+#[cfg(test)]
+#[path = "apple_tests.rs"]
+mod tests;

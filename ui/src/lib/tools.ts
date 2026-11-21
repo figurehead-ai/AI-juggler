@@ -74,7 +74,7 @@ export function genericTool(id: string): ToolSpecInfo {
     scan_hint: "Your default setup and anything else that looks like one. Nothing is changed.",
     setup_groups: [{ id: "setups", title: `${id} setups`, path_contains: null, origin: null, shows_install: true }],
     default_label: null,
-    flow: { first_run: false, primary: false },
+    flow: { first_run: false, primary: false, live_verified: false },
     terms: null,
     home_env: [],
     supports: { in_place: false, limits: false, app_meter: false, thread_link: false, agent_tools: false, resume: false },

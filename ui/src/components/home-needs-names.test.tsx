@@ -9,7 +9,7 @@
 import { cleanup, render, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { HomeNeeds } from "./HomeNeeds";
-import { headlineExtras, type HomeNeed } from "../lib/home-needs";
+import { needsParts, type HomeNeed } from "../lib/home-needs";
 import { genericTool, setToolsForTests } from "../lib/tools";
 import { account } from "../test/fixtures";
 
@@ -30,8 +30,8 @@ describe("Needs you rows and their Sign in, for assistive tech", () => {
 
   it("gives two Apps' rows two distinct buttons, each within its own row", () => {
     render(<HomeNeeds needs={[signIn("opencode"), signIn("kimi-code"), signIn("grok-build")]} handlers={{ onOpenSession: vi.fn() }} />);
-    // The first need (large) is a named group; the rest are named list items.
-    const first = screen.getByRole("group", { name: "OpenCode CLI · lab A needs its sign-in" });
+    // Each need is its own card, a named list item (D-118's mock).
+    const first = screen.getByRole("listitem", { name: "OpenCode CLI · lab A needs its sign-in" });
     const kimi = screen.getByRole("listitem", { name: "Kimi Code CLI · lab A needs its sign-in" });
     const grok = screen.getByRole("listitem", { name: "Grok Build CLI · lab A needs its sign-in" });
     expect(screen.getAllByRole("button", { name: /^Sign in to .* · lab A$/ })).toHaveLength(3);
@@ -46,16 +46,14 @@ describe("Needs you rows and their Sign in, for assistive tech", () => {
     expect(within(kimi).getByRole("button").textContent?.startsWith("Sign in")).toBe(true);
   });
 
-  it("names the heading's sign-in extras by their App too, words unchanged", () => {
-    const extras = headlineExtras([signIn("opencode"), signIn("kimi-code")], { caps: [], messages: 0, tasks: 0 });
-    expect(extras.map((extra) => extra.words)).toEqual(["lab A needs its sign-in", "lab A needs its sign-in"]);
-    expect(extras.map((extra) => extra.name)).toEqual(["OpenCode CLI · lab A needs its sign-in", "Kimi Code CLI · lab A needs its sign-in"]);
+  it("names the heading's sign-ins by their App in its spoken parts", () => {
+    expect(needsParts([signIn("opencode"), signIn("kimi-code")], { caps: [], messages: 0, tasks: 0 })).toEqual(["OpenCode CLI · lab A needs its sign-in", "Kimi Code CLI · lab A needs its sign-in"]);
   });
 
   it("keeps a need that knows no App as it was", () => {
     const bare: HomeNeed = { key: "signin:x", kind: "signin", title: "Work needs its sign-in", detail: "", severe: false };
     render(<HomeNeeds needs={[bare]} handlers={{ onOpenSession: vi.fn() }} />);
-    const row = screen.getByRole("group", { name: "Work needs its sign-in" });
+    const row = screen.getByRole("listitem", { name: "Work needs its sign-in" });
     expect(within(row).getByRole("button", { name: "Sign in — Work needs its sign-in" })).toBeTruthy();
   });
 });

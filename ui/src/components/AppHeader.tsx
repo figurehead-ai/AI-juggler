@@ -9,8 +9,8 @@
  * New session says why it waits.
  */
 import { RoomCount } from "./RoomChip";
-import type { JSX } from "react";
-import { Button } from "./primitives";
+import { useRef, type JSX } from "react";
+import { useGiveWay } from "./use-give-way";
 import { IconTerminal } from "./icons";
 import { IconChevronRight } from "./icons-controls";
 import { keysOf } from "../lib/shortcuts";
@@ -18,6 +18,7 @@ import { FloorButton } from "./FloorButton";
 import { CleanupPill, MainNav } from "./MainNav";
 import { MachineStatusLine } from "./MachineStatusLine";
 import { NotificationBell } from "./NotificationBell";
+import { BotButton } from "./bot/BotButton";
 import { UserMenu } from "./UserMenu";
 import { PRIMARY_NAV, type GlobalId } from "../lib/nav";
 import { useBackendHealth } from "../lib/backend-health";
@@ -51,6 +52,12 @@ export function AppHeader({
   back?: { canBack: boolean; canForward: boolean; onBack: () => void; onForward: () => void };
 }): JSX.Element {
   const { downSince } = useBackendHealth();
+  // This Mac's room words show whole or not at all: when the cluster's
+  // other parts (the clean-up count, the bell's count, a longer status)
+  // leave too little room, they give way and the dot stays, its words in
+  // its title (9aa04ae56's rule; Settings at 1280 cut "Plenty of r…").
+  const thisMac = useRef<HTMLSpanElement>(null);
+  useGiveWay(thisMac);
   return (
     <header
       data-tauri-drag-region
@@ -60,32 +67,57 @@ export function AppHeader({
       className="@container/header relative z-30 flex min-h-14 shrink-0 flex-wrap items-center gap-x-3 gap-y-1 border-b border-hairline bg-surface/50 px-5 py-2 backdrop-blur-xl"
     >
       <h1 className="sr-only">{title}</h1>
+      {/* ‹ › always, greyed with nowhere to go (Finder, a browser): hiding
+          them moved every tab 65 px on the first click away from Home, so
+          the pointer landed on the next tab. D-127 allows a disabled
+          control the user's own use clears, and going to a page does. */}
       {back && <BackForward {...back} />}
       <MainNav primary={PRIMARY_NAV} global={global} page={page} pairedCount={pairedCount} onPick={onPick} />
       {/* From 960 px the rest always fits one row beside the tabs, so the
           cluster takes the room left and This Mac's line shortens (…)
           instead of the bar wrapping (0.3.2, a longer status word). */}
-      <div className="ml-auto flex min-w-0 flex-wrap items-center justify-end gap-1 xl:gap-1.5 @min-[960px]/header:grow @min-[960px]/header:basis-0 @min-[960px]/header:flex-nowrap" data-tauri-drag-region={false}>
+      {/* AJ-E3603: under 820 px of bar its spacing closes up with the tabs'
+          (MainNav), so 1024 with the list open keeps one row. */}
+      <div className="ml-auto flex min-w-0 flex-wrap items-center justify-end gap-1 pl-3 xl:gap-1.5 @min-[960px]/header:grow @min-[960px]/header:basis-0 @min-[960px]/header:flex-nowrap @max-[820px]/header:pl-1" data-tauri-drag-region={false}>
         {/* AJ-E2105: This Mac's line, in the top bar (it gives way first):
             by the bar's own width, not the window's, so the list open at
             1280 px with Fleet's tab too (a paired Mac) still fits one row
-            (the 0.3 re-render found it wrapping). */}
-        <span className={"mr-1 hidden min-w-0 text-muted " + (pairedCount > 0 ? "@min-[1060px]/header:flex" : "@min-[960px]/header:flex")} data-testid="header-this-mac">
+            (the 0.3 re-render found it wrapping). From 960 px of the bar's
+            content, so 1280 with the list open (976) keeps it, as D-118's
+            mock: Bot's icon (D-136) had moved it to 1060 and it went from
+            there, This Mac's one door in the bar with it. With Bot the bar
+            still fits one row from 936 (measured, 0.5 gate triage); under
+            970 its words give way to the dot. */}
+        <span ref={thisMac} className={"hidden shrink-0 text-muted " + (pairedCount > 0 ? "@min-[1160px]/header:flex" : "@min-[960px]/header:flex")} data-testid="header-this-mac">
           <MachineStatusLine minimal={false} short onOpen={onOpenThisMac} />
         </span>
         {/* D-87: accounts out of room or low, a calm count (the bell holds the notices). */}
         <RoomCount />
         {/* 0.4.2: "3 to clean up" lands on Needs attention (lib/landing). */}
         <CleanupPill count={cleanupCount} shown={global !== "cleanup"} onOpen={() => openScreenOn("cleanup", CLEAN_UP_VIEW)} />
-        <Button size="sm" variant="accent" onClick={onNewSession} disabled={downSince !== null} title={downSince !== null ? "Waits until AI Juggler's service answers again" : undefined} className="ml-1 shrink-0">
-          <IconTerminal width={14} height={14} />
-          New session
-        </Button>
-        <span className="ml-1.5 flex shrink-0 items-center gap-2">
+        {/* D-117 (c2): accent words, no fill: on every page the page's
+            own primary is the one filled button (principle 9). */}
+        <button
+          type="button"
+          onClick={onNewSession}
+          disabled={downSince !== null}
+          title={downSince !== null ? "Waits until AI Juggler's service answers again" : "New session"}
+          className="inline-flex h-7 shrink-0 items-center gap-1.5 rounded-lg px-2 text-meta font-medium text-accent-hi outline-none transition-colors hover:bg-surface-2 focus-visible:ring-2 focus-visible:ring-accent/60 disabled:cursor-default disabled:opacity-50"
+          data-testid="header-new-session"
+        >
+          <IconTerminal width={14} height={14} aria-hidden="true" />
+          {/* D-136: at narrow widths the words give way to the icon (its
+              name stays for screen readers and in the tooltip), so the bar
+              keeps one row with Bot added. */}
+          <span className="sr-only @min-[900px]/header:not-sr-only">New session</span>
+        </button>
+        <span className="ml-1.5 flex shrink-0 items-center gap-2 @max-[820px]/header:ml-1 @max-[820px]/header:gap-1">
+          {/* D-136: Bot, beside the bell (⌘J). */}
+          <BotButton />
           <NotificationBell sessions={sessions} />
           <FloorButton />
           {/* A clear gap: the avatar is its own thing, never the Floor's. */}
-          <span className="ml-2 flex">
+          <span className="ml-2 flex @max-[820px]/header:ml-1">
             <UserMenu />
           </span>
         </span>

@@ -89,11 +89,11 @@ describe("nothing internal on screen (D-25)", () => {
     resetNoticeStandIn();
   });
 
-  it("the overnight summary names the tool, never its id", async () => {
-    const { MorningSummary } = await import("./components/MorningSummary");
-    const view = render(<MorningSummary onOpenSession={() => {}} />);
-    await waitFor(() => expect(view.getByTestId("summary-row")).toBeTruthy());
-    expect(leaks(view.container.textContent ?? "")).toEqual([]);
+  it("the feed's digest names the tool, never its id (D-118: the summary card became the away digest)", async () => {
+    const { sentence, said, authorWords } = await import("./lib/feed-words");
+    const { feedItem } = await import("./preview/feed");
+    const item = feedItem({ id: "l:1", at_ms: 0, kind: "finished", category: "finished", subject: "Fix the login test", author: { kind: "app", name: null, provider: "claude-code", folder: "claude-work", folder_label: "Work Max", desktop: false } });
+    expect(leaks(`${authorWords(item)} ${said(sentence(item))}`)).toEqual([]);
   });
 
   it("the switch's keys question says what it found in words", async () => {

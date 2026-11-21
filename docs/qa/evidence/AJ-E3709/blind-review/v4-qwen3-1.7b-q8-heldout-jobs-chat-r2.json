@@ -1,0 +1,52 @@
+[
+ {
+  "pair": "heldout-jobs-chat-001",
+  "item": "C001",
+  "question": "Which session changed the retry delay?",
+  "records": [
+   "[s-4a17] session\nSession 'harbor-retries' edited src/net/retry.ts and set the base delay to 250 ms.",
+   "[s-5b02] session\nSession 'docs-sweep' only edited README files and touched no source code.",
+   "[t-91] turn\nIn turn 91 of s-4a17 the agent said the old delay of 1000 ms was too slow for the tests.",
+   "[f-7] fact\nYesterday's nightly run had 3 failed sessions."
+  ],
+  "first": "The 'harbor-retries' session changed the retry delay to 250 ms. [s-4a17]",
+  "second": "[s-4a17] session\nSession 'harbor-retries' edited src/net/retry.ts and set the base delay to 250 ms.\n[s-5b02] session\nSession 'docs-sweep' only edited README files and touched no source code.\n[t-91] turn\nIn turn 91 of s-4a17 the agent said the old delay of 1000 ms was too slow for the tests.\n[f-7] fact\nYesterday's nightly run had 3 failed sessions."
+ },
+ {
+  "pair": "heldout-jobs-chat-002",
+  "item": "C005",
+  "question": "Which sessions are waiting for me right now?",
+  "records": [
+   "[s-a001] session\nSession 'mossgate-cache' asked a question about deleting expired entries and is waiting.",
+   "[s-a002] session\nSession 'tidepool-export' is running; the agent is working on the CSV writer.",
+   "[s-a003] session\nSession 'pebble-readme' finished and needs nobody.",
+   "[f-40] fact\nWaiting means the last message of the session is a question to the user."
+  ],
+  "first": "The 'mossgate-cache' session is waiting for me. [s-a001] The 'tidepool-export' session is running; the agent is working on the CSV writer. [s-a002]",
+  "second": "[s-a001] session\nSession 'mossgate-cache' asked a question about deleting expired entries and is waiting.\n[s-a002] session\nSession 'tidepool-export' is running; the agent is working on the CSV writer.\n[s-a003] session\nSession 'pebble-readme' finished and needs nobody.\n[f-40] fact\nWaiting means the last message of the session is a question to the user."
+ },
+ {
+  "pair": "heldout-jobs-chat-003",
+  "item": "C006",
+  "question": "Which file did the cart session change and which tests broke?",
+  "records": [
+   "[s-b110] session\nSession 'tannenhof-cart' changed shop/cart/pricing.py.",
+   "[t-411] turn\nIn turn 411 the agent noted 2 failing tests in tests/test_checkout_rounding.py, expecting the old order.",
+   "[f-44] fact\nThe cart session also left shop/export/vouchers.py unchanged on purpose."
+  ],
+  "first": "[s-b110] session\nSession 'tannenhof-cart' changed shop/cart/pricing.py.\n[t-411] turn\nIn turn 411 the agent noted 2 failing tests in tests/test_checkout_rounding.py, expecting the old order.\n[f-44] fact\nThe cart session also left shop/export/vouchers.py unchanged on purpose.",
+  "second": "The cart session changed the file shop/cart/pricing.py. [s-b110] In turn 411, 2 failing tests in tests/test_checkout_rounding.py broke, expecting the old order. [t-411]"
+ },
+ {
+  "pair": "heldout-jobs-chat-004",
+  "item": "C009",
+  "question": "Why did the harbor-sdk upgrade fail?",
+  "records": [
+   "[s-e400] session\nSession 'harbor-upgrade' reverted the bump to harbor-sdk 4.2 and ended with outcome failure.",
+   "[t-700] turn\nIn turn 700 the agent said the Options type lost its timeout field, causing 7 type errors in src/client/retry.ts.",
+   "[f-70] fact\nharbor-sdk 4.3 has no announced release date."
+  ],
+  "first": "[s-e400] session\nSession 'harbor-upgrade' reverted the bump to harbor-sdk 4.2 and ended with outcome failure.\n[t-700] turn\nIn turn 700 the agent said the Options type lost its timeout field, causing 7 type errors in src/client/retry.ts.\n[f-70] fact\nharbor-sdk 4.3 has no announced release date.",
+  "second": "The harbor-upgrade session reverted the bump to harbor-sdk 4.2 and ended with outcome failure. [s-e400]"
+ }
+]

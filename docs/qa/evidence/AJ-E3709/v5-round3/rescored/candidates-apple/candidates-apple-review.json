@@ -1,0 +1,394 @@
+{
+ "family": "apple",
+ "job": "review",
+ "note": "script flags: candidates for Opus to confirm by eye, never verdicts",
+ "candidates": [
+  {
+   "id": "R3T02",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'the currency formatter in the tallyho-sh': contradiction: says 'now rounds half-up for every'; the facts say 'Tests: 31 passed, 2 failed (per AI Juggler)': leave the claim out",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T02",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "risk reason: contradiction: says 'now rounds half-up for every'; the facts say 'Tests: 31 passed, 2 failed (per AI Juggler)': leave the claim out",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T05",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "contradiction: risk low on a failed turn",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T08",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'die Suche nach Kundennummern auf einen H': contradiction: describes a change that was undone (git: kunden/hash_index.py was undone (names hash))",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T08",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'die Suche nach Kundennummern auf einen H': contradiction: describes a change that was undone (git: kunden/hash_index.py was undone (names hash))",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T08",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'die Suche nach Kundennummern auf einen H': contradiction: describes a change that was undone (git: kunden/hash_index.py was undone (names hash))",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T10",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'rewrote the notification dispatcher in r': contradiction: describes a change that was undone (git: dispatcher/batch.py was undone)",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T10",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "risk reason: contradiction: describes a change that was undone (It caused duplicate sends in my manual run, so I undid it.)",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T10",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'rewrote the notification dispatcher in r': contradiction: describes a change that was undone (git: dispatcher/batch.py was undone)",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T10",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "risk reason: contradiction: describes a change that was undone (It caused duplicate sends in my manual run, so I undid it.)",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T10",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'rewrote the notification dispatcher in r': contradiction: describes a change that was undone (git: dispatcher/batch.py was undone)",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T10",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "risk reason: contradiction: describes a change that was undone (It caused duplicate sends in my manual run, so I undid it.)",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T15",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the old payment screen is replaced by th': 2b: content word(s) not in the text: form, old, payment, replaced, running, screen",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T15",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "risk reason: 2b: content word(s) not in the text: running",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T15",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the validation is reverted because the t': 2b: content word(s) not in the text: running",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T15",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "risk reason: 2b: content word(s) not in the text: running",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T15",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the validation is reverted because the t': 2b: content word(s) not in the text: running",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T15",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "risk reason: 2b: content word(s) not in the text: running",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T17",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "risk reason: 2b: content word(s) not in the text: ausgeführt",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T17",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "risk reason: 2b: content word(s) not in the text: ausgeführt",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T17",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "risk reason: 2b: content word(s) not in the text: ausgeführt",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T20",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the function for old sessions written': 2b: content word(s) not in the text: for, old, sessions, the, written",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T20",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'the function for old sessions written': words: works word with none in the source",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T20",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the function for old sessions written': 2b: content word(s) not in the text: for, old, sessions, the, written",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T20",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'the function for old sessions written': words: works word with none in the source",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T20",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the function for old sessions written': 2b: content word(s) not in the text: for, old, sessions, the, written",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T20",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'the function for old sessions written': words: works word with none in the source",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T25",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "risk reason: 2b: content word(s) not in the text: gefrunen",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T25",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "risk reason: 2b: content word(s) not in the text: gefrunen",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T25",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "risk reason: 2b: content word(s) not in the text: gefrunen",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T27",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "risk reason: 2b: content word(s) not in the text: falliti",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T27",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "risk reason: 2b: content word(s) not in the text: falliti",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T27",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "risk reason: 2b: content word(s) not in the text: falliti",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T38",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the new version written': 2b: content word(s) not in the text: new, the, written",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T40",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'Il reste seulement una linea di commento': 2b: content word(s) not in the text: linea, una",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T40",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "risk reason: contradiction: describes a change that was undone (git: planif/nouvelle_lib.py was undone (names annulé))",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T40",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'Il reste seulement una linea di commento': 2b: content word(s) not in the text: linea, una",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T40",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "risk reason: contradiction: describes a change that was undone (git: planif/nouvelle_lib.py was undone (names annulé))",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T40",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'Il reste seulement una linea di commento': 2b: content word(s) not in the text: linea, una",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T40",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "risk reason: contradiction: describes a change that was undone (git: planif/nouvelle_lib.py was undone (names annulé))",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T48",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'Everything is committed and pushed to or': contradiction: says the work was committed; git shows uncommitted changes: leave it out, AI Juggler shows git's state",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T49",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'fixed all three lint errors in the glyph': contradiction: says 'lint fixed'; the facts say 'Failed: renderer/draw.ts:88:5 error no-unused-vars': leave the claim out",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T49",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "risk reason: contradiction: says 'lint fixed'; the facts say 'Failed: renderer/draw.ts:88:5 error no-unused-vars': leave the claim out",
+   "stage": "caught",
+   "corpus": "turns"
+  }
+ ]
+}

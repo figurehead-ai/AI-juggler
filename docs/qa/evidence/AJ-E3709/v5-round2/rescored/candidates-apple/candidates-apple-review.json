@@ -1,0 +1,385 @@
+{
+ "family": "apple",
+ "job": "review",
+ "note": "script flags: candidates for Opus to confirm by eye, never verdicts",
+ "candidates": [
+  {
+   "id": "R2T02",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "risk reason: contradiction: test outcome ('tests pass'): AI Juggler shows the tests from its own facts; leave test results out of this field, even the agent's",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T02",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "risk reason: contradiction: a success claim ('All tests pass') on a turn AI Juggler's facts show failed; never repeat it, even as the agent's",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T02",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "risk reason: contradiction: a success claim on a failed turn",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T02",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "contradiction: risk low on a failed turn",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T02",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "risk reason: contradiction: test outcome ('tests pass'): AI Juggler shows the tests from its own facts; leave test results out of this field, even the agent's",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T02",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "risk reason: contradiction: a success claim ('All tests pass') on a turn AI Juggler's facts show failed; never repeat it, even as the agent's",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T02",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "risk reason: contradiction: a success claim on a failed turn",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T02",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "contradiction: risk low on a failed turn",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T02",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "risk reason: contradiction: test outcome ('tests pass'): AI Juggler shows the tests from its own facts; leave test results out of this field, even the agent's",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T02",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "risk reason: contradiction: a success claim ('All tests pass') on a turn AI Juggler's facts show failed; never repeat it, even as the agent's",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T02",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "risk reason: contradiction: a success claim on a failed turn",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T02",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "contradiction: risk low on a failed turn",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T04",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "risk reason: 2b: content word(s) not in the text: unknown",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T04",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "risk reason: 2b: content word(s) not in the text: unknown",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T04",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "risk reason: 2b: content word(s) not in the text: unknown",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T05",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "risk reason: contradiction: test outcome ('laufen durch'): AI Juggler shows the tests from its own facts; leave test results out of this field, even the agent's",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T11",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'alles grün. Typen für die API ergänzt': contradiction: a success claim ('alles grün') on a turn AI Juggler's facts show failed; never repeat it, even as the agent's",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T11",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'alles grün. Typen für die API ergänzt': contradiction: a success claim ('alles grün') on a turn AI Juggler's facts show failed; never repeat it, even as the agent's",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T39",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "contradiction: risk low with tests not run",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T40",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "risk reason: 2b: content word(s) not in the text: unknown",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T40",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "risk reason: 2b: content word(s) not in the text: unknown",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T40",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "risk reason: 2b: content word(s) not in the text: unknown",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T45",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'everything and all tests pass': contradiction: test outcome ('tests pass'): AI Juggler shows the tests from its own facts; leave test results out of this field, even the agent's",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T45",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'everything and all tests pass': contradiction: a success claim ('all tests pass') on a turn AI Juggler's facts show failed; never repeat it, even as the agent's",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T45",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'everything and all tests pass': contradiction: a success claim on a failed turn",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T45",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "risk reason: contradiction: test outcome ('tests pass'): AI Juggler shows the tests from its own facts; leave test results out of this field, even the agent's",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T45",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "risk reason: contradiction: a success claim ('all tests pass') on a turn AI Juggler's facts show failed; never repeat it, even as the agent's",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T45",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "risk reason: contradiction: a success claim on a failed turn",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T45",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "contradiction: risk low on a failed turn",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T45",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'everything and all tests pass': contradiction: test outcome ('tests pass'): AI Juggler shows the tests from its own facts; leave test results out of this field, even the agent's",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T45",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'everything and all tests pass': contradiction: a success claim ('all tests pass') on a turn AI Juggler's facts show failed; never repeat it, even as the agent's",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T45",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'everything and all tests pass': contradiction: a success claim on a failed turn",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T45",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "risk reason: contradiction: test outcome ('tests pass'): AI Juggler shows the tests from its own facts; leave test results out of this field, even the agent's",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T45",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "risk reason: contradiction: a success claim ('all tests pass') on a turn AI Juggler's facts show failed; never repeat it, even as the agent's",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T45",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "risk reason: contradiction: a success claim on a failed turn",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T45",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "contradiction: risk low on a failed turn",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T45",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'everything and all tests pass': contradiction: test outcome ('tests pass'): AI Juggler shows the tests from its own facts; leave test results out of this field, even the agent's",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T45",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'everything and all tests pass': contradiction: a success claim ('all tests pass') on a turn AI Juggler's facts show failed; never repeat it, even as the agent's",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T45",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'everything and all tests pass': contradiction: a success claim on a failed turn",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T45",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "risk reason: contradiction: test outcome ('tests pass'): AI Juggler shows the tests from its own facts; leave test results out of this field, even the agent's",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T45",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "invented",
+   "detail": "risk reason: invented: proper ai, proper juggler",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T45",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "risk reason: 2b: content word(s) not in the text: claim, contradiction, facts, juggler, turn",
+   "stage": "caught",
+   "corpus": "turns"
+  }
+ ]
+}

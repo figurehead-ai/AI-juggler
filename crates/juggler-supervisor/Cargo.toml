@@ -12,21 +12,21 @@ workspace = true
 
 [dependencies]
 tracing = { workspace = true }
-juggler-adapter = { version = "0.4.0", path = "../juggler-adapter" }
-juggler-core = { version = "0.4.0", path = "../juggler-core" }
+juggler-adapter = { version = "0.5.0", path = "../juggler-adapter" }
+juggler-core = { version = "0.5.0", path = "../juggler-core" }
 portable-pty = "0.9.0"
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 sysinfo = { workspace = true }
 # D-110 (AJ-E805): the collector lists every process cheaply (a stub off
 # macOS: the table is read as before).
-juggler-proc-list = { version = "0.4.0", path = "../juggler-proc-list" }
+juggler-proc-list = { version = "0.5.0", path = "../juggler-proc-list" }
 thiserror = { workspace = true }
 
 [dev-dependencies]
 # This thread's CPU time for the hot path's budget (as juggler-app's tests).
 cpu-time = { workspace = true }
-juggler-adapters = { version = "0.4.0", path = "../juggler-adapters" }
+juggler-adapters = { version = "0.5.0", path = "../juggler-adapters" }
 tempfile = { workspace = true }
 
 [target."cfg(unix)".dependencies]
@@ -41,7 +41,7 @@ netstat2 = "0.11"
 [target."cfg(target_os = \"macos\")".dependencies]
 sysctl = "0.6"
 # D-27: the pages the memory compressor occupies (the audited shim).
-juggler-vm-stats = { version = "0.4.0", path = "../juggler-vm-stats" }
+juggler-vm-stats = { version = "0.5.0", path = "../juggler-vm-stats" }
 objc2-foundation = { version = "0.3.2", default-features = false, features = ["std", "NSLocale", "NSProcessInfo", "NSString", "block2"] }
 # AJ-E1509: the block an activity is held in (`awake.rs`).
 block2 = { version = "0.6.2", default-features = false, features = ["std"] }

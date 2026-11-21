@@ -1,0 +1,16 @@
+AJ-E805 R3: the release app idle on the load fixture (10 Accounts, 50 Instances, 20 Projects; no live Instance), 2026-11-13.
+App: AI Juggler Dev 0.4.3, CI's release candidate of b281d3ee6 (release profile, arm64), throwaway HOME, AIJ_NO_RESTORE=1, window shown.
+ps -o %cpu=,rss= of the app's own process (not its children), every 10 s for 2 min, starting 30 s after launch:
+  7.6 168272
+  7.8 168336
+  5.4 168336
+  5.6 168512
+  4.8 168512
+  4.1 168528
+  7.0 168608
+  4.6 168640
+  4.2 168816
+  8.5 168896
+  4.5 168864
+  3.9 168880
+Mean CPU 5.67 % of one core (samples 3.9–8.5 %); RSS 164–165 MB.

@@ -20,7 +20,8 @@ describe("a row's cut title", () => {
     render(<SessionRow item={item!} density={density} now={Date.now()} onSelect={vi.fn()} />);
     const title = screen.getByTestId("row-title");
     expect(title.className).toContain("truncate");
-    expect(title.getAttribute("title")).toBe(item!.title);
+    // Cozy's tooltip adds where and when after it (its one line, D-118).
+    expect(title.getAttribute("title")!.startsWith(item!.title)).toBe(true);
     expect(title.getAttribute("title")).toContain("started");
   });
 });

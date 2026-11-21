@@ -67,3 +67,14 @@ describe("a session's rail item, by its level", () => {
     expect(level({ status: "finished" })).toBe(0);
   });
 });
+
+describe("attentionLevel()'s budget (AJ-E3601: 0.05 ms an item)", () => {
+  it("places 10,000 items in 500 ms or less", () => {
+    const subjects = Array.from({ length: 10_000 }, (_, at) => CASES[at % CASES.length]!);
+    const started = performance.now();
+    let sum = 0;
+    for (const { level: _level, ...subject } of subjects) sum += attentionLevel(subject);
+    expect(sum).toBeGreaterThan(0);
+    expect(performance.now() - started).toBeLessThanOrEqual(500);
+  });
+});

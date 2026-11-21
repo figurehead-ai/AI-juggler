@@ -402,17 +402,25 @@ fn every_sessions_app_is_in_the_apps_list() {
             };
             let (_dir, state) = world(w);
             let apps = list_impl(&state).unwrap();
-            // Each Account lists exactly the listed Apps on its folders
-            // (its card, its page, Usage's and Home's runway read it).
+            // Each Account lists exactly the listed Apps on it (its card,
+            // its page, Usage's and Home's runway read it). AJ-E3210
+            // (D-135): each App on its own Account; a CLI App with none by
+            // its folder; a desktop App whose Account isn't known yet (no
+            // Code record) on none, never its folder's guess.
             for account in
                 juggler_app::features::subscriptions::list_with_apps_impl(&state).unwrap()
             {
                 let want: Vec<String> = apps
                     .iter()
-                    .filter(|one| {
-                        one.folder_id
-                            .as_deref()
-                            .is_some_and(|folder| account.profiles.iter().any(|p| p.id == folder))
+                    .filter(|one| match (&one.account_id, &account.account_id) {
+                        (Some(own), Some(id)) => own == id,
+                        (Some(_), None) => false,
+                        (None, _) => {
+                            one.kind == "cli"
+                                && one.folder_id.as_deref().is_some_and(|folder| {
+                                    account.profiles.iter().any(|p| p.id == folder)
+                                })
+                        }
                     })
                     .map(|one| one.id.clone())
                     .collect();

@@ -320,7 +320,8 @@ describe("AJ-E2504 R3 — the window's refresh says when the service fails or an
     const view = render(header());
     const button = () => asButton(screen.getByRole("button", { name: /New session/ }));
     expect(button().disabled).toBe(false);
-    expect(button().getAttribute("title")).toBeNull();
+    // D-136: its words give way to its icon when the bar is narrow; the tooltip keeps them.
+    expect(button().getAttribute("title")).toBe("New session");
     setSeam("__AIJ_OFFLINE__", { since_ms: Date.now() - 20_000 });
     view.unmount();
     render(header());

@@ -1,0 +1,140 @@
+[
+ {
+  "pair": "heldout-feed_line-001",
+  "item": "H001",
+  "source": "Done. The CSV export now streams rows instead of buffering the whole file, so the 400 MB sample in fixtures/big.csv stays under 80 MB of memory. Changed src/export/stream.ts and src/export/index.ts. I ran npm test: 58 passed, 0 failed.",
+  "facts": {
+   "outcome": "success",
+   "tests": {
+    "state": "ran",
+    "passed": 58,
+    "failed": 0
+   },
+   "level": "L0"
+  },
+  "first": "The CSV export now streams rows instead of buffering the whole file, so the 400 MB sample in fixtures/big.csv stays under 80 MB of memory.",
+  "second": "Streamed CSV export, 58 passed, 0 failed"
+ },
+ {
+  "pair": "heldout-feed_line-002",
+  "item": "H003",
+  "source": "Renamed the flag to --dry-run everywhere, docs updated too.",
+  "facts": {
+   "outcome": "success",
+   "tests": {
+    "state": "unknown"
+   },
+   "level": "L0"
+  },
+  "first": "Renamed the flag to --dry-run everywhere, docs updated too",
+  "second": "Renamed the flag to --dry-run everywhere, docs updated too."
+ },
+ {
+  "pair": "heldout-feed_line-003",
+  "item": "H004",
+  "source": "The new check in scripts/verify_lock.sh fails if package-lock.json is older than package.json, so a stale lockfile can no longer slip into a release. It passes on the current tree. I ran the 3 shell tests in scripts/test/ and all 3 pass.",
+  "facts": {
+   "outcome": "success",
+   "tests": {
+    "state": "ran",
+    "passed": 3,
+    "failed": 0
+   },
+   "level": "L0"
+  },
+  "first": "Fails the new check in scripts/verify_lock.sh, all 3 shell tests in scripts/test/ pass; fails if package-lock.json is older than package.json",
+  "second": "The new check in scripts/verify_lock.sh fails if package-lock.json is older than package.json, so a stale lockfile can no longer slip into a release."
+ },
+ {
+  "pair": "heldout-feed_line-004",
+  "item": "H006",
+  "source": "Teilweise erledigt: Die Übersetzungen für Deutsch und Französisch sind drin (i18n/de.json, i18n/fr.json). Spanisch fehlt noch, weil die Quelldatei leer war. Tests: 21 bestanden, 0 fehlgeschlagen.",
+  "facts": {
+   "outcome": "success",
+   "tests": {
+    "state": "ran",
+    "passed": 21,
+    "failed": 0
+   },
+   "level": "L1"
+  },
+  "first": "Teilweise erledigt: Die Übersetzungen für Deutsch und Französisch sind drin (i18n/de.json, i18n/fr.json).",
+  "second": "Die Übersetzungen für Deutsch und Französisch sind drin Teilweise erledigt; spanisch fehlt noch, weil die Quelldatei leer war"
+ },
+ {
+  "pair": "heldout-feed_line-005",
+  "item": "H007",
+  "source": "Updated:\n- api/routes/orders.go: pagination added\n- api/routes/refunds.go: happy path only, error mapping left as it was\n- docs/api.md: new query params\nI ran go test ./api/... and it reports ok, 31 tests.",
+  "facts": {
+   "outcome": "success",
+   "tests": {
+    "state": "ran",
+    "passed": 31,
+    "failed": 0
+   },
+   "level": "L1"
+  },
+  "first": "api/routes/orders.go: pagination added\napi/routes/refunds.go: happy path only, error mapping left as it was",
+  "second": "Added pagination added, ok, 31 tests; happy path only"
+ },
+ {
+  "pair": "heldout-feed_line-006",
+  "item": "H009",
+  "source": "I changed the cron expression in deploy/jobs.yaml from every 15 to every 30 minutes. I haven't run anything.",
+  "facts": {
+   "outcome": "success",
+   "tests": {
+    "state": "not_run"
+   },
+   "level": "L1"
+  },
+  "first": "Changed the cron expression in deploy/jobs.yaml; I haven't run anything",
+  "second": "I changed the cron expression in deploy/jobs.yaml from every 15 to every 30 minutes.\nI haven't run anything."
+ },
+ {
+  "pair": "heldout-feed_line-007",
+  "item": "H012",
+  "source": "Patched the off-by-one in paginate() in src/list.rs, didn't run tests. Should be fine.",
+  "facts": {
+   "outcome": "success",
+   "tests": {
+    "state": "not_run"
+   },
+   "level": "L1"
+  },
+  "first": "Patched the off-by-one in paginate() in src/list.rs; didn't run tests",
+  "second": "Patched the off-by-one in paginate() in src/list.rs, didn't run tests."
+ },
+ {
+  "pair": "heldout-feed_line-008",
+  "item": "H021",
+  "source": "Pure refactor: extracted the retry loop from three handlers into utils/retry.js. No behaviour change; 112 tests pass, the same as before.",
+  "facts": {
+   "outcome": "success",
+   "tests": {
+    "state": "ran",
+    "passed": 112,
+    "failed": 0
+   },
+   "level": "L0"
+  },
+  "first": "Pure refactor: extracted the retry loop from three handlers into utils/retry.js.",
+  "second": "Extracted the retry loop from three handlers, 112 tests pass"
+ },
+ {
+  "pair": "heldout-feed_line-009",
+  "item": "H023",
+  "source": "Moved the config loader from core/ to platform/config/ and fixed the imports. Nothing functional changed. The check in ci/imports.sh fails if anything still imports core.config, and it reports none. 9 unit tests pass.",
+  "facts": {
+   "outcome": "success",
+   "tests": {
+    "state": "ran",
+    "passed": 9,
+    "failed": 0
+   },
+   "level": "L0"
+  },
+  "first": "Moved the config loader from core/ to platform/config/ and fixed the imports.",
+  "second": "Moved the config loader from core/ to platform/config/; nothing functional changed"
+ }
+]

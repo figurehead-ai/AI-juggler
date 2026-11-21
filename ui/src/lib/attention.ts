@@ -56,7 +56,10 @@ export function attentionWords(rule: string | null | undefined): string {
  *   10 % or less under a live session).
  * - **L1 Note**: good to know, no action now (done, review it; low room
  *   nothing live depends on; processes left running).
- * - **L0 Calm**: the running picture (working, idle, ended).
+ * - **L0 Calm**: the running picture (working, idle, ended), and a
+ *   session parked until its reset, whatever its need: AI Juggler holds
+ *   it, nothing is lost, and the reset raises its one offer (a notice,
+ *   AJ-E1003). A need at L0 is no need: the backend lists none for it.
  *
  * Inferred states stay at their level (the word says "Probably"); they
  * draw a hollow ring instead of a filled dot (`level-mark`).
@@ -79,19 +82,31 @@ export interface AttentionSubject {
   noRoom?: boolean;
   /** room: this Mac at critical pressure. */
   critical?: boolean;
+  /** A session parked until its reset (AJ-E1003): calm (L0), whatever
+   * its need. The CI run 43777785232 home-scrolled capture: its parked
+   * session's "Limit reached" lit the folded rail while the count, the
+   * backend's (which lists no parked session), left it out. */
+  parked?: boolean;
 }
 
 /** The kinds that are a decision waiting (L2) whatever their facts. */
 const WAITS = new Set(["asks", "stuck", "cut_off", "signin", "cap", "message", "task", "heavy"]);
-/** The kinds that are a note (L1). */
-const NOTES = new Set(["review", "leftovers"]);
+/** The kinds that are a note (L1): done work to review, leftovers, and
+ * the proposal's other notes (an update, a renewal within 7 days, kept
+ * alive or paused, not measured yet, uncommitted files). */
+const NOTES = new Set(["review", "leftovers", "update", "renewal", "app-started", "keep-alive-paused", "unmeasured", "uncommitted", "watch"]);
+/** The kinds that are broken (L3) whatever their facts: a session that
+ * stopped with an error or crashed, a switch that failed or rolled back,
+ * readings that degraded. */
+const BROKEN = new Set(["failed", "crashed", "switch_failed", "degraded"]);
 
 /** Its level (see above). An unknown need is a need (L2): a new kind is
  * never quieter than it should be until it is placed here. */
 export function attentionLevel(subject: AttentionSubject): AttentionLevel {
   const { need } = subject;
+  if (subject.parked) return 0;
   if (need) {
-    if (need === "failed") return 3;
+    if (BROKEN.has(need)) return 3;
     if (need === "limit") return subject.noRoom ? 3 : 2;
     if (need === "room") return subject.critical ? 3 : 2;
     if (need === "quota") {
@@ -106,6 +121,11 @@ export function attentionLevel(subject: AttentionSubject): AttentionLevel {
     return 2;
   }
   return subject.state === "done_review" ? 1 : subject.state === "asks_you" ? 2 : 0;
+}
+
+/** A rail item's level: its need, else its state. */
+export function itemLevel(item: { need: string | null; state: string }): AttentionLevel {
+  return attentionLevel({ need: item.need, state: item.state });
 }
 
 /** The shared count (the rail's Needs you, the bell, Home's title, the
@@ -153,4 +173,50 @@ export function roomTone(left: number | null, liveSessions: number): { text: str
  * `tone-host` around it lights it on hover and focus too. */
 export function appTone(lit: boolean): string {
   return lit ? "app-tone is-lit" : "app-tone";
+}
+
+/** D-117, said aloud (the a11y fix of 2026-11-15, Happo's snapshots of
+ * 83f700ed6: the head read "Needs you ✕ 5"): a level's glyphs (⚠ ✕, the
+ * dot, the ring) are decoration, hidden from screen readers; the words
+ * carry the level. What an L3 (broken) thing is, in its row's words. */
+export function brokenWord(need: string | null | undefined): string {
+  switch (need) {
+    case "failed":
+      return "stopped with an error";
+    case "limit":
+      return "limit reached";
+    case "quota":
+      return "out of room";
+    case "room":
+      return "this computer under critical pressure";
+    default:
+      return "broken";
+  }
+}
+
+/** Each broken (L3) thing's word among `things` (its level by `levelOf`,
+ * its kind by `needOf`). */
+export function brokenOf<T>(things: readonly T[], levelOf: (thing: T) => AttentionLevel, needOf: (thing: T) => string | null | undefined): string[] {
+  return things.filter((thing) => levelOf(thing) === 3).map((thing) => brokenWord(needOf(thing)));
+}
+
+/** The broken (L3) things by their words, most first: "2 stopped with an
+ * error, 1 out of room"; empty for none. */
+export function brokenParts(words: readonly string[]): string {
+  const counts = new Map<string, number>();
+  for (const word of words) counts.set(word, (counts.get(word) ?? 0) + 1);
+  return [...counts]
+    .sort((a, b) => b[1] - a[1])
+    .map(([word, n]) => `${n} ${word}`)
+    .join(", ");
+}
+
+/** A level count, said aloud: the number, then what broke (L3), then what
+ * waits on you (L2) when both are there: "5, 2 stopped with an error, 3
+ * wait on you"; "3" when nothing broke. `broken`: each L3 thing's word. */
+export function levelCountWords(count: number, broken: readonly string[]): string {
+  if (broken.length === 0) return String(count);
+  const waits = count - broken.length;
+  const rest = waits > 0 ? `, ${waits} ${waits === 1 ? "waits" : "wait"} on you` : "";
+  return `${count}, ${brokenParts(broken)}${rest}`;
 }

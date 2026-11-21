@@ -218,6 +218,7 @@ export function previewNeedsOf({
         session_id: message.session_id,
       },
       action: "pool",
+      since: message.at_ms,
     });
   for (const task of tasks)
     out.push({
@@ -234,6 +235,7 @@ export function previewNeedsOf({
         project_id: task.project_id,
       },
       action: "pool",
+      since: task.at_ms,
     });
   return out;
 }

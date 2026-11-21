@@ -1,0 +1,6643 @@
+[
+ {
+  "id": "W001",
+  "request": "Tell me when the billing one finishes",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-bill",
+     "app": "Claude Code CLI · Work",
+     "project": "billing-svc",
+     "title": "Invoice rounding fix"
+    },
+    {
+     "id": "s-shop",
+     "app": "Claude app · Personal",
+     "project": "webshop",
+     "title": "Checkout redesign"
+    },
+    {
+     "id": "s-docs",
+     "app": "Cursor",
+     "project": "docs-site",
+     "title": "Rewrite quickstart"
+    },
+    {
+     "id": "s-ml",
+     "app": "Claude Code CLI · Lab",
+     "project": "ml-pipeline",
+     "title": "Training loop"
+    },
+    {
+     "id": "s-mig",
+     "app": "Codex CLI · Work",
+     "project": "legacy-crm",
+     "title": "DB migration"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cc-work",
+     "name": "Claude Code CLI · Work"
+    },
+    {
+     "id": "app-claude-personal",
+     "name": "Claude app · Personal"
+    },
+    {
+     "id": "app-cursor",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-cc-lab",
+     "name": "Claude Code CLI · Lab"
+    },
+    {
+     "id": "app-codex-work",
+     "name": "Codex CLI · Work"
+    }
+   ],
+   "projects": [
+    {
+     "id": "proj-billing",
+     "name": "billing-svc"
+    },
+    {
+     "id": "proj-webshop",
+     "name": "webshop"
+    },
+    {
+     "id": "proj-docs",
+     "name": "docs-site"
+    },
+    {
+     "id": "proj-ml",
+     "name": "ml-pipeline"
+    },
+    {
+     "id": "proj-crm",
+     "name": "legacy-crm"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-work",
+     "name": "Work Pro"
+    },
+    {
+     "id": "acct-personal",
+     "name": "Personal"
+    },
+    {
+     "id": "acct-lab",
+     "name": "Lab"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "s-bill"
+   },
+   "conditions": [
+    {
+     "type": "finishes",
+     "param": null
+    }
+   ],
+   "lifetime": "once",
+   "nearest_if_unsupported": null
+  },
+  "tags": [
+   "ambiguous"
+  ]
+ },
+ {
+  "id": "W002",
+  "request": "let me know when the billing agent finishes or gets stuck for 10 minutes",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-bill",
+     "app": "Claude Code CLI · Work",
+     "project": "billing-svc",
+     "title": "Invoice rounding fix"
+    },
+    {
+     "id": "s-shop",
+     "app": "Claude app · Personal",
+     "project": "webshop",
+     "title": "Checkout redesign"
+    },
+    {
+     "id": "s-docs",
+     "app": "Cursor",
+     "project": "docs-site",
+     "title": "Rewrite quickstart"
+    },
+    {
+     "id": "s-ml",
+     "app": "Claude Code CLI · Lab",
+     "project": "ml-pipeline",
+     "title": "Training loop"
+    },
+    {
+     "id": "s-mig",
+     "app": "Codex CLI · Work",
+     "project": "legacy-crm",
+     "title": "DB migration"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cc-work",
+     "name": "Claude Code CLI · Work"
+    },
+    {
+     "id": "app-claude-personal",
+     "name": "Claude app · Personal"
+    },
+    {
+     "id": "app-cursor",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-cc-lab",
+     "name": "Claude Code CLI · Lab"
+    },
+    {
+     "id": "app-codex-work",
+     "name": "Codex CLI · Work"
+    }
+   ],
+   "projects": [
+    {
+     "id": "proj-billing",
+     "name": "billing-svc"
+    },
+    {
+     "id": "proj-webshop",
+     "name": "webshop"
+    },
+    {
+     "id": "proj-docs",
+     "name": "docs-site"
+    },
+    {
+     "id": "proj-ml",
+     "name": "ml-pipeline"
+    },
+    {
+     "id": "proj-crm",
+     "name": "legacy-crm"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-work",
+     "name": "Work Pro"
+    },
+    {
+     "id": "acct-personal",
+     "name": "Personal"
+    },
+    {
+     "id": "acct-lab",
+     "name": "Lab"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "s-bill"
+   },
+   "conditions": [
+    {
+     "type": "finishes",
+     "param": null
+    },
+    {
+     "type": "stuck",
+     "param": 10
+    }
+   ],
+   "lifetime": "once",
+   "nearest_if_unsupported": null
+  },
+  "tags": [
+   "combined",
+   "ambiguous"
+  ]
+ },
+ {
+  "id": "W003",
+  "request": "ping me if the checkout redesign asks me a question",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-bill",
+     "app": "Claude Code CLI · Work",
+     "project": "billing-svc",
+     "title": "Invoice rounding fix"
+    },
+    {
+     "id": "s-shop",
+     "app": "Claude app · Personal",
+     "project": "webshop",
+     "title": "Checkout redesign"
+    },
+    {
+     "id": "s-docs",
+     "app": "Cursor",
+     "project": "docs-site",
+     "title": "Rewrite quickstart"
+    },
+    {
+     "id": "s-ml",
+     "app": "Claude Code CLI · Lab",
+     "project": "ml-pipeline",
+     "title": "Training loop"
+    },
+    {
+     "id": "s-mig",
+     "app": "Codex CLI · Work",
+     "project": "legacy-crm",
+     "title": "DB migration"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cc-work",
+     "name": "Claude Code CLI · Work"
+    },
+    {
+     "id": "app-claude-personal",
+     "name": "Claude app · Personal"
+    },
+    {
+     "id": "app-cursor",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-cc-lab",
+     "name": "Claude Code CLI · Lab"
+    },
+    {
+     "id": "app-codex-work",
+     "name": "Codex CLI · Work"
+    }
+   ],
+   "projects": [
+    {
+     "id": "proj-billing",
+     "name": "billing-svc"
+    },
+    {
+     "id": "proj-webshop",
+     "name": "webshop"
+    },
+    {
+     "id": "proj-docs",
+     "name": "docs-site"
+    },
+    {
+     "id": "proj-ml",
+     "name": "ml-pipeline"
+    },
+    {
+     "id": "proj-crm",
+     "name": "legacy-crm"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-work",
+     "name": "Work Pro"
+    },
+    {
+     "id": "acct-personal",
+     "name": "Personal"
+    },
+    {
+     "id": "acct-lab",
+     "name": "Lab"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "s-shop"
+   },
+   "conditions": [
+    {
+     "type": "asks",
+     "param": null
+    }
+   ],
+   "lifetime": "once",
+   "nearest_if_unsupported": null
+  },
+  "tags": []
+ },
+ {
+  "id": "W004",
+  "request": "Alert me whenever anything fails",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-bill",
+     "app": "Claude Code CLI · Work",
+     "project": "billing-svc",
+     "title": "Invoice rounding fix"
+    },
+    {
+     "id": "s-shop",
+     "app": "Claude app · Personal",
+     "project": "webshop",
+     "title": "Checkout redesign"
+    },
+    {
+     "id": "s-docs",
+     "app": "Cursor",
+     "project": "docs-site",
+     "title": "Rewrite quickstart"
+    },
+    {
+     "id": "s-ml",
+     "app": "Claude Code CLI · Lab",
+     "project": "ml-pipeline",
+     "title": "Training loop"
+    },
+    {
+     "id": "s-mig",
+     "app": "Codex CLI · Work",
+     "project": "legacy-crm",
+     "title": "DB migration"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cc-work",
+     "name": "Claude Code CLI · Work"
+    },
+    {
+     "id": "app-claude-personal",
+     "name": "Claude app · Personal"
+    },
+    {
+     "id": "app-cursor",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-cc-lab",
+     "name": "Claude Code CLI · Lab"
+    },
+    {
+     "id": "app-codex-work",
+     "name": "Codex CLI · Work"
+    }
+   ],
+   "projects": [
+    {
+     "id": "proj-billing",
+     "name": "billing-svc"
+    },
+    {
+     "id": "proj-webshop",
+     "name": "webshop"
+    },
+    {
+     "id": "proj-docs",
+     "name": "docs-site"
+    },
+    {
+     "id": "proj-ml",
+     "name": "ml-pipeline"
+    },
+    {
+     "id": "proj-crm",
+     "name": "legacy-crm"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-work",
+     "name": "Work Pro"
+    },
+    {
+     "id": "acct-personal",
+     "name": "Personal"
+    },
+    {
+     "id": "acct-lab",
+     "name": "Lab"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "any",
+    "id": null
+   },
+   "conditions": [
+    {
+     "type": "fails",
+     "param": null
+    }
+   ],
+   "lifetime": "until_removed",
+   "nearest_if_unsupported": null
+  },
+  "tags": []
+ },
+ {
+  "id": "W005",
+  "request": "tell me when my lab account has under 15% left",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-bill",
+     "app": "Claude Code CLI · Work",
+     "project": "billing-svc",
+     "title": "Invoice rounding fix"
+    },
+    {
+     "id": "s-shop",
+     "app": "Claude app · Personal",
+     "project": "webshop",
+     "title": "Checkout redesign"
+    },
+    {
+     "id": "s-docs",
+     "app": "Cursor",
+     "project": "docs-site",
+     "title": "Rewrite quickstart"
+    },
+    {
+     "id": "s-ml",
+     "app": "Claude Code CLI · Lab",
+     "project": "ml-pipeline",
+     "title": "Training loop"
+    },
+    {
+     "id": "s-mig",
+     "app": "Codex CLI · Work",
+     "project": "legacy-crm",
+     "title": "DB migration"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cc-work",
+     "name": "Claude Code CLI · Work"
+    },
+    {
+     "id": "app-claude-personal",
+     "name": "Claude app · Personal"
+    },
+    {
+     "id": "app-cursor",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-cc-lab",
+     "name": "Claude Code CLI · Lab"
+    },
+    {
+     "id": "app-codex-work",
+     "name": "Codex CLI · Work"
+    }
+   ],
+   "projects": [
+    {
+     "id": "proj-billing",
+     "name": "billing-svc"
+    },
+    {
+     "id": "proj-webshop",
+     "name": "webshop"
+    },
+    {
+     "id": "proj-docs",
+     "name": "docs-site"
+    },
+    {
+     "id": "proj-ml",
+     "name": "ml-pipeline"
+    },
+    {
+     "id": "proj-crm",
+     "name": "legacy-crm"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-work",
+     "name": "Work Pro"
+    },
+    {
+     "id": "acct-personal",
+     "name": "Personal"
+    },
+    {
+     "id": "acct-lab",
+     "name": "Lab"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "account",
+    "id": "acct-lab"
+   },
+   "conditions": [
+    {
+     "type": "runway_below",
+     "param": 15
+    }
+   ],
+   "lifetime": "once",
+   "nearest_if_unsupported": null
+  },
+  "tags": []
+ },
+ {
+  "id": "W006",
+  "request": "notify me if the docs session fails or asks something",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-bill",
+     "app": "Claude Code CLI · Work",
+     "project": "billing-svc",
+     "title": "Invoice rounding fix"
+    },
+    {
+     "id": "s-shop",
+     "app": "Claude app · Personal",
+     "project": "webshop",
+     "title": "Checkout redesign"
+    },
+    {
+     "id": "s-docs",
+     "app": "Cursor",
+     "project": "docs-site",
+     "title": "Rewrite quickstart"
+    },
+    {
+     "id": "s-ml",
+     "app": "Claude Code CLI · Lab",
+     "project": "ml-pipeline",
+     "title": "Training loop"
+    },
+    {
+     "id": "s-mig",
+     "app": "Codex CLI · Work",
+     "project": "legacy-crm",
+     "title": "DB migration"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cc-work",
+     "name": "Claude Code CLI · Work"
+    },
+    {
+     "id": "app-claude-personal",
+     "name": "Claude app · Personal"
+    },
+    {
+     "id": "app-cursor",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-cc-lab",
+     "name": "Claude Code CLI · Lab"
+    },
+    {
+     "id": "app-codex-work",
+     "name": "Codex CLI · Work"
+    }
+   ],
+   "projects": [
+    {
+     "id": "proj-billing",
+     "name": "billing-svc"
+    },
+    {
+     "id": "proj-webshop",
+     "name": "webshop"
+    },
+    {
+     "id": "proj-docs",
+     "name": "docs-site"
+    },
+    {
+     "id": "proj-ml",
+     "name": "ml-pipeline"
+    },
+    {
+     "id": "proj-crm",
+     "name": "legacy-crm"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-work",
+     "name": "Work Pro"
+    },
+    {
+     "id": "acct-personal",
+     "name": "Personal"
+    },
+    {
+     "id": "acct-lab",
+     "name": "Lab"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "s-docs"
+   },
+   "conditions": [
+    {
+     "type": "fails",
+     "param": null
+    },
+    {
+     "type": "asks",
+     "param": null
+    }
+   ],
+   "lifetime": "once",
+   "nearest_if_unsupported": null
+  },
+  "tags": [
+   "combined",
+   "ambiguous"
+  ]
+ },
+ {
+  "id": "W007",
+  "request": "when the Cursor app stops, tell me",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-bill",
+     "app": "Claude Code CLI · Work",
+     "project": "billing-svc",
+     "title": "Invoice rounding fix"
+    },
+    {
+     "id": "s-shop",
+     "app": "Claude app · Personal",
+     "project": "webshop",
+     "title": "Checkout redesign"
+    },
+    {
+     "id": "s-docs",
+     "app": "Cursor",
+     "project": "docs-site",
+     "title": "Rewrite quickstart"
+    },
+    {
+     "id": "s-ml",
+     "app": "Claude Code CLI · Lab",
+     "project": "ml-pipeline",
+     "title": "Training loop"
+    },
+    {
+     "id": "s-mig",
+     "app": "Codex CLI · Work",
+     "project": "legacy-crm",
+     "title": "DB migration"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cc-work",
+     "name": "Claude Code CLI · Work"
+    },
+    {
+     "id": "app-claude-personal",
+     "name": "Claude app · Personal"
+    },
+    {
+     "id": "app-cursor",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-cc-lab",
+     "name": "Claude Code CLI · Lab"
+    },
+    {
+     "id": "app-codex-work",
+     "name": "Codex CLI · Work"
+    }
+   ],
+   "projects": [
+    {
+     "id": "proj-billing",
+     "name": "billing-svc"
+    },
+    {
+     "id": "proj-webshop",
+     "name": "webshop"
+    },
+    {
+     "id": "proj-docs",
+     "name": "docs-site"
+    },
+    {
+     "id": "proj-ml",
+     "name": "ml-pipeline"
+    },
+    {
+     "id": "proj-crm",
+     "name": "legacy-crm"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-work",
+     "name": "Work Pro"
+    },
+    {
+     "id": "acct-personal",
+     "name": "Personal"
+    },
+    {
+     "id": "acct-lab",
+     "name": "Lab"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "app",
+    "id": "app-cursor"
+   },
+   "conditions": [
+    {
+     "type": "ends",
+     "param": null
+    }
+   ],
+   "lifetime": "once",
+   "nearest_if_unsupported": null
+  },
+  "tags": [
+   "ambiguous"
+  ]
+ },
+ {
+  "id": "W008",
+  "request": "Watch the ML project; tell me when it finishes, fails, or is stuck for 20 minutes",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-bill",
+     "app": "Claude Code CLI · Work",
+     "project": "billing-svc",
+     "title": "Invoice rounding fix"
+    },
+    {
+     "id": "s-shop",
+     "app": "Claude app · Personal",
+     "project": "webshop",
+     "title": "Checkout redesign"
+    },
+    {
+     "id": "s-docs",
+     "app": "Cursor",
+     "project": "docs-site",
+     "title": "Rewrite quickstart"
+    },
+    {
+     "id": "s-ml",
+     "app": "Claude Code CLI · Lab",
+     "project": "ml-pipeline",
+     "title": "Training loop"
+    },
+    {
+     "id": "s-mig",
+     "app": "Codex CLI · Work",
+     "project": "legacy-crm",
+     "title": "DB migration"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cc-work",
+     "name": "Claude Code CLI · Work"
+    },
+    {
+     "id": "app-claude-personal",
+     "name": "Claude app · Personal"
+    },
+    {
+     "id": "app-cursor",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-cc-lab",
+     "name": "Claude Code CLI · Lab"
+    },
+    {
+     "id": "app-codex-work",
+     "name": "Codex CLI · Work"
+    }
+   ],
+   "projects": [
+    {
+     "id": "proj-billing",
+     "name": "billing-svc"
+    },
+    {
+     "id": "proj-webshop",
+     "name": "webshop"
+    },
+    {
+     "id": "proj-docs",
+     "name": "docs-site"
+    },
+    {
+     "id": "proj-ml",
+     "name": "ml-pipeline"
+    },
+    {
+     "id": "proj-crm",
+     "name": "legacy-crm"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-work",
+     "name": "Work Pro"
+    },
+    {
+     "id": "acct-personal",
+     "name": "Personal"
+    },
+    {
+     "id": "acct-lab",
+     "name": "Lab"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "project",
+    "id": "proj-ml"
+   },
+   "conditions": [
+    {
+     "type": "finishes",
+     "param": null
+    },
+    {
+     "type": "fails",
+     "param": null
+    },
+    {
+     "type": "stuck",
+     "param": 20
+    }
+   ],
+   "lifetime": "once",
+   "nearest_if_unsupported": null
+  },
+  "tags": [
+   "combined"
+  ]
+ },
+ {
+  "id": "W009",
+  "request": "let me know when anything on the work account runs below 10 percent",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-bill",
+     "app": "Claude Code CLI · Work",
+     "project": "billing-svc",
+     "title": "Invoice rounding fix"
+    },
+    {
+     "id": "s-shop",
+     "app": "Claude app · Personal",
+     "project": "webshop",
+     "title": "Checkout redesign"
+    },
+    {
+     "id": "s-docs",
+     "app": "Cursor",
+     "project": "docs-site",
+     "title": "Rewrite quickstart"
+    },
+    {
+     "id": "s-ml",
+     "app": "Claude Code CLI · Lab",
+     "project": "ml-pipeline",
+     "title": "Training loop"
+    },
+    {
+     "id": "s-mig",
+     "app": "Codex CLI · Work",
+     "project": "legacy-crm",
+     "title": "DB migration"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cc-work",
+     "name": "Claude Code CLI · Work"
+    },
+    {
+     "id": "app-claude-personal",
+     "name": "Claude app · Personal"
+    },
+    {
+     "id": "app-cursor",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-cc-lab",
+     "name": "Claude Code CLI · Lab"
+    },
+    {
+     "id": "app-codex-work",
+     "name": "Codex CLI · Work"
+    }
+   ],
+   "projects": [
+    {
+     "id": "proj-billing",
+     "name": "billing-svc"
+    },
+    {
+     "id": "proj-webshop",
+     "name": "webshop"
+    },
+    {
+     "id": "proj-docs",
+     "name": "docs-site"
+    },
+    {
+     "id": "proj-ml",
+     "name": "ml-pipeline"
+    },
+    {
+     "id": "proj-crm",
+     "name": "legacy-crm"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-work",
+     "name": "Work Pro"
+    },
+    {
+     "id": "acct-personal",
+     "name": "Personal"
+    },
+    {
+     "id": "acct-lab",
+     "name": "Lab"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "account",
+    "id": "acct-work"
+   },
+   "conditions": [
+    {
+     "type": "runway_below",
+     "param": 10
+    }
+   ],
+   "lifetime": "until_removed",
+   "nearest_if_unsupported": null
+  },
+  "tags": []
+ },
+ {
+  "id": "W010",
+  "request": "tell me when the migration is done",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-bill",
+     "app": "Claude Code CLI · Work",
+     "project": "billing-svc",
+     "title": "Invoice rounding fix"
+    },
+    {
+     "id": "s-shop",
+     "app": "Claude app · Personal",
+     "project": "webshop",
+     "title": "Checkout redesign"
+    },
+    {
+     "id": "s-docs",
+     "app": "Cursor",
+     "project": "docs-site",
+     "title": "Rewrite quickstart"
+    },
+    {
+     "id": "s-ml",
+     "app": "Claude Code CLI · Lab",
+     "project": "ml-pipeline",
+     "title": "Training loop"
+    },
+    {
+     "id": "s-mig",
+     "app": "Codex CLI · Work",
+     "project": "legacy-crm",
+     "title": "DB migration"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cc-work",
+     "name": "Claude Code CLI · Work"
+    },
+    {
+     "id": "app-claude-personal",
+     "name": "Claude app · Personal"
+    },
+    {
+     "id": "app-cursor",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-cc-lab",
+     "name": "Claude Code CLI · Lab"
+    },
+    {
+     "id": "app-codex-work",
+     "name": "Codex CLI · Work"
+    }
+   ],
+   "projects": [
+    {
+     "id": "proj-billing",
+     "name": "billing-svc"
+    },
+    {
+     "id": "proj-webshop",
+     "name": "webshop"
+    },
+    {
+     "id": "proj-docs",
+     "name": "docs-site"
+    },
+    {
+     "id": "proj-ml",
+     "name": "ml-pipeline"
+    },
+    {
+     "id": "proj-crm",
+     "name": "legacy-crm"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-work",
+     "name": "Work Pro"
+    },
+    {
+     "id": "acct-personal",
+     "name": "Personal"
+    },
+    {
+     "id": "acct-lab",
+     "name": "Lab"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "s-mig"
+   },
+   "conditions": [
+    {
+     "type": "finishes",
+     "param": null
+    }
+   ],
+   "lifetime": "once",
+   "nearest_if_unsupported": null
+  },
+  "tags": [
+   "ambiguous"
+  ]
+ },
+ {
+  "id": "W011",
+  "request": "Tell me whenever the personal Claude app starts a new session",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-bill",
+     "app": "Claude Code CLI · Work",
+     "project": "billing-svc",
+     "title": "Invoice rounding fix"
+    },
+    {
+     "id": "s-shop",
+     "app": "Claude app · Personal",
+     "project": "webshop",
+     "title": "Checkout redesign"
+    },
+    {
+     "id": "s-docs",
+     "app": "Cursor",
+     "project": "docs-site",
+     "title": "Rewrite quickstart"
+    },
+    {
+     "id": "s-ml",
+     "app": "Claude Code CLI · Lab",
+     "project": "ml-pipeline",
+     "title": "Training loop"
+    },
+    {
+     "id": "s-mig",
+     "app": "Codex CLI · Work",
+     "project": "legacy-crm",
+     "title": "DB migration"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cc-work",
+     "name": "Claude Code CLI · Work"
+    },
+    {
+     "id": "app-claude-personal",
+     "name": "Claude app · Personal"
+    },
+    {
+     "id": "app-cursor",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-cc-lab",
+     "name": "Claude Code CLI · Lab"
+    },
+    {
+     "id": "app-codex-work",
+     "name": "Codex CLI · Work"
+    }
+   ],
+   "projects": [
+    {
+     "id": "proj-billing",
+     "name": "billing-svc"
+    },
+    {
+     "id": "proj-webshop",
+     "name": "webshop"
+    },
+    {
+     "id": "proj-docs",
+     "name": "docs-site"
+    },
+    {
+     "id": "proj-ml",
+     "name": "ml-pipeline"
+    },
+    {
+     "id": "proj-crm",
+     "name": "legacy-crm"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-work",
+     "name": "Work Pro"
+    },
+    {
+     "id": "acct-personal",
+     "name": "Personal"
+    },
+    {
+     "id": "acct-lab",
+     "name": "Lab"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "app",
+    "id": "app-claude-personal"
+   },
+   "conditions": [
+    {
+     "type": "starts",
+     "param": null
+    }
+   ],
+   "lifetime": "until_removed",
+   "nearest_if_unsupported": null
+  },
+  "tags": [
+   "ambiguous"
+  ]
+ },
+ {
+  "id": "W012",
+  "request": "for today only, ping me when anything asks me a question",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-bill",
+     "app": "Claude Code CLI · Work",
+     "project": "billing-svc",
+     "title": "Invoice rounding fix"
+    },
+    {
+     "id": "s-shop",
+     "app": "Claude app · Personal",
+     "project": "webshop",
+     "title": "Checkout redesign"
+    },
+    {
+     "id": "s-docs",
+     "app": "Cursor",
+     "project": "docs-site",
+     "title": "Rewrite quickstart"
+    },
+    {
+     "id": "s-ml",
+     "app": "Claude Code CLI · Lab",
+     "project": "ml-pipeline",
+     "title": "Training loop"
+    },
+    {
+     "id": "s-mig",
+     "app": "Codex CLI · Work",
+     "project": "legacy-crm",
+     "title": "DB migration"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cc-work",
+     "name": "Claude Code CLI · Work"
+    },
+    {
+     "id": "app-claude-personal",
+     "name": "Claude app · Personal"
+    },
+    {
+     "id": "app-cursor",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-cc-lab",
+     "name": "Claude Code CLI · Lab"
+    },
+    {
+     "id": "app-codex-work",
+     "name": "Codex CLI · Work"
+    }
+   ],
+   "projects": [
+    {
+     "id": "proj-billing",
+     "name": "billing-svc"
+    },
+    {
+     "id": "proj-webshop",
+     "name": "webshop"
+    },
+    {
+     "id": "proj-docs",
+     "name": "docs-site"
+    },
+    {
+     "id": "proj-ml",
+     "name": "ml-pipeline"
+    },
+    {
+     "id": "proj-crm",
+     "name": "legacy-crm"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-work",
+     "name": "Work Pro"
+    },
+    {
+     "id": "acct-personal",
+     "name": "Personal"
+    },
+    {
+     "id": "acct-lab",
+     "name": "Lab"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "any",
+    "id": null
+   },
+   "conditions": [
+    {
+     "type": "asks",
+     "param": null
+    }
+   ],
+   "lifetime": "until:2026-11-18T23:59:00Z",
+   "nearest_if_unsupported": null
+  },
+  "tags": []
+ },
+ {
+  "id": "W013",
+  "request": "tell me when the training loop is stuck for half an hour",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-bill",
+     "app": "Claude Code CLI · Work",
+     "project": "billing-svc",
+     "title": "Invoice rounding fix"
+    },
+    {
+     "id": "s-shop",
+     "app": "Claude app · Personal",
+     "project": "webshop",
+     "title": "Checkout redesign"
+    },
+    {
+     "id": "s-docs",
+     "app": "Cursor",
+     "project": "docs-site",
+     "title": "Rewrite quickstart"
+    },
+    {
+     "id": "s-ml",
+     "app": "Claude Code CLI · Lab",
+     "project": "ml-pipeline",
+     "title": "Training loop"
+    },
+    {
+     "id": "s-mig",
+     "app": "Codex CLI · Work",
+     "project": "legacy-crm",
+     "title": "DB migration"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cc-work",
+     "name": "Claude Code CLI · Work"
+    },
+    {
+     "id": "app-claude-personal",
+     "name": "Claude app · Personal"
+    },
+    {
+     "id": "app-cursor",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-cc-lab",
+     "name": "Claude Code CLI · Lab"
+    },
+    {
+     "id": "app-codex-work",
+     "name": "Codex CLI · Work"
+    }
+   ],
+   "projects": [
+    {
+     "id": "proj-billing",
+     "name": "billing-svc"
+    },
+    {
+     "id": "proj-webshop",
+     "name": "webshop"
+    },
+    {
+     "id": "proj-docs",
+     "name": "docs-site"
+    },
+    {
+     "id": "proj-ml",
+     "name": "ml-pipeline"
+    },
+    {
+     "id": "proj-crm",
+     "name": "legacy-crm"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-work",
+     "name": "Work Pro"
+    },
+    {
+     "id": "acct-personal",
+     "name": "Personal"
+    },
+    {
+     "id": "acct-lab",
+     "name": "Lab"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "s-ml"
+   },
+   "conditions": [
+    {
+     "type": "stuck",
+     "param": 30
+    }
+   ],
+   "lifetime": "once",
+   "nearest_if_unsupported": null
+  },
+  "tags": [
+   "ambiguous"
+  ]
+ },
+ {
+  "id": "W014",
+  "request": "until Friday, tell me if the webshop project fails or finishes",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-bill",
+     "app": "Claude Code CLI · Work",
+     "project": "billing-svc",
+     "title": "Invoice rounding fix"
+    },
+    {
+     "id": "s-shop",
+     "app": "Claude app · Personal",
+     "project": "webshop",
+     "title": "Checkout redesign"
+    },
+    {
+     "id": "s-docs",
+     "app": "Cursor",
+     "project": "docs-site",
+     "title": "Rewrite quickstart"
+    },
+    {
+     "id": "s-ml",
+     "app": "Claude Code CLI · Lab",
+     "project": "ml-pipeline",
+     "title": "Training loop"
+    },
+    {
+     "id": "s-mig",
+     "app": "Codex CLI · Work",
+     "project": "legacy-crm",
+     "title": "DB migration"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cc-work",
+     "name": "Claude Code CLI · Work"
+    },
+    {
+     "id": "app-claude-personal",
+     "name": "Claude app · Personal"
+    },
+    {
+     "id": "app-cursor",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-cc-lab",
+     "name": "Claude Code CLI · Lab"
+    },
+    {
+     "id": "app-codex-work",
+     "name": "Codex CLI · Work"
+    }
+   ],
+   "projects": [
+    {
+     "id": "proj-billing",
+     "name": "billing-svc"
+    },
+    {
+     "id": "proj-webshop",
+     "name": "webshop"
+    },
+    {
+     "id": "proj-docs",
+     "name": "docs-site"
+    },
+    {
+     "id": "proj-ml",
+     "name": "ml-pipeline"
+    },
+    {
+     "id": "proj-crm",
+     "name": "legacy-crm"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-work",
+     "name": "Work Pro"
+    },
+    {
+     "id": "acct-personal",
+     "name": "Personal"
+    },
+    {
+     "id": "acct-lab",
+     "name": "Lab"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "project",
+    "id": "proj-webshop"
+   },
+   "conditions": [
+    {
+     "type": "fails",
+     "param": null
+    },
+    {
+     "type": "finishes",
+     "param": null
+    }
+   ],
+   "lifetime": "until:2026-11-20T23:59:00Z",
+   "nearest_if_unsupported": null
+  },
+  "tags": [
+   "combined"
+  ]
+ },
+ {
+  "id": "W015",
+  "request": "notify me when Codex on work ends",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-bill",
+     "app": "Claude Code CLI · Work",
+     "project": "billing-svc",
+     "title": "Invoice rounding fix"
+    },
+    {
+     "id": "s-shop",
+     "app": "Claude app · Personal",
+     "project": "webshop",
+     "title": "Checkout redesign"
+    },
+    {
+     "id": "s-docs",
+     "app": "Cursor",
+     "project": "docs-site",
+     "title": "Rewrite quickstart"
+    },
+    {
+     "id": "s-ml",
+     "app": "Claude Code CLI · Lab",
+     "project": "ml-pipeline",
+     "title": "Training loop"
+    },
+    {
+     "id": "s-mig",
+     "app": "Codex CLI · Work",
+     "project": "legacy-crm",
+     "title": "DB migration"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cc-work",
+     "name": "Claude Code CLI · Work"
+    },
+    {
+     "id": "app-claude-personal",
+     "name": "Claude app · Personal"
+    },
+    {
+     "id": "app-cursor",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-cc-lab",
+     "name": "Claude Code CLI · Lab"
+    },
+    {
+     "id": "app-codex-work",
+     "name": "Codex CLI · Work"
+    }
+   ],
+   "projects": [
+    {
+     "id": "proj-billing",
+     "name": "billing-svc"
+    },
+    {
+     "id": "proj-webshop",
+     "name": "webshop"
+    },
+    {
+     "id": "proj-docs",
+     "name": "docs-site"
+    },
+    {
+     "id": "proj-ml",
+     "name": "ml-pipeline"
+    },
+    {
+     "id": "proj-crm",
+     "name": "legacy-crm"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-work",
+     "name": "Work Pro"
+    },
+    {
+     "id": "acct-personal",
+     "name": "Personal"
+    },
+    {
+     "id": "acct-lab",
+     "name": "Lab"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "app",
+    "id": "app-codex-work"
+   },
+   "conditions": [
+    {
+     "type": "ends",
+     "param": null
+    }
+   ],
+   "lifetime": "once",
+   "nearest_if_unsupported": null
+  },
+  "tags": [
+   "ambiguous"
+  ]
+ },
+ {
+  "id": "W016",
+  "request": "Tell me if the docs one gets stuck for 5 minutes and when it's done",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-bill",
+     "app": "Claude Code CLI · Work",
+     "project": "billing-svc",
+     "title": "Invoice rounding fix"
+    },
+    {
+     "id": "s-shop",
+     "app": "Claude app · Personal",
+     "project": "webshop",
+     "title": "Checkout redesign"
+    },
+    {
+     "id": "s-docs",
+     "app": "Cursor",
+     "project": "docs-site",
+     "title": "Rewrite quickstart"
+    },
+    {
+     "id": "s-ml",
+     "app": "Claude Code CLI · Lab",
+     "project": "ml-pipeline",
+     "title": "Training loop"
+    },
+    {
+     "id": "s-mig",
+     "app": "Codex CLI · Work",
+     "project": "legacy-crm",
+     "title": "DB migration"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cc-work",
+     "name": "Claude Code CLI · Work"
+    },
+    {
+     "id": "app-claude-personal",
+     "name": "Claude app · Personal"
+    },
+    {
+     "id": "app-cursor",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-cc-lab",
+     "name": "Claude Code CLI · Lab"
+    },
+    {
+     "id": "app-codex-work",
+     "name": "Codex CLI · Work"
+    }
+   ],
+   "projects": [
+    {
+     "id": "proj-billing",
+     "name": "billing-svc"
+    },
+    {
+     "id": "proj-webshop",
+     "name": "webshop"
+    },
+    {
+     "id": "proj-docs",
+     "name": "docs-site"
+    },
+    {
+     "id": "proj-ml",
+     "name": "ml-pipeline"
+    },
+    {
+     "id": "proj-crm",
+     "name": "legacy-crm"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-work",
+     "name": "Work Pro"
+    },
+    {
+     "id": "acct-personal",
+     "name": "Personal"
+    },
+    {
+     "id": "acct-lab",
+     "name": "Lab"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "s-docs"
+   },
+   "conditions": [
+    {
+     "type": "stuck",
+     "param": 5
+    },
+    {
+     "type": "finishes",
+     "param": null
+    }
+   ],
+   "lifetime": "once",
+   "nearest_if_unsupported": null
+  },
+  "tags": [
+   "combined",
+   "ambiguous"
+  ]
+ },
+ {
+  "id": "W017",
+  "request": "when the invoice thing needs my input, let me know",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-bill",
+     "app": "Claude Code CLI · Work",
+     "project": "billing-svc",
+     "title": "Invoice rounding fix"
+    },
+    {
+     "id": "s-shop",
+     "app": "Claude app · Personal",
+     "project": "webshop",
+     "title": "Checkout redesign"
+    },
+    {
+     "id": "s-docs",
+     "app": "Cursor",
+     "project": "docs-site",
+     "title": "Rewrite quickstart"
+    },
+    {
+     "id": "s-ml",
+     "app": "Claude Code CLI · Lab",
+     "project": "ml-pipeline",
+     "title": "Training loop"
+    },
+    {
+     "id": "s-mig",
+     "app": "Codex CLI · Work",
+     "project": "legacy-crm",
+     "title": "DB migration"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cc-work",
+     "name": "Claude Code CLI · Work"
+    },
+    {
+     "id": "app-claude-personal",
+     "name": "Claude app · Personal"
+    },
+    {
+     "id": "app-cursor",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-cc-lab",
+     "name": "Claude Code CLI · Lab"
+    },
+    {
+     "id": "app-codex-work",
+     "name": "Codex CLI · Work"
+    }
+   ],
+   "projects": [
+    {
+     "id": "proj-billing",
+     "name": "billing-svc"
+    },
+    {
+     "id": "proj-webshop",
+     "name": "webshop"
+    },
+    {
+     "id": "proj-docs",
+     "name": "docs-site"
+    },
+    {
+     "id": "proj-ml",
+     "name": "ml-pipeline"
+    },
+    {
+     "id": "proj-crm",
+     "name": "legacy-crm"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-work",
+     "name": "Work Pro"
+    },
+    {
+     "id": "acct-personal",
+     "name": "Personal"
+    },
+    {
+     "id": "acct-lab",
+     "name": "Lab"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "s-bill"
+   },
+   "conditions": [
+    {
+     "type": "asks",
+     "param": null
+    }
+   ],
+   "lifetime": "once",
+   "nearest_if_unsupported": null
+  },
+  "tags": [
+   "ambiguous"
+  ]
+ },
+ {
+  "id": "W018",
+  "request": "warn me when I have less than a quarter of my personal allowance left",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-bill",
+     "app": "Claude Code CLI · Work",
+     "project": "billing-svc",
+     "title": "Invoice rounding fix"
+    },
+    {
+     "id": "s-shop",
+     "app": "Claude app · Personal",
+     "project": "webshop",
+     "title": "Checkout redesign"
+    },
+    {
+     "id": "s-docs",
+     "app": "Cursor",
+     "project": "docs-site",
+     "title": "Rewrite quickstart"
+    },
+    {
+     "id": "s-ml",
+     "app": "Claude Code CLI · Lab",
+     "project": "ml-pipeline",
+     "title": "Training loop"
+    },
+    {
+     "id": "s-mig",
+     "app": "Codex CLI · Work",
+     "project": "legacy-crm",
+     "title": "DB migration"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cc-work",
+     "name": "Claude Code CLI · Work"
+    },
+    {
+     "id": "app-claude-personal",
+     "name": "Claude app · Personal"
+    },
+    {
+     "id": "app-cursor",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-cc-lab",
+     "name": "Claude Code CLI · Lab"
+    },
+    {
+     "id": "app-codex-work",
+     "name": "Codex CLI · Work"
+    }
+   ],
+   "projects": [
+    {
+     "id": "proj-billing",
+     "name": "billing-svc"
+    },
+    {
+     "id": "proj-webshop",
+     "name": "webshop"
+    },
+    {
+     "id": "proj-docs",
+     "name": "docs-site"
+    },
+    {
+     "id": "proj-ml",
+     "name": "ml-pipeline"
+    },
+    {
+     "id": "proj-crm",
+     "name": "legacy-crm"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-work",
+     "name": "Work Pro"
+    },
+    {
+     "id": "acct-personal",
+     "name": "Personal"
+    },
+    {
+     "id": "acct-lab",
+     "name": "Lab"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "account",
+    "id": "acct-personal"
+   },
+   "conditions": [
+    {
+     "type": "runway_below",
+     "param": 25
+    }
+   ],
+   "lifetime": "once",
+   "nearest_if_unsupported": null
+  },
+  "tags": []
+ },
+ {
+  "id": "W019",
+  "request": "keep me posted if the CRM migration crashes",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-bill",
+     "app": "Claude Code CLI · Work",
+     "project": "billing-svc",
+     "title": "Invoice rounding fix"
+    },
+    {
+     "id": "s-shop",
+     "app": "Claude app · Personal",
+     "project": "webshop",
+     "title": "Checkout redesign"
+    },
+    {
+     "id": "s-docs",
+     "app": "Cursor",
+     "project": "docs-site",
+     "title": "Rewrite quickstart"
+    },
+    {
+     "id": "s-ml",
+     "app": "Claude Code CLI · Lab",
+     "project": "ml-pipeline",
+     "title": "Training loop"
+    },
+    {
+     "id": "s-mig",
+     "app": "Codex CLI · Work",
+     "project": "legacy-crm",
+     "title": "DB migration"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cc-work",
+     "name": "Claude Code CLI · Work"
+    },
+    {
+     "id": "app-claude-personal",
+     "name": "Claude app · Personal"
+    },
+    {
+     "id": "app-cursor",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-cc-lab",
+     "name": "Claude Code CLI · Lab"
+    },
+    {
+     "id": "app-codex-work",
+     "name": "Codex CLI · Work"
+    }
+   ],
+   "projects": [
+    {
+     "id": "proj-billing",
+     "name": "billing-svc"
+    },
+    {
+     "id": "proj-webshop",
+     "name": "webshop"
+    },
+    {
+     "id": "proj-docs",
+     "name": "docs-site"
+    },
+    {
+     "id": "proj-ml",
+     "name": "ml-pipeline"
+    },
+    {
+     "id": "proj-crm",
+     "name": "legacy-crm"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-work",
+     "name": "Work Pro"
+    },
+    {
+     "id": "acct-personal",
+     "name": "Personal"
+    },
+    {
+     "id": "acct-lab",
+     "name": "Lab"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "s-mig"
+   },
+   "conditions": [
+    {
+     "type": "fails",
+     "param": null
+    }
+   ],
+   "lifetime": "until_removed",
+   "nearest_if_unsupported": null
+  },
+  "tags": [
+   "ambiguous"
+  ]
+ },
+ {
+  "id": "W020",
+  "request": "tell me when my lab account drops below 20% or when it fails",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-bill",
+     "app": "Claude Code CLI · Work",
+     "project": "billing-svc",
+     "title": "Invoice rounding fix"
+    },
+    {
+     "id": "s-shop",
+     "app": "Claude app · Personal",
+     "project": "webshop",
+     "title": "Checkout redesign"
+    },
+    {
+     "id": "s-docs",
+     "app": "Cursor",
+     "project": "docs-site",
+     "title": "Rewrite quickstart"
+    },
+    {
+     "id": "s-ml",
+     "app": "Claude Code CLI · Lab",
+     "project": "ml-pipeline",
+     "title": "Training loop"
+    },
+    {
+     "id": "s-mig",
+     "app": "Codex CLI · Work",
+     "project": "legacy-crm",
+     "title": "DB migration"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cc-work",
+     "name": "Claude Code CLI · Work"
+    },
+    {
+     "id": "app-claude-personal",
+     "name": "Claude app · Personal"
+    },
+    {
+     "id": "app-cursor",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-cc-lab",
+     "name": "Claude Code CLI · Lab"
+    },
+    {
+     "id": "app-codex-work",
+     "name": "Codex CLI · Work"
+    }
+   ],
+   "projects": [
+    {
+     "id": "proj-billing",
+     "name": "billing-svc"
+    },
+    {
+     "id": "proj-webshop",
+     "name": "webshop"
+    },
+    {
+     "id": "proj-docs",
+     "name": "docs-site"
+    },
+    {
+     "id": "proj-ml",
+     "name": "ml-pipeline"
+    },
+    {
+     "id": "proj-crm",
+     "name": "legacy-crm"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-work",
+     "name": "Work Pro"
+    },
+    {
+     "id": "acct-personal",
+     "name": "Personal"
+    },
+    {
+     "id": "acct-lab",
+     "name": "Lab"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "account",
+    "id": "acct-lab"
+   },
+   "conditions": [
+    {
+     "type": "runway_below",
+     "param": 20
+    },
+    {
+     "type": "fails",
+     "param": null
+    }
+   ],
+   "lifetime": "once",
+   "nearest_if_unsupported": null
+  },
+  "tags": [
+   "combined"
+  ]
+ },
+ {
+  "id": "W021",
+  "request": "Let me know when the shop checkout finishes",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-bill",
+     "app": "Claude Code CLI · Work",
+     "project": "billing-svc",
+     "title": "Invoice rounding fix"
+    },
+    {
+     "id": "s-shop",
+     "app": "Claude app · Personal",
+     "project": "webshop",
+     "title": "Checkout redesign"
+    },
+    {
+     "id": "s-docs",
+     "app": "Cursor",
+     "project": "docs-site",
+     "title": "Rewrite quickstart"
+    },
+    {
+     "id": "s-ml",
+     "app": "Claude Code CLI · Lab",
+     "project": "ml-pipeline",
+     "title": "Training loop"
+    },
+    {
+     "id": "s-mig",
+     "app": "Codex CLI · Work",
+     "project": "legacy-crm",
+     "title": "DB migration"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cc-work",
+     "name": "Claude Code CLI · Work"
+    },
+    {
+     "id": "app-claude-personal",
+     "name": "Claude app · Personal"
+    },
+    {
+     "id": "app-cursor",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-cc-lab",
+     "name": "Claude Code CLI · Lab"
+    },
+    {
+     "id": "app-codex-work",
+     "name": "Codex CLI · Work"
+    }
+   ],
+   "projects": [
+    {
+     "id": "proj-billing",
+     "name": "billing-svc"
+    },
+    {
+     "id": "proj-webshop",
+     "name": "webshop"
+    },
+    {
+     "id": "proj-docs",
+     "name": "docs-site"
+    },
+    {
+     "id": "proj-ml",
+     "name": "ml-pipeline"
+    },
+    {
+     "id": "proj-crm",
+     "name": "legacy-crm"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-work",
+     "name": "Work Pro"
+    },
+    {
+     "id": "acct-personal",
+     "name": "Personal"
+    },
+    {
+     "id": "acct-lab",
+     "name": "Lab"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "s-shop"
+   },
+   "conditions": [
+    {
+     "type": "finishes",
+     "param": null
+    }
+   ],
+   "lifetime": "once",
+   "nearest_if_unsupported": null
+  },
+  "tags": [
+   "ambiguous"
+  ]
+ },
+ {
+  "id": "W022",
+  "request": "every time the docs project finishes something, tell me",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-bill",
+     "app": "Claude Code CLI · Work",
+     "project": "billing-svc",
+     "title": "Invoice rounding fix"
+    },
+    {
+     "id": "s-shop",
+     "app": "Claude app · Personal",
+     "project": "webshop",
+     "title": "Checkout redesign"
+    },
+    {
+     "id": "s-docs",
+     "app": "Cursor",
+     "project": "docs-site",
+     "title": "Rewrite quickstart"
+    },
+    {
+     "id": "s-ml",
+     "app": "Claude Code CLI · Lab",
+     "project": "ml-pipeline",
+     "title": "Training loop"
+    },
+    {
+     "id": "s-mig",
+     "app": "Codex CLI · Work",
+     "project": "legacy-crm",
+     "title": "DB migration"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cc-work",
+     "name": "Claude Code CLI · Work"
+    },
+    {
+     "id": "app-claude-personal",
+     "name": "Claude app · Personal"
+    },
+    {
+     "id": "app-cursor",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-cc-lab",
+     "name": "Claude Code CLI · Lab"
+    },
+    {
+     "id": "app-codex-work",
+     "name": "Codex CLI · Work"
+    }
+   ],
+   "projects": [
+    {
+     "id": "proj-billing",
+     "name": "billing-svc"
+    },
+    {
+     "id": "proj-webshop",
+     "name": "webshop"
+    },
+    {
+     "id": "proj-docs",
+     "name": "docs-site"
+    },
+    {
+     "id": "proj-ml",
+     "name": "ml-pipeline"
+    },
+    {
+     "id": "proj-crm",
+     "name": "legacy-crm"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-work",
+     "name": "Work Pro"
+    },
+    {
+     "id": "acct-personal",
+     "name": "Personal"
+    },
+    {
+     "id": "acct-lab",
+     "name": "Lab"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "project",
+    "id": "proj-docs"
+   },
+   "conditions": [
+    {
+     "type": "finishes",
+     "param": null
+    }
+   ],
+   "lifetime": "until_removed",
+   "nearest_if_unsupported": null
+  },
+  "tags": []
+ },
+ {
+  "id": "W023",
+  "request": "tell me as soon as the ML run starts",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-bill",
+     "app": "Claude Code CLI · Work",
+     "project": "billing-svc",
+     "title": "Invoice rounding fix"
+    },
+    {
+     "id": "s-shop",
+     "app": "Claude app · Personal",
+     "project": "webshop",
+     "title": "Checkout redesign"
+    },
+    {
+     "id": "s-docs",
+     "app": "Cursor",
+     "project": "docs-site",
+     "title": "Rewrite quickstart"
+    },
+    {
+     "id": "s-ml",
+     "app": "Claude Code CLI · Lab",
+     "project": "ml-pipeline",
+     "title": "Training loop"
+    },
+    {
+     "id": "s-mig",
+     "app": "Codex CLI · Work",
+     "project": "legacy-crm",
+     "title": "DB migration"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cc-work",
+     "name": "Claude Code CLI · Work"
+    },
+    {
+     "id": "app-claude-personal",
+     "name": "Claude app · Personal"
+    },
+    {
+     "id": "app-cursor",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-cc-lab",
+     "name": "Claude Code CLI · Lab"
+    },
+    {
+     "id": "app-codex-work",
+     "name": "Codex CLI · Work"
+    }
+   ],
+   "projects": [
+    {
+     "id": "proj-billing",
+     "name": "billing-svc"
+    },
+    {
+     "id": "proj-webshop",
+     "name": "webshop"
+    },
+    {
+     "id": "proj-docs",
+     "name": "docs-site"
+    },
+    {
+     "id": "proj-ml",
+     "name": "ml-pipeline"
+    },
+    {
+     "id": "proj-crm",
+     "name": "legacy-crm"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-work",
+     "name": "Work Pro"
+    },
+    {
+     "id": "acct-personal",
+     "name": "Personal"
+    },
+    {
+     "id": "acct-lab",
+     "name": "Lab"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "s-ml"
+   },
+   "conditions": [
+    {
+     "type": "starts",
+     "param": null
+    }
+   ],
+   "lifetime": "once",
+   "nearest_if_unsupported": null
+  },
+  "tags": [
+   "ambiguous"
+  ]
+ },
+ {
+  "id": "W024",
+  "request": "if Cursor asks me anything, ping me",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-bill",
+     "app": "Claude Code CLI · Work",
+     "project": "billing-svc",
+     "title": "Invoice rounding fix"
+    },
+    {
+     "id": "s-shop",
+     "app": "Claude app · Personal",
+     "project": "webshop",
+     "title": "Checkout redesign"
+    },
+    {
+     "id": "s-docs",
+     "app": "Cursor",
+     "project": "docs-site",
+     "title": "Rewrite quickstart"
+    },
+    {
+     "id": "s-ml",
+     "app": "Claude Code CLI · Lab",
+     "project": "ml-pipeline",
+     "title": "Training loop"
+    },
+    {
+     "id": "s-mig",
+     "app": "Codex CLI · Work",
+     "project": "legacy-crm",
+     "title": "DB migration"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cc-work",
+     "name": "Claude Code CLI · Work"
+    },
+    {
+     "id": "app-claude-personal",
+     "name": "Claude app · Personal"
+    },
+    {
+     "id": "app-cursor",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-cc-lab",
+     "name": "Claude Code CLI · Lab"
+    },
+    {
+     "id": "app-codex-work",
+     "name": "Codex CLI · Work"
+    }
+   ],
+   "projects": [
+    {
+     "id": "proj-billing",
+     "name": "billing-svc"
+    },
+    {
+     "id": "proj-webshop",
+     "name": "webshop"
+    },
+    {
+     "id": "proj-docs",
+     "name": "docs-site"
+    },
+    {
+     "id": "proj-ml",
+     "name": "ml-pipeline"
+    },
+    {
+     "id": "proj-crm",
+     "name": "legacy-crm"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-work",
+     "name": "Work Pro"
+    },
+    {
+     "id": "acct-personal",
+     "name": "Personal"
+    },
+    {
+     "id": "acct-lab",
+     "name": "Lab"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "app",
+    "id": "app-cursor"
+   },
+   "conditions": [
+    {
+     "type": "asks",
+     "param": null
+    }
+   ],
+   "lifetime": "until_removed",
+   "nearest_if_unsupported": null
+  },
+  "tags": []
+ },
+ {
+  "id": "W025",
+  "request": "tell me when work account runway drops below 5%",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-bill",
+     "app": "Claude Code CLI · Work",
+     "project": "billing-svc",
+     "title": "Invoice rounding fix"
+    },
+    {
+     "id": "s-shop",
+     "app": "Claude app · Personal",
+     "project": "webshop",
+     "title": "Checkout redesign"
+    },
+    {
+     "id": "s-docs",
+     "app": "Cursor",
+     "project": "docs-site",
+     "title": "Rewrite quickstart"
+    },
+    {
+     "id": "s-ml",
+     "app": "Claude Code CLI · Lab",
+     "project": "ml-pipeline",
+     "title": "Training loop"
+    },
+    {
+     "id": "s-mig",
+     "app": "Codex CLI · Work",
+     "project": "legacy-crm",
+     "title": "DB migration"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cc-work",
+     "name": "Claude Code CLI · Work"
+    },
+    {
+     "id": "app-claude-personal",
+     "name": "Claude app · Personal"
+    },
+    {
+     "id": "app-cursor",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-cc-lab",
+     "name": "Claude Code CLI · Lab"
+    },
+    {
+     "id": "app-codex-work",
+     "name": "Codex CLI · Work"
+    }
+   ],
+   "projects": [
+    {
+     "id": "proj-billing",
+     "name": "billing-svc"
+    },
+    {
+     "id": "proj-webshop",
+     "name": "webshop"
+    },
+    {
+     "id": "proj-docs",
+     "name": "docs-site"
+    },
+    {
+     "id": "proj-ml",
+     "name": "ml-pipeline"
+    },
+    {
+     "id": "proj-crm",
+     "name": "legacy-crm"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-work",
+     "name": "Work Pro"
+    },
+    {
+     "id": "acct-personal",
+     "name": "Personal"
+    },
+    {
+     "id": "acct-lab",
+     "name": "Lab"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "account",
+    "id": "acct-work"
+   },
+   "conditions": [
+    {
+     "type": "runway_below",
+     "param": 5
+    }
+   ],
+   "lifetime": "once",
+   "nearest_if_unsupported": null
+  },
+  "tags": []
+ },
+ {
+  "id": "W026",
+  "request": "tell me when anything on the work account ends",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-bill",
+     "app": "Claude Code CLI · Work",
+     "project": "billing-svc",
+     "title": "Invoice rounding fix"
+    },
+    {
+     "id": "s-shop",
+     "app": "Claude app · Personal",
+     "project": "webshop",
+     "title": "Checkout redesign"
+    },
+    {
+     "id": "s-docs",
+     "app": "Cursor",
+     "project": "docs-site",
+     "title": "Rewrite quickstart"
+    },
+    {
+     "id": "s-ml",
+     "app": "Claude Code CLI · Lab",
+     "project": "ml-pipeline",
+     "title": "Training loop"
+    },
+    {
+     "id": "s-mig",
+     "app": "Codex CLI · Work",
+     "project": "legacy-crm",
+     "title": "DB migration"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cc-work",
+     "name": "Claude Code CLI · Work"
+    },
+    {
+     "id": "app-claude-personal",
+     "name": "Claude app · Personal"
+    },
+    {
+     "id": "app-cursor",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-cc-lab",
+     "name": "Claude Code CLI · Lab"
+    },
+    {
+     "id": "app-codex-work",
+     "name": "Codex CLI · Work"
+    }
+   ],
+   "projects": [
+    {
+     "id": "proj-billing",
+     "name": "billing-svc"
+    },
+    {
+     "id": "proj-webshop",
+     "name": "webshop"
+    },
+    {
+     "id": "proj-docs",
+     "name": "docs-site"
+    },
+    {
+     "id": "proj-ml",
+     "name": "ml-pipeline"
+    },
+    {
+     "id": "proj-crm",
+     "name": "legacy-crm"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-work",
+     "name": "Work Pro"
+    },
+    {
+     "id": "acct-personal",
+     "name": "Personal"
+    },
+    {
+     "id": "acct-lab",
+     "name": "Lab"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "account",
+    "id": "acct-work"
+   },
+   "conditions": [
+    {
+     "type": "ends",
+     "param": null
+    }
+   ],
+   "lifetime": "once",
+   "nearest_if_unsupported": null
+  },
+  "tags": []
+ },
+ {
+  "id": "W027",
+  "request": "I want a heads-up when the CRM migration asks for a decision, and when it's done",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-bill",
+     "app": "Claude Code CLI · Work",
+     "project": "billing-svc",
+     "title": "Invoice rounding fix"
+    },
+    {
+     "id": "s-shop",
+     "app": "Claude app · Personal",
+     "project": "webshop",
+     "title": "Checkout redesign"
+    },
+    {
+     "id": "s-docs",
+     "app": "Cursor",
+     "project": "docs-site",
+     "title": "Rewrite quickstart"
+    },
+    {
+     "id": "s-ml",
+     "app": "Claude Code CLI · Lab",
+     "project": "ml-pipeline",
+     "title": "Training loop"
+    },
+    {
+     "id": "s-mig",
+     "app": "Codex CLI · Work",
+     "project": "legacy-crm",
+     "title": "DB migration"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cc-work",
+     "name": "Claude Code CLI · Work"
+    },
+    {
+     "id": "app-claude-personal",
+     "name": "Claude app · Personal"
+    },
+    {
+     "id": "app-cursor",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-cc-lab",
+     "name": "Claude Code CLI · Lab"
+    },
+    {
+     "id": "app-codex-work",
+     "name": "Codex CLI · Work"
+    }
+   ],
+   "projects": [
+    {
+     "id": "proj-billing",
+     "name": "billing-svc"
+    },
+    {
+     "id": "proj-webshop",
+     "name": "webshop"
+    },
+    {
+     "id": "proj-docs",
+     "name": "docs-site"
+    },
+    {
+     "id": "proj-ml",
+     "name": "ml-pipeline"
+    },
+    {
+     "id": "proj-crm",
+     "name": "legacy-crm"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-work",
+     "name": "Work Pro"
+    },
+    {
+     "id": "acct-personal",
+     "name": "Personal"
+    },
+    {
+     "id": "acct-lab",
+     "name": "Lab"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "s-mig"
+   },
+   "conditions": [
+    {
+     "type": "asks",
+     "param": null
+    },
+    {
+     "type": "finishes",
+     "param": null
+    }
+   ],
+   "lifetime": "until_removed",
+   "nearest_if_unsupported": null
+  },
+  "tags": [
+   "combined",
+   "ambiguous"
+  ]
+ },
+ {
+  "id": "W028",
+  "request": "tell me if the lab one hits under 10 percent",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-bill",
+     "app": "Claude Code CLI · Work",
+     "project": "billing-svc",
+     "title": "Invoice rounding fix"
+    },
+    {
+     "id": "s-shop",
+     "app": "Claude app · Personal",
+     "project": "webshop",
+     "title": "Checkout redesign"
+    },
+    {
+     "id": "s-docs",
+     "app": "Cursor",
+     "project": "docs-site",
+     "title": "Rewrite quickstart"
+    },
+    {
+     "id": "s-ml",
+     "app": "Claude Code CLI · Lab",
+     "project": "ml-pipeline",
+     "title": "Training loop"
+    },
+    {
+     "id": "s-mig",
+     "app": "Codex CLI · Work",
+     "project": "legacy-crm",
+     "title": "DB migration"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cc-work",
+     "name": "Claude Code CLI · Work"
+    },
+    {
+     "id": "app-claude-personal",
+     "name": "Claude app · Personal"
+    },
+    {
+     "id": "app-cursor",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-cc-lab",
+     "name": "Claude Code CLI · Lab"
+    },
+    {
+     "id": "app-codex-work",
+     "name": "Codex CLI · Work"
+    }
+   ],
+   "projects": [
+    {
+     "id": "proj-billing",
+     "name": "billing-svc"
+    },
+    {
+     "id": "proj-webshop",
+     "name": "webshop"
+    },
+    {
+     "id": "proj-docs",
+     "name": "docs-site"
+    },
+    {
+     "id": "proj-ml",
+     "name": "ml-pipeline"
+    },
+    {
+     "id": "proj-crm",
+     "name": "legacy-crm"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-work",
+     "name": "Work Pro"
+    },
+    {
+     "id": "acct-personal",
+     "name": "Personal"
+    },
+    {
+     "id": "acct-lab",
+     "name": "Lab"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "account",
+    "id": "acct-lab"
+   },
+   "conditions": [
+    {
+     "type": "runway_below",
+     "param": 10
+    }
+   ],
+   "lifetime": "once",
+   "nearest_if_unsupported": null
+  },
+  "tags": [
+   "ambiguous"
+  ]
+ },
+ {
+  "id": "W029",
+  "request": "when the checkout agent has been stuck for an hour, tell me",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-bill",
+     "app": "Claude Code CLI · Work",
+     "project": "billing-svc",
+     "title": "Invoice rounding fix"
+    },
+    {
+     "id": "s-shop",
+     "app": "Claude app · Personal",
+     "project": "webshop",
+     "title": "Checkout redesign"
+    },
+    {
+     "id": "s-docs",
+     "app": "Cursor",
+     "project": "docs-site",
+     "title": "Rewrite quickstart"
+    },
+    {
+     "id": "s-ml",
+     "app": "Claude Code CLI · Lab",
+     "project": "ml-pipeline",
+     "title": "Training loop"
+    },
+    {
+     "id": "s-mig",
+     "app": "Codex CLI · Work",
+     "project": "legacy-crm",
+     "title": "DB migration"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cc-work",
+     "name": "Claude Code CLI · Work"
+    },
+    {
+     "id": "app-claude-personal",
+     "name": "Claude app · Personal"
+    },
+    {
+     "id": "app-cursor",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-cc-lab",
+     "name": "Claude Code CLI · Lab"
+    },
+    {
+     "id": "app-codex-work",
+     "name": "Codex CLI · Work"
+    }
+   ],
+   "projects": [
+    {
+     "id": "proj-billing",
+     "name": "billing-svc"
+    },
+    {
+     "id": "proj-webshop",
+     "name": "webshop"
+    },
+    {
+     "id": "proj-docs",
+     "name": "docs-site"
+    },
+    {
+     "id": "proj-ml",
+     "name": "ml-pipeline"
+    },
+    {
+     "id": "proj-crm",
+     "name": "legacy-crm"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-work",
+     "name": "Work Pro"
+    },
+    {
+     "id": "acct-personal",
+     "name": "Personal"
+    },
+    {
+     "id": "acct-lab",
+     "name": "Lab"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "s-shop"
+   },
+   "conditions": [
+    {
+     "type": "stuck",
+     "param": 60
+    }
+   ],
+   "lifetime": "once",
+   "nearest_if_unsupported": null
+  },
+  "tags": [
+   "ambiguous"
+  ]
+ },
+ {
+  "id": "W030",
+  "request": "Sag mir Bescheid, wenn der Mahnlauf fertig ist",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-rech",
+     "app": "Claude app · Arbeit",
+     "project": "rechnungen",
+     "title": "Mahnlauf"
+    },
+    {
+     "id": "s-login",
+     "app": "Codex CLI · Arbeit",
+     "project": "mobile-app",
+     "title": "Login-Flow"
+    },
+    {
+     "id": "s-test",
+     "app": "Claude Code CLI · Arbeit",
+     "project": "mobile-app",
+     "title": "Testabdeckung"
+    },
+    {
+     "id": "s-api",
+     "app": "Claude Code CLI · Privat",
+     "project": "kunden-api",
+     "title": "Rate Limits"
+    },
+    {
+     "id": "s-hero",
+     "app": "Cursor",
+     "project": "landing-page",
+     "title": "Hero-Bild"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-claude-arbeit",
+     "name": "Claude app · Arbeit"
+    },
+    {
+     "id": "app-codex-arbeit",
+     "name": "Codex CLI · Arbeit"
+    },
+    {
+     "id": "app-cc-arbeit",
+     "name": "Claude Code CLI · Arbeit"
+    },
+    {
+     "id": "app-cc-privat",
+     "name": "Claude Code CLI · Privat"
+    },
+    {
+     "id": "app-cursor",
+     "name": "Cursor"
+    }
+   ],
+   "projects": [
+    {
+     "id": "proj-rech",
+     "name": "rechnungen"
+    },
+    {
+     "id": "proj-mobile",
+     "name": "mobile-app"
+    },
+    {
+     "id": "proj-api",
+     "name": "kunden-api"
+    },
+    {
+     "id": "proj-landing",
+     "name": "landing-page"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-arbeit",
+     "name": "Arbeit"
+    },
+    {
+     "id": "acct-privat",
+     "name": "Privat"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "s-rech"
+   },
+   "conditions": [
+    {
+     "type": "finishes",
+     "param": null
+    }
+   ],
+   "lifetime": "once",
+   "nearest_if_unsupported": null
+  },
+  "tags": [
+   "ambiguous"
+  ]
+ },
+ {
+  "id": "W031",
+  "request": "Melde dich, wenn der Login-Agent nachfragt oder 15 Minuten hängt",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-rech",
+     "app": "Claude app · Arbeit",
+     "project": "rechnungen",
+     "title": "Mahnlauf"
+    },
+    {
+     "id": "s-login",
+     "app": "Codex CLI · Arbeit",
+     "project": "mobile-app",
+     "title": "Login-Flow"
+    },
+    {
+     "id": "s-test",
+     "app": "Claude Code CLI · Arbeit",
+     "project": "mobile-app",
+     "title": "Testabdeckung"
+    },
+    {
+     "id": "s-api",
+     "app": "Claude Code CLI · Privat",
+     "project": "kunden-api",
+     "title": "Rate Limits"
+    },
+    {
+     "id": "s-hero",
+     "app": "Cursor",
+     "project": "landing-page",
+     "title": "Hero-Bild"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-claude-arbeit",
+     "name": "Claude app · Arbeit"
+    },
+    {
+     "id": "app-codex-arbeit",
+     "name": "Codex CLI · Arbeit"
+    },
+    {
+     "id": "app-cc-arbeit",
+     "name": "Claude Code CLI · Arbeit"
+    },
+    {
+     "id": "app-cc-privat",
+     "name": "Claude Code CLI · Privat"
+    },
+    {
+     "id": "app-cursor",
+     "name": "Cursor"
+    }
+   ],
+   "projects": [
+    {
+     "id": "proj-rech",
+     "name": "rechnungen"
+    },
+    {
+     "id": "proj-mobile",
+     "name": "mobile-app"
+    },
+    {
+     "id": "proj-api",
+     "name": "kunden-api"
+    },
+    {
+     "id": "proj-landing",
+     "name": "landing-page"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-arbeit",
+     "name": "Arbeit"
+    },
+    {
+     "id": "acct-privat",
+     "name": "Privat"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "s-login"
+   },
+   "conditions": [
+    {
+     "type": "asks",
+     "param": null
+    },
+    {
+     "type": "stuck",
+     "param": 15
+    }
+   ],
+   "lifetime": "once",
+   "nearest_if_unsupported": null
+  },
+  "tags": [
+   "combined",
+   "ambiguous"
+  ]
+ },
+ {
+  "id": "W032",
+  "request": "Benachrichtige mich immer, wenn irgendetwas fehlschlägt",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-rech",
+     "app": "Claude app · Arbeit",
+     "project": "rechnungen",
+     "title": "Mahnlauf"
+    },
+    {
+     "id": "s-login",
+     "app": "Codex CLI · Arbeit",
+     "project": "mobile-app",
+     "title": "Login-Flow"
+    },
+    {
+     "id": "s-test",
+     "app": "Claude Code CLI · Arbeit",
+     "project": "mobile-app",
+     "title": "Testabdeckung"
+    },
+    {
+     "id": "s-api",
+     "app": "Claude Code CLI · Privat",
+     "project": "kunden-api",
+     "title": "Rate Limits"
+    },
+    {
+     "id": "s-hero",
+     "app": "Cursor",
+     "project": "landing-page",
+     "title": "Hero-Bild"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-claude-arbeit",
+     "name": "Claude app · Arbeit"
+    },
+    {
+     "id": "app-codex-arbeit",
+     "name": "Codex CLI · Arbeit"
+    },
+    {
+     "id": "app-cc-arbeit",
+     "name": "Claude Code CLI · Arbeit"
+    },
+    {
+     "id": "app-cc-privat",
+     "name": "Claude Code CLI · Privat"
+    },
+    {
+     "id": "app-cursor",
+     "name": "Cursor"
+    }
+   ],
+   "projects": [
+    {
+     "id": "proj-rech",
+     "name": "rechnungen"
+    },
+    {
+     "id": "proj-mobile",
+     "name": "mobile-app"
+    },
+    {
+     "id": "proj-api",
+     "name": "kunden-api"
+    },
+    {
+     "id": "proj-landing",
+     "name": "landing-page"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-arbeit",
+     "name": "Arbeit"
+    },
+    {
+     "id": "acct-privat",
+     "name": "Privat"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "any",
+    "id": null
+   },
+   "conditions": [
+    {
+     "type": "fails",
+     "param": null
+    }
+   ],
+   "lifetime": "until_removed",
+   "nearest_if_unsupported": null
+  },
+  "tags": []
+ },
+ {
+  "id": "W033",
+  "request": "Warne mich, wenn mein Arbeitskonto unter 10 Prozent fällt",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-rech",
+     "app": "Claude app · Arbeit",
+     "project": "rechnungen",
+     "title": "Mahnlauf"
+    },
+    {
+     "id": "s-login",
+     "app": "Codex CLI · Arbeit",
+     "project": "mobile-app",
+     "title": "Login-Flow"
+    },
+    {
+     "id": "s-test",
+     "app": "Claude Code CLI · Arbeit",
+     "project": "mobile-app",
+     "title": "Testabdeckung"
+    },
+    {
+     "id": "s-api",
+     "app": "Claude Code CLI · Privat",
+     "project": "kunden-api",
+     "title": "Rate Limits"
+    },
+    {
+     "id": "s-hero",
+     "app": "Cursor",
+     "project": "landing-page",
+     "title": "Hero-Bild"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-claude-arbeit",
+     "name": "Claude app · Arbeit"
+    },
+    {
+     "id": "app-codex-arbeit",
+     "name": "Codex CLI · Arbeit"
+    },
+    {
+     "id": "app-cc-arbeit",
+     "name": "Claude Code CLI · Arbeit"
+    },
+    {
+     "id": "app-cc-privat",
+     "name": "Claude Code CLI · Privat"
+    },
+    {
+     "id": "app-cursor",
+     "name": "Cursor"
+    }
+   ],
+   "projects": [
+    {
+     "id": "proj-rech",
+     "name": "rechnungen"
+    },
+    {
+     "id": "proj-mobile",
+     "name": "mobile-app"
+    },
+    {
+     "id": "proj-api",
+     "name": "kunden-api"
+    },
+    {
+     "id": "proj-landing",
+     "name": "landing-page"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-arbeit",
+     "name": "Arbeit"
+    },
+    {
+     "id": "acct-privat",
+     "name": "Privat"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "account",
+    "id": "acct-arbeit"
+   },
+   "conditions": [
+    {
+     "type": "runway_below",
+     "param": 10
+    }
+   ],
+   "lifetime": "until_removed",
+   "nearest_if_unsupported": null
+  },
+  "tags": []
+ },
+ {
+  "id": "W034",
+  "request": "Sag Bescheid, wenn die Rate-Limits-Sitzung fertig ist oder fehlschlägt",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-rech",
+     "app": "Claude app · Arbeit",
+     "project": "rechnungen",
+     "title": "Mahnlauf"
+    },
+    {
+     "id": "s-login",
+     "app": "Codex CLI · Arbeit",
+     "project": "mobile-app",
+     "title": "Login-Flow"
+    },
+    {
+     "id": "s-test",
+     "app": "Claude Code CLI · Arbeit",
+     "project": "mobile-app",
+     "title": "Testabdeckung"
+    },
+    {
+     "id": "s-api",
+     "app": "Claude Code CLI · Privat",
+     "project": "kunden-api",
+     "title": "Rate Limits"
+    },
+    {
+     "id": "s-hero",
+     "app": "Cursor",
+     "project": "landing-page",
+     "title": "Hero-Bild"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-claude-arbeit",
+     "name": "Claude app · Arbeit"
+    },
+    {
+     "id": "app-codex-arbeit",
+     "name": "Codex CLI · Arbeit"
+    },
+    {
+     "id": "app-cc-arbeit",
+     "name": "Claude Code CLI · Arbeit"
+    },
+    {
+     "id": "app-cc-privat",
+     "name": "Claude Code CLI · Privat"
+    },
+    {
+     "id": "app-cursor",
+     "name": "Cursor"
+    }
+   ],
+   "projects": [
+    {
+     "id": "proj-rech",
+     "name": "rechnungen"
+    },
+    {
+     "id": "proj-mobile",
+     "name": "mobile-app"
+    },
+    {
+     "id": "proj-api",
+     "name": "kunden-api"
+    },
+    {
+     "id": "proj-landing",
+     "name": "landing-page"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-arbeit",
+     "name": "Arbeit"
+    },
+    {
+     "id": "acct-privat",
+     "name": "Privat"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "s-api"
+   },
+   "conditions": [
+    {
+     "type": "finishes",
+     "param": null
+    },
+    {
+     "type": "fails",
+     "param": null
+    }
+   ],
+   "lifetime": "once",
+   "nearest_if_unsupported": null
+  },
+  "tags": [
+   "combined",
+   "ambiguous"
+  ]
+ },
+ {
+  "id": "W035",
+  "request": "Nur heute: sag mir, wenn das Hero-Bild fertig ist",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-rech",
+     "app": "Claude app · Arbeit",
+     "project": "rechnungen",
+     "title": "Mahnlauf"
+    },
+    {
+     "id": "s-login",
+     "app": "Codex CLI · Arbeit",
+     "project": "mobile-app",
+     "title": "Login-Flow"
+    },
+    {
+     "id": "s-test",
+     "app": "Claude Code CLI · Arbeit",
+     "project": "mobile-app",
+     "title": "Testabdeckung"
+    },
+    {
+     "id": "s-api",
+     "app": "Claude Code CLI · Privat",
+     "project": "kunden-api",
+     "title": "Rate Limits"
+    },
+    {
+     "id": "s-hero",
+     "app": "Cursor",
+     "project": "landing-page",
+     "title": "Hero-Bild"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-claude-arbeit",
+     "name": "Claude app · Arbeit"
+    },
+    {
+     "id": "app-codex-arbeit",
+     "name": "Codex CLI · Arbeit"
+    },
+    {
+     "id": "app-cc-arbeit",
+     "name": "Claude Code CLI · Arbeit"
+    },
+    {
+     "id": "app-cc-privat",
+     "name": "Claude Code CLI · Privat"
+    },
+    {
+     "id": "app-cursor",
+     "name": "Cursor"
+    }
+   ],
+   "projects": [
+    {
+     "id": "proj-rech",
+     "name": "rechnungen"
+    },
+    {
+     "id": "proj-mobile",
+     "name": "mobile-app"
+    },
+    {
+     "id": "proj-api",
+     "name": "kunden-api"
+    },
+    {
+     "id": "proj-landing",
+     "name": "landing-page"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-arbeit",
+     "name": "Arbeit"
+    },
+    {
+     "id": "acct-privat",
+     "name": "Privat"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "s-hero"
+   },
+   "conditions": [
+    {
+     "type": "finishes",
+     "param": null
+    }
+   ],
+   "lifetime": "until:2026-11-18T23:59:00Z",
+   "nearest_if_unsupported": null
+  },
+  "tags": [
+   "ambiguous"
+  ]
+ },
+ {
+  "id": "W036",
+  "request": "Teile mir mit, wenn Cursor beendet wird",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-rech",
+     "app": "Claude app · Arbeit",
+     "project": "rechnungen",
+     "title": "Mahnlauf"
+    },
+    {
+     "id": "s-login",
+     "app": "Codex CLI · Arbeit",
+     "project": "mobile-app",
+     "title": "Login-Flow"
+    },
+    {
+     "id": "s-test",
+     "app": "Claude Code CLI · Arbeit",
+     "project": "mobile-app",
+     "title": "Testabdeckung"
+    },
+    {
+     "id": "s-api",
+     "app": "Claude Code CLI · Privat",
+     "project": "kunden-api",
+     "title": "Rate Limits"
+    },
+    {
+     "id": "s-hero",
+     "app": "Cursor",
+     "project": "landing-page",
+     "title": "Hero-Bild"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-claude-arbeit",
+     "name": "Claude app · Arbeit"
+    },
+    {
+     "id": "app-codex-arbeit",
+     "name": "Codex CLI · Arbeit"
+    },
+    {
+     "id": "app-cc-arbeit",
+     "name": "Claude Code CLI · Arbeit"
+    },
+    {
+     "id": "app-cc-privat",
+     "name": "Claude Code CLI · Privat"
+    },
+    {
+     "id": "app-cursor",
+     "name": "Cursor"
+    }
+   ],
+   "projects": [
+    {
+     "id": "proj-rech",
+     "name": "rechnungen"
+    },
+    {
+     "id": "proj-mobile",
+     "name": "mobile-app"
+    },
+    {
+     "id": "proj-api",
+     "name": "kunden-api"
+    },
+    {
+     "id": "proj-landing",
+     "name": "landing-page"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-arbeit",
+     "name": "Arbeit"
+    },
+    {
+     "id": "acct-privat",
+     "name": "Privat"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "app",
+    "id": "app-cursor"
+   },
+   "conditions": [
+    {
+     "type": "ends",
+     "param": null
+    }
+   ],
+   "lifetime": "once",
+   "nearest_if_unsupported": null
+  },
+  "tags": []
+ },
+ {
+  "id": "W037",
+  "request": "Wenn die Testabdeckung festhängt, länger als 20 Minuten, gib Bescheid",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-rech",
+     "app": "Claude app · Arbeit",
+     "project": "rechnungen",
+     "title": "Mahnlauf"
+    },
+    {
+     "id": "s-login",
+     "app": "Codex CLI · Arbeit",
+     "project": "mobile-app",
+     "title": "Login-Flow"
+    },
+    {
+     "id": "s-test",
+     "app": "Claude Code CLI · Arbeit",
+     "project": "mobile-app",
+     "title": "Testabdeckung"
+    },
+    {
+     "id": "s-api",
+     "app": "Claude Code CLI · Privat",
+     "project": "kunden-api",
+     "title": "Rate Limits"
+    },
+    {
+     "id": "s-hero",
+     "app": "Cursor",
+     "project": "landing-page",
+     "title": "Hero-Bild"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-claude-arbeit",
+     "name": "Claude app · Arbeit"
+    },
+    {
+     "id": "app-codex-arbeit",
+     "name": "Codex CLI · Arbeit"
+    },
+    {
+     "id": "app-cc-arbeit",
+     "name": "Claude Code CLI · Arbeit"
+    },
+    {
+     "id": "app-cc-privat",
+     "name": "Claude Code CLI · Privat"
+    },
+    {
+     "id": "app-cursor",
+     "name": "Cursor"
+    }
+   ],
+   "projects": [
+    {
+     "id": "proj-rech",
+     "name": "rechnungen"
+    },
+    {
+     "id": "proj-mobile",
+     "name": "mobile-app"
+    },
+    {
+     "id": "proj-api",
+     "name": "kunden-api"
+    },
+    {
+     "id": "proj-landing",
+     "name": "landing-page"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-arbeit",
+     "name": "Arbeit"
+    },
+    {
+     "id": "acct-privat",
+     "name": "Privat"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "s-test"
+   },
+   "conditions": [
+    {
+     "type": "stuck",
+     "param": 20
+    }
+   ],
+   "lifetime": "once",
+   "nearest_if_unsupported": null
+  },
+  "tags": [
+   "ambiguous"
+  ]
+ },
+ {
+  "id": "W038",
+  "request": "Informiere mich, sobald im Projekt mobile-app eine Sitzung startet",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-rech",
+     "app": "Claude app · Arbeit",
+     "project": "rechnungen",
+     "title": "Mahnlauf"
+    },
+    {
+     "id": "s-login",
+     "app": "Codex CLI · Arbeit",
+     "project": "mobile-app",
+     "title": "Login-Flow"
+    },
+    {
+     "id": "s-test",
+     "app": "Claude Code CLI · Arbeit",
+     "project": "mobile-app",
+     "title": "Testabdeckung"
+    },
+    {
+     "id": "s-api",
+     "app": "Claude Code CLI · Privat",
+     "project": "kunden-api",
+     "title": "Rate Limits"
+    },
+    {
+     "id": "s-hero",
+     "app": "Cursor",
+     "project": "landing-page",
+     "title": "Hero-Bild"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-claude-arbeit",
+     "name": "Claude app · Arbeit"
+    },
+    {
+     "id": "app-codex-arbeit",
+     "name": "Codex CLI · Arbeit"
+    },
+    {
+     "id": "app-cc-arbeit",
+     "name": "Claude Code CLI · Arbeit"
+    },
+    {
+     "id": "app-cc-privat",
+     "name": "Claude Code CLI · Privat"
+    },
+    {
+     "id": "app-cursor",
+     "name": "Cursor"
+    }
+   ],
+   "projects": [
+    {
+     "id": "proj-rech",
+     "name": "rechnungen"
+    },
+    {
+     "id": "proj-mobile",
+     "name": "mobile-app"
+    },
+    {
+     "id": "proj-api",
+     "name": "kunden-api"
+    },
+    {
+     "id": "proj-landing",
+     "name": "landing-page"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-arbeit",
+     "name": "Arbeit"
+    },
+    {
+     "id": "acct-privat",
+     "name": "Privat"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "project",
+    "id": "proj-mobile"
+   },
+   "conditions": [
+    {
+     "type": "starts",
+     "param": null
+    }
+   ],
+   "lifetime": "until_removed",
+   "nearest_if_unsupported": null
+  },
+  "tags": []
+ },
+ {
+  "id": "W039",
+  "request": "Bis Freitag: sag mir bei jeder Rückfrage im Projekt kunden-api Bescheid",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-rech",
+     "app": "Claude app · Arbeit",
+     "project": "rechnungen",
+     "title": "Mahnlauf"
+    },
+    {
+     "id": "s-login",
+     "app": "Codex CLI · Arbeit",
+     "project": "mobile-app",
+     "title": "Login-Flow"
+    },
+    {
+     "id": "s-test",
+     "app": "Claude Code CLI · Arbeit",
+     "project": "mobile-app",
+     "title": "Testabdeckung"
+    },
+    {
+     "id": "s-api",
+     "app": "Claude Code CLI · Privat",
+     "project": "kunden-api",
+     "title": "Rate Limits"
+    },
+    {
+     "id": "s-hero",
+     "app": "Cursor",
+     "project": "landing-page",
+     "title": "Hero-Bild"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-claude-arbeit",
+     "name": "Claude app · Arbeit"
+    },
+    {
+     "id": "app-codex-arbeit",
+     "name": "Codex CLI · Arbeit"
+    },
+    {
+     "id": "app-cc-arbeit",
+     "name": "Claude Code CLI · Arbeit"
+    },
+    {
+     "id": "app-cc-privat",
+     "name": "Claude Code CLI · Privat"
+    },
+    {
+     "id": "app-cursor",
+     "name": "Cursor"
+    }
+   ],
+   "projects": [
+    {
+     "id": "proj-rech",
+     "name": "rechnungen"
+    },
+    {
+     "id": "proj-mobile",
+     "name": "mobile-app"
+    },
+    {
+     "id": "proj-api",
+     "name": "kunden-api"
+    },
+    {
+     "id": "proj-landing",
+     "name": "landing-page"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-arbeit",
+     "name": "Arbeit"
+    },
+    {
+     "id": "acct-privat",
+     "name": "Privat"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "project",
+    "id": "proj-api"
+   },
+   "conditions": [
+    {
+     "type": "asks",
+     "param": null
+    }
+   ],
+   "lifetime": "until:2026-11-20T23:59:00Z",
+   "nearest_if_unsupported": null
+  },
+  "tags": []
+ },
+ {
+  "id": "W040",
+  "request": "Gib mir Bescheid, wenn mein Privatkonto weniger als 30 Prozent hat",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-rech",
+     "app": "Claude app · Arbeit",
+     "project": "rechnungen",
+     "title": "Mahnlauf"
+    },
+    {
+     "id": "s-login",
+     "app": "Codex CLI · Arbeit",
+     "project": "mobile-app",
+     "title": "Login-Flow"
+    },
+    {
+     "id": "s-test",
+     "app": "Claude Code CLI · Arbeit",
+     "project": "mobile-app",
+     "title": "Testabdeckung"
+    },
+    {
+     "id": "s-api",
+     "app": "Claude Code CLI · Privat",
+     "project": "kunden-api",
+     "title": "Rate Limits"
+    },
+    {
+     "id": "s-hero",
+     "app": "Cursor",
+     "project": "landing-page",
+     "title": "Hero-Bild"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-claude-arbeit",
+     "name": "Claude app · Arbeit"
+    },
+    {
+     "id": "app-codex-arbeit",
+     "name": "Codex CLI · Arbeit"
+    },
+    {
+     "id": "app-cc-arbeit",
+     "name": "Claude Code CLI · Arbeit"
+    },
+    {
+     "id": "app-cc-privat",
+     "name": "Claude Code CLI · Privat"
+    },
+    {
+     "id": "app-cursor",
+     "name": "Cursor"
+    }
+   ],
+   "projects": [
+    {
+     "id": "proj-rech",
+     "name": "rechnungen"
+    },
+    {
+     "id": "proj-mobile",
+     "name": "mobile-app"
+    },
+    {
+     "id": "proj-api",
+     "name": "kunden-api"
+    },
+    {
+     "id": "proj-landing",
+     "name": "landing-page"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-arbeit",
+     "name": "Arbeit"
+    },
+    {
+     "id": "acct-privat",
+     "name": "Privat"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "account",
+    "id": "acct-privat"
+   },
+   "conditions": [
+    {
+     "type": "runway_below",
+     "param": 30
+    }
+   ],
+   "lifetime": "once",
+   "nearest_if_unsupported": null
+  },
+  "tags": []
+ },
+ {
+  "id": "W041",
+  "request": "Sag mir Bescheid, wenn die Rechnungen-Sitzung fertig ist und wenn sie nachfragt",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-rech",
+     "app": "Claude app · Arbeit",
+     "project": "rechnungen",
+     "title": "Mahnlauf"
+    },
+    {
+     "id": "s-login",
+     "app": "Codex CLI · Arbeit",
+     "project": "mobile-app",
+     "title": "Login-Flow"
+    },
+    {
+     "id": "s-test",
+     "app": "Claude Code CLI · Arbeit",
+     "project": "mobile-app",
+     "title": "Testabdeckung"
+    },
+    {
+     "id": "s-api",
+     "app": "Claude Code CLI · Privat",
+     "project": "kunden-api",
+     "title": "Rate Limits"
+    },
+    {
+     "id": "s-hero",
+     "app": "Cursor",
+     "project": "landing-page",
+     "title": "Hero-Bild"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-claude-arbeit",
+     "name": "Claude app · Arbeit"
+    },
+    {
+     "id": "app-codex-arbeit",
+     "name": "Codex CLI · Arbeit"
+    },
+    {
+     "id": "app-cc-arbeit",
+     "name": "Claude Code CLI · Arbeit"
+    },
+    {
+     "id": "app-cc-privat",
+     "name": "Claude Code CLI · Privat"
+    },
+    {
+     "id": "app-cursor",
+     "name": "Cursor"
+    }
+   ],
+   "projects": [
+    {
+     "id": "proj-rech",
+     "name": "rechnungen"
+    },
+    {
+     "id": "proj-mobile",
+     "name": "mobile-app"
+    },
+    {
+     "id": "proj-api",
+     "name": "kunden-api"
+    },
+    {
+     "id": "proj-landing",
+     "name": "landing-page"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-arbeit",
+     "name": "Arbeit"
+    },
+    {
+     "id": "acct-privat",
+     "name": "Privat"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "s-rech"
+   },
+   "conditions": [
+    {
+     "type": "finishes",
+     "param": null
+    },
+    {
+     "type": "asks",
+     "param": null
+    }
+   ],
+   "lifetime": "until_removed",
+   "nearest_if_unsupported": null
+  },
+  "tags": [
+   "combined",
+   "ambiguous"
+  ]
+ },
+ {
+  "id": "W042",
+  "request": "Sag Bescheid, wenn die Sitzung mit den Tests fertig ist",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-rech",
+     "app": "Claude app · Arbeit",
+     "project": "rechnungen",
+     "title": "Mahnlauf"
+    },
+    {
+     "id": "s-login",
+     "app": "Codex CLI · Arbeit",
+     "project": "mobile-app",
+     "title": "Login-Flow"
+    },
+    {
+     "id": "s-test",
+     "app": "Claude Code CLI · Arbeit",
+     "project": "mobile-app",
+     "title": "Testabdeckung"
+    },
+    {
+     "id": "s-api",
+     "app": "Claude Code CLI · Privat",
+     "project": "kunden-api",
+     "title": "Rate Limits"
+    },
+    {
+     "id": "s-hero",
+     "app": "Cursor",
+     "project": "landing-page",
+     "title": "Hero-Bild"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-claude-arbeit",
+     "name": "Claude app · Arbeit"
+    },
+    {
+     "id": "app-codex-arbeit",
+     "name": "Codex CLI · Arbeit"
+    },
+    {
+     "id": "app-cc-arbeit",
+     "name": "Claude Code CLI · Arbeit"
+    },
+    {
+     "id": "app-cc-privat",
+     "name": "Claude Code CLI · Privat"
+    },
+    {
+     "id": "app-cursor",
+     "name": "Cursor"
+    }
+   ],
+   "projects": [
+    {
+     "id": "proj-rech",
+     "name": "rechnungen"
+    },
+    {
+     "id": "proj-mobile",
+     "name": "mobile-app"
+    },
+    {
+     "id": "proj-api",
+     "name": "kunden-api"
+    },
+    {
+     "id": "proj-landing",
+     "name": "landing-page"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-arbeit",
+     "name": "Arbeit"
+    },
+    {
+     "id": "acct-privat",
+     "name": "Privat"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "s-test"
+   },
+   "conditions": [
+    {
+     "type": "finishes",
+     "param": null
+    }
+   ],
+   "lifetime": "once",
+   "nearest_if_unsupported": null
+  },
+  "tags": [
+   "ambiguous"
+  ]
+ },
+ {
+  "id": "W043",
+  "request": "Sag mir, wenn der Code gut ist",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-rech",
+     "app": "Claude app · Arbeit",
+     "project": "rechnungen",
+     "title": "Mahnlauf"
+    },
+    {
+     "id": "s-login",
+     "app": "Codex CLI · Arbeit",
+     "project": "mobile-app",
+     "title": "Login-Flow"
+    },
+    {
+     "id": "s-test",
+     "app": "Claude Code CLI · Arbeit",
+     "project": "mobile-app",
+     "title": "Testabdeckung"
+    },
+    {
+     "id": "s-api",
+     "app": "Claude Code CLI · Privat",
+     "project": "kunden-api",
+     "title": "Rate Limits"
+    },
+    {
+     "id": "s-hero",
+     "app": "Cursor",
+     "project": "landing-page",
+     "title": "Hero-Bild"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-claude-arbeit",
+     "name": "Claude app · Arbeit"
+    },
+    {
+     "id": "app-codex-arbeit",
+     "name": "Codex CLI · Arbeit"
+    },
+    {
+     "id": "app-cc-arbeit",
+     "name": "Claude Code CLI · Arbeit"
+    },
+    {
+     "id": "app-cc-privat",
+     "name": "Claude Code CLI · Privat"
+    },
+    {
+     "id": "app-cursor",
+     "name": "Cursor"
+    }
+   ],
+   "projects": [
+    {
+     "id": "proj-rech",
+     "name": "rechnungen"
+    },
+    {
+     "id": "proj-mobile",
+     "name": "mobile-app"
+    },
+    {
+     "id": "proj-api",
+     "name": "kunden-api"
+    },
+    {
+     "id": "proj-landing",
+     "name": "landing-page"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-arbeit",
+     "name": "Arbeit"
+    },
+    {
+     "id": "acct-privat",
+     "name": "Privat"
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "target": {
+    "kind": "any",
+    "id": null
+   },
+   "conditions": [],
+   "lifetime": "once",
+   "nearest_if_unsupported": "wenn die Sitzung fertig ist"
+  },
+  "tags": [
+   "unsupported"
+  ]
+ },
+ {
+  "id": "W044",
+  "request": "Benachrichtige mich, wenn mein Chef antwortet",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-rech",
+     "app": "Claude app · Arbeit",
+     "project": "rechnungen",
+     "title": "Mahnlauf"
+    },
+    {
+     "id": "s-login",
+     "app": "Codex CLI · Arbeit",
+     "project": "mobile-app",
+     "title": "Login-Flow"
+    },
+    {
+     "id": "s-test",
+     "app": "Claude Code CLI · Arbeit",
+     "project": "mobile-app",
+     "title": "Testabdeckung"
+    },
+    {
+     "id": "s-api",
+     "app": "Claude Code CLI · Privat",
+     "project": "kunden-api",
+     "title": "Rate Limits"
+    },
+    {
+     "id": "s-hero",
+     "app": "Cursor",
+     "project": "landing-page",
+     "title": "Hero-Bild"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-claude-arbeit",
+     "name": "Claude app · Arbeit"
+    },
+    {
+     "id": "app-codex-arbeit",
+     "name": "Codex CLI · Arbeit"
+    },
+    {
+     "id": "app-cc-arbeit",
+     "name": "Claude Code CLI · Arbeit"
+    },
+    {
+     "id": "app-cc-privat",
+     "name": "Claude Code CLI · Privat"
+    },
+    {
+     "id": "app-cursor",
+     "name": "Cursor"
+    }
+   ],
+   "projects": [
+    {
+     "id": "proj-rech",
+     "name": "rechnungen"
+    },
+    {
+     "id": "proj-mobile",
+     "name": "mobile-app"
+    },
+    {
+     "id": "proj-api",
+     "name": "kunden-api"
+    },
+    {
+     "id": "proj-landing",
+     "name": "landing-page"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-arbeit",
+     "name": "Arbeit"
+    },
+    {
+     "id": "acct-privat",
+     "name": "Privat"
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "target": {
+    "kind": "any",
+    "id": null
+   },
+   "conditions": [],
+   "lifetime": "once",
+   "nearest_if_unsupported": "wenn eine Sitzung mich etwas fragt"
+  },
+  "tags": [
+   "unsupported"
+  ]
+ },
+ {
+  "id": "W045",
+  "request": "Sag mir, wenn der Aktienkurs steigt",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-rech",
+     "app": "Claude app · Arbeit",
+     "project": "rechnungen",
+     "title": "Mahnlauf"
+    },
+    {
+     "id": "s-login",
+     "app": "Codex CLI · Arbeit",
+     "project": "mobile-app",
+     "title": "Login-Flow"
+    },
+    {
+     "id": "s-test",
+     "app": "Claude Code CLI · Arbeit",
+     "project": "mobile-app",
+     "title": "Testabdeckung"
+    },
+    {
+     "id": "s-api",
+     "app": "Claude Code CLI · Privat",
+     "project": "kunden-api",
+     "title": "Rate Limits"
+    },
+    {
+     "id": "s-hero",
+     "app": "Cursor",
+     "project": "landing-page",
+     "title": "Hero-Bild"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-claude-arbeit",
+     "name": "Claude app · Arbeit"
+    },
+    {
+     "id": "app-codex-arbeit",
+     "name": "Codex CLI · Arbeit"
+    },
+    {
+     "id": "app-cc-arbeit",
+     "name": "Claude Code CLI · Arbeit"
+    },
+    {
+     "id": "app-cc-privat",
+     "name": "Claude Code CLI · Privat"
+    },
+    {
+     "id": "app-cursor",
+     "name": "Cursor"
+    }
+   ],
+   "projects": [
+    {
+     "id": "proj-rech",
+     "name": "rechnungen"
+    },
+    {
+     "id": "proj-mobile",
+     "name": "mobile-app"
+    },
+    {
+     "id": "proj-api",
+     "name": "kunden-api"
+    },
+    {
+     "id": "proj-landing",
+     "name": "landing-page"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-arbeit",
+     "name": "Arbeit"
+    },
+    {
+     "id": "acct-privat",
+     "name": "Privat"
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "target": {
+    "kind": "any",
+    "id": null
+   },
+   "conditions": [],
+   "lifetime": "once",
+   "nearest_if_unsupported": "wenn mein Kontingent unter einen Prozentwert fällt"
+  },
+  "tags": [
+   "unsupported"
+  ]
+ },
+ {
+  "id": "W046",
+  "request": "tell me when the agent writes good code",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-bill",
+     "app": "Claude Code CLI · Work",
+     "project": "billing-svc",
+     "title": "Invoice rounding fix"
+    },
+    {
+     "id": "s-shop",
+     "app": "Claude app · Personal",
+     "project": "webshop",
+     "title": "Checkout redesign"
+    },
+    {
+     "id": "s-docs",
+     "app": "Cursor",
+     "project": "docs-site",
+     "title": "Rewrite quickstart"
+    },
+    {
+     "id": "s-ml",
+     "app": "Claude Code CLI · Lab",
+     "project": "ml-pipeline",
+     "title": "Training loop"
+    },
+    {
+     "id": "s-mig",
+     "app": "Codex CLI · Work",
+     "project": "legacy-crm",
+     "title": "DB migration"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cc-work",
+     "name": "Claude Code CLI · Work"
+    },
+    {
+     "id": "app-claude-personal",
+     "name": "Claude app · Personal"
+    },
+    {
+     "id": "app-cursor",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-cc-lab",
+     "name": "Claude Code CLI · Lab"
+    },
+    {
+     "id": "app-codex-work",
+     "name": "Codex CLI · Work"
+    }
+   ],
+   "projects": [
+    {
+     "id": "proj-billing",
+     "name": "billing-svc"
+    },
+    {
+     "id": "proj-webshop",
+     "name": "webshop"
+    },
+    {
+     "id": "proj-docs",
+     "name": "docs-site"
+    },
+    {
+     "id": "proj-ml",
+     "name": "ml-pipeline"
+    },
+    {
+     "id": "proj-crm",
+     "name": "legacy-crm"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-work",
+     "name": "Work Pro"
+    },
+    {
+     "id": "acct-personal",
+     "name": "Personal"
+    },
+    {
+     "id": "acct-lab",
+     "name": "Lab"
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "target": {
+    "kind": "any",
+    "id": null
+   },
+   "conditions": [],
+   "lifetime": "once",
+   "nearest_if_unsupported": "when the session finishes"
+  },
+  "tags": [
+   "unsupported"
+  ]
+ },
+ {
+  "id": "W047",
+  "request": "let me know when my boss replies",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-bill",
+     "app": "Claude Code CLI · Work",
+     "project": "billing-svc",
+     "title": "Invoice rounding fix"
+    },
+    {
+     "id": "s-shop",
+     "app": "Claude app · Personal",
+     "project": "webshop",
+     "title": "Checkout redesign"
+    },
+    {
+     "id": "s-docs",
+     "app": "Cursor",
+     "project": "docs-site",
+     "title": "Rewrite quickstart"
+    },
+    {
+     "id": "s-ml",
+     "app": "Claude Code CLI · Lab",
+     "project": "ml-pipeline",
+     "title": "Training loop"
+    },
+    {
+     "id": "s-mig",
+     "app": "Codex CLI · Work",
+     "project": "legacy-crm",
+     "title": "DB migration"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cc-work",
+     "name": "Claude Code CLI · Work"
+    },
+    {
+     "id": "app-claude-personal",
+     "name": "Claude app · Personal"
+    },
+    {
+     "id": "app-cursor",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-cc-lab",
+     "name": "Claude Code CLI · Lab"
+    },
+    {
+     "id": "app-codex-work",
+     "name": "Codex CLI · Work"
+    }
+   ],
+   "projects": [
+    {
+     "id": "proj-billing",
+     "name": "billing-svc"
+    },
+    {
+     "id": "proj-webshop",
+     "name": "webshop"
+    },
+    {
+     "id": "proj-docs",
+     "name": "docs-site"
+    },
+    {
+     "id": "proj-ml",
+     "name": "ml-pipeline"
+    },
+    {
+     "id": "proj-crm",
+     "name": "legacy-crm"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-work",
+     "name": "Work Pro"
+    },
+    {
+     "id": "acct-personal",
+     "name": "Personal"
+    },
+    {
+     "id": "acct-lab",
+     "name": "Lab"
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "target": {
+    "kind": "any",
+    "id": null
+   },
+   "conditions": [],
+   "lifetime": "once",
+   "nearest_if_unsupported": "when a session asks me a question"
+  },
+  "tags": [
+   "unsupported"
+  ]
+ },
+ {
+  "id": "W048",
+  "request": "tell me when the tests are flaky",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-bill",
+     "app": "Claude Code CLI · Work",
+     "project": "billing-svc",
+     "title": "Invoice rounding fix"
+    },
+    {
+     "id": "s-shop",
+     "app": "Claude app · Personal",
+     "project": "webshop",
+     "title": "Checkout redesign"
+    },
+    {
+     "id": "s-docs",
+     "app": "Cursor",
+     "project": "docs-site",
+     "title": "Rewrite quickstart"
+    },
+    {
+     "id": "s-ml",
+     "app": "Claude Code CLI · Lab",
+     "project": "ml-pipeline",
+     "title": "Training loop"
+    },
+    {
+     "id": "s-mig",
+     "app": "Codex CLI · Work",
+     "project": "legacy-crm",
+     "title": "DB migration"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cc-work",
+     "name": "Claude Code CLI · Work"
+    },
+    {
+     "id": "app-claude-personal",
+     "name": "Claude app · Personal"
+    },
+    {
+     "id": "app-cursor",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-cc-lab",
+     "name": "Claude Code CLI · Lab"
+    },
+    {
+     "id": "app-codex-work",
+     "name": "Codex CLI · Work"
+    }
+   ],
+   "projects": [
+    {
+     "id": "proj-billing",
+     "name": "billing-svc"
+    },
+    {
+     "id": "proj-webshop",
+     "name": "webshop"
+    },
+    {
+     "id": "proj-docs",
+     "name": "docs-site"
+    },
+    {
+     "id": "proj-ml",
+     "name": "ml-pipeline"
+    },
+    {
+     "id": "proj-crm",
+     "name": "legacy-crm"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-work",
+     "name": "Work Pro"
+    },
+    {
+     "id": "acct-personal",
+     "name": "Personal"
+    },
+    {
+     "id": "acct-lab",
+     "name": "Lab"
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "target": {
+    "kind": "any",
+    "id": null
+   },
+   "conditions": [],
+   "lifetime": "once",
+   "nearest_if_unsupported": "when a session fails"
+  },
+  "tags": [
+   "unsupported"
+  ]
+ },
+ {
+  "id": "W049",
+  "request": "notify me if the pull request gets approved on GitHub",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-bill",
+     "app": "Claude Code CLI · Work",
+     "project": "billing-svc",
+     "title": "Invoice rounding fix"
+    },
+    {
+     "id": "s-shop",
+     "app": "Claude app · Personal",
+     "project": "webshop",
+     "title": "Checkout redesign"
+    },
+    {
+     "id": "s-docs",
+     "app": "Cursor",
+     "project": "docs-site",
+     "title": "Rewrite quickstart"
+    },
+    {
+     "id": "s-ml",
+     "app": "Claude Code CLI · Lab",
+     "project": "ml-pipeline",
+     "title": "Training loop"
+    },
+    {
+     "id": "s-mig",
+     "app": "Codex CLI · Work",
+     "project": "legacy-crm",
+     "title": "DB migration"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cc-work",
+     "name": "Claude Code CLI · Work"
+    },
+    {
+     "id": "app-claude-personal",
+     "name": "Claude app · Personal"
+    },
+    {
+     "id": "app-cursor",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-cc-lab",
+     "name": "Claude Code CLI · Lab"
+    },
+    {
+     "id": "app-codex-work",
+     "name": "Codex CLI · Work"
+    }
+   ],
+   "projects": [
+    {
+     "id": "proj-billing",
+     "name": "billing-svc"
+    },
+    {
+     "id": "proj-webshop",
+     "name": "webshop"
+    },
+    {
+     "id": "proj-docs",
+     "name": "docs-site"
+    },
+    {
+     "id": "proj-ml",
+     "name": "ml-pipeline"
+    },
+    {
+     "id": "proj-crm",
+     "name": "legacy-crm"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-work",
+     "name": "Work Pro"
+    },
+    {
+     "id": "acct-personal",
+     "name": "Personal"
+    },
+    {
+     "id": "acct-lab",
+     "name": "Lab"
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "target": {
+    "kind": "any",
+    "id": null
+   },
+   "conditions": [],
+   "lifetime": "once",
+   "nearest_if_unsupported": "when the session finishes"
+  },
+  "tags": [
+   "unsupported"
+  ]
+ },
+ {
+  "id": "W050",
+  "request": "tell me when the stock market drops",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-bill",
+     "app": "Claude Code CLI · Work",
+     "project": "billing-svc",
+     "title": "Invoice rounding fix"
+    },
+    {
+     "id": "s-shop",
+     "app": "Claude app · Personal",
+     "project": "webshop",
+     "title": "Checkout redesign"
+    },
+    {
+     "id": "s-docs",
+     "app": "Cursor",
+     "project": "docs-site",
+     "title": "Rewrite quickstart"
+    },
+    {
+     "id": "s-ml",
+     "app": "Claude Code CLI · Lab",
+     "project": "ml-pipeline",
+     "title": "Training loop"
+    },
+    {
+     "id": "s-mig",
+     "app": "Codex CLI · Work",
+     "project": "legacy-crm",
+     "title": "DB migration"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cc-work",
+     "name": "Claude Code CLI · Work"
+    },
+    {
+     "id": "app-claude-personal",
+     "name": "Claude app · Personal"
+    },
+    {
+     "id": "app-cursor",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-cc-lab",
+     "name": "Claude Code CLI · Lab"
+    },
+    {
+     "id": "app-codex-work",
+     "name": "Codex CLI · Work"
+    }
+   ],
+   "projects": [
+    {
+     "id": "proj-billing",
+     "name": "billing-svc"
+    },
+    {
+     "id": "proj-webshop",
+     "name": "webshop"
+    },
+    {
+     "id": "proj-docs",
+     "name": "docs-site"
+    },
+    {
+     "id": "proj-ml",
+     "name": "ml-pipeline"
+    },
+    {
+     "id": "proj-crm",
+     "name": "legacy-crm"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-work",
+     "name": "Work Pro"
+    },
+    {
+     "id": "acct-personal",
+     "name": "Personal"
+    },
+    {
+     "id": "acct-lab",
+     "name": "Lab"
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "target": {
+    "kind": "any",
+    "id": null
+   },
+   "conditions": [],
+   "lifetime": "once",
+   "nearest_if_unsupported": "when my account allowance drops below a percentage"
+  },
+  "tags": [
+   "unsupported"
+  ]
+ },
+ {
+  "id": "W051",
+  "request": "ping me when the model feels confident",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-bill",
+     "app": "Claude Code CLI · Work",
+     "project": "billing-svc",
+     "title": "Invoice rounding fix"
+    },
+    {
+     "id": "s-shop",
+     "app": "Claude app · Personal",
+     "project": "webshop",
+     "title": "Checkout redesign"
+    },
+    {
+     "id": "s-docs",
+     "app": "Cursor",
+     "project": "docs-site",
+     "title": "Rewrite quickstart"
+    },
+    {
+     "id": "s-ml",
+     "app": "Claude Code CLI · Lab",
+     "project": "ml-pipeline",
+     "title": "Training loop"
+    },
+    {
+     "id": "s-mig",
+     "app": "Codex CLI · Work",
+     "project": "legacy-crm",
+     "title": "DB migration"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cc-work",
+     "name": "Claude Code CLI · Work"
+    },
+    {
+     "id": "app-claude-personal",
+     "name": "Claude app · Personal"
+    },
+    {
+     "id": "app-cursor",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-cc-lab",
+     "name": "Claude Code CLI · Lab"
+    },
+    {
+     "id": "app-codex-work",
+     "name": "Codex CLI · Work"
+    }
+   ],
+   "projects": [
+    {
+     "id": "proj-billing",
+     "name": "billing-svc"
+    },
+    {
+     "id": "proj-webshop",
+     "name": "webshop"
+    },
+    {
+     "id": "proj-docs",
+     "name": "docs-site"
+    },
+    {
+     "id": "proj-ml",
+     "name": "ml-pipeline"
+    },
+    {
+     "id": "proj-crm",
+     "name": "legacy-crm"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-work",
+     "name": "Work Pro"
+    },
+    {
+     "id": "acct-personal",
+     "name": "Personal"
+    },
+    {
+     "id": "acct-lab",
+     "name": "Lab"
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "target": {
+    "kind": "any",
+    "id": null
+   },
+   "conditions": [],
+   "lifetime": "once",
+   "nearest_if_unsupported": "when a session asks me a question"
+  },
+  "tags": [
+   "unsupported"
+  ]
+ },
+ {
+  "id": "W052",
+  "request": "tell me if the agent is hallucinating",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-bill",
+     "app": "Claude Code CLI · Work",
+     "project": "billing-svc",
+     "title": "Invoice rounding fix"
+    },
+    {
+     "id": "s-shop",
+     "app": "Claude app · Personal",
+     "project": "webshop",
+     "title": "Checkout redesign"
+    },
+    {
+     "id": "s-docs",
+     "app": "Cursor",
+     "project": "docs-site",
+     "title": "Rewrite quickstart"
+    },
+    {
+     "id": "s-ml",
+     "app": "Claude Code CLI · Lab",
+     "project": "ml-pipeline",
+     "title": "Training loop"
+    },
+    {
+     "id": "s-mig",
+     "app": "Codex CLI · Work",
+     "project": "legacy-crm",
+     "title": "DB migration"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cc-work",
+     "name": "Claude Code CLI · Work"
+    },
+    {
+     "id": "app-claude-personal",
+     "name": "Claude app · Personal"
+    },
+    {
+     "id": "app-cursor",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-cc-lab",
+     "name": "Claude Code CLI · Lab"
+    },
+    {
+     "id": "app-codex-work",
+     "name": "Codex CLI · Work"
+    }
+   ],
+   "projects": [
+    {
+     "id": "proj-billing",
+     "name": "billing-svc"
+    },
+    {
+     "id": "proj-webshop",
+     "name": "webshop"
+    },
+    {
+     "id": "proj-docs",
+     "name": "docs-site"
+    },
+    {
+     "id": "proj-ml",
+     "name": "ml-pipeline"
+    },
+    {
+     "id": "proj-crm",
+     "name": "legacy-crm"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-work",
+     "name": "Work Pro"
+    },
+    {
+     "id": "acct-personal",
+     "name": "Personal"
+    },
+    {
+     "id": "acct-lab",
+     "name": "Lab"
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "target": {
+    "kind": "any",
+    "id": null
+   },
+   "conditions": [],
+   "lifetime": "once",
+   "nearest_if_unsupported": "when a session fails or asks me something"
+  },
+  "tags": [
+   "unsupported"
+  ]
+ },
+ {
+  "id": "W053",
+  "request": "text me on my phone when billing finishes",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-bill",
+     "app": "Claude Code CLI · Work",
+     "project": "billing-svc",
+     "title": "Invoice rounding fix"
+    },
+    {
+     "id": "s-shop",
+     "app": "Claude app · Personal",
+     "project": "webshop",
+     "title": "Checkout redesign"
+    },
+    {
+     "id": "s-docs",
+     "app": "Cursor",
+     "project": "docs-site",
+     "title": "Rewrite quickstart"
+    },
+    {
+     "id": "s-ml",
+     "app": "Claude Code CLI · Lab",
+     "project": "ml-pipeline",
+     "title": "Training loop"
+    },
+    {
+     "id": "s-mig",
+     "app": "Codex CLI · Work",
+     "project": "legacy-crm",
+     "title": "DB migration"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cc-work",
+     "name": "Claude Code CLI · Work"
+    },
+    {
+     "id": "app-claude-personal",
+     "name": "Claude app · Personal"
+    },
+    {
+     "id": "app-cursor",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-cc-lab",
+     "name": "Claude Code CLI · Lab"
+    },
+    {
+     "id": "app-codex-work",
+     "name": "Codex CLI · Work"
+    }
+   ],
+   "projects": [
+    {
+     "id": "proj-billing",
+     "name": "billing-svc"
+    },
+    {
+     "id": "proj-webshop",
+     "name": "webshop"
+    },
+    {
+     "id": "proj-docs",
+     "name": "docs-site"
+    },
+    {
+     "id": "proj-ml",
+     "name": "ml-pipeline"
+    },
+    {
+     "id": "proj-crm",
+     "name": "legacy-crm"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-work",
+     "name": "Work Pro"
+    },
+    {
+     "id": "acct-personal",
+     "name": "Personal"
+    },
+    {
+     "id": "acct-lab",
+     "name": "Lab"
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "target": {
+    "kind": "any",
+    "id": null
+   },
+   "conditions": [],
+   "lifetime": "once",
+   "nearest_if_unsupported": "tell me in the app when the billing session finishes"
+  },
+  "tags": [
+   "unsupported"
+  ]
+ },
+ {
+  "id": "W054",
+  "request": "tell me when the deploy goes live in production",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-bill",
+     "app": "Claude Code CLI · Work",
+     "project": "billing-svc",
+     "title": "Invoice rounding fix"
+    },
+    {
+     "id": "s-shop",
+     "app": "Claude app · Personal",
+     "project": "webshop",
+     "title": "Checkout redesign"
+    },
+    {
+     "id": "s-docs",
+     "app": "Cursor",
+     "project": "docs-site",
+     "title": "Rewrite quickstart"
+    },
+    {
+     "id": "s-ml",
+     "app": "Claude Code CLI · Lab",
+     "project": "ml-pipeline",
+     "title": "Training loop"
+    },
+    {
+     "id": "s-mig",
+     "app": "Codex CLI · Work",
+     "project": "legacy-crm",
+     "title": "DB migration"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cc-work",
+     "name": "Claude Code CLI · Work"
+    },
+    {
+     "id": "app-claude-personal",
+     "name": "Claude app · Personal"
+    },
+    {
+     "id": "app-cursor",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-cc-lab",
+     "name": "Claude Code CLI · Lab"
+    },
+    {
+     "id": "app-codex-work",
+     "name": "Codex CLI · Work"
+    }
+   ],
+   "projects": [
+    {
+     "id": "proj-billing",
+     "name": "billing-svc"
+    },
+    {
+     "id": "proj-webshop",
+     "name": "webshop"
+    },
+    {
+     "id": "proj-docs",
+     "name": "docs-site"
+    },
+    {
+     "id": "proj-ml",
+     "name": "ml-pipeline"
+    },
+    {
+     "id": "proj-crm",
+     "name": "legacy-crm"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-work",
+     "name": "Work Pro"
+    },
+    {
+     "id": "acct-personal",
+     "name": "Personal"
+    },
+    {
+     "id": "acct-lab",
+     "name": "Lab"
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "target": {
+    "kind": "any",
+    "id": null
+   },
+   "conditions": [],
+   "lifetime": "once",
+   "nearest_if_unsupported": "when the session finishes"
+  },
+  "tags": [
+   "unsupported"
+  ]
+ },
+ {
+  "id": "W055",
+  "request": "tell me when the agent is 90% done",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-bill",
+     "app": "Claude Code CLI · Work",
+     "project": "billing-svc",
+     "title": "Invoice rounding fix"
+    },
+    {
+     "id": "s-shop",
+     "app": "Claude app · Personal",
+     "project": "webshop",
+     "title": "Checkout redesign"
+    },
+    {
+     "id": "s-docs",
+     "app": "Cursor",
+     "project": "docs-site",
+     "title": "Rewrite quickstart"
+    },
+    {
+     "id": "s-ml",
+     "app": "Claude Code CLI · Lab",
+     "project": "ml-pipeline",
+     "title": "Training loop"
+    },
+    {
+     "id": "s-mig",
+     "app": "Codex CLI · Work",
+     "project": "legacy-crm",
+     "title": "DB migration"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cc-work",
+     "name": "Claude Code CLI · Work"
+    },
+    {
+     "id": "app-claude-personal",
+     "name": "Claude app · Personal"
+    },
+    {
+     "id": "app-cursor",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-cc-lab",
+     "name": "Claude Code CLI · Lab"
+    },
+    {
+     "id": "app-codex-work",
+     "name": "Codex CLI · Work"
+    }
+   ],
+   "projects": [
+    {
+     "id": "proj-billing",
+     "name": "billing-svc"
+    },
+    {
+     "id": "proj-webshop",
+     "name": "webshop"
+    },
+    {
+     "id": "proj-docs",
+     "name": "docs-site"
+    },
+    {
+     "id": "proj-ml",
+     "name": "ml-pipeline"
+    },
+    {
+     "id": "proj-crm",
+     "name": "legacy-crm"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-work",
+     "name": "Work Pro"
+    },
+    {
+     "id": "acct-personal",
+     "name": "Personal"
+    },
+    {
+     "id": "acct-lab",
+     "name": "Lab"
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "target": {
+    "kind": "any",
+    "id": null
+   },
+   "conditions": [],
+   "lifetime": "once",
+   "nearest_if_unsupported": "when the session finishes"
+  },
+  "tags": [
+   "unsupported"
+  ]
+ },
+ {
+  "id": "W056",
+  "request": "tell me when my teammate pushes to the repo",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-bill",
+     "app": "Claude Code CLI · Work",
+     "project": "billing-svc",
+     "title": "Invoice rounding fix"
+    },
+    {
+     "id": "s-shop",
+     "app": "Claude app · Personal",
+     "project": "webshop",
+     "title": "Checkout redesign"
+    },
+    {
+     "id": "s-docs",
+     "app": "Cursor",
+     "project": "docs-site",
+     "title": "Rewrite quickstart"
+    },
+    {
+     "id": "s-ml",
+     "app": "Claude Code CLI · Lab",
+     "project": "ml-pipeline",
+     "title": "Training loop"
+    },
+    {
+     "id": "s-mig",
+     "app": "Codex CLI · Work",
+     "project": "legacy-crm",
+     "title": "DB migration"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cc-work",
+     "name": "Claude Code CLI · Work"
+    },
+    {
+     "id": "app-claude-personal",
+     "name": "Claude app · Personal"
+    },
+    {
+     "id": "app-cursor",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-cc-lab",
+     "name": "Claude Code CLI · Lab"
+    },
+    {
+     "id": "app-codex-work",
+     "name": "Codex CLI · Work"
+    }
+   ],
+   "projects": [
+    {
+     "id": "proj-billing",
+     "name": "billing-svc"
+    },
+    {
+     "id": "proj-webshop",
+     "name": "webshop"
+    },
+    {
+     "id": "proj-docs",
+     "name": "docs-site"
+    },
+    {
+     "id": "proj-ml",
+     "name": "ml-pipeline"
+    },
+    {
+     "id": "proj-crm",
+     "name": "legacy-crm"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-work",
+     "name": "Work Pro"
+    },
+    {
+     "id": "acct-personal",
+     "name": "Personal"
+    },
+    {
+     "id": "acct-lab",
+     "name": "Lab"
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "target": {
+    "kind": "any",
+    "id": null
+   },
+   "conditions": [],
+   "lifetime": "once",
+   "nearest_if_unsupported": "when a session starts on that project"
+  },
+  "tags": [
+   "unsupported"
+  ]
+ },
+ {
+  "id": "W057",
+  "request": "tell me when a session has cost more than 20 dollars",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-bill",
+     "app": "Claude Code CLI · Work",
+     "project": "billing-svc",
+     "title": "Invoice rounding fix"
+    },
+    {
+     "id": "s-shop",
+     "app": "Claude app · Personal",
+     "project": "webshop",
+     "title": "Checkout redesign"
+    },
+    {
+     "id": "s-docs",
+     "app": "Cursor",
+     "project": "docs-site",
+     "title": "Rewrite quickstart"
+    },
+    {
+     "id": "s-ml",
+     "app": "Claude Code CLI · Lab",
+     "project": "ml-pipeline",
+     "title": "Training loop"
+    },
+    {
+     "id": "s-mig",
+     "app": "Codex CLI · Work",
+     "project": "legacy-crm",
+     "title": "DB migration"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cc-work",
+     "name": "Claude Code CLI · Work"
+    },
+    {
+     "id": "app-claude-personal",
+     "name": "Claude app · Personal"
+    },
+    {
+     "id": "app-cursor",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-cc-lab",
+     "name": "Claude Code CLI · Lab"
+    },
+    {
+     "id": "app-codex-work",
+     "name": "Codex CLI · Work"
+    }
+   ],
+   "projects": [
+    {
+     "id": "proj-billing",
+     "name": "billing-svc"
+    },
+    {
+     "id": "proj-webshop",
+     "name": "webshop"
+    },
+    {
+     "id": "proj-docs",
+     "name": "docs-site"
+    },
+    {
+     "id": "proj-ml",
+     "name": "ml-pipeline"
+    },
+    {
+     "id": "proj-crm",
+     "name": "legacy-crm"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-work",
+     "name": "Work Pro"
+    },
+    {
+     "id": "acct-personal",
+     "name": "Personal"
+    },
+    {
+     "id": "acct-lab",
+     "name": "Lab"
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "target": {
+    "kind": "any",
+    "id": null
+   },
+   "conditions": [],
+   "lifetime": "once",
+   "nearest_if_unsupported": "when the account allowance drops below a percentage"
+  },
+  "tags": [
+   "unsupported"
+  ]
+ },
+ {
+  "id": "W058",
+  "request": "email me a weekly summary every Monday",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-bill",
+     "app": "Claude Code CLI · Work",
+     "project": "billing-svc",
+     "title": "Invoice rounding fix"
+    },
+    {
+     "id": "s-shop",
+     "app": "Claude app · Personal",
+     "project": "webshop",
+     "title": "Checkout redesign"
+    },
+    {
+     "id": "s-docs",
+     "app": "Cursor",
+     "project": "docs-site",
+     "title": "Rewrite quickstart"
+    },
+    {
+     "id": "s-ml",
+     "app": "Claude Code CLI · Lab",
+     "project": "ml-pipeline",
+     "title": "Training loop"
+    },
+    {
+     "id": "s-mig",
+     "app": "Codex CLI · Work",
+     "project": "legacy-crm",
+     "title": "DB migration"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cc-work",
+     "name": "Claude Code CLI · Work"
+    },
+    {
+     "id": "app-claude-personal",
+     "name": "Claude app · Personal"
+    },
+    {
+     "id": "app-cursor",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-cc-lab",
+     "name": "Claude Code CLI · Lab"
+    },
+    {
+     "id": "app-codex-work",
+     "name": "Codex CLI · Work"
+    }
+   ],
+   "projects": [
+    {
+     "id": "proj-billing",
+     "name": "billing-svc"
+    },
+    {
+     "id": "proj-webshop",
+     "name": "webshop"
+    },
+    {
+     "id": "proj-docs",
+     "name": "docs-site"
+    },
+    {
+     "id": "proj-ml",
+     "name": "ml-pipeline"
+    },
+    {
+     "id": "proj-crm",
+     "name": "legacy-crm"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-work",
+     "name": "Work Pro"
+    },
+    {
+     "id": "acct-personal",
+     "name": "Personal"
+    },
+    {
+     "id": "acct-lab",
+     "name": "Lab"
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "target": {
+    "kind": "any",
+    "id": null
+   },
+   "conditions": [],
+   "lifetime": "once",
+   "nearest_if_unsupported": "when sessions finish"
+  },
+  "tags": [
+   "unsupported"
+  ]
+ },
+ {
+  "id": "W059",
+  "request": "tell me when the agent is going in circles",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-bill",
+     "app": "Claude Code CLI · Work",
+     "project": "billing-svc",
+     "title": "Invoice rounding fix"
+    },
+    {
+     "id": "s-shop",
+     "app": "Claude app · Personal",
+     "project": "webshop",
+     "title": "Checkout redesign"
+    },
+    {
+     "id": "s-docs",
+     "app": "Cursor",
+     "project": "docs-site",
+     "title": "Rewrite quickstart"
+    },
+    {
+     "id": "s-ml",
+     "app": "Claude Code CLI · Lab",
+     "project": "ml-pipeline",
+     "title": "Training loop"
+    },
+    {
+     "id": "s-mig",
+     "app": "Codex CLI · Work",
+     "project": "legacy-crm",
+     "title": "DB migration"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cc-work",
+     "name": "Claude Code CLI · Work"
+    },
+    {
+     "id": "app-claude-personal",
+     "name": "Claude app · Personal"
+    },
+    {
+     "id": "app-cursor",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-cc-lab",
+     "name": "Claude Code CLI · Lab"
+    },
+    {
+     "id": "app-codex-work",
+     "name": "Codex CLI · Work"
+    }
+   ],
+   "projects": [
+    {
+     "id": "proj-billing",
+     "name": "billing-svc"
+    },
+    {
+     "id": "proj-webshop",
+     "name": "webshop"
+    },
+    {
+     "id": "proj-docs",
+     "name": "docs-site"
+    },
+    {
+     "id": "proj-ml",
+     "name": "ml-pipeline"
+    },
+    {
+     "id": "proj-crm",
+     "name": "legacy-crm"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-work",
+     "name": "Work Pro"
+    },
+    {
+     "id": "acct-personal",
+     "name": "Personal"
+    },
+    {
+     "id": "acct-lab",
+     "name": "Lab"
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "target": {
+    "kind": "any",
+    "id": null
+   },
+   "conditions": [],
+   "lifetime": "once",
+   "nearest_if_unsupported": "when a session is stuck for a number of minutes"
+  },
+  "tags": [
+   "unsupported"
+  ]
+ },
+ {
+  "id": "W060",
+  "request": "tell me when the company website goes down",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-bill",
+     "app": "Claude Code CLI · Work",
+     "project": "billing-svc",
+     "title": "Invoice rounding fix"
+    },
+    {
+     "id": "s-shop",
+     "app": "Claude app · Personal",
+     "project": "webshop",
+     "title": "Checkout redesign"
+    },
+    {
+     "id": "s-docs",
+     "app": "Cursor",
+     "project": "docs-site",
+     "title": "Rewrite quickstart"
+    },
+    {
+     "id": "s-ml",
+     "app": "Claude Code CLI · Lab",
+     "project": "ml-pipeline",
+     "title": "Training loop"
+    },
+    {
+     "id": "s-mig",
+     "app": "Codex CLI · Work",
+     "project": "legacy-crm",
+     "title": "DB migration"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cc-work",
+     "name": "Claude Code CLI · Work"
+    },
+    {
+     "id": "app-claude-personal",
+     "name": "Claude app · Personal"
+    },
+    {
+     "id": "app-cursor",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-cc-lab",
+     "name": "Claude Code CLI · Lab"
+    },
+    {
+     "id": "app-codex-work",
+     "name": "Codex CLI · Work"
+    }
+   ],
+   "projects": [
+    {
+     "id": "proj-billing",
+     "name": "billing-svc"
+    },
+    {
+     "id": "proj-webshop",
+     "name": "webshop"
+    },
+    {
+     "id": "proj-docs",
+     "name": "docs-site"
+    },
+    {
+     "id": "proj-ml",
+     "name": "ml-pipeline"
+    },
+    {
+     "id": "proj-crm",
+     "name": "legacy-crm"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-work",
+     "name": "Work Pro"
+    },
+    {
+     "id": "acct-personal",
+     "name": "Personal"
+    },
+    {
+     "id": "acct-lab",
+     "name": "Lab"
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "target": {
+    "kind": "any",
+    "id": null
+   },
+   "conditions": [],
+   "lifetime": "once",
+   "nearest_if_unsupported": "when a session fails"
+  },
+  "tags": [
+   "unsupported"
+  ]
+ }
+]

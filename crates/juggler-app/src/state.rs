@@ -186,6 +186,14 @@ pub struct AppState {
     /// D-62: the Accounts by folder the last read gave, for a read that
     /// fails ([`crate::features::subscriptions::folder_accounts`]).
     pub folder_accounts: crate::features::subscriptions::LastRead,
+    /// ADR-0037 §1.1: the memory store's writers, taken at start.
+    pub memory_writers: crate::features::ai::memory::MemoryWriters,
+    /// AJ-E3814: the watches at run time (the engine on the observation
+    /// bus, and what fired for the notification path).
+    pub watches: crate::features::watches::Watches,
+    /// AJ-E3712: the agent digest at run time (its scheduler on the
+    /// observation bus, its thread started on the first observation).
+    pub digests: crate::features::digest::Digests,
 }
 
 impl Drop for AppState {
@@ -263,6 +271,16 @@ struct NoWatch;
 impl juggler_core::storage::OpenWatch for NoWatch {}
 
 impl AppState {
+    /// An app setting's value; `None` when unset or the store can't be
+    /// read.
+    #[must_use]
+    pub fn app_setting(&self, key: &str) -> Option<String> {
+        self.storage
+            .lock()
+            .ok()
+            .and_then(|storage| storage.app_settings().get(key).ok().flatten())
+    }
+
     /// Marks `session` as stopped by a switch: its exit, when it comes,
     /// ends it "stopped by the switch" (`sessions::lifecycle::forward`).
     pub fn mark_switch_stop(&self, session: &SessionId) {
@@ -498,6 +516,9 @@ impl AppState {
             ended_by_crash: std::sync::Mutex::new(ended_by_crash),
             watchdog: std::sync::Mutex::default(),
             notifier: crate::features::notifications::Notifier::default(),
+            memory_writers: crate::features::ai::memory::MemoryWriters::taken_at_start(),
+            watches: crate::features::watches::Watches::default(),
+            digests: crate::features::digest::Digests::default(),
             service_keys: crate::features::service_accounts::ServiceKeys::default(),
             folder_accounts: crate::features::subscriptions::LastRead::default(),
             preview: Mutex::new(None),
@@ -601,6 +622,19 @@ fn registry_with(claude: juggler_adapters::ClaudeCodeAdapter) -> AdapterRegistry
     registry.register(std::sync::Arc::new(
         juggler_adapters::GrokBuildAdapter::new(),
     ));
+    // AJ-E1605: ZCode, through the engine inside its app. No handover
+    // support, and its terminal takes no first message, so nothing is
+    // switched to it; a ZCode session's chat goes into a saved handover
+    // (its adapter reads it from its store), and switching from it waits
+    // for the live check (AJ-E1612).
+    registry.register(std::sync::Arc::new(juggler_adapters::ZCodeAdapter::new()));
+    // AJ-E1608: Meta's Muse Code, driven over `muse serve`. No handover
+    // support yet, so nothing is switched to or from it.
+    registry.register(std::sync::Arc::new(juggler_adapters::MuseAdapter::new()));
+    // AJ-E1607: Nous Research's Hermes Agent, one HERMES_HOME per account,
+    // kept away from Codex's and Claude's homes. No handover support yet,
+    // so nothing is switched to or from it.
+    registry.register(std::sync::Arc::new(juggler_adapters::HermesAdapter::new()));
     registry
 }
 

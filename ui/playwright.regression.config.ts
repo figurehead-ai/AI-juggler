@@ -29,11 +29,14 @@ const GALLERY_SPECS = [
   // compared them: 0.1.3's places and session pages (E21), 0.3.0's local
   // cache, and 0.4's new screens (account quality, cost cuts, first-run
   // confidence, the Floor's controls, the palette, Settings › Keyboard,
-  // and the seven in release-04-screens). (From release/0.5's cb445514a,
-  // without 0.5's own home-feed-gallery.)
+  // and the seven in release-04-screens).
   "places-gallery", "session-pages-gallery", "local-cache-gallery",
   "account-quality-gallery", "cost-cuts-gallery", "first-run-confidence-gallery", "floor-controls-gallery",
   "palette-gallery", "release-04-screens-gallery", "settings-keyboard-gallery",
+  // 0.5's (D-118, E37): Home's two columns and its activity feed.
+  "home-feed-gallery",
+  // Not here: a11y-glyph-names (scripts/a11y_gate.sh runs it) and
+  // attention-budget (an assertion spec, no gate state).
 ];
 
 // AJ-E803: the visual regression gate. Baselines are rendered in the
@@ -62,7 +65,9 @@ export default defineConfig({
   // its own page, so none depends on another's order.
   fullyParallel: true,
   // 0.3.2: no WebGL, so the terminal keeps its DOM renderer (its fallback).
-  use: { baseURL: `http://localhost:${PORT}`, launchOptions: { args: ["--disable-3d-apis"] } },
+  // No partial raster: a tile redrawn in part kept a few edge pixels 1 off
+  // from one load to the next (0.5 gate triage; as playwright.config.ts).
+  use: { baseURL: `http://localhost:${PORT}`, launchOptions: { args: ["--disable-3d-apis", "--disable-partial-raster"] } },
   webServer: {
     command: `pnpm build && pnpm exec vite preview --port ${PORT} --strictPort`,
     url: `http://localhost:${PORT}`,

@@ -25,8 +25,13 @@ for arg in "$@"; do
     *) ARGS="$ARGS $(printf '%q' "$arg")" ;;
   esac
 done
+# pnpm itself is kept in the aij-visual-corepack volume: fetched once (the
+# maintainer's yes, 2026-11-20), then every run is offline; `--offline` makes
+# a missing package fail loudly rather than download it (no downloads
+# without the maintainer's yes).
 docker run --rm --ipc=host --platform linux/amd64 \
   -v "$PWD":/work -w /work \
   -v aij-visual-node-modules-amd64:/work/node_modules \
+  -v aij-visual-corepack-amd64:/corepack -e COREPACK_HOME=/corepack \
   -e CI=1 -e AIJ_VISUAL_SELFTEST="$ENV_SELFTEST" \
-  "$IMAGE" bash -lc "corepack enable >/dev/null 2>&1 && corepack prepare pnpm@10 --activate >/dev/null 2>&1 && pnpm install --frozen-lockfile >/dev/null && pnpm exec playwright test -c playwright.regression.config.ts $ARGS"
+  "$IMAGE" bash -lc "corepack enable >/dev/null 2>&1 && corepack prepare pnpm@10 --activate >/dev/null 2>&1 && pnpm install --frozen-lockfile --offline >/dev/null && pnpm exec playwright test -c playwright.regression.config.ts $ARGS"

@@ -17,6 +17,7 @@ use std::sync::{Arc, Mutex};
 
 use juggler_adapter::AdapterRegistry;
 use juggler_adapters::{CLAUDE_CODE_ID, ClaudeCodeAdapter};
+use juggler_app::features::notifications::batch::Opens;
 use juggler_app::features::notifications::engine::Target;
 use juggler_app::features::notifications::prefs::{self, SystemNotificationsInfo};
 use juggler_app::features::notifications::{self, OpenRequest, Outgoing};
@@ -41,6 +42,9 @@ fn app_state(dir: &Path) -> Arc<AppState> {
 fn shown(state: &Arc<AppState>) -> Arc<Mutex<Vec<Outgoing>>> {
     let list = Arc::new(Mutex::new(Vec::new()));
     let sink = Arc::clone(&list);
+    // The rules before the batch (ADR-0036 §1.7 has its own tests): each
+    // item as it falls due.
+    state.notifier.set_batch_ms(0);
     state
         .notifier
         .set_sink(Box::new(move |outgoing: &Outgoing| {
@@ -108,6 +112,8 @@ const ALL: SystemNotificationsInfo = SystemNotificationsInfo {
     quota: true,
     crash: true,
     reset: true,
+    watch: true,
+    digest: false,
 };
 
 /// A local hour outside the default quiet hours (22–7), so nothing is
@@ -162,7 +168,7 @@ fn a_waiting_session_is_told_once_with_its_name_folder_and_account() {
     assert_eq!(list[0].body, "Waiting for your reply · Work Max");
     assert_eq!(
         state.notifier.target_of(list[0].id),
-        Some(Target::Session(id))
+        Some(Opens::Target(Target::Session(id)))
     );
 }
 
@@ -193,7 +199,7 @@ fn a_session_that_left_processes_running_is_told_once() {
     assert_eq!(told[0].body, "Left 3 processes running · Personal");
     assert_eq!(
         state.notifier.target_of(told[0].id),
-        Some(Target::Session(other))
+        Some(Opens::Target(Target::Session(other)))
     );
 }
 
@@ -257,7 +263,7 @@ fn quiet_hours_hold_it_until_they_end() {
     assert_eq!(list.len(), 1, "{list:?}");
     assert_eq!(
         state.notifier.target_of(list[0].id),
-        Some(Target::Session(waiting))
+        Some(Opens::Target(Target::Session(waiting)))
     );
 }
 
@@ -293,7 +299,7 @@ fn an_account_left_out_of_the_digest_stays_quiet() {
     assert_eq!(list.len(), 1, "{list:?}");
     assert_eq!(
         state.notifier.target_of(list[0].id),
-        Some(Target::Session(heard))
+        Some(Opens::Target(Target::Session(heard)))
     );
 }
 
@@ -352,7 +358,10 @@ fn this_mac_getting_tight_says_why_and_opens_this_mac() {
     assert_eq!(list.len(), 1, "tight then pressure is one state: {list:?}");
     assert_eq!(list[0].title, "This Mac: getting tight");
     assert_eq!(list[0].body, "Memory 88% used");
-    assert_eq!(state.notifier.target_of(list[0].id), Some(Target::ThisMac));
+    assert_eq!(
+        state.notifier.target_of(list[0].id),
+        Some(Opens::Target(Target::ThisMac))
+    );
 }
 
 #[test]

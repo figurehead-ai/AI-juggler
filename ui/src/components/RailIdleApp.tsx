@@ -123,7 +123,8 @@ export function RailIdleApp({
   };
   // D-62: its name opens its App page, as an open App's header does.
   const page = idleAppPage(app);
-  const mark = useRoomMark(app.folder);
+  // AJ-E3210: a desktop App by its own Account, a CLI App by its folder's.
+  const mark = useRoomMark(app.folder, [], app.kind === "desktop" ? app.placeId : null);
   const openPage = page !== null ? () => openApp(page) : null;
   const when = idleWords(app, now, useAppCount(app, page));
   const run = (action: () => void) => () => (setMenu(null), action());

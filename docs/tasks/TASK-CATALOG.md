@@ -96,6 +96,10 @@
 | AJ-E813 | Home draws again only when what it shows changes, not on every This Mac reading | E8-validation-visual-performance-quality.md | P1 | S | AJ-E805 |
 | AJ-E814 | Idle CPU measured with the window fully covered | E8-validation-visual-performance-quality.md | P2 | S | AJ-E805 |
 | AJ-E815 | The relation counts' speed test measures the work, not the clock | E8-validation-visual-performance-quality.md | P1 | S | AJ-E3102 |
+| AJ-E816 | Local Playwright runs match CI: the local-only failures | E8-validation-visual-performance-quality.md | P2 | M | AJ-E805 |
+| AJ-E817 | Gate tests measure the work, not the clock: the other wall-clock bounds | E8-validation-visual-performance-quality.md | P1 | M | AJ-E805 |
+| AJ-E818 | A live validation route for switches through another service (the `+service` pairs) | E8-validation-visual-performance-quality.md | P2 | M | AJ-E808, AJ-E1601 |
+| AJ-E819 | The lab-Mac compatibility run: the adapters' suite on the installed tool versions | E8-validation-visual-performance-quality.md | P1 | M | AJ-E808, AJ-E2022 |
 | AJ-E901 | SPEC §3 domain-model rewrite (Provider/Instance/Switch Graph/ledger) | E9-docs-adrs-and-plan-rewrite.md | P0 | M | — |
 | AJ-E902 | SPEC §5 supervisor/ledger + §6 two-clock usage rewrite | E9-docs-adrs-and-plan-rewrite.md | P0 | M | AJ-E901 |
 | AJ-E903 | SPEC §7 Switching rewrite (Switch Graph, pack v2, divergence) | E9-docs-adrs-and-plan-rewrite.md | P0 | M | AJ-E901 |
@@ -237,6 +241,8 @@
 | AJ-E1906 | Links to GitHub issues and Linear | E19-agent-tasks.md | P2 | S | AJ-E1901 |
 | AJ-E1907 | A task's session starts from a short pointer | E19-agent-tasks.md | P1 | S | AJ-E1902 |
 | AJ-E1613 | Antigravity on work plans | E16-more-tools.md | P2 | L | AJ-E1521 |
+| AJ-E1614 | Spot a running tool by more than its file name | E16-more-tools.md | P2 | S | AJ-E1602, AJ-E1604 |
+| AJ-E1615 | The sign-in surface: each App's own accessible name, the right provider, a fresh state on exit | E16-more-tools.md | P1 | S | AJ-E1612 |
 | AJ-E2001 | Sign and publish separately from the build | E20-engineering-and-security.md | P0 | L | — |
 | AJ-E2002 | Agent bridge security design | E20-engineering-and-security.md | P0 | M | — |
 | AJ-E2003 | Lock down the webview: command allowlist, capabilities, navigation | E20-engineering-and-security.md | P1 | M | — |
@@ -257,6 +263,10 @@
 | AJ-E2018 | UI: split bridge.ts, keep preview out of production, a shell registry | E20-engineering-and-security.md | P1 | L | AJ-E2012 |
 | AJ-E2019 | Typed command wrappers | E20-engineering-and-security.md | P2 | M | AJ-E2018 |
 | AJ-E2020 | Release speed: promote the tested nightly, build CI once, test only what changed | E20-engineering-and-security.md | P1 | L | AJ-E2019 |
+| AJ-E2021 | Remote configuration, step 1: the signed envelope and its trust rules | E20-engineering-and-security.md | P0 | L | ADR-0035 |
+| AJ-E2022 | Remote configuration, steps 2–3: the compat section, the app's wiring and the Publish config workflow (ADR-0035, D-128 point 3, D-129) | E20-engineering-and-security.md | P0 | L | AJ-E2021 |
+| AJ-E2023 | Remote configuration, step 4: flags (remote: OffOnly, OnOff or Rollout) and notices, with their UI through the D-126 Alert (ADR-0035, D-129) | E20-engineering-and-security.md | P1 | M | AJ-E2021 |
+| AJ-E2024 | Numbers the window can't hold: a 64-bit value reaches the UI only below 2^53 | E20-engineering-and-security.md | P1 | S | — |
 | AJ-E2025 | 0.4.6's deferred architecture findings: turn-end codes into the adapter; an external-terminal session placed by its process | E20-engineering-and-security.md | P1 | M | — |
 | AJ-E2101 | Live sessions from the apps' own files | E21-desktop-first.md | P0 | L | — |
 | AJ-E2102 | Go to it | E21-desktop-first.md | P0 | M | AJ-E2101 |
@@ -270,6 +280,7 @@
 | AJ-E2110 | Settings panes, docs and the Privacy page | E21-desktop-first.md | P0 | M | AJ-E2101..AJ-E2109 |
 | AJ-E2111 | Open starts an app or profile that isn't running | E21-desktop-first.md | P0 | M | AJ-E2104, AJ-E2105 |
 | AJ-E2112 | Keep alive per app and profile | E21-desktop-first.md | P0 | M | AJ-E2111 |
+| AJ-E2113 | An ended session files under the App whose own list shows it; a running one where it runs | E21-desktop-first.md | P1 | M | ADR-0032, D-102 |
 | AJ-E2201 | The readability scale as tokens | E22-visual-usage.md | P0 | S | — |
 | AJ-E2202 | A hand-built chart kit | E22-visual-usage.md | P0 | M | AJ-E2201 |
 | AJ-E2203 | The usage history's summaries | E22-visual-usage.md | P0 | L | — |
@@ -388,6 +399,7 @@
 | AJ-E3207 | New session: the usual choice made and said, one button, the rest a step away | E32-account-and-app.md | P0 | M | AJ-E3202 |
 | AJ-E3208 | Accounts and Apps, side by side: an Apps section on the Accounts screen | E32-account-and-app.md | P0 | M | AJ-E3202, AJ-E3204 |
 | AJ-E3209 | Restart a running app or profile, after a confirm | E32-account-and-app.md | P0 | S | AJ-E3208 |
+| AJ-E3210 | Each App on its own sign-in's Account when a Claude app profile and its CLI share a folder (F-rc3c-3) | E32-account-and-app.md | P1 | L | AJ-E3202 |
 | AJ-E3301 | The validation kit: scenario files, the reference model, the pairwise generator, timing and the walk sheet | E33-validated-by-use.md | P0 | L | — |
 | AJ-E3302 | Account and App validated | E33-validated-by-use.md | P0 | M | AJ-E3301, AJ-E3207 |
 | AJ-E3303 | Links validated | E33-validated-by-use.md | P0 | M | AJ-E3301, AJ-E3105 |
@@ -422,5 +434,56 @@
 | AJ-E3519 | The View menu, top right | E35-the-floor.md | P1 | S | AJ-E3515 |
 | AJ-E3520 | Day and night from the Mac's clock | E35-the-floor.md | P1 | S | AJ-E3521 |
 | AJ-E3521 | The reworked look: light, shadow, occlusion and grade | E35-the-floor.md | P0 | M | — |
-Total: 420 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
+| AJ-E3601 | The calm foundation: tokens, attentionLevel(), the OS settings, the beta-only classic flag and the validation kit | E36-calm-attention.md | P0 | L | — |
+| AJ-E3602 | One count of what needs you: L2 and L3, in the rail, the bell, the title and the tray | E36-calm-attention.md | P0 | S | AJ-E3601 |
+| AJ-E3603 | The rail and the header, calm | E36-calm-attention.md | P0 | M | AJ-E3601, AJ-E3602 |
+| AJ-E3604 | Projects, calm: the Projects screen and the project page | E36-calm-attention.md | P0 | M | AJ-E3601, AJ-E3603 |
+| AJ-E3605 | Pools, calm, on 0.4.6's calm pool redesign | E36-calm-attention.md | P0 | M | AJ-E3601, AJ-E3603, 0.4.6's calm pool redesign merged into release/0.5 |
+| AJ-E3606 | Tasks, calm | E36-calm-attention.md | P0 | S | AJ-E3601, AJ-E3603 |
+| AJ-E3607 | Accounts and Apps, calm: the Accounts screen, the Account page and the App page | E36-calm-attention.md | P0 | M | AJ-E3601, AJ-E3603 |
+| AJ-E3608 | Usage, calm | E36-calm-attention.md | P0 | S | AJ-E3601, AJ-E3603 |
+| AJ-E3609 | History, calm | E36-calm-attention.md | P1 | S | AJ-E3601, AJ-E3603 |
+| AJ-E3610 | This Mac, calm: This Mac, Processes and your Macs | E36-calm-attention.md | P1 | S | AJ-E3601, AJ-E3603 |
+| AJ-E3611 | The session pages, calm | E36-calm-attention.md | P0 | M | AJ-E3601, AJ-E3603 |
+| AJ-E3612 | Settings, calm | E36-calm-attention.md | P1 | S | AJ-E3601, AJ-E3603 |
+| AJ-E3613 | First run, calm | E36-calm-attention.md | P1 | S | AJ-E3601, AJ-E3603 |
+| AJ-E3614 | Sheets, dialogs and toasts, calm | E36-calm-attention.md | P1 | M | AJ-E3601, AJ-E3603 |
+| AJ-E3615 | The menu-bar menu and notifications, calm | E36-calm-attention.md | P1 | S | AJ-E3601, AJ-E3602 |
+| AJ-E3616 | The Floor's HUD and list, calm where it applies | E36-calm-attention.md | P1 | S | AJ-E3601, AJ-E3603 |
+| AJ-E3617 | The calm app closed: the classic flag removed, the principles and the guide written, the whole app walked | E36-calm-attention.md | P0 | S | AJ-E3602…AJ-E3616, AJ-E3701 |
+| AJ-E3618 | Making and editing screens, rich: the audit's worst list and the shared kit | E36-calm-attention.md | P0 | M | AJ-E3601 |
+| AJ-E3619 | Making and editing screens, rich: the worst 25 rebuilt, starting with Notifications, Add app and Add account | E36-calm-attention.md | P0 | XL | AJ-E3618 |
+| AJ-E3701 | Home in two columns: the layout, Your apps and Runway by account (Home's calm pass) | E37-home-activity-feed.md | P0 | M | AJ-E3601, AJ-E3602 |
+| AJ-E3702 | The feed: pinned needs, the stream, rollups, the away digest, the new-updates pill, filters, paging and the voice (F1) | E37-home-activity-feed.md | P0 | XL | AJ-E3701 |
+| AJ-E3703 | The agent's own last reply, quoted behind "show last messages" (a+) | E37-home-activity-feed.md | P1 | S | AJ-E3702 |
+| AJ-E3704 | The journal gaps the feed needs: a switch's completion time, runway crossings, a daily usage digest, and the files a session left (F2: G2, G3, G6, G7) | E37-home-activity-feed.md | P1 | M | AJ-E3702 |
+| AJ-E3705 | Other apps' conversation state changes and a turn's end, persisted (F2: G4) | E37-home-activity-feed.md | P1 | M | AJ-E3702 |
+| AJ-E3706 | Git commits, pull requests and the task-close note in the feed, through the adapters (F3: G1, G5) | E37-home-activity-feed.md | P1 | M | AJ-E3702 |
+| AJ-E3707 | The feed's accessibility: the feed pattern, keys and one batched announcement | E37-home-activity-feed.md | P0 | S | AJ-E3702 |
+| AJ-E3708 | Per-agent excerpts from what agents already write, through the adapters (A) | E37-home-activity-feed.md | P0 | L | AJ-E3702 |
+| AJ-E3709 | On-device summary lines: the multi-angle research pass (B research) | E37-home-activity-feed.md | P0 | M | AJ-E3702 |
+| AJ-E3710 | On-device summary lines: the design, an ADR for a pluggable SummaryEngine (B design) | E37-home-activity-feed.md | P0 | M | AJ-E3709 |
+| AJ-E3711 | On-device summary lines: detection, the three tiers, the automatic fetch, the notice and the Settings switch (B build) | E37-home-activity-feed.md | P0 | XL | AJ-E3710 |
+| AJ-E3712 | The digest: a cross-agent scheduler, the feed's digest item, consolidated notifications and the non-AI rollup | E37-home-activity-feed.md | P0 | XL | AJ-E3702, AJ-E3708, AJ-E3802, AJ-E3819 |
+| AJ-E3801 | The AI-jobs router: the ADR (jobs, engines, capabilities) | E38-chat.md | P0 | M | AJ-E3710 |
+| AJ-E3802 | The router and the seam: jobs, engines, capabilities, hidden when no engine | E38-chat.md | P0 | L | AJ-E3801, AJ-E3708 |
+| AJ-E3803 | Disk rules: one downloaded model, approval for more, Settings total and Remove, free-disk margin | E38-chat.md | P0 | M | AJ-E3802 |
+| AJ-E3804 | Chat v1: the top-right icon, the side panel, calm design and accessibility | E38-chat.md | P0 | L | AJ-E3802, AJ-E3708 |
+| AJ-E3805 | Chat v1's look-up tools over AI Juggler's data, with sources and "I don't know" | E38-chat.md | P0 | XL | AJ-E3802, AJ-E3708 |
+| AJ-E3806 | The guard for Chat: tool results as quoted data, injection removed, answers checked against the facts | E38-chat.md | P0 | M | AJ-E3805 |
+| AJ-E3807 | The no-model panel: look-ups that need no AI, and the approved download offer | E38-chat.md | P1 | M | AJ-E3804, AJ-E3803 |
+| AJ-E3808 | Chat history: local, clearable, never off the Mac | E38-chat.md | P1 | S | AJ-E3804 |
+| AJ-E3809 | The newcomer walk: Chat v1 on a real Mac, by hand | E38-chat.md | P0 | M | AJ-E3804…AJ-E3808 |
+| AJ-E3810 | The `models` section of the remote config: an ADR amendment first | E38-chat.md | P0 | M | AJ-E3802 |
+| AJ-E3811 | The recommendation: the best model for this Mac, Apple's first when it passes | E38-chat.md | P0 | M | AJ-E3810, AJ-E3802 |
+| AJ-E3812 | Settings > AI > Models: Recommended, Other tested models, Installed | E38-chat.md | P0 | XL | AJ-E3810, AJ-E3811, AJ-E3803, AJ-E3618 |
+| AJ-E3813 | Downloads: one click, the size shown, a free-disk check, a verified hash, approval for each extra model | E38-chat.md | P0 | L | AJ-E3810, AJ-E3803 |
+| AJ-E3814 | The watch model: a typed rule over the event stream, evaluated deterministically | E38-chat.md | P0 | XL | AJ-E3802, AJ-E3702, AJ-E3819 |
+| AJ-E3815 | Chat creates, changes and removes watches, after the user confirms | E38-chat.md | P0 | L | AJ-E3814, AJ-E3804, AJ-E3806 |
+| AJ-E3816 | The Watches view: list, edit and expire watches in rich mode | E38-chat.md | P0 | L | AJ-E3814, AJ-E3618 |
+| AJ-E3817 | Watch alerts through the existing notification path: quiet hours, consolidation, dismissal | E38-chat.md | P0 | M | AJ-E3814, AJ-E3712, AJ-E3819 |
+| AJ-E3818 | The harness for the digest (job e) and watch parsing (job f), on D-130's criteria | E38-chat.md | P0 | L | AJ-E3709, AJ-E3712, AJ-E3815 |
+| AJ-E3819 | Chat memory, short and long term, with context budgets (ADR-0037) | E38-chat.md | P0 | XL | AJ-E3804, AJ-E3805, AJ-E3808, AJ-E3815 |
+| AJ-E3820 | The turn review: the code-only review, the model's Beta lines on it, and where it shows | E38-chat.md | P0 | L | AJ-E3802, AJ-E3705, AJ-E3806 |
+Total: 483 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
 Status of every task at generation: TODO. The epic files are canonical; this catalog is an index, never edited to claim progress.

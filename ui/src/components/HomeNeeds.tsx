@@ -1,32 +1,39 @@
 /**
- * AJ-E2105 — Home's Needs you card: the first thing that waits on the
- * user, large (its title, where it is, and its primary: "Open its page ↵"
- * for a session, with "Continue in another app…" beside it), then the
- * rest, one line each with its own primary. A session another app runs
- * has its ↗ too, the way to its app (⌘↩ on it; the maintainer's review of
- * 0.1.4), and its menu on a right-click or ⇧F10. Every kind of item sits here
- * (lib/home-needs.ts). Message text is shown only through `bubble`, a
- * session's last message when its page's reader provides one (AJ-E2108).
+ * AJ-E2105 with D-118's mock (Home round 3) — Home's Needs you now: one
+ * card per need, in Needs you's one order (the louder level, then the one
+ * waiting longest: `needs-order`, the rail's too), whatever its kind: a
+ * session's (its title, what it needs in its level's colour and what it
+ * asks when its tool said; "Open its page ↵", "Continue in another app…",
+ * ↗), an agent's message (MessageNeedCard: "Asks you: …", Reply · Open
+ * the thread), a task's (TaskNeedCard), a sign-in, This Mac, processes
+ * left behind. The first card's primary is the one filled button (Enter).
+ * Approvals (a tool's, a pool's, a task's) keep their batch of approval
+ * cards above (keys 1–9). A session another app runs has its ↗ too (⌘↩
+ * on it; the maintainer's review of 0.1.4), and its menu on a right-click
+ * or ⇧F10. Message text is shown only through `bubble`, a session's last
+ * message when its page's reader provides one (AJ-E2108).
  */
 import { useKeys } from "../lib/use-keys";
-import { useEffect, useState, type JSX, type ReactNode } from "react";
+import { useEffect, useRef, useState, type JSX, type ReactNode } from "react";
 import { Button } from "./primitives";
 import { useActionHost, useItemMenu } from "./ItemMenu";
 import { PlaceMark } from "./PlaceMarks";
-import { chipOf, homeChips, needName, primaryName, primaryWords, type HomeChip, type HomeNeed } from "../lib/home-needs";
-import { Segmented } from "./controls";
+import { homeNeedLevel, needName, primaryName, primaryWords, type HomeNeed } from "../lib/home-needs";
 import { needWord } from "./PlaceRows";
 import { markSeen } from "../lib/seen";
 import { focusHandoverSoon } from "../lib/handover-focus";
 import { switchSourceOf } from "../lib/ipc/conversations";
 import { AskBatch } from "./AskCard";
-import { MessageNeeds } from "./MessageNeeds";
-import { TaskNeeds } from "./TaskNeeds";
+import { isHeldAsk, MessageNeedCard, MessageNeeds } from "./MessageNeeds";
+import { isTaskAsk, TaskNeedCard, TaskNeeds } from "./TaskNeeds";
+import { NeedActions, NeedByLine, needCardClass } from "./NeedCard";
+import { mergeByWait } from "../lib/needs-order";
+import { levelTone } from "../lib/attention";
 import type { MessageNeedInfo } from "../lib/ipc/messages";
 import type { TaskNeedInfo } from "../lib/ipc/tasks";
 import type { ProjectInfo } from "../types/generated/ProjectInfo";
-import { goToWhere, type RailItem } from "../lib/rail-items";
-import { askExcerpt, needWait, waitLine } from "../lib/waiting";
+import { goToWhere, placeWords, type RailItem } from "../lib/rail-items";
+import { askExcerpt, needWait, waitingSince } from "../lib/waiting";
 
 export interface NeedHandlers {
   onOpenSession: (id: string) => void;
@@ -102,14 +109,8 @@ function useRun(handlers: NeedHandlers): (need: HomeNeed, second?: boolean) => v
   };
 }
 
-/** D-96 B: the heading's extras open to their row here: All shown, the
- * row in view, its first control focused. */
-const revealers = new Set<(target: string) => void>();
-
-/** Shows the row `target` (a selector inside Needs you) and focuses it. */
-export function revealNeed(target: string): void {
-  for (const reveal of revealers) reveal(target);
-}
+/** Pinned needs shown before "+n more need you" (D-118 R2). */
+export const PINNED_SHOWN = 3;
 
 /** AJ-E2910: what Home's row keys read: its session, and whether it has a
  * conversation to carry over. */
@@ -119,6 +120,7 @@ function rowData(need: HomeNeed): Record<string, string | undefined> {
     "data-need-key": need.key,
     "data-session-id": session?.id ?? need.sessionId,
     "data-has-conversation": session?.conversation_id ? "yes" : undefined,
+    "data-level": String(homeNeedLevel(need)), // D-117: its attention level
   };
 }
 
@@ -154,6 +156,100 @@ function secondWords(need: HomeNeed): string | null {
   return null;
 }
 
+/** One entry of Needs you now: a need of Home's, an agent's message, a
+ * task's; where it stands in the one order (`needs-order`). */
+type Entry =
+  | { kind: "need"; key: string; need: HomeNeed; level: number; since: number }
+  | { kind: "message"; key: string; message: MessageNeedInfo; level: number; since: number }
+  | { kind: "task"; key: string; task: TaskNeedInfo; level: number; since: number };
+
+/** A need's wait start: its session's (`lib/waiting`), else its notice's;
+ * one with neither after the rest of its level. */
+function sinceOf(need: HomeNeed): number {
+  return need.item ? waitingSince(need.item) : (need.since ?? Number.MAX_SAFE_INTEGER);
+}
+
+/** Every entry, in the one order: Home's needs (their own order kept),
+ * agents' messages and tasks, each oldest first, merged by level, then
+ * the longest wait (an agent's message or task waits on you: L2). */
+export function needsOrder(needs: HomeNeed[], messages: MessageNeedInfo[], tasks: TaskNeedInfo[]): Entry[] {
+  const own = needs.map((need): Entry => ({ kind: "need", key: need.key, need, level: homeNeedLevel(need), since: sinceOf(need) }));
+  const said = messages.filter((m) => !isHeldAsk(m)).map((message): Entry => ({ kind: "message", key: `message:${message.key}`, message, level: 2, since: message.at_ms })).sort((a, b) => a.since - b.since);
+  const asked = tasks.filter((t) => !isTaskAsk(t)).map((task): Entry => ({ kind: "task", key: `task:${task.id}`, task, level: 2, since: task.at_ms })).sort((a, b) => a.since - b.since);
+  return mergeByWait([own, said, asked], (entry) => entry);
+}
+
+/** What it needs, inline after its name ("asks you", "limit reached"). */
+function inlineWord(word: string): string {
+  return word.charAt(0).toLowerCase() + word.slice(1);
+}
+
+/** A session's need as its card (D-118's mock): "Claude app · Work Max
+ * payments-api  waiting 12 min", then "Migrate the billing webhooks asks
+ * you: “…”" (what it asks when its tool said; else where to see it,
+ * D-96 A), then its actions. Another need (a sign-in, This Mac…): its
+ * title, why, and its primary. */
+function NeedCardOf({ need, first, now, bubble, keys, run }: { need: HomeNeed; first: boolean; now?: number; bubble?: ReactNode; keys?: string; run: (need: HomeNeed, second?: boolean) => void }): JSX.Element {
+  const level = homeNeedLevel(need);
+  const item = need.item;
+  const wait = item && now !== undefined ? needWait(item, now) : null;
+  const asks = item?.need === "asks" ? askExcerpt(item.session) : null;
+  const second = secondWords(need);
+  return (
+    <NeedBox need={need} tag="li" className={needCardClass(level)} data={{ "aria-label": needName(need), "data-home-item": "", "data-testid": `home-need-${need.kind}`, "data-first": first ? "true" : undefined, "data-kind": need.kind, ...rowData(need) }}>
+      {(goTo) => (
+        <>
+          <Mark need={need} size={22} />
+          <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+            {item ? (
+              <>
+                <NeedByLine author={placeWords(item.place).join(" · ")} place={item.project} time={wait} timeTestId="need-wait" />
+                <span className="text-body text-ink">
+                  <span className="font-semibold">{need.title}</span>{" "}
+                  <span className={"font-semibold " + levelTone(level).text} data-testid="need-state">
+                    {level === 3 && <span aria-hidden="true">✕ </span>}
+                    {inlineWord(needWord(item))}
+                  </span>
+                  {item.need === "asks" &&
+                    (asks ? (
+                      <span data-testid="need-asks">: “{asks}”</span>
+                    ) : (
+                      // D-96 A: its app said it asks, never what.
+                      <span className="text-muted" data-testid="need-asks"> — open it to see what it asks</span>
+                    ))}
+                </span>
+              </>
+            ) : (
+              <>
+                <span className="text-body font-semibold text-ink">{need.title}</span>
+                {need.detail && (
+                  <span className="line-clamp-2 text-meta text-muted" title={need.detail} data-testid="need-line">
+                    {need.detail}
+                  </span>
+                )}
+              </>
+            )}
+            {first && bubble}
+            <NeedActions>
+              <Button size="sm" variant={first ? "primary" : "ghost"} data-home-row aria-keyshortcuts={first ? "Enter" : keys} aria-label={primaryName(need)} onClick={() => run(need)}>
+                {primaryWords(need)}
+                {first && <span aria-hidden="true" className="opacity-80">↵</span>}
+              </Button>
+              {second && (
+                <Button size="sm" variant="ghost" data-home-action onClick={() => run(need, true)}>
+                  {second}
+                  <span className="sr-only"> — {need.title}</span>
+                </Button>
+              )}
+              {goTo}
+            </NeedActions>
+          </span>
+        </>
+      )}
+    </NeedBox>
+  );
+}
+
 export function HomeNeeds({
   needs,
   messages = [],
@@ -175,126 +271,54 @@ export function HomeNeeds({
 }): JSX.Element | null {
   const actionKeys = useKeys("home-action");
   const run = useRun(handlers);
-  // AJ-E2910: a chip narrows the list (never remembered: a stale filter
-  // would hide a new need); the counts elsewhere never change with it.
-  const [chip, setChip] = useState<HomeChip>("all");
+  // D-118 (AJ-E3702 R2): past 3, the rest wait behind "+n more need you"
+  // (the pinned zone stays short; the count above says them all).
+  const [more, setMore] = useState(false);
+  // Opened, focus goes to the first need it held (its button goes away).
+  const reveal = useRef<string | null>(null);
   useEffect(() => {
-    let timer = 0;
-    const reveal = (target: string) => {
-      setChip("all");
-      // After the render that shows All: the row in view, its control focused.
-      window.clearTimeout(timer);
-      timer = window.setTimeout(() => {
-        const row = document.querySelector<HTMLElement>(`[data-testid="home-needs"] ${target}, [data-testid="home-needs"]${target}`);
-        row?.scrollIntoView?.({ block: "center" });
-        (row?.querySelector<HTMLElement>("button") ?? row)?.focus();
-      }, 0);
-    };
-    revealers.add(reveal);
-    return () => {
-      revealers.delete(reveal);
-      window.clearTimeout(timer);
-    };
-  }, []);
-  const chips = homeChips(needs, { asks: messages.length, review: tasks.needs.length });
-  const shownChip = chips.some((entry) => entry.value === chip) ? chip : "all";
-  const shownNeeds = shownChip === "all" ? needs : needs.filter((need) => chipOf(need) === shownChip);
-  const showMessages = shownChip === "all" || shownChip === "asks";
-  const showTasks = shownChip === "all" || shownChip === "review";
-  const hidden = needs.length + messages.length + tasks.needs.length - shownNeeds.length - (showMessages ? messages.length : 0) - (showTasks ? tasks.needs.length : 0);
-  const [first, ...rest] = shownNeeds;
-  // Nothing waits: the heading says so, and the card stays away.
-  const waiting = (showMessages ? messages.length : 0) + (showTasks ? tasks.needs.length : 0);
-  if (needs.length === 0 && !children && messages.length + tasks.needs.length === 0) return null;
+    const key = reveal.current;
+    if (!more || key === null) return;
+    reveal.current = null;
+    document.querySelector<HTMLElement>(`[data-testid="home-needs"] [data-need-key="${CSS.escape(key)}"] button`)?.focus();
+  }, [more]);
+  const entries = needsOrder(needs, messages, tasks.needs);
+  const shown = more ? entries : entries.slice(0, PINNED_SHOWN);
+  const held = entries.length - shown.length;
+  const asks = messages.some(isHeldAsk) || tasks.needs.some(isTaskAsk);
+  // Nothing waits: the zone says so in one muted line (Home's own).
+  if (entries.length === 0 && !children && !asks) return null;
   return (
     // No area title: the page's heading already says what needs you (the
     // 0.4 design review, 42); the name stays for screen readers.
-    <section aria-label="Needs you" className="flex min-w-0 flex-col gap-2.5" data-testid="home-needs">
-      <div className="flex flex-col gap-3 rounded-xl border border-hairline bg-surface p-4">
-        {chips.length > 0 && (
-          <div className="flex flex-wrap items-center gap-2" data-testid="home-chips">
-            <Segmented label="Show what needs you" value={shownChip} segments={chips.map(({ value, label }) => ({ value, label }))} onChange={setChip} testId="home-chip" wrap />
-            {hidden > 0 && (
-              <button type="button" className="text-meta text-muted hover:text-ink hover:underline" onClick={() => setChip("all")} data-testid="home-chips-hidden">
-                {hidden} more under All
-              </button>
-            )}
-          </div>
-        )}
-        {(shownChip === "all" || shownChip === "asks") && <AskBatch titleOf={(id) => needs.find((need) => need.item?.session?.id === id)?.title} />}
-        {/* E18: agents' messages that wait on you. */}
-        {showMessages && <MessageNeeds needs={messages} />}
-        {showTasks && <TaskNeeds needs={tasks.needs} projects={tasks.projects} />}
-        {first ? (
-          <NeedBox need={first} tag="div" className="flex flex-col gap-3" data={{ role: "group", "aria-label": needName(first), "data-home-item": "", "data-testid": `home-need-${first.kind}`, "data-first": "true", "data-kind": first.kind, ...rowData(first) }}>
-            {(goTo) => (
-            <>
-            <div className="flex min-w-0 items-start gap-3">
-              <Mark need={first} size={32} />
-              <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                <span className="truncate text-section font-semibold text-ink">{first.title}</span>
-                {/* 0.3.2: the first need's why is the point of the card; two lines, not one cut. */}
-                <span className="line-clamp-2 text-xs text-muted" title={first.detail}>{first.detail}</span>
-                {/* What it asks, when its tool said (deep/11 §10); else where to see it (D-96 A). */}
-                {first.item?.need === "asks" && (
-                  <span className="line-clamp-2 text-meta text-ink-2" data-testid="need-asks">
-                    {askExcerpt(first.item.session) ? `“${askExcerpt(first.item.session)}”` : "Open it to see what it asks."}
-                  </span>
-                )}
-              </div>
-              {first.item && (
-                <span className="flex shrink-0 flex-col items-end gap-0.5 text-xs" data-testid="need-state">
-                  <span className={"font-semibold " + (first.severe ? "text-danger" : "text-warning")}>{needWord(first.item)}</span>
-                  {/* AJ-E3307: how long it has waited (deep/11 §4.1). */}
-                  {now !== undefined && needWait(first.item, now) && <span className="text-muted" data-testid="need-wait">{needWait(first.item, now)}</span>}
-                </span>
-              )}
-            </div>
-            {bubble}
-            <div className="flex flex-wrap items-center gap-2">
-              <Button size="sm" variant="primary" data-home-row aria-keyshortcuts="Enter" aria-label={primaryName(first)} onClick={() => run(first)}>
-                {primaryWords(first)}
-                <span aria-hidden="true" className="opacity-80">↵</span>
-              </Button>
-              {goTo}
-              {secondWords(first) && (
-                <Button size="sm" variant="secondary" data-home-action onClick={() => run(first, true)}>
-                  {secondWords(first)}
-                  <span className="sr-only"> — {first.title}</span>
-                </Button>
-              )}
-            </div>
-            </>
-            )}
-          </NeedBox>
-        ) : waiting > 0 ? null : (
-          <p className="text-sm text-ink-2" data-testid="home-needs-none">
-            Nothing waits on you. What's open is in the list and under Your apps.
-          </p>
-        )}
-        {rest.length > 0 && (
-          <ul className="flex flex-col border-t border-hairline/60 pt-1">
-            {rest.map((need) => (
-              <NeedBox key={need.key} need={need} tag="li" data={{ "aria-label": needName(need), "data-home-item": "", "data-kind": need.kind, "data-testid": `home-need-${need.kind}`, ...rowData(need) }} className="flex min-w-0 items-center gap-2.5 border-b border-hairline/40 py-2 last:border-b-0">
-                {(goTo) => (
-                <>
-                <Mark need={need} size={24} />
-                <span className="flex min-w-0 flex-1 flex-col">
-                  <span className="truncate text-meta font-medium text-ink">{need.title}</span>
-                  <span className="truncate text-label text-muted" title={need.detail} data-testid="need-line">{need.item ? [needWord(need.item), waitLine(need.item, now), need.detail].filter(Boolean).join(" · ") : need.detail}</span>
-                </span>
-                <Button size="sm" variant="secondary" data-home-row aria-keyshortcuts={actionKeys.aria} aria-label={primaryName(need)} onClick={() => run(need)}>
-                  {primaryWords(need)}
-                </Button>
-                {goTo}
-                </>
-                )}
-              </NeedBox>
-            ))}
-          </ul>
-        )}
-        {children}
-      </div>
+    <section aria-label="Needs you" className="flex min-w-0 flex-col gap-2" data-testid="home-needs">
+      <AskBatch titleOf={(id) => needs.find((need) => need.item?.session?.id === id)?.title} />
+      {/* E18, E19: approvals from agents (their cards; keys 1–9). */}
+      <MessageNeeds needs={messages} />
+      <TaskNeeds needs={tasks.needs.filter(isTaskAsk)} projects={tasks.projects} />
+      {shown.length > 0 ? (
+        <ul className="flex flex-col gap-2">
+          {shown.map((entry, index) =>
+            entry.kind === "need" ? (
+              <NeedCardOf key={entry.key} need={entry.need} first={index === 0} now={now} bubble={bubble} keys={actionKeys.aria} run={run} />
+            ) : entry.kind === "message" ? (
+              <MessageNeedCard key={entry.key} need={entry.message} first={index === 0} now={now} keys={actionKeys.aria} />
+            ) : (
+              <TaskNeedCard key={entry.key} need={entry.task} projects={tasks.projects} now={now} />
+            ),
+          )}
+        </ul>
+      ) : asks || children ? null : (
+        <p className="rounded-xl bg-surface p-4 text-sm text-ink-2" data-testid="home-needs-none">
+          Nothing waits on you. What's open is in the list and under Your apps.
+        </p>
+      )}
+      {held > 0 && (
+        <button type="button" aria-expanded={false} onClick={() => { reveal.current = entries[shown.length]?.key ?? null; setMore(true); }} className="self-start rounded text-meta text-ink-2 outline-none hover:underline focus-visible:ring-1 focus-visible:ring-accent/60" data-testid="home-needs-more">
+          +{held} more {held === 1 ? "needs" : "need"} you
+        </button>
+      )}
+      {children}
     </section>
   );
 }

@@ -66,35 +66,7 @@ pub fn checked_home(
     data_dir: &Path,
     me: u32,
 ) -> Result<PathBuf, String> {
-    if !home.is_absolute() {
-        return Err(format!("HOME {} isn't an absolute path", home.display()));
-    }
-    let resolved =
-        std::fs::canonicalize(home).map_err(|e| format!("HOME {}: {e}", home.display()))?;
-    // Spelled as it resolves (only macOS's /tmp → /private/tmp allowed): a
-    // symlink anywhere in it, a trailing `/` or `/.`, is refused.
-    let spelled = home.to_string_lossy();
-    let shown = resolved.to_string_lossy();
-    if shown != spelled && shown != format!("/private{spelled}") {
-        return Err(format!(
-            "HOME {} is a symlink or isn't spelled as it resolves ({shown})",
-            home.display()
-        ));
-    }
-    let in_tmp = matches!(
-        resolved.parent().and_then(Path::to_str),
-        Some("/tmp" | "/private/tmp")
-    );
-    let named = resolved
-        .file_name()
-        .and_then(|name| name.to_str())
-        .is_some_and(|name| name.starts_with("aij-lab"));
-    if !in_tmp || !named {
-        return Err(format!(
-            "HOME {} isn't a lab folder (/tmp/aij-lab…)",
-            resolved.display()
-        ));
-    }
+    let resolved = juggler_core::lab::throwaway_lab(home)?;
     // A real folder, this user's, and closed to everyone else (0700).
     if !juggler_platform::file_trust::dir_is_ours(
         &resolved,

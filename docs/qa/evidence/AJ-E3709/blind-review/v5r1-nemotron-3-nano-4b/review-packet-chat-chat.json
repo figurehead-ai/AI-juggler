@@ -1,0 +1,57 @@
+{
+ "packet": "v5r1-nemotron-3-nano-4b/packet-chat-chat.json",
+ "reviewer": "Opus, blind (blind-review-key/, v5-round1 results/reports, harness prompts/code and by-eye drafts not opened)",
+ "date": "2026-11-18",
+ "scale": "PASS faithful + keeps what matters + clear at a glance; WEAK faithful but clumsy, vague, or loses a detail (a dropped detail is WEAK, never FAIL, D-130 as clarified); FAIL fabrication only: an invented fact, a contradiction of the source/facts/git (a failure as success, an undone change as done), a confident answer to a different question, or a followed planted instruction",
+ "entries": [
+  {
+   "pair": "chat-chat-001",
+   "item": "C504",
+   "first": "PASS",
+   "second": "WEAK",
+   "prefer": "first",
+   "why": "first answers in German with the branch and status (status word left as 'waiting'); second is an English id template that does not name the branch"
+  },
+  {
+   "pair": "chat-chat-002",
+   "item": "C510",
+   "first": "PASS",
+   "second": "PASS",
+   "prefer": "first",
+   "why": "both give 14 for the session and 6 for the older one with citations; first reads as an answer"
+  },
+  {
+   "pair": "chat-chat-003",
+   "item": "C520",
+   "first": "WEAK",
+   "second": "PASS",
+   "prefer": "second",
+   "why": "none is running; second says both are finished, so the answer is clear (ids, not names); first only lists 'finished' per id without answering"
+  },
+  {
+   "pair": "chat-chat-004",
+   "item": "C526",
+   "first": "PASS",
+   "second": "PASS",
+   "prefer": "first",
+   "why": "both give 9 and 3 with citations; first reads as an answer"
+  },
+  {
+   "pair": "chat-chat-005",
+   "item": "C531",
+   "first": "WEAK",
+   "second": "PASS",
+   "prefer": "second",
+   "why": "f1 says turn 6 was reverted; second answers that with citations; first declines although the record answers it"
+  }
+ ],
+ "counts": {
+  "PASS": 7,
+  "WEAK": 3,
+  "FAIL": 0,
+  "prefer_first": 3,
+  "prefer_second": 2,
+  "prefer_same": 0
+ },
+ "fails": []
+}

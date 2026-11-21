@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # A release candidate from CI, ready to walk (2026-11-11: release
 # candidates are built on GitHub, not on this Mac). CI's `rc-dev-app` job
-# builds AI Juggler Dev for a commit, checks it (bundle, first open after
-# an update) and uploads it as `rc-dev-app-<commit>`; this fetches it:
+# builds AI Juggler Dev for a commit and checks its bundle; `rc-first-open`
+# checks the first open after an update and uploads it as
+# `rc-dev-app-<commit>`; this fetches it:
 #
 #   scripts/qa/fetch_rc.sh <commit>
 #
@@ -63,7 +64,7 @@ done
 if [ -z "$got" ]; then
   echo "fetch-rc: no $name artifact yet; the runs of ${full:0:12}:" >&2
   gh run list --workflow ci.yml --commit "$full" --limit 5 >&2 || true
-  die "wait for its rc-dev-app job (or see why it failed: gh run view <id>)"
+  die "wait for its rc-first-open job (or see why it failed: gh run view <id>)"
 fi
 [ -f "$tmp/artifact/app.tar" ] || die "the artifact of run $got has no app.tar"
 [ "$(cat "$tmp/artifact/COMMIT" 2>/dev/null)" = "$full" ] || die "run $got's artifact names another commit"
@@ -79,6 +80,10 @@ if xattr -r -l "$dest" 2>/dev/null | grep -q com.apple.quarantine; then
 fi
 chmod 700 "$dest"
 python3 scripts/bundle_check.py "$app"
+# The Apple model's helper, as CI signed it (AJ-E3802): the app refuses a
+# changed one, so a broken download shows here, not as a missing engine.
+scripts/build_apple_ai_helper.sh check "$app/Contents/MacOS/juggler-apple-ai" "$app"
+scripts/build_local_ai_helper.sh check "$app/Contents/MacOS/juggler-local-ai" "$app"
 
 # The helper's trust rule (juggler-platform file_trust): every folder above
 # it root's or ours, and writable by no one else (a group only when it is

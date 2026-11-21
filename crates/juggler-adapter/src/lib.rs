@@ -20,8 +20,10 @@ pub mod adapter;
 pub mod agent_bridge;
 pub mod automation;
 pub mod capabilities;
+pub mod compat;
 pub mod connector;
 pub mod conversation;
+pub mod desktop_app;
 pub mod discovery;
 pub mod endpoint;
 pub mod environment;
@@ -35,7 +37,9 @@ pub mod launch;
 pub mod live;
 pub mod memory;
 pub mod moving;
+pub mod observes;
 pub mod peer;
+pub mod plan_usage;
 pub mod readiness;
 pub mod registry;
 pub mod reports;
@@ -66,7 +70,10 @@ pub use environment::{
     DiscoveredInstall, ImportOutcome, InstallOrigin, LoginProbe, LoginState, LoginUrl,
 };
 pub use error::AdapterError;
-pub use identity::IdentityProbe;
+pub use identity::{IdentityProbe, SignInNames, SignInWriter};
+/// AJ-E1605: where an installed app is, for a tool whose engine ships
+/// inside its app.
+pub use juggler_platform::apps;
 /// The OS seam for files only this user can read, for adapters that write
 /// a tool's own records (ADR-0028).
 pub use juggler_platform::private_fs;
@@ -77,6 +84,7 @@ pub use juggler_platform::safe_fs;
 pub use juggler_platform::user::home;
 pub use juggler_platform::{file_trust, keychain, process, transfer};
 pub use launch::{DesktopLaunch, EnvMap, LaunchMode, LaunchSpec};
+pub use observes::{Observes, ToolObserves};
 pub use registry::AdapterRegistry;
 pub use runtime::{
     DrivenLaunch, DrivenRuntime, DrivenSession, DrivenSpec, Maturity, Release, ReleaseOutcome,

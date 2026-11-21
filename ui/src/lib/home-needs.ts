@@ -5,6 +5,7 @@
  * hard, processes left behind. (On 0.2: agent messages, agent requests,
  * prepared launches and paused chains join as kinds here.)
  */
+import { attentionLevel, counted, itemLevel, type AttentionLevel } from "./attention";
 import type { AccountInfo } from "../types/generated/AccountInfo";
 import { placeWords, type RailItem } from "./rail-items";
 import type { ConversationInfo } from "./ipc/conversations";
@@ -32,6 +33,17 @@ export interface HomeNeed {
   /** E3104: when an unloaded session's need was first written (its
    * notice's time: the wait it shows, `lib/waiting` for a loaded one). */
   since?: number;
+  /** D-117: its attention level, when the backend's row said it (else
+   * worked out from its item or kind, `homeNeedLevel`). */
+  level?: AttentionLevel;
+}
+
+/** A Home need's level (D-117): its own, else its rail item's, else its
+ * kind's (a failure is broken; the rest wait on you). */
+export function homeNeedLevel(need: Pick<HomeNeed, "level" | "item" | "kind">): AttentionLevel {
+  if (need.level !== undefined) return need.level;
+  if (need.item) return itemLevel(need.item);
+  return attentionLevel({ need: need.kind === "mac" ? "room" : need.kind === "session" ? "asks" : need.kind });
 }
 
 /** The order kinds come in: what blocks work first. */
@@ -79,23 +91,24 @@ export function homeNeeds({ items, signIns, signInDetail, mac, heavy, leftovers 
 }
 
 /** The needs the rail's Needs you counts too: its sessions. */
-export function isSessionNeed(need: HomeNeed): boolean {
+function isSessionNeed(need: HomeNeed): boolean {
   return need.kind === "session" || need.kind === "limit" || need.kind === "failed";
 }
 
-/** The heading: one sentence about what needs the user; with nothing,
- * whether anything has run out, then whether anything runs. Sessions are
- * counted as the rail's Needs you counts them, so the two agree ("3
- * sessions need you" beside "Needs you 3"); a sign-in, the Mac, a cap or
- * leftovers are the "more" (the review of 0.1.4: "4 things" beside 3). */
-export function needsHeading(count: number | { sessions: number; others: number }, calm: { runOut: string[]; running: boolean; anything: boolean; known?: boolean }): string {
-  const { sessions, others } = typeof count === "number" ? { sessions: 0, others: count } : count;
-  if (sessions > 0) {
-    const them = sessions === 1 ? "1 session" : `${sessions} sessions`;
-    if (others === 0) return `${them} ${sessions === 1 ? "needs" : "need"} you`;
-    return `${them} and ${others} more ${others === 1 ? "thing" : "things"} need you`;
-  }
-  if (others > 0) return others === 1 ? "1 thing needs you" : `${others} things need you`;
+/** The heading's counts (D-117): what waits on you or broke (L2, L3) —
+ * Home's own needs and `own` (caps, agents' messages and tasks, all L2),
+ * one number — and the notes listed but not counted ("1 to review"). */
+export function headCount(needs: HomeNeed[], own: number): { count: number; notes: number } {
+  const loud = needs.filter((need) => counted(homeNeedLevel(need))).length;
+  return { count: loud + own, notes: needs.length - loud };
+}
+
+/** The heading (D-118's mock, "2 need you"): one count of what needs the
+ * user, the same number as the rail's Needs you and the bell (AJ-E3602),
+ * its parts said to assistive tech (`needsParts`); with nothing, whether
+ * anything has run out, then whether anything runs. */
+export function needsHeading(count: number, calm: { runOut: string[]; running: boolean; anything: boolean; known?: boolean }): string {
+  if (count > 0) return `${count} ${count === 1 ? "needs" : "need"} you`;
   // D-103.6: never "All clear" before the needs have loaded.
   if (calm.known === false) return "Checking what needs you…";
   // QA batch 9: never "All clear" while an account has run out (D-62:
@@ -103,6 +116,24 @@ export function needsHeading(count: number | { sessions: number; others: number 
   if (calm.runOut.length === 1) return `${calm.runOut[0]} has run out`;
   if (calm.runOut.length > 1) return `${calm.runOut.length} accounts have run out`;
   return calm.running ? "All clear — nothing needs you" : calm.anything ? "All clear" : "Ready when you are";
+}
+
+/** What the heading's count is made of, for assistive tech (the visible
+ * words stay "2 need you"): its sessions by count, then each other need
+ * by its full name (a sign-in's App, `needName`), caps by their titles,
+ * and agents' messages and tasks by their count. D-96 B's named parts,
+ * now in the heading's spoken name: the visible "and 2 more things" they
+ * explained is gone. */
+export function needsParts(needs: HomeNeed[], more: { caps: string[]; messages: number; tasks: number }): string[] {
+  const loud = needs.filter((need) => counted(homeNeedLevel(need)));
+  const sessions = loud.filter(isSessionNeed).length;
+  return [
+    ...(sessions > 0 ? [sessions === 1 ? "1 session" : `${sessions} sessions`] : []),
+    ...loud.filter((need) => !isSessionNeed(need)).map(needName),
+    ...more.caps,
+    ...(more.messages > 0 ? [more.messages === 1 ? "1 message from an agent" : `${more.messages} messages from agents`] : []),
+    ...(more.tasks > 0 ? [more.tasks === 1 ? "1 task waits on you" : `${more.tasks} tasks wait on you`] : []),
+  ];
 }
 
 /** What the item's primary says, by kind. */
@@ -131,49 +162,6 @@ export function primaryWords(need: HomeNeed): string {
   }
 }
 
-/** AJ-E2910: Home's filter chips (deep/11 §4.1), in the app's words. */
-export type HomeChip = "all" | "asks" | "stuck" | "limits" | "review" | "signin";
-
-const CHIP_LABEL: Record<Exclude<HomeChip, "all">, string> = {
-  asks: "Asks you",
-  stuck: "Probably stuck",
-  // The row's own words (the 0.4 design review, 69).
-  limits: "Limit reached",
-  review: "To review",
-  signin: "Sign-in",
-};
-
-/** The chip a need sits under (failed, This Mac, heavy work and leftovers
- * show under All only). */
-export function chipOf(need: HomeNeed): Exclude<HomeChip, "all"> | null {
-  switch (need.kind) {
-    case "session":
-      return need.item?.need === "asks" ? "asks" : need.item?.need === "stuck" ? "stuck" : need.item?.need === "review" ? "review" : null;
-    case "limit":
-    case "quota":
-      return "limits";
-    case "signin":
-      return "signin";
-    default:
-      return null;
-  }
-}
-
-/** The chips to offer: each kind with something in it (agents' messages
- * count as asks, tasks waiting on your review as review), All first;
- * none at all unless two or more kinds are present. */
-export function homeChips(needs: HomeNeed[], extra: { asks: number; review: number } = { asks: 0, review: 0 }): { value: HomeChip; label: string; count: number }[] {
-  const counts: Record<Exclude<HomeChip, "all">, number> = { asks: extra.asks, stuck: 0, limits: 0, review: extra.review, signin: 0 };
-  for (const need of needs) {
-    const chip = chipOf(need);
-    if (chip) counts[chip] += 1;
-  }
-  const present = (Object.keys(CHIP_LABEL) as Exclude<HomeChip, "all">[]).filter((chip) => counts[chip] > 0);
-  if (present.length < 2) return [];
-  const total = needs.length + extra.asks + extra.review;
-  return [{ value: "all", label: `All ${total}`, count: total }, ...present.map((chip) => ({ value: chip, label: `${CHIP_LABEL[chip]} ${counts[chip]}`, count: counts[chip] }))];
-}
-
 /** The App a sign-in is for, by its full name ("Kimi Code CLI · lab A",
  * its tool's name from its adapter), when the need knows its App. */
 function signInApp(need: Pick<HomeNeed, "kind" | "account">): string | null {
@@ -195,36 +183,4 @@ export function needName(need: Pick<HomeNeed, "kind" | "account" | "title">): st
 export function primaryName(need: HomeNeed): string {
   const app = signInApp(need);
   return app ? `${primaryWords(need)} to ${app}` : `${primaryWords(need)} — ${need.title}`;
-}
-
-/** One of the heading's "more things", by name, and where its row is. */
-export interface HeadlineExtra {
-  key: string;
-  words: string;
-  /** Its name for assistive tech, when its words alone don't tell it
-   * apart (a sign-in's App, `needName`). */
-  name?: string;
-  /** The row it opens to on Home (a CSS selector inside Needs you). */
-  target: string;
-}
-
-/** Past this many, the rest are one "N more" (to the Needs you card). */
-const EXTRAS_SHOWN = 3;
-
-/**
- * D-96 B (AJ-E3307 M2): the heading's "2 more things", named right under
- * it ("Work is almost out of room · ChatGPT needs its sign-in"), each a
- * click to its row. Every part the heading counts as "more" is named:
- * Home's own non-session needs by their titles, then monthly caps,
- * agents' messages and tasks by their count.
- */
-export function headlineExtras(needs: HomeNeed[], more: { caps: string[]; messages: number; tasks: number }): HeadlineExtra[] {
-  const all: HeadlineExtra[] = [
-    ...needs.filter((need) => !isSessionNeed(need)).map((need) => ({ key: need.key, words: need.title, ...(needName(need) === need.title ? {} : { name: needName(need) }), target: `[data-need-key="${CSS.escape(need.key)}"]` })),
-    ...more.caps.map((words, index) => ({ key: `cap:${index}`, words, target: `[data-testid="home-cap"]:nth-of-type(${index + 1})` })),
-    ...(more.messages > 0 ? [{ key: "messages", words: more.messages === 1 ? "1 message from an agent" : `${more.messages} messages from agents`, target: '[data-testid="message-needs"]' }] : []),
-    ...(more.tasks > 0 ? [{ key: "tasks", words: more.tasks === 1 ? "1 task waits on you" : `${more.tasks} tasks wait on you`, target: '[data-testid="task-needs"]' }] : []),
-  ];
-  if (all.length <= EXTRAS_SHOWN + 1) return all;
-  return [...all.slice(0, EXTRAS_SHOWN), { key: "more", words: `${all.length - EXTRAS_SHOWN} more`, target: '[data-testid="home-needs"]' }];
 }

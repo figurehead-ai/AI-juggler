@@ -1,0 +1,474 @@
+{
+  "format": 1,
+  "sections": [
+    {
+      "controls": {
+        "claude_app_move_on": {
+          "switch": {
+            "default": true,
+            "remote": "off_only"
+          }
+        },
+        "claude_app_move_shape": {
+          "number": {
+            "default": 1,
+            "max": 1000000,
+            "min": 1
+          }
+        },
+        "claude_app_move_versions": {
+          "versions": {
+            "bounds": {
+              "min": "4.0.0"
+            },
+            "default": {
+              "min": "4.0.0"
+            }
+          }
+        },
+        "claude_code_move_on": {
+          "switch": {
+            "default": true,
+            "remote": "off_only"
+          }
+        },
+        "claude_code_move_shape": {
+          "number": {
+            "default": 1,
+            "max": 1000000,
+            "min": 1
+          }
+        },
+        "claude_code_move_versions": {
+          "versions": {
+            "bounds": {
+              "min": "2.0.0"
+            },
+            "default": {
+              "min": "2.0.0"
+            }
+          }
+        }
+      },
+      "name": "compat",
+      "schema": 1
+    },
+    {
+      "controls": {
+        "ai_chat_on": {
+          "switch": {
+            "default": true,
+            "remote": "off_only"
+          }
+        },
+        "ai_digest_on": {
+          "switch": {
+            "default": false,
+            "remote": "off_only"
+          }
+        },
+        "ai_feed_on": {
+          "switch": {
+            "default": false,
+            "remote": "off_only"
+          }
+        },
+        "ai_review_on": {
+          "switch": {
+            "default": false,
+            "remote": "off_only"
+          }
+        },
+        "ai_watches_on": {
+          "switch": {
+            "default": false,
+            "remote": "off_only"
+          }
+        },
+        "notices_on": {
+          "switch": {
+            "default": true,
+            "remote": "off_only"
+          }
+        }
+      },
+      "name": "flags",
+      "schema": 1
+    },
+    {
+      "controls": {},
+      "list": {
+        "fields": {
+          "attention": {
+            "kind": {
+              "choice": {
+                "options": [
+                  "ships",
+                  "beta",
+                  "not_yet",
+                  "not_tested"
+                ]
+              }
+            },
+            "optional": true
+          },
+          "attention_note": {
+            "kind": {
+              "text": {
+                "max_chars": 120
+              }
+            },
+            "optional": true
+          },
+          "chat": {
+            "kind": {
+              "choice": {
+                "options": [
+                  "ships",
+                  "beta",
+                  "not_yet",
+                  "not_tested"
+                ]
+              }
+            },
+            "optional": true
+          },
+          "chat_note": {
+            "kind": {
+              "text": {
+                "max_chars": 120
+              }
+            },
+            "optional": true
+          },
+          "context_tokens": {
+            "kind": {
+              "count": {
+                "max": 32768,
+                "min": 1024
+              }
+            },
+            "optional": true
+          },
+          "datamark": {
+            "kind": "flag",
+            "optional": true
+          },
+          "digest": {
+            "kind": {
+              "choice": {
+                "options": [
+                  "ships",
+                  "beta",
+                  "not_yet",
+                  "not_tested"
+                ]
+              }
+            },
+            "optional": true
+          },
+          "digest_note": {
+            "kind": {
+              "text": {
+                "max_chars": 120
+              }
+            },
+            "optional": true
+          },
+          "engine": {
+            "kind": {
+              "choice": {
+                "options": [
+                  "gguf_local",
+                  "apple_builtin"
+                ]
+              }
+            }
+          },
+          "feed": {
+            "kind": {
+              "choice": {
+                "options": [
+                  "ships",
+                  "beta",
+                  "not_yet",
+                  "not_tested"
+                ]
+              }
+            },
+            "optional": true
+          },
+          "feed_note": {
+            "kind": {
+              "text": {
+                "max_chars": 120
+              }
+            },
+            "optional": true
+          },
+          "licence_name": {
+            "kind": {
+              "text": {
+                "max_chars": 40
+              }
+            },
+            "optional": true
+          },
+          "licence_url": {
+            "kind": {
+              "link": {
+                "hosts": [
+                  "huggingface.co",
+                  "figurehead.ai",
+                  "www.figurehead.ai"
+                ]
+              }
+            },
+            "optional": true
+          },
+          "min_chip": {
+            "kind": {
+              "choice": {
+                "options": [
+                  "m1",
+                  "m2",
+                  "m3",
+                  "m4",
+                  "m5"
+                ]
+              }
+            }
+          },
+          "min_free_gb": {
+            "kind": {
+              "count": {
+                "max": 512,
+                "min": 0
+              }
+            },
+            "optional": true
+          },
+          "min_memory_gb": {
+            "kind": {
+              "count": {
+                "max": 256,
+                "min": 8
+              }
+            }
+          },
+          "min_p_milli": {
+            "kind": {
+              "count": {
+                "max": 1000,
+                "min": 0
+              }
+            },
+            "optional": true
+          },
+          "mirror_url": {
+            "kind": {
+              "link": {
+                "hosts": [
+                  "huggingface.co",
+                  "models.figurehead.ai"
+                ]
+              }
+            },
+            "optional": true
+          },
+          "name": {
+            "kind": {
+              "text": {
+                "max_chars": 40
+              }
+            }
+          },
+          "presence_milli": {
+            "kind": {
+              "count": {
+                "max": 2000,
+                "min": 0
+              }
+            },
+            "optional": true
+          },
+          "review": {
+            "kind": {
+              "choice": {
+                "options": [
+                  "ships",
+                  "beta",
+                  "not_yet",
+                  "not_tested"
+                ]
+              }
+            },
+            "optional": true
+          },
+          "review_note": {
+            "kind": {
+              "text": {
+                "max_chars": 120
+              }
+            },
+            "optional": true
+          },
+          "sha256": {
+            "kind": "sha256",
+            "optional": true
+          },
+          "size_bytes": {
+            "kind": {
+              "count": {
+                "max": 8589934592,
+                "min": 1
+              }
+            },
+            "optional": true
+          },
+          "speed": {
+            "kind": {
+              "choice": {
+                "options": [
+                  "quick",
+                  "moderate",
+                  "slow"
+                ]
+              }
+            },
+            "optional": true
+          },
+          "temperature_milli": {
+            "kind": {
+              "count": {
+                "max": 2000,
+                "min": 0
+              }
+            },
+            "optional": true
+          },
+          "top_k": {
+            "kind": {
+              "count": {
+                "max": 200,
+                "min": 0
+              }
+            },
+            "optional": true
+          },
+          "top_p_milli": {
+            "kind": {
+              "count": {
+                "max": 1000,
+                "min": 1
+              }
+            },
+            "optional": true
+          },
+          "url": {
+            "kind": {
+              "link": {
+                "hosts": [
+                  "huggingface.co",
+                  "models.figurehead.ai"
+                ]
+              }
+            },
+            "optional": true
+          },
+          "watches": {
+            "kind": {
+              "choice": {
+                "options": [
+                  "ships",
+                  "beta",
+                  "not_yet",
+                  "not_tested"
+                ]
+              }
+            },
+            "optional": true
+          },
+          "watches_note": {
+            "kind": {
+              "text": {
+                "max_chars": 120
+              }
+            },
+            "optional": true
+          },
+          "withdrawn": {
+            "kind": "flag",
+            "optional": true
+          }
+        },
+        "max_items": 16
+      },
+      "name": "models",
+      "schema": 1
+    },
+    {
+      "controls": {},
+      "list": {
+        "fields": {
+          "body": {
+            "kind": {
+              "text": {
+                "max_chars": 280
+              }
+            },
+            "optional": true
+          },
+          "dismissable": {
+            "kind": "flag",
+            "optional": true
+          },
+          "expires_at": {
+            "kind": "time",
+            "optional": true
+          },
+          "level": {
+            "kind": {
+              "choice": {
+                "options": [
+                  "info",
+                  "needs_you",
+                  "broken"
+                ]
+              }
+            }
+          },
+          "link": {
+            "kind": {
+              "link": {
+                "hosts": [
+                  "figurehead.ai",
+                  "www.figurehead.ai"
+                ]
+              }
+            },
+            "optional": true
+          },
+          "link_label": {
+            "kind": {
+              "text": {
+                "max_chars": 40
+              }
+            },
+            "optional": true
+          },
+          "title": {
+            "kind": {
+              "text": {
+                "max_chars": 80
+              }
+            }
+          }
+        },
+        "max_items": 16
+      },
+      "name": "notices",
+      "schema": 1
+    }
+  ]
+}
