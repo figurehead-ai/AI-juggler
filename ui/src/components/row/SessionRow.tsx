@@ -31,6 +31,7 @@ import type { Arrangeable } from "../RowTools";
 import { shortHeavy, useHeavyNote } from "../../lib/machine";
 import { STATE_TONE, needWord, type RailItem } from "../../lib/rail-items";
 import { agoWords } from "../../lib/time-words";
+import { parkedWords } from "../../lib/parked";
 import type { AppRef } from "../../lib/app-of";
 import { RowShell } from "./RowShell";
 import { needWait } from "../../lib/waiting";
@@ -93,17 +94,19 @@ export function rowWhen(item: RailItem, now: number): string {
 }
 
 /** Its state, in words and colour: why it needs you when it does (amber,
- * D-47), else its state. */
-export function rowState(item: RailItem): { word: string; text: string; dot: string } {
+ * D-47), else its state; parked, as its rail row and its page's header
+ * say it ("Parked 3m", "Parked · ready"; AJ-E2312 1), given `now`. */
+export function rowState(item: RailItem, now?: number): { word: string; text: string; dot: string } {
   if (item.need !== null) return { word: needWord(item), text: "text-warning", dot: "bg-warning" };
-  return { word: needWord(item), ...STATE_TONE[item.state] };
+  const parked = item.session?.parked && now !== undefined ? parkedWords(item.session, now) : null;
+  return { word: parked?.chip ?? needWord(item), ...STATE_TONE[item.state] };
 }
 
 export function SessionRow(props: SessionRowProps): JSX.Element {
   const { item, density, now, within = {}, subagents } = props;
   const title = props.title ?? item.title;
   const needs = item.need !== null;
-  const state = rowState(item);
+  const state = rowState(item, now);
   const low = item.session ? lowLeftWords(item.session) : null;
   const heavyNote = useHeavyNote(item.session?.id ?? "");
   const heavy = heavyNote ? shortHeavy(heavyNote) : null;

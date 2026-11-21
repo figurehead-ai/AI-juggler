@@ -74,7 +74,8 @@ export function HandoverSection({
   onSwitchBack?: (sessionId: string) => void;
   onHandover: (sessionId: string, targetProfileId: string, targetLabel: string) => void;
 }): JSX.Element {
-  const [switchOpen, setSwitchOpen] = useState(() => session.status === "quota_blocked");
+  // At its limit only: past its reset it resumes where it is (AJ-E2312 1).
+  const [switchOpen, setSwitchOpen] = useState(() => session.status === "quota_blocked" && session.needs_attention !== "limit_reset");
   // Folded by its user: a switch-back plan or a suggestion opens the list,
   // and a press still folds it away.
   const [folded, setFolded] = useState(false);

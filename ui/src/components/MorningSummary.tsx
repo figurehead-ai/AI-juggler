@@ -50,6 +50,9 @@ const GROUPS: Array<{ id: string; title: string; icon: string }> = [
   { id: "crashed", title: "Crashed", icon: "✕" },
   { id: "error", title: "Error", icon: "✕" },
   { id: "needs_you", title: "Needs you", icon: "!" },
+  // AJ-E2312 1 (PM5): apart from Needs you, as Home lists it ("Needs you
+  // (1)" read under Home's "All clear").
+  { id: "parked", title: "Parked until a reset", icon: "⏸" },
   { id: "running", title: "Still running", icon: "▶" },
   { id: "finished", title: "Finished", icon: "✓" },
   { id: "stopped", title: "Stopped by you", icon: "■" },
@@ -94,7 +97,7 @@ function known(ms: number | null | undefined): ms is number {
 /** When, under a row: how long it has waited, when it ended, else its
  * last change; nothing when it has no time to say. */
 export function whenLine(row: SummaryRowInfo, now: number): string | null {
-  if (known(row.at_ms) && row.group === "needs_you") return waitingWords(row.at_ms, now);
+  if (known(row.at_ms) && (row.group === "needs_you" || row.group === "parked")) return waitingWords(row.at_ms, now);
   if (known(row.at_ms) && ENDED_GROUPS.has(row.group)) return `ended ${since(row.at_ms)}`;
   const last = [...row.transitions].reverse().find((step) => known(step.at_ms));
   return last ? `last change ${since(last.at_ms)}` : null;

@@ -19,6 +19,9 @@ export function attentionWords(rule: string | null | undefined): string {
     // 0.3: open at its limit (the tool's own record; it waits there).
     case "limit_hit":
       return "hit its usage limit";
+    // AJ-E2312 1: it stopped at its limit, which has reset since.
+    case "limit_reset":
+      return "its limit has reset";
     case "failed":
       return "stopped with an error";
     // AJ-E1509: why a crashed session wasn't started again, and a session
