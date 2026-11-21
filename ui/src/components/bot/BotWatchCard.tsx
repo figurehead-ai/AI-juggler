@@ -44,7 +44,14 @@ function hour(h: number): string {
 /** The way to the full form. */
 const WATCH_MORE = "More choices…";
 
+/** A session that isn't running: what it is watched for happens only once
+ * it's resumed (the 0.5 walk's N-09: "Finishes" read as if it could fire
+ * now), and "Until it ends" means nothing for one that has. */
+const NOT_RUNNING = new Set<BotRowInfo["state"]>(["finished", "done", "ended", "failed"]);
+const RESUMED_NOTE = "It isn't running now: the watch tells you once it's resumed.";
+
 export function BotWatchCard({ row, turnId, onClose }: { row: BotRowInfo; turnId: string; onClose: () => void }): JSX.Element {
+  const over = NOT_RUNNING.has(row.state);
   const card = useRef<HTMLElement | null>(null);
   const [offered, setOffered] = useState<CatalogueEntry[] | null>(null);
   const [codes, setCodes] = useState<string[]>([]);
@@ -121,6 +128,11 @@ export function BotWatchCard({ row, turnId, onClose }: { row: BotRowInfo; turnId
           <span className="text-meta text-muted">{[rowPlace(row), row.state ? STATE_WORDS[row.state] : null].filter(Boolean).join(" · ")}</span>
         </div>
       </div>
+      {over && (
+        <p className="text-meta text-ink-2" data-testid="bot-watch-not-running">
+          {RESUMED_NOTE}
+        </p>
+      )}
       <fieldset className="flex flex-col gap-1.5">
         <legend className="mb-1.5 text-meta text-ink-2">{WORDS.tellMeWhen}</legend>
         <div className="grid grid-cols-2 gap-1.5">
@@ -138,7 +150,7 @@ export function BotWatchCard({ row, turnId, onClose }: { row: BotRowInfo; turnId
       </fieldset>
       {changing && (
         <div className="flex flex-wrap gap-1.5" aria-label="For how long">
-          {LIFETIMES.map(({ choice, label }) => (
+          {LIFETIMES.filter(({ choice }) => !(over && choice.kind === "until_ends")).map(({ choice, label }) => (
             <button key={choice.kind} type="button" aria-pressed={lifetime.kind === choice.kind} className={"inline-flex h-7 items-center rounded-full px-2.5 text-meta outline-none focus-visible:ring-2 focus-visible:ring-accent/60 " + (lifetime.kind === choice.kind ? "bg-selected font-semibold text-ink inset-ring-[1.5px] inset-ring-selected-ring" : "text-ink-2 inset-ring-1 inset-ring-hairline")} onClick={() => setLifetime(choice)}>
               {label}
             </button>

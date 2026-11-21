@@ -54,15 +54,19 @@ export function BotConversation({ now, empty, wide = false }: { now: number; emp
   useEffect(() => {
     if (bot.more && since === null) void botCount().then((c) => setSince(c.since_ms)).catch(() => undefined);
   }, [bot.more, since]);
-  // Opens at the newest; a new turn scrolls to it.
+  // A New topic with nothing asked yet: its divider is the newest thing
+  // in the thread (the 0.5 walk's N-08: it was drawn below the fold).
+  const openTopic = bot.topics.find((t) => !t.first && t.started_ms > (last?.at_ms ?? Number.NEGATIVE_INFINITY))?.id;
+  // Opens at the newest; a new turn, or a new topic, scrolls to it.
   useLayoutEffect(() => {
     const el = scroller.current;
     if (!el) return;
     const anchor = bot.anchor ? el.querySelector<HTMLElement>(`[data-turn="${bot.anchor}"]`) : null;
-    if (anchor && !lastId) anchor.scrollIntoView?.({ block: "start" });
+    // A topic just started is newer than any anchor: the end shows it.
+    if (anchor && !lastId && !openTopic) anchor.scrollIntoView?.({ block: "start" });
     else el.scrollTop = el.scrollHeight;
     setEdge({ up: el.scrollTop > 0, more: el.scrollTop + el.clientHeight < el.scrollHeight - 1 });
-  }, [lastId, bot.anchor]);
+  }, [lastId, openTopic, bot.anchor]);
   // Find: the current match brought into view.
   const current = bot.find?.matches[bot.find.at] ?? null;
   const turns = bot.turns;

@@ -30,7 +30,7 @@ function PlusMenu({ onClose }: { onClose: () => void }): JSX.Element {
           <span className="text-label text-muted">{WORDS.rememberHint}</span>
         </span>
       </button>
-      <button type="button" role="menuitem" className={item} onClick={pick(() => void ask("What’s running?"))}>
+      <button type="button" role="menuitem" className={item} onClick={pick(() => void ask("What changed today?"))}>
         <IconEye width={15} height={15} aria-hidden="true" className="shrink-0 text-muted" />
         <span className="flex flex-col">
           <span>{WORDS.watchSession}</span>

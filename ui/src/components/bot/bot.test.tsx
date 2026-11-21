@@ -10,8 +10,9 @@ import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testi
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AiJobInfo } from "../../lib/ipc/ai";
 import { BOT_NOW, R, STATES } from "../../preview/bot";
-import { CLEAR_AND_BACKUPS, FORGET_AND_BACKUPS, lead, leadText } from "../../lib/bot-words";
-import { ask, botState, openBot, resetBot } from "../../lib/bot-store";
+import { CLEAR_AND_BACKUPS, FORGET_AND_BACKUPS, WORDS, lead, leadText } from "../../lib/bot-words";
+import { ask, botState, newTopic, openBot, resetBot } from "../../lib/bot-store";
+import { BotWatchCard } from "./BotWatchCard";
 
 let job: AiJobInfo | null = null;
 vi.mock("../../lib/ai-availability", () => ({ useAiJob: () => job, useAiJobs: () => (job ? [job] : []), isShown: () => true }));
@@ -140,6 +141,33 @@ describe("every state of the mock-up", () => {
     fireEvent.click(screen.getAllByTestId("bot-looked")[0]!.querySelector("button")!);
     expect((screen.getByTestId("bot-receipt"))?.textContent ?? '').toContain("Your name for “web”: the api agent");
     expect(screen.getByText(/you call it the api agent/)).toBeTruthy();
+  });
+
+  it("a finished session's watch card says it fires once it's resumed (the 0.5 walk's N-09)", async () => {
+    render(<BotWatchCard row={R.loginDone} turnId="t1" onClose={() => undefined} />);
+    expect((await screen.findByTestId("bot-watch-not-running")).textContent).toBe("It isn't running now: the watch tells you once it's resumed.");
+    cleanup();
+    render(<BotWatchCard row={R.login} turnId="t1" onClose={() => undefined} />);
+    expect(screen.queryByTestId("bot-watch-not-running")).toBeNull();
+  });
+
+  it("search counts answers, and says so (the 0.5 walk's N-07)", () => {
+    expect(WORDS.findCount(1, 1)).toBe("1 of 1 answer");
+    expect(WORDS.findCount(2, 3)).toBe("2 of 3 answers");
+    expect(WORDS.findCount(0, 0)).toBe("No answers match");
+  });
+
+  it("New topic shows its divider at once, before anything is asked (the 0.5 walk's N-08)", async () => {
+    seed("empty");
+    panel();
+    await act(async () => {
+      await ask("What needs me?");
+    });
+    const before = screen.queryAllByTestId("bot-topic").length;
+    await act(async () => {
+      await newTopic();
+    });
+    expect(screen.getAllByTestId("bot-topic").length).toBe(before + 1);
   });
 
   it("newtopic and long: dividers for the topic and the day, Earlier pages", async () => {

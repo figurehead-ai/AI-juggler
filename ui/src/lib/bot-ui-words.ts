@@ -100,7 +100,9 @@ export const WORDS = {
   cancel: "Cancel",
   // Find.
   findPlaceholder: "Find in the conversation",
-  findCount: (at: number, n: number) => (n === 0 ? "No matches" : `${at} of ${n}`),
+  // It counts answers (a turn whose question, answer or records hold the
+  // words), not rows: the 0.5 walk's N-07 read "1 of 1" as one row.
+  findCount: (at: number, n: number) => (n === 0 ? "No answers match" : `${at} of ${n} ${n === 1 ? "answer" : "answers"}`),
   findUp: "Previous match",
   findDown: "Next match",
   done: "Done",
