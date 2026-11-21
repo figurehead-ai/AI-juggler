@@ -206,6 +206,15 @@ For the core screens and every dialog, `pnpm visual:capture` also writes protan,
 - **Runtime (to add to N1's gallery pass):** on every gallery state whose page is a session or a conversation (`[data-testid='session-page'], [data-testid='conversation-page']`), `[data-testid='switch-account']` is visible without scrolling at 1024×680 and 1280×800 in both themes, and passes a hit test. A session on a paired Mac is exempt.
 - **Covers:** PAT-SW-1 to PAT-SW-3, BTN-1 on session pages.
 
+### N22. What scrolls and what stays put (Playwright, in place: `scroll-regions.spec.ts`)
+
+- **Sizes and themes:** 1024×680 and 1280×800, dark and light; the mouse wheel and the keyboard.
+- **Dialogs:** the body scrolls under the wheel and Page Down (focus inside it); the footer's box doesn't move.
+- **The session page:** Switch account… keeps its box whatever scrolls (PAT-SW); the side column scrolls as one region under the wheel and the window never does; "More below" shows only while content is hidden; the wheel over the terminal never moves the column.
+- **The rail:** its list scrolls inside it; New session keeps its box.
+- **No trap:** no scroll box outside a dialog has an `overscroll-behavior` other than `auto` inside an ancestor that can still scroll (the wheel must pass outward at its end).
+- **Covers:** DLG-1, DLG-4, DEN-1, PAT-SW-1. The hand walk adds the rest of the surfaces (Home, Settings, the pool wizard and canvas inspector, Models, Bot, Watches).
+
 ### Rollout order
 
 1. N1 + N2 with `DialogFrame` (the reported bug, and the frame every later fix uses).
@@ -389,7 +398,7 @@ Legend: **A** = existing automated, **N#** = new automated (§3), **R** = Opus r
 | PAT-LST-5 Feed chronological | A home-feed tests |
 | PAT-ATT-1…5 | A attention-budget; N20 extends it to every calm family |
 | PAT-DOOR-1…3 | R11; A actions-by-id tests where they exist |
-| PAT-SW-1…5 | N21; walk step "from any session page, the switch is one visible click"; R2, R9 |
+| PAT-SW-1…5 | N21, N22; walk step "from any session page, the switch is one visible click"; R2, R9 |
 | CNT-1 Plain words | A plain_words_lint, plain-words-on-screen.test |
 | CNT-2 One word per thing | A terminology_lint, one-vocabulary.test |
 | CNT-3 Sentence case | N13 |

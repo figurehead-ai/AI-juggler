@@ -14,6 +14,7 @@
 #   - every dialog's fixed header and footer, its body alone scrolling,
 #     at 1024×680 and 1280×800 (dialog-fit, VALIDATION N1; writes
 #     docs/qa/evidence/design-system/dialog-fit.json);
+#   - what scrolls and what stays put (scroll-regions, VALIDATION N22);
 #   - axe on every state of Settings › AI › Models (models-gallery; its
 #     captures only when AIJ_MODELS_OUT names a folder), and of the
 #     Watches view (watches-gallery; AIJ_WATCHES_OUT);
@@ -35,6 +36,7 @@ AJ_AXE_GALLERY=1 AJ_A11Y_EVIDENCE=1 pnpm exec playwright test \
   tests/visual/keyboard-flows.spec.ts \
   tests/visual/zoom-motion.spec.ts \
   tests/visual/contrast.spec.ts \
+  tests/visual/scroll-regions.spec.ts \
   tests/visual/inactive-apps-gallery.spec.ts \
   tests/visual/a11y-glyph-names.spec.ts \
   tests/visual/attention-budget.spec.ts \
