@@ -107,6 +107,21 @@ describe("a conversation's page (the maintainer's report: Claude app · personal
     expect(screen.getByTestId("session-side").contains(button)).toBe(false);
   });
 
+  // The 0.5.0 walk, F7: with the column's scroll bar shown, Switch
+  // account… was 13 px wider than the cards under it.
+  it("lines up with the cards under it while the column shows a scroll bar", async () => {
+    const side = (el: HTMLElement) => el.dataset.testid === "session-side";
+    vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockImplementation(function (this: HTMLElement) {
+      return side(this) ? 340 : 0;
+    });
+    vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockImplementation(function (this: HTMLElement) {
+      return side(this) ? 327 : 0;
+    });
+    render(page());
+    await screen.findByTestId("switch-account");
+    await waitFor(() => expect(screen.getByTestId("session-lead").style.paddingRight).toBe("13px"));
+  });
+
   it("out of room: Switch account… is the one filled primary; Continue in AI Juggler steps down", async () => {
     room(0);
     render(page());
