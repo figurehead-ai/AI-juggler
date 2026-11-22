@@ -29,7 +29,7 @@ import type { QuotaDisplayData } from "../../lib/ipc/quota";
 import type { SwitchBackSuggestionData } from "../../lib/ipc/switchBack";
 import { switchSetupCheck, type SetupCheckInfo } from "../../lib/ipc/switchSetup";
 import { NOT_SIGNED_IN, rankTargets, roomless, signInWords, type RoomTarget, type TargetRoom } from "../../lib/room-targets";
-import { accountName, accountOfProfile, type SubscriptionInfo } from "../../lib/subscriptions";
+import { accountNamesApart, accountOfProfile, type SubscriptionInfo } from "../../lib/subscriptions";
 import { appWords, sessionAppName, type SessionModel } from "./model";
 import { targetApp, useTargetApp, type FolderTarget, type TargetApp } from "../../lib/apps";
 import type { RailPlace } from "../../lib/rail-items";
@@ -111,7 +111,10 @@ export function byAccount(targets: Target[], accounts: SubscriptionInfo[], sourc
   }
   const same = source?.state === "signed_in" ? (groups.get(source.key)?.targets ?? []) : [];
   if (source) groups.delete(source.key);
-  return { others: [...groups.values()], sameAccount: same };
+  // SK48-8 (the 0.5.0 walk, F3): twins listed together carry their tool.
+  const named = accountNamesApart([...groups.values()].flatMap((group) => (group.account ? [group.account] : [])));
+  const others = [...groups.values()].map((group) => ({ ...group, name: group.account ? named(group.account) : group.targets[0]!.label }));
+  return { others, sameAccount: same };
 }
 
 /** The backend's rows as the page's targets: never its own profile, which
@@ -256,7 +259,7 @@ export function ContinueOn({
     ) : (
       <ul className="flex flex-col gap-4" aria-label="Apps to continue in">
         {others.map((group) => {
-          const name = group.account ? accountName(group.account) : group.targets[0]!.label;
+          const name = group.name;
           // The account's room, from a target signed in there; "Not
           // signed in" only when none is.
           const room = (group.targets.find((target) => !roomless({ signed_out: target.signedOut, desktop: target.desktop })) ?? group.targets[0]!).room;

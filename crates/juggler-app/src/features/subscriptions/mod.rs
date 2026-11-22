@@ -628,7 +628,7 @@ pub fn with_apps(
 
 /// A tool as an Account's name says it: its short name ("Claude"), else
 /// its full one; a tool not registered here, its id.
-fn tool_words(state: &AppState, tool: &str) -> String {
+pub(crate) fn tool_words(state: &AppState, tool: &str) -> String {
     state
         .registry
         .get(&juggler_core::model::HarnessId::new(tool.to_owned()))

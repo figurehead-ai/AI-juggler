@@ -27,7 +27,7 @@ import { cliAppName } from "../lib/app-name";
 import { namedAccountApps } from "../lib/account-items";
 import { useApps, type AppModel } from "../lib/apps";
 import type { CreditsCover } from "../lib/credits";
-import { accountDisplay, accountLine, accountName, useSubscriptions, type SubscriptionInfo } from "../lib/subscriptions";
+import { accountDisplay, accountLine, accountNamesApart, useSubscriptions, type SubscriptionInfo } from "../lib/subscriptions";
 import { openAccount } from "../lib/accounts-page";
 
 export interface AccountGroup {
@@ -47,12 +47,18 @@ export interface AccountGroup {
 export function accountGroups(accounts: AccountInfo[], subscriptions: SubscriptionInfo[] | null, cliOnly = false): AccountGroup[] {
   const out: AccountGroup[] = [];
   const placed = new Set<string>();
+  const shown: Array<{ subscription: SubscriptionInfo; profiles: AccountInfo[] }> = [];
   for (const subscription of subscriptions ?? []) {
     const profiles = accounts.filter((account) => subscription.profiles.some((profile) => profile.id === account.id));
     const appsOnly = !cliOnly && subscription.profiles.length === 0 && (subscription.apps?.length ?? 0) > 0;
     if (profiles.length === 0 && !appsOnly) continue;
     for (const profile of profiles) placed.add(profile.id);
-    out.push({ key: subscription.key, name: accountName(subscription), detail: accountLine(subscription), profiles, subscription });
+    shown.push({ subscription, profiles });
+  }
+  // SK48-8 (the 0.5.0 walk, F3): twins listed together carry their tool.
+  const named = accountNamesApart(shown.map((row) => row.subscription));
+  for (const { subscription, profiles } of shown) {
+    out.push({ key: subscription.key, name: named(subscription), detail: accountLine(subscription), profiles, subscription });
   }
   for (const account of accounts.filter((account) => !placed.has(account.id))) {
     out.push({ key: account.id, name: account.label, detail: account.plan, profiles: [account], subscription: null });

@@ -9,6 +9,9 @@ import { describe, expect, it } from "vitest";
 import { accountNamesApart, type SubscriptionInfo } from "./subscriptions";
 import { sessionsByAccount, sessionsWords } from "../pages/project/sessions-by-account";
 import { accountGroups } from "../components/usage/accounts";
+import { accountGroups as runwayGroups } from "../components/HomeRunway";
+import { byAccount, type Target } from "../pages/session/ContinueOn";
+import type { AccountInfo } from "../types/generated/AccountInfo";
 
 const account = (key: string, name: string, tool: string): SubscriptionInfo => ({
   key,
@@ -45,5 +48,21 @@ describe("accounts listed together", () => {
     const groups = accountGroups(ROWS, new Map());
     expect(groups.get("f-codex")?.label).toBe("Personal (Codex)");
     expect(groups.get("f-work")?.label).toBe("Work");
+  });
+
+  // The 0.5.0 walk, F3: Home's "Runway by account" listed two plain
+  // "Personal" rows.
+  it("Home's Runway by account says which Personal", () => {
+    const folder = (id: string, provider: string) => ({ id, label: id, provider }) as unknown as AccountInfo;
+    const folders = [folder("f-work", "claude-code"), folder("f-personal", "claude-code"), folder("f-codex", "codex")];
+    expect(runwayGroups(folders, ROWS).map((group) => group.name)).toEqual(["Work", "Personal (Claude)", "Personal (Codex)"]);
+    // A twin that isn't listed leaves the other's name alone.
+    expect(runwayGroups(folders.slice(0, 2), ROWS).map((group) => group.name)).toEqual(["Work", "Personal"]);
+  });
+
+  it("the session page's Apps that can take it over says which Personal", () => {
+    const target = (profileId: string): Target => ({ profileId, label: profileId, recipeId: `r-${profileId}`, blocked: null, setupNeeded: false, badge: null, crossTool: false, room: null, suggested: false });
+    const { others } = byAccount([target("f-personal"), target("f-codex")], ROWS, "f-work");
+    expect(others.map((group) => group.name)).toEqual(["Personal (Claude)", "Personal (Codex)"]);
   });
 });
