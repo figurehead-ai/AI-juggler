@@ -26,6 +26,9 @@ export interface MiniMember {
   count: number;
   /** Its name: a session's title; alike sessions by their App's name. */
   name: string;
+  /** R6: when a session member started, on its card's second line, so
+   * twins read apart ("started 10:20 PM · Member"). */
+  when?: string | null;
   /** A member that brings sessions in (an App, an Account, a tool, a Mac):
    * its kind in a word, so it reads as one and not as a session (item 9:
    * "Claude Code … · Member" read as a third session beside "2 sessions"). */
@@ -52,6 +55,9 @@ export function withoutBareWork(rules: PoolRulesInfo | null): PoolRulesInfo | nu
 /** A member's name by its ref (a session's title, an App's name). */
 export type MiniName = (ref: string) => string;
 
+/** When a session member started, by its ref (R6), or null. */
+export type MiniWhen = (ref: string) => string | null;
+
 /** What a member of each kind is called when nothing names it. */
 const KIND_WORDS: Record<string, string> = { app: "An App", account: "An Account", tool: "A tool", mac: "A computer" };
 
@@ -62,13 +68,13 @@ const fallbackName = (ref: string, logo: LogoSpec): string => (ref === "all" ? "
 
 /** Sessions open now as members: alike tools together (by their App's
  * name), a lead apart. */
-function bySession(open: readonly InstanceInfo[], roleOf: (sessionId: string) => PoolRole, sources: LogoSources, nameOf: MiniName): { lead: MiniMember | null; members: MiniMember[] } {
+function bySession(open: readonly InstanceInfo[], roleOf: (sessionId: string) => PoolRole, sources: LogoSources, nameOf: MiniName, whenOf: MiniWhen): { lead: MiniMember | null; members: MiniMember[] } {
   let lead: MiniMember | null = null;
   const groups = new Map<string, MiniMember>();
   for (const session of open) {
     const ref = `session:${session.id}`;
     const logo = logoOf(ref, sources);
-    const member: MiniMember = { ref, logo, role: roleOf(session.id), count: 1, name: nameOf(ref) || fallbackName(ref, logo) };
+    const member: MiniMember = { ref, logo, role: roleOf(session.id), count: 1, name: nameOf(ref) || fallbackName(ref, logo), when: whenOf(ref) };
     if (member.role === "lead" && !lead) {
       lead = member;
       continue;
@@ -76,7 +82,7 @@ function bySession(open: readonly InstanceInfo[], roleOf: (sessionId: string) =>
     const key = `${logo.kind === "tool" ? `${logo.tool}|${logo.appId ?? ""}|${logo.look}` : "tile"}|${member.role}`;
     const was = groups.get(key);
     // Alike sessions together go by their App's name.
-    groups.set(key, was ? { ...was, count: was.count + 1, name: logo.kind === "tool" && logo.name ? logo.name : "Sessions" } : member);
+    groups.set(key, was ? { ...was, count: was.count + 1, name: logo.kind === "tool" && logo.name ? logo.name : "Sessions", when: null } : member);
   }
   return { lead, members: [...groups.values()] };
 }
@@ -89,12 +95,12 @@ function bySession(open: readonly InstanceInfo[], roleOf: (sessionId: string) =>
  * next session will. A pool whose members are sessions only (rules read,
  * none of them) draws those sessions: the 0.4.6 rc3 Pools render said
  * "No one in it yet" over "6 sessions · 4 need you". */
-export function miniTeam(rules: PoolRulesInfo | null, open: readonly InstanceInfo[], roleOf: (sessionId: string) => PoolRole, sources: LogoSources, nameOf: MiniName = () => ""): { lead: MiniMember | null; members: MiniMember[] } {
+export function miniTeam(rules: PoolRulesInfo | null, open: readonly InstanceInfo[], roleOf: (sessionId: string) => PoolRole, sources: LogoSources, nameOf: MiniName = () => "", whenOf: MiniWhen = () => null): { lead: MiniMember | null; members: MiniMember[] } {
   const named = (rules?.members ?? []).filter((rule) => rule.kind === "app" || rule.kind === "session");
   const broad = (rules?.members ?? []).filter((rule) => !named.includes(rule));
   const ruled = named.map((rule) => {
     const logo = logoOf(rule.member, sources);
-    return { ref: rule.member, logo, role: asRole(rule.role), count: rule.sessions, name: nameOf(rule.member) || fallbackName(rule.member, logo), group: GROUP_WORDS[rule.kind] };
+    return { ref: rule.member, logo, role: asRole(rule.role), count: rule.sessions, name: nameOf(rule.member) || fallbackName(rule.member, logo), when: whenOf(rule.member), group: GROUP_WORDS[rule.kind] };
   });
   const leading = ruled.find((one) => one.role === "lead") ?? ruled.find((one) => rules?.lead_next != null && one.ref === `app:${rules.lead_next}`);
   const covered = new Set([...named.flatMap((rule) => rule.session_ids), ...named.map((rule) => rule.member.replace(/^session:/, ""))]);
@@ -103,6 +109,7 @@ export function miniTeam(rules: PoolRulesInfo | null, open: readonly InstanceInf
     roleOf,
     sources,
     nameOf,
+    whenOf,
   );
   const wide =
     rest.members.length > 0 || rest.lead
@@ -136,9 +143,10 @@ const MINI_CARDS = 2;
 /** A member's card's second line: its role, how many are open, and what
  * kind of member brings them ("App · Member"). */
 const lineOf = (member: MiniMember): string => {
-  if (member.role === "lead") return roleCard("lead").label;
+  // R6: when it started first, so twins differ where the line isn't cut.
+  if (member.role === "lead") return [member.when, roleCard("lead").label].filter(Boolean).join(" · ");
   const open = member.count > 1 || (member.group && member.count > 0) ? `${member.count} open` : null;
-  return [open, member.group, roleCard(member.role).label].filter(Boolean).join(" · ");
+  return [member.when, open, member.group, roleCard(member.role).label].filter(Boolean).join(" · ");
 };
 
 export function PoolMini({ lead, members, known = true, height = 92 }: { lead: MiniMember | null; members: readonly MiniMember[]; /** Its members are read (an empty one then says so). */ known?: boolean; height?: number }): JSX.Element {

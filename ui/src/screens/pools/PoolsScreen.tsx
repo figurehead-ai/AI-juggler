@@ -22,7 +22,8 @@ import { onTasksChanged, useTaskNeeds } from "../../lib/ipc/tasks";
 import { poolCanvasPreviews, type PoolPreviewInfo } from "../../lib/ipc/pool-canvas";
 import { poolRules, type PoolRulesInfo } from "../../lib/ipc/pool-model";
 import { useApps } from "../../lib/apps";
-import { shortName } from "../../lib/session-titles";
+import { sessionNames, shortName } from "../../lib/session-titles";
+import { nodeTitles, type NodeTitle } from "../../pages/pool/node-title";
 import type { PoolInfo } from "../../lib/ipc/pools";
 import { doneNewPoolRequest, heldOut, needWords, onNewPoolRequest, poolIdsOf, poolNeedCount, roleOf, scopeLabel, takeNewPoolRequest, usePools, warmPool, type NewPoolRequest } from "../../lib/pools";
 import { sessionState } from "../../lib/rail-items";
@@ -102,14 +103,30 @@ function SkeletonCards(): JSX.Element {
  * pool's canvas names it (F-rc3f-6: once the Lead's session ended, the
  * card, which looked among the pool's open sessions only, drew it as
  * "sess-731993261005 · Lead"). Everyone is the thumbnail's own word. */
-function memberNameOf(label: (member: string) => string): (ref: string, sessions: readonly InstanceInfo[]) => string {
-  return (ref, sessions) => {
+function memberNameOf(label: (member: string) => string): (ref: string, sessions: readonly InstanceInfo[], titles?: ReadonlyMap<string, NodeTitle>) => string {
+  return (ref, sessions, titles) => {
     if (ref.startsWith("session:")) {
-      const session = sessions.find((one) => `session:${one.id}` === ref);
+      const id = ref.slice("session:".length);
+      const title = titles?.get(id);
+      if (title) return title.title;
+      const session = sessions.find((one) => one.id === id);
       return session ? shortName(session) : "";
     }
     return ref === "all" ? "" : label(ref);
   };
+}
+
+/** R6 (the 0.5.0 re-walk): a card's sessions as the pool's diagram titles
+ * them (`nodeTitles`): the name, told apart by a number where two still
+ * read alike, and when it started on its own line. P11's A card drew
+ * "web · started 1…" twice, cut where the twins differ. */
+export function cardTitles(members: readonly InstanceInfo[], names: ReadonlyMap<string, string>, now: number = Date.now()): Map<string, NodeTitle> {
+  const once = [...new Map(members.map((session) => [session.id, session] as const)).values()];
+  return nodeTitles(
+    once.map((session) => ({ id: session.id, session, card: { task: { value: null } } })),
+    now,
+    names,
+  );
 }
 
 /** The members a card reads of its pool (its mini team's sessions). */
@@ -140,6 +157,7 @@ export function PoolsScreen({ sessions, projects, accounts }: { sessions: Instan
   const [listed, setListed] = useState<Map<string, InstanceInfo[]>>(new Map());
   const apps = useApps(accounts);
   const memberName = memberNameOf(useMemberLabel(accounts, sessions));
+  const names = useMemo(() => sessionNames(sessions), [sessions]);
 
   // Each open session (what the rail holds), by its pool.
   const byPool = useMemo(() => {
@@ -235,7 +253,8 @@ export function PoolsScreen({ sessions, projects, accounts }: { sessions: Instan
               const members = byPool.get(pool.id) ?? [];
               const preview = previews.get(pool.id);
               const known = [...(listed.get(pool.id) ?? []), ...sessions];
-              const team = miniTeam(withoutBareWork(withoutHeld(teams.get(pool.id) ?? null, (id) => heldOut(pools, id, pool.id))), members.slice(0, CARD_MEMBERS), (id) => roleOf(pools, id, pool.id), { apps: apps ?? [], sessions: known }, (ref) => memberName(ref, known));
+              const titles = cardTitles([...(listed.get(pool.id) ?? []), ...members], names);
+              const team = miniTeam(withoutBareWork(withoutHeld(teams.get(pool.id) ?? null, (id) => heldOut(pools, id, pool.id))), members.slice(0, CARD_MEMBERS), (id) => roleOf(pools, id, pool.id), { apps: apps ?? [], sessions: known }, (ref) => memberName(ref, known, titles), (ref) => (ref.startsWith("session:") ? (titles.get(ref.slice("session:".length))?.when ?? null) : null));
               return (
                 <PoolCard key={pool.id} pool={pool} local={cardHost} asks={asks.get(pool.id) ?? 0} onOpen={() => host.openPool?.(pool.id)}>
                   <PoolMini lead={team.lead} members={team.members} known={teams.has(pool.id)} />
