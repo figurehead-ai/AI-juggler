@@ -14,13 +14,15 @@
 // when it posted each key (the run's input ledger, beside its log, kept
 // across its commands), and an input event at one of those moments
 // (15 ms before to 60 ms after) is its own. Anything else is the person's:
-// any pointer event (the driver never posts one, so moves, clicks and
-// scrolls are always theirs), and any key between two of the driver's
-// (it waits 0.1 s after each key so such a key shows). Only a key of the
-// person's within those few ms of one of the driver's can pass as its own;
-// the frontmost+topmost guard still runs before every key.
+// any pointer move or click (the driver never posts one), a wheel click
+// that isn't in the ledger (`scroll` keeps its own there, as keys are
+// kept), and any key between two of the driver's (it waits 0.1 s after
+// each key or wheel click so such an event shows). Only a key or a wheel
+// click of the person's within those few ms of one of the driver's can
+// pass as its own; the frontmost+topmost guard still runs before every
+// key and every wheel click.
 //
-// THE CLICK GUARD. Before every press and every keystroke, both must hold:
+// THE CLICK GUARD. Before every press, keystroke, wheel click and resize, both must hold:
 //   - the frontmost app (NSWorkspace) is Dev's pid;
 //   - the topmost on-screen window at the point (CGWindowList, active
 //     Space, front to back) belongs to Dev's pid.
@@ -106,7 +108,16 @@
 //   focus TITLE [--in TEXT]       puts the cursor in the field titled TITLE
 //   focus-terminal [--in TEXT]    puts the cursor in AI Juggler's terminal (its input)
 //   type TEXT                     types TEXT where the cursor is (keys posted to Dev's pid)
-//   key NAME [--repeat N]         return, down, up, left, right, escape, tab, space, ctrl-c
+//   key NAME [--repeat N]         return, down, up, left, right, pagedown, pageup, home, end,
+//                                 escape, tab, space, ctrl-c
+//   scroll down|up [N] [--at X,Y] the wheel, N clicks (default 3) of a line, at the screen
+//                                 point X,Y (default: the middle of Dev's main window), posted
+//                                 to Dev's pid; the pointer doesn't move; each click behind the
+//                                 guard at that point
+//   resize WxH                    Dev's MAIN window to W×H points, by accessibility, behind
+//                                 the guard; prints SIZE; one that didn't take stops (exit 4)
+//   windows                       every window of Dev's pid (accessibility's role, subrole,
+//                                 title, frame; the window server's layer), read only
 //   wait TEXT [--timeout S] [--ocr] [--gone]
 //                                 until TEXT shows (or is gone); --ocr also reads the
 //                                 window's picture (AI Juggler's terminal draws its text
@@ -607,10 +618,12 @@ func hidIdle() -> Double {
 }
 
 /// The pointer's events, and the trackpad's gestures (NSEvent's gesture,
-/// magnify, swipe, rotate, smart magnify): never posted by the driver.
+/// magnify, swipe, rotate, smart magnify): never posted by the driver. The
+/// wheel isn't here: `scroll` posts it, kept in the ledger as keys are, so
+/// the person's wheel shows as the latest input that isn't the driver's.
 let pointerEvents: [CGEventType] = [.mouseMoved, .leftMouseDown, .leftMouseUp, .rightMouseDown, .rightMouseUp,
                                     .otherMouseDown, .otherMouseUp, .leftMouseDragged, .rightMouseDragged,
-                                    .otherMouseDragged, .scrollWheel, .tabletPointer, .tabletProximity]
+                                    .otherMouseDragged, .tabletPointer, .tabletProximity]
     + [29, 30, 31, 18, 32].compactMap { CGEventType(rawValue: $0) }
 
 /// Seconds since the person's last pointer or trackpad input.
@@ -1039,7 +1052,12 @@ func pointFor(_ pid: pid_t, _ e: AXUIElement) -> CGPoint {
 // MARK: - keys, posted to Dev's pid only
 
 let keyCodes: [String: CGKeyCode] = ["return": 36, "enter": 36, "tab": 48, "space": 49, "escape": 53, "esc": 53,
-                                     "left": 123, "right": 124, "down": 125, "up": 126, "delete": 51, "c": 8]
+                                     "left": 123, "right": 124, "down": 125, "up": 126, "delete": 51, "c": 8,
+                                     // The 0.5.0 final walk (F11): scrolling by keyboard.
+                                     "pagedown": 121, "pageup": 116, "home": 115, "end": 119]
+
+/// The keys `key` takes, for its usage line.
+let keyNames = "return, down, up, left, right, pagedown, pageup, home, end, escape, tab, space, ctrl-c"
 
 func keyPoint(_ pid: pid_t) -> CGPoint {
     let win = windowOnScreen(pid)
@@ -1104,8 +1122,102 @@ func typeText(_ pid: pid_t, _ s: String) {
 
 func pressKey(_ pid: pid_t, _ name: String) {
     if name == "ctrl-c" { post(pid, code: 8, flags: .maskControl); return }
-    guard let code = keyCodes[name] else { stop(2, "unknown key \(name) (return, down, up, left, right, escape, tab, space, ctrl-c)") }
+    guard let code = keyCodes[name] else { stop(2, "unknown key \(name) (\(keyNames))") }
     post(pid, code: code)
+}
+
+// MARK: - the wheel and the window's size (the 0.5.0 final walk, F11)
+
+/// "X,Y" as a point (pure: the selftest); nil when it isn't two numbers.
+func parsePoint(_ raw: String) -> CGPoint? {
+    let parts = raw.split(separator: ",").map { Double($0.trimmingCharacters(in: .whitespaces)) }
+    guard parts.count == 2, let x = parts[0], let y = parts[1] else { return nil }
+    return CGPoint(x: x, y: y)
+}
+
+/// "WxH" (or "W×H") as a size (pure: the selftest); nil unless both are
+/// whole numbers from 200 to 10 000.
+func parseSize(_ raw: String) -> CGSize? {
+    let parts = raw.replacingOccurrences(of: "×", with: "x").lowercased().split(separator: "x").map { Int($0) }
+    guard parts.count == 2, let w = parts[0], let h = parts[1], (200...10_000).contains(w), (200...10_000).contains(h) else { return nil }
+    return CGSize(width: w, height: h)
+}
+
+/// The wheel's lines for `scroll DIRECTION [N]` (pure: the selftest): the
+/// sign the wheel's first axis takes (up is positive), N clicks of one
+/// line each, 1 to 50; nil for another direction or count.
+func wheelLines(_ direction: String, _ count: String?) -> Int32? {
+    guard let n = Int32(count ?? "3"), (1...50).contains(n) else { return nil }
+    switch direction {
+    case "down": return -n
+    case "up": return n
+    default: return nil
+    }
+}
+
+/// The wheel at `point` (screen points; nil: the middle of Dev's main
+/// window), `lines` clicks one line at a time, posted to Dev's pid only:
+/// each click behind the full guard at that point, as a key is. The
+/// pointer doesn't move.
+func scrollWheel(_ pid: pid_t, lines: Int32, at given: CGPoint?) {
+    let step: Int32 = lines < 0 ? -1 : 1
+    for _ in 0..<abs(lines) {
+        var point = CGPoint.zero
+        while true {
+            let win = windowOnScreen(pid)
+            point = given ?? CGPoint(x: win.bounds.midX, y: win.bounds.midY)
+            guard win.bounds.contains(point) else { stop(4, "the point \(Int(point.x)),\(Int(point.y)) isn't inside Dev's main window; nothing sent") }
+            if guarded(pid, at: point) == .send { break }
+        }
+        let source = CGEventSource(stateID: .privateState)
+        guard let event = CGEvent(scrollWheelEvent2Source: source, units: .line, wheelCount: 1, wheel1: step, wheel2: 0, wheel3: 0) else { stop(3, "no wheel event") }
+        event.location = point
+        ledger.noteOwn(Date().timeIntervalSince1970)
+        event.postToPid(pid)
+        saveLedger()
+        usleep(useconds_t(keyGap * 1_000_000))
+    }
+}
+
+/// Dev's MAIN window to `size` (points), by accessibility and its pid,
+/// behind the full guard at the window's middle; never another of its
+/// windows (W-03: a size set on the first window accessibility listed
+/// moved the small 280x168 one, and the main window kept its size). Says
+/// the size it has after; one that didn't take stops (exit 4).
+func resizeMain(_ pid: pid_t, to size: CGSize) {
+    while true {
+        let win = windowOnScreen(pid)
+        if guarded(pid, at: CGPoint(x: win.bounds.midX, y: win.bounds.midY)) == .send { break }
+    }
+    guard let main = mainWindow(pid) else { stop(3, "Dev's main window isn't there; nothing sent") }
+    var wanted = size
+    guard let value = AXValueCreate(.cgSize, &wanted) else { stop(3, "no size value") }
+    let result = AXUIElementSetAttributeValue(main.ax, kAXSizeAttribute as CFString, value)
+    usleep(400_000)
+    let now = frame(main.ax)?.size ?? .zero
+    say("SIZE \(Int(now.width))×\(Int(now.height)) (asked \(Int(size.width))×\(Int(size.height)), accessibility said \(result.rawValue))")
+    if abs(now.width - size.width) > 2 || abs(now.height - size.height) > 2 {
+        stop(4, "the main window didn't take that size (its minimum is 1024×680, and a full-screen or tiled window keeps its own)")
+    }
+}
+
+/// Every window of Dev's pid, read only (W-04: which one is the untitled
+/// 280x168 one): accessibility's role, subrole, title and frame, and the
+/// window server's layer, name and on-screen state for each of its
+/// windows, every layer.
+func listWindows(_ pid: pid_t) {
+    let app = AXUIElementCreateApplication(pid)
+    for w in (attr(app, kAXWindowsAttribute) as? [AXUIElement]) ?? [] {
+        let f = frame(w) ?? .zero
+        show("AX \(text(w, kAXRoleAttribute)) \(text(w, kAXSubroleAttribute)) \"\(text(w, kAXTitleAttribute))\" \(Int(f.width))×\(Int(f.height)) at \(Int(f.minX)),\(Int(f.minY))"
+            + " modal=\((attr(w, kAXModalAttribute) as? Bool) ?? false) children=\(((attr(w, kAXChildrenAttribute) as? [AXUIElement]) ?? []).count)")
+    }
+    let list = CGWindowListCopyWindowInfo([.optionAll], kCGNullWindowID) as? [[String: Any]] ?? []
+    for w in list where (w[kCGWindowOwnerPID as String] as? pid_t) == pid {
+        let b = (w[kCGWindowBounds as String] as? NSDictionary).flatMap { CGRect(dictionaryRepresentation: $0) } ?? .zero
+        show("CG #\(w[kCGWindowNumber as String] as? Int ?? 0) layer=\(w[kCGWindowLayer as String] as? Int ?? 0) \"\(w[kCGWindowName as String] as? String ?? "")\" \(Int(b.width))×\(Int(b.height)) at \(Int(b.minX)),\(Int(b.minY))"
+            + " onscreen=\((w[kCGWindowIsOnscreen as String] as? Bool) ?? false) alpha=\(w[kCGWindowAlpha as String] as? Double ?? 1)")
+    }
 }
 
 // MARK: - reading the picture (OCR, for the terminal's canvas)
@@ -1162,6 +1274,8 @@ struct Opts {
     var boxes: [String] = []
     var noRealData: String?
     var note: String?
+    /// `scroll`'s point, "X,Y" in screen points.
+    var at: String?
 }
 
 func parse(_ raw: [String]) -> Opts {
@@ -1185,6 +1299,7 @@ func parse(_ raw: [String]) -> Opts {
         case "--box": o.boxes.append(value())
         case "--no-real-data": o.noRealData = value()
         case "--note": o.note = value()
+        case "--at": o.at = value()
         default: o.positional.append(raw[i])
         }
         i += 1
@@ -2125,7 +2240,12 @@ func selftest() {
     if !shows(["OpenCode CLI · lab A needs its sign-in"], "lab A needs its sign-in") { failures.append("shows") }
     if shows(["Sign"], "Sign in") { failures.append("shows matched a prefix of the needle") }
     // Keys: the names the sheet uses exist.
-    for k in ["return", "down", "up", "escape", "tab", "space"] where keyCodes[k] == nil { failures.append("key \(k)") }
+    for k in ["return", "down", "up", "left", "right", "pagedown", "pageup", "home", "end", "escape", "tab", "space"] where keyCodes[k] == nil { failures.append("key \(k)") }
+    // The wheel, a point and a size (F11).
+    if wheelLines("down", nil) != -3 || wheelLines("up", "5") != 5 || wheelLines("left", "1") != nil || wheelLines("down", "0") != nil || wheelLines("down", "51") != nil { failures.append("scroll's lines") }
+    if parsePoint("400, 300") != CGPoint(x: 400, y: 300) || parsePoint("400") != nil || parsePoint("a,b") != nil { failures.append("--at X,Y") }
+    if parseSize("1024x680") != CGSize(width: 1024, height: 680) || parseSize("1280×800") != CGSize(width: 1280, height: 800) || parseSize("10x10") != nil || parseSize("1024") != nil { failures.append("resize WxH") }
+    if parse(["down", "4", "--at", "10,20"]).at != "10,20" { failures.append("parse --at") }
     // Options parse.
     let o = parse(["Sign in", "--in", "lab A needs its sign-in", "--timeout", "900", "--ocr"])
     if o.positional != ["Sign in"] || o.within != ["lab A needs its sign-in"] || o.timeout != 900 || !o.ocr { failures.append("parse") }
@@ -2176,6 +2296,21 @@ case "key":
     need(1, "key NAME [--repeat N]")
     say("» key \(o.positional[0])" + (o.repeatCount > 1 ? " ×\(o.repeatCount)" : ""))
     for _ in 0..<o.repeatCount { pressKey(pid, o.positional[0]) }
+case "scroll":
+    need(1, "scroll down|up [N] [--at X,Y]")
+    guard let lines = wheelLines(o.positional[0], o.positional.count > 1 ? o.positional[1] : nil) else { stop(2, "scroll down|up [N, 1 to 50] [--at X,Y]") }
+    let at = o.at.map { raw -> CGPoint in
+        guard let point = parsePoint(raw) else { stop(2, "--at X,Y (screen points)") }
+        return point
+    }
+    say("» scroll \(o.positional[0]) \(abs(lines))" + (o.at.map { " --at \($0)" } ?? ""))
+    scrollWheel(pid, lines: lines, at: at)
+case "resize":
+    need(1, "resize WxH (Dev's main window, in points)")
+    guard let size = parseSize(o.positional[0]) else { stop(2, "resize WxH, e.g. 1024x680") }
+    say("» resize \(Int(size.width))×\(Int(size.height))")
+    resizeMain(pid, to: size)
+case "windows": listWindows(pid)
 case "wait": need(1, "wait TEXT [--timeout S] [--ocr] [--gone]"); waitFor(pid, o.positional[0], timeout: o.timeout, ocr: o.ocr, gone: o.gone)
 case "read": screenWords(pid, ocr: o.ocr).forEach { show($0) }
 case "shot": shot(pid, o)
