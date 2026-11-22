@@ -70,6 +70,8 @@ struct Scripted {
     wait: Option<Duration>,
     /// What the move told the switch screen.
     told: Mutex<Vec<MoveProgressInfo>>,
+    /// The place an AI Juggler was started from inside (the self rule).
+    juggler_in: Option<String>,
 }
 
 impl Scripted {
@@ -208,6 +210,22 @@ impl MoveSystem for Scripted {
     }
     fn tell(&self, progress: &MoveProgressInfo) {
         self.told.lock().unwrap().push(progress.clone());
+    }
+    fn quits_juggler(
+        &self,
+        _: &Arc<AppState>,
+        place: &KnownPlace,
+        _: u32,
+        action: &str,
+    ) -> Option<String> {
+        let id = book::place_id(&place.app_id, place.instance_dir.as_deref());
+        (self.juggler_in.as_ref() == Some(&id)).then(|| {
+            crate::features::ownership::self_rule::words(
+                crate::features::ownership::self_rule::Juggler::Ours,
+                &place.name,
+                action,
+            )
+        })
     }
     fn elsewhere(&self, _: &Arc<AppState>, _: &KnownPlace, left: &[Member]) -> Vec<Member> {
         if self.held_elsewhere {
@@ -667,6 +685,44 @@ fn a_busy_profile_waits_in_the_offer_and_says_how() {
             offer.blocks
         );
     }
+}
+
+/// AJ-E2315 (the self rule, the review's A1.5): AI Juggler started from
+/// inside the source profile (its Code tab) is never quit by its own move:
+/// the offer waits, saying why and how it clears, and a move run anyway
+/// refuses before anything quits.
+#[test]
+fn a_move_that_would_quit_ai_juggler_refuses_before_anything_quits() {
+    let lab = lab();
+    let system = Scripted {
+        juggler_in: Some(source_id(&lab)),
+        ..running_both(&lab)
+    };
+    let offer = offer_of(&lab.state, &lab.sides, &system);
+    assert!(
+        offer
+            .blocks
+            .iter()
+            .any(|b| b.kind == MoveBlockKind::UserCanClear
+                && b.words
+                    .contains("AI Juggler itself was started from inside")
+                && b.words.ends_with(
+                    "Move becomes available once you start AI Juggler from the Dock or Finder"
+                )),
+        "{:?}",
+        offer.blocks
+    );
+    let error = run(&lab.state, &lab.sides, &system).unwrap_err();
+    assert!(
+        error
+            .wire()
+            .user_message
+            .contains("AI Juggler itself was started from inside"),
+        "{error}"
+    );
+    assert!(system.quits.lock().unwrap().is_empty(), "nothing quit");
+    assert!(system.starts.lock().unwrap().is_empty(), "nothing started");
+    assert!(unchanged(&lab));
 }
 
 /// D-128: a new major of the app whose records fit is offered (the 0.4.6
