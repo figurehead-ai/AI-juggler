@@ -876,15 +876,21 @@ fn seed_lab(
             // profile, their transcripts in its Claude Code folder), and
             // scripts' runs in that folder.
             let who = slug(app["account"].as_str().unwrap_or(id));
+            let records = juggler_adapters::claude_live::app_root(&dir)
+                .join(format!("lab-account-{who}"))
+                .join(format!("lab-org-{who}"));
+            // A signed-in profile has its records folder even with no Code
+            // session yet, as one opened on its account has: Move's target
+            // reads its account there (the 0.5.0 re-walk, R12: PL1's
+            // personal profile had none, so Move stayed off).
+            if signed_in(&app).is_some() {
+                std::fs::create_dir_all(&records).unwrap();
+            }
             let surface = Surface {
                 tool: "claude-code",
                 own: StartedBy::ClaudeApp,
                 folder: code.clone(),
-                records: Some(
-                    juggler_adapters::claude_live::app_root(&dir)
-                        .join(format!("lab-account-{who}"))
-                        .join(format!("lab-org-{who}")),
-                ),
+                records: Some(records),
             };
             lab_past(&app, &surface, &cwds, &lab_roots, &mut notes);
             if app["running"].as_bool() == Some(true) {
@@ -3254,6 +3260,16 @@ fn pl1s_lab_holds_the_six_shapes() {
             "out": ["client", "work"],
         })
     );
+    // The 0.5.0 re-walk (R12): each signed-in profile has its records
+    // folder, personal's too (empty), so Move's target reads its account
+    // there and Move to personal is on.
+    for name in ["personal", "work", "client"] {
+        assert_eq!(
+            juggler_adapters::claude_limits::instance_sign_ins(&profile(name)).len(),
+            1,
+            "{name}: one records folder"
+        );
+    }
     // What a walker needs to know: start-apps starts the two running
     // profiles; the Codex app is this Mac's own.
     for (id, word) in [
