@@ -10,7 +10,8 @@
  * an action at a glance) while its account has room; the page's one
  * filled primary when its account is out of room or low, when the page's
  * other primary steps down (`ownRoomWantsSwitch`). Its press opens the
- * ranked list of Apps to continue in (the same dialog as ⌘⇧H).
+ * ranked list of Apps to continue in (the same dialog as ⌘⇧H). When it
+ * can't switch yet, it greys and says why in a line under it (BTN-5).
  */
 import type { JSX } from "react";
 import { focusHandover } from "../lib/handover-focus";
@@ -40,7 +41,7 @@ export function SwitchAccountButton({
 }): JSX.Element {
   const room = useOwnRoom(accountId);
   const primary = ownRoomWantsSwitch(room);
-  return (
+  const button = (
     <WhyButton
       size="md"
       variant={primary ? "primary" : "accent"}
@@ -53,5 +54,16 @@ export function SwitchAccountButton({
       <IconStateHandover aria-hidden="true" width={16} height={16} />
       Switch account…
     </WhyButton>
+  );
+  if (why === null) return button;
+  // BTN-5 (the 0.5.0 walk, F2): greyed, its reason is a visible line under
+  // it, not only a tip on hover or focus.
+  return (
+    <div className="flex flex-col gap-1.5">
+      {button}
+      <p className="text-meta leading-snug text-ink-2" data-testid="switch-account-why">
+        {why}
+      </p>
+    </div>
   );
 }

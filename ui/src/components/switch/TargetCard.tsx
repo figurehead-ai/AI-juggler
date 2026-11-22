@@ -131,8 +131,10 @@ export const TargetButton = forwardRef<
     >
       {logo}
       <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-        <span className="truncate text-body font-semibold text-ink">{name}</span>
-        {sub && <span className="truncate text-meta text-ink-2">{sub}</span>}
+        {/* Wrapped, never cut (DEN-1; the 0.5.0 walk, F2 and F7): twin
+            accounts differ only at the end of their names. */}
+        <span className="text-body font-semibold text-ink [overflow-wrap:anywhere]" data-testid="target-name">{name}</span>
+        {sub && <span className="text-meta text-ink-2 [overflow-wrap:anywhere]" data-testid="target-sub">{sub}</span>}
         {tags && <span className="mt-1 flex min-w-0 flex-wrap items-center gap-1.5">{tags}</span>}
         {detail && <span className="mt-1 flex min-w-0 flex-col gap-0.5 text-meta text-ink-2">{detail}</span>}
       </span>

@@ -16,6 +16,7 @@ import { noteSwitchTargets, resetSwitchNotYet, useSwitchNotYet } from "../lib/sw
 import { clearSeams, instance, setSeam } from "../test/fixtures";
 import { SessionNotices } from "./SessionNotices";
 import { handoverTeaser } from "./HandoverSection";
+import { SwitchTargetRows } from "./SwitchTargetRows";
 import { resetToasts } from "./Toast";
 
 const NO_TURN = "This session hasn't started a conversation yet, so there's nothing to switch. Send it a first message, then switch.";
@@ -110,5 +111,31 @@ describe("rc33 M4: a switch that would refuse says so on every door", () => {
     cleanup();
     render(<Probe id="b" />);
     expect(screen.getByTestId("probe").textContent).toBe("none");
+  });
+
+  // The 0.5.0 walk, F2: greyed, its reason showed only on hover and focus
+  // (the walker saw none), and each card cut it ("This session hasn't
+  // started a c…").
+  it("the greyed Switch account… says why in a visible line under it; live, no line", () => {
+    const view = render(<SwitchAccountButton switchKey="writer" accountId="acc-work" why={NO_TURN} />);
+    expect(screen.getByTestId("switch-account-why").textContent).toBe(NO_TURN);
+    view.unmount();
+    render(<SwitchAccountButton switchKey="writer" accountId="acc-work" />);
+    expect(screen.queryByTestId("switch-account-why")).toBeNull();
+  });
+
+  it("the ranked list says the session's reason once, in full, and no card cuts its name or line", () => {
+    const twin = row({ recipe_id: "r-cc", provider: "claude-code", account_id: "acc-cc", account_label: "Personal · personal", cross_provider: false });
+    render(<SwitchTargetRows targets={[row(), twin]} onPick={() => undefined} />);
+    expect(screen.getByTestId("switch-not-yet-line").textContent).toBe(NO_TURN);
+    const subs = screen.getAllByTestId("target-sub").map((sub) => sub.textContent ?? "");
+    expect(subs).toHaveLength(2);
+    expect(subs.some((sub) => sub.includes("hasn't started"))).toBe(false);
+    for (const line of [...screen.getAllByTestId("target-name"), ...screen.getAllByTestId("target-sub")]) expect(line.className).not.toContain("truncate");
+    // A card's own reason stays on its card, whole.
+    cleanup();
+    render(<SwitchTargetRows targets={[row({ not_yet: null, filtered_reason: "Not signed in on this Mac, so it can't take the work yet" })]} onPick={() => undefined} />);
+    expect(screen.queryByTestId("switch-not-yet-line")).toBeNull();
+    expect(screen.getByTestId("target-sub").textContent).toBe("Not signed in on this Mac, so it can't take the work yet");
   });
 });

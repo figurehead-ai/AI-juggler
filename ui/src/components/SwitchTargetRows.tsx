@@ -106,6 +106,7 @@ export function SwitchTargetRows({
   const appOf = useTargetApp();
   // AJ-E1103: a suggestion shown, then taken or passed over.
   const suggested = targets.find((target) => target.suggested && !target.filtered_reason);
+  const notYet = targets.find((target) => target.not_yet)?.not_yet ?? null;
   const suggestedProvider = suggested?.provider ?? "other";
   useEffect(() => {
     if (suggested) statsEvent("usage.suggestion", { provider: suggestedProvider, action: "shown" });
@@ -144,9 +145,16 @@ export function SwitchTargetRows({
           {ROOM_ORDER_WORDS}
         </p>
       )}
+      {/* Why the session itself can't switch yet, said once, not cut on
+          every card (BTN-5, LST-3; the 0.5.0 walk, F2). */}
+      {notYet && (
+        <p className="text-meta leading-snug text-ink-2" data-testid="switch-not-yet-line">
+          {notYet}
+        </p>
+      )}
       <ul ref={listRef} onKeyDown={onKeyDown} aria-label="Switch destinations, ranked" className="flex flex-col gap-2.5">
         {targets.map((target) => (
-          <TargetRow key={target.recipe_id} target={target} app={appOf({ folder: target.account_id, tool: target.provider, label: target.account_label })} whyOpen={whyOpen} onPick={() => pick(target)} />
+          <TargetRow key={target.recipe_id} target={target} saidOnce={notYet} app={appOf({ folder: target.account_id, tool: target.provider, label: target.account_label })} whyOpen={whyOpen} onPick={() => pick(target)} />
         ))}
       </ul>
       <p className="text-meta text-ink-2">What carries is checked for each pair of tools, never assumed.</p>
@@ -157,8 +165,10 @@ export function SwitchTargetRows({
 /** One ranked target, as a card: its App, its account and forecast, the
  * room and Suggested as its two tags, then how much carries, the room in
  * words, what doesn't carry and why it ranks there. */
-function TargetRow({ target, app, whyOpen, onPick }: { target: SwitchTargetData & { room?: TargetRoom }; app: TargetApp; whyOpen: boolean; onPick: () => void }): JSX.Element {
+function TargetRow({ target, saidOnce, app, whyOpen, onPick }: { target: SwitchTargetData & { room?: TargetRoom }; saidOnce: string | null; app: TargetApp; whyOpen: boolean; onPick: () => void }): JSX.Element {
   const filtered = target.filtered_reason != null;
+  // Its own reason, unless the list already says it once above.
+  const reason = filtered && target.filtered_reason !== saidOnce ? target.filtered_reason : null;
   const forecast = !filtered && !roomless(target) ? forecastWords(target.tte_min, target.confidence) : null;
   const factors = [...target.top_factors, ...(target.first_run ? ["its first-run setup is done as it switches"] : [])].join(" · ");
   const open = !filtered;
@@ -172,7 +182,7 @@ function TargetRow({ target, app, whyOpen, onPick }: { target: SwitchTargetData 
         suggested={target.suggested && open}
         logo={<TargetLogo tool={target.provider ?? null} kind={app.kind} place={app.mark} folderId={target.account_id} label={target.account_label} />}
         name={app.name}
-        sub={filtered ? target.filtered_reason : `On ${target.room?.account ?? target.account_label}${forecast ? ` · ${forecast}` : ""}`}
+        sub={reason ?? `On ${target.room?.account ?? target.account_label}${forecast ? ` · ${forecast}` : ""}`}
         tags={open && (target.room || target.suggested) && <TwoTags room={target.room ?? null} suggested={target.suggested} />}
         detail={
           <>

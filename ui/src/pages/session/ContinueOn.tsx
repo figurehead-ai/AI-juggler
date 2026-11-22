@@ -211,6 +211,7 @@ export function ContinueOn({
     [rows, accounts, displays, model.profileId, appOf],
   );
   const { others, sameAccount } = byAccount(targets, accounts, model.profileId);
+  const notYet = rows?.find((row) => row.not_yet)?.not_yet ?? null;
   // The one-line checks, for the first few profiles offered.
   useEffect(() => {
     let alive = true;
@@ -241,6 +242,13 @@ export function ContinueOn({
         <span className="text-muted">Go back to where it came from ▸</span>
       </button>
     )}
+    {/* Why the session itself can't switch yet, said once, not on every
+        card (BTN-5, LST-3; the 0.5.0 walk, F2). */}
+    {notYet && others.length > 0 && (
+      <p className="text-meta leading-snug text-ink-2" data-testid="continue-not-yet">
+        {notYet}
+      </p>
+    )}
     {rows === null ? (
       <p className="text-meta text-ink-2" role="status">Looking for room…</p>
     ) : others.length === 0 ? (
@@ -255,12 +263,12 @@ export function ContinueOn({
           return (
             <li key={group.account?.key ?? group.targets[0]!.profileId} className="flex flex-col gap-2" data-testid="continue-account" data-room={room?.kind}>
               <span className="flex min-w-0 items-center justify-between gap-2">
-                <span className="truncate text-label font-semibold uppercase tracking-[0.07em] text-section-label">{name}</span>
+                <span className="min-w-0 text-label font-semibold uppercase tracking-[0.07em] text-section-label [overflow-wrap:anywhere]">{name}</span>
                 <RoomFigure room={room} />
               </span>
               {room && room.kind !== "blocked" && <RoomLine name={name} room={room} testId="continue-room" chip={false} />}
               {group.targets.map((target) => (
-                <ContinueTarget key={target.profileId + target.recipeId} target={target} accountRoom={room} check={target.recipeId in checks ? checks[target.recipeId] : undefined} pick={pick} onStart={() => setDialog(false)} />
+                <ContinueTarget key={target.profileId + target.recipeId} target={target} saidOnce={notYet} accountRoom={room} check={target.recipeId in checks ? checks[target.recipeId] : undefined} pick={pick} onStart={() => setDialog(false)} />
               ))}
             </li>
           );
@@ -328,11 +336,13 @@ export function ContinueOn({
 /** One App to continue in, as a target card (D-142): its logo and badge,
  * its name, Suggested and how much carries as tags, and its one-line
  * check (its own sign-in, or what it lacks) under them. */
-function ContinueTarget({ target, accountRoom, check, pick, onStart }: { target: Target; accountRoom: TargetRoom | null; check: SetupCheckInfo | null | undefined; pick: ((recipeId: string, label: string) => void) | undefined; onStart: () => void }): JSX.Element {
+function ContinueTarget({ target, saidOnce = null, accountRoom, check, pick, onStart }: { target: Target; saidOnce?: string | null; accountRoom: TargetRoom | null; check: SetupCheckInfo | null | undefined; pick: ((recipeId: string, label: string) => void) | undefined; onStart: () => void }): JSX.Element {
   // Its own sign-in, when the account's line doesn't say it.
   const sign = signInWords({ signed_out: target.signedOut, desktop: target.desktop });
   const own = sign && !(sign === NOT_SIGNED_IN && accountRoom?.kind === "blocked") ? sign : null;
-  const words = target.blocked ?? own ?? withFirstRun(check === undefined ? null : setupWords(check), target.firstRun === true);
+  // Its own reason, unless the list says it once above.
+  const reason = target.blocked !== null && target.blocked !== saidOnce ? target.blocked : null;
+  const words = reason ?? own ?? withFirstRun(check === undefined ? null : setupWords(check), target.firstRun === true);
   const badge = target.crossTool ? target.badge : null;
   return (
     <div className="flex flex-col gap-1">
