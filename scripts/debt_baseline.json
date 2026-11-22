@@ -1,21 +1,15 @@
 {
  "crates/components/AccountMacsCard.tsx": {
-  "jscpd:lines": 22
+  "jscpd:lines": 6
  },
  "crates/components/AccountSettingsSheet.tsx": {
   "jscpd:lines": 21
- },
- "crates/components/BudgetCaps.tsx": {
-  "jscpd:lines": 31
  },
  "crates/components/CrossMachineSwitchBack.tsx": {
   "jscpd:lines": 89
  },
  "crates/components/DeleteInstanceDialog.tsx": {
-  "jscpd:lines": 21
- },
- "crates/components/FigureheadCloudParts.tsx": {
-  "jscpd:lines": 49
+  "jscpd:lines": 13
  },
  "crates/components/IdentityMismatchDialog.tsx": {
   "jscpd:lines": 33
@@ -26,17 +20,11 @@
  "crates/components/LimitDialog.tsx": {
   "jscpd:lines": 7
  },
- "crates/components/ManageWork.tsx": {
-  "jscpd:lines": 36
- },
  "crates/components/OutsideConversations.tsx": {
   "jscpd:lines": 8
  },
  "crates/components/PlaceHeader.tsx": {
   "jscpd:lines": 24
- },
- "crates/components/PoolSheet.tsx": {
-  "jscpd:lines": 16
  },
  "crates/components/RailIdleApp.tsx": {
   "jscpd:lines": 33
@@ -48,10 +36,7 @@
   "jscpd:lines": 8
  },
  "crates/components/RecoveryCodeSheet.tsx": {
-  "jscpd:lines": 15
- },
- "crates/components/RemoteCleanup.tsx": {
-  "jscpd:lines": 6
+  "jscpd:lines": 7
  },
  "crates/components/RemoteTabs.tsx": {
   "jscpd:lines": 24
@@ -705,13 +690,10 @@
   "jscpd:lines": 16
  },
  "crates/pages/session/OwnTerminalOverview.tsx": {
-  "jscpd:lines": 10
+  "jscpd:lines": 4
  },
  "crates/pages/session/OwnUsage.tsx": {
   "jscpd:lines": 7
- },
- "crates/pages/session/SessionOverview.tsx": {
-  "jscpd:lines": 8
  },
  "crates/pages/session/TurnStretches.tsx": {
   "jscpd:lines": 6
@@ -733,12 +715,6 @@
  },
  "crates/preview/fixtures.ts": {
   "jscpd:lines": 26
- },
- "crates/screens/AccountManage.tsx": {
-  "jscpd:lines": 19
- },
- "crates/screens/FleetScreen.tsx": {
-  "jscpd:lines": 43
  },
  "crates/screens/NewProjectSheet.tsx": {
   "jscpd:lines": 12
@@ -894,9 +870,6 @@
  },
  "ui/src/components/switch/StepBodies.tsx": {
   "knip:exports": 2
- },
- "ui/src/components/switch/SwitchDialogFrame.tsx": {
-  "knip:exports": 1
  },
  "ui/src/components/switch/WhereChoice.tsx": {
   "knip:exports": 1

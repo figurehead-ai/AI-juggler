@@ -133,8 +133,7 @@
  },
  "src/components/FigureheadCloudParts.tsx": {
   "jsx-a11y(prefer-tag-over-role)": 1,
-  "react(set-state-in-effect)": 1,
-  "typescript(no-unsafe-type-assertion)": 1
+  "react(set-state-in-effect)": 1
  },
  "src/components/FleetPromptDialog.tsx": {
   "eslint(no-shadow)": 1,
@@ -2145,7 +2144,7 @@
   "jsx-a11y(prefer-tag-over-role)": 4,
   "react(set-state-in-effect)": 1,
   "typescript(consistent-return)": 1,
-  "typescript(no-unsafe-type-assertion)": 2
+  "typescript(no-unsafe-type-assertion)": 1
  },
  "src/screens/FreshAccountStep.tsx": {
   "jsx-a11y(no-autofocus)": 1
