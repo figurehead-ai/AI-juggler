@@ -49,21 +49,21 @@ export function sentence(text: string): string {
 }
 
 /** A size in words ("1.2 GB"). */
-export function size(bytes: number): string {
+function size(bytes: number): string {
   if (bytes >= 1e9) return `${(bytes / 1e9).toFixed(1)} GB`;
   if (bytes >= 1e6) return `${Math.round(bytes / 1e6)} MB`;
   return `${Math.max(1, Math.round(bytes / 1e3))} KB`;
 }
 
 /** What the user can clear before Move can happen, each saying how. */
-export function waits(offer: MoveOfferInfo): string[] {
+function waits(offer: MoveOfferInfo): string[] {
   return offer.blocks.filter((block) => block.kind === "user_can_clear").map((block) => block.words);
 }
 
 /** The two Apps by name ("Claude app · Work"), where the offer names both
  * (it lists the one the conversation is on, then the other); else the
  * switch's own labels. */
-export function placeNames(offer: MoveOfferInfo, source: string, target: string): { from: string; to: string } {
+function placeNames(offer: MoveOfferInfo, source: string, target: string): { from: string; to: string } {
   const [from, to] = offer.restarts.length === 2 ? offer.restarts : [];
   return { from: from ?? source, to: to ?? target };
 }

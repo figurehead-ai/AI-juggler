@@ -29,6 +29,7 @@ import { IconWarn } from "../icons-menu";
 import { IconFleet, IconShield, IconStateHandover, IconTerminal } from "../icons";
 import { IconHistory } from "../icons-places";
 import { Fact, FactPanel } from "./Facts";
+import { DoneHead, StepList } from "./StepParts";
 import { BadgeTag } from "./TargetCard";
 
 export type Mechanism = "transplant" | "replay";
@@ -258,22 +259,7 @@ export function CrossSending({ target, progress, holding }: { target: RemoteSwit
         </p>
         {counted && <ProgressBar label={`Sent to ${machine}`} percent={Math.min(100, Math.floor((counted.received_bytes / counted.total_bytes) * 100))} />}
       </div>
-      <ol className="flex flex-col gap-1.5 text-body">
-        {SENDING(machine).map((stage, index) => (
-          <li key={stage} className={"flex items-center gap-2.5 " + (index < at ? "text-ink-2" : index === at ? "font-semibold text-ink" : "text-muted")} data-state={index < at ? "done" : index === at ? "now" : "next"}>
-            <span aria-hidden="true" className="flex size-5 shrink-0 items-center justify-center">
-              {index < at ? (
-                <IconCheck width={14} height={14} strokeWidth={2.5} className="text-success" />
-              ) : index === at ? (
-                <span className="inline-block size-3.5 rounded-full border-2 border-accent border-t-transparent motion-safe:animate-spin" />
-              ) : (
-                <span className="size-2 rounded-full inset-ring-[1.5px] inset-ring-faint" />
-              )}
-            </span>
-            {stage}
-          </li>
-        ))}
-      </ol>
+      <StepList steps={SENDING(machine)} at={at} />
       <p className="text-body text-ink-2">The original stays safe on this computer until the new session is running.</p>
       {holding && (
         <Alert level="info" live="status" testId="cross-switch-holding">
@@ -288,17 +274,14 @@ export function CrossSending({ target, progress, holding }: { target: RemoteSwit
 export function CrossDone({ target, message }: { target: RemoteSwitchTargetInfo; message: string }): JSX.Element {
   return (
     <div className="flex flex-col gap-6" data-testid="cross-switch-done" aria-live="polite">
-      <div className="flex items-center gap-3">
-        <span aria-hidden="true" className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-success-soft text-success">
-          <IconCheck width={20} height={20} strokeWidth={2.5} />
-        </span>
-        <div className="flex min-w-0 flex-col gap-0.5">
-          <h3 className="type-section">
+      <DoneHead
+        title={
+          <>
             Switched to {target.account_label} on {target.machine_label}
-          </h3>
-          <p className="type-help">{message}.</p>
-        </div>
-      </div>
+          </>
+        }
+        help={<>{message}.</>}
+      />
       <FactPanel label="What happened">
         <Fact icon={IconFleet} label="Where" tone="done">
           {target.account_label} on {target.machine_label}

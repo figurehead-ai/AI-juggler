@@ -32,7 +32,7 @@ const FooterSlot = createContext<HTMLElement | null>(null);
 
 /** The overlay's default: the app's dim, a 16 px gutter, the card centred
  * while it fits (the frame's cap keeps it inside). */
-export const OVERLAY = "fixed inset-0 z-50 flex items-center justify-center bg-canvas/70 p-4 backdrop-blur-sm";
+const OVERLAY = "fixed inset-0 z-50 flex items-center justify-center bg-canvas/70 p-4 backdrop-blur-sm";
 
 /** The size classes (DESIGN-SYSTEM §4.2). */
 export type DialogSize = "S" | "M" | "M-cards" | "L" | "XL";
@@ -49,7 +49,7 @@ export function DialogOverlay({ className = OVERLAY, children, ref, ...rest }: {
 }
 
 /** Whether a box has more above (scrolled) and below (not at its end). */
-export function useScrollEdges(ref: RefObject<HTMLElement | null>): { above: boolean; below: boolean } {
+function useScrollEdges(ref: RefObject<HTMLElement | null>): { above: boolean; below: boolean } {
   const [edges, setEdges] = useState({ above: false, below: false });
   useLayoutEffect(() => {
     const node = ref.current;

@@ -13,11 +13,11 @@ import { Alert } from "../Alert";
 import { Section } from "../Section";
 import { IconComputer, IconPage } from "../icons-actions";
 import { IconMessage } from "../icons-canvas";
-import { IconCheck } from "../icons-controls";
 import { IconGitBranch } from "../icons";
 import { IconHistory } from "../icons-places";
 import { ProgressBar } from "../UpdateProgress";
 import { Fact, FactPanel } from "./Facts";
+import { StepList } from "./StepParts";
 import { BadgeTag, RoomTag, TargetLogo } from "./TargetCard";
 import { RoomFact, RoomNote } from "./TargetRoom";
 
@@ -148,22 +148,7 @@ export function Executing({ target, holding, app = null }: { target: string; hol
         </p>
         <ProgressBar label="Switching" percent={percent} testId="switch-progress" />
       </div>
-      <ol className="flex flex-col gap-1.5 text-body">
-        {stages.map((stage, index) => (
-          <li key={stage} className={"flex items-center gap-2.5 " + (index < at ? "text-ink-2" : index === at ? "font-semibold text-ink" : "text-muted")} data-testid="switch-stage" data-state={index < at ? "done" : index === at ? "now" : "next"}>
-            <span aria-hidden="true" className="flex size-5 shrink-0 items-center justify-center">
-              {index < at ? (
-                <IconCheck width={14} height={14} strokeWidth={2.5} className="text-success" />
-              ) : index === at ? (
-                <span className="inline-block size-3.5 rounded-full border-2 border-accent border-t-transparent motion-safe:animate-spin" />
-              ) : (
-                <span className="size-2 rounded-full inset-ring-[1.5px] inset-ring-faint" />
-              )}
-            </span>
-            {stage}
-          </li>
-        ))}
-      </ol>
+      <StepList steps={stages} at={at} testId="switch-stage" />
       <p className="text-body text-ink-2" data-testid="switch-elapsed">
         {seconds >= 3 ? `${seconds} s so far. A long conversation takes a little longer to copy. ` : ""}The original stays safe until the new session is running.
       </p>

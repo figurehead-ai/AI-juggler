@@ -18,7 +18,7 @@ export type Band = "needs" | "working" | "open" | "recent" | "earlier";
 /** The order's sections, in order. */
 export const BANDS: readonly Band[] = ["needs", "working", "open", "recent", "earlier"];
 
-export const BAND_WORDS: Record<Band, string> = {
+const BAND_WORDS: Record<Band, string> = {
   needs: "Needs you",
   working: "Working",
   open: "Open",

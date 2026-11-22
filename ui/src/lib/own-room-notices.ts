@@ -50,7 +50,7 @@ export function ownQuietLine(notice: NoticeInfo, now: number): string {
  * Switch account… button turns primary on either (D-143). */
 export type OwnRoom = "out" | "low" | null;
 
-export function ownRoomOf(notices: readonly NoticeInfo[]): OwnRoom {
+function ownRoomOf(notices: readonly NoticeInfo[]): OwnRoom {
   if (notices.length === 0) return null;
   return notices.some((notice) => notice.meter !== null && notice.meter <= 0) ? "out" : "low";
 }

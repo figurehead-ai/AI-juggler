@@ -10,7 +10,7 @@ import { MoreBelow, useMoreBelow } from "../../components/MoreBelow";
 
 /** The width a box's scroll bar takes from its content (0 while it
  * overlays or doesn't show). */
-export function useScrollbarGutter(box: RefObject<HTMLElement | null>): number {
+function useScrollbarGutter(box: RefObject<HTMLElement | null>): number {
   const [gutter, setGutter] = useState(0);
   useEffect(() => {
     const el = box.current;

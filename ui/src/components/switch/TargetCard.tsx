@@ -36,7 +36,7 @@ export function TargetLogo({ tool, kind, place, folderId, label, size = 40 }: { 
 }
 
 /** A room's tag: its tone and its short words. */
-export function roomTag(room: TargetRoom | null): { tone: PillTone; words: string } {
+function roomTag(room: TargetRoom | null): { tone: PillTone; words: string } {
   if (room === null) return { tone: "neutral", words: "Not measured" };
   switch (room.kind) {
     case "room":

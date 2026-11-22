@@ -14,6 +14,7 @@ import { IconCopy } from "../icons-actions";
 import { Button } from "../primitives";
 import { Alert } from "../Alert";
 import { Fact, FactPanel } from "./Facts";
+import { DoneHead } from "./StepParts";
 import { sentence } from "./MoveChoice";
 
 const ROWS: { key: "payload" | "catalog" | "opened" | "model"; label: string }[] = [
@@ -33,7 +34,7 @@ function look(outcome: MoveOutcomeInfo): { icon: typeof IconCheck; tone: "done" 
 
 /** The text Copy details puts on the clipboard after an Undo: its words
  * and where what changed since the move is kept (never on screen, R4). */
-export function undoneDetails(undone: MoveUndoneInfo, at: Date = new Date()): string {
+function undoneDetails(undone: MoveUndoneInfo, at: Date = new Date()): string {
   return [`AI Juggler · a move was undone · ${at.toISOString()}`, `What it said: ${undone.words}`, `Kept since the move: ${undone.kept || "nothing"}`].join("\n");
 }
 
@@ -107,15 +108,7 @@ export function MoveDone({ done, target, source = null }: { done: MoveDoneInfo; 
   if (undone) return <MoveUndone undone={undone} source={source} />;
   return (
     <div className="flex flex-col gap-6" data-testid="switch-moved">
-      <div className="flex items-center gap-3">
-        <span aria-hidden="true" className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-success-soft text-success">
-          <IconCheck width={20} height={20} strokeWidth={2.5} />
-        </span>
-        <div className="flex min-w-0 flex-col gap-0.5">
-          <h3 className="type-section">Moved to {target}</h3>
-          <p className="type-help">On {target} now. Send a message there to check it answers.</p>
-        </div>
-      </div>
+      <DoneHead title={<>Moved to {target}</>} help={<>On {target} now. Send a message there to check it answers.</>} />
       <FactPanel label="What the move did">
         {ROWS.map(({ key, label }) => {
           const { icon, tone, word } = look(done[key]);

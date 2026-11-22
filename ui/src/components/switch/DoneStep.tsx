@@ -15,10 +15,10 @@ import { SwitchSetupResults } from "../SwitchSetupList";
 import { SwitchHandover } from "../HandoverView";
 import { IconSubtasks, IconTerminal } from "../icons";
 import { IconComputer } from "../icons-actions";
-import { IconCheck } from "../icons-controls";
 import { IconHistory } from "../icons-places";
 import { ToolLogo } from "../ToolLogo";
 import { Fact, FactPanel } from "./Facts";
+import { DoneHead } from "./StepParts";
 import { destinationsOf, type Destination } from "./WhereChoice";
 import type { SwitchExecutedData } from "../../lib/ipc/switch-preflight";
 import { restartPlace } from "../../lib/go-to";
@@ -75,15 +75,7 @@ export function DoneStep({
       : `On the CLI: ${spec.display_name} in a terminal`;
   return (
     <div className="flex flex-col gap-6" data-testid="switch-done">
-      <div className="flex items-center gap-3">
-        <span aria-hidden="true" className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-success-soft text-success">
-          <IconCheck width={20} height={20} strokeWidth={2.5} />
-        </span>
-        <div className="flex min-w-0 flex-col gap-0.5">
-          <h3 className="type-section">Switched to {target}</h3>
-          <p className="type-help">Send a message there to pick up the work.</p>
-        </div>
-      </div>
+      <DoneHead title={<>Switched to {target}</>} help="Send a message there to pick up the work." />
       <FactPanel label="What happened">
         <Fact icon={continuedIn === "desktop" ? IconComputer : IconTerminal} label="Where" tone="done">
           <span className="inline-flex min-w-0 items-center gap-2" data-testid="switch-done-where" data-where={continuedIn}>

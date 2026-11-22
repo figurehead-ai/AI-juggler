@@ -1,4 +1,3 @@
-import { keepTabInside, useFocusReturn } from "./form";
 import { useEffect, useRef, useState, type JSX } from "react";
 import { Button, Card, Chip } from "./primitives";
 import { errorText } from "../lib/bridge";
@@ -8,7 +7,7 @@ import type { RemoteMachineInfo } from "../types/generated/RemoteMachineInfo";
 import type { RemoteProcessInfo } from "../types/generated/RemoteProcessInfo";
 import { cliAppName } from "../lib/app-name";
 import { providerDisplayName } from "../lib/providers";
-import { DialogFrame, DialogOverlay } from "./DialogFrame";
+import { ConfirmSheet } from "./ConfirmSheet";
 
 /**
  * AJ-E707 — paired machines' processes on the Processes page, grouped
@@ -147,13 +146,20 @@ export function RemoteCleanup(): JSX.Element | null {
         );
       })}
       {confirm && (
-        <CleanSheet
-          machine={confirm.machine}
-          row={confirm.row}
+        <ConfirmSheet
+          idPrefix="remote-clean"
+          testId="remote-cleanup-confirm"
+          title={`Clean ${confirm.row.name || "this process"} on ${confirm.machine.label}?`}
+          action={`Clean on ${confirm.machine.label}`}
+          actionTestId="remote-cleanup-yes"
           busy={busy}
           onCancel={() => setConfirm(null)}
           onConfirm={() => void clean(confirm.machine, confirm.row)}
-        />
+        >
+          {confirm.machine.label} checks again that pid {confirm.row.pid} is still the process it recorded for{" "}
+          {confirm.row.account_label ? cliAppName(confirm.row.provider, confirm.row.account_label) : "that session"}, then asks it to quit and stops it if
+          it doesn't. If anything changed, nothing is touched.
+        </ConfirmSheet>
       )}
     </section>
   );
@@ -163,69 +169,4 @@ function groupBy<T>(rows: T[], key: (row: T) => string): Record<string, T[]> {
   const out: Record<string, T[]> = {};
   for (const row of rows) (out[key(row)] ??= []).push(row);
   return out;
-}
-
-function CleanSheet({
-  machine,
-  row,
-  busy,
-  onCancel,
-  onConfirm,
-}: {
-  machine: RemoteMachineInfo;
-  row: RemoteProcessInfo;
-  busy: boolean;
-  onCancel: () => void;
-  onConfirm: () => void;
-}): JSX.Element {
-  const cancelRef = useRef<HTMLButtonElement | null>(null);
-  const boxRef = useRef<HTMLDivElement | null>(null);
-  // AJ-E710 (the keyboard sweep): focus goes back to the Clean… that asked
-  // (when it's still there), and Tab stays inside, as in the shared Modal.
-  useFocusReturn();
-  useEffect(() => {
-    cancelRef.current?.focus();
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onCancel();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onCancel]);
-  return (
-    <DialogOverlay ref={boxRef} className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-      <DialogFrame
-        className="sheen rounded-card border border-hairline bg-surface shadow-card w-full max-w-sm"
-        onKeyDown={(event) => keepTabInside(boxRef.current, event)}
-        role="alertdialog"
-        aria-modal="true"
-        aria-labelledby="remote-clean-title"
-        aria-describedby="remote-clean-body"
-        data-testid="remote-cleanup-confirm"
-        bodyClassName="px-5 pb-1.5"
-        footerClassName="px-5 pt-2.5 pb-5"
-        footer={
-          <div className="flex justify-end gap-2">
-            <Button ref={cancelRef} size="sm" variant="secondary" onClick={onCancel}>
-              Cancel
-            </Button>
-            <Button size="sm" variant="danger" disabled={busy} onClick={onConfirm} data-testid="remote-cleanup-yes">
-              Clean on {machine.label}
-            </Button>
-          </div>
-        }
-        headerClassName="px-5 pt-5"
-        header={
-          <p id="remote-clean-title" className="text-sm font-semibold">
-            Clean {row.name || "this process"} on {machine.label}?
-          </p>
-        }
-      >
-        <p id="remote-clean-body" className="mt-1.5 text-xs leading-relaxed text-ink-2">
-          {machine.label} checks again that pid {row.pid} is still the process it recorded for{" "}
-          {row.account_label ? cliAppName(row.provider, row.account_label) : "that session"}, then asks it to quit and stops it if it doesn't. If
-          anything changed, nothing is touched.
-        </p>
-      </DialogFrame>
-    </DialogOverlay>
-  );
 }

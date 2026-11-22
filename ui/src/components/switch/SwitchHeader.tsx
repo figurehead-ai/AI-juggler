@@ -79,7 +79,7 @@ export function SwitchHeader({
  * "Switch to Personal", the conversation and the account it is on now,
  * and from → to, the App it continues in following Desktop or CLI as
  * chosen. Before the check answers, the target alone. */
-export function CopyHeader({ preflight, target, destination, marks }: { preflight: PreflightInfoData | null; target: string; destination: Destination; marks?: ReactNode }): JSX.Element {
+function CopyHeader({ preflight, target, destination, marks }: { preflight: PreflightInfoData | null; target: string; destination: Destination; marks?: ReactNode }): JSX.Element {
   const desktop = preflight && destination === "desktop" ? destinationsOf(preflight).desktop : null;
   const tool = preflight?.target_tool ?? null;
   const to = desktop?.name ?? (tool ? cliAppName(tool, target) : target);

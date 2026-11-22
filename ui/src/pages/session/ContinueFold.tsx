@@ -38,7 +38,7 @@ export function FoldedLines({ rows, targets, accountId }: { rows: SwitchTargetDa
 
 /** D-143: the folded card's line, what's possible: "2 apps can take it
  * over · Personal suggested". */
-export function continueTeaser(rows: SwitchTargetData[] | null, targets: readonly Target[]): string {
+function continueTeaser(rows: SwitchTargetData[] | null, targets: readonly Target[]): string {
   if (rows === null) return "Looking for room…";
   const open = targets.filter((target) => target.blocked === null);
   if (open.length === 0) return "No other app can take it now.";

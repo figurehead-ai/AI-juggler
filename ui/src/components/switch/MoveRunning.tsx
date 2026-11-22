@@ -15,8 +15,8 @@ import { useState, type JSX } from "react";
 import type { MoveProgressInfo, MoveUndoneInfo } from "../../lib/ipc/switch-move";
 import { ProgressBar } from "../UpdateProgress";
 import { Alert } from "../Alert";
-import { IconCheck } from "../icons-controls";
 import { FailedStep } from "./FailedStep";
+import { StepList } from "./StepParts";
 import { MoveUndo, MoveUndone } from "./MoveDone";
 import { sentence } from "./MoveScreen";
 
@@ -58,22 +58,7 @@ export function Moving({ target, holding, progress }: { target: string; holding:
         </p>
         {percent != null && <ProgressBar label="Backing up" percent={percent} testId="switch-moving-bar" />}
       </div>
-      <ol className="flex flex-col gap-1.5 text-body">
-        {STEPS.map((step, index) => (
-          <li key={step} className={"flex items-center gap-2.5 " + (index < at ? "text-ink-2" : index === at ? "font-semibold text-ink" : "text-muted")} data-state={index < at ? "done" : index === at ? "now" : "next"}>
-            <span aria-hidden="true" className="flex size-5 shrink-0 items-center justify-center">
-              {index < at ? (
-                <IconCheck width={14} height={14} strokeWidth={2.5} className="text-success" />
-              ) : index === at ? (
-                <span className="inline-block size-3.5 rounded-full border-2 border-accent border-t-transparent motion-safe:animate-spin" />
-              ) : (
-                <span className="size-2 rounded-full inset-ring-[1.5px] inset-ring-faint" />
-              )}
-            </span>
-            {step}
-          </li>
-        ))}
-      </ol>
+      <StepList steps={STEPS} at={at} />
       {holding && (
         <Alert level="info" live="status">
           It can&apos;t be stopped half way, so it finishes first.
@@ -87,7 +72,7 @@ export function Moving({ target, holding, progress }: { target: string; holding:
  * Undo for the move left part way (`left`). */
 /** A refusal's words under the heading "Nothing was moved": its own
  * "…, so nothing was moved" left out, so it isn't said twice (CNT-5). */
-export function withoutNothingMoved(message: string): string {
+function withoutNothingMoved(message: string): string {
   return message.replace(/\s*[,;]\s*(so\s+)?nothing (was|has been) moved(?=[.;,]|$)/gi, "");
 }
 

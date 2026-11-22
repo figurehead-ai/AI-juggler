@@ -58,7 +58,7 @@ export function resumeBlocked({
  * for the line under its button (where "Same conversation" goes); the
  * whole reason is its tip on hover and focus (BTN-5, as F2 did for
  * Switch account…). */
-export function resumeBlockedLine({
+function resumeBlockedLine({
   session,
   account,
   out,

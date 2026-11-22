@@ -12,7 +12,7 @@ import { showToast } from "./Toast";
 
 /** A stop with nothing more to say than "stopped": every process it
  * signalled ended, nothing holds the port, nothing was left alone. */
-export function plainSuccess(report: KillExecuteData, pid: number): boolean {
+function plainSuccess(report: KillExecuteData, pid: number): boolean {
   return (
     report.refusal === null &&
     !report.cancelled &&

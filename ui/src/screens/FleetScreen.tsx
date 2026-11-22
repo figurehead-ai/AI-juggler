@@ -25,6 +25,7 @@ import { ThisMacCard } from "../components/FleetThisMac";
 import { Disclosure, Radio } from "../components/controls";
 import { SELECTED_CARD } from "../components/controls/selected";
 import { DialogFrame, DialogOverlay } from "../components/DialogFrame";
+import { ConfirmSheet } from "../components/ConfirmSheet";
 
 /**
  * Fleet (beta) — AJ-E702: this Mac's machine identity and the machines
@@ -432,6 +433,9 @@ export function FleetScreen({
 
       {confirm !== null && (
         <ConfirmSheet
+          idPrefix="fleet-confirm"
+          testId="fleet-confirm"
+          actionTestId="fleet-confirm-action"
           busy={busy}
           title={
             confirm.kind === "unpair"
@@ -439,13 +443,6 @@ export function FleetScreen({
               : confirm.kind === "reset-identity"
                 ? "Reset this Mac's identity?"
                 : "Reset trust?"
-          }
-          body={
-            confirm.kind === "unpair"
-              ? `${confirm.peer.label} will no longer connect to this Mac. To use it again you'll pair it again with a new code.`
-              : confirm.kind === "reset-identity"
-                ? "This Mac gets a new identity and fingerprint. Every paired machine is removed and must pair again."
-                : "Every paired machine is removed. You'll pair each one again with a new code."
           }
           action={
             confirm.kind === "unpair"
@@ -464,76 +461,15 @@ export function FleetScreen({
                   : fleetResetTrust(),
             )
           }
-        />
+        >
+          {confirm.kind === "unpair"
+            ? `${confirm.peer.label} will no longer connect to this Mac. To use it again you'll pair it again with a new code.`
+            : confirm.kind === "reset-identity"
+              ? "This Mac gets a new identity and fingerprint. Every paired machine is removed and must pair again."
+              : "Every paired machine is removed. You'll pair each one again with a new code."}
+        </ConfirmSheet>
       )}
     </Page>
-  );
-}
-
-
-/** A confirmation sheet for a change that removes trust: names what
- * changes, focuses Cancel by default (non-destructive), Esc cancels. */
-function ConfirmSheet({
-  title,
-  body,
-  action,
-  busy,
-  onCancel,
-  onConfirm,
-}: {
-  title: string;
-  body: string;
-  action: string;
-  busy: boolean;
-  onCancel: () => void;
-  onConfirm: () => void;
-}): JSX.Element {
-  const cancelRef = useRef<HTMLButtonElement | null>(null);
-  useEffect(() => {
-    const previous = document.activeElement as HTMLElement | null;
-    cancelRef.current?.focus();
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onCancel();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => {
-      window.removeEventListener("keydown", onKey);
-      previous?.focus?.();
-    };
-  }, [onCancel]);
-  return (
-    <DialogOverlay className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-      <DialogFrame
-        className="sheen rounded-card border border-hairline bg-surface shadow-card w-full max-w-sm"
-        role="alertdialog"
-        aria-modal="true"
-        aria-labelledby="fleet-confirm-title"
-        aria-describedby="fleet-confirm-body"
-        data-testid="fleet-confirm"
-        bodyClassName="px-5 pb-1.5"
-        footerClassName="px-5 pt-2.5 pb-5"
-        footer={
-          <div className="flex justify-end gap-2">
-            <Button ref={cancelRef} size="sm" variant="secondary" onClick={onCancel}>
-              Cancel
-            </Button>
-            <Button size="sm" variant="danger" disabled={busy} onClick={onConfirm} data-testid="fleet-confirm-action">
-              {action}
-            </Button>
-          </div>
-        }
-        headerClassName="px-5 pt-5"
-        header={
-          <p id="fleet-confirm-title" className="text-sm font-semibold">
-            {title}
-          </p>
-        }
-      >
-        <p id="fleet-confirm-body" className="mt-1.5 text-xs leading-relaxed text-ink-2">
-          {body}
-        </p>
-      </DialogFrame>
-    </DialogOverlay>
   );
 }
 

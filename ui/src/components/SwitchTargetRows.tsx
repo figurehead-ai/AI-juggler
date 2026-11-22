@@ -23,7 +23,7 @@ import { lowRoomWords, ROOM_ORDER_WORDS, outOfRoomConsequence, outOfRoomWords } 
 import { DESKTOP_ONLY, roomless, type TargetRoom } from "../lib/room-targets";
 import { creditsConsequence, usingCreditsWords } from "../lib/credits";
 import { useTargetApp, type TargetApp } from "../lib/apps";
-import { afterColon, BadgeLine, BadgeTag, RoomTag, SuggestedTag, TargetButton, TargetLogo } from "./switch/TargetCard";
+import { afterColon, BadgeLine, RoomTag, SuggestedTag, TargetButton, TargetLogo } from "./switch/TargetCard";
 
 /** "Suggested": the one with the most room (the one order by room). One
  * look everywhere (TAG-5): the accent tag. */
@@ -83,12 +83,6 @@ function roomWords(name: string, room: TargetRoom, testId: string): JSX.Element 
       {runwayDetail(room)}
     </span>
   );
-}
-
-/** The badge: how much carries, a tag (0.5.0: neutral, never an amber
- * hatch; the words say "· Beta", D-127, and never "proven"). */
-export function FidelityBadge({ badge, validated }: { badge: string; validated: boolean }) {
-  return <BadgeTag badge={badge} validated={validated} />;
 }
 
 export function SwitchTargetRows({

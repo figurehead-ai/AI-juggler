@@ -42,7 +42,7 @@ export function risky(room: TargetRoom | null): boolean {
 
 /** The room, said as a fact ("Account F: 98% left this week · Week
  * resets Thu 08:00"): where it's fine, it's one row of the summary panel. */
-export function roomWords(room: TargetRoom, target: string): string {
+function roomWords(room: TargetRoom, target: string): string {
   const who = room.account ?? target;
   if (room.kind === "credits" && room.credits) return `${who}: ${usingCreditsWords(room.credits)}. ${creditsConsequence(room.resetsAtMs)}`;
   return `${who}: ${room.left === null ? room.words : `${room.words}${room.resets ? ` · ${room.resets}` : ""}`}`;
