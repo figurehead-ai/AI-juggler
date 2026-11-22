@@ -299,7 +299,7 @@
 **Quality gates**: `just keep-going verify-static`; a failing-before test per app fix; the visual gate.
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E2314/manifest.md`, one row per item.
 
-### AJ-E2315 Move to account counts only the moving profile's own processes: a wrapper is its by the program it runs, never by a flag's path | Status: TODO (0.5.1) | Priority P0 | Effort M | Depends: AJ-E2312
+### AJ-E2315 Move to account counts only the moving profile's own processes: a wrapper is its by the program it runs, never by a flag's path; one shared ownership module every site uses | Status: IN-PROGRESS (0.5.1) | Priority P0 | Effort M | Depends: AJ-E2312
 **Found** by the coordinating session, 2026-11-22, root-caused live: Move to account on 0.4.9 (Claude app, one profile to another) was refused every time, "didn't finish closing within 30 seconds: claude and disclaimer still run". Those two processes were another profile's: a Code-tab session of a different running Claude app profile, whose `disclaimer` wrapper had `--add-dir=<a folder inside the moving profile's folder>`. `places/tree.rs` `of()`'s third mark ("every program of the app's own bundle that names a path inside the profile's folder") matches any argument value inside the folder, so the other profile's wrapper and its `claude` child were counted as the moving profile's, never ended, and `rest_ended` timed out on every retry. The same code is on release/0.5.
 **Requirements**:
 1. A bundle wrapper is this profile's only through the program it runs (for `disclaimer`, the wrapped executable after `--`). Flag values (`--add-dir`, `--settings`, `--plugin-dir`, `--mcp-config`, and any other) never mark a process. No special case per flag: the rule reads what runs, not what is passed (architecture standard).
@@ -307,6 +307,7 @@
 3. A leftover that belongs to another running app or profile never gets a "try again" refusal (retrying can't fix it); after 1 and 2 it shouldn't occur.
 4. Tests: this exact shape (another profile's disclaimer → claude, with an `--add-dir` into the moving profile) is not a member; the existing members (its own disclaimer → its own claude-code, helpers by `--user-data-dir`, the pre-quit tree) still are; the move suite passes.
 **Quality gates**: `just keep-going verify-static`; failing-before tests; the move suite; a live re-walk of Move on lab PL1 with a second lab profile's Code session holding an `--add-dir` into the moving one.
+5. **Widened by the switch reliability review (`docs/research/move-reliability-review.md`, B1, E1–E4, E11–E13, E17):** one shared ownership module (`features::ownership`, OS parts behind `juggler_platform`), built from `agent_bridge/attest.rs`' primitives: a strict instance parse (one `flag=value`, never after `--`), a canonical `InstanceKey`, a profile proven running by the holder of its instance lock, a `ProcId` with start time. Every site goes through it and keeps no matching of its own: `places/tree.rs`, `running_apps` and `running_now`, `conversations/places.rs`' `host_of`, `lab_scope.rs` (the same `--add-dir` class: an argument value never makes a process the lab's), `places/link.rs`' folder-name linking (evidence: the profile's sessions' pid files), and the move lock's keys. The conflict rule (main > strict helper > writer > descendant) and the self rule (refuse up front when AI Juggler's own ancestry, or the other AI Juggler's, would be quit).
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E2315/manifest.md`.
 
 ### AJ-E2316 The rail's gallery captures wait for the rail to be still | Status: DONE (0.5.1) | Priority P2 | Effort S | Depends: AJ-E2314
@@ -315,3 +316,79 @@
 1. A shared `railStill(page)` (ui/tests/visual/fixtures.ts) waits for the rail at rest: no `rail-new-above` pill, every `[data-line-key]` line's place unchanged across several checks.
 2. The Pool lens capture waits on it before its hover and before its screenshot.
 **Evidence/validation proof**: the capture passes 3 runs of each theme on the host (`--repeat-each=3`); CI's visual gate.
+
+### AJ-E2317 Move picks the source by the conversation's holder and the target by the App the user picked, never by account | Status: TODO (0.5.1) | Priority P0 | Effort S | Depends: AJ-E2315
+**Found** Review A2.2, A2.3, E5, E6: `places/handoff.rs` `profile_for(account)` takes the running or last-seen profile of an account; with two profiles on one account the move quits, writes into or opens the wrong one. (`docs/research/move-reliability-review.md`).
+**Requirements**:
+1. The source is the profile whose records list the conversation (the holder); two claiming it is a Bug refusal.
+2. The target is the App the user picked in the switch list: its place id carried end to end through `switch_move_execute` (actions target by id).
+3. Two profiles on one account: fixtures and a PL1 walk.
+**Quality gates**: `just keep-going verify-static`; failing-before tests; the move suite.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E2317/manifest.md`.
+
+### AJ-E2318 Move waits only on real writers and the profiles' main processes, decides before it disrupts, and quits in parallel | Status: TODO (0.5.1) | Priority P0 | Effort M | Depends: AJ-E2315
+**Found** Review A1.1–A1.5, A1.10, A3.6, A9.2, B0.2–B0.3, B2: the whole pre-quit tree had to end (a background dev server, crashpad, another profile's wrapper blocked every retry), and ownership conflicts showed only after both apps were quit. (`docs/research/move-reliability-review.md`).
+**Requirements**:
+1. An adapter `writers(tool_dir, conversations, table)` hook in `InPlaceMove`: Claude's `sessions/<pid>.json` (pid and procStart) and `--resume=<id>`; open-file write checks only as a backup. Run for both accounts' folders, whatever the place.
+2. The wait set is the main process of each instance plus the writers; the rest of the old tree is reported (\"a dev server your session started keeps running\"), never waited on.
+3. The offer runs ownership and writers before anything quits (≤ 500 ms) and refuses up front what it can know.
+4. Both profiles quit in parallel, with per-class deadlines.
+**Quality gates**: `just keep-going verify-static`; failing-before tests; the move suite.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E2318/manifest.md`.
+
+### AJ-E2319 Move's refusals are typed (transient, needs you, setup, bug), name what holds the files and carry the move id; Retry only for transient | Status: TODO (0.5.1) | Priority P0 | Effort S | Depends: AJ-E2318
+**Found** Review A9.1, A3.1, A5.5, B6, E9: Retry showed for every \"nothing changed\" failure (each retry quit and restarted both apps again), and the UI's Undo picked the newest interrupted move, not this one. (`docs/research/move-reliability-review.md`).
+**Requirements**:
+1. `MoveStop { class, holders, move_id, unchanged, words, detail }` replaces `AppError::Move`.
+2. Transient: Retry (auto-retried once). Needs you: no Retry; \"Check again\" re-reads the offer without quitting; the holder named with a door. Setup: Move hidden, Copy offered. Bug: Copy details and Report.
+3. The UI targets Undo and Finish by the error's move id; never `find(interrupted)`.
+4. A table test from each failure to its class and Retry's visibility, Rust and UI.
+**Quality gates**: `just keep-going verify-static`; failing-before tests; the move suite.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E2319/manifest.md`.
+
+### AJ-E2320 One shared, persistent hold marker every AI Juggler honours, and a move never quits AI Juggler's own parents | Status: TODO (0.5.1) | Priority P0 | Effort S | Depends: AJ-E2315
+**Found** Review A3.4, A7.1–A7.3, A1.5, B5.1, E10, E11: `MoveHold` lived in one process's memory; the other AI Juggler's keep alive relaunched a profile mid-move (every retry), and the Dev AI Juggler started from a profile's Code tab could be quit by its own move. (`docs/research/move-reliability-review.md`).
+**Requirements**:
+1. A shared move area for every AI Juggler on the Mac (a platform path): canonical-root lock files, the journals, and a `held/<place-key>` marker per profile written before the first quit, removed only on Committed or RolledBack, naming the move id and its owner (pid, start).
+2. Keep alive, Open, Restart and automation in every AI Juggler (Dev and installed) check the marker; a hold whose owner is gone is a crashed move, not a free profile.
+3. The self rule: refuse up front when the processes to be quit include AI Juggler's own ancestry or the other AI Juggler's.
+**Quality gates**: `just keep-going verify-static`; failing-before tests; the move suite.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E2320/manifest.md`.
+
+### AJ-E2321 A move survives a crash: startup recovery before keep alive, and a Moves door to undo or finish each move by id | Status: TODO (0.5.1) | Priority P0 | Effort M | Depends: AJ-E2320
+**Found** Review A5.1–A5.4, A6.1, A6.4, B5.2–B5.5: no recovery at startup (keep alive restarted apps onto a half-moved folder), no door back to an interrupted move, Undo blocked by a full disk, committed backups kept for ever. (`docs/research/move-reliability-review.md`).
+**Requirements**:
+1. Startup recovery, before keep alive's first tick: Planned/Holding/Quiet/BackedUp roll back; Applying rolls back by the journal; Verified/Reopened finish forward; unclear keeps the hold and says \"Finish or Undo\" (bell and the conversation's page).
+2. A Moves door (the conversation's page and Settings › Desktop apps): each move with Undo (committed) or Finish/Undo (interrupted), by id; the timeline in Copy details.
+3. Preflight counts the room Undo needs; committed moves' backups are dropped after the next move of the family commits, or after N days.
+4. Rolling forward an interrupted Applying move comes later; the release notes say so.
+**Quality gates**: `just keep-going verify-static`; failing-before tests; the move suite.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E2321/manifest.md`.
+
+### AJ-E2322 Move says \"opened\" only when the conversation is open, and keeps a timeline of every phase | Status: TODO (0.5.1) | Priority P1 | Effort S | Depends: AJ-E2318
+**Found** Review A3.7, A3.8, B7, B9 12 and 15: \"opened\" was reported as verified on the link's delivery alone, and a fixed 6 s settle gave false results on a slow start. (`docs/research/move-reliability-review.md`).
+**Requirements**:
+1. Verified only when the adapter's after-open check sees the conversation; otherwise pending, said plainly.
+2. Wait for the records' rewrite by event, capped at 15 s, instead of a fixed 6 s.
+3. A `timeline` per phase in the journal (ms), each wait's set (program, reason, evidence) and what remained; Copy details is the redacted summary.
+**Quality gates**: `just keep-going verify-static`; failing-before tests; the move suite.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E2322/manifest.md`.
+
+### AJ-E2323 The switch's verification matrix: every ownership shape as a fixture in CI, and the real cases walked in lab PL1 | Status: TODO (0.5.1) | Priority P0 | Effort M | Depends: AJ-E2315
+**Found** Review D1–D4: the fixtures and walks that prove E2315 and E2317–E2322. (`docs/research/move-reliability-review.md`).
+**Requirements**:
+1. D1's 13 ownership fixtures (`procs::fixture`, no OS), each asserting what blocks, what is reported and the refusal class.
+2. D2's engine fault injection (crash after each phase, ENOSPC during apply and undo, two AI Juggler data folders sharing the move area) and D3's app-level integration (a second AppState's keep alive, a relaunching agent, an app asking at quit, parallel quit, startup with a held profile).
+3. A PL1 lab walk (Sonnet, verified by Opus) of: two profiles on one account; the E2315 shape; another AI Juggler with keep alive; a crash mid-move then restart.
+**Quality gates**: `just keep-going verify-static`; failing-before tests; the move suite.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E2323/manifest.md`.
+
+### AJ-E2324 Move's speed: event-driven waits, an open-file write guard and half the reads | Status: TODO (0.5.2) | Priority P2 | Effort M | Depends: AJ-E2323
+**Found** Review A4.2, A6.2, A6.3, A1.9, B3, B4, C: polling waits (about 1–2 s of CPU per move), a 1.5 s stillness floor, every byte read and hashed four times. (`docs/research/move-reliability-review.md`).
+**Requirements**:
+1. Process-exit and file-change waits by kqueue (Linux pidfd/inotify, Windows wait handles), behind `juggler_platform`.
+2. An open-file write guard before backup and apply (unknown writers: sync tools, editors).
+3. Clone first, hash the clone once, cold check by identity, size and mtime: two full reads, not four.
+4. Targets: a typical move ≤ 10 s p50, ≤ 20 s p95; CPU during the waits ≤ 50 ms.
+**Quality gates**: `just keep-going verify-static`; failing-before tests; the move suite.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E2324/manifest.md`.
