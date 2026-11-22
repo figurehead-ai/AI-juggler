@@ -188,6 +188,17 @@ pub struct MoveOutcomeInfo {
     pub detail: String,
 }
 
+/// What an Undo did (R4, the 0.5.0 re-walk): its words, never a path, and
+/// where what changed since the move is kept, for Copy details only.
+#[derive(Clone, PartialEq, Eq, Debug, serde::Serialize, ts_rs::TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
+pub struct MoveUndoneInfo {
+    /// "Undone: the conversation is back where it was. …".
+    pub words: String,
+    /// The folder that keeps what was done since the move.
+    pub kept: String,
+}
+
 /// What a move did.
 #[derive(Clone, PartialEq, Eq, Debug, serde::Serialize, ts_rs::TS)]
 #[ts(export, export_to = "../../../ui/src/types/generated/")]
@@ -733,6 +744,7 @@ fn stop_places(
     state: &Arc<AppState>,
     places: &[(String, KnownPlace)],
     system: &dyn MoveSystem,
+    outcome: &str,
 ) -> AppResult<Vec<StoppedPlace>> {
     let mut stopped: Vec<StoppedPlace> = Vec::new();
     for (id, place) in places {
@@ -753,7 +765,7 @@ fn stop_places(
                 if start.is_none() || !system.alive(pid, start) {
                     start_again(state, &stopped, system);
                     return Err(refused(format!(
-                        "AI Juggler couldn't be sure which process is {name}, so nothing was quit or moved"
+                        "AI Juggler couldn't be sure which process is {name}, so nothing was quit or {outcome}"
                     )));
                 }
                 // All of it, looked at before it quits: once its main
@@ -767,7 +779,7 @@ fn stop_places(
                     if Instant::now() >= until {
                         start_again(state, &stopped, system);
                         return Err(refused(format!(
-                            "{name} didn't quit within {} seconds, so nothing was moved. It may be asking something: look at its window",
+                            "{name} didn't quit within {} seconds, so nothing was {outcome}. It may be asking something: look at its window",
                             wait.as_secs().max(1)
                         )));
                     }
@@ -786,7 +798,7 @@ fn stop_places(
             let secs = wait.as_secs().max(1);
             return Err(AppError::Move {
                 words: format!(
-                    "{name} didn't finish closing within {secs} seconds: {} still {}, so nothing was moved. Try again in a moment.",
+                    "{name} didn't finish closing within {secs} seconds: {} still {}, so nothing was {outcome}. Try again in a moment.",
                     tree::words(&left),
                     if left.len() == 1 { "runs" } else { "run" }
                 ),
@@ -1037,7 +1049,7 @@ fn run(state: &Arc<AppState>, sides: &Sides, system: &dyn MoveSystem) -> AppResu
         .map_err(engine)?;
 
     // The single-writer phase.
-    let stopped_places = match stop_places(state, &places, system) {
+    let stopped_places = match stop_places(state, &places, system, "moved") {
         Ok(stopped) => stopped,
         Err(error) => {
             // Planned only: its undo touches no file. The journal reads
@@ -1299,7 +1311,7 @@ fn run(state: &Arc<AppState>, sides: &Sides, system: &dyn MoveSystem) -> AppResu
 ///
 /// A backup doesn't match (nothing changed), a profile wouldn't quit, or
 /// the restore failed (the journal says how far).
-pub fn undo(state: &Arc<AppState>, move_id: &str) -> AppResult<String> {
+pub fn undo(state: &Arc<AppState>, move_id: &str) -> AppResult<MoveUndoneInfo> {
     undo_with(state, move_id, &Real::quiet())
 }
 
@@ -1307,7 +1319,7 @@ pub(crate) fn undo_with(
     state: &Arc<AppState>,
     move_id: &str,
     system: &dyn MoveSystem,
-) -> AppResult<String> {
+) -> AppResult<MoveUndoneInfo> {
     if move_id.is_empty()
         || !move_id
             .chars()
@@ -1349,7 +1361,8 @@ pub(crate) fn undo_with(
     if !why_not.is_empty() {
         return Err(refused(juggler_handover::moving::words(&why_not)));
     }
-    let stopped_places = stop_places(state, &places, system)?;
+    // R4: a refused Undo says "nothing was undone", not the Move's words.
+    let stopped_places = stop_places(state, &places, system, "undone")?;
     if let Err(started) = still_down(state, &stopped_places, system) {
         start_again(state, &stopped_places, system);
         return Err(refused(format!("{started}, so nothing was undone")));
@@ -1397,10 +1410,11 @@ pub(crate) fn undo_with(
     if let (Some((id, place)), Some(link)) = (places.first(), link) {
         let _ = open_in(state, id, place, &link, system);
     }
-    Ok(format!(
-        "Undone: the conversation is back where it was. Anything done since the move is kept in {}",
-        kept.display()
-    ))
+    // R4: no path in the words (Copy details has it).
+    Ok(MoveUndoneInfo {
+        words: "Undone: the conversation is back where it was. Anything done since the move is kept aside; Copy details says where.".to_owned(),
+        kept: kept.display().to_string(),
+    })
 }
 
 /// 0.4.9: at start, in the background, lets go of the backups of moves

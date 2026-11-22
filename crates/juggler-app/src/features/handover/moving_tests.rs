@@ -414,7 +414,11 @@ fn a_move_quits_both_profiles_by_their_own_process_moves_and_opens_in_the_target
     );
     // Undo: back as it was, opened in the source.
     let said = undo_with(&lab.state, &done.move_id, &system).unwrap();
-    assert!(said.starts_with("Undone"), "{said}");
+    assert!(said.words.starts_with("Undone"), "{said:?}");
+    // R4 (the 0.5.0 re-walk): no raw path in its words; the folder is for
+    // Copy details.
+    assert!(!said.words.contains('/'), "{said:?}");
+    assert!(said.kept.ends_with(&done.move_id) || said.kept.contains(&done.move_id), "{said:?}");
     assert!(unchanged(&lab));
     let moves = moves(&lab.state);
     assert_eq!(moves[0].state, "undone");
@@ -484,6 +488,27 @@ fn a_profile_that_wont_quit_stops_the_move_and_the_other_starts_again() {
         "the source started again"
     );
     assert!(unchanged(&lab));
+}
+
+/// R4 (the 0.5.0 re-walk): an Undo a profile wouldn't quit for said
+/// "so nothing was moved", the Move's words; it says what it didn't do.
+#[test]
+fn an_undo_a_profile_wont_quit_for_says_nothing_was_undone() {
+    let Some((lab, system, done)) = moved() else {
+        return;
+    };
+    let target = lab.sides.target_place.as_ref().unwrap().0.clone();
+    let stubborn = Scripted {
+        stubborn: vec![target],
+        ..running_both(&lab)
+    };
+    drop(system);
+    let error = undo_with(&lab.state, &done.move_id, &stubborn)
+        .unwrap_err()
+        .to_string();
+    assert!(error.contains("didn't quit"), "{error}");
+    assert!(error.contains("nothing was undone"), "{error}");
+    assert!(!error.contains("moved"), "{error}");
 }
 
 #[test]

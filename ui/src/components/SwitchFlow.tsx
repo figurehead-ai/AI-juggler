@@ -345,7 +345,7 @@ export function SwitchFlow({
     }
   })();
 
-  const shown = move.frame({ body, footer }, targetLabel, holding, cancel, cancelButton); // once Move started, its own screens
+  const shown = move.frame({ body, footer }, targetLabel, holding, cancel, cancelButton, checkOf(phase)?.source_account ?? null); // once Move started, its own screens
   return (
     <SwitchDialogFrame dialogRef={dialogRef} label={`Switch to ${targetLabel}`} testId="switch-flow" header={header} footer={shown.footer} onClose={running ? null : cancel}>
       {shown.body}

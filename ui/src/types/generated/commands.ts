@@ -123,6 +123,7 @@ import type { ModelsInfo } from "./ModelsInfo";
 import type { MoveDoneInfo } from "./MoveDoneInfo";
 import type { MoveOfferInfo } from "./MoveOfferInfo";
 import type { MoveRecordInfo } from "./MoveRecordInfo";
+import type { MoveUndoneInfo } from "./MoveUndoneInfo";
 import type { NeedSnoozeInfo } from "./NeedSnoozeInfo";
 import type { NodePositionInfo } from "./NodePositionInfo";
 import type { NoticeInfo } from "./NoticeInfo";
@@ -1157,7 +1158,7 @@ export interface Commands {
   /** Read features::switch::moves::switch_move_offer */
   switch_move_offer: { args: { sessionId: string; targetProfileId: string }; result: MoveOfferInfo };
   /** Write features::switch::moves::switch_move_undo */
-  switch_move_undo: { args: { moveId: string }; result: string };
+  switch_move_undo: { args: { moveId: string }; result: MoveUndoneInfo };
   /** Read features::switch::moves::switch_moves */
   switch_moves: { args: { page?: PageRequest | null }; result: Page<MoveRecordInfo> };
   /** Read features::switch::commands::switch_preflight */

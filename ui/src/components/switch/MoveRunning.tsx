@@ -11,13 +11,13 @@
  *   "Nothing was moved"), the paths only in Copy details. A move left part
  *   way keeps the warning look and offers Undo.
  */
-import type { JSX } from "react";
-import type { MoveProgressInfo } from "../../lib/ipc/switch-move";
+import { useState, type JSX } from "react";
+import type { MoveProgressInfo, MoveUndoneInfo } from "../../lib/ipc/switch-move";
 import { ProgressBar } from "../UpdateProgress";
 import { Alert } from "../Alert";
 import { IconCheck } from "../icons-controls";
 import { FailedStep } from "./FailedStep";
-import { MoveUndo } from "./MoveDone";
+import { MoveUndo, MoveUndone } from "./MoveDone";
 import { sentence } from "./MoveScreen";
 
 /** Whether a move's failure left both accounts as they were (a refusal):
@@ -91,12 +91,15 @@ export function withoutNothingMoved(message: string): string {
   return message.replace(/\s*[,;]\s*(so\s+)?nothing (was|has been) moved(?=[.;,]|$)/gi, "");
 }
 
-export function MoveFailed({ target, message, cause, left }: { target: string; message: string; cause: unknown; left: string | null }): JSX.Element {
+export function MoveFailed({ target, message, cause, left, source = null }: { target: string; message: string; cause: unknown; left: string | null; source?: string | null }): JSX.Element {
   const calm = nothingMoved(cause) && !left;
+  const [undone, setUndone] = useState<MoveUndoneInfo | null>(null);
+  // R4: undone, the move's failure is behind it: its own end state.
+  if (undone) return <MoveUndone undone={undone} source={source} />;
   return (
     <div className="flex flex-col gap-4">
       <FailedStep target={target} message={sentence(calm ? withoutNothingMoved(message) : message)} cause={cause} results={[]} calm={calm ? { title: "Nothing was moved" } : undefined} />
-      {left && <MoveUndo moveId={left} />}
+      {left && <MoveUndo moveId={left} onUndone={setUndone} />}
     </div>
   );
 }

@@ -116,11 +116,13 @@ export function useMoveFlow(sessionId: string, targetProfileId: string, attempt:
     holding: boolean,
     close: () => void,
     cancelButton: JSX.Element,
+    /** Where it moves from ("work"): Undo's end state says "Back on work". */
+    source: string | null = null,
   ): { body: JSX.Element | null; footer: JSX.Element | null } => {
     if (phase.kind === "moving") return { body: <Moving target={target} holding={holding} progress={progress} />, footer: null };
     if (phase.kind === "moved") {
       return {
-        body: <MoveDone done={phase.done} target={target} />,
+        body: <MoveDone done={phase.done} target={target} source={source} />,
         footer: (
           <Button variant="primary" type="button" data-autofocus onClick={close} data-testid="switch-moved-close">
             Done
@@ -133,7 +135,7 @@ export function useMoveFlow(sessionId: string, targetProfileId: string, attempt:
       // when nothing was moved (deep/11 §4.9: "Nothing was changed.
       // [Retry][Cancel]").
       return {
-        body: <MoveFailed target={target} message={phase.message} cause={phase.cause} left={phase.left} />,
+        body: <MoveFailed target={target} message={phase.message} cause={phase.cause} left={phase.left} source={source} />,
         footer: (
           <>
             {cancelButton}

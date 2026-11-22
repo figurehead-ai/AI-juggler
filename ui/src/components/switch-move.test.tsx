@@ -162,6 +162,29 @@ describe("Move to account", () => {
     await waitFor(() => expect(view.getByTestId("switch-moved-undo-said").textContent).toContain("Undone"));
   });
 
+  // R4 (the 0.5.0 re-walk): after Undo the dialog still read "Moved to
+  // personal" over its four green rows, the sentence with a raw /tmp path.
+  it("Undo ends under its own heading, in words, the path only in Copy details", async () => {
+    window.__AIJ_MOVE_OFFER__ = OFFER;
+    window.__AIJ_MOVE_DONE__ = DONE;
+    window.__AIJ_MOVE_UNDONE__ = { words: "Undone: the conversation is back where it was. Anything done since the move is kept aside; Copy details says where.", kept: "/tmp/lab/moves/1-aa/preserved" };
+    const written: string[] = [];
+    Object.defineProperty(navigator, "clipboard", { value: { writeText: (text: string) => (written.push(text), Promise.resolve()) }, configurable: true });
+    const view = mount();
+    await waitFor(() => expect(view.getByTestId("switch-move-confirm")).toBeTruthy());
+    fireEvent.click(view.getByTestId("switch-move-confirm"), { detail: 1 });
+    await waitFor(() => expect(view.getByTestId("switch-moved-undo")).toBeTruthy());
+    fireEvent.click(view.getByTestId("switch-moved-undo"));
+    await waitFor(() => expect(view.getByTestId("switch-undone")).toBeTruthy());
+    const flow = view.getByTestId("switch-flow").textContent ?? "";
+    expect(view.getByTestId("switch-undone-title").textContent).toMatch(/^Back on /);
+    expect(flow).not.toContain("Moved to");
+    expect(view.queryByTestId("switch-moved")).toBeNull();
+    expect(flow).not.toContain("/tmp");
+    fireEvent.click(view.getByTestId("switch-undone-copy"));
+    await waitFor(() => expect(written.join("")).toContain("/tmp/lab/moves/1-aa/preserved"));
+  });
+
   it("can't be chosen while something works, says how it clears, and checks again", async () => {
     window.__AIJ_MOVE_OFFER__ = {
       ...OFFER,
