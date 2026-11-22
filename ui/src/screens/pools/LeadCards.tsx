@@ -45,14 +45,14 @@ export function LeadCards({
 }): JSX.Element {
   const chosenSession = value.kind === "session" ? sessions.find((one) => one.ref === value.ref) : undefined;
   const chosenApp = value.kind === "next" ? apps.find((app) => app.ref === value.app) : undefined;
-  const label = (words: string) => <p className="section-label mt-1.5 first:mt-0 sm:col-span-2">{words}</p>;
+  const label = (words: string) => <p className="section-label mt-1.5 first:mt-0 @xl:col-span-2">{words}</p>;
   return (
     <fieldset className="flex min-w-0 flex-col gap-3.5" data-testid={testId}>
       <legend className="sr-only">Who leads</legend>
       <RadioCards label="Who leads" value={leadValue(value)} onChange={(next) => onChange(choiceOf(next))} columns={2}>
         {label("Open now")}
         {sessions.length === 0 ? (
-          <p className="text-meta text-muted sm:col-span-2" data-testid={`${testId}-none-open`}>
+          <p className="text-meta text-muted @xl:col-span-2" data-testid={`${testId}-none-open`}>
             No session is open in these projects now.
           </p>
         ) : (

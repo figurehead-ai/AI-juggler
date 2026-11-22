@@ -176,11 +176,17 @@ export function RadioCards({
   testId?: string;
 }): JSX.Element {
   const name = useId();
-  const grid = columns === 1 ? "grid-cols-1" : columns === 2 ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-1 sm:grid-cols-3";
+  // Columns by the room the group itself has, not the window's (the 0.5.0
+  // walk, F6: at 1024 wide the pool wizard's two columns squeezed each
+  // card to about 140 px, a word to a line). A card spanning the row says
+  // `@xl:col-span-2`.
+  const grid = columns === 1 ? "grid-cols-1" : columns === 2 ? "grid-cols-1 @xl:grid-cols-2" : "grid-cols-1 @xl:grid-cols-2 @3xl:grid-cols-3";
   return (
     <Group.Provider value={{ name, value, onChange }}>
-      <div role="radiogroup" aria-label={label} className={`grid min-w-0 gap-2.5 ${grid}`} data-testid={testId}>
-        {children}
+      <div className="@container min-w-0">
+        <div role="radiogroup" aria-label={label} className={`grid min-w-0 gap-2.5 ${grid}`} data-testid={testId}>
+          {children}
+        </div>
       </div>
     </Group.Provider>
   );
