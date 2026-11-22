@@ -62,8 +62,9 @@ export function ProcessTree({
   /** Whether a session row is open (its processes listed). */
   isOpen: (row: ProcessGraphRowInfo) => boolean;
   onToggle: (row: ProcessGraphRowInfo, open: boolean) => void;
-  /** A row's buttons and menu. */
-  actions: (row: ProcessGraphRowInfo) => ReactNode;
+  /** A row's buttons and menu; `active` when it is the focused row (its
+   * buttons take Tab then). */
+  actions: (row: ProcessGraphRowInfo, active: boolean) => ReactNode;
   /** Enter on a row. */
   onActivate?: (row: ProcessGraphRowInfo) => void;
   hasMore: boolean;
@@ -215,7 +216,7 @@ export function ProcessTree({
                     )}
                     <NumberCells row={row} />
                     <div role="gridcell" className="flex items-center justify-end gap-1">
-                      {actions(row)}
+                      {actions(row, index === at)}
                     </div>
                   </div>
                 );

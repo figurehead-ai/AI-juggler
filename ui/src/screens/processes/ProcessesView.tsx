@@ -255,7 +255,7 @@ export function ProcessesView({
           ended={view === "ended"}
           isOpen={isOpen}
           onToggle={onToggle}
-          actions={(row) => <RowActions row={row} on={handlers} />}
+          actions={(row, active) => <RowActions row={row} on={handlers} active={active} />}
           onActivate={(row) =>
             canStop(row) ? handlers.stop(row) : isSessionItself(row) && !embedded ? handlers.goToSession(row) : row.kind === "session" ? onToggle(row, !isOpen(row)) : undefined
           }

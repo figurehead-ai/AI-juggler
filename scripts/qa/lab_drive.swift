@@ -893,6 +893,11 @@ func tree(_ pid: pid_t) -> [Node] {
         let value = (attr(e, kAXValueAttribute) as? String).map(squash) ?? ""
         nodes.append(Node(element: e, role: text(e, kAXRoleAttribute), label: label, value: value, parent: parent, depth: depth))
         let me = nodes.count - 1
+        // R9 (the 0.5.0 re-walk): WebKit's AXTable lists every cell under
+        // its AXRow and again under its AXColumn (VoiceOver reads rows), so
+        // a column's cells are walked once, through their rows; a press on
+        // a row's button is no longer refused as ambiguous.
+        if nodes[me].role == "AXColumn" { return }
         for child in (attr(e, kAXChildrenAttribute) as? [AXUIElement]) ?? [] { walk(child, me, depth + 1) }
     }
     for window in (attr(app, kAXWindowsAttribute) as? [AXUIElement]) ?? [] { walk(window, nil, 0) }

@@ -53,8 +53,13 @@ function Line({ Icon, children }: { Icon: (props: { width: number; height: numbe
   );
 }
 
-export function RowActions({ row, on }: { row: ProcessGraphRowInfo; on: RowHandlers }): JSX.Element | null {
+export function RowActions({ row, on, active = false }: { row: ProcessGraphRowInfo; on: RowHandlers; active?: boolean }): JSX.Element | null {
   const [menu, setMenu] = useState<MenuAt | null>(null);
+  // R9 (the 0.5.0 re-walk): the focused row's actions are in the Tab
+  // order (Tab goes from the row to its Stop… and More, then on); the
+  // other rows' wait until their row is focused, so Tab never walks
+  // every row's buttons.
+  const tab = active ? 0 : -1;
   if (row.kind === "app") return null;
   const proc = row.process;
   const theirs = row.origin === "theirs";
@@ -73,23 +78,23 @@ export function RowActions({ row, on }: { row: ProcessGraphRowInfo; on: RowHandl
   return (
     <>
       {canStop(row) && (
-        <Button size="sm" variant="secondary" tabIndex={-1} onClick={(event) => { event.stopPropagation(); on.stop(row); }} data-testid={`process-stop-${proc!.pid}`} aria-label={`Stop ${name}…`}>
+        <Button size="sm" variant="secondary" tabIndex={tab} onClick={(event) => { event.stopPropagation(); on.stop(row); }} data-testid={`process-stop-${proc!.pid}`} aria-label={`Stop ${name}…`}>
           Stop…
         </Button>
       )}
       {sessionItself && (
-        <Button size="sm" variant="secondary" className="whitespace-nowrap" tabIndex={-1} onClick={(event) => { event.stopPropagation(); on.goToSession(row); }} data-testid={`process-go-session-${proc!.pid}`} aria-label={`Go to session (${name} is the session itself)`}>
+        <Button size="sm" variant="secondary" className="whitespace-nowrap" tabIndex={tab} onClick={(event) => { event.stopPropagation(); on.goToSession(row); }} data-testid={`process-go-session-${proc!.pid}`} aria-label={`Go to session (${name} is the session itself)`}>
           Go to session
         </Button>
       )}
       {row.kind === "session" && leftovers > 0 && (
-        <Button size="sm" variant="secondary" className="whitespace-nowrap" tabIndex={-1} onClick={(event) => { event.stopPropagation(); on.cleanSession(row); }} data-testid={`session-clean-${row.key}`} aria-label={`Clean up what ${name} left (${leftovers})…`}>
+        <Button size="sm" variant="secondary" className="whitespace-nowrap" tabIndex={tab} onClick={(event) => { event.stopPropagation(); on.cleanSession(row); }} data-testid={`session-clean-${row.key}`} aria-label={`Clean up what ${name} left (${leftovers})…`}>
           Clean up ({leftovers})…
         </Button>
       )}
       <button
         type="button"
-        tabIndex={-1}
+        tabIndex={tab}
         aria-label={`More for ${name}`}
         aria-haspopup="menu"
         onClick={open}
