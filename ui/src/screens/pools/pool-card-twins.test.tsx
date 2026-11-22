@@ -17,7 +17,7 @@ import { cardTitles } from "./PoolsScreen";
 afterEach(cleanup);
 
 const at = (hour: number, minute: number) => new Date(2026, 10, 21, hour, minute).getTime();
-const twin = (id: string, started: number): InstanceInfo => ({ ...MOCK_SESSIONS[0]!, id, label: null, title: null, git_branch: null, cwd: "/lab/repos/web", started_at_ms: started });
+const twin = (id: string, started: number): InstanceInfo => ({ ...MOCK_SESSIONS[0]!, id, label: undefined, title: undefined, git_branch: null, cwd: "/lab/repos/web", started_at_ms: started });
 const rule = (id: string) => ({ member: `session:${id}`, kind: "session", role: "member", level: null, joined_at: 1, sessions: 1, session_ids: [id] });
 
 describe("R6 twins on a Pools card", () => {
