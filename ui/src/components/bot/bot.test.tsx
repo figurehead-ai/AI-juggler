@@ -192,6 +192,17 @@ describe("every state of the mock-up", () => {
     await waitFor(() => expect(screen.getAllByTestId("bot-mark").length).toBeGreaterThan(0));
   });
 
+  it("the page, however it opens, keeps the panel closed (the 0.5.0 re-walk, S1)", async () => {
+    seed("full");
+    // Reached from the nav with Bot closed, and mounted twice (React's
+    // strict mode): never the panel over the page.
+    const first = render(<BotPage onBack={() => undefined} />);
+    first.unmount();
+    render(<BotPage onBack={() => undefined} />);
+    await screen.findAllByTestId("bot-turn");
+    expect(botState().mode).toBe("page");
+  });
+
   it("full and memories: the page holds the same conversation and the remembers tab", async () => {
     seed("full");
     render(<BotPage onBack={() => undefined} />);

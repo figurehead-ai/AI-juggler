@@ -19,7 +19,7 @@ import { BotMemories } from "./BotMemories";
 import { BotClearSheet, BotForgetHost } from "./BotSheets";
 import { IconBookmark, IconBot, IconCollapse, IconEye, IconFolder, IconSearch } from "./bot-icons";
 import { WORDS } from "../../lib/bot-words";
-import { backToPanel, leftPage, openBot, openFind, useBot } from "../../lib/bot-store";
+import { backToPanel, leftPage, openFind, pageOpened, useBot } from "../../lib/bot-store";
 import { useMemories } from "../../lib/bot-memory";
 import { useAiJob } from "../../lib/ai-availability";
 import { watchesNewest, type WatchLine } from "../../lib/ipc/watches";
@@ -98,7 +98,7 @@ export function BotPage({ onBack }: { onBack: () => void }): JSX.Element {
   const { info } = useMemories();
   const noModel = job?.state === "no_engine";
   useEffect(() => {
-    openBot();
+    pageOpened();
     const toMemory = () => setTab("memory");
     window.addEventListener("aij:bot-memories", toMemory);
     return () => {

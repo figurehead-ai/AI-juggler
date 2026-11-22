@@ -161,6 +161,17 @@ export function expandBot(): void {
   window.dispatchEvent(new CustomEvent("aij:open-screen", { detail: { id: "bot" } }));
 }
 
+/** The Bot page is open, however it was reached (Expand, the nav, the
+ * palette): the page shows the conversation, so the panel stays closed
+ * (the 0.5.0 re-walk, S1: opening the page by mounting it reopened the
+ * panel over it). */
+export function pageOpened(): void {
+  const next: Partial<BotState> = { mode: "page", focusKey: state.focusKey + 1 };
+  if (!state.loaded && state.scope === null) next.scope = previewScope();
+  set(next);
+  void loadNewest();
+}
+
 /** "Back to the panel": the same place in the conversation. */
 export function backToPanel(): void {
   set({ mode: "panel", focusKey: state.focusKey + 1 });
