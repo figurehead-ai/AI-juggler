@@ -167,6 +167,9 @@ const VERB_FIRST: Partial<Record<string, string>> = {
   worked: "worked on ",
 };
 
+/** A switch edge that resumed the original (a switch back, an undo). */
+const RESUMED = "native-resume";
+
 /** One item's sentence (R10). */
 export function sentence(item: FeedItemInfo): Part[] {
   const { facts } = item;
@@ -187,10 +190,14 @@ export function sentence(item: FeedItemInfo): Part[] {
       return [plain("marked "), strong(item.subject), plain(" reviewed")];
     case "answered":
       return answered(item);
+    // The 0.5.0 walk, F9: a switch copies the conversation (the original
+    // stays), so it never says "moved"; a switch back resumes the original.
     case "switch":
-      return [plain("moved "), strong(item.subject), plain(` from ${appWords(facts.from_provider, facts.from_label, false)} to ${appWords(facts.to_provider, facts.to_label, false)}`)];
+      return facts.mechanism === RESUMED
+        ? [plain("took "), strong(item.subject), plain(` back to ${appWords(facts.to_provider, facts.to_label, false)}`)]
+        : [plain("copied "), strong(item.subject), plain(` from ${appWords(facts.from_provider, facts.from_label, false)} to ${appWords(facts.to_provider, facts.to_label, false)}`)];
     case "switch_failed":
-      return [plain("couldn't move "), strong(item.subject), plain(` to ${appWords(facts.to_provider, facts.to_label, false)}. The original is untouched.`)];
+      return [plain(facts.mechanism === RESUMED ? "couldn't take " : "couldn't copy "), strong(item.subject), plain(`${facts.mechanism === RESUMED ? " back" : ""} to ${appWords(facts.to_provider, facts.to_label, false)}. The original is untouched.`)];
     case "quota":
     case "credits":
     case "reset":

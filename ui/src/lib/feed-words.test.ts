@@ -29,8 +29,10 @@ const CASES: [FeedItemInfo, string][] = [
   [item({ kind: "answered" }, { need: "stuck" }), "Fix the flaky login test moved on"],
   [item({ kind: "answered" }, { need: "heavy" }), "Fix the flaky login test no longer needs you"],
   [item({ kind: "answered", subject: "" }, { need: "signin", line: "Work Max needs its sign-in" }), "Resolved: Work Max needs its sign-in"],
-  [item({ kind: "switch", subject: "Answer the release question" }, { from_provider: "claude-code", from_label: "Work Max", to_provider: "codex", to_label: "Personal" }), "moved Answer the release question from Claude Code CLI · Work Max to Codex CLI · Personal"],
-  [item({ kind: "switch_failed", subject: "Answer the release question" }, { to_provider: "codex", to_label: "Personal" }), "couldn't move Answer the release question to Codex CLI · Personal. The original is untouched."],
+  [item({ kind: "switch", subject: "Answer the release question" }, { from_provider: "claude-code", from_label: "Work Max", to_provider: "codex", to_label: "Personal" }), "copied Answer the release question from Claude Code CLI · Work Max to Codex CLI · Personal"],
+  // The 0.5.0 walk, F9: a copy said "moved"; a switch back resumes the original.
+  [item({ kind: "switch", subject: "Answer the release question" }, { from_provider: "codex", from_label: "Personal", to_provider: "claude-code", to_label: "Work Max", mechanism: "native-resume" }), "took Answer the release question back to Claude Code CLI · Work Max"],
+  [item({ kind: "switch_failed", subject: "Answer the release question" }, { to_provider: "codex", to_label: "Personal" }), "couldn't copy Answer the release question to Codex CLI · Personal. The original is untouched."],
   [item({ kind: "quota", author: { ...app, kind: "account", name: "Work Max" } }, { meter: 12, window: "5-hour", sessions: 2 }), "is at 12% of its 5-hour window. 2 sessions use it."],
   [item({ kind: "credits", author: { ...app, kind: "account", name: "Work Max" } }, { window: "5-hour", credits: "$4.10 left" }), "used its 5-hour window. Credits carry on ($4.10 left)."],
   [item({ kind: "reset", author: { ...app, kind: "account", name: "Personal" } }, { window: "5-hour", sessions: 1 }), "has room again: its 5-hour window reset. 1 session can switch back."],

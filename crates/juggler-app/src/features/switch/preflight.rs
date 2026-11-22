@@ -98,7 +98,7 @@ pub(crate) fn preflight_with(
     let report = pipeline::preflight(&input)
         .map_err(|failure| AppError::switch(failure, &account_a.label, &account_b.label))?;
     let warnings = user_warnings(&report);
-    let source_live = matches!(source.status.as_str(), "running" | "starting");
+    let source_live = super::execute::source_is_live(state, &source);
     let stays = source_stays(state, &source, &reference, &account_a, source_live);
 
     // AJ-E206 §8: choose the door from the same preflight facts.

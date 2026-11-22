@@ -460,7 +460,7 @@ fn sides(state: &Arc<AppState>, session_id: &str, target_profile_id: &str) -> Ap
         request,
         tool: account_a.harness.as_str().to_owned(),
         adapter,
-        source_live: matches!(source.status.as_str(), "running" | "starting"),
+        source_live: crate::features::switch::execute::source_is_live(state, &source),
         source_place,
         target_place,
         source_label: account_a.label.clone(),
