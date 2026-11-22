@@ -13,7 +13,8 @@
 //!    (0700), outside the home the user record names (and so outside the
 //!    real AI Juggler data), with the app's data folder inside it
 //!    ([`checked_home`]); and with no tool's folder override inherited
-//!    ([`check_this`]). Then nothing of the bridge starts.
+//!    ([`check_this`]; the lab's own stand-in programs, inside it, may
+//!    stay: [`inherited`]). Then nothing of the bridge starts.
 //! 3. Each write is one of the app's own commands, the function the
 //!    window calls, with its typed arguments (`deny_unknown_fields`):
 //!    no logic of its own. Same token, same loopback, same Origin.
