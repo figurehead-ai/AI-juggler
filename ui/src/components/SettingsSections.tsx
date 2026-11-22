@@ -21,7 +21,7 @@ import type { AccountInfo } from "../types/generated/AccountInfo";
 import type { FleetPeerInfo } from "../types/generated/FleetPeerInfo";
 import { CardTitle } from "./CardTitle";
 import { AccountRenewalRow } from "../screens/settings/AccountRenewalRow";
-import { useSubscriptions } from "../lib/subscriptions";
+import { accountNamesApart, useSubscriptions } from "../lib/subscriptions";
 import { Checkbox, DateField, Picker } from "./controls";
 
 /** A folder row's App by name, as the Apps list names it (useFolderAppName):
@@ -225,6 +225,8 @@ export function RenewalSettingsCard({ accounts }: { accounts: AccountInfo[] }): 
   const [version, setVersion] = useState(0);
   const subs = useSubscriptions(version);
   const onAccount = (subs ?? []).filter((sub) => sub.account_id);
+  // F3 (SK48-8): twin Accounts listed together carry their tool.
+  const named = accountNamesApart(onAccount);
   const covered = new Set(onAccount.flatMap((sub) => sub.profiles.map((profile) => profile.id)));
   const loose = accounts.filter((account) => !covered.has(account.id));
   const [warnDays, setWarnDays] = useState<number | null>(null);
@@ -277,7 +279,7 @@ export function RenewalSettingsCard({ accounts }: { accounts: AccountInfo[] }): 
           subs !== null && (
             <>
               {onAccount.map((sub) => (
-                <AccountRenewalRow key={sub.key} sub={sub} onChanged={() => setVersion((was) => was + 1)} />
+                <AccountRenewalRow key={sub.key} sub={sub} name={named(sub)} onChanged={() => setVersion((was) => was + 1)} />
               ))}
               {loose.map((account) => (
                 <RenewalRow key={account.id} account={account} />

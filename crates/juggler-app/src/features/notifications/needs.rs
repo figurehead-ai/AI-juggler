@@ -154,6 +154,31 @@ fn started_words(started_ms: Option<i64>, now_ms: i64) -> Option<String> {
         .flatten()
 }
 
+/// SK48-8 (the 0.5.0 re-walk, F3's rest): an AI Juggler session's App as
+/// the rail and the Apps list name it, its tool and its folder ("Claude
+/// Code CLI · Personal · personal"): the bell's rows read "AI Juggler ·
+/// Personal · personal", so twin Accounts of two tools couldn't be told
+/// apart there. A session in a desktop App, or a tool not known, keeps
+/// "AI Juggler" and its folder.
+fn own_app_words(row: &InstanceInfo, tools: &HashMap<String, String>) -> String {
+    match tools.get(&row.provider) {
+        Some(tool) if row.app_id.is_none() => {
+            crate::features::presence::identity(crate::features::presence::Naming {
+                id: "",
+                desktop: false,
+                app: tool,
+                instance_dir: None,
+                default_instance: false,
+                folder_label: Some(&row.account_label),
+                folder_shared: false,
+                named: None,
+            })
+            .label
+        }
+        _ => join([Some(OWN_APP.to_owned()), Some(row.account_label.clone())]),
+    }
+}
+
 fn quoted(kind: &str, name: &str) -> String {
     match kind {
         "asks" => format!("“{name}” needs your reply"),
@@ -407,8 +432,7 @@ pub fn work_out<S: std::hash::BuildHasher>(
                 title: quoted(kind, &session_name(row, sources.now_ms)),
                 detail: join([
                     project(row.project_id.as_ref()),
-                    Some(OWN_APP.to_owned()),
-                    Some(row.account_label.clone()),
+                    Some(own_app_words(row, &sources.tool_names)),
                 ]),
                 project_id: row.project_id.clone(),
                 project: project(row.project_id.as_ref()),

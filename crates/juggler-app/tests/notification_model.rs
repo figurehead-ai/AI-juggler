@@ -1582,3 +1582,28 @@ fn needs_you_reads_the_session_rows_only_when_they_changed() {
     needs::session_rows(&state, now + 35_000 + needs::ROWS_SWEEP_MS);
     assert_eq!(state.notifier.session_rows_read(), 4);
 }
+
+/// SK48-8 (the 0.5.0 re-walk, F3's rest): the bell's row under an AI
+/// Juggler session's need read "web · AI Juggler · Personal · personal",
+/// so a Claude Code and a Codex Account both called Personal couldn't be
+/// told apart there, while the rail's row for the same session read
+/// "Claude Code CLI · Personal · personal". The bell names its App as the
+/// rail does: its tool and its folder.
+#[test]
+fn a_bell_row_names_an_own_sessions_app_by_its_tool_as_the_rail_does() {
+    let dir = tempfile::tempdir().unwrap();
+    let state = app_state(dir.path());
+    let rows = own_rows(&state, dir.path(), &[("s-wait", "waiting_user")]);
+    let mut sources = needs::NeedSources {
+        sessions: rows,
+        computer: "Mac",
+        ..needs::NeedSources::default()
+    };
+    sources
+        .tool_names
+        .insert(CLAUDE_CODE_ID.to_owned(), "Claude Code".to_owned());
+    let (found, _) = needs::work_out(&sources, &HashSet::new());
+    let asks = found.iter().find(|need| need.kind == "asks").unwrap();
+    assert_eq!(asks.detail, "Claude Code CLI · Account s-wait");
+    assert!(!asks.detail.contains("AI Juggler"), "{}", asks.detail);
+}

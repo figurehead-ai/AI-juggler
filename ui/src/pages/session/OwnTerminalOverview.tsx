@@ -12,7 +12,8 @@ import type { InstanceInfo } from "../../types/generated/InstanceInfo";
 import type { ProjectInfo } from "../../types/generated/ProjectInfo";
 import type { SwitchBackSuggestionData } from "../../lib/ipc/switchBack";
 import { useConversations } from "../../lib/conversations";
-import { accountDisplay, accountLine, accountName, accountOfProfile, useSubscriptions } from "../../lib/subscriptions";
+import { accountDisplay, accountOfProfile, useSubscriptions } from "../../lib/subscriptions";
+import { sessionAccountWords } from "./account-words";
 import { HandoverSection } from "../../components/HandoverSection";
 import { Runway } from "./Runway";
 import { SessionColumns } from "./SessionColumns";
@@ -55,6 +56,7 @@ export function OwnTerminalOverview({
   const json = JSON.stringify(fromInstance(session, seen, reportedModel));
   const model = useMemo(() => JSON.parse(json) as ReturnType<typeof fromInstance>, [json]);
   const account = accounts ? accountOfProfile(accounts, model.profileId) : undefined;
+  const named = sessionAccountWords(accounts, account);
   const display = account ? accountDisplay(account, displays) : displays.find((d) => d.account === model.profileId);
   const switchNotYet = useSwitchNotYet(session.id);
   return (
@@ -70,13 +72,13 @@ export function OwnTerminalOverview({
           <WhereItRuns
             model={model}
             outside={false}
-            accountWords={account ? [accountName(account), accountLine(account)].filter(Boolean).join(" · ") : null}
+            accountWords={named.where}
             accountId={account?.state === "signed_in" ? (account.account_id ?? null) : null}
             project={project ? { name: project.name, onOpen: () => onOpenProject(project.id) } : null}
           >
             {details}
           </WhereItRuns>
-          <Runway display={display} title={account && account.state === "signed_in" ? accountName(account) : null} profile={profiles.find((p) => p.id === model.profileId) ?? null} />
+          <Runway display={display} title={named.runway} profile={profiles.find((p) => p.id === model.profileId) ?? null} />
           <HandoverSection session={session} switchBackSuggestions={switchBackSuggestions} onSwitchBack={onSwitchBack} onHandover={onHandover} />
         </>
       }
