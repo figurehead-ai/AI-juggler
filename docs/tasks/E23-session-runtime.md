@@ -298,3 +298,13 @@
 8. S3, walk kit: `lab_drive resize` really resizes Dev's window (it reports success but leaves 1701x1348).
 **Quality gates**: `just keep-going verify-static`; a failing-before test per app fix; the visual gate.
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E2314/manifest.md`, one row per item.
+
+### AJ-E2315 Move to account counts only the moving profile's own processes: a wrapper is its by the program it runs, never by a flag's path | Status: TODO (0.5.1) | Priority P0 | Effort M | Depends: AJ-E2312
+**Found** by the coordinating session, 2026-11-22, root-caused live: Move to account on 0.4.9 (Claude app, one profile to another) was refused every time, "didn't finish closing within 30 seconds: claude and disclaimer still run". Those two processes were another profile's: a Code-tab session of a different running Claude app profile, whose `disclaimer` wrapper had `--add-dir=<a folder inside the moving profile's folder>`. `places/tree.rs` `of()`'s third mark ("every program of the app's own bundle that names a path inside the profile's folder") matches any argument value inside the folder, so the other profile's wrapper and its `claude` child were counted as the moving profile's, never ended, and `rest_ended` timed out on every retry. The same code is on release/0.5.
+**Requirements**:
+1. A bundle wrapper is this profile's only through the program it runs (for `disclaimer`, the wrapped executable after `--`). Flag values (`--add-dir`, `--settings`, `--plugin-dir`, `--mcp-config`, and any other) never mark a process. No special case per flag: the rule reads what runs, not what is passed (architecture standard).
+2. Stronger evidence wins: a process whose executable is inside another known profile's folder, whose `--user-data-dir` is another profile's, or whose ancestry reaches another known profile's running main process is never this profile's.
+3. A leftover that belongs to another running app or profile never gets a "try again" refusal (retrying can't fix it); after 1 and 2 it shouldn't occur.
+4. Tests: this exact shape (another profile's disclaimer → claude, with an `--add-dir` into the moving profile) is not a member; the existing members (its own disclaimer → its own claude-code, helpers by `--user-data-dir`, the pre-quit tree) still are; the move suite passes.
+**Quality gates**: `just keep-going verify-static`; failing-before tests; the move suite; a live re-walk of Move on lab PL1 with a second lab profile's Code session holding an `--add-dir` into the moving one.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E2315/manifest.md`.
