@@ -31,7 +31,7 @@
 //! known profile's folder, when its instance flag names another profile's
 //! folder, or when the nearest app main process above it is another app's
 //! or profile's. The rule is shared, with its evidence order, in
-//! [`super::ownership`].
+//! [`crate::features::ownership`].
 //!
 //! AI Juggler's own process and what it runs are never one of them. The
 //! process table is the live view's ([`procs::table`]); nothing here reads
@@ -44,10 +44,10 @@ use std::path::Path;
 use std::sync::Arc;
 
 use super::book::KnownPlace;
-pub use super::ownership::Others;
-use super::ownership::{self, Profile, Whose};
 use crate::features::conversations::places::{HostRegistry, running_apps};
 use crate::features::conversations::procs::{Proc, Table};
+pub use crate::features::ownership::Others;
+use crate::features::ownership::{self, InstanceKey, Profile, Whose};
 use crate::state::AppState;
 
 /// One process of a profile: what tells it apart, and its program's name
@@ -78,7 +78,8 @@ pub fn of(
     others: &Others,
 ) -> Vec<Member> {
     // A profile with no folder is its main process and what is below it.
-    let profile = place.instance_dir.as_deref().map(|dir| Profile {
+    let key = place.instance_dir.as_deref().map(InstanceKey::of);
+    let profile = key.as_ref().map(|dir| Profile {
         dir,
         bundle: &place.bundle,
         instance_arg,
@@ -185,6 +186,30 @@ pub fn now(state: &Arc<AppState>, place: &KnownPlace, roots: &[u32]) -> Vec<Memb
     )
 }
 
+/// AJ-E2315 (the self rule, [`ownership::self_rule`]): why closing `place`
+/// (`name`, its main process `pid`) for `action` (Move, Undo) would close
+/// an AI Juggler, in words: this one runs below a process of its tree (it
+/// was started from the profile's Code tab), or another one is in it or
+/// below it. `None`: neither. Asked before anything quits.
+#[must_use]
+pub fn quits_juggler_now(
+    state: &Arc<AppState>,
+    place: &KnownPlace,
+    pid: u32,
+    name: &str,
+    action: &str,
+) -> Option<String> {
+    let (table, flag, others) = looked_at(state, place, &[pid]);
+    let own = std::process::id();
+    let members: Vec<u32> = of(&table, place, flag.as_deref(), &[pid], own, &others)
+        .iter()
+        .map(|member| member.pid)
+        .collect();
+    let exe = std::env::current_exe().ok()?;
+    let juggler = ownership::self_rule::quits_juggler(&table, &members, own, exe.file_name()?)?;
+    Some(ownership::self_rule::words(juggler, name, action))
+}
+
 /// Which of `members` (still running) belong to another app or profile
 /// now, by the stronger evidence ([`Others`]): what closing `place` can't
 /// end, so trying the move again can't help.
@@ -194,8 +219,9 @@ pub fn elsewhere_now(state: &Arc<AppState>, place: &KnownPlace, members: &[Membe
         return Vec::new();
     };
     let (table, flag, others) = looked_at(state, place, &[]);
+    let dir = InstanceKey::of(dir);
     let profile = Profile {
-        dir,
+        dir: &dir,
         bundle: &place.bundle,
         instance_arg: flag.as_deref(),
         mains: &[],
@@ -252,15 +278,14 @@ fn others_now(
     roots: &[u32],
 ) -> Others {
     let mut others = Others::default();
+    let this = place.instance_dir.as_deref().map(InstanceKey::of);
     for app in running_apps(table, hosts, &state.places.home()) {
-        if roots.contains(&app.pid)
-            || (app.app_id == place.app_id && app.instance == place.instance_dir)
-        {
+        if roots.contains(&app.pid) || app.runs(&place.app_id, place.instance_dir.as_deref()) {
             continue;
         }
         others.mains.push(app.pid);
         if let Some(dir) = app.instance {
-            others.dirs.push(dir);
+            others.add(&dir);
         }
     }
     let known = super::with_book(state, |book| {
@@ -271,10 +296,10 @@ fn others_now(
     })
     .unwrap_or_default();
     for dir in known {
-        if place.instance_dir.as_ref() != Some(&dir) && !others.dirs.contains(&dir) {
-            others.dirs.push(dir);
-        }
+        others.add(&dir);
     }
+    // Never `place` itself, however its folder is spelled.
+    others.dirs.retain(|dir| Some(dir) != this.as_ref());
     others
 }
 
@@ -333,23 +358,7 @@ mod tests {
     use crate::features::conversations::procs::fixture as proc;
 
     fn place(dir: &str) -> KnownPlace {
-        KnownPlace {
-            app_id: "claude-app".into(),
-            name: "Claude".into(),
-            instance: Some("work".into()),
-            bundle: PathBuf::from(APP),
-            exe: PathBuf::from(format!("{APP}/Contents/MacOS/Claude")),
-            given: Some(PathBuf::from(dir)),
-            instance_dir: Some(PathBuf::from(dir)),
-            account_id: None,
-            conversations: Vec::new(),
-            seen_ms: 1,
-            keep_alive: false,
-            paused: None,
-            found: false,
-            users: true,
-            declined: false,
-        }
+        crate::test_support::claude_profile(dir)
     }
 
     /// The live trace's tree (2026-11-21), with another profile beside it
@@ -430,10 +439,7 @@ mod tests {
     /// The other profile beside it, as [`now`] reads it: its folder and
     /// its running main process (20).
     fn others() -> Others {
-        Others {
-            dirs: vec![PathBuf::from(OTHER)],
-            mains: vec![20],
-        }
+        Others::of([PathBuf::from(OTHER)], vec![20])
     }
 
     /// AJ-E2315's shape (the live trace, 2026-11-22): the other profile's
@@ -584,7 +590,7 @@ mod tests {
             ),
         ]);
         let mut known = others();
-        known.dirs.push(PathBuf::from(nested));
+        known.add(Path::new(&nested));
         let found = of(
             &rows,
             &place(PROFILE),

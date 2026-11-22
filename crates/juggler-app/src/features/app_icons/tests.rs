@@ -65,6 +65,7 @@ fn hosts() -> HostRegistry {
         bundle_id: Some("dev.example.an-app".into()),
         instance_arg: None,
         default_instance: None,
+        instance_lock: None,
         siblings: false,
         ..crate::test_support::claude_app_host(None)
     }])

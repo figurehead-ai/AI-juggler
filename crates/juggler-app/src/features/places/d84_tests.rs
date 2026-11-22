@@ -226,16 +226,20 @@ fn a_session_started_in_a_closed_profile_is_that_profiles() {
     .unwrap();
 }
 
-/// The go sitting (2026-11-07, finding 1): Add on a profile also brings in
-/// the folder its sessions are written to, matched by the profile's own
-/// name; one an Account already holds is left alone.
+/// The go sitting (2026-11-07, finding 1), AJ-E2315 (the review's E7): Add
+/// on a profile brings in the folder its sessions are written to, by
+/// evidence: the one whose pid files name its running sessions under its
+/// own main process. Profile `team-a`'s Code tab writes in
+/// `ClaudeCodeProfiles/work` (its launcher's folder); the old rule took the
+/// folder named like the profile, where its sessions never were.
 #[test]
-fn an_added_profiles_folder_is_the_one_with_its_name() {
+fn an_added_profiles_folder_is_the_one_its_sessions_write_in() {
+    use crate::features::conversations::procs::fixture as proc;
     use juggler_adapter::environment::{DiscoveredInstall, InstallOrigin, LoginProbe};
     let root = tempfile::tempdir().unwrap();
     let mk = |name: &str| {
         let path = root.path().join("ClaudeCodeProfiles").join(name);
-        std::fs::create_dir_all(&path).unwrap();
+        std::fs::create_dir_all(path.join("sessions")).unwrap();
         DiscoveredInstall {
             harness: juggler_core::model::HarnessId::new("claude-code"),
             path,
@@ -247,11 +251,46 @@ fn an_added_profiles_folder_is_the_one_with_its_name() {
             notes: Vec::new(),
         }
     };
-    let found = vec![mk("work"), mk("aij-test"), mk("aij-test-old")];
-    let picked = folder_for_profile("aij-test", &found).unwrap();
-    assert!(picked.path.ends_with("ClaudeCodeProfiles/aij-test"));
-    // Only the exact name, never a near one.
-    assert!(folder_for_profile("aij", &found).is_none());
+    let found = vec![mk("team-a"), mk("work")];
+    let profile = root.path().join("ClaudeProfiles/team-a");
+    let code = profile.join("claude-code/2.1/abc/claude.app/Contents/MacOS/claude");
+    let code = code.to_string_lossy();
+    let main = "/Applications/Claude.app/Contents/MacOS/Claude";
+    let d = "/Applications/Claude.app/Contents/Helpers/disclaimer";
+    let flag = format!("--user-data-dir={}", profile.display());
+    // The Code tab's Claude Code (14, started at 140 s) writes its pid file.
+    std::fs::write(
+        found[1].path.join("sessions/14.json"),
+        r#"{"pid":14,"sessionId":"s-1","procStart":"1970-01-01T00:02:20Z","kind":"interactive"}"#,
+    )
+    .unwrap();
+    let state = AppState::init(root.path().join("data")).unwrap();
+    let _ = state.places.made_up.set(MadeUpMac {
+        table: [
+            proc(10, 1, main, &[main, &flag]),
+            proc(13, 10, d, &[d, "--pgroup", "--", &code]),
+            proc(14, 13, &code, &[&code]),
+        ]
+        .into_iter()
+        .collect(),
+        home: root.path().join("home"),
+    });
+    let state = Arc::new(state);
+    let mut place = crate::test_support::claude_profile(&profile.to_string_lossy());
+    place.instance = Some("team-a".into());
+    let adapter = state
+        .registry
+        .get(&juggler_core::model::HarnessId::new("claude-code"))
+        .unwrap();
+    let host = adapter.host_apps().remove(0);
+    let picked = link::folder_of_its_sessions(&state, &adapter, &host, &place, &found).unwrap();
+    assert!(
+        picked.path.ends_with("ClaudeCodeProfiles/work"),
+        "{picked:?}"
+    );
+    // With its session gone, nothing tells: never the folder named like it.
+    std::fs::remove_file(found[1].path.join("sessions/14.json")).unwrap();
+    assert!(link::folder_of_its_sessions(&state, &adapter, &host, &place, &found).is_none());
 }
 
 /// The go sitting's rerun (2026-11-07): an added profile's page said "No

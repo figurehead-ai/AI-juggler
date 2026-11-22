@@ -35,6 +35,8 @@ use juggler_core::storage::attested::desktop_id;
 use juggler_platform::local_ipc::Peer;
 use juggler_proc_list::Listed;
 
+use crate::features::ownership::instance::lock_holder;
+use crate::features::ownership::{InstanceKey, ProcId, instance_arg};
 use crate::state::AppState;
 
 /// An attested desktop caller.
@@ -94,9 +96,9 @@ fn micros(at: SystemTime) -> u128 {
         .map_or(0, |since| since.as_micros())
 }
 
-/// When `process` started, epoch microseconds.
+/// When `process` started, epoch microseconds ([`ProcId`]).
 fn started(process: &Listed) -> u128 {
-    u128::from(process.start_secs) * 1_000_000 + u128::from(process.start_micros)
+    ProcId::of(process).start_micros
 }
 
 /// The caller's chain (itself, then up to [`MAX_HOPS`] ancestors), from
@@ -325,56 +327,11 @@ pub(crate) fn still_the_same(
     })
 }
 
-/// The third review's Low 1: the instance folder a main process's
-/// arguments `args` give with `flag` (`--user-data-dir`), read so that it
-/// can't differ from what the app itself reads: only `flag=<folder>`, at
-/// most once, before a `--` (after it the app reads no switch). Any other
-/// form (`flag <folder>`, `-user-data-dir=…`, an empty value), a second
-/// one, or one after `--` is refused. `None`: not given (its default).
-///
-/// # Errors
-///
-/// Why the arguments can't be trusted, in words.
-pub(crate) fn instance_arg(args: &[String], flag: &str) -> Result<Option<String>, String> {
-    let name = flag.trim_start_matches('-');
-    let exact = format!("{flag}=");
-    let mut found = None;
-    let mut seen = 0;
-    let mut ended = false;
-    for arg in args.iter().skip(1) {
-        if arg == "--" {
-            ended = true;
-            continue;
-        }
-        let bare = arg.trim_start_matches('-');
-        let names_it = arg.starts_with('-')
-            && (bare == name
-                || bare
-                    .strip_prefix(name)
-                    .is_some_and(|rest| rest.starts_with('=')));
-        if !names_it {
-            continue;
-        }
-        seen += 1;
-        match arg.strip_prefix(&exact) {
-            Some(value) if !value.is_empty() && !ended => found = Some(value.to_owned()),
-            _ => {
-                return Err(
-                    "its app was started with its profile folder given in another form".to_owned(),
-                );
-            }
-        }
-    }
-    if seen > 1 {
-        return Err("its app was started with its profile folder given more than once".to_owned());
-    }
-    Ok(found)
-}
-
 /// M1: the instance the App's main process, whose arguments are `args`,
 /// runs (its `--user-data-dir` read strictly, [`instance_arg`], else the
 /// App's default folder under `home`), when it's the one at
-/// `instance_dir`, compared as real paths: that real path.
+/// `instance_dir`, compared as real paths ([`InstanceKey`]; the folder
+/// must exist): that real path.
 ///
 /// # Errors
 ///
@@ -392,11 +349,9 @@ pub(crate) fn runs_instance(
     let running = given
         .map(PathBuf::from)
         .or_else(|| host.default_instance.as_deref().map(|dir| home.join(dir)));
-    match (
-        running.map(std::fs::canonicalize),
-        std::fs::canonicalize(instance_dir),
-    ) {
-        (Some(Ok(running)), Ok(ours)) if running == ours => Ok(ours),
+    let ours = InstanceKey::of(instance_dir);
+    match running.map(|dir| InstanceKey::of(&dir)) {
+        Some(running) if running == ours && ours.path().exists() => Ok(ours.path().to_path_buf()),
         _ => Err("the session runs under another profile of its app".to_owned()),
     }
 }
@@ -420,10 +375,7 @@ pub(crate) const LOCK_ELSEWHERE: &str =
 /// [`LOCK_ELSEWHERE`] when another process holds it, no one does, or it
 /// can't be read: fail closed.
 pub(crate) fn held_by(instance: &std::path::Path, lock: &str, host_pid: u32) -> Result<(), String> {
-    holder_is(
-        &juggler_platform::safe_fs::lock_holder_in(instance, std::path::Path::new(lock)),
-        host_pid,
-    )
+    holder_is(&lock_holder(&InstanceKey::of(instance), lock), host_pid)
 }
 
 /// [`held_by`]'s decision on what the system said (`found`).
@@ -564,8 +516,9 @@ fn verify_tool(
         .ok_or("this app's own app isn't known")?;
     let home = juggler_platform::user::home().unwrap_or_default();
     let instance = runs_instance(&args, &app, &home, &candidate.instance_dir)?;
-    let lock = peer
-        .instance_lock()
+    let lock = app
+        .instance_lock
+        .as_deref()
         .ok_or("this app's profile can't be told")?;
     held_by(&instance, lock, host_pid)
 }
@@ -1212,7 +1165,8 @@ mod tests {
         let unreadable = std::io::Error::other("a link");
         assert_eq!(holder_is(&Err(unreadable), 7), refused, "can't be read");
         // A real profile folder whose lock no one holds, or that has none.
-        let lock = juggler_adapters::claude_peer::INSTANCE_LOCK;
+        let app = juggler_adapters::claude_live::host_apps().remove(0);
+        let lock = app.instance_lock.as_deref().unwrap();
         let root = tempfile::tempdir().unwrap();
         assert_eq!(held_by(root.path(), lock, std::process::id()), refused);
         let file = root.path().join(lock);
@@ -1268,7 +1222,7 @@ mod tests {
                 .map(PathBuf::from)
                 .unwrap_or_else(|| home.join(app.default_instance.as_deref().unwrap()));
             let instance = runs_instance(&process.args, &app, &home, &dir).unwrap();
-            held_by(&instance, juggler_adapters::claude_peer::INSTANCE_LOCK, pid).unwrap();
+            held_by(&instance, app.instance_lock.as_deref().unwrap(), pid).unwrap();
             checked += 1;
         }
         assert!(checked > 0);

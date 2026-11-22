@@ -15,6 +15,7 @@ use std::path::{Path, PathBuf};
 use juggler_adapter::live::{HostApp, HostKind};
 
 use super::procs::{Table, ancestors};
+use crate::features::ownership;
 
 /// The terminals and editors a session can run in (data, not branches).
 const BUILTIN: &str = include_str!("hosts.json");
@@ -198,12 +199,6 @@ pub fn bundle_id_of(dir: &Path) -> Option<String> {
     id
 }
 
-/// The value of `flag` in `args` (`--flag=value` or `--flag value`).
-#[must_use]
-pub fn arg_value(args: &[String], flag: &str) -> Option<String> {
-    juggler_adapter::conversation::value_after(args, &[flag])
-}
-
 /// The host of the session running as `pid`: the first ancestor inside an
 /// app bundle the registry knows (else the outermost app bundle on the
 /// chain), then the outermost process of that bundle on the chain. `home` places
@@ -257,12 +252,9 @@ pub fn host_of(pid: u32, table: &Table, hosts: &HostRegistry, home: &Path) -> Op
         })
         .last()?;
     let app = hosts.by_bundle_dir(&bundle_dir);
-    let instance_dir = app.and_then(|app| {
-        let flag = app.instance_arg.as_deref()?;
-        arg_value(&main.args, flag)
-            .map(PathBuf::from)
-            .or_else(|| app.default_instance.as_deref().map(|dir| home.join(dir)))
-    });
+    // AJ-E2315: the instance read strictly, else by the lock it holds; one
+    // that can't be told is none (never a guess from a loose flag).
+    let instance_dir = app.and_then(|app| ownership::instance_of(main, app, home).ok()?.dir);
     let default_dir = app
         .and_then(|app| app.default_instance.as_deref())
         .map(|dir| home.join(dir));
@@ -307,9 +299,22 @@ pub struct RunningApp {
     pub instance: Option<PathBuf>,
 }
 
+impl RunningApp {
+    /// Whether it runs app `app_id`'s instance `instance` (`None`: an app
+    /// that runs one), however either folder is spelled (AJ-E2315).
+    #[must_use]
+    pub fn runs(&self, app_id: &str, instance: Option<&Path>) -> bool {
+        self.app_id == app_id && ownership::same_instance(self.instance.as_deref(), instance)
+    }
+}
+
 /// The desktop apps the registry knows running now, by their main
 /// process (an app's helpers carry its arguments too, as Chromium's do,
-/// and never count): one per instance folder, the oldest process first.
+/// and never count): one per instance folder (however it is spelled), the
+/// oldest process first. AJ-E2315: the instance flag is read strictly
+/// ([`ownership::instance_of`]); a main process whose flag can't be
+/// trusted is its instance only by the lock it holds, else it is left out
+/// (no guess from a loose flag).
 #[must_use]
 pub fn running_apps(table: &Table, hosts: &HostRegistry, home: &Path) -> Vec<RunningApp> {
     let mut found: Vec<RunningApp> = Vec::new();
@@ -333,19 +338,16 @@ pub fn running_apps(table: &Table, hosts: &HostRegistry, home: &Path) -> Vec<Run
         if !app.is_app() {
             continue;
         }
-        let given = app
-            .instance_arg
-            .as_deref()
-            .and_then(|flag| arg_value(&process.args, flag))
-            .map(PathBuf::from);
-        let instance = app.instance_arg.as_ref().and_then(|_| {
-            given
-                .clone()
-                .or_else(|| app.default_instance.as_deref().map(|d| home.join(d)))
-        });
+        let Ok(ownership::Instance {
+            given,
+            dir: instance,
+        }) = ownership::instance_of(process, app, home)
+        else {
+            continue;
+        };
         if found
             .iter()
-            .any(|known| known.app_id == app.id && known.instance == instance)
+            .any(|known| known.runs(&app.id, instance.as_deref()))
         {
             continue;
         }
@@ -377,7 +379,10 @@ pub fn running_instances(
         let Some(instance) = app.instance else {
             continue;
         };
-        if !out.iter().any(|(_, known)| *known == instance) {
+        if !out
+            .iter()
+            .any(|(_, known)| ownership::same_instance(Some(known), Some(&instance)))
+        {
             out.push((app.app_id, instance));
         }
     }
@@ -502,6 +507,43 @@ mod tests {
     /// a Claude app session is in that Claude instance, never in a place
     /// named after Claude Code's own `claude.app` (which drew Claude
     /// Code's mark on a Codex session).
+    /// AJ-E2315 (the review's E4): the instance flag is read strictly and
+    /// folders compare in their real spelling. The old loose read took a
+    /// flag after `--` or given twice as the instance, and counted one
+    /// profile spelled two ways as two.
+    #[test]
+    fn an_instance_is_read_strictly_and_one_folder_spelled_two_ways_is_one() {
+        let home = Path::new("/Users/you");
+        let work = "/Users/you/Library/Application Support/ClaudeProfiles/work";
+        let main = |pid: u32, args: &[&str]| {
+            let mut all = vec![CLAUDE_APP];
+            all.extend_from_slice(args);
+            proc(pid, 1, CLAUDE_APP, &all)
+        };
+        let flag = format!("--user-data-dir={work}");
+        let slash = format!("--user-data-dir={work}/");
+        let team = "--user-data-dir=/Users/you/Library/Application Support/ClaudeProfiles/team-a";
+        let table: Table = [
+            main(10, &[&flag]),
+            main(20, &[&slash]),
+            main(30, &["--", &flag]),
+            main(40, &[team, &flag]),
+        ]
+        .into_iter()
+        .collect();
+        let running = running_apps(&table, &hosts(), home);
+        let pids: Vec<u32> = running.iter().map(|app| app.pid).collect();
+        assert_eq!(pids, [10], "{running:?}");
+        assert!(running[0].runs("claude-app", Some(Path::new(&format!("{work}/x/..")))));
+        assert!(!running[0].runs("claude-app", Some(Path::new(team))));
+        // A session under the untrusted one has its app, never a guessed
+        // instance.
+        let mut table = table;
+        table.extend([proc(41, 40, "/usr/local/bin/claude", &["claude"])]);
+        let host = host_of(41, &table, &hosts(), home).unwrap();
+        assert_eq!((host.pid, host.instance_dir), (40, None));
+    }
+
     #[test]
     fn a_session_a_tool_starts_is_in_the_app_running_that_tool() {
         let home = Path::new("/Users/you");

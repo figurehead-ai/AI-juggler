@@ -1,22 +1,49 @@
-//! Linking a desktop App to the tool folder its sessions use: by the
-//! profile's own name (the profile launcher's convention), or (ADR-0032)
-//! by the folder its host app declares for an app that runs one instance
-//! (the Codex app's `~/.codex`). Moved out of `places` for its size.
+//! Linking a desktop App to the tool folder its sessions use: a
+//! profile's by evidence, the folder its running sessions' pid files are
+//! in under its own main process (AJ-E2315, never the folder named like
+//! it: [`folder_of_its_sessions`]), else its own records (D-102,
+//! [`correct_by_records`]); or (ADR-0032) by the folder its host app
+//! declares for an app that runs one instance (the Codex app's
+//! `~/.codex`). Moved out of `places` for its size.
 
 use std::sync::Arc;
 
+use juggler_adapter::environment::DiscoveredInstall;
+
+use super::book::KnownPlace;
 use super::with_book;
+use crate::features::ownership;
 use crate::state::AppState;
 
-/// The folder discovery found under a profile's own `name` (the profile
-/// launcher's convention).
-pub(super) fn folder_for_profile<'a>(
-    name: &str,
-    found: &'a [juggler_adapter::environment::DiscoveredInstall],
-) -> Option<&'a juggler_adapter::environment::DiscoveredInstall> {
-    found
+/// AJ-E2315 (the review's E7): of `installs` (the tool folders discovery
+/// found for `adapter`), the one a profile's sessions use, by evidence:
+/// the one whose pid files name its sessions running under its own main
+/// process ([`ownership::sessions`]), never the folder named like it (a
+/// profile its user's own launcher started on another folder had its
+/// history moved where it doesn't read). `None` while none of its
+/// sessions runs.
+pub(super) fn folder_of_its_sessions<'a>(
+    state: &Arc<AppState>,
+    adapter: &juggler_adapter::SharedAdapter,
+    host: &juggler_adapter::live::HostApp,
+    place: &KnownPlace,
+    installs: &'a [DiscoveredInstall],
+) -> Option<&'a DiscoveredInstall> {
+    let key = ownership::InstanceKey::of(place.instance_dir.as_deref()?);
+    let folders: Vec<_> = installs
         .iter()
-        .find(|one| one.path.file_name().and_then(|n| n.to_str()) == Some(name))
+        .map(|one| (one.path.clone(), adapter.live_sessions(&one.path)))
+        .collect();
+    let home = state.places.home();
+    let under = ownership::sessions::Under {
+        app: host,
+        bundle: &place.bundle,
+        home: &home,
+        instance: &key,
+    };
+    let table = state.places.table();
+    let found = ownership::sessions::folder_of_sessions(&table, &under, &folders)?;
+    installs.iter().find(|one| one.path == found)
 }
 
 /// The go sitting (2026-11-07, finding 1): a profile added after first
@@ -33,27 +60,31 @@ pub(super) fn folder_for_profile<'a>(
 /// unless `may_bring_in` (Add's yes). Nothing when none matches; a
 /// failure never fails the add. Returns whether the link is new.
 pub(super) fn link_its_folder(state: &Arc<AppState>, id: &str, may_bring_in: bool) -> bool {
-    // Its profile's own name, or (an app that runs one instance) none:
-    // then the folder its host app declares (ADR-0032: the Codex app's
-    // `~/.codex`).
-    let Some((app_id, name)) = with_book(state, |book| {
-        book.places.get(id).map(|place| {
-            let name = place
-                .instance_dir
-                .as_deref()
-                .and_then(std::path::Path::file_name)
-                .and_then(|name| name.to_str())
-                .map(str::to_owned);
-            (place.app_id.clone(), name)
-        })
-    })
-    .ok()
-    .flatten() else {
+    // A profile by its running sessions (AJ-E2315), or (an app that runs
+    // one instance) the folder its host app declares (ADR-0032: the Codex
+    // app's `~/.codex`).
+    let Some(place) = with_book(state, |book| book.places.get(id).cloned())
+        .ok()
+        .flatten()
+    else {
         return false;
     };
+    // Nothing tells while none of its sessions runs: looked for again on a
+    // later read (no folder scan meanwhile).
+    if place.instance_dir.is_some() && super::running_now(state, id).is_none() {
+        if let Ok(mut looked) = state.places.looked.lock() {
+            looked.remove(id);
+        }
+        return false;
+    }
+    let name = place
+        .instance_dir
+        .as_deref()
+        .and_then(std::path::Path::file_name)
+        .and_then(|name| name.to_str())
+        .map(str::to_owned);
     let home = juggler_platform::user::home().unwrap_or_default();
-    let canonical =
-        |path: &std::path::Path| std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
+    let canonical = juggler_platform::real_path::canonical;
     let accounts = crate::commands::lock_storage_arc(state)
         .ok()
         .and_then(|storage| storage.accounts().list().ok())
@@ -65,13 +96,13 @@ pub(super) fn link_its_folder(state: &Arc<AppState>, id: &str, may_bring_in: boo
         let Some(host) = adapter
             .host_apps()
             .into_iter()
-            .find(|host| host.id == app_id)
+            .find(|host| host.id == place.app_id)
         else {
             continue;
         };
         let installs = adapter.scan_environment();
-        let found = match (&name, &host.default_folder) {
-            (Some(name), _) => folder_for_profile(name, &installs),
+        let found = match (&place.instance_dir, &host.default_folder) {
+            (Some(_), _) => folder_of_its_sessions(state, &adapter, &host, &place, &installs),
             (None, Some(folder)) => {
                 let want = canonical(&home.join(folder));
                 installs.iter().find(|one| canonical(&one.path) == want)
@@ -183,25 +214,18 @@ pub(super) fn correct_by_records(
     tool: &str,
     ids: &[String],
 ) -> bool {
-    let Some((current, name, app_id)) = with_book(state, |book| {
-        book.places.get(id).and_then(|place| {
-            let name = place
-                .instance_dir
-                .as_deref()
-                .and_then(std::path::Path::file_name)
-                .and_then(|n| n.to_str())
-                .map(str::to_owned);
-            Some((place.account_id.clone()?, name, place.app_id.clone()))
-        })
-    })
-    .ok()
-    .flatten() else {
+    let Some(place) = with_book(state, |book| book.places.get(id).cloned())
+        .ok()
+        .flatten()
+    else {
         return false;
     };
+    let current = place.account_id.clone();
     if ids.is_empty()
-        || ids
-            .iter()
-            .any(|sid| state.conversations.path_of(&current, sid).is_some())
+        || current.as_deref().is_some_and(|current| {
+            ids.iter()
+                .any(|sid| state.conversations.path_of(current, sid).is_some())
+        })
     {
         return false;
     }
@@ -216,17 +240,24 @@ pub(super) fn correct_by_records(
             *held.entry(one.account_id).or_default() += 1;
         }
     }
-    let canonical =
-        |path: &std::path::Path| std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
-    let own = name.and_then(|name| {
+    let canonical = juggler_platform::real_path::canonical;
+    // Its own folder: the one its running sessions use (AJ-E2315), never
+    // the one named like it; none while none runs.
+    let own = super::running_now(state, id).and_then(|_| {
         let adapter = state
             .registry
             .ids()
             .into_iter()
             .filter_map(|h| state.registry.get(&h))
-            .find(|a| a.host_apps().iter().any(|host| host.id == app_id))?;
+            .find(|a| a.host_apps().iter().any(|host| host.id == place.app_id))?;
+        let host = adapter
+            .host_apps()
+            .into_iter()
+            .find(|host| host.id == place.app_id)?;
         let installs = adapter.scan_environment();
-        let dir = folder_for_profile(&name, &installs)?.path.clone();
+        let dir = folder_of_its_sessions(state, &adapter, &host, &place, &installs)?
+            .path
+            .clone();
         let stems: std::collections::HashSet<String> = adapter
             .conversation_files(&dir)
             .iter()
@@ -247,7 +278,7 @@ pub(super) fn correct_by_records(
         Some(LinkBy::Account(account)) => Some(account),
         Some(LinkBy::NotAnAccount) => None,
     };
-    if link.as_deref() == Some(current.as_str()) {
+    if link == current {
         return false;
     }
     tracing::info!(

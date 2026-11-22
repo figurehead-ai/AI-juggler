@@ -37,6 +37,7 @@ pub mod notices;
 pub mod notifications;
 pub mod observe;
 pub mod outside_search;
+pub mod ownership;
 pub mod packs;
 pub mod places;
 pub mod pools;

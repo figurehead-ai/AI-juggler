@@ -112,6 +112,7 @@ pub(crate) fn claude_app_host(bundle_id: Option<&str>) -> juggler_adapter::live:
         kind: juggler_adapter::live::HostKind::Desktop,
         instance_arg: Some("--user-data-dir".into()),
         default_instance: Some("Library/Application Support/Claude".into()),
+        instance_lock: Some("Local Storage/leveldb/LOCK".into()),
         thread_link: None,
         folder_link: None,
         folder_command: None,
@@ -313,4 +314,27 @@ pub(crate) fn seven_sessions(dir: &std::path::Path) -> std::sync::Arc<crate::sta
         }
     }
     state
+}
+
+/// A Claude app profile AI Juggler knows, on folder `dir`, run from the
+/// app in `/Applications` (the process-tree and ownership fixtures).
+pub(crate) fn claude_profile(dir: &str) -> crate::features::places::book::KnownPlace {
+    let app = "/Applications/Claude.app";
+    crate::features::places::book::KnownPlace {
+        app_id: "claude-app".into(),
+        name: "Claude".into(),
+        instance: Some("work".into()),
+        bundle: std::path::PathBuf::from(app),
+        exe: std::path::PathBuf::from(format!("{app}/Contents/MacOS/Claude")),
+        given: Some(std::path::PathBuf::from(dir)),
+        instance_dir: Some(std::path::PathBuf::from(dir)),
+        account_id: None,
+        conversations: Vec::new(),
+        seen_ms: 1,
+        keep_alive: false,
+        paused: None,
+        found: false,
+        users: true,
+        declined: false,
+    }
 }

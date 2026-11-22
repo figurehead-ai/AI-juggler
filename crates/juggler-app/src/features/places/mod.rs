@@ -21,11 +21,8 @@ pub mod commands;
 pub mod handoff;
 pub mod keep;
 mod link;
-#[cfg(test)]
-use link::folder_for_profile;
 use link::link_its_folder;
 pub mod open_session;
-pub mod ownership;
 pub mod profiles;
 pub mod reach;
 mod records;
@@ -48,6 +45,7 @@ use crate::features::conversations::goto::{self, Desktop};
 use crate::features::conversations::places::{Host, HostRegistry, RunningApp, running_apps};
 use crate::features::conversations::procs;
 use crate::features::conversations::scan::LiveEntry;
+use crate::features::ownership;
 use crate::state::AppState;
 
 /// The event the window hears when a place changed (started, stopped,
@@ -808,7 +806,7 @@ pub fn tick_with(
             None => {
                 match found
                     .iter()
-                    .find(|app| book::place_id(&app.app_id, app.instance.as_deref()) == *id)
+                    .find(|app| app.runs(&place.app_id, place.instance_dir.as_deref()))
                 {
                     Some(app) => {
                         watch.found(id, app.pid, app.start);
@@ -1087,7 +1085,7 @@ pub fn is_its_process(
 }
 
 /// The process `id` runs as now: the watch's, when it's still that one,
-/// else looked for in the whole list.
+/// else looked for in the whole list ([`ownership::running_place`]).
 pub(crate) fn running_now(state: &Arc<AppState>, id: &str) -> Option<(u32, Option<i64>)> {
     let (known, exe) = state
         .places
@@ -1111,10 +1109,10 @@ pub(crate) fn running_now(state: &Arc<AppState>, id: &str) -> Option<(u32, Optio
     {
         return Some((pid, start));
     }
+    let place = with_book(state, |book| book.places.get(id).cloned()).ok()??;
     let hosts = HostRegistry::of(&state.registry);
-    let app = running_apps(&state.places.table(), &hosts, &state.places.home())
-        .into_iter()
-        .find(|app| book::place_id(&app.app_id, app.instance.as_deref()) == id)?;
+    let (table, home) = (state.places.table(), state.places.home());
+    let app = ownership::running_place(&table, &hosts, &home, &place, &ownership::system_holder)?;
     if let Ok(mut watch) = state.places.watch.lock() {
         watch.found(id, app.pid, app.start);
         watch.note_exe(id, &app.exe);

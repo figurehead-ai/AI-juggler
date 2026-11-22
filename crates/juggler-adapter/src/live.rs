@@ -205,6 +205,13 @@ pub struct HostApp {
     /// The instance folder used without that argument, relative to home.
     #[serde(default)]
     pub default_instance: Option<String>,
+    /// AJ-E2315 (the third review's Low 1): the file, relative to an
+    /// instance folder, that the app's running main process holds a write
+    /// lock on while it runs that instance (`fcntl`'s, asked with
+    /// `F_GETLK`): the instance is proven by the process holding it, however
+    /// its folder was spelled. `None`: no instance can be proven that way.
+    #[serde(default)]
+    pub instance_lock: Option<String>,
     /// A link that opens one of its sessions, with `{id}`.
     #[serde(default)]
     pub thread_link: Option<String>,
@@ -468,6 +475,7 @@ mod tests {
             kind: HostKind::Desktop,
             instance_arg: None,
             default_instance: None,
+            instance_lock: None,
             thread_link: Some("x://threads/{id}".into()),
             folder_link: None,
             folder_command: None,
