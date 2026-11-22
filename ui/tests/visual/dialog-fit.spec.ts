@@ -539,6 +539,12 @@ for (const theme of ["dark", "light"] as const) {
         await sheet.open(page);
         const dialog = topDialog(page);
         await expect(dialog).toBeVisible();
+        // The dialog as it is, not a part's loading placeholder (lib/lazy's
+        // `data-loading-parts`, as the gallery waits for it): Prices and
+        // details was measured as an empty 24 px body while its table's
+        // code loaded, and on CI the table arrived between two measures,
+        // so the centred sheet grew and its header moved.
+        await page.locator("html:not([data-loading-parts])").waitFor({ state: "attached" });
         await dialog.evaluate(() => new Promise<void>((done) => requestAnimationFrame(() => requestAnimationFrame(() => done()))));
         const opened = await measure(dialog, "open");
         await scrollBody(dialog, 1);

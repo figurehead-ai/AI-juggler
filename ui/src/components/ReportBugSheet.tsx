@@ -10,6 +10,7 @@ import { Field, Input, Modal } from "./form";
 import { Button } from "./primitives";
 import { Checkbox, Disclosure } from "./controls";
 import { errorText } from "../lib/bridge";
+import { loadingPart } from "../lib/lazy";
 import { closeReportBug, openReportBug, useReportBug } from "../lib/report-bug";
 import {
   bugReportCompose,
@@ -110,7 +111,9 @@ export function ReportBugSheet({ context, onClose }: { context: BugContextArgs; 
 
   useEffect(() => {
     let live = true;
-    bugReportPreview(context)
+    // Its first read, counted as the sheet's own loading (lib/lazy): the
+    // gates measure the sheet once what goes with the report is in.
+    loadingPart(bugReportPreview(context))
       .then((info) => {
         if (!live) return;
         setReport(info);
@@ -175,7 +178,9 @@ export function ReportBugSheet({ context, onClose }: { context: BugContextArgs; 
         </>
       }
     >
-      <div className="flex max-h-[70vh] flex-col gap-4 overflow-y-auto pr-1">
+      {/* The frame's body is the one part that scrolls (DialogFrame, DLG-1):
+          no scroll box of its own inside it. */}
+      <div className="flex flex-col gap-4 pr-1">
         <Field label="Title">
           <Input
             className="w-full"
@@ -197,27 +202,33 @@ export function ReportBugSheet({ context, onClose }: { context: BugContextArgs; 
         </Field>
         {!report && !error && <p className="text-xs text-muted">Gathering…</p>}
         {report && <ReportParts parts={report.parts} keep={keep} onToggle={toggle} />}
-        {composed && (
-          <Disclosure summary="The whole report, as the form gets it" testId="report-whole">
-            <dl className="mt-2 flex flex-col gap-2">
-              {composed.fields.map((field) => (
-                <div key={field.id}>
-                  <dt className="text-label font-medium text-ink-2">{field.label}</dt>
-                  <dd>
-                    <pre className="mt-0.5 max-h-48 overflow-auto whitespace-pre-wrap break-all rounded bg-canvas p-2 font-mono text-label text-ink">
-                      {field.value || "—"}
-                    </pre>
-                  </dd>
-                </div>
-              ))}
-            </dl>
-            {composed.cut && (
-              <p className="mt-2 text-label text-muted" data-testid="report-cut">
-                The logs are cut to fit a link, oldest lines first. Copy has all of them.
-              </p>
-            )}
-          </Disclosure>
-        )}
+        {/* There from the start, so the sheet keeps its size when the
+            report is put together (150 ms after each change): a centred
+            sheet that grew re-centred, moving its header and footer. */}
+        <Disclosure summary="The whole report, as the form gets it" testId="report-whole">
+          {!composed && <p className="mt-2 text-label text-muted">Putting it together…</p>}
+          {composed && (
+            <>
+              <dl className="mt-2 flex flex-col gap-2">
+                {composed.fields.map((field) => (
+                  <div key={field.id}>
+                    <dt className="text-label font-medium text-ink-2">{field.label}</dt>
+                    <dd>
+                      <pre className="mt-0.5 max-h-48 overflow-auto whitespace-pre-wrap break-all rounded bg-canvas p-2 font-mono text-label text-ink">
+                        {field.value || "—"}
+                      </pre>
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+              {composed.cut && (
+                <p className="mt-2 text-label text-muted" data-testid="report-cut">
+                  The logs are cut to fit a link, oldest lines first. Copy has all of them.
+                </p>
+              )}
+            </>
+          )}
+        </Disclosure>
         <p className="text-label leading-relaxed text-muted">
           The form opens on GitHub, where issues are public. You can still change it there before you submit it. For a
           security problem, report it privately instead (SECURITY.md).
