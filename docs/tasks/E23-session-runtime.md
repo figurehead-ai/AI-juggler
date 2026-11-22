@@ -284,3 +284,17 @@
 3. Tests from the measured traces: a hang flagged after N; thinking, a build and a download never flagged.
 **Quality gates**: `just keep-going verify-static`; a failing-before test; a live check on aij-test.
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E2313/manifest.md` (the measured traces, the rule's numbers).
+
+### AJ-E2314 0.5.0's walks: the later findings, in the 0.5.1 rebuild before beta | Status: TODO (0.5.1) | Priority P2 | Effort M | Depends: AJ-E2312
+**Found** in 0.5.0's final walk and its two re-walks (`docs/qa/evidence/0.5.0-final-walk.md`, `0.5.0-rewalk.md`, `0.5.0-rewalk-2.md`); triaged "later" by Opus: none blocks 0.5.0.
+**Requirements**:
+1. L1, walk kit: `dev_bridge_url.py`'s `#token=` URL connects in the browser pane (it worked only with `&token=`).
+2. L2: a session page at 1024x680 with an account banner gives the right column a bigger window than 204 px of 723 (fold or shorten the banner, or give the column priority).
+3. L3: a pool's page names a twin one way everywhere (the diagram's "web (2)" and Who's in's "web · started … (2)").
+4. L4: the new-watch preview says what Always means (it said "Ends at midnight tonight.").
+5. L5: after a digest, Home's feed doesn't show the same finishes twice, and a range never reads "2 min–2 min".
+6. L6: Home's "Start a new session … Personal" opens the sheet on Personal (seen opening on Work, twice, driven by accessibility): reproduce, then fix.
+7. L7: the New session sheet isn't left dimmed behind the "already working in api" worktree dialog.
+8. S3, walk kit: `lab_drive resize` really resizes Dev's window (it reports success but leaves 1701x1348).
+**Quality gates**: `just keep-going verify-static`; a failing-before test per app fix; the visual gate.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E2314/manifest.md`, one row per item.
