@@ -307,7 +307,7 @@
 | AJ-E2321 | A move survives a crash: startup recovery before keep alive, and a Moves door to undo or finish each move by id | E23-session-runtime.md | P0 | M | AJ-E2320 |
 | AJ-E2322 | Move says \"opened\" only when the conversation is open, and keeps a timeline of every phase | E23-session-runtime.md | P1 | S | AJ-E2318 |
 | AJ-E2323 | The switch's verification matrix: every ownership shape as a fixture in CI, and the real cases walked in lab PL1 | E23-session-runtime.md | P0 | M | AJ-E2315 |
-| AJ-E2324 | Move's speed: event-driven waits, an open-file write guard and half the reads | E23-session-runtime.md | P2 | M | AJ-E2323 |
+| AJ-E2324 | Move's speed: event-driven waits, an open-file write guard and half the reads | E23-session-runtime.md | P2 | M | AJ-E2322 |
 | AJ-E2306 | Claude terminal sessions with hooks and the status line | E23-session-runtime.md | P0 | M | AJ-E2302 |
 | AJ-E2307 | Answers from Needs you and the session page | E23-session-runtime.md | P0 | M | AJ-E2303 |
 | AJ-E2308 | Run without a terminal: answer from AI Juggler (Beta) | E23-session-runtime.md | P1 | L | AJ-E2302, AJ-E2307 |
