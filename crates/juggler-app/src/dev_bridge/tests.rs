@@ -820,3 +820,41 @@ fn a_lab_write_is_admitted_only_in_lab_mode() {
     );
     assert_eq!(other.unwrap_err().code, "read_only_bridge");
 }
+
+/// The 0.5.0 final walk (F11): the write mode refused in every lab, since
+/// the lab's own stand-in tool (`AI_JUGGLER_CLAUDE_BIN`, set by
+/// `scripts/qa/lab_scenario.sh`) counted as an inherited folder override.
+/// A stand-in program inside the lab may stay; one outside it, and any
+/// tool's folder override, still refuse it.
+#[cfg(feature = "lab-bridge")]
+#[test]
+fn the_labs_own_stand_in_program_may_stay_and_a_folder_override_never() {
+    use super::lab::inherited;
+    let lab = tempfile::tempdir().unwrap();
+    let lab_path = lab.path().canonicalize().unwrap();
+    let bin = lab_path.join(".aij-lab-bin");
+    std::fs::create_dir_all(&bin).unwrap();
+    std::fs::write(bin.join("claude"), "#!/bin/sh\n").unwrap();
+    let elsewhere = tempfile::tempdir().unwrap();
+    std::fs::write(elsewhere.path().join("claude"), "#!/bin/sh\n").unwrap();
+
+    assert_eq!(
+        inherited("AI_JUGGLER_CLAUDE_BIN", &bin.join("claude"), &lab_path),
+        Ok(())
+    );
+    assert!(
+        inherited(
+            "AI_JUGGLER_CLAUDE_BIN",
+            &elsewhere.path().join("claude"),
+            &lab_path
+        )
+        .unwrap_err()
+        .contains("outside the lab")
+    );
+    assert!(inherited("AI_JUGGLER_CLAUDE_BIN", &bin.join("missing"), &lab_path).is_err());
+    assert!(
+        inherited("CLAUDE_CONFIG_DIR", &lab_path, &lab_path)
+            .unwrap_err()
+            .contains("is set in this process")
+    );
+}

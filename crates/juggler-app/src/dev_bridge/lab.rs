@@ -165,6 +165,32 @@ fn adopted(account: &juggler_core::model::Account) -> bool {
     })
 }
 
+/// Whether isolation variable `key`, set to `value` in this process, may
+/// stay with the lab at `lab` (pure: tested). A tool's folder override
+/// never may (a shell inside a tool's session carries one, pointing at a
+/// real folder). AI Juggler's own stand-in program variable
+/// (`AI_JUGGLER_<TOOL>_BIN`, the lab's stand-in tool that
+/// `scripts/qa/lab_scenario.sh` sets) may, when it is a program inside
+/// the lab: the 0.5.0 final walk (F11) found the write mode refused in
+/// every lab because the lab's own stand-in was set.
+///
+/// # Errors
+///
+/// Why it may not, in words.
+pub fn inherited(key: &str, value: &Path, lab: &Path) -> Result<(), String> {
+    let stand_in = key.starts_with("AI_JUGGLER_") && key.ends_with("_BIN");
+    if stand_in
+        && resolved(value).is_some_and(|program| program.starts_with(lab) && program.is_file())
+    {
+        return Ok(());
+    }
+    Err(if stand_in {
+        format!("{key} names a program outside the lab (the lab's stand-ins live inside it)")
+    } else {
+        format!("{key} is set in this process (start the lab through scripts/qa/lab_env.sh)")
+    })
+}
+
 /// The lab check for this process: `$HOME`, the user record, the app's
 /// data folder, and no tool's folder override inherited (a shell inside
 /// a tool's session carries one, pointing at a real folder).
@@ -173,17 +199,6 @@ fn adopted(account: &juggler_core::model::Account) -> bool {
 ///
 /// As [`checked_home`], or an isolation variable is set.
 pub fn check_this(state: &AppState) -> Result<PathBuf, String> {
-    for id in state.registry.ids() {
-        if let Some(adapter) = state.registry.get(&id) {
-            for key in adapter.isolation_env_keys() {
-                if std::env::var_os(key).is_some() {
-                    return Err(format!(
-                        "{key} is set in this process (start the lab through scripts/qa/lab_env.sh)"
-                    ));
-                }
-            }
-        }
-    }
     let home = juggler_platform::user::home().ok_or("HOME isn't set")?;
     let me = juggler_platform::user::current()
         .map_err(|e| e.to_string())?
@@ -194,6 +209,15 @@ pub fn check_this(state: &AppState) -> Result<PathBuf, String> {
         &state.data_dir,
         me,
     )?;
+    for id in state.registry.ids() {
+        if let Some(adapter) = state.registry.get(&id) {
+            for key in adapter.isolation_env_keys() {
+                if let Some(value) = std::env::var_os(key) {
+                    inherited(key, Path::new(&value), &lab)?;
+                }
+            }
+        }
+    }
     let _ = LAB_HOME.set(lab.clone());
     crate::lab_scope::set(&lab);
     if let Some(tool) = std::env::var_os(ENV_ADOPT) {
