@@ -180,7 +180,10 @@ export function RadioCards({
   // walk, F6: at 1024 wide the pool wizard's two columns squeezed each
   // card to about 140 px, a word to a line). A card spanning the row says
   // `@xl:col-span-2`.
-  const grid = columns === 1 ? "grid-cols-1" : columns === 2 ? "grid-cols-1 @xl:grid-cols-2" : "grid-cols-1 @xl:grid-cols-2 @3xl:grid-cols-3";
+  // Three to a row once each card gets about 185 px (34rem), two at 26rem:
+  // the pool wizard's three ways to talk stay in one row at 1280 (its
+  // column is about 578 px), one to a row at 1024.
+  const grid = columns === 1 ? "grid-cols-1" : columns === 2 ? "grid-cols-1 @xl:grid-cols-2" : "grid-cols-1 @[26rem]:grid-cols-2 @[34rem]:grid-cols-3";
   return (
     <Group.Provider value={{ name, value, onChange }}>
       <div className="@container min-w-0">
