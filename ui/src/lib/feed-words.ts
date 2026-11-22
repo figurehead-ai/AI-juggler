@@ -170,6 +170,17 @@ const VERB_FIRST: Partial<Record<string, string>> = {
 /** A switch edge that resumed the original (a switch back, an undo). */
 const RESUMED = "native-resume";
 
+/** A switch's sentence (the 0.5.0 walk, F9): a switch copies the
+ * conversation, so it never says "moved"; a switch back takes the
+ * original back. A failed one says nothing changed. */
+function switched(item: FeedItemInfo): Part[] {
+  const { facts } = item;
+  const back = facts.mechanism === RESUMED;
+  const to = appWords(facts.to_provider, facts.to_label, false);
+  if (item.kind === "switch_failed") return [plain(back ? "couldn't take " : "couldn't copy "), strong(item.subject), plain(`${back ? " back" : ""} to ${to}. The original is untouched.`)];
+  return back ? [plain("took "), strong(item.subject), plain(` back to ${to}`)] : [plain("copied "), strong(item.subject), plain(` from ${appWords(facts.from_provider, facts.from_label, false)} to ${to}`)];
+}
+
 /** One item's sentence (R10). */
 export function sentence(item: FeedItemInfo): Part[] {
   const { facts } = item;
@@ -190,14 +201,9 @@ export function sentence(item: FeedItemInfo): Part[] {
       return [plain("marked "), strong(item.subject), plain(" reviewed")];
     case "answered":
       return answered(item);
-    // The 0.5.0 walk, F9: a switch copies the conversation (the original
-    // stays), so it never says "moved"; a switch back resumes the original.
     case "switch":
-      return facts.mechanism === RESUMED
-        ? [plain("took "), strong(item.subject), plain(` back to ${appWords(facts.to_provider, facts.to_label, false)}`)]
-        : [plain("copied "), strong(item.subject), plain(` from ${appWords(facts.from_provider, facts.from_label, false)} to ${appWords(facts.to_provider, facts.to_label, false)}`)];
     case "switch_failed":
-      return [plain(facts.mechanism === RESUMED ? "couldn't take " : "couldn't copy "), strong(item.subject), plain(`${facts.mechanism === RESUMED ? " back" : ""} to ${appWords(facts.to_provider, facts.to_label, false)}. The original is untouched.`)];
+      return switched(item);
     case "quota":
     case "credits":
     case "reset":

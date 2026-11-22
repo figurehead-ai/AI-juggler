@@ -283,25 +283,7 @@ export function ContinueOn({
         {target.name ?? target.label} shares this account, so it gives no new room.
       </p>
     ))}
-    {outside && (
-      <div className="flex flex-col gap-2 border-t border-hairline pt-3" data-testid="continue-outside">
-        <p className="text-meta leading-[1.5] text-ink-2">
-          {/* 0.3.5: where it goes on, said plainly: Desktop or CLI, chosen before it switches. */}
-          {`Picking one continues it on that account, in the ${toolSpec(model.tool).desktop_app ?? "desktop"} app (Desktop) or in a terminal (CLI): you choose before it switches. ${model.live ? `The original stays open in ${app ?? "its app"}, untouched.` : "The original stays as it is."}`}
-        </p>
-        {model.live ? (
-          <p className="text-label text-muted" data-testid="continue-same-profile">
-            To carry on with it in {sessionAppName(model)} itself, close it in {app ?? "its app"} first: one conversation can't have two writers.
-          </p>
-        ) : (
-          onCarryIn && (
-            <WhyButton size="md" variant="secondary" why={carryInWhy} onClick={onCarryIn} data-testid="continue-carry-in" className="w-fit">
-              Continue in AI Juggler
-            </WhyButton>
-          )
-        )}
-      </div>
-    )}
+    {outside && <OutsideNote model={model} app={app} onCarryIn={onCarryIn} carryInWhy={carryInWhy} />}
     </>
   );
   const shown = dialog ? (
@@ -336,16 +318,43 @@ export function ContinueOn({
   );
 }
 
+/** A target card's one line: its own reason (unless the list says it once
+ * above), else its own sign-in (when the account's line doesn't say it),
+ * else what its set-up check found. */
+function targetWords(target: Target, saidOnce: string | null, accountRoom: TargetRoom | null, check: SetupCheckInfo | null | undefined): string | null {
+  const sign = signInWords({ signed_out: target.signedOut, desktop: target.desktop });
+  const own = sign && !(sign === NOT_SIGNED_IN && accountRoom?.kind === "blocked") ? sign : null;
+  const reason = target.blocked !== null && target.blocked !== saidOnce ? target.blocked : null;
+  return reason ?? own ?? withFirstRun(check === undefined ? null : setupWords(check), target.firstRun === true);
+}
+
+/** A session another app runs: where a pick goes on (Desktop or CLI), and the original. */
+function OutsideNote({ model, app, onCarryIn, carryInWhy }: { model: SessionModel; app: string | null; onCarryIn?: () => void; carryInWhy: string | null }): JSX.Element {
+  return (
+    <div className="flex flex-col gap-2 border-t border-hairline pt-3" data-testid="continue-outside">
+      <p className="text-meta leading-[1.5] text-ink-2">
+        {`Picking one continues it on that account, in the ${toolSpec(model.tool).desktop_app ?? "desktop"} app (Desktop) or in a terminal (CLI): you choose before it switches. ${model.live ? `The original stays open in ${app ?? "its app"}, untouched.` : "The original stays as it is."}`}
+      </p>
+      {model.live ? (
+        <p className="text-label text-muted" data-testid="continue-same-profile">
+          To carry on with it in {sessionAppName(model)} itself, close it in {app ?? "its app"} first: one conversation can't have two writers.
+        </p>
+      ) : (
+        onCarryIn && (
+          <WhyButton size="md" variant="secondary" why={carryInWhy} onClick={onCarryIn} data-testid="continue-carry-in" className="w-fit">
+            Continue in AI Juggler
+          </WhyButton>
+        )
+      )}
+    </div>
+  );
+}
+
 /** One App to continue in, as a target card (D-142): its logo and badge,
  * its name, Suggested and how much carries as tags, and its one-line
  * check (its own sign-in, or what it lacks) under them. */
 function ContinueTarget({ target, saidOnce = null, accountRoom, check, pick, onStart }: { target: Target; saidOnce?: string | null; accountRoom: TargetRoom | null; check: SetupCheckInfo | null | undefined; pick: ((recipeId: string, label: string) => void) | undefined; onStart: () => void }): JSX.Element {
-  // Its own sign-in, when the account's line doesn't say it.
-  const sign = signInWords({ signed_out: target.signedOut, desktop: target.desktop });
-  const own = sign && !(sign === NOT_SIGNED_IN && accountRoom?.kind === "blocked") ? sign : null;
-  // Its own reason, unless the list says it once above.
-  const reason = target.blocked !== null && target.blocked !== saidOnce ? target.blocked : null;
-  const words = reason ?? own ?? withFirstRun(check === undefined ? null : setupWords(check), target.firstRun === true);
+  const words = targetWords(target, saidOnce, accountRoom, check);
   const badge = target.crossTool ? target.badge : null;
   return (
     <div className="flex flex-col gap-1">

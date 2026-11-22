@@ -53,7 +53,7 @@ describe("accounts listed together", () => {
   // The 0.5.0 walk, F3: Home's "Runway by account" listed two plain
   // "Personal" rows.
   it("Home's Runway by account says which Personal", () => {
-    const folder = (id: string, provider: string) => ({ id, label: id, provider }) as unknown as AccountInfo;
+    const folder = (id: string, provider: string): AccountInfo => ({ id, label: id, provider, plan: null, login_state: "logged_in", cleanup_opt_in: false, renewal_date: null, preview_opt_in: false, in_place: false });
     const folders = [folder("f-work", "claude-code"), folder("f-personal", "claude-code"), folder("f-codex", "codex")];
     expect(runwayGroups(folders, ROWS).map((group) => group.name)).toEqual(["Work", "Personal (Claude)", "Personal (Codex)"]);
     // A twin that isn't listed leaves the other's name alone.
