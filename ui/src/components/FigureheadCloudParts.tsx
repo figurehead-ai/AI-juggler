@@ -283,7 +283,7 @@ export function Connected({
           Open dashboard
         </Button>
         <Button size="sm" variant="ghost" onClick={() => setConfirmUnlink(true)} data-testid="cloud-unlink">
-          Unlink this Mac…
+          Unlink this computer…
         </Button>
         <span className="flex-1" />
         <button
@@ -299,7 +299,7 @@ export function Connected({
         <ConfirmSheet
           idPrefix="unlink"
           testId="cloud-unlink-confirm"
-          title="Unlink this Mac from Figurehead?"
+          title="Unlink this computer from Figurehead?"
           action="Unlink"
           actionTestId="cloud-unlink-yes"
           busy={busy}
