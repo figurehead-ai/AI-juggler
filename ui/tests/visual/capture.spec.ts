@@ -2553,10 +2553,14 @@ for (const theme of THEMES) {
       await openDoor(page, SWITCH_WIZARD_FIXTURE);
       await expect(page.getByTestId("switch-wizard")).toBeVisible();
       await expect(page.getByTestId("switch-steps")).toContainText("Step 1 of 3: Target");
-      // Never "moves" (deep/11 §4.9); the original is said once, here:
-      // a running one stops first (originalFate, the rc5 walk).
+      // Never "moves" (deep/11 §4.9); the original is said once, on its
+      // own fact row (the D-142 rich wizard): a running one stops first
+      // (originalFate, the rc5 walk).
       await expect(page.getByTestId("switch-move-line")).toHaveText(
-        "The whole conversation is carried over — all 42 messages, its subagents and file history. The original stops first, then stays as it was. You can switch back to it any time.",
+        "The whole conversation is carried over — all 42 messages, its subagents and file history.",
+      );
+      await expect(page.getByTestId("switch-target-original")).toHaveText(
+        "The original stops first, then stays as it was. You can switch back to it any time.",
       );
       await expect(page.getByTestId("switch-wizard-reasons")).toContainText("hasn't been proven");
       await page.screenshot({
