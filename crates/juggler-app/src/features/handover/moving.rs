@@ -303,6 +303,8 @@ pub trait MoveSystem: Send + Sync {
     /// process, while it runs) and below, its helpers, the tools it runs
     /// from its own folder, and theirs.
     fn tree(&self, state: &Arc<AppState>, place: &KnownPlace, roots: &[u32]) -> Vec<Member>;
+    /// Which of `left` are another app's or profile's ([`tree::elsewhere_now`]).
+    fn elsewhere(&self, state: &Arc<AppState>, place: &KnownPlace, left: &[Member]) -> Vec<Member>;
     /// Tells the switch screen how the move is going.
     fn tell(&self, _progress: &MoveProgressInfo) {}
 }
@@ -332,6 +334,10 @@ impl Real {
 impl MoveSystem for Real {
     fn tree(&self, state: &Arc<AppState>, place: &KnownPlace, roots: &[u32]) -> Vec<Member> {
         tree::now(state, place, roots)
+    }
+
+    fn elsewhere(&self, state: &Arc<AppState>, place: &KnownPlace, left: &[Member]) -> Vec<Member> {
+        tree::elsewhere_now(state, place, left)
     }
 
     fn tell(&self, progress: &MoveProgressInfo) {
@@ -796,12 +802,9 @@ fn stop_places(
         if let Err(left) = rest_ended(state, place, &before, until, system) {
             start_again(state, &stopped, system);
             let secs = wait.as_secs().max(1);
+            let theirs = system.elsewhere(state, place, &left);
             return Err(AppError::Move {
-                words: format!(
-                    "{name} didn't finish closing within {secs} seconds: {} still {}, so nothing was {outcome}. Try again in a moment.",
-                    tree::words(&left),
-                    if left.len() == 1 { "runs" } else { "run" }
-                ),
+                words: tree::not_closed(&name, secs, outcome, &left, &theirs),
                 detail: format!(
                     "still running {secs} s after the quit: {}",
                     left.iter()

@@ -52,6 +52,8 @@ struct Scripted {
     restarted_by_user: Vec<String>,
     /// Sessions of the accounts open outside the two profiles.
     elsewhere: usize,
+    /// What outlives a profile belongs to another app or profile.
+    held_elsewhere: bool,
     working: usize,
     quits: Mutex<Vec<u32>>,
     starts: Mutex<Vec<String>>,
@@ -206,6 +208,13 @@ impl MoveSystem for Scripted {
     }
     fn tell(&self, progress: &MoveProgressInfo) {
         self.told.lock().unwrap().push(progress.clone());
+    }
+    fn elsewhere(&self, _: &Arc<AppState>, _: &KnownPlace, left: &[Member]) -> Vec<Member> {
+        if self.held_elsewhere {
+            left.to_vec()
+        } else {
+            Vec::new()
+        }
     }
 }
 
@@ -821,6 +830,39 @@ fn a_profile_whose_tools_outlive_it_too_long_is_refused_calmly() {
     assert_eq!(system.starts.lock().unwrap().len(), 1, "the source again");
     assert_eq!(moves(&lab.state)[0].state, "undone");
     assert!(backups(&lab).is_empty());
+    assert!(unchanged(&lab));
+}
+
+/// AJ-E2315: what outlives the profile but another app or profile runs
+/// is refused honestly: closing it there, never "try again" (retrying
+/// can't end it).
+#[test]
+fn what_another_profile_runs_is_never_a_try_again_refusal() {
+    if !clones() {
+        return;
+    }
+    let lab = lab();
+    let system = Scripted {
+        kids: vec![Kid {
+            pid: 700,
+            name: "disclaimer",
+            place: source_id(&lab),
+            alive: Arc::new(AtomicBool::new(true)),
+            after_quit: None,
+        }],
+        held_elsewhere: true,
+        ..running_both(&lab)
+    };
+    let error = run(&lab.state, &lab.sides, &system).unwrap_err();
+    let words = error.wire().user_message;
+    assert!(!words.contains("Try again"), "{words}");
+    assert!(
+        words.contains(
+            "disclaimer still runs for another app or profile that's open, so nothing was moved. Close it there first."
+        ),
+        "{words}"
+    );
+    assert_eq!(moves(&lab.state)[0].state, "undone");
     assert!(unchanged(&lab));
 }
 

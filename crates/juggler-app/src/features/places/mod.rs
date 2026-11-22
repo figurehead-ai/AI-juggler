@@ -25,6 +25,7 @@ mod link;
 use link::folder_for_profile;
 use link::link_its_folder;
 pub mod open_session;
+pub mod ownership;
 pub mod profiles;
 pub mod reach;
 mod records;
