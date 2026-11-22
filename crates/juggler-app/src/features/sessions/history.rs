@@ -106,9 +106,7 @@ mod tests {
     use std::path::PathBuf;
 
     use juggler_adapter::AdapterRegistry;
-    use juggler_core::model::{
-        InstanceKind, InstanceRecord, MachineId, ProfileId, SessionStatus, Timestamp,
-    };
+    use juggler_core::model::{InstanceRecord, SessionStatus, Timestamp};
 
     use super::*;
 
@@ -133,21 +131,14 @@ mod tests {
         storage
             .sessions()
             .insert(&InstanceRecord {
-                id: SessionId::new("s-1"),
-                conversation: None,
-                profile: ProfileId::new("rec"),
-                machine: MachineId::new("this-mac"),
-                kind: InstanceKind::Terminal,
-                project: None,
-                cwd: PathBuf::from("/nowhere/app"),
-                status: SessionStatus::Finished,
                 started_at: Timestamp::now(),
                 last_activity: None,
-                usage: Default::default(),
-                attention: None,
-                running: None,
-                transcript_ref: None,
-                window: None,
+                ..crate::test_support::instance(
+                    "s-1",
+                    "rec",
+                    SessionStatus::Finished,
+                    PathBuf::from("/nowhere/app"),
+                )
             })
             .unwrap();
         storage

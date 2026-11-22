@@ -54,6 +54,6 @@ describe("⌘K's preview (0.4 design review, 72)", () => {
     const view = render(<Preview entry={local as Previewable} id="p" doings={{ open: vi.fn(), goTo: vi.fn(), continueElsewhere: vi.fn() }} />);
     const account = () => [...view.container.querySelectorAll("dt")].find((term) => term.textContent === "Account")!.nextElementSibling!.textContent;
     await waitFor(() => expect(account()).toBe("Claude Max 20x"));
-    expect(view.getByTestId("goto-preview-continue").textContent).toBe("Continue in another app…");
+    expect(view.getByTestId("goto-preview-continue").textContent).toBe("Switch account…");
   });
 });

@@ -25,7 +25,14 @@ pub struct HttpRequest {
     /// A large transfer (backup upload/download): allowed
     /// [`LONG_TIMEOUT`] instead of [`TIMEOUT`].
     pub long_transfer: bool,
+    /// The most response-body bytes read; `None` is [`MAX_BODY`]. A
+    /// longer body is a [`NetworkError`], so a hostile host can't make the
+    /// app hold more than the caller expects.
+    pub max_body: Option<u64>,
 }
+
+/// The default cap on a response body (a backup download).
+pub const MAX_BODY: u64 = 32 * 1024 * 1024;
 
 /// The timeout for a backup upload or download (up to 25 MB).
 pub const LONG_TIMEOUT: Duration = Duration::from_secs(180);
@@ -58,11 +65,32 @@ impl HttpResponse {
     /// A header value by (lower-case) name.
     #[must_use]
     pub fn header(&self, name: &str) -> Option<&str> {
-        self.headers
-            .iter()
-            .find(|(key, _)| key == name)
-            .map(|(_, value)| value.as_str())
+        header_named(&self.headers, name)
     }
+}
+
+/// A header's value by (lower-case) name, from headers with lower-case
+/// names.
+#[must_use]
+pub fn header_named<'a>(headers: &'a [(String, String)], name: &str) -> Option<&'a str> {
+    headers
+        .iter()
+        .find(|(key, _)| key == name)
+        .map(|(_, value)| value.as_str())
+}
+
+/// A response's headers, names lower-cased (a value that isn't text is
+/// empty).
+fn lowercase_headers(headers: &ureq::http::HeaderMap) -> Vec<(String, String)> {
+    headers
+        .iter()
+        .map(|(name, value)| {
+            (
+                name.as_str().to_ascii_lowercase(),
+                value.to_str().unwrap_or_default().to_owned(),
+            )
+        })
+        .collect()
 }
 
 /// A network failure (no HTTP status was received).
@@ -162,26 +190,106 @@ impl Transport for UreqTransport {
         }
         .map_err(|e| NetworkError(e.to_string()))?;
         let status = response.status().as_u16();
-        let headers = response
-            .headers()
-            .iter()
-            .map(|(name, value)| {
-                (
-                    name.as_str().to_ascii_lowercase(),
-                    value.to_str().unwrap_or_default().to_owned(),
-                )
-            })
-            .collect();
+        let headers = lowercase_headers(response.headers());
         let body = response
             .body_mut()
             .with_config()
-            .limit(32 * 1024 * 1024)
+            .limit(request.max_body.unwrap_or(MAX_BODY))
             .read_to_vec()
             .map_err(|e| NetworkError(e.to_string()))?;
         Ok(HttpResponse {
             status,
             headers,
             body,
+        })
+    }
+}
+
+/// How long a streamed GET waits for a connection.
+pub const STREAM_CONNECT_TIMEOUT: Duration = Duration::from_secs(15);
+
+/// How long a streamed GET waits for the response's head.
+pub const STREAM_RESPONSE_TIMEOUT: Duration = Duration::from_secs(30);
+
+/// The longest a streamed body may take in all (a model file of up to
+/// 8 GiB at a slow link; the caller cancels sooner when the user asks).
+pub const STREAM_BODY_TIMEOUT: Duration = Duration::from_hours(12);
+
+/// A streamed GET's answer: the status, the headers, and the body read as
+/// it arrives (a large file never sits in memory whole).
+pub struct StreamResponse {
+    /// The status code.
+    pub status: u16,
+    /// Response headers, lower-cased names.
+    pub headers: Vec<(String, String)>,
+    /// The body, as it arrives.
+    pub body: Box<dyn std::io::Read + Send>,
+}
+
+impl std::fmt::Debug for StreamResponse {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("StreamResponse")
+            .field("status", &self.status)
+            .field("headers", &self.headers)
+            .finish_non_exhaustive()
+    }
+}
+
+impl StreamResponse {
+    /// A header value by (lower-case) name.
+    #[must_use]
+    pub fn header(&self, name: &str) -> Option<&str> {
+        header_named(&self.headers, name)
+    }
+}
+
+impl UreqTransport {
+    /// A plain GET of `url`, its body streamed (AJ-E3813, a model file).
+    ///
+    /// Only the generic user agent, `Accept: */*`, and `Range: bytes=N-`
+    /// when `range_from` is `Some(N)`: no cookies, no credentials, no
+    /// referrer, no id. No redirect is followed: a `3xx` comes back as
+    /// is, so the caller checks every hop. The caller checks the URL
+    /// first; this sends to whatever it is given.
+    ///
+    /// # Errors
+    ///
+    /// [`NetworkError`] when no response head arrived.
+    pub fn get_stream(
+        &self,
+        url: &str,
+        range_from: Option<u64>,
+    ) -> Result<StreamResponse, NetworkError> {
+        let mut builder = ureq::http::Request::builder()
+            .method("GET")
+            .uri(url)
+            .header("user-agent", &self.user_agent)
+            .header("accept", "*/*");
+        if let Some(from) = range_from {
+            builder = builder.header("range", format!("bytes={from}-"));
+        }
+        let http = builder.body(()).map_err(|e| NetworkError(e.to_string()))?;
+        let configured = self
+            .agent
+            .configure_request(http)
+            .timeout_global(None)
+            .timeout_connect(Some(STREAM_CONNECT_TIMEOUT))
+            .timeout_recv_response(Some(STREAM_RESPONSE_TIMEOUT))
+            .timeout_recv_body(Some(STREAM_BODY_TIMEOUT))
+            .build();
+        let response = self
+            .agent
+            .run(configured)
+            .map_err(|e| NetworkError(e.to_string()))?;
+        let status = response.status().as_u16();
+        let headers = lowercase_headers(response.headers());
+        // Unlimited here: the caller counts every byte against the size
+        // it expects and stops at the first one past it.
+        let body = response.into_body().into_reader();
+        Ok(StreamResponse {
+            status,
+            headers,
+            body: Box::new(body),
         })
     }
 }

@@ -317,7 +317,7 @@ fn decide(
         Decision::Ask { .. } => Err(refuse(
             Refusal::Ask,
             format!(
-                "{what} isn't within what the pool «{}» lets agents do. Only the user can allow it, in AI Juggler (the pool's page, or Settings › Agent access).",
+                "{what} isn't within what the pool “{}” lets agents do. Only the user can allow it, in AI Juggler (the pool's page, or Settings › Agent access).",
                 caller.pool_name
             ),
         )),
@@ -346,7 +346,7 @@ fn act(
             Err(refuse(
                 Refusal::Ask,
                 format!(
-                    "That isn't within what the pool «{}» lets agents do, so it's held for the user's OK in AI Juggler ({id}). It happens if they allow it; the task shows it then.",
+                    "That isn't within what the pool “{}” lets agents do, so it's held for the user's OK in AI Juggler ({id}). It happens if they allow it; the task shows it then.",
                     caller.pool_name
                 ),
             ))
@@ -433,7 +433,7 @@ fn hold(
 ) -> Result<String, AppError> {
     let what = match held {
         Held::Create { args } => format!(
-            "add «{}»",
+            "add “{}”",
             juggler_core::messaging::one_line(&args.title, 80)
         ),
         Held::Claim { task } => format!("take {task}"),
@@ -466,7 +466,7 @@ fn hold(
         actor_ref: actor.member_ref.clone(),
         actor_name: actor.name.clone(),
         change: serde_json::to_string(held).ok(),
-        summary: format!("«{}» wants to {what}", actor.name),
+        summary: format!("“{}” wants to {what}", actor.name),
         created_at: juggler_core::model::Timestamp::now().millis(),
     })?;
     if let Some(task) = held.task() {

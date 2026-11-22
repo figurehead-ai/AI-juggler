@@ -13,3 +13,7 @@ export const MACHINE_WORD = THIS_MACHINE.replace(/^This\s+/, "");
 
 /** Several machines ("Macs"), from the one word above. */
 export const MACHINES_WORD = `${MACHINE_WORD}s`;
+
+/** The system's own name ("Built into macOS", Apple's on-device model):
+ * from here, so each OS sets it once (AJ-E3812). */
+export const SYSTEM_NAME = "macOS";

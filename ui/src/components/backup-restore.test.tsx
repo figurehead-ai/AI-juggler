@@ -39,12 +39,12 @@ describe("AJ-E1009 backup", () => {
       [55, 100],
     ];
     w().__AIJ_BACKUP_EXPORT__ = { path: "", bytes: 3_400_000, manifest };
-    const { container } = render(<BackupRestoreCard />);
+    render(<BackupRestoreCard />);
     await act(async () => {
-      fireEvent.click(container.querySelector("[data-testid='backup-export']")!);
+      fireEvent.click(document.body.querySelector("[data-testid='backup-export']")!);
     });
-    await waitFor(() => expect(container.querySelector("[data-testid='backup-done']")).not.toBeNull());
-    const done = container.querySelector("[data-testid='backup-done']")!.textContent!;
+    await waitFor(() => expect(document.body.querySelector("[data-testid='backup-done']")).not.toBeNull());
+    const done = document.body.querySelector("[data-testid='backup-done']")!.textContent!;
     expect(done).toContain("3 MB");
     expect(done).toContain("/Users/dev/Backups/move.ajbackup");
     expect(done).toContain("41 Sessions");
@@ -55,11 +55,11 @@ describe("AJ-E1009 backup", () => {
   it("a failed export names the file and the reason", async () => {
     w().__AIJ_BACKUP_DEST__ = "/Volumes/Full/a.ajbackup";
     w().__AIJ_BACKUP_EXPORT_ERROR__ = "backup write: No space left on device (/Volumes/Full/a.ajbackup)";
-    const { container } = render(<BackupRestoreCard />);
+    render(<BackupRestoreCard />);
     await act(async () => {
-      fireEvent.click(container.querySelector("[data-testid='backup-export']")!);
+      fireEvent.click(document.body.querySelector("[data-testid='backup-export']")!);
     });
-    const alert = container.querySelector("[data-testid='backup-failed']")!;
+    const alert = document.body.querySelector("[data-testid='backup-failed']")!;
     expect(alert.getAttribute("role")).toBe("alert");
     expect(alert.textContent).toContain("The backup was not written");
     expect(alert.textContent).toContain("/Volumes/Full/a.ajbackup");
@@ -79,32 +79,32 @@ describe("AJ-E1009 backup", () => {
       kept_before: ["/data/juggler.sqlite.before-restore-1"],
       next_steps: ["Restart AI Juggler to finish.", "Sign in to each Account again."],
     };
-    const { container } = render(<BackupRestoreCard />);
+    render(<BackupRestoreCard />);
     await act(async () => {
-      fireEvent.click(container.querySelector("[data-testid='backup-restore']")!);
+      fireEvent.click(document.body.querySelector("[data-testid='backup-restore']")!);
     });
-    await waitFor(() => expect(container.querySelector("[data-testid='restore-plan']")).not.toBeNull());
-    expect(container.querySelector("[data-testid='restore-other-machine']")!.textContent).toContain(
+    await waitFor(() => expect(document.body.querySelector("[data-testid='restore-plan']")).not.toBeNull());
+    expect(document.body.querySelector("[data-testid='restore-other-machine']")!.textContent).toContain(
       "never its identity",
     );
     expect(calls()).toEqual(["verify:/Users/dev/move.ajbackup"]);
-    expect(document.activeElement).toBe(container.querySelector("[data-testid='restore-go']"));
+    expect(document.activeElement).toBe(document.body.querySelector("[data-testid='restore-go']"));
     await act(async () => {
-      fireEvent.click(container.querySelector("[data-testid='restore-go']")!);
+      fireEvent.click(document.body.querySelector("[data-testid='restore-go']")!);
     });
     expect(calls()).toEqual(["verify:/Users/dev/move.ajbackup", "restore:/Users/dev/move.ajbackup:tok-1"]);
-    expect(container.querySelector("[data-testid='restore-done']")!.textContent).toContain("Restart AI Juggler");
+    expect(document.body.querySelector("[data-testid='restore-done']")!.textContent).toContain("Restart AI Juggler");
   });
 
   it("a refused backup names the file and the reason; cancel restores nothing", async () => {
     w().__AIJ_BACKUP_FILE__ = "/Users/dev/old.ajbackup";
     w().__AIJ_RESTORE_PLAN_ERROR__ =
       "invalid restore: /Users/dev/old.ajbackup can't be restored: db/juggler.sqlite does not match its checksum — the file is damaged";
-    const { container } = render(<BackupRestoreCard />);
+    render(<BackupRestoreCard />);
     await act(async () => {
-      fireEvent.click(container.querySelector("[data-testid='backup-restore']")!);
+      fireEvent.click(document.body.querySelector("[data-testid='backup-restore']")!);
     });
-    const alert = container.querySelector("[data-testid='backup-failed']")!;
+    const alert = document.body.querySelector("[data-testid='backup-failed']")!;
     expect(alert.textContent).toContain("Nothing was restored");
     expect(alert.textContent).toContain("old.ajbackup");
     expect(alert.textContent).toContain("checksum");

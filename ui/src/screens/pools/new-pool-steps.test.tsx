@@ -117,7 +117,7 @@ describe("Review (D-126)", () => {
     await screen.findByTestId("new-pool-review-tools-line");
     const rows = within(screen.getByTestId("new-pool-review-rows"));
     expect(rows.getAllByTestId("new-pool-review-line").map((line) => line.textContent)).toEqual([
-      "«web team» works in web.",
+      "“web team” works in web.",
       "Claude Code and Codex.",
       "Claude Code's next session in web leads.",
       "Codex checks the work. Everyone else builds.",

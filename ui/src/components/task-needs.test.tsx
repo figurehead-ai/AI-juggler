@@ -20,7 +20,7 @@ const review: TaskNeedInfo = {
   pool_id: "pool-checkout",
   task_title: "Checkout copy pass",
   task_id: "aj-0003",
-  title: "«Checkout copy pass» waits on your review",
+  title: "“Checkout copy pass” waits on your review",
   detail: "Writer asks you to review it · approve it or send it back",
   offer_always: false,
   at_ms: 1,
@@ -34,7 +34,7 @@ describe("a task in review in Needs you (AJ-E2806 R7)", () => {
         <TaskNeeds needs={[review]} projects={[]} />
       </ActionHostProvider>,
     );
-    expect(view.getByTestId("task-need-review").textContent).toContain("«Checkout copy pass» waits on your review");
+    expect(view.getByTestId("task-need-review").textContent).toContain("“Checkout copy pass” waits on your review");
     fireEvent.click(view.getByTestId("task-need-review-open"));
     expect(opened).toEqual(["pool-checkout"]);
     expect(takeFocusedTask()).toBe("aj-0003");

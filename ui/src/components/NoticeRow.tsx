@@ -14,6 +14,8 @@ import { IconAsk, IconClock, IconDone, IconStopped, IconWarn } from "./icons-men
 import { ChannelChip } from "./ChannelChip";
 import { earlierLine, happenedAt, needLine, needMeta, noticeTone, primaryWords, secondOf, toneOf } from "../lib/notice-words";
 import type { NoticeActions } from "../lib/notice-actions";
+import { watchIdOfNotice } from "../lib/watches-open";
+import { DOORS } from "./watches/watches-words";
 import type { NoticeInfo } from "../lib/ipc/notices";
 
 const TONES = {
@@ -43,12 +45,14 @@ function Line({ icon: Icon, label }: { icon: typeof IconSnooze; label: string })
   );
 }
 
-export function NoticeRow({ notice, actions, now }: { notice: NoticeInfo; actions: NoticeActions; now: number }): JSX.Element {
+export function NoticeRow({ notice, actions, now, onEditWatch }: { notice: NoticeInfo; actions: NoticeActions; now: number; onEditWatch?: (id: string) => void }): JSX.Element {
   const [menuAt, setMenuAt] = useState<{ x: number; y: number } | null>(null);
   // F16: a hand-over with no open session opens the account, and says so.
   const primary = primaryWords(notice, actions.canHandOver(notice));
   const second = secondOf(notice);
   const meta = needMeta(notice);
+  // AJ-E3816: a watch's alert leads back to its watch.
+  const watchId = onEditWatch ? watchIdOfNotice(notice) : null;
   const pick = (run: () => void) => () => {
     setMenuAt(null);
     run();
@@ -75,6 +79,15 @@ export function NoticeRow({ notice, actions, now }: { notice: NoticeInfo; action
                 </button>
               </>
             )}
+            {watchId && (
+              <>
+                <span aria-hidden="true">·</span>
+                <button type="button" onClick={() => onEditWatch?.(watchId)} className="rounded font-medium text-accent-hi underline-offset-2 hover:underline focus-visible:ring-1 focus-visible:ring-accent/60" data-testid="notice-edit-watch">
+                  {DOORS.editWatch}
+                  <span className="sr-only"> — {notice.title}</span>
+                </button>
+              </>
+            )}
           </p>
         </div>
         {notice.unread && <span aria-hidden="true" className="mt-2 size-2 shrink-0 rounded-full bg-accent" />}
@@ -96,6 +109,12 @@ export function NoticeRow({ notice, actions, now }: { notice: NoticeInfo; action
           {primary && (
             <Button size="sm" variant="primary" onClick={() => actions.primary(notice)} data-testid="notice-primary">
               {primary}
+              <span className="sr-only"> — {notice.title}</span>
+            </Button>
+          )}
+          {watchId && (
+            <Button size="sm" variant="ghost" onClick={() => onEditWatch?.(watchId)} data-testid="notice-edit-watch">
+              {DOORS.editWatch}
               <span className="sr-only"> — {notice.title}</span>
             </Button>
           )}

@@ -53,7 +53,7 @@ beforeEach(() => {
 
 describe("AJ-E706 destinations", () => {
   it("names the machine, the badge and the readiness in words; unavailable rows are disabled", () => {
-    const { container } = render(
+    render(
       <RemoteSwitchTargets
         targets={[
           target(),
@@ -63,9 +63,9 @@ describe("AJ-E706 destinations", () => {
         onPick={() => {}}
       />,
     );
-    const rows = container.querySelectorAll<HTMLButtonElement>("[data-testid='remote-switch-target']");
+    const rows = document.body.querySelectorAll<HTMLButtonElement>("[data-testid='remote-switch-target']");
     expect(rows).toHaveLength(3);
-    expect(container.textContent).toContain("On Studio Mac");
+    expect(document.body.textContent).toContain("On Studio Mac");
     expect(rows[0]!.textContent).toContain("Same conversation, another app · Beta");
     expect(rows[0]!.textContent).not.toMatch(/proven/i);
     expect(rows[0]!.textContent).toContain("Ready — same version, same project path");
@@ -77,12 +77,14 @@ describe("AJ-E706 destinations", () => {
 
 describe("AJ-E706 wizard", () => {
   it("T2 at the same path: Target → What's carried → Confirm; nothing is sent before the click", async () => {
-    const { container } = render(<CrossMachineSwitchFlow sessionId="s1" target={target()} onClose={() => {}} />);
-    const q = (id: string) => container.querySelector<HTMLElement>(`[data-testid='${id}']`);
+    render(<CrossMachineSwitchFlow sessionId="s1" target={target()} onClose={() => {}} />);
+    const q = (id: string) => document.body.querySelector<HTMLElement>(`[data-testid='${id}']`);
     expect(q("cross-switch-preconditions")!.textContent).toContain("2.1.0 here, 2.1.0 on Studio Mac");
     expect(q("cross-switch-project")).toBeNull();
     fireEvent.click(q("cross-switch-next")!);
     expect(q("switch-carry-stays")!.textContent).toContain("MCP servers");
+    // LST-3: the "Goes along" heading says it; no row repeats "It goes to …".
+    expect(q("switch-carry-moves")!.textContent).not.toContain("It goes to");
     fireEvent.click(q("cross-switch-next")!);
     expect(q("cross-switch-go")!.textContent).toBe("Switch to CLI on Studio Mac");
     expect(calls()).toEqual([]);
@@ -94,7 +96,7 @@ describe("AJ-E706 wizard", () => {
   });
 
   it("another path needs a chosen project AND a confirmed mapping before Next", async () => {
-    const { container } = render(
+    render(
       <CrossMachineSwitchFlow
         sessionId="s1"
         target={target({
@@ -108,15 +110,15 @@ describe("AJ-E706 wizard", () => {
         onClose={() => {}}
       />,
     );
-    const q = (id: string) => container.querySelector<HTMLElement>(`[data-testid='${id}']`);
+    const q = (id: string) => document.body.querySelector<HTMLElement>(`[data-testid='${id}']`);
     fireEvent.click(q("cross-switch-next")!);
     expect(q("cross-switch-project")).not.toBeNull();
     const next = q("cross-switch-next") as HTMLButtonElement;
     expect(next.disabled).toBe(true);
-    const options = container.querySelectorAll<HTMLInputElement>("[data-testid='cross-switch-project-option']");
+    const options = document.body.querySelectorAll<HTMLElement>("[data-testid='cross-switch-project-option']");
     // The same-name copy is listed first — a suggestion, never pre-picked.
     expect(options[0]!.closest("label")!.textContent).toContain("same name (suggested)");
-    expect(options[0]!.checked).toBe(false);
+    expect(options[0]!.querySelector("input")!.checked).toBe(false);
     fireEvent.click(options[0]!);
     expect((q("cross-switch-next") as HTMLButtonElement).disabled).toBe(true);
     fireEvent.click(q("cross-switch-confirm-mapping")!);
@@ -130,7 +132,7 @@ describe("AJ-E706 wizard", () => {
   });
 
   it("blocked T2 offers T3 openly, and T3 asks how secrets are handled", async () => {
-    const { container } = render(
+    render(
       <CrossMachineSwitchFlow
         sessionId="s1"
         target={target({
@@ -142,9 +144,10 @@ describe("AJ-E706 wizard", () => {
         onClose={() => {}}
       />,
     );
-    const q = (id: string) => container.querySelector<HTMLElement>(`[data-testid='${id}']`);
-    expect((q("cross-switch-t2") as HTMLInputElement).disabled).toBe(true);
-    expect((q("cross-switch-t3") as HTMLInputElement).checked).toBe(true);
+    const q = (id: string) => document.body.querySelector<HTMLElement>(`[data-testid='${id}']`);
+    // 0.5.0: choice cards, their radios inside.
+    expect(q("cross-switch-t2")!.querySelector("input")!.disabled).toBe(true);
+    expect(q("cross-switch-t3")!.querySelector("input")!.checked).toBe(true);
     expect(q("cross-switch-blockers")!.textContent).toContain("moving the same conversation needs the same version");
     fireEvent.click(q("cross-switch-next")!);
     expect((q("cross-switch-next") as HTMLButtonElement).disabled).toBe(true);
@@ -166,10 +169,10 @@ describe("AJ-E706 wizard", () => {
 describe("AJ-E706 the shared switch frame", () => {
   const mount = (over: Partial<RemoteSwitchTargetInfo> = {}, onClose = vi.fn()) => {
     const view = render(<CrossMachineSwitchFlow sessionId="s1" target={target(over)} onClose={onClose} />);
-    return { view, onClose, q: (id: string) => view.container.querySelector<HTMLElement>(`[data-testid='${id}']`) };
+    return { view, onClose, q: (id: string) => document.body.querySelector<HTMLElement>(`[data-testid='${id}']`) };
   };
 
-  it("has Cancel and × on every step, Back from the second, Continue to go on", () => {
+  it("has Cancel and × on every step, Back from the second, Next naming its step", () => {
     const { q, onClose } = mount({ same_path_project: null, readiness: "needs_mapping" });
     const body = q("switch-body")!;
     for (let step = 0; step < 4; step += 1) {
@@ -180,7 +183,8 @@ describe("AJ-E706 the shared switch frame", () => {
       expect(q("switch-header")!.contains(q("cross-switch-steps"))).toBe(true);
       expect(q("cross-switch-back") === null).toBe(step === 0);
       const next = q("cross-switch-next") as HTMLButtonElement | null;
-      if (step < 3) expect(next!.textContent).toBe("Continue");
+      // WIZ-3: Next names where it goes.
+      if (step < 3) expect(next!.textContent).toBe(`Next: ${["Project", "What's carried", "Confirm"][step]}`);
       if (step === 1) {
         fireEvent.click(q("cross-switch-project-option")!);
         fireEvent.click(q("cross-switch-confirm-mapping")!);
@@ -193,9 +197,9 @@ describe("AJ-E706 the shared switch frame", () => {
   });
 
   it("names the tool, never its id", () => {
-    const { view } = mount();
-    expect(view.container.textContent).toContain("Claude Code 2.1.0 here");
-    expect(view.container.textContent).not.toContain("claude-code");
+    mount();
+    expect(document.body.textContent).toContain("Claude Code 2.1.0 here");
+    expect(document.body.textContent).not.toContain("claude-code");
   });
 
   it("holds Esc while the push runs, with no ×; Stop sending stops it", async () => {
@@ -255,8 +259,8 @@ describe("AJ-E706 / AJ-E708 switch-back and the conflict sheet", () => {
         divergence: { turns_since: 1, last_activity_ms: 1_800_000_000_000, summary: "1 new turns" },
       },
     ];
-    const { container } = render(<CrossMachineSwitchBack sessionId="away" plan={plan} onClose={() => {}} />);
-    const q = (id: string) => container.querySelector<HTMLElement>(`[data-testid='${id}']`);
+    render(<CrossMachineSwitchBack sessionId="away" plan={plan} onClose={() => {}} />);
+    const q = (id: string) => document.body.querySelector<HTMLElement>(`[data-testid='${id}']`);
     expect(q("cross-back-delta")!.textContent).toContain("While you were away");
     await act(async () => {
       fireEvent.click(q("cross-back-go")!);
@@ -265,7 +269,7 @@ describe("AJ-E706 / AJ-E708 switch-back and the conflict sheet", () => {
     expect(document.activeElement).toBe(q("conflict-later"));
     expect(q("conflict-theirs")!.textContent).toContain("1 new turn in the original");
     expect((q("conflict-apply") as HTMLButtonElement).disabled).toBe(true);
-    expect(container.querySelectorAll("[role='radiogroup'] input[type='radio']")).toHaveLength(3);
+    expect(document.body.querySelectorAll("[role='radiogroup'] input[type='radio']")).toHaveLength(3);
     fireEvent.click(q("conflict-keep_both")!);
     await act(async () => {
       fireEvent.click(q("conflict-apply")!);
@@ -286,7 +290,7 @@ describe("AJ-E706 / AJ-E708 switch-back and the conflict sheet", () => {
         at_ms: 1,
       },
     ];
-    const { container } = render(
+    render(
       <CrossMachineSwitchBack
         sessionId="away"
         plan={plan}
@@ -294,7 +298,7 @@ describe("AJ-E706 / AJ-E708 switch-back and the conflict sheet", () => {
         onClose={() => {}}
       />,
     );
-    const q = (id: string) => container.querySelector<HTMLElement>(`[data-testid='${id}']`);
+    const q = (id: string) => document.body.querySelector<HTMLElement>(`[data-testid='${id}']`);
     fireEvent.click(q("conflict-keep_theirs")!);
     await act(async () => {
       fireEvent.click(q("conflict-apply")!);

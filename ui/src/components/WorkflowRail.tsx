@@ -58,19 +58,23 @@ import { useBackendNeeds, useRailSnoozes } from "../lib/needs-you";
 import { OtherMacs } from "./RemoteBoard";
 import { modelDrift } from "./SessionCards";
 import { FOCUS_SEARCH_EVENT, parseQuery, useRailView } from "../lib/rail-view";
-import { goToWhere, sessionAppKey, sessionItem, sessionState } from "../lib/rail-items";
+import { goToWhere, itemsOf, sessionAppKey, sessionItem, sessionState } from "../lib/rail-items";
+import { groupNeeds } from "../lib/rail-lines";
 // AJ-E2104: the indicator row and card moved to their own files.
 export { SessionRow, modelDrift } from "./SessionCards";
 export { SessionCard } from "./SessionCard";
 import { useConversations } from "../lib/conversations";
 import { sessionWhen } from "../lib/time-words";
 import type { ActionHost } from "../lib/actions";
-import { StaleChip, attentionTooltip, isActiveStatus, lowLeftWords, stateChip } from "./indicator";
+import { StaleChip, attentionTooltip, isActiveStatus, lowLeftWords } from "./indicator";
+import { StateMark, rowState } from "./row/SessionRow";
+import { appTone } from "../lib/attention";
 
 /** Freshness timestamps per Instance id (epoch ms) driving the stale rule. */
 export type { Freshness } from "../lib/live-deltas";
 import type { Freshness } from "../lib/live-deltas";
 import { ProfileBadge } from "./ProfileBadge";
+import { SELECTED_FILL } from "./controls/selected";
 
 /**
  * The workflow navigator (ADR-0007): one rail, three tabs, and the live
@@ -146,7 +150,8 @@ export function WorkflowRail({
       data-density={density}
       style={{ width: minimal ? 60 : width }}
       className={
-        "relative flex h-full shrink-0 select-none flex-col border-r border-hairline bg-surface/30 backdrop-blur-xl transition-[width] duration-150 ease-out " +
+        // D-117: one hairline (`--color-divider`) splits the rail from the main area.
+        "relative flex h-full shrink-0 select-none flex-col border-r border-divider bg-surface/30 backdrop-blur-xl transition-[width] duration-150 ease-out " +
         (dragging ? "" : "")
       }
     >
@@ -181,15 +186,17 @@ export function WorkflowRail({
         )}
       </div>
 
-      {/* D-25: one primary action; New project stays one click away. */}
-      <div className={"flex gap-1.5 border-t border-hairline/60 p-2 " + (minimal ? "flex-col" : "")}>
+      {/* D-25: one primary action; New project stays one click away. D-117:
+          the foot has no rule, and its buttons are ghost buttons (the
+          header's New session keeps the accent). */}
+      <div className={"flex gap-1.5 p-2 " + (minimal ? "flex-col" : "")}>
         <button
           type="button"
           onClick={onNewSession}
           title={minimal ? "New session" : undefined}
           aria-label={minimal ? "New session" : undefined}
           data-testid="rail-new-session"
-          className="flex min-w-0 flex-1 items-center justify-center gap-2 overflow-hidden rounded-lg border border-accent/30 bg-accent-soft px-3 py-[7px] text-meta font-medium text-accent-hi outline-none transition-colors hover:border-accent/50 hover:bg-accent/15 focus-visible:ring-1 focus-visible:ring-accent/60"
+          className="btn-ghost flex min-w-0 flex-1 items-center justify-center gap-2 overflow-hidden rounded-lg px-3 py-[7px] text-meta font-medium outline-none transition-colors focus-visible:ring-1 focus-visible:ring-accent/60"
         >
           <IconTerminal width={14} height={14} />
           {!minimal && <span className="truncate">New session</span>}
@@ -201,7 +208,7 @@ export function WorkflowRail({
           aria-label="History"
           title="History"
           data-testid="rail-history"
-          className="flex shrink-0 items-center justify-center rounded-lg border border-hairline px-2.5 py-[7px] text-muted outline-none transition-colors hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60"
+          className="btn-ghost flex shrink-0 items-center justify-center rounded-lg px-2.5 py-[7px] text-muted outline-none transition-colors hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60"
         >
           <IconHistory width={14} height={14} />
         </button>
@@ -211,7 +218,7 @@ export function WorkflowRail({
           aria-label="New project"
           title="New project"
           data-testid="rail-new-project"
-          className="flex shrink-0 items-center justify-center rounded-lg border border-hairline px-2.5 py-[7px] text-muted outline-none transition-colors hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60"
+          className="btn-ghost flex shrink-0 items-center justify-center rounded-lg px-2.5 py-[7px] text-muted outline-none transition-colors hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60"
         >
           <IconProjects width={14} height={14} />
         </button>
@@ -332,7 +339,7 @@ export function InstanceBoard({
   const filtered = filterSessions(onAccount, filters, parsed.text, projects);
   const sorted = sortSessions(filtered, "needs", snooze, now, projects, accounts);
   // D-49: what is in Needs you is the backend's.
-  const { needOf } = useBackendNeeds();
+  const { needOf, known: needsKnown } = useBackendNeeds();
   const isNeed = (row: InstanceInfo) => needOf.has(`s:${row.id}`);
   const effectiveGroup: GroupBy = "project";
   const sessionGroups = groupSessions(sorted, effectiveGroup, projects);
@@ -342,6 +349,9 @@ export function InstanceBoard({
   // AJ-E2104: the Project lens with Show › Ended on is the whole board,
   // every session under its project (its Also line's parts stay its own).
   const order = quietView(effectiveGroup, filters, parsed.text) && !view.show.ended ? railOrder(sorted, isNeed, now) : null;
+  // D-103.6 (as Home): hold the board until the backend's needs are known,
+  // so no row jumps from its project to Needs you (rail-project-hold.test).
+  const holding = order !== null && !needsKnown;
   const groups = openGroups(order, withOutsideGroups(sessionGroups, conversations, projects, scope), conversations, scope, new Set(projects.filter((p) => p.pinned).map((p) => p.id)));
   const shownRows = order?.shown ?? ((rows: InstanceInfo[]) => rows);
   // D-25: a project with no sessions still has a place in the rail (one
@@ -434,8 +444,8 @@ export function InstanceBoard({
           <PlaceBoard sessions={sessions} projects={projects} accounts={accounts} snooze={snooze} now={now} selectedId={selectedId} onSelect={onSelect} query={query} scroll={{ top: scrollTop, height: viewportH, box: scrollRef.current }} density={effectiveDensity} cueSlot={cueSlot} />
         )}
         {byProject && <>
-        {showLocal && order && <NeedsYouSection rows={order.needs} sessions={sessions} selectedId={selectedId} density={effectiveDensity} now={now} renderRow={boardRow} />}
-        {!showLocal ? null : loading && sessions.length === 0 ? (
+        {showLocal && order && !holding && <NeedsYouSection rows={order.needs} sessions={sessions} projects={projects} onSelect={onSelect} selectedId={selectedId} density={effectiveDensity} now={now} />}
+        {!showLocal ? null : (loading && sessions.length === 0) || holding ? (
           <RowPlaceholders shape="rail" rows={4} label="Loading sessions" />
         ) : sorted.length === 0 && idleProjects.length === 0 && !groups.some((g) => railSlice(conversations, g.id, scope).shown.length > 0) ? (
           sessions.length === 0 ? (
@@ -498,11 +508,11 @@ export function InstanceBoard({
                       label={entry.label}
                       rollup={entry.rollup}
                       count={entry.rows.length + railSlice(conversations, entry.id, scope).shown.length}
+                      // D-117: its needs as an App head's (the one rule, the backend's list).
+                      needs={groupNeeds(itemsOf({ sessions: entry.rows, conversations: railSlice(conversations, entry.id, scope).shown, projects, seen: {}, needOf }))}
                       selected={entry.id === selectedId}
                       onSelect={() => onSelectProject(entry.id)}
-                    >
-                      {folded.has(entry.id) && <FoldedNeeds rows={entry.rows} isNeed={isNeed} onOpen={() => toggleFold(entry.id)} />}
-                    </RailProjectHeader>
+                    />
                   ) : (
                     <p
                       className="flex min-w-0 flex-1 items-baseline justify-between gap-2 py-0.5 pl-1 pr-2.5 text-meta font-semibold text-ink-2"
@@ -663,17 +673,14 @@ function BoardRow({
       )}
       <RailRow session={row} showProject={showProject} selected={selected} onSelect={onSelect} density={density} now={now} freshness={freshness} trailing={where !== null && needs} />
       {where !== null && menu.goTo({ where, shown: needs, className: "absolute right-1 top-1/2 -translate-y-1/2" })}
-      {/* I-03: a model that drifted from its launch settings is worth a
-          glance (cost and behaviour differ) — beside the row, focusable,
-          clear of the tool's mark and the avatar. Compact rows
-          have no room beside the time; the session view says it there. */}
+      {/* I-03: a drifted model, a calm focusable note beside the row (level 1, never amber; AJ-E3603 R2); compact rows say it in the session view. */}
       {density === "comfortable" && modelDrift(row) && (
         <span
           title={modelDrift(row)!}
           aria-label={modelDrift(row)!}
           tabIndex={0}
           data-testid="model-drift"
-          className="absolute right-12 top-1.5 z-10 rounded-full border border-warning/25 bg-warning-soft px-1 text-label font-medium text-warning outline-none focus-visible:ring-1 focus-visible:ring-accent/60"
+          className="absolute right-12 top-1.5 z-10 rounded-full border border-hairline px-1 text-label font-medium text-muted outline-none focus-visible:ring-1 focus-visible:ring-accent/60"
         >
           ⇄
         </span>
@@ -713,7 +720,6 @@ export function RailRow({
   now: number;
   freshness?: Freshness;
 }) {
-  const chip = stateChip(session.status);
   // AJ-E1502: the user's name for it shows over its own title; untitled,
   // its facts (D-96), by the rail's one rule.
   const title = shortName(session, now);
@@ -723,7 +729,15 @@ export function RailRow({
   // Ended; why it needs you when it does), the glyph a detail beside them.
   const said = sessionState(session);
   const state = parked ? parked.chip : said.word;
-  const low = lowLeftWords(session);
+  // D-117: the App lens's calm look, from its parts: its state's mark (a
+  // level's dot, a ring for a guess, a calm dot, a review's ✓), its word
+  // in ink-2 at L2/L3 and muted below (the loud copy is its Needs you
+  // row), and its App's icon muted unless it needs you or is current.
+  const item = sessionItem(session, () => null, false);
+  const look = rowState(item);
+  const lit = look.level >= 2 || selected;
+  // AJ-E3603: its state already says "Limit reached"; "0% left" beside it said it twice.
+  const low = item.need === "limit" ? null : lowLeftWords(session);
   const when = sessionWhen(session, now);
   // D-25: the row stays calm — these markers appear only when they are
   // the exception worth a glance (a sign-in to check, uncommitted work,
@@ -736,7 +750,6 @@ export function RailRow({
     ? ((session.quota !== null ? staleCaption(sampled.quota, REFRESH_INTERVALS.quota, now) : null) ??
       (session.cpu_pct !== null ? staleCaption(sampled.resources, REFRESH_INTERVALS.resources, now) : null))
     : null;
-  const Icon = chip.Icon;
   return (
     <button
       type="button"
@@ -745,22 +758,21 @@ export function RailRow({
       data-rail-selected={selected ? "true" : undefined}
       onClick={() => onSelect(session.id)}
       className={
-        "relative flex w-full min-w-0 items-center gap-2.5 rounded-lg pl-2.5 text-left outline-none transition-colors focus-visible:ring-1 focus-visible:ring-accent/60 " + (trailing ? "pr-9 " : "pr-2 ") +
+        "tone-host relative flex w-full min-w-0 items-center gap-2.5 rounded-lg pl-2.5 text-left outline-none transition-colors focus-visible:ring-1 focus-visible:ring-accent/60 " + (trailing ? "pr-9 " : "pr-2 ") +
         (density === "compact" ? "py-1.5 " : "py-2 ") +
-        (selected ? "bg-surface" : "hover:bg-surface/60") +
+        (selected ? SELECTED_FILL : "hover:bg-surface/60") +
         // Ended rows are quieter by their title colour, never by opacity:
         // faded small text would fall below 4.5:1 (WCAG 1.4.3).
         ""
       }
     >
-      {selected && <span aria-hidden="true" className="absolute left-0.5 top-1/2 h-4 w-[2px] -translate-y-1/2 rounded-full bg-accent" />}
-      <span aria-hidden="true" data-state-glyph={said.state} className={"flex w-4 shrink-0 justify-center " + said.tone}>
-        <Icon width={13} height={13} />
+      <span aria-hidden="true" className="flex w-4 shrink-0 justify-center">
+        <StateMark item={item} level={look.level} dot={look.dot} />
       </span>
       <span className="flex min-w-0 flex-1 flex-col">
         <span className="flex min-w-0 items-baseline gap-1.5">
           {showProject && session.project_id && <ProjectMark projectId={session.project_id} size={12} />}
-          <span className={"min-w-0 truncate text-meta font-medium " + (ended ? "text-muted" : "text-ink")}>{title}</span>
+          <span className={"min-w-0 truncate text-meta " + (selected ? "font-semibold text-ink" : "font-medium " + (ended ? "text-muted" : "text-ink-2"))}>{title}</span>
           {session.pinned && <PinMark />}
           {session.kind === "desktop" && (
             <span title="Runs in the Claude desktop app" data-testid="rail-app-chip" className="shrink-0 rounded border border-hairline px-1 text-label font-medium text-muted">
@@ -776,13 +788,15 @@ export function RailRow({
             <span
               title={parked ? parked.long : attentionTooltip(session)}
               data-testid={parked ? "rail-parked" : "rail-state-word"}
-              className={"shrink-0 whitespace-nowrap " + (parked ? "text-ink" : said.tone)}
+              className={"shrink-0 whitespace-nowrap " + (parked ? "text-ink" : look.level >= 2 ? "font-medium text-ink-2" : "text-muted")}
             >
               {state}
             </span>
-            {low && <span className="shrink-0 whitespace-nowrap text-warning">· {low}</span>}
+            {/* AJ-E3603: low room and a heavy load are facts here, muted
+                (their loud copy is the Needs you row, as in the App lens). */}
+            {low && <span className="shrink-0 whitespace-nowrap">· {low}</span>}
             {heavy && (
-              <span title={`Working your Mac hard: ${heavyNote}`} data-testid="rail-heavy" className="shrink-0 whitespace-nowrap text-warning">
+              <span title={`Working your Mac hard: ${heavyNote}`} data-testid="rail-heavy" className="shrink-0 whitespace-nowrap">
                 · {heavy}
               </span>
             )}
@@ -798,16 +812,16 @@ export function RailRow({
           {heavyNote ? `, working your Mac hard: ${heavyNote}` : ""}
         </span>
       </span>
-      {density === "compact" && low && <span className="shrink-0 text-label tabular-nums text-warning">{low}</span>}
+      {density === "compact" && low && <span className="shrink-0 text-label tabular-nums text-muted">{low}</span>}
       {density === "compact" && !low && heavy && (
-        <span data-testid="rail-heavy" className="shrink-0 font-mono text-label text-warning">
+        <span data-testid="rail-heavy" className="shrink-0 font-mono text-label text-muted">
           {heavy}
         </span>
       )}
       {/* AJ-E1532 with D-38: the tool (its own app's icon), and the account serving it now (its avatar
           follows the session when it switches accounts). */}
-      <AppIcon {...appOfSession(session)} size={16} />
-      <ProfileBadge app={sessionAppKey(session)} name={session.account_label} />
+      <AppIcon {...appOfSession(session)} size={16} className={appTone(lit)} />
+      <ProfileBadge app={sessionAppKey(session)} name={session.account_label} className={appTone(lit)} />
     </button>
   );
 }

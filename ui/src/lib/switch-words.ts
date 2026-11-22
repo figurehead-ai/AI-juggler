@@ -42,7 +42,7 @@ export function badgeWords(fidelityWords: string, validated: boolean | undefined
   return validated ? fidelityWords : `${fidelityWords} · Beta`;
 }
 
-/** The badge's words as `FidelityBadge` takes them: "Same conversation,
+/** The badge's words as `BadgeTag` takes them: "Same conversation,
  * another app", or "… · Beta". */
 export function moveBadge(preflight: { fidelity_words: string; validated?: boolean }): string {
   return badgeWords(preflight.fidelity_words, preflight.validated);
@@ -57,4 +57,5 @@ export const GUIDE = {
   carried: "switching#what-goes-along",
   room: "switching#an-account-with-little-or-no-room",
   notes: "switching#this-projects-notes",
+  move: "switching#move-or-copy-claude-to-claude",
 } as const;

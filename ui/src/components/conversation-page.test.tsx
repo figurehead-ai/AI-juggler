@@ -87,7 +87,7 @@ describe("AJ-E2108 a session's page holds still", () => {
     render(page([conversation()]));
     // AJ-E2404: a session open in its app also has its processes.
     await waitFor(() => expect(tabs()).toEqual(["Overview", "Usage", "Processes"]));
-    fireEvent.click(screen.getByRole("tab", { name: "Usage" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Usage (this session)" }));
     // 0.1.5: its charts once the usage history has its turns; until then
     // (as here), its own counts.
     expect(await screen.findByTestId("session-usage-none")).toBeTruthy();
@@ -97,7 +97,7 @@ describe("AJ-E2108 a session's page holds still", () => {
     // A refresh without the counts: the tab, and the last counts, stay.
     await listIs([conversation({ tokens: null })]);
     expect(tabs()).toEqual(["Overview", "Usage", "Processes"]);
-    expect(screen.getByRole("tab", { name: "Usage" }).getAttribute("aria-selected")).toBe("true");
+    expect(screen.getByRole("tab", { name: "Usage (this session)" }).getAttribute("aria-selected")).toBe("true");
     expect(screen.getByTestId("session-usage-total").textContent).toBe("10.5k");
   });
 

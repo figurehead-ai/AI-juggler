@@ -360,10 +360,10 @@ fn the_lead_plans_and_gives_tasks_out_and_members_work_what_they_hold() {
     );
     // D-25: and the task by its title, never its id.
     assert!(
-        ask.title.contains("«Build the API»") && !ask.title.contains("aj-"),
+        ask.title.contains("“Build the API”") && !ask.title.contains("aj-"),
         "the ask names the task by its title"
     );
-    let named = "give «Build the API» to Builder".to_owned();
+    let named = "give “Build the API” to Builder".to_owned();
     let history = views::detail(&lab.state, &id, None).unwrap().history;
     assert!(
         history.iter().any(|e| e.what.contains(&named)),
@@ -528,7 +528,7 @@ fn an_agent_asks_for_a_session_and_only_the_user_starts_it() {
     assert_eq!(waiting[0].kind, "launch");
     // D-25: the request names the task by its title, never its id.
     assert!(
-        waiting[0].title.contains("«Write the release notes»") && !waiting[0].title.contains("aj-"),
+        waiting[0].title.contains("“Write the release notes”") && !waiting[0].title.contains("aj-"),
         "the request names the task by its title"
     );
     // The user starts it, on the launch settings they pick.

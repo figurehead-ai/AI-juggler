@@ -1,0 +1,786 @@
+[
+ {
+  "pair": "turns-review-001",
+  "item": "V001",
+  "source": "I added cursor-based pagination to the invoice list endpoint in the billing-portal service. The page size defaults to 25 and can be overridden with a limit parameter up to 100. I wrote tests for the first page, the last page and an empty result, and all 24 tests in the module pass now.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "ran",
+    "passed": 24,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "billing/api/invoices.py",
+     "added": 58,
+     "removed": 12,
+     "status": "M"
+    },
+    {
+     "path": "tests/test_invoices_paging.py",
+     "added": 74,
+     "removed": 0,
+     "status": "A"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": false
+  },
+  "first": "Changed (git): billing/api/invoices.py (+58 -12); tests/test_invoices_paging.py (new, +74 -0)\nLeft: nothing stated\nRisk: low",
+  "second": "Changed (git): billing/api/invoices.py (+58 -12) — cursor-based pagination to the invoice list endpoint; tests/test_invoices_paging.py (new, +74 -0)\nLeft: nothing stated\nRisk: low (all 24 tests in the module pass)"
+ },
+ {
+  "pair": "turns-review-002",
+  "item": "V003",
+  "source": "Der Import der Kundendaten aus der CSV-Datei ist fast fertig. Ich habe den Parser umgebaut und die Validierung für Postleitzahlen ergänzt. Die restlichen Kleinigkeiten bei den Tests schaue ich mir beim nächsten Mal an, aber im Großen und Ganzen läuft es.",
+  "facts": {
+   "outcome": "failure",
+   "level": "L3",
+   "tests": {
+    "state": "ran",
+    "passed": 31,
+    "failed": 4
+   },
+   "questions": [],
+   "failures": [
+    "FAILED tests/test_import.py::test_plz_five_digits - AssertionError: '1234' != '01234'",
+    "FAILED tests/test_import.py::test_empty_row_skipped - KeyError: 'name'",
+    "FAILED tests/test_import.py::test_utf8_bom - UnicodeDecodeError",
+    "FAILED tests/test_import.py::test_duplicate_ids - IndexError"
+   ]
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "kunden/import_csv.py",
+     "added": 96,
+     "removed": 41,
+     "status": "M"
+    },
+    {
+     "path": "kunden/validate.py",
+     "added": 33,
+     "removed": 2,
+     "status": "M"
+    },
+    {
+     "path": "tests/test_import.py",
+     "added": 20,
+     "removed": 3,
+     "status": "M"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": true
+  },
+  "first": "Geändert (git): kunden/import_csv.py (+96 -41); kunden/validate.py (+33 -2); tests/test_import.py (+20 -3)\nNicht committet (git): True\nFehlgeschlagen: FAILED tests/test_import.py::test_plz_five_digits - AssertionError: '1234' != '01234'\nFehlgeschlagen: FAILED tests/test_import.py::test_empty_row_skipped - KeyError: 'name'\nFehlgeschlagen: FAILED tests/test_import.py::test_utf8_bom - UnicodeDecodeError\nFehlgeschlagen: FAILED tests/test_import.py::test_duplicate_ids - IndexError\nOffen: sonst nichts genannt\nRisiko: hoch",
+  "second": "Geändert (git): kunden/import_csv.py (+96 -41) — der Import der Kundendaten aus der CSV-Datei ist fast fertig; kunden/validate.py (+33 -2) — die Validierung für Postleitzahlen ergänzt; tests/test_import.py (+20 -3)\nNicht committet (git): True\nFehlgeschlagen: FAILED tests/test_import.py::test_plz_five_digits - AssertionError: '1234' != '01234'\nFehlgeschlagen: FAILED tests/test_import.py::test_empty_row_skipped - KeyError: 'name'\nFehlgeschlagen: FAILED tests/test_import.py::test_utf8_bom - UnicodeDecodeError\nFehlgeschlagen: FAILED tests/test_import.py::test_duplicate_ids - IndexError\nOffen: sonst nichts genannt\nRisiko: hoch (die restlichen Kleinigkeiten bei den Tests schaue ich mir mir an)"
+ },
+ {
+  "pair": "turns-review-003",
+  "item": "V004",
+  "source": "The webhook retry logic now backs off exponentially with jitter, capped at ten minutes. One thing I could not settle on my own: whether to keep the legacy /v1/notify endpoint alive. Tell me which way you want to go and I will finish the cleanup.",
+  "facts": {
+   "outcome": "question",
+   "level": "L2",
+   "tests": {
+    "state": "not_run",
+    "passed": 0,
+    "failed": 0
+   },
+   "questions": [
+    "Tell me which way you want to go on keeping the legacy /v1/notify endpoint."
+   ],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "hooks/retry.py",
+     "added": 44,
+     "removed": 10,
+     "status": "M"
+    },
+    {
+     "path": "hooks/config.py",
+     "added": 6,
+     "removed": 1,
+     "status": "M"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": true
+  },
+  "first": "Changed (git): hooks/retry.py (+44 -10); hooks/config.py (+6 -1)\nUncommitted (git): True\nQuestion: Tell me which way you want to go on keeping the legacy /v1/notify endpoint.\nNot checked: Tests (AI Juggler): not run\nLeft: nothing else stated\nRisk: medium",
+  "second": "Changed (git): hooks/retry.py (+44 -10) — the webhook retry logic now backs off exponentially with jitter, capped at ten minutes; hooks/config.py (+6 -1)\nUncommitted (git): True\nQuestion: Tell me which way you want to go on keeping the legacy /v1/notify endpoint.\nNot checked: Tests (AI Juggler): not run\nLeft: nothing else stated\nRisk: medium (whether to keep the legacy /v1/notify endpoint alive)"
+ },
+ {
+  "pair": "turns-review-004",
+  "item": "V006",
+  "source": "The date-range filter now handles time zones correctly and I verified the whole suite: everything passes, including the DST edge cases. I also updated the changelog entry for the reports module.",
+  "facts": {
+   "outcome": "failure",
+   "level": "L3",
+   "tests": {
+    "state": "ran",
+    "passed": 87,
+    "failed": 2
+   },
+   "questions": [],
+   "failures": [
+    "FAIL reports/filter.spec.ts > dst spring forward > keeps 23h day",
+    "FAIL reports/filter.spec.ts > dst autumn > keeps 25h day"
+   ]
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "reports/filter.ts",
+     "added": 37,
+     "removed": 15,
+     "status": "M"
+    },
+    {
+     "path": "reports/filter.spec.ts",
+     "added": 41,
+     "removed": 0,
+     "status": "M"
+    },
+    {
+     "path": "CHANGELOG.md",
+     "added": 3,
+     "removed": 0,
+     "status": "M"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": false
+  },
+  "first": "Changed (git): reports/filter.ts (+37 -15) — the date-range filter now handles time zones correctly; reports/filter.spec.ts (+41 -0); CHANGELOG.md (+3 -0)\nFailed: FAIL reports/filter.spec.ts > dst spring forward > keeps 23h day\nFailed: FAIL reports/filter.spec.ts > dst autumn > keeps 25h day\nLeft: nothing else stated\nRisk: high (everything passes, including the DST edge cases)",
+  "second": "Changed (git): reports/filter.ts (+37 -15); reports/filter.spec.ts (+41 -0); CHANGELOG.md (+3 -0)\nFailed: FAIL reports/filter.spec.ts > dst spring forward > keeps 23h day\nFailed: FAIL reports/filter.spec.ts > dst autumn > keeps 25h day\nLeft: nothing else stated\nRisk: high"
+ },
+ {
+  "pair": "turns-review-005",
+  "item": "V009",
+  "source": "The migration to the new schema is half done. I converted the users and teams tables and wrote the backfill script for them. The orders and refunds tables are still on the old layout and the script for them is not written yet.",
+  "facts": {
+   "outcome": "none",
+   "level": "L0",
+   "tests": {
+    "state": "not_run",
+    "passed": 0,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "db/migrations/0042_users_teams.sql",
+     "added": 88,
+     "removed": 0,
+     "status": "A"
+    },
+    {
+     "path": "db/backfill/users_teams.py",
+     "added": 61,
+     "removed": 0,
+     "status": "A"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": true
+  },
+  "first": "Changed (git): db/migrations/0042_users_teams.sql (new, +88 -0) — the migration to the new schema is half done, converted the users and teams tables; db/backfill/users_teams.py (new, +61 -0)\nUncommitted (git): True\nNot checked: Tests (AI Juggler): not run\nLeft: The orders and refunds tables are still on the old layout and the script for them is not written yet.\nRisk: medium (the orders and refunds tables are still on the old layout and the script for them is not written yet)",
+  "second": "Changed (git): db/migrations/0042_users_teams.sql (new, +88 -0); db/backfill/users_teams.py (new, +61 -0)\nUncommitted (git): True\nNot checked: Tests (AI Juggler): not run\nLeft: The orders and refunds tables are still on the old layout and the script for them is not written yet.\nRisk: medium"
+ },
+ {
+  "pair": "turns-review-006",
+  "item": "V010",
+  "source": "Der Export nach PDF funktioniert jetzt mit eingebetteten Schriften. Soll ich die alte Export-Funktion für Word-Dateien ebenfalls entfernen oder bleibt sie vorerst drin? Ohne deine Antwort lasse ich sie unangetastet.",
+  "facts": {
+   "outcome": "question",
+   "level": "L2",
+   "tests": {
+    "state": "unknown",
+    "passed": 0,
+    "failed": 0
+   },
+   "questions": [
+    "Soll ich die alte Export-Funktion für Word-Dateien ebenfalls entfernen oder bleibt sie vorerst drin?"
+   ],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "export/pdf.py",
+     "added": 71,
+     "removed": 23,
+     "status": "M"
+    },
+    {
+     "path": "export/fonts.py",
+     "added": 40,
+     "removed": 0,
+     "status": "A"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": false
+  },
+  "first": "Geändert (git): export/pdf.py (+71 -23); export/fonts.py (new, +40 -0)\nFrage: Soll ich die alte Export-Funktion für Word-Dateien ebenfalls entfernen oder bleibt sie vorerst drin?\nOffen: sonst nichts genannt\nRisiko: mittel",
+  "second": "Geändert (git): export/pdf.py (+71 -23) — Der Export nach PDF funktioniert jetzt mit eingebetteten Schriften; export/fonts.py (new, +40 -0)\nFrage: Soll ich die alte Export-Funktion für Word-Dateien ebenfalls entfernen oder bleibt sie vorerst drin?\nOffen: sonst nichts genannt\nRisiko: mittel (Soll ich die alte Export-Funktion für Word-Dateien ebenfalls entfernen oder bleibt sie vorerst drin?)"
+ },
+ {
+  "pair": "turns-review-007",
+  "item": "V011",
+  "source": "I tried to upgrade the build to the new bundler version. The upgrade itself is in place but the production build now stops with an error in the asset pipeline, which I could not resolve in this session.",
+  "facts": {
+   "outcome": "failure",
+   "level": "L3",
+   "tests": {
+    "state": "not_run",
+    "passed": 0,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": [
+    "Error: Cannot find module 'asset-hash-plugin' imported from build/vite.config.ts",
+    "npm ERR! code ELIFECYCLE",
+    "build exited with code 1"
+   ]
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "package.json",
+     "added": 5,
+     "removed": 5,
+     "status": "M"
+    },
+    {
+     "path": "build/vite.config.ts",
+     "added": 18,
+     "removed": 9,
+     "status": "M"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": true
+  },
+  "first": "Changed (git): package.json (+5 -5); build/vite.config.ts (+18 -9) — the build stops with an error in the asset pipeline\nUncommitted (git): True\nFailed: Error: Cannot find module 'asset-hash-plugin' imported from build/vite.config.ts\nFailed: npm ERR! code ELIFECYCLE\nFailed: build exited with code 1\nNot checked: Tests (AI Juggler): not run\nLeft: nothing else stated\nRisk: high (the build stops with an error in the asset pipeline)",
+  "second": "Changed (git): package.json (+5 -5); build/vite.config.ts (+18 -9)\nUncommitted (git): True\nFailed: Error: Cannot find module 'asset-hash-plugin' imported from build/vite.config.ts\nFailed: npm ERR! code ELIFECYCLE\nFailed: build exited with code 1\nNot checked: Tests (AI Juggler): not run\nLeft: nothing else stated\nRisk: high"
+ },
+ {
+  "pair": "turns-review-008",
+  "item": "V012",
+  "source": "I swapped the JSON serializer in the telemetry module for the faster one and the benchmarks look better. Nine tests pass. A small leftover is the settings file where I toggled a flag while testing.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "ran",
+    "passed": 9,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "telemetry/serialize.py",
+     "added": 27,
+     "removed": 31,
+     "status": "M"
+    },
+    {
+     "path": "telemetry/settings.toml",
+     "added": 1,
+     "removed": 1,
+     "status": "M"
+    }
+   ],
+   "reverted": [
+    {
+     "path": "telemetry/bench_runner.py",
+     "note": "the benchmark runner rewrite was discarded"
+    }
+   ],
+   "reflog": [
+    "checkout: restoring telemetry/bench_runner.py"
+   ],
+   "uncommitted": true
+  },
+  "first": "Changed (git): telemetry/serialize.py (+27 -31); telemetry/settings.toml (+1 -1)\nReverted (git): telemetry/bench_runner.py (the benchmark runner rewrite was discarded)\nUncommitted (git): True\nLeft: nothing stated\nRisk: low",
+  "second": "Changed (git): telemetry/serialize.py (+27 -31) — the JSON serializer in the telemetry module swapped for the faster one; telemetry/settings.toml (+1 -1)\nReverted (git): telemetry/bench_runner.py (the benchmark runner rewrite was discarded)\nUncommitted (git): True\nLeft: nothing stated\nRisk: low (Nine tests pass)"
+ },
+ {
+  "pair": "turns-review-009",
+  "item": "V014",
+  "source": "The new search ranking is in and the relevance checks pass. One of the older integration tests for the autocomplete is flaky and failed on the last run; it also failed before my change, so I left it alone.",
+  "facts": {
+   "outcome": "failure",
+   "level": "L3",
+   "tests": {
+    "state": "ran",
+    "passed": 63,
+    "failed": 1
+   },
+   "questions": [],
+   "failures": [
+    "FAILED tests/integration/test_autocomplete.py::test_prefix_timeout - TimeoutError after 5.0s"
+   ]
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "search/ranking.py",
+     "added": 83,
+     "removed": 29,
+     "status": "M"
+    },
+    {
+     "path": "tests/test_ranking.py",
+     "added": 55,
+     "removed": 0,
+     "status": "A"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": false
+  },
+  "first": "Changed (git): search/ranking.py (+83 -29); tests/test_ranking.py (new, +55 -0)\nFailed: FAILED tests/integration/test_autocomplete.py::test_prefix_timeout - TimeoutError after 5.0s\nLeft: nothing else stated\nRisk: high",
+  "second": "Changed (git): search/ranking.py (+83 -29) — the new search ranking is in and the relevance checks pass; tests/test_ranking.py (new, +55 -0)\nFailed: FAILED tests/integration/test_autocomplete.py::test_prefix_timeout - TimeoutError after 5.0s\nLeft: nothing else stated\nRisk: high (one of the older integration tests for the autocomplete is flaky and failed on the last run)"
+ },
+ {
+  "pair": "turns-review-010",
+  "item": "V015",
+  "source": "Die Rechnungsnummern werden jetzt lückenlos vergeben. Ich habe die gesamte Testsuite laufen lassen und alles ist bestanden, auch die Parallelitätstests. Andere Module habe ich dabei nicht angefasst, und die Schnittstellen bleiben so, wie sie vorher waren.",
+  "facts": {
+   "outcome": "failure",
+   "level": "L3",
+   "tests": {
+    "state": "ran",
+    "passed": 52,
+    "failed": 3
+   },
+   "questions": [],
+   "failures": [
+    "FAILED tests/test_numbering.py::test_concurrent_allocation - AssertionError: duplicate number 1007",
+    "FAILED tests/test_numbering.py::test_rollback_gap - AssertionError",
+    "FAILED tests/test_numbering.py::test_year_rollover - ValueError"
+   ]
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "billing/numbering.py",
+     "added": 64,
+     "removed": 20,
+     "status": "M"
+    },
+    {
+     "path": "tests/test_numbering.py",
+     "added": 70,
+     "removed": 0,
+     "status": "A"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": false
+  },
+  "first": "Geändert (git): billing/numbering.py (+64 -20); tests/test_numbering.py (new, +70 -0)\nFehlgeschlagen: FAILED tests/test_numbering.py::test_concurrent_allocation - AssertionError: duplicate number 1007\nFehlgeschlagen: FAILED tests/test_numbering.py::test_rollback_gap - AssertionError\nFehlgeschlagen: FAILED tests/test_numbering.py::test_year_rollover - ValueError\nOffen: sonst nichts genannt\nRisiko: hoch",
+  "second": "Geändert (git): billing/numbering.py (+64 -20) — Die Rechnungsnummern werden jetzt lückenlos vergeben; tests/test_numbering.py (new, +70 -0)\nFehlgeschlagen: FAILED tests/test_numbering.py::test_concurrent_allocation - AssertionError: duplicate number 1007\nFehlgeschlagen: FAILED tests/test_numbering.py::test_rollback_gap - AssertionError\nFehlgeschlagen: FAILED tests/test_numbering.py::test_year_rollover - ValueError\nOffen: sonst nichts genannt\nRisiko: hoch (alles ist bestanden, auch die Parallelitätstests)"
+ },
+ {
+  "pair": "turns-review-011",
+  "item": "V016",
+  "source": "I moved the image resizing out of the request path into a background worker. Do you want the worker to run inside the main process for now, or should I set it up as a separate service? Nothing is deployed yet, so either is easy to change.",
+  "facts": {
+   "outcome": "question",
+   "level": "L2",
+   "tests": {
+    "state": "unknown",
+    "passed": 0,
+    "failed": 0
+   },
+   "questions": [
+    "Do you want the worker to run inside the main process for now, or should I set it up as a separate service?"
+   ],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "media/worker.py",
+     "added": 92,
+     "removed": 0,
+     "status": "A"
+    },
+    {
+     "path": "media/views.py",
+     "added": 14,
+     "removed": 37,
+     "status": "M"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": false
+  },
+  "first": "Changed (git): media/worker.py (new, +92 -0) — the image resizing moved out of the request path into a background worker; media/views.py (+14 -37)\nQuestion: Do you want the worker to run inside the main process for now, or should I set it up as a separate service?\nLeft: nothing else stated\nRisk: medium (nothing is deployed yet)",
+  "second": "Changed (git): media/worker.py (new, +92 -0); media/views.py (+14 -37)\nQuestion: Do you want the worker to run inside the main process for now, or should I set it up as a separate service?\nLeft: nothing else stated\nRisk: medium"
+ },
+ {
+  "pair": "turns-review-012",
+  "item": "V018",
+  "source": "Ich habe die Übersetzungsdateien für Französisch und Spanisch ergänzt und die Schlüssel in der Reihenfolge der englischen Datei sortiert. Tests wurden nicht ausgeführt, weil es nur Textdateien sind. Andere Module habe ich dabei nicht angefasst, und die Schnittstellen bleiben so, wie sie vorher waren.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "not_run",
+    "passed": 0,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "locales/fr.json",
+     "added": 140,
+     "removed": 22,
+     "status": "M"
+    },
+    {
+     "path": "locales/es.json",
+     "added": 138,
+     "removed": 25,
+     "status": "M"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": false
+  },
+  "first": "Geändert (git): locales/fr.json (+140 -22); locales/es.json (+138 -25)\nNicht geprüft: Tests (AI Juggler): nicht ausgeführt; Tests wurden nicht ausgeführt, weil es nur Textdateien sind.\nOffen: nichts genannt\nRisiko: mittel",
+  "second": "Geändert (git): locales/fr.json (+140 -22) — die Übersetzungsdateien für Französisch ergänzt; locales/es.json (+138 -25) — die Schlüssel in der Reihenfolge der englischen Datei sortiert\nNicht geprüft: Tests (AI Juggler): nicht ausgeführt; Tests wurden nicht ausgeführt, weil es nur Textdateien sind.\nOffen: nichts genannt\nRisiko: mittel (Tests wurden nicht ausgeführt, weil es nur Textdateien sind)"
+ },
+ {
+  "pair": "turns-review-013",
+  "item": "V021",
+  "source": "I split the 900-line order service into three modules: pricing, stock and fulfilment. Public function names are unchanged, imports are updated everywhere and all 118 tests pass. I did not touch any other modules, and the public interfaces of the package stay exactly as they were before.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "ran",
+    "passed": 118,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "orders/pricing.py",
+     "added": 210,
+     "removed": 0,
+     "status": "A"
+    },
+    {
+     "path": "orders/stock.py",
+     "added": 180,
+     "removed": 0,
+     "status": "A"
+    },
+    {
+     "path": "orders/fulfilment.py",
+     "added": 240,
+     "removed": 0,
+     "status": "A"
+    },
+    {
+     "path": "orders/service.py",
+     "added": 30,
+     "removed": 760,
+     "status": "M"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": false
+  },
+  "first": "Changed (git): orders/pricing.py (new, +210 -0); orders/stock.py (new, +180 -0); orders/fulfilment.py (new, +240 -0); orders/service.py (+30 -760)\nLeft: nothing stated\nRisk: low",
+  "second": "Changed (git): orders/pricing.py (new, +210 -0) — the order service split into three modules: pricing, stock and fulfilment; orders/stock.py (new, +180 -0); orders/fulfilment.py (new, +240 -0); orders/service.py (+30 -760)\nLeft: nothing stated\nRisk: low (all 118 tests pass)"
+ },
+ {
+  "pair": "turns-review-014",
+  "item": "V023",
+  "source": "The settings page now saves the notification preferences and shows a toast on success. The component tests pass (14 of 14). That is all from my side. I did not touch any other modules, and the public interfaces of the package stay exactly as they were before.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "ran",
+    "passed": 14,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "app/settings/Notifications.tsx",
+     "added": 45,
+     "removed": 8,
+     "status": "M"
+    },
+    {
+     "path": "app/settings/Notifications.test.tsx",
+     "added": 39,
+     "removed": 0,
+     "status": "M"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": true
+  },
+  "first": "Changed (git): app/settings/Notifications.tsx (+45 -8); app/settings/Notifications.test.tsx (+39 -0)\nUncommitted (git): True\nLeft: nothing stated\nRisk: low",
+  "second": "Changed (git): app/settings/Notifications.tsx (+45 -8) — the settings page now saves the notification preferences and shows a toast on success; app/settings/Notifications.test.tsx (+39 -0)\nUncommitted (git): True\nLeft: nothing stated\nRisk: low (The component tests pass (14 of 14))"
+ },
+ {
+  "pair": "turns-review-015",
+  "item": "V026",
+  "source": "I refactored the auth middleware and extracted the token parsing. The tests did not finish: the suite crashes in the session store test. I tried a mock to work around it but removed it again since it hid the problem.",
+  "facts": {
+   "outcome": "failure",
+   "level": "L3",
+   "tests": {
+    "state": "ran",
+    "passed": 40,
+    "failed": 1
+   },
+   "questions": [],
+   "failures": [
+    "FAILED tests/test_session_store.py::test_expiry_sweep - RuntimeError: event loop is closed",
+    "1 failed, 40 passed"
+   ]
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "auth/middleware.py",
+     "added": 39,
+     "removed": 44,
+     "status": "M"
+    },
+    {
+     "path": "auth/tokens.py",
+     "added": 35,
+     "removed": 0,
+     "status": "A"
+    }
+   ],
+   "reverted": [
+    {
+     "path": "tests/conftest.py",
+     "note": "the session mock fixture was added then removed"
+    }
+   ],
+   "reflog": [
+    "reset: moving to HEAD~1"
+   ],
+   "uncommitted": false
+  },
+  "first": "Changed (git): auth/middleware.py (+39 -44); auth/tokens.py (new, +35 -0)\nReverted (git): tests/conftest.py (the session mock fixture was added then removed); history: reset: moving to HEAD~1\nFailed: FAILED tests/test_session_store.py::test_expiry_sweep - RuntimeError: event loop is closed\nFailed: 1 failed, 40 passed\nLeft: The tests did not finish: the suite crashes in the session store test.\nRisk: high",
+  "second": "Changed (git): auth/middleware.py (+39 -44) — the auth middleware and extracted the token parsing; auth/tokens.py (new, +35 -0)\nReverted (git): tests/conftest.py (the session mock fixture was added then removed); history: reset: moving to HEAD~1\nFailed: FAILED tests/test_session_store.py::test_expiry_sweep - RuntimeError: event loop is closed\nFailed: 1 failed, 40 passed\nLeft: The tests did not finish: the suite crashes in the session store test.\nRisk: high (the suite crashes in the session store test)"
+ },
+ {
+  "pair": "turns-review-016",
+  "item": "V029",
+  "source": "I renamed the module `geo/lookups.py` to `geo/resolve.py` and updated all imports. Type checks and 22 tests pass. I did not touch any other modules, and the public interfaces of the package stay exactly as they were before.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "ran",
+    "passed": 22,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "geo/resolve.py",
+     "added": 0,
+     "removed": 0,
+     "status": "R"
+    },
+    {
+     "path": "geo/api.py",
+     "added": 3,
+     "removed": 3,
+     "status": "M"
+    },
+    {
+     "path": "geo/cli.py",
+     "added": 2,
+     "removed": 2,
+     "status": "M"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": false
+  },
+  "first": "Changed (git): geo/resolve.py (renamed, +0 -0); geo/api.py (+3 -3); geo/cli.py (+2 -2)\nLeft: nothing stated\nRisk: low",
+  "second": "Changed (git): geo/resolve.py (renamed, +0 -0) — renamed the module; geo/api.py (+3 -3) — updated imports; geo/cli.py (+2 -2)\nLeft: nothing stated\nRisk: low (22 tests pass)"
+ },
+ {
+  "pair": "turns-review-017",
+  "item": "V035",
+  "source": "I deleted the obsolete feature-flag file and all references to the beta banner, since the banner shipped last month. Build and 47 tests pass. I did not touch any other modules, and the public interfaces of the package stay exactly as they were before.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "ran",
+    "passed": 47,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "flags/beta_banner.py",
+     "added": 0,
+     "removed": 34,
+     "status": "D"
+    },
+    {
+     "path": "web/Layout.tsx",
+     "added": 0,
+     "removed": 18,
+     "status": "M"
+    },
+    {
+     "path": "web/Layout.test.tsx",
+     "added": 2,
+     "removed": 20,
+     "status": "M"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": false
+  },
+  "first": "Changed (git): flags/beta_banner.py (deleted, +0 -34); web/Layout.tsx (+0 -18); web/Layout.test.tsx (+2 -20)\nLeft: nothing stated\nRisk: low",
+  "second": "Changed (git): flags/beta_banner.py (deleted, +0 -34) — the obsolete feature-flag file deleted and all references to the beta banner; web/Layout.tsx (+0 -18); web/Layout.test.tsx (+2 -20)\nLeft: nothing stated\nRisk: low (Build and 47 tests pass)"
+ },
+ {
+  "pair": "turns-review-018",
+  "item": "V037",
+  "source": "Die Währungsumrechnung rundet jetzt kaufmännisch. Ich habe alles geprüft: alle Tests sind erfolgreich, auch die Randfälle bei halben Cent-Beträgen. Andere Module habe ich dabei nicht angefasst, und die Schnittstellen bleiben so, wie sie vorher waren.",
+  "facts": {
+   "outcome": "failure",
+   "level": "L3",
+   "tests": {
+    "state": "ran",
+    "passed": 66,
+    "failed": 3
+   },
+   "questions": [],
+   "failures": [
+    "FAILED tests/test_round.py::test_half_cent_negative - assert Decimal('-0.01') == Decimal('-0.02')",
+    "FAILED tests/test_round.py::test_half_cent_large - assert 1000000.01 == 1000000.02",
+    "FAILED tests/test_round.py::test_jpy_zero_decimals"
+   ]
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "money/round.py",
+     "added": 21,
+     "removed": 8,
+     "status": "M"
+    },
+    {
+     "path": "tests/test_round.py",
+     "added": 44,
+     "removed": 0,
+     "status": "M"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": false
+  },
+  "first": "Geändert (git): money/round.py (+21 -8); tests/test_round.py (+44 -0)\nFehlgeschlagen: FAILED tests/test_round.py::test_half_cent_negative - assert Decimal('-0.01') == Decimal('-0.02')\nFehlgeschlagen: FAILED tests/test_round.py::test_half_cent_large - assert 1000000.01 == 1000000.02\nFehlgeschlagen: FAILED tests/test_round.py::test_jpy_zero_decimals\nOffen: sonst nichts genannt\nRisiko: hoch",
+  "second": "Geändert (git): money/round.py (+21 -8) — Die Währungsumrechnung rundet jetzt kaufmännisch; tests/test_round.py (+44 -0)\nFehlgeschlagen: FAILED tests/test_round.py::test_half_cent_negative - assert Decimal('-0.01') == Decimal('-0.02')\nFehlgeschlagen: FAILED tests/test_round.py::test_half_cent_large - assert 1000000.01 == 1000000.02\nFehlgeschlagen: FAILED tests/test_round.py::test_jpy_zero_decimals\nOffen: sonst nichts genannt\nRisiko: hoch (alle Tests sind erfolgreich, auch die Randfälle bei halben Cent-Beträgen)"
+ },
+ {
+  "pair": "turns-review-019",
+  "item": "V038",
+  "source": "I bumped the default request timeout from 10 to 20 seconds in the shared client config and noted it in the README. The config loader tests pass (8 of 8).",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "ran",
+    "passed": 8,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "client/config.yaml",
+     "added": 1,
+     "removed": 1,
+     "status": "M"
+    },
+    {
+     "path": "README.md",
+     "added": 2,
+     "removed": 1,
+     "status": "M"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": false
+  },
+  "first": "Changed (git): client/config.yaml (+1 -1); README.md (+2 -1)\nLeft: nothing stated\nRisk: low",
+  "second": "Changed (git): client/config.yaml (+1 -1) — the shared client config, bumped the default request timeout from 10 to 20 seconds; README.md (+2 -1)\nLeft: nothing stated\nRisk: low (the config loader tests pass)"
+ }
+]

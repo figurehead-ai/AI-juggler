@@ -20,9 +20,9 @@ pub fn quoted(title: &str) -> String {
     let line = one_line(title, TITLE_MAX + 1);
     if line.chars().count() > TITLE_MAX {
         let cut: String = line.chars().take(TITLE_MAX - 1).collect();
-        format!("«{}…»", cut.trim_end())
+        format!("“{}…”", cut.trim_end())
     } else {
-        format!("«{line}»")
+        format!("“{line}”")
     }
 }
 
@@ -108,7 +108,7 @@ mod tests {
             "no id is left"
         );
         assert!(
-            named.starts_with("linked «Orders API"),
+            named.starts_with("linked “Orders API"),
             "named by its title"
         );
         assert!(

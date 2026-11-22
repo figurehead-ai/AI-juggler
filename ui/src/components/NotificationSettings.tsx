@@ -8,12 +8,15 @@
  * style; the rarely changed quiet hours and digest fold behind one line
  * that says their values.
  */
-import { useEffect, useState, type JSX } from "react";
+import { Fragment, useEffect, useState, type JSX } from "react";
+import { openWatches } from "../lib/watches-open";
+import { watchesSummary } from "../lib/ipc/watch-view";
+import { DOORS } from "./watches/watches-words";
 import { Card } from "./primitives";
 import { SettingSwitch } from "./SettingSwitch";
-import { NoAccounts, Status, accountName } from "./SettingsSections";
+import { NoAccounts, Status, useAccountName } from "./SettingsSections";
 import { errorText } from "../lib/bridge";
-import { notificationPrefsGet, notificationPrefsSet } from "../lib/ipc/settings";
+import { appSettingGet, appSettingSet, notificationPrefsGet, notificationPrefsSet } from "../lib/ipc/settings";
 import type { AccountInfo } from "../types/generated/AccountInfo";
 import type { NotificationPrefsInfo } from "../types/generated/NotificationPrefsInfo";
 import { notificationsGet, notificationsSendTest, notificationsSet, type SystemNotificationsInfo } from "../lib/ipc/notifications";
@@ -43,6 +46,10 @@ const KINDS: { id: keyof SystemNotificationsInfo; label: string; hint: string; w
   { id: "crash", label: "A session crashes and is restarted", hint: "It crashed and AI Juggler started it again, if you let it.", when: "a session crashes and is restarted" },
   { id: "reset", label: "An account has room again", hint: "Its window reset after it was almost out.", when: "an account has room again" },
   { id: "this_mac", label: `${THIS_MACHINE} is getting tight`, hint: `Memory, disk or heat near its limit, as ${THIS_MACHINE} shows it.`, when: `${THIS_MACHINE} gets tight` },
+  // AJ-E3817: on by default; the user asked for each watch when they set it.
+  { id: "watch", label: "Watches you set", hint: "A watch you set was met. Quiet hours hold it, unless that watch is set to tell you even then.", when: "a watch you set is met" },
+  // AJ-E3712: off by default, like every other kind.
+  { id: "digest", label: "The digest", hint: "What your agents did, in a few lines, every 15 to 30 minutes while they work. Finished sessions are told in it, not one each.", when: "a digest is ready" },
 ];
 
 /** A card's heading: the section-title style (design review 31). */
@@ -80,19 +87,71 @@ function SystemNotifications({ onStatus }: { onStatus: (status: string | null, e
     <fieldset className="flex flex-col gap-2 text-xs" data-testid="system-notifications">
       <legend className={`mb-2 ${HEADING}`}>Notify me outside AI Juggler</legend>
       {KINDS.map((kind) => (
-        <SettingSwitch
-          key={kind.id}
-          id={`notify-${kind.id}`}
-          label={kind.label}
-          hint={kind.hint}
-          checked={kinds[kind.id]}
-          onChange={(on) => save(kind.id, on)}
-        />
+        <Fragment key={kind.id}>
+          <SettingSwitch id={`notify-${kind.id}`} label={kind.label} hint={kind.hint} checked={kinds[kind.id]} onChange={(on) => save(kind.id, on)} />
+          {/* AJ-E3816: the watches themselves live on their own page. */}
+          {kind.id === "watch" && <ManageWatches />}
+        </Fragment>
       ))}
       <span className="text-label leading-relaxed text-muted">
-        Each shows once, never while AI Juggler is in front, and clicking it opens that session. The system may ask
+        Each shows once, never while AI Juggler is in front, and clicking it opens that session. Several within a
+        minute come as one notification that names them. The system may ask
         once whether AI Juggler can notify you; if none appear, allow it in System Settings › Notifications.
       </span>
+    </fieldset>
+  );
+}
+
+/** The link under "Watches you set": the Watches page, with its count. */
+function ManageWatches(): JSX.Element {
+  const [n, setN] = useState<number | null>(null);
+  useEffect(() => {
+    let live = true;
+    void watchesSummary().then(
+      (summary) => live && setN(summary.watching + summary.paused),
+      () => live && setN(null),
+    );
+    return () => {
+      live = false;
+    };
+  }, []);
+  return (
+    <button type="button" onClick={() => openWatches()} className="-mt-1 ml-0.5 inline-flex w-fit items-center gap-1 rounded text-meta font-medium text-accent-hi outline-none hover:underline focus-visible:ring-2 focus-visible:ring-accent/60" data-testid="settings-manage-watches">
+      {n ? DOORS.manage(n) : DOORS.manage(0).replace(/ · 0$/, "")}
+      <span aria-hidden="true">›</span>
+    </button>
+  );
+}
+
+/** AJ-E3712 R7: the agent digest's own switch (on unless turned off):
+ * off, Home gets no digest item and the digest no notification. */
+const DIGEST_ON_KEY = "digest.on";
+
+function AgentDigest({ onStatus }: { onStatus: (status: string | null, error: string | null) => void }): JSX.Element | null {
+  const [on, setOn] = useState<boolean | null>(null);
+  useEffect(() => {
+    void appSettingGet(DIGEST_ON_KEY).then((stored) => setOn(stored !== "false"), () => setOn(true));
+  }, []);
+  if (on === null) return null;
+  return (
+    <fieldset className="flex flex-col gap-1.5 text-xs" data-testid="agent-digest">
+      <legend className={`mb-2 ${HEADING}`}>Agent digest</legend>
+      <SettingSwitch
+        id="agent-digest-on"
+        label="Write a digest of what your agents did"
+        hint="On Home, every 15 to 30 minutes while agents work: a line per agent, what needs you first. Made on this computer from what AI Juggler records; nothing leaves it."
+        checked={on}
+        onChange={(next) => {
+          setOn(next);
+          appSettingSet(DIGEST_ON_KEY, next ? "" : "false").then(
+            () => onStatus(next ? "The digest is on." : "No digest: Home shows each item on its own.", null),
+            (cause: unknown) => {
+              setOn(!next);
+              onStatus(null, errorText(cause));
+            },
+          );
+        }}
+      />
     </fieldset>
   );
 }
@@ -177,6 +236,7 @@ function WhenToTell({
 }
 
 export function NotificationSettingsCard({ accounts }: { accounts: AccountInfo[] }): JSX.Element {
+  const accountName = useAccountName();
   const [prefs, setPrefs] = useState<NotificationPrefsInfo | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -291,6 +351,7 @@ export function NotificationSettingsCard({ accounts }: { accounts: AccountInfo[]
                   })
                 )}
               </fieldset>
+              <AgentDigest onStatus={onStatus} />
             </div>
           </Disclosure>
         </Card>

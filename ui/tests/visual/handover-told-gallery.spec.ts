@@ -45,6 +45,7 @@ const WIZARD = {
   ],
   redaction_items: [],
   secrets: { asks: false, reader: "Codex (OpenAI)" },
+  source_tool: "codex",
   target_tool: "codex",
 };
 

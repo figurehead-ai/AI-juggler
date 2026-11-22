@@ -121,6 +121,24 @@ impl ToolShapes {
                 label: format!("{command} in a terminal"),
             });
         }
+        // AJ-E1610: the AI desktop apps of tools no adapter describes yet
+        // (the Antigravity app), named by their own words. An editor that
+        // is also an AI app (Cursor) isn't one here: the tools in its
+        // terminal are their own, and its tree would hold them twice.
+        for app in juggler_adapters::desktop_apps::all() {
+            if app.kind != HostKind::Desktop
+                || shapes.apps.iter().any(|shape| shape.app.id == app.id)
+            {
+                continue;
+            }
+            let label = app.shown_name().to_owned();
+            shapes.apps.push(AppShape {
+                tool: app.desktop.tool.clone().unwrap_or_else(|| app.id.clone()),
+                who: format!("The {label}"),
+                label,
+                app,
+            });
+        }
         shapes
     }
 
@@ -145,7 +163,14 @@ impl ToolShapes {
         if exe.parent() != Some(dir.join("Contents/MacOS").as_path()) {
             return None;
         }
-        self.apps.iter().find(|shape| shape.app.bundle == bundle)
+        self.apps
+            .iter()
+            .find(|shape| shape.app.bundle == bundle)
+            .or_else(|| {
+                // AJ-E1610: a renamed app or a beta build, by its bundle id.
+                let id = crate::features::conversations::places::bundle_id_of(&dir)?;
+                self.apps.iter().find(|shape| shape.app.has_bundle_id(&id))
+            })
     }
 
     /// Whether `exe` sits anywhere inside a tool's desktop app.
@@ -917,7 +942,20 @@ mod every_tools_app {
     #[test]
     fn the_apps_are_the_adapters_own_never_a_list_here() {
         let shapes = shapes();
-        assert_eq!(shapes.app_bundles(), ["Claude.app", "ChatGPT.app"]);
+        // AJ-E1610: each adapter's own apps in the registry's order, then
+        // the shared table's desktop apps of a tool with no adapter yet
+        // (the Antigravity app); never an editor that is also an AI app.
+        assert_eq!(
+            shapes.app_bundles(),
+            [
+                "Claude.app",
+                "ChatGPT.app",
+                "OpenCode.app",
+                "Kimi Code.app",
+                "Hermes.app",
+                "Antigravity.app"
+            ]
+        );
         // With no adapter for a tool, its app is just another app.
         let none = ToolShapes::default();
         assert!(tools(&table(), &none, Path::new("/Users/you")).is_empty());

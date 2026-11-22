@@ -1,0 +1,23 @@
+{
+  "boxes": [
+    [
+      0,
+      0,
+      264,
+      1348
+    ],
+    [
+      1648,
+      8,
+      45,
+      40
+    ]
+  ],
+  "checked_by_eye": true,
+  "file": "opencode-4-usage-session.jpg",
+  "sha256": "d129e59071f44d3de14a80884425d7f9ede35fab6b04458b45b163ed7bac9b8e",
+  "size": [
+    1701,
+    1348
+  ]
+}

@@ -1,0 +1,56 @@
+[
+ {
+  "pair": "digest5-digest-001",
+  "job": "digest",
+  "first": "model",
+  "second": "non-AI"
+ },
+ {
+  "pair": "digest5b-digest-001",
+  "job": "digest",
+  "first": "model",
+  "second": "non-AI"
+ },
+ {
+  "pair": "digest5b-digest-002",
+  "job": "digest",
+  "first": "non-AI",
+  "second": "model"
+ },
+ {
+  "pair": "digest5b-digest-003",
+  "job": "digest",
+  "first": "model",
+  "second": "non-AI"
+ },
+ {
+  "pair": "digest5b-digest-004",
+  "job": "digest",
+  "first": "non-AI",
+  "second": "model"
+ },
+ {
+  "pair": "digest5b-digest-005",
+  "job": "digest",
+  "first": "non-AI",
+  "second": "model"
+ },
+ {
+  "pair": "digest5b-digest-006",
+  "job": "digest",
+  "first": "non-AI",
+  "second": "model"
+ },
+ {
+  "pair": "digest5b-digest-007",
+  "job": "digest",
+  "first": "non-AI",
+  "second": "model"
+ },
+ {
+  "pair": "digest5b-digest-008",
+  "job": "digest",
+  "first": "model",
+  "second": "non-AI"
+ }
+]

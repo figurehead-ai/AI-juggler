@@ -84,6 +84,13 @@ describe("AJ-E1524 the welcome", () => {
     expect(order).toEqual(["h1", "welcome-found", "welcome-find"]);
   });
 
+  it("claims support only for tools walked live end to end (D-127)", () => {
+    render(<Welcome onFindAccounts={() => {}} onFreshAccount={() => {}} />);
+    const lead = screen.getByText(/AI Juggler runs your/);
+    expect(lead.textContent).toContain("Claude Code, Codex, OpenCode and Grok Build sessions");
+    for (const unproven of ["Kimi Code", "ZCode", "Muse Code", "Hermes Agent"]) expect(lead.textContent).not.toContain(unproven);
+  });
+
   it("Home shows it with zero accounts and not with one", () => {
     const props = { sessions: [], projects: [], now: Date.now(), onOpenSession: () => {}, onNewSession: () => {}, onAddAccounts: () => {} };
     const { rerender } = render(<HomeScreen {...props} accounts={[]} />);

@@ -95,10 +95,21 @@ impl UsageRepo<'_> {
                          VALUES (?1, ?2, ?3, ?4)",
                         params![to, window, hit.ts, source],
                     )?;
+                    // AJ-E3210: the Account it was read under goes with it.
+                    tx.execute(
+                        "INSERT OR REPLACE INTO quota_sample_sign_ins (account, window, ts, signed_in_as)
+                         SELECT ?4, window, ts, signed_in_as FROM quota_sample_sign_ins
+                         WHERE account = ?1 AND window = ?2 AND ts = ?3",
+                        params![from, window, hit.ts, to],
+                    )?;
                 }
             }
             tx.execute(
                 "DELETE FROM quota_sample_sources WHERE account = ?1 AND window = ?2 AND ts = ?3",
+                key,
+            )?;
+            tx.execute(
+                "DELETE FROM quota_sample_sign_ins WHERE account = ?1 AND window = ?2 AND ts = ?3",
                 key,
             )?;
             taken += tx.execute(

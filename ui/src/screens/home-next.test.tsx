@@ -1,8 +1,10 @@
 /**
  * D-97 (1): the end-of-setup Home lists what's next — each tool first
  * run's scan found and the user didn't bring in ("Codex is installed: sign
- * in to add it"), one click to its Add flow, and "Measure its limits" per
- * Account not measured yet — until a session has run.
+ * in to add it"), one click to its Add flow, until a session has run; and
+ * "Measure its limits" per Account not measured yet, on its Runway row.
+ * D-117, D-118's mock: Next steps is the right column's last section,
+ * never above what needs you.
  */
 import { cleanup, fireEvent, render, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -45,7 +47,7 @@ beforeEach(() => {
 });
 
 describe("D-97 Home's Next steps", () => {
-  it("lists a found tool left out, one click to its Add flow, and Measure its limits per Account not measured", async () => {
+  it("lists a found tool left out, one click to its Add flow, under the runway; Measure its limits on each Account's Runway row", async () => {
     rememberFound(SCAN);
     // 0.4.4: Measure its limits asks the tool here (D-39), when it's on.
     const on = { offered: true, state: "on", last_run_ms: null, last_outcome: null };
@@ -61,20 +63,29 @@ describe("D-97 Home's Next steps", () => {
     fireEvent.click(within(tools[0]!).getByRole("button", { name: "Add Codex" }));
     expect(opened).toEqual([JSON.stringify({ tool: "codex" })]);
     window.removeEventListener(ADD_APP, listen);
-    await waitFor(() => expect(within(next).getAllByTestId("home-next-measure")).toHaveLength(2));
-    await waitFor(() => expect(within(next).getAllByRole("button", { name: /^Measure its limits — / })).toHaveLength(2));
+    // The right column's last section: after Your apps and the runway,
+    // never above the needs.
+    const side = view.getByTestId("home-side");
+    expect(side.contains(next)).toBe(true);
+    expect(view.getByTestId("home-runway").compareDocumentPosition(next) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // Each Account not measured says so on its own Runway row, measured there.
+    const runway = view.getByTestId("home-runway");
+    await waitFor(() => expect(within(runway).getAllByRole("button", { name: /^Measure its limits.*— / })).toHaveLength(2));
+    expect(within(next).queryByRole("button", { name: /Measure its limits/ })).toBeNull();
   });
 
-  it("D-103.4: an Account whose tool has no check offers How it's measured, opening where its limits come from under the row", async () => {
+  it("D-103.4: an Account whose tool has no check offers How it's measured on its Runway row, opening where its limits come from", async () => {
     rememberFound({ ...SCAN, not_set_up: [] });
     // No ask offered for either folder: nothing to measure here.
     setSeam("__AIJ_PROBE__", {});
     const view = renderHome();
-    const next = await view.findByTestId("home-next");
-    await waitFor(() => expect(within(next).getAllByRole("button", { name: /^How it's measured — / })).toHaveLength(2));
-    expect(within(next).queryAllByRole("button", { name: /^Measure its limits/ })).toHaveLength(0);
-    const row = within(next).getAllByTestId("home-next-measure")[0]!;
-    fireEvent.click(within(row).getByRole("button", { name: /^How it's measured — / }));
+    const runway = await view.findByTestId("home-runway");
+    await waitFor(() => expect(within(runway).getAllByRole("button", { name: /^How it's measured.*— / })).toHaveLength(2));
+    expect(within(runway).queryAllByRole("button", { name: /^Measure its limits/ })).toHaveLength(0);
+    // No tool left out: no Next steps at all.
+    expect(view.queryByTestId("home-next")).toBeNull();
+    const row = within(runway).getAllByTestId("home-runway-account")[0]!;
+    fireEvent.click(within(row).getByRole("button", { name: /^How it's measured.*— / }));
     expect(within(row).getByTestId("measure-limits-how-words").textContent).toMatch(/^No current reading\. Limits come from /);
   });
 

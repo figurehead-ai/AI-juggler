@@ -27,6 +27,11 @@ pub enum Kind {
     Crashed,
     /// AJ-E2501: an account has room again (its window reset).
     Reset,
+    /// AJ-E3817: a watch the user set fired (ADR-0036 §2.5). Never a
+    /// state the engine tracks: its alerts come straight to the batch.
+    Watch,
+    /// AJ-E3712: the agent digest was made (ADR-0036 §1.7). As `Watch`.
+    Digest,
 }
 
 impl Kind {
@@ -62,6 +67,11 @@ pub enum Target {
     ThisMac,
     /// AJ-E2501: an account, by id.
     Account(String),
+    /// AJ-E3817: the notification centre (a watch on a pool, a project or
+    /// every session: its notice there opens the thing).
+    Centre,
+    /// AJ-E3712: Home's feed, at the newest digest.
+    Feed,
 }
 
 /// One notification due now.
@@ -71,6 +81,9 @@ pub struct Due {
     pub kind: Kind,
     /// What a click opens.
     pub target: Target,
+    /// Quiet hours held it: it comes with everything else they held, as
+    /// one notification (ADR-0036 §1.7).
+    pub held: bool,
 }
 
 /// What the user allows at this moment.
@@ -94,6 +107,8 @@ struct Track {
     now: Option<Kind>,
     /// Not yet shown for the current state (held through quiet hours).
     pending: bool,
+    /// Quiet hours held the current state.
+    held: bool,
     /// When it entered the current state.
     since_ms: i64,
     /// When each kind was last shown.
@@ -116,6 +131,7 @@ impl Engine {
         }
         track.now = kind;
         track.since_ms = now_ms;
+        track.held = false;
         track.pending = kind.is_some_and(|kind| {
             track
                 .shown_ms
@@ -142,6 +158,7 @@ impl Engine {
                 continue;
             }
             if gate.quiet {
+                track.held = true;
                 continue;
             }
             track.pending = false;
@@ -149,6 +166,7 @@ impl Engine {
             due.push(Due {
                 kind,
                 target: target.clone(),
+                held: std::mem::take(&mut track.held),
             });
         }
         // Gone quiet long enough that nothing would hold it back: forgotten.
@@ -233,7 +251,8 @@ mod tests {
             engine.due(&gate(), 2 * MIN),
             vec![Due {
                 kind: Kind::Finished,
-                target: s("a")
+                target: s("a"),
+                held: false,
             }]
         );
     }
@@ -268,8 +287,10 @@ mod tests {
             engine.due(&gate(), 3 * MIN),
             vec![Due {
                 kind: Kind::Waiting,
-                target: s("a")
-            }]
+                target: s("a"),
+                held: true,
+            }],
+            "released, marked held (it comes with the rest as one)"
         );
         assert!(engine.due(&gate(), 4 * MIN).is_empty());
     }
@@ -298,7 +319,8 @@ mod tests {
             engine.due(&muted, 0),
             vec![Due {
                 kind: Kind::Waiting,
-                target: s("c")
+                target: s("c"),
+                held: false,
             }]
         );
 

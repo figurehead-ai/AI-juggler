@@ -1,11 +1,11 @@
 /**
  * The 0.4.6 RC walk K2 (F-K2-7a): Home's "Pick up where you left off"
  * counted only the sessions the app holds (at most 200 ended in 7 days),
- * so "Show all 200" and "Mark all 200 reviewed" said "all" in a lab with
- * 1 000 to review. Its count is the backend's (`sessions_counts` over
- * the `to_review` list in the window), Show all pages every one from that
- * list (never all at once), and Mark all marks every one by that list,
- * its Undo putting that batch back.
+ * so "Mark all 200 reviewed" said "all" in a lab with 1 000 to review.
+ * Its count is the backend's (`sessions_counts` over the `to_review` list
+ * in the window), and Mark all marks every one by that list, its Undo
+ * putting that batch back. In 0.5 (D-118) the list is the feed's (paged
+ * by the feed itself) and Mark all reviewed is its Finished filter's.
  */
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -87,40 +87,33 @@ function home(onChanged = vi.fn()) {
   );
 }
 
-describe("Pick up where you left off counts every one (F-K2-7a)", () => {
+/** 0.5 (D-118): what to pick up is in the feed; Mark all reviewed is in
+ * the Finished filter's ⋯ menu. */
+async function reviewAll(): Promise<HTMLElement> {
+  fireEvent.click(await screen.findByRole("radio", { name: "Finished" }));
+  fireEvent.click(screen.getByTestId("feed-more"));
+  return screen.findByTestId("feed-review-all");
+}
+
+describe("Mark all reviewed counts every one (F-K2-7a)", () => {
   it("says every one to review, never only those the app holds, and says no number before it's counted", async () => {
     let answer: (n: number) => void = () => {};
     countNow = () => new Promise((resolve) => (answer = resolve));
     home();
-    // The held rows at once; no number claimed yet.
-    expect(screen.getAllByTestId("home-recent-item")).toHaveLength(3);
-    expect(screen.getByTestId("home-recent-all").textContent).toBe("Show all");
-    expect(screen.getByTestId("home-review-all").textContent).toBe("Mark all reviewed");
+    // No number claimed before the backend counts them (the app holds 5).
+    expect((await reviewAll()).textContent).toBe("Mark all reviewed");
     await act(async () => answer(TO_REVIEW));
-    expect(screen.getByTestId("home-recent-all").textContent).toBe("Show all 1000");
-    expect(screen.getByTestId("home-review-all").textContent).toBe("Mark all 1000 reviewed");
+    await waitFor(() => expect(screen.getByTestId("feed-review-all").textContent).toBe("Mark all 1000 reviewed"));
     // The backend's list: AI Juggler's own to review, in the 7 days up to now.
     expect(counted[0]).toMatchObject({ which: "to_review" });
     expect(Math.abs(Date.now() - 7 * 86_400_000 - counted[0]!.since_ms!)).toBeLessThan(60_000);
   });
 
-  it("Show all pages every one from the backend, never all at once", async () => {
-    home();
-    await waitFor(() => expect(screen.getByTestId("home-recent-all").textContent).toBe("Show all 1000"));
-    fireEvent.click(screen.getByTestId("home-recent-all"));
-    await waitFor(() => expect(screen.getByTestId("home-recent-paged")).toBeTruthy());
-    expect(paged[0]!.query).toMatchObject({ which: "to_review" });
-    expect(paged[0]!.page.cursor).toBeNull();
-    // A page read, only those in view drawn, the rest on scrolling.
-    expect(screen.getAllByTestId("home-recent-item").length).toBeLessThanOrEqual(50);
-    expect(screen.getByTestId("home-recent-paged-more").textContent).toContain("950 more");
-  });
-
   it("Mark all marks every one by the backend's list, and Undo puts that batch back", async () => {
     const onChanged = vi.fn();
     home(onChanged);
-    await waitFor(() => expect(screen.getByTestId("home-review-all").textContent).toBe("Mark all 1000 reviewed"));
-    await act(async () => fireEvent.click(screen.getByTestId("home-review-all")));
+    await waitFor(async () => expect((await reviewAll()).textContent).toBe("Mark all 1000 reviewed"));
+    await act(async () => fireEvent.click(screen.getByTestId("feed-review-all")));
     expect(marked).toHaveLength(1);
     expect(marked[0]).toMatchObject({ which: "to_review" });
     await waitFor(() => expect(toastEntries().map((toast) => toast.options.message)).toContain("Marked 1000 reviewed."));

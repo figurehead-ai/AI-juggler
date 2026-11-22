@@ -37,7 +37,31 @@ export function UseOriginalModal({
   const [error, setError] = useState<string | null>(null);
   const where = shortPath(source);
   return (
-    <Modal title="Use the original folder?" onClose={onClose}>
+    <Modal title="Use the original folder?" onClose={onClose}
+      footer={
+        <>
+            <Button onClick={onClose}>Not now</Button>
+            <Button
+              variant="primary"
+              disabled={busy}
+              data-testid="use-original-confirm"
+              onClick={async () => {
+                setBusy(true);
+                setError(null);
+                try {
+                  await accountUseOriginal(account.id);
+                  await onDone();
+                } catch (cause) {
+                  setError(errorText(cause));
+                  setBusy(false);
+                }
+              }}
+            >
+              {busy ? "Switching…" : "Use the original"}
+            </Button>
+        </>
+      }
+    >
       <div className="flex flex-col gap-4 text-sm" data-testid="use-original">
         <p className="truncate font-mono text-xs text-ink" title={source}>
           {where}
@@ -52,27 +76,6 @@ export function UseOriginalModal({
             {error}
           </p>
         )}
-        <div className="flex justify-end gap-2">
-          <Button onClick={onClose}>Not now</Button>
-          <Button
-            variant="primary"
-            disabled={busy}
-            data-testid="use-original-confirm"
-            onClick={async () => {
-              setBusy(true);
-              setError(null);
-              try {
-                await accountUseOriginal(account.id);
-                await onDone();
-              } catch (cause) {
-                setError(errorText(cause));
-                setBusy(false);
-              }
-            }}
-          >
-            {busy ? "Switching…" : "Use the original"}
-          </Button>
-        </div>
       </div>
     </Modal>
   );

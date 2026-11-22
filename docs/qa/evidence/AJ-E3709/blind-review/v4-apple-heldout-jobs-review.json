@@ -1,0 +1,162 @@
+[
+ {
+  "pair": "heldout-jobs-review-001",
+  "item": "R001",
+  "source": "I added cursor-based pagination to the invoice list in the ledgerlark project. The new code lives in src/billing/list_invoices.py and the route in src/api/invoices.py now accepts a limit parameter, capped at 100. I also updated the OpenAPI file docs/openapi.yaml so the cursor field is documented. I ran the whole suite: 48 tests passed and none failed. Old clients that send no limit still get the first 25 rows, so nothing breaks for them. Nothing else is outstanding on this task.",
+  "facts": {
+   "outcome": "success",
+   "tests": {
+    "state": "ran",
+    "passed": 48,
+    "failed": 0
+   },
+   "level": "L1"
+  },
+  "first": "Changed: I added cursor-based pagination to the invoice list in the ledgerlark project.\nLeft: nothing stated\nRisk: low",
+  "second": "Changed: added cursor-based pagination to the invoice list in the ledgerlark project; the route in src/api/invoices.py now accepts a limit parameter, capped at 100; updated the OpenAPI file docs/openapi.yaml so the cursor field is documented\nLeft: nothing stated\nRisk: low (48 tests passed and none failed)"
+ },
+ {
+  "pair": "heldout-jobs-review-002",
+  "item": "R002",
+  "source": "Ich habe den Login-Dialog in der App 'Kornblume' überarbeitet: Die Datei web/login/form.tsx zeigt jetzt Fehlermeldungen direkt unter dem Feld an. Die Passwort-Zurücksetzen-Seite habe ich noch nicht angefasst, die bleibt wie sie war. Die Tests habe ich nicht ausgeführt, weil die Testdatenbank in dieser Umgebung nicht läuft. Ich habe nur im Browser kurz geprüft, dass die Meldung erscheint. Bitte lass die Tests lokal laufen, bevor du das übernimmst.",
+  "facts": {
+   "outcome": "success",
+   "tests": {
+    "state": "not_run",
+    "passed": 0,
+    "failed": 0
+   },
+   "level": "L1"
+  },
+  "first": "Geändert: überarbeitet den Login-Dialog in der App 'Kornblume'; zeigt Fehlermeldungen direkt unter dem Feld an; hat die Passwort-Zurücksetzen-Seite noch nicht angefasst\nNicht geprüft: die Tests haben ich nicht ausgeführt, weil die Testdatenbank in dieser Umgebung nicht läuft\nOffen: die Passwort-Zurücksetzen-Seite bleibt wie sie war\nRisiko: hoch (Tests wurden nicht ausgeführt, weil die Testdatenbank in dieser Umgebung nicht läuft)",
+  "second": "Geändert: Ich habe den Login-Dialog in der App 'Kornblume' überarbeitet: Die Datei web/login/form.tsx zeigt jetzt Fehlermeldungen direkt unter dem Feld an.\nNicht geprüft: Die Tests habe ich nicht ausgeführt, weil die Testdatenbank in dieser Umgebung nicht läuft.\nOffen: Die Passwort-Zurücksetzen-Seite habe ich noch nicht angefasst, die bleibt wie sie war.; Ich habe nur im Browser kurz geprüft, dass die Meldung erscheint.\nRisiko: mittel"
+ },
+ {
+  "pair": "heldout-jobs-review-003",
+  "item": "R003",
+  "source": "Partial progress on the nightly export job in the 'tidepool' repo. The scheduler hook in jobs/nightly_export.rs is done and compiles. The CSV writer in jobs/csv_out.rs is only stubbed, it returns an empty file for now. 12 tests pass; 3 are marked ignored until the writer exists. I did not touch the retry logic. Next step is the real writer, then the retry policy, which together are probably another hour of work.",
+  "facts": {
+   "outcome": "none",
+   "tests": {
+    "state": "ran",
+    "passed": 12,
+    "failed": 0
+   },
+   "level": "L2"
+  },
+  "first": "Changed: Partial progress on the nightly export job in the 'tidepool' repo.\nLeft: Partial progress on the nightly export job in the 'tidepool' repo.; The CSV writer in jobs/csv_out.rs is only stubbed, it returns an empty file for now.\nRisk: medium",
+  "second": "Changed: scheduler hook in jobs/nightly_export.rs is done and compiles; CSV writer in jobs/csv_out.rs is only stubbed, returns empty file for now; 3 tests marked ignored until the writer exists\nNot checked: did not touch the retry logic\nLeft: next step is the real writer; then the retry policy; which together are probably another hour of work\nRisk: medium (3 tests marked ignored until the writer exists)"
+ },
+ {
+  "pair": "heldout-jobs-review-004",
+  "item": "R004",
+  "source": "The build is red and I could not fix it. I tried to bump the 'harbor-sdk' dependency to 4.2 in package.json, but the type check fails in 7 places, mostly in src/client/retry.ts, because the Options type lost its timeout field. I reverted the bump, so the tree is as you left it. 31 tests passed before I stopped and 0 failed, since the failures are compile errors, not test failures. You will need to decide whether to wait for harbor-sdk 4.3 or migrate the options by hand.",
+  "facts": {
+   "outcome": "failure",
+   "tests": {
+    "state": "ran",
+    "passed": 31,
+    "failed": 0
+   },
+   "level": "L2"
+  },
+  "first": "Changed: bumped the 'harbor-sdk' dependency to 4.2 in package.json; type check fails in 7 places; Options type lost its timeout field\nNot checked: wait for harbor-sdk 4.3; migrate the options by hand\nLeft: tree is as you left it; failures are compile errors, not test failures\nRisk: high (type check fails in 7 places, Options type lost its timeout field)",
+  "second": "Changed: The build is red and I could not fix it.\nNot checked: 31 tests passed before I stopped and 0 failed, since the failures are compile errors, not test failures.\nLeft: nothing stated\nRisk: high"
+ },
+ {
+  "pair": "heldout-jobs-review-005",
+  "item": "R005",
+  "source": "Quick question before I continue with the cache layer in 'mossgate': should expired entries be deleted on read, or only by the hourly sweeper in cache/sweeper.go? Deleting on read is simpler but makes reads slower under load. So far I wrote the Entry type in cache/entry.go and 9 unit tests, all passing. I stopped here because the choice changes the API of Get(). Tell me which way you prefer and I'll finish the rest.",
+  "facts": {
+   "outcome": "question",
+   "tests": {
+    "state": "ran",
+    "passed": 9,
+    "failed": 0
+   },
+   "level": "L1"
+  },
+  "first": "Changed: wrote the Entry type in cache/entry.go; 9 unit tests, all passing\nLeft: the choice changes the API of Get()\nRisk: medium (the choice changes the API of Get())",
+  "second": "Changed: Quick question before I continue with the cache layer in 'mossgate': should expired entries be deleted on read, or only by the hourly sweeper in cache/sweeper.go?\nLeft: Quick question before I continue with the cache layer in 'mossgate': should expired entries be deleted on read, or...\nRisk: medium"
+ },
+ {
+  "pair": "heldout-jobs-review-006",
+  "item": "R007",
+  "source": "Fixed the crash when the sync folder is empty: sync/scan.py no longer indexes into the first entry blindly. The unit test I added, tests/test_scan_empty.py, passes, but another test, tests/test_scan_symlink.py, now fails. I think it was already flaky because it depends on the temp directory name. That makes 40 passing and 1 failing overall. I did not investigate the symlink failure further, so I cannot say whether my change caused it.",
+  "facts": {
+   "outcome": "success",
+   "tests": {
+    "state": "ran",
+    "passed": 40,
+    "failed": 1
+   },
+   "level": "L2"
+  },
+  "first": "Changed: Fixed the crash when the sync folder is empty: sync/scan.py no longer indexes into the first entry blindly.\nNot checked: I did not investigate the symlink failure further, so I cannot say whether my change caused it.\nLeft: nothing stated\nRisk: high",
+  "second": "Changed: fixed the crash when the sync folder is empty: sync/scan.py no longer indexes into the first entry blindly; the unit test I added, tests/test_scan_empty.py, passes; another test, tests/test_scan_symlink.py, now fails\nNot checked: did not investigate the symlink failure further, so cannot say whether my change caused it\nLeft: another test, tests/test_scan_symlink.py, now fails\nRisk: medium (another test now fails)"
+ },
+ {
+  "pair": "heldout-jobs-review-007",
+  "item": "R008",
+  "source": "Ich habe die Preisberechnung im Warenkorb von 'Tannenhof' umgestellt: Rabatte werden jetzt vor der Steuer abgezogen (shop/cart/pricing.py). Das war der gewünschte Fehler-Fix. Gleichzeitig ist mir aufgefallen, dass der Gutschein-Export in shop/export/vouchers.py dieselbe falsche Reihenfolge benutzt; den habe ich nicht geändert. 18 Tests bestanden, 2 schlugen fehl, beide in tests/test_checkout_rounding.py, weil sie die alte Reihenfolge erwarten. Ich habe sie nicht angepasst.",
+  "facts": {
+   "outcome": "success",
+   "tests": {
+    "state": "ran",
+    "passed": 18,
+    "failed": 2
+   },
+   "level": "L3"
+  },
+  "first": "Geändert: Preisberechnung im Warenkorb von 'Tannenhof' umgestellt; Rabatte werden jetzt vor der Steuer abgezogen\nNicht geprüft: den habe ich nicht geändert\nOffen: der Gutschein-Export in shop/export/vouchers.py benutzt dieselbe Reihenfolge; die alte Reihenfolge erwarten\nRisiko: hoch (2 Schlugen Fehl, beide in tests/test_checkout_rounding.py, weil sie die alte Reihenfolge erwarten)",
+  "second": "Geändert: Das war der gewünschte Fehler-Fix.\nOffen: nichts genannt\nRisiko: hoch"
+ },
+ {
+  "pair": "heldout-jobs-review-008",
+  "item": "R009",
+  "source": "I renamed the config key 'max_workers' to 'worker_limit' across the 'skiff' codebase: 14 files changed, mostly under src/runtime/ plus the sample file config/skiff.example.toml. I did not run any tests or the linter, since the sandbox has no network and the test runner needs to fetch fixtures. A rename like this can silently break users who keep the old key in their own config, and I did not add a fallback. Please run the suite before merging.",
+  "facts": {
+   "outcome": "success",
+   "tests": {
+    "state": "not_run",
+    "passed": 0,
+    "failed": 0
+   },
+   "level": "L2"
+  },
+  "first": "Changed: renamed the config key 'max_workers' to 'worker_limit' across the 'skiff' codebase; 14 files changed, mostly under src/runtime plus the sample file config/skiff.example.toml\nNot checked: did not run any tests or the linter\nLeft: Please run the suite before merging\nRisk: high (a rename like this can silently break users who keep the old key in their own config, and I did not add a fallback)",
+  "second": "Changed: I renamed the config key 'max_workers' to 'worker_limit' across the 'skiff' codebase: 14 files changed, mostly under src/runtime/ plus the sample file config/skiff.example.toml.\nNot checked: I did not run any tests or the linter, since the sandbox has no network and the test runner needs to fetch fixtures.\nLeft: nothing stated\nRisk: medium"
+ },
+ {
+  "pair": "heldout-jobs-review-009",
+  "item": "R010",
+  "source": "Did the migration to the new logging format in 'quill-api'. All handlers under app/handlers/ now emit JSON lines through app/log.py. Good news: 64 tests pass. Bad news: the staging dashboard parses the old plain-text format, so its alerts will stop matching until someone updates the parser, and I have no access to that config. Also left as is: the batch scripts in scripts/ still print plain text.",
+  "facts": {
+   "outcome": "success",
+   "tests": {
+    "state": "ran",
+    "passed": 64,
+    "failed": 0
+   },
+   "level": "L2"
+  },
+  "first": "Changed: migration to the new logging format in 'quill-api'; all handlers under app/handlers/ now emit JSON lines through app/log.py\nNot checked: the staging dashboard parses the old plain-text format, so its alerts will stop matching until someone updates the parser\nLeft: the batch scripts in scripts/ still print plain text\nRisk: medium (staging dashboard alerts will stop matching until parser is updated)",
+  "second": "Changed: Did the migration to the new logging format in 'quill-api'.\nLeft: nothing stated\nRisk: low"
+ },
+ {
+  "pair": "heldout-jobs-review-010",
+  "item": "R012",
+  "source": "Finished the README rewrite for the 'pebble' CLI. It now covers install, the three subcommands (init, run, clean) and the exit codes in docs/exit-codes.md, which I also added. No code was touched, so no tests were run and none were needed. One thing to know: the install section says Python 3.9 or newer, but setup.cfg still says 3.8, and I left that mismatch alone. Please pick one.",
+  "facts": {
+   "outcome": "success",
+   "tests": {
+    "state": "not_run",
+    "passed": 0,
+    "failed": 0
+   },
+   "level": "L0"
+  },
+  "first": "Changed: finished the README rewrite for the 'pebble' CLI; it now covers install, the three subcommands (init, run, clean) and the exit codes in docs/exit-codes.md, which I also added; no code was touched, so no tests were run and none were needed\nTests (AI Juggler): not run\nLeft: the install section says Python 3.9 or newer, but setup.cfg still says 3.8, and I left that mismatch alone. Please pick one\nRisk: not stated (no tests were run and none were needed)",
+  "second": "Changed: Finished the README rewrite for the 'pebble' CLI.\nNot checked: No code was touched, so no tests were run and none were needed.\nLeft: nothing stated\nRisk: medium"
+ }
+]

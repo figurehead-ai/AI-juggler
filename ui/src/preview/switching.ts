@@ -48,6 +48,7 @@ export const DEFAULT_PREFLIGHT: PreflightInfoData = {
   ],
   move_line: "The whole conversation is carried over — all 42 messages, its subagents and file history.",
   secrets: { asks: false, reader: "Claude Code (Anthropic)" },
+  source_tool: MOCK_ACCOUNTS[0]!.provider,
   target_tool: MOCK_ACCOUNTS[0]!.provider, // the mock accounts' tool (no tool id written here: ADR-0019)
 };
 

@@ -16,11 +16,19 @@ import { accountsWords, projectAccounts } from "../lib/project-accounts";
 import { useConversations } from "../lib/conversations";
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import type { ProjectInfo } from "../types/generated/ProjectInfo";
+import { SELECTED_FILL } from "./controls/selected";
+import { appTone, type AttentionLevel } from "../lib/attention";
+import { HeadNeeds, headNeedsWords } from "./rail-groups";
 
-/** The accent bar a selected row carries. */
-function SelectedBar(): JSX.Element {
-  return <span aria-hidden="true" className="absolute left-0.5 top-1/2 h-4 w-[2px] -translate-y-1/2 rounded-full bg-accent" />;
+/** What needs you in a project (`groupNeeds`): how many (L2+L3), their
+ * highest level, whether all are guesses, and each broken one's word. */
+export interface ProjectNeeds {
+  needsHere: number;
+  level: AttentionLevel;
+  probably: boolean;
+  broken: string[];
 }
+const NO_NEEDS: ProjectNeeds = { needsHere: 0, level: 0, probably: false, broken: [] };
 
 /** AJ-E1502: a pinned row's mark, beside its title. */
 export function PinMark(): JSX.Element {
@@ -65,15 +73,15 @@ export function ProjectRow({
         className={
           "relative flex w-full min-w-0 items-center gap-2.5 rounded-lg pl-2.5 pr-2 text-left outline-none transition-colors focus-visible:ring-1 focus-visible:ring-accent/60 " +
           (density === "compact" ? "py-1.5 " : "py-2 ") +
-          (selected ? "bg-surface" : "hover:bg-surface/60")
+          // D-117 (selection): a 3:1 edge on the raised fill, its name in ink.
+          (selected ? SELECTED_FILL : "hover:bg-surface/60")
         }
         data-testid="rail-history-project"
       >
-        {selected && <SelectedBar />}
         <ProjectMark projectId={project.id} size={16} />
         <span className="flex min-w-0 flex-1 flex-col">
           <span className="flex min-w-0 items-baseline gap-1.5">
-            <span className={"min-w-0 truncate text-meta font-medium " + (project.missing ? "text-muted" : "text-ink")}>{project.name}</span>
+            <span className={"min-w-0 truncate text-meta " + (selected ? "font-semibold " : "font-medium ") + (project.missing && !selected ? "text-muted" : "text-ink")}>{project.name}</span>
             {project.pinned && <PinMark />}
             {project.missing && <span className="shrink-0 text-label font-semibold text-muted">moved</span>}
             {density === "compact" && when && <span className="ml-auto shrink-0 text-label tabular-nums text-muted">{when === "just now" ? "now" : when.replace(" ago", "")}</span>}
@@ -101,13 +109,17 @@ export function ProjectRow({
 }
 
 /** A project's group heading in the rail: opens the project, with its
- * menu on right-click, ⋯ or Shift+F10 (AJ-E1537). */
+ * menu on right-click, ⋯ or Shift+F10 (AJ-E1537). D-117: what needs you
+ * in it shows as an App's head shows it, folded or not: its level's mark
+ * and the number (`HeadNeeds`, the mark hidden), said in its name ("ai-
+ * juggler, 2 need you, 1 stopped with an error"). */
 export function RailProjectHeader({
   project,
   rows,
   label,
   rollup,
   count,
+  needs = NO_NEEDS,
   selected,
   onSelect,
   children,
@@ -118,6 +130,8 @@ export function RailProjectHeader({
   label: string;
   rollup: string;
   count: number;
+  /** What needs you in it (`groupNeeds`, the App heads' rule). */
+  needs?: ProjectNeeds;
   selected: boolean;
   onSelect: () => void;
   children?: ReactNode;
@@ -125,8 +139,12 @@ export function RailProjectHeader({
   const menu = useItemMenu("project", project, label);
   const accounts = projectAccounts(project, rows, useConversations().all);
   const accountsId = useId();
+  // D-117: its Apps' icons muted at rest; in full colour while one of its
+  // sessions waits on you or broke (L2/L3), when current, on hover or focus.
+  const lit = selected || needs.level >= 2;
+  const said = [label, project.pinned ? "pinned" : null, `${count} ${count === 1 ? "session" : "sessions"}`, headNeedsWords(needs.needsHere, needs.broken) || null].filter(Boolean).join(", ");
   return (
-    <div className="group relative flex min-w-0 flex-1 items-center" data-rail-row {...menu.triggerProps}>
+    <div className="tone-host group relative flex min-w-0 flex-1 items-center" data-rail-row {...menu.triggerProps}>
       <button
         type="button"
         onClick={onSelect}
@@ -136,19 +154,24 @@ export function RailProjectHeader({
         data-rail-selected={selected ? "true" : undefined}
         className={
           "relative flex min-w-0 flex-1 items-center justify-between gap-2 rounded-md py-0.5 pl-1 pr-2.5 text-left text-meta font-semibold outline-none focus-visible:ring-1 focus-visible:ring-accent/60 " +
-          (selected ? "bg-surface text-ink" : "text-muted hover:text-ink")
+          (selected ? SELECTED_FILL + " text-ink" : "text-muted hover:text-ink")
         }
         data-testid="rail-project"
+        data-level={needs.needsHere > 0 ? needs.level : undefined}
       >
-        {selected && <SelectedBar />}
-        <span className="flex min-w-0 items-center gap-1.5">
+        {/* Its name in words; what it draws is decoration (D-117). */}
+        <span className="sr-only">{said}</span>
+        <span aria-hidden="true" className="flex min-w-0 items-center gap-1.5">
           <ProjectMark projectId={project.id} size={14} />
           <span className="min-w-0 truncate">{label}</span>
           {project.pinned && <PinMark />}
         </span>
-        <span className="flex shrink-0 items-center gap-1.5">
+        <span aria-hidden="true" className="flex shrink-0 items-center gap-1.5">
           {children}
-          <AppStack apps={accounts} />
+          <HeadNeeds needs={needs.needsHere} level={needs.level} probably={needs.probably} />
+          {accounts.length > 0 && (
+            <AppStack apps={accounts} tone={appTone(lit)} />
+          )}
           <span className="text-label font-normal text-muted">{count}</span>
         </span>
       </button>

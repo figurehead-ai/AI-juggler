@@ -8,7 +8,7 @@
  * (its data, never its identity). Failures name the file and the reason.
  */
 import { useEffect, useRef, useState, type JSX } from "react";
-import { Card } from "./primitives";
+import { Button, Card } from "./primitives";
 import { backupExport, backupRestore, backupVerify, onBackupProgress, pickBackupDestination, pickBackupFile } from "../lib/ipc/backup";
 import { errorText } from "../lib/bridge";
 import type { BackupExportInfo } from "../types/generated/BackupExportInfo";
@@ -16,6 +16,7 @@ import type { RestorePlanInfo } from "../types/generated/RestorePlanInfo";
 import type { RestoreResultInfo } from "../types/generated/RestoreResultInfo";
 import { CardTitle } from "./CardTitle";
 import { byteSize } from "../lib/compact";
+import { DialogFrame, DialogOverlay } from "./DialogFrame";
 
 type Phase =
   | { kind: "idle" }
@@ -188,18 +189,33 @@ export function BackupRestoreCard(): JSX.Element {
       </div>
 
       {(phase.kind === "plan" || phase.kind === "restoring") && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6 backdrop-blur-sm">
-          <div
+        <DialogOverlay className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+          <DialogFrame
             role="alertdialog"
             aria-modal="true"
             aria-labelledby="restore-title"
             aria-describedby="restore-notes"
             data-testid="restore-plan"
-            className="flex max-h-full w-full max-w-lg flex-col gap-3 overflow-y-auto rounded-xl border border-hairline bg-surface p-5 shadow-card"
+            className="w-full max-w-lg rounded-xl border border-hairline bg-surface shadow-card"
+            headerClassName="px-5 pt-5"
+            bodyClassName="flex flex-col gap-3 px-5 pt-3 pb-3"
+            footerClassName="px-5 pt-3 pb-5"
+            header={
+              <h3 id="restore-title" className="text-sm font-semibold">
+                Restore this backup?
+              </h3>
+            }
+            footer={
+              <div className="flex justify-end gap-2">
+                <Button size="sm" variant="ghost" disabled={phase.kind === "restoring"} onClick={() => setPhase({ kind: "idle" })}>
+                  Cancel
+                </Button>
+                <Button ref={restoreRef} size="sm" variant="primary" disabled={phase.kind === "restoring"} onClick={() => void restore(phase.plan)} data-testid="restore-go">
+                  {phase.kind === "restoring" ? "Restoring…" : "Restore"}
+                </Button>
+              </div>
+            }
           >
-            <h3 id="restore-title" className="text-sm font-semibold">
-              Restore this backup?
-            </h3>
             <p className="text-label text-ink">
               <span aria-hidden="true">✓ </span>Every file checked — {countLine(phase.plan.manifest.counts)}. Made{" "}
               {new Date(phase.plan.manifest.created_at_ms).toLocaleString([], { dateStyle: "medium", timeStyle: "short" })} on{" "}
@@ -222,28 +238,8 @@ export function BackupRestoreCard(): JSX.Element {
                   <li key={note}>{note}</li>
                 ))}
             </ul>
-            <div className="flex justify-end gap-2">
-              <button
-                type="button"
-                disabled={phase.kind === "restoring"}
-                onClick={() => setPhase({ kind: "idle" })}
-                className="rounded-lg border border-hairline px-3 py-1.5 text-xs text-ink"
-              >
-                Cancel
-              </button>
-              <button
-                ref={restoreRef}
-                type="button"
-                disabled={phase.kind === "restoring"}
-                onClick={() => void restore(phase.plan)}
-                className="rounded-lg border border-accent/60 px-3 py-1.5 text-xs font-medium text-ink hover:border-accent"
-                data-testid="restore-go"
-              >
-                {phase.kind === "restoring" ? "Restoring…" : "Restore"}
-              </button>
-            </div>
-          </div>
-        </div>
+          </DialogFrame>
+        </DialogOverlay>
       )}
     </Card>
   );

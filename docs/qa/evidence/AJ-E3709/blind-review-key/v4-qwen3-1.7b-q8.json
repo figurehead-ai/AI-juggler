@@ -1,0 +1,197 @@
+[
+ {
+  "pair": "heldout-chat-001",
+  "first": "found rows",
+  "second": "model"
+ },
+ {
+  "pair": "heldout-chat-002",
+  "first": "model",
+  "second": "found rows"
+ },
+ {
+  "pair": "heldout-chat-003",
+  "first": "found rows",
+  "second": "model"
+ },
+ {
+  "pair": "heldout-chat-004",
+  "first": "model",
+  "second": "found rows"
+ },
+ {
+  "pair": "heldout-chat-005",
+  "first": "model",
+  "second": "found rows"
+ },
+ {
+  "pair": "heldout-chat-006",
+  "first": "found rows",
+  "second": "model"
+ },
+ {
+  "pair": "heldout-chat-007",
+  "first": "found rows",
+  "second": "model"
+ },
+ {
+  "pair": "heldout-chat-008",
+  "first": "found rows",
+  "second": "model"
+ },
+ {
+  "pair": "heldout-feed_line-001",
+  "first": "A's excerpt",
+  "second": "model"
+ },
+ {
+  "pair": "heldout-feed_line-002",
+  "first": "model",
+  "second": "A's excerpt"
+ },
+ {
+  "pair": "heldout-feed_line-003",
+  "first": "model",
+  "second": "A's excerpt"
+ },
+ {
+  "pair": "heldout-feed_line-004",
+  "first": "A's excerpt",
+  "second": "model"
+ },
+ {
+  "pair": "heldout-feed_line-005",
+  "first": "A's excerpt",
+  "second": "model"
+ },
+ {
+  "pair": "heldout-feed_line-006",
+  "first": "model",
+  "second": "A's excerpt"
+ },
+ {
+  "pair": "heldout-feed_line-007",
+  "first": "model",
+  "second": "A's excerpt"
+ },
+ {
+  "pair": "heldout-feed_line-008",
+  "first": "A's excerpt",
+  "second": "model"
+ },
+ {
+  "pair": "heldout-feed_line-009",
+  "first": "A's excerpt",
+  "second": "model"
+ },
+ {
+  "pair": "heldout-review-001",
+  "first": "model",
+  "second": "baseline"
+ },
+ {
+  "pair": "heldout-review-002",
+  "first": "baseline",
+  "second": "model"
+ },
+ {
+  "pair": "heldout-review-003",
+  "first": "baseline",
+  "second": "model"
+ },
+ {
+  "pair": "heldout-review-004",
+  "first": "model",
+  "second": "baseline"
+ },
+ {
+  "pair": "heldout-review-005",
+  "first": "model",
+  "second": "baseline"
+ },
+ {
+  "pair": "heldout-review-006",
+  "first": "baseline",
+  "second": "model"
+ },
+ {
+  "pair": "heldout-review-007",
+  "first": "baseline",
+  "second": "model"
+ },
+ {
+  "pair": "heldout-review-008",
+  "first": "model",
+  "second": "baseline"
+ },
+ {
+  "pair": "heldout-review-009",
+  "first": "model",
+  "second": "baseline"
+ },
+ {
+  "pair": "heldout-review-010",
+  "first": "model",
+  "second": "baseline"
+ },
+ {
+  "pair": "heldout-jobs-chat-001",
+  "first": "found rows",
+  "second": "model"
+ },
+ {
+  "pair": "heldout-jobs-chat-002",
+  "first": "model",
+  "second": "found rows"
+ },
+ {
+  "pair": "heldout-jobs-chat-003",
+  "first": "model",
+  "second": "found rows"
+ },
+ {
+  "pair": "heldout-jobs-chat-004",
+  "first": "found rows",
+  "second": "model"
+ },
+ {
+  "pair": "heldout-jobs-review-001",
+  "first": "baseline",
+  "second": "model"
+ },
+ {
+  "pair": "heldout-jobs-review-002",
+  "first": "baseline",
+  "second": "model"
+ },
+ {
+  "pair": "heldout-jobs-review-003",
+  "first": "model",
+  "second": "baseline"
+ },
+ {
+  "pair": "heldout-jobs-review-004",
+  "first": "model",
+  "second": "baseline"
+ },
+ {
+  "pair": "heldout-jobs-review-005",
+  "first": "baseline",
+  "second": "model"
+ },
+ {
+  "pair": "heldout-jobs-review-006",
+  "first": "model",
+  "second": "baseline"
+ },
+ {
+  "pair": "heldout-jobs-review-007",
+  "first": "baseline",
+  "second": "model"
+ },
+ {
+  "pair": "heldout-jobs-review-008",
+  "first": "model",
+  "second": "baseline"
+ }
+]

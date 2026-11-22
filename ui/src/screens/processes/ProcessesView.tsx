@@ -30,6 +30,7 @@ import { clearProcess, onProcessAsk, openSubagents, peekProcess } from "../../li
 import { RowActions, canStop, isSessionItself, type RowHandlers } from "./RowActions";
 import { FiltersButton, NO_FILTERS, SearchBox, ViewTabs, filterCount, type Choice, type Filters, type ViewId } from "./Toolbar";
 import { useProcessRows } from "./useProcessRows";
+import { askRecount } from "../../lib/recount";
 
 /** The Ports view reads the port inventory (the made-up one in the preview). */
 const PORTS: PortsBridge = { load: processesPorts };
@@ -133,7 +134,13 @@ export function ProcessesView({
       }),
     [view, sessionId, scope, filters, words, expanded, collapsed],
   );
-  const { rows, total, counts, degraded, loading, current, error, hasMore, loadMore, refresh } = useProcessRows(query);
+  const { rows, total, counts, degraded, loading, current, error, hasMore, loadMore, refresh: reread } = useProcessRows(query);
+  // SK48-14: what a stop, a clean-up or a mark changed, every count reads
+  // with the list (the tile, the top bar's, Needs you), now and a tick on.
+  const refresh = useCallback(() => {
+    reread();
+    askRecount();
+  }, [reread]);
 
   const chooseView = (next: ViewId) => {
     setView(next);
@@ -187,6 +194,9 @@ export function ProcessesView({
 
   const stopRow = stopping?.row;
   const stopSession = stopRow ? sessionOf(stopRow) : null;
+  // R3: one bridge per stop, not one per render.
+  const observedStart = stopRow?.process?.stop === "observed" ? stopRow.process.start_time : undefined;
+  const stopBridge = useMemo(() => (observedStart === undefined ? undefined : observedBridge(observedStart)), [observedStart]);
   // Explained when one shows (its row is listed), not when one is elsewhere.
   const zombies = rows.filter((row) => row.state === "zombie").length;
   const empty =
@@ -245,7 +255,7 @@ export function ProcessesView({
           ended={view === "ended"}
           isOpen={isOpen}
           onToggle={onToggle}
-          actions={(row) => <RowActions row={row} on={handlers} />}
+          actions={(row, active) => <RowActions row={row} on={handlers} active={active} />}
           onActivate={(row) =>
             canStop(row) ? handlers.stop(row) : isSessionItself(row) && !embedded ? handlers.goToSession(row) : row.kind === "session" ? onToggle(row, !isOpen(row)) : undefined
           }
@@ -265,7 +275,7 @@ export function ProcessesView({
           pid={stopRow.process.pid}
           goalPort={stopRow.ports[0] ?? null}
           trigger={stopping.trigger ?? undefined}
-          bridge={stopRow.process.stop === "observed" ? observedBridge(stopRow.process.start_time) : undefined}
+          bridge={stopBridge}
           onlyThisProcess={stopRow.process.stop === "observed" ? "Only this process: the app's session and its other processes are never touched." : undefined}
           observed={stopRow.process.stop === "observed"}
           sessionEnded={stopRow.state === "left_behind" || stopRow.state === "left_behind_closed" || stopSession?.state === "ended"}

@@ -27,6 +27,8 @@ export interface ActionHost {
   revealSessionProject?: (row: InstanceInfo) => void;
   /** AJ-E1702: its pool (the pool sheet's "Move to pool"). */
   moveSessionToPool?: (row: InstanceInfo) => void;
+  /** AJ-E3816: the Watches form with this session picked. */
+  watchSession?: (row: InstanceInfo) => void;
   /** AJ-E1703: a pool's page, by its id. */
   openPool?: (poolId: string) => void;
   /** AJ-E2807: a pool's card menu: rename it, delete it (each asks first). */

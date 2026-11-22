@@ -198,6 +198,10 @@ jobs:
         run: |
           python3 scripts/cleartext_lint.py --selftest
           python3 scripts/cleartext_lint.py
+      - name: A 64-bit integer reaches the window only below 2^53, or as a string (AJ-E1612)
+        run: |
+          python3 scripts/js_number_lint.py --selftest
+          python3 scripts/js_number_lint.py
       - name: ARCHITECTURE.md is current and every crate says what it must not know (AJ-E2015)
         run: |
           python3 scripts/architecture_fresh.py --selftest
@@ -344,7 +348,11 @@ jobs:
           python3 scripts/gen_stats_events.py --check
           ./scripts/stats_feature_check.sh
       - name: Dependency policy (cargo-deny)
-        run: cargo deny check
+        # D-131 (the 2026-11-19 review's M2): the local-model helper's own
+        # workspace under the same policy (the root deny.toml).
+        run: |
+          cargo deny check
+          cargo deny --manifest-path crates/juggler-local-ai/Cargo.toml check
       - name: cargo-vet and cargo-machete (pinned, digest-checked)
         run: |
           ./scripts/install_release_tool.sh cargo-vet "$HOME/.local/bin" >/dev/null
@@ -356,6 +364,7 @@ jobs:
           BASE: ${{ github.event.pull_request.base.sha || 'origin/main' }}
         run: |
           cargo vet --locked
+          cargo vet --locked --manifest-path crates/juggler-local-ai/Cargo.toml
           python3 scripts/vet_exemptions.py --selftest
           python3 scripts/vet_exemptions.py
           python3 scripts/js_sbom.py --selftest
@@ -496,9 +505,14 @@ jobs:
           tar -xzf "$RUNNER_TEMP/$NEXTEST" -C "$HOME/.local/bin"
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
       # Some tests read the dependency graph (`cargo metadata --offline`,
-      # trust.rs): the crates, as locked, without building them.
+      # trust.rs): the crates, as locked, without building them. The
+      # local-model helper's own workspace too: trust.rs holds it to the
+      # same network list through its own lock (D-131), and offline it
+      # can't resolve a crate the cache doesn't hold.
       - name: Crates, exactly as locked
-        run: cargo fetch --locked
+        run: |
+          cargo fetch --locked
+          cargo fetch --locked --manifest-path crates/juggler-local-ai/Cargo.toml
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: nextest-archive
@@ -643,7 +657,7 @@ jobs:
   # required check missing, which blocks the merge.
   verify:
     name: verify
-    needs: [plan, static, static-rust, rust-build, rust-test, dev-bridge, floor-gallery, ui, visual-shard, visual, a11y-shard, a11y, build-macos, rc-dev-app, build-linux, build-windows]
+    needs: [plan, static, static-rust, rust-build, rust-test, dev-bridge, floor-gallery, ui, visual-shard, visual, a11y-shard, a11y, build-macos, rc-dev-app, rc-v49, rc-first-open, build-linux, build-windows]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -1044,6 +1058,23 @@ jobs:
       # a real picture; a runner without a GPU says so and stops).
       - name: The Floor on Metal
         run: cargo test -p juggler-floor-render
+      # D-131 (ADR-0033 §4.2): the local-model helper is its own workspace
+      # (llama.cpp's C++ never builds in the app's), so its own lints and
+      # tests run here: the real binary against its protocol with no model.
+      # The smoke test with a model stays #[ignore]d: none is fetched.
+      - name: The local-model helper (its own workspace)
+        working-directory: crates/juggler-local-ai
+        env:
+          CMAKE_DISABLE_FIND_PACKAGE_OpenSSL: "TRUE"
+        run: |
+          set -euo pipefail
+          cargo fetch --locked
+          cargo fmt --check
+          cargo clippy --offline --locked --release --all-targets -- -D warnings
+          # Its whole path, sandboxed too, on a synthetic model the tests
+          # write (no model is fetched), and the sandbox probe.
+          cargo test --offline --locked --release
+          # Its cargo-deny and cargo-vet run in static-rust, beside the app's.
       # AJ-E512: the collateral suite is a REQUIRED gate on macOS too
       # (Linux runs it via `verify`'s workspace tests) — zero-signal
       # assertions on real processes with trap logs, never UI state.
@@ -1097,6 +1128,13 @@ jobs:
   # the first open after an update (the rc8 blocker) on the synthetic v49
   # database, in a real window. Only then is the app uploaded, as
   # `rc-dev-app-<commit>`, for walks: `scripts/qa/fetch_rc.sh <commit>`.
+  #
+  # Three jobs, so the two release builds run side by side (AJ-E2020 R5,
+  # 2026-11-13): the app (rc-dev-app, ~19 min) and the v49 database's test
+  # build (rc-v49, ~20 min: `cargo test --release` builds juggler-app and
+  # its dependencies again with the test features). One after the other
+  # they were ~40 min, every pull request's critical path. rc-first-open
+  # then runs the real-window check on both, and uploads the app.
   rc-dev-app:
     name: rc-dev-app
     needs: plan
@@ -1137,6 +1175,10 @@ jobs:
         env:
           HEAD_REF: ${{ github.head_ref || github.ref_name }}
         run: ./scripts/ci/rc_version.sh
+      # D-131: the local-model helper's own workspace builds offline
+      # (scripts/build_local_ai_helper.sh), from crates fetched here.
+      - name: The local-model helper's crates, exactly as locked
+        run: cargo fetch --locked --manifest-path crates/juggler-local-ai/Cargo.toml
       - name: Build AI Juggler Dev (as `just app`; checks the bundle)
         run: ./scripts/build_dev_app.sh
       - name: The app, for walks
@@ -1149,10 +1191,63 @@ jobs:
           echo "$REF" > "$out/COMMIT"
           lipo -info "$APP/Contents/MacOS/"*
           codesign -dv "$APP/Contents/MacOS/juggler-app" 2>&1 | grep -E '^(Signature|Identifier|CDHash)' || true
-      # The synthetic v49 database (no real data), made as the local RC
-      # made it, and the headless measure of its first open (storage ready,
-      # sizes). The test binary links the Swift bridge but never calls it:
-      # an empty stub satisfies its load (as build-macos's suites do).
+      # Checked by rc-first-open before anyone can fetch it for a walk.
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: rc-build-${{ env.REF }}
+          path: ${{ runner.temp }}/rc/
+          retention-days: 1
+          if-no-files-found: error
+      - name: Keep the dependencies only (release, main only)
+        if: steps.cargo-cache.outputs.cache-hit != 'true' && github.ref == 'refs/heads/main'
+        shell: bash
+        run: ./scripts/ci/cache_keep_deps.sh target/release
+      - name: Save the Cargo cache (release, main only)
+        if: steps.cargo-cache.outputs.cache-hit != 'true' && github.ref == 'refs/heads/main'
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            target
+          key: ${{ steps.cargo-cache.outputs.cache-primary-key }}
+
+  # The synthetic v49 database (no real data), made as the local RC made
+  # it, and the headless measure of its first open (storage ready, sizes).
+  # The test binary links the Swift bridge but never calls it: an empty
+  # stub satisfies its load (as build-macos's suites do). Its own release
+  # cache: the test build's dependency set isn't the app's.
+  rc-v49:
+    name: rc-v49
+    needs: plan
+    if: needs.plan.outputs.tested == '' && contains(fromJSON(needs.plan.outputs.jobs || '[]'), 'rc-v49')
+    runs-on: macos-latest
+    timeout-minutes: 90
+    permissions:
+      contents: read
+    env:
+      REF: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: ${{ env.REF }}
+          persist-credentials: false
+      - name: Toolchain (pinned)
+        uses: $/.github/actions/macos-app-toolchain
+        with:
+          target: aarch64-apple-darwin
+      - name: Cargo cache (release tests)
+        id: cargo-cache
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            target
+          key: ${{ runner.os }}-rc-v49-cargo-${{ hashFiles('**/Cargo.lock', 'rust-toolchain.toml') }}
+          restore-keys: ${{ runner.os }}-rc-v49-cargo-
       - name: The v49 database, and its first open measured
         run: |
           set -euo pipefail
@@ -1162,6 +1257,64 @@ jobs:
           AIJ_KEEP_V49="$RUNNER_TEMP/v49/juggler.sqlite" \
             cargo test --release -p juggler-app --test first_open_measure -- --ignored --nocapture
           ls -l "$RUNNER_TEMP/v49"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: rc-v49-${{ env.REF }}
+          path: ${{ runner.temp }}/v49/
+          retention-days: 1
+          if-no-files-found: error
+      - name: Keep the dependencies only (release tests, main only)
+        if: steps.cargo-cache.outputs.cache-hit != 'true' && github.ref == 'refs/heads/main'
+        shell: bash
+        run: ./scripts/ci/cache_keep_deps.sh target/release
+      - name: Save the Cargo cache (release tests, main only)
+        if: steps.cargo-cache.outputs.cache-hit != 'true' && github.ref == 'refs/heads/main'
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            target
+          key: ${{ steps.cargo-cache.outputs.cache-primary-key }}
+
+  # The first open after an update brings the main window (rc8), on the
+  # app rc-dev-app built and the database rc-v49 made; only then is the
+  # app uploaded for walks, as `rc-dev-app-<commit>`.
+  rc-first-open:
+    name: rc-first-open
+    needs: [plan, rc-dev-app, rc-v49]
+    if: needs.plan.outputs.tested == '' && contains(fromJSON(needs.plan.outputs.jobs || '[]'), 'rc-first-open')
+    runs-on: macos-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    env:
+      REF: ${{ github.event.pull_request.head.sha || github.sha }}
+      APP: target/release/bundle/macos/AI Juggler Dev.app
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: ${{ env.REF }}
+          persist-credentials: false
+          sparse-checkout: |
+            scripts/qa/first_open_window_check.sh
+          sparse-checkout-cone-mode: false
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: rc-build-${{ env.REF }}
+          path: ${{ runner.temp }}/rc/
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: rc-v49-${{ env.REF }}
+          path: ${{ runner.temp }}/v49/
+      - name: The app as rc-dev-app built it
+        run: |
+          set -euo pipefail
+          [ "$(cat "$RUNNER_TEMP/rc/COMMIT")" = "$REF" ] || { echo "::error::the build names another commit"; exit 1; }
+          mkdir -p "$(dirname "$APP")"
+          tar -C "$(dirname "$APP")" -xf "$RUNNER_TEMP/rc/app.tar"
+          codesign -dv "$APP/Contents/MacOS/juggler-app" 2>&1 | grep -E '^(Signature|Identifier|CDHash)' || true
       # The window check reads windows through System Events, which needs
       # the runner's Accessibility and Automation grants (GitHub's macOS
       # images set them for the runner). Probed first, bounded, so a
@@ -1187,20 +1340,6 @@ jobs:
           path: ${{ runner.temp }}/rc/
           retention-days: 14
           if-no-files-found: error
-      - name: Keep the dependencies only (release, main only)
-        if: steps.cargo-cache.outputs.cache-hit != 'true' && github.ref == 'refs/heads/main'
-        shell: bash
-        run: ./scripts/ci/cache_keep_deps.sh target/release
-      - name: Save the Cargo cache (release, main only)
-        if: steps.cargo-cache.outputs.cache-hit != 'true' && github.ref == 'refs/heads/main'
-        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
-        with:
-          path: |
-            ~/.cargo/registry/index
-            ~/.cargo/registry/cache
-            ~/.cargo/git/db
-            target
-          key: ${{ steps.cargo-cache.outputs.cache-primary-key }}
 
   build-linux:
     name: build-linux

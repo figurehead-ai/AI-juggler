@@ -79,6 +79,32 @@ pub fn list_indexed(state: &Arc<AppState>) -> AppResult<Vec<ConversationInfo>> {
 }
 
 /// `conversations` as the list's rows.
+/// D-118 (AJ-E3702): the activity feed's conversations: other apps'
+/// conversations last active at or before `before_ms`, newest first, at
+/// most `limit`, named as the list names them. AI Juggler's own are left
+/// out (their endings are the feed's own items), and nothing is read from
+/// disk here: what the index holds now.
+///
+/// # Errors
+///
+/// Storage errors; a poisoned lock.
+pub fn feed_rows(
+    state: &Arc<AppState>,
+    before_ms: i64,
+    limit: usize,
+) -> AppResult<Vec<ConversationInfo>> {
+    let mut found = state
+        .conversations
+        .all_where(|c| c.summary.last_ms.is_some_and(|at| at <= before_ms))?;
+    found.sort_by_key(|c| std::cmp::Reverse(c.summary.last_ms));
+    // Some may be AI Juggler's own: read a few more than asked.
+    found.truncate(limit.saturating_mul(2).max(8));
+    let mut rows = rows_of(state, found)?;
+    rows.retain(|row| row.session_id.is_none());
+    rows.truncate(limit);
+    Ok(rows)
+}
+
 fn rows_of(
     state: &Arc<AppState>,
     conversations: Vec<super::Conversation>,

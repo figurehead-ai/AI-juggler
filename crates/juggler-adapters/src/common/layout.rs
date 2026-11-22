@@ -21,8 +21,10 @@ pub(crate) struct Layout {
     /// How deep the scan's size estimate walks (Claude keeps its bulk
     /// two levels down; Codex's sessions sit at `sessions/Y/M/D/`).
     pub(crate) estimate_depth: usize,
-    /// Top-level files never copied, with the plain reason listed in
-    /// the skips (Codex's `auth.json`: see `codex_environment`).
+    /// Entries never copied, with the plain reason listed in the skips
+    /// (Codex's `auth.json`: see `codex_environment`), each by its path
+    /// in the home: a top-level name, or `folder/name` for one deeper
+    /// down (`ZCode`'s `v2/credentials.json`).
     pub(crate) kept_back: &'static [(&'static str, &'static str)],
     /// Top-level names that make a directory a real config home.
     pub(crate) config_evidence: &'static [&'static str],
@@ -52,16 +54,13 @@ impl Layout {
                 .any(|suffix| name.ends_with(suffix))
     }
 
-    /// Why a top-level file stays with the original, when it does.
-    pub(crate) fn kept_back(&self, name: &str, top_level: bool) -> Option<&'static str> {
-        top_level
-            .then(|| {
-                self.kept_back
-                    .iter()
-                    .find(|(kept, _)| *kept == name)
-                    .map(|(_, why)| *why)
-            })
-            .flatten()
+    /// Why the entry at `relative` (its path in the home) stays with the
+    /// original, when it does.
+    pub(crate) fn kept_back(&self, relative: &Path) -> Option<&'static str> {
+        self.kept_back
+            .iter()
+            .find(|(kept, _)| Path::new(kept) == relative)
+            .map(|(_, why)| *why)
     }
 
     /// Whether `dir` carries evidence of a real config home.

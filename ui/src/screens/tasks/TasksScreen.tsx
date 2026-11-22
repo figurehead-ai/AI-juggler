@@ -35,6 +35,7 @@ import type { AccountInfo } from "../../types/generated/AccountInfo";
 import { TaskView } from "../../pages/tasks/TaskView";
 import { Board, MORE_COLUMNS, Plan, type MoreColumn, type OpenTask } from "./TaskBoard";
 import { STATUS_WORDS } from "../../pages/tasks/words";
+import { SELECTED } from "../../components/controls/selected";
 import { useTaskSearch } from "../../pages/tasks/useTaskSearch";
 
 const VIEW_KEY = "aij.tasks.view";
@@ -210,7 +211,7 @@ export function TasksScreen({ projects, sessions, accounts = NO_ACCOUNTS, now }:
                   aria-pressed={more.includes(column)}
                   onClick={() => toggleMore(column)}
                   data-testid={`tasks-show-${column}`}
-                  className={"inline-flex min-h-6 items-center gap-1 rounded px-1 outline-none hover:text-ink hover:underline focus-visible:ring-1 focus-visible:ring-accent/60 " + (more.includes(column) ? "text-accent-hi" : "")}
+                  className={"inline-flex min-h-6 items-center gap-1 rounded px-1 outline-none hover:text-ink hover:underline focus-visible:ring-1 focus-visible:ring-accent/60 " + (more.includes(column) ? SELECTED : "")}
                 >
                   {STATUS_WORDS[column]}
                   {counts && <span className="tabular-nums">{(counts as Record<string, number>)[column]}</span>}

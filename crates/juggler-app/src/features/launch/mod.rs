@@ -176,7 +176,7 @@ pub fn launch_profile_primed(
         .is_removed(&account.id)?
     {
         return Err(AppError::Refused(format!(
-            "«{}» was removed — add it again to start a session on it",
+            "“{}” was removed — add it again to start a session on it",
             account.label
         )));
     }
@@ -187,7 +187,7 @@ pub fn launch_profile_primed(
         let home = juggler_platform::user::home().unwrap_or_default();
         if let Some(why) = crate::lab_scope::refuses_real_folder(&account.state_dir, &home) {
             return Err(AppError::Refused(format!(
-                "AI Juggler Dev won't start a session on «{}»: {why}",
+                "AI Juggler Dev won't start a session on “{}”: {why}",
                 account.label
             )));
         }
@@ -198,7 +198,7 @@ pub fn launch_profile_primed(
         .is_removed(&profile.id)?
     {
         return Err(AppError::Refused(format!(
-            "«{}» was deleted — pick other launch settings to start a session",
+            "“{}” was deleted — pick other launch settings to start a session",
             profile.name
         )));
     }
@@ -222,12 +222,28 @@ pub fn launch_profile_primed(
         prompt,
         read_dirs: Vec::new(),
     });
-    let spec = adapter.launch_spec(&account, &profile, &effective_cwd, &mode)?;
+    // AJ-E1605 R3: a tool with no terminal UI has no terminal launch; its
+    // session runs driven in the profile's folder.
+    let spec = crate::features::sessions::spawn::planned_terminal(
+        adapter.as_ref(),
+        &effective_cwd,
+        adapter
+            .launch_spec(&account, &profile, &effective_cwd, &mode)
+            .map_err(AppError::from),
+    )?;
+    let spec_cwd = match &spec {
+        Ok(spec) => spec.cwd.clone(),
+        // Driven, its first message would be lost: refused instead.
+        Err(none) if matches!(mode, LaunchMode::Primed { .. }) => {
+            return Err(AppError::Refused(none.why.clone()));
+        }
+        Err(none) => none.cwd.clone(),
+    };
     let session_id = SessionId::new(format!("sess-{}", unique_suffix()));
     // The juggling anchor: this launch's cwd becomes (or refreshes) the
     // tracked project, and the session is linked to it (ADR-0007).
     // Resolved BEFORE spawn so the ledger Intent row is attributable.
-    let canonical_cwd = spec.cwd.canonicalize().unwrap_or_else(|_| spec.cwd.clone());
+    let canonical_cwd = spec_cwd.canonicalize().unwrap_or_else(|_| spec_cwd.clone());
     // A worktree's sessions belong to its repository's project.
     let project_root = juggler_core::storage::worktree_repo_root(&canonical_cwd)
         .unwrap_or_else(|| canonical_cwd.clone());
@@ -250,7 +266,7 @@ pub fn launch_profile_primed(
             account: &account,
             profile: &profile.id,
             project: Some(project),
-            cwd: spec.cwd.clone(),
+            cwd: spec_cwd.clone(),
             conversation: None,
             transcript_ref: None,
             origin: "new",
@@ -262,6 +278,7 @@ pub fn launch_profile_primed(
             fresh_id: None,
             requested: runtime,
             terminal: spec,
+            history: None,
         },
     )?;
     crate::identity::record(state, &started.session, &account, &assertion, "launch");

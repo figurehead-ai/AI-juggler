@@ -59,6 +59,11 @@ pub struct KnownPlaceInfo {
     /// into the UI's `MARK_COLOURS`).
     #[ts(optional = nullable)]
     pub colour_slot: Option<u8>,
+    /// AJ-E1610: what its app allows from AI Juggler (its own links, how
+    /// sure each is, its track-only parts and why); `null` for an app that
+    /// declares nothing.
+    #[ts(optional = nullable)]
+    pub reach: Option<super::reach::AppReachInfo>,
 }
 
 /// AJ-E3203: finding a desktop app's profiles that aren't running.
@@ -114,6 +119,7 @@ fn info(
         recent: recent(&place.conversations),
         found: place.found,
         colour_slot: slots.get(id).copied(),
+        reach: hosts.by_id(&place.app_id).and_then(super::reach::info),
     }
 }
 
@@ -183,14 +189,10 @@ fn identities_of(
 /// ADR-0032: the desktop Apps running now, from a fresh look at the
 /// process table.
 fn what_runs(
+    state: &AppState,
     hosts: &HostRegistry,
 ) -> BTreeMap<String, crate::features::conversations::places::RunningApp> {
-    let home = juggler_platform::user::home().unwrap_or_default();
-    crate::features::presence::running(
-        &crate::features::conversations::procs::table(),
-        hosts,
-        &home,
-    )
+    crate::features::presence::running(&state.places.table(), hosts, &state.places.home())
 }
 
 /// The places remembered with their processes, each checked alive now.
@@ -202,7 +204,7 @@ pub(crate) fn known(state: &Arc<AppState>) -> AppResult<Vec<KnownPlaceInfo>> {
             .filter(|(_, place)| place.users)
             .collect();
     let hosts = HostRegistry::of(&state.registry);
-    let running = what_runs(&hosts);
+    let running = what_runs(state, &hosts);
     // Keep alive's watch follows what runs (its own misses and restarts
     // stay its own).
     if let Ok(mut watch) = state.places.watch.lock() {
@@ -333,7 +335,7 @@ pub async fn places_offers(
     state: tauri::State<'_, Arc<AppState>>,
 ) -> AppResult<Vec<PlaceOfferInfo>> {
     crate::ipc::blocking(state.inner(), "the apps found", move |state| {
-        let running = what_runs(&HostRegistry::of(&state.registry));
+        let running = what_runs(state, &HostRegistry::of(&state.registry));
         Ok(super::offers(state)?
             .into_iter()
             .map(|(id, label)| PlaceOfferInfo {
@@ -364,26 +366,46 @@ pub async fn places_offer_answer(
 }
 
 /// Open: brings the place forward when it runs, else starts it; with a
-/// session, at that session where its app has a link to it.
+/// session, at that session where its app has a link to it. AJ-E1610,
+/// "Open here": with `action` (`new_chat`, `new_in_folder` with `folder`,
+/// a folder the user picked or a project's), the app's own documented
+/// link for it, sent to the running place's process alone.
 ///
 /// # Errors
 ///
-/// As [`super::open`].
+/// As [`super::open`], or [`super::reach::open_route`] with an action; a
+/// folder AI Juggler doesn't know.
 #[tauri::command]
 pub async fn places_open(
     state: tauri::State<'_, Arc<AppState>>,
     app: tauri::AppHandle,
     id: String,
     conversation_id: Option<String>,
+    action: Option<String>,
+    folder: Option<String>,
 ) -> AppResult<GoToOutcomeInfo> {
     crate::ipc::blocking(state.inner(), "opening the app", move |state| {
-        super::open(
+        let Some(action) = action else {
+            return super::open(
+                state,
+                &id,
+                conversation_id.as_deref(),
+                Arc::new(crate::features::conversations::goto::MacDesktop),
+                Arc::new(super::start::System),
+                Some(crate::features::conversations::goto::tell_window(app)),
+            );
+        };
+        // AJ-E2003 R6: a folder the user picked, or one AI Juggler already
+        // works in (a project's), never one the page made up.
+        let folder = folder
+            .map(|folder| crate::picked::work_folder(state, &folder))
+            .transpose()?;
+        super::reach::open_route(
             state,
             &id,
-            conversation_id.as_deref(),
-            Arc::new(crate::features::conversations::goto::MacDesktop),
-            Arc::new(super::start::System),
-            Some(crate::features::conversations::goto::tell_window(app)),
+            &action,
+            folder.as_deref().and_then(std::path::Path::to_str),
+            &crate::features::conversations::goto::MacDesktop,
         )
     })
     .await

@@ -47,7 +47,7 @@ in that folder.
 
 A session you started elsewhere can be picked up with **Continue in AI
 Juggler**. To carry one to another app or tool, see
-[Continue in another app](switching.md).
+[Switch account](switching.md).
 
 ## The terminal
 

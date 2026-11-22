@@ -15,7 +15,7 @@ import type { AccountInfo } from "../../types/generated/AccountInfo";
 import type { ProjectInfo } from "../../types/generated/ProjectInfo";
 import { sessionsCounts, sessionsFacets, type SessionsQuery } from "../../lib/ipc/sessions";
 import { useApps } from "../../lib/apps";
-import { accountName, useSubscriptions } from "../../lib/subscriptions";
+import { accountNamesApart, useSubscriptions } from "../../lib/subscriptions";
 import { FACET_KINDS, RECENT_MS, facetFilters, narrowedFacets, type Belongs, type Facet, type FacetKind, type Filters, type StateFilter } from "./order";
 import { THIS_MACHINE } from "../../lib/machine-words";
 import { providerDisplayName } from "../../lib/providers";
@@ -137,7 +137,8 @@ export function useFacetNames(folders: readonly AccountInfo[], projects: readonl
   return useMemo(() => {
     const projectNames = new Map(projects.map((project) => [project.id, project.name]));
     const appNames = new Map((apps ?? []).map((app) => [app.id, app.name]));
-    const accountNames = new Map((accounts ?? []).flatMap((row) => (row.account_id ? [[row.account_id, accountName(row)] as [string, string]] : [])));
+    const named = accountNamesApart(accounts ?? []);
+    const accountNames = new Map((accounts ?? []).flatMap((row) => (row.account_id ? [[row.account_id, named(row)] as [string, string]] : [])));
     return (kind, id) => {
       switch (kind) {
         case "project":

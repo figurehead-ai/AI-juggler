@@ -23,7 +23,7 @@ export interface PreviewDoings {
   open: (entry: Previewable) => void;
   /** ⌘↩'s: its app, or New session on an account. */
   goTo: (entry: Previewable) => void;
-  /** Continue in another app… (a session). */
+  /** Switch account… (a session). */
   continueElsewhere?: (entry: Previewable) => void;
 }
 
@@ -73,9 +73,9 @@ function facts(entry: Previewable, now: number, accounts: readonly SubscriptionI
 function actionWords(entry: Previewable): { open: string; goTo: string | null; continue: string | null } {
   switch (entry.where) {
     case "local":
-      return { open: "Open", goTo: entry.desktop ? "Go to its app" : null, continue: "Continue in another app…" };
+      return { open: "Open", goTo: entry.desktop ? "Go to its app" : null, continue: "Switch account…" };
     case "outside":
-      return { open: "Open", goTo: "Go to its app", continue: "Continue in another app…" };
+      return { open: "Open", goTo: "Go to its app", continue: "Switch account…" };
     case "app":
       return { open: "Open its page", goTo: entry.app.place ? (entry.open ? "Bring it forward" : "Start it") : null, continue: null };
     case "project":

@@ -154,6 +154,21 @@ fn started_words(started_ms: Option<i64>, now_ms: i64) -> Option<String> {
         .flatten()
 }
 
+/// SK48-8 (the 0.5.0 re-walk, F3's rest): an AI Juggler session's App as
+/// the rail and the Apps list name it, its tool and its folder ("Claude
+/// Code CLI · Personal · personal"): the bell's rows read "AI Juggler ·
+/// Personal · personal", so twin Accounts of two tools couldn't be told
+/// apart there. A session in a desktop App, or a tool not known, keeps
+/// "AI Juggler" and its folder.
+fn own_app_words(row: &InstanceInfo, tools: &HashMap<String, String>) -> String {
+    match tools.get(&row.provider) {
+        Some(tool) if row.app_id.is_none() => {
+            crate::features::presence::cli_label(tool, &row.account_label)
+        }
+        _ => join([Some(OWN_APP.to_owned()), Some(row.account_label.clone())]),
+    }
+}
+
 fn quoted(kind: &str, name: &str) -> String {
     match kind {
         "asks" => format!("“{name}” needs your reply"),
@@ -174,8 +189,15 @@ fn join(parts: impl IntoIterator<Item = Option<String>>) -> String {
         .join(" · ")
 }
 
-/// An own session's need: its attention, else a status that is one.
+/// An own session's need: its attention, else a status that is one;
+/// none at level 0 (D-117, the shared table: a session parked until its
+/// reset is calm whatever its need), as the window reads it, so the count
+/// and the window's lit marks never part.
 fn session_kind(row: &InstanceInfo) -> Option<&'static str> {
+    let facts = centre::LevelFacts {
+        parked: row.parked.is_some(),
+        ..centre::LevelFacts::default()
+    };
     kind_of(
         row.needs_attention,
         &row.status,
@@ -183,6 +205,7 @@ fn session_kind(row: &InstanceInfo) -> Option<&'static str> {
             .as_ref()
             .and_then(|runtime| runtime.state.as_deref()),
     )
+    .filter(|kind| centre::attention_level(kind, facts) > 0)
 }
 
 /// [`session_kind`] from its parts: `exact`, the state its tool itself
@@ -367,8 +390,7 @@ pub fn work_out<S: std::hash::BuildHasher>(
     let mut open = OpenNowInput::default();
     let mut by_app: HashMap<String, u32> = HashMap::new();
     for row in &sources.sessions {
-        let gone = row.parked.is_some()
-            || row.lifecycle.as_deref() == Some("archived")
+        let gone = row.lifecycle.as_deref() == Some("archived")
             || row
                 .project_id
                 .as_ref()
@@ -377,13 +399,17 @@ pub fn work_out<S: std::hash::BuildHasher>(
             continue;
         }
         let key = format!("s:{}", row.id);
+        // D-117: a parked one has no need (its level is 0, the shared
+        // table), and nothing of it is open now: it waits on its reset.
+        let parked = row.parked.is_some();
         let kind = session_kind(row);
         // D-47: a session that needs you is open now too (in its place);
         // an ended one only while pinned. A snoozed need waits in its place.
         let asking = kind.is_some_and(|kind| kind != "failed") && !now_snoozed.contains(&key);
-        if row.pinned == Some(true)
-            || matches!(row.status.as_str(), "running" | "starting")
-            || asking
+        if !parked
+            && (row.pinned == Some(true)
+                || matches!(row.status.as_str(), "running" | "starting")
+                || asking)
         {
             open.total += 1;
             open.working += u32::from(row.status == "running");
@@ -396,8 +422,7 @@ pub fn work_out<S: std::hash::BuildHasher>(
                 title: quoted(kind, &session_name(row, sources.now_ms)),
                 detail: join([
                     project(row.project_id.as_ref()),
-                    Some(OWN_APP.to_owned()),
-                    Some(row.account_label.clone()),
+                    Some(own_app_words(row, &sources.tool_names)),
                 ]),
                 project_id: row.project_id.clone(),
                 project: project(row.project_id.as_ref()),
@@ -475,19 +500,7 @@ pub fn work_out<S: std::hash::BuildHasher>(
             .count()
             > 1;
         let name = match sources.tool_names.get(&account.provider) {
-            Some(tool) if shared => {
-                crate::features::presence::identity(crate::features::presence::Naming {
-                    id: "",
-                    desktop: false,
-                    app: tool,
-                    instance_dir: None,
-                    default_instance: false,
-                    folder_label: Some(&account.label),
-                    folder_shared: false,
-                    named: None,
-                })
-                .label
-            }
+            Some(tool) if shared => crate::features::presence::cli_label(tool, &account.label),
             _ => account.label.clone(),
         };
         let own = sources
@@ -633,7 +646,7 @@ pub fn work_out<S: std::hash::BuildHasher>(
                         Some(message.detail.clone()),
                     ])
                 },
-                |line| format!("{} in «{}»", line.reason, message.pool_name),
+                |line| format!("{} in “{}”", line.reason, message.pool_name),
             ),
             target: NoticeTarget {
                 pool_id: Some(message.pool_id.clone()),
@@ -785,6 +798,12 @@ fn read_sources(state: &Arc<AppState>, now: i64) -> NeedSources {
         now_ms: now,
         ..NeedSources::default()
     };
+    // SK48-14: what's left to clean up is the Processes graph's count, the
+    // one the tile and the top bar read, never This Mac's last sample (up
+    // to a 5 s tick older): a stopped leftover leaves every count at once.
+    if let (Some(mac), Some((left, _))) = (sources.this_mac.as_mut(), state.processes.leftovers()) {
+        mac.leftover_processes = left;
+    }
     for id in state.registry.ids() {
         if let Some(adapter) = state.registry.get(&id) {
             let spec = adapter.spec();

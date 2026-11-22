@@ -21,6 +21,11 @@ export interface FixtureSet {
   sessions: InstanceInfo[];
   projects: ProjectInfo[];
   stats: StatsInfo;
+  /** The clock the set's times were written against. A page whose clock
+   * reads otherwise sees every time moved by the difference, so "waiting
+   * 12 min" stays 12 minutes whatever day a capture pins (D-137's
+   * finding: Oct 2024 data under a 2026 clock read "waiting 767 d"). */
+  now_ms?: number;
 }
 
 declare global {
@@ -29,7 +34,27 @@ declare global {
   }
 }
 
-export const seeded = (typeof window !== "undefined" && window.__AIJ_FIXTURE__) || {};
+const YEARS_10 = 10 * 365 * 86_400_000;
+
+/** Every `…_ms` time in `value` moved by `by` (only times near `around`:
+ * a duration or a count is never moved). */
+function moved(value: unknown, by: number, around: number, key = ""): unknown {
+  if (typeof value === "number") return key.endsWith("_ms") && Math.abs(value - around) < YEARS_10 ? value + by : value;
+  if (Array.isArray(value)) return value.map((item) => moved(item, by, around));
+  if (value && typeof value === "object") return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, moved(v, by, around, k)]));
+  return value;
+}
+
+/** The seeded set, its times moved to the page's clock when they were
+ * written against another. */
+function rebased(set: Partial<FixtureSet>): Partial<FixtureSet> {
+  const by = set.now_ms === undefined ? 0 : Date.now() - set.now_ms;
+  if (set.now_ms === undefined || Math.abs(by) < 60_000) return set;
+  const shifted = moved(set, by, set.now_ms);
+  return typeof shifted === "object" && shifted !== null ? { ...set, ...shifted, now_ms: Date.now() } : set;
+}
+
+export const seeded = rebased((typeof window !== "undefined" && window.__AIJ_FIXTURE__) || {});
 
 /** A `YYYY-MM-DD` string N days from today (fixture dates move with the clock). */
 function renewalFixtureInDays(days: number): string {
@@ -109,6 +134,8 @@ export const MOCK_STATS: StatsInfo =
 export const MOCK_SESSIONS: InstanceInfo[] = seeded.sessions ?? [
   {
     id: "sess-live-1",
+    // AJ-E3603: a title as the tool gives one, so the preview reads like a real day.
+    title: "Fix the flaky login test",
     adopted: false,
     launch_recipe_id: "p-1",
     provider: "claude-code",
@@ -144,6 +171,7 @@ export const MOCK_SESSIONS: InstanceInfo[] = seeded.sessions ?? [
   },
   {
     id: "sess-done-1",
+    title: "Migrate the billing webhooks",
     adopted: false,
     launch_recipe_id: "p-3",
     provider: "claude-code",
@@ -175,6 +203,7 @@ export const MOCK_SESSIONS: InstanceInfo[] = seeded.sessions ?? [
   },
   {
     id: "sess-done-2",
+    title: "Add retries to the payment sync",
     adopted: false,
     launch_recipe_id: "p-2",
     provider: "claude-code",

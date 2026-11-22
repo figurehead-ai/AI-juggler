@@ -266,6 +266,7 @@ fn start(
         socket: world.base.join("unused.sock"),
         resume: resume.map(str::to_owned),
         fresh_id: SESSION.into(),
+        history: None,
     };
     let spec = driven
         .driven_spec(&world.account, &world.profile, &world.cwd, &launch)
@@ -495,6 +496,7 @@ fn only_in_a_trusted_folder_and_a_new_enough_claude_code() {
         socket: untrusted.base.join("x.sock"),
         resume: None,
         fresh_id: SESSION.into(),
+        history: None,
     };
     let refused = adapter
         .driven()

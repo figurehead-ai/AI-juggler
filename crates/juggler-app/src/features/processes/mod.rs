@@ -23,6 +23,7 @@ pub mod commands;
 pub mod dto;
 pub mod ended;
 pub mod instance;
+pub mod lab_scope;
 pub mod model;
 pub mod observe;
 pub mod query;
@@ -690,6 +691,21 @@ pub fn tick(state: &Arc<AppState>) -> Option<ProcessGraphChangedInfo> {
         inputs.peaks.clone_from(&inner.peaks);
         inputs.zombie_since.clone_from(&inner.zombie_since);
         let mut graph = model::build(&inputs);
+        // R11: a lab's AI Juggler lists only the lab's own processes.
+        if let Some(home) = lab_scope::home() {
+            let pids: Vec<u32> = graph
+                .apps
+                .iter()
+                .flat_map(|app| {
+                    app.sessions
+                        .iter()
+                        .flat_map(|session| session.processes.iter().map(|node| node.pid))
+                        .chain(app.pid)
+                })
+                .collect();
+            let lab = lab_scope::keep(home, pids);
+            graph = model::scoped(graph, &|pid| lab.get(&pid).copied().unwrap_or(false));
+        }
         // A session's sparkline: its tree's ring, else the graph's own.
         let mut keep_sessions: HashSet<String> = HashSet::new();
         for app in &mut graph.apps {
@@ -760,6 +776,18 @@ pub fn tick(state: &Arc<AppState>) -> Option<ProcessGraphChangedInfo> {
     }
     let version = state.processes.version.fetch_add(1, Ordering::AcqRel) + 1;
     Some(ProcessGraphChangedInfo { version, counts })
+}
+
+/// What follows a graph change on its own tick (SK48-14): when the top
+/// bar's count moved, Needs you (the rail, the bell, Home) is worked out
+/// again from this graph at once, so a stopped leftover leaves every count
+/// together. `true` when the top bar's count moved (its event is due).
+pub fn after_change(state: &Arc<AppState>, change: &ProcessGraphChangedInfo) -> bool {
+    let moved = state.processes.counts_moved(&change.counts);
+    if moved {
+        crate::features::notifications::needs::refresh(state);
+    }
+    moved
 }
 
 /// AJ-E2405/E2407: the reconciler found `pid` of `session` left behind

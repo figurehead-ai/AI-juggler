@@ -140,7 +140,7 @@ export function reviewLines(shape: Pick<PoolShape, "members" | "leadNext" | "tal
   const way = TALK_PRESETS.find((one) => one.id === preset);
   const talk = preset === "free" ? "Everyone may message everyone." : (way?.line ?? `${OWN_MIX}: some pairs ask you first or are blocked.`);
   return {
-    where: `«${name}» works in ${where}.`,
+    where: `“${name}” works in ${where}.`,
     who: `${whoLine(shape, where)}.`,
     lead: lead === NO_LEAD_YET ? `${NO_LEAD_YET}: each session works on what you give it.` : `${lead} leads.`,
     everyone: roles === EVERYONE_BUILDS ? `${EVERYONE_BUILDS}.` : `${roles}. Everyone else builds.`,

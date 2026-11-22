@@ -6,9 +6,12 @@
  * runs. Loaded with the page, never at start; the runways and the
  * profiles come from one shared read (data.ts), not one per page.
  */
+import { SwitchAccountButton } from "../../components/SwitchAccountButton";
+import { useSwitchNotYet } from "../../lib/switch-not-yet";
 import type { JSX } from "react";
 import type { SwitchBackSuggestionData } from "../../lib/ipc/switchBack";
-import { accountDisplay, accountLine, accountName, accountOfProfile, useSubscriptions } from "../../lib/subscriptions";
+import { accountDisplay, accountOfProfile, useSubscriptions } from "../../lib/subscriptions";
+import { sessionAccountWords } from "./account-words";
 import { LastMessages } from "./LastMessages";
 import { ConversationSwitcher } from "./ConversationSwitcher";
 import { ContinueOn } from "./ContinueOn";
@@ -44,7 +47,9 @@ export function SessionOverview(props: OverviewProps): JSX.Element {
   const displays = useRunways();
   const profiles = useProfiles();
   const account = accounts ? accountOfProfile(accounts, model.profileId) : undefined;
+  const named = sessionAccountWords(accounts, account);
   const display = account ? accountDisplay(account, displays) : displays.find((d) => d.account === model.profileId);
+  const switchNotYet = useSwitchNotYet(model.sessionId);
   return (
     <SessionColumns
       // 0.3.4: beside it, on its left, its subagents and the sessions it
@@ -56,11 +61,13 @@ export function SessionOverview(props: OverviewProps): JSX.Element {
           <ConversationSwitcher model={model} visible={props.visible} own={<LastMessages model={model} visible={props.visible} onGoTo={props.onGoTo} />} />
         )
       }
+      // D-143 (PAT-SW): switching, always one visible click, first in the column.
+      lead={props.remoteMac ? undefined : <SwitchAccountButton switchKey={model.switchSource} accountId={model.profileId} why={switchNotYet} />}
       side={
         <>
-          <WhereItRuns model={model} outside={props.outside ?? false} accountWords={account ? [accountName(account), accountLine(account)].filter(Boolean).join(" · ") : null}
+          <WhereItRuns model={model} outside={props.outside ?? false} accountWords={named.where}
             accountId={account?.state === "signed_in" ? (account.account_id ?? null) : null} />
-          <Runway display={display} title={account && account.state === "signed_in" ? accountName(account) : null} profile={profiles.find((p) => p.id === model.profileId) ?? null} />
+          <Runway display={display} title={named.runway} profile={profiles.find((p) => p.id === model.profileId) ?? null} />
           {!props.remoteMac && (
             <ContinueOn
               model={model}

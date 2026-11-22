@@ -102,7 +102,10 @@ describe("AJ-E1529 the rail's share of outside conversations", () => {
     expect(row.textContent).toContain("Claude Code on Work Max");
     // The App at a glance (colour is the Apps'): its dot beside the tool's mark.
     expect(row.querySelector("[data-testid='profile-badge']")?.getAttribute("title")).toBe("Work Max");
-    expect(row.querySelector("[data-tool-mark], svg")).toBeTruthy();
+    expect(row.querySelector("[data-testid='app-icon']")).toBeTruthy();
+    // D-117: its state's mark is the App lens's (a calm dot), its icon muted at rest.
+    expect(row.querySelector("[data-state-dot]")).toBeTruthy();
+    expect(row.querySelector("[data-testid='app-icon']")?.className).toContain("app-tone");
     fireEvent.click(row);
     expect(open).toHaveBeenCalledWith(expect.objectContaining({ id: "c" }));
   });

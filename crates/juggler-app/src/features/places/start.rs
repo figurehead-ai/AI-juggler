@@ -9,7 +9,6 @@
 
 use std::path::{Path, PathBuf};
 
-use juggler_adapter::live::HostKind;
 use juggler_platform::apps::Start;
 
 use super::book::KnownPlace;
@@ -105,13 +104,18 @@ pub fn plan(
     let Some(host) = hosts.by_id(&place.app_id) else {
         return Err(format!("AI Juggler doesn't know {} any more", place.name));
     };
-    if host.kind != HostKind::Desktop {
+    if !host.is_app() {
         return Err(format!("{} isn't an app AI Juggler starts", place.name));
     }
+    // Still that app: by its folder's name, or (AJ-E1610) the bundle id
+    // it declares (a renamed app, a beta build).
     let bundle_named = place
         .bundle
         .file_name()
-        .is_some_and(|name| name.to_string_lossy() == host.bundle);
+        .is_some_and(|name| name.to_string_lossy() == host.bundle)
+        || hosts
+            .by_bundle_dir(&place.bundle)
+            .is_some_and(|app| app.id == host.id);
     if !place.bundle.is_absolute() || !bundle_named {
         return Err(format!("{} isn't where it was", place.name));
     }

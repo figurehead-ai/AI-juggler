@@ -153,3 +153,31 @@ fn a_tool_only_its_id_describes_gets_the_neutral_spec() {
         "never a guessed product name"
     );
 }
+
+/// A tool is live verified only with its proof in the repository: each
+/// adapter that claims it names an evidence file that exists, and the
+/// catalog says so (the welcome names only these tools, D-127; the
+/// coordinating session's correction, 2026-11-20).
+#[test]
+fn live_verified_tools_name_evidence_that_exists() {
+    let registry = juggler_app::state::default_registry();
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let mut verified = Vec::new();
+    for id in registry.ids() {
+        let adapter = registry.get(&id).unwrap();
+        let spec = adapter.spec();
+        let name = id.as_str();
+        if let Some(path) = spec.flags.live_verified {
+            assert!(root.join(path).is_file(), "{name}: no evidence at {path}");
+            verified.push(name.to_owned());
+        }
+        let info = tools::spec_info(adapter.as_ref());
+        assert_eq!(
+            info.flow.live_verified,
+            spec.flags.live_verified.is_some(),
+            "{name}"
+        );
+    }
+    verified.sort();
+    assert_eq!(verified, ["claude-code", "codex", "grok-build", "opencode"]);
+}

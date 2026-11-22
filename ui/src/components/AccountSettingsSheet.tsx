@@ -84,7 +84,36 @@ export function AccountSettingsSheet({
   const name = sources?.find((row) => row.id === source)?.label ?? "";
 
   return (
-    <Modal title={`Copy settings into ${account.label}`} onClose={() => onClose(copied)} wide testId="account-settings">
+    <Modal title={`Copy settings into ${account.label}`} onClose={() => onClose(copied)} wide testId="account-settings"
+      footer={
+        <>
+            {results ? (
+              <Button size="sm" variant="primary" onClick={() => onClose(copied)} data-autofocus>
+                Done
+              </Button>
+            ) : sources !== null && sources.length === 0 ? (
+              <Button size="sm" variant="primary" onClick={() => onClose(0)}>
+                Close
+              </Button>
+            ) : (
+              <>
+                <Button size="sm" variant="ghost" onClick={() => onClose(0)}>
+                  Cancel
+                </Button>
+                <Button
+                  size="sm"
+                  variant="primary"
+                  disabled={busy || picked.size === 0 || check === null}
+                  onClick={() => void apply()}
+                  data-testid="account-settings-apply"
+                >
+                  {busy ? "Copying…" : picked.size === 1 ? "Copy 1 setting" : `Copy ${picked.size} settings`}
+                </Button>
+              </>
+            )}
+        </>
+      }
+    >
       <div className="flex max-h-[70vh] flex-col gap-4 overflow-y-auto pr-1 text-sm">
         {sources !== null && sources.length === 0 && (
           <p className="text-ink-2">There's no other app of this tool to copy from.</p>
@@ -125,32 +154,6 @@ export function AccountSettingsSheet({
             {error}
           </p>
         )}
-        <div className="flex justify-end gap-2">
-          {results ? (
-            <Button size="sm" variant="primary" onClick={() => onClose(copied)} data-autofocus>
-              Done
-            </Button>
-          ) : sources !== null && sources.length === 0 ? (
-            <Button size="sm" variant="primary" onClick={() => onClose(0)}>
-              Close
-            </Button>
-          ) : (
-            <>
-              <Button size="sm" variant="ghost" onClick={() => onClose(0)}>
-                Cancel
-              </Button>
-              <Button
-                size="sm"
-                variant="primary"
-                disabled={busy || picked.size === 0 || check === null}
-                onClick={() => void apply()}
-                data-testid="account-settings-apply"
-              >
-                {busy ? "Copying…" : picked.size === 1 ? "Copy 1 setting" : `Copy ${picked.size} settings`}
-              </Button>
-            </>
-          )}
-        </div>
       </div>
     </Modal>
   );

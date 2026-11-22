@@ -1,0 +1,32 @@
+[
+ {
+  "pair": "chat3-chat-001",
+  "first": "found rows",
+  "second": "model"
+ },
+ {
+  "pair": "chat3-chat-002",
+  "first": "found rows",
+  "second": "model"
+ },
+ {
+  "pair": "chat3-chat-003",
+  "first": "model",
+  "second": "found rows"
+ },
+ {
+  "pair": "chat3-chat-004",
+  "first": "model",
+  "second": "found rows"
+ },
+ {
+  "pair": "chat3-chat-005",
+  "first": "found rows",
+  "second": "model"
+ },
+ {
+  "pair": "chat3-chat-006",
+  "first": "model",
+  "second": "found rows"
+ }
+]

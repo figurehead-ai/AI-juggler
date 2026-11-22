@@ -214,11 +214,27 @@ fn per_turn_pricing_prices_only_turns_with_a_recorded_model() {
     assert!(session_cost_per_turn(&table, "claude-code", &unpriced).is_none());
 }
 
-#[test]
-fn tokens_per_min_100k_events_under_budget() {
-    let events: Vec<UsageEvent> = (0..100_000)
+/// Counts the events the pass pulls. It is a one-shot iterator (no
+/// `Clone`), and `tokens_per_min` takes any `IntoIterator` with no
+/// `Clone` bound, so a second pass over `events` does not compile.
+struct Visits<'a> {
+    inner: std::slice::Iter<'a, UsageEvent>,
+    pulls: u64,
+}
+
+impl<'a> Iterator for Visits<'a> {
+    type Item = &'a UsageEvent;
+    fn next(&mut self) -> Option<Self::Item> {
+        self.pulls += 1;
+        self.inner.next()
+    }
+}
+
+fn spread_events(n: i64) -> Vec<UsageEvent> {
+    (0..n)
         .map(|i| UsageEvent {
-            at_ms: T0 - (i % 300) * 1000,
+            // Ages 0..600 s in 0.6 s steps, one cycle per 1000 events.
+            at_ms: T0 - (i % 1000) * 600,
             tokens: TokenCounts {
                 input: 100,
                 output: 50,
@@ -226,14 +242,54 @@ fn tokens_per_min_100k_events_under_budget() {
             },
             model: None,
         })
+        .collect()
+}
+
+/// AJ-E817 (was a 5 ms wall-clock budget at 100k events, which failed a
+/// busy preflight at 8.29 ms with nothing wrong): the pass is checked by
+/// the work it does, not the clock. Each event is pulled exactly once
+/// (n + 1 `next` calls, so 10x the events is exactly 10x the work: linear,
+/// no rescans) and the sums are exact at scale.
+/// The timing itself is printed by the ignored `..._timing` test below,
+/// run by `just load-gate`.
+#[test]
+fn tokens_per_min_visits_each_event_once() {
+    for n in [10_000_i64, 100_000] {
+        let events = spread_events(n);
+        let mut visits = Visits {
+            inner: events.iter(),
+            pulls: 0,
+        };
+        let tpm = signals::tokens_per_min(&mut visits, T0);
+        assert_eq!(
+            visits.pulls,
+            n as u64 + 1,
+            "{n} events: one pull each, plus the end"
+        );
+        // Half the ages are under 5 min, a tenth of the events per minute.
+        assert!(tpm.has_window());
+        assert_eq!(tpm.trailing_5_min, n as u64 / 2 * 150);
+        assert_eq!(tpm.bars.unwrap(), [n as u64 / 10 * 150; 5]);
+    }
+}
+
+/// The old 5 ms budget, reported, never gated: `just load-gate` runs it.
+#[test]
+#[ignore = "timing report only; run by `just load-gate`"]
+fn tokens_per_min_100k_events_timing() {
+    let events = spread_events(100_000);
+    let mut runs: Vec<std::time::Duration> = (0..5)
+        .map(|_| {
+            let start = std::time::Instant::now();
+            let tpm = signals::tokens_per_min(&events, T0);
+            let elapsed = start.elapsed();
+            assert!(tpm.has_window());
+            elapsed
+        })
         .collect();
-    let start = std::time::Instant::now();
-    let tpm = signals::tokens_per_min(&events, T0);
-    let elapsed = start.elapsed();
-    assert!(tpm.has_window());
-    assert!(
-        elapsed.as_millis() < 5,
-        "100k-event pass took {:?} (budget 5 ms)",
-        elapsed
+    runs.sort();
+    println!(
+        "[perf] tokens/min over 100k events: median {:?} of 5 (budget 5 ms, reported only)",
+        runs[2]
     );
 }

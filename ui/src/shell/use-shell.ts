@@ -148,7 +148,7 @@ export function useShell() {
 
   // AJ-E414, AJ-E1510: the go-to hotkey, and a clicked notification.
   useFloorLogos(); // AJ-E3508: the Floor's logos, drawn once each (only after the Floor opens)
-  useOutsideRequests({ hotkey: dialogs.setGoToHotkey, goTo: () => setGoToOpen(true), open: (open) => routeOpen(open, { remote: inspectRemote, session: selectSession, centre: () => setCentreOpen(true), page: setGlobal, app: (id) => openPage({ kind: "app", id }), account: (id) => openPage({ kind: "subscription", id }), tasks: (appId) => (showTasksHeldBy(`app:${appId}`), setGlobal("tasks")), conversation: (accountId, id) => openPage({ kind: "conversation", accountId, id, projectId: null }), pool: (id) => openPage({ kind: "pool", id }), settings: (section) => window.dispatchEvent(new CustomEvent("aij:open-settings", { detail: { section } })) }) });
+  useOutsideRequests({ hotkey: dialogs.setGoToHotkey, goTo: () => setGoToOpen(true), open: (open) => routeOpen(open, { remote: inspectRemote, session: selectSession, centre: () => setCentreOpen(true), home: nav.openHome, page: setGlobal, app: (id) => openPage({ kind: "app", id }), account: (id) => openPage({ kind: "subscription", id }), tasks: (appId) => (showTasksHeldBy(`app:${appId}`), setGlobal("tasks")), conversation: (accountId, id) => openPage({ kind: "conversation", accountId, id, projectId: null }), pool: (id) => openPage({ kind: "pool", id }), settings: (section) => window.dispatchEvent(new CustomEvent("aij:open-settings", { detail: { section } })) }) });
 
 
   // An App's and an Account's page by theirs (the E32 walk).

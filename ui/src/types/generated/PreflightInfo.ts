@@ -117,6 +117,11 @@ move_line: string,
  */
 secrets: SecretsInfo, 
 /**
+ * The source's tool (its id): the header names both sides as Apps,
+ * each with its logo (D-142, DESIGN-SYSTEM §8).
+ */
+source_tool: string, 
+/**
  * The target's tool (its id: the UI names it from the catalog).
  */
 target_tool: string, 

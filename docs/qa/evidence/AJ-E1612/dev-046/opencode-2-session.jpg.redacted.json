@@ -1,0 +1,30 @@
+{
+  "boxes": [
+    [
+      0,
+      0,
+      264,
+      1348
+    ],
+    [
+      1648,
+      8,
+      45,
+      40
+    ],
+    [
+      310,
+      1216,
+      270,
+      24
+    ]
+  ],
+  "checked_by_eye": true,
+  "file": "opencode-2-session.jpg",
+  "note": "sidebar, avatar and home path hidden",
+  "sha256": "47bb367132c7d6ec8306db10ca96743957b8eb67b2103abac1b973a1825822b6",
+  "size": [
+    1701,
+    1348
+  ]
+}

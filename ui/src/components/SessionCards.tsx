@@ -30,6 +30,7 @@ import { RowDetails } from "./row-details";
 import { memorySize } from "../lib/compact";
 import { ProfileBadge } from "./ProfileBadge";
 import { sessionAppKey } from "../lib/rail-items";
+import { SELECTED_FILL } from "./controls/selected";
 
 /** Tone classes for the compact state/attention chip (token-driven). */
 export const chipToneClasses: Record<StateChipTone, string> = {
@@ -118,17 +119,15 @@ export function SessionRow({
         type="button"
         onClick={() => onSelect(session.id)}
         aria-describedby={detailsId}
+        aria-current={selected ? "true" : undefined}
         data-instance-id={session.id}
         className={
           "relative flex min-w-0 w-full flex-col gap-0.5 rounded-lg px-2.5 py-1.5 pl-3 text-left outline-none transition-colors " +
           "focus-visible:ring-1 focus-visible:ring-accent/60 " +
-          (selected ? "bg-surface" : "hover:bg-surface/60")
+          (selected ? SELECTED_FILL : "hover:bg-surface/60")
         }
       >
         <RowDetails id={detailsId} session={session} />
-        {selected && (
-          <span className="absolute left-0.5 top-1/2 h-4 w-[2px] -translate-y-1/2 rounded-full bg-accent" />
-        )}
         {/* L1: I-01 I-02 … I-04/I-10 (text never hidden in Compact) */}
         <span className="flex min-w-0 items-center gap-1.5 overflow-hidden">
           <span
@@ -211,17 +210,15 @@ export function SessionRow({
       type="button"
       onClick={() => onSelect(session.id)}
       aria-describedby={detailsId}
+      aria-current={selected ? "true" : undefined}
       data-instance-id={session.id}
       className={
         "relative flex min-w-0 w-full flex-col gap-1 rounded-lg px-2.5 py-2 pl-3 text-left outline-none transition-colors " +
         "focus-visible:ring-1 focus-visible:ring-accent/60 " +
-        (selected ? "bg-surface" : "hover:bg-surface/60")
+        (selected ? SELECTED_FILL : "hover:bg-surface/60")
       }
     >
       <RowDetails id={detailsId} session={session} />
-      {selected && (
-        <span className="absolute left-0.5 top-1/2 h-4 w-[2px] -translate-y-1/2 rounded-full bg-accent" />
-      )}
       {/* I-01 I-02 I-03 … I-04/I-10. Narrow rails make the provider
           abbrev and model yield first (truncate); the disc, chip text and
           glyphs never clip (WCAG 1.4.1). */}

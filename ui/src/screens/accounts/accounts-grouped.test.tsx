@@ -155,7 +155,8 @@ describe("AJ-E2109 the Accounts screen", () => {
     fireEvent.click(within(screen.getByRole("menu")).getByRole("menuitem", { name: "Rename account…" }));
     const sheet = await screen.findByTestId("account-rename-sheet");
     fireEvent.change(within(sheet).getByTestId("account-rename-sheet-name"), { target: { value: "Acme" } });
-    fireEvent.click(within(sheet).getByTestId("account-rename-sheet-save"));
+    // Save sits in the sheet's fixed footer (DialogFrame).
+    fireEvent.click(screen.getByTestId("account-rename-sheet-save"));
     await waitFor(() => expect(named).toHaveBeenCalledWith("acct-1", "Acme"));
     expect(appRenamed).not.toHaveBeenCalled();
   });

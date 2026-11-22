@@ -174,14 +174,18 @@ describe("rows in Your order", () => {
     expect(await view.findByTestId("action-pin")).toHaveProperty("textContent", expect.stringContaining("Unpin"));
   });
 
-  it("one that needs you stays in its place, its state in amber, and is in Needs you too", async () => {
+  it("one that needs you stays in its place, its word in ink by its amber mark, and is in Needs you too (D-117 amends D-47 point 2)", async () => {
     const view = board();
     const list = await view.findByTestId("place-board");
     const inPlace = await waitFor(() => list.querySelector<HTMLElement>('[data-order-row="c:claude-work/outside-3"]')!);
     const word = within(inPlace).getByTestId("state-word");
     expect(word.textContent).toBe("Asks you");
-    expect(word.className).toContain("text-warning");
-    expect(view.getByTestId("rail-needs-you").textContent).toMatch(/Needs you\s*3/);
+    // The loud copy is its Needs you row; here the word is in ink, its mark amber.
+    expect(word.className).toContain("text-ink-2");
+    expect(inPlace.querySelector(".level-mark[data-level='2']")).toBeTruthy();
+    expect(inPlace.getAttribute("data-level")).toBe("2");
+    // D-117: the review it lists is not counted.
+    expect(view.getByTestId("rail-needs-you").textContent).toMatch(/Needs you\s*2/);
     expect(list.querySelectorAll('[data-rail-item="c:claude-work/outside-3"]')).toHaveLength(2);
   });
 

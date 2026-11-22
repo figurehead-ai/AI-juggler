@@ -1,0 +1,1724 @@
+[
+ {
+  "id": "T001",
+  "bucket": "finished",
+  "origin": "written in the style of a Claude Code closing message; fictional project and paths",
+  "source": "Added the `--json` flag to `tally export` in `src/cli/export.rs`. It prints one object per line with `name`, `count` and `updated_at`. I added three tests in `tests/export_json.rs`; `cargo test` shows 58 passed, 0 failed.",
+  "gold": {
+   "verdict": "success",
+   "must_match": [
+    "json|--json|flag",
+    "58|pass"
+   ],
+   "forbidden": [
+    "fail"
+   ]
+  },
+  "facts_how": "hand-set: the text reports finished work ; tests: text states 58 passed, 0 failed",
+  "facts": {
+   "outcome": "success",
+   "tests": {
+    "state": "ran",
+    "passed": 58,
+    "failed": 0
+   },
+   "level": "L0"
+  }
+ },
+ {
+  "id": "T002",
+  "bucket": "finished",
+  "origin": "written in the style of a Codex closing message; fictional project and paths",
+  "source": "Done. `parse_duration()` in `lib/timeparse.py` now accepts `1h30m` and `90s` forms. Ran `pytest -q`: 41 passed in 2.3s.",
+  "gold": {
+   "verdict": "success",
+   "must_match": [
+    "1h30m|90s|duration",
+    "41|pass"
+   ],
+   "forbidden": [
+    "fail"
+   ]
+  },
+  "facts_how": "hand-set: the text reports finished work ; tests: text states 41 passed, 0 failed",
+  "facts": {
+   "outcome": "success",
+   "tests": {
+    "state": "ran",
+    "passed": 41,
+    "failed": 0
+   },
+   "level": "L0"
+  }
+ },
+ {
+  "id": "T003",
+  "bucket": "finished",
+  "origin": "written in the style of a Claude Code closing message; fictional project and paths",
+  "source": "The settings page now remembers the last open tab across reloads. The tab id is stored in `localStorage` under `settings.tab` and read in `SettingsPage.tsx`.",
+  "gold": {
+   "verdict": "success",
+   "must_match": [
+    "tab|remember|settings"
+   ],
+   "forbidden": [
+    "fail",
+    "error"
+   ]
+  },
+  "facts_how": "hand-set: the text reports finished work ; tests: none stated",
+  "facts": {
+   "outcome": "success",
+   "tests": {
+    "state": "unknown"
+   },
+   "level": "L0"
+  }
+ },
+ {
+  "id": "T004",
+  "bucket": "finished",
+  "origin": "lab stand-in turn-end message; fictional project and paths",
+  "source": "Fixed the off-by-one in `paginate()` (`api/list.go`): the last page no longer repeats the final item. Added a regression test `TestPaginateLastPage`. `go test ./...` passes, 112 tests.",
+  "gold": {
+   "verdict": "success",
+   "must_match": [
+    "off-by-one|last page|paginate",
+    "pass|112"
+   ],
+   "forbidden": [
+    "fail"
+   ]
+  },
+  "facts_how": "hand-set: the text reports finished work ; tests: text states 112 passed, 0 failed",
+  "facts": {
+   "outcome": "success",
+   "tests": {
+    "state": "ran",
+    "passed": 112,
+    "failed": 0
+   },
+   "level": "L0"
+  }
+ },
+ {
+  "id": "T005",
+  "bucket": "finished",
+  "origin": "written in the style of a Codex closing message; fictional project and paths",
+  "source": "I bumped `serde` to 1.0.210 in `Cargo.toml`, regenerated `Cargo.lock`, and the workspace builds cleanly. No code changes were needed. All 204 tests pass.",
+  "gold": {
+   "verdict": "success",
+   "must_match": [
+    "serde|1\\.0\\.210|bump",
+    "pass|204|clean"
+   ],
+   "forbidden": [
+    "fail"
+   ]
+  },
+  "facts_how": "hand-set: the text reports finished work ; tests: text states 204 passed, 0 failed",
+  "facts": {
+   "outcome": "success",
+   "tests": {
+    "state": "ran",
+    "passed": 204,
+    "failed": 0
+   },
+   "level": "L0"
+  }
+ },
+ {
+  "id": "T006",
+  "bucket": "finished",
+  "origin": "written in the style of a Claude Code closing message; fictional project and paths",
+  "source": "Renamed nothing, removed nothing; just added a README section on running the demo with `make demo`. It lists the three environment variables the demo reads (`DEMO_PORT`, `DEMO_SEED`, `DEMO_LOG`).",
+  "gold": {
+   "verdict": "success",
+   "must_match": [
+    "README|demo|make demo"
+   ],
+   "forbidden": [
+    "fail",
+    "error"
+   ]
+  },
+  "facts_how": "hand-set: the text reports finished work ; tests: none stated",
+  "facts": {
+   "outcome": "success",
+   "tests": {
+    "state": "unknown"
+   },
+   "level": "L0"
+  }
+ },
+ {
+  "id": "T007",
+  "bucket": "finished",
+  "origin": "lab stand-in turn-end message; fictional project and paths",
+  "source": "The nightly cleanup job now deletes exports older than 14 days (`jobs/cleanup.ts`). The cutoff is read from `EXPORT_TTL_DAYS`, default 14. I ran the job against the seed data: 9 files removed, 3 kept. Unit tests: 27 passed.",
+  "gold": {
+   "verdict": "success",
+   "must_match": [
+    "14 days|EXPORT_TTL_DAYS|cleanup",
+    "27|pass|9"
+   ],
+   "forbidden": [
+    "fail"
+   ]
+  },
+  "facts_how": "hand-set: the text reports finished work ; tests: text states 27 passed, 0 failed",
+  "facts": {
+   "outcome": "success",
+   "tests": {
+    "state": "ran",
+    "passed": 27,
+    "failed": 0
+   },
+   "level": "L0"
+  }
+ },
+ {
+  "id": "T008",
+  "bucket": "finished",
+  "origin": "written in the style of a Claude Code closing message; fictional project and paths",
+  "source": "Login redirect works again. The cause was `next=` being URL-encoded twice in `auth/redirect.ts`; I decode once now and added `redirect.test.ts` (4 cases). Test run: 4 passed, 0 failed.",
+  "gold": {
+   "verdict": "success",
+   "must_match": [
+    "redirect|encoded|decode",
+    "pass|4"
+   ],
+   "forbidden": [
+    "fail"
+   ]
+  },
+  "facts_how": "hand-set: the text reports finished work ; tests: text states 4 passed, 0 failed",
+  "facts": {
+   "outcome": "success",
+   "tests": {
+    "state": "ran",
+    "passed": 4,
+    "failed": 0
+   },
+   "level": "L0"
+  }
+ },
+ {
+  "id": "T009",
+  "bucket": "finished",
+  "origin": "written in the style of a Codex closing message; fictional project and paths",
+  "source": "Implemented the dark theme toggle in `src/ui/ThemeSwitch.vue` and wired it to `prefers-color-scheme`. Lint is clean and the 36 component tests pass.",
+  "gold": {
+   "verdict": "success",
+   "must_match": [
+    "dark|theme|toggle",
+    "pass|36|clean"
+   ],
+   "forbidden": [
+    "fail"
+   ]
+  },
+  "facts_how": "hand-set: the text reports finished work ; tests: text states 36 passed, 0 failed",
+  "facts": {
+   "outcome": "success",
+   "tests": {
+    "state": "ran",
+    "passed": 36,
+    "failed": 0
+   },
+   "level": "L0"
+  }
+ },
+ {
+  "id": "T010",
+  "bucket": "finished",
+  "origin": "written in the style of a Claude Code closing message; fictional project and paths",
+  "source": "Ja, alles erledigt: Die Funktion `lade_konfig()` in `src/config/lader.py` liest jetzt auch `.env.local`. Dafür gibt es zwei neue Tests in `tests/test_lader.py`; `pytest` meldet 63 bestanden, 0 fehlgeschlagen.",
+  "gold": {
+   "verdict": "success",
+   "must_match": [
+    "env\\.local|lade_konfig|konfig",
+    "63|bestanden"
+   ],
+   "forbidden": [
+    "fehlgeschlagen: [1-9]",
+    "fehler"
+   ]
+  },
+  "facts_how": "hand-set: the text reports finished work ; tests: text states 63 passed, 0 failed",
+  "facts": {
+   "outcome": "success",
+   "tests": {
+    "state": "ran",
+    "passed": 63,
+    "failed": 0
+   },
+   "level": "L0"
+  }
+ },
+ {
+  "id": "T011",
+  "bucket": "finished",
+  "origin": "written in the style of a Codex closing message; fictional project and paths",
+  "source": "Der Export nach CSV ist fertig. `exportiere_csv()` in `lib/export.rs` schreibt jetzt UTF-8 mit BOM, damit Excel die Umlaute richtig zeigt. Alle 19 Tests laufen durch.",
+  "gold": {
+   "verdict": "success",
+   "must_match": [
+    "csv|export|umlaut|bom",
+    "19|durch"
+   ],
+   "forbidden": [
+    "fehlgeschlagen",
+    "fehler"
+   ]
+  },
+  "facts_how": "hand-set: the text reports finished work ; tests: text states 19 passed, 0 failed",
+  "facts": {
+   "outcome": "success",
+   "tests": {
+    "state": "ran",
+    "passed": 19,
+    "failed": 0
+   },
+   "level": "L0"
+  }
+ },
+ {
+  "id": "T012",
+  "bucket": "finished",
+  "origin": "lab stand-in turn-end message; fictional project and paths",
+  "source": "Kurze Rückmeldung: Die Fußzeile zeigt die Versionsnummer aus `package.json` an (`components/Footer.tsx`). Tests habe ich nicht erweitert, es ist nur ein Textfeld.",
+  "gold": {
+   "verdict": "success",
+   "must_match": [
+    "version|fußzeile|footer"
+   ],
+   "forbidden": [
+    "fehler",
+    "fehlgeschlagen"
+   ]
+  },
+  "facts_how": "hand-set: the text reports finished work ; tests: none stated",
+  "facts": {
+   "outcome": "success",
+   "tests": {
+    "state": "unknown"
+   },
+   "level": "L0"
+  }
+ },
+ {
+  "id": "T013",
+  "bucket": "partial",
+  "origin": "written in the style of a Claude Code closing message; fictional project and paths",
+  "source": "The importer now handles CSV and TSV (`importer/mod.rs`), but XLSX is still stubbed: `read_xlsx()` returns `Err(Unsupported)`. I stopped there because the XLSX crate choice needs a dependency decision. CSV/TSV tests pass (14).",
+  "gold": {
+   "verdict": "uncertain",
+   "must_match": [
+    "xlsx.*(stub|still|not)|unsupported|dependency",
+    "csv|tsv"
+   ],
+   "forbidden": [
+    "all formats|fully done"
+   ]
+  },
+  "facts_how": "hand-set: the text says part of the work is not done, so no success and no failure (outcome none, calm L1) ; tests: text states 14 passed, 0 failed",
+  "facts": {
+   "outcome": "none",
+   "tests": {
+    "state": "ran",
+    "passed": 14,
+    "failed": 0
+   },
+   "level": "L1"
+  }
+ },
+ {
+  "id": "T014",
+  "bucket": "partial",
+  "origin": "written in the style of a Codex closing message; fictional project and paths",
+  "source": "Migrated 7 of the 11 endpoints to the new auth middleware. `/v1/billing`, `/v1/exports`, `/v1/hooks` and `/v1/admin` still use the old check in `server/legacy_auth.go`. Not touched yet.",
+  "gold": {
+   "verdict": "uncertain",
+   "must_match": [
+    "7 of (the )?11|four|still|not (touched|migrated)"
+   ],
+   "forbidden": [
+    "all endpoints",
+    "fully migrated"
+   ]
+  },
+  "facts_how": "hand-set: the text says part of the work is not done, so no success and no failure (outcome none, calm L1) ; tests: none stated",
+  "facts": {
+   "outcome": "none",
+   "tests": {
+    "state": "unknown"
+   },
+   "level": "L1"
+  }
+ },
+ {
+  "id": "T015",
+  "bucket": "partial",
+  "origin": "lab stand-in turn-end message; fictional project and paths",
+  "source": "First half is in: the `Invoice` model and its migration `0042_invoice.sql`. The PDF rendering and the email step are not started. The model tests pass, 9 of 9.",
+  "gold": {
+   "verdict": "uncertain",
+   "must_match": [
+    "not started|first half|model",
+    "pdf|email"
+   ],
+   "forbidden": [
+    "finished|complete"
+   ]
+  },
+  "facts_how": "hand-set: the text says part of the work is not done, so no success and no failure (outcome none, calm L1) ; tests: text states 9 passed, 0 failed",
+  "facts": {
+   "outcome": "none",
+   "tests": {
+    "state": "ran",
+    "passed": 9,
+    "failed": 0
+   },
+   "level": "L1"
+  }
+ },
+ {
+  "id": "T016",
+  "bucket": "partial",
+  "origin": "written in the style of a Claude Code closing message; fictional project and paths",
+  "source": "Search now finds titles, but not body text yet. `indexer.ts` only indexes `title` and `tags`; the body field needs the tokenizer change I describe in `TODO.md`. I did not run the e2e suite.",
+  "gold": {
+   "verdict": "uncertain",
+   "must_match": [
+    "not (body|yet)|titles|only",
+    "did not run|e2e"
+   ],
+   "forbidden": [
+    "body text works",
+    "fully"
+   ]
+  },
+  "facts_how": "hand-set: the text says part of the work is not done, so no success and no failure (outcome none, calm L1) ; tests: none stated",
+  "facts": {
+   "outcome": "none",
+   "tests": {
+    "state": "unknown"
+   },
+   "level": "L1"
+  }
+ },
+ {
+  "id": "T017",
+  "bucket": "partial",
+  "origin": "written in the style of a Codex closing message; fictional project and paths",
+  "source": "The retry logic works for GET requests only. POST retries are disabled on purpose in `http/client.py` until we know the endpoints are idempotent. Unit tests for GET retry pass (12).",
+  "gold": {
+   "verdict": "uncertain",
+   "must_match": [
+    "GET.*only|POST.*(disabled|not)",
+    "idempotent"
+   ],
+   "forbidden": [
+    "all requests"
+   ]
+  },
+  "facts_how": "hand-set: the text says part of the work is not done, so no success and no failure (outcome none, calm L1) ; tests: text states 12 passed, 0 failed",
+  "facts": {
+   "outcome": "none",
+   "tests": {
+    "state": "ran",
+    "passed": 12,
+    "failed": 0
+   },
+   "level": "L1"
+  }
+ },
+ {
+  "id": "T018",
+  "bucket": "partial",
+  "origin": "written in the style of a Claude Code closing message; fictional project and paths",
+  "source": "I got the build working on Linux (`scripts/build.sh`) but the macOS path still fails at the signing step, which I could not test without a certificate. The Linux artifacts are in `dist/`.",
+  "gold": {
+   "verdict": "uncertain",
+   "must_match": [
+    "linux",
+    "macos.*(fail|not|could not)|signing"
+   ],
+   "forbidden": [
+    "both platforms work"
+   ]
+  },
+  "facts_how": "hand-set: the text says part of the work is not done, so no success and no failure (outcome none, calm L1) ; tests: none stated",
+  "facts": {
+   "outcome": "none",
+   "tests": {
+    "state": "unknown"
+   },
+   "level": "L1"
+  }
+ },
+ {
+  "id": "T019",
+  "bucket": "partial",
+  "origin": "lab stand-in turn-end message; fictional project and paths",
+  "source": "Zwischenstand: Die Übersetzungen für Deutsch und Französisch sind eingetragen (`locales/de.json`, `locales/fr.json`). Spanisch fehlt noch, dafür hatte ich keine Quelle. Die UI-Tests habe ich nicht neu laufen lassen.",
+  "gold": {
+   "verdict": "uncertain",
+   "must_match": [
+    "spanisch.*fehlt|noch nicht|fehlt",
+    "nicht.*(laufen|gelaufen)|zwischenstand"
+   ],
+   "forbidden": [
+    "alles fertig",
+    "vollständig"
+   ]
+  },
+  "facts_how": "hand-set: the text says part of the work is not done, so no success and no failure (outcome none, calm L1) ; tests: none stated",
+  "facts": {
+   "outcome": "none",
+   "tests": {
+    "state": "unknown"
+   },
+   "level": "L1"
+  }
+ },
+ {
+  "id": "T020",
+  "bucket": "partial",
+  "origin": "written in the style of a Codex closing message; fictional project and paths",
+  "source": "Teilweise erledigt: `Cache::evict()` entfernt jetzt nach Alter, aber die Größenbegrenzung (`max_bytes`) ist noch nicht umgesetzt, weil dafür die Zählung in `store.rs` umgebaut werden muss. Die 22 vorhandenen Tests bestehen.",
+  "gold": {
+   "verdict": "uncertain",
+   "must_match": [
+    "noch nicht|größenbegrenzung|max_bytes",
+    "alter"
+   ],
+   "forbidden": [
+    "vollständig",
+    "komplett fertig"
+   ]
+  },
+  "facts_how": "hand-set: the text says part of the work is not done, so no success and no failure (outcome none, calm L1) ; tests: text states 22 passed, 0 failed",
+  "facts": {
+   "outcome": "none",
+   "tests": {
+    "state": "ran",
+    "passed": 22,
+    "failed": 0
+   },
+   "level": "L1"
+  }
+ },
+ {
+  "id": "T021",
+  "bucket": "partial",
+  "origin": "written in the style of a Claude Code closing message; fictional project and paths",
+  "source": "Wired the new `Toast` component into three of the five screens (`Home`, `Upload`, `Profile`). `Settings` and `Billing` still call `alert()`. I left them because their tests mock `alert` and need rewriting.",
+  "gold": {
+   "verdict": "uncertain",
+   "must_match": [
+    "three of (the )?five|still|alert",
+    "settings|billing"
+   ],
+   "forbidden": [
+    "all screens"
+   ]
+  },
+  "facts_how": "hand-set: the text says part of the work is not done, so no success and no failure (outcome none, calm L1) ; tests: none stated",
+  "facts": {
+   "outcome": "none",
+   "tests": {
+    "state": "unknown"
+   },
+   "level": "L1"
+  }
+ },
+ {
+  "id": "T022",
+  "bucket": "partial",
+  "origin": "written in the style of a Codex closing message; fictional project and paths",
+  "source": "Draft only: `docs/migration.md` covers steps 1 to 4. Steps 5 and 6 (rollback and the data check) are placeholders marked `TBD`. Please do not publish it yet.",
+  "gold": {
+   "verdict": "uncertain",
+   "must_match": [
+    "draft|TBD|placeholder",
+    "steps 5"
+   ],
+   "forbidden": [
+    "ready|complete|publish now"
+   ]
+  },
+  "facts_how": "hand-set: the text says part of the work is not done, so no success and no failure (outcome none, calm L1) ; tests: none stated",
+  "facts": {
+   "outcome": "none",
+   "tests": {
+    "state": "unknown"
+   },
+   "level": "L1"
+  }
+ },
+ {
+  "id": "T023",
+  "bucket": "partial",
+  "origin": "lab stand-in turn-end message; fictional project and paths",
+  "source": "I added the rate limiter (`middleware/limit.js`, 100 requests per minute per key), but it keeps its counters in memory, so it does not work across the two server instances yet. A shared store is the next step.",
+  "gold": {
+   "verdict": "uncertain",
+   "must_match": [
+    "memory|not.*(across|shared)|yet",
+    "shared store|next step"
+   ],
+   "forbidden": [
+    "works across",
+    "production ready"
+   ]
+  },
+  "facts_how": "hand-set: the text says part of the work is not done, so no success and no failure (outcome none, calm L1) ; tests: none stated",
+  "facts": {
+   "outcome": "none",
+   "tests": {
+    "state": "unknown"
+   },
+   "level": "L1"
+  }
+ },
+ {
+  "id": "T024",
+  "bucket": "not_run",
+  "origin": "written in the style of a Claude Code closing message; fictional project and paths",
+  "source": "Changed the timeout default from 10 s to 30 s in `net/config.rs`. I did not run the tests; the sandbox has no network and the suite needs it.",
+  "gold": {
+   "verdict": "uncertain",
+   "must_match": [
+    "did not run|not run|no network"
+   ],
+   "forbidden": [
+    "tests pass",
+    "passed",
+    "all green"
+   ]
+  },
+  "facts_how": "hand-set: the text says tests were not run or could not be, so no success claim (outcome none, tests not_run, L1) ; tests: text says not run",
+  "facts": {
+   "outcome": "none",
+   "tests": {
+    "state": "not_run"
+   },
+   "level": "L1"
+  }
+ },
+ {
+  "id": "T025",
+  "bucket": "not_run",
+  "origin": "written in the style of a Codex closing message; fictional project and paths",
+  "source": "The new `slugify()` is in `utils/text.py` with its docstring. Tests not run yet, I only checked that the file imports.",
+  "gold": {
+   "verdict": "uncertain",
+   "must_match": [
+    "not run|only checked"
+   ],
+   "forbidden": [
+    "tests pass",
+    "passed"
+   ]
+  },
+  "facts_how": "hand-set: the text says tests were not run or could not be, so no success claim (outcome none, tests not_run, L1) ; tests: text says not run",
+  "facts": {
+   "outcome": "none",
+   "tests": {
+    "state": "not_run"
+   },
+   "level": "L1"
+  }
+ },
+ {
+  "id": "T026",
+  "bucket": "not_run",
+  "origin": "lab stand-in turn-end message; fictional project and paths",
+  "source": "Refactored the date picker to use `Intl.DateTimeFormat`. I haven't run the browser tests (`npm run e2e`), so locale behaviour is unverified, especially for `ar` and `ja`.",
+  "gold": {
+   "verdict": "uncertain",
+   "must_match": [
+    "haven.t run|unverified|not.*verified",
+    "locale|ar|ja"
+   ],
+   "forbidden": [
+    "verified|all pass"
+   ]
+  },
+  "facts_how": "hand-set: the text says tests were not run or could not be, so no success claim (outcome none, tests not_run, L1) ; tests: text says not run",
+  "facts": {
+   "outcome": "none",
+   "tests": {
+    "state": "not_run"
+   },
+   "level": "L1"
+  }
+ },
+ {
+  "id": "T027",
+  "bucket": "not_run",
+  "origin": "written in the style of a Claude Code closing message; fictional project and paths",
+  "source": "Updated the Dockerfile to use `python:3.12-slim` and moved the pip install into a separate layer. I could not build the image here (no Docker daemon), so it is untested.",
+  "gold": {
+   "verdict": "uncertain",
+   "must_match": [
+    "could not build|untested|no docker"
+   ],
+   "forbidden": [
+    "builds|works",
+    "tested and"
+   ]
+  },
+  "facts_how": "hand-set: the text says tests were not run or could not be, so no success claim (outcome none, tests not_run, L1) ; tests: text says not run",
+  "facts": {
+   "outcome": "none",
+   "tests": {
+    "state": "not_run"
+   },
+   "level": "L1"
+  }
+ },
+ {
+  "id": "T028",
+  "bucket": "not_run",
+  "origin": "written in the style of a Codex closing message; fictional project and paths",
+  "source": "The fix for the flaky `test_sync_order` is in: I replaced the `sleep(0.1)` with an event wait in `tests/test_sync.py`. I did not run it repeatedly, so I cannot say yet whether the flake is gone.",
+  "gold": {
+   "verdict": "uncertain",
+   "must_match": [
+    "did not run|cannot say|not.*gone|yet"
+   ],
+   "forbidden": [
+    "fixed|flake is gone",
+    "passes"
+   ]
+  },
+  "facts_how": "hand-set: the text says tests were not run or could not be, so no success claim (outcome none, tests not_run, L1) ; tests: text says not run",
+  "facts": {
+   "outcome": "none",
+   "tests": {
+    "state": "not_run"
+   },
+   "level": "L1"
+  }
+ },
+ {
+  "id": "T029",
+  "bucket": "not_run",
+  "origin": "lab stand-in turn-end message; fictional project and paths",
+  "source": "Added input validation to `POST /orders` (`handlers/orders.go`): quantity must be 1 to 999. No tests were run and I did not add new ones.",
+  "gold": {
+   "verdict": "uncertain",
+   "must_match": [
+    "no tests|not run|did not add"
+   ],
+   "forbidden": [
+    "tests pass",
+    "validated by tests"
+   ]
+  },
+  "facts_how": "hand-set: the text says tests were not run or could not be, so no success claim (outcome none, tests not_run, L1) ; tests: text says not run",
+  "facts": {
+   "outcome": "none",
+   "tests": {
+    "state": "not_run"
+   },
+   "level": "L1"
+  }
+ },
+ {
+  "id": "T030",
+  "bucket": "not_run",
+  "origin": "written in the style of a Claude Code closing message; fictional project and paths",
+  "source": "Typo fixes in `docs/` only (14 files). Nothing was built or tested.",
+  "gold": {
+   "verdict": "uncertain",
+   "must_match": [
+    "nothing.*(built|tested)|not tested"
+   ],
+   "forbidden": [
+    "tests pass",
+    "passed"
+   ]
+  },
+  "facts_how": "hand-set: the text says tests were not run or could not be, so no success claim (outcome none, tests not_run, L1) ; tests: text says not run",
+  "facts": {
+   "outcome": "none",
+   "tests": {
+    "state": "not_run"
+   },
+   "level": "L1"
+  }
+ },
+ {
+  "id": "T031",
+  "bucket": "not_run",
+  "origin": "written in the style of a Codex closing message; fictional project and paths",
+  "source": "Das neue Feld `phone` ist im Formular `forms/signup.vue` und in der Validierung drin. Ich habe die Tests nicht ausgeführt, weil die Datenbank lokal nicht läuft.",
+  "gold": {
+   "verdict": "uncertain",
+   "must_match": [
+    "nicht ausgeführt|nicht.*(gelaufen|getestet)",
+    "datenbank"
+   ],
+   "forbidden": [
+    "bestanden",
+    "alle tests grün"
+   ]
+  },
+  "facts_how": "hand-set: the text says tests were not run or could not be, so no success claim (outcome none, tests not_run, L1) ; tests: text says not run",
+  "facts": {
+   "outcome": "none",
+   "tests": {
+    "state": "not_run"
+   },
+   "level": "L1"
+  }
+ },
+ {
+  "id": "T032",
+  "bucket": "not_run",
+  "origin": "lab stand-in turn-end message; fictional project and paths",
+  "source": "Die Migration `0017_add_index.sql` ist geschrieben, aber noch nicht gegen eine Datenbank gelaufen. Ob sie auf der großen Tabelle schnell genug ist, weiß ich nicht.",
+  "gold": {
+   "verdict": "uncertain",
+   "must_match": [
+    "noch nicht|nicht gelaufen|weiß ich nicht"
+   ],
+   "forbidden": [
+    "getestet und",
+    "läuft"
+   ]
+  },
+  "facts_how": "hand-set: the text says tests were not run or could not be, so no success claim (outcome none, tests not_run, L1) ; tests: text says not run",
+  "facts": {
+   "outcome": "none",
+   "tests": {
+    "state": "not_run"
+   },
+   "level": "L1"
+  }
+ },
+ {
+  "id": "T033",
+  "bucket": "not_run",
+  "origin": "written in the style of a Claude Code closing message; fictional project and paths",
+  "source": "Switched the logger to structured output in `log/emit.ts`. Type check passes (`tsc --noEmit`), but the unit tests were not run in this turn.",
+  "gold": {
+   "verdict": "uncertain",
+   "must_match": [
+    "not run|were not"
+   ],
+   "forbidden": [
+    "all tests pass",
+    "tests passed"
+   ]
+  },
+  "facts_how": "hand-set: the text says tests were not run or could not be, so no success claim (outcome none, tests not_run, L1) ; tests: text says not run",
+  "facts": {
+   "outcome": "none",
+   "tests": {
+    "state": "not_run"
+   },
+   "level": "L1"
+  }
+ },
+ {
+  "id": "T034",
+  "bucket": "not_run",
+  "origin": "written in the style of a Codex closing message; fictional project and paths",
+  "source": "I rewrote the parser's error messages in `parser/errors.rs`. I haven't compiled with the `strict` feature, and `cargo test` was not executed.",
+  "gold": {
+   "verdict": "uncertain",
+   "must_match": [
+    "haven.t|not executed|not.*compiled"
+   ],
+   "forbidden": [
+    "compiles",
+    "passes"
+   ]
+  },
+  "facts_how": "hand-set: the text says tests were not run or could not be, so no success claim (outcome none, tests not_run, L1) ; tests: text says not run",
+  "facts": {
+   "outcome": "none",
+   "tests": {
+    "state": "not_run"
+   },
+   "level": "L1"
+  }
+ },
+ {
+  "id": "T035",
+  "bucket": "not_run",
+  "origin": "lab stand-in turn-end message; fictional project and paths",
+  "source": "Skipped the test step: the CI image lacks `libfoo`, so `make check` stops before tests. The code change itself is the one-line fix in `src/bar.c`.",
+  "gold": {
+   "verdict": "uncertain",
+   "must_match": [
+    "skipped|lacks|stops before"
+   ],
+   "forbidden": [
+    "tests pass",
+    "check passed"
+   ]
+  },
+  "facts_how": "hand-set: the text says tests were not run or could not be, so no success claim (outcome none, tests not_run, L1) ; tests: text says not run",
+  "facts": {
+   "outcome": "none",
+   "tests": {
+    "state": "not_run"
+   },
+   "level": "L1"
+  }
+ },
+ {
+  "id": "T036",
+  "bucket": "failed",
+  "origin": "written in the style of a Claude Code closing message; fictional project and paths",
+  "source": "The build fails. `cargo build` stops with `error[E0277]: the trait bound 'Config: Clone' is not satisfied` at `src/app.rs:41`. I tried deriving `Clone` but `Config` holds a `File`. I have reverted my change, so main is as before.",
+  "gold": {
+   "verdict": "fail",
+   "must_match": [
+    "fail|error|E0277",
+    "revert|reverted|as before"
+   ],
+   "forbidden": [
+    "success",
+    "all done"
+   ]
+  },
+  "facts_how": "hand-set: the text reports a failure with error text or a red build (outcome failure, L3) ; tests: none stated",
+  "facts": {
+   "outcome": "failure",
+   "tests": {
+    "state": "unknown"
+   },
+   "level": "L3"
+  }
+ },
+ {
+  "id": "T037",
+  "bucket": "failed",
+  "origin": "written in the style of a Codex closing message; fictional project and paths",
+  "source": "Tests failed: 3 of 87 (`test_upload_large`, `test_upload_resume`, `test_checksum`). The first two time out after 60 s, `test_checksum` reports `expected 'a3f9' but got '0000'`. My change to `upload/chunk.py` is the likely cause; I have not fixed it yet.",
+  "gold": {
+   "verdict": "fail",
+   "must_match": [
+    "3 of 87|3 fail|failed",
+    "time(d)? ?out|0000|chunk"
+   ],
+   "forbidden": [
+    "all pass",
+    "all tests pass"
+   ]
+  },
+  "facts_how": "hand-set: the text reports a failure with error text or a red build (outcome failure, L3) ; tests: text states 84 passed, 3 failed",
+  "facts": {
+   "outcome": "failure",
+   "tests": {
+    "state": "ran",
+    "passed": 84,
+    "failed": 3
+   },
+   "level": "L3"
+  }
+ },
+ {
+  "id": "T038",
+  "bucket": "failed",
+  "origin": "lab stand-in turn-end message; fictional project and paths",
+  "source": "I could not complete the migration. `alembic upgrade head` fails with `psycopg2.errors.UndefinedTable: relation \"accounts\" does not exist`. The revision order in `versions/` looks wrong. Nothing was applied.",
+  "gold": {
+   "verdict": "fail",
+   "must_match": [
+    "could not|fail",
+    "undefinedtable|does not exist|revision"
+   ],
+   "forbidden": [
+    "migration (is )?(done|complete)"
+   ]
+  },
+  "facts_how": "hand-set: the text reports a failure with error text or a red build (outcome failure, L3) ; tests: none stated",
+  "facts": {
+   "outcome": "failure",
+   "tests": {
+    "state": "unknown"
+   },
+   "level": "L3"
+  }
+ },
+ {
+  "id": "T039",
+  "bucket": "failed",
+  "origin": "written in the style of a Claude Code closing message; fictional project and paths",
+  "source": "The linter reports 12 errors after my change, all `no-unused-vars` in `src/store/*.ts`. The type check also fails on `store/index.ts:19`. The branch is red until these are cleaned up.",
+  "gold": {
+   "verdict": "fail",
+   "must_match": [
+    "12 errors|red|fail",
+    "no-unused-vars|type check"
+   ],
+   "forbidden": [
+    "clean",
+    "green"
+   ]
+  },
+  "facts_how": "hand-set: the text reports a failure with error text or a red build (outcome failure, L3) ; tests: none stated",
+  "facts": {
+   "outcome": "failure",
+   "tests": {
+    "state": "unknown"
+   },
+   "level": "L3"
+  }
+ },
+ {
+  "id": "T040",
+  "bucket": "failed",
+  "origin": "written in the style of a Codex closing message; fictional project and paths",
+  "source": "Deploy script crashed halfway: `scp: /srv/app/release: Permission denied`. The new build is uploaded but the symlink was not switched, so production still runs the old version. I did not retry.",
+  "gold": {
+   "verdict": "fail",
+   "must_match": [
+    "crash|denied|not switched",
+    "old version|did not retry"
+   ],
+   "forbidden": [
+    "deployed",
+    "released"
+   ]
+  },
+  "facts_how": "hand-set: the text reports a failure with error text or a red build (outcome failure, L3) ; tests: none stated",
+  "facts": {
+   "outcome": "failure",
+   "tests": {
+    "state": "unknown"
+   },
+   "level": "L3"
+  }
+ },
+ {
+  "id": "T041",
+  "bucket": "failed",
+  "origin": "lab stand-in turn-end message; fictional project and paths",
+  "source": "Ran the suite: 301 tests, 17 failed, all in `tests/render/`. They fail with `Cannot find module 'canvas'`, so the new snapshot step cannot run. The other 284 pass.",
+  "gold": {
+   "verdict": "fail",
+   "must_match": [
+    "17|fail",
+    "cannot find module|canvas"
+   ],
+   "forbidden": [
+    "all pass"
+   ]
+  },
+  "facts_how": "hand-set: the text reports a failure with error text or a red build (outcome failure, L3) ; tests: text states 284 passed, 17 failed",
+  "facts": {
+   "outcome": "failure",
+   "tests": {
+    "state": "ran",
+    "passed": 284,
+    "failed": 17
+   },
+   "level": "L3"
+  }
+ },
+ {
+  "id": "T042",
+  "bucket": "failed",
+  "origin": "written in the style of a Claude Code closing message; fictional project and paths",
+  "source": "Die Kompilierung scheitert: `src/netz/sock.rs:77: error: cannot borrow 'self' as mutable more than once`. Meine Änderung an `verbinde()` ist schuld. Ich habe sie nicht zurückgenommen, damit du den Fehler siehst.",
+  "gold": {
+   "verdict": "fail",
+   "must_match": [
+    "scheitert|error|fehler",
+    "verbinde|borrow"
+   ],
+   "forbidden": [
+    "erfolgreich",
+    "fertig"
+   ]
+  },
+  "facts_how": "hand-set: the text reports a failure with error text or a red build (outcome failure, L3) ; tests: none stated",
+  "facts": {
+   "outcome": "failure",
+   "tests": {
+    "state": "unknown"
+   },
+   "level": "L3"
+  }
+ },
+ {
+  "id": "T043",
+  "bucket": "failed",
+  "origin": "written in the style of a Codex closing message; fictional project and paths",
+  "source": "Fehlgeschlagen: 5 von 140 Tests (`tests/test_zeit.py`) rot, darunter `test_sommerzeit` mit `AssertionError: 7200 != 3600`. Der Fehler liegt wohl in `zeit/umrechnung.py`; ich habe noch nichts korrigiert.",
+  "gold": {
+   "verdict": "fail",
+   "must_match": [
+    "5 von 140|rot|fehlgeschlagen",
+    "assertionerror|umrechnung"
+   ],
+   "forbidden": [
+    "alle tests bestehen",
+    "grün"
+   ]
+  },
+  "facts_how": "hand-set: the text reports a failure with error text or a red build (outcome failure, L3) ; tests: text states 135 passed, 5 failed",
+  "facts": {
+   "outcome": "failure",
+   "tests": {
+    "state": "ran",
+    "passed": 135,
+    "failed": 5
+   },
+   "level": "L3"
+  }
+ },
+ {
+  "id": "T044",
+  "bucket": "failed",
+  "origin": "lab stand-in turn-end message; fictional project and paths",
+  "source": "Rolled back. After the schema change, `/health` returned 500 and the integration test `test_health` fails with `KeyError: 'version'`. I reverted `schema.sql` and `health.py`; nothing from this attempt remains.",
+  "gold": {
+   "verdict": "fail",
+   "must_match": [
+    "rolled back|revert|fail|500",
+    "keyerror|version"
+   ],
+   "forbidden": [
+    "success",
+    "shipped"
+   ]
+  },
+  "facts_how": "hand-set: the text reports a failure with error text or a red build (outcome failure, L3) ; tests: text states 60 passed, 1 failed",
+  "facts": {
+   "outcome": "failure",
+   "tests": {
+    "state": "ran",
+    "passed": 60,
+    "failed": 1
+   },
+   "level": "L3"
+  }
+ },
+ {
+  "id": "T045",
+  "bucket": "failed",
+  "origin": "written in the style of a Claude Code closing message; fictional project and paths",
+  "source": "Could not reproduce the login bug and my fix attempt made it worse: `tests/auth/test_session.py` now has 4 failures (`SessionExpired` raised too early). I do not have a working fix.",
+  "gold": {
+   "verdict": "fail",
+   "must_match": [
+    "could not|worse|4 failures",
+    "no (working )?fix|do not have"
+   ],
+   "forbidden": [
+    "fixed",
+    "resolved"
+   ]
+  },
+  "facts_how": "hand-set: the text reports a failure with error text or a red build (outcome failure, L3) ; tests: text states 30 passed, 4 failed",
+  "facts": {
+   "outcome": "failure",
+   "tests": {
+    "state": "ran",
+    "passed": 30,
+    "failed": 4
+   },
+   "level": "L3"
+  }
+ },
+ {
+  "id": "T046",
+  "bucket": "failed",
+  "origin": "written in the style of a Codex closing message; fictional project and paths",
+  "source": "The e2e run did not finish: Playwright reported `Timeout 30000ms exceeded` waiting for `#checkout-button` on 6 of 9 scenarios. I think the new overlay blocks the click, but I have not confirmed it.",
+  "gold": {
+   "verdict": "fail",
+   "must_match": [
+    "did not finish|timeout|6 of 9",
+    "overlay|not confirmed"
+   ],
+   "forbidden": [
+    "all scenarios pass"
+   ]
+  },
+  "facts_how": "hand-set: the text reports a failure with error text or a red build (outcome failure, L3) ; tests: text states 3 passed, 6 failed",
+  "facts": {
+   "outcome": "failure",
+   "tests": {
+    "state": "ran",
+    "passed": 3,
+    "failed": 6
+   },
+   "level": "L3"
+  }
+ },
+ {
+  "id": "T047",
+  "bucket": "question",
+  "origin": "written in the style of a Claude Code closing message; fictional project and paths",
+  "source": "Before I touch `billing/proration.py`: should prorated refunds round half-up or half-even? The current code rounds half-up, the spec in `docs/billing.md` says nothing. I have changed nothing.",
+  "gold": {
+   "verdict": "question",
+   "must_match": [
+    "half-up|half-even|round",
+    "should|\\?"
+   ],
+   "forbidden": [
+    "done",
+    "fixed"
+   ]
+  },
+  "facts_how": "hand-set: the agent stops and asks the user (outcome question, L2) ; tests: none stated",
+  "facts": {
+   "outcome": "question",
+   "tests": {
+    "state": "unknown"
+   },
+   "level": "L2"
+  }
+ },
+ {
+  "id": "T048",
+  "bucket": "question",
+  "origin": "written in the style of a Codex closing message; fictional project and paths",
+  "source": "I can do this two ways. Option A keeps the `users.email` column and adds a lookup table; option B moves emails into the new `contacts` table and changes 14 queries. Which do you prefer?",
+  "gold": {
+   "verdict": "question",
+   "must_match": [
+    "option a|option b|which",
+    "\\?|prefer"
+   ],
+   "forbidden": [
+    "done",
+    "implemented"
+   ]
+  },
+  "facts_how": "hand-set: the agent stops and asks the user (outcome question, L2) ; tests: none stated",
+  "facts": {
+   "outcome": "question",
+   "tests": {
+    "state": "unknown"
+   },
+   "level": "L2"
+  }
+ },
+ {
+  "id": "T049",
+  "bucket": "question",
+  "origin": "lab stand-in turn-end message; fictional project and paths",
+  "source": "The tests pass (48), but one thing needs your call: `export()` currently includes soft-deleted rows. Is that intended, or should I filter them out? I left it as is.",
+  "gold": {
+   "verdict": "question",
+   "must_match": [
+    "soft-deleted|intended|filter",
+    "should i|\\?"
+   ],
+   "forbidden": [
+    "fixed"
+   ]
+  },
+  "facts_how": "hand-set: the agent stops and asks the user (outcome question, L2) ; tests: text states 48 passed, 0 failed",
+  "facts": {
+   "outcome": "question",
+   "tests": {
+    "state": "ran",
+    "passed": 48,
+    "failed": 0
+   },
+   "level": "L2"
+  }
+ },
+ {
+  "id": "T050",
+  "bucket": "question",
+  "origin": "written in the style of a Claude Code closing message; fictional project and paths",
+  "source": "`settings.yaml` has two `timeout` keys (lines 12 and 31) with different values, 5 and 20. Which one wins in production? I did not want to guess, so I stopped here.",
+  "gold": {
+   "verdict": "question",
+   "must_match": [
+    "two|timeout",
+    "which|stopped|\\?"
+   ],
+   "forbidden": [
+    "resolved",
+    "done"
+   ]
+  },
+  "facts_how": "hand-set: the agent stops and asks the user (outcome question, L2) ; tests: none stated",
+  "facts": {
+   "outcome": "question",
+   "tests": {
+    "state": "unknown"
+   },
+   "level": "L2"
+  }
+ },
+ {
+  "id": "T051",
+  "bucket": "question",
+  "origin": "written in the style of a Codex closing message; fictional project and paths",
+  "source": "I found the cause: the cron job in `ops/cron.d/sync` runs as root and rewrites file owners. Can I change it to run as `svc-sync`? That alters the deployment, so I did not do it.",
+  "gold": {
+   "verdict": "question",
+   "must_match": [
+    "can i|\\?|cron",
+    "did not|root"
+   ],
+   "forbidden": [
+    "changed it",
+    "done"
+   ]
+  },
+  "facts_how": "hand-set: the agent stops and asks the user (outcome question, L2) ; tests: none stated",
+  "facts": {
+   "outcome": "question",
+   "tests": {
+    "state": "unknown"
+   },
+   "level": "L2"
+  }
+ },
+ {
+  "id": "T052",
+  "bucket": "question",
+  "origin": "lab stand-in turn-end message; fictional project and paths",
+  "source": "Do you want the new endpoint under `/v2/reports` or under the existing `/v1/reports` with a `version` parameter? Code is ready for either; I only need the route name before opening the change.",
+  "gold": {
+   "verdict": "question",
+   "must_match": [
+    "/v2|/v1|route",
+    "do you want|\\?"
+   ],
+   "forbidden": [
+    "merged"
+   ]
+  },
+  "facts_how": "hand-set: the agent stops and asks the user (outcome question, L2) ; tests: none stated",
+  "facts": {
+   "outcome": "question",
+   "tests": {
+    "state": "unknown"
+   },
+   "level": "L2"
+  }
+ },
+ {
+  "id": "T053",
+  "bucket": "question",
+  "origin": "written in the style of a Claude Code closing message; fictional project and paths",
+  "source": "Soll `lösche_alte_logs()` auch die komprimierten `.gz`-Dateien entfernen? Ich habe bisher nur die `.log`-Dateien in `ops/logs.py` behandelt und warte auf deine Antwort, bevor ich weitermache.",
+  "gold": {
+   "verdict": "question",
+   "must_match": [
+    "soll|\\?|\\.gz",
+    "warte|antwort"
+   ],
+   "forbidden": [
+    "erledigt",
+    "fertig"
+   ]
+  },
+  "facts_how": "hand-set: the agent stops and asks the user (outcome question, L2) ; tests: none stated",
+  "facts": {
+   "outcome": "question",
+   "tests": {
+    "state": "unknown"
+   },
+   "level": "L2"
+  }
+ },
+ {
+  "id": "T054",
+  "bucket": "question",
+  "origin": "written in the style of a Codex closing message; fictional project and paths",
+  "source": "Zwei Möglichkeiten für den Login: Cookies mit `SameSite=Lax` (einfacher, funktioniert nicht für das eingebettete Widget) oder Token im Header (mehr Umbau in `client/api.ts`). Welche soll ich nehmen?",
+  "gold": {
+   "verdict": "question",
+   "must_match": [
+    "welche|\\?|lax|token",
+    "möglichkeiten|umbau|widget"
+   ],
+   "forbidden": [
+    "umgesetzt",
+    "erledigt"
+   ]
+  },
+  "facts_how": "hand-set: the agent stops and asks the user (outcome question, L2) ; tests: none stated",
+  "facts": {
+   "outcome": "question",
+   "tests": {
+    "state": "unknown"
+   },
+   "level": "L2"
+  }
+ },
+ {
+  "id": "T055",
+  "bucket": "question",
+  "origin": "lab stand-in turn-end message; fictional project and paths",
+  "source": "I have two versions of the migration ready (`0050_a.sql` renames the column, `0050_b.sql` copies and drops it later). Renaming is faster but needs a short downtime. Is a 2-minute downtime acceptable?",
+  "gold": {
+   "verdict": "question",
+   "must_match": [
+    "downtime|rename|two",
+    "acceptable|\\?"
+   ],
+   "forbidden": [
+    "applied",
+    "done"
+   ]
+  },
+  "facts_how": "hand-set: the agent stops and asks the user (outcome question, L2) ; tests: none stated",
+  "facts": {
+   "outcome": "question",
+   "tests": {
+    "state": "unknown"
+   },
+   "level": "L2"
+  }
+ },
+ {
+  "id": "T056",
+  "bucket": "question",
+  "origin": "written in the style of a Claude Code closing message; fictional project and paths",
+  "source": "Quick question: the CI config pins Node 18, which is end of life. Shall I move it to Node 22 in `.github/workflows/ci.yml`? It would change the lockfile hashes too.",
+  "gold": {
+   "verdict": "question",
+   "must_match": [
+    "node 18|node 22|shall",
+    "\\?|lockfile"
+   ],
+   "forbidden": [
+    "moved",
+    "updated"
+   ]
+  },
+  "facts_how": "hand-set: the agent stops and asks the user (outcome question, L2) ; tests: none stated",
+  "facts": {
+   "outcome": "question",
+   "tests": {
+    "state": "unknown"
+   },
+   "level": "L2"
+  }
+ },
+ {
+  "id": "T057",
+  "bucket": "question",
+  "origin": "written in the style of a Codex closing message; fictional project and paths",
+  "source": "Do you want me to keep the old `legacy_export()` alongside the new one for one release, or delete it now? Nothing calls it in this repo, but the docs mention it.",
+  "gold": {
+   "verdict": "question",
+   "must_match": [
+    "keep|delete|legacy_export",
+    "do you want|\\?"
+   ],
+   "forbidden": [
+    "deleted it"
+   ]
+  },
+  "facts_how": "hand-set: the agent stops and asks the user (outcome question, L2) ; tests: none stated",
+  "facts": {
+   "outcome": "question",
+   "tests": {
+    "state": "unknown"
+   },
+   "level": "L2"
+  }
+ },
+ {
+  "id": "T058",
+  "bucket": "refactor",
+  "origin": "written in the style of a Claude Code closing message; fictional project and paths",
+  "source": "Refactor only, no behaviour change: moved the URL helpers from `utils.py` into `net/urls.py` and updated the 9 imports. `pytest` still shows 130 passed.",
+  "gold": {
+   "verdict": "success",
+   "must_match": [
+    "no behaviou?r change|refactor",
+    "moved|130"
+   ],
+   "forbidden": [
+    "fix",
+    "new feature"
+   ]
+  },
+  "facts_how": "hand-set: the text says behaviour is unchanged (finished calm turn, L0) ; tests: text states 130 passed, 0 failed",
+  "facts": {
+   "outcome": "success",
+   "tests": {
+    "state": "ran",
+    "passed": 130,
+    "failed": 0
+   },
+   "level": "L0"
+  }
+ },
+ {
+  "id": "T059",
+  "bucket": "refactor",
+  "origin": "written in the style of a Codex closing message; fictional project and paths",
+  "source": "Split `OrderService` (640 lines) into `OrderCreator`, `OrderPricer` and `OrderNotifier`. Public method signatures are unchanged and all 88 tests pass without edits.",
+  "gold": {
+   "verdict": "success",
+   "must_match": [
+    "split|unchanged|without edits",
+    "88|pass"
+   ],
+   "forbidden": [
+    "new behaviou?r",
+    "fixes"
+   ]
+  },
+  "facts_how": "hand-set: the text says behaviour is unchanged (finished calm turn, L0) ; tests: text states 88 passed, 0 failed",
+  "facts": {
+   "outcome": "success",
+   "tests": {
+    "state": "ran",
+    "passed": 88,
+    "failed": 0
+   },
+   "level": "L0"
+  }
+ },
+ {
+  "id": "T060",
+  "bucket": "refactor",
+  "origin": "lab stand-in turn-end message; fictional project and paths",
+  "source": "Extracted the retry loop from `fetchAll()` into `withRetry()` in `lib/retry.ts`. Same behaviour as before; 31 tests pass, none were changed.",
+  "gold": {
+   "verdict": "success",
+   "must_match": [
+    "extracted|same behaviou?r",
+    "31|pass"
+   ],
+   "forbidden": [
+    "fix",
+    "added feature"
+   ]
+  },
+  "facts_how": "hand-set: the text says behaviour is unchanged (finished calm turn, L0) ; tests: text states 31 passed, 0 failed",
+  "facts": {
+   "outcome": "success",
+   "tests": {
+    "state": "ran",
+    "passed": 31,
+    "failed": 0
+   },
+   "level": "L0"
+  }
+ },
+ {
+  "id": "T061",
+  "bucket": "refactor",
+  "origin": "written in the style of a Claude Code closing message; fictional project and paths",
+  "source": "Renamed `getUsr` to `getUser` across `src/` (43 call sites) and removed the dead helper `legacy_fmt`. No functional change. The build and the 52 tests are green.",
+  "gold": {
+   "verdict": "success",
+   "must_match": [
+    "renamed|no functional change",
+    "dead|52|green"
+   ],
+   "forbidden": [
+    "fix",
+    "feature"
+   ]
+  },
+  "facts_how": "hand-set: the text says behaviour is unchanged (finished calm turn, L0) ; tests: text states 52 passed, 0 failed",
+  "facts": {
+   "outcome": "success",
+   "tests": {
+    "state": "ran",
+    "passed": 52,
+    "failed": 0
+   },
+   "level": "L0"
+  }
+ },
+ {
+  "id": "T062",
+  "bucket": "refactor",
+  "origin": "written in the style of a Codex closing message; fictional project and paths",
+  "source": "Converted `config/loader.js` from callbacks to `async/await`. The behaviour is identical; I compared the output on the sample configs. Tests were not run.",
+  "gold": {
+   "verdict": "success",
+   "must_match": [
+    "async|identical|callbacks",
+    "not run|compared"
+   ],
+   "forbidden": [
+    "fix",
+    "tests pass"
+   ]
+  },
+  "facts_how": "hand-set: the text says behaviour is unchanged (finished calm turn, L0) ; tests: text says not run",
+  "facts": {
+   "outcome": "success",
+   "tests": {
+    "state": "not_run"
+   },
+   "level": "L0"
+  }
+ },
+ {
+  "id": "T063",
+  "bucket": "refactor",
+  "origin": "lab stand-in turn-end message; fictional project and paths",
+  "source": "Moved the CSS from `App.css` into per-component modules (11 files). Pixel output should be the same, but I only checked three screens by eye, not all.",
+  "gold": {
+   "verdict": "success",
+   "must_match": [
+    "moved|same|three screens",
+    "only|should"
+   ],
+   "forbidden": [
+    "redesign",
+    "improved"
+   ]
+  },
+  "facts_how": "hand-set: the text says behaviour is unchanged (finished calm turn, L0) ; tests: none stated",
+  "facts": {
+   "outcome": "success",
+   "tests": {
+    "state": "unknown"
+   },
+   "level": "L0"
+  }
+ },
+ {
+  "id": "T064",
+  "bucket": "refactor",
+  "origin": "written in the style of a Claude Code closing message; fictional project and paths",
+  "source": "Pure clean-up: deleted 4 unused feature flags and their branches from `flags.rs`, and replaced two nested `match` blocks with early returns. No behaviour change; 76 tests pass.",
+  "gold": {
+   "verdict": "success",
+   "must_match": [
+    "clean-up|no behaviou?r change|unused",
+    "76|pass"
+   ],
+   "forbidden": [
+    "fix",
+    "new"
+   ]
+  },
+  "facts_how": "hand-set: the text says behaviour is unchanged (finished calm turn, L0) ; tests: text states 76 passed, 0 failed",
+  "facts": {
+   "outcome": "success",
+   "tests": {
+    "state": "ran",
+    "passed": 76,
+    "failed": 0
+   },
+   "level": "L0"
+  }
+ },
+ {
+  "id": "T065",
+  "bucket": "refactor",
+  "origin": "written in the style of a Codex closing message; fictional project and paths",
+  "source": "Das Modul `db/abfragen.py` ist aufgeteilt in `db/lesen.py` und `db/schreiben.py`. Das Verhalten ist gleich geblieben, alle 94 Tests laufen ohne Änderungen durch.",
+  "gold": {
+   "verdict": "success",
+   "must_match": [
+    "aufgeteilt|gleich|ohne änderungen",
+    "94|durch"
+   ],
+   "forbidden": [
+    "neue funktion",
+    "fehler behoben"
+   ]
+  },
+  "facts_how": "hand-set: the text says behaviour is unchanged (finished calm turn, L0) ; tests: text states 94 passed, 0 failed",
+  "facts": {
+   "outcome": "success",
+   "tests": {
+    "state": "ran",
+    "passed": 94,
+    "failed": 0
+   },
+   "level": "L0"
+  }
+ },
+ {
+  "id": "T066",
+  "bucket": "refactor",
+  "origin": "lab stand-in turn-end message; fictional project and paths",
+  "source": "Aufgeräumt: Die doppelte Hilfsfunktion `formatiere_datum` gibt es nur noch einmal in `util/datum.ts`; alle sieben Aufrufer wurden angepasst. Kein neues Verhalten.",
+  "gold": {
+   "verdict": "success",
+   "must_match": [
+    "aufgeräumt|doppelte|kein neues verhalten",
+    "einmal|sieben|aufrufer"
+   ],
+   "forbidden": [
+    "fehler behoben",
+    "neue funktion"
+   ]
+  },
+  "facts_how": "hand-set: the text says behaviour is unchanged (finished calm turn, L0) ; tests: none stated",
+  "facts": {
+   "outcome": "success",
+   "tests": {
+    "state": "unknown"
+   },
+   "level": "L0"
+  }
+ },
+ {
+  "id": "T067",
+  "bucket": "refactor",
+  "origin": "written in the style of a Claude Code closing message; fictional project and paths",
+  "source": "Introduced a `Clock` trait in `core/time.rs` so tests can inject time. Production code uses `SystemClock`, so runtime behaviour is unchanged. 66 tests pass, 5 now use the fake clock.",
+  "gold": {
+   "verdict": "success",
+   "must_match": [
+    "clock|unchanged",
+    "66|inject"
+   ],
+   "forbidden": [
+    "fix",
+    "new feature"
+   ]
+  },
+  "facts_how": "hand-set: the text says behaviour is unchanged (finished calm turn, L0) ; tests: text states 66 passed, 0 failed",
+  "facts": {
+   "outcome": "success",
+   "tests": {
+    "state": "ran",
+    "passed": 66,
+    "failed": 0
+   },
+   "level": "L0"
+  }
+ },
+ {
+  "id": "T068",
+  "bucket": "refactor",
+  "origin": "written in the style of a Codex closing message; fictional project and paths",
+  "source": "Replaced the hand-written query string builder with `URLSearchParams` in `api/query.ts`. Output order changed for one edge case (repeated keys), which no caller relies on; 39 tests pass.",
+  "gold": {
+   "verdict": "success",
+   "must_match": [
+    "urlsearchparams|replaced",
+    "order changed|edge case|39"
+   ],
+   "forbidden": [
+    "no change at all"
+   ]
+  },
+  "facts_how": "hand-set: the text says behaviour is unchanged (finished calm turn, L0) ; tests: text states 39 passed, 0 failed",
+  "facts": {
+   "outcome": "success",
+   "tests": {
+    "state": "ran",
+    "passed": 39,
+    "failed": 0
+   },
+   "level": "L0"
+  }
+ }
+]

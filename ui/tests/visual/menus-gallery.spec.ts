@@ -78,7 +78,7 @@ for (const theme of ["dark", "light"] as const) {
     const fromButton = await labels(page);
     // AJ-E2106: getting there first, each line with its icon.
     expect(fromButton.slice(0, 3)).toEqual(["Go to it", "Open its page", "Show its project"]);
-    expect(fromButton).toContain("Continue in another app…");
+    expect(fromButton).toContain("Switch account…");
     // Stop, the session being live, is last and alone, in red.
     expect(fromButton.at(-1)).toBe("Stop this session");
     await expect(page.getByRole("menu").locator("svg[data-icon]")).toHaveCount(fromButton.length);

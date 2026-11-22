@@ -1,0 +1,386 @@
+[
+ {
+  "pair": "review2-review-001",
+  "item": "R201",
+  "source": "Migrated the invoice-export module in /srv/ledgerlite/export to streaming CSV writes. Memory use on the 2 GB sample drops from about 1.4 GB to 90 MB. The unit tests for the writer pass (31 passed). I did not touch the Excel exporter, which still loads every row into memory, and the docs page still describes the old behaviour. Should I also convert the Excel exporter to streaming, even though that adds a new dependency?",
+  "facts": {
+   "outcome": "question",
+   "tests": {
+    "state": "ran",
+    "passed": 31,
+    "failed": 0
+   },
+   "level": "L2"
+  },
+  "first": "Changed: migrated the invoice-export module in /srv/ledgerlite/export to streaming CSV writes; memory use on the 2 GB sample drops from about 1.4 GB to 90 MB\nQuestion: Should I also convert the Excel exporter to streaming, even though that adds a new dependency?\nNot checked: did not touch the Excel exporter; should I also convert the Excel exporter to streaming\nLeft: the Excel exporter still loads every row into memory; the docs page still describes the old behaviour\nRisk: medium (the Excel exporter still loads every row into memory)",
+  "second": "Changed: Should I also convert the Excel exporter to streaming, even though that adds a new dependency?\nLeft: Should I also convert the Excel exporter to streaming, even though that adds a new dependency?\nRisk: medium"
+ },
+ {
+  "pair": "review2-review-002",
+  "item": "R202",
+  "source": "Quick question before I go further: should the retry limit in the sync worker be 3 or 5? I added exponential backoff to /opt/tidepool/sync/worker.py and hardcoded 3 for now, so nothing blocks you either way. The jitter helper lives in a new file, sync/backoff.py. I have not run any tests yet because the fixture server is not started in this sandbox, so the backoff timings are unverified.",
+  "facts": {
+   "outcome": "question",
+   "tests": {
+    "state": "not_run",
+    "passed": 0,
+    "failed": 0
+   },
+   "level": "L2"
+  },
+  "first": "Changed: added exponential backoff to /opt/tidepool/sync/worker.py; hardcoded 3 for now; the jitter helper lives in a new file\nQuestion: Quick question before I go further: should the retry limit in the sync worker be 3 or 5?\nNot checked: not run any tests yet; the fixture server is not started in this sandbox\nLeft: the backoff timings are unverified\nRisk: high (not run any tests yet because the fixture server is not started in this sandbox)",
+  "second": "Changed: Quick question before I go further: should the retry limit in the sync worker be 3 or 5?\nNot checked: I have not run any tests yet because the fixture server is not started in this sandbox, so the backoff timings are...\nLeft: Quick question before I go further: should the retry limit in the sync worker be 3 or 5?\nRisk: medium"
+ },
+ {
+  "pair": "review2-review-003",
+  "item": "R204",
+  "source": "The new rate limiter for the public API in api/limits.go is in place and wired into the router. Requests over the quota now get a 429 with a Retry-After header. There are two ways to count usage: per API key, or per IP address. Both are implemented behind a flag, and per key is the default. Let me know which you prefer and I will remove the other. All 24 limiter tests pass.",
+  "facts": {
+   "outcome": "question",
+   "tests": {
+    "state": "ran",
+    "passed": 24,
+    "failed": 0
+   },
+   "level": "L2"
+  },
+  "first": "Changed: The new rate limiter for the public API in api/limits.go is in place and wired into the router.\nLeft: nothing stated\nRisk: low",
+  "second": "Changed: the new rate limiter for the public API in api/limits.go is in place and wired into the router; Requests over the quota now get a 429 with a Retry-After header; There are two ways to count usage: per API key, or per IP address\nLeft: Let me know which you prefer and I will remove the other\nRisk: low (All 24 limiter tests pass)"
+ },
+ {
+  "pair": "review2-review-004",
+  "item": "R205",
+  "source": "I refactored the notification settings screen in app/settings/notify.tsx into three smaller components. While doing it I found that the quiet-hours toggle silently ignores the user's time zone, so is that something you want fixed in this change or in a separate one? I left it as it was to keep the diff reviewable. The snapshot tests were updated and pass: 18 passed, 0 failed.",
+  "facts": {
+   "outcome": "question",
+   "tests": {
+    "state": "ran",
+    "passed": 18,
+    "failed": 0
+   },
+   "level": "L2"
+  },
+  "first": "Changed: While doing it I found that the quiet-hours toggle silently ignores the user's time zone, so is that something you want fixed in this change or in a separate one?\nLeft: While doing it I found that the quiet-hours toggle silently ignores the user's time zone, so is that something you...\nRisk: medium",
+  "second": "Changed: refactored the notification settings screen in app/settings/notify.tsx into three smaller components\nQuestion: While doing it I found that the quiet-hours toggle silently ignores the user's time zone, so is that something you want fixed in this change or in a separate one?\nNot checked: quiet-hours toggle silently ignores the user's time zone\nLeft: is that something you want fixed in this change or in a separate one?\nRisk: medium (quiet-hours toggle silently ignores the user's time zone)"
+ },
+ {
+  "pair": "review2-review-005",
+  "item": "R207",
+  "source": "I tried swapping the date library in the booking service for a lighter one, but the new one parses week numbers differently, so I reverted the swap and the service is back on the original library. The only change that stays is a small null check in booking/slots.py. Do you want me to try the other candidate library, or leave the date handling alone? The 40 existing tests pass again after the revert.",
+  "facts": {
+   "outcome": "question",
+   "tests": {
+    "state": "ran",
+    "passed": 40,
+    "failed": 0
+   },
+   "level": "L2"
+  },
+  "first": "Changed: swapping the date library in the booking service for a lighter one; the new one parses week numbers differently; the service is back on the original library\nQuestion: Do you want me to try the other candidate library, or leave the date handling alone?\nLeft: the other candidate library\nRisk: medium (the new one parses week numbers differently)",
+  "second": "Changed: Do you want me to try the other candidate library, or leave the date handling alone?\nLeft: Do you want me to try the other candidate library, or leave the date handling alone?\nRisk: medium"
+ },
+ {
+  "pair": "review2-review-006",
+  "item": "R208",
+  "source": "The nightly cleanup job in ops/cleanup.sh now removes build artifacts older than 14 days and logs what it deleted. Tell me whether you want a dry-run flag before this goes onto the shared runner, since a wrong path would delete real files. I have only exercised it against a scratch folder I created, and no test suite covers the script. The cron entry itself is unchanged.",
+  "facts": {
+   "outcome": "question",
+   "tests": {
+    "state": "not_run",
+    "passed": 0,
+    "failed": 0
+   },
+   "level": "L2"
+  },
+  "first": "Changed: The nightly cleanup job in ops/cleanup.sh now removes build artifacts older than 14 days and logs what it deleted.\nTests (AI Juggler): not run\nLeft: nothing stated\nRisk: medium",
+  "second": "Changed: the nightly cleanup job in ops/cleanup.sh now removes build artifacts older than 14 days and logs what it deleted; Tell me whether you want a dry-run flag before this goes onto the shared runner; I have only exercised it against a scratch folder I created\nQuestion: Tell me whether you want a dry-run flag before this goes onto the shared runner, since a wrong path would delete real files\nNot checked: no test suite covers the script\nTests (AI Juggler): not run\nLeft: the cron entry itself is unchanged\nRisk: high (a wrong path would delete real files)"
+ },
+ {
+  "pair": "review2-review-007",
+  "item": "R210",
+  "source": "Tell me whether the report generator should include archived projects by default. I changed reports/summary_builder.rb so the filter is read from a new setting, and for now the default excludes archived projects, which matches how the dashboard behaves today. The spec file for the builder was extended with two cases and I ran it: 9 examples, 0 failures. No other report types use the setting yet.",
+  "facts": {
+   "outcome": "question",
+   "tests": {
+    "state": "ran",
+    "passed": 9,
+    "failed": 0
+   },
+   "level": "L2"
+  },
+  "first": "Changed: Tell me whether the report generator should include archived projects by default.\nLeft: nothing stated\nRisk: low",
+  "second": "Changed: changed reports/summary_builder.rb so the filter is read from a new setting; for now the default excludes archived projects; the spec file for the builder was extended with two cases\nQuestion: Tell me whether the report generator should include archived projects by default\nNot checked: no other report types use the setting yet\nLeft: the filter is read from a new setting; the default excludes archived projects; the spec file for the builder was extended with two cases\nRisk: low (no other report types use the setting)"
+ },
+ {
+  "pair": "review2-review-008",
+  "item": "R211",
+  "source": "Lint passes, but the build now fails. I moved the shared types from packages/core/types.ts into a new packages/types package and updated the imports in 14 files. ESLint is clean. The TypeScript build stops at packages/ui with 'Cannot find module @fig/types', which I believe is a missing path alias in the root tsconfig, but I have not confirmed that. Tests have not been run since the build does not complete.",
+  "facts": {
+   "outcome": "failure",
+   "tests": {
+    "state": "not_run",
+    "passed": 0,
+    "failed": 0
+   },
+   "level": "L3"
+  },
+  "first": "Changed: Lint passes, but the build now fails.\nNot checked: The TypeScript build stops at packages/ui with 'Cannot find module @fig/types', which I believe is a missing path...; Tests have not been run since the build does not complete.\nLeft: nothing stated\nRisk: high",
+  "second": "Changed: moved the shared types from packages/core/types.ts into a new packages/types package; updated the imports in 14 files\nFailed: Lint passes, but the build now fails\nNot checked: tests have not been run since the build does not complete\nLeft: cannot confirm missing path alias in the root tsconfig\nRisk: high (Tests have not been run since the build does not complete)"
+ },
+ {
+  "pair": "review2-review-009",
+  "item": "R212",
+  "source": "Die Umstellung auf die neue Datenbankversion ist fehlgeschlagen. Ich habe das Skript db/upgrade.sql angepasst, aber 5 von 37 Tests schlagen jetzt fehl, alle im Modul Abrechnung, weil eine Spalte umbenannt wurde. Die übrigen 32 Tests laufen. Ich habe die Ursache gefunden, aber noch nicht behoben. Bis dahin sollte die Änderung nicht zusammengeführt werden.",
+  "facts": {
+   "outcome": "failure",
+   "tests": {
+    "state": "ran",
+    "passed": 32,
+    "failed": 5
+   },
+   "level": "L3"
+  },
+  "first": "Geändert: Die Umstellung auf die neue Datenbankversion ist fehlgeschlagen; Ich habe das Skript db/upgrade.sql angepasst\nNicht geprüft: 5 von 37 Tests schlagen jetzt fehl\nOffen: die Ursache gefunden, aber noch nicht behoben; sollte die Änderung nicht zusammengeführt werden\nRisiko: hoch (5 von 37 Tests schlagen fehl)",
+  "second": "Geändert: Die Umstellung auf die neue Datenbankversion ist fehlgeschlagen.\nOffen: Ich habe das Skript db/upgrade.sql angepasst, aber 5 von 37 Tests schlagen jetzt fehl, alle im Modul Abrechnung,...; Ich habe die Ursache gefunden, aber noch nicht behoben.\nRisiko: hoch"
+ },
+ {
+  "pair": "review2-review-010",
+  "item": "R213",
+  "source": "The schema migration failed halfway on the staging copy: step 3 of 5 raised a unique-constraint error in the orders table. I rolled the migration back, so the staging database is at its previous version and none of the new columns exist. The only change I kept is the extra logging in db/migrate.py. The failing rows need cleaning by someone who knows the data. No tests were run.",
+  "facts": {
+   "outcome": "failure",
+   "tests": {
+    "state": "not_run",
+    "passed": 0,
+    "failed": 0
+   },
+   "level": "L3"
+  },
+  "first": "Changed: the only change I kept is the extra logging in db/migrate.py\nReverted: The schema migration failed halfway on the staging copy: step 3 of 5 raised a unique-constraint error in the orders table. I rolled the migration back, so the staging database is at its previous...\nFailed: The schema migration failed halfway on the staging copy: step 3 of 5 raised a unique-constraint error in the orders table\nNot checked: no tests were run\nLeft: the failing rows need cleaning by someone who knows the data; step 3 of 5 raised a unique-constraint error in the orders table\nRisk: high (no tests were run)",
+  "second": "Changed: The schema migration failed halfway on the staging copy: step 3 of 5 raised a unique-constraint error in the orders table.\nNot checked: No tests were run.\nLeft: The schema migration failed halfway on the staging copy: step 3 of 5 raised a unique-constraint error in the orders...\nRisk: high"
+ },
+ {
+  "pair": "review2-review-011",
+  "item": "R214",
+  "source": "I could not install the PDF dependency. The package build for pdfkit in the invoices app fails on this machine with a missing system header, and the install exits with an error after about a minute. I made no code changes, since the feature depends on it. Pinning an older version might avoid the header, but I have not tried that. Nothing was tested.",
+  "facts": {
+   "outcome": "failure",
+   "tests": {
+    "state": "not_run",
+    "passed": 0,
+    "failed": 0
+   },
+   "level": "L3"
+  },
+  "first": "Changed: The package build for pdfkit in the invoices app fails on this machine with a missing system header, and the install exits with an error after about a minute.\nNot checked: Nothing was tested.\nLeft: nothing stated\nRisk: high",
+  "second": "Changed: could not install the PDF dependency; the package build for pdfkit in the invoices app fails on this machine with a missing system header; the install exits with an error after about a minute\nFailed: The package build for pdfkit in the invoices app fails on this machine with a missing system header, and the install exits with an error after about a minute\nNot checked: nothing was tested\nLeft: pinning an older version might avoid the header\nRisk: high (nothing was tested)"
+ },
+ {
+  "pair": "review2-review-012",
+  "item": "R215",
+  "source": "Lint ist sauber, aber der Build schlägt jetzt fehl. Ich habe die Formatierungsfunktion in lib/zeit/format.js auf die neue Intl-API umgestellt. Der Linter meldet nichts, doch beim Bauen bricht der Bundler mit einer Fehlermeldung zu einem nicht unterstützten Import in lib/zeit/zone.js ab. Die Tests habe ich deshalb nicht gestartet. Die Ursache vermute ich in einer veralteten Bundler-Version.",
+  "facts": {
+   "outcome": "failure",
+   "tests": {
+    "state": "not_run",
+    "passed": 0,
+    "failed": 0
+   },
+   "level": "L3"
+  },
+  "first": "Geändert: auf die neue Intl-API umgestellt; Der Linter meldet nichts; beim Bauen bricht der Bundler\nFehlgeschlagen: Lint ist sauber, aber der Build schlägt jetzt fehl\nNicht geprüft: Die Tests haben ich deshalb nicht gestartet\nTests (AI Juggler): nicht ausgeführt\nOffen: Der Ursache vermute ich in einer veralteten Bundler-Version\nRisiko: hoch (Die Tests haben ich deshalb nicht gestartet)",
+  "second": "Geändert: Lint ist sauber, aber der Build schlägt jetzt fehl.\nTests (AI Juggler): nicht ausgeführt\nOffen: Die Tests habe ich deshalb nicht gestartet.\nRisiko: hoch"
+ },
+ {
+  "pair": "review2-review-013",
+  "item": "R216",
+  "source": "I tried to fix the flaky upload test and it did not work. I changed the timeout in tests/upload_spec.py, then reverted that change because the failures got worse. Three tests still fail intermittently: test_resume, test_chunk_order and test_cancel (61 passed, 3 failed in my last run). The code is back to how it started, with one added comment explaining the suspected race in the chunk writer.",
+  "facts": {
+   "outcome": "failure",
+   "tests": {
+    "state": "ran",
+    "passed": 61,
+    "failed": 3
+   },
+   "level": "L3"
+  },
+  "first": "Changed: nothing stated\nReverted: I changed the timeout in tests/upload_spec.py, then reverted that change because the failures got worse\nFailed: I tried to fix the flaky upload test and it did not work\nLeft: three tests still fail intermittently: test_resume, test_chunk_order and test_cancel; the code is back to how it started\nRisk: high (three tests still fail intermittently)",
+  "second": "Changed: I tried to fix the flaky upload test and it did not work.\nLeft: Three tests still fail intermittently: test_resume, test_chunk_order and test_cancel (61 passed, 3 failed in my last...\nRisk: high"
+ },
+ {
+  "pair": "review2-review-014",
+  "item": "R217",
+  "source": "The deploy of the docs site to the preview host timed out. The build step finished and the output in site/dist looks right, but the upload to the host stopped after 40 percent and the script exited with code 124. The preview URL therefore still shows the old pages. I added a retry loop to deploy/push.sh, but have not been able to test it, since the host is unreachable from here.",
+  "facts": {
+   "outcome": "failure",
+   "tests": {
+    "state": "not_run",
+    "passed": 0,
+    "failed": 0
+   },
+   "level": "L3"
+  },
+  "first": "Changed: The deploy of the docs site to the preview host timed out.\nTests (AI Juggler): not run\nLeft: nothing stated\nRisk: high",
+  "second": "Changed: the deploy of the docs site to the preview host timed out; the build step finished and the output in site/dist looks right; the upload to the host stopped after 40 percent and the script exited with code 124\nNot checked: have not been able to test it\nTests (AI Juggler): not run\nLeft: the preview URL therefore still shows the old pages; the retry loop to deploy/push.sh\nRisk: high (the host is unreachable from here)"
+ },
+ {
+  "pair": "review2-review-015",
+  "item": "R219",
+  "source": "Unit tests pass but the integration tests fail. I added pagination to the /v2/orders endpoint in services/orders/list.py. 40 unit tests pass, while 2 integration tests fail with a 500 error when the page size is zero. I have not fixed the zero case yet. The cursor logic itself looks right in manual calls. Please do not release this until the zero page size case is handled.",
+  "facts": {
+   "outcome": "failure",
+   "tests": {
+    "state": "ran",
+    "passed": 40,
+    "failed": 2
+   },
+   "level": "L3"
+  },
+  "first": "Changed: Unit tests pass but the integration tests fail.\nLeft: I have not fixed the zero case yet.\nRisk: high",
+  "second": "Changed: added pagination to the /v2/orders endpoint in services/orders/list.py\nFailed: Unit tests pass but the integration tests fail\nNot checked: the integration tests fail with a 500 error when the page size is zero\nLeft: the zero page size case is not handled; I have not fixed the zero case yet\nRisk: high (integration tests fail with a 500 error when the page size is zero)"
+ },
+ {
+  "pair": "review2-review-016",
+  "item": "R220",
+  "source": "I could not reproduce or fix the crash on startup. I ran the desktop client in the lab folder about 20 times and it started every time, so the reported crash in client/boot.rs stays unexplained. I added a panic hook that writes a short report to the log folder, which should help the next time it happens. No tests were run, and the crash itself remains an open problem.",
+  "facts": {
+   "outcome": "failure",
+   "tests": {
+    "state": "not_run",
+    "passed": 0,
+    "failed": 0
+   },
+   "level": "L3"
+  },
+  "first": "Changed: I ran the desktop client in the lab folder about 20 times and it started every time, so the reported crash in client/boot.rs stays unexplained.\nNot checked: No tests were run, and the crash itself remains an open problem.\nLeft: nothing stated\nRisk: high",
+  "second": "Changed: could not reproduce or fix the crash on startup; ran the desktop client in the lab folder about 20 times; added a panic hook that writes a short report to the log folder\nFailed: I ran the desktop client in the lab folder about 20 times and it started every time, so the reported crash in client/boot.rs stays unexplained\nNot checked: no tests were run\nLeft: the reported crash in client/boot.rs stays unexplained; the crash itself remains an open problem\nRisk: high (crash itself remains an open problem)"
+ },
+ {
+  "pair": "review2-review-017",
+  "item": "R221",
+  "source": "Two of the three endpoints are done: GET and POST on /notes in the memo service now work with validation. The DELETE endpoint is still a stub that returns 501, and the permissions check for editing is not written yet. All 14 tests for the finished parts pass. I stopped here because the delete rules (soft or hard delete) are not specified in the ticket.",
+  "facts": {
+   "outcome": "success",
+   "tests": {
+    "state": "ran",
+    "passed": 14,
+    "failed": 0
+   },
+   "level": "L1"
+  },
+  "first": "Changed: Two of the three endpoints are done: GET and POST on /notes in the memo service now work with validation; The DELETE endpoint is still a stub that returns 501; the permissions check for editing is not written yet\nNot checked: the permissions check for editing is not written yet\nLeft: the DELETE rules (soft or hard delete) are not specified in the ticket\nRisk: medium (the DELETE rules (soft or hard delete) are not specified in the ticket)",
+  "second": "Changed: Two of the three endpoints are done: GET and POST on /notes in the memo service now work with validation.\nLeft: The DELETE endpoint is still a stub that returns 501, and the permissions check for editing is not written yet.\nRisk: medium"
+ },
+ {
+  "pair": "review2-review-018",
+  "item": "R223",
+  "source": "Renamed the helper formatPrice to formatMoney across the storefront package and updated all 26 call sites in packages/storefront/src. The build compiles and the type check is clean. I did not run the test suite, and the test status is unknown to me because the CI config only runs it on pull requests. Old name is kept as a deprecated alias for one release so outside plugins keep working.",
+  "facts": {
+   "outcome": "success",
+   "tests": {
+    "state": "unknown",
+    "passed": 0,
+    "failed": 0
+   },
+   "level": "L0"
+  },
+  "first": "Changed: Renamed the helper formatPrice to formatMoney across the storefront package and updated all 26 call sites in packages/storefront/src.\nNot checked: I did not run the test suite, and the test status is unknown to me because the CI config only runs it on pull requests.\nLeft: nothing stated\nRisk: medium",
+  "second": "Changed: renamed the helper formatPrice to formatMoney across the storefront package; updated all 26 call sites in packages/storefront/src\nNot checked: did not run the test suite\nLeft: nothing stated\nRisk: not stated (test suite not run)"
+ },
+ {
+  "pair": "review2-review-019",
+  "item": "R224",
+  "source": "I undid the formatting pass. Running the formatter across src/parsers produced a diff of 900 lines that hid the real change, so I reverted all of it. What remains is the one-line fix in src/parsers/csv.py that handles a trailing delimiter. The parser tests pass: 27 passed, 0 failed. The formatter config is untouched, so the style drift in that folder is still there.",
+  "facts": {
+   "outcome": "success",
+   "tests": {
+    "state": "ran",
+    "passed": 27,
+    "failed": 0
+   },
+   "level": "L1"
+  },
+  "first": "Changed: I undid the formatting pass.\nLeft: nothing stated\nRisk: low",
+  "second": "Changed: the one-line fix in src/parsers/csv.py that handles a trailing delimiter\nReverted: I undid the formatting pass\nLeft: the formatter config is untouched; the style drift in that folder is still there\nRisk: low (the formatter config is untouched, the style drift in that folder is still there)"
+ },
+ {
+  "pair": "review2-review-020",
+  "item": "R226",
+  "source": "Die Änderung an der Zeitüberschreitung habe ich zurückgenommen. Ich hatte das Timeout im Client client/netz.go von 10 auf 60 Sekunden gesetzt, aber dadurch hängt die Oberfläche bei Netzausfall zu lange, also ist der Wert wieder 10. Geblieben ist nur eine bessere Fehlermeldung beim Abbruch. Von 12 Tests laufen alle durch. Das ursprüngliche Problem mit langsamen Verbindungen bleibt damit offen.",
+  "facts": {
+   "outcome": "success",
+   "tests": {
+    "state": "ran",
+    "passed": 12,
+    "failed": 0
+   },
+   "level": "L1"
+  },
+  "first": "Geändert: das Timeout im Client client/netz.go von 10 auf 60 Sekunden gesetzt; die Oberfläche bei Netzausfall zu lange ist, also ist der Wert wieder 10\nZurückgenommen: Die Änderung an der Zeitüberschreitung habe ich zurückgenommen\nFehlgeschlagen: Geblieben ist nur eine bessere Fehlermeldung beim Abbruch\nOffen: der ursprüngliche Problem mit langsamen Verbindungen bleibt damit offen\nRisiko: mittel (die Oberfläche bei Netzausfall zu lange ist, also ist der Wert wieder 10)",
+  "second": "Geändert: Die Änderung an der Zeitüberschreitung habe ich zurückgenommen.\nOffen: nichts genannt\nRisiko: niedrig"
+ },
+ {
+  "pair": "review2-review-021",
+  "item": "R227",
+  "source": "Of the three changes I started, I kept one. The new sorting option in the gallery grid is in, in gallery/sort.vue. I reverted the lazy-loading change because it broke the scroll position on back navigation, and I also reverted the thumbnail cache rewrite, which showed no measurable gain. Tests: 33 passed, 0 failed. The scroll position issue exists independently and still needs a look.",
+  "facts": {
+   "outcome": "success",
+   "tests": {
+    "state": "ran",
+    "passed": 33,
+    "failed": 0
+   },
+   "level": "L1"
+  },
+  "first": "Changed: new sorting option in the gallery grid is in\nReverted: I reverted the lazy-loading change because it broke the scroll position on back navigation, and I also reverted the thumbnail cache rewrite, which showed no measurable gain\nFailed: I reverted the lazy-loading change because it broke the scroll position on back navigation, and I also reverted the thumbnail cache rewrite, which showed no measurable gain\nLeft: the scroll position issue exists independently and still needs a look\nRisk: low (scroll position issue exists independently and still needs a look)",
+  "second": "Changed: Of the three changes I started, I kept one.\nLeft: nothing stated\nRisk: low"
+ },
+ {
+  "pair": "review2-review-022",
+  "item": "R228",
+  "source": "Updated the default log level in config/defaults.yaml from info to warn and added a comment above it. I also corrected two typos in the same file. Nothing else was touched. I did not run any tests, since the file is only read at startup and no test covers it. Anyone relying on info lines in the nightly logs will notice they are gone once this ships.",
+  "facts": {
+   "outcome": "success",
+   "tests": {
+    "state": "not_run",
+    "passed": 0,
+    "failed": 0
+   },
+   "level": "L0"
+  },
+  "first": "Changed: updated the default log level in config/defaults.yaml from info to warn and added a comment above it; corrected two typos in the same file\nTests (AI Juggler): not run\nLeft: nothing stated\nRisk: not stated (not run any tests, since the file is only read at startup and no test covers it)",
+  "second": "Changed: Updated the default log level in config/defaults.yaml from info to warn and added a comment above it.\nNot checked: I did not run any tests, since the file is only read at startup and no test covers it.\nLeft: nothing stated\nRisk: medium"
+ },
+ {
+  "pair": "review2-review-023",
+  "item": "R230",
+  "source": "I explored using a connection pool for the metrics collector, wrote a prototype in a scratch branch, measured it, and then threw it away with a hard reset because it was slower than the current single connection under the sample load. The repository is back at the starting commit and no files differ. The measurements were 410 requests per second pooled against 520 for the existing code. No tests were needed.",
+  "facts": {
+   "outcome": "none",
+   "tests": {
+    "state": "unknown",
+    "passed": 0,
+    "failed": 0
+   },
+   "level": "L0"
+  },
+  "first": "Changed: explored using a connection pool for the metrics collector; wrote a prototype in a scratch branch; measured it\nLeft: nothing stated\nRisk: not stated (no tests were needed)",
+  "second": "Changed: I explored using a connection pool for the metrics collector, wrote a prototype in a scratch branch, measured it, and then threw it away with a hard reset because it was slower than the current...\nLeft: nothing stated\nRisk: not stated"
+ },
+ {
+  "pair": "review2-review-024",
+  "item": "R232",
+  "source": "I looked into why the thumbnail job is slow and changed nothing. The profile shows 70 percent of the time in the resize call in media/thumbs.py, which decodes each image twice. Fixing it means touching the shared decoder, which three other services use, so I would rather you decide when to take that on. No code, tests or config were changed during this investigation.",
+  "facts": {
+   "outcome": "none",
+   "tests": {
+    "state": "unknown",
+    "passed": 0,
+    "failed": 0
+   },
+   "level": "L0"
+  },
+  "first": "Changed: I looked into why the thumbnail job is slow and changed nothing.\nLeft: nothing stated\nRisk: not stated",
+  "second": "Changed: changed nothing\nLeft: nothing stated\nRisk: not stated (no code, tests or config were changed during this investigation)"
+ }
+]

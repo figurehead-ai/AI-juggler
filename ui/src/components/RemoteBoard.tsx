@@ -9,6 +9,7 @@ import type { RemoteInstanceInfo } from "../types/generated/RemoteInstanceInfo";
 import type { RemoteMachineInfo } from "../types/generated/RemoteMachineInfo";
 import { FoldButton, safeId } from "./rail-groups";
 import { STATE_TONE, statusState } from "../lib/rail-items";
+import { SELECTED_FILL } from "./controls/selected";
 
 /** The search, applied to a peer's rows. */
 export function filterRemote(rows: RemoteInstanceInfo[], query: string): RemoteInstanceInfo[] {
@@ -64,16 +65,14 @@ function RemoteBoardSection({
               key={row.id}
               type="button"
               onClick={() => onSelect(row.id)}
+              aria-current={active ? "true" : undefined}
               className={
                 "relative flex w-full min-w-0 flex-col gap-0.5 rounded-lg py-1.5 pl-3 pr-2.5 text-left outline-none transition-colors focus-visible:ring-1 focus-visible:ring-accent/60 " +
-                (active ? "bg-surface" : "hover:bg-surface/60")
+                (active ? SELECTED_FILL : "hover:bg-surface/60")
               }
               // WCAG 2.5.3: named by its own words ("Work Max on Mac mini …").
               data-testid="board-remote-row"
             >
-              {active && (
-                <span className="absolute left-0.5 top-1/2 h-4 w-[2px] -translate-y-1/2 rounded-full bg-accent" />
-              )}
               <span className="flex min-w-0 items-center gap-1.5">
                 <span
                   className={
@@ -82,17 +81,14 @@ function RemoteBoardSection({
                   }
                   aria-hidden="true"
                 />
-                <span className="min-w-0 flex-1 truncate text-meta">
+                <span className={"min-w-0 flex-1 truncate text-meta" + (active ? " font-semibold text-ink" : "")}>
                   {row.account_label}
                   {" "}<span className="sr-only">on</span>
                 </span>
                 <span className="shrink-0 rounded border border-hairline px-1 text-label text-muted">{machine.label}</span>
               </span>
-              <span className="flex min-w-0 gap-1 truncate pl-3 text-label text-muted">
-                <span>{providerDisplayName(row.provider)}</span>
-                <span>· {row.model ?? "model unknown"}</span>
-                <span>· {status}</span>
-                <span>· quota unknown</span>
+              <span className="min-w-0 truncate pl-3 text-label text-muted">
+                {[providerDisplayName(row.provider), row.model ?? "model unknown", status, "quota unknown"].join(" · ")}
               </span>
             </button>
           );

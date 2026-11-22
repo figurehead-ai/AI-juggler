@@ -967,6 +967,7 @@ pub mod enabled {
                 headers: Vec::new(),
                 body: Vec::new(),
                 long_transfer: false,
+                max_body: None,
             })
         }
 
@@ -984,6 +985,7 @@ pub mod enabled {
                 headers: vec![("content-encoding", "gzip".to_owned())],
                 body: body.to_vec(),
                 long_transfer: false,
+                max_body: None,
             })
         }
     }

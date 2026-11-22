@@ -18,7 +18,8 @@ import { useEffect, useRef, useState, type JSX } from "react";
 import { switchBackPlan, switchBackExecute, type SwitchBackPlanData } from "../lib/ipc/switchBack";
 import { errorText } from "../lib/bridge";
 import { Radio } from "./controls";
-import { PRIMARY_FILL } from "./primitives";
+import { Button } from "./primitives";
+import { DialogFooter, DialogFrame, DialogHeading, DialogOverlay } from "./DialogFrame";
 
 type Phase =
   | { kind: "plan" }
@@ -126,14 +127,16 @@ export function SwitchBackFlow({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6 backdrop-blur-sm">
-      <div
-        ref={dialogRef}
+    <DialogOverlay className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+      <DialogFrame
+        frameRef={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-label="Switch back"
         data-testid="switch-back-flow"
-        className="flex max-h-[86vh] w-full max-w-md flex-col overflow-y-auto rounded-xl border border-hairline bg-surface p-5 shadow-card"
+        className="w-full max-w-md rounded-xl border border-hairline bg-surface shadow-card"
+        bodyClassName="p-5"
+        footerClassName="flex flex-wrap items-center justify-end gap-2 px-5 py-3"
       >
         {phase.kind === "plan" && (
           <p className="text-xs text-ink-2" data-testid="switch-back-planning">
@@ -143,12 +146,12 @@ export function SwitchBackFlow({
 
         {phase.kind === "review" && plan && (
           <div className="flex flex-col gap-3" data-testid="switch-back-review">
-            <h3 className="text-sm font-semibold">
+            <DialogHeading className="text-sm font-semibold">
               Switch back to {plan.original_account}
               <span className="ml-2 rounded border border-accent/50 px-1 text-label text-accent">
                 {plan.original_alive ? "Continues, with what changed since" : "Handover notes"}
               </span>
-            </h3>
+            </DialogHeading>
             {/* Req.3 verbatim — suggested, never executed. */}
             <p className="text-label" data-testid="switch-back-suggestion">
               {plan.suggestion}
@@ -261,32 +264,22 @@ export function SwitchBackFlow({
                     : `One click carries the work back to ${plan.original_account} in a new session.`}
               </p>
             </div>
-            <div className="flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={onClose}
-                className="rounded-lg border border-hairline px-3 py-1.5 text-xs hover:bg-surface-2"
-              >
+            {/* The way on and out, in the dialog's fixed footer (DLG-1). */}
+            <DialogFooter>
+              <Button variant="ghost" type="button" onClick={onClose} aria-keyshortcuts="Escape">
                 Cancel
-              </button>
-              <button
-                type="button"
-                disabled={unresolved > 0}
-                onClick={() => void execute()}
-                data-testid="switch-back-confirm"
-                // 0.3.2: the one primary fill, as in every dialog; faded
-                // while a conflict waits on a choice.
-                className={`rounded-lg px-3 py-1.5 text-xs font-semibold ${PRIMARY_FILL} disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:brightness-100`}
-              >
+              </Button>
+              {/* Faded while a conflict waits on a choice; the line above says which. */}
+              <Button variant="primary" type="button" disabled={unresolved > 0} onClick={() => void execute()} data-testid="switch-back-confirm">
                 Resume {plan.original_account} ▸ {armed && <span>(⏎)</span>}
-              </button>
-            </div>
+              </Button>
+            </DialogFooter>
           </div>
         )}
 
         {phase.kind === "executing" && (
           <div className="flex flex-col gap-2" aria-live="polite" data-testid="switch-back-executing">
-            <h3 className="text-sm font-semibold">Returning to the original conversation…</h3>
+            <DialogHeading className="text-sm font-semibold">Returning to the original conversation…</DialogHeading>
             <ol className="flex flex-col gap-1">
               {STAGES.map((stage) => (
                 <li key={stage} className="text-label text-muted">
@@ -302,43 +295,35 @@ export function SwitchBackFlow({
 
         {phase.kind === "done" && (
           <div className="flex flex-col gap-3" data-testid="switch-back-done">
-            <h3 className="text-sm font-semibold">You returned to the original conversation</h3>
+            <DialogHeading className="text-sm font-semibold">You returned to the original conversation</DialogHeading>
             <p className="text-label text-muted">
               It resumed exactly where it rested — the away work arrived as one
               “while you were away” update.
             </p>
-            <div className="flex justify-end">
-              <button
-                type="button"
-                onClick={() => onSwitched(phase.sessionId)}
-                className="rounded-lg border border-accent/40 bg-accent-soft px-3 py-1.5 text-xs text-accent-hi"
-              >
+            <DialogFooter>
+              <Button variant="primary" type="button" data-autofocus onClick={() => onSwitched(phase.sessionId)}>
                 Go to the session
-              </button>
-            </div>
+              </Button>
+            </DialogFooter>
           </div>
         )}
 
         {phase.kind === "failed" && (
           <div className="flex flex-col gap-3" data-testid="switch-back-failed">
-            <h3 className="text-sm font-semibold text-warning">Return didn’t complete</h3>
+            <DialogHeading className="text-sm font-semibold text-warning">Return didn’t complete</DialogHeading>
             {/* The failure's own words say what happened and what's next
                 (both sides resumable, or the original gone): said once. */}
             <p className="rounded border border-warning/40 px-2 py-1 text-label text-warning" data-testid="switch-back-failed-words">
               {phase.message}
             </p>
-            <div className="flex justify-end">
-              <button
-                type="button"
-                onClick={onClose}
-                className="rounded-lg border border-hairline px-3 py-1.5 text-xs hover:bg-surface-2"
-              >
+            <DialogFooter>
+              <Button variant="secondary" type="button" data-autofocus onClick={onClose}>
                 Close
-              </button>
-            </div>
+              </Button>
+            </DialogFooter>
           </div>
         )}
-      </div>
-    </div>
+      </DialogFrame>
+    </DialogOverlay>
   );
 }

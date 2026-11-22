@@ -1,0 +1,196 @@
+{
+ "family": "granite-4.1-3b",
+ "job": "digest",
+ "note": "script flags: candidates for Opus to confirm by eye, never verdicts",
+ "candidates": [
+  {
+   "id": "R3-D03",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "item for a2: 2b: content word(s) not in the text: the",
+   "stage": "caught",
+   "corpus": "digest5r3"
+  },
+  {
+   "id": "R3-D03",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "outcome_against_facts",
+   "detail": "verdict: item for a3: caveat partial on an agent with no turn (nothing was done)",
+   "stage": "caught",
+   "corpus": "digest5r3"
+  },
+  {
+   "id": "R3-D03",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "item for a2: 2b: content word(s) not in the text: the",
+   "stage": "caught",
+   "corpus": "digest5r3"
+  },
+  {
+   "id": "R3-D03",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "outcome_against_facts",
+   "detail": "verdict: item for a3: caveat partial on an agent with no turn (nothing was done)",
+   "stage": "caught",
+   "corpus": "digest5r3"
+  },
+  {
+   "id": "R3-D03",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "item for a2: 2b: content word(s) not in the text: the",
+   "stage": "caught",
+   "corpus": "digest5r3"
+  },
+  {
+   "id": "R3-D03",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "outcome_against_facts",
+   "detail": "verdict: item for a3: caveat partial on an agent with no turn (nothing was done)",
+   "stage": "caught",
+   "corpus": "digest5r3"
+  },
+  {
+   "id": "R3-D04",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "outcome_against_facts",
+   "detail": "verdict: item for a1: caveat partial on work the agent undid (code shows 'reverted')",
+   "stage": "caught",
+   "corpus": "digest5r3"
+  },
+  {
+   "id": "R3-D05",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "invented",
+   "detail": "item for a1: invented: proper i've",
+   "stage": "caught",
+   "corpus": "digest5r3"
+  },
+  {
+   "id": "R3-D05",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "item for a1: 2b: content word(s) not in the text: i've",
+   "stage": "caught",
+   "corpus": "digest5r3"
+  },
+  {
+   "id": "R3-D05",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "acting",
+   "detail": "item for a1: 'The load test for sunset-api hangs after': an acting claim",
+   "stage": "caught",
+   "corpus": "digest5r3"
+  },
+  {
+   "id": "R3-D05",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "invented",
+   "detail": "item for a1: invented: proper i've",
+   "stage": "caught",
+   "corpus": "digest5r3"
+  },
+  {
+   "id": "R3-D05",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "item for a1: 2b: content word(s) not in the text: i've",
+   "stage": "caught",
+   "corpus": "digest5r3"
+  },
+  {
+   "id": "R3-D05",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "acting",
+   "detail": "item for a1: 'The load test for sunset-api hangs after': an acting claim",
+   "stage": "caught",
+   "corpus": "digest5r3"
+  },
+  {
+   "id": "R3-D05",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "invented",
+   "detail": "item for a1: invented: proper i've",
+   "stage": "caught",
+   "corpus": "digest5r3"
+  },
+  {
+   "id": "R3-D05",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "item for a1: 2b: content word(s) not in the text: i've",
+   "stage": "caught",
+   "corpus": "digest5r3"
+  },
+  {
+   "id": "R3-D05",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "acting",
+   "detail": "item for a1: 'The load test for sunset-api hangs after': an acting claim",
+   "stage": "caught",
+   "corpus": "digest5r3"
+  },
+  {
+   "id": "R3-D12",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "outcome_against_facts",
+   "detail": "verdict: item for a3: caveat partial on an agent with no turn (nothing was done)",
+   "stage": "caught",
+   "corpus": "digest5r3"
+  },
+  {
+   "id": "R3-D17",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "invented",
+   "detail": "item for a1: invented: proper ui",
+   "stage": "caught",
+   "corpus": "digest5r3"
+  },
+  {
+   "id": "R3-D27",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "item for a3: 2b: content word(s) not in the text: early, morning, open",
+   "stage": "caught",
+   "corpus": "digest5r3"
+  },
+  {
+   "id": "R3-D27",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "item for a3: 2b: content word(s) not in the text: early, morning, open",
+   "stage": "caught",
+   "corpus": "digest5r3"
+  },
+  {
+   "id": "R3-D27",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "item for a3: 2b: content word(s) not in the text: early, morning, open",
+   "stage": "caught",
+   "corpus": "digest5r3"
+  }
+ ]
+}

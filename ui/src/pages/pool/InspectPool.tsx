@@ -137,7 +137,7 @@ export function InspectPool({
         <Section title="This pool">
           {confirmDelete ? (
             <DeleteConfirm>
-              <span className="text-meta text-ink">Delete «{pool.name}»? Its sessions go back to their projects' own pools; its messages and tasks stay in its history.</span>
+              <span className="text-meta text-ink">Delete “{pool.name}”? Its sessions go back to their projects' own pools; its messages and tasks stay in its history.</span>
               <span className="flex gap-2">
                 <button type="button" onClick={() => void run(async () => {
                   // The pools after it go to the list, so it leaves the screen (the P11 walk).

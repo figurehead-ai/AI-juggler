@@ -214,7 +214,7 @@ fn a_sent_back_task_keeps_its_holder_and_the_note_reaches_it() {
         !shown.contains(id.as_str()),
         "no task id in the message on screen"
     );
-    assert!(shown.contains("«Shipping rates»"), "named by its title");
+    assert!(shown.contains("“Shipping rates”"), "named by its title");
     // The task's page shows the thread that names it.
     let threads = views::detail(&lab.state, &id, None).unwrap().threads;
     assert_eq!(threads.len(), 1);
@@ -409,7 +409,7 @@ fn a_reviewers_send_back_reaches_the_holder_through_the_pools_messaging() {
     assert_eq!(message["subject"], "Sent back · Refunds in cents");
     let body = message["body"].as_str().unwrap_or_default();
     assert!(body.contains(note), "{body}");
-    assert!(body.contains("«Reviewer» sent"), "{body}");
+    assert!(body.contains("“Reviewer” sent"), "{body}");
 
     // Reviewer to member blocked: the verdict stands; the note is refused.
     assert!(mark(&lab, &builder, &id, "in_review").result.is_some());
@@ -476,7 +476,7 @@ fn a_reviewer_at_its_own_read_level_waits_on_the_person_for_its_verdict() {
         newest(&lab, &id),
         (
             "Reviewer".to_owned(),
-            "asked to mark «Refunds in cents» approved (waits on your OK)".to_owned()
+            "asked to mark “Refunds in cents” approved (waits on your OK)".to_owned()
         )
     );
     let detail = views::detail(&lab.state, &id, None).unwrap();

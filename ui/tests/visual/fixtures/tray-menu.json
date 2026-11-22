@@ -1,10 +1,10 @@
 {
-  "title": "3",
-  "tooltip": "AI Juggler · 3 things need you",
+  "title": "2",
+  "tooltip": "AI Juggler · 2 things need you",
   "lines": [
     {
       "type": "heading",
-      "text": "Needs you · 3"
+      "text": "Needs you · 2"
     },
     {
       "type": "item",
@@ -18,8 +18,8 @@
     },
     {
       "type": "item",
-      "id": "tray:notice:3",
-      "text": "“Site deployment” is done — review it"
+      "id": "tray:centre",
+      "text": "To review · 1"
     },
     {
       "type": "separator"

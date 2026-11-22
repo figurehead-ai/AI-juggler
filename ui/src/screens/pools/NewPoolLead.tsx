@@ -101,7 +101,7 @@ export function NewPoolLead({
       )}
       {apps.length === 0 && open.length === 0 && elsewhere.length === 0 && (
         <p className="text-meta text-muted" data-testid="new-pool-lead-add-app">
-          To have a session lead later, add its App in Who's in: then «{nextSessionWords("its App")}» shows here.
+          To have a session lead later, add its App in Who's in: then “{nextSessionWords("its App")}” shows here.
         </p>
       )}
     </div>

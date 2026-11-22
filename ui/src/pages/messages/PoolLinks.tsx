@@ -39,7 +39,7 @@ export function PoolLinks({ poolId }: { poolId: string }): JSX.Element {
         <ul className="flex flex-col gap-1">
           {links.map((id) => (
             <li key={id} className="flex items-center gap-2 text-meta text-ink">
-              <span className="min-w-0 flex-1 truncate">Linked with «{name(id)}»</span>
+              <span className="min-w-0 flex-1 truncate">Linked with “{name(id)}”</span>
               <Button size="sm" variant="ghost" onClick={() => change(id, false)}>
                 Unlink
                 <span className="sr-only"> {name(id)}</span>

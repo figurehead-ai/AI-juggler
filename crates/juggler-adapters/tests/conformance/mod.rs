@@ -86,6 +86,14 @@
 //!     tool AI Juggler moves conversations for supports the floor of an
 //!     exact move (history, resume, the source untouched, what stays
 //!     named); one it can't claims nothing.
+//! 15. **Desktop apps, honestly** (AJ-E1610, D-66, D-84, D-106) — each
+//!     desktop app an adapter describes can be found (a bundle id, or the
+//!     folder it keeps its own state in), names its tool, opens per
+//!     account only by a switch a live check proved (the Claude app's
+//!     `--user-data-dir`), says each part it can't reach in one plain line,
+//!     reads and replies only through the adapter (never a link of its
+//!     own), offers a reply exactly when it has a sound route, and has no
+//!     link that installs anything.
 //!
 //! Fixtures only: every home, credential and transcript is synthetic and
 //! lives in a temporary sandbox; nothing real is read.
@@ -190,6 +198,114 @@ pub trait Subject {
     /// nothing of a limit an open session waits at).
     fn limit_tails(&self) -> Option<(String, String)> {
         None
+    }
+
+    /// AJ-E1605 R3 (check 12), for a tool whose limit hits are in its own
+    /// store rather than a transcript's tail: writes into the account's
+    /// store a session whose last model call was refused at a usage limit,
+    /// and one that carried on after such a refusal, and returns their
+    /// records (what `session_limit_hit` takes). Default: none.
+    fn limit_records(&self, state_dir: &Path, cwd: &Path) -> Option<(PathBuf, PathBuf)> {
+        let _ = (state_dir, cwd);
+        None
+    }
+
+    /// AJ-E1608: what an account's Launch settings must hold before the
+    /// tool starts in it at all (Muse Code's own API key: its subscription
+    /// sign-in is one per Mac, so any other account runs on a key). Every
+    /// launch the kit builds carries it; a key is never an isolation
+    /// variable. Default: nothing.
+    fn launch_env(&self) -> BTreeMap<String, String> {
+        BTreeMap::new()
+    }
+}
+
+/// [`profile`] with what the subject's accounts need to start at all
+/// ([`Subject::launch_env`]) beside `env`.
+pub fn subject_profile(
+    subject: &dyn Subject,
+    account: &Account,
+    mut env: BTreeMap<String, String>,
+) -> Profile {
+    env.extend(subject.launch_env());
+    profile(account, env)
+}
+
+/// AJ-E1605 R3: whether the tool's only runtime is driven (its app ships
+/// no terminal UI).
+pub fn driven_only(adapter: &dyn HarnessAdapter) -> bool {
+    adapter.driven().is_some_and(|driven| !driven.terminal_ui())
+}
+
+/// A launch as the app builds it: the terminal's, or, for a tool whose
+/// only runtime is driven, its driven launch (whose terminal launch must
+/// refuse, saying so). A first message or a headless run isn't driven.
+pub fn launch(
+    adapter: &dyn HarnessAdapter,
+    account: &Account,
+    recipe: &Profile,
+    cwd: &Path,
+    mode: &LaunchMode,
+) -> Result<juggler_adapter::LaunchSpec, AdapterError> {
+    driven_launch(adapter, account, recipe, cwd, mode).map(|spec| spec.launch)
+}
+
+/// [`launch`]'s driven spec, for a tool whose only runtime is driven; the
+/// terminal launch in a spec of its own otherwise.
+pub fn driven_launch(
+    adapter: &dyn HarnessAdapter,
+    account: &Account,
+    recipe: &Profile,
+    cwd: &Path,
+    mode: &LaunchMode,
+) -> Result<juggler_adapter::runtime::DrivenSpec, AdapterError> {
+    let terminal = adapter.launch_spec(account, recipe, cwd, mode);
+    let Some(driven) = adapter.driven().filter(|_| driven_only(adapter)) else {
+        return terminal.map(|launch| juggler_adapter::runtime::DrivenSpec {
+            launch,
+            transport: juggler_adapter::runtime::Transport::Stdio,
+            native_id: None,
+            model: None,
+            history: None,
+        });
+    };
+    assert!(
+        matches!(terminal, Err(AdapterError::Unsupported(ref why)) if !why.trim().is_empty()),
+        "{}: a tool without a terminal UI must refuse its terminal launch, saying why",
+        adapter.id()
+    );
+    let resume = match mode {
+        LaunchMode::Interactive => None,
+        LaunchMode::Resume {
+            session_id,
+            delta_prompt: None,
+        } => Some(session_id.clone()),
+        _ => {
+            return Err(AdapterError::Unsupported(
+                "a driven session starts empty or resumes".into(),
+            ));
+        }
+    };
+    let launch = juggler_adapter::runtime::DrivenLaunch {
+        socket: std::env::temp_dir().join("kit.sock"),
+        resume,
+        fresh_id: "0b1c2d3e-0000-4000-8000-0000000000aa".into(),
+        history: None,
+    };
+    driven.driven_spec(account, recipe, cwd, &launch)
+}
+
+/// Whether a resume's spec names `id`: as one argument of its own for a
+/// terminal, as the conversation to continue for a driven-only tool.
+fn names_once(
+    adapter: &dyn HarnessAdapter,
+    spec: &juggler_adapter::runtime::DrivenSpec,
+    id: &str,
+) -> bool {
+    if driven_only(adapter) {
+        spec.native_id.as_deref() == Some(id)
+    } else {
+        spec.launch.args.iter().filter(|arg| *arg == id).count() == 1
     }
 }
 
@@ -623,10 +739,10 @@ pub fn pins_env_after_overrides(subject: &dyn Subject) {
     for folder in &folders {
         let account = account(adapter.as_ref(), folder);
         let overrides = hostile_overrides(adapter.as_ref());
-        let recipe = profile(&account, overrides.clone());
+        let recipe = subject_profile(subject, &account, overrides.clone());
         let pins = expected_pins(adapter.as_ref(), folder);
         for mode in all_modes("kit-session-1") {
-            let spec = match adapter.launch_spec(&account, &recipe, &sandbox.project, &mode) {
+            let spec = match launch(adapter.as_ref(), &account, &recipe, &sandbox.project, &mode) {
                 Ok(spec) => spec,
                 // A tool may not offer a headless run or a first message
                 // (AJ-E1603: Kimi Code's plans are interactive only); it
@@ -717,9 +833,10 @@ pub fn refuses_option_like_resume_ids(subject: &dyn Subject) {
     let dir = sandbox.account_dir("a");
     adapter.prepare_account(&dir).unwrap();
     let account = account(adapter.as_ref(), &dir);
-    let recipe = profile(&account, BTreeMap::new());
+    let recipe = subject_profile(subject, &account, BTreeMap::new());
     let resume = |id: &str| {
-        adapter.launch_spec(
+        driven_launch(
+            adapter.as_ref(),
             &account,
             &recipe,
             &sandbox.project,
@@ -744,14 +861,10 @@ pub fn refuses_option_like_resume_ids(subject: &dyn Subject) {
         );
     }
     let spec = resume("kit-session-1").expect("an ordinary id resumes");
-    assert_eq!(
-        spec.args
-            .iter()
-            .filter(|arg| *arg == "kit-session-1")
-            .count(),
-        1,
+    assert!(
+        names_once(adapter.as_ref(), &spec, "kit-session-1"),
         "{name}: the id is not one argument of its own: {:?}",
-        spec.args
+        spec.launch.args
     );
 }
 
@@ -825,25 +938,25 @@ pub fn finds_and_resumes_sessions(subject: &dyn Subject) {
     assert_eq!(next.native_id.as_deref(), Some(second.as_str()), "{name}");
 
     let account = account(adapter.as_ref(), &a);
-    let spec = adapter
-        .launch_spec(
-            &account,
-            &profile(&account, BTreeMap::new()),
-            &sandbox.project,
-            &LaunchMode::Resume {
-                session_id: first.clone(),
-                delta_prompt: None,
-            },
-        )
-        .expect("the found session resumes");
+    let spec = driven_launch(
+        adapter.as_ref(),
+        &account,
+        &subject_profile(subject, &account, BTreeMap::new()),
+        &sandbox.project,
+        &LaunchMode::Resume {
+            session_id: first.clone(),
+            delta_prompt: None,
+        },
+    )
+    .expect("the found session resumes");
     assert!(
-        spec.args.contains(&first),
+        names_once(adapter.as_ref(), &spec, &first),
         "{name}: the resume doesn't name the session: {:?}",
-        spec.args
+        spec.launch.args
     );
     for (key, value) in expected_pins(adapter.as_ref(), &a) {
         assert_eq!(
-            spec.env.get(key),
+            spec.launch.env.get(key),
             Some(&value),
             "{name}: resume moved {key}"
         );
@@ -946,7 +1059,7 @@ pub fn adds_the_agent_bridge_honestly(subject: &dyn Subject) {
     let account = account(adapter.as_ref(), &dir);
     let mut env = BTreeMap::new();
     env.insert("JUGGLER_AGENT_TOKEN".to_owned(), KEY_CANARY.to_owned());
-    let recipe = profile(&account, env);
+    let recipe = subject_profile(subject, &account, env);
     let launch_dir = sandbox
         .accounts
         .parent()
@@ -980,7 +1093,7 @@ pub fn adds_the_agent_bridge_honestly(subject: &dyn Subject) {
     }
     for mode in all_modes("kit-session-1") {
         // A tool may refuse a mode (it says so); the rest must hold.
-        let Ok(spec) = adapter.launch_spec(&account, &recipe, &sandbox.project, &mode) else {
+        let Ok(spec) = launch(adapter.as_ref(), &account, &recipe, &sandbox.project, &mode) else {
             continue;
         };
         // Either the tools, as declared, or why not, in words; and what
@@ -1093,9 +1206,10 @@ pub fn adds_the_agent_bridge_honestly(subject: &dyn Subject) {
         ..bridge.clone()
     };
     let their_account = self::account(adapter.as_ref(), &theirs);
-    if let Ok(spec) = adapter.launch_spec(
+    if let Ok(spec) = launch(
+        adapter.as_ref(),
         &their_account,
-        &profile(&their_account, BTreeMap::new()),
+        &subject_profile(subject, &their_account, BTreeMap::new()),
         &sandbox.project,
         &LaunchMode::Interactive,
     ) {
@@ -1135,7 +1249,7 @@ pub fn leaves_the_agent_tools_out_honestly(subject: &dyn Subject) {
     let account = account(adapter.as_ref(), &dir);
     let mut env = BTreeMap::new();
     env.insert("JUGGLER_AGENT_TOKEN".to_owned(), KEY_CANARY.to_owned());
-    let recipe = profile(&account, env);
+    let recipe = subject_profile(subject, &account, env);
     let bridge = BridgeLaunch {
         program: sandbox.bin.join("juggler-agent"),
         server: "juggler".into(),
@@ -1203,7 +1317,7 @@ pub fn leaves_the_agent_tools_out_honestly(subject: &dyn Subject) {
         true
     };
     for mode in all_modes("kit-session-1") {
-        let Ok(spec) = adapter.launch_spec(&account, &recipe, &sandbox.project, &mode) else {
+        let Ok(spec) = launch(adapter.as_ref(), &account, &recipe, &sandbox.project, &mode) else {
             continue;
         };
         // A launch with the tools first: what offers them, and any entry
@@ -1233,9 +1347,10 @@ pub fn leaves_the_agent_tools_out_honestly(subject: &dyn Subject) {
     std::fs::create_dir_all(&theirs).unwrap();
     std::fs::write(theirs.join("settings.txt"), "the user's own").unwrap();
     let their_account = self::account(adapter.as_ref(), &theirs);
-    if let Ok(spec) = adapter.launch_spec(
+    if let Ok(spec) = launch(
+        adapter.as_ref(),
         &their_account,
-        &profile(&their_account, BTreeMap::new()),
+        &subject_profile(subject, &their_account, BTreeMap::new()),
         &sandbox.project,
         &LaunchMode::Interactive,
     ) {
@@ -1265,7 +1380,7 @@ pub fn runs_both_runtimes_honestly(subject: &dyn Subject) {
     let dir = sandbox.account_dir("a");
     adapter.prepare_account(&dir).unwrap();
     let account = account(adapter.as_ref(), &dir);
-    let recipe = profile(&account, hostile_overrides(adapter.as_ref()));
+    let recipe = subject_profile(subject, &account, hostile_overrides(adapter.as_ref()));
     let pins = expected_pins(adapter.as_ref(), &dir);
     let keeps_rules = |what: &str, spec: &juggler_adapter::LaunchSpec| {
         assert!(
@@ -1294,7 +1409,7 @@ pub fn runs_both_runtimes_honestly(subject: &dyn Subject) {
         );
     };
     for mode in all_modes("kit-session-1") {
-        if let Ok(spec) = adapter.launch_spec(&account, &recipe, &sandbox.project, &mode) {
+        if let Ok(spec) = launch(adapter.as_ref(), &account, &recipe, &sandbox.project, &mode) {
             keeps_rules(&format!("the terminal's {mode:?} launch"), &spec);
         }
     }
@@ -1319,19 +1434,20 @@ pub fn runs_both_runtimes_honestly(subject: &dyn Subject) {
     subject.trust(&dir, &sandbox.project);
     let runtime_dir = sandbox.accounts.parent().unwrap().join("runtime");
     let socket = runtime_dir.join("kit.sock");
-    let terminal = adapter
-        .launch_spec(
-            &account,
-            &recipe,
-            &sandbox.project,
-            &LaunchMode::Interactive,
-        )
-        .unwrap();
+    let terminal = launch(
+        adapter.as_ref(),
+        &account,
+        &recipe,
+        &sandbox.project,
+        &LaunchMode::Interactive,
+    )
+    .unwrap();
     for resume in [None, Some("kit-session-1".to_owned())] {
         let launch = DrivenLaunch {
             socket: socket.clone(),
             resume: resume.clone(),
             fresh_id: "0b1c2d3e-0000-4000-8000-0000000000aa".into(),
+            history: None,
         };
         let spec = driven
             .driven_spec(&account, &recipe, &sandbox.project, &launch)
@@ -1367,6 +1483,7 @@ pub fn runs_both_runtimes_honestly(subject: &dyn Subject) {
             socket: socket.clone(),
             resume: Some(id.into()),
             fresh_id: "0b1c2d3e-0000-4000-8000-0000000000aa".into(),
+            history: None,
         };
         assert!(
             matches!(
@@ -1375,6 +1492,25 @@ pub fn runs_both_runtimes_honestly(subject: &dyn Subject) {
             ),
             "{name}: a driven launch resumed the option-like id {id:?}"
         );
+    }
+    if !driven.terminal_ui() {
+        // No terminal UI: no view either, and it says why.
+        assert!(
+            matches!(
+                driven.terminal_view(
+                    &account,
+                    &recipe,
+                    &sandbox.project,
+                    &ViewOf {
+                        native_id: "kit-session-1".into(),
+                        socket: Some(socket.clone()),
+                    },
+                ),
+                Err(AdapterError::Unsupported(_))
+            ),
+            "{name}: a terminal view of a tool without a terminal UI"
+        );
+        return;
     }
     let view = driven
         .terminal_view(
@@ -1403,11 +1539,11 @@ pub fn keeps_the_tools_own_option_rules(subject: &dyn Subject) {
     let dir = sandbox.account_dir("a");
     adapter.prepare_account(&dir).unwrap();
     let account = account(adapter.as_ref(), &dir);
-    let recipe = profile(&account, BTreeMap::new());
+    let recipe = subject_profile(subject, &account, BTreeMap::new());
     subject.trust(&dir, &sandbox.project);
     let mut launches: Vec<(String, Vec<String>)> = Vec::new();
     for mode in all_modes("kit-session-1") {
-        if let Ok(spec) = adapter.launch_spec(&account, &recipe, &sandbox.project, &mode) {
+        if let Ok(spec) = launch(adapter.as_ref(), &account, &recipe, &sandbox.project, &mode) {
             launches.push((format!("{mode:?}"), spec.args));
         }
     }
@@ -1417,6 +1553,7 @@ pub fn keeps_the_tools_own_option_rules(subject: &dyn Subject) {
                 socket: sandbox.accounts.join("kit.sock"),
                 resume,
                 fresh_id: "0b1c2d3e-0000-4000-8000-0000000000aa".into(),
+                history: None,
             };
             if let Ok(spec) = driven.driven_spec(&account, &recipe, &sandbox.project, &launch) {
                 launches.push(("the driven launch".into(), spec.launch.args));
@@ -1458,7 +1595,7 @@ pub fn adds_state_reports_honestly(subject: &dyn Subject) {
     let account = account(adapter.as_ref(), &dir);
     let mut env = BTreeMap::new();
     env.insert("JUGGLER_REPORT_TOKEN".to_owned(), KEY_CANARY.to_owned());
-    let recipe = profile(&account, env);
+    let recipe = subject_profile(subject, &account, env);
     let overlays = sandbox.accounts.parent().unwrap().join("overlays");
     let launch_dir = overlays.join("runtime/kit-session");
     let launch = ReportsLaunch {
@@ -1469,7 +1606,8 @@ pub fn adds_state_reports_honestly(subject: &dyn Subject) {
     let declares = adapter.capabilities().contains(Capabilities::STATE_REPORTS);
     let home = dir.to_string_lossy().into_owned();
     for mode in all_modes("kit-session-1") {
-        let Ok(spec) = adapter.launch_spec(&account, &recipe, &sandbox.project, &mode) else {
+        let Ok(spec) = self::launch(adapter.as_ref(), &account, &recipe, &sandbox.project, &mode)
+        else {
             continue;
         };
         let injection = adapter.state_reports(&launch, &spec.args);
@@ -1762,18 +1900,48 @@ pub fn reads_limit_hits_honestly(subject: &dyn Subject) {
     let name = adapter.id();
     let declares = adapter.capabilities().contains(Capabilities::LIMIT_HITS);
     let tails = subject.limit_tails();
+    let dir = sandbox.account_dir("a");
+    adapter.prepare_account(&dir).unwrap();
+    let records = subject.limit_records(&dir, &sandbox.project);
     assert_eq!(
-        tails.is_some(),
+        tails.is_some() || records.is_some(),
         declares,
         "{name}: LIMIT_HITS is declared {declares}, but a fixture is {}",
-        if tails.is_some() { "given" } else { "missing" }
+        if tails.is_some() || records.is_some() {
+            "given"
+        } else {
+            "missing"
+        }
     );
+    // AJ-E1605 R3: hits kept in the tool's own store, read per session.
+    if let Some((hit, carried_on)) = &records {
+        let found = adapter
+            .session_limit_hit(hit)
+            .unwrap_or_else(|| panic!("{name}: a session's record isn't read for its hit"))
+            .unwrap_or_else(|| panic!("{name}: a recorded limit hit isn't read"));
+        assert!(found.at_ms > 0, "{name}: a hit without its time");
+        assert!(
+            found.resets_at_ms.is_none_or(|reset| reset > found.at_ms),
+            "{name}: a reset before the hit"
+        );
+        assert_eq!(
+            adapter.session_limit_hit(carried_on),
+            Some(None),
+            "{name}: a session that carried on still reads as at its limit"
+        );
+        let plain = subject.write_session(&dir, &sandbox.other_project, 3);
+        if let Some(record) = subject.session_record(&dir, &plain) {
+            assert_eq!(
+                adapter.session_limit_hit(&record).flatten(),
+                None,
+                "{name}: a plain session reads as a limit hit"
+            );
+        }
+    }
     assert!(
         adapter.limit_hit("").is_none(),
         "{name}: an empty tail reads as a limit hit"
     );
-    let dir = sandbox.account_dir("a");
-    adapter.prepare_account(&dir).unwrap();
     subject.write_session(&dir, &sandbox.project, 1);
     for path in jsonl_under(&dir) {
         let text = std::fs::read_to_string(&path).unwrap_or_default();
@@ -1839,6 +2007,29 @@ pub fn names_a_floor_family(subject: &dyn Subject) {
     }
 }
 
+/// ADR-0036 §2.2 (D-127, D-128): the tool declares what AI Juggler can
+/// observe of its sessions, never more than its capabilities back, and
+/// never what AI Juggler observes itself (pools, tasks, commits).
+pub fn declares_what_it_observes_honestly(subject: &dyn Subject) {
+    let sandbox = Sandbox::new();
+    let adapter = subject.adapter(&sandbox);
+    let spec = adapter.spec();
+    let backed = juggler_adapter::ToolObserves::backed_by(adapter.capabilities(), &spec.kinds);
+    assert!(
+        spec.observes.within(&backed),
+        "{}: declares {:?}, more than its capabilities back ({:?})",
+        spec.id,
+        spec.observes,
+        backed
+    );
+    let own = juggler_adapter::Observes::AI_JUGGLER_OWN | juggler_adapter::Observes::COMMITS;
+    assert!(
+        !spec.observes.cli.intersects(own) && !spec.observes.desktop.intersects(own),
+        "{}: declares what AI Juggler observes itself",
+        spec.id
+    );
+}
+
 // 14. Switching, honestly (ADR-0028)
 
 /// Every switching capability is answered: supported and how, or not and
@@ -1870,6 +2061,64 @@ pub fn answers_switching_honestly(subject: &dyn Subject) {
     );
 }
 
+// 15. Desktop apps, honestly (AJ-E1610)
+
+/// Each desktop app the adapter describes is found, named, reached only by
+/// sound routes, and says plainly what it can't do.
+pub fn describes_its_desktop_apps_honestly(subject: &dyn Subject) {
+    use juggler_adapter::desktop_app::{RouteAction, TrackPart};
+    let sandbox = Sandbox::new();
+    let adapter = subject.adapter(&sandbox);
+    let id = adapter.spec().id;
+    for app in adapter.host_apps().into_iter().filter(|app| app.is_app()) {
+        let at = format!("{id}: {}", app.id);
+        assert!(
+            app.bundle_id.is_some() || app.desktop.install_folder.is_some(),
+            "{at}: no way to find it"
+        );
+        assert_eq!(
+            app.desktop.tool.as_deref(),
+            Some(id.as_str()),
+            "{at}: names its tool"
+        );
+        if app.instance_arg.is_some() {
+            assert_eq!(
+                app.instance_arg.as_deref(),
+                Some("--user-data-dir"),
+                "{at}: only the proved profile switch"
+            );
+        } else {
+            assert!(
+                app.desktop.why_not(TrackPart::Account).is_some(),
+                "{at}: says why it opens on one account"
+            );
+        }
+        for route in &app.desktop.routes {
+            if matches!(route.action, RouteAction::Reply | RouteAction::ReadSessions) {
+                assert_eq!(route.link, None, "{at}: through the adapter only");
+            }
+            let link = route.link.as_deref().unwrap_or_default();
+            assert!(
+                !link.contains("install") && !link.contains("plugin"),
+                "{at}: {link}"
+            );
+        }
+        let reply = app.desktop.usable(RouteAction::Reply).is_some();
+        assert_ne!(
+            reply,
+            app.desktop.why_not(TrackPart::Reply).is_some(),
+            "{at}: a sound reply route, or one line saying why not"
+        );
+        for track in &app.desktop.track_only {
+            assert!(
+                track.why.ends_with('.') && !track.why.contains('\n') && track.why.len() <= 140,
+                "{at}: {}",
+                track.why
+            );
+        }
+    }
+}
+
 /// Instantiates the whole kit for one subject as a test module.
 #[macro_export]
 macro_rules! conformance {
@@ -1880,6 +2129,11 @@ macro_rules! conformance {
             #[test]
             fn names_a_floor_family() {
                 conformance::names_a_floor_family(&$subject);
+            }
+
+            #[test]
+            fn declares_what_it_observes_honestly() {
+                conformance::declares_what_it_observes_honestly(&$subject);
             }
 
             #[test]
@@ -1950,6 +2204,11 @@ macro_rules! conformance {
             #[test]
             fn answers_switching_honestly() {
                 conformance::answers_switching_honestly(&$subject);
+            }
+
+            #[test]
+            fn describes_its_desktop_apps_honestly() {
+                conformance::describes_its_desktop_apps_honestly(&$subject);
             }
         }
     };

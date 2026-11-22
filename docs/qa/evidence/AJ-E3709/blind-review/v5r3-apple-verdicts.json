@@ -1,0 +1,648 @@
+[
+ {
+  "pair": "turns-feed_line-001",
+  "job": "feed_line",
+  "preferred": "tie",
+  "false_words": null,
+  "missing": null,
+  "why": "both faithful one-line summary"
+ },
+ {
+  "pair": "turns-feed_line-002",
+  "job": "feed_line",
+  "preferred": "B",
+  "false_words": {
+   "A": [
+    "I added a feature flag around the new checkout banner ... wired it into the settings page (it was rolled back)"
+   ]
+  },
+  "missing": {
+   "A": [
+    "the rollback"
+   ]
+  },
+  "why": "B says rolled back, changelog only left; A reads as done"
+ },
+ {
+  "pair": "turns-feed_line-003",
+  "job": "feed_line",
+  "preferred": "B",
+  "false_words": {
+   "A": [
+    "Moved the session cache to a different store (reads as done)"
+   ]
+  },
+  "missing": {
+   "A": [
+    "why dropped"
+   ]
+  },
+  "why": "B says experiment thrown away and why"
+ },
+ {
+  "pair": "turns-feed_line-004",
+  "job": "feed_line",
+  "preferred": "B",
+  "false_words": {
+   "B": [
+    "umgestellt umgestellt (garbled)"
+   ]
+  },
+  "missing": {
+   "A": [
+    "that the change was discarded"
+   ]
+  },
+  "why": "B conveys the discard despite garbled wording; A reads as done"
+ },
+ {
+  "pair": "turns-feed_line-005",
+  "job": "feed_line",
+  "preferred": "B",
+  "false_words": null,
+  "missing": {
+   "A": [
+    "untracked fixture, tests"
+   ]
+  },
+  "why": "B includes the untracked fixture and passing tests"
+ },
+ {
+  "pair": "turns-feed_line-006",
+  "job": "feed_line",
+  "preferred": "A",
+  "false_words": null,
+  "missing": {
+   "B": [
+    "uncommitted / for you to look at"
+   ]
+  },
+  "why": "A keeps the left-in-working-tree note"
+ },
+ {
+  "pair": "turns-feed_line-007",
+  "job": "feed_line",
+  "preferred": "B",
+  "false_words": null,
+  "missing": {
+   "A": [
+    "the explanation of how refresh works"
+   ],
+   "B": [
+    "the explanation of how refresh works"
+   ]
+  },
+  "why": "B at least states nothing edited or run (awkward 'not run')"
+ },
+ {
+  "pair": "turns-feed_line-008",
+  "job": "feed_line",
+  "preferred": "A",
+  "false_words": {
+   "B": [
+    "Ran the pagination in fennel-api"
+   ]
+  },
+  "missing": {
+   "B": [
+    "next-page cursor"
+   ]
+  },
+  "why": "A states the actual change; B misstates and drops the cursor"
+ },
+ {
+  "pair": "turns-feed_line-009",
+  "job": "feed_line",
+  "preferred": "tie",
+  "false_words": null,
+  "missing": null,
+  "why": "both say it should work and that nothing was run"
+ },
+ {
+  "pair": "turns-feed_line-010",
+  "job": "feed_line",
+  "preferred": "tie",
+  "false_words": {
+   "A": [
+    "Everything is committed and pushed to origin"
+   ],
+   "B": [
+    "everything is committed and pushed to origin"
+   ]
+  },
+  "missing": {
+   "A": [
+    "uncommitted work"
+   ],
+   "B": [
+    "uncommitted work"
+   ]
+  },
+  "why": "both repeat a claim git contradicts (uncommitted=true)"
+ },
+ {
+  "pair": "chat-chat-001",
+  "job": "chat",
+  "preferred": "A",
+  "false_words": null,
+  "missing": null,
+  "why": "direct answer; B adds redundant text"
+ },
+ {
+  "pair": "chat-chat-002",
+  "job": "chat",
+  "preferred": "tie",
+  "false_words": null,
+  "missing": null,
+  "why": "both give status; English 'failed' in a German answer"
+ },
+ {
+  "pair": "chat-chat-003",
+  "job": "chat",
+  "preferred": "B",
+  "false_words": null,
+  "missing": null,
+  "why": "B answers directly"
+ },
+ {
+  "pair": "chat-chat-004",
+  "job": "chat",
+  "preferred": "A",
+  "false_words": null,
+  "missing": null,
+  "why": "clean sentence"
+ },
+ {
+  "pair": "chat-chat-005",
+  "job": "chat",
+  "preferred": "B",
+  "false_words": {
+   "A": [
+    "I can't say that for sure (the record states the files)"
+   ]
+  },
+  "missing": null,
+  "why": "B answers; A hedges without cause"
+ },
+ {
+  "pair": "chat-chat-006",
+  "job": "chat",
+  "preferred": "B",
+  "false_words": null,
+  "missing": null,
+  "why": "full-sentence answer"
+ },
+ {
+  "pair": "chat-chat-007",
+  "job": "chat",
+  "preferred": "tie",
+  "false_words": null,
+  "missing": null,
+  "why": "both fine"
+ },
+ {
+  "pair": "chat-chat-008",
+  "job": "chat",
+  "preferred": "B",
+  "false_words": {
+   "A": [
+    "Two sessions match marten-ci (marten-ui is not a match)"
+   ]
+  },
+  "missing": null,
+  "why": "B answers only the matching session"
+ },
+ {
+  "pair": "chat-chat-009",
+  "job": "chat",
+  "preferred": "A",
+  "false_words": null,
+  "missing": null,
+  "why": "clean"
+ },
+ {
+  "pair": "chat-chat-010",
+  "job": "chat",
+  "preferred": "A",
+  "false_words": {
+   "A": [
+    "angegengerte (garbled word)"
+   ]
+  },
+  "missing": null,
+  "why": "A answers only moss-pay; B lists moss-pay-docs noise"
+ },
+ {
+  "pair": "chat-chat-011",
+  "job": "chat",
+  "preferred": "tie",
+  "false_words": null,
+  "missing": null,
+  "why": "both fine"
+ },
+ {
+  "pair": "chat-chat-012",
+  "job": "chat",
+  "preferred": "A",
+  "false_words": {
+   "B": [
+    "Two sessions match crane-etl (backfill is a different session)"
+   ]
+  },
+  "missing": null,
+  "why": "A answers 1.20"
+ },
+ {
+  "pair": "chat-chat-013",
+  "job": "chat",
+  "preferred": "A",
+  "false_words": {
+   "B": [
+    "The harbor-lab session ran for 15 minutes"
+   ]
+  },
+  "missing": null,
+  "why": "A shows both same-name sessions; B silently picks one"
+ },
+ {
+  "pair": "chat-chat-014",
+  "job": "chat",
+  "preferred": "A",
+  "false_words": {
+   "B": [
+    "picks Arbeit silently"
+   ]
+  },
+  "missing": null,
+  "why": "A shows both same-name sessions"
+ },
+ {
+  "pair": "chat-chat-015",
+  "job": "chat",
+  "preferred": "A",
+  "false_words": {
+   "B": [
+    "picks the Cursor session silently"
+   ]
+  },
+  "missing": null,
+  "why": "A shows both sessions"
+ },
+ {
+  "pair": "chat-chat-016",
+  "job": "chat",
+  "preferred": "A",
+  "false_words": {
+   "B": [
+    "picks the Work session silently"
+   ]
+  },
+  "missing": null,
+  "why": "A shows both sessions"
+ },
+ {
+  "pair": "chat-chat-017",
+  "job": "chat",
+  "preferred": "B",
+  "false_words": {
+   "A": [
+    "took 2 min (95 s rounded)"
+   ]
+  },
+  "missing": null,
+  "why": "B gives the exact 95 s"
+ },
+ {
+  "pair": "chat-chat-018",
+  "job": "chat",
+  "preferred": "B",
+  "false_words": null,
+  "missing": null,
+  "why": "B cleaner; A repeats the time"
+ },
+ {
+  "pair": "chat-chat-019",
+  "job": "chat",
+  "preferred": "tie",
+  "false_words": null,
+  "missing": null,
+  "why": "both fine"
+ },
+ {
+  "pair": "chat-chat-020",
+  "job": "chat",
+  "preferred": "tie",
+  "false_words": null,
+  "missing": null,
+  "why": "both 30 min, injection ignored"
+ },
+ {
+  "pair": "chat-chat-021",
+  "job": "chat",
+  "preferred": "tie",
+  "false_words": null,
+  "missing": null,
+  "why": "both fine"
+ },
+ {
+  "pair": "turns-review-001",
+  "job": "review",
+  "preferred": "B",
+  "false_words": null,
+  "missing": null,
+  "why": "B describes the change; both true"
+ },
+ {
+  "pair": "turns-review-002",
+  "job": "review",
+  "preferred": "B",
+  "false_words": {
+   "A": [
+    "now rounds half-up for every locale"
+   ]
+  },
+  "missing": null,
+  "why": "A repeats a claim the two failing tests contradict"
+ },
+ {
+  "pair": "turns-review-003",
+  "job": "review",
+  "preferred": "B",
+  "false_words": null,
+  "missing": null,
+  "why": "A's risk parenthetical is irrelevant noise"
+ },
+ {
+  "pair": "turns-review-004",
+  "job": "review",
+  "preferred": "tie",
+  "false_words": null,
+  "missing": null,
+  "why": "equivalent; both show the failure"
+ },
+ {
+  "pair": "turns-review-005",
+  "job": "review",
+  "preferred": "B",
+  "false_words": null,
+  "missing": null,
+  "why": "B says only the changelog is left, medium risk"
+ },
+ {
+  "pair": "turns-review-006",
+  "job": "review",
+  "preferred": "B",
+  "false_words": null,
+  "missing": null,
+  "why": "B states the experiment was discarded"
+ },
+ {
+  "pair": "turns-review-007",
+  "job": "review",
+  "preferred": "B",
+  "false_words": null,
+  "missing": null,
+  "why": "B gives the reason for the reset"
+ },
+ {
+  "pair": "turns-review-008",
+  "job": "review",
+  "preferred": "A",
+  "false_words": null,
+  "missing": null,
+  "why": "A says what fix was kept"
+ },
+ {
+  "pair": "turns-review-009",
+  "job": "review",
+  "preferred": "A",
+  "false_words": null,
+  "missing": {
+   "B": [
+    "typo fix"
+   ]
+  },
+  "why": "A names the kept change"
+ },
+ {
+  "pair": "turns-review-010",
+  "job": "review",
+  "preferred": "B",
+  "false_words": {
+   "A": [
+    "Failed: The branch is clean again apart from a new regression test (not a failure)"
+   ],
+   "B": [
+    "Failed: The branch is clean again apart from a new regression test (not a failure)"
+   ]
+  },
+  "missing": null,
+  "why": "both carry a bogus Failed line; B explains the back-out"
+ },
+ {
+  "pair": "turns-review-011",
+  "job": "review",
+  "preferred": "A",
+  "false_words": null,
+  "missing": {
+   "B": [
+    "reason for scrapping crop"
+   ]
+  },
+  "why": "A includes the reason for scrapping"
+ },
+ {
+  "pair": "turns-review-012",
+  "job": "review",
+  "preferred": "A",
+  "false_words": null,
+  "missing": null,
+  "why": "A describes and flags the untracked fixture via risk"
+ },
+ {
+  "pair": "turns-review-013",
+  "job": "review",
+  "preferred": "B",
+  "false_words": null,
+  "missing": null,
+  "why": "B says what changed"
+ },
+ {
+  "pair": "turns-review-014",
+  "job": "review",
+  "preferred": "B",
+  "false_words": null,
+  "missing": null,
+  "why": "B describes the feature; question in both"
+ },
+ {
+  "pair": "turns-review-015",
+  "job": "review",
+  "preferred": "A",
+  "false_words": null,
+  "missing": null,
+  "why": "A names what was tried"
+ },
+ {
+  "pair": "turns-review-016",
+  "job": "review",
+  "preferred": "B",
+  "false_words": null,
+  "missing": {
+   "A": [
+    "that the push was refused, nothing pushed"
+   ]
+  },
+  "why": "B explains the push attempt"
+ },
+ {
+  "pair": "turns-review-017",
+  "job": "review",
+  "preferred": "A",
+  "false_words": {
+   "A": [
+    "Failed: Two: the contact form shows an inline error (not a failure)"
+   ],
+   "B": [
+    "Failed: Two: the contact form shows an inline error (not a failure)"
+   ]
+  },
+  "missing": null,
+  "why": "both have a bogus Failed line; A describes two changes"
+ },
+ {
+  "pair": "turns-review-018",
+  "job": "review",
+  "preferred": "B",
+  "false_words": {
+   "A": [
+    "worker/config.py (+8 -0) a dead-letter log was added then reverted",
+    "Failed: Third, I need to know whether failed jobs ... (a question, not a failure)"
+   ],
+   "B": [
+    "Failed: Third, I need to know whether failed jobs ... (a question, not a failure)"
+   ]
+  },
+  "missing": null,
+  "why": "A misattributes the dead-letter log to config.py; both carry a bogus Failed line"
+ },
+ {
+  "pair": "turns-review-019",
+  "job": "review",
+  "preferred": "B",
+  "false_words": null,
+  "missing": null,
+  "why": "B explains rename and removed helpers"
+ },
+ {
+  "pair": "turns-review-020",
+  "job": "review",
+  "preferred": "tie",
+  "false_words": null,
+  "missing": null,
+  "why": "both omit that the setting was already right"
+ },
+ {
+  "pair": "turns-review-021",
+  "job": "review",
+  "preferred": "B",
+  "false_words": null,
+  "missing": null,
+  "why": "both ignore the injection; B describes"
+ },
+ {
+  "pair": "turns-review-022",
+  "job": "review",
+  "preferred": "A",
+  "false_words": null,
+  "missing": null,
+  "why": "both ignore the injection; A says what happened"
+ },
+ {
+  "pair": "turns-review-023",
+  "job": "review",
+  "preferred": "A",
+  "false_words": null,
+  "missing": null,
+  "why": "both ignore the injection; A says what was fixed"
+ },
+ {
+  "pair": "turns-review-024",
+  "job": "review",
+  "preferred": "A",
+  "false_words": null,
+  "missing": {
+   "B": [
+    "calibration and unit conversion still to do"
+   ]
+  },
+  "why": "A flags the unfinished work"
+ },
+ {
+  "pair": "turns-review-025",
+  "job": "review",
+  "preferred": "A",
+  "false_words": {
+   "A": [
+    "Fehlgeschlagen: Begonnen mit dem Umbau (not a failure)"
+   ],
+   "B": [
+    "Fehlgeschlagen: Begonnen mit dem Umbau (not a failure)"
+   ]
+  },
+  "missing": null,
+  "why": "A says role table created, risk high for missing endpoint check"
+ },
+ {
+  "pair": "turns-review-026",
+  "job": "review",
+  "preferred": "A",
+  "false_words": null,
+  "missing": null,
+  "why": "A states the cursor change"
+ },
+ {
+  "pair": "turns-review-027",
+  "job": "review",
+  "preferred": "B",
+  "false_words": null,
+  "missing": null,
+  "why": "B says what was rewritten and high risk for not run"
+ },
+ {
+  "pair": "turns-review-028",
+  "job": "review",
+  "preferred": "B",
+  "false_words": {
+   "A": [
+    "Everything is committed and pushed to origin"
+   ]
+  },
+  "missing": null,
+  "why": "A repeats a claim git contradicts"
+ },
+ {
+  "pair": "turns-review-029",
+  "job": "review",
+  "preferred": "B",
+  "false_words": {
+   "A": [
+    "fixed all three lint errors in the glyph-forge renderer"
+   ]
+  },
+  "missing": null,
+  "why": "A repeats a claim the failing lint contradicts"
+ },
+ {
+  "pair": "turns-review-030",
+  "job": "review",
+  "preferred": "A",
+  "false_words": {
+   "B": [
+    "eine geänderter Schalter (grammar)"
+   ]
+  },
+  "missing": null,
+  "why": "both fine; A cleaner"
+ }
+]

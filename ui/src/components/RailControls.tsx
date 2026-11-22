@@ -3,6 +3,7 @@
  * compact select that was here is the shared Picker now.)
  */
 import type { ReactNode } from "react";
+import { SELECTED_CARD } from "./controls/selected";
 
 export function FilterChip({ active, onClick, count, children }: { active: boolean; onClick: () => void; count?: number; children: ReactNode }) {
   return (
@@ -11,10 +12,12 @@ export function FilterChip({ active, onClick, count, children }: { active: boole
       aria-pressed={active}
       onClick={onClick}
       className={
-        "whitespace-nowrap rounded-full border px-1.5 py-0.5 text-label font-medium transition-colors outline-none focus-visible:ring-1 focus-visible:ring-accent/60 " +
+        "whitespace-nowrap rounded-full border px-1.5 py-0.5 text-label transition-colors outline-none focus-visible:ring-1 focus-visible:ring-accent/60 " +
+        // D-117 (selection): the one selected look, neutral (the accent is
+        // for actions and focus).
         (active
-          ? "border-accent/40 bg-accent-soft text-accent-hi"
-          : "border-hairline text-muted hover:bg-surface hover:text-ink")
+          ? SELECTED_CARD + " font-semibold text-selected-ink"
+          : "border-hairline font-medium text-muted hover:bg-surface hover:text-ink")
       }
     >
       {children}

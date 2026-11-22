@@ -68,7 +68,18 @@ export function AccountProbe({ accountId }: { accountId: string }): JSX.Element 
         )}
       </div>
       {asking && (
-        <Modal title="Ask Claude Code for its account's limits" onClose={() => setAsking(false)} testId="account-probe-sheet">
+        <Modal title="Ask Claude Code for its account's limits" onClose={() => setAsking(false)} testId="account-probe-sheet"
+          footer={
+            <>
+                <Button size="sm" variant="secondary" onClick={() => setAsking(false)}>
+                  Cancel
+                </Button>
+                <Button size="sm" variant="primary" disabled={busy} onClick={() => void act(() => probeTurnOn(accountId), "Turned on: Claude Code was asked for its limits.")} data-testid="account-probe-on" data-autofocus>
+                  Turn on
+                </Button>
+            </>
+          }
+        >
           <div data-modal-body className="flex flex-col gap-2.5 text-label text-ink">
             <p>AI Juggler runs Claude Code's own usage check here, the same as typing /usage, without opening a window.</p>
             <ul className="flex list-disc flex-col gap-1 pl-4 text-muted">
@@ -84,14 +95,6 @@ export function AccountProbe({ accountId }: { accountId: string }): JSX.Element 
                 {problem}
               </p>
             )}
-            <div className="flex justify-end gap-2">
-              <Button size="sm" variant="secondary" onClick={() => setAsking(false)}>
-                Cancel
-              </Button>
-              <Button size="sm" variant="primary" disabled={busy} onClick={() => void act(() => probeTurnOn(accountId), "Turned on: Claude Code was asked for its limits.")} data-testid="account-probe-on" data-autofocus>
-                Turn on
-              </Button>
-            </div>
           </div>
         </Modal>
       )}

@@ -1,0 +1,169 @@
+{
+ "family": "gemma-4-e2b",
+ "job": "chat",
+ "note": "script flags: candidates for Opus to confirm by eye, never verdicts",
+ "candidates": [
+  {
+   "class": "omission",
+   "detector": "no_answer_on_answerable",
+   "detail": "shown: found_rows",
+   "stage": "shown",
+   "attempt": null,
+   "id": "R2C40",
+   "corpus": "chat"
+  },
+  {
+   "class": "omission",
+   "detector": "no_answer_on_answerable",
+   "detail": "shown: dont_know",
+   "stage": "shown",
+   "attempt": null,
+   "id": "R2C44",
+   "corpus": "chat"
+  },
+  {
+   "class": "omission",
+   "detector": "no_answer_on_answerable",
+   "detail": "shown: found_rows",
+   "stage": "shown",
+   "attempt": null,
+   "id": "R2C46",
+   "corpus": "chat"
+  },
+  {
+   "class": "omission",
+   "detector": "no_answer_on_answerable",
+   "detail": "shown: found_rows",
+   "stage": "shown",
+   "attempt": null,
+   "id": "R2C50",
+   "corpus": "chat"
+  },
+  {
+   "class": "omission",
+   "detector": "no_answer_on_answerable",
+   "detail": "shown: dont_know",
+   "stage": "shown",
+   "attempt": null,
+   "id": "R2C51",
+   "corpus": "chat"
+  },
+  {
+   "id": "R2C05",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_question",
+   "detail": "off the question: no cited record holds a why",
+   "stage": "caught",
+   "corpus": "chat"
+  },
+  {
+   "id": "R2C05",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "wrong_question",
+   "detail": "off the question: no cited record holds a why",
+   "stage": "caught",
+   "corpus": "chat"
+  },
+  {
+   "id": "R2C05",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "wrong_question",
+   "detail": "off the question: no cited record holds a why",
+   "stage": "caught",
+   "corpus": "chat"
+  },
+  {
+   "id": "R2C11",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_question",
+   "detail": "off the question: states status, the question asks why: it supports no answer",
+   "stage": "caught",
+   "corpus": "chat"
+  },
+  {
+   "id": "R2C40",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_question",
+   "detail": "off the question: its count is not in the cited record",
+   "stage": "caught",
+   "corpus": "chat"
+  },
+  {
+   "id": "R2C40",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "wrong_question",
+   "detail": "off the question: its count is not in the cited record",
+   "stage": "caught",
+   "corpus": "chat"
+  },
+  {
+   "id": "R2C40",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "wrong_question",
+   "detail": "off the question: its count is not in the cited record",
+   "stage": "caught",
+   "corpus": "chat"
+  },
+  {
+   "id": "R2C46",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'The task was paused because the access t': 2b: content word(s) not in the text: access, expired, token",
+   "stage": "caught",
+   "corpus": "chat"
+  },
+  {
+   "id": "R2C46",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'The task was paused because the access t': 2b: content word(s) not in the text: access, expired, token",
+   "stage": "caught",
+   "corpus": "chat"
+  },
+  {
+   "id": "R2C46",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'The task was paused because the access t': 2b: content word(s) not in the text: access, expired, token",
+   "stage": "caught",
+   "corpus": "chat"
+  },
+  {
+   "id": "R2C50",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_question",
+   "detail": "off the question: the cited record's cost is not about the subject",
+   "stage": "caught",
+   "corpus": "chat"
+  },
+  {
+   "id": "R2C50",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "wrong_question",
+   "detail": "off the question: the cited record's cost is not about the subject",
+   "stage": "caught",
+   "corpus": "chat"
+  },
+  {
+   "id": "R2C50",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "wrong_question",
+   "detail": "off the question: the cited record's cost is not about the subject",
+   "stage": "caught",
+   "corpus": "chat"
+  }
+ ]
+}

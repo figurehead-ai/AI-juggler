@@ -210,7 +210,7 @@ export function ThreadView({ threadId, poolId, members, now }: { threadId: strin
           </h3>
           <p className="text-meta text-ink-2">
             {thread.people.join(", ")}
-            {thread.pool_name ? ` · in «${thread.pool_name}»` : ""}
+            {thread.pool_name ? ` · in “${thread.pool_name}”` : ""}
           </p>
           <div className="flex flex-wrap items-center gap-2 pt-0.5">
             {thread.state !== "open" && <Pill tone={thread.state === "stopped" ? "danger" : "warning"}>{THREAD_WORDS[thread.state] ?? thread.state}</Pill>}

@@ -2,9 +2,10 @@
  * AJ-E1107 — crash reports, behind their own setting (separate from
  * usage statistics): Never (the default), Ask me each time, or Always
  * send. DO_NOT_TRACK forces Never. A report is scrubbed on this Mac
- * before it is kept; with "Ask me each time" the next launch shows it
- * in full and asks. This build has no reporting service yet, so a
- * report the user chooses to send stays queued here — and says so.
+ * before it is kept; with "Ask me each time" the next launch shows the
+ * whole Sentry event that would go (D-108) and asks. A build without
+ * Sentry's address keeps a report the user chooses to send queued here,
+ * and says so.
  */
 import { useEffect, useRef, useState, type JSX } from "react";
 import { Button } from "./primitives";
@@ -12,6 +13,7 @@ import { crashAnswer, crashInfo, crashSet } from "../lib/ipc/crash";
 import { errorText } from "../lib/bridge";
 import type { CrashInfo } from "../types/generated/CrashInfo";
 import { Picker } from "./controls";
+import { DialogFrame, DialogOverlay } from "./DialogFrame";
 
 const OPTIONS: { value: "never" | "ask" | "always"; label: string }[] = [
   { value: "never", label: "Never" },
@@ -45,7 +47,7 @@ export function CrashReportsSetting(): JSX.Element | null {
       <p className="text-label text-muted">
         {info.reason
           ? `${info.reason}.`
-          : "Separate from usage statistics. A report is scrubbed on this computer first: your home folder becomes ~, and your user name, links and anything that looks like a key are removed."}
+          : "Separate from usage statistics. Reports go to Sentry, the crash-report service AI Juggler uses, only as you choose here. Each is scrubbed on this computer first: your home folder becomes ~, and your user name, links and anything that looks like a key are removed."}
       </p>
       {!info.can_send && info.effective !== "never" && (
         <p className="text-label text-muted" data-testid="crash-cannot-send">
@@ -75,7 +77,7 @@ export function CrashReportPrompt(): JSX.Element | null {
   if (!info || !report) return null;
   const answer = (choice: "send" | "dont_send" | "always_send") => void crashAnswer(report.id, choice).then(setInfo);
   return (
-    <div
+    <DialogOverlay
       role="dialog"
       aria-modal="true"
       aria-labelledby="crash-title"
@@ -85,13 +87,33 @@ export function CrashReportPrompt(): JSX.Element | null {
         if (event.key === "Escape") answer("dont_send");
       }}
     >
-      <div className="flex w-full max-w-lg flex-col gap-3 rounded-xl border border-hairline bg-surface p-5 shadow-lg">
-        <h2 id="crash-title" className="text-sm font-semibold">
-          AI Juggler quit unexpectedly. Send a crash report?
-        </h2>
+      <DialogFrame
+        className="w-full max-w-lg rounded-xl border border-hairline bg-surface shadow-lg"
+        headerClassName="px-5 pt-5"
+        bodyClassName="flex flex-col gap-3 px-5 pt-3 pb-3"
+        footerClassName="px-5 pt-3 pb-5"
+        header={
+          <h2 id="crash-title" className="text-sm font-semibold">
+            AI Juggler quit unexpectedly. Send a crash report?
+          </h2>
+        }
+        footer={
+          <div className="flex flex-wrap justify-end gap-2">
+            <Button size="sm" variant="secondary" onClick={() => answer("dont_send")} data-testid="crash-dont-send">
+              Don't send
+            </Button>
+            <Button size="sm" variant="secondary" onClick={() => answer("always_send")} data-testid="crash-always-send">
+              Always send
+            </Button>
+            <Button ref={sendRef} size="sm" variant="primary" onClick={() => answer("send")} data-testid="crash-send">
+              Send
+            </Button>
+          </div>
+        }
+      >
         <p className="text-label leading-relaxed text-muted">
-          This is the whole report, exactly as it would be sent. It was scrubbed on this computer: no home folder, user name,
-          links or keys.
+          This is the whole report, exactly as it would be sent to Sentry. It was scrubbed on this computer: no home folder,
+          user name, links or keys.
           {!info.can_send && " This build can't send it yet, so Send keeps it on this computer until one can."}
         </p>
         <pre
@@ -100,20 +122,9 @@ export function CrashReportPrompt(): JSX.Element | null {
           tabIndex={0}
           data-testid="crash-preview"
         >
-          {JSON.stringify(report, null, 2)}
+          {info.asking_event ?? JSON.stringify(report, null, 2)}
         </pre>
-        <div className="flex flex-wrap justify-end gap-2">
-          <Button size="sm" variant="secondary" onClick={() => answer("dont_send")} data-testid="crash-dont-send">
-            Don't send
-          </Button>
-          <Button size="sm" variant="secondary" onClick={() => answer("always_send")} data-testid="crash-always-send">
-            Always send
-          </Button>
-          <Button ref={sendRef} size="sm" variant="primary" onClick={() => answer("send")} data-testid="crash-send">
-            Send
-          </Button>
-        </div>
-      </div>
-    </div>
+      </DialogFrame>
+    </DialogOverlay>
   );
 }

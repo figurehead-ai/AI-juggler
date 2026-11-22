@@ -30,7 +30,9 @@ label: string | null,
  */
 folder_id: string | null, 
 /**
- * The stored Account its folder was last read as.
+ * AJ-E3210 (D-135): the Account it's on: a CLI App's folder's (its
+ * CLI sign-in), a desktop App's own (its records'); `null` when it
+ * isn't signed in, or a desktop App's isn't known yet.
  */
 account_id: string | null, 
 /**

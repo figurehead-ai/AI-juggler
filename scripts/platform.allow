@@ -9,8 +9,6 @@ crates/juggler-account/src/secrets.rs mac-words 1
 crates/juggler-adapter/src/inventory.rs unix-api 2
 crates/juggler-adapters/src/bin/support/replica_write.rs unix-api 2
 crates/juggler-adapters/src/claude_environment.rs mac-words 1
-crates/juggler-adapters/src/claude_live.rs app-bundle 1
-crates/juggler-adapters/src/codex_live.rs app-bundle 1
 crates/juggler-adapters/src/common/home.rs unix-api 3
 crates/juggler-adapters/src/quota_ingest.rs unix-api 2
 crates/juggler-adapters/src/tool_summary.rs slash-split 1
@@ -105,7 +103,7 @@ ui/src/pages/AccountProbe.tsx mac-words 1
 ui/src/pages/ItemHeader.tsx mac-words 1
 ui/src/pages/registry.ts mac-words 1
 ui/src/screens/FleetScreen.tsx mac-words 9
-ui/src/screens/PairingWizard.tsx mac-words 4
+ui/src/screens/PairingWizard.tsx mac-words 3
 ui/src/screens/ThisMacScreen.tsx mac-words 5
 ui/src/screens/accounts/ServiceAccountSheet.tsx mac-words 1
 ui/src/screens/accounts/ServiceParts.tsx mac-words 1

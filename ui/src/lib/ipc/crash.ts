@@ -6,7 +6,7 @@ import type { CrashInfo as CrashInfoData } from "../../types/generated/CrashInfo
 
 function previewCrash(): CrashInfoData {
   const seams = window as unknown as { __AIJ_CRASH__?: CrashInfoData };
-  seams.__AIJ_CRASH__ ??= { setting: "never", effective: "never", reason: null, asking: [], queued: 0, can_send: false };
+  seams.__AIJ_CRASH__ ??= { setting: "never", effective: "never", reason: null, asking: [], queued: 0, can_send: false, asking_event: null };
   return seams.__AIJ_CRASH__;
 }
 
@@ -36,7 +36,7 @@ export async function crashSet(setting: "never" | "ask" | "always"): Promise<Cra
       ...current,
       setting,
       effective: current.reason ? "never" : setting,
-      ...(setting === "never" ? { asking: [], queued: 0 } : {}),
+      ...(setting === "never" ? { asking: [], queued: 0, asking_event: null } : {}),
     };
     (window as unknown as { __AIJ_CRASH__?: CrashInfoData }).__AIJ_CRASH__ = next;
     return next;
@@ -52,6 +52,8 @@ export async function crashAnswer(id: string, answer: "send" | "dont_send" | "al
     const next: CrashInfoData = {
       ...current,
       asking,
+      // The preview seam has no SDK: the next report shows as stored.
+      asking_event: null,
       queued: current.queued + (answer === "dont_send" ? 0 : 1),
       setting: answer === "always_send" ? "always" : current.setting,
     };

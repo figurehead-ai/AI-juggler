@@ -72,6 +72,12 @@ pub enum Trim {
     /// Only whole (slow to rebuild): never for the budget, only on a
     /// nearly full disk or when the user clears it.
     WholeOnly,
+    /// Only by its own Remove: the user's own downloads (AI models,
+    /// AJ-E3803). Never for the budget, a nearly full disk, turning the
+    /// cache off or Clear cache; not counted against the budget, and
+    /// listed apart from the caches Clear cache empties (Settings shows
+    /// it with its own Remove).
+    Never,
 }
 
 /// What a cache is, in the words Settings shows.
@@ -383,7 +389,8 @@ impl Manager {
         self.clear_where(|about| about.own_switch.is_none())
     }
 
-    /// Removes every cache's files now (each is rebuilt as it's used).
+    /// Removes every cache's files now (each is rebuilt as it's used),
+    /// except the user's own downloads ([`Trim::Never`]).
     ///
     /// # Errors
     ///
@@ -396,7 +403,8 @@ impl Manager {
     fn clear_where(&self, pick: impl Fn(&About) -> bool) -> std::io::Result<()> {
         let mut first = None;
         for cache in self.caches() {
-            if pick(cache.about())
+            if cache.about().trim != Trim::Never
+                && pick(cache.about())
                 && let Err(error) = cache.clear()
             {
                 first.get_or_insert(error);
@@ -504,7 +512,7 @@ fn trim(
     let mut lists: Vec<(&Arc<dyn LocalCache>, Vec<Item>)> = Vec::with_capacity(caches.len());
     for cache in caches {
         let about = cache.about();
-        if !on && about.own_switch.is_none() {
+        if !on && about.own_switch.is_none() && about.trim != Trim::Never {
             let _ = cache.clear();
             lists.push((cache, Vec::new()));
             continue;
@@ -527,8 +535,10 @@ fn trim(
         }
         lists.push((cache, items));
     }
+    // The user's own downloads don't count against the budget.
     let mut total: u64 = lists
         .iter()
+        .filter(|(cache, _)| cache.about().trim != Trim::Never)
         .flat_map(|(_, items)| items.iter().map(|item| item.bytes))
         .sum();
     if total > budget.bytes {
@@ -600,8 +610,8 @@ pub fn start(state: &Arc<AppState>) {
     });
 }
 
-/// The subagent lists, the app icons, the search index and the counts
-/// on pages.
+/// The subagent lists, the app icons, the search index, the counts on
+/// pages, the Floor's logos and the AI models.
 pub fn register_defaults(state: &Arc<AppState>) {
     state
         .cache
@@ -623,6 +633,12 @@ pub fn register_defaults(state: &Arc<AppState>) {
     state
         .cache
         .register(crate::features::floor::logos::local_cache(&state.data_dir));
+    // AJ-E3803: the AI models, which only their own Remove empties.
+    state
+        .cache
+        .register(crate::features::ai::models::store::local_cache(
+            &state.data_dir,
+        ));
 }
 
 /// A [`folder::FolderCache`]'s `current` that reads the app's state, or
@@ -645,7 +661,10 @@ pub fn status_impl(state: &Arc<AppState>) -> AppResult<CacheInfo> {
 }
 
 fn info_of(manager: &Manager, fresh: Duration) -> CacheInfo {
-    let (rows, budget, disk) = manager.measured(fresh);
+    let (mut rows, budget, disk) = manager.measured(fresh);
+    // The user's own downloads are listed apart (Settings › AI › Models),
+    // never among what Clear cache empties.
+    rows.retain(|(about, _, _)| about.trim != Trim::Never);
     let limit = manager.limit();
     CacheInfo {
         on: manager.gate.is_on(),

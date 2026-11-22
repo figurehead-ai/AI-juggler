@@ -7,7 +7,8 @@
 //! - where the network can be reached from, and which addresses;
 //! - that the window reaches only the app;
 //! - that no tool is pointed at another address;
-//! - that crash reports have nowhere to go;
+//! - that crash reports have nowhere to go, and go only through one file's
+//!   use of Sentry's SDK, with its defaults off;
 //! - that no switch starts by itself.
 
 // Test crates are pragmatic by policy (QUALITY.md §2).
@@ -273,7 +274,34 @@ fn network_allowed() -> BTreeMap<&'static str, BTreeSet<&'static str>> {
 /// `cargo metadata` resolves them for this machine's platform (on a Mac,
 /// what ships; offline, so only what the build already has is read).
 /// Workspace crates are checked as themselves, so a path stops at one.
+///
+/// D-131: a crate kept out of the app's workspace on purpose (its own
+/// `[workspace]`, listed in the root manifest's `exclude`: the local-model
+/// helper, whose llama.cpp build stays out of every `--workspace` gate)
+/// is resolved through its own manifest and lock, and held to the same
+/// list: the helper is listed nowhere, so it may reach nothing.
 fn network_reached() -> BTreeMap<String, BTreeMap<String, String>> {
+    let mut reached = network_reached_in(None);
+    for name in workspace_crates() {
+        let manifest = repo().join("crates").join(&name).join("Cargo.toml");
+        let own_workspace = std::fs::read_to_string(&manifest)
+            .unwrap()
+            .lines()
+            .any(|line| line.trim() == "[workspace]");
+        if own_workspace && !reached.contains_key(&name) {
+            assert!(
+                read("Cargo.toml").contains(&format!("\"crates/{name}\"")),
+                "{name} has its own workspace but the root manifest doesn't exclude it"
+            );
+            reached.extend(network_reached_in(Some(&manifest)));
+        }
+    }
+    reached
+}
+
+/// [`network_reached`] for one workspace: the app's (`None`), or the one
+/// whose manifest is `manifest`.
+fn network_reached_in(manifest: Option<&Path>) -> BTreeMap<String, BTreeMap<String, String>> {
     let cargo = std::env::var("CARGO").unwrap_or_else(|_| "cargo".to_owned());
     let version = std::process::Command::new(&cargo)
         .arg("-vV")
@@ -283,7 +311,8 @@ fn network_reached() -> BTreeMap<String, BTreeMap<String, String>> {
         .lines()
         .find_map(|line| line.strip_prefix("host: ").map(str::to_owned))
         .expect("cargo -vV names its host");
-    let output = std::process::Command::new(cargo)
+    let mut metadata = std::process::Command::new(cargo);
+    metadata
         .args([
             "metadata",
             "--format-version",
@@ -292,9 +321,11 @@ fn network_reached() -> BTreeMap<String, BTreeMap<String, String>> {
             "--filter-platform",
             &host,
         ])
-        .current_dir(repo())
-        .output()
-        .unwrap();
+        .current_dir(repo());
+    if let Some(manifest) = manifest {
+        metadata.arg("--manifest-path").arg(manifest);
+    }
+    let output = metadata.output().unwrap();
     assert!(
         output.status.success(),
         "{}",
@@ -379,12 +410,22 @@ fn only_the_listed_crates_can_reach_the_network() {
         "the test bridge's hyper is in the default build: {:?}",
         reached["juggler-app"]
     );
-    // And no other crate opens a socket of its own, with std or tokio.
+    // And no other crate opens a socket of its own, with std or tokio,
+    // but the one loopback client named below.
     for name in workspace_crates() {
         if allowed.contains_key(name.as_str()) {
             continue;
         }
         for (path, text) in shipped(&name) {
+            // The tests' stand-ins for a tool (`src/bin/fake_*`) are
+            // never in the app; `fake-kimi` plays a local server.
+            let stand_in = path
+                .to_string_lossy()
+                .replace('\\', "/")
+                .contains("/src/bin/fake_");
+            if stand_in || LOOPBACK_ONLY.iter().any(|file| path.ends_with(file)) {
+                continue;
+            }
             let code = code_only(&text);
             for socket in ["TcpStream", "TcpListener", "UdpSocket", "tokio::net"] {
                 assert!(
@@ -394,6 +435,82 @@ fn only_the_listed_crates_can_reach_the_network() {
                 );
             }
         }
+    }
+}
+
+/// D-106: the one socket outside the network crates: the adapters'
+/// loopback client, which reaches only a tool's own server on 127.0.0.1
+/// (Kimi Code's `kimi web`, the Privacy page's "kimi-usage" line).
+const LOOPBACK_ONLY: &[&str] = &["juggler-adapters/src/local_http.rs"];
+
+#[test]
+fn the_loopback_client_reaches_only_127_0_0_1() {
+    let text = read("crates/juggler-adapters/src/local_http.rs");
+    let code = code_only(&product(&text));
+    // One address is built, from 127.0.0.1 and a port, and connected to.
+    assert_eq!(code.matches("SocketAddr::from(").count(), 1);
+    assert!(text.contains("SocketAddr::from((Ipv4Addr::LOCALHOST, port))"));
+    assert_eq!(code.matches("TcpStream::connect").count(), 1);
+    assert!(code.contains("TcpStream::connect_timeout(&address"));
+    for other in [
+        "ToSocketAddrs",
+        "UdpSocket",
+        "TcpListener",
+        "lookup_host",
+        "to_socket_addrs",
+    ] {
+        assert!(!code.contains(other), "{other}");
+    }
+    // Kimi Code's usage is its one caller.
+    let callers: Vec<PathBuf> = shipped("juggler-adapters")
+        .into_iter()
+        .filter(|(_, text)| code_only(text).contains("local_http::get("))
+        .map(|(path, _)| path)
+        .collect();
+    assert_eq!(callers.len(), 1, "{callers:?}");
+    assert!(callers[0].ends_with("juggler-adapters/src/kimi_usage.rs"));
+}
+
+/// D-106: Kimi Code's `server.token` is named only where a copy leaves it
+/// behind and where its usage is asked, and read in one function, for one
+/// request: never kept in a field, logged or put in an error.
+#[test]
+fn the_kimi_server_token_is_read_in_one_place_for_one_request() {
+    let mut naming = Vec::new();
+    for name in workspace_crates() {
+        for (path, text) in shipped(&name) {
+            if text.contains("\"server.token\"") {
+                naming.push(path);
+            }
+        }
+    }
+    naming.sort();
+    let names: Vec<String> = naming
+        .iter()
+        .map(|path| path.file_name().unwrap().to_string_lossy().into_owned())
+        .collect();
+    assert_eq!(names, ["kimi_environment.rs", "kimi_usage.rs"]);
+    let usage = product(&read("crates/juggler-adapters/src/kimi_usage.rs"));
+    let code = without_comments(&usage);
+    let readers: Vec<String> = functions(&code)
+        .into_iter()
+        .filter(|(_, body)| body.contains("TOKEN_FILE"))
+        .map(|(function, _)| function)
+        .collect();
+    assert_eq!(readers, ["read_token"]);
+    // Held only as a zeroed-on-drop value, never logged.
+    assert!(code.contains("fn read_token(home: &Path) -> Option<Zeroizing<String>>"));
+    for logger in ["tracing::", "log::", "println!", "eprintln!"] {
+        assert!(!code.contains(logger), "{logger}");
+    }
+    let environment = without_comments(&product(&read(
+        "crates/juggler-adapters/src/kimi_environment.rs",
+    )));
+    for (function, body) in functions(&environment) {
+        assert!(
+            !body.contains("server.token"),
+            "kimi_environment.rs: fn {function} names the token"
+        );
     }
 }
 
@@ -518,13 +635,62 @@ fn build_settings_naming(variable: &str) -> Vec<String> {
     found
 }
 
+/// AJ-E3813 (ADR-0035 §11.2, §11.8): a model download reaches only the
+/// compiled model hosts and their file hosts, from one place: the
+/// streamed GET is called by the transfer alone, which checks every URL
+/// and every redirect hop with the one parser first.
 #[test]
-fn crash_reports_have_nowhere_to_go() {
-    // No build is given the reporting address.
+fn a_model_download_reaches_only_the_compiled_model_hosts() {
+    use juggler_app::features::ai::models::source;
     assert_eq!(
-        build_settings_naming("AI_JUGGLER_CRASH_ENDPOINT"),
-        Vec::<String>::new()
+        source::DOWNLOAD_HOSTS,
+        &["huggingface.co", "models.figurehead.ai"]
     );
+    assert!(
+        source::HF_REDIRECT_HOSTS
+            .iter()
+            .all(|host| host.ends_with(".hf.co")),
+        "{:?}",
+        source::HF_REDIRECT_HOSTS
+    );
+    assert_eq!(source::MAX_REDIRECTS, 3);
+    let callers: Vec<String> = workspace_crates()
+        .into_iter()
+        .flat_map(|name| shipped(&name))
+        .filter(|(_, text)| code_only(text).contains(".get_stream("))
+        .map(|(path, _)| path.to_string_lossy().replace('\\', "/"))
+        .collect();
+    assert_eq!(callers.len(), 1, "{callers:?}");
+    assert!(
+        callers[0].ends_with("crates/juggler-app/src/features/ai/models/transfer.rs"),
+        "{callers:?}"
+    );
+}
+
+/// D-108 (AJ-E1107 R5): only the release build is given crash reports'
+/// Sentry address (the macOS build workflow, as a named secret for its
+/// compile step, passed in by the nightly release), and nothing prints it.
+#[test]
+fn crash_reports_address_reaches_only_the_release_build() {
+    let mut naming: Vec<String> = build_settings_naming("AI_JUGGLER_CRASH_ENDPOINT")
+        .iter()
+        .map(|path| {
+            std::path::Path::new(path)
+                .file_name()
+                .map_or_else(|| path.clone(), |name| name.to_string_lossy().into_owned())
+        })
+        .collect();
+    naming.sort();
+    assert_eq!(naming, ["build-macos.yml", "nightly.yml"]);
+    for workflow in ["build-macos.yml", "nightly.yml"] {
+        let text = read(&format!(".github/workflows/{workflow}"));
+        for line in text.lines().filter(|line| line.contains("CRASH_ENDPOINT")) {
+            assert!(
+                line.trim_start().starts_with("AI_JUGGLER_CRASH_ENDPOINT:"),
+                "{workflow} uses the crash address beyond passing it: {line}"
+            );
+        }
+    }
     // The address is read only to say whether sending is possible, and the
     // crash code holds no way to send.
     let crash = product(&read("crates/juggler-app/src/crash.rs"));
@@ -551,6 +717,71 @@ fn crash_reports_have_nowhere_to_go() {
             !code_only(&text).contains("service_address"),
             "{} uses the crash reporting address",
             path.display()
+        );
+    }
+}
+
+/// D-108: Sentry's SDK is used in one file (`crash_sentry.rs`), never set
+/// up globally (no `sentry::init`, hub or scope, so it captures nothing by
+/// itself), with no transport, integrations or sessions of its own and
+/// our scrubber as `before_send`; and the crate is pinned with its default
+/// features off, so none of the SDK's data collection is built in.
+#[test]
+fn only_one_file_uses_sentrys_sdk_and_without_its_defaults() {
+    for (path, text) in shipped("juggler-app") {
+        let code = code_only(&text);
+        let uses = code
+            .match_indices("sentry::")
+            .any(|(at, _)| !code[..at].ends_with("crash_"));
+        assert_eq!(
+            uses,
+            path.ends_with("crash_sentry.rs"),
+            "{} uses Sentry's SDK",
+            path.display()
+        );
+    }
+    let sdk = code_only(&product(&read("crates/juggler-app/src/crash_sentry.rs")));
+    for global in [
+        "sentry::init",
+        "Hub::",
+        "bind_client",
+        "configure_scope",
+        "with_scope",
+        "capture_",
+        "add_integration",
+        "options.transport",
+    ] {
+        assert!(!sdk.contains(global), "crash_sentry.rs uses {global}");
+    }
+    for option in [
+        "options.dsn = None;",
+        "options.default_integrations = false;",
+        "options.integrations = Vec::new();",
+        "options.send_default_pii = false;",
+        "options.server_name = None;",
+        "options.attach_stacktrace = false;",
+        "options.auto_session_tracking = false;",
+        "options.before_send = Some(Arc::new(move |event| scrubbed(event, &identity)));",
+    ] {
+        assert!(sdk.contains(option), "crash_sentry.rs lacks {option}");
+    }
+    // The dependency: exact, no default features, no features added.
+    let manifest = read("crates/juggler-app/Cargo.toml");
+    let line = manifest
+        .lines()
+        .find(|line| line.starts_with("sentry ="))
+        .expect("the sentry dependency");
+    assert!(line.contains(r#"version = "=0."#), "{line}");
+    assert!(line.contains("default-features = false"), "{line}");
+    assert!(!line.contains("features = ["), "{line}");
+    for name in workspace_crates() {
+        if name == "juggler-app" {
+            continue;
+        }
+        let other = read(&format!("crates/{name}/Cargo.toml"));
+        assert!(
+            !other.lines().any(|line| line.starts_with("sentry")),
+            "{name} depends on Sentry's SDK"
         );
     }
 }

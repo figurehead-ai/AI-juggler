@@ -107,8 +107,9 @@ fn upgrading_from_messages_keeps_a_copy_and_everything_as_it_was() {
     // samples' last_seen: a run of one reading as one row) and v51 (the
     // usage holders keyed by number) and v52 (the name a folder was
     // accepted under at import) and v53 (a pool's wait for an App's next
-    // session to lead, AJ-E3011) came after E19's tables.
-    assert_eq!(Storage::schema_version(), 53);
+    // session to lead, AJ-E3011) and v54 (the memory store) and v55 (each
+    // App's own Account, AJ-E3210) came after E19's tables.
+    assert_eq!(Storage::schema_version(), 55);
     let copies = pre_migration_copies(&db);
     assert_eq!(copies[0].0, 34);
     assert_eq!(tables(&copies[0].1), before);

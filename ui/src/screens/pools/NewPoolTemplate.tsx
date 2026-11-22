@@ -56,7 +56,7 @@ function Card({ template }: { template: PoolTemplate }): JSX.Element {
 /** Start from scratch, the full card first. */
 function Scratch({ template, first }: { template: PoolTemplate; first: boolean }): JSX.Element {
   return (
-    <div data-testid="new-pool-template" data-template={template.id} className="flex min-w-0 sm:col-span-2">
+    <div data-testid="new-pool-template" data-template={template.id} className="flex min-w-0 @xl:col-span-2">
       <RadioCard
         value={template.id}
         logo={<LogoTile icon={IconPlus} size={40} on />}
@@ -86,12 +86,12 @@ export function NewPoolTemplate({ chosen, onChoose, first, fold = false }: { cho
             // Round 6 (Sam, from a project's own pool): nine cards of
             // jargon to someone who wants none. Start from scratch is the
             // open path.
-            <Disclosure summary="Or start from a template" open={chosen !== scratch.id} testId="new-pool-templates-fold" className="sm:col-span-2">
-              <div className="mt-2.5 grid grid-cols-1 gap-2.5 sm:grid-cols-2">{cards}</div>
+            <Disclosure summary="Or start from a template" open={chosen !== scratch.id} testId="new-pool-templates-fold" className="@xl:col-span-2">
+              <div className="mt-2.5 grid grid-cols-1 gap-2.5 @xl:grid-cols-2">{cards}</div>
             </Disclosure>
           ) : (
             <>
-              <p className="mt-4 flex items-baseline gap-2.5 sm:col-span-2">
+              <p className="mt-4 flex items-baseline gap-2.5 @xl:col-span-2">
                 <span className="section-label">Or start from a ready-made team</span>
                 <span className="text-label text-faint">{templates.length} templates</span>
               </p>

@@ -1,32 +1,25 @@
 /**
- * D-97 (1) — Home's "Next steps", while nothing has run yet: what setup
- * left to do, each one click from its flow. After first run Home read
- * "Ready when you are · Not measured yet", and a tool left unticked just
- * disappeared (the AJ-E3307 persona round). It lists:
+ * D-97 (1) — Home's "Next steps", while nothing has run yet: each tool
+ * first run's scan found that has no App yet ("Codex is installed: sign in
+ * to add it"), one click to Add an app for that tool — its found step, or
+ * a fresh App and its sign-in (lib/found-tools). A tool left unticked
+ * never just disappears (the AJ-E3307 persona round).
  *
- * - each tool first run's scan found that has no App yet ("Codex is
- *   installed: sign in to add it"), opening Add an app for that tool —
- *   its found step, or a fresh App and its sign-in (lib/found-tools);
- * - each signed-in Account whose limits aren't measured, with "Measure
- *   its limits", measuring in place (`MeasureLimits`); where its tool
- *   has no check, "How it's measured", opening where its limits come
- *   from under the row (D-103.4).
+ * D-117, D-118's mock: a setup prompt never sits above what needs you. It
+ * is the right column's last section, under Your apps and Runway by
+ * account, folded like them. An Account whose limits aren't measured says
+ * so on its own Runway row, with "Measure its limits ›" (or "How it's
+ * measured ›" where its tool has no check, D-103.4) measuring in place:
+ * the mock's place, said once.
  *
- * Rows as Home's other lists draw them (the Parked card's); the card
- * goes once a session has run or nothing is left on it.
+ * The section goes once a session has run or nothing is left on it.
  */
-import { useMemo, useState, type JSX } from "react";
-import { AccountAvatar } from "./Avatar";
+import { useMemo, type JSX } from "react";
 import { Button } from "./primitives";
-import { SectionTitle } from "./SectionTitle";
-import { MeasureLimits, unmeasuredWords } from "./MeasureLimits";
+import { HomeSection } from "./HomeSection";
 import { ToolMark } from "./ToolMark";
-import { accountGroups, groupRunway } from "./HomeRunway";
-import { signedIn } from "../lib/bridge";
 import { addAppFor, notBroughtIn, rememberedFound } from "../lib/found-tools";
-import type { QuotaDisplayData } from "../lib/ipc/quota";
 import { providerDisplayName } from "../lib/providers";
-import type { SubscriptionInfo } from "../lib/subscriptions";
 import { firstRunToolIds } from "../lib/tools";
 import type { AccountInfo } from "../types/generated/AccountInfo";
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
@@ -37,74 +30,26 @@ function foundToolWords(tool: string, setUp: boolean): string {
   return setUp ? `${name} has a setup on this computer: bring it in` : `${name} is installed: sign in to add it`;
 }
 
-const ROW = "flex flex-wrap items-center gap-x-3.5 gap-y-2 border-t border-hairline/60 px-4 py-2.5 first:border-t-0";
-
-export function HomeNext({
-  accounts,
-  subscriptions,
-  quota,
-  quotaKnown,
-  sessions,
-}: {
-  accounts: AccountInfo[];
-  subscriptions: SubscriptionInfo[] | null;
-  quota: QuotaDisplayData[];
-  quotaKnown: boolean;
-  sessions: InstanceInfo[];
-}): JSX.Element | null {
+export function HomeNext({ accounts, sessions }: { accounts: AccountInfo[]; sessions: InstanceInfo[] }): JSX.Element | null {
   const appTools = accounts.map((account) => account.provider);
   const toolsKey = [...new Set(appTools)].sort().join(",");
   // Read again when an App of a new tool comes in (its row then goes).
   // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed by the tools
   const tools = useMemo(() => notBroughtIn(rememberedFound(), appTools, firstRunToolIds()), [toolsKey]);
-  // Only once the readings have answered: never "not measured" before.
-  const unmeasured = quotaKnown
-    ? accountGroups(accounts.filter((account) => signedIn(account.login_state)), subscriptions).filter((group) => {
-        const run = groupRunway(group, quota, sessions);
-        return run.left === null && !run.credits && run.words.startsWith("Not measured");
-      })
-    : [];
-  if (sessions.length > 0 || tools.length + unmeasured.length === 0) return null;
+  if (sessions.length > 0 || tools.length === 0) return null;
   return (
-    <section aria-labelledby="home-next" className="flex flex-col gap-2.5" data-testid="home-next">
-      <SectionTitle id="home-next">Next steps</SectionTitle>
-      <ul className="overflow-hidden rounded-xl border border-hairline bg-surface">
+    <HomeSection id="home-next" label="Next steps" count={tools.length}>
+      <ul className="flex flex-col rounded-xl bg-surface px-4 py-1.5" data-testid="home-next">
         {tools.map(({ tool, setUp }) => (
-          <li key={`tool-${tool}`} className={ROW} data-testid="home-next-tool" data-tool={tool}>
+          <li key={`tool-${tool}`} className="flex flex-wrap items-center gap-x-3 gap-y-1.5 border-t border-hairline/60 py-2 first:border-t-0" data-testid="home-next-tool" data-tool={tool}>
             <ToolMark tool={tool} size={16} className="shrink-0 text-muted" />
-            <span className="min-w-0 flex-1 basis-48 text-body text-ink">{foundToolWords(tool, setUp)}</span>
+            <span className="min-w-0 flex-1 basis-40 text-meta text-ink">{foundToolWords(tool, setUp)}</span>
             <Button size="sm" variant="secondary" className="ml-auto" aria-label={`${setUp ? "Bring in" : "Add"} ${providerDisplayName(tool)}`} onClick={() => addAppFor(tool)}>
               {setUp ? "Bring in" : "Add"}
             </Button>
           </li>
         ))}
-        {unmeasured.map((group) => (
-          <MeasureRow key={`measure-${group.key}`} group={group} />
-        ))}
       </ul>
-    </section>
-  );
-}
-
-/** An Account whose limits aren't measured: measured here (the tool's own
- * check, 0.4.4), or, with none, where they come from, under the row. */
-function MeasureRow({ group }: { group: ReturnType<typeof accountGroups>[number] }): JSX.Element {
-  const [how, setHow] = useState(false);
-  const first = group.profiles[0]!;
-  return (
-    <li className={ROW} data-testid="home-next-measure">
-      <AccountAvatar tone={group.subscription?.state === "signed_in" ? "colour" : "neutral"} account={group.subscription ?? { folder: first.id }} label={group.name} size={16} />
-      <span className="min-w-0 flex-1 basis-48 text-body text-ink">
-        {group.name}: <span className="text-ink-2">its limits aren't measured yet</span>
-      </span>
-      <span className="ml-auto">
-        <MeasureLimits look="button" folders={group.profiles.map((profile) => profile.id)} tool={first.provider} name={group.name} how={{ open: how, onToggle: () => setHow(!how) }} />
-      </span>
-      {how && (
-        <span className="basis-full pl-[30px] text-label text-muted" data-testid="measure-limits-how-words">
-          {unmeasuredWords(first.provider)}
-        </span>
-      )}
-    </li>
+    </HomeSection>
   );
 }

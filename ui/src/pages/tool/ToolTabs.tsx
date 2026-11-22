@@ -31,7 +31,7 @@ import { useRelationCounts } from "../../lib/relation-counts";
 import { useSeen } from "../../lib/seen";
 import { useShownConversations } from "../../lib/shown-apps";
 import { useToolInstall } from "../../lib/useToolInstall";
-import { toolOpen } from "../ItemHeader";
+import { toolOpen } from "../item-header-facts";
 import { openWords } from "../../lib/project-summary";
 import { AppProjects, rowOf } from "../app/AppOverview";
 import { AccountAppRows } from "../subscription/AccountApps";

@@ -16,6 +16,7 @@ import { resetSeen } from "../lib/seen";
 import { resetRailOrderCache } from "../lib/rail-order-store";
 import { placesConversations } from "../preview/places";
 import { previewNeedsOf } from "../preview/needs";
+import { counted, noticeLevel } from "../lib/attention";
 import { itemsOf, openNow } from "../lib/rail-items";
 import type { AccountInfo } from "../types/generated/AccountInfo";
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
@@ -54,7 +55,8 @@ function folded(sessions: InstanceInfo[] = [], accounts: AccountInfo[] = [], ope
 
 it("counts what the bell counts — a sign-in too — and never says All clear then", async () => {
   const { view, conversations, openHome } = folded([], [signedOut]);
-  const expected = previewNeedsOf({ sessions: [], conversations, projects, accounts: [signedOut] }).length;
+  // D-117: the bell counts what waits on you or broke (L2, L3), not a review.
+  const expected = previewNeedsOf({ sessions: [], conversations, projects, accounts: [signedOut] }).filter((need) => counted(noticeLevel(need))).length;
   expect(expected).toBeGreaterThan(2); // two sessions ask, and the sign-in
   const count = await view.findByTestId("rail-folded-needs-you");
   expect(count.textContent).toContain(String(expected));

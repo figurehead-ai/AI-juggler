@@ -85,16 +85,19 @@ for (const theme of THEMES) {
 
     test(`Resume — ${where}`, first ? gate("99-resume") : {}, async ({ page }) => {
       await open(page, theme, size);
-      const recent = page.getByTestId("home-recent");
-      await expect(recent).toBeVisible();
-      await recent.locator("[data-home-row]").first().click();
+      // D-118: "Pick up where you left off" is the feed's Finished chip.
+      await page.getByTestId("feed-chip-finished").click();
+      const card = page.getByTestId("feed-card").first();
+      await expect(card).toBeVisible();
+      await card.getByRole("button").first().click();
       await expect(page.getByTestId("header-resume")).toBeVisible();
       await shot(page, RESUME, `ended-page-${where}`);
     });
 
     test(`Home's chips — ${where}`, first ? gate("99-home-chips") : {}, async ({ page }) => {
+      // D-118: the chips are the feed's filter chips (feed-chip), wrapped, never cut.
       await open(page, theme, size, { __AIJ_FIXTURE__: allStatuses });
-      const chips = page.getByTestId("home-chips");
+      const chips = page.getByTestId("feed-filters");
       await expect(chips).toBeVisible();
       await shot(page, CHIPS, `home-${where}`);
       // One chip picked: the list narrows, the counts elsewhere don't.
@@ -120,7 +123,7 @@ for (const theme of THEMES) {
 for (const theme of THEMES) {
   test(`Home's chips — 1440x900-${theme}`, async ({ page }) => {
     await open(page, theme, { width: 1440, height: 900 }, { __AIJ_FIXTURE__: allStatuses });
-    const chips = page.getByTestId("home-chips");
+    const chips = page.getByTestId("feed-filters");
     await expect(chips).toBeVisible();
     await shot(page, CHIPS, `home-1440x900-${theme}`);
     await chips.getByRole("radio").nth(1).click();
@@ -171,16 +174,20 @@ test("AJ-E2909: the rail's width set by keys, at its ends, kept after a reload",
 test("AJ-E2910: no chip changes the rail; Mark all and its toast; at 1440", async ({ page }) => {
   await open(page, "dark", WIDE, { __AIJ_FIXTURE__: allStatuses });
   const rail = page.getByTestId("rail");
+  // The rail settled first: its Needs you lands after the first paint
+  // (D-103.6: the preview's first tick), which the read below then took
+  // for a chip's doing (0.5 gate triage).
+  await expect(page.getByTestId("rail-needs-you")).toContainText(/Needs you\s*5/i);
   const before = await rail.innerText();
-  const chips = page.getByTestId("home-chips").getByRole("radio");
+  const chips = page.getByTestId("feed-filters").getByRole("radio");
   for (let i = 0; i < (await chips.count()); i++) {
     await chips.nth(i).click();
     expect(await rail.innerText(), `the rail after chip ${i + 1}`).toBe(before);
   }
-  await chips.first().click();
-  const markAll = page.getByRole("button", { name: /^Mark all \d+ reviewed/ });
-  await markAll.scrollIntoViewIfNeeded();
-  await markAll.click();
+  // D-118: "Mark all N reviewed" is in the Finished chip's ⋯ menu (feed-review-all).
+  await page.getByTestId("feed-chip-finished").click();
+  await page.getByTestId("feed-more").click();
+  await page.getByTestId("feed-review-all").click();
   await expect(page.getByRole("status").filter({ hasText: /reviewed/i }).first()).toBeVisible();
   await shot(page, CHIPS, `marked-all-1440x900-dark`);
 });

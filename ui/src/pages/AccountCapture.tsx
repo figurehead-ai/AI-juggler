@@ -126,6 +126,16 @@ function TerminalCapture({ accountId }: { accountId: string }): JSX.Element | nu
           onClose={() => setPreview(null)}
           wide
           testId="account-capture-preview"
+          footer={
+            <>
+                <Button size="sm" variant="secondary" onClick={() => setPreview(null)}>
+                  Cancel
+                </Button>
+                <Button size="sm" variant="primary" disabled={busy} onClick={() => void turnOn()} data-testid="account-capture-on" data-autofocus>
+                  Turn on
+                </Button>
+            </>
+          }
         >
           <div data-modal-body className="flex flex-col gap-3 text-label">
             <p className="text-ink">
@@ -149,14 +159,6 @@ function TerminalCapture({ accountId }: { accountId: string }): JSX.Element | nu
                 {problem}
               </p>
             )}
-            <div className="flex justify-end gap-2">
-              <Button size="sm" variant="secondary" onClick={() => setPreview(null)}>
-                Cancel
-              </Button>
-              <Button size="sm" variant="primary" disabled={busy} onClick={() => void turnOn()} data-testid="account-capture-on" data-autofocus>
-                Turn on
-              </Button>
-            </div>
           </div>
         </Modal>
       )}

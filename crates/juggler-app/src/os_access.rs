@@ -388,9 +388,71 @@ pub async fn os_access_open_settings(
     .await
 }
 
+/// A system settings page outside the permissions above, that a screen
+/// links to (AJ-E3812's Models screen): opened through this seam, at a
+/// fixed address per system, never a caller's URL.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Deserialize, ts_rs::TS)]
+#[serde(rename_all = "snake_case")]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
+pub enum SystemPage {
+    /// Where free disk is made (macOS: General › Storage).
+    Storage,
+    /// Where the system's own AI is turned on (macOS: Apple Intelligence
+    /// & Siri).
+    AppleIntelligence,
+}
+
+impl SystemPage {
+    /// Its fixed address on this system (`None`: none here yet).
+    #[must_use]
+    pub const fn url(self) -> Option<&'static str> {
+        if cfg!(target_os = "macos") {
+            Some(match self {
+                Self::Storage => "x-apple.systempreferences:com.apple.settings.Storage",
+                Self::AppleIntelligence => {
+                    "x-apple.systempreferences:com.apple.Siri-Settings.extension"
+                }
+            })
+        } else {
+            None
+        }
+    }
+}
+
+/// Opens `page` in the system's settings (nothing where this system has
+/// none yet).
+///
+/// # Errors
+///
+/// The page can't be opened.
+pub fn open_system_page(app: &tauri::AppHandle, page: SystemPage) -> AppResult<()> {
+    use tauri_plugin_opener::OpenerExt as _;
+    let Some(url) = page.url() else {
+        return Ok(());
+    };
+    app.opener()
+        .open_url(url, None::<&str>)
+        .map_err(|e| AppError::Io {
+            context: "open the system settings",
+            message: e.to_string(),
+        })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_system_page_opens_only_its_fixed_address() {
+        let on_macos = cfg!(target_os = "macos");
+        for page in [SystemPage::Storage, SystemPage::AppleIntelligence] {
+            let url = page.url();
+            assert_eq!(url.is_some(), on_macos, "{page:?}");
+            if let Some(url) = url {
+                assert!(url.starts_with("x-apple.systempreferences:com.apple."));
+            }
+        }
+    }
 
     #[test]
     fn status_says_what_to_do_next() {

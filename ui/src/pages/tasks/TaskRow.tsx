@@ -8,6 +8,7 @@ import { Pill } from "../../components/Pill";
 import { ago } from "../../lib/time-words";
 import type { TaskInfo } from "../../lib/ipc/tasks";
 import { KIND_WORDS, PRIORITY_WORDS, STATUS_TONE, STATUS_WORDS, itemsWords, waitsOnWords } from "./words";
+import { SELECTED } from "../../components/controls/selected";
 
 export function TaskStatus({ status }: { status: string }): JSX.Element {
   return (
@@ -30,7 +31,7 @@ export function TaskRow({ task, selected, now, onOpen, indent = 0, bare = false,
         style={indent ? { paddingLeft: `${12 + indent * 18}px` } : undefined}
         className={
           "flex w-full min-w-0 flex-col gap-1 rounded-lg px-3 py-2.5 text-left outline-none transition-colors focus-visible:ring-1 focus-visible:ring-accent/60 " +
-          (selected ? "bg-surface-3" : "hover:bg-surface-2")
+          (selected ? SELECTED : "hover:bg-surface-2")
         }
         data-testid="task-row"
         data-status={task.status}

@@ -13,7 +13,7 @@ import { ActionHostProvider } from "../../components/ItemMenu";
 import { PoolPage } from "../PoolPage";
 import { resetCanvasTests, seams } from "./canvas.test-kit";
 
-const LEFT = "«Untitled session · web» left: its account is now Other";
+const LEFT = "“Untitled session · web” left: its account is now Other";
 
 async function openEmpty() {
   seams().__AIJ_POOLS__ = { pools: [{ id: "pool-careful", name: "Careful", rules: [] }], members: [] };

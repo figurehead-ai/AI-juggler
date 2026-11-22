@@ -737,7 +737,7 @@ pub fn worktree_remove_impl(
     }
     if info.needs_confirmation && confirm != Some(info.folder.as_str()) {
         return Err(invalid(format!(
-            "type «{}» to discard {} uncommitted {} — nothing was removed",
+            "type “{}” to discard {} uncommitted {} — nothing was removed",
             info.folder,
             info.changed + info.untracked,
             if info.changed + info.untracked == 1 {

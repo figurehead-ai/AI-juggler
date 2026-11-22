@@ -1,0 +1,56 @@
+{
+  "about": "AJ-E3816: a watch's echo, word for word. The Rust echo (features/watches/echo.rs) and the view's stand-in (ui/src/preview/watch-echo.ts) are both tested against these cases, so the words the view shows without a backend are the backend's.",
+  "nowMs": 1795003200000,
+  "offsetHours": 0,
+  "names": {
+    "session:s-api": "api",
+    "session:s-web": "web",
+    "app:p-two": "Agent app two",
+    "account:acct-work": "Work",
+    "pool:pool-rel": "Release pool",
+    "project:proj-shop": "shop"
+  },
+  "agents": { "a-rev": "reviewer" },
+  "cases": [
+    {
+      "watch": { "id": "w-1", "targets": [{ "kind": "session", "id": "s-api" }], "matching": "each", "conditions": [{ "code": "finishes" }], "lifetime": { "kind": "once" }, "paused": false, "evenInQuietHours": false, "createdMs": 0 },
+      "words": "Tell you when “api” finishes. Once."
+    },
+    {
+      "watch": { "id": "w-2", "targets": [{ "kind": "session", "id": "s-api" }, { "kind": "session", "id": "s-web" }], "matching": "each", "conditions": [{ "code": "finishes" }, { "code": "stuck", "param": { "kind": "minutes", "value": 15 } }], "lifetime": { "kind": "until_ends" }, "paused": false, "evenInQuietHours": false, "createdMs": 0 },
+      "words": "Tell you when “api” or “web” finishes, or looks stuck for 15 minutes. Until they end."
+    },
+    {
+      "watch": { "id": "w-3", "targets": [{ "kind": "session", "id": "s-api" }, { "kind": "session", "id": "s-web" }], "matching": "all", "conditions": [{ "code": "finishes" }], "lifetime": { "kind": "once" }, "paused": false, "evenInQuietHours": true, "createdMs": 0 },
+      "words": "Tell you when all of “api” and “web” finish. Once. Even during quiet hours."
+    },
+    {
+      "watch": { "id": "w-4", "targets": [{ "kind": "app", "id": "p-two" }], "matching": "each", "conditions": [{ "code": "asks_you", "param": { "kind": "minutes", "value": 10 } }], "lifetime": { "kind": "always" }, "paused": false, "evenInQuietHours": true, "createdMs": 0 },
+      "words": "Tell you when “Agent app two” asks you and waits 10 minutes. Until you remove it. Even during quiet hours."
+    },
+    {
+      "watch": { "id": "w-5", "targets": [{ "kind": "account", "id": "acct-work" }], "matching": "each", "conditions": [{ "code": "runway_below", "param": { "kind": "percent", "value": 20 } }], "lifetime": { "kind": "until", "atMs": 1795046400000 }, "paused": false, "evenInQuietHours": false, "createdMs": 0 },
+      "words": "Tell you when “Work” runs below 20 %. Until midnight today."
+    },
+    {
+      "watch": { "id": "w-6", "targets": [{ "kind": "any" }], "matching": "each", "conditions": [{ "code": "hits_limit" }, { "code": "fails" }, { "code": "leaves_processes" }], "lifetime": { "kind": "always" }, "paused": false, "evenInQuietHours": false, "createdMs": 0 },
+      "words": "Tell you when any session hits a usage limit, or fails, or leaves processes running. Until you remove it."
+    },
+    {
+      "watch": { "id": "w-7", "targets": [{ "kind": "pool", "id": "pool-rel" }], "matching": "each", "conditions": [{ "code": "pool_message", "param": { "kind": "agent", "value": "a-rev" } }], "lifetime": { "kind": "always" }, "paused": false, "evenInQuietHours": false, "createdMs": 0 },
+      "words": "Tell you when “Release pool” gets a message from “reviewer”. Until you remove it."
+    },
+    {
+      "watch": { "id": "w-8", "targets": [{ "kind": "project", "id": "proj-gone" }], "matching": "each", "conditions": [{ "code": "task_changes", "param": { "kind": "task_state", "value": "in_review" } }], "lifetime": { "kind": "until", "atMs": 1795176000000 }, "paused": false, "evenInQuietHours": false, "createdMs": 0 },
+      "words": "Tell you when a project has a task moved to in review. Until 20 Nov, 12:00."
+    },
+    {
+      "watch": { "id": "w-9", "targets": [{ "kind": "project", "id": "proj-shop" }, { "kind": "app", "id": "p-two" }, { "kind": "session", "id": "s-web" }], "matching": "each", "conditions": [{ "code": "idle_for", "param": { "kind": "minutes", "value": 30 } }, { "code": "ends" }], "lifetime": { "kind": "until", "atMs": 1795023000000 }, "paused": false, "evenInQuietHours": false, "createdMs": 0 },
+      "words": "Tell you when “shop”, “Agent app two” or “web” is idle for 30 minutes, or ends. Until 17:30."
+    },
+    {
+      "watch": { "id": "w-a", "targets": [{ "kind": "app", "id": "p-two" }], "matching": "each", "conditions": [{ "code": "restarted" }, { "code": "starts" }, { "code": "runway_resets" }], "lifetime": { "kind": "always" }, "paused": false, "evenInQuietHours": false, "createdMs": 0 },
+      "words": "Tell you when “Agent app two” is restarted after a crash, or starts a new session, or has room again. Until you remove it."
+    }
+  ]
+}

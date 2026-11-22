@@ -63,15 +63,25 @@ impl TokensPerMin {
 
 /// Computes tokens/min (input+output) from usage events in the trailing
 /// 5 minutes. Single pass; callers keep the event list incremental.
+///
+/// Takes any one-shot iterator of events (a `&Vec`/slice works as is):
+/// with no `Clone` bound a second pass does not compile, and
+/// `tests/quality_signals.rs` counts it pulling each event exactly once,
+/// the deterministic guard that replaced a wall-clock budget (AJ-E817).
 // Token sums are u64; the /5 average crosses into f64 — precision loss
 // past 2^53 tokens is irrelevant for a per-minute rate.
 #[allow(clippy::cast_precision_loss)]
 #[must_use]
-pub fn tokens_per_min(events: &[UsageEvent], now_ms: i64) -> TokensPerMin {
+pub fn tokens_per_min<'a, I>(events: I, now_ms: i64) -> TokensPerMin
+where
+    I: IntoIterator<Item = &'a UsageEvent>,
+{
     const WINDOW_MS: i64 = 5 * 60_000;
     let mut bars = [0_u64; 5];
     let mut any_in_window = false;
+    let mut any_event = false;
     for event in events {
+        any_event = true;
         let age = now_ms - event.at_ms;
         if !(0..WINDOW_MS).contains(&age) {
             continue;
@@ -85,9 +95,9 @@ pub fn tokens_per_min(events: &[UsageEvent], now_ms: i64) -> TokensPerMin {
     }
     if !any_in_window {
         // No events in-window at all: either the transcript never had
-        // usage, or everything is older than 5 min. Callers distinguish
-        // via events.is_empty() for `no data`.
-        if events.is_empty() {
+        // usage, or everything is older than 5 min. No events at all
+        // is `no data`; old events only are a real idle 0.
+        if !any_event {
             return TokensPerMin {
                 bars: None,
                 trailing_5_min: 0,

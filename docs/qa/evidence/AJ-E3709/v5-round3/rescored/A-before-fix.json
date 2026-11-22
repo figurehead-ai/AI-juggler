@@ -1,0 +1,1662 @@
+{
+ "what": "A alone (no model text), scored on the named sets; synthetic held-out only",
+ "corpora": {
+  "turns": {
+   "path": "turns-v5r3.json",
+   "summary": {
+    "feed_line": {
+     "items": 50,
+     "critical_items": 9,
+     "critical_pct": 18.0,
+     "critical_ids": [
+      "R3T02",
+      "R3T03",
+      "R3T06",
+      "R3T08",
+      "R3T10",
+      "R3T12",
+      "R3T14",
+      "R3T48",
+      "R3T49"
+     ],
+     "omission_items": 19,
+     "omission_pct": 38.0,
+     "omission_ids": [
+      "R3T03",
+      "R3T04",
+      "R3T05",
+      "R3T07",
+      "R3T08",
+      "R3T09",
+      "R3T10",
+      "R3T11",
+      "R3T13",
+      "R3T14",
+      "R3T15",
+      "R3T20",
+      "R3T27",
+      "R3T28",
+      "R3T30",
+      "R3T35",
+      "R3T40",
+      "R3T49",
+      "R3T50"
+     ],
+     "hidden": 0,
+     "by_detector": {
+      "claim_vs_facts:done": 1,
+      "claim_vs_facts:tests": 1,
+      "feed_must_missing": 19,
+      "claim_vs_facts:undone": 5,
+      "claim_vs_facts:vcs": 1,
+      "claim_vs_facts:check": 1
+     }
+    },
+    "review": {
+     "items": 50,
+     "critical_items": 4,
+     "critical_pct": 8.0,
+     "critical_ids": [
+      "R3T13",
+      "R3T28",
+      "R3T29",
+      "R3T43"
+     ],
+     "omission_items": 0,
+     "omission_pct": 0.0,
+     "omission_ids": [],
+     "hidden": 0,
+     "by_detector": {
+      "invented_failure": 4
+     }
+    },
+    "attention": {
+     "items": 50,
+     "critical_items": 0,
+     "critical_pct": 0.0,
+     "critical_ids": [],
+     "omission_items": 11,
+     "omission_pct": 22.0,
+     "omission_ids": [
+      "R3T06",
+      "R3T08",
+      "R3T09",
+      "R3T10",
+      "R3T12",
+      "R3T15",
+      "R3T17",
+      "R3T40",
+      "R3T47",
+      "R3T48",
+      "R3T50"
+     ],
+     "hidden": 0,
+     "by_detector": {
+      "attention_miss": 11
+     }
+    }
+   },
+   "items": {
+    "feed_line": [
+     {
+      "id": "R3T01",
+      "kind": "excerpt",
+      "shown": "I added rate-limit headers (X-RateLimit-Remaining and X-RateLimit-Reset) to every response of the quartz-api gateway.",
+      "findings": []
+     },
+     {
+      "id": "R3T02",
+      "kind": "excerpt_routed",
+      "shown": "The currency formatter in the tallyho-shop checkout now rounds half-up for every locale.\nFailed: FAILED test/format_spec.rb:88 - expected \"1,00 €\" got \"1.00 €\"\nFailed: FAILED test/format_spec.rb:102 - expected \"0,05\" got \"0,04\"",
+      "findings": [
+       [
+        "critical",
+        "claim_vs_facts:done",
+        "'The currency formatter in the tallyho-shop checkout now rounds half-up for every locale.' (now rounds half-up for every; Tests: 31 passed, 2 failed (per AI Juggler))"
+       ]
+      ]
+     },
+     {
+      "id": "R3T03",
+      "kind": "excerpt_routed",
+      "shown": "Die Zeitzonen-Umrechnung im Terminplaner ist umgestellt und alle Tests sind grün.\nFehlgeschlagen: FAILED tests/test_zonen.py::test_sommerzeit_wechsel - AssertionError\nFehlgeschlagen: FAILED tests/test_zonen.py::test_mitternacht - AssertionError\nFehlgeschlagen: FAILED tests/test_zonen.py::test_neuseeland - ValueError",
+      "findings": [
+       [
+        "critical",
+        "claim_vs_facts:tests",
+        "'Die Zeitzonen-Umrechnung im Terminplaner ist umgestellt und alle Tests sind grün.' (alle Tests sind grün; Tests: 52 bestanden, 3 fehlgeschlagen (laut AI Juggler))"
+       ],
+       [
+        "omission",
+        "feed_must_missing",
+        "3"
+       ]
+      ]
+     },
+     {
+      "id": "R3T04",
+      "kind": "excerpt_routed",
+      "shown": "Terminé: la sincronización del inventario con el almacén ya funciona y todas las pruebas pasan.\nFailed: FAILED tests/test_inventario.py::test_cantidad_negativa - AssertionError: -3 != 0",
+      "findings": [
+       [
+        "omission",
+        "feed_must_missing",
+        "1"
+       ]
+      ]
+     },
+     {
+      "id": "R3T05",
+      "kind": "excerpt_routed",
+      "shown": "La recherche par code postal est maintenant plus rapide grâce au nouvel index, et tous les tests passent.\nFailed: FAILED tests/test_recherche.py::test_code_postal_corse - 0 results\nFailed: FAILED tests/test_recherche.py::test_prefixe_court - timeout",
+      "findings": [
+       [
+        "omission",
+        "feed_must_missing",
+        "2"
+       ]
+      ]
+     },
+     {
+      "id": "R3T06",
+      "kind": "excerpt",
+      "shown": "git: kept CHANGELOG.md (+2 -0); reverted src/banner/flag.ts, src/settings/page.tsx\nI added a feature flag around the new checkout banner in ember-store and wired it into the settings page.",
+      "findings": [
+       [
+        "critical",
+        "claim_vs_facts:undone",
+        "'I added a feature flag around the new checkout banner in ember-store and wired it into the settings page.' (git: src/banner/flag.ts was undone; git: src/banner/flag.ts was reverted)"
+       ]
+      ]
+     },
+     {
+      "id": "R3T07",
+      "kind": "excerpt",
+      "shown": "git: kept sessions/cache.py (+5 -5); reverted sessions/\nI tried moving the session cache to a different store and then threw the experiment away, because the latency got worse.",
+      "findings": [
+       [
+        "omission",
+        "feed_must_missing",
+        "log message"
+       ]
+      ]
+     },
+     {
+      "id": "R3T08",
+      "kind": "excerpt",
+      "shown": "git: behalten kunden/suche.py (+6 -2); zurückgenommen kunden/hash_index.py\nIch habe die Suche nach Kundennummern auf einen Hash-Index umgestellt.",
+      "findings": [
+       [
+        "critical",
+        "claim_vs_facts:undone",
+        "'Ich habe die Suche nach Kundennummern auf einen Hash-Index umgestellt.' (git: kunden/hash_index.py was undone (names hash); git: kunden/hash_index.py wurde zurückgenommen)"
+       ],
+       [
+        "omission",
+        "feed_must_missing",
+        "Beschreibung"
+       ]
+      ]
+     },
+     {
+      "id": "R3T09",
+      "kind": "excerpt",
+      "shown": "git: behalten export/version.txt (+1 -1); zurückgenommen export/xlsx_writer.py\nDer neue Export als Excel-Datei war fertig, aber ich habe alles zurückgesetzt, weil das Format mit dem Altsystem nicht zusammenpasst.",
+      "findings": [
+       [
+        "omission",
+        "feed_must_missing",
+        "Versionsnummer"
+       ]
+      ]
+     },
+     {
+      "id": "R3T10",
+      "kind": "excerpt",
+      "shown": "git: kept dispatcher/send.py (+7 -0); reverted dispatcher/batch.py\nI rewrote the notification dispatcher in relay-hub to batch messages.",
+      "findings": [
+       [
+        "critical",
+        "claim_vs_facts:undone",
+        "'I rewrote the notification dispatcher in relay-hub to batch messages.' (git: dispatcher/batch.py was undone; git: dispatcher/batch.py was reverted)"
+       ],
+       [
+        "omission",
+        "feed_must_missing",
+        "comment, retry"
+       ]
+      ]
+     },
+     {
+      "id": "R3T11",
+      "kind": "excerpt",
+      "shown": "git: kept ui/ExportButton.tsx (+8 -6); reverted ui/CsvPreview.tsx\nI started building a CSV preview panel for the report builder but abandoned it halfway, as the layout library cannot do sticky columns.",
+      "findings": [
+       [
+        "omission",
+        "feed_must_missing",
+        "export button, flicker"
+       ]
+      ]
+     },
+     {
+      "id": "R3T12",
+      "kind": "excerpt",
+      "shown": "git: kept README.md (+1 -1); reverted src/plugins/loader.ts, src/plugins/registry.ts\nMigrated the plugin loader of lumen-editor to async imports and fixed a typo in the README.",
+      "findings": [
+       [
+        "critical",
+        "claim_vs_facts:undone",
+        "'Migrated the plugin loader of lumen-editor to async imports and fixed a typo in the README.' (git: src/plugins/loader.ts was undone; git: src/plugins/loader.ts was reverted)"
+       ]
+      ]
+     },
+     {
+      "id": "R3T13",
+      "kind": "excerpt",
+      "shown": "git: kept tests/test_join_counts.py (new, +38 -0); reverted engine/planner_v2.rs\nI backed out the experimental query planner in grain-db after it produced wrong row counts on joins.",
+      "findings": [
+       [
+        "omission",
+        "feed_must_missing",
+        "regression test"
+       ]
+      ]
+     },
+     {
+      "id": "R3T14",
+      "kind": "excerpt",
+      "shown": "git: kept docs/uploads.md (+2 -0); reverted avatar/crop.js\nDone with the avatar upload.",
+      "findings": [
+       [
+        "critical",
+        "claim_vs_facts:undone",
+        "'Done with the avatar upload.' (git: avatar/crop.js was undone (names avatar); git: avatar/crop.js was reverted)"
+       ],
+       [
+        "omission",
+        "feed_must_missing",
+        "size limit"
+       ]
+      ]
+     },
+     {
+      "id": "R3T15",
+      "kind": "excerpt_routed",
+      "shown": "git: kept web/betaal/Titel.vue (+3 -3); reverted web/betaal/validatie.js\nHet oude betaalscherm is vervangen door het nieuwe formulier, maar ik heb de validatie teruggedraaid omdat die de tests liet vastlopen.",
+      "findings": [
+       [
+        "omission",
+        "feed_must_missing",
+        "tekst"
+       ]
+      ]
+     },
+     {
+      "id": "R3T16",
+      "kind": "excerpt",
+      "shown": "The PDF thumbnails for the docvault viewer are generated on upload now, with a 200 pixel cap.",
+      "findings": []
+     },
+     {
+      "id": "R3T17",
+      "kind": "excerpt",
+      "shown": "Die Rechnungsübersicht zeigt jetzt die Summe pro Monat an.",
+      "findings": []
+     },
+     {
+      "id": "R3T18",
+      "kind": "excerpt",
+      "shown": "I removed the dead feature switches from the nimbus-gateway config loader and left the change in the working tree for you to look at.",
+      "findings": []
+     },
+     {
+      "id": "R3T19",
+      "kind": "excerpt_routed",
+      "shown": "Before I wire it into the scheduler: should the digest be sent daily or weekly by default?\nQuestion: Should the digest be sent daily or weekly by default?",
+      "findings": []
+     },
+     {
+      "id": "R3T20",
+      "kind": "excerpt_routed",
+      "shown": "Bevor ich sie aktiviere, brauche ich Ihre Entscheidung: sollen Sitzungen nach 30 oder nach 90 Tagen gelöscht werden?\nFrage: Sollen Sitzungen nach 30 oder nach 90 Tagen gelöscht werden?",
+      "findings": [
+       [
+        "omission",
+        "feed_must_missing",
+        "Aufräum, 30 oder 90"
+       ]
+      ]
+     },
+     {
+      "id": "R3T21",
+      "kind": "excerpt_routed",
+      "shown": "The shipping label generator works for domestic parcels.\nQuestion: Tell me what the courier contract says about a customs form field.",
+      "findings": []
+     },
+     {
+      "id": "R3T22",
+      "kind": "excerpt_routed",
+      "shown": "Two things before I go on: do you want old entries to be paged or loaded in one go, and should the viewer show the user's IP address or hide it?\nQuestion: Do you want old entries to be paged or loaded in one go?\nQuestion: Should the viewer show the user's IP address or hide it?",
+      "findings": []
+     },
+     {
+      "id": "R3T23",
+      "kind": "excerpt_routed",
+      "shown": "I updated the Android build to the new Gradle plugin but the build does not finish: the module compat-lib is missing a namespace entry.\nFailed: > Task :compat-lib:processDebugManifest FAILED\nFailed: Namespace not specified for module compat-lib",
+      "findings": []
+     },
+     {
+      "id": "R3T24",
+      "kind": "excerpt_routed",
+      "shown": "I tried to push the release branch of aster-cli but the remote refused it: protected branch, needs a pull request.\nFailed: remote: error: GH006: Protected branch update failed\nFailed: git push exit status 1",
+      "findings": []
+     },
+     {
+      "id": "R3T25",
+      "kind": "excerpt_routed",
+      "shown": "Der Abgleich mit dem Lagerserver ist beim ersten Versuch in ein Zeitlimit gelaufen.\nFehlgeschlagen: TimeoutError: lager.example.test:443 after 30s\nFehlgeschlagen: Abgleich abgebrochen (Exit 2)",
+      "findings": []
+     },
+     {
+      "id": "R3T26",
+      "kind": "excerpt_routed",
+      "shown": "The database migration for the loyalty points table ran against the staging copy and stopped at step 4 of 6: a unique index failed because of duplicate rows.\nFailed: ERROR: could not create unique index \"points_user_idx\"\nFailed: DETAIL: Key (user_id)=(412) is duplicated.",
+      "findings": []
+     },
+     {
+      "id": "R3T27",
+      "kind": "excerpt_routed",
+      "shown": "Ho aggiornato il parser dei file di log e ormai è quasi finito, rimangono solo piccoli dettagli nei test.\nFailed: FAILED tests/test_log.py::test_riga_vuota\nFailed: FAILED tests/test_log.py::test_utf16\nFailed: FAILED tests/test_log.py::test_data_futura\nFailed: FAILED tests/test_log.py::test_righe_lunghe\nFailed: FAILED tests/test_log.py::test_chiusura_file",
+      "findings": [
+       [
+        "omission",
+        "feed_must_missing",
+        "5"
+       ]
+      ]
+     },
+     {
+      "id": "R3T28",
+      "kind": "excerpt",
+      "shown": "Four things are done in the tilework-site repo.",
+      "findings": [
+       [
+        "omission",
+        "feed_must_missing",
+        "footer, contact form, sitemap, lazy"
+       ]
+      ]
+     },
+     {
+      "id": "R3T29",
+      "kind": "excerpt_routed",
+      "shown": "git: kept worker/retry.py (+19 -3); worker/config.py (+8 -0); reverted worker/deadletter.py\nThree parts this turn for the opal-queue worker.\nQuestion: Should failed jobs older than a week be purged automatically?",
+      "findings": []
+     },
+     {
+      "id": "R3T30",
+      "kind": "excerpt_routed",
+      "shown": "Beim Testlauf sind zwei Tests fehlgeschlagen.\nFehlgeschlagen: FAILED tests/test_liste.py::test_sortierung_leer\nFehlgeschlagen: FAILED tests/test_filter.py::test_umlaute",
+      "findings": [
+       [
+        "omission",
+        "feed_must_missing",
+        "2, Druckansicht"
+       ]
+      ]
+     },
+     {
+      "id": "R3T31",
+      "kind": "excerpt",
+      "shown": "Cleanup in the dune-forms project: removed three unused helpers, renamed the validators module to checks, updated every import, regenerated the type stubs, bumped the lint rule set and fixed six...\nThe regenerated stubs are not committed yet.",
+      "findings": []
+     },
+     {
+      "id": "R3T32",
+      "kind": "excerpt",
+      "shown": "I looked at the retry setting in the pebble-sync config and it is already at the value you asked for, so I changed nothing.",
+      "findings": []
+     },
+     {
+      "id": "R3T33",
+      "kind": "excerpt",
+      "shown": "Checked the branch: it was already up to date with main, so there was nothing to merge.",
+      "findings": []
+     },
+     {
+      "id": "R3T34",
+      "kind": "excerpt",
+      "shown": "Es gab nichts zu tun: Die Übersetzungsdatei war schon vollständig, deshalb habe ich keine Datei angefasst.",
+      "findings": []
+     },
+     {
+      "id": "R3T35",
+      "kind": "excerpt",
+      "shown": "You asked how the token refresh in sparrow-auth works.",
+      "findings": [
+       [
+        "omission",
+        "feed_must_missing",
+        "60 seconds"
+       ]
+      ]
+     },
+     {
+      "id": "R3T36",
+      "kind": "excerpt_routed",
+      "shown": "Ran the importer for the cinder-crm contacts: 6 of 41 tests fail on phone number parsing, so the importer is not safe to switch on.\nFailed: FAILED tests/test_phone.py::test_plus_prefix\nFailed: FAILED tests/test_phone.py::test_spaces\nFailed: FAILED tests/test_phone.py::test_extension\nFailed: FAILED tests/test_phone.py::test_short\nFailed: FAILED tests/test_phone.py::test_dashes\nFailed: FAILED tests/test_phone.py::test_unicode_digits",
+      "findings": []
+     },
+     {
+      "id": "R3T37",
+      "kind": "excerpt",
+      "shown": "Updated the dependency pins in the wavelet-ui package.json and the lockfile.",
+      "findings": []
+     },
+     {
+      "id": "R3T38",
+      "kind": "excerpt_routed",
+      "shown": "Soll ich die alte Exportfunktion löschen?\nFrage: Soll ich die alte Exportfunktion löschen?",
+      "findings": []
+     },
+     {
+      "id": "R3T39",
+      "kind": "excerpt_routed",
+      "shown": "The nightly sync for the marlin-ledger project crashed on the second table with a connection reset and wrote nothing.\nFailed: ConnectionResetError: [Errno 104] Connection reset by peer\nFailed: sync aborted at table 2 of 9",
+      "findings": []
+     },
+     {
+      "id": "R3T40",
+      "kind": "excerpt_routed",
+      "shown": "git: kept planif/dates.py (+1 -0); reverted planif/nouvelle_lib.py\nJ'ai essayé une nouvelle bibliothèque de dates dans le planificateur, puis tout annulé après des erreurs de fuseau.",
+      "findings": [
+       [
+        "omission",
+        "feed_must_missing",
+        "commentaire"
+       ]
+      ]
+     },
+     {
+      "id": "R3T41",
+      "kind": "excerpt",
+      "shown": "Fixed the typo in the footer of the kite-landing page.",
+      "findings": []
+     },
+     {
+      "id": "R3T42",
+      "kind": "excerpt",
+      "shown": "I got the first half of the sensor import in cobble-iot working: the reader parses the binary header and the timestamps.",
+      "findings": []
+     },
+     {
+      "id": "R3T43",
+      "kind": "excerpt",
+      "shown": "Begonnen mit dem Umbau der Berechtigungen: Die Rollen-Tabelle ist angelegt, die Prüfung in den Endpunkten fehlt noch.",
+      "findings": []
+     },
+     {
+      "id": "R3T44",
+      "kind": "excerpt",
+      "shown": "Die Fehlerseite 404 hat jetzt einen Link zur Startseite und zeigt das Logo.",
+      "findings": []
+     },
+     {
+      "id": "R3T45",
+      "kind": "excerpt_routed",
+      "shown": "La page de connexion affiche maintenant le nombre de tentatives restantes avant le blocage.",
+      "findings": []
+     },
+     {
+      "id": "R3T46",
+      "kind": "excerpt",
+      "shown": "The pagination in fennel-api now returns a next-page cursor.",
+      "findings": []
+     },
+     {
+      "id": "R3T47",
+      "kind": "excerpt",
+      "shown": "The thumbnail cache cleanup in saffron-media is rewritten and it should work now.\nI did not run anything, but the logic is simple.",
+      "findings": []
+     },
+     {
+      "id": "R3T48",
+      "kind": "excerpt",
+      "shown": "Everything is committed and pushed to origin for the vireo-notes sync feature, and the 22 tests pass.\ngit: the changes are not committed",
+      "findings": [
+       [
+        "critical",
+        "claim_vs_facts:vcs",
+        "'Everything is committed and pushed to origin for the vireo-notes sync feature, and the 22 tests pass.' (committed; git: the changes are not committed)"
+       ]
+      ]
+     },
+     {
+      "id": "R3T49",
+      "kind": "excerpt_routed",
+      "shown": "I fixed all three lint errors in the glyph-forge renderer and the lint job is clean now.\nFailed: renderer/draw.ts:88:5 error no-unused-vars\nFailed: lint exited with status 1",
+      "findings": [
+       [
+        "critical",
+        "claim_vs_facts:check",
+        "'I fixed all three lint errors in the glyph-forge renderer and the lint job is clean now.' (lint fixed; Failed: renderer/draw.ts:88:5 error no-unused-vars)"
+       ],
+       [
+        "omission",
+        "feed_must_missing",
+        "one"
+       ]
+      ]
+     },
+     {
+      "id": "R3T50",
+      "kind": "excerpt",
+      "shown": "git: behalten config/db.toml (+1 -1); zurückgenommen db/migrations/0090_bestellhistorie.sql\nIch habe die komplette Datenbank-Migration für die Bestellhistorie geschrieben und danach rückgängig gemacht, weil sie auf der Testkopie zu lange lief.",
+      "findings": [
+       [
+        "omission",
+        "feed_must_missing",
+        "Konfiguration, Schalter"
+       ]
+      ]
+     }
+    ],
+    "review": [
+     {
+      "id": "R3T01",
+      "kind": "baseline",
+      "shown": "Changed (git): gateway/middleware/limits.go (+31 -4); gateway/middleware/limits_test.go (+42 -0)\nTests: 14 passed, 0 failed (per AI Juggler)\nLeft: nothing stated\nRisk: low",
+      "findings": []
+     },
+     {
+      "id": "R3T02",
+      "kind": "baseline",
+      "shown": "Changed (git): lib/format/currency.rb (+24 -9); test/format_spec.rb (+18 -0)\nTests: 31 passed, 2 failed (per AI Juggler)\nFailed: FAILED test/format_spec.rb:88 - expected \"1,00 €\" got \"1.00 €\"\nFailed: FAILED test/format_spec.rb:102 - expected \"0,05\" got \"0,04\"\nLeft: nothing else stated\nRisk: high",
+      "findings": []
+     },
+     {
+      "id": "R3T03",
+      "kind": "baseline",
+      "shown": "Geändert (git): planer/zonen.py (+47 -22); planer/meldungen.py (+15 -15)\nTests: 52 bestanden, 3 fehlgeschlagen (laut AI Juggler)\nFehlgeschlagen: FAILED tests/test_zonen.py::test_sommerzeit_wechsel - AssertionError\nFehlgeschlagen: FAILED tests/test_zonen.py::test_mitternacht - AssertionError\nFehlgeschlagen: FAILED tests/test_zonen.py::test_neuseeland - ValueError\nOffen: sonst nichts genannt\nRisiko: hoch",
+      "findings": []
+     },
+     {
+      "id": "R3T04",
+      "kind": "baseline",
+      "shown": "Changed (git): almacen/adaptador.py (+58 -20); almacen/config.yaml (+4 -1)\nTests: 18 passed, 1 failed (per AI Juggler)\nFailed: FAILED tests/test_inventario.py::test_cantidad_negativa - AssertionError: -3 != 0\nLeft: nothing else stated\nRisk: high",
+      "findings": []
+     },
+     {
+      "id": "R3T05",
+      "kind": "baseline",
+      "shown": "Changed (git): recherche/index.py (+60 -18); docs/api.md (+9 -3)\nTests: 40 passed, 2 failed (per AI Juggler)\nFailed: FAILED tests/test_recherche.py::test_code_postal_corse - 0 results\nFailed: FAILED tests/test_recherche.py::test_prefixe_court - timeout\nLeft: nothing else stated\nRisk: high",
+      "findings": []
+     },
+     {
+      "id": "R3T06",
+      "kind": "baseline",
+      "shown": "Changed (git): CHANGELOG.md (+2 -0)\nReverted (git): src/banner/flag.ts (the feature flag module was rolled back); src/settings/page.tsx (the settings wiring was rolled back); history: reset: moving to HEAD~1\nTests: 21 passed, 0 failed (per AI Juggler)\nLeft: nothing stated\nRisk: low",
+      "findings": []
+     },
+     {
+      "id": "R3T07",
+      "kind": "baseline",
+      "shown": "Changed (git): sessions/cache.py (+5 -5)\nReverted (git): sessions/ (the alternative cache store experiment was thrown away); history: reset: moving to HEAD\nTests: 11 passed, 0 failed (per AI Juggler)\nLeft: nothing stated\nRisk: low",
+      "findings": []
+     },
+     {
+      "id": "R3T08",
+      "kind": "baseline",
+      "shown": "Geändert (git): kunden/suche.py (+6 -2)\nZurückgenommen (git): kunden/hash_index.py (die Hash-Index-Umstellung wurde verworfen); Verlauf: reset: moving to HEAD~1\nTests: 9 bestanden, 0 fehlgeschlagen (laut AI Juggler)\nOffen: nichts genannt\nRisiko: niedrig",
+      "findings": []
+     },
+     {
+      "id": "R3T09",
+      "kind": "baseline",
+      "shown": "Geändert (git): export/version.txt (+1 -1)\nZurückgenommen (git): export/xlsx_writer.py (der Excel-Export wurde zurückgesetzt); Verlauf: reset: moving to HEAD~2\nNicht geprüft: Tests nicht ausgeführt (laut AI Juggler)\nOffen: nichts genannt\nRisiko: mittel",
+      "findings": []
+     },
+     {
+      "id": "R3T10",
+      "kind": "baseline",
+      "shown": "Changed (git): dispatcher/send.py (+7 -0)\nReverted (git): dispatcher/batch.py (the batching rewrite was undone); history: reset: moving to HEAD~1\nTests: 27 passed, 0 failed (per AI Juggler)\nLeft: nothing stated\nRisk: low",
+      "findings": []
+     },
+     {
+      "id": "R3T11",
+      "kind": "baseline",
+      "shown": "Changed (git): ui/ExportButton.tsx (+8 -6)\nReverted (git): ui/CsvPreview.tsx (the preview panel was abandoned and removed); history: reset: moving to HEAD\nTests: 19 passed, 0 failed (per AI Juggler)\nLeft: nothing stated\nRisk: low",
+      "findings": []
+     },
+     {
+      "id": "R3T12",
+      "kind": "baseline",
+      "shown": "Changed (git): README.md (+1 -1)\nReverted (git): src/plugins/loader.ts (the async loader migration is not in the tree); src/plugins/registry.ts (async changes undone); history: reset: moving to HEAD~1\nTests: 44 passed, 0 failed (per AI Juggler)\nLeft: nothing stated\nRisk: low",
+      "findings": []
+     },
+     {
+      "id": "R3T13",
+      "kind": "baseline",
+      "shown": "Changed (git): tests/test_join_counts.py (new, +38 -0)\nReverted (git): engine/planner_v2.rs (the experimental planner was backed out); history: reset: moving to HEAD~3\nTests: 62 passed, 0 failed (per AI Juggler)\nFailed: The branch is clean again apart from a new regression test that documents the bug.\nLeft: nothing else stated\nRisk: low",
+      "findings": [
+       [
+        "critical",
+        "invented_failure",
+        "Failed: The branch is clean again apart from a new regression test that documents the bug."
+       ]
+      ]
+     },
+     {
+      "id": "R3T14",
+      "kind": "baseline",
+      "shown": "Changed (git): docs/uploads.md (+2 -0)\nReverted (git): avatar/crop.js (the cropping step was scrapped); history: reset: moving to HEAD~1\nNot checked: tests not run (per AI Juggler)\nLeft: nothing stated\nRisk: medium",
+      "findings": []
+     },
+     {
+      "id": "R3T15",
+      "kind": "baseline",
+      "shown": "Changed (git): web/betaal/Titel.vue (+3 -3)\nReverted (git): web/betaal/validatie.js (de validatie is teruggedraaid); history: reset: moving to HEAD~1\nTests: 7 passed, 0 failed (per AI Juggler)\nLeft: nothing stated\nRisk: low",
+      "findings": []
+     },
+     {
+      "id": "R3T16",
+      "kind": "baseline",
+      "shown": "Changed (git): vault/thumbs.py (+64 -3); tests/test_thumbs.py (new, +30 -0); tests/fixtures/empty.pdf (new, +0 -0)\nUncommitted (git): yes\nTests: 23 passed, 0 failed (per AI Juggler)\nLeft: nothing stated\nRisk: low",
+      "findings": []
+     },
+     {
+      "id": "R3T17",
+      "kind": "baseline",
+      "shown": "Geändert (git): rechnung/uebersicht.py (+39 -11); scripts/probelauf.sh (new, +12 -0)\nNicht committet (git): ja\nTests: 15 bestanden, 0 fehlgeschlagen (laut AI Juggler)\nOffen: nichts genannt\nRisiko: niedrig",
+      "findings": []
+     },
+     {
+      "id": "R3T18",
+      "kind": "baseline",
+      "shown": "Changed (git): config/loader.go (+5 -48); config/loader_test.go (+0 -22)\nUncommitted (git): yes\nTests: 17 passed, 0 failed (per AI Juggler)\nLeft: nothing stated\nRisk: low",
+      "findings": []
+     },
+     {
+      "id": "R3T19",
+      "kind": "baseline",
+      "shown": "Changed (git): digest/group.py (+44 -6)\nUncommitted (git): yes\nQuestion: Should the digest be sent daily or weekly by default?\nNot checked: tests not run (per AI Juggler)\nLeft: nothing else stated\nRisk: medium",
+      "findings": []
+     },
+     {
+      "id": "R3T20",
+      "kind": "baseline",
+      "shown": "Geändert (git): sitzung/aufraeumen.py (new, +51 -0)\nNicht committet (git): ja\nFrage: Sollen Sitzungen nach 30 oder nach 90 Tagen gelöscht werden?\nOffen: sonst nichts genannt\nRisiko: mittel",
+      "findings": []
+     },
+     {
+      "id": "R3T21",
+      "kind": "baseline",
+      "shown": "Changed (git): labels/domestic.py (+70 -15)\nUncommitted (git): yes\nQuestion: Tell me what the courier contract says about a customs form field.\nNot checked: tests not run (per AI Juggler)\nLeft: nothing else stated\nRisk: medium",
+      "findings": []
+     },
+     {
+      "id": "R3T22",
+      "kind": "baseline",
+      "shown": "Changed (git): audit/viewer.tsx (new, +83 -0)\nUncommitted (git): yes\nQuestion: Do you want old entries to be paged or loaded in one go?\nQuestion: Should the viewer show the user's IP address or hide it?\nNot checked: tests not run (per AI Juggler)\nLeft: nothing else stated\nRisk: medium",
+      "findings": []
+     },
+     {
+      "id": "R3T23",
+      "kind": "baseline",
+      "shown": "Changed (git): build.gradle (+9 -6)\nUncommitted (git): yes\nFailed: > Task :compat-lib:processDebugManifest FAILED\nFailed: Namespace not specified for module compat-lib\nNot checked: tests not run (per AI Juggler)\nLeft: I updated the Android build to the new Gradle plugin but the build does not finish: the module compat-lib is missing a namespace entry.\nRisk: high",
+      "findings": []
+     },
+     {
+      "id": "R3T24",
+      "kind": "baseline",
+      "shown": "Changed (git): no files changed\nFailed: remote: error: GH006: Protected branch update failed\nFailed: git push exit status 1\nNot checked: tests not run (per AI Juggler)\nLeft: nothing else stated\nRisk: high",
+      "findings": []
+     },
+     {
+      "id": "R3T25",
+      "kind": "baseline",
+      "shown": "Geändert (git): keine Dateien geändert\nFehlgeschlagen: TimeoutError: lager.example.test:443 after 30s\nFehlgeschlagen: Abgleich abgebrochen (Exit 2)\nNicht geprüft: Tests nicht ausgeführt (laut AI Juggler)\nOffen: sonst nichts genannt\nRisiko: hoch",
+      "findings": []
+     },
+     {
+      "id": "R3T26",
+      "kind": "baseline",
+      "shown": "Changed (git): db/migrations/0088_points.sql (new, +26 -0)\nFailed: ERROR: could not create unique index \"points_user_idx\"\nFailed: DETAIL: Key (user_id)=(412) is duplicated.\nNot checked: tests not run (per AI Juggler)\nLeft: The database migration for the loyalty points table ran against the staging copy and stopped at step 4 of 6: a unique index failed because of duplicate rows.\nRisk: high",
+      "findings": []
+     },
+     {
+      "id": "R3T27",
+      "kind": "baseline",
+      "shown": "Changed (git): log/parser.py (+77 -30); tests/test_log.py (+12 -2)\nTests: 36 passed, 5 failed (per AI Juggler)\nFailed: FAILED tests/test_log.py::test_riga_vuota\nFailed: FAILED tests/test_log.py::test_utf16\nFailed: FAILED tests/test_log.py::test_data_futura\nFailed: FAILED tests/test_log.py::test_righe_lunghe\nFailed: FAILED tests/test_log.py::test_chiusura_file\nLeft: nothing else stated\nRisk: high",
+      "findings": []
+     },
+     {
+      "id": "R3T28",
+      "kind": "baseline",
+      "shown": "Changed (git): templates/footer.html (+6 -6); forms/contact.py (+22 -4); seo/sitemap.py (+11 -1); templates/gallery.html (+9 -9); tests/test_contact.py (+26 -0)\nTests: 40 passed, 0 failed (per AI Juggler)\nFailed: Two: the contact form shows an inline error for bad email addresses.\nLeft: nothing else stated\nRisk: low",
+      "findings": [
+       [
+        "critical",
+        "invented_failure",
+        "Failed: Two: the contact form shows an inline error for bad email addresses."
+       ]
+      ]
+     },
+     {
+      "id": "R3T29",
+      "kind": "baseline",
+      "shown": "Changed (git): worker/retry.py (+19 -3); worker/config.py (+8 -0)\nReverted (git): worker/deadletter.py (the dead-letter log was reverted); history: reset: moving to HEAD~1\nTests: 31 passed, 0 failed (per AI Juggler)\nQuestion: Should failed jobs older than a week be purged automatically?\nFailed: Third, I need to know whether failed jobs older than a week should be purged automatically.\nLeft: nothing else stated\nRisk: medium",
+      "findings": [
+       [
+        "critical",
+        "invented_failure",
+        "Failed: Third, I need to know whether failed jobs older than a week should be purged automatically."
+       ]
+      ]
+     },
+     {
+      "id": "R3T30",
+      "kind": "baseline",
+      "shown": "Geändert (git): verein/liste.py (+33 -8); verein/export.py (+14 -2); verein/filter.py (+10 -3)\nNicht committet (git): ja\nTests: 45 bestanden, 2 fehlgeschlagen (laut AI Juggler)\nFehlgeschlagen: FAILED tests/test_liste.py::test_sortierung_leer\nFehlgeschlagen: FAILED tests/test_filter.py::test_umlaute\nOffen: sonst nichts genannt\nRisiko: hoch",
+      "findings": []
+     },
+     {
+      "id": "R3T31",
+      "kind": "baseline",
+      "shown": "Changed (git): forms/helpers.py (+0 -61); forms/checks.py (renamed, +0 -0); forms/types.pyi (+120 -95); lint.toml (+4 -1); forms/__init__.py (+3 -3)\nUncommitted (git): yes\nTests: 58 passed, 0 failed (per AI Juggler)\nLeft: The regenerated stubs are not committed yet.\nRisk: medium",
+      "findings": []
+     },
+     {
+      "id": "R3T32",
+      "kind": "baseline",
+      "shown": "Changed (git): no files changed\nNot checked: tests not run (per AI Juggler)\nLeft: nothing stated\nRisk: medium",
+      "findings": []
+     },
+     {
+      "id": "R3T33",
+      "kind": "baseline",
+      "shown": "Changed (git): no files changed\nNot checked: tests not run (per AI Juggler)\nLeft: nothing stated\nRisk: medium",
+      "findings": []
+     },
+     {
+      "id": "R3T34",
+      "kind": "baseline",
+      "shown": "Geändert (git): keine Dateien geändert\nNicht geprüft: Tests nicht ausgeführt (laut AI Juggler)\nOffen: nichts genannt\nRisiko: mittel",
+      "findings": []
+     },
+     {
+      "id": "R3T35",
+      "kind": "baseline",
+      "shown": "Changed (git): no files changed\nNot checked: tests not run (per AI Juggler)\nLeft: nothing stated\nRisk: medium",
+      "findings": []
+     },
+     {
+      "id": "R3T36",
+      "kind": "baseline",
+      "shown": "Changed (git): crm/importer.py (+29 -7)\nUncommitted (git): yes\nTests: 35 passed, 6 failed (per AI Juggler)\nFailed: FAILED tests/test_phone.py::test_plus_prefix\nFailed: FAILED tests/test_phone.py::test_spaces\nFailed: FAILED tests/test_phone.py::test_extension\nFailed: FAILED tests/test_phone.py::test_short\nFailed: FAILED tests/test_phone.py::test_dashes\nFailed: FAILED tests/test_phone.py::test_unicode_digits\nLeft: Ran the importer for the cinder-crm contacts: 6 of 41 tests fail on phone number parsing, so the importer is not safe to switch on.\nRisk: high",
+      "findings": []
+     },
+     {
+      "id": "R3T37",
+      "kind": "baseline",
+      "shown": "Changed (git): package.json (+6 -6); package-lock.json (+120 -118)\nTests: 12 passed, 0 failed (per AI Juggler)\nLeft: nothing stated\nRisk: low",
+      "findings": []
+     },
+     {
+      "id": "R3T38",
+      "kind": "baseline",
+      "shown": "Geändert (git): export/neu.py (new, +64 -0)\nNicht committet (git): ja\nFrage: Soll ich die alte Exportfunktion löschen?\nNicht geprüft: Tests nicht ausgeführt (laut AI Juggler)\nOffen: sonst nichts genannt\nRisiko: mittel",
+      "findings": []
+     },
+     {
+      "id": "R3T39",
+      "kind": "baseline",
+      "shown": "Changed (git): no files changed\nFailed: ConnectionResetError: [Errno 104] Connection reset by peer\nFailed: sync aborted at table 2 of 9\nNot checked: tests not run (per AI Juggler)\nLeft: nothing else stated\nRisk: high",
+      "findings": []
+     },
+     {
+      "id": "R3T40",
+      "kind": "baseline",
+      "shown": "Changed (git): planif/dates.py (+1 -0)\nReverted (git): planif/nouvelle_lib.py (la nouvelle bibliothèque a été annulée); history: reset: moving to HEAD~1\nTests: 10 passed, 0 failed (per AI Juggler)\nLeft: nothing stated\nRisk: low",
+      "findings": []
+     },
+     {
+      "id": "R3T41",
+      "kind": "baseline",
+      "shown": "Changed (git): site/footer.html (+1 -1)\nNot checked: tests not run (per AI Juggler)\nLeft: nothing stated\nRisk: medium",
+      "findings": []
+     },
+     {
+      "id": "R3T42",
+      "kind": "baseline",
+      "shown": "Changed (git): iot/reader.py (new, +95 -0); tests/test_reader.py (new, +36 -0)\nUncommitted (git): yes\nTests: 8 passed, 0 failed (per AI Juggler)\nLeft: nothing stated\nRisk: low",
+      "findings": []
+     },
+     {
+      "id": "R3T43",
+      "kind": "baseline",
+      "shown": "Geändert (git): rechte/rollen.py (new, +58 -0)\nNicht committet (git): ja\nFehlgeschlagen: Begonnen mit dem Umbau der Berechtigungen: Die Rollen-Tabelle ist angelegt, die Prüfung in den Endpunkten fehlt noch.\nNicht geprüft: Tests nicht ausgeführt (laut AI Juggler)\nOffen: sonst nichts genannt\nRisiko: mittel",
+      "findings": [
+       [
+        "critical",
+        "invented_failure",
+        "Fehlgeschlagen: Begonnen mit dem Umbau der Berechtigungen: Die Rollen-Tabelle ist angelegt, die Prüfung in den Endpunkten fehlt noch."
+       ]
+      ]
+     },
+     {
+      "id": "R3T44",
+      "kind": "baseline",
+      "shown": "Geändert (git): seiten/404.html (+14 -3); seiten/test_404.py (+10 -0)\nTests: 6 bestanden, 0 fehlgeschlagen (laut AI Juggler)\nOffen: nichts genannt\nRisiko: niedrig",
+      "findings": []
+     },
+     {
+      "id": "R3T45",
+      "kind": "baseline",
+      "shown": "Changed (git): auth/login.py (+18 -4); auth/test_login.py (+21 -0)\nTests: 13 passed, 0 failed (per AI Juggler)\nLeft: nothing stated\nRisk: low",
+      "findings": []
+     },
+     {
+      "id": "R3T46",
+      "kind": "baseline",
+      "shown": "Changed (git): api/paging.py (+26 -5)\nTests: 40 passed, 0 failed (per AI Juggler)\nLeft: nothing stated\nRisk: low",
+      "findings": []
+     },
+     {
+      "id": "R3T47",
+      "kind": "baseline",
+      "shown": "Changed (git): media/cleanup.py (+40 -22)\nUncommitted (git): yes\nNot checked: I did not run anything, but the logic is simple.\nLeft: nothing stated\nRisk: medium",
+      "findings": []
+     },
+     {
+      "id": "R3T48",
+      "kind": "baseline",
+      "shown": "Changed (git): sync/engine.py (+52 -10); sync/engine_test.py (new, +30 -0)\nUncommitted (git): yes\nTests: 22 passed, 0 failed (per AI Juggler)\nLeft: nothing stated\nRisk: low",
+      "findings": []
+     },
+     {
+      "id": "R3T49",
+      "kind": "baseline",
+      "shown": "Changed (git): renderer/draw.ts (+14 -9); renderer/shader.ts (+6 -6)\nFailed: renderer/draw.ts:88:5 error no-unused-vars\nFailed: lint exited with status 1\nNot checked: tests not run (per AI Juggler)\nLeft: nothing else stated\nRisk: high",
+      "findings": []
+     },
+     {
+      "id": "R3T50",
+      "kind": "baseline",
+      "shown": "Geändert (git): config/db.toml (+1 -1)\nZurückgenommen (git): db/migrations/0090_bestellhistorie.sql (die Migration wurde rückgängig gemacht); Verlauf: reset: moving to HEAD~2\nTests: 14 bestanden, 0 fehlgeschlagen (laut AI Juggler)\nOffen: nichts genannt\nRisiko: niedrig",
+      "findings": []
+     }
+    ],
+    "attention": [
+     {
+      "id": "R3T01",
+      "kind": "calm",
+      "shown": "",
+      "findings": []
+     },
+     {
+      "id": "R3T02",
+      "kind": "code",
+      "shown": "Needs you: something failed: “FAILED test/format_spec.rb:88 - expected \"1,00 €\" got \"1.00 €\"”",
+      "findings": []
+     },
+     {
+      "id": "R3T03",
+      "kind": "code",
+      "shown": "Braucht dich: etwas ist fehlgeschlagen: “FAILED tests/test_zonen.py::test_sommerzeit_wechsel - AssertionError”",
+      "findings": []
+     },
+     {
+      "id": "R3T04",
+      "kind": "code",
+      "shown": "Needs you: something failed: “FAILED tests/test_inventario.py::test_cantidad_negativa - AssertionError: -3 != 0”",
+      "findings": []
+     },
+     {
+      "id": "R3T05",
+      "kind": "code",
+      "shown": "Needs you: something failed: “FAILED tests/test_recherche.py::test_code_postal_corse - 0 results”",
+      "findings": []
+     },
+     {
+      "id": "R3T06",
+      "kind": "calm",
+      "shown": "",
+      "findings": [
+       [
+        "omission",
+        "attention_miss",
+        "gold: needs the user"
+       ]
+      ]
+     },
+     {
+      "id": "R3T07",
+      "kind": "calm",
+      "shown": "",
+      "findings": []
+     },
+     {
+      "id": "R3T08",
+      "kind": "calm",
+      "shown": "",
+      "findings": [
+       [
+        "omission",
+        "attention_miss",
+        "gold: needs the user"
+       ]
+      ]
+     },
+     {
+      "id": "R3T09",
+      "kind": "calm",
+      "shown": "",
+      "findings": [
+       [
+        "omission",
+        "attention_miss",
+        "gold: needs the user"
+       ]
+      ]
+     },
+     {
+      "id": "R3T10",
+      "kind": "calm",
+      "shown": "",
+      "findings": [
+       [
+        "omission",
+        "attention_miss",
+        "gold: needs the user"
+       ]
+      ]
+     },
+     {
+      "id": "R3T11",
+      "kind": "calm",
+      "shown": "",
+      "findings": []
+     },
+     {
+      "id": "R3T12",
+      "kind": "calm",
+      "shown": "",
+      "findings": [
+       [
+        "omission",
+        "attention_miss",
+        "gold: needs the user"
+       ]
+      ]
+     },
+     {
+      "id": "R3T13",
+      "kind": "calm",
+      "shown": "",
+      "findings": []
+     },
+     {
+      "id": "R3T14",
+      "kind": "calm",
+      "shown": "",
+      "findings": []
+     },
+     {
+      "id": "R3T15",
+      "kind": "calm",
+      "shown": "",
+      "findings": [
+       [
+        "omission",
+        "attention_miss",
+        "gold: needs the user"
+       ]
+      ]
+     },
+     {
+      "id": "R3T16",
+      "kind": "calm",
+      "shown": "",
+      "findings": []
+     },
+     {
+      "id": "R3T17",
+      "kind": "calm",
+      "shown": "",
+      "findings": [
+       [
+        "omission",
+        "attention_miss",
+        "gold: needs the user"
+       ]
+      ]
+     },
+     {
+      "id": "R3T18",
+      "kind": "calm",
+      "shown": "",
+      "findings": []
+     },
+     {
+      "id": "R3T19",
+      "kind": "code",
+      "shown": "Needs you: the agent asks: “Should the digest be sent daily or weekly by default?”",
+      "findings": []
+     },
+     {
+      "id": "R3T20",
+      "kind": "code",
+      "shown": "Braucht dich: der Agent fragt: “Sollen Sitzungen nach 30 oder nach 90 Tagen gelöscht werden?”",
+      "findings": []
+     },
+     {
+      "id": "R3T21",
+      "kind": "code",
+      "shown": "Needs you: the agent asks: “Tell me what the courier contract says about a customs form field.”",
+      "findings": []
+     },
+     {
+      "id": "R3T22",
+      "kind": "code",
+      "shown": "Needs you: the agent asks: “Do you want old entries to be paged or loaded in one go?”",
+      "findings": []
+     },
+     {
+      "id": "R3T23",
+      "kind": "code",
+      "shown": "Needs you: something failed: “> Task :compat-lib:processDebugManifest FAILED”",
+      "findings": []
+     },
+     {
+      "id": "R3T24",
+      "kind": "code",
+      "shown": "Needs you: something failed: “remote: error: GH006: Protected branch update failed”",
+      "findings": []
+     },
+     {
+      "id": "R3T25",
+      "kind": "code",
+      "shown": "Braucht dich: etwas ist fehlgeschlagen: “TimeoutError: lager.example.test:443 after 30s”",
+      "findings": []
+     },
+     {
+      "id": "R3T26",
+      "kind": "code",
+      "shown": "Needs you: something failed: “ERROR: could not create unique index \"points_user_idx\"”",
+      "findings": []
+     },
+     {
+      "id": "R3T27",
+      "kind": "code",
+      "shown": "Needs you: something failed: “FAILED tests/test_log.py::test_riga_vuota”",
+      "findings": []
+     },
+     {
+      "id": "R3T28",
+      "kind": "calm",
+      "shown": "",
+      "findings": []
+     },
+     {
+      "id": "R3T29",
+      "kind": "code",
+      "shown": "Needs you: the agent asks: “Should failed jobs older than a week be purged automatically?”",
+      "findings": []
+     },
+     {
+      "id": "R3T30",
+      "kind": "code",
+      "shown": "Braucht dich: etwas ist fehlgeschlagen: “FAILED tests/test_liste.py::test_sortierung_leer”",
+      "findings": []
+     },
+     {
+      "id": "R3T31",
+      "kind": "calm",
+      "shown": "",
+      "findings": []
+     },
+     {
+      "id": "R3T32",
+      "kind": "calm",
+      "shown": "",
+      "findings": []
+     },
+     {
+      "id": "R3T33",
+      "kind": "calm",
+      "shown": "",
+      "findings": []
+     },
+     {
+      "id": "R3T34",
+      "kind": "calm",
+      "shown": "",
+      "findings": []
+     },
+     {
+      "id": "R3T35",
+      "kind": "calm",
+      "shown": "",
+      "findings": []
+     },
+     {
+      "id": "R3T36",
+      "kind": "code",
+      "shown": "Needs you: something failed: “FAILED tests/test_phone.py::test_plus_prefix”",
+      "findings": []
+     },
+     {
+      "id": "R3T37",
+      "kind": "calm",
+      "shown": "",
+      "findings": []
+     },
+     {
+      "id": "R3T38",
+      "kind": "code",
+      "shown": "Braucht dich: der Agent fragt: “Soll ich die alte Exportfunktion löschen?”",
+      "findings": []
+     },
+     {
+      "id": "R3T39",
+      "kind": "code",
+      "shown": "Needs you: something failed: “ConnectionResetError: [Errno 104] Connection reset by peer”",
+      "findings": []
+     },
+     {
+      "id": "R3T40",
+      "kind": "calm",
+      "shown": "",
+      "findings": [
+       [
+        "omission",
+        "attention_miss",
+        "gold: needs the user"
+       ]
+      ]
+     },
+     {
+      "id": "R3T41",
+      "kind": "calm",
+      "shown": "",
+      "findings": []
+     },
+     {
+      "id": "R3T42",
+      "kind": "calm",
+      "shown": "",
+      "findings": []
+     },
+     {
+      "id": "R3T43",
+      "kind": "calm",
+      "shown": "",
+      "findings": []
+     },
+     {
+      "id": "R3T44",
+      "kind": "calm",
+      "shown": "",
+      "findings": []
+     },
+     {
+      "id": "R3T45",
+      "kind": "calm",
+      "shown": "",
+      "findings": []
+     },
+     {
+      "id": "R3T46",
+      "kind": "calm",
+      "shown": "",
+      "findings": []
+     },
+     {
+      "id": "R3T47",
+      "kind": "calm",
+      "shown": "",
+      "findings": [
+       [
+        "omission",
+        "attention_miss",
+        "gold: needs the user"
+       ]
+      ]
+     },
+     {
+      "id": "R3T48",
+      "kind": "calm",
+      "shown": "",
+      "findings": [
+       [
+        "omission",
+        "attention_miss",
+        "gold: needs the user"
+       ]
+      ]
+     },
+     {
+      "id": "R3T49",
+      "kind": "code",
+      "shown": "Needs you: something failed: “renderer/draw.ts:88:5 error no-unused-vars”",
+      "findings": []
+     },
+     {
+      "id": "R3T50",
+      "kind": "calm",
+      "shown": "",
+      "findings": [
+       [
+        "omission",
+        "attention_miss",
+        "gold: needs the user"
+       ]
+      ]
+     }
+    ]
+   }
+  },
+  "chat": {
+   "path": "chat-v5r3.json",
+   "summary": {
+    "chat": {
+     "items": 50,
+     "critical_items": 0,
+     "critical_pct": 0.0,
+     "critical_ids": [],
+     "omission_items": 11,
+     "omission_pct": 22.0,
+     "omission_ids": [
+      "R3C07",
+      "R3C08",
+      "R3C09",
+      "R3C10",
+      "R3C11",
+      "R3C12",
+      "R3C20",
+      "R3C42",
+      "R3C48",
+      "R3C49",
+      "R3C50"
+     ],
+     "hidden": 0,
+     "by_detector": {
+      "no_answer_on_answerable": 11
+     }
+    }
+   },
+   "items": {
+    "chat": [
+     {
+      "id": "R3C01",
+      "kind": "found_values",
+      "shown": "glacier-api session, 2 h 5 min, branch feat/paging [s1]: 125 min",
+      "findings": []
+     },
+     {
+      "id": "R3C02",
+      "kind": "found_values",
+      "shown": "Sitzung tamarind-shop [s1]: fehlgeschlagen",
+      "findings": []
+     },
+     {
+      "id": "R3C03",
+      "kind": "found_values",
+      "shown": "cedar-bridge session finished, 23 files changed [s1]: 23",
+      "findings": []
+     },
+     {
+      "id": "R3C04",
+      "kind": "found_values",
+      "shown": "New file conf/plover/batch.ini in plover-batch [f1]: conf/plover/batch.ini",
+      "findings": []
+     },
+     {
+      "id": "R3C05",
+      "kind": "found_values",
+      "shown": "Sitzung lynx-chat gestartet um 08:50, beendet um 11:20 [s1]: 11:20",
+      "findings": []
+     },
+     {
+      "id": "R3C06",
+      "kind": "found_values",
+      "shown": "umber-docs session finished, cost 3.75 USD [s1]: $3.75",
+      "findings": []
+     },
+     {
+      "id": "R3C07",
+      "kind": "found_rows",
+      "shown": "I can't say that for sure. Here's what I found:\n[s1] session \"Session mistral-cli terminée, branche fix/locale-tags\"",
+      "findings": [
+       [
+        "omission",
+        "no_answer_on_answerable",
+        "shown: found_rows"
+       ]
+      ]
+     },
+     {
+      "id": "R3C08",
+      "kind": "found_rows",
+      "shown": "I can't say that for sure. Here's what I found:\n[t1] turn \"Turno 5 de sol-admin\"",
+      "findings": [
+       [
+        "omission",
+        "no_answer_on_answerable",
+        "shown: found_rows"
+       ]
+      ]
+     },
+     {
+      "id": "R3C09",
+      "kind": "found_rows",
+      "shown": "I can't say that for sure. Here's what I found:\n[s1] session \"Sessie hazel-pos duurde 55 minuten\"",
+      "findings": [
+       [
+        "omission",
+        "no_answer_on_answerable",
+        "shown: found_rows"
+       ]
+      ]
+     },
+     {
+      "id": "R3C10",
+      "kind": "found_rows",
+      "shown": "I can't say that for sure. Here's what I found:\n[t1] turn \"Turn 7 of jasper-ui changed src/Menu.tsx and src/Menu.css\"",
+      "findings": [
+       [
+        "omission",
+        "no_answer_on_answerable",
+        "shown: found_rows"
+       ]
+      ]
+     },
+     {
+      "id": "R3C11",
+      "kind": "found_rows",
+      "shown": "I can't say that for sure. Here's what I found:\n[f1] fact \"Commit 77ab12 in olmo-api, autore sara@example.com\"",
+      "findings": [
+       [
+        "omission",
+        "no_answer_on_answerable",
+        "shown: found_rows"
+       ]
+      ]
+     },
+     {
+      "id": "R3C12",
+      "kind": "found_rows",
+      "shown": "I can't say that for sure. Here's what I found:\n[t1] turn \"Turn 3 in reed-portal als Frage markiert\"",
+      "findings": [
+       [
+        "omission",
+        "no_answer_on_answerable",
+        "shown: found_rows"
+       ]
+      ]
+     },
+     {
+      "id": "R3C13",
+      "kind": "found_values",
+      "shown": "Turn 12 of birchwood-sync [t1]: 4 failed",
+      "findings": []
+     },
+     {
+      "id": "R3C14",
+      "kind": "found_values",
+      "shown": "quail-feed session is waiting for the user's answer [s1]: waiting",
+      "findings": []
+     },
+     {
+      "id": "R3C15",
+      "kind": "found_values",
+      "shown": "marten-ci session, 21 minutes, branch ci/cache [s1]: 21 min",
+      "findings": []
+     },
+     {
+      "id": "R3C16",
+      "kind": "found_values",
+      "shown": "tern-search session on feat/synonyms [s1]: feat/synonyms",
+      "findings": []
+     },
+     {
+      "id": "R3C17",
+      "kind": "found_values",
+      "shown": "Sitzung moss-pay [s1]: 5",
+      "findings": []
+     },
+     {
+      "id": "R3C18",
+      "kind": "found_values",
+      "shown": "flax-mobile session started at 13:40 [s1]: 13:40",
+      "findings": []
+     },
+     {
+      "id": "R3C19",
+      "kind": "found_values",
+      "shown": "crane-etl session cost 1.20 USD [s1]: $1.20",
+      "findings": []
+     },
+     {
+      "id": "R3C20",
+      "kind": "found_rows",
+      "shown": "I can't say that for sure. Here's what I found:\n[s1] session \"Session spruce-api terminée\"\n[s2] session \"Session spruce-api-v2 en échec\"",
+      "findings": [
+       [
+        "omission",
+        "no_answer_on_answerable",
+        "shown: found_rows"
+       ]
+      ]
+     },
+     {
+      "id": "R3C21",
+      "kind": "found_values",
+      "shown": "Changed file settings/drift.toml in drift-gate [f1]: settings/drift.toml",
+      "findings": []
+     },
+     {
+      "id": "R3C22",
+      "kind": "ambiguous",
+      "shown": "Two facts match “commit larch kit session”:\n[f1] fact \"Latest commit in larch-kit\" | author: noor@example.com\n[f2] fact \"Older commit in larch-kit\" | author: emil@example.com",
+      "findings": []
+     },
+     {
+      "id": "R3C23",
+      "kind": "ambiguous",
+      "shown": "Two sessions match “harbor-lab”:\n[s1] session \"harbor-lab session (Work profile), 15 minutes\" | duration: 15 min\n[s2] session \"harbor-lab session (Lab profile), 70 minutes\" | duration: 70 min",
+      "findings": []
+     },
+     {
+      "id": "R3C24",
+      "kind": "ambiguous",
+      "shown": "Zwei Sitzungen passen zu „nettle-core“:\n[s1] session \"Sitzung nettle-core (Arbeit)\" | status: abgeschlossen\n[s2] session \"Sitzung nettle-core (Privat)\" | status: wartet",
+      "findings": []
+     },
+     {
+      "id": "R3C25",
+      "kind": "ambiguous",
+      "shown": "Two sessions match “sable-dash”:\n[s1] session \"sable-dash session on the Cursor app\" | files changed: 8\n[s2] session \"sable-dash session on the Codex app\" | files changed: 19",
+      "findings": []
+     },
+     {
+      "id": "R3C26",
+      "kind": "ambiguous",
+      "shown": "Two sessions match “wisp-bot”:\n[s1] session \"wisp-bot session (Work) ended at 10:05\" | ended: 10:05\n[s2] session \"wisp-bot session (Home) ended at 16:45\" | ended: 16:45",
+      "findings": []
+     },
+     {
+      "id": "R3C27",
+      "kind": "ambiguous",
+      "shown": "Two sessions match “pine-grid”:\n[s1] session \"pine-grid session 1 used branch main-sync\" | branch: main-sync\n[s2] session \"pine-grid session 2 used branch hotfix/rounding\" | branch: hotfix/rounding",
+      "findings": []
+     },
+     {
+      "id": "R3C28",
+      "kind": "count_only",
+      "shown": "“Turn 8 of garnet-api” shows 3 failed, but not which ones [t1].",
+      "findings": []
+     },
+     {
+      "id": "R3C29",
+      "kind": "count_only",
+      "shown": "„Sitzung ivy-sync“ zeigt 6 fehlgeschlagen, aber nicht welche [s1].",
+      "findings": []
+     },
+     {
+      "id": "R3C30",
+      "kind": "count_only",
+      "shown": "“opal-feed session finished, 11 files changed” shows 11 files changed, but not which ones [s1].",
+      "findings": []
+     },
+     {
+      "id": "R3C31",
+      "kind": "found_rows",
+      "shown": "I can't say that for sure. Here's what I found:\n[s1] session \"topaz-mail session failed after 10 minutes\"",
+      "findings": []
+     },
+     {
+      "id": "R3C32",
+      "kind": "dont_know",
+      "shown": "I can't say that for sure. Here's what I found:\n[s1] session \"ridge-ops session started at 09:30, finished\" | status: finished; started: 09:30",
+      "findings": []
+     },
+     {
+      "id": "R3C33",
+      "kind": "dont_know",
+      "shown": "I can't say that for sure. Here's what I found:\n[s1] session \"sedge-cms session, 40 minutes, 7 files changed\" | duration: 40 min; files changed: 7",
+      "findings": []
+     },
+     {
+      "id": "R3C34",
+      "kind": "dont_know",
+      "shown": "I can't say that for sure. Here's what I found:\n[s1] session \"Sitzung vale-chat endete um 12:15\"",
+      "findings": []
+     },
+     {
+      "id": "R3C35",
+      "kind": "found_rows",
+      "shown": "I can't say that for sure. Here's what I found:\n[t1] turn \"Turno 3 de alder-docs\"",
+      "findings": []
+     },
+     {
+      "id": "R3C36",
+      "kind": "found_rows",
+      "shown": "I can't say that for sure. Here's what I found:\n[s1] session \"clover-app session finished\"",
+      "findings": []
+     },
+     {
+      "id": "R3C37",
+      "kind": "found_rows",
+      "shown": "I can't say that for sure. Here's what I found:\n[s1] session \"Sitzung ash-shop abgeschlossen\"\n[s2] session \"Sitzung elm-shop fehlgeschlagen\"",
+      "findings": []
+     },
+     {
+      "id": "R3C38",
+      "kind": "found_rows",
+      "shown": "I can't say that for sure. Here's what I found:\n[s1] session \"Session ferret-ci terminée, 2 fichiers modifiés\"",
+      "findings": []
+     },
+     {
+      "id": "R3C39",
+      "kind": "found_values",
+      "shown": "kiln-batch session took 95 seconds [s1]: 2 min",
+      "findings": []
+     },
+     {
+      "id": "R3C40",
+      "kind": "found_values",
+      "shown": "Sitzung dock-admin dauerte 1 Stunde 30 Minuten [s1]: 90 min",
+      "findings": []
+     },
+     {
+      "id": "R3C41",
+      "kind": "found_values",
+      "shown": "loom-ui turn 6 finished at 23:50 on 2026-11-17 [t1]: 2026-11-17 23:50",
+      "findings": []
+     },
+     {
+      "id": "R3C42",
+      "kind": "found_rows",
+      "shown": "I can't say that for sure. Here's what I found:\n[s1] session \"Session pebble-web\"",
+      "findings": [
+       [
+        "omission",
+        "no_answer_on_answerable",
+        "shown: found_rows"
+       ]
+      ]
+     },
+     {
+      "id": "R3C43",
+      "kind": "found_values",
+      "shown": "Turn 4 of rook-engine [t1]: 5 failed",
+      "findings": []
+     },
+     {
+      "id": "R3C44",
+      "kind": "found_values",
+      "shown": "Sitzung bay-store [s1]: 30 min",
+      "findings": []
+     },
+     {
+      "id": "R3C45",
+      "kind": "found_values",
+      "shown": "finch-web session failed [s1]: failed",
+      "findings": []
+     },
+     {
+      "id": "R3C46",
+      "kind": "found_values",
+      "shown": "Commit 9c0d11 in thrush-lib, author ida@example.com [f1]: ida@example.com",
+      "findings": []
+     },
+     {
+      "id": "R3C47",
+      "kind": "found_rows",
+      "shown": "I can't say that for sure. Here's what I found:\n[s1] session \"Sitzung orca-feed\"",
+      "findings": []
+     },
+     {
+      "id": "R3C48",
+      "kind": "dont_know",
+      "shown": "I can't say that for sure. Here's what I found:\n[t1] turn \"Turn 9 of pearl-site\" | tests: 30 passed; tests: 2 failed\n[f1] fact \"tests/test_search.py unchanged in pearl-site\"",
+      "findings": [
+       [
+        "omission",
+        "no_answer_on_answerable",
+        "shown: dont_know"
+       ]
+      ]
+     },
+     {
+      "id": "R3C49",
+      "kind": "dont_know",
+      "shown": "I can't say that for sure. Here's what I found:\n[t1] turn \"Turn 2 von lotus-mail\" | files changed: 0",
+      "findings": [
+       [
+        "omission",
+        "no_answer_on_answerable",
+        "shown: dont_know"
+       ]
+      ]
+     },
+     {
+      "id": "R3C50",
+      "kind": "found_rows",
+      "shown": "I can't say that for sure. Here's what I found:\n[f1] fact \"tulip-cli turn 5\"\n[f2] fact \"tulip-cli turn 9\"",
+      "findings": [
+       [
+        "omission",
+        "no_answer_on_answerable",
+        "shown: found_rows"
+       ]
+      ]
+     }
+    ]
+   }
+  }
+ }
+}

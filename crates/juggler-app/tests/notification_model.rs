@@ -19,6 +19,7 @@ use std::sync::{Arc, Mutex};
 
 use juggler_adapter::AdapterRegistry;
 use juggler_adapters::{CLAUDE_CODE_ID, ClaudeCodeAdapter};
+use juggler_app::features::notifications::batch::Opens;
 use juggler_app::features::notifications::centre::{self, NeedInput, NoticeTarget};
 use juggler_app::features::notifications::engine::{Kind, Target};
 use juggler_app::features::notifications::prefs::{self, SystemNotificationsInfo};
@@ -39,6 +40,9 @@ fn app_state(dir: &Path) -> Arc<AppState> {
 fn shown(state: &Arc<AppState>) -> Arc<Mutex<Vec<Outgoing>>> {
     let list = Arc::new(Mutex::new(Vec::new()));
     let sink = Arc::clone(&list);
+    // The rules before the batch (ADR-0036 §1.7 has its own tests): each
+    // item as it falls due.
+    state.notifier.set_batch_ms(0);
     state
         .notifier
         .set_sink(Box::new(move |outgoing: &Outgoing| {
@@ -172,7 +176,7 @@ fn a_crash_restarted_says_so_in_plain_words_and_may_interrupt() {
     );
     assert_eq!(
         state.notifier.target_of(told[0].id),
-        Some(Target::Session(again))
+        Some(Opens::Target(Target::Session(again)))
     );
 }
 
@@ -726,6 +730,8 @@ fn every_source(state: &Arc<AppState>, dir: &Path) -> needs::NeedSources {
             title: "An agent asks to read the roster".to_owned(),
             detail: "From reviewer".to_owned(),
             preview: None,
+            sender: None,
+            thread: None,
             at_ms: 1_000,
             line: None,
         }],
@@ -759,7 +765,7 @@ fn a_held_message_says_who_and_why_in_the_rails_room() {
     let mut sources = every_source(&state, dir.path());
     sources.messages[0].pool_name = "Team".to_owned();
     sources.messages[0].line = Some(juggler_app::features::messages::dto::NeedLine {
-        title: "«r3-tools» wants to message «web»".to_owned(),
+        title: "“r3-tools” wants to message “web”".to_owned(),
         reason: "Ask first".to_owned(),
     });
     let (needs, _) = needs::work_out(&sources, &HashSet::<String>::new());
@@ -767,8 +773,8 @@ fn a_held_message_says_who_and_why_in_the_rails_room() {
         .iter()
         .find(|need| need.key == "message:ask-1")
         .unwrap();
-    assert_eq!(row.title, "«r3-tools» wants to message «web»");
-    assert_eq!(row.detail, "Ask first in «Team»");
+    assert_eq!(row.title, "“r3-tools” wants to message “web”");
+    assert_eq!(row.detail, "Ask first in “Team”");
 }
 
 /// 0.4 (walk A1): a folder a Claude app profile signs in for (its Code
@@ -1072,7 +1078,7 @@ fn room_again_is_told_when_on_and_never_muted_or_snoozed() {
     }
     assert_eq!(
         state.notifier.target_of(list.lock().unwrap()[0].id),
-        Some(Target::Account("acct-a".to_owned()))
+        Some(Opens::Target(Target::Account("acct-a".to_owned())))
     );
 
     centre::mute(&state.storage.lock().unwrap(), "kind", "reset", "", now).unwrap();
@@ -1239,7 +1245,9 @@ fn archiving_another_apps_session_here_takes_its_need_away_at_once_and_unarchivi
 {
     let dir = tempfile::tempdir().unwrap();
     let state = app_state(dir.path());
-    let done = || theirs("c-done", "Codex", "codex-desktop", Some("done_review"));
+    // D-117: one that asks (counted), so the bell's step shows; a review
+    // is listed but never counted.
+    let done = || theirs("c-done", "Codex", "codex-desktop", Some("asks_you"));
     let sources = |archived_here: bool| needs::NeedSources {
         conversations: vec![needs_conversation(done(), archived_here)],
         computer: "Mac",
@@ -1255,7 +1263,7 @@ fn archiving_another_apps_session_here_takes_its_need_away_at_once_and_unarchivi
     };
     let now = Timestamp::now().millis();
     assert!(needs::refresh_from(&state, &sources(false), now));
-    assert_eq!(rows().len(), 1, "finished, not looked at: it needs you");
+    assert_eq!(rows().len(), 1, "it asks: it needs you");
     let bell = views::summary_now(&state).count;
 
     // Archived here: the next working out leaves it out ...
@@ -1573,4 +1581,29 @@ fn needs_you_reads_the_session_rows_only_when_they_changed() {
     assert_eq!(state.notifier.session_rows_read(), 3);
     needs::session_rows(&state, now + 35_000 + needs::ROWS_SWEEP_MS);
     assert_eq!(state.notifier.session_rows_read(), 4);
+}
+
+/// SK48-8 (the 0.5.0 re-walk, F3's rest): the bell's row under an AI
+/// Juggler session's need read "web · AI Juggler · Personal · personal",
+/// so a Claude Code and a Codex Account both called Personal couldn't be
+/// told apart there, while the rail's row for the same session read
+/// "Claude Code CLI · Personal · personal". The bell names its App as the
+/// rail does: its tool and its folder.
+#[test]
+fn a_bell_row_names_an_own_sessions_app_by_its_tool_as_the_rail_does() {
+    let dir = tempfile::tempdir().unwrap();
+    let state = app_state(dir.path());
+    let rows = own_rows(&state, dir.path(), &[("s-wait", "waiting_user")]);
+    let mut sources = needs::NeedSources {
+        sessions: rows,
+        computer: "Mac",
+        ..needs::NeedSources::default()
+    };
+    sources
+        .tool_names
+        .insert(CLAUDE_CODE_ID.to_owned(), "Claude Code".to_owned());
+    let (found, _) = needs::work_out(&sources, &HashSet::new());
+    let asks = found.iter().find(|need| need.kind == "asks").unwrap();
+    assert_eq!(asks.detail, "Claude Code CLI · Account s-wait");
+    assert!(!asks.detail.contains("AI Juggler"), "{}", asks.detail);
 }

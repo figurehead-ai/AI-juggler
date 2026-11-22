@@ -85,9 +85,11 @@ test("a project's page lists its conversations started outside AI Juggler", asyn
   const body = page.getByTestId("page-panel-sessions");
   await expect(body.getByTestId("page-sessions")).toBeVisible();
   // The list is paged and drawn as it scrolls (instant and paged): its
-  // count line says how many it holds — here every one is from outside
-  // (the replica has no AI Juggler sessions).
-  await expect(body.getByTestId("page-sessions-count")).toHaveText(new RegExp(`^${count} sessions\\b`));
+  // tab says how many it holds — here every one is from outside (the
+  // replica has no AI Juggler sessions). The 0.4 review (45): the whole
+  // list's count is the tab's, never said again over the list.
+  await expect(page.getByRole("tablist", { name: "Project tabs" }).getByRole("tab", { name: "Sessions" })).toHaveAccessibleName(`Sessions ${count}`);
+  await expect(body.getByTestId("page-sessions-count")).toHaveCount(0);
   // 0.1.5: the app it runs in; AJ-E3103: its App, in the one row's place line.
   await expect(body.locator('[data-testid="page-session-item"]:has([data-outside="true"]) [data-testid="page-session-app"]').first()).toContainText("Claude Code");
 });

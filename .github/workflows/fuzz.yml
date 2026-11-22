@@ -61,22 +61,35 @@ jobs:
           path: fuzz/corpus/${{ matrix.target }}
           key: fuzz-corpus-${{ matrix.target }}-${{ github.run_id }}
           restore-keys: fuzz-corpus-${{ matrix.target }}-
-      # The instrumented build, kept between runs (the targets share their
-      # dependencies; a nightly that moved rebuilds what changed).
-      - name: The fuzz build cache
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+      # The instrumented build, kept between runs. The targets share their
+      # dependencies, so they share one cache: every target restores it and
+      # builds only its own binary on top; one target saves it, on main only
+      # (AJ-E2020 R5). Six per-target copies, saved from pull requests too,
+      # were 4.4 GB of the repository's 10 GB (2026-11-12) and evicted the
+      # build caches CI waits on.
+      - name: Restore the fuzz build cache
+        id: fuzz-cache
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           path: |
             ~/.cargo/registry/index
             ~/.cargo/registry/cache
             fuzz/target
-          key: fuzz-build-${{ runner.os }}-${{ matrix.target }}-${{ hashFiles('Cargo.lock', 'fuzz/Cargo.toml') }}
+          key: fuzz-build-${{ runner.os }}-${{ hashFiles('Cargo.lock', 'fuzz/Cargo.toml') }}
           restore-keys: |
-            fuzz-build-${{ runner.os }}-${{ matrix.target }}-
             fuzz-build-${{ runner.os }}-
       - name: Build
         working-directory: fuzz
         run: cargo +nightly fuzz build ${{ matrix.target }}
+      - name: Save the fuzz build cache (main, one target)
+        if: steps.fuzz-cache.outputs.cache-hit != 'true' && github.ref == 'refs/heads/main' && matrix.target == 'transcript_parse'
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            fuzz/target
+          key: fuzz-build-${{ runner.os }}-${{ hashFiles('Cargo.lock', 'fuzz/Cargo.toml') }}
       - name: Fuzz (4 minutes)
         if: github.event_name != 'pull_request'
         working-directory: fuzz

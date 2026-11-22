@@ -1,0 +1,24 @@
+{
+  "schema": 1,
+  "items": [
+    {
+      "id": "apple-on-device",
+      "name": "Apple's on-device model",
+      "engine": "apple_builtin",
+      "min_chip": "m1",
+      "min_memory_gb": 8,
+      "feed": "not_yet",
+      "feed_note": "The plain line reads better for now.",
+      "review": "beta",
+      "review_note": "Preferred over the plain review in 81 % of blind checks.",
+      "attention": "ships",
+      "attention_note": "Built from the facts; no misses in testing.",
+      "chat": "beta",
+      "chat_note": "Preferred over the plain answer in 75 % of blind checks.",
+      "digest": "not_yet",
+      "digest_note": "The plain roundup reads better for now.",
+      "watches": "not_yet",
+      "watches_note": "Drafts matched the request 70 % of the time; we want 95 %."
+    }
+  ]
+}

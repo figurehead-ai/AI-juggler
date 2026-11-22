@@ -10,8 +10,6 @@
   { "id": "alacritty", "name": "Alacritty", "bundle": "Alacritty.app", "bundle_id": "org.alacritty", "kind": "terminal" },
   { "id": "vscode", "name": "Visual Studio Code", "bundle": "Visual Studio Code.app", "bundle_id": "com.microsoft.VSCode", "kind": "editor",
     "folder_command": "code" },
-  { "id": "cursor", "name": "Cursor", "bundle": "Cursor.app", "bundle_id": "com.todesktop.230313mzl4w4u92", "kind": "editor",
-    "folder_link": "cursor://file/{folder}" },
   { "id": "windsurf", "name": "Windsurf", "bundle": "Windsurf.app", "bundle_id": "com.exafunction.windsurf", "kind": "editor",
     "folder_command": "windsurf" },
   { "id": "zed", "name": "Zed", "bundle": "Zed.app", "bundle_id": "dev.zed.Zed", "kind": "editor",

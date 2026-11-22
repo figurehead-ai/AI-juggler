@@ -1,0 +1,52 @@
+{
+ "family": "apple-v4",
+ "job": "review",
+ "note": "script flags: candidates for Opus to confirm by eye, never verdicts",
+ "candidates": [
+  {
+   "class": "omission",
+   "detector": "detail_dropped",
+   "detail": "21 bestanden",
+   "stage": "shown",
+   "attempt": null,
+   "id": "H006",
+   "corpus": "heldout"
+  },
+  {
+   "class": "omission",
+   "detector": "detail_dropped",
+   "detail": "refactor",
+   "stage": "shown",
+   "attempt": null,
+   "id": "H021",
+   "corpus": "heldout"
+  },
+  {
+   "class": "omission",
+   "detector": "detail_dropped",
+   "detail": "Nothing functional changed|reports none",
+   "stage": "shown",
+   "attempt": null,
+   "id": "H023",
+   "corpus": "heldout"
+  },
+  {
+   "class": "omission",
+   "detector": "detail_dropped",
+   "detail": "src/billing/list_invoices.py",
+   "stage": "shown",
+   "attempt": null,
+   "id": "R001",
+   "corpus": "heldout-jobs"
+  },
+  {
+   "class": "omission",
+   "detector": "detail_dropped",
+   "detail": "shop/cart/pricing.py; Rabatte vor der Steuer",
+   "stage": "shown",
+   "attempt": null,
+   "id": "R008",
+   "corpus": "heldout-jobs"
+  }
+ ]
+}

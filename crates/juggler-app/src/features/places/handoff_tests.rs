@@ -9,7 +9,10 @@ const SESSION: &str = "a71cc8f5-72e1-4195-8797-e07e3801b771";
 
 /// A profile of the Claude app under `root`, remembered on `account`.
 fn state_with_profile(root: &Path, account: Option<&str>) -> (Arc<AppState>, String, PathBuf) {
-    let state = Arc::new(AppState::init(root.join("data")).unwrap());
+    let state = crate::features::places::fakes::on_made_up_mac(
+        AppState::init(root.join("data")).unwrap(),
+        root,
+    );
     let (id, _, profile) =
         crate::features::places::remember_test_profile(&state, root, "b-lab", account);
     (state, id, profile)

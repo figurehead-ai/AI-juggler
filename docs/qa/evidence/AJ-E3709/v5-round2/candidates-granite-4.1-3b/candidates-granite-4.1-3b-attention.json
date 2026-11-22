@@ -1,0 +1,16 @@
+{
+ "family": "granite-4.1-3b",
+ "job": "attention",
+ "note": "script flags: candidates for Opus to confirm by eye, never verdicts",
+ "candidates": [
+  {
+   "class": "omission",
+   "detector": "emphasis",
+   "detail": "a 'might need you' note on a calm turn",
+   "stage": "shown",
+   "attempt": null,
+   "id": "R2T31",
+   "corpus": "turns"
+  }
+ ]
+}

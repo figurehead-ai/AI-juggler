@@ -21,11 +21,11 @@ import { fleetSwitchCancel, fleetSwitchExecute, onFleetSwitchProgress } from "..
 import type { FleetSwitchOutcomeInfo } from "../types/generated/FleetSwitchOutcomeInfo";
 import type { FleetSwitchProgressInfo } from "../types/generated/FleetSwitchProgressInfo";
 import type { RemoteSwitchTargetInfo } from "../types/generated/RemoteSwitchTargetInfo";
-import { byteSize } from "../lib/compact";
 import { useSwitchInvoker } from "../lib/handover-focus";
 import type { FreezeChoice } from "./SwitchFreezeChoice";
-import { CrossCarried, CrossConfirm, CrossProject, CrossTarget, type Mechanism } from "./switch/CrossSteps";
-import { BackButton, CancelButton, ContinueButton, PRIMARY, PRIMARY_WAITING, SECONDARY, StepMarks, SwitchDialogFrame, useDialogKeys } from "./switch/SwitchDialogFrame";
+import { CrossCarried, CrossConfirm, CrossDone, CrossFailed, CrossHeader, CrossProject, CrossSending, CrossTarget, type Mechanism } from "./switch/CrossSteps";
+import { BackButton, CancelButton, ContinueButton, StepMarks, SwitchDialogFrame, useDialogKeys } from "./switch/SwitchDialogFrame";
+import { Button } from "./primitives";
 
 type Phase =
   | { kind: "wizard" }
@@ -124,7 +124,7 @@ export function CrossMachineSwitchFlow({
   // D-127: a switch to another Mac is listed only with beta switches on.
   const badge = mechanism === "transplant" ? target.badge : "Full story, fresh start · Beta";
 
-  const header = phase.kind === "wizard" && <StepMarks steps={steps} step={step} testId="cross-switch-steps" />;
+  const header = <CrossHeader target={target} marks={phase.kind === "wizard" && <StepMarks steps={steps} step={step} testId="cross-switch-steps" />} />;
 
   const body = (() => {
     switch (phase.kind) {
@@ -149,58 +149,11 @@ export function CrossMachineSwitchFlow({
           </div>
         );
       case "pushing":
-        return (
-          <div className="flex flex-col gap-3" data-testid="cross-switch-pushing" aria-live="polite">
-            <h3 className="text-title text-ink">Switching to {target.account_label} on {machine}…</h3>
-            <p className="text-body text-ink">
-              {phase.progress?.phase === "installing" ? `${machine} is setting it up and starting it…` : `Sending it to ${machine}…`}
-            </p>
-            {phase.progress && phase.progress.total_bytes > 0 && (
-              <>
-                <div
-                  role="progressbar"
-                  aria-label={`Sent to ${machine}`}
-                  aria-valuemin={0}
-                  aria-valuemax={phase.progress.total_bytes}
-                  aria-valuenow={phase.progress.received_bytes}
-                  className="h-1.5 w-full overflow-hidden rounded-full bg-hairline"
-                >
-                  <div className="h-full bg-accent" style={{ width: `${Math.min(100, (phase.progress.received_bytes / phase.progress.total_bytes) * 100)}%` }} />
-                </div>
-                <p className="text-meta text-ink">
-                  {byteSize(phase.progress.received_bytes)} of {byteSize(phase.progress.total_bytes)}
-                </p>
-              </>
-            )}
-            <p className="text-body text-ink">The original stays safe on this computer until the new session is running.</p>
-            {holding && (
-              <p className="text-body font-semibold text-ink" role="status" data-testid="cross-switch-holding">
-                Still sending. Choose Stop sending to stop it; nothing changes on either computer.
-              </p>
-            )}
-          </div>
-        );
+        return <CrossSending target={target} progress={phase.progress} holding={holding} />;
       case "done":
-        return (
-          <div className="flex flex-col gap-3" data-testid="cross-switch-done" aria-live="polite">
-            <h3 className="text-title text-ink">Switched to {target.account_label} on {machine}</h3>
-            <p className="text-body text-ink">
-              {phase.outcome.message}. This session rests here, handed over; you can switch back to it any time.
-            </p>
-          </div>
-        );
+        return <CrossDone target={target} message={phase.outcome.message} />;
       case "failed":
-        // A short title, then the failure's own words: what happened and
-        // what to do next, each said once, the other computer named
-        // (crossmachine/failure.rs). Nothing is added to them here.
-        return (
-          <div className="flex flex-col gap-4" data-testid="cross-switch-failed" role="alert">
-            <h3 className="text-title text-warning">The switch didn't complete</h3>
-            <p className="rounded-lg border border-warning/40 px-3 py-2 text-body text-warning" data-testid="cross-switch-failed-words">
-              {phase.message}
-            </p>
-          </div>
-        );
+        return <CrossFailed message={phase.message} />;
     }
   })();
 
@@ -212,34 +165,34 @@ export function CrossMachineSwitchFlow({
             {cancel}
             {step > 0 && <BackButton onClick={() => setStep(step - 1)} testId="cross-switch-back" />}
             {current !== "Confirm" ? (
-              <ContinueButton ready={stepReady} onClick={() => setStep(step + 1)} testId="cross-switch-next" />
+              <ContinueButton ready={stepReady} onClick={() => setStep(step + 1)} testId="cross-switch-next" next={steps[step + 1]} />
             ) : (
-              <button type="button" disabled={!armed} onClick={(event) => event.detail < 2 && void execute()} className={armed ? PRIMARY : PRIMARY_WAITING} data-testid="cross-switch-go">
+              <Button variant="primary" type="button" disabled={!armed} onClick={(event) => event.detail < 2 && void execute()} data-testid="cross-switch-go">
                 {/* 0.3.5: the button says where it continues, as on this Mac. */}
                 Switch to CLI on {target.machine_label}
-              </button>
+              </Button>
             )}
           </>
         );
       case "pushing":
         return (
-          <button type="button" onClick={() => void fleetSwitchCancel(target.machine_id)} className={SECONDARY} data-testid="cross-switch-stop">
+          <Button variant="ghost" type="button" onClick={() => void fleetSwitchCancel(target.machine_id)} data-testid="cross-switch-stop">
             Stop sending
-          </button>
+          </Button>
         );
       case "done":
         return (
-          <button type="button" data-autofocus onClick={close} className={PRIMARY} data-testid="cross-switch-close">
+          <Button variant="primary" type="button" data-autofocus onClick={close} data-testid="cross-switch-close">
             Close
-          </button>
+          </Button>
         );
       case "failed":
         return (
           <>
             {cancel}
-            <button type="button" data-autofocus onClick={() => void execute()} className={PRIMARY} data-testid="cross-switch-retry">
+            <Button variant="primary" type="button" data-autofocus onClick={() => void execute()} data-testid="cross-switch-retry">
               Retry
-            </button>
+            </Button>
           </>
         );
     }

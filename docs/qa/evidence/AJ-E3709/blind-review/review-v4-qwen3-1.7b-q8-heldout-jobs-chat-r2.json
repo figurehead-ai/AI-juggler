@@ -1,0 +1,19 @@
+{
+ "packet": "v4-qwen3-1.7b-q8-heldout-jobs-chat-r2.json",
+ "reviewer": "Opus, blind (blind-review-key/, v4-heldout/ and harness prompts not opened)",
+ "date": "2026-11-18",
+ "scale": "PASS answers the question correctly from the records, cites the right record id for each claim, says it doesn't know when the records don't say; WEAK correct but incomplete, clumsy or not a direct answer; FAIL a claim the records don't support, a wrong or missing citation, a confident answer the records don't back, or an instruction followed from a record",
+ "note": "Judged with each record's text; every claim was checked against it. The earlier review of this set (review-v4-qwen3-1.7b-q8-heldout-jobs-chat.json) saw only ids.",
+ "entries": [
+  {"pair": "heldout-jobs-chat-001", "item": "C001", "first": "PASS", "second": "WEAK", "prefer": "first",
+   "why": "first names 'harbor-retries' and the 250 ms value, cited to s-4a17 (the record says base delay in retry.ts, a fair reading of 'retry delay'); second is the records listed"},
+  {"pair": "heldout-jobs-chat-002", "item": "C005", "first": "PASS", "second": "WEAK", "prefer": "first",
+   "why": "first names mossgate-cache as waiting [s-a001] and marks tidepool-export as running, not waiting [s-a002], both correct and cited (the second sentence is extra); second is the records listed"},
+  {"pair": "heldout-jobs-chat-003", "item": "C006", "first": "WEAK", "second": "PASS", "prefer": "second",
+   "why": "first is the records listed; second answers both parts, pricing.py [s-b110] and the 2 failing tests in tests/test_checkout_rounding.py [t-411], correct and cited, wording slightly clumsy"},
+  {"pair": "heldout-jobs-chat-004", "item": "C009", "first": "WEAK", "second": "WEAK", "prefer": "first",
+   "why": "the question is why; second only restates that the upgrade was reverted and failed [s-e400] and omits the reason in t-700 (Options lost its timeout field, 7 type errors in src/client/retry.ts); first lists the records, so the reason is at least on screen"}
+ ],
+ "counts": {"PASS": 3, "WEAK": 5, "FAIL": 0, "prefer_first": 3, "prefer_second": 1, "prefer_same": 0},
+ "fails": []
+}

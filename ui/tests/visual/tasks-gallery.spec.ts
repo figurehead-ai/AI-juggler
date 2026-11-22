@@ -227,7 +227,8 @@ for (const theme of ["dark", "light"] as const) {
       const needs = page.getByTestId("task-needs");
       await expect(needs.getByTestId("ask-card")).toHaveCount(1);
       await expect(needs.getByTestId("ask-option-always")).toHaveCount(1);
-      await expect(needs.getByTestId("task-start-profile")).toBeVisible();
+      // A launch is its own card in Needs you's one order (D-118's mock).
+      await expect(page.getByTestId("home-needs").getByTestId("task-need-launch").getByTestId("task-start-profile")).toBeVisible();
       await page.mouse.move(0, 0);
       await page.screenshot({ path: resolve(OUT, `needs-you-${size}-${theme}.png`) });
       await axe(page, `needs you ${size} ${theme}`);
@@ -250,7 +251,7 @@ for (const theme of ["dark", "light"] as const) {
     await poolTasks(page);
     await page.getByTestId("task-start-open").click();
     await expect(page.getByTestId("task-start")).toBeVisible();
-    await pick(page, page.getByTestId("task-start-profile"), "Deep work · Claude Code · Work Max");
+    await pick(page, page.getByTestId("task-start-profile"), "Deep work · Claude Code CLI · Work Max");
     await page.mouse.move(0, 0);
     await page.screenshot({ path: resolve(OUT, `task-start-1680x1050-${theme}.png`) });
     await axe(page, `task start ${theme}`);
@@ -315,9 +316,10 @@ test("keyboard: a held change answered with 1; a launch is started only by its b
   await card.focus();
   await page.keyboard.press("1");
   await expect(page.getByTestId("task-needs").getByTestId("ask-card")).toHaveCount(0);
-  const start = page.getByTestId("task-needs").getByTestId("task-start-go");
+  const launch = page.getByTestId("home-needs").getByTestId("task-need-launch");
+  const start = launch.getByTestId("task-start-go");
   await expect(start).toBeDisabled();
-  await pick(page, page.getByTestId("task-needs").getByTestId("task-start-profile"), "Weekend build · Claude Code · Personal");
+  await pick(page, launch.getByTestId("task-start-profile"), "Weekend build · Claude Code CLI · Personal");
   await start.focus();
   await page.keyboard.press("Enter");
   const calls = await page.evaluate(() => (window as unknown as { __AIJ_TASKS_CALLS__?: string[] }).__AIJ_TASKS_CALLS__ ?? []);

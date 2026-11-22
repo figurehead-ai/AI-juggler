@@ -1,0 +1,52 @@
+[
+ {
+  "pair": "heldout-jobs-chat-001",
+  "item": "C001",
+  "question": "Which session changed the retry delay?",
+  "records": [
+   "[s-4a17] session",
+   "[s-5b02] session",
+   "[t-91] turn",
+   "[f-7] fact"
+  ],
+  "first": "[s-4a17] session\n[s-5b02] session\n[t-91] turn\n[f-7] fact",
+  "second": "The 'harbor-retries' session changed the retry delay to 250 ms. [s-4a17]"
+ },
+ {
+  "pair": "heldout-jobs-chat-002",
+  "item": "C005",
+  "question": "Which sessions are waiting for me right now?",
+  "records": [
+   "[s-a001] session",
+   "[s-a002] session",
+   "[s-a003] session",
+   "[f-40] fact"
+  ],
+  "first": "The 'mossgate-cache' session is waiting for me. [s-a001] The 'tidepool-export' session is running; the agent is working on the CSV writer. [s-a002]",
+  "second": "[s-a001] session\n[s-a002] session\n[s-a003] session\n[f-40] fact"
+ },
+ {
+  "pair": "heldout-jobs-chat-003",
+  "item": "C006",
+  "question": "Which file did the cart session change and which tests broke?",
+  "records": [
+   "[s-b110] session",
+   "[t-411] turn",
+   "[f-44] fact"
+  ],
+  "first": "The cart session changed the file shop/cart/pricing.py. [s-b110] In turn 411, 2 failing tests in tests/test_checkout_rounding.py broke, expecting the old order. [t-411]",
+  "second": "[s-b110] session\n[t-411] turn\n[f-44] fact"
+ },
+ {
+  "pair": "heldout-jobs-chat-004",
+  "item": "C009",
+  "question": "Why did the harbor-sdk upgrade fail?",
+  "records": [
+   "[s-e400] session",
+   "[t-700] turn",
+   "[f-70] fact"
+  ],
+  "first": "[s-e400] session\n[t-700] turn\n[f-70] fact",
+  "second": "The harbor-upgrade session reverted the bump to harbor-sdk 4.2 and ended with outcome failure. [s-e400]"
+ }
+]

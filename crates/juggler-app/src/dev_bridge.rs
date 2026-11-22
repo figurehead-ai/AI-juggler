@@ -71,6 +71,14 @@ pub const FORWARDED_EVENTS: &[&str] = &[
     AppEvent::MessagesChanged.name(),
     // AJ-E3505: the Floor list reads the new snapshot.
     AppEvent::FloorChanged.name(),
+    // AJ-E3802: the AI surfaces read which jobs are available again.
+    AppEvent::AiJobsChanged.name(),
+    // AJ-E3803, AJ-E3813: the Models screen reads the models again, and
+    // shows a download's progress.
+    AppEvent::AiModelsChanged.name(),
+    AppEvent::AiModelsProgress.name(),
+    // ADR-0035 §9: the views reading remote values read them again.
+    AppEvent::RemoteConfigChanged.name(),
 ];
 
 /// Events the UI listens to that the bridge never forwards, each with its

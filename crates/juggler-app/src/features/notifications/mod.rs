@@ -7,19 +7,29 @@
 //! kinds may interrupt, and its quiet hours and accounts left out apply
 //! here as they do to the digest. A click brings AI Juggler forward on
 //! that session (or This Mac).
+//!
+//! AJ-E3712, AJ-E3817 (ADR-0036 §1.7, §2.5): what is due goes through
+//! one [`batch`] in front of the sink: the 60-second burst, several items
+//! as one notification, quiet hours released as one. The watches' alerts
+//! and the agent digest come the same way ([`hand_over`]), under the same
+//! rules: no second notification channel.
 
+pub mod batch;
 pub mod centre;
 pub mod commands;
+#[cfg(test)]
+mod consolidation_tests;
 pub mod engine;
 pub mod needs;
 pub mod prefs;
 pub mod sources;
 pub mod tray;
 pub mod views;
+pub mod watch_alerts;
 
 use crate::events::{AppEvent, EmitEvent as _};
 use std::collections::HashMap;
-use std::sync::atomic::{AtomicBool, AtomicI32, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicI32, AtomicI64, Ordering};
 use std::sync::{Arc, Mutex, OnceLock};
 
 use engine::{Due, Engine, Gate, Kind, Target};
@@ -65,6 +75,10 @@ type Sink = Box<dyn Fn(&Outgoing) + Send + Sync>;
 /// item, the window).
 type OnChange = Box<dyn Fn() + Send + Sync>;
 
+/// AJ-E3712: away after AI Juggler's window has been out of the front
+/// this long (D-118's two hours).
+pub const AWAY_MS: i64 = 2 * 3_600_000;
+
 /// No offset known yet (the UI tells it within its first tick).
 const UNKNOWN_OFFSET: i32 = i32::MIN;
 /// Clicks remembered (the oldest go first).
@@ -74,10 +88,19 @@ const CLICKS_KEPT: usize = 200;
 pub struct Notifier {
     engine: Mutex<Engine>,
     sink: OnceLock<Sink>,
-    clicks: Mutex<HashMap<i32, Target>>,
+    clicks: Mutex<HashMap<i32, batch::Opens>>,
+    /// AJ-E3712: consolidation in front of the sink.
+    batch: Mutex<batch::Batcher>,
+    /// AJ-E3817, AJ-E3712: the watches' alerts and the digest's item,
+    /// waiting for [`show_due`] to put them through the same rules.
+    incoming: Mutex<Vec<batch::Item>>,
+    /// When the open burst's end is already awaited.
+    flush_at: Mutex<Option<i64>>,
     next_id: AtomicI32,
     /// AI Juggler's main window has focus.
     in_front: AtomicBool,
+    /// When it last left the front (0: in front, or never left).
+    left_front_ms: AtomicI64,
     /// Local time minus UTC, in whole hours (the webview knows the
     /// local hour; the backend keeps no time zone).
     utc_offset_hours: AtomicI32,
@@ -116,8 +139,12 @@ impl Default for Notifier {
             engine: Mutex::new(Engine::default()),
             sink: OnceLock::new(),
             clicks: Mutex::new(HashMap::new()),
+            batch: Mutex::new(batch::Batcher::default()),
+            incoming: Mutex::new(Vec::new()),
+            flush_at: Mutex::new(None),
             next_id: AtomicI32::new(1),
             in_front: AtomicBool::new(false),
+            left_front_ms: AtomicI64::new(0),
             utc_offset_hours: AtomicI32::new(UNKNOWN_OFFSET),
             mac_words: Mutex::new(None),
             left: Mutex::new(HashMap::new()),
@@ -268,9 +295,34 @@ impl Notifier {
             .is_ok_and(|mut last| last.replace(signature) == Some(signature))
     }
 
+    /// A burst's length (ADR-0036 §1.7's 60 seconds). Tests of the rules
+    /// before the batch set 0: each item goes out as it falls due.
+    pub fn set_batch_ms(&self, window_ms: i64) {
+        if let Ok(mut batch) = self.batch.lock() {
+            *batch = batch::Batcher::with_window(window_ms);
+        }
+    }
+
     /// AI Juggler's main window gained or lost focus.
     pub fn set_in_front(&self, in_front: bool) {
-        self.in_front.store(in_front, Ordering::Relaxed);
+        let was = self.in_front.swap(in_front, Ordering::Relaxed);
+        if was && !in_front {
+            self.left_front_ms
+                .store(crate::commands::now_millis(), Ordering::Relaxed);
+        }
+        if in_front {
+            self.left_front_ms.store(0, Ordering::Relaxed);
+        }
+    }
+
+    /// AJ-E3712 (ADR-0036 §1.6): the user is away: AI Juggler's window
+    /// left the front [`AWAY_MS`] ago or more and hasn't come back. Its
+    /// window's focus is the presence the app knows; a window never in
+    /// front since start isn't counted away.
+    #[must_use]
+    pub fn away(&self, now_ms: i64) -> bool {
+        let left = self.left_front_ms.load(Ordering::Relaxed);
+        !self.in_front.load(Ordering::Relaxed) && left > 0 && now_ms - left >= AWAY_MS
     }
 
     /// The UI's local hour, as it ticks: the offset from UTC follows.
@@ -293,11 +345,11 @@ impl Notifier {
 
     /// Where a click goes.
     #[must_use]
-    pub fn target_of(&self, id: i32) -> Option<Target> {
+    pub fn target_of(&self, id: i32) -> Option<batch::Opens> {
         self.clicks.lock().ok()?.get(&id).cloned()
     }
 
-    fn remember(&self, target: Target) -> i32 {
+    fn remember(&self, target: batch::Opens) -> i32 {
         let id = self.next_id.fetch_add(1, Ordering::Relaxed);
         if let Ok(mut clicks) = self.clicks.lock() {
             if clicks.len() >= CLICKS_KEPT
@@ -317,6 +369,13 @@ fn utc_hour(now_ms: i64) -> i64 {
 
 /// A session's status now (`SessionStatus::as_str`); shows what is due.
 pub fn session_status(state: &Arc<AppState>, session_id: &str, status: &str) {
+    // AJ-E3814: the observation bus hears every status a session enters.
+    crate::features::observe::publish_for_session(
+        state,
+        session_id,
+        crate::features::observe::from_status(status),
+        crate::commands::now_millis(),
+    );
     // AJ-E2501: a finish is told once in the centre, whatever the
     // system notifications allow.
     if status == "finished" {
@@ -346,6 +405,12 @@ pub fn this_mac_room(state: &Arc<AppState>, room: &crate::machine_health::RoomSu
 /// AJ-E2405: a session ended and left `count` processes running (told
 /// once; a click opens the session's page).
 pub fn left_behind(state: &Arc<AppState>, session_id: &str, count: u32) {
+    crate::features::observe::publish_for_session(
+        state,
+        session_id,
+        vec![crate::features::observe::Observed::ProcessesLeft { count }],
+        crate::commands::now_millis(),
+    );
     if let Ok(mut left) = state.notifier.left.lock() {
         left.insert(session_id.to_owned(), count);
     }
@@ -383,6 +448,9 @@ pub fn changed(state: &Arc<AppState>) {
 /// told again the next time; one that needs the user while it holds (an
 /// account almost out of room) once while it holds.
 pub fn model_event(state: &Arc<AppState>, target: Target, kind: Kind, info: &centre::NoticeInfo) {
+    // AJ-E3814: what happened reaches the watches whatever the user's
+    // notification settings (a watch is its own ask).
+    publish_model_event(state, &target, kind);
     // R7: a need whose subject is snoozed (an account's room need snoozed
     // until woken, opening again) waits in the centre; it doesn't
     // interrupt.
@@ -419,21 +487,51 @@ pub fn model_event(state: &Arc<AppState>, target: Target, kind: Kind, info: &cen
     }
 }
 
-/// Shows what is due now: called on each change, and on the heuristic
-/// tick so what quiet hours held comes once they end.
-pub fn show_due(state: &Arc<AppState>) {
-    let notifier = &state.notifier;
-    let Some(sink) = notifier.sink.get() else {
-        return;
-    };
+/// AJ-E3814: a crash's restart and an account's reset, for the
+/// observation bus. An account's share left waits for AJ-E3704's runway
+/// crossings.
+fn publish_model_event(state: &Arc<AppState>, target: &Target, kind: Kind) {
+    use crate::features::observe::{self, Observed};
     let now = crate::commands::now_millis();
-    if !notifier.engine.lock().is_ok_and(|engine| engine.pending()) {
-        return;
+    match (kind, target) {
+        (Kind::Crashed, Target::Session(session)) => {
+            observe::publish_for_session(state, session, vec![Observed::Restarted], now);
+        }
+        (Kind::Reset, Target::Account(account)) => {
+            observe::publish_for_account(state, account, Observed::RunwayReset, now);
+        }
+        _ => {}
     }
-    let due = {
-        let Ok(storage) = state.storage.lock() else {
-            return;
-        };
+}
+
+/// Shows what is due now: called on each change, and on the heuristic
+/// tick so what quiet hours held comes once they end. A burst still
+/// gathering is awaited by one short-lived timer, so its one
+/// notification goes out when its minute is up.
+pub fn show_due(state: &Arc<AppState>) {
+    if let Some(at) = show_due_at(state, crate::commands::now_millis()) {
+        await_flush(state, at);
+    }
+}
+
+/// [`show_due`] at `now` (a test's clock): sends what is due through the
+/// batch; returns when the open burst's minute is up, if one is open.
+pub(crate) fn show_due_at(state: &Arc<AppState>, now: i64) -> Option<i64> {
+    let notifier = &state.notifier;
+    let sink = notifier.sink.get()?;
+    let incoming = notifier
+        .incoming
+        .lock()
+        .map(|mut incoming| std::mem::take(&mut *incoming))
+        .unwrap_or_default();
+    let engine_pending = notifier.engine.lock().is_ok_and(|engine| engine.pending());
+    let waiting = notifier.batch.lock().is_ok_and(|batch| batch.waiting(now));
+    if !engine_pending && incoming.is_empty() && !waiting {
+        return None;
+    }
+    let in_front = notifier.in_front.load(Ordering::Relaxed);
+    let (due, incoming, quiet, carried) = {
+        let storage = state.storage.lock().ok()?;
         let kinds = prefs::read(&storage);
         let quiet = notifier
             .local_hour(now)
@@ -451,26 +549,148 @@ pub fn show_due(state: &Arc<AppState>) {
                     || centre::session_snoozed(&storage, id, now)
                     || !centre::may_interrupt(&storage, "", project_of(&storage, id).as_deref())
             }
-            Target::ThisMac => false,
+            Target::ThisMac | Target::Centre | Target::Feed => false,
             Target::Account(id) => left_out.contains(id),
         };
         let gate = Gate {
             allowed: &allowed,
             quiet,
-            in_front: notifier.in_front.load(Ordering::Relaxed),
+            in_front,
             muted: &muted,
             wait_after_ms: crate::settings_policy::wait_after_ms(&storage),
         };
-        let Ok(mut engine) = notifier.engine.lock() else {
+        let due = if engine_pending {
+            notifier
+                .engine
+                .lock()
+                .map(|mut engine| engine.due(&gate, now))
+                .unwrap_or_default()
+        } else {
+            Vec::new()
+        };
+        // The watches' alerts and the digest keep every rule a need does:
+        // their kind on, not muted, never while AI Juggler is in front.
+        let incoming: Vec<batch::Item> = incoming
+            .into_iter()
+            .filter(|item| !in_front && allowed(item.kind) && !muted(&item.target))
+            .collect();
+        // ADR-0036 §1.7: with the digest's notification on, the finishes
+        // are told in it rather than one each.
+        let carried = kinds.digest
+            && kinds.finished
+            && crate::features::digest::carries_finishes(state, &storage);
+        (due, incoming, quiet, carried)
+    };
+    let mut items: Vec<batch::Item> = due
+        .into_iter()
+        .filter(|due| !(carried && due.kind == Kind::Finished))
+        .map(|due| item_of(state, due, now))
+        .collect();
+    items.extend(incoming);
+    let (groups, next) = {
+        let mut batch = notifier.batch.lock().ok()?;
+        if in_front {
+            batch.drop_waiting();
+        }
+        let groups = batch.offer(items, quiet, now);
+        (groups, batch.next_flush())
+    };
+    for group in groups {
+        let words = group.words();
+        let id = notifier.remember(words.opens);
+        sink(&Outgoing {
+            id,
+            title: words.title,
+            body: words.body,
+        });
+    }
+    next
+}
+
+/// Awaits the open burst's end once: a short-lived timer that sends its
+/// one notification then (the heuristic tick would, up to 15 s later).
+fn await_flush(state: &Arc<AppState>, at: i64) {
+    {
+        let Ok(mut armed) = state.notifier.flush_at.lock() else {
             return;
         };
-        engine.due(&gate, now)
-    };
-    for item in due {
-        let (title, body) = words(state, &item);
-        let id = notifier.remember(item.target);
-        sink(&Outgoing { id, title, body });
+        if *armed == Some(at) {
+            return;
+        }
+        *armed = Some(at);
     }
+    let weak = Arc::downgrade(state);
+    let _ = std::thread::Builder::new()
+        .name("notify-batch".into())
+        .spawn(move || {
+            let wait = at - crate::commands::now_millis();
+            if wait > 0 {
+                std::thread::sleep(std::time::Duration::from_millis(
+                    u64::try_from(wait).unwrap_or(0) + 50,
+                ));
+            }
+            if let Some(state) = weak.upgrade() {
+                if let Ok(mut armed) = state.notifier.flush_at.lock()
+                    && *armed == Some(at)
+                {
+                    *armed = None;
+                }
+                show_due(&state);
+            }
+        });
+}
+
+/// A due state as a batch item: its words, its level (D-117) and what it
+/// is called among others ("web" "asks you").
+fn item_of(state: &Arc<AppState>, due: Due, now: i64) -> batch::Item {
+    let (title, body) = words(state, &due);
+    let (phrase, many) = match (&due.target, due.kind) {
+        (Target::Session(_), Kind::Waiting) => ("waits for you", "wait for you"),
+        (Target::Session(_), Kind::Stuck) => ("looks stuck", "look stuck"),
+        (Target::Session(_), Kind::Limit) => ("hit its usage limit", "hit their usage limits"),
+        (Target::Session(_), Kind::Finished) => ("finished", "finished"),
+        (Target::Session(_), Kind::LeftBehind) => {
+            ("left processes running", "left processes running")
+        }
+        // The model's own words say it whole (a crash restarted, an
+        // account's room): the title is the line.
+        _ => ("", ""),
+    };
+    let level = match due.kind {
+        Kind::Waiting | Kind::Stuck | Kind::Limit | Kind::MacTight | Kind::Quota => 2,
+        Kind::Finished
+        | Kind::LeftBehind
+        | Kind::Crashed
+        | Kind::Reset
+        | Kind::Watch
+        | Kind::Digest => 1,
+    };
+    batch::Item {
+        name: title.clone(),
+        phrase: phrase.to_owned(),
+        phrase_many: many.to_owned(),
+        title,
+        body,
+        held: due.held,
+        ..batch::Item::new(
+            format!("e:{}:{:?}:{now}", model_kind(due.kind), due.target),
+            due.kind,
+            due.target,
+            level,
+        )
+    }
+}
+
+/// Hands items (the watches' alerts, the digest's) to the notification
+/// path: they go through [`show_due`]'s rules and the batch.
+pub fn hand_over(state: &Arc<AppState>, items: Vec<batch::Item>) {
+    if items.is_empty() {
+        return;
+    }
+    if let Ok(mut incoming) = state.notifier.incoming.lock() {
+        incoming.extend(items);
+    }
+    show_due(state);
 }
 
 /// AJ-E2904: the id a test notification carries (a click brings AI
@@ -514,6 +734,8 @@ const fn model_kind(kind: Kind) -> &'static str {
         Kind::Quota => "quota",
         Kind::Crashed => "restarted",
         Kind::Reset => "reset",
+        Kind::Watch => "watch",
+        Kind::Digest => "digest",
     }
 }
 
@@ -548,6 +770,8 @@ fn words(state: &Arc<AppState>, due: &Due) -> (String, String) {
     }
     match &due.target {
         Target::Account(_) => ("An account needs a look".to_owned(), String::new()),
+        Target::Centre => ("Something needs a look".to_owned(), String::new()),
+        Target::Feed => ("Digest".to_owned(), String::new()),
         Target::ThisMac => state
             .notifier
             .mac_words
@@ -562,7 +786,13 @@ fn words(state: &Arc<AppState>, due: &Due) -> (String, String) {
                 Kind::Stuck => "No output for a while",
                 Kind::Limit => "Hit its usage limit",
                 Kind::Finished => "Finished",
-                Kind::MacTight | Kind::LeftBehind | Kind::Quota | Kind::Crashed | Kind::Reset => "",
+                Kind::MacTight
+                | Kind::LeftBehind
+                | Kind::Quota
+                | Kind::Crashed
+                | Kind::Reset
+                | Kind::Watch
+                | Kind::Digest => "",
             };
             if due.kind == Kind::LeftBehind {
                 let count = state
@@ -599,20 +829,9 @@ pub(super) struct About {
 /// A session as its row names it: its conversation's title, else its
 /// folder; where it runs, and on which account.
 pub(super) fn describe(state: &Arc<AppState>, session_id: &str) -> About {
-    let info = {
-        let rows = state
-            .storage
-            .lock()
-            .ok()
-            .and_then(|storage| {
-                crate::features::sessions::read_model::session_infos_snapshot(&storage).ok()
-            })
-            .unwrap_or_default();
-        crate::features::conversations::titled(state, rows)
-            .unwrap_or_default()
-            .into_iter()
-            .find(|row| row.id == session_id)
-    };
+    let info = crate::features::conversations::titled_snapshot(state)
+        .into_iter()
+        .find(|row| row.id == session_id);
     let Some(info) = info else {
         return About {
             name: "A session".to_owned(),
@@ -641,27 +860,29 @@ pub(super) fn describe(state: &Arc<AppState>, session_id: &str) -> About {
 /// A notification was clicked: AI Juggler comes forward on its session
 /// (or This Mac). An unknown id still brings the window forward.
 pub fn clicked<R: tauri::Runtime>(app: &tauri::AppHandle<R>, state: &Arc<AppState>, id: i32) {
+    let page = |page: &str| OpenRequest {
+        session_id: None,
+        page: Some(page.to_owned()),
+        machine_id: None,
+        id: None,
+    };
     let open = match state.notifier.target_of(id) {
-        Some(Target::Session(session_id)) => Some(OpenRequest {
+        Some(batch::Opens::Target(Target::Session(session_id))) => Some(OpenRequest {
             session_id: Some(session_id),
             page: None,
             machine_id: None,
             id: None,
         }),
-        Some(Target::ThisMac) => Some(OpenRequest {
-            session_id: None,
-            page: Some("this_mac".to_owned()),
-            machine_id: None,
-            id: None,
-        }),
+        Some(batch::Opens::Target(Target::ThisMac)) => Some(page("this_mac")),
         // AJ-E2501: an account's notice opens the notification centre,
-        // where its banner and its actions are.
-        Some(Target::Account(_)) => Some(OpenRequest {
-            session_id: None,
-            page: Some("notifications".to_owned()),
-            machine_id: None,
-            id: None,
-        }),
+        // where its banner and its actions are; so does a consolidated
+        // notification with a need among them (ADR-0036 §1.7).
+        Some(batch::Opens::Target(Target::Account(_) | Target::Centre) | batch::Opens::Centre) => {
+            Some(page("notifications"))
+        }
+        // AJ-E3712: several calm items open Home's feed, at the newest
+        // digest.
+        Some(batch::Opens::Feed | batch::Opens::Target(Target::Feed)) => Some(page("home")),
         None => None,
     };
     let handle = app.clone();

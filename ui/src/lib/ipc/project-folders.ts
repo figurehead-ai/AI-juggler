@@ -9,7 +9,11 @@ import { previewHooks } from "../preview-hooks";
 /** Tracked projects — the juggling anchor (which instance is on each directory). */
 export async function projectsList(): Promise<ProjectInfo[]> {
   if (!hasBackend) {
-    return [...previewHooks().fixtures.MOCK_PROJECTS];
+    // A copy of each row, as the backend's answer is: the preview's own
+    // changes (a mark, Relocate…) edit its rows in place, and the shell
+    // keeps a list equal to the last one (AJ-E805), so the rows it held
+    // already showed the change and it drew nothing new.
+    return structuredClone(previewHooks().fixtures.MOCK_PROJECTS);
   }
   return call("projects_list");
 }

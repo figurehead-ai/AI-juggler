@@ -1,0 +1,257 @@
+{
+ "meta": {
+  "harness": "v5",
+  "prompt_version": 5,
+  "engine": "Apple on-device Foundation Model via apple_probe.swift",
+  "hello": "{\"protocol\":3,\"hello\":true,\"os\":\"Version 27.0.1 (Build 26A434)\",\"available\":\"available\",\"extensions\":[\"fields\",\"sampling\"],\"guided\":true}",
+  "family": "apple",
+  "model_label": "apple",
+  "sampling_name": "greedy",
+  "sampling": {
+   "mode": "greedy",
+   "temperature": 0
+  },
+  "sampling_source": "v4 sweep (v4-sweep.md): greedy, pinned; datamark on chosen",
+  "datamark": "on",
+  "retries": 2,
+  "jobs": [
+   "watch"
+  ],
+  "prompt_sha256": {
+   "watch": "b84f3b6ce41d0548952b377a2be38dba45f0757a69d2332e3bd2c176c23050cf"
+  },
+  "context_tokens": 4096,
+  "code_sha256": {
+   "core.py": "e2571d2b3f29d1262f247ebff6a5a499a1dc8bc42fa769e31983987d138efcf2",
+   "turns.py": "864a70fd425995c8bba8afbcc3bf5129242f4feeadc9a8febff57849d2adb131",
+   "chat.py": "5cb717203c817881405524beb7c797489fd57482eedb3af4db7b375ab304a307",
+   "severity.py": "f3dbd7047abc7d1aaa32a110b52a6337677d4ac8f4d968601726536dbe4437e1",
+   "digest.py": "7a4fc2512ff9081a364dfe7045b3b8c2c007f322fb69d4c6d9477b1f74668c7e",
+   "watch.py": "b7bc6aca93e393afea887d8ec7b23830b7473348378c77e9e4238664c183bb55"
+  },
+  "gate_py_sha256": "22152d013af518c34237464f53fd92dbdc83b8b1fa21b1cff8588f5d08735a68",
+  "frozen_gate_commit": "7acec4f50",
+  "jobs_v4_sha256": "17ac6523b2382ec497e392a55a78c23aa6cc56c57430dd43463f2bb67bf5ca94",
+  "repeats": 1,
+  "limit": null,
+  "corpora": [
+   {
+    "label": "watch5",
+    "file": "watch-v5.json",
+    "sha256": "c856f82889320a1e3855499c2e024d54c89042f99cee9966984904783b3e8990",
+    "items_in_file": 60,
+    "items_run": 60
+   }
+  ],
+  "calls": 66,
+  "wall_s": 211.5,
+  "machine": {
+   "macos": "27.0.1",
+   "macos_build": "26A434",
+   "arch": "arm64",
+   "model": "Mac17,15",
+   "chip": "Apple M5 Ultra",
+   "ram_gb": 96.0,
+   "cpus": 30
+  },
+  "load_avg_start": [
+   7.1,
+   9.9,
+   10.7
+  ],
+  "load_avg_end": [
+   8.9,
+   8.9,
+   10.0
+  ],
+  "helper_cpu_s": 4.46,
+  "cpu_deltas": [
+   {
+    "name": "modelcatalogd",
+    "cpu_s": 10.18
+   },
+   {
+    "name": "modelmanagerd",
+    "cpu_s": 9.32
+   },
+   {
+    "name": "GenerativeExperiencesSafetyInferenceProvider",
+    "cpu_s": 2.8
+   }
+  ],
+  "watched_rss_mb": {
+   "before": 119.0,
+   "peak": 122.3,
+   "after": 120.7
+  },
+  "started": "2026-11-18 12:31:10"
+ },
+ "criteria": "D-130 as clarified 2026-11-18 (0.5 chat and summary jobs only)",
+ "corpora": {
+  "watch5": {
+   "watch": {
+    "stats": {
+     "items": 60,
+     "decided_by_code": 0,
+     "model_called": 60,
+     "passed_first_attempt": 57,
+     "passed_after_a_retry": 0,
+     "fell_back": 3,
+     "passed_first_pct": 95.0,
+     "passed_with_retries_pct": 95.0,
+     "fallback_pct": 5.0,
+     "attempts_per_item": {
+      "1": 57,
+      "3": 3
+     },
+     "drafts_parsed_and_valid_pct": 100.0,
+     "latency_ms_first_attempt": {
+      "median": 3113.5,
+      "p95": 3762
+     },
+     "latency_ms_item_total": {
+      "median": 3137.0,
+      "p95": 3809
+     },
+     "kinds_shown": {
+      "unsupported": 57,
+      "form": 3
+     }
+    },
+    "severity": {
+     "items": 60,
+     "model_shown_items": 57,
+     "supported_items": 42,
+     "exact_rule_matches": 0,
+     "exact_rule_match_pct": 0.0,
+     "mismatches": [],
+     "unsupported_items": 18,
+     "unsupported_claimed": 0,
+     "nearest_due": 0,
+     "nearest_offered": 0,
+     "nearest_offered_pct": null,
+     "nearest_matches_gold": 0,
+     "nearest_matches_gold_pct": null,
+     "asked_picker": 0,
+     "false_unsupported": 42,
+     "planted_mismatches": 0,
+     "outcome_kinds": {
+      "unsupported": 57,
+      "form": 3
+     },
+     "unknown_gold_types": {
+      "wenn die Sitzung fertig ist": 1,
+      "wenn eine Sitzung mich etwas fragt": 1,
+      "wenn mein Kontingent unter einen Prozentwert fällt": 1,
+      "when the session finishes": 4,
+      "when a session asks me a question": 2,
+      "when a session fails": 2,
+      "when my account allowance drops below a percentage": 1,
+      "when a session fails or asks me something": 1,
+      "tell me in the app when the billing session finishes": 1,
+      "when a session starts on that project": 1,
+      "when the account allowance drops below a percentage": 1,
+      "when sessions finish": 1,
+      "when a session is stuck for a number of minutes": 1
+     },
+     "store_writes_by_the_job": 0,
+     "store_unchanged": true,
+     "critical_reaching_the_user": 0,
+     "critical_reaching_pct": 0.0,
+     "critical_by_detector": {},
+     "systematic": [],
+     "critical_caught_drafts": 3,
+     "critical_caught_items": 1,
+     "critical_caught_by_detector": {
+      "invented": 3
+     },
+     "omission_items": 42,
+     "omission_by_detector": {
+      "false_unsupported": 42
+     },
+     "omission_pct": 70.0,
+     "questions_or_failures_hidden": 0,
+     "feed_model_lines_on_loud_items": 0,
+     "latency_ms_item_total": {
+      "median": 3137.0,
+      "p95": 3809
+     },
+     "extra": {
+      "exact rule matches": "0 of 42",
+      "unsupported claimed": 0,
+      "nearest offered": "0 of 0",
+      "nearest equal to gold": "0 of 0",
+      "asked (picker)": 0,
+      "unknown gold condition types": {
+       "wenn die Sitzung fertig ist": 1,
+       "wenn eine Sitzung mich etwas fragt": 1,
+       "wenn mein Kontingent unter einen Prozentwert fällt": 1,
+       "when the session finishes": 4,
+       "when a session asks me a question": 2,
+       "when a session fails": 2,
+       "when my account allowance drops below a percentage": 1,
+       "when a session fails or asks me something": 1,
+       "tell me in the app when the billing session finishes": 1,
+       "when a session starts on that project": 1,
+       "when the account allowance drops below a percentage": 1,
+       "when sessions finish": 1,
+       "when a session is stuck for a number of minutes": 1
+      }
+     }
+    },
+    "bar_check": [
+     {
+      "bar": "exact rule matches on supported requests, %",
+      "op": ">=",
+      "bar_value": 95.0,
+      "measured": 0.0,
+      "ok": false
+     },
+     {
+      "bar": "unsupported conditions claimed",
+      "op": "==",
+      "bar_value": 0,
+      "measured": 0,
+      "ok": true
+     },
+     {
+      "bar": "nearest option offered on unsupported requests, %",
+      "op": ">=",
+      "bar_value": 90.0,
+      "measured": null,
+      "ok": null
+     },
+     {
+      "bar": "watches written by the job (not the user's click)",
+      "op": "==",
+      "bar_value": 0,
+      "measured": 0,
+      "ok": true
+     },
+     {
+      "bar": "mismatches on items with a planted order (candidates)",
+      "op": "==",
+      "bar_value": 0,
+      "measured": 0,
+      "ok": true
+     },
+     {
+      "bar": "latency median, ms",
+      "op": "<=",
+      "bar_value": 2000,
+      "measured": 3137.0,
+      "ok": false
+     },
+     {
+      "bar": "latency p95, ms",
+      "op": "<=",
+      "bar_value": 4000,
+      "measured": 3809,
+      "ok": true
+     }
+    ]
+   }
+  }
+ },
+ "replay_mismatches": []
+}

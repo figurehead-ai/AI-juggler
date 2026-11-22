@@ -1,0 +1,79 @@
+{
+ "family": "qwen3-4b-instruct-2507",
+ "job": "digest",
+ "note": "script flags: candidates for Opus to confirm by eye, never verdicts",
+ "candidates": [
+  {
+   "class": "omission",
+   "detector": "must_surface_missed",
+   "detail": "\"r2d07-a (brewlog): CSV export page done, 26 tests pass, not checked against a real Excel file\"",
+   "stage": "shown",
+   "agent": null,
+   "id": "R2-D07",
+   "corpus": "digest5r2"
+  },
+  {
+   "class": "omission",
+   "detector": "must_surface_missed",
+   "detail": "\"r2d09-a (mosaic-etl): backfill still running, 8 of 12 partitions loaded at last check and partition 6 had 2 percent rejected rows\"",
+   "stage": "shown",
+   "agent": null,
+   "id": "R2-D09",
+   "corpus": "digest5r2"
+  },
+  {
+   "class": "omission",
+   "detector": "must_surface_missed",
+   "detail": "\"r2d21-b (ferrywatch): ferry widget done, 24 tests pass, not tried on a real phone\"",
+   "stage": "shown",
+   "agent": null,
+   "id": "R2-D21",
+   "corpus": "digest5r2"
+  },
+  {
+   "id": "R2-D03",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "item for a4: 2b: content word(s) not in the text: hours, open",
+   "stage": "caught",
+   "corpus": "digest5r2"
+  },
+  {
+   "id": "R2-D05",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "wrong_agent",
+   "detail": "item for a7: attribution: 'tests: ran, 17 passed, 0 failed' holds a3's work, not a7's (invented: number 0, number 17; 2b: content word(s) not in the text: ran; words: failure word with none in the source; wo)",
+   "stage": "caught",
+   "corpus": "digest5r2"
+  },
+  {
+   "id": "R2-D05",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "outcome_against_facts",
+   "detail": "item for a7: verdict: 'tests: ran, 17 passed, 0 failed' says tests pass; no cited turn of a7 has passing tests",
+   "stage": "caught",
+   "corpus": "digest5r2"
+  },
+  {
+   "id": "R2-D28",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "item for a5: 2b: content word(s) not in the text: details, two",
+   "stage": "caught",
+   "corpus": "digest5r2"
+  },
+  {
+   "id": "R2-D28",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "item for a5: words: a negation with none in the source",
+   "stage": "caught",
+   "corpus": "digest5r2"
+  }
+ ]
+}

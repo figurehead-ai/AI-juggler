@@ -13,6 +13,7 @@ import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import type { ActionHost } from "../lib/actions";
 import { Radio } from "../components/controls";
 import { cliAppName } from "../lib/app-name";
+import { SELECTED_CARD } from "../components/controls/selected";
 
 /** A home-relative path, for display. */
 export function shortPath(path: string): string {
@@ -37,8 +38,19 @@ export function RenameAccountModal({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   return (
-    <Modal title={`Rename ${cliAppName(account.provider, account.label)}`} onClose={onClose}>
-      <form
+    <Modal title={`Rename ${cliAppName(account.provider, account.label)}`} onClose={onClose}
+      footer={
+        <>
+            <Button size="sm" variant="ghost" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button size="sm" variant="primary" type="submit" form="accountmanage-form" disabled={busy || label.trim() === ""} data-testid="rename-account-save">
+              {busy ? "Saving…" : "Save"}
+            </Button>
+        </>
+      }
+    >
+      <form id="accountmanage-form"
         className="flex flex-col gap-4"
         data-testid="rename-account"
         onSubmit={async (event) => {
@@ -64,14 +76,6 @@ export function RenameAccountModal({
             {error}
           </p>
         )}
-        <div className="flex justify-end gap-2">
-          <Button size="sm" variant="ghost" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button size="sm" variant="primary" type="submit" disabled={busy || label.trim() === ""} data-testid="rename-account-save">
-            {busy ? "Saving…" : "Save"}
-          </Button>
-        </div>
       </form>
     </Modal>
   );
@@ -100,7 +104,42 @@ export function RemoveAccountModal({
   const names = [...new Set(open.map((session) => session.git_branch ?? ((session.cwd ?? "").replace(/\/+$/, "").split("/").pop() || session.account_label)))];
   const where = account.import_source_path ? shortPath(account.import_source_path) : null;
   return (
-    <Modal title={`Remove ${cliAppName(account.provider, account.label)}?`} onClose={onClose}>
+    <Modal title={`Remove ${cliAppName(account.provider, account.label)}?`} onClose={onClose}
+      footer={
+        <>
+            <Button size="sm" variant="ghost" onClick={onClose}>
+              {open.length > 0 ? "Close" : "Cancel"}
+            </Button>
+            {open.length === 0 && (
+              <Button
+                size="sm"
+                variant="danger"
+                disabled={busy}
+                data-testid="remove-account-confirm"
+                onClick={async () => {
+                  setBusy(true);
+                  setError(null);
+                  try {
+                    const done = await accountRemove(account.id, folder);
+                    await onDone(
+                      done.folder === "trashed"
+                        ? `Removed ${cliAppName(account.provider, done.label)}. Its folder is in the Trash.`
+                        : done.folder === "kept"
+                          ? `Removed ${cliAppName(account.provider, done.label)}. Its folder was kept.`
+                          : `Removed ${cliAppName(account.provider, done.label)}. Your folder wasn't touched.`,
+                    );
+                  } catch (cause) {
+                    setError(errorText(cause));
+                    setBusy(false);
+                  }
+                }}
+              >
+                {busy ? "Removing…" : "Remove"}
+              </Button>
+            )}
+        </>
+      }
+    >
       <div className="flex flex-col gap-4 text-sm" data-testid="remove-account" data-kind={account.in_place ? "in-place" : "copy"}>
         {open.length > 0 ? (
           <p className="leading-relaxed text-ink-2" data-testid="remove-account-open">
@@ -141,7 +180,7 @@ export function RemoveAccountModal({
                   key={option.id}
                   className={
                     "flex items-center gap-2 rounded-lg border px-3 py-1.5 text-sm " +
-                    (folder === option.id ? "border-accent/60 bg-accent-soft" : "border-hairline")
+                    (folder === option.id ? SELECTED_CARD : "border-hairline")
                   }
                 >
                   <Radio
@@ -165,38 +204,6 @@ export function RemoveAccountModal({
             {error}
           </p>
         )}
-        <div className="flex justify-end gap-2">
-          <Button size="sm" variant="ghost" onClick={onClose}>
-            {open.length > 0 ? "Close" : "Cancel"}
-          </Button>
-          {open.length === 0 && (
-            <Button
-              size="sm"
-              variant="danger"
-              disabled={busy}
-              data-testid="remove-account-confirm"
-              onClick={async () => {
-                setBusy(true);
-                setError(null);
-                try {
-                  const done = await accountRemove(account.id, folder);
-                  await onDone(
-                    done.folder === "trashed"
-                      ? `Removed ${cliAppName(account.provider, done.label)}. Its folder is in the Trash.`
-                      : done.folder === "kept"
-                        ? `Removed ${cliAppName(account.provider, done.label)}. Its folder was kept.`
-                        : `Removed ${cliAppName(account.provider, done.label)}. Your folder wasn't touched.`,
-                  );
-                } catch (cause) {
-                  setError(errorText(cause));
-                  setBusy(false);
-                }
-              }}
-            >
-              {busy ? "Removing…" : "Remove"}
-            </Button>
-          )}
-        </div>
       </div>
     </Modal>
   );

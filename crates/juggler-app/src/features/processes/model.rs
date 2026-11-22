@@ -1413,8 +1413,52 @@ pub fn build(inputs: &Inputs) -> Graph {
     }
     theirs.sort_by_key(|app| app.name.to_lowercase());
     apps.extend(theirs);
+    let counts = tally(&mut apps);
+    let mut others = inputs.others.clone();
+    others.sort_by(|a, b| {
+        b.rss_bytes
+            .cmp(&a.rss_bytes)
+            .then_with(|| a.name.cmp(&b.name))
+    });
+    Graph {
+        apps,
+        others,
+        counts,
+        built_ms: inputs.now_ms,
+    }
+}
+
+/// R11 (lab safety): the graph as a lab's AI Juggler sees it: only the
+/// processes `keep` says are the lab's, their sessions' and Apps' totals
+/// and the counts over them alone; a session or App left with none goes,
+/// and the rest of the Mac (`others`) isn't listed.
+#[must_use]
+pub fn scoped(mut graph: Graph, keep: &dyn Fn(u32) -> bool) -> Graph {
+    let now = graph.built_ms;
+    for app in &mut graph.apps {
+        for session in &mut app.sessions {
+            session.processes.retain(|node| keep(node.pid));
+            let mut rollup = Rollup::default();
+            for node in &session.processes {
+                rollup.add(node, node.attention, now);
+            }
+            session.rollup = rollup;
+        }
+        app.sessions.retain(|session| !session.processes.is_empty());
+        if !app.ours && app.pid.is_some_and(|pid| !keep(pid)) {
+            app.pid = None;
+        }
+    }
+    graph.apps.retain(|app| !app.sessions.is_empty());
+    graph.others.clear();
+    graph.counts = tally(&mut graph.apps);
+    graph
+}
+
+/// Each App's sessions in order and its totals, and the counts over all.
+fn tally(apps: &mut [AppNode]) -> Counts {
     let mut counts = Counts::default();
-    for app in &mut apps {
+    for app in apps.iter_mut() {
         app.sessions.sort_by_key(session_rank);
         let mut rollup = Rollup::default();
         for session in &app.sessions {
@@ -1438,16 +1482,5 @@ pub fn build(inputs: &Inputs) -> Graph {
         counts.to_clean += rollup.to_clean;
         app.rollup = rollup;
     }
-    let mut others = inputs.others.clone();
-    others.sort_by(|a, b| {
-        b.rss_bytes
-            .cmp(&a.rss_bytes)
-            .then_with(|| a.name.cmp(&b.name))
-    });
-    Graph {
-        apps,
-        others,
-        counts,
-        built_ms: inputs.now_ms,
-    }
+    counts
 }

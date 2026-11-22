@@ -38,6 +38,8 @@ import { continueWhy, resumeRefusalWords } from "../lib/resume-refusal";
 import { OpenOriginal } from "./OpenOriginal";
 import { OpenInPlace } from "./OpenInPlace";
 import { WhyButton } from "./WhyTip";
+import { useOwnRoom } from "../lib/own-room-notices";
+import { ownRoomWantsSwitch } from "./SwitchAccountButton";
 
 const SessionOverview = lazyNamed(() => import("../pages/session/SessionOverview"), "SessionOverview");
 const UsagePanel = lazyNamed(() => import("../pages/session/UsagePanel"), "UsagePanel");
@@ -164,6 +166,9 @@ function ConversationView({
   // Copy resume command, with the original one click away.
   const refused = resumeRefusalWords(conversation.resume_refusal);
   const account = accounts ? accountOfProfile(accounts, model.profileId) : undefined;
+  // D-143: out of room or low, the side column's Switch account… is the
+  // page's one primary (BTN-1); its own steps down.
+  const switchFirst = ownRoomWantsSwitch(useOwnRoom(model.profileId));
   // Always both tabs: Usage says when nothing is measured (a working
   // session's tokens come and go between refreshes).
   // AJ-E2404: a session open in its app has its processes (read-only but
@@ -207,10 +212,10 @@ function ConversationView({
             actions={
               <>
                 {conversation.live ? (
-                  (openSession("primary") ?? (host.goToConversation && <GoToButton onGo={goTo} why={null} />))
+                  (openSession(switchFirst ? "secondary" : "primary") ?? (host.goToConversation && <GoToButton onGo={goTo} why={null} />))
                 ) : (
                   <>
-                    <WhyButton size="md" variant="primary" why={refused} onClick={carryIn} data-testid="conversation-continue">
+                    <WhyButton size="md" variant={switchFirst ? "secondary" : "primary"} why={refused} onClick={carryIn} data-testid="conversation-continue">
                       Continue in AI Juggler
                     </WhyButton>
                     {openSession("secondary")}
@@ -251,7 +256,8 @@ function ConversationView({
           )
         }
         footer={(tab) => (
-          <footer className="sticky bottom-0 z-10 mt-auto border-t border-hairline/60 bg-canvas pt-2 pb-1 text-label text-muted">from {tab.source}</footer>
+          // R2: a window under 720 px tall gives this row to the page.
+          <footer className="sticky bottom-0 z-10 mt-auto border-t border-hairline/60 bg-canvas pt-2 pb-1 text-label text-muted [@media(max-height:719px)]:hidden">from {tab.source}</footer>
         )}
       />
       {menu.element}

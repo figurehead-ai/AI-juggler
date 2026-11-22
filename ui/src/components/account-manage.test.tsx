@@ -100,7 +100,7 @@ describe("AJ-E1501 the account card's menu", () => {
   it("rename saves the new name and plan; another account's name is refused in words", async () => {
     const rename = vi.spyOn(bridge, "accountRename").mockImplementation(async (id, label, plan) => {
       if (label.toLowerCase() === "mine") {
-        throw { code: "refused", retryable: false, user_message: "Another account is already called «Mine» — pick another name" };
+        throw { code: "refused", retryable: false, user_message: "Another account is already called “Mine” — pick another name" };
       }
       rows = rows.map((row) => (row.id === id ? { ...row, label, plan } : row));
       return rows.find((row) => row.id === id)!;
@@ -112,7 +112,7 @@ describe("AJ-E1501 the account card's menu", () => {
 
     fireEvent.change(input, { target: { value: "mine" } });
     fireEvent.click(view.getByTestId("rename-account-save"));
-    await waitFor(() => expect(view.getByRole("alert").textContent).toContain("already called «Mine»"));
+    await waitFor(() => expect(view.getByRole("alert").textContent).toContain("already called “Mine”"));
 
     fireEvent.change(input, { target: { value: "Max (personal)" } });
     fireEvent.change(view.getByTestId("rename-account-plan"), { target: { value: "Max" } });

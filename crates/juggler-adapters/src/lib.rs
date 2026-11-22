@@ -44,6 +44,7 @@ pub mod claude_memory;
 pub mod claude_move;
 pub mod claude_peer;
 pub mod claude_ready;
+pub mod claude_sign_ins;
 pub mod claude_stream;
 pub mod claude_subagents;
 pub mod claude_tool_words;
@@ -75,6 +76,7 @@ pub mod connector_files;
 pub mod conversation_feed;
 mod conversation_lines;
 pub mod cut;
+pub mod desktop_apps;
 pub mod fake;
 pub mod fake_driven;
 pub mod folder_wake;
@@ -84,15 +86,30 @@ pub mod grok_environment;
 pub mod grok_inventory;
 pub mod grok_sessions;
 pub mod grok_subagents;
+pub mod hermes;
+pub mod hermes_environment;
+pub mod hermes_gateway;
+pub mod hermes_guard;
+pub mod hermes_sessions;
+pub mod hermes_usage;
 pub mod inference;
 mod inline_data;
 pub mod inventory_files;
 pub mod kimi_code;
 pub mod kimi_environment;
 pub mod kimi_inventory;
+pub mod kimi_limits;
 pub mod kimi_sessions;
 pub mod kimi_subagents;
+pub mod kimi_usage;
 pub mod last_turns;
+pub mod local_http;
+pub mod muse;
+pub mod muse_environment;
+pub mod muse_inventory;
+pub mod muse_serve;
+pub mod muse_sessions;
+pub mod muse_usage;
 pub mod opencode;
 pub mod opencode_bridge;
 pub mod opencode_environment;
@@ -112,6 +129,12 @@ pub mod transcript;
 pub mod transcript_follow;
 pub mod transcript_tail;
 mod transcript_watcher;
+pub mod zcode;
+pub mod zcode_appserver;
+pub mod zcode_environment;
+pub mod zcode_inventory;
+pub mod zcode_limits;
+pub mod zcode_sessions;
 pub mod zcode_usage;
 
 pub use activity::{ActivityLog, ActivityTail};
@@ -122,7 +145,9 @@ pub use claude_transcript::{
 pub use codex::{CODEX_ID, CodexAdapter, codex_spec};
 pub use fake::{FAKE_HARNESS_ID, FakeHarnessAdapter};
 pub use grok_build::{GROK_BUILD_ID, GrokBuildAdapter, grok_build_spec};
+pub use hermes::{HERMES_ID, HermesAdapter, hermes_spec};
 pub use kimi_code::{KIMI_CODE_ID, KimiCodeAdapter, kimi_code_spec};
+pub use muse::{MUSE_ID, MuseAdapter, muse_spec};
 pub use opencode::{OPENCODE_ID, OpenCodeAdapter, opencode_spec};
 pub use quota_ingest::{
     CreditsSnapshot, RolloutCarry, SourceHealth, TailOutcome, codex_rate_limits,
@@ -137,6 +162,7 @@ pub use transcript::{
     parse_any, read_bounded, read_session_file, records_compaction, session_file_sha256,
     session_lines, transcript_tokens,
 };
+pub use zcode::{ZCODE_ID, ZCodeAdapter, zcode_spec};
 pub mod fake_desktop;
 #[cfg(test)]
 mod stream_equivalence;

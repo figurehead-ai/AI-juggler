@@ -1,0 +1,187 @@
+{
+ "family": "nemotron",
+ "job": "feed_line",
+ "note": "script flags: candidates for Opus to confirm by eye, never verdicts",
+ "candidates": [
+  {
+   "id": "R2T12",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "gate step 2b: 2b: content word(s) not in the text: erased",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T12",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "contradiction: names a change that was undone (git: src/router_async.rs was undone (names async))",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T12",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "gate step 2b: 2b: content word(s) not in the text: verfault",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T12",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "contradiction: names a change that was undone (git: src/router_async.rs was undone (names async))",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T12",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "gate step 2b: 2b: content word(s) not in the text: erfault",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T12",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "contradiction: names a change that was undone (git: src/router_async.rs was undone (names async))",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T14",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "contradiction: names a change that was undone (git: package.json was undone (names library))",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T15",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "contradiction: names a change that was undone (git: src/log_fast.rs was undone (names logger))",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T17",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "outcome_or_caveat",
+   "detail": "gate step 3: outcome: a finished turn; the line states a failure with no word of resolution (the problem, not the outcome)",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T17",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "outcome_or_caveat",
+   "detail": "gate step 3: outcome: a finished turn; the line states a failure with no word of resolution (the problem, not the outcome)",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T18",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "outcome_or_caveat",
+   "detail": "gate step 3: outcome: a finished turn; the line states a failure with no word of resolution (the problem, not the outcome)",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T19",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "contradiction: names a change that was undone (Ich habe die Datenbankindizes geändert und dann zurückgenommen, da die Abfragen langsamer wurden.)",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T19",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "contradiction: names a change that was undone (Ich habe die Datenbankindizes geändert und dann zurückgenommen, da die Abfragen langsamer wurden.)",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T33",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "gate step 2b: 2b: content word(s) not in the text: overarbeitet",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T33",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "gate step 2b: 2b: content word(s) not in the text: overarbeitet",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T33",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "gate step 2b: 2b: content word(s) not in the text: overarbeitet",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T35",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "outcome_or_caveat",
+   "detail": "gate step 3: caveat: dropped (facts: tests not run)",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T36",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "gate step 2b: 2b: content word(s) not in the text: adjusted",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T38",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "gate step 2b: 2b: content word(s) not in the text: gefangen",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T39",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "outcome_or_caveat",
+   "detail": "gate step 3: caveat: dropped (facts: tests not run)",
+   "stage": "caught",
+   "corpus": "turns"
+  }
+ ]
+}

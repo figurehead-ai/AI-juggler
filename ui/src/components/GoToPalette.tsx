@@ -39,6 +39,7 @@ import { PANES } from "../screens/settings/panes";
 import { buildGroups, recentOf, typedAnything, type AccountRow, type PaletteRow } from "./palette/rows";
 import { RowView, rowTitle } from "./palette/RowView";
 import { canPreview, Preview, type Previewable } from "./palette/Preview";
+import { DialogFrame, DialogOverlay } from "./DialogFrame";
 export { paletteSelection } from "./PaletteActions";
 
 /** Builds a Tauri accelerator string from a KeyboardEvent (lib/hotkey). */
@@ -276,32 +277,59 @@ export function GoToPalette({
   let index = -1;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 pt-24 backdrop-blur-sm" onClick={onClose} data-testid="goto-overlay">
-      <div
-        ref={dialogRef}
+    <DialogOverlay className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 p-4 pt-24 backdrop-blur-sm" onClick={onClose} data-testid="goto-overlay">
+      <DialogFrame
+        frameRef={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-label="Search, act or go"
-        className={"sheen flex max-w-[92vw] flex-col overflow-hidden rounded-card border border-hairline bg-surface shadow-lg " + (preview ? "w-[920px]" : "w-[640px]")}
+        className={"sheen max-w-[92vw] rounded-card border border-hairline bg-surface shadow-lg " + (preview ? "w-[920px]" : "w-[640px]")}
         data-testid="goto-palette"
         onClick={(event: MouseEvent) => event.stopPropagation()}
         onKeyDown={onDialogKey}
+        headerClassName="border-b border-hairline p-3"
+        header={
+          <>
+              <input autoCorrect="off" autoCapitalize="off" spellCheck={false}
+                ref={inputRef}
+                role="combobox"
+                aria-expanded="true"
+                aria-controls={preview ? `${LISTBOX} ${PREVIEW}` : LISTBOX}
+                aria-activedescendant={current ? `goto-option-${domId(current.id)}` : undefined}
+                aria-label={chosen ? `Actions for ${chosen.heading}, or search, act or go` : "Search, act or go"}
+                value={typed}
+                placeholder={capturing ? "Press the new combo (Esc cancels)…" : chosen ? `Act on ${chosen.heading}, or search…` : "Search sessions, apps, projects and accounts, or type what to do…"}
+                onChange={(event) => setQuery(event.target.value)}
+                onKeyDown={onInputKey}
+                className="w-full bg-transparent text-meta text-ink outline-none placeholder:text-muted"
+              />
+          </>
+        }
+        bodyClassName="flex min-h-0 flex-col"
+        footerClassName="flex flex-col gap-1 px-3 py-2 text-label text-muted"
+        footer={
+          <>
+              <span className="truncate" data-testid="goto-keys">↑↓ move · ↩ open · ⌘↩ go to its app · → preview · Esc close</span>
+              <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+                {app ? (
+                  <Button size="sm" variant="ghost" className="-ml-2" onClick={() => (onClose(), app.searchHistory(needle))} data-testid="goto-see-all">
+                    See all results →
+                  </Button>
+                ) : (
+                  <span />
+                )}
+                <Button size="sm" variant="ghost" className="-mr-2" data-testid="goto-change-hotkey" onClick={() => setCapturing(true)}>
+                  {capturing ? "press a combo…" : hotkey ? `From any app: ${hotkeyWords(hotkey)} — change…` : "Choose a key to open this from any app…"}
+                </Button>
+              </div>
+              {captureError !== null && (
+                <span className="text-danger" data-testid="goto-hotkey-error">
+                  {captureError}
+                </span>
+              )}
+          </>
+        }
       >
-        <div className="border-b border-hairline p-3">
-          <input autoCorrect="off" autoCapitalize="off" spellCheck={false}
-            ref={inputRef}
-            role="combobox"
-            aria-expanded="true"
-            aria-controls={preview ? `${LISTBOX} ${PREVIEW}` : LISTBOX}
-            aria-activedescendant={current ? `goto-option-${domId(current.id)}` : undefined}
-            aria-label={chosen ? `Actions for ${chosen.heading}, or search, act or go` : "Search, act or go"}
-            value={typed}
-            placeholder={capturing ? "Press the new combo (Esc cancels)…" : chosen ? `Act on ${chosen.heading}, or search…` : "Search sessions, apps, projects and accounts, or type what to do…"}
-            onChange={(event) => setQuery(event.target.value)}
-            onKeyDown={onInputKey}
-            className="w-full bg-transparent text-meta text-ink outline-none placeholder:text-muted"
-          />
-        </div>
         {offline && (
           <p className="border-b border-hairline bg-warning-soft px-3 py-1.5 text-label text-ink" role="status" data-testid="goto-offline">
             AI Juggler's service isn't answering — showing what was open last.
@@ -365,27 +393,7 @@ export function GoToPalette({
             />
           )}
         </div>
-        <div className="flex flex-col gap-1 border-t border-hairline px-3 py-2 text-label text-muted">
-          <span className="truncate" data-testid="goto-keys">↑↓ move · ↩ open · ⌘↩ go to its app · → preview · Esc close</span>
-          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
-            {app ? (
-              <Button size="sm" variant="ghost" className="-ml-2" onClick={() => (onClose(), app.searchHistory(needle))} data-testid="goto-see-all">
-                See all results →
-              </Button>
-            ) : (
-              <span />
-            )}
-            <Button size="sm" variant="ghost" className="-mr-2" data-testid="goto-change-hotkey" onClick={() => setCapturing(true)}>
-              {capturing ? "press a combo…" : hotkey ? `From any app: ${hotkeyWords(hotkey)} — change…` : "Choose a key to open this from any app…"}
-            </Button>
-          </div>
-          {captureError !== null && (
-            <span className="text-danger" data-testid="goto-hotkey-error">
-              {captureError}
-            </span>
-          )}
-        </div>
-      </div>
-    </div>
+      </DialogFrame>
+    </DialogOverlay>
   );
 }

@@ -155,7 +155,7 @@ pub fn launch_settings_remove_impl(state: &Arc<AppState>, profile_id: &str) -> A
     let starting = state.launches.count(profile_id);
     if starting > 0 && open.is_empty() {
         return Err(AppError::Refused(format!(
-            "«{}» has a session starting now. Wait for it, stop it, then delete the launch settings",
+            "“{}” has a session starting now. Wait for it, stop it, then delete the launch settings",
             recipe.name
         )));
     }
@@ -164,7 +164,7 @@ pub fn launch_settings_remove_impl(state: &Arc<AppState>, profile_id: &str) -> A
     open.dedup();
     if count > 0 {
         return Err(AppError::Refused(format!(
-            "«{}» has {} open: {}. Stop {} first, then delete the launch settings",
+            "“{}” has {} open: {}. Stop {} first, then delete the launch settings",
             recipe.name,
             if count == 1 {
                 "a session".to_owned()
@@ -194,7 +194,7 @@ fn active_account(
         })?;
     if storage.accounts().is_removed(&id)? {
         return Err(AppError::Refused(format!(
-            "«{}» was removed — add it again to use it",
+            "“{}” was removed — add it again to use it",
             account.label
         )));
     }
@@ -231,7 +231,7 @@ pub fn account_rename_impl(
         other.id != account.id && other.label.trim().to_lowercase() == label.to_lowercase()
     }) {
         return Err(AppError::Refused(format!(
-            "Another account is already called «{}» — pick another name",
+            "Another account is already called “{}” — pick another name",
             other.label
         )));
     }
@@ -279,7 +279,7 @@ pub fn account_rename_impl(
         storage.account_audit().record(
             &account.id,
             "rename",
-            Some(&format!("«{old_label}» → «{label}»")),
+            Some(&format!("“{old_label}” → “{label}”")),
             ACTOR_USER,
         )?;
     }
@@ -317,7 +317,7 @@ fn status_line_back(state: &Arc<AppState>, account: &Account) -> AppResult<()> {
         .map(|_| ())
         .map_err(|error| {
             AppError::Refused(format!(
-                "«{}»'s status line couldn't be put back ({error}), so the account stays. \
+                "“{}”'s status line couldn't be put back ({error}), so the account stays. \
                  Turn off measuring on its page, then remove it",
                 account.label
             ))
@@ -361,7 +361,7 @@ pub fn account_remove_impl(
     if count > 0 {
         let names = open.join(", ");
         return Err(AppError::Refused(format!(
-            "«{}» has {} open: {names}. Stop {} first, then remove the account",
+            "“{}” has {} open: {names}. Stop {} first, then remove the account",
             account.label,
             if count == 1 {
                 "a session".to_owned()
@@ -382,7 +382,7 @@ pub fn account_remove_impl(
     let outcome = if account.in_place {
         if folder == CopyFolder::Trash {
             return Err(AppError::Refused(format!(
-                "«{}» uses your own folder — AI Juggler never moves it",
+                "“{}” uses your own folder — AI Juggler never moves it",
                 account.label
             )));
         }
@@ -396,7 +396,7 @@ pub fn account_remove_impl(
             .unwrap_or_else(|_| account.state_dir.clone());
         if !dir.starts_with(&ours) || dir == ours {
             return Err(AppError::Refused(format!(
-                "«{}»'s folder isn't in AI Juggler's own data, so it stays where it is",
+                "“{}”'s folder isn't in AI Juggler's own data, so it stays where it is",
                 account.label
             )));
         }

@@ -79,7 +79,7 @@ fn a_name_two_members_share_is_refused_naming_each_and_the_rosters_own_name_pick
     let (refusal, words) = refused(&write(&lab, &both, "twin"));
     assert_eq!(refusal, Some(Refusal::Bad));
     assert!(
-        words.starts_with("«twin» could be 2 members of this pool:"),
+        words.starts_with("“twin” could be 2 members of this pool:"),
         "{words}"
     );
     assert!(
@@ -143,7 +143,7 @@ fn the_lead_gives_a_task_to_a_member_by_its_name() {
     let (refusal, words) = refused(&assign("twin"));
     assert_eq!(refusal, Some(Refusal::Bad));
     assert!(
-        words.starts_with("«twin» could be 2 members of this pool:"),
+        words.starts_with("“twin” could be 2 members of this pool:"),
         "{words}"
     );
     // By its name: held for the person's OK (the pool's level), as by its id.

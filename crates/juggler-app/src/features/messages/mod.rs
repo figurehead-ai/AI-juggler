@@ -229,7 +229,7 @@ pub(crate) fn called(names: &[&str], who: &str) -> Vec<usize> {
 /// listing `each` ([`member_words`]).
 pub(crate) fn namesake_words(who: &str, each: &[String]) -> String {
     format!(
-        "«{who}» could be {} members of this pool: {}. Name the one this is for by its session_id.",
+        "“{who}” could be {} members of this pool: {}. Name the one this is for by its session_id.",
         each.len(),
         each.join(", ")
     )
@@ -239,7 +239,7 @@ pub(crate) fn namesake_words(who: &str, each: &[String]) -> String {
 /// that names it alone, and whether it's open.
 pub(crate) fn member_words(member: &Member) -> String {
     format!(
-        "«{}» (session_id {}, {})",
+        "“{}” (session_id {}, {})",
         member.name,
         member.session_id,
         if member.open { "open now" } else { "not open" }

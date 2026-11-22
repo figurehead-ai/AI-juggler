@@ -74,17 +74,17 @@ fn brief(name: &str) -> String {
 fn wants_to_message(sender: &str, to: &[String]) -> String {
     let first = to.first().map_or_else(
         || "the pool".to_owned(),
-        |name| format!("«{}»", brief(name)),
+        |name| format!("“{}”", brief(name)),
     );
     match to.len() {
-        0 | 1 => format!("«{}» wants to message {first}", brief(sender)),
+        0 | 1 => format!("“{}” wants to message {first}", brief(sender)),
         2 => format!(
-            "«{}» wants to message {first} and «{}»",
+            "“{}” wants to message {first} and “{}”",
             brief(sender),
             brief(&to[1])
         ),
         n => format!(
-            "«{}» wants to message {first} and {} more",
+            "“{}” wants to message {first} and {} more",
             brief(sender),
             n - 1
         ),
@@ -215,7 +215,7 @@ pub fn needs(state: &Arc<AppState>) -> AppResult<Vec<MessageNeedInfo>> {
             title: ask.summary,
             detail: if deliver {
                 format!(
-                    "«{}» · {}",
+                    "“{}” · {}",
                     crate::features::tasks::words::name_tasks(&storage, &message.subject),
                     hops_words(
                         message.hop,
@@ -224,17 +224,17 @@ pub fn needs(state: &Arc<AppState>) -> AppResult<Vec<MessageNeedInfo>> {
                 )
             } else if watched {
                 format!(
-                    "«{}» · it runs in another app with no AI Juggler connector, so it can't read messages until it's continued in AI Juggler",
+                    "“{}” · it runs in another app with no AI Juggler connector, so it can't read messages until it's continued in AI Juggler",
                     crate::features::tasks::words::name_tasks(&storage, &message.subject)
                 )
             } else if talk {
                 format!(
-                    "«{}» · this pool asks you first between these members",
+                    "“{}” · this pool asks you first between these members",
                     crate::features::tasks::words::name_tasks(&storage, &message.subject)
                 )
             } else {
                 format!(
-                    "«{}» · above what the pool lets agents do",
+                    "“{}” · above what the pool lets agents do",
                     crate::features::tasks::words::name_tasks(&storage, &message.subject)
                 )
             },
@@ -242,6 +242,11 @@ pub fn needs(state: &Arc<AppState>) -> AppResult<Vec<MessageNeedInfo>> {
                 &storage,
                 &message.body,
             ))),
+            sender: Some(message.sender_name.clone()),
+            thread: Some(crate::features::tasks::words::name_tasks(
+                &storage,
+                &message.subject,
+            )),
             at_ms: ask.created_at,
             line: Some(line),
         });
@@ -255,7 +260,7 @@ pub fn needs(state: &Arc<AppState>) -> AppResult<Vec<MessageNeedInfo>> {
             kind: "pool_paused".to_owned(),
             delivers_now: None,
             pool_name: name_of(&pool),
-            title: format!("Messages in «{}» are paused", name_of(&pool)),
+            title: format!("Messages in “{}” are paused", name_of(&pool)),
             pool_id: pool,
             thread_id: None,
             message_id: None,
@@ -264,6 +269,8 @@ pub fn needs(state: &Arc<AppState>) -> AppResult<Vec<MessageNeedInfo>> {
             offer_always: false,
             detail: reason,
             preview: None,
+            sender: None,
+            thread: None,
             at_ms: at,
             line: None,
         });
@@ -281,7 +288,7 @@ pub fn needs(state: &Arc<AppState>) -> AppResult<Vec<MessageNeedInfo>> {
             delivers_now: None,
             pool_name: name_of(&thread.pool_id),
             title: format!(
-                "«{}» is paused",
+                "“{}” is paused",
                 crate::features::tasks::words::name_tasks(&storage, &thread.subject)
             ),
             pool_id: thread.pool_id,
@@ -292,6 +299,11 @@ pub fn needs(state: &Arc<AppState>) -> AppResult<Vec<MessageNeedInfo>> {
             offer_always: false,
             detail: thread.state_reason.unwrap_or_else(|| "paused".to_owned()),
             preview: None,
+            sender: None,
+            thread: Some(crate::features::tasks::words::name_tasks(
+                &storage,
+                &thread.subject,
+            )),
             at_ms: thread.updated_at,
             line: None,
         });
@@ -311,11 +323,13 @@ pub fn needs(state: &Arc<AppState>) -> AppResult<Vec<MessageNeedInfo>> {
             kind: "question".to_owned(),
             delivers_now: None,
             pool_name: name_of(&row.message.pool_id),
-            title: format!("«{}» asks you", row.message.sender_name),
+            title: format!("“{}” asks you", row.message.sender_name),
+            // Where in its pool: its thread. The pool's name is its own
+            // field, joined where it's shown (the rail's row said "Release
+            // pool · «Export flow» · Release pool").
             detail: format!(
-                "«{}» · {}",
-                crate::features::tasks::words::name_tasks(&storage, &row.message.subject),
-                name_of(&row.message.pool_id)
+                "“{}”",
+                crate::features::tasks::words::name_tasks(&storage, &row.message.subject)
             ),
             pool_id: row.message.pool_id,
             thread_id: Some(row.message.thread_id),
@@ -323,6 +337,11 @@ pub fn needs(state: &Arc<AppState>) -> AppResult<Vec<MessageNeedInfo>> {
                 &storage,
                 &row.message.body,
             ))),
+            sender: Some(row.message.sender_name.clone()),
+            thread: Some(crate::features::tasks::words::name_tasks(
+                &storage,
+                &row.message.subject,
+            )),
             message_id: Some(row.message.id),
             session_id: None,
             ask_id: None,
@@ -356,11 +375,8 @@ pub fn needs(state: &Arc<AppState>) -> AppResult<Vec<MessageNeedInfo>> {
             } else {
                 format!("{name} has {count} messages waiting")
             },
-            detail: format!(
-                "from {} · {}",
-                newest.message.sender_name,
-                name_of(&newest.message.pool_id)
-            ),
+            // Who from; its pool is `pool_name`, joined where it's shown.
+            detail: format!("from {}", newest.message.sender_name),
             pool_id: newest.message.pool_id.clone(),
             thread_id: Some(newest.message.thread_id.clone()),
             message_id: Some(newest.message.id.clone()),
@@ -371,6 +387,11 @@ pub fn needs(state: &Arc<AppState>) -> AppResult<Vec<MessageNeedInfo>> {
                 &storage,
                 &newest.message.body,
             ))),
+            sender: Some(newest.message.sender_name.clone()),
+            thread: Some(crate::features::tasks::words::name_tasks(
+                &storage,
+                &newest.message.subject,
+            )),
             at_ms: newest.message.created_at,
             line: None,
         });
@@ -605,7 +626,7 @@ fn stop_the_chain(repo: &MessagesRepo<'_>, message: &Message) -> AppResult<()> {
         &message.thread_id,
         ThreadState::Stopped,
         Some(&format!(
-            "you didn't deliver «{}»'s message past this pool's hop limit",
+            "you didn't deliver “{}”'s message past this pool's hop limit",
             message.sender_name
         )),
         SENDER_USER,
@@ -655,7 +676,7 @@ fn hold_watched(
         actor_name: ask.actor_name.clone(),
         action: super::talk::WATCHED_ASK.to_owned(),
         object_ref: message.id.clone(),
-        summary: format!("«{}» wants to message {}", ask.actor_name, names.join(", ")),
+        summary: format!("“{}” wants to message {}", ask.actor_name, names.join(", ")),
         created_at: Timestamp::now().millis(),
     })?;
     Ok(())
@@ -821,15 +842,15 @@ mod line_tests {
                 "Untitled session · r3-tools started 01:15 PM",
                 &["Untitled session · web · started 01:17 PM".to_owned()]
             ),
-            "«r3-tools» wants to message «web»"
+            "“r3-tools” wants to message “web”"
         );
         assert_eq!(
             wants_to_message("Planner", &["Builder".to_owned(), "Reviewer".to_owned()]),
-            "«Planner» wants to message «Builder» and «Reviewer»"
+            "“Planner” wants to message “Builder” and “Reviewer”"
         );
         assert_eq!(
             wants_to_message("Planner", &["A".to_owned(), "B".to_owned(), "C".to_owned()]),
-            "«Planner» wants to message «A» and 2 more"
+            "“Planner” wants to message “A” and 2 more"
         );
     }
 

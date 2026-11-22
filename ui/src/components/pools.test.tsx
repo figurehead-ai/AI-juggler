@@ -194,7 +194,7 @@ describe("the pool sheets", () => {
     const { getByTestId, findByTestId } = render(<PoolSheet target={{ mode: "create" }} pools={pools} sessions={MOCK_SESSIONS} projects={MOCK_PROJECTS} />);
     fireEvent.change(getByTestId("pool-create-name"), { target: { value: "docs" } });
     fireEvent.click(getByTestId("pool-create-save"));
-    expect((await findByTestId("pool-error")).textContent).toBe("There's already a pool called «Docs» — pick another name");
+    expect((await findByTestId("pool-error")).textContent).toBe("There's already a pool called “Docs” — pick another name");
   });
 
   it("moves a session: its pool marked, one click elsewhere", async () => {

@@ -35,4 +35,4 @@ ui/src/components/indicator.tsx 490
 ui/src/screens/FirstRun.tsx 1294
 ui/src/screens/FleetScreen.tsx 765
 ui/src/screens/Home.tsx 467
-ui/src/screens/PairingWizard.tsx 816
+ui/src/screens/PairingWizard.tsx 739

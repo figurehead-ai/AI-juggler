@@ -54,6 +54,9 @@ pub mod refusal {
         "It has already finished and waits for its parent; only the parent can clear it.";
     /// Gone.
     pub const GONE: &str = "It has already ended.";
+    /// R11: a lab's AI Juggler, a process of the Mac it runs on.
+    pub const OUTSIDE_LAB: &str =
+        "This process isn't part of this lab, so this lab's AI Juggler won't touch it.";
 }
 
 /// What the live process is now, as the check needs it.
@@ -89,6 +92,8 @@ pub struct Facts {
     pub is_app: bool,
     /// AI Juggler's own pid.
     pub own_pid: u32,
+    /// R11: a lab's AI Juggler, and the process isn't the lab's.
+    pub outside_lab: bool,
 }
 
 /// D-41b's identity and safety check, pure: `Ok` only when every leg
@@ -102,6 +107,9 @@ pub struct Facts {
 pub fn check(pid: u32, facts: &Facts) -> Result<(), &'static str> {
     if pid <= 1 || pid == facts.own_pid {
         return Err(refusal::OWN);
+    }
+    if facts.outside_lab {
+        return Err(refusal::OUTSIDE_LAB);
     }
     if facts.in_ledger {
         return Err(refusal::LEDGER);
@@ -233,6 +241,7 @@ pub fn facts_now(state: &Arc<AppState>, pid: u32, start: Option<i64>) -> Facts {
         in_ledger,
         is_app,
         own_pid: std::process::id(),
+        outside_lab: super::lab_scope::outside(pid),
     }
 }
 

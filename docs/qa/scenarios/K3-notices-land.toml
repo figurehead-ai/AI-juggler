@@ -66,6 +66,10 @@ id = "stuck"
 app = "cc-personal"
 project = "api"
 state = "stuck"
+# AJ-E2312 (SK48-7): a turn that started and never ended, quiet for 10
+# min, so "may be stuck" is raised by the app's own rule once the lab
+# opens (a session with no conversation waits at its prompt: never stuck).
+open_turn = true
 
 [[setup.sessions]]
 id = "failed"

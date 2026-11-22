@@ -1,0 +1,106 @@
+{
+ "family": "granite-4.1-3b",
+ "job": "attention",
+ "note": "script flags: candidates for Opus to confirm by eye, never verdicts",
+ "candidates": [
+  {
+   "class": "omission",
+   "detector": "attention_miss",
+   "detail": "gold: needs the user; no note",
+   "stage": "shown",
+   "attempt": null,
+   "id": "R3T06",
+   "corpus": "turns"
+  },
+  {
+   "class": "omission",
+   "detector": "attention_miss",
+   "detail": "gold: needs the user; no note",
+   "stage": "shown",
+   "attempt": null,
+   "id": "R3T08",
+   "corpus": "turns"
+  },
+  {
+   "class": "omission",
+   "detector": "attention_miss",
+   "detail": "gold: needs the user; no note",
+   "stage": "shown",
+   "attempt": null,
+   "id": "R3T09",
+   "corpus": "turns"
+  },
+  {
+   "class": "omission",
+   "detector": "attention_miss",
+   "detail": "gold: needs the user; no note",
+   "stage": "shown",
+   "attempt": null,
+   "id": "R3T10",
+   "corpus": "turns"
+  },
+  {
+   "class": "omission",
+   "detector": "attention_miss",
+   "detail": "gold: needs the user; no note",
+   "stage": "shown",
+   "attempt": null,
+   "id": "R3T12",
+   "corpus": "turns"
+  },
+  {
+   "class": "omission",
+   "detector": "attention_miss",
+   "detail": "gold: needs the user; no note",
+   "stage": "shown",
+   "attempt": null,
+   "id": "R3T15",
+   "corpus": "turns"
+  },
+  {
+   "class": "omission",
+   "detector": "attention_miss",
+   "detail": "gold: needs the user; no note",
+   "stage": "shown",
+   "attempt": null,
+   "id": "R3T17",
+   "corpus": "turns"
+  },
+  {
+   "class": "omission",
+   "detector": "attention_miss",
+   "detail": "gold: needs the user; no note",
+   "stage": "shown",
+   "attempt": null,
+   "id": "R3T40",
+   "corpus": "turns"
+  },
+  {
+   "class": "omission",
+   "detector": "attention_miss",
+   "detail": "gold: needs the user; no note",
+   "stage": "shown",
+   "attempt": null,
+   "id": "R3T47",
+   "corpus": "turns"
+  },
+  {
+   "class": "omission",
+   "detector": "attention_miss",
+   "detail": "gold: needs the user; no note",
+   "stage": "shown",
+   "attempt": null,
+   "id": "R3T48",
+   "corpus": "turns"
+  },
+  {
+   "class": "omission",
+   "detector": "attention_miss",
+   "detail": "gold: needs the user; no note",
+   "stage": "shown",
+   "attempt": null,
+   "id": "R3T50",
+   "corpus": "turns"
+  }
+ ]
+}

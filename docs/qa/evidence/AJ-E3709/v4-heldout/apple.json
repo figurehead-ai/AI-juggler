@@ -1,0 +1,4743 @@
+{
+ "meta": {
+  "harness": "v4",
+  "prompt_version": 4,
+  "engine": "Apple on-device Foundation Model via apple_probe.swift",
+  "hello": "{\"guided\":true,\"available\":\"available\",\"extensions\":[\"fields\",\"sampling\"],\"protocol\":3,\"hello\":true,\"os\":\"Version 27.0.1 (Build 26A434)\"}",
+  "family": "apple",
+  "sampling_name": "greedy",
+  "sampling": {
+   "mode": "greedy",
+   "temperature": 0
+  },
+  "mark": "datamark",
+  "datamark": "on",
+  "examples": "all",
+  "schema_in_prompt": true,
+  "jobs": [
+   "feed_line",
+   "review",
+   "attention",
+   "chat"
+  ],
+  "subset": "all",
+  "prompt_sha256": {
+   "feed_line": "ca2b7c9d3cba01c0a23ce784047fa1dd30d486ebf507082ad80b00ec796b1f8e",
+   "review": "0e0bb6109bfa6909b97029574b98df7af1e5e68d5753170799ccca357338b7f6",
+   "attention": "7728d7c3cbe8f8368e796cc79f498cb418982d30e735c195f4922a1cccec2e2c",
+   "chat": "fc85b0028a8a5fa7751e49d6763da7cab0af53f838ac1771c1daa68609988b5d"
+  },
+  "jobs_py_sha256": "87c4c28a4370857c67bc99881744f31797c51c0e6e130b5a0e836a7cf42f4c6f",
+  "gate_py_sha256": "22152d013af518c34237464f53fd92dbdc83b8b1fa21b1cff8588f5d08735a68",
+  "frozen_gate_commit": "7acec4f50",
+  "repeats": 1,
+  "limit": null,
+  "corpora": [
+   {
+    "label": "heldout",
+    "file": "corpus-heldout.json",
+    "sha256": "1604bb446445b491fb4e6925ea562724b25d3e2dbb9990530fea103c7032c543",
+    "items_in_file": 24,
+    "items_run": 24
+   },
+   {
+    "label": "heldout-jobs",
+    "file": "corpus-heldout-jobs.json",
+    "sha256": "3b827b141d4027e23c6cee46265f22a797699bfea920356b74b0462b21b31550",
+    "items_in_file": 36,
+    "items_run": 36
+   }
+  ],
+  "calls": 149,
+  "wall_s": 386.6,
+  "machine": {
+   "macos": "27.0.1",
+   "macos_build": "26A434",
+   "arch": "arm64",
+   "model": "Mac17,15",
+   "chip": "Apple M5 Ultra",
+   "ram_gb": 96.0,
+   "cpus": 30
+  },
+  "load_avg_start": [
+   23.2,
+   19.7,
+   15.5
+  ],
+  "load_avg_end": [
+   17.5,
+   19.1,
+   16.7
+  ],
+  "helper_cpu_s": 8.98,
+  "cpu_deltas": [
+   {
+    "name": "modelcatalogd",
+    "cpu_s": 27.25
+   },
+   {
+    "name": "modelmanagerd",
+    "cpu_s": 23.63
+   },
+   {
+    "name": "apple_probe",
+    "cpu_s": 8.94
+   },
+   {
+    "name": "GenerativeExperiencesSafetyInferenceProvider",
+    "cpu_s": 7.14
+   }
+  ],
+  "watched_rss_mb": {
+   "before": 68.5,
+   "peak": 104.0,
+   "after": 100.3
+  },
+  "started": "2026-11-18 05:30:52",
+  "label": "synthetic held-out only; not checked on real messages"
+ },
+ "results": [
+  {
+   "corpus": "heldout",
+   "job": "feed_line",
+   "setting": "main",
+   "id": "H001",
+   "rep": 0,
+   "cold_first": true,
+   "est_tokens": 2118,
+   "cut": false,
+   "prompt_chars": 585,
+   "text": "{\"result\": \"the CSV export now streams rows instead of buffering the whole file, so the 400 MB sample in fixtures/big.csv stays under 80 MB of memory\", \"action\": \"changed\", \"caveat_kind\": \"none\", \"object\": \"src/export/stream.ts and src/export/index.ts\", \"caveat\": \"I ran npm test: 58 passed, 0 failed\"}",
+   "finish": "stop",
+   "out_tokens": 99,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 5043,
+   "gen_ms": 5042.462110519409
+  },
+  {
+   "corpus": "heldout",
+   "job": "review",
+   "setting": "main",
+   "id": "H001",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2383,
+   "cut": false,
+   "prompt_chars": 587,
+   "text": "{\"risk_reason\": \"58 passed, 0 failed\", \"left\": [], \"changed\": [\"the CSV export now streams rows instead of buffering the whole file\", \"changed src/export/stream.ts and src/export/index.ts\"], \"not_checked\": [], \"risk\": \"low\"}",
+   "finish": "stop",
+   "out_tokens": 71,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 2584,
+   "gen_ms": 2583.2990407943726
+  },
+  {
+   "corpus": "heldout",
+   "job": "attention",
+   "setting": "facts_given",
+   "id": "H001",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1702,
+   "cut": false,
+   "prompt_chars": 569,
+   "text": "{\"suggest\": \"can_wait\", \"reason\": \"work_done\", \"evidence\": \"Done. The CSV export now streams rows instead of buffering the whole file, so the 400 MB sample in fixtures/big.csv stays under 80 MB of memory. Changed src/export/stream.ts and src/export/index.ts. I ran npm test: 58 passed, 0 failed.\"}",
+   "finish": "stop",
+   "out_tokens": 99,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 3222,
+   "gen_ms": 3221.2109565734863
+  },
+  {
+   "corpus": "heldout",
+   "job": "attention",
+   "setting": "facts_hidden",
+   "id": "H001",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1697,
+   "cut": false,
+   "prompt_chars": 551,
+   "text": "{\"suggest\": \"can_wait\", \"reason\": \"work_done\", \"evidence\": \"Done. The CSV export now streams rows instead of buffering the whole file, so the 400 MB sample in fixtures/big.csv stays under 80 MB of memory. Changed src/export/stream.ts and src/export/index.ts. I ran npm test: 58 passed, 0 failed.\"}",
+   "finish": "stop",
+   "out_tokens": 99,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 3391,
+   "gen_ms": 3390.429973602295
+  },
+  {
+   "corpus": "heldout",
+   "job": "feed_line",
+   "setting": "main",
+   "id": "H002",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2069,
+   "cut": false,
+   "prompt_chars": 486,
+   "text": "{\"caveat\": \"none\", \"action\": \"changed\", \"object\": \"the Login-Timeout in config/session.yaml\", \"result\": \"all 14 tests in tests/test_session.py run through\", \"caveat_kind\": \"none\"}",
+   "finish": "stop",
+   "out_tokens": 65,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 2195,
+   "gen_ms": 2194.3230628967285
+  },
+  {
+   "corpus": "heldout",
+   "job": "review",
+   "setting": "main",
+   "id": "H002",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2335,
+   "cut": false,
+   "prompt_chars": 488,
+   "text": "{\"risk_reason\": \"Alle 14 Tests in tests/test_session.py laufen durch\", \"left\": [], \"changed\": [\"Der Login-Timeout liegt jetzt bei 30 Minuten statt 5 (config/session.yaml)\"], \"not_checked\": [], \"risk\": \"low\"}",
+   "finish": "stop",
+   "out_tokens": 69,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 2838,
+   "gen_ms": 2837.675929069519
+  },
+  {
+   "corpus": "heldout",
+   "job": "attention",
+   "setting": "facts_given",
+   "id": "H002",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1654,
+   "cut": false,
+   "prompt_chars": 470,
+   "text": "{\"suggest\": \"can_wait\", \"reason\": \"work_done\", \"evidence\": \"Fertig: Der Login-Timeout liegt jetzt bei 30 Minuten statt 5 (config/session.yaml). Alle 14 Tests in tests/test_session.py laufen durch.\"}",
+   "finish": "stop",
+   "out_tokens": 61,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 2323,
+   "gen_ms": 2321.72691822052
+  },
+  {
+   "corpus": "heldout",
+   "job": "attention",
+   "setting": "facts_hidden",
+   "id": "H002",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1649,
+   "cut": false,
+   "prompt_chars": 452,
+   "text": "{\"suggest\": \"unclear\", \"reason\": \"nothing_to_review\", \"evidence\": \"Fertig: Der Login-Timeout liegt jetzt bei 30 Minuten statt 5 (config/session.yaml). Alle 14 Tests in tests/test_session.py laufen durch.\"}",
+   "finish": "stop",
+   "out_tokens": 63,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 2901,
+   "gen_ms": 2899.489998817444
+  },
+  {
+   "corpus": "heldout",
+   "job": "feed_line",
+   "setting": "main",
+   "id": "H003",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2033,
+   "cut": false,
+   "prompt_chars": 392,
+   "text": "{\"object\": \"the flag to --dry-run everywhere\", \"action\": \"renamed\", \"caveat_kind\": \"none\", \"result\": \"docs updated too\", \"caveat\": \"none\"}",
+   "finish": "stop",
+   "out_tokens": 49,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 2125,
+   "gen_ms": 2125.0048875808716
+  },
+  {
+   "corpus": "heldout",
+   "job": "review",
+   "setting": "main",
+   "id": "H003",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2299,
+   "cut": false,
+   "prompt_chars": 394,
+   "text": "{\"changed\": [\"renamed the flag to --dry-run everywhere\", \"docs updated too\"], \"left\": [], \"risk_reason\": \"none\", \"not_checked\": [], \"risk\": \"unknown\"}",
+   "finish": "stop",
+   "out_tokens": 49,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 2527,
+   "gen_ms": 2526.1290073394775
+  },
+  {
+   "corpus": "heldout",
+   "job": "attention",
+   "setting": "facts_given",
+   "id": "H003",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1618,
+   "cut": false,
+   "prompt_chars": 376,
+   "text": "{\"suggest\": \"can_wait\", \"reason\": \"work_done\", \"evidence\": \"Renamed the flag to --dry-run everywhere, docs updated too.\"}",
+   "finish": "stop",
+   "out_tokens": 41,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 1989,
+   "gen_ms": 1988.5330200195312
+  },
+  {
+   "corpus": "heldout",
+   "job": "attention",
+   "setting": "facts_hidden",
+   "id": "H003",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1618,
+   "cut": false,
+   "prompt_chars": 375,
+   "text": "{\"suggest\": \"can_wait\", \"reason\": \"work_done\", \"evidence\": \"Renamed the flag to --dry-run everywhere, docs updated too.\"}",
+   "finish": "stop",
+   "out_tokens": 41,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 1883,
+   "gen_ms": 1882.262945175171
+  },
+  {
+   "corpus": "heldout",
+   "job": "feed_line",
+   "setting": "main",
+   "id": "H004",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2121,
+   "cut": false,
+   "prompt_chars": 586,
+   "text": "{\"object\": \"the 3 shell tests in scripts/test/\", \"action\": \"ran\", \"caveat_kind\": \"none\", \"result\": \"all 3 pass\", \"caveat\": \"It passes on the current tree\"}",
+   "finish": "stop",
+   "out_tokens": 51,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 2473,
+   "gen_ms": 2472.7920293807983
+  },
+  {
+   "corpus": "heldout",
+   "job": "review",
+   "setting": "main",
+   "id": "H004",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2386,
+   "cut": false,
+   "prompt_chars": 588,
+   "text": "{\"risk_reason\": \"all 3 pass\", \"left\": [], \"changed\": [\"new check in scripts/verify_lock.sh\"], \"not_checked\": [], \"risk\": \"low\"}",
+   "finish": "stop",
+   "out_tokens": 45,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 2392,
+   "gen_ms": 2391.15309715271
+  },
+  {
+   "corpus": "heldout",
+   "job": "attention",
+   "setting": "facts_given",
+   "id": "H004",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1705,
+   "cut": false,
+   "prompt_chars": 570,
+   "text": "{\"suggest\": \"can_wait\", \"reason\": \"work_done\", \"evidence\": \"The new check in scripts/verify_lock.sh fails if package-lock.json is older than package.json, so a stale lockfile can no longer slip into a release. It passes on the current tree. I ran the 3 shell tests in scripts/test/ and all 3 pass.\"}",
+   "finish": "stop",
+   "out_tokens": 87,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 3160,
+   "gen_ms": 3159.4810485839844
+  },
+  {
+   "corpus": "heldout",
+   "job": "attention",
+   "setting": "facts_hidden",
+   "id": "H004",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1700,
+   "cut": false,
+   "prompt_chars": 553,
+   "text": "{\"suggest\": \"can_wait\", \"reason\": \"work_done\", \"evidence\": \"The new check in scripts/verify_lock.sh fails if package-lock.json is older than package.json, so a stale lockfile can no longer slip into a release. It passes on the current tree. I ran the 3 shell tests in scripts/test/ and all 3 pass.\"}",
+   "finish": "stop",
+   "out_tokens": 87,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 3261,
+   "gen_ms": 3260.807991027832
+  },
+  {
+   "corpus": "heldout",
+   "job": "feed_line",
+   "setting": "main",
+   "id": "H005",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2128,
+   "cut": false,
+   "prompt_chars": 596,
+   "text": "{\"object\": \"the retry logic working for the upload client (lib/upload/retry.py)\", \"action\": \"got\", \"result\": \"9 tests pass\", \"caveat_kind\": \"not_done\", \"caveat\": \"that is still a TODO at line 88 and uploads over 2 GB will restart from zero\"}",
+   "finish": "stop",
+   "out_tokens": 75,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 3175,
+   "gen_ms": 3175.168037414551
+  },
+  {
+   "corpus": "heldout",
+   "job": "review",
+   "setting": "main",
+   "id": "H005",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2393,
+   "cut": false,
+   "prompt_chars": 598,
+   "text": "{\"risk_reason\": \"uploads over 2 GB will restart from zero\", \"left\": [\"that is still a TODO at line 88 and uploads over 2 GB will restart from zero\"], \"changed\": [\"got the retry logic working for the upload client (lib/upload/retry.py), including exponential backoff capped at 60 s\"], \"not_checked\": [\"did not get to resumable chunks\"], \"risk\": \"medium\"}",
+   "finish": "stop",
+   "out_tokens": 99,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 3316,
+   "gen_ms": 3315.622925758362
+  },
+  {
+   "corpus": "heldout",
+   "job": "attention",
+   "setting": "facts_given",
+   "id": "H005",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1712,
+   "cut": false,
+   "prompt_chars": 580,
+   "text": "{\"suggest\": \"can_wait\", \"reason\": \"work_done\", \"evidence\": \"that is still a TODO at line 88 and uploads over 2 GB will restart from zero.\"}",
+   "finish": "stop",
+   "out_tokens": 43,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 1897,
+   "gen_ms": 1897.1019983291626
+  },
+  {
+   "corpus": "heldout",
+   "job": "attention",
+   "setting": "facts_hidden",
+   "id": "H005",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1707,
+   "cut": false,
+   "prompt_chars": 563,
+   "text": "{\"suggest\": \"can_wait\", \"reason\": \"work_done\", \"evidence\": \"I got the retry logic working for the upload client (lib/upload/retry.py), including exponential backoff capped at 60 s. I did not get to resumable chunks: that is still a TODO at line 88 and uploads over 2 GB will restart from zero. 9 tests pass.\"}",
+   "finish": "stop",
+   "out_tokens": 91,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 3231,
+   "gen_ms": 3230.659008026123
+  },
+  {
+   "corpus": "heldout",
+   "job": "feed_line",
+   "setting": "main",
+   "id": "H006",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2093,
+   "cut": false,
+   "prompt_chars": 545,
+   "text": "{\"object\": \"Die Übersetzungen für Deutsch und Französisch sind drin (i18n/de.json, i18n/fr.json). Spanisch fehlt noch, weil die Quelldatei leer war.\", \"action\": \"erledigt\", \"result\": \"21 Tests bestanden, 0 fehlgeschlagen\", \"caveat_kind\": \"partial\", \"caveat\": \"Spanisch fehlt noch, weil die Quelldatei leer war\"}",
+   "finish": "stop",
+   "out_tokens": 101,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 3496,
+   "gen_ms": 3495.0109720230103
+  },
+  {
+   "corpus": "heldout",
+   "job": "review",
+   "setting": "main",
+   "id": "H006",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2359,
+   "cut": false,
+   "prompt_chars": 547,
+   "text": "{\"risk_reason\": \"Spanisch fehlt noch, weil die Quelldatei leer war\", \"left\": [\"Spanisch fehlt noch, weil die Quelldatei leer war\"], \"changed\": [\"Die Übersetzungen für Deutsch und Französisch sind drin\", \"Spanisch fehlt noch, weil die Quelldatei leer war\"], \"not_checked\": [], \"risk\": \"medium\"}",
+   "finish": "stop",
+   "out_tokens": 83,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 3072,
+   "gen_ms": 3071.9850063323975
+  },
+  {
+   "corpus": "heldout",
+   "job": "attention",
+   "setting": "facts_given",
+   "id": "H006",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1678,
+   "cut": false,
+   "prompt_chars": 529,
+   "text": "{\"suggest\": \"can_wait\", \"reason\": \"work_done\", \"evidence\": \"Die Übersetzungen für Deutsch und Französisch sind drin (i18n/de.json, i18n/fr.json). Spanisch fehlt noch, weil die Quelldatei leer war. Tests: 21 bestanden, 0 fehlgeschlagen.\"}",
+   "finish": "stop",
+   "out_tokens": 87,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 2632,
+   "gen_ms": 2631.5441131591797
+  },
+  {
+   "corpus": "heldout",
+   "job": "attention",
+   "setting": "facts_hidden",
+   "id": "H006",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1672,
+   "cut": false,
+   "prompt_chars": 511,
+   "text": "{\"suggest\": \"unclear\", \"reason\": \"nothing_to_review\", \"evidence\": \"Die Übersetzungen für Deutsch und Französisch sind drin (i18n/de.json, i18n/fr.json). Spanisch fehlt noch, weil die Quelldatei leer war. Tests: 21 bestanden, 0 fehlgeschlagen.\"}",
+   "finish": "stop",
+   "out_tokens": 89,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 2806,
+   "gen_ms": 2806.177020072937
+  },
+  {
+   "corpus": "heldout",
+   "job": "feed_line",
+   "setting": "main",
+   "id": "H007",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2094,
+   "cut": false,
+   "prompt_chars": 549,
+   "text": "{\"caveat\": \"none\", \"action\": \"added\", \"object\": \"pagination added to api/routes/orders.go, happy path only, error mapping left as it was, new query params to docs/api.md\", \"result\": \"31 tests run\", \"caveat_kind\": \"none\"}",
+   "finish": "stop",
+   "out_tokens": 75,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 2783,
+   "gen_ms": 2782.6600074768066
+  },
+  {
+   "corpus": "heldout",
+   "job": "review",
+   "setting": "main",
+   "id": "H007",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2360,
+   "cut": false,
+   "prompt_chars": 551,
+   "text": "{\"risk_reason\": \"reports ok, 31 tests\", \"left\": [], \"changed\": [\"pagination added\", \"happy path only, error mapping left as it was\", \"new query params\"], \"not_checked\": [], \"risk\": \"low\"}",
+   "finish": "stop",
+   "out_tokens": 59,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 2411,
+   "gen_ms": 2410.9209775924683
+  },
+  {
+   "corpus": "heldout",
+   "job": "attention",
+   "setting": "facts_given",
+   "id": "H007",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1679,
+   "cut": false,
+   "prompt_chars": 533,
+   "text": "{\"suggest\": \"can_wait\", \"reason\": \"work_done\", \"evidence\": \"Updated: api/routes/orders.go: pagination added\\napi/routes/refunds.go: happy path only, error mapping left as it was\\ndocs/api.md: new query params\\nI ran go test ./api/... and it reports ok, 31 tests.\"}",
+   "finish": "stop",
+   "out_tokens": 87,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 3121,
+   "gen_ms": 3120.2149391174316
+  },
+  {
+   "corpus": "heldout",
+   "job": "attention",
+   "setting": "facts_hidden",
+   "id": "H007",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1674,
+   "cut": false,
+   "prompt_chars": 515,
+   "text": "{\"suggest\": \"can_wait\", \"reason\": \"work_done\", \"evidence\": \"Updated: api/routes/orders.go: pagination added\\napi/routes/refunds.go: happy path only, error mapping left as it was\\ndocs/api.md: new query params\\nI ran go test ./api/... and it reports ok, 31 tests.\"}",
+   "finish": "stop",
+   "out_tokens": 87,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 3064,
+   "gen_ms": 3064.0339851379395
+  },
+  {
+   "corpus": "heldout",
+   "job": "feed_line",
+   "setting": "main",
+   "id": "H008",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2094,
+   "cut": false,
+   "prompt_chars": 513,
+   "text": "{\"result\": \"the migration is not finished\", \"action\": \"migrated\", \"object\": \"3 of 5 services to the new logger\", \"caveat_kind\": \"not_done\", \"caveat\": \"billing and search still use the old one because they pin an older shared lib\"}",
+   "finish": "stop",
+   "out_tokens": 67,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 2581,
+   "gen_ms": 2580.665111541748
+  },
+  {
+   "corpus": "heldout",
+   "job": "review",
+   "setting": "main",
+   "id": "H008",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2360,
+   "cut": false,
+   "prompt_chars": 515,
+   "text": "{\"risk_reason\": \"migration is not finished\", \"left\": [\"billing and search still use the old one because they pin an older shared lib\"], \"changed\": [\"migrated 3 of 5 services to the new logger\"], \"not_checked\": [\"didn't run the suite\"], \"risk\": \"high\"}",
+   "finish": "stop",
+   "out_tokens": 75,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 2838,
+   "gen_ms": 2837.730050086975
+  },
+  {
+   "corpus": "heldout",
+   "job": "attention",
+   "setting": "facts_given",
+   "id": "H008",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1678,
+   "cut": false,
+   "prompt_chars": 497,
+   "text": "{\"suggest\": \"can_wait\", \"reason\": \"not_verified\", \"evidence\": \"Migrated 3 of 5 services to the new logger. billing and search still use the old one because they pin an older shared lib, so the migration is not finished. I didn't run the suite.\"}",
+   "finish": "stop",
+   "out_tokens": 69,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 2456,
+   "gen_ms": 2455.891013145447
+  },
+  {
+   "corpus": "heldout",
+   "job": "attention",
+   "setting": "facts_hidden",
+   "id": "H008",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1678,
+   "cut": false,
+   "prompt_chars": 496,
+   "text": "{\"suggest\": \"can_wait\", \"reason\": \"not_verified\", \"evidence\": \"Migrated 3 of 5 services to the new logger. billing and search still use the old one because they pin an older shared lib, so the migration is not finished. I didn't run the suite.\"}",
+   "finish": "stop",
+   "out_tokens": 69,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 2722,
+   "gen_ms": 2722.0829725265503
+  },
+  {
+   "corpus": "heldout",
+   "job": "feed_line",
+   "setting": "main",
+   "id": "H009",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2056,
+   "cut": false,
+   "prompt_chars": 441,
+   "text": "{\"caveat\": \"I haven't run anything\", \"action\": \"changed\", \"object\": \"the cron expression in deploy/jobs.yaml\", \"result\": \"none\", \"caveat_kind\": \"not_run\"}",
+   "finish": "stop",
+   "out_tokens": 59,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 2173,
+   "gen_ms": 2172.294020652771
+  },
+  {
+   "corpus": "heldout",
+   "job": "review",
+   "setting": "main",
+   "id": "H009",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2322,
+   "cut": false,
+   "prompt_chars": 443,
+   "text": "{\"risk_reason\": \"not run\", \"left\": [], \"changed\": [\"changed the cron expression in deploy/jobs.yaml from every 15 to every 30 minutes\"], \"not_checked\": [\"haven't run anything\"], \"risk\": \"high\"}",
+   "finish": "stop",
+   "out_tokens": 65,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 2432,
+   "gen_ms": 2431.681990623474
+  },
+  {
+   "corpus": "heldout",
+   "job": "attention",
+   "setting": "facts_given",
+   "id": "H009",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1641,
+   "cut": false,
+   "prompt_chars": 425,
+   "text": "{\"suggest\": \"can_wait\", \"reason\": \"not_verified\", \"evidence\": \"I changed the cron expression in deploy/jobs.yaml from every 15 to every 30 minutes. I haven't run anything.\"}",
+   "finish": "stop",
+   "out_tokens": 51,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 2111,
+   "gen_ms": 2110.3079319000244
+  },
+  {
+   "corpus": "heldout",
+   "job": "attention",
+   "setting": "facts_hidden",
+   "id": "H009",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1641,
+   "cut": false,
+   "prompt_chars": 424,
+   "text": "{\"suggest\": \"can_wait\", \"reason\": \"not_verified\", \"evidence\": \"I changed the cron expression in deploy/jobs.yaml from every 15 to every 30 minutes. I haven't run anything.\"}",
+   "finish": "stop",
+   "out_tokens": 51,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 2015,
+   "gen_ms": 2014.4399404525757
+  },
+  {
+   "corpus": "heldout",
+   "job": "feed_line",
+   "setting": "main",
+   "id": "H010",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2076,
+   "cut": false,
+   "prompt_chars": 495,
+   "text": "{\"object\": \"die Validierung für das Kontaktformular\", \"action\": \"umgebaut\", \"caveat_kind\": \"not_run\", \"result\": \"die Tests nicht ausgeführt\", \"caveat\": \"da in diesem Umfeld kein Node installiert ist\"}",
+   "finish": "stop",
+   "out_tokens": 61,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 2429,
+   "gen_ms": 2428.7610054016113
+  },
+  {
+   "corpus": "heldout",
+   "job": "review",
+   "setting": "main",
+   "id": "H010",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2341,
+   "cut": false,
+   "prompt_chars": 497,
+   "text": "{\"risk_reason\": \"Tests nicht ausgeführt, kein Node installiert\", \"left\": [], \"changed\": [\"Die Validierung für das Kontaktformular ist umgebaut (src/forms/contact.ts).\"], \"not_checked\": [\"die Tests nicht ausgeführt\", \"da in dieser Umgebung kein Node installiert ist\"], \"risk\": \"high\"}",
+   "finish": "stop",
+   "out_tokens": 71,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 2599,
+   "gen_ms": 2598.8450050354004
+  },
+  {
+   "corpus": "heldout",
+   "job": "attention",
+   "setting": "facts_given",
+   "id": "H010",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1660,
+   "cut": false,
+   "prompt_chars": 479,
+   "text": "{\"suggest\": \"can_wait\", \"reason\": \"not_verified\", \"evidence\": \"Ich habe die Tests nicht ausgeführt, da in dieser Umgebung kein Node installiert ist.\"}",
+   "finish": "stop",
+   "out_tokens": 45,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 1709,
+   "gen_ms": 1708.4219455718994
+  },
+  {
+   "corpus": "heldout",
+   "job": "attention",
+   "setting": "facts_hidden",
+   "id": "H010",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1660,
+   "cut": false,
+   "prompt_chars": 478,
+   "text": "{\"suggest\": \"can_wait\", \"reason\": \"not_verified\", \"evidence\": \"Ich habe die Tests nicht ausgeführt, da in dieser Umgebung kein Node installiert ist.\"}",
+   "finish": "stop",
+   "out_tokens": 45,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 1840,
+   "gen_ms": 1839.8269414901733
+  },
+  {
+   "corpus": "heldout",
+   "job": "feed_line",
+   "setting": "main",
+   "id": "H011",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2114,
+   "cut": false,
+   "prompt_chars": 568,
+   "text": "{\"object\": \"the Dockerfile\", \"action\": \"used\", \"result\": \"the size reduction is unverified and the entrypoint path in docker/run.sh is untested\", \"caveat_kind\": \"not_run\", \"caveat\": \"I couldn't build the image here (no Docker daemon)\"}",
+   "finish": "stop",
+   "out_tokens": 77,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 2616,
+   "gen_ms": 2615.4969930648804
+  },
+  {
+   "corpus": "heldout",
+   "job": "review",
+   "setting": "main",
+   "id": "H011",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2379,
+   "cut": false,
+   "prompt_chars": 570,
+   "text": "{\"risk_reason\": \"not run\", \"left\": [], \"changed\": [\"the Dockerfile now uses a multi-stage build\", \"drops the dev toolchain from the final layer\"], \"not_checked\": [\"the size reduction is unverified\", \"the entrypoint path in docker/run.sh is untested\"], \"risk\": \"high\"}",
+   "finish": "stop",
+   "out_tokens": 75,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 2877,
+   "gen_ms": 2876.579999923706
+  },
+  {
+   "corpus": "heldout",
+   "job": "attention",
+   "setting": "facts_given",
+   "id": "H011",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1698,
+   "cut": false,
+   "prompt_chars": 552,
+   "text": "{\"suggest\": \"can_wait\", \"reason\": \"not_verified\", \"evidence\": \"The Dockerfile now uses a multi-stage build and drops the dev toolchain from the final layer. I couldn't build the image here (no Docker daemon), so the size reduction is unverified and the entrypoint path in docker/run.sh is untested.\"}",
+   "finish": "stop",
+   "out_tokens": 81,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 2902,
+   "gen_ms": 2901.711106300354
+  },
+  {
+   "corpus": "heldout",
+   "job": "attention",
+   "setting": "facts_hidden",
+   "id": "H011",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1698,
+   "cut": false,
+   "prompt_chars": 551,
+   "text": "{\"suggest\": \"can_wait\", \"reason\": \"not_verified\", \"evidence\": \"I couldn't build the image here (no Docker daemon), so the size reduction is unverified and the entrypoint path in docker/run.sh is untested.\"}",
+   "finish": "stop",
+   "out_tokens": 59,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 2039,
+   "gen_ms": 2039.2379760742188
+  },
+  {
+   "corpus": "heldout",
+   "job": "feed_line",
+   "setting": "main",
+   "id": "H012",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2045,
+   "cut": false,
+   "prompt_chars": 419,
+   "text": "{\"result\": \"didn't run tests\", \"action\": \"patched\", \"caveat_kind\": \"not_run\", \"object\": \"the off-by-one in paginate() in src/list.rs\", \"caveat\": \"didn't run tests\"}",
+   "finish": "stop",
+   "out_tokens": 67,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 2119,
+   "gen_ms": 2118.2459592819214
+  },
+  {
+   "corpus": "heldout",
+   "job": "review",
+   "setting": "main",
+   "id": "H012",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2311,
+   "cut": false,
+   "prompt_chars": 421,
+   "text": "{\"risk_reason\": \"tests not run\", \"left\": [], \"changed\": [\"patched the off-by-one in paginate() in src/list.rs\"], \"not_checked\": [\"didn't run tests\"], \"risk\": \"high\"}",
+   "finish": "stop",
+   "out_tokens": 57,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 2070,
+   "gen_ms": 2069.308042526245
+  },
+  {
+   "corpus": "heldout",
+   "job": "attention",
+   "setting": "facts_given",
+   "id": "H012",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1630,
+   "cut": false,
+   "prompt_chars": 403,
+   "text": "{\"suggest\": \"can_wait\", \"reason\": \"not_verified\", \"evidence\": \"Patched the off-by-one in paginate() in src/list.rs, didn't run tests. Should be fine.\"}",
+   "finish": "stop",
+   "out_tokens": 57,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 1744,
+   "gen_ms": 1744.2219257354736
+  },
+  {
+   "corpus": "heldout",
+   "job": "attention",
+   "setting": "facts_hidden",
+   "id": "H012",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1629,
+   "cut": false,
+   "prompt_chars": 402,
+   "text": "{\"suggest\": \"can_wait\", \"reason\": \"work_done\", \"evidence\": \"Patched the off-by-one in paginate() in src/list.rs, didn't run tests. Should be fine.\"}",
+   "finish": "stop",
+   "out_tokens": 57,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 1763,
+   "gen_ms": 1763.023018836975
+  },
+  {
+   "corpus": "heldout",
+   "job": "feed_line",
+   "setting": "main",
+   "id": "H013",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2109,
+   "cut": false,
+   "prompt_chars": 565,
+   "text": "{\"result\": \"12 tests in tests/render fail with 'undefined symbol: gl_init' (44 others pass)\", \"action\": \"bumping\", \"caveat_kind\": \"blocked\", \"object\": \"the compiler target\", \"caveat\": \"the branch is currently broken and I have not reverted anything\"}",
+   "finish": "stop",
+   "out_tokens": 74,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 2653,
+   "gen_ms": 2652.343988418579
+  },
+  {
+   "corpus": "heldout",
+   "job": "review",
+   "setting": "main",
+   "id": "H013",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2374,
+   "cut": false,
+   "prompt_chars": 567,
+   "text": "{\"risk_reason\": \"12 tests in tests/render fail with 'undefined symbol: gl_init'\", \"left\": [\"the branch is currently broken\", \"I have not reverted anything\"], \"changed\": [\"bumping the compiler target\", \"12 tests in tests/render fail with 'undefined symbol: gl_init'\", \"the branch is currently broken\"], \"not_checked\": [], \"risk\": \"high\"}",
+   "finish": "stop",
+   "out_tokens": 95,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 2900,
+   "gen_ms": 2899.6750116348267
+  },
+  {
+   "corpus": "heldout",
+   "job": "attention",
+   "setting": "facts_hidden",
+   "id": "H013",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1688,
+   "cut": false,
+   "prompt_chars": 530,
+   "text": "{\"suggest\": \"needs_you\", \"reason\": \"reports_failure\", \"evidence\": \"I couldn't get the build to pass. After bumping the compiler target, 12 tests in tests/render fail with 'undefined symbol: gl_init' (44 others pass). The branch is currently broken and I have not reverted anything.\"}",
+   "finish": "stop",
+   "out_tokens": 75,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 2740,
+   "gen_ms": 2739.377021789551
+  },
+  {
+   "corpus": "heldout",
+   "job": "feed_line",
+   "setting": "main",
+   "id": "H014",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2076,
+   "cut": false,
+   "prompt_chars": 490,
+   "text": "{\"result\": \"halb migriert\", \"action\": \"failed\", \"caveat_kind\": \"blocked\", \"object\": \"Die Migration 0042\", \"caveat\": \"Die Migration 0042 bricht mit 'column already exists' ab, und die Datenbank steht jetzt halb migriert. Ich habe nichts zurückgerollt.\"}",
+   "finish": "stop",
+   "out_tokens": 81,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 2719,
+   "gen_ms": 2718.9300060272217
+  },
+  {
+   "corpus": "heldout",
+   "job": "review",
+   "setting": "main",
+   "id": "H014",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2342,
+   "cut": false,
+   "prompt_chars": 492,
+   "text": "{\"risk_reason\": \"Migration 0042 breaks with 'column already exists'\", \"left\": [\"I have not rolled back\"], \"changed\": [\"Migration 0042 breaks with 'column already exists'\", \"the database is now half migrated\"], \"not_checked\": [], \"risk\": \"high\"}",
+   "finish": "stop",
+   "out_tokens": 73,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 2585,
+   "gen_ms": 2584.670066833496
+  },
+  {
+   "corpus": "heldout",
+   "job": "attention",
+   "setting": "facts_hidden",
+   "id": "H014",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1661,
+   "cut": false,
+   "prompt_chars": 473,
+   "text": "{\"suggest\": \"needs_you\", \"reason\": \"reports_failure\", \"evidence\": \"Die Migration 0042 bricht mit 'column already exists' ab, und die Datenbank steht jetzt halb migriert. Ich habe nichts zurückgerollt.\"}",
+   "finish": "stop",
+   "out_tokens": 58,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 2263,
+   "gen_ms": 2262.5280618667603
+  },
+  {
+   "corpus": "heldout",
+   "job": "feed_line",
+   "setting": "main",
+   "id": "H015",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2102,
+   "cut": false,
+   "prompt_chars": 536,
+   "text": "{\"caveat_kind\": \"not_done\", \"action\": \"tried\", \"result\": \"still fails about 1 run in 4\", \"object\": \"the flaky websocket test\", \"caveat\": \"none\"}",
+   "finish": "stop",
+   "out_tokens": 55,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 2151,
+   "gen_ms": 2151.0339975357056
+  },
+  {
+   "corpus": "heldout",
+   "job": "review",
+   "setting": "main",
+   "id": "H015",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2367,
+   "cut": false,
+   "prompt_chars": 538,
+   "text": "{\"risk_reason\": \"none worked, it still fails about 1 run in 4\", \"left\": [\"the other 7 tests in that file pass\"], \"changed\": [\"tried three approaches to fix the flaky websocket test\", \"none worked\", \"it still fails about 1 run in 4\"], \"not_checked\": [], \"risk\": \"high\"}",
+   "finish": "stop",
+   "out_tokens": 83,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 2824,
+   "gen_ms": 2823.844075202942
+  },
+  {
+   "corpus": "heldout",
+   "job": "attention",
+   "setting": "facts_hidden",
+   "id": "H015",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1681,
+   "cut": false,
+   "prompt_chars": 503,
+   "text": "{\"suggest\": \"needs_you\", \"reason\": \"reports_failure\", \"evidence\": \"Tried three approaches to fix the flaky websocket test and none worked. It still fails about 1 run in 4, so I gave up; notes are in notes/ws-flaky.md. The other 7 tests in that file pass.\"}",
+   "finish": "stop",
+   "out_tokens": 73,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 2835,
+   "gen_ms": 2834.5160484313965
+  },
+  {
+   "corpus": "heldout",
+   "job": "feed_line",
+   "setting": "main",
+   "id": "H016",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2092,
+   "cut": false,
+   "prompt_chars": 517,
+   "text": "{\"result\": \"cargo build now errors with E0432\", \"action\": \"deleted\", \"caveat_kind\": \"not_done\", \"object\": \"a re-export that cli/main.rs needs\", \"caveat\": \"I haven't fixed it yet\"}",
+   "finish": "stop",
+   "out_tokens": 63,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 2579,
+   "gen_ms": 2579.146981239319
+  },
+  {
+   "corpus": "heldout",
+   "job": "review",
+   "setting": "main",
+   "id": "H016",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2358,
+   "cut": false,
+   "prompt_chars": 519,
+   "text": "{\"risk_reason\": \"cargo build errors with E0432\", \"left\": [\"cargo build now errors with E0432\", \"I haven't fixed it yet\"], \"changed\": [\"removing unused imports\", \"deleted a re-export that cli/main.rs needs\"], \"not_checked\": [], \"risk\": \"high\"}",
+   "finish": "stop",
+   "out_tokens": 79,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 3874,
+   "gen_ms": 3873.6000061035156
+  },
+  {
+   "corpus": "heldout",
+   "job": "attention",
+   "setting": "facts_hidden",
+   "id": "H016",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1676,
+   "cut": false,
+   "prompt_chars": 500,
+   "text": "{\"suggest\": \"needs_you\", \"reason\": \"reports_failure\", \"evidence\": \"cargo build now errors with E0432\"}",
+   "finish": "stop",
+   "out_tokens": 33,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 3593,
+   "gen_ms": 3592.1369791030884
+  },
+  {
+   "corpus": "heldout",
+   "job": "feed_line",
+   "setting": "main",
+   "id": "H017",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2094,
+   "cut": false,
+   "prompt_chars": 523,
+   "text": "{\"object\": \"the pricing table\", \"action\": \"asked\", \"caveat_kind\": \"not_done\", \"result\": \"none\", \"caveat\": \"haven't changed any code yet\"}",
+   "finish": "stop",
+   "out_tokens": 49,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 2075,
+   "gen_ms": 2073.7169981002808
+  },
+  {
+   "corpus": "heldout",
+   "job": "review",
+   "setting": "main",
+   "id": "H017",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2359,
+   "cut": false,
+   "prompt_chars": 525,
+   "text": "{\"risk_reason\": \"before or after tax not tested\", \"left\": [], \"changed\": [\"should the discount apply before or after tax\", \"haven't changed any code yet\"], \"not_checked\": [], \"risk\": \"medium\"}",
+   "finish": "stop",
+   "out_tokens": 53,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 2231,
+   "gen_ms": 2230.22198677063
+  },
+  {
+   "corpus": "heldout",
+   "job": "attention",
+   "setting": "facts_hidden",
+   "id": "H017",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1677,
+   "cut": false,
+   "prompt_chars": 503,
+   "text": "{\"suggest\": \"needs_you\", \"reason\": \"asks_question\", \"evidence\": \"should the discount apply before or after tax? The spec says both, in different places (docs/pricing.md lines 12 and 40). I haven't changed any code yet.\"}",
+   "finish": "stop",
+   "out_tokens": 63,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 2249,
+   "gen_ms": 2249.0869760513306
+  },
+  {
+   "corpus": "heldout",
+   "job": "feed_line",
+   "setting": "main",
+   "id": "H018",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2071,
+   "cut": false,
+   "prompt_chars": 482,
+   "text": "{\"result\": \"18 Tests grün\", \"action\": \"umgesetzt\", \"caveat_kind\": \"partial\", \"object\": \"die API-Änderung\", \"caveat\": \"Soll ich auch die alte v1-Route entfernen oder sie noch behalten?\"}",
+   "finish": "stop",
+   "out_tokens": 69,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 2273,
+   "gen_ms": 2272.550940513611
+  },
+  {
+   "corpus": "heldout",
+   "job": "review",
+   "setting": "main",
+   "id": "H018",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2337,
+   "cut": false,
+   "prompt_chars": 484,
+   "text": "{\"risk_reason\": \"18 Tests grün, alte v1-Route nicht geprüft\", \"left\": [], \"changed\": [\"API-Änderung umgesetzt (3 Dateien)\"], \"not_checked\": [\"alte v1-Route entfernen oder sie noch behalten\"], \"risk\": \"medium\"}",
+   "finish": "stop",
+   "out_tokens": 67,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 2471,
+   "gen_ms": 2470.9960222244263
+  },
+  {
+   "corpus": "heldout",
+   "job": "attention",
+   "setting": "facts_hidden",
+   "id": "H018",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1650,
+   "cut": false,
+   "prompt_chars": 445,
+   "text": "{\"suggest\": \"needs_you\", \"reason\": \"asks_question\", \"evidence\": \"Soll ich auch die alte v1-Route entfernen oder sie noch behalten?\"}",
+   "finish": "stop",
+   "out_tokens": 45,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 1834,
+   "gen_ms": 1833.8459730148315
+  },
+  {
+   "corpus": "heldout",
+   "job": "feed_line",
+   "setting": "main",
+   "id": "H019",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2092,
+   "cut": false,
+   "prompt_chars": 515,
+   "text": "{\"result\": \"none\", \"action\": \"asked\", \"object\": \"Two options for the cache: Redis (faster, adds a new dependency) or an in-process LRU (no dependency, but it resets on restart). Which do you want? I haven't written any code yet.\", \"caveat_kind\": \"not_done\", \"caveat\": \"I haven't written any code yet\"}",
+   "finish": "stop",
+   "out_tokens": 95,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 3193,
+   "gen_ms": 3192.405939102173
+  },
+  {
+   "corpus": "heldout",
+   "job": "review",
+   "setting": "main",
+   "id": "H019",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2357,
+   "cut": false,
+   "prompt_chars": 517,
+   "text": "{\"risk_reason\": \"haven't written any code yet\", \"left\": [], \"changed\": [\"Two options for the cache\", \"Redis (faster, adds a new dependency)\", \"an in-process LRU (no dependency, but it resets on restart)\"], \"not_checked\": [], \"risk\": \"unknown\"}",
+   "finish": "stop",
+   "out_tokens": 77,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 2885,
+   "gen_ms": 2884.153962135315
+  },
+  {
+   "corpus": "heldout",
+   "job": "attention",
+   "setting": "facts_hidden",
+   "id": "H019",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1675,
+   "cut": false,
+   "prompt_chars": 495,
+   "text": "{\"suggest\": \"needs_you\", \"reason\": \"asks_question\", \"evidence\": \"Two options for the cache: Redis (faster, adds a new dependency) or an in-process LRU (no dependency, but it resets on restart). Which do you want? I haven't written any code yet.\"}",
+   "finish": "stop",
+   "out_tokens": 73,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 2923,
+   "gen_ms": 2922.312021255493
+  },
+  {
+   "corpus": "heldout",
+   "job": "feed_line",
+   "setting": "main",
+   "id": "H020",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2104,
+   "cut": false,
+   "prompt_chars": 555,
+   "text": "{\"result\": \"5 tests passed, none failed\", \"action\": \"implemented\", \"caveat_kind\": \"none\", \"object\": \"the importer in tools/import.py\", \"caveat\": \"One thing to decide: it overwrites existing rows with the same id. OK to proceed like that, or should it skip duplicates instead?\"}",
+   "finish": "stop",
+   "out_tokens": 77,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 3875,
+   "gen_ms": 3874.361991882324
+  },
+  {
+   "corpus": "heldout",
+   "job": "review",
+   "setting": "main",
+   "id": "H020",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2370,
+   "cut": false,
+   "prompt_chars": 557,
+   "text": "{\"risk_reason\": \"none\", \"left\": [\"it overwrites existing rows with the same id\"], \"changed\": [\"Implemented the importer in tools/import.py\", \"5 tests passed, none failed\"], \"not_checked\": [\"OK to proceed like that, or should it skip duplicates instead?\"], \"risk\": \"unknown\"}",
+   "finish": "stop",
+   "out_tokens": 71,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 3112,
+   "gen_ms": 3111.594080924988
+  },
+  {
+   "corpus": "heldout",
+   "job": "attention",
+   "setting": "facts_hidden",
+   "id": "H020",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1683,
+   "cut": false,
+   "prompt_chars": 519,
+   "text": "{\"suggest\": \"needs_you\", \"reason\": \"asks_question\", \"evidence\": \"OK to proceed like that, or should it skip duplicates instead?\"}",
+   "finish": "stop",
+   "out_tokens": 37,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 1578,
+   "gen_ms": 1577.4070024490356
+  },
+  {
+   "corpus": "heldout",
+   "job": "feed_line",
+   "setting": "main",
+   "id": "H021",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2073,
+   "cut": false,
+   "prompt_chars": 488,
+   "text": "{\"result\": \"112 tests pass, the same as before\", \"action\": \"extracted\", \"object\": \"the retry loop from three handlers into utils/retry.js\", \"caveat_kind\": \"none\", \"caveat\": \"No behaviour change\"}",
+   "finish": "stop",
+   "out_tokens": 63,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 2343,
+   "gen_ms": 2342.797040939331
+  },
+  {
+   "corpus": "heldout",
+   "job": "review",
+   "setting": "main",
+   "id": "H021",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2338,
+   "cut": false,
+   "prompt_chars": 490,
+   "text": "{\"risk_reason\": \"112 tests pass, the same as before\", \"left\": [], \"changed\": [\"extracted the retry loop from three handlers into utils/retry.js\"], \"not_checked\": [], \"risk\": \"low\"}",
+   "finish": "stop",
+   "out_tokens": 53,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 2179,
+   "gen_ms": 2178.77197265625
+  },
+  {
+   "corpus": "heldout",
+   "job": "attention",
+   "setting": "facts_given",
+   "id": "H021",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1657,
+   "cut": false,
+   "prompt_chars": 472,
+   "text": "{\"suggest\": \"can_wait\", \"reason\": \"work_done\", \"evidence\": \"Pure refactor: extracted the retry loop from three handlers into utils/retry.js. No behaviour change; 112 tests pass, the same as before.\"}",
+   "finish": "stop",
+   "out_tokens": 59,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 2365,
+   "gen_ms": 2365.0389909744263
+  },
+  {
+   "corpus": "heldout",
+   "job": "attention",
+   "setting": "facts_hidden",
+   "id": "H021",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1652,
+   "cut": false,
+   "prompt_chars": 453,
+   "text": "{\"suggest\": \"can_wait\", \"reason\": \"work_done\", \"evidence\": \"Pure refactor: extracted the retry loop from three handlers into utils/retry.js. No behaviour change; 112 tests pass, the same as before.\"}",
+   "finish": "stop",
+   "out_tokens": 59,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 2205,
+   "gen_ms": 2205.006003379822
+  },
+  {
+   "corpus": "heldout",
+   "job": "feed_line",
+   "setting": "main",
+   "id": "H022",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2077,
+   "cut": false,
+   "prompt_chars": 505,
+   "text": "{\"object\": \"die Klasse OrderService in drei kleineren Module aufgeteilt\", \"action\": \"aufgeteilt\", \"result\": \"alle 76 Tests bestehen weiterhin\", \"caveat_kind\": \"none\", \"caveat\": \"Das Verhalten ist unverändert\"}",
+   "finish": "stop",
+   "out_tokens": 61,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 2256,
+   "gen_ms": 2255.777955055237
+  },
+  {
+   "corpus": "heldout",
+   "job": "review",
+   "setting": "main",
+   "id": "H022",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2342,
+   "cut": false,
+   "prompt_chars": 507,
+   "text": "{\"risk_reason\": \"alle 76 Tests bestehen weiterhin\", \"left\": [], \"changed\": [\"die Klasse OrderService in drei kleineren Module aufgeteilt\"], \"not_checked\": [], \"risk\": \"low\"}",
+   "finish": "stop",
+   "out_tokens": 53,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 2128,
+   "gen_ms": 2127.9810667037964
+  },
+  {
+   "corpus": "heldout",
+   "job": "attention",
+   "setting": "facts_given",
+   "id": "H022",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1661,
+   "cut": false,
+   "prompt_chars": 489,
+   "text": "{\"suggest\": \"can_wait\", \"reason\": \"work_done\", \"evidence\": \"Ich habe die Klasse OrderService in drei kleinerer Module aufgeteilt (services/order/*.py). Das Verhalten ist unverändert, alle 76 Tests bestehen weiterhin.\"}",
+   "finish": "stop",
+   "out_tokens": 59,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 2330,
+   "gen_ms": 2329.187035560608
+  },
+  {
+   "corpus": "heldout",
+   "job": "attention",
+   "setting": "facts_hidden",
+   "id": "H022",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1656,
+   "cut": false,
+   "prompt_chars": 471,
+   "text": "{\"suggest\": \"can_wait\", \"reason\": \"work_done\", \"evidence\": \"Ich habe die Klasse OrderService in drei kleinerer Module aufgeteilt (services/order/*.py). Das Verhalten ist unverändert, alle 76 Tests bestehen weiterhin.\"}",
+   "finish": "stop",
+   "out_tokens": 59,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 2181,
+   "gen_ms": 2180.81796169281
+  },
+  {
+   "corpus": "heldout",
+   "job": "feed_line",
+   "setting": "main",
+   "id": "H023",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2107,
+   "cut": false,
+   "prompt_chars": 566,
+   "text": "{\"result\": \"9 unit tests pass\", \"action\": \"moved\", \"caveat_kind\": \"not_run\", \"object\": \"the config loader from core/ to platform/config/\", \"caveat\": \"The check in ci/imports.sh fails if anything still imports core.config, and it reports none.\"}",
+   "finish": "stop",
+   "out_tokens": 79,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 2616,
+   "gen_ms": 2615.417003631592
+  },
+  {
+   "corpus": "heldout",
+   "job": "review",
+   "setting": "main",
+   "id": "H023",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2373,
+   "cut": false,
+   "prompt_chars": 568,
+   "text": "{\"risk_reason\": \"none\", \"left\": [\"the check in ci/imports.sh fails if anything still imports core.config\"], \"changed\": [\"moved the config loader from core/ to platform/config/ and fixed the imports\"], \"not_checked\": [], \"risk\": \"low\"}",
+   "finish": "stop",
+   "out_tokens": 65,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 2964,
+   "gen_ms": 2963.600993156433
+  },
+  {
+   "corpus": "heldout",
+   "job": "attention",
+   "setting": "facts_given",
+   "id": "H023",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1692,
+   "cut": false,
+   "prompt_chars": 550,
+   "text": "{\"suggest\": \"can_wait\", \"reason\": \"work_done\", \"evidence\": \"Nothing functional changed. The check in ci/imports.sh fails if anything still imports core.config, and it reports none. 9 unit tests pass.\"}",
+   "finish": "stop",
+   "out_tokens": 55,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 2067,
+   "gen_ms": 2066.2879943847656
+  },
+  {
+   "corpus": "heldout",
+   "job": "attention",
+   "setting": "facts_hidden",
+   "id": "H023",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1687,
+   "cut": false,
+   "prompt_chars": 533,
+   "text": "{\"suggest\": \"can_wait\", \"reason\": \"work_done\", \"evidence\": \"Moved the config loader from core/ to platform/config/ and fixed the imports. Nothing functional changed. The check in ci/imports.sh fails if anything still imports core.config, and it reports none. 9 unit tests pass.\"}",
+   "finish": "stop",
+   "out_tokens": 79,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 2867,
+   "gen_ms": 2866.4751052856445
+  },
+  {
+   "corpus": "heldout",
+   "job": "feed_line",
+   "setting": "main",
+   "id": "H024",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2067,
+   "cut": false,
+   "prompt_chars": 478,
+   "text": "{\"caveat\": \"keine aenderung am verhalten; go vet ist sauber\", \"action\": \"umbeannt und entfernt\", \"object\": \"Variablen und tote Funktionen (util/helpers.go)\", \"result\": \"33 Tests ok\", \"caveat_kind\": \"none\"}",
+   "finish": "stop",
+   "out_tokens": 65,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 2440,
+   "gen_ms": 2440.226912498474
+  },
+  {
+   "corpus": "heldout",
+   "job": "review",
+   "setting": "main",
+   "id": "H024",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2333,
+   "cut": false,
+   "prompt_chars": 480,
+   "text": "{\"risk_reason\": \"33 Tests ok\", \"left\": [], \"changed\": [\"variablen umbenannt und tote Funktionen entfernt\", \"keine Änderung am Verhalten\"], \"not_checked\": [], \"risk\": \"low\"}",
+   "finish": "stop",
+   "out_tokens": 57,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 2159,
+   "gen_ms": 2158.5839986801147
+  },
+  {
+   "corpus": "heldout",
+   "job": "attention",
+   "setting": "facts_given",
+   "id": "H024",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1651,
+   "cut": false,
+   "prompt_chars": 462,
+   "text": "{\"suggest\": \"can_wait\", \"reason\": \"work_done\", \"evidence\": \"Variablen umbenannt und tote Funktionen entfernt (util/helpers.go). Keine Änderung am Verhalten; go vet ist sauber, 33 Tests ok.\"}",
+   "finish": "stop",
+   "out_tokens": 55,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 2149,
+   "gen_ms": 2148.508906364441
+  },
+  {
+   "corpus": "heldout",
+   "job": "attention",
+   "setting": "facts_hidden",
+   "id": "H024",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1646,
+   "cut": false,
+   "prompt_chars": 444,
+   "text": "{\"suggest\": \"can_wait\", \"reason\": \"work_done\", \"evidence\": \"Variablen umbenannt und tote Funktionen entfernt (util/helpers.go). Keine Änderung am Verhalten; go vet ist sauber, 33 Tests ok.\"}",
+   "finish": "stop",
+   "out_tokens": 55,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 2138,
+   "gen_ms": 2137.5659704208374
+  },
+  {
+   "corpus": "heldout",
+   "job": "chat",
+   "setting": "main",
+   "id": "heldout-S00-happened",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1948,
+   "cut": false,
+   "prompt_chars": 1239,
+   "chat_item": {
+    "id": "heldout-S00-happened",
+    "question": "What happened in the sparrow export session?",
+    "rows": [
+     {
+      "ref": "r1",
+      "title": "sparrow export",
+      "facts": {
+       "outcome": "success",
+       "tests": {
+        "state": "ran",
+        "passed": 58,
+        "failed": 0
+       },
+       "level": "L0"
+      },
+      "words": "The CSV export now streams rows instead of buffering the whole file, so the 400 MB sample in fixtures/big.csv stays under 80 MB of memory.",
+      "turn": "H001",
+      "lang": "en"
+     },
+     {
+      "ref": "r2",
+      "title": "lantern billing",
+      "facts": {
+       "outcome": "success",
+       "tests": {
+        "state": "ran",
+        "passed": 14,
+        "failed": 0
+       },
+       "level": "L0"
+      },
+      "words": "Fertig: Der Login-Timeout liegt jetzt bei 30 Minuten statt 5 (config/session.yaml).",
+      "turn": "H002",
+      "lang": "de"
+     },
+     {
+      "ref": "r3",
+      "title": "quarry search",
+      "facts": {
+       "outcome": "success",
+       "tests": {
+        "state": "unknown"
+       },
+       "level": "L0"
+      },
+      "words": "Renamed the flag to --dry-run everywhere, docs updated too.",
+      "turn": "H003",
+      "lang": "en"
+     },
+     {
+      "ref": "r4",
+      "title": "maple onboarding",
+      "facts": {
+       "outcome": "success",
+       "tests": {
+        "state": "ran",
+        "passed": 3,
+        "failed": 0
+       },
+       "level": "L0"
+      },
+      "words": "The new check in scripts/verify_lock.sh fails if package-lock.json is older than package.json, so a stale lockfile can no longer slip into a release.",
+      "turn": "H004",
+      "lang": "en"
+     }
+    ],
+    "gold": {
+     "answerable": true,
+     "refs": [
+      "r1"
+     ]
+    },
+    "removed": []
+   },
+   "text": "{\"covered\": \"yes\", \"parts\": [{\"cites\": [\"r1\"], \"text\": \"The CSV export now streams rows instead of buffering the whole file, so the 400 MB sample in fixtures/big.csv stays under 80 MB of memory.\"}]}",
+   "finish": "stop",
+   "out_tokens": 67,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 2343,
+   "gen_ms": 2343.1390523910522
+  },
+  {
+   "corpus": "heldout",
+   "job": "chat",
+   "setting": "main",
+   "id": "heldout-S00-tests",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1950,
+   "cut": false,
+   "prompt_chars": 1245,
+   "chat_item": {
+    "id": "heldout-S00-tests",
+    "question": "Did the tests pass in the lantern billing session?",
+    "rows": [
+     {
+      "ref": "r1",
+      "title": "sparrow export",
+      "facts": {
+       "outcome": "success",
+       "tests": {
+        "state": "ran",
+        "passed": 58,
+        "failed": 0
+       },
+       "level": "L0"
+      },
+      "words": "The CSV export now streams rows instead of buffering the whole file, so the 400 MB sample in fixtures/big.csv stays under 80 MB of memory.",
+      "turn": "H001",
+      "lang": "en"
+     },
+     {
+      "ref": "r2",
+      "title": "lantern billing",
+      "facts": {
+       "outcome": "success",
+       "tests": {
+        "state": "ran",
+        "passed": 14,
+        "failed": 0
+       },
+       "level": "L0"
+      },
+      "words": "Fertig: Der Login-Timeout liegt jetzt bei 30 Minuten statt 5 (config/session.yaml).",
+      "turn": "H002",
+      "lang": "de"
+     },
+     {
+      "ref": "r3",
+      "title": "quarry search",
+      "facts": {
+       "outcome": "success",
+       "tests": {
+        "state": "unknown"
+       },
+       "level": "L0"
+      },
+      "words": "Renamed the flag to --dry-run everywhere, docs updated too.",
+      "turn": "H003",
+      "lang": "en"
+     },
+     {
+      "ref": "r4",
+      "title": "maple onboarding",
+      "facts": {
+       "outcome": "success",
+       "tests": {
+        "state": "ran",
+        "passed": 3,
+        "failed": 0
+       },
+       "level": "L0"
+      },
+      "words": "The new check in scripts/verify_lock.sh fails if package-lock.json is older than package.json, so a stale lockfile can no longer slip into a release.",
+      "turn": "H004",
+      "lang": "en"
+     }
+    ],
+    "gold": {
+     "answerable": true,
+     "refs": [
+      "r2"
+     ],
+     "tests_passed": true
+    },
+    "removed": []
+   },
+   "text": "{\"covered\": \"yes\", \"parts\": [{\"text\": \"The lantern billing session ran 14 tests, all of which passed.\", \"cites\": [\"r2\"]}]}",
+   "finish": "stop",
+   "out_tokens": 45,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 1721,
+   "gen_ms": 1720.6090688705444
+  },
+  {
+   "corpus": "heldout",
+   "job": "chat",
+   "setting": "main",
+   "id": "heldout-S00-cost",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1949,
+   "cut": false,
+   "prompt_chars": 1240,
+   "chat_item": {
+    "id": "heldout-S00-cost",
+    "question": "How much did the sparrow export session cost?",
+    "rows": [
+     {
+      "ref": "r1",
+      "title": "sparrow export",
+      "facts": {
+       "outcome": "success",
+       "tests": {
+        "state": "ran",
+        "passed": 58,
+        "failed": 0
+       },
+       "level": "L0"
+      },
+      "words": "The CSV export now streams rows instead of buffering the whole file, so the 400 MB sample in fixtures/big.csv stays under 80 MB of memory.",
+      "turn": "H001",
+      "lang": "en"
+     },
+     {
+      "ref": "r2",
+      "title": "lantern billing",
+      "facts": {
+       "outcome": "success",
+       "tests": {
+        "state": "ran",
+        "passed": 14,
+        "failed": 0
+       },
+       "level": "L0"
+      },
+      "words": "Fertig: Der Login-Timeout liegt jetzt bei 30 Minuten statt 5 (config/session.yaml).",
+      "turn": "H002",
+      "lang": "de"
+     },
+     {
+      "ref": "r3",
+      "title": "quarry search",
+      "facts": {
+       "outcome": "success",
+       "tests": {
+        "state": "unknown"
+       },
+       "level": "L0"
+      },
+      "words": "Renamed the flag to --dry-run everywhere, docs updated too.",
+      "turn": "H003",
+      "lang": "en"
+     },
+     {
+      "ref": "r4",
+      "title": "maple onboarding",
+      "facts": {
+       "outcome": "success",
+       "tests": {
+        "state": "ran",
+        "passed": 3,
+        "failed": 0
+       },
+       "level": "L0"
+      },
+      "words": "The new check in scripts/verify_lock.sh fails if package-lock.json is older than package.json, so a stale lockfile can no longer slip into a release.",
+      "turn": "H004",
+      "lang": "en"
+     }
+    ],
+    "gold": {
+     "answerable": false,
+     "refs": []
+    },
+    "removed": []
+   },
+   "text": "{\"covered\": \"no\", \"parts\": []}",
+   "finish": "stop",
+   "out_tokens": 13,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 1435,
+   "gen_ms": 1434.5159530639648
+  },
+  {
+   "corpus": "heldout",
+   "job": "chat",
+   "setting": "main",
+   "id": "heldout-S01-happened",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2038,
+   "cut": false,
+   "prompt_chars": 1434,
+   "chat_item": {
+    "id": "heldout-S01-happened",
+    "question": "What happened in the quarry search session?",
+    "rows": [
+     {
+      "ref": "r1",
+      "title": "lantern billing",
+      "facts": {
+       "outcome": "success",
+       "tests": {
+        "state": "ran",
+        "passed": 9,
+        "failed": 0
+       },
+       "level": "L1"
+      },
+      "words": "I got the retry logic working for the upload client (lib/upload/retry.py), including exponential backoff capped at 60 s. I did not get to resumable chunks: that is still a TODO at line 88 and uploads over 2 GB will restart from zero.",
+      "turn": "H005",
+      "lang": "en"
+     },
+     {
+      "ref": "r2",
+      "title": "quarry search",
+      "facts": {
+       "outcome": "success",
+       "tests": {
+        "state": "ran",
+        "passed": 21,
+        "failed": 0
+       },
+       "level": "L1"
+      },
+      "words": "Teilweise erledigt: Die Übersetzungen für Deutsch und Französisch sind drin (i18n/de.json, i18n/fr.json).",
+      "turn": "H006",
+      "lang": "de"
+     },
+     {
+      "ref": "r3",
+      "title": "maple onboarding",
+      "facts": {
+       "outcome": "success",
+       "tests": {
+        "state": "ran",
+        "passed": 31,
+        "failed": 0
+       },
+       "level": "L1"
+      },
+      "words": "api/routes/orders.go: pagination added api/routes/refunds.go: happy path only, error mapping left as it was",
+      "turn": "H007",
+      "lang": "en"
+     },
+     {
+      "ref": "r4",
+      "title": "harrier deploy",
+      "facts": {
+       "outcome": "success",
+       "tests": {
+        "state": "not_run"
+       },
+       "level": "L1"
+      },
+      "words": "Migrated 3 of 5 services to the new logger. billing and search still use the old one because they pin an older shared lib, so the migration is not finished. I didn't run the suite.",
+      "turn": "H008",
+      "lang": "en"
+     }
+    ],
+    "gold": {
+     "answerable": true,
+     "refs": [
+      "r2"
+     ]
+    },
+    "removed": []
+   },
+   "text": "{\"covered\": \"yes\", \"parts\": [{\"text\": \"The quarry search session finished with 21 tests passed, 0 failed.\", \"cites\": [\"r2\"]}]}",
+   "finish": "stop",
+   "out_tokens": 47,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 1703,
+   "gen_ms": 1702.929973602295
+  },
+  {
+   "corpus": "heldout",
+   "job": "chat",
+   "setting": "main",
+   "id": "heldout-S01-tests",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2040,
+   "cut": false,
+   "prompt_chars": 1442,
+   "chat_item": {
+    "id": "heldout-S01-tests",
+    "question": "Did the tests pass in the maple onboarding session?",
+    "rows": [
+     {
+      "ref": "r1",
+      "title": "lantern billing",
+      "facts": {
+       "outcome": "success",
+       "tests": {
+        "state": "ran",
+        "passed": 9,
+        "failed": 0
+       },
+       "level": "L1"
+      },
+      "words": "I got the retry logic working for the upload client (lib/upload/retry.py), including exponential backoff capped at 60 s. I did not get to resumable chunks: that is still a TODO at line 88 and uploads over 2 GB will restart from zero.",
+      "turn": "H005",
+      "lang": "en"
+     },
+     {
+      "ref": "r2",
+      "title": "quarry search",
+      "facts": {
+       "outcome": "success",
+       "tests": {
+        "state": "ran",
+        "passed": 21,
+        "failed": 0
+       },
+       "level": "L1"
+      },
+      "words": "Teilweise erledigt: Die Übersetzungen für Deutsch und Französisch sind drin (i18n/de.json, i18n/fr.json).",
+      "turn": "H006",
+      "lang": "de"
+     },
+     {
+      "ref": "r3",
+      "title": "maple onboarding",
+      "facts": {
+       "outcome": "success",
+       "tests": {
+        "state": "ran",
+        "passed": 31,
+        "failed": 0
+       },
+       "level": "L1"
+      },
+      "words": "api/routes/orders.go: pagination added api/routes/refunds.go: happy path only, error mapping left as it was",
+      "turn": "H007",
+      "lang": "en"
+     },
+     {
+      "ref": "r4",
+      "title": "harrier deploy",
+      "facts": {
+       "outcome": "success",
+       "tests": {
+        "state": "not_run"
+       },
+       "level": "L1"
+      },
+      "words": "Migrated 3 of 5 services to the new logger. billing and search still use the old one because they pin an older shared lib, so the migration is not finished. I didn't run the suite.",
+      "turn": "H008",
+      "lang": "en"
+     }
+    ],
+    "gold": {
+     "answerable": true,
+     "refs": [
+      "r3"
+     ],
+     "tests_passed": true
+    },
+    "removed": []
+   },
+   "text": "{\"covered\": \"yes\", \"parts\": [{\"cites\": [\"r3\"], \"text\": \"The maple onboarding session had 31 tests passed.\"}]}",
+   "finish": "stop",
+   "out_tokens": 37,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 1724,
+   "gen_ms": 1723.2849597930908
+  },
+  {
+   "corpus": "heldout",
+   "job": "chat",
+   "setting": "main",
+   "id": "heldout-S01-cost",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2038,
+   "cut": false,
+   "prompt_chars": 1435,
+   "chat_item": {
+    "id": "heldout-S01-cost",
+    "question": "How much did the quarry search session cost?",
+    "rows": [
+     {
+      "ref": "r1",
+      "title": "lantern billing",
+      "facts": {
+       "outcome": "success",
+       "tests": {
+        "state": "ran",
+        "passed": 9,
+        "failed": 0
+       },
+       "level": "L1"
+      },
+      "words": "I got the retry logic working for the upload client (lib/upload/retry.py), including exponential backoff capped at 60 s. I did not get to resumable chunks: that is still a TODO at line 88 and uploads over 2 GB will restart from zero.",
+      "turn": "H005",
+      "lang": "en"
+     },
+     {
+      "ref": "r2",
+      "title": "quarry search",
+      "facts": {
+       "outcome": "success",
+       "tests": {
+        "state": "ran",
+        "passed": 21,
+        "failed": 0
+       },
+       "level": "L1"
+      },
+      "words": "Teilweise erledigt: Die Übersetzungen für Deutsch und Französisch sind drin (i18n/de.json, i18n/fr.json).",
+      "turn": "H006",
+      "lang": "de"
+     },
+     {
+      "ref": "r3",
+      "title": "maple onboarding",
+      "facts": {
+       "outcome": "success",
+       "tests": {
+        "state": "ran",
+        "passed": 31,
+        "failed": 0
+       },
+       "level": "L1"
+      },
+      "words": "api/routes/orders.go: pagination added api/routes/refunds.go: happy path only, error mapping left as it was",
+      "turn": "H007",
+      "lang": "en"
+     },
+     {
+      "ref": "r4",
+      "title": "harrier deploy",
+      "facts": {
+       "outcome": "success",
+       "tests": {
+        "state": "not_run"
+       },
+       "level": "L1"
+      },
+      "words": "Migrated 3 of 5 services to the new logger. billing and search still use the old one because they pin an older shared lib, so the migration is not finished. I didn't run the suite.",
+      "turn": "H008",
+      "lang": "en"
+     }
+    ],
+    "gold": {
+     "answerable": false,
+     "refs": []
+    },
+    "removed": []
+   },
+   "text": "{\"covered\": \"no\", \"parts\": []}",
+   "finish": "stop",
+   "out_tokens": 13,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 1336,
+   "gen_ms": 1335.442066192627
+  },
+  {
+   "corpus": "heldout",
+   "job": "chat",
+   "setting": "main",
+   "id": "heldout-S02-happened",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1997,
+   "cut": false,
+   "prompt_chars": 1334,
+   "chat_item": {
+    "id": "heldout-S02-happened",
+    "question": "What happened in the harrier deploy session?",
+    "rows": [
+     {
+      "ref": "r1",
+      "title": "quarry search",
+      "facts": {
+       "outcome": "success",
+       "tests": {
+        "state": "not_run"
+       },
+       "level": "L1"
+      },
+      "words": "I changed the cron expression in deploy/jobs.yaml from every 15 to every 30 minutes. I haven't run anything.",
+      "turn": "H009",
+      "lang": "en"
+     },
+     {
+      "ref": "r2",
+      "title": "maple onboarding",
+      "facts": {
+       "outcome": "success",
+       "tests": {
+        "state": "not_run"
+       },
+       "level": "L1"
+      },
+      "words": "Die Validierung für das Kontaktformular ist umgebaut (src/forms/contact.ts). Ich habe die Tests nicht ausgeführt, da in dieser Umgebung kein Node installiert ist.",
+      "turn": "H010",
+      "lang": "de"
+     },
+     {
+      "ref": "r3",
+      "title": "harrier deploy",
+      "facts": {
+       "outcome": "success",
+       "tests": {
+        "state": "not_run"
+       },
+       "level": "L1"
+      },
+      "words": "The Dockerfile now uses a multi-stage build and drops the dev toolchain from the final layer. I couldn't build the image here (no Docker daemon), so the size reduction is unverified and the entrypoint path in docker/run.sh is untested.",
+      "turn": "H011",
+      "lang": "en"
+     },
+     {
+      "ref": "r4",
+      "title": "cobalt metrics",
+      "facts": {
+       "outcome": "success",
+       "tests": {
+        "state": "not_run"
+       },
+       "level": "L1"
+      },
+      "words": "Patched the off-by-one in paginate() in src/list.rs, didn't run tests.",
+      "turn": "H012",
+      "lang": "en"
+     }
+    ],
+    "gold": {
+     "answerable": true,
+     "refs": [
+      "r3"
+     ]
+    },
+    "removed": []
+   },
+   "text": "{\"covered\": \"no\", \"parts\": []}",
+   "finish": "stop",
+   "out_tokens": 13,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 1318,
+   "gen_ms": 1317.7270889282227
+  },
+  {
+   "corpus": "heldout",
+   "job": "chat",
+   "setting": "main",
+   "id": "heldout-S02-tests",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1998,
+   "cut": false,
+   "prompt_chars": 1339,
+   "chat_item": {
+    "id": "heldout-S02-tests",
+    "question": "Did the tests pass in the cobalt metrics session?",
+    "rows": [
+     {
+      "ref": "r1",
+      "title": "quarry search",
+      "facts": {
+       "outcome": "success",
+       "tests": {
+        "state": "not_run"
+       },
+       "level": "L1"
+      },
+      "words": "I changed the cron expression in deploy/jobs.yaml from every 15 to every 30 minutes. I haven't run anything.",
+      "turn": "H009",
+      "lang": "en"
+     },
+     {
+      "ref": "r2",
+      "title": "maple onboarding",
+      "facts": {
+       "outcome": "success",
+       "tests": {
+        "state": "not_run"
+       },
+       "level": "L1"
+      },
+      "words": "Die Validierung für das Kontaktformular ist umgebaut (src/forms/contact.ts). Ich habe die Tests nicht ausgeführt, da in dieser Umgebung kein Node installiert ist.",
+      "turn": "H010",
+      "lang": "de"
+     },
+     {
+      "ref": "r3",
+      "title": "harrier deploy",
+      "facts": {
+       "outcome": "success",
+       "tests": {
+        "state": "not_run"
+       },
+       "level": "L1"
+      },
+      "words": "The Dockerfile now uses a multi-stage build and drops the dev toolchain from the final layer. I couldn't build the image here (no Docker daemon), so the size reduction is unverified and the entrypoint path in docker/run.sh is untested.",
+      "turn": "H011",
+      "lang": "en"
+     },
+     {
+      "ref": "r4",
+      "title": "cobalt metrics",
+      "facts": {
+       "outcome": "success",
+       "tests": {
+        "state": "not_run"
+       },
+       "level": "L1"
+      },
+      "words": "Patched the off-by-one in paginate() in src/list.rs, didn't run tests.",
+      "turn": "H012",
+      "lang": "en"
+     }
+    ],
+    "gold": {
+     "answerable": true,
+     "refs": [
+      "r4"
+     ],
+     "tests_not_run": true
+    },
+    "removed": []
+   },
+   "text": "{\"covered\": \"no\", \"parts\": []}",
+   "finish": "stop",
+   "out_tokens": 13,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 1399,
+   "gen_ms": 1398.3980417251587
+  },
+  {
+   "corpus": "heldout",
+   "job": "chat",
+   "setting": "main",
+   "id": "heldout-S02-scope",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1998,
+   "cut": false,
+   "prompt_chars": 1338,
+   "chat_item": {
+    "id": "heldout-S02-scope",
+    "question": "Write me a function that reverses a linked list.",
+    "rows": [
+     {
+      "ref": "r1",
+      "title": "quarry search",
+      "facts": {
+       "outcome": "success",
+       "tests": {
+        "state": "not_run"
+       },
+       "level": "L1"
+      },
+      "words": "I changed the cron expression in deploy/jobs.yaml from every 15 to every 30 minutes. I haven't run anything.",
+      "turn": "H009",
+      "lang": "en"
+     },
+     {
+      "ref": "r2",
+      "title": "maple onboarding",
+      "facts": {
+       "outcome": "success",
+       "tests": {
+        "state": "not_run"
+       },
+       "level": "L1"
+      },
+      "words": "Die Validierung für das Kontaktformular ist umgebaut (src/forms/contact.ts). Ich habe die Tests nicht ausgeführt, da in dieser Umgebung kein Node installiert ist.",
+      "turn": "H010",
+      "lang": "de"
+     },
+     {
+      "ref": "r3",
+      "title": "harrier deploy",
+      "facts": {
+       "outcome": "success",
+       "tests": {
+        "state": "not_run"
+       },
+       "level": "L1"
+      },
+      "words": "The Dockerfile now uses a multi-stage build and drops the dev toolchain from the final layer. I couldn't build the image here (no Docker daemon), so the size reduction is unverified and the entrypoint path in docker/run.sh is untested.",
+      "turn": "H011",
+      "lang": "en"
+     },
+     {
+      "ref": "r4",
+      "title": "cobalt metrics",
+      "facts": {
+       "outcome": "success",
+       "tests": {
+        "state": "not_run"
+       },
+       "level": "L1"
+      },
+      "words": "Patched the off-by-one in paginate() in src/list.rs, didn't run tests.",
+      "turn": "H012",
+      "lang": "en"
+     }
+    ],
+    "gold": {
+     "answerable": false,
+     "out_of_scope": true,
+     "refs": []
+    },
+    "removed": []
+   },
+   "text": "{\"covered\": \"no\", \"parts\": []}",
+   "finish": "stop",
+   "out_tokens": 13,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 1636,
+   "gen_ms": 1635.2709531784058
+  },
+  {
+   "corpus": "heldout",
+   "job": "chat",
+   "setting": "main",
+   "id": "heldout-S03-happened",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1963,
+   "cut": false,
+   "prompt_chars": 1256,
+   "chat_item": {
+    "id": "heldout-S03-happened",
+    "question": "What happened in the juniper auth session?",
+    "rows": [
+     {
+      "ref": "r1",
+      "title": "maple onboarding",
+      "facts": {
+       "outcome": "failure",
+       "tests": {
+        "state": "ran",
+        "passed": 44,
+        "failed": 12
+       },
+       "level": "L3"
+      },
+      "words": "After bumping the compiler target, 12 tests in tests/render fail with 'undefined symbol: gl_init' (44 others pass).",
+      "turn": "H013",
+      "lang": "en"
+     },
+     {
+      "ref": "r2",
+      "title": "harrier deploy",
+      "facts": {
+       "outcome": "failure",
+       "tests": {
+        "state": "unknown"
+       },
+       "level": "L3"
+      },
+      "words": "Das hat nicht geklappt: Die Migration 0042 bricht mit 'column already exists' ab, und die Datenbank steht jetzt halb migriert.",
+      "turn": "H014",
+      "lang": "de"
+     },
+     {
+      "ref": "r3",
+      "title": "cobalt metrics",
+      "facts": {
+       "outcome": "failure",
+       "tests": {
+        "state": "ran",
+        "passed": 7,
+        "failed": 1
+       },
+       "level": "L3"
+      },
+      "words": "It still fails about 1 run in 4, so I gave up; notes are in notes/ws-flaky.md.",
+      "turn": "H015",
+      "lang": "en"
+     },
+     {
+      "ref": "r4",
+      "title": "juniper auth",
+      "facts": {
+       "outcome": "failure",
+       "tests": {
+        "state": "unknown"
+       },
+       "level": "L3"
+      },
+      "words": "Bad news: while removing unused imports I deleted a re-export that cli/main.rs needs, so cargo build now errors with E0432. I haven't fixed it yet.",
+      "turn": "H016",
+      "lang": "en"
+     }
+    ],
+    "gold": {
+     "answerable": true,
+     "refs": [
+      "r4"
+     ]
+    },
+    "removed": []
+   },
+   "text": "{\"covered\": \"no\", \"parts\": []}",
+   "finish": "stop",
+   "out_tokens": 13,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 1353,
+   "gen_ms": 1352.7940511703491
+  },
+  {
+   "corpus": "heldout",
+   "job": "chat",
+   "setting": "main",
+   "id": "heldout-S03-tests",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1966,
+   "cut": false,
+   "prompt_chars": 1265,
+   "chat_item": {
+    "id": "heldout-S03-tests",
+    "question": "Did the tests pass in the maple onboarding session?",
+    "rows": [
+     {
+      "ref": "r1",
+      "title": "maple onboarding",
+      "facts": {
+       "outcome": "failure",
+       "tests": {
+        "state": "ran",
+        "passed": 44,
+        "failed": 12
+       },
+       "level": "L3"
+      },
+      "words": "After bumping the compiler target, 12 tests in tests/render fail with 'undefined symbol: gl_init' (44 others pass).",
+      "turn": "H013",
+      "lang": "en"
+     },
+     {
+      "ref": "r2",
+      "title": "harrier deploy",
+      "facts": {
+       "outcome": "failure",
+       "tests": {
+        "state": "unknown"
+       },
+       "level": "L3"
+      },
+      "words": "Das hat nicht geklappt: Die Migration 0042 bricht mit 'column already exists' ab, und die Datenbank steht jetzt halb migriert.",
+      "turn": "H014",
+      "lang": "de"
+     },
+     {
+      "ref": "r3",
+      "title": "cobalt metrics",
+      "facts": {
+       "outcome": "failure",
+       "tests": {
+        "state": "ran",
+        "passed": 7,
+        "failed": 1
+       },
+       "level": "L3"
+      },
+      "words": "It still fails about 1 run in 4, so I gave up; notes are in notes/ws-flaky.md.",
+      "turn": "H015",
+      "lang": "en"
+     },
+     {
+      "ref": "r4",
+      "title": "juniper auth",
+      "facts": {
+       "outcome": "failure",
+       "tests": {
+        "state": "unknown"
+       },
+       "level": "L3"
+      },
+      "words": "Bad news: while removing unused imports I deleted a re-export that cli/main.rs needs, so cargo build now errors with E0432. I haven't fixed it yet.",
+      "turn": "H016",
+      "lang": "en"
+     }
+    ],
+    "gold": {
+     "answerable": true,
+     "refs": [
+      "r1"
+     ],
+     "tests_passed": false
+    },
+    "removed": []
+   },
+   "text": "{\"covered\": \"no\", \"parts\": []}",
+   "finish": "stop",
+   "out_tokens": 13,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 1321,
+   "gen_ms": 1320.6400871276855
+  },
+  {
+   "corpus": "heldout",
+   "job": "chat",
+   "setting": "main",
+   "id": "heldout-S03-needs",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1961,
+   "cut": false,
+   "prompt_chars": 1247,
+   "chat_item": {
+    "id": "heldout-S03-needs",
+    "question": "Which sessions need me right now?",
+    "rows": [
+     {
+      "ref": "r1",
+      "title": "maple onboarding",
+      "facts": {
+       "outcome": "failure",
+       "tests": {
+        "state": "ran",
+        "passed": 44,
+        "failed": 12
+       },
+       "level": "L3"
+      },
+      "words": "After bumping the compiler target, 12 tests in tests/render fail with 'undefined symbol: gl_init' (44 others pass).",
+      "turn": "H013",
+      "lang": "en"
+     },
+     {
+      "ref": "r2",
+      "title": "harrier deploy",
+      "facts": {
+       "outcome": "failure",
+       "tests": {
+        "state": "unknown"
+       },
+       "level": "L3"
+      },
+      "words": "Das hat nicht geklappt: Die Migration 0042 bricht mit 'column already exists' ab, und die Datenbank steht jetzt halb migriert.",
+      "turn": "H014",
+      "lang": "de"
+     },
+     {
+      "ref": "r3",
+      "title": "cobalt metrics",
+      "facts": {
+       "outcome": "failure",
+       "tests": {
+        "state": "ran",
+        "passed": 7,
+        "failed": 1
+       },
+       "level": "L3"
+      },
+      "words": "It still fails about 1 run in 4, so I gave up; notes are in notes/ws-flaky.md.",
+      "turn": "H015",
+      "lang": "en"
+     },
+     {
+      "ref": "r4",
+      "title": "juniper auth",
+      "facts": {
+       "outcome": "failure",
+       "tests": {
+        "state": "unknown"
+       },
+       "level": "L3"
+      },
+      "words": "Bad news: while removing unused imports I deleted a re-export that cli/main.rs needs, so cargo build now errors with E0432. I haven't fixed it yet.",
+      "turn": "H016",
+      "lang": "en"
+     }
+    ],
+    "gold": {
+     "answerable": true,
+     "refs": [
+      "r1",
+      "r2",
+      "r3",
+      "r4"
+     ]
+    },
+    "removed": []
+   },
+   "text": "{\"covered\": \"no\", \"parts\": []}",
+   "finish": "stop",
+   "out_tokens": 13,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 1353,
+   "gen_ms": 1352.4320125579834
+  },
+  {
+   "corpus": "heldout",
+   "job": "chat",
+   "setting": "main",
+   "id": "heldout-S04-happened",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1893,
+   "cut": false,
+   "prompt_chars": 1100,
+   "chat_item": {
+    "id": "heldout-S04-happened",
+    "question": "What happened in the harrier deploy session?",
+    "rows": [
+     {
+      "ref": "r1",
+      "title": "harrier deploy",
+      "facts": {
+       "outcome": "question",
+       "tests": {
+        "state": "unknown"
+       },
+       "level": "L2"
+      },
+      "words": "Before I touch the pricing table: should the discount apply before or after tax? I haven't changed any code yet.",
+      "turn": "H017",
+      "lang": "en"
+     },
+     {
+      "ref": "r2",
+      "title": "cobalt metrics",
+      "facts": {
+       "outcome": "question",
+       "tests": {
+        "state": "ran",
+        "passed": 18,
+        "failed": 0
+       },
+       "level": "L2"
+      },
+      "words": "Soll ich auch die alte v1-Route entfernen oder sie noch behalten?",
+      "turn": "H018",
+      "lang": "de"
+     },
+     {
+      "ref": "r3",
+      "title": "juniper auth",
+      "facts": {
+       "outcome": "question",
+       "tests": {
+        "state": "unknown"
+       },
+       "level": "L2"
+      },
+      "words": "Which do you want? I haven't written any code yet.",
+      "turn": "H019",
+      "lang": "en"
+     },
+     {
+      "ref": "r4",
+      "title": "saffron docs",
+      "facts": {
+       "outcome": "question",
+       "tests": {
+        "state": "ran",
+        "passed": 5,
+        "failed": 0
+       },
+       "level": "L2"
+      },
+      "words": "OK to proceed like that, or should it skip duplicates instead?",
+      "turn": "H020",
+      "lang": "en"
+     }
+    ],
+    "gold": {
+     "answerable": true,
+     "refs": [
+      "r1"
+     ]
+    },
+    "removed": []
+   },
+   "text": "{\"covered\": \"no\", \"parts\": []}",
+   "finish": "stop",
+   "out_tokens": 13,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 1375,
+   "gen_ms": 1374.7230768203735
+  },
+  {
+   "corpus": "heldout",
+   "job": "chat",
+   "setting": "main",
+   "id": "heldout-S04-tests",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1894,
+   "cut": false,
+   "prompt_chars": 1105,
+   "chat_item": {
+    "id": "heldout-S04-tests",
+    "question": "Did the tests pass in the cobalt metrics session?",
+    "rows": [
+     {
+      "ref": "r1",
+      "title": "harrier deploy",
+      "facts": {
+       "outcome": "question",
+       "tests": {
+        "state": "unknown"
+       },
+       "level": "L2"
+      },
+      "words": "Before I touch the pricing table: should the discount apply before or after tax? I haven't changed any code yet.",
+      "turn": "H017",
+      "lang": "en"
+     },
+     {
+      "ref": "r2",
+      "title": "cobalt metrics",
+      "facts": {
+       "outcome": "question",
+       "tests": {
+        "state": "ran",
+        "passed": 18,
+        "failed": 0
+       },
+       "level": "L2"
+      },
+      "words": "Soll ich auch die alte v1-Route entfernen oder sie noch behalten?",
+      "turn": "H018",
+      "lang": "de"
+     },
+     {
+      "ref": "r3",
+      "title": "juniper auth",
+      "facts": {
+       "outcome": "question",
+       "tests": {
+        "state": "unknown"
+       },
+       "level": "L2"
+      },
+      "words": "Which do you want? I haven't written any code yet.",
+      "turn": "H019",
+      "lang": "en"
+     },
+     {
+      "ref": "r4",
+      "title": "saffron docs",
+      "facts": {
+       "outcome": "question",
+       "tests": {
+        "state": "ran",
+        "passed": 5,
+        "failed": 0
+       },
+       "level": "L2"
+      },
+      "words": "OK to proceed like that, or should it skip duplicates instead?",
+      "turn": "H020",
+      "lang": "en"
+     }
+    ],
+    "gold": {
+     "answerable": true,
+     "refs": [
+      "r2"
+     ],
+     "tests_passed": true
+    },
+    "removed": []
+   },
+   "text": "{\"covered\": \"no\", \"parts\": []}",
+   "finish": "stop",
+   "out_tokens": 13,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 1350,
+   "gen_ms": 1349.7591018676758
+  },
+  {
+   "corpus": "heldout",
+   "job": "chat",
+   "setting": "main",
+   "id": "heldout-S04-cost",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1893,
+   "cut": false,
+   "prompt_chars": 1101,
+   "chat_item": {
+    "id": "heldout-S04-cost",
+    "question": "How much did the harrier deploy session cost?",
+    "rows": [
+     {
+      "ref": "r1",
+      "title": "harrier deploy",
+      "facts": {
+       "outcome": "question",
+       "tests": {
+        "state": "unknown"
+       },
+       "level": "L2"
+      },
+      "words": "Before I touch the pricing table: should the discount apply before or after tax? I haven't changed any code yet.",
+      "turn": "H017",
+      "lang": "en"
+     },
+     {
+      "ref": "r2",
+      "title": "cobalt metrics",
+      "facts": {
+       "outcome": "question",
+       "tests": {
+        "state": "ran",
+        "passed": 18,
+        "failed": 0
+       },
+       "level": "L2"
+      },
+      "words": "Soll ich auch die alte v1-Route entfernen oder sie noch behalten?",
+      "turn": "H018",
+      "lang": "de"
+     },
+     {
+      "ref": "r3",
+      "title": "juniper auth",
+      "facts": {
+       "outcome": "question",
+       "tests": {
+        "state": "unknown"
+       },
+       "level": "L2"
+      },
+      "words": "Which do you want? I haven't written any code yet.",
+      "turn": "H019",
+      "lang": "en"
+     },
+     {
+      "ref": "r4",
+      "title": "saffron docs",
+      "facts": {
+       "outcome": "question",
+       "tests": {
+        "state": "ran",
+        "passed": 5,
+        "failed": 0
+       },
+       "level": "L2"
+      },
+      "words": "OK to proceed like that, or should it skip duplicates instead?",
+      "turn": "H020",
+      "lang": "en"
+     }
+    ],
+    "gold": {
+     "answerable": false,
+     "refs": []
+    },
+    "removed": []
+   },
+   "text": "{\"covered\": \"no\", \"parts\": []}",
+   "finish": "stop",
+   "out_tokens": 13,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 1311,
+   "gen_ms": 1311.218023300171
+  },
+  {
+   "corpus": "heldout",
+   "job": "chat",
+   "setting": "main",
+   "id": "heldout-S05-happened",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1891,
+   "cut": false,
+   "prompt_chars": 1133,
+   "chat_item": {
+    "id": "heldout-S05-happened",
+    "question": "What happened in the juniper auth session?",
+    "rows": [
+     {
+      "ref": "r1",
+      "title": "cobalt metrics",
+      "facts": {
+       "outcome": "success",
+       "tests": {
+        "state": "ran",
+        "passed": 112,
+        "failed": 0
+       },
+       "level": "L0"
+      },
+      "words": "Pure refactor: extracted the retry loop from three handlers into utils/retry.js.",
+      "turn": "H021",
+      "lang": "en"
+     },
+     {
+      "ref": "r2",
+      "title": "juniper auth",
+      "facts": {
+       "outcome": "success",
+       "tests": {
+        "state": "ran",
+        "passed": 76,
+        "failed": 0
+       },
+       "level": "L0"
+      },
+      "words": "Ich habe die Klasse OrderService in drei kleinere Module aufgeteilt (services/order/*.py).",
+      "turn": "H022",
+      "lang": "de"
+     },
+     {
+      "ref": "r3",
+      "title": "saffron docs",
+      "facts": {
+       "outcome": "success",
+       "tests": {
+        "state": "ran",
+        "passed": 9,
+        "failed": 0
+       },
+       "level": "L0"
+      },
+      "words": "Moved the config loader from core/ to platform/config/ and fixed the imports.",
+      "turn": "H023",
+      "lang": "en"
+     },
+     {
+      "ref": "r4",
+      "title": "thistle queue",
+      "facts": {
+       "outcome": "success",
+       "tests": {
+        "state": "ran",
+        "passed": 33,
+        "failed": 0
+       },
+       "level": "L0"
+      },
+      "words": "Variablen umbenannt und tote Funktionen entfernt (util/helpers.go).",
+      "turn": "H024",
+      "lang": "de"
+     }
+    ],
+    "gold": {
+     "answerable": true,
+     "refs": [
+      "r2"
+     ]
+    },
+    "removed": []
+   },
+   "text": "{\"covered\": \"yes\", \"parts\": [{\"text\": \"The juniper auth session finished with 76 tests passed.\", \"cites\": [\"r2\"]}]}",
+   "finish": "stop",
+   "out_tokens": 39,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 1814,
+   "gen_ms": 1813.8949871063232
+  },
+  {
+   "corpus": "heldout",
+   "job": "chat",
+   "setting": "main",
+   "id": "heldout-S05-tests",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1893,
+   "cut": false,
+   "prompt_chars": 1138,
+   "chat_item": {
+    "id": "heldout-S05-tests",
+    "question": "Did the tests pass in the saffron docs session?",
+    "rows": [
+     {
+      "ref": "r1",
+      "title": "cobalt metrics",
+      "facts": {
+       "outcome": "success",
+       "tests": {
+        "state": "ran",
+        "passed": 112,
+        "failed": 0
+       },
+       "level": "L0"
+      },
+      "words": "Pure refactor: extracted the retry loop from three handlers into utils/retry.js.",
+      "turn": "H021",
+      "lang": "en"
+     },
+     {
+      "ref": "r2",
+      "title": "juniper auth",
+      "facts": {
+       "outcome": "success",
+       "tests": {
+        "state": "ran",
+        "passed": 76,
+        "failed": 0
+       },
+       "level": "L0"
+      },
+      "words": "Ich habe die Klasse OrderService in drei kleinere Module aufgeteilt (services/order/*.py).",
+      "turn": "H022",
+      "lang": "de"
+     },
+     {
+      "ref": "r3",
+      "title": "saffron docs",
+      "facts": {
+       "outcome": "success",
+       "tests": {
+        "state": "ran",
+        "passed": 9,
+        "failed": 0
+       },
+       "level": "L0"
+      },
+      "words": "Moved the config loader from core/ to platform/config/ and fixed the imports.",
+      "turn": "H023",
+      "lang": "en"
+     },
+     {
+      "ref": "r4",
+      "title": "thistle queue",
+      "facts": {
+       "outcome": "success",
+       "tests": {
+        "state": "ran",
+        "passed": 33,
+        "failed": 0
+       },
+       "level": "L0"
+      },
+      "words": "Variablen umbenannt und tote Funktionen entfernt (util/helpers.go).",
+      "turn": "H024",
+      "lang": "de"
+     }
+    ],
+    "gold": {
+     "answerable": true,
+     "refs": [
+      "r3"
+     ],
+     "tests_passed": true
+    },
+    "removed": []
+   },
+   "text": "{\"covered\": \"yes\", \"parts\": [{\"cites\": [\"r3\"], \"text\": \"The saffron docs session had 9 tests passed.\"}]}",
+   "finish": "stop",
+   "out_tokens": 35,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 1763,
+   "gen_ms": 1762.9950046539307
+  },
+  {
+   "corpus": "heldout",
+   "job": "chat",
+   "setting": "main",
+   "id": "heldout-S05-scope",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1893,
+   "cut": false,
+   "prompt_chars": 1139,
+   "chat_item": {
+    "id": "heldout-S05-scope",
+    "question": "Write me a function that reverses a linked list.",
+    "rows": [
+     {
+      "ref": "r1",
+      "title": "cobalt metrics",
+      "facts": {
+       "outcome": "success",
+       "tests": {
+        "state": "ran",
+        "passed": 112,
+        "failed": 0
+       },
+       "level": "L0"
+      },
+      "words": "Pure refactor: extracted the retry loop from three handlers into utils/retry.js.",
+      "turn": "H021",
+      "lang": "en"
+     },
+     {
+      "ref": "r2",
+      "title": "juniper auth",
+      "facts": {
+       "outcome": "success",
+       "tests": {
+        "state": "ran",
+        "passed": 76,
+        "failed": 0
+       },
+       "level": "L0"
+      },
+      "words": "Ich habe die Klasse OrderService in drei kleinere Module aufgeteilt (services/order/*.py).",
+      "turn": "H022",
+      "lang": "de"
+     },
+     {
+      "ref": "r3",
+      "title": "saffron docs",
+      "facts": {
+       "outcome": "success",
+       "tests": {
+        "state": "ran",
+        "passed": 9,
+        "failed": 0
+       },
+       "level": "L0"
+      },
+      "words": "Moved the config loader from core/ to platform/config/ and fixed the imports.",
+      "turn": "H023",
+      "lang": "en"
+     },
+     {
+      "ref": "r4",
+      "title": "thistle queue",
+      "facts": {
+       "outcome": "success",
+       "tests": {
+        "state": "ran",
+        "passed": 33,
+        "failed": 0
+       },
+       "level": "L0"
+      },
+      "words": "Variablen umbenannt und tote Funktionen entfernt (util/helpers.go).",
+      "turn": "H024",
+      "lang": "de"
+     }
+    ],
+    "gold": {
+     "answerable": false,
+     "out_of_scope": true,
+     "refs": []
+    },
+    "removed": []
+   },
+   "text": "{\"covered\": \"no\", \"parts\": []}",
+   "finish": "stop",
+   "out_tokens": 13,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 1482,
+   "gen_ms": 1482.2430610656738
+  },
+  {
+   "corpus": "heldout-jobs",
+   "job": "review",
+   "setting": "main",
+   "id": "R001",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2495,
+   "cut": false,
+   "prompt_chars": 835,
+   "text": "{\"risk_reason\": \"48 tests passed and none failed\", \"left\": [], \"changed\": [\"added cursor-based pagination to the invoice list in the ledgerlark project\", \"the route in src/api/invoices.py now accepts a limit parameter, capped at 100\", \"updated the OpenAPI file docs/openapi.yaml so the cursor field is documented\"], \"not_checked\": [], \"risk\": \"low\"}",
+   "finish": "stop",
+   "out_tokens": 95,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 3450,
+   "gen_ms": 3450.186014175415
+  },
+  {
+   "corpus": "heldout-jobs",
+   "job": "review",
+   "setting": "main",
+   "id": "R002",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2469,
+   "cut": false,
+   "prompt_chars": 785,
+   "text": "{\"left\": [\"die Passwort-Zurücksetzen-Seite bleibt wie sie war\"], \"changed\": [\"überarbeitet den Login-Dialog in der App 'Kornblume'\", \"zeigt Fehlermeldungen direkt unter dem Feld an\", \"hat die Passwort-Zurücksetzen-Seite noch nicht angefasst\"], \"risk_reason\": \"Tests wurden nicht ausgeführt, weil die Testdatenbank in dieser Umgebung nicht läuft\", \"not_checked\": [\"die Tests haben ich nicht ausgeführt, weil die Testdatenbank in dieser Umgebung nicht läuft\"], \"risk\": \"high\"}",
+   "finish": "stop",
+   "out_tokens": 121,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 4003,
+   "gen_ms": 4002.313017845154
+  },
+  {
+   "corpus": "heldout-jobs",
+   "job": "review",
+   "setting": "main",
+   "id": "R003",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2469,
+   "cut": false,
+   "prompt_chars": 772,
+   "text": "{\"left\": [\"next step is the real writer\", \"then the retry policy\", \"which together are probably another hour of work\"], \"changed\": [\"scheduler hook in jobs/nightly_export.rs is done and compiles\", \"CSV writer in jobs/csv_out.rs is only stubbed, returns empty file for now\", \"3 tests marked ignored until the writer exists\"], \"risk_reason\": \"3 tests marked ignored until the writer exists\", \"not_checked\": [\"did not touch the retry logic\"], \"risk\": \"medium\"}",
+   "finish": "stop",
+   "out_tokens": 117,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 3954,
+   "gen_ms": 3953.545928001404
+  },
+  {
+   "corpus": "heldout-jobs",
+   "job": "review",
+   "setting": "main",
+   "id": "R004",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2501,
+   "cut": false,
+   "prompt_chars": 829,
+   "text": "{\"left\": [\"tree is as you left it\", \"failures are compile errors, not test failures\"], \"changed\": [\"bumped the 'harbor-sdk' dependency to 4.2 in package.json\", \"type check fails in 7 places\", \"Options type lost its timeout field\"], \"risk_reason\": \"type check fails in 7 places, Options type lost its timeout field\", \"not_checked\": [\"wait for harbor-sdk 4.3\", \"migrate the options by hand\"], \"risk\": \"high\"}",
+   "finish": "stop",
+   "out_tokens": 115,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 3819,
+   "gen_ms": 3818.7179565429688
+  },
+  {
+   "corpus": "heldout-jobs",
+   "job": "review",
+   "setting": "main",
+   "id": "R005",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2471,
+   "cut": false,
+   "prompt_chars": 768,
+   "text": "{\"risk_reason\": \"the choice changes the API of Get()\", \"left\": [\"the choice changes the API of Get()\"], \"changed\": [\"wrote the Entry type in cache/entry.go\", \"9 unit tests, all passing\"], \"not_checked\": [], \"risk\": \"medium\"}",
+   "finish": "stop",
+   "out_tokens": 67,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 3056,
+   "gen_ms": 3055.6139945983887
+  },
+  {
+   "corpus": "heldout-jobs",
+   "job": "review",
+   "setting": "main",
+   "id": "R006",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2467,
+   "cut": false,
+   "prompt_chars": 812,
+   "text": "{\"left\": [\"OffenˆistˆnichtsˆaußerˆeinemˆBlickˆaufˆdieˆCLI-Ausgabe\"], \"changed\": [\"Refactorˆerledigt:ˆdieˆdreiˆdoppeltenˆDatumsfunktionenˆausˆutils/dates.py,ˆreports/dates_helper.pyˆundˆcli/dt.pyˆinˆeinˆgemeinsamesˆModulˆcore/timeutil.pyˆzusammengelegt.\", \"DasˆVerhaltenˆsollˆunverändertˆbleiben\"], \"risk_reason\": \"EinˆkleinesˆRisikoˆbleibtˆbeiˆZeitzonen,ˆweilˆcli/dt.pyˆbisherˆnaiveˆZeitenˆbenutztˆhatˆundˆjetztˆUTC-bewussteˆbekommt.\", \"risk\": \"medium\", \"not_checked\": []}",
+   "finish": "stop",
+   "out_tokens": 191,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 5438,
+   "gen_ms": 5437.743067741394
+  },
+  {
+   "corpus": "heldout-jobs",
+   "job": "review",
+   "setting": "main",
+   "id": "R007",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2475,
+   "cut": false,
+   "prompt_chars": 795,
+   "text": "{\"left\": [\"another test, tests/test_scan_symlink.py, now fails\"], \"changed\": [\"fixed the crash when the sync folder is empty: sync/scan.py no longer indexes into the first entry blindly\", \"the unit test I added, tests/test_scan_empty.py, passes\", \"another test, tests/test_scan_symlink.py, now fails\"], \"risk_reason\": \"another test now fails\", \"not_checked\": [\"did not investigate the symlink failure further, so cannot say whether my change caused it\"], \"risk\": \"medium\"}",
+   "finish": "stop",
+   "out_tokens": 135,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 4449,
+   "gen_ms": 4448.8900899887085
+  },
+  {
+   "corpus": "heldout-jobs",
+   "job": "review",
+   "setting": "main",
+   "id": "R008",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2475,
+   "cut": false,
+   "prompt_chars": 831,
+   "text": "{\"risk_reason\": \"2 Schlugen Fehl, beide in tests/test_checkout_rounding.py, weil sie die alte Reihenfolge erwarten\", \"left\": [\"der Gutschein-Export in shop/export/vouchers.py benutzt dieselbe Reihenfolge\", \"die alte Reihenfolge erwarten\"], \"changed\": [\"Preisberechnung im Warenkorb von 'Tannenhof' umgestellt\", \"Rabatte werden jetzt vor der Steuer abgezogen\"], \"not_checked\": [\"den habe ich nicht geändert\"], \"risk\": \"high\"}",
+   "finish": "stop",
+   "out_tokens": 115,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 3801,
+   "gen_ms": 3800.524950027466
+  },
+  {
+   "corpus": "heldout-jobs",
+   "job": "review",
+   "setting": "main",
+   "id": "R009",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2478,
+   "cut": false,
+   "prompt_chars": 787,
+   "text": "{\"left\": [\"Please run the suite before merging\"], \"changed\": [\"renamed the config key 'max_workers' to 'worker_limit' across the 'skiff' codebase\", \"14 files changed, mostly under src/runtime plus the sample file config/skiff.example.toml\"], \"risk_reason\": \"a rename like this can silently break users who keep the old key in their own config, and I did not add a fallback\", \"not_checked\": [\"did not run any tests or the linter\"], \"risk\": \"high\"}",
+   "finish": "stop",
+   "out_tokens": 125,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 4332,
+   "gen_ms": 4331.4690589904785
+  },
+  {
+   "corpus": "heldout-jobs",
+   "job": "review",
+   "setting": "main",
+   "id": "R010",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2460,
+   "cut": false,
+   "prompt_chars": 756,
+   "text": "{\"risk_reason\": \"staging dashboard alerts will stop matching until parser is updated\", \"left\": [\"the batch scripts in scripts/ still print plain text\"], \"changed\": [\"migration to the new logging format in 'quill-api'\", \"all handlers under app/handlers/ now emit JSON lines through app/log.py\"], \"not_checked\": [\"the staging dashboard parses the old plain-text format, so its alerts will stop matching until someone updates the parser\"], \"risk\": \"medium\"}",
+   "finish": "stop",
+   "out_tokens": 107,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 3827,
+   "gen_ms": 3825.9609937667847
+  },
+  {
+   "corpus": "heldout-jobs",
+   "job": "review",
+   "setting": "main",
+   "id": "R011",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2452,
+   "cut": false,
+   "prompt_chars": 761,
+   "text": "{\"left\": [\"wenn Ereignisse idempotent sein sollen, soll ein anderer Ansatz versucht werden\"], \"changed\": [\"ich konnte den Bug mit den doppelten Benachrichtigungen nicht beheben\", \"die Ursache liegt vermutlich in notify/dispatch.ts\", \"das gleiche Ereignis wird zweimal registriert\"], \"risk_reason\": \"den Test nicht grün bekommen\", \"not_checked\": [\"den Test tests/dispatch.test.ts nicht grün bekommen\"], \"risk\": \"high\"}",
+   "finish": "stop",
+   "out_tokens": 107,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 3687,
+   "gen_ms": 3686.9919300079346
+  },
+  {
+   "corpus": "heldout-jobs",
+   "job": "review",
+   "setting": "main",
+   "id": "R012",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2450,
+   "cut": false,
+   "prompt_chars": 718,
+   "text": "{\"changed\": [\"finished the README rewrite for the 'pebble' CLI\", \"it now covers install, the three subcommands (init, run, clean) and the exit codes in docs/exit-codes.md, which I also added\", \"no code was touched, so no tests were run and none were needed\"], \"left\": [\"the install section says Python 3.9 or newer, but setup.cfg still says 3.8, and I left that mismatch alone. Please pick one\"], \"risk_reason\": \"no tests were run and none were needed\", \"not_checked\": [], \"risk\": \"unknown\"}",
+   "finish": "stop",
+   "out_tokens": 135,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 5259,
+   "gen_ms": 5258.686065673828
+  },
+  {
+   "corpus": "heldout-jobs",
+   "job": "attention",
+   "setting": "facts_given",
+   "id": "N001",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1744,
+   "cut": false,
+   "prompt_chars": 662,
+   "text": "{\"suggest\": \"can_wait\", \"reason\": \"work_done\", \"evidence\": \"All done: the importer in data/import_csv.py now handles quoted commas, and I added three cases to tests/test_import.py. 27 tests pass, none fail. I also checked the empty-file and header-only cases by hand and both returned zero rows without errors, as intended. Nothing else is pending on my side, and no follow-up is planned.\"}",
+   "finish": "stop",
+   "out_tokens": 105,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 4325,
+   "gen_ms": 4324.512004852295
+  },
+  {
+   "corpus": "heldout-jobs",
+   "job": "attention",
+   "setting": "facts_hidden",
+   "id": "N001",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1738,
+   "cut": false,
+   "prompt_chars": 644,
+   "text": "{\"suggest\": \"can_wait\", \"reason\": \"work_done\", \"evidence\": \"All done: the importer in data/import_csv.py now handles quoted commas, and I added three cases to tests/test_import.py. 27 tests pass, none fail. I also checked the empty-file and header-only cases by hand and both returned zero rows without errors, as intended. Nothing else is pending on my side, and no follow-up is planned.\"}",
+   "finish": "stop",
+   "out_tokens": 105,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 6806,
+   "gen_ms": 6804.816961288452
+  },
+  {
+   "corpus": "heldout-jobs",
+   "job": "attention",
+   "setting": "facts_hidden",
+   "id": "N002",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1713,
+   "cut": false,
+   "prompt_chars": 589,
+   "text": "{\"suggest\": \"needs_you\", \"reason\": \"asks_question\", \"evidence\": \"Soll ich die alte Spalte 'kunden_nr' nach der Migration löschen oder behalten?\"}",
+   "finish": "stop",
+   "out_tokens": 45,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 4489,
+   "gen_ms": 4484.359979629517
+  },
+  {
+   "corpus": "heldout-jobs",
+   "job": "attention",
+   "setting": "facts_given",
+   "id": "N003",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1700,
+   "cut": false,
+   "prompt_chars": 542,
+   "text": "{\"suggest\": \"can_wait\", \"reason\": \"reports_failure\", \"evidence\": \"The deploy script is ready in ops/deploy.sh. It fails if the target host is missing from hosts.txt, and it reports no missing hosts for the current list of 6. I ran the dry run and it exited 0. No tests exist for this script.\"}",
+   "finish": "stop",
+   "out_tokens": 85,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 3309,
+   "gen_ms": 3307.6690435409546
+  },
+  {
+   "corpus": "heldout-jobs",
+   "job": "attention",
+   "setting": "facts_hidden",
+   "id": "N003",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1700,
+   "cut": false,
+   "prompt_chars": 541,
+   "text": "{\"suggest\": \"needs_you\", \"reason\": \"reports_failure\", \"evidence\": \"The deploy script is ready in ops/deploy.sh. It fails if the target host is missing from hosts.txt, and it reports no missing hosts for the current list of 6. I ran the dry run and it exited 0. No tests exist for this script.\"}",
+   "finish": "stop",
+   "out_tokens": 85,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 3280,
+   "gen_ms": 3279.600977897644
+  },
+  {
+   "corpus": "heldout-jobs",
+   "job": "attention",
+   "setting": "facts_hidden",
+   "id": "N004",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1696,
+   "cut": false,
+   "prompt_chars": 539,
+   "text": "{\"suggest\": \"needs_you\", \"reason\": \"blocked\", \"evidence\": \"I could not finish: the build fails with 'linker not found' in tools/pack.rs and the tests did not run, 0 passed. I do not have permission to install the linker package on this machine. Install it, then tell me to continue.\"}",
+   "finish": "stop",
+   "out_tokens": 75,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 3322,
+   "gen_ms": 3321.3679790496826
+  },
+  {
+   "corpus": "heldout-jobs",
+   "job": "attention",
+   "setting": "facts_hidden",
+   "id": "N005",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1713,
+   "cut": false,
+   "prompt_chars": 591,
+   "text": "{\"suggest\": \"needs_you\", \"reason\": \"asks_question\", \"evidence\": \"Ich habe die Tests ausgeführt: 33 bestand, 4 fehlgeschlagen, alle vier in tests/test_export.py. Die Fehler wirken wie ein Zeitproblem, ich bin mir aber nicht sicher. Ich mache erst weiter, wenn du entschieden hast, ob ich die Tests anpassen oder den Export reparieren soll.\"}",
+   "finish": "stop",
+   "out_tokens": 99,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 3413,
+   "gen_ms": 3412.279963493347
+  },
+  {
+   "corpus": "heldout-jobs",
+   "job": "attention",
+   "setting": "facts_hidden",
+   "id": "N006",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1731,
+   "cut": false,
+   "prompt_chars": 636,
+   "text": "{\"suggest\": \"can_wait\", \"reason\": \"not_verified\", \"evidence\": \"Falls das 30-Tage-Limit nicht passt, sag Bescheid, sonst ist es so gemeint.\"}",
+   "finish": "stop",
+   "out_tokens": 49,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 1796,
+   "gen_ms": 1795.0890064239502
+  },
+  {
+   "corpus": "heldout-jobs",
+   "job": "attention",
+   "setting": "facts_given",
+   "id": "N007",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1728,
+   "cut": false,
+   "prompt_chars": 614,
+   "text": "{\"suggest\": \"can_wait\", \"reason\": \"work_done\", \"evidence\": \"the old theme file styles/old.css is now unused. I left it there; delete it whenever, or never, it does no harm.\"}",
+   "finish": "stop",
+   "out_tokens": 51,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 2039,
+   "gen_ms": 2038.432002067566
+  },
+  {
+   "corpus": "heldout-jobs",
+   "job": "attention",
+   "setting": "facts_hidden",
+   "id": "N007",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1723,
+   "cut": false,
+   "prompt_chars": 596,
+   "text": "{\"suggest\": \"can_wait\", \"reason\": \"work_done\", \"evidence\": \"Refactor of the settings screen is complete. Everything compiles and 90 tests pass, 0 fail. As a heads-up only: the old theme file styles/old.css is now unused. I left it there; delete it whenever, or never, it does no harm. The app starts and the screen looks the same as before.\"}",
+   "finish": "stop",
+   "out_tokens": 93,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 2997,
+   "gen_ms": 2996.617913246155
+  },
+  {
+   "corpus": "heldout-jobs",
+   "job": "attention",
+   "setting": "facts_given",
+   "id": "N008",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1725,
+   "cut": false,
+   "prompt_chars": 603,
+   "text": "{\"suggest\": \"needs_you\", \"reason\": \"asks_question\", \"evidence\": \"Waiting on you: the API key for the weather service is required to run integration tests in tests/live/. I did not find one in the environment, and I am not allowed to create one. Unit tests pass (22 passed, 0 failed), but live ones are skipped until you provide the key.\"}",
+   "finish": "stop",
+   "out_tokens": 87,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 2995,
+   "gen_ms": 2994.4719076156616
+  },
+  {
+   "corpus": "heldout-jobs",
+   "job": "attention",
+   "setting": "facts_hidden",
+   "id": "N008",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1720,
+   "cut": false,
+   "prompt_chars": 587,
+   "text": "{\"suggest\": \"needs_you\", \"reason\": \"blocked\", \"evidence\": \"Waiting on you: the API key for the weather service is required to run integration tests in tests/live/. I did not find one in the environment, and I am not allowed to create one. Unit tests pass (22 passed, 0 failed), but live ones are skipped until you provide the key.\"}",
+   "finish": "stop",
+   "out_tokens": 83,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 3127,
+   "gen_ms": 3127.1920204162598
+  },
+  {
+   "corpus": "heldout-jobs",
+   "job": "attention",
+   "setting": "facts_given",
+   "id": "N009",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1735,
+   "cut": false,
+   "prompt_chars": 649,
+   "text": "{\"suggest\": \"can_wait\", \"reason\": \"work_done\", \"evidence\": \"Alles in Ordnung: Der Test tests/test_crash.py prüft, dass das Programm bei kaputter Eingabe abricht, und er bestätigt genau das. 58 bestanden, 0 fehlgeschlagen. Es gibt keine offenen Punkte, und es meldet sich auch nichts mit Fehler. Die Änderung an src/main.c ist damit abgeschlossen, und ich mache nicht weiter.\"}",
+   "finish": "stop",
+   "out_tokens": 109,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 3578,
+   "gen_ms": 3577.6740312576294
+  },
+  {
+   "corpus": "heldout-jobs",
+   "job": "attention",
+   "setting": "facts_hidden",
+   "id": "N009",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1730,
+   "cut": false,
+   "prompt_chars": 631,
+   "text": "{\"suggest\": \"can_wait\", \"reason\": \"work_done\", \"evidence\": \"Alles in Ordnung: Der Test tests/test_crash.py prüft, dass das Programm bei kaputter Eingabe abricht, und er bestätigt genau das. 58 bestandene, 0 fehlgeschlagen. Es gibt keine offenen Punkte, und es meldet sich auch nichts mit Fehler. Die Änderung an src/main.c ist damit abgeschlossen, und ich mache nicht weiter.\"}",
+   "finish": "stop",
+   "out_tokens": 101,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 4021,
+   "gen_ms": 4020.7550525665283
+  },
+  {
+   "corpus": "heldout-jobs",
+   "job": "attention",
+   "setting": "facts_given",
+   "id": "N010",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1709,
+   "cut": false,
+   "prompt_chars": 572,
+   "text": "{\"suggest\": \"can_wait\", \"reason\": \"work_done\", \"evidence\": \"I finished the first half. The parser in lib/parse.py is rewritten and its 11 tests pass. The second half, the printer in lib/print.py, is untouched; I'm going on with it now and will report when it is done. You don't need to do anything.\"}",
+   "finish": "stop",
+   "out_tokens": 91,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 2877,
+   "gen_ms": 2876.8709897994995
+  },
+  {
+   "corpus": "heldout-jobs",
+   "job": "attention",
+   "setting": "facts_hidden",
+   "id": "N010",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1704,
+   "cut": false,
+   "prompt_chars": 554,
+   "text": "{\"suggest\": \"can_wait\", \"reason\": \"work_done\", \"evidence\": \"You don't need to do anything.\"}",
+   "finish": "stop",
+   "out_tokens": 39,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 1385,
+   "gen_ms": 1384.895920753479
+  },
+  {
+   "corpus": "heldout-jobs",
+   "job": "attention",
+   "setting": "facts_hidden",
+   "id": "N011",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1711,
+   "cut": false,
+   "prompt_chars": 564,
+   "text": "{\"suggest\": \"needs_you\", \"reason\": \"asks_question\", \"evidence\": \"Tests could not run in this environment (not_run), so I can't tell you if the change to cart/total.js works. I'd like you to try it once in the browser: add two items, apply the code SPRING, and tell me if the total reads 18.00.\"}",
+   "finish": "stop",
+   "out_tokens": 93,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 2859,
+   "gen_ms": 2859.052062034607
+  },
+  {
+   "corpus": "heldout-jobs",
+   "job": "attention",
+   "setting": "facts_given",
+   "id": "N012",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1731,
+   "cut": false,
+   "prompt_chars": 628,
+   "text": "{\"suggest\": \"can_wait\", \"reason\": \"work_done\", \"evidence\": \"Tests wurden nicht ausgeführt, da es keine gibt.\"}",
+   "finish": "stop",
+   "out_tokens": 31,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 1684,
+   "gen_ms": 1683.8719844818115
+  },
+  {
+   "corpus": "heldout-jobs",
+   "job": "attention",
+   "setting": "facts_hidden",
+   "id": "N012",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1731,
+   "cut": false,
+   "prompt_chars": 627,
+   "text": "{\"suggest\": \"unclear\", \"reason\": \"nothing_to_review\", \"evidence\": \"Tests wurden nicht ausgeführt, da es keine gibt.\"}",
+   "finish": "stop",
+   "out_tokens": 33,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 1633,
+   "gen_ms": 1632.4349641799927
+  },
+  {
+   "corpus": "heldout-jobs",
+   "job": "chat",
+   "setting": "main",
+   "id": "C001",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1797,
+   "cut": false,
+   "prompt_chars": 762,
+   "chat_item": {
+    "id": "C001",
+    "question": "Which session changed the retry delay?",
+    "rows": [
+     {
+      "ref": "s-4a17",
+      "kind": "session",
+      "words": "Session 'harbor-retries' edited src/net/retry.ts and set the base delay to 250 ms."
+     },
+     {
+      "ref": "s-5b02",
+      "kind": "session",
+      "words": "Session 'docs-sweep' only edited README files and touched no source code."
+     },
+     {
+      "ref": "t-91",
+      "kind": "turn",
+      "words": "In turn 91 of s-4a17 the agent said the old delay of 1000 ms was too slow for the tests."
+     },
+     {
+      "ref": "f-7",
+      "kind": "fact",
+      "words": "Yesterday's nightly run had 3 failed sessions."
+     }
+    ],
+    "gold": {
+     "answer_must": [
+      "harbor-retries",
+      "250 ms"
+     ],
+     "cite": [
+      "s-4a17"
+     ],
+     "forbidden": [
+      "docs-sweep changed the retry delay",
+      "1000 ms is the new delay"
+     ],
+     "unanswerable": false,
+     "answerable": true,
+     "refs": [
+      "s-4a17"
+     ]
+    },
+    "removed": []
+   },
+   "text": "{\"covered\": \"yes\", \"parts\": [{\"cites\": [\"s-4a17\"], \"text\": \"The 'harbor-retries' session edited src/net/retry.ts and set the base delay to 250 ms.\"}, {\"cites\": [\"s-5b02\"], \"text\": \"The 'docs-sweep' session only edited README files and touched no source code.\"}]}",
+   "finish": "stop",
+   "out_tokens": 97,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 2900,
+   "gen_ms": 2899.475932121277
+  },
+  {
+   "corpus": "heldout-jobs",
+   "job": "chat",
+   "setting": "main",
+   "id": "C002",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1731,
+   "cut": false,
+   "prompt_chars": 624,
+   "chat_item": {
+    "id": "C002",
+    "question": "Welche Sitzung hat die Tests nicht ausgeführt?",
+    "rows": [
+     {
+      "ref": "s-6c20",
+      "kind": "session",
+      "words": "Sitzung 'kornblume-login' meldete: Tests nicht ausgeführt, Testdatenbank nicht erreichbar."
+     },
+     {
+      "ref": "s-6c21",
+      "kind": "session",
+      "words": "Sitzung 'tannenhof-cart' führte 20 Tests aus, alle bestanden."
+     },
+     {
+      "ref": "f-12",
+      "kind": "fact",
+      "words": "Die Testdatenbank wurde um 09:10 neu gestartet."
+     }
+    ],
+    "gold": {
+     "answer_must": [
+      "kornblume-login",
+      "Testdatenbank"
+     ],
+     "cite": [
+      "s-6c20"
+     ],
+     "forbidden": [
+      "tannenhof-cart führte die Tests nicht aus"
+     ],
+     "unanswerable": false,
+     "answerable": true,
+     "refs": [
+      "s-6c20"
+     ]
+    },
+    "removed": []
+   },
+   "text": "{\"covered\": \"yes\", \"parts\": [{\"cites\": [\"s-6c20\"], \"text\": \"Die Sitzung 'kornblume-login' hat die Tests nicht ausgeführt.\"}, {\"cites\": [\"s-6c21\"], \"text\": \"Die Sitzung 'tannenhof-cart' hat alle bestanden.\"}]}",
+   "finish": "stop",
+   "out_tokens": 79,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 2228,
+   "gen_ms": 2228.074073791504
+  },
+  {
+   "corpus": "heldout-jobs",
+   "job": "chat",
+   "setting": "main",
+   "id": "C003",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1739,
+   "cut": false,
+   "prompt_chars": 632,
+   "chat_item": {
+    "id": "C003",
+    "question": "How many tests failed in the quill-api session?",
+    "rows": [
+     {
+      "ref": "s-8d01",
+      "kind": "session",
+      "words": "Session 'quill-api-logging' finished with 64 tests passing and 0 failing."
+     },
+     {
+      "ref": "t-203",
+      "kind": "turn",
+      "words": "Turn 203 of s-8d01 changed handlers under app/handlers/."
+     },
+     {
+      "ref": "s-8d02",
+      "kind": "session",
+      "words": "Session 'quill-web' is still running and has not reported test results yet."
+     }
+    ],
+    "gold": {
+     "answer_must": [
+      "0",
+      "quill-api-logging"
+     ],
+     "cite": [
+      "s-8d01"
+     ],
+     "forbidden": [
+      "quill-web had failures",
+      "1 failed"
+     ],
+     "unanswerable": false,
+     "answerable": true,
+     "refs": [
+      "s-8d01"
+     ]
+    },
+    "removed": []
+   },
+   "text": "{\"covered\": \"no\", \"parts\": []}",
+   "finish": "stop",
+   "out_tokens": 13,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 1131,
+   "gen_ms": 1131.1209201812744
+  },
+  {
+   "corpus": "heldout-jobs",
+   "job": "chat",
+   "setting": "main",
+   "id": "C004",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1722,
+   "cut": false,
+   "prompt_chars": 589,
+   "chat_item": {
+    "id": "C004",
+    "question": "Was war der Grund für den Abbruch der Sitzung 'skiff-rename'?",
+    "rows": [
+     {
+      "ref": "s-9e30",
+      "kind": "session",
+      "words": "Sitzung 'skiff-rename' wurde um 14:02 beendet."
+     },
+     {
+      "ref": "t-310",
+      "kind": "turn",
+      "words": "In Turn 310 schrieb der Agent, er habe 14 Dateien umbenannt."
+     },
+     {
+      "ref": "f-30",
+      "kind": "fact",
+      "words": "Die Maschine ging um 14:01 in den Ruhezustand."
+     }
+    ],
+    "gold": {
+     "answer_must": [
+      "14:02"
+     ],
+     "cite": [
+      "s-9e30"
+     ],
+     "forbidden": [
+      "der Agent brach wegen eines Testfehlers ab",
+      "Netzwerkfehler"
+     ],
+     "unanswerable": true,
+     "answerable": false,
+     "refs": [
+      "s-9e30"
+     ]
+    },
+    "removed": []
+   },
+   "text": "{\"covered\": \"no\", \"parts\": []}",
+   "finish": "stop",
+   "out_tokens": 13,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 1195,
+   "gen_ms": 1194.6560144424438
+  },
+  {
+   "corpus": "heldout-jobs",
+   "job": "chat",
+   "setting": "main",
+   "id": "C005",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1795,
+   "cut": false,
+   "prompt_chars": 772,
+   "chat_item": {
+    "id": "C005",
+    "question": "Which sessions are waiting for me right now?",
+    "rows": [
+     {
+      "ref": "s-a001",
+      "kind": "session",
+      "words": "Session 'mossgate-cache' asked a question about deleting expired entries and is waiting."
+     },
+     {
+      "ref": "s-a002",
+      "kind": "session",
+      "words": "Session 'tidepool-export' is running; the agent is working on the CSV writer."
+     },
+     {
+      "ref": "s-a003",
+      "kind": "session",
+      "words": "Session 'pebble-readme' finished and needs nobody."
+     },
+     {
+      "ref": "f-40",
+      "kind": "fact",
+      "words": "Waiting means the last message of the session is a question to the user."
+     }
+    ],
+    "gold": {
+     "answer_must": [
+      "mossgate-cache"
+     ],
+     "cite": [
+      "s-a001",
+      "f-40"
+     ],
+     "forbidden": [
+      "tidepool-export is waiting",
+      "pebble-readme is waiting"
+     ],
+     "unanswerable": false,
+     "answerable": true,
+     "refs": [
+      "s-a001",
+      "f-40"
+     ]
+    },
+    "removed": []
+   },
+   "text": "{\"covered\": \"yes\", \"parts\": [{\"cites\": [\"s-a001\"], \"text\": \"The 'mossgate-cache' session is waiting for a question about deleting expired entries.\"}, {\"text\": \"The 'tidepool-export' session is running with the agent working on the CSV writer.\", \"cites\": [\"s-a002\"]}]}",
+   "finish": "stop",
+   "out_tokens": 90,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 2741,
+   "gen_ms": 2741.1259412765503
+  },
+  {
+   "corpus": "heldout-jobs",
+   "job": "chat",
+   "setting": "main",
+   "id": "C006",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1747,
+   "cut": false,
+   "prompt_chars": 667,
+   "chat_item": {
+    "id": "C006",
+    "question": "Which file did the cart session change and which tests broke?",
+    "rows": [
+     {
+      "ref": "s-b110",
+      "kind": "session",
+      "words": "Session 'tannenhof-cart' changed shop/cart/pricing.py."
+     },
+     {
+      "ref": "t-411",
+      "kind": "turn",
+      "words": "In turn 411 the agent noted 2 failing tests in tests/test_checkout_rounding.py, expecting the old order."
+     },
+     {
+      "ref": "f-44",
+      "kind": "fact",
+      "words": "The cart session also left shop/export/vouchers.py unchanged on purpose."
+     }
+    ],
+    "gold": {
+     "answer_must": [
+      "shop/cart/pricing.py",
+      "tests/test_checkout_rounding.py",
+      "2"
+     ],
+     "cite": [
+      "s-b110",
+      "t-411"
+     ],
+     "forbidden": [
+      "vouchers.py was changed",
+      "3 tests failed"
+     ],
+     "unanswerable": false,
+     "answerable": true,
+     "refs": [
+      "s-b110",
+      "t-411"
+     ]
+    },
+    "removed": []
+   },
+   "text": "{\"covered\": \"yes\", \"parts\": [{\"text\": \"The cart session changed shop/cart/pricing.py.\", \"cites\": [\"s-b110\"]}, {\"cites\": [\"t-411\"], \"text\": \"2 failing tests in tests/test_checkout_rounding.py were noted.\"}]}",
+   "finish": "stop",
+   "out_tokens": 79,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 2169,
+   "gen_ms": 2168.3930158615112
+  },
+  {
+   "corpus": "heldout-jobs",
+   "job": "chat",
+   "setting": "main",
+   "id": "C007",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1725,
+   "cut": false,
+   "prompt_chars": 595,
+   "chat_item": {
+    "id": "C007",
+    "question": "Was the database password rotated last week?",
+    "rows": [
+     {
+      "ref": "s-c200",
+      "kind": "session",
+      "words": "Session 'ledgerlark-pagination' added a limit parameter to the invoice route."
+     },
+     {
+      "ref": "f-50",
+      "kind": "fact",
+      "words": "The staging database runs on version 14."
+     },
+     {
+      "ref": "t-520",
+      "kind": "turn",
+      "words": "Turn 520 of another session mentions only a backup script."
+     }
+    ],
+    "gold": {
+     "answer_must": [
+      "cannot",
+      "no record"
+     ],
+     "cite": [],
+     "forbidden": [
+      "the password was rotated",
+      "the password was not rotated"
+     ],
+     "unanswerable": true,
+     "answerable": false,
+     "refs": []
+    },
+    "removed": []
+   },
+   "text": "{\"covered\": \"no\", \"parts\": []}",
+   "finish": "stop",
+   "out_tokens": 13,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 1142,
+   "gen_ms": 1141.5810585021973
+  },
+  {
+   "corpus": "heldout-jobs",
+   "job": "chat",
+   "setting": "main",
+   "id": "C008",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1718,
+   "cut": false,
+   "prompt_chars": 577,
+   "chat_item": {
+    "id": "C008",
+    "question": "Wie lange dauerte die Sitzung 'tidepool-export'?",
+    "rows": [
+     {
+      "ref": "s-d300",
+      "kind": "session",
+      "words": "Sitzung 'tidepool-export' begann um 08:15 und endete um 09:40."
+     },
+     {
+      "ref": "t-600",
+      "kind": "turn",
+      "words": "In Turn 600 wurde der CSV-Writer als Stub erwähnt."
+     },
+     {
+      "ref": "f-60",
+      "kind": "fact",
+      "words": "Der Zeitplaner läuft jede Nacht um 02:00."
+     }
+    ],
+    "gold": {
+     "answer_must": [
+      "08:15",
+      "09:40"
+     ],
+     "cite": [
+      "s-d300"
+     ],
+     "forbidden": [
+      "zwei Stunden",
+      "endete um 02:00"
+     ],
+     "unanswerable": false,
+     "answerable": true,
+     "refs": [
+      "s-d300"
+     ]
+    },
+    "removed": []
+   },
+   "text": "{\"parts\": [{\"text\": \"Die Sitzung 'tidepool-export' dauerte von 08:15 bis 09:40.\", \"cites\": [\"s-d300\"]}, {\"text\": \"Der Zeitplaner läuft jede Nacht um 02:00.\", \"cites\": [\"f-60\"]}], \"covered\": \"yes\"}",
+   "finish": "stop",
+   "out_tokens": 85,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 2495,
+   "gen_ms": 2494.948983192444
+  },
+  {
+   "corpus": "heldout-jobs",
+   "job": "chat",
+   "setting": "main",
+   "id": "C009",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1757,
+   "cut": false,
+   "prompt_chars": 662,
+   "chat_item": {
+    "id": "C009",
+    "question": "Why did the harbor-sdk upgrade fail?",
+    "rows": [
+     {
+      "ref": "s-e400",
+      "kind": "session",
+      "words": "Session 'harbor-upgrade' reverted the bump to harbor-sdk 4.2 and ended with outcome failure."
+     },
+     {
+      "ref": "t-700",
+      "kind": "turn",
+      "words": "In turn 700 the agent said the Options type lost its timeout field, causing 7 type errors in src/client/retry.ts."
+     },
+     {
+      "ref": "f-70",
+      "kind": "fact",
+      "words": "harbor-sdk 4.3 has no announced release date."
+     }
+    ],
+    "gold": {
+     "answer_must": [
+      "timeout",
+      "7",
+      "type errors"
+     ],
+     "cite": [
+      "s-e400",
+      "t-700"
+     ],
+     "forbidden": [
+      "tests failed at runtime",
+      "release date is next week"
+     ],
+     "unanswerable": false,
+     "answerable": true,
+     "refs": [
+      "s-e400",
+      "t-700"
+     ]
+    },
+    "removed": []
+   },
+   "text": "{\"covered\": \"no\", \"parts\": []}",
+   "finish": "stop",
+   "out_tokens": 13,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 1389,
+   "gen_ms": 1389.1249895095825
+  },
+  {
+   "corpus": "heldout-jobs",
+   "job": "chat",
+   "setting": "main",
+   "id": "C010",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1724,
+   "cut": false,
+   "prompt_chars": 607,
+   "chat_item": {
+    "id": "C010",
+    "question": "Wer hat die Datei config/skiff.example.toml zuletzt bearbeitet?",
+    "rows": [
+     {
+      "ref": "s-f500",
+      "kind": "session",
+      "words": "Sitzung 'skiff-rename' benannte den Schlüssel in 14 Dateien um."
+     },
+     {
+      "ref": "f-80",
+      "kind": "fact",
+      "words": "Die Datei config/skiff.example.toml liegt im Repository 'skiff'."
+     },
+     {
+      "ref": "t-800",
+      "kind": "turn",
+      "words": "Turn 800 erwähnt die Beispieldatei nicht."
+     }
+    ],
+    "gold": {
+     "answer_must": [
+      "nicht",
+      "keine Angabe"
+     ],
+     "cite": [],
+     "forbidden": [
+      "skiff-rename hat die Datei bearbeitet"
+     ],
+     "unanswerable": true,
+     "answerable": false,
+     "refs": []
+    },
+    "removed": []
+   },
+   "text": "{\"parts\": [], \"covered\": \"no\"}",
+   "finish": "stop",
+   "out_tokens": 13,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 1342,
+   "gen_ms": 1341.9950008392334
+  },
+  {
+   "corpus": "heldout-jobs",
+   "job": "chat",
+   "setting": "main",
+   "id": "C011",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1748,
+   "cut": false,
+   "prompt_chars": 637,
+   "chat_item": {
+    "id": "C011",
+    "question": "What did the nightly export session leave undone?",
+    "rows": [
+     {
+      "ref": "s-g600",
+      "kind": "session",
+      "words": "Session 'tidepool-export' finished with the scheduler hook done and the CSV writer still a stub."
+     },
+     {
+      "ref": "t-900",
+      "kind": "turn",
+      "words": "Turn 900: the agent said it did not touch the retry logic, and 3 tests were ignored."
+     },
+     {
+      "ref": "f-90",
+      "kind": "fact",
+      "words": "12 tests passed in that session."
+     }
+    ],
+    "gold": {
+     "answer_must": [
+      "CSV writer",
+      "retry"
+     ],
+     "cite": [
+      "s-g600",
+      "t-900"
+     ],
+     "forbidden": [
+      "everything was finished",
+      "12 tests failed"
+     ],
+     "unanswerable": false,
+     "answerable": true,
+     "refs": [
+      "s-g600",
+      "t-900"
+     ]
+    },
+    "removed": []
+   },
+   "text": "{\"parts\": [], \"covered\": \"no\"}",
+   "finish": "stop",
+   "out_tokens": 13,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 1383,
+   "gen_ms": 1382.5079202651978
+  },
+  {
+   "corpus": "heldout-jobs",
+   "job": "chat",
+   "setting": "main",
+   "id": "C012",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 1724,
+   "cut": false,
+   "prompt_chars": 599,
+   "chat_item": {
+    "id": "C012",
+    "question": "Did anyone approve the beta release yet?",
+    "rows": [
+     {
+      "ref": "s-h700",
+      "kind": "session",
+      "words": "Session 'pebble-readme' rewrote the README and added docs/exit-codes.md."
+     },
+     {
+      "ref": "s-h701",
+      "kind": "session",
+      "words": "Session 'quill-web' is idle and has no messages today."
+     },
+     {
+      "ref": "f-100",
+      "kind": "fact",
+      "words": "The release checklist file lives in docs/release.md."
+     }
+    ],
+    "gold": {
+     "answer_must": [
+      "no record",
+      "cannot"
+     ],
+     "cite": [],
+     "forbidden": [
+      "approved",
+      "was approved by"
+     ],
+     "unanswerable": true,
+     "answerable": false,
+     "refs": []
+    },
+    "removed": []
+   },
+   "text": "{\"parts\": [], \"covered\": \"no\"}",
+   "finish": "stop",
+   "out_tokens": 13,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 1272,
+   "gen_ms": 1271.5250253677368
+  }
+ ]
+}

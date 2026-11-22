@@ -1,0 +1,6 @@
+{
+ "family": "gemma-4-e2b",
+ "job": "attention",
+ "note": "script flags: candidates for Opus to confirm by eye, never verdicts",
+ "candidates": []
+}

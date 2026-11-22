@@ -129,17 +129,17 @@ describe("AJ-E1007 search", () => {
   it("finds transcript text with its snippet, and lists Ended and Archived apart", async () => {
     w().__AIJ_TRANSCRIPT_HITS__ = [{ session_id: "s2", snippet: "…traced the flaky Stripe webhook retry…" }];
     const sessions = [row("s1", "finished"), row("s2", "stopped", { git_branch: null }), row("s3", "finished", { lifecycle: "archived" }), row("s4", "running")];
-    const { container } = render(inApp(<History sessions={sessions} projects={projects} onChanged={() => {}} />));
-    const ids = () => keys(container);
+    render(inApp(<History sessions={sessions} projects={projects} onChanged={() => {}} />));
+    const ids = () => keys(document.body);
     expect(ids()).toEqual(["s/s1", "s/s2"]);
-    fireEvent.change(container.querySelector("[data-testid='history-search']")!, { target: { value: "stripe" } });
+    fireEvent.change(document.body.querySelector("[data-testid='history-search']")!, { target: { value: "stripe" } });
     await waitFor(() => expect(ids()).toEqual(["s/s2"]));
-    expect(container.querySelector("[data-testid='history-snippet']")!.textContent).toContain("Stripe webhook");
-    fireEvent.change(container.querySelector("[data-testid='history-search']")!, { target: { value: "" } });
-    fireEvent.click(container.querySelector("[data-testid='history-tab-archived']")!);
+    expect(document.body.querySelector("[data-testid='history-snippet']")!.textContent).toContain("Stripe webhook");
+    fireEvent.change(document.body.querySelector("[data-testid='history-search']")!, { target: { value: "" } });
+    fireEvent.click(document.body.querySelector("[data-testid='history-tab-archived']")!);
     expect(ids()).toEqual(["s/s3"]);
     // AJ-E1536: Unarchive is in the row's ⋯ menu.
-    fireEvent.click(container.querySelector("[aria-label^='Actions for']")!);
+    fireEvent.click(document.body.querySelector("[aria-label^='Actions for']")!);
     expect(document.querySelector("[data-testid='action-archive']")!.textContent).toContain("Unarchive");
     await act(async () => {
       fireEvent.click(document.querySelector("[data-testid='action-archive']")!);
@@ -151,9 +151,9 @@ describe("AJ-E1007 search", () => {
 describe("AJ-E1536 History you can scan", () => {
   it("lists AI Juggler's ended sessions and the ones started outside it, each by what it was about, with its marks", async () => {
     const sessions = [row("s1", "finished", { title: "Fix the invoice export" }), row("s2", "running")];
-    const { container } = render(inApp(<History sessions={sessions} projects={projects} onChanged={() => {}} />, [outsideOne("c1")]));
-    await waitFor(() => expect(keys(container)).toEqual(["c/acc2/c1", "s/s1"]));
-    const [outside, mine] = Array.from(container.querySelectorAll<HTMLElement>("[data-testid='page-session-item']"));
+    render(inApp(<History sessions={sessions} projects={projects} onChanged={() => {}} />, [outsideOne("c1")]));
+    await waitFor(() => expect(keys(document.body)).toEqual(["c/acc2/c1", "s/s1"]));
+    const [outside, mine] = Array.from(document.body.querySelectorAll<HTMLElement>("[data-testid='page-session-item']"));
     expect(outside!.textContent).toContain("Tidy the release notes");
     // E31 (AJ-E3103): its App, in the one row's place line (D-62's words).
     expect(outside!.querySelector("[data-testid='page-session-app']")!.textContent).toContain("Codex CLI · Personal");
@@ -163,28 +163,28 @@ describe("AJ-E1536 History you can scan", () => {
       expect(item.querySelector("[data-testid='mark-project']")).not.toBeNull();
     }
     // Searching by what it was about finds the outside one too.
-    fireEvent.change(container.querySelector("[data-testid='history-search']")!, { target: { value: "release notes" } });
-    await waitFor(() => expect(keys(container)).toEqual(["c/acc2/c1"]));
+    fireEvent.change(document.body.querySelector("[data-testid='history-search']")!, { target: { value: "release notes" } });
+    await waitFor(() => expect(keys(document.body)).toEqual(["c/acc2/c1"]));
   });
 
   it("rc7 walk: one its app archived stays under Ended, marked so", async () => {
-    const { container } = render(inApp(<History sessions={[]} projects={projects} onChanged={() => {}} />, [outsideOne("c1", { app_archived: true }), outsideOne("c2", { title: "Plain" })]));
-    await waitFor(() => expect(new Set(keys(container))).toEqual(new Set(["c/acc2/c1", "c/acc2/c2"])));
-    expect(container.querySelectorAll("[data-testid='history-archived-in-app']")).toHaveLength(1);
-    expect(container.querySelector("[data-testid='history-archived-in-app']")!.textContent).toBe("Archived in its app");
+    render(inApp(<History sessions={[]} projects={projects} onChanged={() => {}} />, [outsideOne("c1", { app_archived: true }), outsideOne("c2", { title: "Plain" })]));
+    await waitFor(() => expect(new Set(keys(document.body))).toEqual(new Set(["c/acc2/c1", "c/acc2/c2"])));
+    expect(document.body.querySelectorAll("[data-testid='history-archived-in-app']")).toHaveLength(1);
+    expect(document.body.querySelector("[data-testid='history-archived-in-app']")!.textContent).toBe("Archived in its app");
   });
 
   it("0.4.1: another app's session archived in AI Juggler is under Archived, still listed in its app; its menu unarchives it", async () => {
     const asked: [string, boolean][] = [];
     const host = { archiveConversation: (c: ConversationInfo, on: boolean) => void asked.push([c.id, on]) };
-    const { container } = render(inApp(<History sessions={[]} projects={projects} onChanged={() => {}} />, [outsideOne("c1", { archived_here: true }), outsideOne("c2", { title: "Plain" })], host));
-    await waitFor(() => expect(keys(container)).toEqual(["c/acc2/c2"]));
-    fireEvent.click(container.querySelector("[data-testid='history-tab-archived']")!);
-    await waitFor(() => expect(keys(container)).toEqual(["c/acc2/c1"]));
-    const chip = container.querySelector<HTMLElement>("[data-testid='history-archived-here']")!;
+    render(inApp(<History sessions={[]} projects={projects} onChanged={() => {}} />, [outsideOne("c1", { archived_here: true }), outsideOne("c2", { title: "Plain" })], host));
+    await waitFor(() => expect(keys(document.body)).toEqual(["c/acc2/c2"]));
+    fireEvent.click(document.body.querySelector("[data-testid='history-tab-archived']")!);
+    await waitFor(() => expect(keys(document.body)).toEqual(["c/acc2/c1"]));
+    const chip = document.body.querySelector<HTMLElement>("[data-testid='history-archived-here']")!;
     expect(chip.textContent).toBe("Archived");
     expect(chip.title).toMatch(/^Archived in AI Juggler; still listed in .+$/);
-    fireEvent.click(container.querySelector("[aria-label^='Actions for']")!);
+    fireEvent.click(document.body.querySelector("[aria-label^='Actions for']")!);
     const action = document.querySelector<HTMLElement>("[data-testid='action-archive']")!;
     expect(action.textContent).toContain("Unarchive");
     await act(async () => {
@@ -195,16 +195,16 @@ describe("AJ-E1536 History you can scan", () => {
 
   it("a row opens its page; Delete is only in its ⋯ menu, last", async () => {
     const opened: string[] = [];
-    const { container } = render(
+    render(
       inApp(<History sessions={[row("s1", "finished")]} projects={projects} onChanged={() => {}} />, [], {
         openSessionById: (id) => opened.push(id),
         openHistory: (s) => opened.push(s.id),
       }),
     );
-    fireEvent.click(container.querySelector("[data-testid='page-session-row']")!);
+    fireEvent.click(document.body.querySelector("[data-testid='page-session-row']")!);
     expect(opened).toEqual(["s1"]);
-    expect(container.textContent).not.toContain("Delete…");
-    fireEvent.click(container.querySelector("[aria-label^='Actions for']")!);
+    expect(document.body.textContent).not.toContain("Delete…");
+    fireEvent.click(document.body.querySelector("[aria-label^='Actions for']")!);
     const items = Array.from(document.querySelectorAll<HTMLElement>("[data-testid^='action-']")).map((item) => item.dataset.testid);
     expect(items.at(-1)).toBe("action-delete");
     expect(items).toContain("action-replay");
@@ -214,17 +214,17 @@ describe("AJ-E1536 History you can scan", () => {
 describe("AJ-E1007 delete", () => {
   it("has no single-click path: preview, then the typed word, then the token", async () => {
     let closed: boolean | null = null;
-    const { container } = render(<DeleteInstanceDialog sessionId="s1" onClose={(deleted) => (closed = deleted)} />);
-    await waitFor(() => expect(container.querySelector("[data-testid='delete-removes']")).not.toBeNull());
-    expect(container.textContent).toContain("This cannot be undone");
-    expect(container.querySelector("[data-testid='delete-keeps']")!.textContent).toContain("tool's own transcript file");
-    const go = () => container.querySelector<HTMLButtonElement>("[data-testid='delete-go']")!;
+    render(<DeleteInstanceDialog sessionId="s1" onClose={(deleted) => (closed = deleted)} />);
+    await waitFor(() => expect(document.body.querySelector("[data-testid='delete-removes']")).not.toBeNull());
+    expect(document.body.textContent).toContain("This cannot be undone");
+    expect(document.body.querySelector("[data-testid='delete-keeps']")!.textContent).toContain("tool's own transcript file");
+    const go = () => document.body.querySelector<HTMLButtonElement>("[data-testid='delete-go']")!;
     expect(go().disabled).toBe(true);
     fireEvent.click(go());
     expect(calls()).toEqual(["delete-preview:s1"]);
-    fireEvent.change(container.querySelector("[data-testid='delete-confirm']")!, { target: { value: "delet" } });
+    fireEvent.change(document.body.querySelector("[data-testid='delete-confirm']")!, { target: { value: "delet" } });
     expect(go().disabled).toBe(true);
-    fireEvent.change(container.querySelector("[data-testid='delete-confirm']")!, { target: { value: "delete" } });
+    fireEvent.change(document.body.querySelector("[data-testid='delete-confirm']")!, { target: { value: "delete" } });
     await act(async () => {
       fireEvent.click(go());
     });
@@ -237,9 +237,9 @@ describe("AJ-E1007 delete", () => {
       session_id: "s1", account_label: "Work Max", removes: [], keeps: [], token: null,
       refused: "It is part of a switch history — deleting it would break that lineage. Archive it instead.",
     };
-    const { container } = render(<DeleteInstanceDialog sessionId="s1" onClose={() => {}} />);
-    await waitFor(() => expect(container.querySelector("[data-testid='delete-refused']")).not.toBeNull());
-    expect(container.querySelector("[data-testid='delete-go']")).toBeNull();
+    render(<DeleteInstanceDialog sessionId="s1" onClose={() => {}} />);
+    await waitFor(() => expect(document.body.querySelector("[data-testid='delete-refused']")).not.toBeNull());
+    expect(document.body.querySelector("[data-testid='delete-go']")).toBeNull();
   });
 });
 
@@ -252,14 +252,14 @@ describe("AJ-E1007 replay", () => {
       lineage: [{ direction: "in", other_account: "Personal", other_provider: "codex", state: "confirmed", fidelity: "F2" }],
       processes: [{ pid: 4242, role: "root", state: "exited", exit_kind: "clean", first_seen_ms: T, last_seen_ms: T + 60_000 }],
     };
-    const { container } = render(<ReplayDialog sessionId="s1" onClose={() => {}} />);
-    await waitFor(() => expect(container.querySelector("[data-testid='replay-terminal']")).not.toBeNull());
-    expect(container.querySelector("#replay-title")!.textContent).toBe("Replay · read-only");
-    expect(container.querySelector("[data-testid='replay-proof']")!.textContent).toContain("sha256 ab12cd34ef56");
-    expect(container.textContent).toContain("user: fix the invoice export");
-    expect(container.querySelector("[data-testid='replay-history-list']")!.textContent).toContain("· archived");
-    expect(container.querySelector("[data-testid='replay-lineage-list']")!.textContent).toContain("Arrived from Codex CLI · Personal");
-    expect(container.querySelector("[data-testid='replay-process-list']")!.textContent).toContain("root 4242 · exited · clean");
+    render(<ReplayDialog sessionId="s1" onClose={() => {}} />);
+    await waitFor(() => expect(document.body.querySelector("[data-testid='replay-terminal']")).not.toBeNull());
+    expect(document.body.querySelector("#replay-title")!.textContent).toBe("Replay · read-only");
+    expect(document.body.querySelector("[data-testid='replay-proof']")!.textContent).toContain("sha256 ab12cd34ef56");
+    expect(document.body.textContent).toContain("user: fix the invoice export");
+    expect(document.body.querySelector("[data-testid='replay-history-list']")!.textContent).toContain("· archived");
+    expect(document.body.querySelector("[data-testid='replay-lineage-list']")!.textContent).toContain("Arrived from Codex CLI · Personal");
+    expect(document.body.querySelector("[data-testid='replay-process-list']")!.textContent).toContain("root 4242 · exited · clean");
   });
 });
 
@@ -274,24 +274,24 @@ describe("AJ-E1007 retention", () => {
       kept: [{ session_id: "s-lineage", project: null, last_active_ms: T - 120 * DAY, kept_because: "It is part of a switch history" }],
       keeps: ["The tool's own transcript files"],
     };
-    const { container } = render(<StorageRetentionCard />);
-    await waitFor(() => expect(container.querySelector("[data-testid='storage-row']")).not.toBeNull());
-    expect(container.querySelector("[data-testid='storage-usage']")!.textContent).toContain("transcripts 5 MB");
-    expect((container.querySelector("[data-testid='storage-review']") as HTMLButtonElement).disabled).toBe(true);
-    fireEvent.click(container.querySelector("[data-testid='storage-retention']")!);
+    render(<StorageRetentionCard />);
+    await waitFor(() => expect(document.body.querySelector("[data-testid='storage-row']")).not.toBeNull());
+    expect(document.body.querySelector("[data-testid='storage-usage']")!.textContent).toContain("transcripts 5 MB");
+    expect((document.body.querySelector("[data-testid='storage-review']") as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.click(document.body.querySelector("[data-testid='storage-retention']")!);
     await act(async () => {
       fireEvent.click(screen.getByTestId("storage-retention-90"));
     });
     expect(calls()).toContain("retention:acc:90");
-    await waitFor(() => expect((container.querySelector("[data-testid='storage-review']") as HTMLButtonElement).disabled).toBe(false));
+    await waitFor(() => expect((document.body.querySelector("[data-testid='storage-review']") as HTMLButtonElement).disabled).toBe(false));
     await act(async () => {
-      fireEvent.click(container.querySelector("[data-testid='storage-review']")!);
+      fireEvent.click(document.body.querySelector("[data-testid='storage-review']")!);
     });
-    expect(container.querySelector("[data-testid='dry-run-deletes']")!.textContent).toContain("s-old");
-    expect(container.querySelector("[data-testid='dry-run-kept']")!.textContent).toContain("switch history");
+    expect(document.body.querySelector("[data-testid='dry-run-deletes']")!.textContent).toContain("s-old");
+    expect(document.body.querySelector("[data-testid='dry-run-kept']")!.textContent).toContain("switch history");
     expect(calls().some((call) => call.startsWith("retention-apply"))).toBe(false);
     await act(async () => {
-      fireEvent.click(container.querySelector("[data-testid='dry-run-apply']")!);
+      fireEvent.click(document.body.querySelector("[data-testid='dry-run-apply']")!);
     });
     expect(calls()).toContain("retention-apply:acc:dry-1");
   });
@@ -303,10 +303,10 @@ describe("AJ-E1538 History searches every session's words when that's on", () =>
       { session_id: null, account_id: "acc2", conversation_id: "c1", snippet: "…now the refund path for annual plans…" },
     ];
     const sessions = [row("s1", "finished", { title: "Fix the invoice export" })];
-    const { container } = render(inApp(<History sessions={sessions} projects={projects} onChanged={() => {}} />, [outsideOne("c1")]));
-    await waitFor(() => expect(keys(container)).toEqual(["c/acc2/c1", "s/s1"]));
-    fireEvent.change(container.querySelector("[data-testid='history-search']")!, { target: { value: "refund" } });
-    await waitFor(() => expect(keys(container)).toEqual(["c/acc2/c1"]));
-    expect(container.querySelector("[data-testid='history-snippet']")!.textContent).toContain("refund path");
+    render(inApp(<History sessions={sessions} projects={projects} onChanged={() => {}} />, [outsideOne("c1")]));
+    await waitFor(() => expect(keys(document.body)).toEqual(["c/acc2/c1", "s/s1"]));
+    fireEvent.change(document.body.querySelector("[data-testid='history-search']")!, { target: { value: "refund" } });
+    await waitFor(() => expect(keys(document.body)).toEqual(["c/acc2/c1"]));
+    expect(document.body.querySelector("[data-testid='history-snippet']")!.textContent).toContain("refund path");
   });
 });

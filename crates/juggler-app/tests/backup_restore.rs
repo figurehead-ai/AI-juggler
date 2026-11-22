@@ -929,3 +929,91 @@ fn the_rails_order_survives_a_restore_and_a_machine_only_setting_does_not() {
         "this Mac keeps its own label"
     );
 }
+
+/// ADR-0037 §1.5 and the security review's H3 and M1: restoring a backup
+/// made before a forget brings nothing forgotten back, and no file AI
+/// Juggler keeps (the copy before the restore, the staged backup) holds
+/// it; the copy before the restore is gone after a day.
+#[test]
+fn a_restore_brings_back_nothing_forgotten_and_no_kept_copy_holds_it() {
+    use juggler_core::storage::memory::Actor;
+    const CANARY: &str = "qzxwvrestorecanary";
+    let work = tempfile::tempdir().unwrap();
+    let mac = work.path().join("mac");
+    let a = app_state(&mac);
+    let now = Timestamp::now().millis();
+    // Written as the store writes them (no writer: another test's state
+    // in this process may have taken them).
+    {
+        let storage = a.storage.lock().unwrap();
+        for (id, key, text) in [
+            ("r1", "note:kept", "the api project matters most".to_owned()),
+            ("r2", "note:gone", format!("remember {CANARY} please")),
+        ] {
+            storage
+                .raw_conn()
+                .execute(
+                    "INSERT INTO memory_records (id, subject_key, subject_id, version, kind,
+                         scope_kind, tier, priority, authority, untrusted, source_kind,
+                         confidence, as_of_ms, text, created_ms)
+                     VALUES (?1, ?2, ?1, 1, 'note', 'global', 'long', 1, 'user', 0, 'settings',
+                             1, ?3, ?4, ?3)",
+                    rusqlite::params![id, key, now, text],
+                )
+                .unwrap();
+        }
+    }
+    let archive = work.path().join("before-the-forget.ajbackup");
+    backup::backup_export_impl(&a, &archive, &mut |_, _| {}).unwrap();
+    a.storage
+        .lock()
+        .unwrap()
+        .memory()
+        .forget("note:gone", &Actor::User, now)
+        .unwrap();
+
+    let plan = backup::backup_verify_impl(&a, &archive).unwrap();
+    backup::backup_restore_impl(&a, &archive, &plan.token).unwrap();
+    {
+        let storage = a.storage.lock().unwrap();
+        assert!(storage.memory().current("note:gone").unwrap().is_none());
+        assert!(storage.memory().current("note:kept").unwrap().is_some());
+    }
+    // No file in the data folder holds the forgotten words.
+    let mut stack = vec![mac.clone()];
+    let mut holding = Vec::new();
+    while let Some(dir) = stack.pop() {
+        for entry in std::fs::read_dir(&dir).unwrap().flatten() {
+            let path = entry.path();
+            if path.is_dir() {
+                stack.push(path);
+            } else if std::fs::read(&path)
+                .unwrap_or_default()
+                .windows(CANARY.len())
+                .any(|w| w == CANARY.as_bytes())
+            {
+                holding.push(path);
+            }
+        }
+    }
+    assert!(holding.is_empty(), "these still hold it: {holding:?}");
+    assert!(
+        !mac.join("restore-staging").exists(),
+        "the staged backup is gone"
+    );
+    // The copy kept before the restore lives a day.
+    let copies = |mac: &Path| {
+        std::fs::read_dir(mac)
+            .unwrap()
+            .flatten()
+            .filter(|e| {
+                e.file_name()
+                    .to_string_lossy()
+                    .starts_with("juggler.sqlite.before-restore-")
+            })
+            .count()
+    };
+    assert!(copies(&mac) >= 1);
+    backup::prune_aged_copies(&mac, now + 2 * 86_400_000);
+    assert_eq!(copies(&mac), 0);
+}

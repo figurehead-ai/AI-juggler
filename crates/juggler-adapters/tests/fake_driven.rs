@@ -80,6 +80,7 @@ fn start(world: &World, resume: Option<&str>) -> (Child, Box<dyn DrivenSession>)
         socket: world.cwd.join("unused.sock"),
         resume: resume.map(str::to_owned),
         fresh_id: "fake-driven-1".into(),
+        history: None,
     };
     let spec = driven
         .driven_spec(&world.account, &world.profile, &world.cwd, &launch)

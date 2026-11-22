@@ -253,6 +253,7 @@
 6. **(rc3h item 13)** **Recovery limits** (from F-rc3f-3's agent): a driven session whose conversation file was deleted still ends in a failed `-t`. A session with no turn yet, quit under a build from before d4c840a46, fails once more after the upgrade. A cross-Mac switch back takes the original's name, not one given on the other Mac. A rare race: if a live look is already running when a process ends, it can write the entry back until the next look.
 7. **(rc3h item 14)** Codex: whether a message the person adds during a running Codex turn comes back as a `userMessage` item isn't verified live. If it doesn't, those messages won't show as "You".
 8. **(rc3h item 15)** **Usage readings:** the Claude codec's `percent()` reads any value ≤ 1 as a fraction, so a whole "1" would read as 100%. A week on one model from the stream shows only on the session panel, still labelled "Weekly".
+9. **(rc3h triage, pre-existing since 78bf9c22a; FIXED in 0.4.6's rc3h blocker batch by the coordinating session's ruling, so here only its test is tracked, 45ac2facb on release/0.4.6, tests in ui/src/components/own-conversation-page.test.tsx, reaching 0.5 with the next forward merge)** A session AI Juggler runs is shown as "Started outside AI Juggler… never stops or changes it", with no Send box: `DrivenPanel.tsx` offers "Earlier turns are in its conversation. Show them" for a session with no turn yet, and `ConversationPage.tsx` always passes `outside` to `SessionOverview`. Pass `outside` only when the conversation has no AI Juggler session (`conversation.session_id === null`), and offer "Show them" only once the conversation is written. A test for each.
 **Handover note**: Item 15 is a correctness bug (a whole 1 % read as 100 %): fix it first, with a test over the codec's boundary values; it touches the honest-usage promise. Item 14 needs a live Codex check in a lab profile (real accounts read-only).
 **Quality gates**: verify-static; a failing-before test per fixed item; the screens touched walked once by Sonnet and checked by Opus.
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E2311/manifest.md`, one row per item.
@@ -273,3 +274,27 @@
 11. **Move to account waits for the profile's whole process tree and still files, never leaves its dialog stuck, says why in plain words, and deletes an undone move's backup.** The maintainer's 406 MB move on 0.4.8 was refused ("the backup of … doesn't match it", a home path in the words) and its dialog wouldn't close by Esc, × or Cancel: the Claude app's Code tab wrote the history's last lines after the profile's main process ended (the live trace: helpers gone at 0.1 s, Claude Code wrote and ended at 0.3 s, its `disclaimer` wrapper at 6.3 s). A move looks at the whole tree before the quit and waits for all of it (bounded, naming what still runs); every touched file holds still before the backup; a backup that caught a write settles and tries once more (the journal says so); the refusal is calm when nothing changed, with the path only under Copy details; the dialog shows each step and the backup's progress; an undone move's backups go, and at start those of moves already undone.
 **Quality gates**: `just keep-going verify-static` and `verify-tests`; a failing-before test per fixed item; the visual and accessibility gates; the screens touched walked by Sonnet and checked by Opus on the 0.4.9 build.
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E2312/manifest.md`, one row per item.
+
+### AJ-E2313 A hooked session whose turn hangs is said "may be stuck", without false alarms on long thinking | Status: TODO (after 0.5.0: a design call, 2026-11-21, below) | Priority P1 | Effort M | Depends: AJ-E2312
+**Found** finishing 0.4.8 soak item SK48-7 for 0.5.0: the stuck rule (AJ-E405) leaves alone every session whose state its tool reports (its hooks, or a driven one: `runtime.is_exact`), so a Claude Code session AI Juggler launched with hooks reads Working for ever when its turn hangs (the lab's `--lab-open-turn` stand-in shows it). A session picked up after a restart is covered since 0.5.0 (its transcript's last write is its last sign of work).
+**Why not in 0.5.0** (decide by the goal, calm attention): neither sign is sound yet. The terminal's output can't be it (Claude Code redraws its "Thinking…" timer all the time), and the transcript's last write can't alone (long extended thinking writes nothing for minutes), so a rule built on either would raise L2 alarms on healthy sessions.
+**Requirements**:
+1. Measure on real hooked sessions (the aij-test profile, Sonnet runs, Opus reads): how long thinking, a long tool call (a build, a download) and a real hang go without a transcript write, a hook event or CPU, across a day's work.
+2. From those numbers, a rule for a hooked session reported Working: e.g. no hook event and no transcript write for N minutes, its tree's CPU under a floor, no running tool call (PreToolUse without its PostToolUse means a tool runs). Said as "Probably stuck" with a hollow ring (PAT-ATT-5), never louder.
+3. Tests from the measured traces: a hang flagged after N; thinking, a build and a download never flagged.
+**Quality gates**: `just keep-going verify-static`; a failing-before test; a live check on aij-test.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E2313/manifest.md` (the measured traces, the rule's numbers).
+
+### AJ-E2314 0.5.0's walks: the later findings, in the 0.5.1 rebuild before beta | Status: TODO (0.5.1) | Priority P2 | Effort M | Depends: AJ-E2312
+**Found** in 0.5.0's final walk and its two re-walks (`docs/qa/evidence/0.5.0-final-walk.md`, `0.5.0-rewalk.md`, `0.5.0-rewalk-2.md`); triaged "later" by Opus: none blocks 0.5.0.
+**Requirements**:
+1. L1, walk kit: `dev_bridge_url.py`'s `#token=` URL connects in the browser pane (it worked only with `&token=`).
+2. L2: a session page at 1024x680 with an account banner gives the right column a bigger window than 204 px of 723 (fold or shorten the banner, or give the column priority).
+3. L3: a pool's page names a twin one way everywhere (the diagram's "web (2)" and Who's in's "web · started … (2)").
+4. L4: the new-watch preview says what Always means (it said "Ends at midnight tonight.").
+5. L5: after a digest, Home's feed doesn't show the same finishes twice, and a range never reads "2 min–2 min".
+6. L6: Home's "Start a new session … Personal" opens the sheet on Personal (seen opening on Work, twice, driven by accessibility): reproduce, then fix.
+7. L7: the New session sheet isn't left dimmed behind the "already working in api" worktree dialog.
+8. S3, walk kit: `lab_drive resize` really resizes Dev's window (it reports success but leaves 1701x1348).
+**Quality gates**: `just keep-going verify-static`; a failing-before test per app fix; the visual gate.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E2314/manifest.md`, one row per item.

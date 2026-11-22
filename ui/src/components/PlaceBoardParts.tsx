@@ -13,6 +13,8 @@ import type { HiddenApp } from "../lib/shown-apps";
 import type { AlsoCounts, Line, OffRail, SectionId } from "../lib/rail-lines";
 import { isSearching, parseQuery, showInRail, useRailView, type ShowKey } from "../lib/rail-view";
 import { searchHistory } from "../lib/nav";
+import { levelCountWords, type AttentionLevel } from "../lib/attention";
+import { SELECTED } from "./controls/selected";
 
 const SECTION: Record<SectionId, { label: string; tone: string; Icon: typeof IconAlert; testId: string }> = {
   needs: { label: "Needs you", tone: "text-warning", Icon: IconAlert, testId: "rail-needs-you" },
@@ -25,10 +27,12 @@ const SECTION: Record<SectionId, { label: string; tone: string; Icon: typeof Ico
   pinned: { label: "Pinned", tone: "text-ink-2", Icon: IconPin, testId: "rail-pinned" },
 };
 
-/** A fold chevron, as the Project lens's (FoldButton). */
+/** A fold chevron, as the Project lens's (FoldButton). D-117: muted at
+ * rest (faint), never hidden; ink when its control is hovered or focused
+ * (`group/fold`). */
 export function Chevron({ open }: { open: boolean }): JSX.Element {
   return (
-    <svg aria-hidden="true" width="10" height="10" viewBox="0 0 10 10" className={"ml-auto shrink-0 text-muted transition-transform motion-reduce:transition-none " + (open ? "rotate-90" : "")}>
+    <svg aria-hidden="true" width="10" height="10" viewBox="0 0 10 10" data-testid="fold-chevron" className={"ml-auto shrink-0 text-faint transition-transform group-hover/fold:text-ink group-focus-visible/fold:text-ink motion-reduce:transition-none " + (open ? "rotate-90" : "")}>
       <path d="M3.5 2 L7 5 L3.5 8" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
@@ -38,7 +42,9 @@ export function Chevron({ open }: { open: boolean }): JSX.Element {
  * chevron, "Show 4 more"). */
 export function RailLink({ onClick, testId, expanded, children }: { onClick: () => void; testId: string; expanded?: boolean; children: ReactNode }): JSX.Element {
   return (
-    <button type="button" aria-expanded={expanded} onClick={onClick} data-rail-nav={expanded === undefined ? undefined : true} data-testid={testId} className="ml-3 flex h-[24px] items-center gap-1 rounded-md px-2.5 text-label text-accent-hi outline-none hover:underline focus-visible:ring-1 focus-visible:ring-accent/60">
+    // D-117: a link in the rail is ink-2 (the accent is for actions and
+    // focus), underlined on hover.
+    <button type="button" aria-expanded={expanded} onClick={onClick} data-rail-nav={expanded === undefined ? undefined : true} data-testid={testId} className="group/fold ml-3 flex h-[24px] items-center gap-1 rounded-md px-2.5 text-label text-ink-2 outline-none hover:underline focus-visible:ring-1 focus-visible:ring-accent/60">
       {children}
       {expanded !== undefined && <Chevron open={expanded} />}
     </button>
@@ -57,16 +63,49 @@ export function RailCaption({ children }: { children: string }): JSX.Element {
   );
 }
 
-/** A section's head: a click folds it in place, and unfolds it. */
-export function SectionHead({ id, count, open, onToggle, extra }: { id: SectionId; count: number; open: boolean; onToggle: () => void; extra?: ReactNode }): JSX.Element {
-  const { label, tone, Icon, testId } = SECTION[id];
+/** D-117: "To review", faint, over Needs you's notes (done, review it;
+ * low room nothing live is on): listed last, never counted. Words only,
+ * never a stop on the keys' path. */
+export function ToReviewCaption(): JSX.Element {
+  return (
+    <p className="flex h-[22px] items-end px-2 text-label text-faint" data-testid="rail-to-review">
+      To review
+    </p>
+  );
+}
+
+/** A section's head: a click folds it in place, and unfolds it. D-117:
+ * every head is the same calm label (`section-label`: the section tone,
+ * capitals); on Needs you the count carries the level (amber ⚠ n at L2,
+ * red ✕ n at L3) and none shows when only notes are listed. The glyph is
+ * decoration: its name says the level in words, its visible words first
+ * (WCAG 2.5.3): "Needs you 5, 2 stopped with an error, 3 wait on you"
+ * (`broken`: each L3 thing's word). */
+export function SectionHead({ id, count, level = 0, broken = [], open, onToggle, extra, testId = SECTION[id].testId }: { id: SectionId; count?: number; level?: AttentionLevel; broken?: readonly string[]; open: boolean; onToggle: () => void; extra?: ReactNode; testId?: string | null }): JSX.Element {
+  const { label, tone, Icon } = SECTION[id];
+  const needs = id === "needs";
+  const countTone = needs ? (level === 3 ? "text-danger" : level === 2 ? "text-warning" : "text-muted") : "text-muted";
   return (
     <div className="@container relative flex h-[30px] items-end px-0.5">
-      <h3 className={"flex min-w-0 flex-1 text-meta font-semibold " + tone} data-testid={testId}>
-        <button type="button" aria-expanded={open} data-rail-nav data-testid="rail-section-fold" onClick={onToggle} className="flex min-h-6 w-full items-center gap-1.5 rounded-md px-1.5 outline-none hover:bg-surface/60 focus-visible:ring-1 focus-visible:ring-accent/60">
-          <Icon width={13} height={13} aria-hidden="true" />
+      <h3 className={"section-label flex min-w-0 flex-1"} data-section={id} data-classic-tone={tone} data-testid={testId ?? undefined} data-level={needs ? level : undefined}>
+        <button type="button" aria-expanded={open} aria-label={needs && count !== undefined && count > 0 ? `${label} ${levelCountWords(count, broken)}` : undefined} data-rail-nav data-testid="rail-section-fold" onClick={onToggle} className="group/fold flex min-h-6 w-full items-center gap-1.5 rounded-md px-1.5 outline-none hover:bg-surface/60 focus-visible:ring-1 focus-visible:ring-accent/60">
+          {/* The old look's icon (attention-classic.css shows it). */}
+          <Icon width={13} height={13} aria-hidden="true" className="section-icon" />
+          {/* On Needs you, a space after its label: the visible words read
+              "Needs you 5", as its name begins (axe's label-in-name, WCAG
+              2.5.3). */}
           {label}
-          <span className="tabular-nums">{count}</span>
+          {needs && " "}
+          {count !== undefined && (!needs || count > 0) && (
+            // The level's glyph (⚠ at L2, ✕ at L3) is drawn by
+            // `.level-glyph` before the number: decoration, hidden; on
+            // Needs you the button's name says the count in words (the
+            // heading takes its name from it).
+            <span className={"level-count inline-flex items-center gap-1 font-semibold normal-case tracking-normal tabular-nums " + countTone} data-level={needs ? level : undefined} data-testid="section-count">
+              {needs && level >= 2 && <span aria-hidden="true" className="level-glyph" data-level={level} />}
+              {count}
+            </span>
+          )}
           <Chevron open={open} />
         </button>
       </h3>
@@ -94,7 +133,7 @@ export function AlsoLine({ also, hidden, offRail = [], openApp }: { also: AlsoCo
       <span>Also:</span>
       {ALSO.filter((part) => also[part.key] > 0).map((part) => (
         <Fragment key={part.key}>
-          <button type="button" aria-pressed={view.show[part.show]} data-testid={`rail-also-${part.key}`} onClick={() => showInRail(part.show, !view.show[part.show])} className={link + (view.show[part.show] ? " text-accent-hi" : "")}>
+          <button type="button" aria-pressed={view.show[part.show]} data-testid={`rail-also-${part.key}`} onClick={() => showInRail(part.show, !view.show[part.show])} className={link + (view.show[part.show] ? " " + SELECTED : "")}>
             {also[part.key]} {part.words}
           </button>
           <span aria-hidden="true">·</span>
@@ -134,10 +173,12 @@ export function RailNoMatch({ words, text, children }: { words: string; text: st
     <div className="flex flex-col items-start gap-1.5 px-3 py-4" data-testid="rail-no-match">
       <p className="text-label font-medium text-ink">{words ? <>No open or recent session matches “{words}”</> : "No sessions match the filters"}</p>
       {text !== "" && (
+        // D-117 (R23): a link in the rail is ink-2, underlined on hover;
+        // the accent is for focus.
         <button
           type="button"
           onClick={() => searchHistory(text)}
-          className="-mx-1 rounded-md px-1 text-left text-label text-accent-hi outline-none hover:underline focus-visible:ring-1 focus-visible:ring-accent/60"
+          className="-mx-1 rounded-md px-1 text-left text-label text-ink-2 outline-none hover:text-ink hover:underline focus-visible:ring-1 focus-visible:ring-accent/60"
           data-testid="rail-no-match-history"
         >
           Search all history for “{text}” ›

@@ -74,30 +74,30 @@ afterEach(() => cleanup());
 describe("AJ-E1105 Settings › Privacy", () => {
   it("off, never asked: nothing pre-selected, nothing listed", async () => {
     w().__AIJ_USAGE_STATS__ = overview();
-    const { findByTestId, container } = render(<PrivacyCard />);
+    const { findByTestId } = render(<PrivacyCard />);
     expect((await findByTestId("privacy-state")).textContent).toContain("Off. Nothing is counted");
-    const radios = container.querySelectorAll<HTMLInputElement>("[data-testid='usage-stats-option'] input");
+    const radios = document.body.querySelectorAll<HTMLInputElement>("[data-testid='usage-stats-option'] input");
     expect(radios.length).toBe(3);
     expect([...radios].some((radio) => radio.checked)).toBe(false);
-    expect(container.querySelector("[data-testid='privacy-collected']")).toBeNull();
-    expect(container.querySelector("[data-testid='privacy-delete']")).toBeNull();
-    expect(container.querySelector("[data-testid='privacy-open-docs']")).not.toBeNull();
+    expect(document.body.querySelector("[data-testid='privacy-collected']")).toBeNull();
+    expect(document.body.querySelector("[data-testid='privacy-delete']")).toBeNull();
+    expect(document.body.querySelector("[data-testid='privacy-open-docs']")).not.toBeNull();
   });
 
   it("local: this week grouped by category, reports with reasons, exact JSON with Copy", async () => {
     w().__AIJ_USAGE_STATS__ = counting;
     w().__AIJ_USAGE_STATS_REPORTS__ = { "skipped/2026-W41": '{"schema":1,"week":"2026-W41"}' };
-    const { findByTestId, getByTestId, container } = render(<PrivacyCard />);
+    const { findByTestId, getByTestId } = render(<PrivacyCard />);
     expect((await findByTestId("privacy-state")).textContent).toContain("Counting on this computer only");
     expect(getByTestId("privacy-rows-features").textContent).toContain("instance.started");
     expect(getByTestId("privacy-rows-environment").textContent).toContain("4-5");
     expect(getByTestId("privacy-rows-reliability").textContent).toContain("db_locked");
     expect(getByTestId("privacy-report").textContent).toContain("never sent");
     fireEvent.click(getByTestId("privacy-report-view"));
-    await waitFor(() => expect(container.querySelector("[data-testid='privacy-report-json'] pre")).not.toBeNull());
-    expect(container.querySelector("[data-testid='privacy-report-json'] pre")!.textContent).toContain('"week": "2026-W41"');
+    await waitFor(() => expect(document.body.querySelector("[data-testid='privacy-report-json'] pre")).not.toBeNull());
+    expect(document.body.querySelector("[data-testid='privacy-report-json'] pre")!.textContent).toContain('"week": "2026-W41"');
     expect(getByTestId("privacy-report-copy").textContent).toBe("Copy");
-    const checked = container.querySelector<HTMLInputElement>("[data-value='local'] input")!;
+    const checked = document.body.querySelector<HTMLInputElement>("[data-value='local'] input")!;
     expect(checked.checked).toBe(true);
   });
 
@@ -139,18 +139,18 @@ describe("AJ-E1105 Settings › Privacy", () => {
 
   it("not included in this build: says so, no chooser", async () => {
     w().__AIJ_USAGE_STATS__ = overview({ info: { included: false, reason: "Not included in this build" } });
-    const { findByTestId, container } = render(<PrivacyCard />);
+    const { findByTestId } = render(<PrivacyCard />);
     expect((await findByTestId("privacy-state")).textContent).toBe("This build doesn't include usage statistics.");
-    expect(container.querySelector("[data-testid='usage-stats-chooser']")).toBeNull();
+    expect(document.body.querySelector("[data-testid='usage-stats-chooser']")).toBeNull();
   });
 
   it("choosing Off deletes and says so; Delete local stats keeps the mode", async () => {
     w().__AIJ_USAGE_STATS__ = counting;
-    const { findByTestId, getByTestId, container } = render(<PrivacyCard />);
+    const { findByTestId, getByTestId } = render(<PrivacyCard />);
     await findByTestId("privacy-collected");
     fireEvent.click(getByTestId("privacy-delete"));
     await waitFor(() => expect(getByTestId("privacy-message").textContent).toBe("Local stats deleted."));
-    fireEvent.click(container.querySelector<HTMLInputElement>("[data-value='off'] input")!);
+    fireEvent.click(document.body.querySelector<HTMLInputElement>("[data-value='off'] input")!);
     await waitFor(() =>
       expect(getByTestId("privacy-message").textContent).toBe("Usage stats are off. Local stats deleted."),
     );
@@ -175,19 +175,19 @@ describe("AJ-E1105 consent-version re-ask", () => {
     w().__AIJ_USAGE_STATS__ = overview({
       info: { chosen: "share", effective: "share", decided_at_ms: 1, consent_version: 1, current_consent_version: 2 },
     });
-    const { findByTestId, getByTestId, container } = render(<UsageStatsReconsent />);
+    const { findByTestId, getByTestId } = render(<UsageStatsReconsent />);
     await findByTestId("usage-stats-reconsent");
-    expect(container.querySelector<HTMLInputElement>("[data-value='share'] input")!.checked).toBe(true);
+    expect(document.body.querySelector<HTMLInputElement>("[data-value='share'] input")!.checked).toBe(true);
     fireEvent.click(getByTestId("reconsent-save"));
-    await waitFor(() => expect(container.querySelector("[data-testid='usage-stats-reconsent']")).toBeNull());
+    await waitFor(() => expect(document.body.querySelector("[data-testid='usage-stats-reconsent']")).toBeNull());
     expect(w().__AIJ_USAGE_STATS_SETS__).toEqual(["share"]);
   });
 
   it("is never shown before the user has chosen, or when current", async () => {
     w().__AIJ_USAGE_STATS__ = overview();
-    const first = render(<UsageStatsReconsent />);
+    render(<UsageStatsReconsent />);
     await new Promise((resolve) => setTimeout(resolve, 20));
-    expect(first.container.querySelector("[data-testid='usage-stats-reconsent']")).toBeNull();
+    expect(document.body.querySelector("[data-testid='usage-stats-reconsent']")).toBeNull();
   });
 });
 

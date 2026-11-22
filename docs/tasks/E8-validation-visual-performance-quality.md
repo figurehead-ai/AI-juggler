@@ -92,7 +92,7 @@
 **Research basis**: pass2/04 §3 indicator redundancy rule; deep/11 §9 a11y spec; prior reports' unresolved contrast item (`styles.css` faint text) must be closed with measurements here.
 **Handover note**: Do not certify from code reading. The earlier reviews explicitly left contrast/focus unverified; this task exists to replace inference with measurement.
 
-### AJ-E805 Performance budgets and load proof (10 Accounts / 50 Instances) | Status: IN-PROGRESS (automated proof evidenced; release-app cold start and 10 live Instances are maintainer steps) | Priority P0 | Effort L | Depends: AJ-E801
+### AJ-E805 Performance budgets and load proof (10 Accounts / 50 Instances) | Status: IN-PROGRESS (automated proof evidenced; release-build cold start 582 ms PASS, 2026-11-13; idle CPU on the release app 5.7 % FAILS the 2 % budget, a 0.4.x bug; 10 live provider Instances are the maintainer's step) | Priority P0 | Effort L | Depends: AJ-E801
 **Goal**: Prove the app stays responsive at the scale the product promises, with budgets enforced as gates.
 **User story**: As a power user with 10 accounts and dozens of live sessions, I want the rail and inspector to stay instant so supervision never lags the work.
 **Requirements**:
@@ -256,3 +256,61 @@
 **Evidence/validation proof**: the loaded run and the failing scratch run, named in the commit.
 **Files to touch**: `crates/juggler-app/tests/relations.rs`, the relations cache's counters (`crates/juggler-app/src/features/relations/`) if a rows-read counter is missing, a bench target.
 **Handover note**: 0.4.5's light preflight on b694d08e3 failed it once at a load average of 20–29 (the slowest of 540 cached counts 97 ms against 5 ms; the cold rebuild 561 ms against 1 s); the same test passed three times alone right after. Done 2026-11-15: the gate checks `relations.builds()` (540 cached counts and one ask build nothing; the cold build exactly the two parts, bound 10 s); `relation_counts_timings` is the ignored benchmark; the bridge's 50 ms test gates the median (slowest < 500 ms); the terminal echo's median-of-best-round bar kept. Evidence: `docs/qa/evidence/AJ-E815/manifest.md`.
+
+### AJ-E816 Local Playwright runs match CI: the local-only failures | Status: TODO | Priority P2 | Effort M | Depends: AJ-E805
+**Goal**: The a11y, overload and tasks specs fail on this Mac and pass on GitHub's Linux CI (run on 83f700ed6). Find each cause and either fix it or pin the difference in the Playwright config, so a local run means what CI means.
+**User story**: As a maintainer, I want a red local run to mean a real regression, so I don't re-run or doubt every gallery check I do on this Mac.
+**Requirements**:
+1. The 2026-11-15 local run (`nice -n 15 npx playwright test` on `a11y.spec.ts`, `overload-gallery.spec.ts`, `tasks-gallery.spec.ts`; 135 passed, 13 failed across both themes, 11 in the first run) SHALL be re-run on a quiet tree and each failure explained. Failures seen:
+   - `a11y.spec.ts:238` "tiers — account toggles" (dark, light): `getByTestId('account-tier-toggles')` resolves but stays hidden for 5 s after the profile row opens. [Inferred] the profile page is not open or its toggles sit in a collapsed section; a stale build or the tree being edited during the run.
+   - `a11y.spec.ts:2236` "recovery code sheet" (dark): timeout waiting for the Settings sidebar's Advanced button. [Inferred] the same slow or half-built page.
+   - `overload-gallery.spec.ts:144` "the banner above a session" (1280 and 1024, both themes) and `:155` "busy processor, the Claude app" (both themes): timeout clicking the session row "Fake Desk app Working" in the instance board. [Inferred] a time-of-day or locale difference in the row's title (a local run showed "Session started yesterday…" where CI shows the fixture title), or the board not listing the session.
+   - `tasks-gallery.spec.ts:197` "a pool's tasks" (dark): `getByTestId('rail')` not found on load. [Inferred] the dev server was mid-rebuild.
+   - `tasks-gallery.spec.ts:248` "start a session for a task" (dark, light) and `:312` "keyboard: a held change answered with 1": timeout picking the profile `Deep work · Claude Code · Work Max` in the picker. [Inferred] the picker lists profiles in a different order or shows a different label from the fixture, from a local cache or fixture state.
+2. Each cause SHALL be named by evidence (the error context, a trace, the fixture's clock and locale), not inferred; the specs that depend on today's date SHALL freeze the clock.
+3. The Playwright config SHALL pin timezone, locale, colour scheme and the font set (or the specs SHALL not depend on them), and a local run SHALL start from a fresh build and an empty browser state.
+**Quality gates**: The three specs pass locally on a quiet tree and in CI; the gallery images stay unchanged after a local run (`git status` clean for `docs/qa/evidence/_gallery`).
+**Evidence/validation proof**: the local run's line report and the CI run's, named in the commit.
+**Files to touch**: `ui/playwright.config.ts`, `ui/tests/visual/fixtures.ts`, the three specs only where they read the clock.
+**Handover note**: The 2026-11-15 run happened while other sessions were editing `ui/src` in the same tree, so some failures may come from half-edited code, not from the Mac; a run in a clean worktree decides it. The run also rewrote 35 gallery images under `74-overload` and `95-tasks` (restored, never committed).
+
+### AJ-E817 Gate tests measure the work, not the clock: the other wall-clock bounds | Status: IN-PROGRESS (R1 and R2 done 2026-11-16 on release/0.5; R3's list left) | Priority P1 | Effort M | Depends: AJ-E805
+**Goal**: AJ-E815's class beyond the relation counts: a gate test that asserts an elapsed time fails on a busy Mac or a loaded runner with nothing wrong. Each one holds the work instead (visits, rows, rebuilds, reads counted) and its timing moves to `just load-gate` or an ignored test that prints a `[perf]` line.
+**User story**: As a maintainer, I want a red preflight to mean a real regression, never a busy machine.
+**Requirements**:
+1. DONE: `tokens_per_min_100k_events_under_budget` (`crates/juggler-core/tests/quality_signals.rs`, 5 ms at 100k events; 8.29 ms under load in the preflight on 4da5fffd2, passing on a quiet rerun) is replaced by `tokens_per_min_visits_each_event_once`: `signals::tokens_per_min` takes any `IntoIterator` of events with no `Clone` bound (a second pass does not compile), and a counting iterator shows exactly n + 1 pulls at 10k and 100k events (10× the events, exactly 10× the work) with exact bars and sums. The timing is the ignored `tokens_per_min_100k_events_timing` (median of 5, the 5 ms budget printed beside it), run by `just load-gate`.
+2. DONE: `ui/src/components/palette/palette-timing.test.ts` (the p95 ≤ 48 ms keystroke bound flaked) holds the work everywhere (every keystroke's groups at most `CAP` rows on the 750-object fixture, which overflows the cap) and asserts the 150 ms open / 48 ms p95 margins only under `AJ_LOAD_GATE=1`, run by `just load-gate`.
+3. Each remaining gate test with a wall-clock performance bound SHALL be changed the same way, or kept with its reason written beside it. Found 2026-11-16 by a scan of `elapsed()`/`Instant`/`performance.now()` asserts (liveness deadlines of 2 s and more that only catch a hang, and `#[ignore]`d or release-only ones, left out):
+   - Rust, tight (≤ 100 ms): `juggler-agentbridge/tests/bridge.rs` `calls_answer_in_under_50_ms`; `juggler-adapter/src/siblings.rs` `listing_the_most_profiles_takes_under_50_ms`; `juggler-adapters/tests/inference.rs` and `juggler-core/src/recommendation.rs` `two_hundred_candidates_within_budget` (50 / 100 ms); `juggler-core/src/storage/messages.rs` `a_thousand_messages_page_quickly` and `storage/tasks.rs` `a_thousand_tasks_list_quickly` (100 ms); `juggler-core/tests/pools_resolver.rs` (40 ms debug); `juggler-stats/src/tests.rs` `a_week_of_counters_flushes_in_under_5_ms` and `cycle_tests.rs` `assembly_is_fast` (50 ms); `juggler-handover/src/sync.rs` `two_thousand_line_files_diff_inside_the_budget` (100 ms CPU); `juggler-floor/src/kit.rs` `building_every_kit_is_quick` and `scene/tests.rs` (50 / 10 ms × scale); `juggler-app/src/features/floor/tests.rs` (2 ms × scale), `features/feed/tests.rs` (50 ms), `features/sessions/read_model.rs` `session_info_join_p95_under_budget_at_50_instances` (20 ms); `juggler-supervisor/tests/machine.rs` `tick_cost_stays_inside_the_budget` (2 ms p95), `orphan.rs` `collector_targeted_tick_overhead_under_budget`, `reconciler.rs` (100 ms p95 tick); `juggler-link/tests/transport.rs` `mutual_tls_with_pinned_keys_connects_and_serves` (best of 3); `juggler-app/tests/`: `relations.rs` (AJ-E815), `load_budgets.rs`'s four unignored tests (cold start 2.5 s, terminal echo 50 ms, This Mac 200 ms, the two CPU-share monitors), `concurrent_launch.rs` (200 / 50 ms CPU), `fleet_sync.rs` (10 ms CPU p95), `page_open_off_main.rs` (16 ms blocked), `pool_open_budget.rs` (50 ms), `tasks.rs` `two_hundred_tasks_list_fast_and_page` (100 ms), `triage_lifecycle.rs` (200 ms).
+   - Rust, looser (≥ 300 ms): `juggler-app/tests/`: `project_sync.rs` `listing_stays_inside_its_budget` (300 ms CPU), `messages.rs` (500 / 500 / 200 ms), `session_lifecycle.rs` (1 s, 500 ms), `fleet_switch.rs` (500 ms), `paged_lists.rs` (six at 1 s), `conversations.rs` `the_list_answers_at_once_while_a_pass_is_reading` (1 s), `identity_guard.rs` (1 s, best of the launches), `switch_staging.rs` (5 s); `juggler-core/tests/pools_v45.rs` (1 s).
+   - Release-build only (not in the debug gate): `juggler-core/tests/quota_windows.rs` (100 ms), `quota_forecast.rs` (500 ms).
+   - vitest: `ui/src/components/sorting.test.tsx` (16 ms CPU), `ui/src/screens/home.test.tsx` (300 ms CPU), `ui/src/components/session-page-timing.test.tsx` (150 ms), `ui/src/components/privacy-card.test.tsx` (200 ms median).
+**Quality gates**: each changed test passes under a bounded, self-cleaning CPU load (`pgrep -x yes` is 0 afterwards) and fails on a scratch change that does the work twice; `just load-gate` prints every moved timing.
+**Evidence/validation proof**: the commits name each test changed and its scratch failure.
+**Files to touch**: the tests above; a work counter in the code under test only where none exists; `justfile` (`load-gate`).
+**Handover note**: AJ-E815 stays the relation counts' task; the brief's rule (2026-11-16, the coordinating session): no wall-clock bounds in gates. Many of the Rust tests already take the best of several runs or scale the bound in debug builds; that narrows the flake but does not remove it.
+
+
+### AJ-E818 A live validation route for switches through another service (the `+service` pairs) | Status: PLANNED (0.5) | Priority P2 | Effort M | Depends: AJ-E808, AJ-E1601
+Since D-127/D-128 (0.4.6), a switch is offered only when every fidelity area is decided for the current versions. The register's `+service` pairs (a tool running through another service, AJ-E1601: OpenCode through OpenCode Go and the like) are hard-coded `ci_green: false`, so they can never validate. They're hidden; Settings › Switching › Beta is their only door, in plain words.
+- R1: a lab route for them. A service-routed lab account in a separate lab profile (existing accounts, never spare ones). The maintainer signs in during one sitting, with the page on screen; the agent drives everything else, every launch through lab_env.sh, verified by ps.
+- R2: the AJ-E808 harness (`just switch-lab`) runs each `+service` pair in all 8 areas on the current versions, with file-history included. Record live cells with versions and evidence, replacing the hard-coded `ci_green: false` per pair only on a recorded run.
+- R3: a validated pair is offered by default with no Beta tag; an unvalidated one stays behind Beta. The gate watch (scripts/gate_watch.py) lists them when due.
+- Done when each `+service` pair the product offers is validated live or stays Beta-only by an explicit, logged choice.
+
+### AJ-E819 The lab-Mac compatibility run: the adapters' suite on the installed tool versions (D-128 point 2) | Status: PLANNED (0.5) | Priority P1 | Effort M | Depends: AJ-E808, AJ-E2022
+**Goal**: When a tool updates, a scheduled run on the lab Mac says whether AI Juggler still reads and switches it correctly, and posts the result where the update was noticed.
+**User story**: As the maintainer, I get one issue per tool update with "parsers pass, shapes match, switch routes pass" or the failing line, so a patch is a queue item, not a surprise.
+**Requirements**:
+1. A scheduled check on the lab Mac SHALL run the adapters' compatibility suite (parsers on fresh fixtures, the shape checks of the write paths, the AJ-E808 switch routes) against each installed tool's current version.
+2. It SHALL post the result to the `tool-update` issue the daily GitHub watcher opened for that tool and version (D-128 point 2; the watcher itself ships in 0.4.6 as repo tooling).
+3. A failure SHALL be recorded as a bug against the tool and version, and, once AJ-E2022 ships, SHALL be able to produce a compat-file entry that hides only the failing option.
+4. It SHALL use lab profiles only, every launch through `lab_env.sh` and verified by `ps`, and read-only on real accounts.
+**UI/UX reasoning**: n/a (repo tooling).
+**Performance budget**: runs off-hours; bounded lifetime and cleaned up after.
+**Quality gates**: a selftest with a fixture that changes shape and fails; the run's output kept as evidence.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E819/manifest.md`, R1 to R4.
+**Visual testing**: n/a.
+**Files to touch**: `scripts/qa/`, `scripts/gate_watch.py`, `.github/workflows/`.
+**Research basis**: D-128 point 2; D-127.
+**Handover note**: AJ-E818 is the sibling for the `+service` pairs.

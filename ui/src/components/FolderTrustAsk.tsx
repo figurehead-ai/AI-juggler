@@ -40,21 +40,24 @@ export function useFolderTrust(): { confirm: (profileId: string, cwd: string | n
     );
   };
   const element = asking ? (
-    <Modal title={asking.info.question} subtitle={asking.info.folder} onClose={() => done(false)} testId="folder-trust">
+    <Modal title={asking.info.question} subtitle={asking.info.folder} onClose={() => done(false)} testId="folder-trust"
+      footer={
+        <>
+            <Button size="sm" variant="ghost" onClick={() => done(false)}>
+              Cancel
+            </Button>
+            <Button size="sm" variant="secondary" onClick={() => answer(false)} data-testid="folder-trust-restrict">
+              {asking.info.restrict}
+            </Button>
+            <Button size="sm" variant="primary" onClick={() => answer(true)} data-testid="folder-trust-trust">
+              {asking.info.trust}
+            </Button>
+        </>
+      }
+    >
       <div className="flex flex-col gap-4 text-xs">
         <p className="leading-relaxed text-ink-2">{asking.info.note}</p>
         {error && <p className="text-warning">{error}</p>}
-        <div className="flex flex-wrap justify-end gap-2">
-          <Button size="sm" variant="ghost" onClick={() => done(false)}>
-            Cancel
-          </Button>
-          <Button size="sm" variant="secondary" onClick={() => answer(false)} data-testid="folder-trust-restrict">
-            {asking.info.restrict}
-          </Button>
-          <Button size="sm" variant="primary" onClick={() => answer(true)} data-testid="folder-trust-trust">
-            {asking.info.trust}
-          </Button>
-        </div>
       </div>
     </Modal>
   ) : null;

@@ -59,6 +59,8 @@ export interface PreflightInfoData {
   move_line: string;
   /** Whether the keys-and-passwords question applies, and who reads. */
   secrets: SecretsData;
+  /** The source's tool (its id): the header names both sides as Apps (D-142 §8). */
+  source_tool: string;
   /** The target's tool id (named from the catalog), and its account (its room: the one runway). */
   target_tool: string;
   target_account?: string;

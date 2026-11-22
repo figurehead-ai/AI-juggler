@@ -122,7 +122,7 @@ describe("Messages this week counts the pool's messages (F-rc3f-4)", () => {
       __AIJ_AGENT_BRIDGE__: { asked: true, on: true },
       // No line between drawn members: the canvas counts none.
       __AIJ_MESSAGES__: { threads: [], messages: {}, needs: [] },
-      __AIJ_POOL_CANVAS__: { "pool-checkout": { stream: [said(4, "w1 wrote to w2: «lab one»"), said(5, "w1 wrote to w2: «lab two»"), said(6, "You wrote to w1: «lab one»"), said(8, "lead gave «write lab» to w3", "task")] } },
+      __AIJ_POOL_CANVAS__: { "pool-checkout": { stream: [said(4, "w1 wrote to w2: “lab one”"), said(5, "w1 wrote to w2: “lab two”"), said(6, "You wrote to w1: “lab one”"), said(8, "lead gave “write lab” to w3", "task")] } },
     });
     resetPreviewAgentBridge();
     await act(async () => {

@@ -1,0 +1,403 @@
+{
+ "family": "apple",
+ "job": "chat",
+ "note": "script flags: candidates for Opus to confirm by eye, never verdicts",
+ "candidates": [
+  {
+   "class": "critical",
+   "detector": "gold_forbidden",
+   "detail": "/25 min/",
+   "stage": "shown",
+   "attempt": null,
+   "id": "R3C01",
+   "corpus": "chat"
+  },
+  {
+   "class": "omission",
+   "detector": "detail_dropped",
+   "detail": "fehlgeschlagen",
+   "stage": "shown",
+   "attempt": null,
+   "id": "R3C02",
+   "corpus": "chat"
+  },
+  {
+   "class": "omission",
+   "detector": "no_answer_on_answerable",
+   "detail": "shown: dont_know",
+   "stage": "shown",
+   "attempt": null,
+   "id": "R3C04",
+   "corpus": "chat"
+  },
+  {
+   "class": "omission",
+   "detector": "no_answer_on_answerable",
+   "detail": "shown: dont_know",
+   "stage": "shown",
+   "attempt": null,
+   "id": "R3C07",
+   "corpus": "chat"
+  },
+  {
+   "class": "omission",
+   "detector": "no_answer_on_answerable",
+   "detail": "shown: found_rows",
+   "stage": "shown",
+   "attempt": null,
+   "id": "R3C08",
+   "corpus": "chat"
+  },
+  {
+   "class": "omission",
+   "detector": "no_answer_on_answerable",
+   "detail": "shown: found_rows",
+   "stage": "shown",
+   "attempt": null,
+   "id": "R3C09",
+   "corpus": "chat"
+  },
+  {
+   "class": "omission",
+   "detector": "no_answer_on_answerable",
+   "detail": "shown: found_rows",
+   "stage": "shown",
+   "attempt": null,
+   "id": "R3C11",
+   "corpus": "chat"
+  },
+  {
+   "class": "omission",
+   "detector": "no_answer_on_answerable",
+   "detail": "shown: dont_know",
+   "stage": "shown",
+   "attempt": null,
+   "id": "R3C12",
+   "corpus": "chat"
+  },
+  {
+   "class": "omission",
+   "detector": "no_answer_on_answerable",
+   "detail": "shown: dont_know",
+   "stage": "shown",
+   "attempt": null,
+   "id": "R3C20",
+   "corpus": "chat"
+  },
+  {
+   "class": "omission",
+   "detector": "no_answer_on_answerable",
+   "detail": "shown: dont_know",
+   "stage": "shown",
+   "attempt": null,
+   "id": "R3C21",
+   "corpus": "chat"
+  },
+  {
+   "class": "omission",
+   "detector": "no_answer_on_answerable",
+   "detail": "shown: dont_know",
+   "stage": "shown",
+   "attempt": null,
+   "id": "R3C22",
+   "corpus": "chat"
+  },
+  {
+   "class": "omission",
+   "detector": "detail_dropped",
+   "detail": "70 minutes",
+   "stage": "shown",
+   "attempt": null,
+   "id": "R3C23",
+   "corpus": "chat"
+  },
+  {
+   "class": "omission",
+   "detector": "detail_dropped",
+   "detail": "abgeschlossen; wartet",
+   "stage": "shown",
+   "attempt": null,
+   "id": "R3C24",
+   "corpus": "chat"
+  },
+  {
+   "class": "omission",
+   "detector": "detail_dropped",
+   "detail": "19",
+   "stage": "shown",
+   "attempt": null,
+   "id": "R3C25",
+   "corpus": "chat"
+  },
+  {
+   "class": "omission",
+   "detector": "detail_dropped",
+   "detail": "16:45",
+   "stage": "shown",
+   "attempt": null,
+   "id": "R3C26",
+   "corpus": "chat"
+  },
+  {
+   "class": "omission",
+   "detector": "no_answer_on_answerable",
+   "detail": "shown: dont_know",
+   "stage": "shown",
+   "attempt": null,
+   "id": "R3C27",
+   "corpus": "chat"
+  },
+  {
+   "class": "omission",
+   "detector": "no_answer_on_answerable",
+   "detail": "shown: dont_know",
+   "stage": "shown",
+   "attempt": null,
+   "id": "R3C40",
+   "corpus": "chat"
+  },
+  {
+   "class": "omission",
+   "detector": "no_answer_on_answerable",
+   "detail": "shown: found_rows",
+   "stage": "shown",
+   "attempt": null,
+   "id": "R3C42",
+   "corpus": "chat"
+  },
+  {
+   "class": "omission",
+   "detector": "no_answer_on_answerable",
+   "detail": "shown: dont_know",
+   "stage": "shown",
+   "attempt": null,
+   "id": "R3C46",
+   "corpus": "chat"
+  },
+  {
+   "class": "omission",
+   "detector": "no_answer_on_answerable",
+   "detail": "shown: dont_know",
+   "stage": "shown",
+   "attempt": null,
+   "id": "R3C48",
+   "corpus": "chat"
+  },
+  {
+   "class": "omission",
+   "detector": "no_answer_on_answerable",
+   "detail": "shown: dont_know",
+   "stage": "shown",
+   "attempt": null,
+   "id": "R3C49",
+   "corpus": "chat"
+  },
+  {
+   "class": "omission",
+   "detector": "no_answer_on_answerable",
+   "detail": "shown: dont_know",
+   "stage": "shown",
+   "attempt": null,
+   "id": "R3C50",
+   "corpus": "chat"
+  },
+  {
+   "id": "R3C03",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_value",
+   "detail": "value: the answer leaves out ['23'] from the records",
+   "stage": "caught",
+   "corpus": "chat"
+  },
+  {
+   "id": "R3C03",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "wrong_value",
+   "detail": "value: the answer leaves out ['23'] from the records",
+   "stage": "caught",
+   "corpus": "chat"
+  },
+  {
+   "id": "R3C03",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "wrong_value",
+   "detail": "value: the answer leaves out ['23'] from the records",
+   "stage": "caught",
+   "corpus": "chat"
+  },
+  {
+   "id": "R3C07",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_question",
+   "detail": "off the question: no cited record holds a who",
+   "stage": "caught",
+   "corpus": "chat"
+  },
+  {
+   "id": "R3C08",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_question",
+   "detail": "off the question: the cited record's count is not about the subject",
+   "stage": "caught",
+   "corpus": "chat"
+  },
+  {
+   "id": "R3C08",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "wrong_question",
+   "detail": "off the question: the cited record's count is not about the subject",
+   "stage": "caught",
+   "corpus": "chat"
+  },
+  {
+   "id": "R3C08",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "wrong_question",
+   "detail": "off the question: the cited record's count is not about the subject",
+   "stage": "caught",
+   "corpus": "chat"
+  },
+  {
+   "id": "R3C09",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'The session hazel-pos lasted 55 minutes': 2b: content word(s) not in the text: lasted",
+   "stage": "caught",
+   "corpus": "chat"
+  },
+  {
+   "id": "R3C09",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'The session hazel-pos lasted 55 minutes': 2b: content word(s) not in the text: lasted",
+   "stage": "caught",
+   "corpus": "chat"
+  },
+  {
+   "id": "R3C09",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'The session hazel-pos lasted 55 minutes': 2b: content word(s) not in the text: lasted",
+   "stage": "caught",
+   "corpus": "chat"
+  },
+  {
+   "id": "R3C10",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_question",
+   "detail": "off the question: states which, the question asks what_changed: it supports no answer",
+   "stage": "caught",
+   "corpus": "chat"
+  },
+  {
+   "id": "R3C11",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'autore sara@example.com wrote the commit': 2b: content word(s) not in the text: wrote",
+   "stage": "caught",
+   "corpus": "chat"
+  },
+  {
+   "id": "R3C11",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'sara@example.com wrote the commit in the': 2b: content word(s) not in the text: wrote",
+   "stage": "caught",
+   "corpus": "chat"
+  },
+  {
+   "id": "R3C11",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'sara@example.com wrote the commit in the': 2b: content word(s) not in the text: wrote",
+   "stage": "caught",
+   "corpus": "chat"
+  },
+  {
+   "id": "R3C31",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_question",
+   "detail": "off the question: states status, the question asks why: it supports no answer",
+   "stage": "caught",
+   "corpus": "chat"
+  },
+  {
+   "id": "R3C42",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'The pebble-web session lasted 72 hours': 2b: content word(s) not in the text: hours, lasted",
+   "stage": "caught",
+   "corpus": "chat"
+  },
+  {
+   "id": "R3C42",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'The pebble-web session lasted 72 hours': 2b: content word(s) not in the text: hours, lasted",
+   "stage": "caught",
+   "corpus": "chat"
+  },
+  {
+   "id": "R3C42",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'The pebble-web session lasted 72 hours': 2b: content word(s) not in the text: hours, lasted",
+   "stage": "caught",
+   "corpus": "chat"
+  },
+  {
+   "id": "R3C47",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'Die Sitzung orca-feed dauerte 20 Minuten': 2b: content word(s) not in the text: dauerte",
+   "stage": "caught",
+   "corpus": "chat"
+  },
+  {
+   "id": "R3C47",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'Die Sitzung orca-feed dauerte 20 Minuten': 2b: content word(s) not in the text: dauerte",
+   "stage": "caught",
+   "corpus": "chat"
+  },
+  {
+   "id": "R3C47",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'Die Sitzung orca-feed dauerte 20 Minuten': 2b: content word(s) not in the text: dauerte",
+   "stage": "caught",
+   "corpus": "chat"
+  },
+  {
+   "id": "R3C50",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_question",
+   "detail": "off the question: no cited record holds a count",
+   "stage": "caught",
+   "corpus": "chat"
+  }
+ ]
+}

@@ -227,6 +227,7 @@ impl AccountClient {
                 .map(|value| value.to_string().into_bytes())
                 .unwrap_or_default(),
             long_transfer: false,
+            max_body: None,
         }
     }
 

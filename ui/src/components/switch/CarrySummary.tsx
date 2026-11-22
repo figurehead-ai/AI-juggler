@@ -2,22 +2,23 @@
  * 0.3.5 — what goes along, in one coloured line on the last step
  * ("Everything goes along · 8 items"), that opens to the whole list (the
  * maintainer, 2026-11-02: "keep the transfer simple but give options to
- * read things in details"). Closed at first; its tint says whether
- * anything is left behind (warning) or all of it goes (success), and the
- * words say it too.
+ * read things in details"). Closed at first; its chip says whether all
+ * of it goes (a green ✓) or not (a neutral (i): a fact, not amber), and
+ * the words say it too.
  */
-import type { JSX } from "react";
-import type { CarryItemData } from "../../lib/ipc/switch-preflight";
+import type { JSX, ReactNode } from "react";
+import type { CarryItemData, PreflightInfoData } from "../../lib/ipc/switch-preflight";
 import type { SetupCheckInfo } from "../../lib/ipc/switchSetup";
-import { IconAlert } from "../icons";
+import { IconInfo } from "../icons-actions";
 import { IconCheck } from "../icons-controls";
 import { Disclosure } from "../controls";
-import { CarryList, withSetup } from "./CarryList";
+import { CarryList, carryGroups } from "./CarryList";
+import { Section } from "../Section";
 
-/** "Everything goes along · 8 items", or what doesn't: "7 go along · 1
- * stays behind", and the turns a cut leaves out ("the first 800 turns
- * stay behind", D-76). `warn` when something stays behind or isn't there
- * yet. */
+/** "Everything goes along · 8 items", or each group as the list below
+ * draws it: "6 go along · 1 recreated · 1 stays behind", and the turns a
+ * cut leaves out ("the first 800 turns stay behind", D-76). `warn` when
+ * something stays behind or isn't there yet. */
 export function carryWords(
   items: CarryItemData[],
   setup: SetupCheckInfo | null | undefined,
@@ -26,18 +27,41 @@ export function carryWords(
   picked?: ReadonlySet<string>,
   turnsLeftOut = 0,
 ): { words: string; warn: boolean } {
-  const { items: kept, missing } = withSetup(items, setup, target, tool, picked);
-  const going = kept.filter((item) => item.how !== "stays").length;
-  const stays = kept.length - going;
+  // One count from one source: each group exactly as the list draws it.
+  const groups = carryGroups(items, setup, target, tool, picked);
+  const going = groups.moves.length;
+  const recreated = groups.recreated.length;
+  const missing = groups.missing.length;
+  const stays = groups.stays.length;
   const turns = turnsLeftOut > 0 ? `the first ${turnsLeftOut} ${turnsLeftOut === 1 ? "turn stays" : "turns stay"} behind` : null;
-  if (stays === 0 && missing.length === 0 && !turns) return { words: `Everything goes along · ${going} ${going === 1 ? "item" : "items"}`, warn: false };
-  const parts = [`${going} ${going === 1 ? "goes" : "go"} along`];
-  if (missing.length > 0) parts.push(`${missing.length} to set up`);
+  const whole = stays === 0 && missing === 0 && !turns;
+  if (whole && recreated === 0) return { words: `Everything goes along · ${going} ${going === 1 ? "item" : "items"}`, warn: false };
+  const parts = [];
+  if (going > 0) parts.push(`${going} ${going === 1 ? "goes" : "go"} along`);
+  if (recreated > 0) parts.push(`${recreated} recreated`);
+  if (missing > 0) parts.push(`${missing} to set up`);
   if (stays > 0) parts.push(`${stays} ${stays === 1 ? "stays" : "stay"} behind`);
   if (turns) parts.push(turns);
-  return { words: parts.join(" · "), warn: true };
+  return { words: whole ? `Nothing stays behind · ${parts.join(" · ")}` : parts.join(" · "), warn: !whole };
 }
 
+/** The words with an icon chip: ✓ on the quiet green when all of it goes,
+ * else a neutral (i), since what stays behind is a fact, not a call to act
+ * (COL-4); the words say it too. */
+function Headline({ words, warn, testId }: { words: string; warn: boolean; testId?: string }): JSX.Element {
+  const Mark = warn ? IconInfo : IconCheck;
+  return (
+    <span className="inline-flex min-w-0 items-center gap-2 font-medium text-ink">
+      <span aria-hidden="true" className={"flex size-6 shrink-0 items-center justify-center rounded-md " + (warn ? "bg-surface-3 text-ink-2" : "bg-success-soft text-success")}>
+        <Mark width={14} height={14} />
+      </span>
+      <span data-testid={testId}>{words}</span>
+    </span>
+  );
+}
+
+/** The confirm's "Carries" fact: the count, opening to the whole list
+ * (closed at first). */
 export function CarrySummary({
   items,
   target,
@@ -56,22 +80,36 @@ export function CarrySummary({
 }): JSX.Element | null {
   if (items.length === 0) return null;
   const { words, warn } = carryWords(items, setup, target, tool, picked, turnsLeftOut);
-  const Mark = warn ? IconAlert : IconCheck;
   return (
     // The app's disclosure, a button an accessibility press opens (the
-    // 0.4.6 rc2 walk P9): its chevron, then the tinted line.
-    <Disclosure
-      summary={
-        <span className={"inline-flex min-h-7 items-center gap-1.5 rounded-full border px-2.5 font-medium " + (warn ? "border-warning/30 bg-warning-soft text-warning" : "border-success/30 bg-success-soft text-success")}>
-          <Mark aria-hidden="true" width={14} height={14} className="shrink-0" />
-          <span data-testid="switch-carry-words">{words}</span>
-        </span>
-      }
-      testId="switch-carry-summary"
-    >
+    // 0.4.6 rc2 walk P9): its chevron, then the line.
+    <Disclosure summary={<Headline words={words} warn={warn} testId="switch-carry-words" />} testId="switch-carry-summary">
       <div className="mt-3">
         <CarryList items={items} target={target} tool={tool} setup={setup} picked={picked} />
       </div>
     </Disclosure>
+  );
+}
+
+/** The wizard's "What's carried" step: the count on the tinted panel, then
+ * every thing as a tagged row, then the keys question when it applies. */
+export function CarriedStep({ preflight, target, tool, setup, picked, keys }: { preflight: PreflightInfoData; target: string; tool: string; setup: SetupCheckInfo | null; picked: ReadonlySet<string>; keys: ReactNode }): JSX.Element {
+  const items = preflight.carry_items ?? [];
+  const { words, warn } = carryWords(items, setup, target, tool, picked);
+  return (
+    <div className="flex flex-col gap-6" data-testid="switch-step-carried">
+      <Section title="What goes along">
+        {items.length > 0 && (
+          <div className="flex min-w-0 flex-col gap-0.5 rounded-card bg-accent-soft px-4 py-3 inset-ring-1 inset-ring-accent/15" data-testid="switch-carry-headline">
+            <Headline words={words} warn={warn} />
+            <span className="pl-8 text-meta text-ink-2">
+              {warn ? `The new session on ${target} starts without what stays behind. What isn't there yet, you can set up on the last step.` : `The new session on ${target} picks up with all of it.`}
+            </span>
+          </div>
+        )}
+        <CarryList items={items} target={target} tool={tool} setup={setup} picked={picked} />
+      </Section>
+      {keys}
+    </div>
   );
 }

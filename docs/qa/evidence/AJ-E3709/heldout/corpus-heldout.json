@@ -1,0 +1,625 @@
+[
+ {
+  "id": "H001",
+  "bucket": "finished",
+  "origin": "written in the style of a Claude Code closing message; fictional",
+  "source": "Done. The CSV export now streams rows instead of buffering the whole file, so the 400 MB sample in fixtures/big.csv stays under 80 MB of memory. Changed src/export/stream.ts and src/export/index.ts. I ran npm test: 58 passed, 0 failed.",
+  "gold": {
+   "verdict": "success",
+   "must_match": [
+    "streams rows|stays under 80 MB",
+    "58 passed"
+   ],
+   "forbidden": [
+    "failed to",
+    "could not"
+   ]
+  },
+  "facts_how": "hand-set: clean finish, tests ran and passed",
+  "facts": {
+   "outcome": "success",
+   "tests": {
+    "state": "ran",
+    "passed": 58,
+    "failed": 0
+   },
+   "level": "L0"
+  }
+ },
+ {
+  "id": "H002",
+  "bucket": "finished",
+  "origin": "written in the style of a Codex closing message; fictional",
+  "source": "Fertig: Der Login-Timeout liegt jetzt bei 30 Minuten statt 5 (config/session.yaml). Alle 14 Tests in tests/test_session.py laufen durch.",
+  "gold": {
+   "verdict": "success",
+   "must_match": [
+    "30 Minuten",
+    "14 Tests"
+   ],
+   "forbidden": [
+    "fehlgeschlagen",
+    "nicht geklappt"
+   ]
+  },
+  "facts_how": "hand-set: clean finish",
+  "facts": {
+   "outcome": "success",
+   "tests": {
+    "state": "ran",
+    "passed": 14,
+    "failed": 0
+   },
+   "level": "L0"
+  }
+ },
+ {
+  "id": "H003",
+  "bucket": "finished",
+  "origin": "written in the style of a Claude Code closing message; fictional",
+  "source": "Renamed the flag to --dry-run everywhere, docs updated too.",
+  "gold": {
+   "verdict": "success",
+   "must_match": [
+    "--dry-run",
+    "docs updated"
+   ],
+   "forbidden": [
+    "error",
+    "broken",
+    "not run"
+   ]
+  },
+  "facts_how": "hand-set: no test info in message",
+  "facts": {
+   "outcome": "success",
+   "tests": {
+    "state": "unknown"
+   },
+   "level": "L0"
+  }
+ },
+ {
+  "id": "H004",
+  "bucket": "finished",
+  "origin": "written in the style of a Codex closing message; fictional",
+  "source": "The new check in scripts/verify_lock.sh fails if package-lock.json is older than package.json, so a stale lockfile can no longer slip into a release. It passes on the current tree. I ran the 3 shell tests in scripts/test/ and all 3 pass.",
+  "gold": {
+   "verdict": "success",
+   "must_match": [
+    "verify_lock\\.sh",
+    "3 (shell )?tests|all 3 pass"
+   ],
+   "forbidden": [
+    "still fails",
+    "does not pass"
+   ]
+  },
+  "facts_how": "hand-set: 'fails if' describes the check, nothing failed",
+  "facts": {
+   "outcome": "success",
+   "tests": {
+    "state": "ran",
+    "passed": 3,
+    "failed": 0
+   },
+   "level": "L0"
+  }
+ },
+ {
+  "id": "H005",
+  "bucket": "partial",
+  "origin": "written in the style of a Claude Code closing message; fictional",
+  "source": "I got the retry logic working for the upload client (lib/upload/retry.py), including exponential backoff capped at 60 s. I did not get to resumable chunks: that is still a TODO at line 88 and uploads over 2 GB will restart from zero. 9 tests pass.",
+  "gold": {
+   "verdict": "uncertain",
+   "must_match": [
+    "retry logic",
+    "TODO|did not get to"
+   ],
+   "forbidden": [
+    "fully done",
+    "all done"
+   ]
+  },
+  "facts_how": "hand-set: partial work with a stated gap",
+  "facts": {
+   "outcome": "success",
+   "tests": {
+    "state": "ran",
+    "passed": 9,
+    "failed": 0
+   },
+   "level": "L1"
+  }
+ },
+ {
+  "id": "H006",
+  "bucket": "partial",
+  "origin": "written in the style of a Claude Code closing message; fictional",
+  "source": "Teilweise erledigt: Die Übersetzungen für Deutsch und Französisch sind drin (i18n/de.json, i18n/fr.json). Spanisch fehlt noch, weil die Quelldatei leer war. Tests: 21 bestanden, 0 fehlgeschlagen.",
+  "gold": {
+   "verdict": "uncertain",
+   "must_match": [
+    "Spanisch fehlt",
+    "21 bestanden"
+   ],
+   "forbidden": [
+    "vollständig fertig"
+   ]
+  },
+  "facts_how": "hand-set: partial, one language missing",
+  "facts": {
+   "outcome": "success",
+   "tests": {
+    "state": "ran",
+    "passed": 21,
+    "failed": 0
+   },
+   "level": "L1"
+  }
+ },
+ {
+  "id": "H007",
+  "bucket": "partial",
+  "origin": "written in the style of a Codex closing message; fictional",
+  "source": "Updated:\n- api/routes/orders.go: pagination added\n- api/routes/refunds.go: happy path only, error mapping left as it was\n- docs/api.md: new query params\nI ran go test ./api/... and it reports ok, 31 tests.",
+  "gold": {
+   "verdict": "uncertain",
+   "must_match": [
+    "refunds\\.go",
+    "happy path only|left as it was"
+   ],
+   "forbidden": [
+    "all routes",
+    "everything handled"
+   ]
+  },
+  "facts_how": "hand-set: caveat in the middle of a list",
+  "facts": {
+   "outcome": "success",
+   "tests": {
+    "state": "ran",
+    "passed": 31,
+    "failed": 0
+   },
+   "level": "L1"
+  }
+ },
+ {
+  "id": "H008",
+  "bucket": "partial",
+  "origin": "written in the style of a Claude Code closing message; fictional",
+  "source": "Migrated 3 of 5 services to the new logger. billing and search still use the old one because they pin an older shared lib, so the migration is not finished. I didn't run the suite.",
+  "gold": {
+   "verdict": "uncertain",
+   "must_match": [
+    "3 of 5",
+    "not finished|still use the old"
+   ],
+   "forbidden": [
+    "all five",
+    "migrated everything"
+   ]
+  },
+  "facts_how": "hand-set: partial and tests not run",
+  "facts": {
+   "outcome": "success",
+   "tests": {
+    "state": "not_run"
+   },
+   "level": "L1"
+  }
+ },
+ {
+  "id": "H009",
+  "bucket": "not_run",
+  "origin": "written in the style of a Codex closing message; fictional",
+  "source": "I changed the cron expression in deploy/jobs.yaml from every 15 to every 30 minutes. I haven't run anything.",
+  "gold": {
+   "verdict": "success",
+   "must_match": [
+    "every 30 minutes",
+    "haven't run"
+   ],
+   "forbidden": [
+    "tests pass",
+    "verified"
+   ]
+  },
+  "facts_how": "hand-set: change made, nothing run",
+  "facts": {
+   "outcome": "success",
+   "tests": {
+    "state": "not_run"
+   },
+   "level": "L1"
+  }
+ },
+ {
+  "id": "H010",
+  "bucket": "not_run",
+  "origin": "written in the style of a Claude Code closing message; fictional",
+  "source": "Die Validierung für das Kontaktformular ist umgebaut (src/forms/contact.ts). Ich habe die Tests nicht ausgeführt, da in dieser Umgebung kein Node installiert ist.",
+  "gold": {
+   "verdict": "success",
+   "must_match": [
+    "Tests nicht ausgeführt",
+    "contact\\.ts"
+   ],
+   "forbidden": [
+    "Tests bestanden",
+    "alle Tests grün"
+   ]
+  },
+  "facts_how": "hand-set: tests not run, stated reason",
+  "facts": {
+   "outcome": "success",
+   "tests": {
+    "state": "not_run"
+   },
+   "level": "L1"
+  }
+ },
+ {
+  "id": "H011",
+  "bucket": "not_run",
+  "origin": "written in the style of a Claude Code closing message; fictional",
+  "source": "The Dockerfile now uses a multi-stage build and drops the dev toolchain from the final layer. I couldn't build the image here (no Docker daemon), so the size reduction is unverified and the entrypoint path in docker/run.sh is untested.",
+  "gold": {
+   "verdict": "success",
+   "must_match": [
+    "multi-stage",
+    "couldn't build|unverified|untested"
+   ],
+   "forbidden": [
+    "image builds",
+    "size dropped by"
+   ]
+  },
+  "facts_how": "hand-set: unverified change",
+  "facts": {
+   "outcome": "success",
+   "tests": {
+    "state": "not_run"
+   },
+   "level": "L1"
+  }
+ },
+ {
+  "id": "H012",
+  "bucket": "not_run",
+  "origin": "written in the style of a Codex closing message; fictional",
+  "source": "Patched the off-by-one in paginate() in src/list.rs, didn't run tests. Should be fine.",
+  "gold": {
+   "verdict": "success",
+   "must_match": [
+    "off-by-one",
+    "didn't run tests"
+   ],
+   "forbidden": [
+    "tests pass",
+    "all green"
+   ]
+  },
+  "facts_how": "hand-set: short, tests not run",
+  "facts": {
+   "outcome": "success",
+   "tests": {
+    "state": "not_run"
+   },
+   "level": "L1"
+  }
+ },
+ {
+  "id": "H013",
+  "bucket": "failed",
+  "origin": "written in the style of a Claude Code closing message; fictional",
+  "source": "I couldn't get the build to pass. After bumping the compiler target, 12 tests in tests/render fail with 'undefined symbol: gl_init' (44 others pass). The branch is currently broken and I have not reverted anything.",
+  "gold": {
+   "verdict": "fail",
+   "must_match": [
+    "couldn't get the build to pass|12 tests",
+    "broken"
+   ],
+   "forbidden": [
+    "all tests pass",
+    "build passes"
+   ]
+  },
+  "facts_how": "hand-set: failing tests, broken branch",
+  "facts": {
+   "outcome": "failure",
+   "tests": {
+    "state": "ran",
+    "passed": 44,
+    "failed": 12
+   },
+   "level": "L3"
+  }
+ },
+ {
+  "id": "H014",
+  "bucket": "failed",
+  "origin": "written in the style of a Codex closing message; fictional",
+  "source": "Das hat nicht geklappt: Die Migration 0042 bricht mit 'column already exists' ab, und die Datenbank steht jetzt halb migriert. Ich habe nichts zurückgerollt.",
+  "gold": {
+   "verdict": "fail",
+   "must_match": [
+    "nicht geklappt|bricht",
+    "halb migriert"
+   ],
+   "forbidden": [
+    "erfolgreich migriert"
+   ]
+  },
+  "facts_how": "hand-set: failure, state left broken",
+  "facts": {
+   "outcome": "failure",
+   "tests": {
+    "state": "unknown"
+   },
+   "level": "L3"
+  }
+ },
+ {
+  "id": "H015",
+  "bucket": "failed",
+  "origin": "written in the style of a Claude Code closing message; fictional",
+  "source": "Tried three approaches to fix the flaky websocket test and none worked. It still fails about 1 run in 4, so I gave up; notes are in notes/ws-flaky.md. The other 7 tests in that file pass.",
+  "gold": {
+   "verdict": "fail",
+   "must_match": [
+    "none worked|still fails",
+    "flaky"
+   ],
+   "forbidden": [
+    "fixed the flaky",
+    "resolved"
+   ]
+  },
+  "facts_how": "hand-set: goal not achieved",
+  "facts": {
+   "outcome": "failure",
+   "tests": {
+    "state": "ran",
+    "passed": 7,
+    "failed": 1
+   },
+   "level": "L3"
+  }
+ },
+ {
+  "id": "H016",
+  "bucket": "failed",
+  "origin": "written in the style of a Codex closing message; fictional",
+  "source": "Good news: the lint errors are gone. Bad news: while removing unused imports I deleted a re-export that cli/main.rs needs, so cargo build now errors with E0432. I haven't fixed it yet.",
+  "gold": {
+   "verdict": "fail",
+   "must_match": [
+    "E0432|build now errors",
+    "haven't fixed"
+   ],
+   "forbidden": [
+    "build is green",
+    "nothing broke"
+   ]
+  },
+  "facts_how": "hand-set: good and bad mixed, bad is decisive",
+  "facts": {
+   "outcome": "failure",
+   "tests": {
+    "state": "unknown"
+   },
+   "level": "L3"
+  }
+ },
+ {
+  "id": "H017",
+  "bucket": "question",
+  "origin": "written in the style of a Claude Code closing message; fictional",
+  "source": "Before I touch the pricing table: should the discount apply before or after tax? The spec says both, in different places (docs/pricing.md lines 12 and 40). I haven't changed any code yet.",
+  "gold": {
+   "verdict": "question",
+   "must_match": [
+    "before or after tax"
+   ],
+   "forbidden": [
+    "done",
+    "implemented"
+   ]
+  },
+  "facts_how": "hand-set: blocked on a decision",
+  "facts": {
+   "outcome": "question",
+   "tests": {
+    "state": "unknown"
+   },
+   "level": "L2"
+  }
+ },
+ {
+  "id": "H018",
+  "bucket": "question",
+  "origin": "written in the style of a Codex closing message; fictional",
+  "source": "Ich habe die API-Änderung umgesetzt (3 Dateien), 18 Tests grün. Soll ich auch die alte v1-Route entfernen oder sie noch behalten?",
+  "gold": {
+   "verdict": "question",
+   "must_match": [
+    "v1-Route",
+    "entfernen oder"
+   ],
+   "forbidden": [
+    "fehlgeschlagen"
+   ]
+  },
+  "facts_how": "hand-set: work done, question at the end",
+  "facts": {
+   "outcome": "question",
+   "tests": {
+    "state": "ran",
+    "passed": 18,
+    "failed": 0
+   },
+   "level": "L2"
+  }
+ },
+ {
+  "id": "H019",
+  "bucket": "question",
+  "origin": "written in the style of a Claude Code closing message; fictional",
+  "source": "Two options for the cache: Redis (faster, adds a new dependency) or an in-process LRU (no dependency, but it resets on restart). Which do you want? I haven't written any code yet.",
+  "gold": {
+   "verdict": "question",
+   "must_match": [
+    "Which do you want",
+    "Redis"
+   ],
+   "forbidden": [
+    "implemented",
+    "finished"
+   ]
+  },
+  "facts_how": "hand-set: choice put to user",
+  "facts": {
+   "outcome": "question",
+   "tests": {
+    "state": "unknown"
+   },
+   "level": "L2"
+  }
+ },
+ {
+  "id": "H020",
+  "bucket": "question",
+  "origin": "written in the style of a Codex closing message; fictional",
+  "source": "Implemented the importer in tools/import.py; 5 tests passed, none failed. One thing to decide: it overwrites existing rows with the same id. OK to proceed like that, or should it skip duplicates instead?",
+  "gold": {
+   "verdict": "question",
+   "must_match": [
+    "OK to proceed|skip duplicates"
+   ],
+   "forbidden": [
+    "no open questions"
+   ]
+  },
+  "facts_how": "hand-set: done but waiting for decision",
+  "facts": {
+   "outcome": "question",
+   "tests": {
+    "state": "ran",
+    "passed": 5,
+    "failed": 0
+   },
+   "level": "L2"
+  }
+ },
+ {
+  "id": "H021",
+  "bucket": "refactor",
+  "origin": "written in the style of a Claude Code closing message; fictional",
+  "source": "Pure refactor: extracted the retry loop from three handlers into utils/retry.js. No behaviour change; 112 tests pass, the same as before.",
+  "gold": {
+   "verdict": "success",
+   "must_match": [
+    "refactor",
+    "no behaviour change|112 tests"
+   ],
+   "forbidden": [
+    "regression",
+    "broke"
+   ]
+  },
+  "facts_how": "hand-set: refactor, tests unchanged",
+  "facts": {
+   "outcome": "success",
+   "tests": {
+    "state": "ran",
+    "passed": 112,
+    "failed": 0
+   },
+   "level": "L0"
+  }
+ },
+ {
+  "id": "H022",
+  "bucket": "refactor",
+  "origin": "written in the style of a Codex closing message; fictional",
+  "source": "Ich habe die Klasse OrderService in drei kleinere Module aufgeteilt (services/order/*.py). Das Verhalten ist unverändert, alle 76 Tests bestehen weiterhin.",
+  "gold": {
+   "verdict": "success",
+   "must_match": [
+    "aufgeteilt",
+    "76 Tests"
+   ],
+   "forbidden": [
+    "fehlgeschlagen",
+    "Fehler"
+   ]
+  },
+  "facts_how": "hand-set: refactor, tests pass",
+  "facts": {
+   "outcome": "success",
+   "tests": {
+    "state": "ran",
+    "passed": 76,
+    "failed": 0
+   },
+   "level": "L0"
+  }
+ },
+ {
+  "id": "H023",
+  "bucket": "refactor",
+  "origin": "written in the style of a Claude Code closing message; fictional",
+  "source": "Moved the config loader from core/ to platform/config/ and fixed the imports. Nothing functional changed. The check in ci/imports.sh fails if anything still imports core.config, and it reports none. 9 unit tests pass.",
+  "gold": {
+   "verdict": "success",
+   "must_match": [
+    "Moved the config loader",
+    "Nothing functional changed|reports none"
+   ],
+   "forbidden": [
+    "still imports",
+    "check failed"
+   ]
+  },
+  "facts_how": "hand-set: 'fails if' with nothing failing",
+  "facts": {
+   "outcome": "success",
+   "tests": {
+    "state": "ran",
+    "passed": 9,
+    "failed": 0
+   },
+   "level": "L0"
+  }
+ },
+ {
+  "id": "H024",
+  "bucket": "refactor",
+  "origin": "written in the style of a Codex closing message; fictional",
+  "source": "Variablen umbenannt und tote Funktionen entfernt (util/helpers.go). Keine Änderung am Verhalten; go vet ist sauber, 33 Tests ok.",
+  "gold": {
+   "verdict": "success",
+   "must_match": [
+    "umbenannt",
+    "33 Tests"
+   ],
+   "forbidden": [
+    "Warnung",
+    "fehlgeschlagen"
+   ]
+  },
+  "facts_how": "hand-set: cleanup, no behaviour change",
+  "facts": {
+   "outcome": "success",
+   "tests": {
+    "state": "ran",
+    "passed": 33,
+    "failed": 0
+   },
+   "level": "L0"
+  }
+ }
+]

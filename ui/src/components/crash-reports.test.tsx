@@ -47,6 +47,7 @@ describe("AJ-E1107 crash reports", () => {
       asking: [],
       queued: 0,
       can_send: false,
+      asking_event: null,
     };
     const { findByTestId, getByTestId } = render(<CrashReportsSetting />);
     const select = (await findByTestId("crash-setting")) as HTMLButtonElement;
@@ -56,7 +57,7 @@ describe("AJ-E1107 crash reports", () => {
   });
 
   it("the next launch shows the whole report and asks: Send, Don't send, Always send", async () => {
-    w().__AIJ_CRASH__ = { setting: "ask", effective: "ask", reason: null, asking: [REPORT], queued: 0, can_send: false };
+    w().__AIJ_CRASH__ = { setting: "ask", effective: "ask", reason: null, asking: [REPORT], queued: 0, can_send: false, asking_event: null };
     const { findByTestId, getByTestId, container } = render(<CrashReportPrompt />);
     const preview = await findByTestId("crash-preview");
     expect(preview.textContent).toContain("~/projects/demo");
@@ -68,8 +69,24 @@ describe("AJ-E1107 crash reports", () => {
     expect(w().__AIJ_CRASH__?.setting).toBe("always");
   });
 
+  it("the preview is the Sentry event exactly as it would go", async () => {
+    const event = JSON.stringify({ event_id: "5f0c", release: "ai-juggler@0.3.1", environment: "main" }, null, 2);
+    w().__AIJ_CRASH__ = { setting: "ask", effective: "ask", reason: null, asking: [REPORT], queued: 0, can_send: true, asking_event: event };
+    const { findByTestId, getByTestId } = render(<CrashReportPrompt />);
+    const preview = await findByTestId("crash-preview");
+    expect(preview.textContent).toBe(event);
+    expect(getByTestId("crash-prompt").textContent).toContain("exactly as it would be sent to Sentry");
+  });
+
+  it("the setting says where reports go and that each is scrubbed first", async () => {
+    const { findByTestId } = render(<CrashReportsSetting />);
+    const row = await findByTestId("privacy-crash-reports");
+    expect(row.textContent).toContain("Reports go to Sentry");
+    expect(row.textContent).toContain("scrubbed on this computer first");
+  });
+
   it("asks nothing under Never or Always", async () => {
-    w().__AIJ_CRASH__ = { setting: "always", effective: "always", reason: null, asking: [REPORT], queued: 0, can_send: false };
+    w().__AIJ_CRASH__ = { setting: "always", effective: "always", reason: null, asking: [REPORT], queued: 0, can_send: false, asking_event: null };
     const { container } = render(<CrashReportPrompt />);
     await new Promise((resolve) => setTimeout(resolve, 20));
     expect(container.querySelector("[data-testid='crash-prompt']")).toBeNull();

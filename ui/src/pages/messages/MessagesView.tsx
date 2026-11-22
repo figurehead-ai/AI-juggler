@@ -26,6 +26,7 @@ import {
 import { Compose, type Member } from "./Compose";
 import { ThreadView } from "./ThreadView";
 import { THREAD_WORDS } from "./words";
+import { SELECTED } from "../../components/controls/selected";
 
 function ThreadRow({ thread, selected, now, onOpen }: { thread: ThreadInfo; selected: boolean; now: number; onOpen: () => void }): JSX.Element {
   return (
@@ -36,7 +37,7 @@ function ThreadRow({ thread, selected, now, onOpen }: { thread: ThreadInfo; sele
         aria-current={selected ? "true" : undefined}
         className={
           "flex w-full min-w-0 flex-col gap-0.5 rounded-lg px-3 py-2.5 text-left outline-none transition-colors focus-visible:ring-1 focus-visible:ring-accent/60 " +
-          (selected ? "bg-surface-3" : "hover:bg-surface-2")
+          (selected ? SELECTED : "hover:bg-surface-2")
         }
         data-testid="thread-row"
         data-state={thread.state}

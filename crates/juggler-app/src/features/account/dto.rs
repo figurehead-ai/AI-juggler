@@ -34,8 +34,9 @@ pub struct AccountInfo {
     /// The discovery origin (`cc-switch|t3|alias|home-pattern|manual`).
     #[ts(optional = nullable)]
     pub import_origin: Option<String>,
-    /// Import completion time, epoch ms (None = never imported).
-    #[ts(optional = nullable)]
+    /// Import completion time, epoch ms (None = never imported): a
+    /// number, as the window gets it from JSON.
+    #[ts(optional = nullable, type = "number | null")]
     pub imported_at: Option<i64>,
     /// ADR-0018: the account uses the user's own folder where it is.
     pub in_place: bool,

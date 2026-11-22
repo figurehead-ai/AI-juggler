@@ -2,8 +2,8 @@
  * AJ-E2908: an ended session's page offers Resume (the same conversation,
  * on the same account and launch settings) before Relaunch (a fresh one).
  * When it can't run it says why, in the button's own words: no
- * conversation yet, the account signed out, out of room (with Continue on
- * another account beside it, D-45), the conversation open in another
+ * conversation yet, the account signed out, out of room (the side
+ * column's Switch account… is the page's primary then, D-143), the conversation open in another
  * app now, or (rc21) its tool won't open it by its id, with the way out
  * (Open the original) beside it. Greyed, it says why on hover and on
  * keyboard focus (`WhyButton`): the rc21 walk found it greyed in silence.
@@ -54,30 +54,55 @@ export function resumeBlocked({
   return null;
 }
 
+/** R10 (the 0.5.0 re-walk): a greyed Resume's visible line, short enough
+ * for the line under its button (where "Same conversation" goes); the
+ * whole reason is its tip on hover and focus (BTN-5, as F2 did for
+ * Switch account…). */
+function resumeBlockedLine({
+  session,
+  account,
+  out,
+  openIn,
+}: {
+  session: InstanceInfo;
+  account: AccountInfo | null;
+  out: string | null;
+  openIn: string | null;
+}): string | null {
+  if (!toolSpec(session.provider).supports.resume) return "Can't resume here";
+  if (!session.conversation_id) return "No conversation yet";
+  if (resumeRefusalWords(session.resume_refusal)) return "Its tool won't open it";
+  if (account && !signedIn(account.login_state)) return "Sign in first";
+  if (out) return "Out of room";
+  if (openIn) return `Open in ${openIn}`;
+  return null;
+}
+
 export function ResumeButton({
   session,
   openIn,
   onOpen,
-  onContinue,
-  continueWhy = null,
+  quiet = false,
   onOpenOriginal,
   hint = null,
+  whyLine = true,
 }: {
   session: InstanceInfo;
   /** The app the conversation is open in now, if any. */
   openIn: string | null;
   onOpen?: (sessionId: string) => void;
-  /** Continue on another account… (shown beside it when out of room). */
-  onContinue?: () => void;
-  /** rc33 M4: why its switch would refuse (no conversation yet): the
-   * Continue beside it greys with the switch's own words. */
-  continueWhy?: string | null;
+  /** D-143: its account is out of room or low, so the side column's
+   * Switch account… is the page's one primary (BTN-1); Resume steps down. */
+  quiet?: boolean;
   /** Opens a conversation by its account and id (Open the original). */
   onOpenOriginal?: (accountId: string, id: string, projectId: string | null) => void;
   /** The line under Resume alone ("Same conversation"): Run in AI
    * Juggler and Continue on another account stay beside it on the
    * header's row (CI #218: in the hint's column they stacked under it). */
   hint?: string | null;
+  /** Whether a greyed Resume says why in a line under it (R10); off where
+   * the header is folded and has no room for a line. */
+  whyLine?: boolean;
 }): JSX.Element {
   const [account, setAccount] = useState<AccountInfo | null>(null);
   const [busy, setBusy] = useState(false);
@@ -91,9 +116,12 @@ export function ResumeButton({
       live = false;
     };
   }, [session.account_id]);
-  const room = useTargetRoom(session.account_id ?? undefined);
+  // AJ-E3210: a session launched in a desktop App reads that App's own
+  // Account's room; a terminal run, its folder's CLI App's.
+  const room = useTargetRoom(session.account_id ?? undefined, !!session.app_id, session.app_id ?? null);
   const out = room?.kind === "out" ? `${room.account ?? account?.label ?? "This account"} is ${outOfRoomWords(room.resetsAtMs).replace(/^Out/, "out")}` : null;
   const blocked = resumeBlocked({ session, account, out, openIn });
+  const line = blocked !== null && whyLine ? resumeBlockedLine({ session, account, out, openIn }) : hint;
   // 0.4.6 (the rc3c walk): AI Juggler's run of a conversation an app had
   // open, ended: back in that app, as its own page offers (the run stands
   // for the conversation, so that page isn't reached from here).
@@ -128,10 +156,10 @@ export function ResumeButton({
   };
   return (
     <>
-      <Hinted hint={hint} testId="header-resume-hint">
+      <Hinted hint={line} testId="header-resume-hint">
         <WhyButton
           size="sm"
-          variant="primary"
+          variant={quiet ? "secondary" : "primary"}
           why={blocked}
           disabled={busy || settling}
           title={blocked ? undefined : "Resume — same session, same account."}
@@ -147,11 +175,6 @@ export function ResumeButton({
         <Button size="sm" variant="secondary" disabled={busy} title={`The same conversation, here without a terminal: ${back.label}${back.beta ? " (Beta)" : ""}.`} onClick={() => void runHere()} data-testid="header-run-here">
           Run in AI Juggler
         </Button>
-      )}
-      {out && onContinue && (
-        <WhyButton size="sm" variant="secondary" why={continueWhy} onClick={onContinue} data-testid="header-resume-continue">
-          Continue on another account…
-        </WhyButton>
       )}
     </>
   );

@@ -5,11 +5,11 @@
  * as their next prompt, between turns; a session in a terminal reads it
  * itself. Your word resets the thread's count of agent messages in a row.
  */
-import { useId, useState, type JSX } from "react";
+import { useEffect, useId, useRef, useState, type JSX } from "react";
 import { ariaOf, keysOf } from "../../lib/shortcuts";
 import { Button } from "../../components/primitives";
 import { errorText } from "../../lib/bridge";
-import { messagesSend, type ThreadPage } from "../../lib/ipc/messages";
+import { messagesSend, takeReplyFocus, type ThreadPage } from "../../lib/ipc/messages";
 import { KINDS, KIND_WORDS } from "./words";
 import { Checkbox, Picker } from "../../components/controls";
 
@@ -46,6 +46,11 @@ export function Compose({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const reply = threadId !== undefined;
+  // Home's Reply on an agent's question: this box takes the focus.
+  const box = useRef<HTMLTextAreaElement | null>(null);
+  useEffect(() => {
+    if (threadId !== undefined && takeReplyFocus(threadId)) box.current?.focus();
+  }, [threadId]);
   const send = () => {
     const text = body.trim();
     if (!text || busy) return;
@@ -108,6 +113,7 @@ export function Compose({
         </div>
       )}
       <textarea
+        ref={box}
         aria-label={reply ? "Your reply" : "Your message"}
         placeholder={reply ? "Reply…" : "Write to the pool…"}
         rows={reply ? 2 : 3}

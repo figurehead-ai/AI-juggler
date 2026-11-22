@@ -16,8 +16,11 @@ export default defineConfig({
   use: {
     baseURL: `http://localhost:${PORT}`,
     // 0.3.2: no WebGL, so the terminal keeps its DOM renderer (its
-    // fallback): captures stay deterministic and its rows readable.
-    launchOptions: { args: ["--disable-3d-apis"] },
+    // fallback): captures stay deterministic and its rows readable. No
+    // partial raster: a tile redrawn in part kept a few edge pixels 1 off
+    // from one load to the next (the determinism test, 1 run in 4; 0 in
+    // 24 pairs without it: the 0.5 gate triage).
+    launchOptions: { args: ["--disable-3d-apis", "--disable-partial-raster"] },
   },
   webServer: {
     command: `pnpm build && pnpm exec vite preview --port ${PORT} --strictPort`,

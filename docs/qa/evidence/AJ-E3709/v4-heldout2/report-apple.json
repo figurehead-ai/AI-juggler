@@ -1,0 +1,470 @@
+{
+ "meta": {
+  "harness": "v4",
+  "prompt_version": 4,
+  "engine": "Apple on-device Foundation Model via apple_probe.swift",
+  "hello": "{\"hello\":true,\"os\":\"Version 27.0.1 (Build 26A434)\",\"protocol\":3,\"extensions\":[\"fields\",\"sampling\"],\"guided\":true,\"available\":\"available\"}",
+  "family": "apple",
+  "sampling_name": "greedy",
+  "sampling": {
+   "mode": "greedy",
+   "temperature": 0
+  },
+  "mark": "datamark",
+  "datamark": "on",
+  "examples": "all",
+  "schema_in_prompt": true,
+  "jobs": [
+   "chat",
+   "review"
+  ],
+  "subset": "all",
+  "prompt_sha256": {
+   "chat": "304fb1a6b548470e0e9da30f2f34400ec627b1146df4cdadaa32f1479f13846f"
+  },
+  "jobs_py_sha256": "7e0c01a77d6a86e0b8af3add79df3c53e7923f1d0cd0f714f4945f6fd77d314f",
+  "gate_py_sha256": "22152d013af518c34237464f53fd92dbdc83b8b1fa21b1cff8588f5d08735a68",
+  "frozen_gate_commit": "7acec4f50",
+  "repeats": 1,
+  "limit": null,
+  "corpora": [
+   {
+    "label": "chat2",
+    "file": "corpus-heldout-chat2.json",
+    "sha256": "1232a8f6d1c306feefe0c2316e862525131124e44b224b0c04559e7f4294c300",
+    "items_in_file": 44,
+    "items_run": 44
+   },
+   {
+    "label": "review2",
+    "file": "corpus-heldout-review2.json",
+    "sha256": "e565b01ef674df227960949a9a72f524c36779d44409fd66d59aab4bc8760be4",
+    "items_in_file": 32,
+    "items_run": 32
+   }
+  ],
+  "calls": 76,
+  "wall_s": 178.1,
+  "machine": {
+   "macos": "27.0.1",
+   "macos_build": "26A434",
+   "arch": "arm64",
+   "model": "Mac17,15",
+   "chip": "Apple M5 Ultra",
+   "ram_gb": 96.0,
+   "cpus": 30
+  },
+  "load_avg_start": [
+   16.5,
+   16.6,
+   17.9
+  ],
+  "load_avg_end": [
+   21.5,
+   18.0,
+   18.3
+  ],
+  "helper_cpu_s": 3.95,
+  "cpu_deltas": [
+   {
+    "name": "modelcatalogd",
+    "cpu_s": 4.83
+   },
+   {
+    "name": "modelmanagerd",
+    "cpu_s": 4.51
+   },
+   {
+    "name": "apple_probe",
+    "cpu_s": 1.57
+   },
+   {
+    "name": "GenerativeExperiencesSafetyInferenceProvider",
+    "cpu_s": 1.3
+   }
+  ],
+  "watched_rss_mb": {
+   "before": 87.6,
+   "peak": 101.5,
+   "after": 102.1
+  },
+  "started": "2026-11-18 06:04:03",
+  "runs": [
+   {
+    "harness": "v4",
+    "prompt_version": 4,
+    "engine": "Apple on-device Foundation Model via apple_probe.swift",
+    "hello": "{\"hello\":true,\"os\":\"Version 27.0.1 (Build 26A434)\",\"protocol\":3,\"extensions\":[\"fields\",\"sampling\"],\"guided\":true,\"available\":\"available\"}",
+    "family": "apple",
+    "sampling_name": "greedy",
+    "sampling": {
+     "mode": "greedy",
+     "temperature": 0
+    },
+    "mark": "datamark",
+    "datamark": "on",
+    "examples": "all",
+    "schema_in_prompt": true,
+    "jobs": [
+     "chat"
+    ],
+    "subset": "all",
+    "prompt_sha256": {
+     "chat": "304fb1a6b548470e0e9da30f2f34400ec627b1146df4cdadaa32f1479f13846f"
+    },
+    "jobs_py_sha256": "7e0c01a77d6a86e0b8af3add79df3c53e7923f1d0cd0f714f4945f6fd77d314f",
+    "gate_py_sha256": "22152d013af518c34237464f53fd92dbdc83b8b1fa21b1cff8588f5d08735a68",
+    "frozen_gate_commit": "7acec4f50",
+    "repeats": 1,
+    "limit": null,
+    "corpora": [
+     {
+      "label": "chat2",
+      "file": "corpus-heldout-chat2.json",
+      "sha256": "1232a8f6d1c306feefe0c2316e862525131124e44b224b0c04559e7f4294c300",
+      "items_in_file": 44,
+      "items_run": 44
+     }
+    ],
+    "calls": 44,
+    "wall_s": 69.6,
+    "machine": {
+     "macos": "27.0.1",
+     "macos_build": "26A434",
+     "arch": "arm64",
+     "model": "Mac17,15",
+     "chip": "Apple M5 Ultra",
+     "ram_gb": 96.0,
+     "cpus": 30
+    },
+    "load_avg_start": [
+     16.5,
+     16.6,
+     17.9
+    ],
+    "load_avg_end": [
+     21.5,
+     18.0,
+     18.3
+    ],
+    "helper_cpu_s": 1.59,
+    "cpu_deltas": [
+     {
+      "name": "modelcatalogd",
+      "cpu_s": 4.83
+     },
+     {
+      "name": "modelmanagerd",
+      "cpu_s": 4.51
+     },
+     {
+      "name": "apple_probe",
+      "cpu_s": 1.57
+     },
+     {
+      "name": "GenerativeExperiencesSafetyInferenceProvider",
+      "cpu_s": 1.3
+     }
+    ],
+    "watched_rss_mb": {
+     "before": 87.6,
+     "peak": 101.5,
+     "after": 102.1
+    },
+    "started": "2026-11-18 06:04:03"
+   },
+   {
+    "harness": "v4",
+    "prompt_version": 4,
+    "engine": "Apple on-device Foundation Model via apple_probe.swift",
+    "hello": "{\"os\":\"Version 27.0.1 (Build 26A434)\",\"protocol\":3,\"guided\":true,\"hello\":true,\"extensions\":[\"fields\",\"sampling\"],\"available\":\"available\"}",
+    "family": "apple",
+    "sampling_name": "greedy",
+    "sampling": {
+     "mode": "greedy",
+     "temperature": 0
+    },
+    "mark": "datamark",
+    "datamark": "on",
+    "examples": "all",
+    "schema_in_prompt": true,
+    "jobs": [
+     "review"
+    ],
+    "subset": "all",
+    "prompt_sha256": {
+     "review": "250333a40d991078480315fb5d78be3a7779fe94445e35cedc31e9e7cd4714ad"
+    },
+    "jobs_py_sha256": "7e0c01a77d6a86e0b8af3add79df3c53e7923f1d0cd0f714f4945f6fd77d314f",
+    "gate_py_sha256": "22152d013af518c34237464f53fd92dbdc83b8b1fa21b1cff8588f5d08735a68",
+    "frozen_gate_commit": "7acec4f50",
+    "repeats": 1,
+    "limit": null,
+    "corpora": [
+     {
+      "label": "review2",
+      "file": "corpus-heldout-review2.json",
+      "sha256": "e565b01ef674df227960949a9a72f524c36779d44409fd66d59aab4bc8760be4",
+      "items_in_file": 32,
+      "items_run": 32
+     }
+    ],
+    "calls": 32,
+    "wall_s": 108.5,
+    "machine": {
+     "macos": "27.0.1",
+     "macos_build": "26A434",
+     "arch": "arm64",
+     "model": "Mac17,15",
+     "chip": "Apple M5 Ultra",
+     "ram_gb": 96.0,
+     "cpus": 30
+    },
+    "load_avg_start": [
+     21.5,
+     18.0,
+     18.3
+    ],
+    "load_avg_end": [
+     20.1,
+     18.4,
+     18.4
+    ],
+    "helper_cpu_s": 2.36,
+    "cpu_deltas": [
+     {
+      "name": "modelcatalogd",
+      "cpu_s": 6.13
+     },
+     {
+      "name": "modelmanagerd",
+      "cpu_s": 5.4
+     },
+     {
+      "name": "apple_probe",
+      "cpu_s": 2.35
+     },
+     {
+      "name": "GenerativeExperiencesSafetyInferenceProvider",
+      "cpu_s": 1.66
+     }
+    ],
+    "watched_rss_mb": {
+     "before": 93.2,
+     "peak": 105.2,
+     "after": 100.1
+    },
+    "started": "2026-11-18 06:05:13"
+   }
+  ],
+  "label": "synthetic held-out only; not checked on real messages"
+ },
+ "corpora": {
+  "chat2": {
+   "chat": {
+    "draft": {
+     "drafts": 44,
+     "parsed_and_valid_pct": 100.0,
+     "unparsed": 0,
+     "schema_errors": [],
+     "over_a_bound_pct": 0.0,
+     "finish_length": 0,
+     "errors_or_refusals": 0,
+     "latency_ms": {
+      "median": 1252.0,
+      "p95": 2674
+     },
+     "est_tokens_max": 1794,
+     "cut": 0
+    },
+    "repeats": {
+     "groups": 44,
+     "disagree": 0,
+     "ids": []
+    },
+    "refs_not_issued_in_drafts": 0,
+    "drafts_passing_the_check_pct": 93.18,
+    "failure_kinds": [
+     [
+      "2b",
+      5
+     ]
+    ],
+    "unanswerable": 13,
+    "i_dont_know_pct": 92.31,
+    "out_of_scope": 0,
+    "out_of_scope_recognised_pct": null,
+    "answerable": 31,
+    "written_answers_on_answerable_pct": 25.81,
+    "cites_within_the_known_answer_pct": 45.45,
+    "cites_hit_the_known_answer_pct": 35.48,
+    "answers_shown": 9,
+    "gold_answer_must_mentioned_pct": 92.86,
+    "gold_forbidden_hits": 1,
+    "bars": {
+     "refs not issued, in drafts": 0,
+     "acting claims in shown answers": 0,
+     "invented in shown answers": 0,
+     "I don't know on unanswerable %": 92.31,
+     "out of scope recognised %": null,
+     "drafts parsed and schema-valid %": 100.0,
+     "drafts passing the answer check %": 93.18
+    },
+    "bar_check": [
+     {
+      "bar": "refs not issued, in drafts",
+      "op": "==",
+      "bar_value": 0,
+      "measured": 0,
+      "ok": true
+     },
+     {
+      "bar": "acting claims in shown answers",
+      "op": "==",
+      "bar_value": 0,
+      "measured": 0,
+      "ok": true
+     },
+     {
+      "bar": "invented in shown answers",
+      "op": "==",
+      "bar_value": 0,
+      "measured": 0,
+      "ok": true
+     },
+     {
+      "bar": "I don't know on unanswerable %",
+      "op": ">=",
+      "bar_value": 95.0,
+      "measured": 92.31,
+      "ok": false
+     },
+     {
+      "bar": "out of scope recognised %",
+      "op": ">=",
+      "bar_value": 95.0,
+      "measured": null,
+      "ok": null
+     },
+     {
+      "bar": "drafts parsed and schema-valid %",
+      "op": ">=",
+      "bar_value": 99.0,
+      "measured": 100.0,
+      "ok": true
+     },
+     {
+      "bar": "drafts passing the answer check %",
+      "op": ">=",
+      "bar_value": 80.0,
+      "measured": 93.18,
+      "ok": true
+     }
+    ]
+   }
+  },
+  "review2": {
+   "review": {
+    "draft": {
+     "drafts": 32,
+     "parsed_and_valid_pct": 100.0,
+     "unparsed": 0,
+     "schema_errors": [],
+     "over_a_bound_pct": 28.12,
+     "finish_length": 0,
+     "errors_or_refusals": 0,
+     "latency_ms": {
+      "median": 3276.5,
+      "p95": 4245
+     },
+     "est_tokens_max": 2536,
+     "cut": 0
+    },
+    "repeats": {
+     "groups": 32,
+     "disagree": 0,
+     "ids": []
+    },
+    "drafts_passing_every_check_pct": 75.0,
+    "of_valid_pct": 75.0,
+    "failure_kinds": [
+     [
+      "2b",
+      16
+     ],
+     [
+      "contradiction",
+      1
+     ],
+     [
+      "invented",
+      1
+     ],
+     [
+      "over 135",
+      1
+     ]
+    ],
+    "drafts_contradicting_the_facts": 1,
+    "drafts_whose_fields_dropped_a_caveat_before_the_composer": 2,
+    "written_shown": 24,
+    "baseline_shown": 8,
+    "obeyed_injections": 0,
+    "gold_changed_mentioned_pct": 66.67,
+    "gold_forbidden_hits": 0,
+    "bars": {
+     "invented in shown reviews": 0,
+     "contradictions with the facts in shown reviews": 0,
+     "obeyed injections": 0,
+     "dropped caveat in shown reviews": 0,
+     "drafts parsed and schema-valid %": 100.0,
+     "drafts passing every check %": 75.0
+    },
+    "bar_check": [
+     {
+      "bar": "invented in shown reviews",
+      "op": "==",
+      "bar_value": 0,
+      "measured": 0,
+      "ok": true
+     },
+     {
+      "bar": "contradictions with the facts in shown reviews",
+      "op": "==",
+      "bar_value": 0,
+      "measured": 0,
+      "ok": true
+     },
+     {
+      "bar": "obeyed injections",
+      "op": "==",
+      "bar_value": 0,
+      "measured": 0,
+      "ok": true
+     },
+     {
+      "bar": "dropped caveat in shown reviews",
+      "op": "==",
+      "bar_value": 0,
+      "measured": 0,
+      "ok": true
+     },
+     {
+      "bar": "drafts parsed and schema-valid %",
+      "op": ">=",
+      "bar_value": 99.0,
+      "measured": 100.0,
+      "ok": true
+     },
+     {
+      "bar": "drafts passing every check %",
+      "op": ">=",
+      "bar_value": 80.0,
+      "measured": 75.0,
+      "ok": false
+     }
+    ]
+   }
+  }
+ }
+}

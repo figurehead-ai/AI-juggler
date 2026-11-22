@@ -119,6 +119,16 @@ export function ServiceAccountSheet({
       onClose={onClose}
       wide
       testId="service-account-sheet"
+      footer={
+        <>
+            <Button size="sm" variant="secondary" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button size="sm" variant="primary" disabled={!ready || busy} onClick={() => void add()} data-testid="service-add">
+              {busy ? "Adding…" : "Add account"}
+            </Button>
+        </>
+      }
     >
       <div className="flex flex-col gap-4">
         <div className="flex items-center gap-3">
@@ -193,14 +203,6 @@ export function ServiceAccountSheet({
             {error}
           </p>
         )}
-        <div className="flex items-center justify-end gap-2">
-          <Button size="sm" variant="secondary" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button size="sm" variant="primary" disabled={!ready || busy} onClick={() => void add()} data-testid="service-add">
-            {busy ? "Adding…" : "Add account"}
-          </Button>
-        </div>
       </div>
     </Modal>
   );

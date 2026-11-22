@@ -46,12 +46,6 @@ describe("Measure its limits", () => {
     expect(screen.getByTestId("measure-limits-run").hasAttribute("disabled")).toBe(false);
   });
 
-  it("on, as Home's Next steps' button", async () => {
-    statuses({ "cc-work": status() });
-    render(<MeasureLimits look="button" folders={["cc-work"]} tool="claude-code" name="Work" />);
-    expect(await screen.findByRole("button", { name: "Measure its limits — Work" })).toBeTruthy();
-  });
-
   it("a failed ask says why, in plain words", async () => {
     statuses({ "cc-work": status() });
     vi.spyOn(quotaDisplays, "refresh").mockResolvedValue([]);
@@ -103,11 +97,11 @@ describe("Measure its limits", () => {
     expect(run).not.toHaveBeenCalled();
   });
 
-  it("as Home's Next steps' button, and in a caller's own fold (how): it only toggles it", async () => {
+  it("in a caller's own fold (how): it only toggles it", async () => {
     statuses({});
     const toggle = vi.fn();
-    render(<MeasureLimits look="button" folders={["codex-work"]} tool="codex" name="Work" how={{ open: true, onToggle: toggle }} />);
-    const how = await screen.findByRole("button", { name: "How it's measured — Work" });
+    render(<MeasureLimits folders={["codex-work"]} tool="codex" name="Work" how={{ open: true, onToggle: toggle }} />);
+    const how = await screen.findByRole("button", { name: /^How it's measured.*Work$/ });
     expect(how.getAttribute("aria-expanded")).toBe("true");
     // The caller shows the words.
     expect(screen.queryByTestId("measure-limits-how-words")).toBeNull();

@@ -33,6 +33,7 @@ const TRANSPLANT: PreflightInfoData = {
   carry_items: [{ label: "The whole conversation", hint: "Every message from the start.", how: "moves" }],
   move_line: "The whole conversation is carried over — all 12 messages, its subagents and file history.",
   secrets: { asks: false, reader: "Claude Code (Anthropic)" },
+  source_tool: "claude-code",
   target_tool: "claude-code",
 };
 
@@ -48,6 +49,7 @@ const REPLAY: PreflightInfoData = {
     { kind: "bearer", preview: "B•••x2k9", segment: 7 },
   ],
   secrets: { asks: true, reader: "Codex (OpenAI)" },
+  source_tool: "codex",
   target_tool: "codex",
 };
 
@@ -97,8 +99,9 @@ describe("keys and passwords", () => {
     expect(question.textContent).toContain("Codex sees OPENAI_API_KEY=•••");
     expect(question.textContent).toContain("Codex and OpenAI see the keys exactly as written");
     expect(question.textContent).not.toMatch(/\bpacks?\b|redact/i);
-    expect((view.getByTestId("switch-keys-hide") as HTMLInputElement).checked).toBe(false);
-    expect((view.getByTestId("switch-keys-leave") as HTMLInputElement).checked).toBe(false);
+    // 0.5.0: the two answers are choice cards, their radios inside.
+    expect((view.getByTestId("switch-keys-hide").querySelector("input") as HTMLInputElement).checked).toBe(false);
+    expect((view.getByTestId("switch-keys-leave").querySelector("input") as HTMLInputElement).checked).toBe(false);
     // Nothing moves on until it's answered.
     expect((view.getByTestId("switch-continue") as HTMLButtonElement).disabled).toBe(true);
     fireEvent.click(view.getByTestId("switch-keys-hide"));

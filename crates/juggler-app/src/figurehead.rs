@@ -120,12 +120,7 @@ impl FigureheadManager {
 // ------------------------------------------------------------ settings
 
 fn setting(state: &Arc<AppState>, key: &str) -> Option<String> {
-    state
-        .storage
-        .lock()
-        .ok()
-        .and_then(|storage| storage.app_settings().get(key).ok().flatten())
-        .filter(|value| !value.is_empty())
+    state.app_setting(key).filter(|value| !value.is_empty())
 }
 
 fn set_setting(state: &Arc<AppState>, key: &str, value: &str) -> AppResult<()> {

@@ -58,8 +58,10 @@ export function Welcome({
   const tools = useTools();
   const discovered = useResource("providers-discover", providersDiscover);
   const installs: ProviderInstallData[] | null = discovered.error !== undefined ? [] : (discovered.data ?? null);
-  // The tools first run brings in, by name, for the lead line.
-  const names = tools.filter((tool) => tool.flow.first_run).map((tool) => tool.display_name);
+  // The lead line claims "runs your … sessions": only tools walked live
+  // end to end (their adapters name the evidence), never one proven on
+  // fixtures alone (D-127; first run still brings every built tool in).
+  const names = tools.filter((tool) => tool.flow.first_run && tool.flow.live_verified).map((tool) => tool.display_name);
   const toInstall = installs === null || installedTools(installs).length > 0 ? [] : installs.filter((row) => row.install_url);
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-9 px-1 py-10 sm:py-14" data-testid="home-empty-accounts">

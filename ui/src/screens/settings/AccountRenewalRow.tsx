@@ -13,12 +13,12 @@ import { subscriptionsSetTerm } from "../../lib/ipc/subscriptions";
 import { accountName, staleSubscriptions, type SubscriptionInfo } from "../../lib/subscriptions";
 import { accountAppsNow } from "../../lib/account-items";
 
-export function AccountRenewalRow({ sub, onChanged }: { sub: SubscriptionInfo; onChanged: () => void }): JSX.Element {
+export function AccountRenewalRow({ sub, onChanged, name: listed }: { sub: SubscriptionInfo; onChanged: () => void; /** Its name as its list tells twins apart (F3). */ name?: string }): JSX.Element {
   // Its Apps by the one rule (rc22, A3); unknown while they're read.
   const appCount = accountAppsNow(null, sub, new Set(sub.profiles.map((profile) => profile.id)))?.ids.length ?? null;
   const [date, setDate] = useState(sub.renewal_date ?? "");
   const [error, setError] = useState<string | null>(null);
-  const name = accountName(sub);
+  const name = listed ?? accountName(sub);
   const id = `settings-renewal-${sub.key}`;
   const commit = (next: string | null) => {
     setError(null);

@@ -336,6 +336,7 @@ struct Group<'a> {
 fn groups<'a>(
     folders: &'a [juggler_core::model::Account],
     accounts: &std::collections::BTreeMap<String, crate::features::subscriptions::FolderAccount>,
+    tool_words: impl Fn(&str) -> String,
 ) -> Vec<Group<'a>> {
     let mut out: Vec<Group<'a>> = Vec::new();
     for folder in folders {
@@ -356,7 +357,33 @@ fn groups<'a>(
             }),
         }
     }
+    let mut names: Vec<String> = out.iter().map(|group| group.name.clone()).collect();
+    let tools: Vec<&str> = out
+        .iter()
+        .map(|group| group.folders[0].harness.as_str())
+        .collect();
+    names_apart(&mut names, &tools, tool_words);
+    for (group, name) in out.iter_mut().zip(names) {
+        group.name = name;
+    }
     out
+}
+
+/// SK48-8 (the 0.5.0 walk, F3): notices listed together in the bell tell
+/// twin Accounts apart as every list does (the UI's `accountNamesApart`):
+/// two that share a name carry their tool ("Personal (Codex)"), unless
+/// the name says it already.
+fn names_apart(names: &mut [String], tools: &[&str], tool_words: impl Fn(&str) -> String) {
+    let before = names.to_vec();
+    for (name, tool) in names.iter_mut().zip(tools) {
+        if before.iter().filter(|other| *other == name).count() < 2 {
+            continue;
+        }
+        let words = tool_words(tool);
+        if !words.is_empty() && !name.contains(&words) {
+            *name = format!("{name} ({words})");
+        }
+    }
 }
 
 /// True when `display` carries a real reading (a window with its
@@ -975,7 +1002,9 @@ pub fn quota_pass_at(
             open: &open,
             now,
         };
-        for group in groups(&folders, &accounts) {
+        for group in groups(&folders, &accounts, |tool| {
+            crate::features::subscriptions::tool_words(state, tool)
+        }) {
             pass.run(&group, &mut on_credits, &mut told, &mut room_again);
         }
         if on_credits != before {
@@ -1345,6 +1374,38 @@ pub fn update(state: &Arc<AppState>, status: &crate::updates::UpdateStatusInfo) 
 
 #[cfg(test)]
 mod tests {
+    /// SK48-8 (the 0.5.0 walk, F3): the bell's notices named two Accounts
+    /// "Personal", a Claude Code one and a Codex one, with no tool.
+    #[test]
+    fn twin_accounts_carry_their_tool_and_others_keep_their_names() {
+        let mut names = vec![
+            "Personal".to_owned(),
+            "Personal".to_owned(),
+            "Work".to_owned(),
+            "Claude Max".to_owned(),
+            "Claude Max".to_owned(),
+        ];
+        let tools = [
+            "claude-code",
+            "codex",
+            "claude-code",
+            "claude-code",
+            "codex",
+        ];
+        let words = |tool: &str| if tool == "codex" { "Codex" } else { "Claude" }.to_owned();
+        super::names_apart(&mut names, &tools, words);
+        assert_eq!(
+            names,
+            [
+                "Personal (Claude)",
+                "Personal (Codex)",
+                "Work",
+                "Claude Max",
+                "Claude Max (Codex)"
+            ]
+        );
+    }
+
     use super::*;
 
     /// AJ-E2112 R5: every start keep alive makes, and every pause, is a

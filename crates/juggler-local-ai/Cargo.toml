@@ -1,0 +1,68 @@
+[package]
+name = "juggler-local-ai"
+description = "AI Juggler's local-model helper (ADR-0033 §4.2, D-131): runs one downloaded GGUF file with llama.cpp, out of the app's process, sandboxed, with no network."
+version = "0.5.0"
+edition = "2024"
+rust-version = "1.99"
+license = "MIT"
+repository = "https://github.com/figurehead-ai/AI-juggler"
+publish = false
+build = "build.rs"
+
+# ADR-0033 §4.2: its own workspace and lock file, outside the app's
+# (the root Cargo.toml's `exclude`), so `just verify`, `--workspace` and
+# the shared target's everyday builds never compile llama.cpp's C++. Built
+# by scripts/build_local_ai_helper.sh (`--offline`), bundled and signed
+# beside juggler-apple-ai.
+[workspace]
+
+[[bin]]
+name = "juggler-local-ai"
+path = "src/main.rs"
+
+[dependencies]
+# D-131 (2026-11-19, the maintainer's yes): llama.cpp through llama-cpp-2,
+# pinned exactly, used ONLY in this helper. No default features: OpenMP
+# isn't in Apple's clang, and nothing else is wanted. Metal comes from
+# llama-cpp-2's own target dependency on Apple silicon.
+llama-cpp-2 = { version = "=0.1.146", default-features = false }
+llama-cpp-sys-2 = { version = "=0.1.146", default-features = false }
+# token_to_piece decodes through it (llama-cpp-2's own dependency).
+encoding_rs = "0.8.35"
+# The chat messages handed to the template (already the protocol's).
+serde_json = "1.0.154"
+juggler-local-ai-protocol = { version = "0.5.0", path = "../juggler-local-ai-protocol" }
+# O_NOFOLLOW for opening the model file (a constant; no `unsafe` here).
+# Already in this lock (llama-cpp-sys-2's build).
+libc = "0.2.191"
+
+[target.'cfg(all(target_os = "macos", target_arch = "aarch64"))'.dependencies]
+llama-cpp-2 = { version = "=0.1.146", default-features = false, features = ["metal"] }
+
+# llama-cpp-sys-2 is named only to pin it exactly beside llama-cpp-2.
+[package.metadata.cargo-machete]
+ignored = ["llama-cpp-sys-2"]
+
+[profile.release]
+debug = false
+strip = "symbols"
+lto = "thin"
+codegen-units = 1
+panic = "abort"
+
+# The app workspace's lint baseline, restated (an outside workspace can't
+# inherit it): no `unsafe` here; llama-cpp-2's safe API only.
+[lints.rust]
+unsafe_code = "forbid"
+missing_docs = "deny"
+
+[lints.clippy]
+pedantic = { level = "warn", priority = -1 }
+unwrap_used = "warn"
+expect_used = "warn"
+panic = "warn"
+todo = "warn"
+unimplemented = "warn"
+print_stdout = "deny"
+print_stderr = "deny"
+dbg_macro = "deny"

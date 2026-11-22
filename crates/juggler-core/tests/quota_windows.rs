@@ -58,7 +58,7 @@ proptest! {
         kind in window_kind_strategy(),
     ) {
         let (lo, hi) = match kind {
-            WindowKind::FiveHour => window_bounds(kind, NOW),
+            WindowKind::FiveHour | WindowKind::Monthly => window_bounds(kind, NOW),
             WindowKind::Weekly { anchor_ms } => quota::weekly_phase_bounds(anchor_ms, NOW),
         };
         let event_ts = NOW + offset_ms;

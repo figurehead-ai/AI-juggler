@@ -605,6 +605,24 @@ pub(crate) fn freeze_source(
     stopped
 }
 
+/// Whether `source` is live to a switch: running here (a switch stops it
+/// first, [`freeze_source`]), or alive as its status says. The 0.5.0 walk,
+/// F9: a session waiting on a permission prompt read as not live, so the
+/// switch said "The original stays as it was" and then stopped it.
+pub(crate) fn source_is_live(
+    state: &Arc<AppState>,
+    source: &juggler_core::model::InstanceRecord,
+) -> bool {
+    let running_here =
+        state.supervisor.is_supervised(&source.id) && !state.supervisor.is_finished(&source.id);
+    live_for_switch(source.status.as_str(), running_here)
+}
+
+/// [`source_is_live`]'s rule (pure).
+fn live_for_switch(status: &str, running_here: bool) -> bool {
+    running_here || matches!(status, "running" | "starting" | "waiting_user" | "stuck")
+}
+
 /// [`freeze_source`]'s stop, once the session is marked as the switch's.
 fn stop_for_switch(
     state: &Arc<AppState>,
@@ -900,6 +918,29 @@ mod tests {
 
     fn record(id: &str, status: SessionStatus) -> InstanceRecord {
         crate::test_support::instance(id, "p1", status, std::env::temp_dir())
+    }
+
+    /// The 0.5.0 walk, F9: a session waiting on its user (a permission
+    /// prompt) or stuck is still open, so a switch stops it; it reads live,
+    /// as does any session still running here whatever its status says.
+    #[test]
+    fn a_waiting_or_stuck_session_is_live_to_a_switch() {
+        for status in ["running", "starting", "waiting_user", "stuck"] {
+            assert!(super::live_for_switch(status, false), "{status}");
+        }
+        for status in [
+            "finished",
+            "stopped",
+            "failed",
+            "quota_blocked",
+            "handed_over",
+        ] {
+            assert!(!super::live_for_switch(status, false), "{status}");
+            assert!(
+                super::live_for_switch(status, true),
+                "{status}, running here"
+            );
+        }
     }
 
     /// AJ-E1523: a switch away from a session at its usage limit counts

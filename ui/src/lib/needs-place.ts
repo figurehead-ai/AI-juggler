@@ -3,7 +3,7 @@
  * from the last look, so the same needs arriving move nothing: what it
  * showed last time (how many rows and how tall) is kept for this data
  * folder (lib/local-store), as the app keeps other last answers to paint
- * them at once. The same for the heading's line of "more things".
+ * them at once.
  */
 import { useLayoutEffect, useRef, type RefObject } from "react";
 import { keep, readKept } from "./local-store";
@@ -13,8 +13,6 @@ export type KeptShape = { rows: number; height: number };
 
 /** Home's Needs you card. */
 export const NEEDS_PLACE = "aij.home.needs-place";
-/** The heading's line of "more things" (D-96 B). */
-export const EXTRAS_PLACE = "aij.home.extras-place";
 
 /** The shape kept under `key` (`null`: never shown here, a first run). */
 export function keptShape(key: string): KeptShape | null {

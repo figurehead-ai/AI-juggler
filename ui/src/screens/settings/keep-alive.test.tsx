@@ -14,6 +14,9 @@ import { placeFor, placeWords } from "../../lib/places";
 import { PLACES_CHANGED, placesFind } from "../../lib/ipc/places";
 import type { KnownPlaceInfo } from "../../lib/ipc/places";
 import { resetToasts, toastEntries } from "../../components/Toast";
+import { knownPlacesPreview, placesConversations } from "../../preview/places";
+import { desktopAppKey } from "../../lib/app-name";
+import { itemsOf } from "../../lib/rail-items";
 
 const NOW = Date.UTC(2026, 9, 31, 12);
 
@@ -134,13 +137,17 @@ describe("Settings › Desktop apps: your apps", () => {
 describe("Home: an app that isn't running", () => {
   it("has a tile with why and Start, which starts it", async () => {
     seams().__AIJ_PLACES__ = { places: [place({ keep_alive: true }), place({ id: "other", label: "Claude · b-off", instance: "b-off", profile: "b-off" })] };
-    render(<HomeApps items={[]} runwayOf={() => null} />);
+    render(<HomeApps items={[]} />);
     await screen.findAllByTestId("home-app-closed");
     // 0.3.4 (D-64): every remembered app that's closed has a tile, the
     // kept-alive one first.
     const [tile, other] = screen.getAllByTestId("home-app-closed");
     expect(tile!.textContent).toContain("Closed · keep alive starts it");
     expect(other!.textContent).toContain("b-off");
+    // D-118's mock: under "Not running", a closed one says only when it was
+    // seen, on one line ("seen 2 d ago"); "Closed · last open …" in its tooltip.
+    expect(within(other!).getByTestId("home-app-line").textContent).toMatch(/^seen /);
+    expect(other!.querySelector("[title*='Closed · last open']")).not.toBeNull();
     expect(within(other!).getByRole("button", { name: "Start Claude app · b-off" })).toBeTruthy();
     fireEvent.click(within(tile!).getByRole("button", { name: "Start Claude app · b-lab" }));
     await waitFor(() => expect(seams().__AIJ_PLACES__!.places[0]!.app_pid).not.toBeNull());
@@ -149,6 +156,24 @@ describe("Home: an app that isn't running", () => {
     const kept = screen.getByTestId("home-app-kept");
     expect(kept.textContent).toContain("Running · kept alive");
     expect(within(kept).getByRole("button", { name: "Open Claude app · b-lab" })).toBeTruthy();
+  });
+});
+
+describe("Home: an open App kept alive (D-118's Your apps rows)", () => {
+  it("says kept alive after its line, in the line's words, and only on that App", async () => {
+    seams().__AIJ_PLACES__ = knownPlacesPreview(NOW);
+    const items = itemsOf({ sessions: [], conversations: placesConversations(NOW), projects: [], seen: {}, snoozed: () => false, pins: new Set(), needOf: new Map() });
+    render(<HomeApps items={items} />);
+    const marks = await screen.findAllByTestId("home-app-kept-mark");
+    expect(marks).toHaveLength(1);
+    expect(marks[0]!.textContent).toBe("kept alive");
+    expect(marks[0]!.title).toBe("Kept alive: AI Juggler starts it again if it stops");
+    const row = marks[0]!.closest<HTMLElement>("[data-testid='home-app-tile']")!;
+    expect(row.dataset.place).toBe(desktopAppKey("claude-app", "Claude", "Work"));
+    expect(row.textContent).toContain("2 open");
+    // The one not kept alive says only what's open.
+    const personal = screen.getAllByTestId("home-app-tile").find((one) => one.dataset.place === desktopAppKey("claude-app", "Claude", "Personal"))!;
+    expect(within(personal).queryByTestId("home-app-kept-mark")).toBeNull();
   });
 });
 

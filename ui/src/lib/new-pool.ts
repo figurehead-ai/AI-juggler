@@ -219,7 +219,7 @@ export function sessionCandidates(input: {
     if (!inScope(draft, project)) {
       return { ...base, detail, group, blocked: `Works in ${projectName(project)}, not in this pool's projects.`, fix: { label: `Add ${projectName(project)}`, action: "scope", arg: project ?? "" } };
     }
-    if (sealed) return { ...base, detail, group, blocked: `It's in «${sealed.name}», which is sealed.`, fix: { label: `Open ${sealed.name}`, action: "open-pool", arg: sealed.id } };
+    if (sealed) return { ...base, detail, group, blocked: `It's in “${sealed.name}”, which is sealed.`, fix: { label: `Open ${sealed.name}`, action: "open-pool", arg: sealed.id } };
     if (ended) return { ...base, detail, group, blocked: "Ended. Resume it to add it.", fix: { label: "Resume", action: "resume", arg: session.id } };
     return { ...base, detail, group, blocked: null };
   });

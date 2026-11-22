@@ -49,9 +49,10 @@ import_source_path?: string | null,
  */
 import_origin?: string | null, 
 /**
- * Import completion time, epoch ms (None = never imported).
+ * Import completion time, epoch ms (None = never imported): a
+ * number, as the window gets it from JSON.
  */
-imported_at?: bigint | null, 
+imported_at?: number | null, 
 /**
  * ADR-0018: the account uses the user's own folder where it is.
  */

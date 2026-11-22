@@ -25,7 +25,7 @@ function Tool({ label, title, pressed, onClick, children, testId }: { label: str
       onClick={onClick}
       title={title}
       aria-pressed={pressed}
-      className="rounded-md px-2 py-1 text-label text-muted outline-none hover:bg-surface-2 hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60 aria-pressed:bg-surface-2 aria-pressed:text-ink"
+      className="rounded-md px-2 py-1 text-label text-muted outline-none hover:bg-surface-2 hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60 aria-pressed:bg-selected aria-pressed:font-semibold aria-pressed:text-selected-ink aria-pressed:inset-ring-[1.5px] aria-pressed:inset-ring-selected-ring"
       data-testid={testId}
     >
       {children ?? label}

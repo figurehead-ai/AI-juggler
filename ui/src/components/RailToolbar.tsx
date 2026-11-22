@@ -112,7 +112,8 @@ export function RailToolbar({
             }}
             placeholder={`Search ${paletteKeys.words}`}
             aria-label="Search sessions: words, or is:ended, app:, account:, project:, mac:"
-            className="h-7 w-full rounded-lg border border-hairline bg-surface/70 pl-6 pr-2 text-meta text-ink outline-none placeholder:text-muted focus-visible:ring-1 focus-visible:ring-accent/60"
+            // D-117: a filled field (`--color-fill`), no outline.
+            className="seg-fill h-7 w-full rounded-lg bg-fill pl-6 pr-2 text-meta text-ink outline-none placeholder:text-muted focus-visible:ring-1 focus-visible:ring-accent/60"
           />
         </div>
         <ViewPopover options={options} onOpenChange={setViewOpen} />

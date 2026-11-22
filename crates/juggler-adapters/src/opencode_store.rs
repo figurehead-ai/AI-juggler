@@ -31,14 +31,11 @@ use std::path::{Path, PathBuf};
 use juggler_adapter::live::TailTurn;
 use juggler_core::model::{Confidence, TokenCounts};
 use juggler_core::quota::{UsageEvent, UsageSource};
-use rusqlite::{Connection, OpenFlags, OptionalExtension};
+use rusqlite::{Connection, OptionalExtension};
 
 /// The database file's name in the data folder (`latest`/`beta`/`prod`
 /// channels, the ones the installers ship).
 pub const DB_FILE: &str = "opencode.db";
-
-/// How long a read waits for OpenCode's own write to finish.
-const BUSY_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(2);
 
 /// One OpenCode session, as the list and the linker need it.
 #[derive(Debug, Clone, PartialEq)]
@@ -64,37 +61,28 @@ pub struct OpenCodeSession {
     pub archived: bool,
 }
 
-/// Opens `db` read-only, waiting briefly for a writer.
-///
-/// While OpenCode runs, its write-ahead log sits beside the file and the
-/// read joins it as any reader does. When OpenCode is closed there is no
-/// log, and even a read-only open would create one (and its index) in
-/// the user's folder — so the file is opened `immutable`: no log, no
-/// lock, nothing written. Should OpenCode start during that read, the
-/// read may fail; the next pass reads again.
+impl OpenCodeSession {
+    /// What the index and the linker read of it.
+    fn listed(self) -> crate::common::sqlite::StoreSession {
+        crate::common::sqlite::StoreSession {
+            id: self.id,
+            title: self.title,
+            directory: self.directory,
+            created_ms: self.created_ms,
+            updated_ms: self.updated_ms,
+        }
+    }
+}
+
+/// Opens `db` read-only, waiting briefly for a writer, never writing
+/// beside it (`common::sqlite::open_tool_store`: the log joined while
+/// OpenCode runs, the file `immutable` when it is closed).
 ///
 /// # Errors
 ///
 /// A plain message when the file can't be opened.
 pub fn open_read_only(db: &Path) -> Result<Connection, String> {
-    if !db.is_file() {
-        return Err(format!("no OpenCode database at {}", db.display()));
-    }
-    let mut wal = db.as_os_str().to_owned();
-    wal.push("-wal");
-    let flags = OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NO_MUTEX;
-    let conn = if Path::new(&wal).exists() {
-        juggler_core::storage::open_hardened_with(db, flags)
-    } else {
-        juggler_core::storage::open_hardened_with(
-            format!("file:{}?immutable=1", crate::common::sqlite::uri_path(db)),
-            flags | OpenFlags::SQLITE_OPEN_URI,
-        )
-    }
-    .map_err(|error| format!("opencode db open (read-only): {error}"))?;
-    conn.busy_timeout(BUSY_TIMEOUT)
-        .map_err(|error| format!("opencode db busy timeout: {error}"))?;
-    Ok(conn)
+    crate::common::sqlite::open_tool_store(db, "OpenCode")
 }
 
 /// Whether `conn` has a table named `name`.
@@ -186,42 +174,31 @@ pub fn stored_conversations(db: &Path) -> Vec<juggler_adapter::conversation::Sto
     sessions
         .into_iter()
         .filter(|session| session.parent_id.is_none() && !session.archived)
-        .map(
-            |session| juggler_adapter::conversation::StoredConversation {
-                key: session_ref(db, &session.id),
-                changed_ms: session.updated_ms,
-                summary: juggler_adapter::conversation::ConversationSummary {
-                    cwd: (!session.directory.is_empty()).then(|| PathBuf::from(&session.directory)),
-                    git_branch: None,
-                    started_in: None,
-                    by_script: false,
-                    title: juggler_adapter::conversation::prompt_title(&session.title, 120),
-                    opening: juggler_adapter::conversation::title_from(&session.title, 120),
-                    started_ms: Some(session.created_ms),
-                    last_ms: Some(session.updated_ms),
-                    tokens: session.tokens,
-                    id: session.id,
-                },
-            },
-        )
+        .map(|session| {
+            let tokens = session.tokens;
+            session.listed().into_stored(db, tokens)
+        })
         .collect()
 }
 
 /// The link reference for a session: `<db>#<id>` (see module docs).
 #[must_use]
 pub fn session_ref(db: &Path, id: &str) -> PathBuf {
-    let mut text = db.as_os_str().to_owned();
-    text.push("#");
-    text.push(id);
-    PathBuf::from(text)
+    crate::common::sqlite::store_ref(db, id)
 }
 
 /// The session id inside a [`session_ref`], if `path` is one.
 #[must_use]
 pub fn session_of_ref(path: &Path) -> Option<String> {
-    let text = path.to_string_lossy();
-    let (db, id) = text.rsplit_once('#')?;
-    (db.ends_with(DB_FILE) && !id.is_empty()).then(|| id.to_owned())
+    crate::common::sqlite::store_ref_parts(path, DB_FILE).map(|(_, id)| id)
+}
+
+/// Every session's id and last change, newest first, for the watcher.
+pub(crate) fn session_changes(db: &Path) -> Result<Vec<(String, i64)>, String> {
+    let sessions = sessions(db)?;
+    Ok(crate::common::sqlite::changes(
+        sessions.into_iter().map(OpenCodeSession::listed),
+    ))
 }
 
 /// How an assistant message stands, as OpenCode's own turn loop reads it
@@ -327,10 +304,8 @@ fn session_exists(conn: &Connection, id: &str) -> bool {
 /// other path.
 #[must_use]
 pub fn last_turn_of_ref(reference: &Path) -> Option<TailTurn> {
-    let id = session_of_ref(reference)?;
-    let text = reference.to_string_lossy();
-    let (db, _) = text.rsplit_once('#')?;
-    last_turn(Path::new(db), &id)
+    let (db, id) = crate::common::sqlite::store_ref_parts(reference, DB_FILE)?;
+    last_turn(&db, &id)
 }
 
 /// The one top-level session that ran in `cwd`, created at or after
@@ -343,16 +318,12 @@ pub fn locate(
     since_ms: i64,
     taken: &[PathBuf],
 ) -> Option<(PathBuf, String)> {
-    let mut found = sessions(db)
+    let top_level = sessions(db)
         .ok()?
         .into_iter()
         .filter(|session| session.parent_id.is_none())
-        .filter(|session| session.created_ms >= since_ms.saturating_sub(2_000))
-        .filter(|session| crate::claude_code::same_folder(&session.directory, cwd))
-        .map(|session| (session_ref(db, &session.id), session.id))
-        .filter(|(reference, _)| !taken.contains(reference));
-    let first = found.next()?;
-    found.next().is_none().then_some(first)
+        .map(OpenCodeSession::listed);
+    crate::common::sqlite::locate_one(db, cwd, since_ms, taken, top_level)
 }
 
 /// A JSON number as a token count (OpenCode stores finite numbers).

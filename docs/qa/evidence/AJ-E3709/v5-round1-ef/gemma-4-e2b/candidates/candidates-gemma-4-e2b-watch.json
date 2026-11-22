@@ -1,0 +1,578 @@
+{
+ "family": "gemma-4-e2b",
+ "job": "watch",
+ "note": "script flags: candidates for Opus to confirm by eye, never verdicts",
+ "candidates": [
+  {
+   "id": "W001",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model: billing one",
+   "stage": "shown",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W002",
+   "class": "omission",
+   "detector": "no_watch",
+   "detail": "shown form",
+   "stage": "shown",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W003",
+   "class": "omission",
+   "detector": "no_watch",
+   "detail": "shown form",
+   "stage": "shown",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W004",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model: Alert me whenever anything fails",
+   "stage": "shown",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W005",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model: tell me when my lab account has under 15% left",
+   "stage": "shown",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W006",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model: docs session fails or asks something",
+   "stage": "shown",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W007",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model: when the Cursor app stops",
+   "stage": "shown",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W008",
+   "class": "omission",
+   "detector": "no_watch",
+   "detail": "shown form",
+   "stage": "shown",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W009",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model: let me know when anything on the work account runs below 10",
+   "stage": "shown",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W010",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model: migration is done",
+   "stage": "shown",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W011",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model: whenever the personal Claude app starts a new session",
+   "stage": "shown",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W012",
+   "class": "omission",
+   "detector": "no_watch",
+   "detail": "shown form",
+   "stage": "shown",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W013",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model: tell me when the training loop is stuck for half an hour",
+   "stage": "shown",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W014",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model: until Friday",
+   "stage": "shown",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W015",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model: notify me when Codex on work ends",
+   "stage": "shown",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W016",
+   "class": "omission",
+   "detector": "no_watch",
+   "detail": "shown form",
+   "stage": "shown",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W017",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model: when the invoice thing needs my input",
+   "stage": "shown",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W018",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model: warn me when I have less than a quarter of my personal allow",
+   "stage": "shown",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W019",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model: CRM migration crashes",
+   "stage": "shown",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W020",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "observes: fails (Lab)",
+   "stage": "shown",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W021",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model: shop checkout",
+   "stage": "shown",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W022",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model: every time the docs project finishes something, tell me",
+   "stage": "shown",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W023",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model: tell me as soon as the ML run starts",
+   "stage": "shown",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W024",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model: if Cursor asks me anything",
+   "stage": "shown",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W025",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime today != once",
+   "stage": "shown",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W026",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model: tell me when anything on the work account ends",
+   "stage": "shown",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W027",
+   "class": "omission",
+   "detector": "no_watch",
+   "detail": "shown form",
+   "stage": "shown",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W028",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model: hits under 10 percent",
+   "stage": "shown",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W029",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model: when the checkout agent has been stuck for an hour",
+   "stage": "shown",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W031",
+   "class": "omission",
+   "detector": "no_watch",
+   "detail": "shown form",
+   "stage": "shown",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W032",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model: Benachrichtige mich immer, wenn irgendetwas fehlschlägt",
+   "stage": "shown",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W033",
+   "class": "omission",
+   "detector": "no_watch",
+   "detail": "shown form",
+   "stage": "shown",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W034",
+   "class": "omission",
+   "detector": "no_watch",
+   "detail": "shown form",
+   "stage": "shown",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W035",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model: Nur heute: sag mir, wenn das Hero-Bild fertig ist",
+   "stage": "shown",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W036",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model: Cursor beendet wird",
+   "stage": "shown",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W037",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model: Wenn die Testabdeckung festhängt, länger als 20 Minuten, gib",
+   "stage": "shown",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W038",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime today != until_removed",
+   "stage": "shown",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W039",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model: Bis Freitag: sag mir bei jeder Rückfrage im Projekt kunden-a",
+   "stage": "shown",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W040",
+   "class": "omission",
+   "detector": "no_watch",
+   "detail": "shown form",
+   "stage": "shown",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W041",
+   "class": "omission",
+   "detector": "no_watch",
+   "detail": "shown form",
+   "stage": "shown",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W042",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model: die Tests fertig",
+   "stage": "shown",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W002",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s1 “Invoice rounding fix” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W002",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s1 “Invoice rounding fix” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W002",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s1 “Invoice rounding fix” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W008",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: p4 “ml-pipeline” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W008",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: p4 “ml-pipeline” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W008",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: p4 “ml-pipeline” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W016",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: p3 “docs-site” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W016",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: p3 “docs-site” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W016",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: p3 “docs-site” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W027",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: p5 “legacy-crm” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W027",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: p5 “legacy-crm” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W027",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: p5 “legacy-crm” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W031",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s2 “Login-Flow” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W031",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s2 “Login-Flow” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W031",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s2 “Login-Flow” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W033",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: acct1 “Arbeit” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W033",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: acct1 “Arbeit” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W033",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: acct1 “Arbeit” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W034",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s4 “Rate Limits” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W034",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s4 “Rate Limits” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W034",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s4 “Rate Limits” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W040",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: acct2 “Privat” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W040",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: acct2 “Privat” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W040",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: acct2 “Privat” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W041",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s1 “Mahnlauf” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W041",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s1 “Mahnlauf” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W041",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s1 “Mahnlauf” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5"
+  }
+ ]
+}

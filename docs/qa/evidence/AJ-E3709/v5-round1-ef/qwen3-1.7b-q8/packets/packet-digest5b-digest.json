@@ -1,0 +1,422 @@
+[
+ {
+  "pair": "digest5b-digest-001",
+  "item": "DB01",
+  "agents": [
+   {
+    "agent": "tidepool-web (Claude Code)",
+    "app": "Claude Code",
+    "project": "tidepool-web",
+    "session_id": "db01-a",
+    "turns": [
+     {
+      "turn_id": "db01-a-t1",
+      "ended_at": "2026-11-18T13:02:00Z",
+      "source": "Finished moving the checkout form into three smaller components. The cart summary now reads totals from the shared store instead of props. I ran the Vitest suite and all 41 tests pass. Nothing else touched; the diff is about 300 lines and ready for your review.",
+      "facts": {
+       "outcome": "success",
+       "level": "L1",
+       "tests": {
+        "state": "pass",
+        "passed": 41,
+        "failed": 0
+       },
+       "questions": [],
+       "failures": []
+      }
+     }
+    ],
+    "events": []
+   },
+   {
+    "agent": "tidepool-web (Codex)",
+    "app": "Codex",
+    "project": "tidepool-web",
+    "session_id": "db01-b",
+    "turns": [
+     {
+      "turn_id": "db01-b-t1",
+      "ended_at": "2026-11-18T13:10:00Z",
+      "source": "I tried to fetch live shipping rates for the integration test but the rates API answered 429 Too Many Requests on every attempt, even after backing off to 30 seconds. I stopped retrying. The test is skipped for now and the branch compiles.",
+      "facts": {
+       "outcome": "failure",
+       "level": "L3",
+       "tests": {
+        "state": "none",
+        "passed": 0,
+        "failed": 0
+       },
+       "questions": [],
+       "failures": [
+        "rates API returned 429 on all retries"
+       ]
+      }
+     }
+    ],
+    "events": [
+     {
+      "kind": "failed",
+      "at": "2026-11-18T13:10:00Z",
+      "detail": "429 from rates.example.com after 5 retries"
+     }
+    ]
+   },
+   {
+    "agent": "tidepool-docs",
+    "app": "OpenCode",
+    "project": "tidepool-docs",
+    "session_id": "db01-c",
+    "turns": [
+     {
+      "turn_id": "db01-c-t1",
+      "ended_at": "2026-11-18T09:41:00Z",
+      "source": "Fixed two typos in the onboarding guide and regenerated the sidebar. No other changes are pending in this folder. The sidebar order looks right in the preview.",
+      "facts": {
+       "outcome": "success",
+       "level": "L1",
+       "tests": {
+        "state": "none",
+        "passed": 0,
+        "failed": 0
+       },
+       "questions": [],
+       "failures": []
+      }
+     }
+    ],
+    "events": []
+   }
+  ],
+  "first": "Digest · 13:10 · 3 agents\ntidepool-web (Codex) · failed: “rates API returned 429 on all retries”\ntidepool-web (Claude Code) · finished · moving the checkout form into three smaller components\ntidepool-docs · finished · fixed two typos in the onboarding guide and regenerated the · sidebar",
+  "second": "Digest · 13:10 · 3 agents\ntidepool-web (Codex) · failed: “rates API returned 429 on all retries”\ntidepool-web (Claude Code) · finished · 1 turn · last: “Finished moving the checkout form into three smaller components.”\ntidepool-docs · finished · 1 turn · last: “Fixed two typos in the onboarding guide and regenerated the sidebar.”"
+ },
+ {
+  "pair": "digest5b-digest-002",
+  "item": "DB04",
+  "agents": [
+   {
+    "agent": "fjord-mobile (Codex)",
+    "app": "Codex",
+    "project": "fjord-mobile",
+    "session_id": "db04-a",
+    "turns": [
+     {
+      "turn_id": "db04-a-t1",
+      "ended_at": "2026-11-18T16:20:00Z",
+      "source": "Version 2.4 beta is uploaded to TestFlight and processing. Release notes are attached. Unit tests pass, 212 of 212. The build number is 2.4.0 (118) and the build passed the automated checks on upload.",
+      "facts": {
+       "outcome": "success",
+       "level": "L1",
+       "tests": {
+        "state": "pass",
+        "passed": 212,
+        "failed": 0
+       },
+       "questions": [],
+       "failures": []
+      }
+     }
+    ],
+    "events": []
+   },
+   {
+    "agent": "fjord-mobile (Claude Code)",
+    "app": "Claude Code",
+    "project": "fjord-mobile",
+    "session_id": "db04-b",
+    "turns": [
+     {
+      "turn_id": "db04-b-t1",
+      "ended_at": "2026-11-18T16:30:00Z",
+      "source": "The app restarts itself three times in a row when launched from a push notification. The stack shows a nil unwrap in NotificationRouter. I reproduced it twice but have not fixed it yet.",
+      "facts": {
+       "outcome": "failure",
+       "level": "L3",
+       "tests": {
+        "state": "none",
+        "passed": 0,
+        "failed": 0
+       },
+       "questions": [],
+       "failures": [
+        "crash loop on cold start from push, nil unwrap in NotificationRouter"
+       ]
+      }
+     }
+    ],
+    "events": [
+     {
+      "kind": "failed",
+      "at": "2026-11-18T16:30:00Z",
+      "detail": "crash loop"
+     }
+    ]
+   },
+   {
+    "agent": "fjord-infra (OpenCode)",
+    "app": "OpenCode",
+    "project": "fjord-infra",
+    "session_id": "db04-c",
+    "turns": [
+     {
+      "turn_id": "db04-c-t1",
+      "ended_at": "2026-11-18T15:45:00Z",
+      "source": "Certificates rotated on all six hosts, health checks green. Old certs kept until Friday. I verified each host with a curl against the health endpoint and compared the expiry dates afterwards.",
+      "facts": {
+       "outcome": "success",
+       "level": "L1",
+       "tests": {
+        "state": "none",
+        "passed": 0,
+        "failed": 0
+       },
+       "questions": [],
+       "failures": []
+      }
+     }
+    ],
+    "events": []
+   },
+   {
+    "agent": "fjord-infra (Grok Build)",
+    "app": "Grok Build",
+    "project": "fjord-infra",
+    "session_id": "db04-d",
+    "turns": [
+     {
+      "turn_id": "db04-d-t1",
+      "ended_at": "2026-11-18T16:05:00Z",
+      "source": "Der Speicheralarm löst jede Nacht aus, weil der Backup-Job kurz auf 85 Prozent steigt. Ich könnte die Schwelle auf 90 setzen oder den Job verschieben. Sag mir bitte, was du lieber willst",
+      "facts": {
+       "outcome": "question",
+       "level": "L2",
+       "tests": {
+        "state": "none",
+        "passed": 0,
+        "failed": 0
+       },
+       "questions": [
+        "Schwelle auf 90 Prozent oder Backup-Job verschieben?"
+       ],
+       "failures": []
+      }
+     }
+    ],
+    "events": []
+   }
+  ],
+  "first": "Digest · 16:30 · 4 agents\nfjord-mobile (Claude Code) · failed: “crash loop on cold start from push, nil unwrap in NotificationRouter”\nfjord-infra (Grok Build) · asks you: “Schwelle auf 90 Prozent oder Backup-Job verschieben?”\nfjord-mobile (Codex) · finished · Version 2.4 beta is uploaded to TestFlight and processing · Release notes are attached\nfjord-infra (OpenCode) · finished · Certificates rotated on all six hosts, health checks green · Old certs kept until Friday",
+  "second": "Digest · 16:30 · 4 agents\nfjord-mobile (Claude Code) · failed: “crash loop on cold start from push, nil unwrap in NotificationRouter”\nfjord-infra (Grok Build) · asks you: “Schwelle auf 90 Prozent oder Backup-Job verschieben?”\nfjord-mobile (Codex) · finished · 1 turn · last: “Version 2.4 beta is uploaded to TestFlight and processing.”\nfjord-infra (OpenCode) · finished · 1 turn · last: “Certificates rotated on all six hosts, health checks green.”"
+ },
+ {
+  "pair": "digest5b-digest-003",
+  "item": "DB08",
+  "agents": [
+   {
+    "agent": "hearth-notes-app (Muse)",
+    "app": "Muse",
+    "project": "hearth-notes-app",
+    "session_id": "db08-a",
+    "turns": [
+     {
+      "turn_id": "db08-a-t1",
+      "ended_at": "2026-11-18T17:10:00Z",
+      "source": "Dark mode toggle added with system preference detection. Snapshot tests updated and pass, 18 of 18. The toggle remembers the choice across restarts, and the screenshots look right in both modes on my side.",
+      "facts": {
+       "outcome": "success",
+       "level": "L1",
+       "tests": {
+        "state": "pass",
+        "passed": 18,
+        "failed": 0
+       },
+       "questions": [],
+       "failures": []
+      }
+     }
+    ],
+    "events": []
+   },
+   {
+    "agent": "hearth-notes-app (Claude Code)",
+    "app": "Claude Code",
+    "project": "hearth-notes-app",
+    "session_id": "db08-b",
+    "turns": [
+     {
+      "turn_id": "db08-b-t1",
+      "ended_at": "2026-11-18T17:20:00Z",
+      "source": "Sync spinner never stops after sign-in. Server logs show 401 for the refresh token endpoint. I need you to look at the key config",
+      "facts": {
+       "outcome": "failure",
+       "level": "L3",
+       "tests": {
+        "state": "none",
+        "passed": 0,
+        "failed": 0
+       },
+       "questions": [],
+       "failures": [
+        "401 on refresh token endpoint"
+       ]
+      }
+     }
+    ],
+    "events": [
+     {
+      "kind": "stuck",
+      "at": "2026-11-18T17:20:00Z",
+      "detail": "sync spinner"
+     }
+    ]
+   },
+   {
+    "agent": "hearth-site",
+    "app": "Codex",
+    "project": "hearth-site",
+    "session_id": "db08-c",
+    "turns": [
+     {
+      "turn_id": "db08-c-t1",
+      "ended_at": "2026-11-18T08:00:00Z",
+      "source": "Nothing since Friday. The marketing site folder has no changes and I have no open tasks, so there is nothing for you to review right now.",
+      "facts": {
+       "outcome": "none",
+       "level": "L0",
+       "tests": {
+        "state": "none",
+        "passed": 0,
+        "failed": 0
+       },
+       "questions": [],
+       "failures": []
+      }
+     }
+    ],
+    "events": []
+   }
+  ],
+  "first": "Digest · 17:20 · 3 agents\nhearth-notes-app (Claude Code) · failed: “401 on refresh token endpoint”\nhearth-notes-app (Muse) · finished · 1 turn · last: “Dark mode toggle added with system preference detection.”\nhearth-site · finished · 1 turn · last: “Nothing since Friday.”",
+  "second": "Digest · 17:20 · 3 agents\nhearth-notes-app (Claude Code) · failed: “401 on refresh token endpoint”\nhearth-notes-app (Muse) · finished · 1 turn · last: “Dark mode toggle added with system preference detection.”\nhearth-site · finished · Nothing since Friday · The marketing site folder has no changes and I have no open"
+ },
+ {
+  "pair": "digest5b-digest-004",
+  "item": "DB11",
+  "agents": [
+   {
+    "agent": "maple-ml (Kimi)",
+    "app": "Kimi",
+    "project": "maple-ml",
+    "session_id": "db11-a",
+    "turns": [
+     {
+      "turn_id": "db11-a-t1",
+      "ended_at": "2026-11-18T10:20:00Z",
+      "source": "Loss went NaN at step 900 after raising the learning rate to 3e-3. Rolled back to the last checkpoint and halved the rate; resuming.",
+      "facts": {
+       "outcome": "failure",
+       "level": "L3",
+       "tests": {
+        "state": "none",
+        "passed": 0,
+        "failed": 0
+       },
+       "questions": [],
+       "failures": [
+        "NaN loss at step 900"
+       ]
+      }
+     }
+    ],
+    "events": [
+     {
+      "kind": "failed",
+      "at": "2026-11-18T10:20:00Z",
+      "detail": "NaN loss"
+     }
+    ]
+   },
+   {
+    "agent": "maple-ml (ZCode)",
+    "app": "ZCode",
+    "project": "maple-ml",
+    "session_id": "db11-b",
+    "turns": [
+     {
+      "turn_id": "db11-b-t1",
+      "ended_at": "2026-11-18T10:05:00Z",
+      "source": "Removed duplicates and corrupt images from the training folder. About 3 percent of the files were dropped, the rest unchanged, and the manifest is regenerated.",
+      "facts": {
+       "outcome": "success",
+       "level": "L1",
+       "tests": {
+        "state": "none",
+        "passed": 0,
+        "failed": 0
+       },
+       "questions": [],
+       "failures": []
+      }
+     }
+    ],
+    "events": []
+   },
+   {
+    "agent": "maple-api (Codex)",
+    "app": "Codex",
+    "project": "maple-api",
+    "session_id": "db11-c",
+    "turns": [
+     {
+      "turn_id": "db11-c-t1",
+      "ended_at": "2026-11-18T10:00:00Z",
+      "source": "Wrote reference pages for six new endpoints with request and response examples. Each example ran against the sandbox and returned the shown data.",
+      "facts": {
+       "outcome": "success",
+       "level": "L1",
+       "tests": {
+        "state": "none",
+        "passed": 0,
+        "failed": 0
+       },
+       "questions": [],
+       "failures": []
+      }
+     }
+    ],
+    "events": []
+   },
+   {
+    "agent": "maple-api (Claude Code)",
+    "app": "Claude Code",
+    "project": "maple-api",
+    "session_id": "db11-d",
+    "turns": [
+     {
+      "turn_id": "db11-d-t1",
+      "ended_at": "2026-11-18T10:25:00Z",
+      "source": "Der Merge scheitert an der Lockfile. Beide Seiten haben Pakete aktualisiert. Ich habe nichts aufgelöst und warte, bis du sagst, welche Seite gewinnt.",
+      "facts": {
+       "outcome": "failure",
+       "level": "L3",
+       "tests": {
+        "state": "none",
+        "passed": 0,
+        "failed": 0
+       },
+       "questions": [
+        "Welche Seite gewinnt?"
+       ],
+       "failures": [
+        "merge conflict in package-lock.json"
+       ]
+      }
+     }
+    ],
+    "events": []
+   }
+  ],
+  "first": "Digest · 10:25 · 4 agents\nmaple-api (Claude Code) · failed: “merge conflict in package-lock.json”\nmaple-ml (Kimi) · failed: “NaN loss at step 900”\nmaple-ml (ZCode) · finished · 1 turn · last: “Removed duplicates and corrupt images from the training folder.”\nmaple-api (Codex) · finished · wrote reference pages for six new endpoints with request and",
+  "second": "Digest · 10:25 · 4 agents\nmaple-api (Claude Code) · failed: “merge conflict in package-lock.json”\nmaple-ml (Kimi) · failed: “NaN loss at step 900”\nmaple-ml (ZCode) · finished · 1 turn · last: “Removed duplicates and corrupt images from the training folder.”\nmaple-api (Codex) · finished · 1 turn · last: “Wrote reference pages for six new endpoints with request and response examples.”"
+ }
+]

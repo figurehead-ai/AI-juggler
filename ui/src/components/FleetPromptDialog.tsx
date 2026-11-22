@@ -1,10 +1,11 @@
 import { keepIfSame } from "../lib/same";
 import { everyWhileShown } from "../lib/shown-window";
 import { useEffect, useRef, useState, type JSX } from "react";
-import { Button, Card } from "./primitives";
+import { Button } from "./primitives";
 import { fleetPromptDecide, fleetPrompts } from "../lib/ipc/fleet-remote";
 import { linkStatus } from "../lib/ipc/link";
 import type { FleetPromptInfo } from "../types/generated/FleetPromptInfo";
+import { DialogFrame, DialogOverlay } from "./DialogFrame";
 
 /**
  * AJ-E709 — "Ask each time": a paired machine asked to act on THIS Mac.
@@ -72,18 +73,33 @@ export function FleetPromptDialog(): JSX.Element | null {
     setPrompts((now) => now.filter((p) => p.id !== prompt.id));
   };
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-6">
-      <Card
-        className="w-full max-w-sm p-5"
+    <DialogOverlay className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4">
+      <DialogFrame
+        className="sheen rounded-card border border-hairline bg-surface shadow-card w-full max-w-sm"
         role="alertdialog"
         aria-modal="true"
         aria-labelledby="fleet-prompt-title"
         aria-describedby="fleet-prompt-body"
         data-testid="fleet-prompt"
+        bodyClassName="px-5 pb-1.5"
+        footerClassName="px-5 pt-2.5 pb-5"
+        footer={
+          <div className="flex justify-end gap-2">
+            <Button ref={denyRef} size="sm" variant="secondary" onClick={() => void decide(false)} data-testid="fleet-prompt-deny">
+              Deny
+            </Button>
+            <Button size="sm" variant="danger" onClick={() => void decide(true)} data-testid="fleet-prompt-allow">
+              Allow
+            </Button>
+          </div>
+        }
+        headerClassName="px-5 pt-5"
+        header={
+          <p id="fleet-prompt-title" className="text-sm font-semibold">
+            {prompt.peer_label} asks to act on this Mac
+          </p>
+        }
       >
-        <p id="fleet-prompt-title" className="text-sm font-semibold">
-          {prompt.peer_label} asks to act on this Mac
-        </p>
         <p id="fleet-prompt-body" className="mt-1.5 text-xs leading-relaxed text-ink-2">
           It wants to <span className="text-ink">{prompt.action}</span>. Nothing happens unless you
           allow it. If you don't answer, it's denied in {left} s.
@@ -91,15 +107,7 @@ export function FleetPromptDialog(): JSX.Element | null {
         <p className="mt-2 text-label text-muted">
           You chose "Ask each time" for {prompt.peer_label}; change it in Fleet.
         </p>
-        <div className="mt-4 flex justify-end gap-2">
-          <Button ref={denyRef} size="sm" variant="secondary" onClick={() => void decide(false)} data-testid="fleet-prompt-deny">
-            Deny
-          </Button>
-          <Button size="sm" variant="danger" onClick={() => void decide(true)} data-testid="fleet-prompt-allow">
-            Allow
-          </Button>
-        </div>
-      </Card>
-    </div>
+      </DialogFrame>
+    </DialogOverlay>
   );
 }

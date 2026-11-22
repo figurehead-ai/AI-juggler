@@ -18,7 +18,7 @@ export type Band = "needs" | "working" | "open" | "recent" | "earlier";
 /** The order's sections, in order. */
 export const BANDS: readonly Band[] = ["needs", "working", "open", "recent", "earlier"];
 
-export const BAND_WORDS: Record<Band, string> = {
+const BAND_WORDS: Record<Band, string> = {
   needs: "Needs you",
   working: "Working",
   open: "Open",
@@ -167,4 +167,12 @@ export function narrowedFacets(rowsFor: (filters: Filters) => readonly Belongs[]
   const out = { ...every };
   for (const kind of FACET_KINDS) if (filters[kind] !== null) out[kind] = facetsOf(rowsFor({ ...filters, [kind]: null }))[kind];
   return out;
+}
+
+/** The rows' section headings, once there's more than one section, or
+ * (SK48-9) more to read than the rows shown: the same rows read the same
+ * with a filter on or off. */
+export function sectionsOf<T>(items: readonly T[], total: number, band: (row: T) => Band): ((row: T) => string) | undefined {
+  if (items.length === 0) return undefined;
+  return new Set(items.map(band)).size > 1 || total > items.length ? (row: T) => BAND_WORDS[band(row)] : undefined;
 }

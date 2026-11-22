@@ -25,9 +25,10 @@ import MessageNeedsSource from "../../components/MessageNeeds.tsx?raw";
 import { MessagesView, threadToShow } from "./MessagesView";
 import { hopWords } from "./words";
 import { SharedDocs } from "./SharedDocs";
-import { MessageNeeds } from "../../components/MessageNeeds";
+import { MessageNeedCard, MessageNeeds } from "../../components/MessageNeeds";
+import { ActionHostProvider } from "../../components/ItemMenu";
 import { desktopRecipients } from "../../lib/connector";
-import { resetPreviewMessages, type MessageInfo, type MessageNeedInfo, type MessagesSeed, type ThreadInfo } from "../../lib/ipc/messages";
+import { resetPreviewMessages, takeReplyFocus, type MessageInfo, type MessageNeedInfo, type MessagesSeed, type ThreadInfo } from "../../lib/ipc/messages";
 
 type Seams = { __AIJ_MESSAGES__?: MessagesSeed; __AIJ_MESSAGES_CALLS__?: string[] };
 const seams = () => window as unknown as Seams;
@@ -79,8 +80,8 @@ const need = (over: Partial<MessageNeedInfo>): MessageNeedInfo => ({
   session_id: null,
   ask_id: "ask-1",
   offer_always: false,
-  title: "«Planner» wants to message Builder",
-  detail: "«Start on the API» · above what the pool lets agents do",
+  title: "“Planner” wants to message Builder",
+  detail: "“Start on the API” · above what the pool lets agents do",
   preview: "Can I start?",
   at_ms: NOW,
   ...over,
@@ -129,7 +130,7 @@ describe("a pool's messages", () => {
   });
 
   it("says when the pool is paused, and why, with Resume", async () => {
-    seams().__AIJ_MESSAGES__!.paused = [{ pool_id: "pool-team", pool_name: "Checkout redesign", at_ms: NOW, reason: "«Alpha» and «Beta» kept answering each other (8 messages without you)" }];
+    seams().__AIJ_MESSAGES__!.paused = [{ pool_id: "pool-team", pool_name: "Checkout redesign", at_ms: NOW, reason: "“Alpha” and “Beta” kept answering each other (8 messages without you)" }];
     const { findByTestId } = render(<MessagesView poolId="pool-team" members={members} now={NOW} />);
     const banner = await findByTestId("messages-paused");
     expect(banner.textContent).toContain("kept answering each other");
@@ -186,7 +187,7 @@ describe("a pool's messages", () => {
   // answers: Deliver and Don't deliver.
   it("a chain paused at the hop limit has Deliver and Don't deliver on its message", async () => {
     seams().__AIJ_MESSAGES__!.threads![0] = thread({ state: "paused", state_reason: "it reached this pool's hop limit", hop: 3, hop_cap: 2 });
-    seams().__AIJ_MESSAGES__!.needs = [need({ kind: "deliver", key: "ask:hop", ask_id: "ask-hop", title: "«Planner»'s message would start «Builder»'s next turn" })];
+    seams().__AIJ_MESSAGES__!.needs = [need({ kind: "deliver", key: "ask:hop", ask_id: "ask-hop", title: "“Planner”'s message would start “Builder”'s next turn" })];
     const { findByTestId, getByTestId } = render(<MessagesView poolId="pool-team" members={members} now={NOW} />);
     const answers = await findByTestId("message-held-answers");
     expect(getByTestId("thread-resume")).toBeTruthy();
@@ -293,14 +294,36 @@ describe("Needs you", () => {
   it("offers the rule from the second time, never for the hop limit", () => {
     const { getAllByTestId, rerender } = render(<MessageNeeds needs={[need({ offer_always: true })]} />);
     expect(getAllByTestId("ask-option-always")).toHaveLength(1);
-    rerender(<MessageNeeds needs={[need({ kind: "deliver", key: "ask:2", ask_id: "ask-2", offer_always: false, title: "«Planner»'s message would start another session's turn" })]} />);
+    rerender(<MessageNeeds needs={[need({ kind: "deliver", key: "ask:2", ask_id: "ask-2", offer_always: false, title: "“Planner”'s message would start another session's turn" })]} />);
     expect(document.querySelector("[data-testid='ask-option-always']")).toBeNull();
     expect(getAllByTestId("ask-card")[0]!.textContent).toContain("Don't deliver");
   });
 
+  it("an agent's question is its own card, the question inline; Reply opens its thread at the reply box (D-118's mock)", () => {
+    const opened: string[] = [];
+    const question = need({ key: "question:m-q1", kind: "question", ask_id: null, title: "builder-1 asks you", detail: "Export flow", sender: "builder-1", thread: "Export flow", pool_name: "Release pool", preview: "Use the v2 export API, or keep v1 for this release?", at_ms: NOW - 5 * 60_000 });
+    const { getByTestId } = render(
+      <ActionHostProvider host={{ openPool: (id) => void opened.push(id) }}>
+        <ul><MessageNeedCard need={question} now={NOW} first /></ul>
+      </ActionHostProvider>,
+    );
+    const card = getByTestId("message-need-question");
+    expect(card.textContent).toContain("builder-1");
+    expect(card.textContent).toContain("Release pool · Export flow");
+    expect(card.textContent).toContain("5 min");
+    expect(getByTestId("message-need-said").textContent).toBe("Asks you: “Use the v2 export API, or keep v1 for this release?”");
+    expect(card.getAttribute("aria-label")).toBe("builder-1 asks you: Use the v2 export API, or keep v1 for this release?");
+    expect(within(card).getByRole("button", { name: /^Open the thread/ })).toBeTruthy();
+    fireEvent.click(within(card).getByRole("button", { name: /^Reply/ }));
+    expect(opened).toEqual(["pool-team"]);
+    expect(takeReplyFocus("thr-1")).toBe(true);
+    expect(takeReplyFocus("thr-1")).toBe(false);
+  });
+
   it("messages waiting for a session are one Deliver", async () => {
     const waiting = need({ key: "waiting:sess-done-1", kind: "waiting", ask_id: null, session_id: "sess-done-1", title: "Builder has 2 messages waiting", detail: "from Planner · Checkout redesign" });
-    const { getByTestId } = render(<MessageNeeds needs={[waiting]} />);
+    // Its own card (D-118's mock), in Needs you's one order.
+    const { getByTestId } = render(<ul><MessageNeedCard need={waiting} /></ul>);
     fireEvent.click(within(getByTestId("message-need-waiting")).getByRole("button", { name: /^Deliver/ }));
     await waitFor(() => expect(calls()).toContain("deliver-waiting:sess-done-1"));
   });

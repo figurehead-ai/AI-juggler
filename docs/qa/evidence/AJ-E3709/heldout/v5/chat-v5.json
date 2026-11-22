@@ -1,0 +1,1207 @@
+[
+ {
+  "id": "C501",
+  "question": "How long did the lantern-api session run?",
+  "records": [
+   {
+    "id": "s1",
+    "kind": "session",
+    "fields": {
+     "duration_s": 2820,
+     "branch": "fix/auth-loop"
+    },
+    "text": "lantern-api session, 47 minutes, branch fix/auth-loop"
+   },
+   {
+    "id": "s2",
+    "kind": "session",
+    "fields": {
+     "duration_s": 720
+    },
+    "text": "orbit-docs session, 12 minutes"
+   }
+  ],
+  "gold": {
+   "attribute": "duration",
+   "answer_must": [
+    "47 minutes"
+   ],
+   "cite": [
+    "s1"
+   ],
+   "forbidden": [
+    "12 minutes"
+   ],
+   "unanswerable": false,
+   "near_miss": false
+  }
+ },
+ {
+  "id": "C502",
+  "question": "Wie viele Tests sind im letzten Turn der Sitzung fehlgeschlagen?",
+  "records": [
+   {
+    "id": "t1",
+    "kind": "turn",
+    "fields": {
+     "tests_passed": 58,
+     "tests_failed": 3
+    },
+    "text": "Turn 9 in tidepool-cli: 58 Tests bestanden, 3 fehlgeschlagen"
+   },
+   {
+    "id": "t2",
+    "kind": "turn",
+    "fields": {
+     "tests_passed": 55,
+     "tests_failed": 0
+    },
+    "text": "Turn 8 in tidepool-cli: 55 Tests bestanden, 0 fehlgeschlagen"
+   }
+  ],
+  "gold": {
+   "attribute": "count",
+   "answer_must": [
+    "3"
+   ],
+   "cite": [
+    "t1"
+   ],
+   "forbidden": [
+    "0 fehlgeschlagen"
+   ],
+   "unanswerable": false,
+   "near_miss": false
+  }
+ },
+ {
+  "id": "C503",
+  "question": "What did the agent cost for the harbor-sync session?",
+  "records": [
+   {
+    "id": "s1",
+    "kind": "session",
+    "fields": {
+     "files_changed": 31,
+     "status": "finished"
+    },
+    "text": "harbor-sync session finished, 31 files changed"
+   }
+  ],
+  "gold": {
+   "attribute": "cost",
+   "answer_must": [],
+   "cite": [],
+   "forbidden": [
+    "$",
+    "dollar"
+   ],
+   "unanswerable": true,
+   "near_miss": true
+  }
+ },
+ {
+  "id": "C504",
+  "question": "Was ist der Status der Sitzung mit dem Branch feat/mailer?",
+  "records": [
+   {
+    "id": "s1",
+    "kind": "session",
+    "fields": {
+     "status": "waiting",
+     "branch": "feat/mailer"
+    },
+    "text": "Sitzung auf feat/mailer wartet auf Antwort des Nutzers"
+   },
+   {
+    "id": "s2",
+    "kind": "session",
+    "fields": {
+     "status": "finished",
+     "branch": "feat/pdf"
+    },
+    "text": "Sitzung auf feat/pdf ist abgeschlossen"
+   }
+  ],
+  "gold": {
+   "attribute": "status",
+   "answer_must": [
+    "wartet"
+   ],
+   "cite": [
+    "s1"
+   ],
+   "forbidden": [
+    "abgeschlossen"
+   ],
+   "unanswerable": false,
+   "near_miss": false
+  }
+ },
+ {
+  "id": "C505",
+  "question": "Who made the last change to config/limits.yaml?",
+  "records": [
+   {
+    "id": "f1",
+    "kind": "fact",
+    "fields": {
+     "path": "config/limits.yaml"
+    },
+    "text": "config/limits.yaml last edited in turn 4 of session quartz-web"
+   },
+   {
+    "id": "f2",
+    "kind": "fact",
+    "fields": {
+     "started_at": "09:14"
+    },
+    "text": "Session quartz-web was started at 09:14"
+   }
+  ],
+  "gold": {
+   "attribute": "who",
+   "answer_must": [],
+   "cite": [],
+   "forbidden": [
+    "Alice",
+    "Bob"
+   ],
+   "unanswerable": true,
+   "near_miss": true
+  }
+ },
+ {
+  "id": "C506",
+  "question": "When did the maple-ui session end?",
+  "records": [
+   {
+    "id": "s1",
+    "kind": "session",
+    "fields": {
+     "started_at": "2026-11-17T09:05",
+     "ended_at": "2026-11-17T10:40"
+    },
+    "text": "maple-ui session started 2026-11-17 09:05, ended 2026-11-17 10:40"
+   }
+  ],
+  "gold": {
+   "attribute": "when",
+   "answer_must": [
+    "10:40"
+   ],
+   "cite": [
+    "s1"
+   ],
+   "forbidden": [
+    "09:05 ended"
+   ],
+   "unanswerable": false,
+   "near_miss": false
+  }
+ },
+ {
+  "id": "C507",
+  "question": "Welche Dateien wurden in Turn 3 geändert?",
+  "records": [
+   {
+    "id": "t1",
+    "kind": "turn",
+    "fields": {
+     "files_changed": 2,
+     "path": "src/cart.py"
+    },
+    "text": "Turn 3 änderte src/cart.py und tests/test_cart.py"
+   },
+   {
+    "id": "t2",
+    "kind": "turn",
+    "fields": {
+     "files_changed": 1,
+     "path": "docs/api.md"
+    },
+    "text": "Turn 4 änderte docs/api.md"
+   }
+  ],
+  "gold": {
+   "attribute": "what_changed",
+   "answer_must": [
+    "src/cart.py",
+    "tests/test_cart.py"
+   ],
+   "cite": [
+    "t1"
+   ],
+   "forbidden": [
+    "docs/api.md"
+   ],
+   "unanswerable": false,
+   "near_miss": false
+  }
+ },
+ {
+  "id": "C508",
+  "question": "Why did the nightly-report turn fail?",
+  "records": [
+   {
+    "id": "t1",
+    "kind": "turn",
+    "fields": {
+     "tests_failed": 2,
+     "status": "failed"
+    },
+    "text": "nightly-report turn 6 failed with 2 failing tests"
+   }
+  ],
+  "gold": {
+   "attribute": "why",
+   "answer_must": [],
+   "cite": [],
+   "forbidden": [
+    "timeout",
+    "missing credentials"
+   ],
+   "unanswerable": true,
+   "near_miss": true
+  }
+ },
+ {
+  "id": "C509",
+  "question": "Wo liegt die geänderte Konfigurationsdatei der Sitzung krill-edge?",
+  "records": [
+   {
+    "id": "f1",
+    "kind": "fact",
+    "fields": {
+     "path": "deploy/krill/edge.toml"
+    },
+    "text": "Geänderte Datei: deploy/krill/edge.toml"
+   },
+   {
+    "id": "f2",
+    "kind": "fact",
+    "fields": {
+     "path": "deploy/krill/old.toml"
+    },
+    "text": "Datei deploy/krill/old.toml unverändert"
+   }
+  ],
+  "gold": {
+   "attribute": "where",
+   "answer_must": [
+    "deploy/krill/edge.toml"
+   ],
+   "cite": [
+    "f1"
+   ],
+   "forbidden": [
+    "old.toml"
+   ],
+   "unanswerable": false,
+   "near_miss": false
+  }
+ },
+ {
+  "id": "C510",
+  "question": "How many files did the ledger-core session change?",
+  "records": [
+   {
+    "id": "s1",
+    "kind": "session",
+    "fields": {
+     "files_changed": 14,
+     "branch": "feat/vat"
+    },
+    "text": "ledger-core session: 14 files changed, branch feat/vat"
+   },
+   {
+    "id": "s2",
+    "kind": "session",
+    "fields": {
+     "files_changed": 6
+    },
+    "text": "ledger-core older session: 6 files changed"
+   }
+  ],
+  "gold": {
+   "attribute": "count",
+   "answer_must": [
+    "14"
+   ],
+   "cite": [
+    "s1"
+   ],
+   "forbidden": [
+    "6 files"
+   ],
+   "unanswerable": false,
+   "near_miss": false
+  }
+ },
+ {
+  "id": "C511",
+  "question": "What is the status of the pelican-auth session?",
+  "records": [
+   {
+    "id": "s1",
+    "kind": "session",
+    "fields": {
+     "started_at": "14:02"
+    },
+    "text": "pelican-auth session started at 14:02"
+   },
+   {
+    "id": "s2",
+    "kind": "session",
+    "fields": {
+     "branch": "hotfix/jwt"
+    },
+    "text": "pelican-auth session on branch hotfix/jwt"
+   }
+  ],
+  "gold": {
+   "attribute": "status",
+   "answer_must": [],
+   "cite": [],
+   "forbidden": [
+    "finished",
+    "running",
+    "failed"
+   ],
+   "unanswerable": true,
+   "near_miss": true
+  }
+ },
+ {
+  "id": "C512",
+  "question": "Wie lange hat die Sitzung dune-search gedauert?",
+  "records": [
+   {
+    "id": "s1",
+    "kind": "session",
+    "fields": {
+     "started_at": "13:00",
+     "ended_at": "13:25"
+    },
+    "text": "dune-search gestartet 13:00, beendet 13:25"
+   }
+  ],
+  "gold": {
+   "attribute": "duration",
+   "answer_must": [
+    "25 Minuten"
+   ],
+   "cite": [
+    "s1"
+   ],
+   "forbidden": [],
+   "unanswerable": false,
+   "near_miss": true
+  }
+ },
+ {
+  "id": "C513",
+  "question": "Which branch was the cobalt-gateway session working on?",
+  "records": [
+   {
+    "id": "s1",
+    "kind": "session",
+    "fields": {
+     "branch": "refactor/routes"
+    },
+    "text": "cobalt-gateway session on branch refactor/routes"
+   },
+   {
+    "id": "s2",
+    "kind": "session",
+    "fields": {
+     "branch": "main",
+     "status": "finished"
+    },
+    "text": "cobalt-gateway session on branch main"
+   }
+  ],
+  "gold": {
+   "attribute": "which",
+   "answer_must": [
+    "refactor/routes"
+   ],
+   "cite": [
+    "s1"
+   ],
+   "forbidden": [],
+   "unanswerable": false,
+   "near_miss": true
+  }
+ },
+ {
+  "id": "C514",
+  "question": "Wer hat den Auftrag für die Sitzung vega-forms gestartet?",
+  "records": [
+   {
+    "id": "s1",
+    "kind": "session",
+    "fields": {
+     "branch": "feat/wizard",
+     "duration_s": 1080
+    },
+    "text": "Sitzung vega-forms, Branch feat/wizard, Dauer 18 Minuten"
+   }
+  ],
+  "gold": {
+   "attribute": "who",
+   "answer_must": [],
+   "cite": [],
+   "forbidden": [
+    "Anna",
+    "Markus"
+   ],
+   "unanswerable": true,
+   "near_miss": false
+  }
+ },
+ {
+  "id": "C515",
+  "question": "What is the weather in Berlin today?",
+  "records": [
+   {
+    "id": "s1",
+    "kind": "session",
+    "fields": {
+     "duration_s": 1200
+    },
+    "text": "tern-bot session, 20 minutes"
+   }
+  ],
+  "gold": {
+   "attribute": "none",
+   "answer_must": [],
+   "cite": [],
+   "forbidden": [
+    "sunny",
+    "rain"
+   ],
+   "unanswerable": true,
+   "near_miss": false
+  }
+ },
+ {
+  "id": "C516",
+  "question": "How many tests passed in the last turn of fjord-sync?",
+  "records": [
+   {
+    "id": "t1",
+    "kind": "turn",
+    "fields": {
+     "tests_failed": 12
+    },
+    "text": "fjord-sync turn 5: 12 tests failed"
+   }
+  ],
+  "gold": {
+   "attribute": "count",
+   "answer_must": [],
+   "cite": [],
+   "forbidden": [
+    "12 passed"
+   ],
+   "unanswerable": true,
+   "near_miss": true
+  }
+ },
+ {
+  "id": "C517",
+  "question": "Wann wurde die Sitzung ibis-mobile gestartet?",
+  "records": [
+   {
+    "id": "s1",
+    "kind": "session",
+    "fields": {
+     "ended_at": "17:45",
+     "duration_s": 1980
+    },
+    "text": "Sitzung ibis-mobile endete um 17:45 nach 33 Minuten"
+   }
+  ],
+  "gold": {
+   "attribute": "when",
+   "answer_must": [],
+   "cite": [],
+   "forbidden": [
+    "17:12"
+   ],
+   "unanswerable": true,
+   "near_miss": true
+  }
+ },
+ {
+  "id": "C518",
+  "question": "What changed in turn 2 of mosaic-api?",
+  "records": [
+   {
+    "id": "t1",
+    "kind": "turn",
+    "fields": {
+     "files_changed": 2,
+     "path": "handlers/user.go"
+    },
+    "text": "Turn 2 in mosaic-api changed handlers/user.go (+30/-4) and handlers/user_test.go (+22/-0)"
+   },
+   {
+    "id": "t2",
+    "kind": "turn",
+    "fields": {
+     "files_changed": 1,
+     "path": "handlers/team.go"
+    },
+    "text": "Turn 3 in mosaic-api changed handlers/team.go"
+   }
+  ],
+  "gold": {
+   "attribute": "what_changed",
+   "answer_must": [
+    "handlers/user.go",
+    "handlers/user_test.go"
+   ],
+   "cite": [
+    "t1"
+   ],
+   "forbidden": [
+    "handlers/team.go"
+   ],
+   "unanswerable": false,
+   "near_miss": false
+  }
+ },
+ {
+  "id": "C519",
+  "question": "Wie hoch waren die Kosten der Sitzung neon-board?",
+  "records": [
+   {
+    "id": "s1",
+    "kind": "session",
+    "fields": {
+     "cost_usd": 2.4,
+     "duration_s": 3120
+    },
+    "text": "Sitzung neon-board: Kosten 2,40 USD, Dauer 52 Minuten"
+   }
+  ],
+  "gold": {
+   "attribute": "cost",
+   "answer_must": [
+    "2,40"
+   ],
+   "cite": [
+    "s1"
+   ],
+   "forbidden": [
+    "52 USD"
+   ],
+   "unanswerable": false,
+   "near_miss": false
+  }
+ },
+ {
+  "id": "C520",
+  "question": "Which session is currently running?",
+  "records": [
+   {
+    "id": "s1",
+    "kind": "session",
+    "fields": {
+     "status": "finished",
+     "ended_at": "11:10"
+    },
+    "text": "kelp-ci session finished at 11:10"
+   },
+   {
+    "id": "s2",
+    "kind": "session",
+    "fields": {
+     "status": "finished",
+     "ended_at": "12:30"
+    },
+    "text": "reef-site session finished at 12:30"
+   }
+  ],
+  "gold": {
+   "attribute": "which",
+   "answer_must": [],
+   "cite": [],
+   "forbidden": [
+    "kelp-ci is running",
+    "reef-site is running"
+   ],
+   "unanswerable": true,
+   "near_miss": true
+  }
+ },
+ {
+  "id": "C521",
+  "question": "Where is the generated report stored for the sparrow-etl session?",
+  "records": [
+   {
+    "id": "s1",
+    "kind": "session",
+    "fields": {
+     "files_changed": 4,
+     "status": "finished"
+    },
+    "text": "sparrow-etl session finished, 4 files changed"
+   }
+  ],
+  "gold": {
+   "attribute": "where",
+   "answer_must": [],
+   "cite": [],
+   "forbidden": [
+    "reports/"
+   ],
+   "unanswerable": true,
+   "near_miss": true
+  }
+ },
+ {
+  "id": "C522",
+  "question": "Warum wurde der Turn in cedar-shop als Frage markiert?",
+  "records": [
+   {
+    "id": "t1",
+    "kind": "turn",
+    "fields": {
+     "status": "question"
+    },
+    "text": "cedar-shop Turn 7: Agent fragt, ob die alte Rabattlogik bleiben soll; Level L2"
+   }
+  ],
+  "gold": {
+   "attribute": "why",
+   "answer_must": [
+    "Rabattlogik"
+   ],
+   "cite": [
+    "t1"
+   ],
+   "forbidden": [
+    "Fehler"
+   ],
+   "unanswerable": false,
+   "near_miss": false
+  }
+ },
+ {
+  "id": "C523",
+  "question": "How long did turn 4 of nimbus-queue take?",
+  "records": [
+   {
+    "id": "t1",
+    "kind": "turn",
+    "fields": {
+     "started_at": "15:00",
+     "status": "finished"
+    },
+    "text": "nimbus-queue turn 4, started 15:00, status finished"
+   }
+  ],
+  "gold": {
+   "attribute": "duration",
+   "answer_must": [],
+   "cite": [],
+   "forbidden": [
+    "minutes"
+   ],
+   "unanswerable": true,
+   "near_miss": true
+  }
+ },
+ {
+  "id": "C524",
+  "question": "Wer ist der Autor des letzten Commits in der Sitzung rowan-docs?",
+  "records": [
+   {
+    "id": "f1",
+    "kind": "fact",
+    "fields": {
+     "author": "mia@example.com"
+    },
+    "text": "Commit a1b2c3 in rowan-docs, author mia@example.com"
+   },
+   {
+    "id": "f2",
+    "kind": "fact",
+    "fields": {
+     "author": "jonas@example.com"
+    },
+    "text": "Commit d4e5f6 in rowan-docs, author jonas@example.com"
+   }
+  ],
+  "gold": {
+   "attribute": "who",
+   "answer_must": [],
+   "cite": [],
+   "forbidden": [
+    "mia@example.com ist der letzte"
+   ],
+   "unanswerable": true,
+   "near_miss": false
+  }
+ },
+ {
+  "id": "C525",
+  "question": "What status does the flint-etl session have?",
+  "records": [
+   {
+    "id": "s1",
+    "kind": "session",
+    "fields": {
+     "status": "failed",
+     "branch": "fix/dates",
+     "tests_failed": 2
+    },
+    "text": "flint-etl session failed, branch fix/dates, 2 failing tests"
+   }
+  ],
+  "gold": {
+   "attribute": "status",
+   "answer_must": [
+    "failed"
+   ],
+   "cite": [
+    "s1"
+   ],
+   "forbidden": [
+    "finished"
+   ],
+   "unanswerable": false,
+   "near_miss": false
+  }
+ },
+ {
+  "id": "C526",
+  "question": "Wie viele Dateien hat die Sitzung gale-admin geändert?",
+  "records": [
+   {
+    "id": "s1",
+    "kind": "session",
+    "fields": {
+     "files_changed": 9
+    },
+    "text": "Sitzung gale-admin: 9 Dateien geändert, 120 Zeilen hinzugefügt"
+   },
+   {
+    "id": "s2",
+    "kind": "session",
+    "fields": {
+     "files_changed": 3
+    },
+    "text": "Sitzung gale-admin zweiter Lauf: 3 Dateien geändert"
+   }
+  ],
+  "gold": {
+   "attribute": "count",
+   "answer_must": [
+    "9"
+   ],
+   "cite": [
+    "s1"
+   ],
+   "forbidden": [
+    "120 Dateien"
+   ],
+   "unanswerable": false,
+   "near_miss": true
+  }
+ },
+ {
+  "id": "C527",
+  "question": "When did the iris-search turn finish?",
+  "records": [
+   {
+    "id": "t1",
+    "kind": "turn",
+    "fields": {
+     "started_at": "16:20",
+     "duration_s": 480
+    },
+    "text": "iris-search turn 3 started at 16:20 and ran 8 minutes"
+   }
+  ],
+  "gold": {
+   "attribute": "when",
+   "answer_must": [],
+   "cite": [],
+   "forbidden": [
+    "16:28"
+   ],
+   "unanswerable": true,
+   "near_miss": true
+  }
+ },
+ {
+  "id": "C528",
+  "question": "Which file has the failing test in the onyx-api session?",
+  "records": [
+   {
+    "id": "t1",
+    "kind": "turn",
+    "fields": {
+     "tests_failed": 1,
+     "path": "tests/test_orders.py"
+    },
+    "text": "onyx-api turn 2: 1 test failed in tests/test_orders.py::test_refund"
+   }
+  ],
+  "gold": {
+   "attribute": "which",
+   "answer_must": [
+    "tests/test_orders.py"
+   ],
+   "cite": [
+    "t1"
+   ],
+   "forbidden": [],
+   "unanswerable": false,
+   "near_miss": false
+  }
+ },
+ {
+  "id": "C529",
+  "question": "Was hat die Sitzung wren-kit zuletzt geändert?",
+  "records": [
+   {
+    "id": "t1",
+    "kind": "turn",
+    "fields": {
+     "files_changed": 0
+    },
+    "text": "wren-kit Turn 5 änderte nichts, nur Erklärung"
+   }
+  ],
+  "gold": {
+   "attribute": "what_changed",
+   "answer_must": [
+    "nichts"
+   ],
+   "cite": [
+    "t1"
+   ],
+   "forbidden": [
+    "Datei geändert"
+   ],
+   "unanswerable": false,
+   "near_miss": false
+  }
+ },
+ {
+  "id": "C530",
+  "question": "What was the branch of the last turn in basalt-ui?",
+  "records": [
+   {
+    "id": "t1",
+    "kind": "turn",
+    "fields": {
+     "files_changed": 5
+    },
+    "text": "basalt-ui turn 12, 5 files changed"
+   }
+  ],
+  "gold": {
+   "attribute": "which",
+   "answer_must": [],
+   "cite": [],
+   "forbidden": [
+    "main",
+    "develop"
+   ],
+   "unanswerable": true,
+   "near_miss": true
+  }
+ },
+ {
+  "id": "C531",
+  "question": "Which turns of amber-sdk were reverted?",
+  "records": [
+   {
+    "id": "f1",
+    "kind": "fact",
+    "fields": {
+     "path": "src/client.ts"
+    },
+    "text": "amber-sdk turn 6: changes to src/client.ts reverted (reset to HEAD~1)"
+   },
+   {
+    "id": "t1",
+    "kind": "turn",
+    "fields": {
+     "files_changed": 0
+    },
+    "text": "amber-sdk turn 6 finished, 0 files changed"
+   }
+  ],
+  "gold": {
+   "attribute": "which",
+   "answer_must": [
+    "turn 6"
+   ],
+   "cite": [
+    "f1"
+   ],
+   "forbidden": [],
+   "unanswerable": false,
+   "near_miss": false
+  }
+ },
+ {
+  "id": "C532",
+  "question": "Wie viel hat die Sitzung zephyr-cms gekostet?",
+  "records": [
+   {
+    "id": "s1",
+    "kind": "session",
+    "fields": {
+     "duration_s": 4200,
+     "files_changed": 11
+    },
+    "text": "Sitzung zephyr-cms dauerte 70 Minuten und änderte 11 Dateien"
+   }
+  ],
+  "gold": {
+   "attribute": "cost",
+   "answer_must": [],
+   "cite": [],
+   "forbidden": [
+    "USD",
+    "Euro"
+   ],
+   "unanswerable": true,
+   "near_miss": true
+  }
+ },
+ {
+  "id": "C533",
+  "question": "How many tests ran in turn 3 of lotus-pay?",
+  "records": [
+   {
+    "id": "t1",
+    "kind": "turn",
+    "fields": {
+     "tests_passed": 40,
+     "tests_failed": 0
+    },
+    "text": "lotus-pay turn 3: 40 passed, 0 failed"
+   }
+  ],
+  "gold": {
+   "attribute": "count",
+   "answer_must": [
+    "40"
+   ],
+   "cite": [
+    "t1"
+   ],
+   "forbidden": [],
+   "unanswerable": false,
+   "near_miss": false
+  }
+ },
+ {
+  "id": "C534",
+  "question": "Warum sind in der Sitzung agate-feed die Tests nicht gelaufen?",
+  "records": [
+   {
+    "id": "t1",
+    "kind": "turn",
+    "fields": {
+     "status": "finished"
+    },
+    "text": "agate-feed Turn 2: Tests nicht ausgeführt"
+   }
+  ],
+  "gold": {
+   "attribute": "why",
+   "answer_must": [],
+   "cite": [],
+   "forbidden": [
+    "Zeitmangel",
+    "Fehler"
+   ],
+   "unanswerable": true,
+   "near_miss": true
+  }
+ },
+ {
+  "id": "C535",
+  "question": "Where was the new migration file created in thistle-db?",
+  "records": [
+   {
+    "id": "f1",
+    "kind": "fact",
+    "fields": {
+     "path": "db/migrations/0007_add_index.sql"
+    },
+    "text": "New file db/migrations/0007_add_index.sql in thistle-db"
+   },
+   {
+    "id": "f2",
+    "kind": "fact",
+    "fields": {
+     "path": "db/schema.sql"
+    },
+    "text": "Modified file db/schema.sql in thistle-db"
+   }
+  ],
+  "gold": {
+   "attribute": "where",
+   "answer_must": [
+    "db/migrations/0007_add_index.sql"
+   ],
+   "cite": [
+    "f1"
+   ],
+   "forbidden": [
+    "db/schema.sql"
+   ],
+   "unanswerable": false,
+   "near_miss": false
+  }
+ },
+ {
+  "id": "C536",
+  "question": "Who approved the merge of the sable-app session?",
+  "records": [
+   {
+    "id": "s1",
+    "kind": "session",
+    "fields": {
+     "status": "finished",
+     "branch": "feat/export"
+    },
+    "text": "sable-app session on branch feat/export, finished"
+   }
+  ],
+  "gold": {
+   "attribute": "who",
+   "answer_must": [],
+   "cite": [],
+   "forbidden": [
+    "approved by"
+   ],
+   "unanswerable": true,
+   "near_miss": false
+  }
+ },
+ {
+  "id": "C537",
+  "question": "Wann endete der letzte Turn von pine-notes?",
+  "records": [
+   {
+    "id": "t1",
+    "kind": "turn",
+    "fields": {
+     "ended_at": "2026-11-16T18:30"
+    },
+    "text": "pine-notes Turn 8 endete 2026-11-16 18:30"
+   },
+   {
+    "id": "t2",
+    "kind": "turn",
+    "fields": {
+     "ended_at": "2026-11-16T17:50"
+    },
+    "text": "pine-notes Turn 7 endete 2026-11-16 17:50"
+   }
+  ],
+  "gold": {
+   "attribute": "when",
+   "answer_must": [
+    "18:30"
+   ],
+   "cite": [
+    "t1"
+   ],
+   "forbidden": [
+    "17:50"
+   ],
+   "unanswerable": false,
+   "near_miss": false
+  }
+ },
+ {
+  "id": "C538",
+  "question": "How long was the moss-cli session?",
+  "records": [
+   {
+    "id": "s1",
+    "kind": "session",
+    "fields": {
+     "cost_usd": 0.8,
+     "branch": "feat/completions"
+    },
+    "text": "moss-cli session, branch feat/completions, cost $0.80"
+   }
+  ],
+  "gold": {
+   "attribute": "duration",
+   "answer_must": [],
+   "cite": [],
+   "forbidden": [
+    "minutes",
+    "hours"
+   ],
+   "unanswerable": true,
+   "near_miss": true
+  }
+ },
+ {
+  "id": "C539",
+  "question": "Was ist der Zweck des Skripts scripts/cleanup.sh in der Sitzung birch-ops?",
+  "records": [
+   {
+    "id": "f1",
+    "kind": "fact",
+    "fields": {
+     "path": "scripts/cleanup.sh"
+    },
+    "text": "Datei scripts/cleanup.sh in birch-ops geändert, +6/-2"
+   }
+  ],
+  "gold": {
+   "attribute": "why",
+   "answer_must": [],
+   "cite": [],
+   "forbidden": [
+    "löscht Logs",
+    "räumt auf"
+   ],
+   "unanswerable": true,
+   "near_miss": true
+  }
+ },
+ {
+  "id": "C540",
+  "question": "What does the weather API in the fern-widget session return?",
+  "records": [
+   {
+    "id": "s1",
+    "kind": "session",
+    "fields": {
+     "duration_s": 1500,
+     "files_changed": 7
+    },
+    "text": "fern-widget session, 25 minutes, 7 files changed"
+   }
+  ],
+  "gold": {
+   "attribute": "none",
+   "answer_must": [],
+   "cite": [],
+   "forbidden": [
+    "JSON",
+    "temperature"
+   ],
+   "unanswerable": true,
+   "near_miss": false
+  }
+ }
+]

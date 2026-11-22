@@ -7,9 +7,9 @@
 //!   wrapper re-ensured idempotently each pass) + transcript `usage`
 //!   lines (Measured tokens), offset-tracked per file.
 //! - Codex: rollout `token_usage_record` lines (Measured tokens).
-//! - `ZCode`: `model_usage` via read-only SQLite (Computed credits).
 //! - A tool that keeps its usage in a store read by time (OpenCode's
-//!   `opencode.db`): through its adapter's `usage_since`, read-only.
+//!   `opencode.db`, `ZCode`'s `model_usage` as Computed credits): through
+//!   its adapter's `usage_since`, read-only.
 //! - Gemini: NO source exists at any grade (AJ-E605) — nothing to
 //!   tail; the absence is a typed decision, not an omission.
 //!
@@ -35,8 +35,6 @@ use gate::soon as pass_soon;
 const PASS_EVERY_MS: u64 = 1_000;
 /// Transcript/rollout scan cadence: every 4th pass (~4 s).
 const FILE_SCAN_EVERY: u32 = 4;
-/// `ZCode` SQLite re-read cadence: every 15th pass (~15 s).
-const ZCODE_EVERY: u32 = 15;
 /// The persisted offsets+health blob's settings key.
 const INGEST_STATE_KEY: &str = "usage_ingest_state";
 /// Per account: the newest credits snapshot (JSON) its tool reported (Codex,
@@ -331,6 +329,10 @@ fn ingest_pass_due(state: &Arc<AppState>, tick: u32, due: gate::Due, named: Opti
     // 0.4.4: a limit hit in a moved conversation is the folder's it was
     // written in (the move journal), not the one it sits in now.
     let spent = crate::features::handover::moved_lines::SpentOn::new(state, &accounts);
+    // AJ-E3210: each folder's Apps' Accounts, read once if a reading needs
+    // them (a shared folder's readings carry the Account they were read
+    // under).
+    let sign_ins = crate::features::quota::records::SignInsByFolder::new(state);
 
     for account in &accounts {
         let account_id = account.id.as_str().to_owned();
@@ -358,7 +360,7 @@ fn ingest_pass_due(state: &Arc<AppState>, tick: u32, due: gate::Due, named: Opti
                     &mut ingest,
                     &mut store_batch,
                     &mut sample_batch,
-                    (instances.as_deref(), &spent, named),
+                    (instances.as_deref(), &spent, &sign_ins, named),
                 );
             }
             "codex" if rereading || due.codex => {
@@ -370,9 +372,6 @@ fn ingest_pass_due(state: &Arc<AppState>, tick: u32, due: gate::Due, named: Opti
                     &mut sample_batch,
                     (&mut credits_batch, &mut checks, named),
                 );
-            }
-            "zcode" if due.zcode => {
-                ingest_zcode(&account_id, &dir, &mut ingest, &mut store_batch);
             }
             // ADR-0019 §2: a tool whose usage sits in a store read by time
             // (a database) reads it through its adapter.
@@ -441,6 +440,9 @@ fn records_first(
                 .is_some_and(|adapter| adapter.spec().app_meter)
         })
         .filter(|account| !account.state_dir.as_os_str().is_empty());
+    // AJ-E3210: each reading tagged with the Account it was read under, as
+    // the pass's own read tags it.
+    let sign_ins = crate::features::quota::records::SignInsByFolder::new(state);
     for account in claude {
         let id = account.id.as_str();
         let mut records = ingest
@@ -452,18 +454,26 @@ fn records_first(
             id,
             &account.state_dir,
             instances,
+            sign_ins.of(id),
             &mut records,
             &mut batch,
         );
         marks.push((id.to_owned(), records));
     }
-    if batch.windows.is_empty() && batch.model_weeks.is_empty() {
+    if batch.windows.is_empty()
+        && batch.model_weeks.is_empty()
+        && batch.signed.windows.is_empty()
+        && batch.signed.model_weeks.is_empty()
+    {
         return;
     }
+    // As the pass stores them (`store_pass`): the signed readings too
+    // (AJ-E3210), which is where a Claude app's meter lands.
     let stored = state.storage.lock().is_ok_and(|storage| {
         let usage = storage.usage();
         usage.insert_sourced_samples(&batch.windows).is_ok()
             && usage.insert_model_week_samples(&batch.model_weeks).is_ok()
+            && usage.insert_signed_samples(&batch.signed).is_ok()
     });
     if stored {
         for (id, records) in marks {
@@ -520,6 +530,7 @@ fn store_pass(
         || usage
             .insert_model_week_samples(&sample_batch.model_weeks)
             .is_err()
+        || usage.insert_signed_samples(&sample_batch.signed).is_err()
     {
         return false;
     }
@@ -772,9 +783,10 @@ fn ingest_claude(
     ingest: &mut IngestState,
     store: &mut Vec<juggler_core::quota::UsageEvent>,
     samples: &mut SampleBatch,
-    (instances, spent, named): (
+    (instances, spent, sign_ins, named): (
         Option<&[PathBuf]>,
         &crate::features::handover::moved_lines::SpentOn<'_>,
+        &crate::features::quota::records::SignInsByFolder<'_>,
         Option<&Named>,
     ),
 ) {
@@ -827,9 +839,12 @@ fn ingest_claude(
         let outcome = tail_one(source, account, "transcript", path, ingest, store);
         for (kind, sample) in outcome.samples {
             if let Some(on) = spent.folder(account, path, sample.ts) {
-                samples
-                    .windows
-                    .push((on, kind, sample, UsageSource::ApiRetry));
+                crate::features::quota::records::push_hit(
+                    samples,
+                    (on, kind, sample),
+                    path,
+                    sign_ins,
+                );
             }
         }
     }
@@ -845,7 +860,7 @@ fn ingest_claude(
         let now_ms = juggler_core::model::Timestamp::now().millis();
         if walked {
             crate::features::quota::records::look_back_for_hits(
-                (account, spent),
+                (account, spent, sign_ins),
                 &files,
                 now_ms,
                 records,
@@ -853,7 +868,12 @@ fn ingest_claude(
             );
         }
         crate::features::quota::records::read_claude_records(
-            account, dir, instances, records, samples,
+            account,
+            dir,
+            instances,
+            sign_ins.of(account),
+            records,
+            samples,
         );
     }
 }
@@ -919,34 +939,6 @@ fn ingest_codex(
     }
     if let Some(latest) = latest {
         credits.push((account.to_owned(), latest));
-    }
-}
-
-/// `ZCode`: the whole `model_usage` table, read-only; the store's
-/// uuid dedupe (`zcode:<rowid>`) makes the full read idempotent.
-fn ingest_zcode(
-    account: &str,
-    dir: &Path,
-    ingest: &mut IngestState,
-    store: &mut Vec<juggler_core::quota::UsageEvent>,
-) {
-    let db = dir.join(".zcode").join("cli").join("db").join("db.sqlite");
-    if !db.exists() {
-        return;
-    }
-    match juggler_adapters::zcode_events(account, &db) {
-        Ok(events) => {
-            let latest = events.iter().map(|event| event.ts).max();
-            let count = events.len();
-            store.extend(events);
-            if let Some(latest) = latest {
-                record_health(ingest, account, "sqlite", Some(latest), 0, "");
-            }
-            let _ = count;
-        }
-        Err(error) => {
-            record_health(ingest, account, "sqlite", None, 0, &error);
-        }
     }
 }
 
@@ -1143,7 +1135,6 @@ fn record_health(
             "statusline" => ("claude-code", "quota_feed"),
             "transcript" => ("claude-code", "transcript"),
             "rollout" => ("codex", "transcript"),
-            "sqlite" => ("zcode", "transcript"),
             _ => ("other", "transcript"),
         };
         crate::usage_stats::count(
@@ -1166,7 +1157,7 @@ fn record_health(
 pub struct SourceHealthInfo {
     /// Account id (storage string form).
     pub account: String,
-    /// Source name (`statusline` | `transcript` | `rollout` | `sqlite`).
+    /// Source name (`statusline` | `transcript` | `rollout` | `store`).
     pub source: String,
     /// Last ingested event time, epoch ms, when any.
     #[ts(type = "number | null")]

@@ -1,0 +1,29 @@
+{
+  "boxes": [
+    [
+      0,
+      0,
+      264,
+      1348
+    ],
+    [
+      1648,
+      8,
+      45,
+      40
+    ],
+    [
+      310,
+      1216,
+      270,
+      24
+    ]
+  ],
+  "checked_by_eye": true,
+  "file": "opencode-3b-resumed.jpg",
+  "sha256": "62e853af2223d69233b84d16d0bd3eda602bd1bbbd9297a13e2a3cc453e4a322",
+  "size": [
+    1701,
+    1348
+  ]
+}

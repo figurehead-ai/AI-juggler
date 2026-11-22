@@ -279,7 +279,7 @@ fn catch_up(
                 actor_name: message.sender_name.clone(),
                 action: talk::TALK_ASK.to_owned(),
                 object_ref: message.id.clone(),
-                summary: format!("«{}» wants to message {}", message.sender_name, who.name),
+                summary: format!("“{}” wants to message {}", message.sender_name, who.name),
                 created_at: Timestamp::now().millis(),
             });
         }
@@ -350,7 +350,7 @@ pub(crate) fn first_read_note(storage: &Storage, session: &SessionId) -> Vec<Val
         }
         let pool = super::pool_name(storage, &place.pool_id).unwrap_or_default();
         let mut says = format!(
-            "{copied} pool-wide messages from «{pool}», sent while this session was away, are in its inbox now (newest first)."
+            "{copied} pool-wide messages from “{pool}”, sent while this session was away, are in its inbox now (newest first)."
         );
         if earlier > 0 {
             let _ = write!(

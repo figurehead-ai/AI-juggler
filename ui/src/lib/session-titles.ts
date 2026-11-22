@@ -229,7 +229,7 @@ type NamedSession = Parameters<typeof shortName>[0] & { id: string };
  * rc27 pool pass: four untitled Lab sessions in one folder all read "team
  * · Lab · started 9:2x AM" in the New pool wizard and the canvas's Add a
  * session). */
-export function namesApart(sessions: readonly NamedSession[], now: number = Date.now()): Map<string, string> {
+function namesApart(sessions: readonly NamedSession[], now: number = Date.now()): Map<string, string> {
   const out = new Map(sessions.map((session) => [session.id, shortName(session, now)] as const));
   const facts = sessions.filter((session) => namedByFacts(session));
   const apart = tellApart(facts, (session) => out.get(session.id)!, (session) => [session.started_at_ms, session.id]);

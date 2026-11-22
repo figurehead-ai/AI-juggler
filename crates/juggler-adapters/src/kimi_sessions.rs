@@ -24,6 +24,7 @@ pub mod wire;
 
 use std::path::{Path, PathBuf};
 
+use crate::common::file_time::born_ms;
 use juggler_adapter::conversation::ConversationSummary;
 
 /// The session list in a home.
@@ -122,13 +123,6 @@ fn time_of(value: &serde_json::Value) -> Option<i64> {
 fn first_time(state: &serde_json::Value, keys: &[&str]) -> Option<i64> {
     keys.iter()
         .find_map(|key| state.get(*key).and_then(time_of))
-}
-
-/// When a file was made (else last changed), epoch ms.
-fn born_ms(path: &Path) -> Option<i64> {
-    let meta = std::fs::metadata(path).ok()?;
-    let at = meta.created().or_else(|_| meta.modified()).ok()?;
-    i64::try_from(at.duration_since(std::time::UNIX_EPOCH).ok()?.as_millis()).ok()
 }
 
 /// What a session's record (`state.json`) says, with its folder from the

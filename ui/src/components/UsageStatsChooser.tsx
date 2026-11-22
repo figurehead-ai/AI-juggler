@@ -1,6 +1,7 @@
 import { useId, type JSX } from "react";
 import { usageStatsOpenDocs, type UsageStatsMode } from "../lib/ipc/usage-stats";
 import { Radio } from "./controls";
+import { SELECTED_CARD } from "./controls/selected";
 
 /**
  * AJ-E1105 (D-19): the usage-statistics consent. Three options with
@@ -62,7 +63,7 @@ export function UsageStatsChooser({
             key={option.value}
             className={
               "flex items-start gap-2.5 rounded-lg border px-3 py-2 text-xs transition-colors " +
-              (checked ? "border-accent/40 bg-accent-soft" : "border-hairline hover:border-accent/30") +
+              (checked ? SELECTED_CARD : "border-hairline hover:border-accent/30") +
               (disabled ? " cursor-default opacity-70" : " cursor-pointer")
             }
             data-testid="usage-stats-option"

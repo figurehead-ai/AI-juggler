@@ -17,8 +17,8 @@ use std::path::Path;
 
 use juggler_adapter::error::AdapterError;
 use juggler_adapter::inventory::{
-    Applied, ConfigFormat, Detail, Item, ItemKind, McpServer, McpTransport, Scope, SetUp, Undo,
-    Value, secret_variable,
+    Applied, ConfigFormat, Detail, Item, ItemKind, McpServer, McpTransport, Scope, SetUp, Value,
+    secret_variable,
 };
 
 use crate::grok_build::GROK_BUILD_ID;
@@ -202,18 +202,10 @@ fn add_mcp(home: &Path, name: &str, server: &McpServer) -> Result<Applied, Adapt
     let file = home.join("config.toml");
     let key = format!("mcp_servers.{name}");
     let value = grok_entry(name, server);
-    crate::config_edit::set(&file, ConfigFormat::Toml, &[(key.clone(), value.clone())])
-        .map_err(AdapterError::Unsupported)?;
+    let undo = crate::config_edit::set_undoably(file, ConfigFormat::Toml, &[(key, value)])?;
     Ok(Applied {
         summary: format!("Added the MCP server {name} to Grok"),
-        undo: Undo::RemoveSetting {
-            file,
-            format: ConfigFormat::Toml,
-            entries: vec![(
-                key,
-                crate::config_edit::fingerprint(ConfigFormat::Toml, &value),
-            )],
-        },
+        undo,
         note: None,
     })
 }
@@ -247,21 +239,7 @@ mod tests {
         let file = home.path().join("config.toml");
         let before = "# mine\nmodel = \"grok-build-0.1\"\n";
         std::fs::write(&file, before).unwrap();
-        let item = Item {
-            tool: "other-tool".into(),
-            kind: ItemKind::McpServer,
-            name: "events".into(),
-            scope: Scope::User,
-            detail: Detail::Mcp(McpServer {
-                transport: McpTransport::Stdio {
-                    command: "npx".into(),
-                    args: vec!["events-mcp".into()],
-                    env: vec![("TOKEN".into(), Value::Secret)],
-                },
-                oauth: false,
-            }),
-            origin: juggler_adapter::inventory::Origin::Own,
-        };
+        let item = crate::common::inventory_sample::events_server(Vec::new());
         let applied = set_up(home.path(), &item).unwrap();
         let text = std::fs::read_to_string(&file).unwrap();
         assert!(
@@ -271,16 +249,7 @@ mod tests {
         let names: Vec<String> = inventory(home.path()).into_iter().map(|i| i.name).collect();
         assert_eq!(names, ["events"]);
         assert!(set_up(home.path(), &item).is_err(), "never over one it has");
-        let (undo_file, format, entries) = match applied.undo {
-            Undo::RemoveSetting {
-                file,
-                format,
-                entries,
-            } => Some((file, format, entries)),
-            _ => None,
-        }
-        .unwrap();
-        crate::config_edit::remove(&undo_file, format, &entries).unwrap();
+        crate::common::inventory_sample::undo_setting(applied);
         assert!(inventory(home.path()).is_empty());
     }
 }

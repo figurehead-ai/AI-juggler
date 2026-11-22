@@ -90,6 +90,33 @@ UPDATE apps SET first_seen = (SELECT MIN(apps.first_seen, accounts.created_at)
 WHERE kind = 'desktop' AND EXISTS (SELECT 1 FROM accounts WHERE accounts.id = apps.folder_id);
 ";
 
+/// v55 (AJ-E3210, D-135): each App is on its own sign-in's Account. A
+/// Claude app profile and its CLI can share one folder that holds two
+/// sign-ins, so the Account is stored per App (`app_accounts`), not only
+/// per folder: a CLI App starts on its folder's (the CLI's sign-in, which
+/// `accounts.subscription_id` keeps), a desktop App on none until its
+/// records are read ("Account not known yet"). Each reading can say the
+/// Account it was read under (`quota_sample_sign_ins`, beside
+/// `quota_sample_sources`; none for one read before, which stays its
+/// folder's). Additive, and safe to run again (as V52 on).
+pub(super) const APP_ACCOUNTS_MIGRATION: &str = "
+CREATE TABLE IF NOT EXISTS app_accounts (
+    app_id          TEXT PRIMARY KEY,
+    subscription_id TEXT
+) WITHOUT ROWID;
+INSERT OR IGNORE INTO app_accounts (app_id, subscription_id)
+    SELECT apps.id, accounts.subscription_id
+    FROM apps JOIN accounts ON accounts.id = apps.folder_id
+    WHERE apps.kind = 'cli';
+CREATE TABLE IF NOT EXISTS quota_sample_sign_ins (
+    account      TEXT NOT NULL,
+    window       TEXT NOT NULL,
+    ts           INTEGER NOT NULL,
+    signed_in_as TEXT NOT NULL,
+    PRIMARY KEY (account, window, ts)
+) WITHOUT ROWID;
+";
+
 /// Whether `dir` is under the system's temporary folder (a test's or an
 /// installer's, never a profile the user keeps).
 #[must_use]
@@ -418,6 +445,24 @@ impl<'a> SubscriptionsRepo<'a> {
         colour_slot(self.conn, "subscriptions", id)
     }
 
+    /// AJ-E3210: the Account folder `folder_id` was last read as (its CLI
+    /// sign-in); `None` when it's in none (or isn't stored).
+    ///
+    /// # Errors
+    ///
+    /// The database fails.
+    pub fn of_folder(&self, folder_id: &str) -> Result<Option<String>, CoreError> {
+        Ok(self
+            .conn
+            .query_row(
+                "SELECT subscription_id FROM accounts WHERE id = ?1",
+                params![folder_id],
+                |row| row.get::<_, Option<String>>(0),
+            )
+            .optional()?
+            .flatten())
+    }
+
     /// The Account each folder was last read as, by folder.
     ///
     /// # Errors
@@ -623,6 +668,60 @@ impl<'a> AppsRepo<'a> {
         }
         self.upsert_cli(tool, folder_id, now_ms)?;
         self.colour_slot(&id)
+    }
+
+    /// AJ-E3210 (v55): each App's Account, by id (`None`: not signed in,
+    /// or, for a desktop App, not known yet).
+    ///
+    /// # Errors
+    ///
+    /// The database fails.
+    pub fn accounts(
+        &self,
+    ) -> Result<std::collections::BTreeMap<String, Option<String>>, CoreError> {
+        let mut stmt = self.conn.prepare(
+            "SELECT apps.id, g.subscription_id FROM apps
+             LEFT JOIN app_accounts g ON g.app_id = apps.id",
+        )?;
+        Ok(
+            collect(stmt.query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?)?
+                .into_iter()
+                .collect(),
+        )
+    }
+
+    /// AJ-E3210 (v55): App `id` is on Account `account` now. The Account it
+    /// was on when that changed it (`Some(None)`: none before); `None` when
+    /// it was already there (or there's no such App).
+    ///
+    /// # Errors
+    ///
+    /// The database fails.
+    pub fn set_account(
+        &self,
+        id: &str,
+        account: Option<&str>,
+    ) -> Result<Option<Option<String>>, CoreError> {
+        let was: Option<Option<String>> = self
+            .conn
+            .query_row(
+                "SELECT g.subscription_id FROM apps
+                 LEFT JOIN app_accounts g ON g.app_id = apps.id WHERE apps.id = ?1",
+                params![id],
+                |row| row.get(0),
+            )
+            .optional()?;
+        let Some(was) = was else {
+            return Ok(None);
+        };
+        if was.as_deref() == account {
+            return Ok(None);
+        }
+        self.conn.execute(
+            "INSERT OR REPLACE INTO app_accounts (app_id, subscription_id) VALUES (?1, ?2)",
+            params![id, account],
+        )?;
+        Ok(Some(was))
     }
 
     /// The user's name for it (`None`: back to the default).

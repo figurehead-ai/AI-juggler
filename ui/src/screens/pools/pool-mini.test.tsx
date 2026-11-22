@@ -13,7 +13,7 @@ import { resetPreviewPools } from "../../lib/ipc/pools";
 import { resetPreviewPoolModel } from "../../lib/ipc/pool-model";
 import { refreshPools, resetPools } from "../../lib/pools";
 import type { InstanceInfo } from "../../types/generated/InstanceInfo";
-import { miniTeam, MINI_ROW, PoolMini } from "./PoolMini";
+import { miniTeam, MINI_ROW, PoolMini, withoutBareWork } from "./PoolMini";
 import { PoolsScreen } from "./PoolsScreen";
 
 const NO_SOURCES = { apps: [], sessions: [] };
@@ -27,6 +27,15 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe("a Pools card's team in small", () => {
+  it("SK48-12: reads its members as the pool's page lists them: a 0.3 Work item that brings no one isn't drawn, a member is named by its session", () => {
+    // Notes, from 0.3: its observer session (ended), and a Work item that
+    // brings no session. The page lists one member, "Notes tidy-up".
+    const rules: PoolRulesInfo = { pool_id: "pool-b", members: [{ ...rule("session:s-3", "observer", 0), kind: "session" }, { ...rule("work:w-blog", "member", 0), kind: "session" }], talk: [], lead_next: null };
+    const listed = new Map([["session:s-3", "Notes tidy-up"]]);
+    const team = miniTeam(withoutBareWork(rules), [], () => "member", NO_SOURCES, (ref) => listed.get(ref) ?? "");
+    expect(team.members.map((one) => one.name)).toEqual(["Notes tidy-up"]);
+  });
+
   it("from its members: the App whose next session leads on top, the rest with their open sessions counted", () => {
     const rules: PoolRulesInfo = { pool_id: "p", members: [rule("app:cli:work", "member", 0), rule("app:cli:codex", "reviewer", 2), rule("all", "member", 3)], talk: [], lead_next: "cli:work" };
     const team = miniTeam(rules, [], () => "member", NO_SOURCES);

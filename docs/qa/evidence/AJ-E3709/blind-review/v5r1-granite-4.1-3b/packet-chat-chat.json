@@ -1,0 +1,107 @@
+[
+ {
+  "pair": "chat-chat-001",
+  "item": "C504",
+  "question": "Was ist der Status der Sitzung mit dem Branch feat/mailer?",
+  "records": [
+   {
+    "id": "s1",
+    "kind": "session",
+    "fields": {
+     "status": "waiting",
+     "branch": "feat/mailer"
+    },
+    "text": "Sitzung auf feat/mailer wartet auf Antwort des Nutzers"
+   },
+   {
+    "id": "s2",
+    "kind": "session",
+    "fields": {
+     "status": "finished",
+     "branch": "feat/pdf"
+    },
+    "text": "Sitzung auf feat/pdf ist abgeschlossen"
+   }
+  ],
+  "first": "Der Status der Sitzung mit dem Branch feat/mailer ist waiting [s1]",
+  "second": "session s1 [s1]: waiting"
+ },
+ {
+  "pair": "chat-chat-002",
+  "item": "C510",
+  "question": "How many files did the ledger-core session change?",
+  "records": [
+   {
+    "id": "s1",
+    "kind": "session",
+    "fields": {
+     "files_changed": 14,
+     "branch": "feat/vat"
+    },
+    "text": "ledger-core session: 14 files changed, branch feat/vat"
+   },
+   {
+    "id": "s2",
+    "kind": "session",
+    "fields": {
+     "files_changed": 6
+    },
+    "text": "ledger-core older session: 6 files changed"
+   }
+  ],
+  "first": "The ledger-core session changed 14 files and the older session changed 6 files [s1] [s2]",
+  "second": "ledger-core session [s1]: 14\nledger-core older session [s2]: 6"
+ },
+ {
+  "pair": "chat-chat-003",
+  "item": "C518",
+  "question": "What changed in turn 2 of mosaic-api?",
+  "records": [
+   {
+    "id": "t1",
+    "kind": "turn",
+    "fields": {
+     "files_changed": 2,
+     "path": "handlers/user.go"
+    },
+    "text": "Turn 2 in mosaic-api changed handlers/user.go (+30/-4) and handlers/user_test.go (+22/-0)"
+   },
+   {
+    "id": "t2",
+    "kind": "turn",
+    "fields": {
+     "files_changed": 1,
+     "path": "handlers/team.go"
+    },
+    "text": "Turn 3 in mosaic-api changed handlers/team.go"
+   }
+  ],
+  "first": "I can't say that for sure. Here's what I found:\n[t1] turn \"turn t1\"\n[t2] turn \"turn t2\"",
+  "second": "Turn 2 in mosaic-api changed handlers/user.go and handlers/user_test.go. [t1]"
+ },
+ {
+  "pair": "chat-chat-004",
+  "item": "C531",
+  "question": "Which turns of amber-sdk were reverted?",
+  "records": [
+   {
+    "id": "f1",
+    "kind": "fact",
+    "fields": {
+     "path": "src/client.ts"
+    },
+    "text": "amber-sdk turn 6: changes to src/client.ts reverted (reset to HEAD~1)"
+   },
+   {
+    "id": "t1",
+    "kind": "turn",
+    "fields": {
+     "files_changed": 0
+    },
+    "text": "amber-sdk turn 6 finished, 0 files changed"
+   }
+  ],
+  "first": "Turn 6 of amber-sdk was reverted. [f1]",
+  "second": "I can't say that for sure. Here's what I found:\n[f1] fact \"amber-sdk turn 6\"\n[t1] turn \"turn t1\""
+ }
+]

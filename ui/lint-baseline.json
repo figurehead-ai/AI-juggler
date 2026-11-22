@@ -70,7 +70,6 @@
   "jsx-a11y(heading-has-content)": 1
  },
  "src/components/ContinueDialog.tsx": {
-  "jsx-a11y(no-static-element-interactions)": 1,
   "jsx-a11y(prefer-tag-over-role)": 1,
   "typescript(consistent-return)": 1,
   "typescript(no-unsafe-type-assertion)": 1
@@ -91,7 +90,6 @@
   "typescript(no-floating-promises)": 1
  },
  "src/components/CrashReports.tsx": {
-  "jsx-a11y(no-noninteractive-element-interactions)": 1,
   "jsx-a11y(no-noninteractive-tabindex)": 1,
   "jsx-a11y(prefer-tag-over-role)": 1,
   "react(exhaustive-effect-dependencies)": 1,
@@ -103,7 +101,6 @@
   "jsx-a11y(prefer-tag-over-role)": 1
  },
  "src/components/CrossMachineSwitchFlow.tsx": {
-  "jsx-a11y(prefer-tag-over-role)": 2,
   "typescript(consistent-return)": 2
  },
  "src/components/DeleteInstanceDialog.tsx": {
@@ -136,8 +133,7 @@
  },
  "src/components/FigureheadCloudParts.tsx": {
   "jsx-a11y(prefer-tag-over-role)": 1,
-  "react(set-state-in-effect)": 1,
-  "typescript(no-unsafe-type-assertion)": 1
+  "react(set-state-in-effect)": 1
  },
  "src/components/FleetPromptDialog.tsx": {
   "eslint(no-shadow)": 1,
@@ -156,10 +152,8 @@
  "src/components/GoToPalette.tsx": {
   "eslint(complexity)": 2,
   "eslint(no-shadow)": 1,
-  "jsx-a11y(click-events-have-key-events)": 2,
-  "jsx-a11y(no-noninteractive-element-interactions)": 1,
+  "jsx-a11y(click-events-have-key-events)": 1,
   "jsx-a11y(no-noninteractive-element-to-interactive-role)": 2,
-  "jsx-a11y(no-static-element-interactions)": 1,
   "jsx-a11y(prefer-tag-over-role)": 5,
   "react-hooks(exhaustive-deps)": 3,
   "typescript(consistent-return)": 1
@@ -174,9 +168,6 @@
   "react(exhaustive-effect-dependencies)": 1,
   "react(set-state-in-effect)": 2,
   "typescript(consistent-return)": 1
- },
- "src/components/HomeApps.tsx": {
-  "jsx-a11y(prefer-tag-over-role)": 1
  },
  "src/components/HomeNeeds.tsx": {
   "eslint(complexity)": 1,
@@ -203,7 +194,6 @@
  "src/components/KillSheet.tsx": {
   "eslint(complexity)": 1,
   "eslint(max-lines)": 1,
-  "jsx-a11y(no-static-element-interactions)": 1,
   "jsx-a11y(prefer-tag-over-role)": 1,
   "react(set-state-in-effect)": 2,
   "typescript(consistent-return)": 2
@@ -215,7 +205,6 @@
  },
  "src/components/LimitDialog.tsx": {
   "eslint(complexity)": 1,
-  "jsx-a11y(no-noninteractive-element-interactions)": 1,
   "jsx-a11y(prefer-tag-over-role)": 1,
   "react(exhaustive-effect-dependencies)": 1,
   "react(purity)": 1,
@@ -368,7 +357,6 @@
   "react(exhaustive-effect-dependencies)": 1
  },
  "src/components/RecoverySummaryDialog.tsx": {
-  "jsx-a11y(no-noninteractive-element-interactions)": 1,
   "jsx-a11y(prefer-tag-over-role)": 1,
   "typescript(no-unnecessary-type-assertion)": 1
  },
@@ -377,7 +365,6 @@
   "typescript(no-unsafe-type-assertion)": 1
  },
  "src/components/RemoteLaunch.tsx": {
-  "jsx-a11y(no-noninteractive-element-interactions)": 1,
   "jsx-a11y(prefer-tag-over-role)": 2
  },
  "src/components/RemoteTabs.tsx": {
@@ -467,9 +454,6 @@
   "typescript(consistent-return)": 2,
   "typescript(no-unnecessary-type-assertion)": 1
  },
- "src/components/SwitchFreezeChoice.tsx": {
-  "jsx-a11y(label-has-associated-control)": 1
- },
  "src/components/SwitchGraph.tsx": {
   "eslint(complexity)": 1,
   "jsx-a11y(no-noninteractive-element-interactions)": 1,
@@ -533,7 +517,6 @@
   "jsx-a11y(label-has-associated-control)": 1
  },
  "src/components/UsageStatsReconsent.tsx": {
-  "jsx-a11y(no-noninteractive-element-interactions)": 1,
   "jsx-a11y(prefer-tag-over-role)": 1
  },
  "src/components/UserMenu.tsx": {
@@ -675,7 +658,7 @@
   "typescript(no-unsafe-type-assertion)": 3
  },
  "src/components/cross-machine-switch.test.tsx": {
-  "typescript(no-unsafe-type-assertion)": 10
+  "typescript(no-unsafe-type-assertion)": 8
  },
  "src/components/density.test.tsx": {
   "eslint(no-constant-binary-expression)": 1,
@@ -714,16 +697,12 @@
   "typescript(no-unsafe-type-assertion)": 1
  },
  "src/components/form.tsx": {
-  "jsx-a11y(no-static-element-interactions)": 1,
   "jsx-a11y(prefer-tag-over-role)": 1,
   "typescript(no-unsafe-type-assertion)": 1
  },
  "src/components/handover-view.test.tsx": {
   "import(default)": 2,
   "typescript(no-unsafe-type-assertion)": 1
- },
- "src/components/home-chips.test.tsx": {
-  "typescript(no-unsafe-type-assertion)": 2
  },
  "src/components/identity-guard.test.tsx": {
   "typescript(no-unsafe-type-assertion)": 1
@@ -779,9 +758,6 @@
   "eslint(no-shadow)": 1,
   "typescript(no-unnecessary-type-assertion)": 2,
   "typescript(no-unsafe-type-assertion)": 4
- },
- "src/components/morning-summary.test.tsx": {
-  "typescript(no-unsafe-type-assertion)": 1
  },
  "src/components/new-project-sheet.test.tsx": {
   "typescript(no-unnecessary-type-assertion)": 1,
@@ -1043,9 +1019,6 @@
   "react(purity)": 1,
   "react(set-state-in-effect)": 1
  },
- "src/components/switch/CrossSteps.tsx": {
-  "jsx-a11y(label-has-associated-control)": 3
- },
  "src/components/switch/DoneStep.tsx": {
   "eslint(complexity)": 1
  },
@@ -1055,22 +1028,12 @@
  "src/components/switch/GraphParts.tsx": {
   "jsx-a11y(prefer-tag-over-role)": 1
  },
- "src/components/switch/KeysQuestion.tsx": {
-  "jsx-a11y(label-has-associated-control)": 2
- },
  "src/components/switch/SecretSteps.tsx": {
-  "jsx-a11y(prefer-tag-over-role)": 2
- },
- "src/components/switch/StepBodies.tsx": {
   "jsx-a11y(prefer-tag-over-role)": 2
  },
  "src/components/switch/SwitchDialogFrame.tsx": {
   "jsx-a11y(prefer-tag-over-role)": 1,
   "react(exhaustive-effect-dependencies)": 1
- },
- "src/components/switch/WhereChoice.tsx": {
-  "eslint(no-shadow)": 1,
-  "react(no-unstable-nested-components)": 1
  },
  "src/components/switch/carry-choice.test.tsx": {
   "typescript(no-unsafe-type-assertion)": 1
@@ -1199,8 +1162,7 @@
   "typescript(no-unsafe-type-assertion)": 2
  },
  "src/lib/home-needs.ts": {
-  "typescript(consistent-return)": 1,
-  "typescript(no-unsafe-type-assertion)": 1
+  "typescript(consistent-return)": 1
  },
  "src/lib/ipc/account-import.ts": {
   "typescript(no-unsafe-type-assertion)": 5
@@ -1632,8 +1594,7 @@
   "typescript(no-unsafe-type-assertion)": 2
  },
  "src/lib/session-titles.test.ts": {
-  "typescript(no-unnecessary-type-assertion)": 1,
-  "typescript(no-unsafe-type-assertion)": 1
+  "typescript(no-unnecessary-type-assertion)": 1
  },
  "src/lib/shared-read.ts": {
   "eslint(no-shadow)": 1,
@@ -2183,7 +2144,7 @@
   "jsx-a11y(prefer-tag-over-role)": 4,
   "react(set-state-in-effect)": 1,
   "typescript(consistent-return)": 1,
-  "typescript(no-unsafe-type-assertion)": 2
+  "typescript(no-unsafe-type-assertion)": 1
  },
  "src/screens/FreshAccountStep.tsx": {
   "jsx-a11y(no-autofocus)": 1
@@ -2199,9 +2160,7 @@
  "src/screens/Home.tsx": {
   "eslint(max-lines)": 1,
   "jsx-a11y(no-static-element-interactions)": 1,
-  "typescript(consistent-return)": 2,
-  "typescript(no-unnecessary-type-assertion)": 1,
-  "typescript(no-unsafe-type-assertion)": 1
+  "typescript(consistent-return)": 2
  },
  "src/screens/NewProjectSheet.tsx": {
   "eslint(complexity)": 1,
@@ -2242,7 +2201,6 @@
  },
  "src/screens/WorkPanels.tsx": {
   "eslint(complexity)": 1,
-  "jsx-a11y(no-static-element-interactions)": 1,
   "typescript(no-misused-promises)": 1
  },
  "src/screens/accounts-no-limits.test.tsx": {

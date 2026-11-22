@@ -16,6 +16,7 @@ import { ListRow } from "../SessionRow";
 import { conversationRow, sessionRow, type Row } from "../SessionsList";
 import { AccountLimits } from "../AccountPage";
 import { FindProfiles } from "./FindProfiles";
+import { AppReach, type ReachFolder } from "./AppReach";
 import { showTab } from "../PageShell";
 import type { ActionHost } from "../../lib/action-host";
 import type { AppModel } from "../../lib/apps";
@@ -47,6 +48,7 @@ export function AppOverview({
   host,
   onOpenSession,
   onOpenProject,
+  lastFolder = null,
 }: {
   app: AppModel;
   items: RailItem[];
@@ -55,6 +57,8 @@ export function AppOverview({
   host: ActionHost;
   onOpenSession: (id: string) => void;
   onOpenProject: (id: string) => void;
+  /** AJ-E1610: the project it worked in last, for "New session in …". */
+  lastFolder?: ReachFolder | null;
 }): JSX.Element {
   const open = items.filter(openHere);
   const recent = items.filter((item) => !openHere(item)).slice(0, RECENT_SHOWN);
@@ -82,6 +86,7 @@ export function AppOverview({
           </p>
         </Section>
         {signedOut ? <SignedOut name={app.name} /> : folder && !folderOut && <AccountLimits account={folder} now={now} />}
+        <AppReach app={app} folder={lastFolder} />
       </div>
     );
   }
@@ -122,6 +127,7 @@ export function AppOverview({
       >
         <ProjectRows projects={projects.slice(0, PROJECTS_SHOWN)} now={now} onOpenProject={onOpenProject} />
       </Section>
+      <AppReach app={app} folder={lastFolder} />
     </div>
   );
 }

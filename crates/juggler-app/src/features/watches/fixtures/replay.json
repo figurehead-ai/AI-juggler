@@ -1,0 +1,399 @@
+{
+ "about": "AJ-E3814 replay: generic agents api, web and docs; five watches; the observations in order and the fires and endings they must give, every time.",
+ "startMs": 1800000000000,
+ "watches": [
+  {
+   "id": "w-a1",
+   "targets": [
+    {
+     "kind": "session",
+     "id": "api"
+    },
+    {
+     "kind": "session",
+     "id": "web"
+    }
+   ],
+   "matching": "each",
+   "conditions": [
+    {
+     "code": "finishes"
+    },
+    {
+     "code": "stuck",
+     "param": {
+      "kind": "minutes",
+      "value": 10
+     }
+    }
+   ],
+   "lifetime": {
+    "kind": "until_ends"
+   },
+   "paused": false,
+   "evenInQuietHours": false,
+   "createdMs": 1800000000000
+  },
+  {
+   "id": "w-a2",
+   "targets": [
+    {
+     "kind": "any"
+    }
+   ],
+   "matching": "each",
+   "conditions": [
+    {
+     "code": "fails"
+    }
+   ],
+   "lifetime": {
+    "kind": "always"
+   },
+   "paused": false,
+   "evenInQuietHours": true,
+   "createdMs": 1800000000000
+  },
+  {
+   "id": "w-a3",
+   "targets": [
+    {
+     "kind": "session",
+     "id": "api"
+    },
+    {
+     "kind": "session",
+     "id": "web"
+    }
+   ],
+   "matching": "all",
+   "conditions": [
+    {
+     "code": "finishes"
+    }
+   ],
+   "lifetime": {
+    "kind": "once"
+   },
+   "paused": false,
+   "evenInQuietHours": false,
+   "createdMs": 1800000000000
+  },
+  {
+   "id": "w-a4",
+   "targets": [
+    {
+     "kind": "account",
+     "id": "acct-1"
+    }
+   ],
+   "matching": "each",
+   "conditions": [
+    {
+     "code": "runway_resets"
+    }
+   ],
+   "lifetime": {
+    "kind": "until",
+    "atMs": 1800010800000
+   },
+   "paused": false,
+   "evenInQuietHours": false,
+   "createdMs": 1800000000000
+  },
+  {
+   "id": "w-a5",
+   "targets": [
+    {
+     "kind": "session",
+     "id": "docs"
+    }
+   ],
+   "matching": "each",
+   "conditions": [
+    {
+     "code": "idle_for",
+     "param": {
+      "kind": "minutes",
+      "value": 30
+     }
+    }
+   ],
+   "lifetime": {
+    "kind": "always"
+   },
+   "paused": false,
+   "evenInQuietHours": false,
+   "createdMs": 1800000000000
+  }
+ ],
+ "observations": [
+  {
+   "atMs": 1800000000000,
+   "subject": {
+    "session": "api",
+    "apps": [
+     "app-cli"
+    ],
+    "project": "proj-1",
+    "account": "acct-1"
+   },
+   "event": {
+    "kind": "state_entered",
+    "state": "working"
+   }
+  },
+  {
+   "atMs": 1800000060000,
+   "subject": {
+    "session": "web",
+    "apps": [
+     "app-cli"
+    ],
+    "project": "proj-1",
+    "account": "acct-1"
+   },
+   "event": {
+    "kind": "state_entered",
+    "state": "stuck"
+   }
+  },
+  {
+   "atMs": 1800000300000,
+   "subject": {
+    "session": "api",
+    "apps": [
+     "app-cli"
+    ],
+    "project": "proj-1",
+    "account": "acct-1"
+   },
+   "event": {
+    "kind": "turn_ended",
+    "outcome": "completed"
+   }
+  },
+  {
+   "atMs": 1800000360000,
+   "subject": {
+    "session": "api",
+    "apps": [
+     "app-cli"
+    ],
+    "project": "proj-1",
+    "account": "acct-1"
+   },
+   "event": {
+    "kind": "state_entered",
+    "state": "finished"
+   }
+  },
+  {
+   "atMs": 1800000360000,
+   "subject": {
+    "session": "api",
+    "apps": [
+     "app-cli"
+    ],
+    "project": "proj-1",
+    "account": "acct-1"
+   },
+   "event": {
+    "kind": "ended",
+    "how": "clean"
+   }
+  },
+  {
+   "atMs": 1800000720000,
+   "subject": {
+    "session": "web",
+    "apps": [
+     "app-cli"
+    ],
+    "project": "proj-1",
+    "account": "acct-1"
+   },
+   "event": {
+    "kind": "state_entered",
+    "state": "working"
+   }
+  },
+  {
+   "atMs": 1800001200000,
+   "subject": {
+    "session": "web",
+    "apps": [
+     "app-cli"
+    ],
+    "project": "proj-1",
+    "account": "acct-1"
+   },
+   "event": {
+    "kind": "turn_ended",
+    "outcome": "failed"
+   }
+  },
+  {
+   "atMs": 1800001500000,
+   "subject": {
+    "session": "web",
+    "apps": [
+     "app-cli"
+    ],
+    "project": "proj-1",
+    "account": "acct-1"
+   },
+   "event": {
+    "kind": "turn_ended",
+    "outcome": "completed"
+   }
+  },
+  {
+   "atMs": 1800001560000,
+   "subject": {
+    "session": "web",
+    "apps": [
+     "app-cli"
+    ],
+    "project": "proj-1",
+    "account": "acct-1"
+   },
+   "event": {
+    "kind": "ended",
+    "how": "clean"
+   }
+  },
+  {
+   "atMs": 1800001800000,
+   "subject": {
+    "account": "acct-1",
+    "apps": [
+     "app-cli"
+    ]
+   },
+   "event": {
+    "kind": "runway_reset"
+   }
+  },
+  {
+   "atMs": 1800014400000,
+   "subject": {},
+   "event": {
+    "kind": "removed",
+    "what": "session",
+    "id": "docs"
+   }
+  }
+ ],
+ "fires": [
+  {
+   "watch": "w-a1",
+   "condition": "finishes",
+   "target": {
+    "kind": "session",
+    "id": "api"
+   },
+   "session": "api",
+   "atMs": 1800000300000,
+   "cause": "turn_ended",
+   "evenInQuietHours": false,
+   "replayed": false
+  },
+  {
+   "watch": "w-a1",
+   "condition": "stuck",
+   "target": {
+    "kind": "session",
+    "id": "web"
+   },
+   "session": "web",
+   "atMs": 1800000660000,
+   "cause": "deadline",
+   "evenInQuietHours": false,
+   "replayed": false
+  },
+  {
+   "watch": "w-a2",
+   "condition": "fails",
+   "target": {
+    "kind": "any"
+   },
+   "session": "web",
+   "atMs": 1800001200000,
+   "cause": "turn_ended",
+   "evenInQuietHours": true,
+   "replayed": false
+  },
+  {
+   "watch": "w-a1",
+   "condition": "finishes",
+   "target": {
+    "kind": "session",
+    "id": "web"
+   },
+   "session": "web",
+   "atMs": 1800001500000,
+   "cause": "turn_ended",
+   "evenInQuietHours": false,
+   "replayed": false
+  },
+  {
+   "watch": "w-a3",
+   "condition": "finishes",
+   "target": null,
+   "session": "web",
+   "atMs": 1800001500000,
+   "cause": "turn_ended",
+   "evenInQuietHours": false,
+   "replayed": false
+  },
+  {
+   "watch": "w-a5",
+   "condition": "idle_for",
+   "target": {
+    "kind": "session",
+    "id": "docs"
+   },
+   "session": "docs",
+   "atMs": 1800001800000,
+   "cause": "deadline",
+   "evenInQuietHours": false,
+   "replayed": false
+  },
+  {
+   "watch": "w-a4",
+   "condition": "runway_resets",
+   "target": {
+    "kind": "account",
+    "id": "acct-1"
+   },
+   "session": null,
+   "atMs": 1800001800000,
+   "cause": "runway_reset",
+   "evenInQuietHours": false,
+   "replayed": false
+  }
+ ],
+ "ended": [
+  {
+   "watch": "w-a3",
+   "reason": "first_fire",
+   "atMs": 1800001500000
+  },
+  {
+   "watch": "w-a1",
+   "reason": "targets_ended",
+   "atMs": 1800001560000
+  },
+  {
+   "watch": "w-a4",
+   "reason": "time_reached",
+   "atMs": 1800010800000
+  },
+  {
+   "watch": "w-a5",
+   "reason": "target_gone",
+   "atMs": 1800014400000
+  }
+ ]
+}

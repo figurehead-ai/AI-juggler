@@ -15,7 +15,7 @@ import { resetNoticeStandIn, standInNeeds } from "../lib/ipc/notices";
 import { applySummary, resetNotices } from "../lib/notices-store";
 import { forgetPaged } from "../lib/paged";
 import { previewNeedsOf } from "../preview/needs";
-import { EXTRAS_PLACE, NEEDS_PLACE, fewNeedsNow, keptShape } from "../lib/needs-place";
+import { NEEDS_PLACE, fewNeedsNow, keptShape } from "../lib/needs-place";
 import { keep } from "../lib/local-store";
 import type { AccountInfo } from "../types/generated/AccountInfo";
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
@@ -66,7 +66,7 @@ describe("D-103.6 Home's Needs you while the needs load", () => {
     needsArrive([ASKING]);
     await waitFor(() => expect(view.getByTestId("home-needs")).toBeTruthy());
     expect(view.queryByTestId("placeholder-need")).toBeNull();
-    expect(view.getByTestId("home-heading").textContent).toBe("1 session needs you");
+    expect(view.getByTestId("home-heading").textContent).toBe("1 needs you: 1 session");
   });
 
   it("is gone when there are none", async () => {
@@ -80,13 +80,10 @@ describe("D-103.6 Home's Needs you while the needs load", () => {
 
   it("sized from the last look: as many rows as last time, as tall as the card was", () => {
     keep(NEEDS_PLACE, JSON.stringify({ rows: 3, height: 260 }));
-    keep(EXTRAS_PLACE, JSON.stringify({ rows: 2, height: 25 }));
     const view = home([ASKING]);
     const skeleton = view.getByTestId("placeholder-need");
     expect(skeleton.dataset.rows).toBe("3");
     expect(skeleton.querySelector<HTMLElement>("[aria-hidden]")?.style.height).toBe("260px");
-    // The heading's line of more things keeps its place too.
-    expect(view.getByTestId("home-extras-place").style.height).toBe("25px");
     // Three last time: "Pick up where you left off" stays where it was.
     expect(fewNeedsNow(false, 0)).toBe(false);
   });
@@ -109,7 +106,7 @@ describe("D-103.6 Home's Needs you while the needs load", () => {
   it("the heading counts what is known, and is calm only once the needs are", () => {
     const calm = { runOut: [], running: false, anything: true };
     expect(needsHeading(0, { ...calm, known: false })).toBe("Checking what needs you…");
-    expect(needsHeading({ sessions: 1, others: 0 }, { ...calm, known: false })).toBe("1 session needs you");
+    expect(needsHeading(1, { ...calm, known: false })).toBe("1 needs you");
     expect(needsHeading(0, { ...calm, known: true })).toBe("All clear");
   });
 });

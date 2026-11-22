@@ -19,6 +19,14 @@ code (`/tests/`, `*.test.*`, `*.spec.*`, inline `#[cfg(test)]` modules, wherever
 declared, and files that are a `#[cfg(test)] mod name;`),
 generated code, fixtures and the UI's preview data (`ui/src/preview/`).
 
+AJ-E3802 (ADR-0034 §2, ADR-0035 §11): the same holds for AI engines and
+models. No engine, runtime or model name may appear in shipped code
+outside the engines' own modules (`features/ai/engines/`) and the
+`models` section's typed records (`features/ai/models/`): the router, the
+jobs, the query and the UI see cards and records only. This rule has no
+allowlist: a name anywhere else fails. Comments don't count; test code is
+exempt as above.
+
 Usage: tool_literal_lint.py [--print] [--selftest]
   --print     print today's counts in the allowlist's format
   --selftest  check the lint against a seeded tree
@@ -54,6 +62,49 @@ EXEMPT_PARTS = (
     "/examples/",
 )
 EXEMPT_SUFFIXES = (".test.ts", ".test.tsx", ".test-kit.ts", ".spec.ts", ".spec.tsx", "/tests.rs", "_tests.rs")
+
+# AJ-E3802: engine, runtime and model names, allowed only where engines and
+# models are described. Case-insensitive; matched in code, not comments.
+# D-131: the local engine's helper (llama.cpp, its own workspace) and its
+# protocol are the local engine's runtime, so they are its homes too.
+ENGINE_HOMES = (
+    "crates/juggler-app/src/features/ai/engines/",
+    "crates/juggler-app/src/features/ai/models/",
+    "crates/juggler-local-ai/",
+    "crates/juggler-local-ai-protocol/",
+)
+ENGINE_NAMES = re.compile(
+    r"apple_builtin|gguf_local|AppleBuiltin|GgufLocal|apple-on-device|juggler-apple-ai|juggler-local-ai"
+    r"|FoundationModels|SystemLanguageModel|llama|ollama|lm ?studio|qwen|gemma|granite|nemotron"
+    r"|engines::(?:apple|local|server)\b",
+    re.IGNORECASE,
+)
+
+
+def code_only(text: str) -> str:
+    """`text` without its comment lines (`//`, `///`, `//!`, `*`, `/*`)."""
+    return "\n".join(
+        "" if line.lstrip().startswith(("//", "*", "/*")) else line for line in text.splitlines()
+    )
+
+
+def engine_names(root: Path) -> list[str]:
+    """Each engine or model name in shipped code outside its homes."""
+    found: list[str] = []
+    tests = rust_tests.test_files(root)
+    for folder, suffix in SCAN:
+        base = root / folder
+        if not base.exists():
+            continue
+        for path in sorted(base.rglob(f"*{suffix}")):
+            rel = path.relative_to(root).as_posix()
+            if exempt(rel) or rel in tests or rel.startswith(ENGINE_HOMES):
+                continue
+            text = code_only(shipped_text(path))
+            for number, line in enumerate(text.splitlines(), 1):
+                for match in ENGINE_NAMES.finditer(line):
+                    found.append(f"{rel}:{number}: {match.group(0)!r}")
+    return found
 
 
 def exempt(rel: str) -> bool:
@@ -114,6 +165,8 @@ def check(root: Path, allow: Path) -> list[str]:
             problems.append(
                 f"{rel}: {n} left, the allowlist says {limit} — lower its line in {allow.relative_to(root).as_posix() if allow.is_relative_to(root) else allow} (it only shrinks)"
             )
+    for site in engine_names(root):
+        problems.append(f"{site}: an AI engine or model name outside features/ai/engines and features/ai/models — read the card or the record (AJ-E3802)")
     return problems
 
 
@@ -139,12 +192,20 @@ def selftest() -> int:
         )
         (root / "ui/src/screens/A.tsx").write_text('const t = provider === "claude-code" ? 1 : 2;\n')
         (root / "ui/src/screens/A.test.tsx").write_text('render("codex");\n')
+        engines = root / "crates/juggler-app/src/features/ai/engines"
+        engines.mkdir(parents=True)
+        (engines / "apple.rs").write_text('const P: &str = "juggler-apple-ai";\n')
+        (root / "crates/juggler-app/src/features/ai/router.rs").write_text(
+            '/// Apple\'s FoundationModels, in prose.\nfn r() { let _ = models::Engine::AppleBuiltin; }\n'
+        )
+        (root / "ui/src/screens/Ai.tsx").write_text('// qwen in a comment\nconst id = "qwen3-1-7b-q8";\n')
+        (root / "crates/juggler-app/src/features/ai/router_tests.rs").write_text('const M: &str = "gemma";\n')
         allow = root / "allow"
         cases = [
-            ("", 3, "shared sites flagged (code after a test module too); every test-module form exempt"),
-            ("crates/juggler-app/src/a.rs 1\nui/src/screens/A.tsx 1\ncrates/juggler-app/src/c.rs 1\n", 0, "exactly allowed passes"),
-            ("crates/juggler-app/src/a.rs 2\nui/src/screens/A.tsx 1\ncrates/juggler-app/src/c.rs 1\n", 1, "a stale higher count must shrink"),
-            ("crates/juggler-app/src/a.rs 1\ncrates/juggler-app/src/c.rs 1\n", 1, "an unlisted file fails"),
+            ("", 5, "shared sites flagged (code after a test module too); every test-module form exempt; two engine names"),
+            ("crates/juggler-app/src/a.rs 1\nui/src/screens/A.tsx 1\ncrates/juggler-app/src/c.rs 1\n", 2, "exactly allowed passes; engine names have no allowlist"),
+            ("crates/juggler-app/src/a.rs 2\nui/src/screens/A.tsx 1\ncrates/juggler-app/src/c.rs 1\n", 3, "a stale higher count must shrink"),
+            ("crates/juggler-app/src/a.rs 1\ncrates/juggler-app/src/c.rs 1\n", 3, "an unlisted file fails"),
         ]
         bad = 0
         for text, want, what in cases:

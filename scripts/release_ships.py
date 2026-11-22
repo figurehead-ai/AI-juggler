@@ -55,6 +55,7 @@ RULES: tuple[tuple[str, bool, str], ...] = (
     ("ui/vitest.config.ts", False, "Vitest's configuration"),
     ("plugins/claude-code/ai-juggler/skills/*/SKILL.md", True, "the plugin's skill: the plugin's zip carries it, and the app writes it into a Claude app profile with its connector (AJ-E3013)"),
     ("**/*.md", False, "documentation: the app includes none but the plugin's skill above (the self-test checks)"),
+    ("config/remote/**", False, "the remote configuration's sources and schema: publish-config.yml signs and uploads them; the app build includes none (ADR-0035)"),
     # The app.
     ("crates/**", True, "the app: Rust code, build scripts, the Tauri configuration, capabilities, icons, Info.plist, entitlements"),
     ("ui/**", True, "the interface `pnpm build` bundles, with its packages and lockfile"),
@@ -70,6 +71,8 @@ RULES: tuple[tuple[str, bool, str], ...] = (
     ("scripts/install_tauri_cli.sh", True, "the pinned Tauri CLI that builds and signs the updater archive"),
     ("scripts/edition_icon.swift", True, "draws AI Juggler Nightly's icon"),
     ("scripts/sign_macos.sh", True, "signs, notarizes and staples the app; makes the updater archive"),
+    ("scripts/build_apple_ai_helper.sh", True, "builds, signs and checks the Apple model's helper the app ships (AJ-E3802)"),
+    ("scripts/build_local_ai_helper.sh", True, "builds, signs and checks the local-model helper the app ships (D-131)"),
     ("scripts/release_seams_check.sh", True, "checks the signed app before it is published"),
     ("scripts/apple_retry.py", True, "retries Apple's transient failures while signing"),
     ("scripts/updater_sig_check.py", True, "checks the updater signature before it is published"),

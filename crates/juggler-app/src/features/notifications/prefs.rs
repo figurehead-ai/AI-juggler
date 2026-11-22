@@ -1,5 +1,7 @@
 //! AJ-E1510 Req.1: which kinds may become a system notification. Each is
-//! off until the user turns it on.
+//! off until the user turns it on, but one: the watches the user set
+//! (AJ-E3817, ADR-0036 §2.5), on by default, since the user asked for
+//! each when they confirmed it.
 
 use std::sync::Arc;
 
@@ -18,11 +20,11 @@ const LEFT_BEHIND_KEY: &str = "notify.left_behind";
 const QUOTA_KEY: &str = "notify.quota";
 const CRASH_KEY: &str = "notify.crash";
 const RESET_KEY: &str = "notify.reset";
+const WATCH_KEY: &str = "notify.watch";
+const DIGEST_KEY: &str = "notify.digest";
 
 /// Settings › Notifications › Tell me outside AI Juggler.
-#[derive(
-    Clone, Copy, Default, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize, ts_rs::TS,
-)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize, ts_rs::TS)]
 #[ts(export, export_to = "../../../ui/src/types/generated/")]
 #[allow(clippy::struct_excessive_bools)] // settings: each switch is its own choice
 pub struct SystemNotificationsInfo {
@@ -48,6 +50,37 @@ pub struct SystemNotificationsInfo {
     /// AJ-E2501: an account has room again.
     #[serde(default)]
     pub reset: bool,
+    /// AJ-E3817: a watch the user set fired ("Watches you set"; on unless
+    /// turned off).
+    #[serde(default = "on")]
+    pub watch: bool,
+    /// AJ-E3712: the agent digest, with the finishes it carries instead of
+    /// one notification each (off by default, like every other kind).
+    #[serde(default)]
+    pub digest: bool,
+}
+
+const fn on() -> bool {
+    true
+}
+
+/// As stored before the user chooses: every kind off but the watches.
+impl Default for SystemNotificationsInfo {
+    fn default() -> Self {
+        Self {
+            waiting: false,
+            stuck: false,
+            limit: false,
+            finished: false,
+            this_mac: false,
+            left_behind: false,
+            quota: false,
+            crash: false,
+            reset: false,
+            watch: true,
+            digest: false,
+        }
+    }
 }
 
 impl SystemNotificationsInfo {
@@ -64,11 +97,13 @@ impl SystemNotificationsInfo {
             Kind::Quota => self.quota,
             Kind::Crashed => self.crash,
             Kind::Reset => self.reset,
+            Kind::Watch => self.watch,
+            Kind::Digest => self.digest,
         }
     }
 }
 
-const KEYS: [&str; 9] = [
+const KEYS: [&str; 11] = [
     WAITING_KEY,
     STUCK_KEY,
     LIMIT_KEY,
@@ -78,10 +113,18 @@ const KEYS: [&str; 9] = [
     QUOTA_KEY,
     CRASH_KEY,
     RESET_KEY,
+    WATCH_KEY,
+    DIGEST_KEY,
 ];
 
-fn on(storage: &Storage, key: &str) -> bool {
-    storage.app_settings().get(key).ok().flatten().as_deref() == Some("true")
+/// The kinds on until the user turns them off.
+const ON_BY_DEFAULT: &[&str] = &[WATCH_KEY];
+
+fn stored(storage: &Storage, key: &str) -> bool {
+    match storage.app_settings().get(key).ok().flatten().as_deref() {
+        Some(value) => value == "true",
+        None => ON_BY_DEFAULT.contains(&key),
+    }
 }
 
 /// The kinds as stored (all off when unset).
@@ -97,7 +140,9 @@ pub fn read(storage: &Storage) -> SystemNotificationsInfo {
         quota,
         crash,
         reset,
-    ] = KEYS.map(|key| on(storage, key));
+        watch,
+        digest,
+    ] = KEYS.map(|key| stored(storage, key));
     SystemNotificationsInfo {
         waiting,
         stuck,
@@ -108,6 +153,8 @@ pub fn read(storage: &Storage) -> SystemNotificationsInfo {
         quota,
         crash,
         reset,
+        watch,
+        digest,
     }
 }
 
@@ -134,6 +181,8 @@ pub fn notifications_set_impl(
         kinds.quota,
         kinds.crash,
         kinds.reset,
+        kinds.watch,
+        kinds.digest,
     ];
     for (key, value) in KEYS.into_iter().zip(values) {
         storage.app_settings().set(key, &value.to_string())?;
@@ -174,4 +223,27 @@ pub async fn notifications_set(
         notifications_set_impl(state, kinds)
     })
     .await
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn watches_are_on_and_everything_else_off_until_the_user_says() {
+        let dir = tempfile::tempdir().unwrap();
+        let state = crate::test_support::bare_state(dir.path().to_path_buf());
+        let kinds = read(&state.storage.lock().unwrap());
+        assert_eq!(kinds, SystemNotificationsInfo::default());
+        assert!(kinds.watch, "the user asked for each watch");
+        assert!(!kinds.digest && !kinds.finished && !kinds.waiting);
+        let off = SystemNotificationsInfo {
+            watch: false,
+            digest: true,
+            ..kinds
+        };
+        let saved = notifications_set_impl(&state, off).unwrap();
+        assert!(!saved.watch && saved.digest, "turned off stays off");
+        assert!(!saved.allows(Kind::Watch) && saved.allows(Kind::Digest));
+    }
 }

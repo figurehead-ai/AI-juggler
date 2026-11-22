@@ -47,7 +47,7 @@ it("Home lights only on Home; a session's page lights nothing and is titled by i
   const { view, rail } = await openApp();
   expect(navItem(view, "Home").getAttribute("aria-current")).toBe("page");
   const row = await waitFor(() => {
-    const found = [...rail.querySelectorAll<HTMLButtonElement>("button")].find((b) => /feat\/read-model/.test(b.textContent ?? ""));
+    const found = [...rail.querySelectorAll<HTMLButtonElement>("button")].find((b) => /Fix the flaky login test/.test(b.textContent ?? ""));
     expect(found).toBeTruthy();
     return found!;
   });

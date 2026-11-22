@@ -10,9 +10,16 @@ repository.workspace = true
 [lints]
 workspace = true
 
+[features]
+# AJ-E1612 (D-107): the lab's switch for Muse's separate sign-ins
+# (`muse::lab_sign_ins`). Debug builds only — a release build with it
+# doesn't compile — and on only with AIJ_LAB_MUSE_SIGN_INS=1 on a lab HOME.
+# juggler-app's `lab-bridge` turns it on; no default or release build does.
+lab-sign-ins = []
+
 [dependencies]
-juggler-adapter = { version = "0.4.0", path = "../juggler-adapter" }
-juggler-core = { version = "0.4.0", path = "../juggler-core" }
+juggler-adapter = { version = "0.5.0", path = "../juggler-adapter" }
+juggler-core = { version = "0.5.0", path = "../juggler-core" }
 notify = "8.2.0"
 rusqlite = { workspace = true, features = ["bundled"] }
 # AJ-E1520 (0.3): fast substring search over long transcript lines.
@@ -20,6 +27,10 @@ memchr = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 sha2 = { workspace = true }
+# AJ-E1603 R3: the per-run secret of a self-started `kimi web`, and the
+# server token held only for its one request.
+getrandom = { workspace = true }
+zeroize = { workspace = true }
 toml = { workspace = true }
 # AJ-E1508: one setting set and taken out of a config.toml, the rest kept.
 toml_edit = "0.25.17"
@@ -27,9 +38,11 @@ zstd = { workspace = true }
 
 [dev-dependencies]
 # ADR-0031: the live move sends its link to one process (`apps::send_link`).
-juggler-platform = { version = "0.4.0", path = "../juggler-platform" }
+juggler-platform = { version = "0.5.0", path = "../juggler-platform" }
 # The real-size switch run drives the real pipeline (tests/switch_real_size.rs).
-juggler-handover = { version = "0.4.0", path = "../juggler-handover" }
+juggler-handover = { version = "0.5.0", path = "../juggler-handover" }
+# D-128: the compat tests resolve a remote section as the app does.
+juggler-remote-config = { version = "0.5.0", path = "../juggler-remote-config" }
 tempfile = { workspace = true }
 
 [[bin]]
@@ -44,6 +57,11 @@ path = "src/bin/fake_desktop.rs"
 [[bin]]
 name = "fake-codex"
 path = "src/bin/fake_codex.rs"
+
+# AJ-E1603 R3: a stand-in for Kimi Code's `kimi web` (tests only).
+[[bin]]
+name = "fake-kimi"
+path = "src/bin/fake_kimi.rs"
 
 # AJ-E2308: a stand-in for Claude Code's headless stream-json (tests only).
 [[bin]]

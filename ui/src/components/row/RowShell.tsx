@@ -20,6 +20,7 @@ import { DROP, Grip, type Arrangeable } from "../RowTools";
 import { goToWhere, type RailItem } from "../../lib/rail-items";
 import { markSeen } from "../../lib/seen";
 import { togglePin } from "../../lib/rail-order-store";
+import { SELECTED_FILL } from "../controls/selected";
 
 /** Its primary (a click, ↩): its page here, whichever app runs it. */
 export function usePrimary(item: RailItem, onSelect: (id: string) => void): () => void {
@@ -106,8 +107,9 @@ export function RowShell({
   const menu = useItemMenu(menuKind ?? (item.session ? "session" : "conversation"), (item.session ?? item.conversation) as never, item.title, local);
   const where = goToWhere(item);
   const list = layout === "list";
-  // Needs you: its ↗ always shows; elsewhere on hover and focus.
-  const shown = item.need !== null && !tools && !list;
+  // Needs you: its ↗ on hover, focus or the selected row (D-117, R10);
+  // elsewhere on hover and focus. The G key and the menu still go there.
+  const shown = item.need !== null && !tools && !list && selected;
   const goTo = where === null ? null : menu.goTo({ where, shown, className: tools || list ? "" : "absolute right-1 top-1/2 -translate-y-1/2" });
   // AJ-E1502: the pin, on hover and focus, runs the menu's own Pin.
   const pin = tools ? menu.actions.find((action) => action.id === "pin" && !action.reason) : undefined;
@@ -115,7 +117,8 @@ export function RowShell({
   const menuLabel = list ? `Actions for ${item.title}` : `${item.session ? "Session" : "Conversation"} actions for ${item.title}`;
   return (
     <div
-      className={"group relative " + (list ? "@container " : "") + (indent ? "ml-3" : "") + (arrange?.dragging ? " opacity-50" : "") + (arrange?.drop ? DROP[arrange.drop] : "")}
+      // `tone-host`: hovered or focused, its App's mark is in full colour (D-117).
+      className={"tone-host group relative " + (list ? "@container " : "") + (indent ? "ml-3" : "") + (arrange?.dragging ? " opacity-50" : "") + (arrange?.drop ? DROP[arrange.drop] : "")}
       data-rail-row={list ? undefined : ""}
       // A session started from another: one step in per level, under it.
       style={depth > 0 ? { marginLeft: `${0.75 + depth}rem` } : undefined}
@@ -137,7 +140,9 @@ export function RowShell({
         {...buttonData}
         className={
           "absolute inset-0 w-full text-left outline-none transition-colors focus-visible:ring-1 focus-visible:ring-accent/60 " +
-          (list ? "group-hover:bg-surface-2 focus-visible:ring-inset " : selected ? "bg-surface " : "group-hover:bg-surface/60 ") +
+          // D-117 (selection): the selected row is SELECTED_FILL (a 3:1 edge on
+          // the raised fill); its title turns semibold ink (SessionRow).
+          (list ? "group-hover:bg-surface-2 focus-visible:ring-inset " : selected ? SELECTED_FILL + " " : "group-hover:bg-surface/60 ") +
           shape
         }
       >

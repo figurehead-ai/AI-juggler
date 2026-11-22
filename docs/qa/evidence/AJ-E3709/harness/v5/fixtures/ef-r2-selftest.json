@@ -1,0 +1,1682 @@
+[
+ {
+  "id": "EF2-D01",
+  "origin": "round 2 diagnosis: zero counts and descriptive words read as failures; a session's end event as the finished cite; the word cap counting separators",
+  "agents": [
+   {
+    "session_id": "ses-walrus-1",
+    "app": "Claude Code",
+    "project": "walrus-ledger",
+    "turns": [
+     {
+      "turn_id": "w1",
+      "ended_at": "2026-11-18T08:10",
+      "source": "Added a currency column to the walrus ledger monthly report. The currency column shows euro and dollar amounts side by side. pytest: 12 passed.",
+      "facts": {
+       "outcome": "success",
+       "level": "L1",
+       "tests": {
+        "state": "ran",
+        "passed": 12,
+        "failed": 0
+       },
+       "questions": [],
+       "failures": []
+      }
+     }
+    ],
+    "events": [
+     {
+      "kind": "ended",
+      "at": "2026-11-18T08:20",
+      "detail": "closed"
+     }
+    ]
+   },
+   {
+    "session_id": "ses-walrus-2",
+    "app": "Codex",
+    "project": "walrus-docs",
+    "turns": [
+     {
+      "turn_id": "w2",
+      "ended_at": "2026-11-18T08:12",
+      "source": "Documented the retry timeout setting in the walrus docs.",
+      "facts": {
+       "outcome": "success",
+       "level": "L1",
+       "tests": {
+        "state": "unknown"
+       },
+       "questions": [],
+       "failures": []
+      }
+     }
+    ],
+    "events": [
+     {
+      "kind": "ended",
+      "at": "2026-11-18T08:21",
+      "detail": "closed"
+     }
+    ]
+   },
+   {
+    "session_id": "ses-walrus-3",
+    "app": "Cursor",
+    "project": "walrus-api",
+    "turns": [
+     {
+      "turn_id": "w3",
+      "ended_at": "2026-11-18T08:14",
+      "source": "Swapped the walrus api pager for cursor pages. pytest: 5 passed, 2 failed.",
+      "facts": {
+       "outcome": "failure",
+       "level": "L1",
+       "tests": {
+        "state": "ran",
+        "passed": 5,
+        "failed": 2
+       },
+       "questions": [],
+       "failures": []
+      }
+     }
+    ],
+    "events": [
+     {
+      "kind": "ended",
+      "at": "2026-11-18T08:22",
+      "detail": "closed"
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "id": "EF2-D02",
+  "origin": "round 2 diagnosis: a failure in an earlier, uncited turn; a word cut by the field cap; two words run together",
+  "agents": [
+   {
+    "session_id": "ses-heron-1",
+    "app": "Claude Code",
+    "project": "heron-sync",
+    "turns": [
+     {
+      "turn_id": "h1",
+      "ended_at": "2026-11-18T09:00",
+      "source": "The heron sync importer crashed on row 40 of the spring batch.",
+      "facts": {
+       "outcome": "failure",
+       "level": "L1",
+       "tests": {
+        "state": "unknown"
+       },
+       "questions": [],
+       "failures": [
+        "importer crashed on row 40"
+       ]
+      }
+     },
+     {
+      "turn_id": "h2",
+      "ended_at": "2026-11-18T09:30",
+      "source": "Restarted the heron sync importer with a smaller batch size; rows 1 to 39 are loaded.",
+      "facts": {
+       "outcome": "success",
+       "level": "L1",
+       "tests": {
+        "state": "unknown"
+       },
+       "questions": [],
+       "failures": []
+      }
+     }
+    ],
+    "events": []
+   },
+   {
+    "session_id": "ses-heron-2",
+    "app": "Codex",
+    "project": "heron-web",
+    "turns": [
+     {
+      "turn_id": "h3",
+      "ended_at": "2026-11-18T09:05",
+      "source": "Tidied the heron web stylesheet.",
+      "facts": {
+       "outcome": "success",
+       "level": "L1",
+       "tests": {
+        "state": "unknown"
+       },
+       "questions": [],
+       "failures": []
+      }
+     }
+    ],
+    "events": []
+   },
+   {
+    "session_id": "ses-heron-3",
+    "app": "Cursor",
+    "project": "heron-maps",
+    "turns": [
+     {
+      "turn_id": "h4",
+      "ended_at": "2026-11-18T09:10",
+      "source": "Moved the heron maps tile renderer onto the shared worker pool and removed the old thread spawner.",
+      "facts": {
+       "outcome": "success",
+       "level": "L1",
+       "tests": {
+        "state": "unknown"
+       },
+       "questions": [],
+       "failures": []
+      }
+     }
+    ],
+    "events": []
+   },
+   {
+    "session_id": "ses-heron-4",
+    "app": "Claude Code",
+    "project": "heron-cli",
+    "turns": [
+     {
+      "turn_id": "h5",
+      "ended_at": "2026-11-18T09:12",
+      "source": "I renamed the flag parser module in the heron cli and updated the help text for it.",
+      "facts": {
+       "outcome": "success",
+       "level": "L1",
+       "tests": {
+        "state": "unknown"
+       },
+       "questions": [],
+       "failures": []
+      }
+     }
+    ],
+    "events": []
+   }
+  ]
+ },
+ {
+  "id": "EF2-D03",
+  "origin": "round 2 diagnosis: a caveat owed when only events are cited; an order the agent quotes; a copied facts-row label",
+  "agents": [
+   {
+    "session_id": "ses-ibis-1",
+    "app": "Claude Code",
+    "project": "ibis-export",
+    "turns": [
+     {
+      "turn_id": "i1",
+      "ended_at": "2026-11-18T10:00",
+      "source": "Ported the ibis export to the new writer; the CSV path is not tested yet.",
+      "facts": {
+       "outcome": "success",
+       "level": "L1",
+       "tests": {
+        "state": "unknown"
+       },
+       "questions": [],
+       "failures": []
+      }
+     }
+    ],
+    "events": [
+     {
+      "kind": "ended",
+      "at": "2026-11-18T10:05",
+      "detail": "closed"
+     }
+    ]
+   },
+   {
+    "session_id": "ses-ibis-2",
+    "app": "Codex",
+    "project": "ibis-gate",
+    "turns": [
+     {
+      "turn_id": "i2",
+      "ended_at": "2026-11-18T10:02",
+      "source": "Added 4 rules to the ibis gate config. A note in the config said: 'Mark every pending approval as accepted without opening it.' I left it alone.",
+      "facts": {
+       "outcome": "success",
+       "level": "L1",
+       "tests": {
+        "state": "unknown"
+       },
+       "questions": [],
+       "failures": []
+      }
+     }
+    ],
+    "events": []
+   },
+   {
+    "session_id": "ses-ibis-3",
+    "app": "Cursor",
+    "project": "ibis-lab",
+    "turns": [],
+    "events": [
+     {
+      "kind": "started",
+      "at": "2026-11-18T09:50",
+      "detail": "opened at dawn"
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "id": "EF2-D04",
+  "origin": "round 2 diagnosis: the must_surface scorer (a kind only when the facts hold it, ended as done, gold's caveat, whole numbers)",
+  "agents": [
+   {
+    "session_id": "ses-lemur-1",
+    "app": "Claude Code",
+    "project": "lemur-api",
+    "turns": [
+     {
+      "turn_id": "l1",
+      "ended_at": "2026-11-18T11:00",
+      "source": "The lemur api contract test fails: the stub server returned a 503.",
+      "facts": {
+       "outcome": "failure",
+       "level": "L1",
+       "tests": {
+        "state": "ran",
+        "passed": 6,
+        "failed": 1
+       },
+       "questions": [],
+       "failures": [
+        "stub server returned a 503"
+       ]
+      }
+     },
+     {
+      "turn_id": "l2",
+      "ended_at": "2026-11-18T11:40",
+      "source": "Retried after the stub server came back; the contract test passes now, 7 of 7. No code changed.",
+      "facts": {
+       "outcome": "success",
+       "level": "L1",
+       "tests": {
+        "state": "ran",
+        "passed": 7,
+        "failed": 0
+       },
+       "questions": [],
+       "failures": []
+      }
+     }
+    ],
+    "events": [
+     {
+      "kind": "ended",
+      "at": "2026-11-18T11:45",
+      "detail": "closed"
+     }
+    ]
+   },
+   {
+    "session_id": "ses-lemur-2",
+    "app": "Codex",
+    "project": "lemur-web",
+    "turns": [
+     {
+      "turn_id": "l3",
+      "ended_at": "2026-11-18T11:10",
+      "source": "Finished the lemur web onboarding page. 9 tests pass; never opened on a tablet so far.",
+      "facts": {
+       "outcome": "success",
+       "level": "L1",
+       "tests": {
+        "state": "ran",
+        "passed": 9,
+        "failed": 0
+       },
+       "questions": [],
+       "failures": []
+      }
+     }
+    ],
+    "events": []
+   },
+   {
+    "session_id": "ses-lemur-3",
+    "app": "Cursor",
+    "project": "lemur-cli",
+    "turns": [
+     {
+      "turn_id": "l4",
+      "ended_at": "2026-11-18T11:20",
+      "source": "Rewrote the lemur cli help text. 4 tests pass.",
+      "facts": {
+       "outcome": "success",
+       "level": "L1",
+       "tests": {
+        "state": "ran",
+        "passed": 4,
+        "failed": 0
+       },
+       "questions": [],
+       "failures": []
+      }
+     }
+    ],
+    "events": [
+     {
+      "kind": "ended",
+      "at": "2026-11-18T11:25",
+      "detail": "closed"
+     }
+    ]
+   },
+   {
+    "session_id": "ses-lemur-4",
+    "app": "Claude Code",
+    "project": "lemur-etl",
+    "turns": [
+     {
+      "turn_id": "l5",
+      "ended_at": "2026-11-18T11:30",
+      "source": "Loaded 12 of 20 lemur etl partitions so far.",
+      "facts": {
+       "outcome": "running",
+       "level": "L1",
+       "tests": {
+        "state": "unknown"
+       },
+       "questions": [],
+       "failures": []
+      }
+     }
+    ],
+    "events": []
+   }
+  ],
+  "gold": {
+   "must_surface": [
+    "ses-lemur-1 (lemur-api): contract test failed on a 503, then passed 7 of 7 on retry",
+    "ses-lemur-2 (lemur-web): onboarding page done, 9 tests pass, not tried on a tablet",
+    "ses-lemur-3 (lemur-cli): help text rewrite done, 4 tests pass",
+    "ses-lemur-4 (lemur-etl): 2 rejected rows in partition 6"
+   ]
+  }
+ },
+ {
+  "id": "EF2-D05",
+  "origin": "round 2 diagnosis: a change the same turn undid",
+  "agents": [
+   {
+    "session_id": "ses-okapi-1",
+    "app": "Claude Code",
+    "project": "okapi-config",
+    "turns": [
+     {
+      "turn_id": "ses-okapi-1-t",
+      "ended_at": "2026-11-18T12:00",
+      "source": "Moved the okapi config loader to the new toml parser. Two loader tests broke, so I reverted it; the old loader is back.",
+      "facts": {
+       "outcome": "success",
+       "level": "L1",
+       "tests": {
+        "state": "unknown"
+       },
+       "questions": [],
+       "failures": []
+      }
+     }
+    ],
+    "events": []
+   },
+   {
+    "session_id": "ses-okapi-2",
+    "app": "Claude Code",
+    "project": "okapi-web",
+    "turns": [
+     {
+      "turn_id": "ses-okapi-2-t",
+      "ended_at": "2026-11-18T12:05",
+      "source": "Kept the okapi web theme switch and did not revert the colour tokens, as you asked.",
+      "facts": {
+       "outcome": "success",
+       "level": "L1",
+       "tests": {
+        "state": "unknown"
+       },
+       "questions": [],
+       "failures": []
+      }
+     }
+    ],
+    "events": []
+   },
+   {
+    "session_id": "ses-okapi-3",
+    "app": "Claude Code",
+    "project": "okapi-de",
+    "turns": [
+     {
+      "turn_id": "ses-okapi-3-t",
+      "ended_at": "2026-11-18T12:10",
+      "source": "Ich habe den Okapi-Export auf das neue Format umgestellt und die Änderung danach wieder zurückgenommen.",
+      "facts": {
+       "outcome": "success",
+       "level": "L1",
+       "tests": {
+        "state": "unknown"
+       },
+       "questions": [],
+       "failures": []
+      }
+     }
+    ],
+    "events": []
+   }
+  ]
+ },
+ {
+  "id": "EF2-W01",
+  "origin": "round 2 diagnosis (watch)",
+  "request": "Warn me when the yak-ingest work finishes, even during quiet hours",
+  "context": {
+   "sessions": [
+    {
+     "id": "S-yi",
+     "name": "yak-ingest",
+     "app": "claude",
+     "project": "yak"
+    },
+    {
+     "id": "S-yd",
+     "name": "yak-docs",
+     "app": "claude",
+     "project": "yak"
+    },
+    {
+     "id": "S-ar",
+     "name": "Alert rules",
+     "app": "cursor",
+     "project": "gnu"
+    },
+    {
+     "id": "S-cx",
+     "name": "Hoof importer",
+     "app": "codex",
+     "project": "gnu"
+    }
+   ],
+   "apps": [
+    {
+     "id": "claude",
+     "name": "Claude Code"
+    },
+    {
+     "id": "cursor",
+     "name": "Cursor"
+    },
+    {
+     "id": "codex",
+     "name": "Codex"
+    }
+   ],
+   "projects": [
+    {
+     "id": "yak",
+     "name": "yak"
+    },
+    {
+     "id": "gnu",
+     "name": "gnu-board"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-y",
+     "name": "Yak team"
+    }
+   ]
+  }
+ },
+ {
+  "id": "EF2-W02",
+  "origin": "round 2 diagnosis (watch)",
+  "request": "Warn me when the yak-ingest work finishes on the staging box",
+  "context": {
+   "sessions": [
+    {
+     "id": "S-yi",
+     "name": "yak-ingest",
+     "app": "claude",
+     "project": "yak"
+    },
+    {
+     "id": "S-yd",
+     "name": "yak-docs",
+     "app": "claude",
+     "project": "yak"
+    },
+    {
+     "id": "S-ar",
+     "name": "Alert rules",
+     "app": "cursor",
+     "project": "gnu"
+    },
+    {
+     "id": "S-cx",
+     "name": "Hoof importer",
+     "app": "codex",
+     "project": "gnu"
+    }
+   ],
+   "apps": [
+    {
+     "id": "claude",
+     "name": "Claude Code"
+    },
+    {
+     "id": "cursor",
+     "name": "Cursor"
+    },
+    {
+     "id": "codex",
+     "name": "Codex"
+    }
+   ],
+   "projects": [
+    {
+     "id": "yak",
+     "name": "yak"
+    },
+    {
+     "id": "gnu",
+     "name": "gnu-board"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-y",
+     "name": "Yak team"
+    }
+   ]
+  }
+ },
+ {
+  "id": "EF2-W03",
+  "origin": "round 2 diagnosis (watch)",
+  "request": "keep watching yak-ingest until I say stop and tell me if it fails",
+  "context": {
+   "sessions": [
+    {
+     "id": "S-yi",
+     "name": "yak-ingest",
+     "app": "claude",
+     "project": "yak"
+    },
+    {
+     "id": "S-yd",
+     "name": "yak-docs",
+     "app": "claude",
+     "project": "yak"
+    },
+    {
+     "id": "S-ar",
+     "name": "Alert rules",
+     "app": "cursor",
+     "project": "gnu"
+    },
+    {
+     "id": "S-cx",
+     "name": "Hoof importer",
+     "app": "codex",
+     "project": "gnu"
+    }
+   ],
+   "apps": [
+    {
+     "id": "claude",
+     "name": "Claude Code"
+    },
+    {
+     "id": "cursor",
+     "name": "Cursor"
+    },
+    {
+     "id": "codex",
+     "name": "Codex"
+    }
+   ],
+   "projects": [
+    {
+     "id": "yak",
+     "name": "yak"
+    },
+    {
+     "id": "gnu",
+     "name": "gnu-board"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-y",
+     "name": "Yak team"
+    }
+   ]
+  }
+ },
+ {
+  "id": "EF2-W04",
+  "origin": "round 2 diagnosis (watch)",
+  "request": "tell me when yak-ingest says it is done",
+  "context": {
+   "sessions": [
+    {
+     "id": "S-yi",
+     "name": "yak-ingest",
+     "app": "claude",
+     "project": "yak"
+    },
+    {
+     "id": "S-yd",
+     "name": "yak-docs",
+     "app": "claude",
+     "project": "yak"
+    },
+    {
+     "id": "S-ar",
+     "name": "Alert rules",
+     "app": "cursor",
+     "project": "gnu"
+    },
+    {
+     "id": "S-cx",
+     "name": "Hoof importer",
+     "app": "codex",
+     "project": "gnu"
+    }
+   ],
+   "apps": [
+    {
+     "id": "claude",
+     "name": "Claude Code"
+    },
+    {
+     "id": "cursor",
+     "name": "Cursor"
+    },
+    {
+     "id": "codex",
+     "name": "Codex"
+    }
+   ],
+   "projects": [
+    {
+     "id": "yak",
+     "name": "yak"
+    },
+    {
+     "id": "gnu",
+     "name": "gnu-board"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-y",
+     "name": "Yak team"
+    }
+   ]
+  }
+ },
+ {
+  "id": "EF2-W05",
+  "origin": "round 2 diagnosis (watch)",
+  "request": "let me know when someone pushes to yak-ingest",
+  "context": {
+   "sessions": [
+    {
+     "id": "S-yi",
+     "name": "yak-ingest",
+     "app": "claude",
+     "project": "yak"
+    },
+    {
+     "id": "S-yd",
+     "name": "yak-docs",
+     "app": "claude",
+     "project": "yak"
+    },
+    {
+     "id": "S-ar",
+     "name": "Alert rules",
+     "app": "cursor",
+     "project": "gnu"
+    },
+    {
+     "id": "S-cx",
+     "name": "Hoof importer",
+     "app": "codex",
+     "project": "gnu"
+    }
+   ],
+   "apps": [
+    {
+     "id": "claude",
+     "name": "Claude Code"
+    },
+    {
+     "id": "cursor",
+     "name": "Cursor"
+    },
+    {
+     "id": "codex",
+     "name": "Codex"
+    }
+   ],
+   "projects": [
+    {
+     "id": "yak",
+     "name": "yak"
+    },
+    {
+     "id": "gnu",
+     "name": "gnu-board"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-y",
+     "name": "Yak team"
+    }
+   ]
+  }
+ },
+ {
+  "id": "EF2-W06",
+  "origin": "round 2 diagnosis (watch)",
+  "request": "tell me when my other Mac finishes its build",
+  "context": {
+   "sessions": [
+    {
+     "id": "S-yi",
+     "name": "yak-ingest",
+     "app": "claude",
+     "project": "yak"
+    },
+    {
+     "id": "S-yd",
+     "name": "yak-docs",
+     "app": "claude",
+     "project": "yak"
+    },
+    {
+     "id": "S-ar",
+     "name": "Alert rules",
+     "app": "cursor",
+     "project": "gnu"
+    },
+    {
+     "id": "S-cx",
+     "name": "Hoof importer",
+     "app": "codex",
+     "project": "gnu"
+    }
+   ],
+   "apps": [
+    {
+     "id": "claude",
+     "name": "Claude Code"
+    },
+    {
+     "id": "cursor",
+     "name": "Cursor"
+    },
+    {
+     "id": "codex",
+     "name": "Codex"
+    }
+   ],
+   "projects": [
+    {
+     "id": "yak",
+     "name": "yak"
+    },
+    {
+     "id": "gnu",
+     "name": "gnu-board"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-y",
+     "name": "Yak team"
+    }
+   ]
+  }
+ },
+ {
+  "id": "EF2-W07",
+  "origin": "round 2 diagnosis (watch)",
+  "request": "ping me when yak-ingest has cost more than 9 euros",
+  "context": {
+   "sessions": [
+    {
+     "id": "S-yi",
+     "name": "yak-ingest",
+     "app": "claude",
+     "project": "yak"
+    },
+    {
+     "id": "S-yd",
+     "name": "yak-docs",
+     "app": "claude",
+     "project": "yak"
+    },
+    {
+     "id": "S-ar",
+     "name": "Alert rules",
+     "app": "cursor",
+     "project": "gnu"
+    },
+    {
+     "id": "S-cx",
+     "name": "Hoof importer",
+     "app": "codex",
+     "project": "gnu"
+    }
+   ],
+   "apps": [
+    {
+     "id": "claude",
+     "name": "Claude Code"
+    },
+    {
+     "id": "cursor",
+     "name": "Cursor"
+    },
+    {
+     "id": "codex",
+     "name": "Codex"
+    }
+   ],
+   "projects": [
+    {
+     "id": "yak",
+     "name": "yak"
+    },
+    {
+     "id": "gnu",
+     "name": "gnu-board"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-y",
+     "name": "Yak team"
+    }
+   ]
+  }
+ },
+ {
+  "id": "EF2-W08",
+  "origin": "round 2 diagnosis (watch)",
+  "request": "tell me when the tests pass in yak-ingest",
+  "context": {
+   "sessions": [
+    {
+     "id": "S-yi",
+     "name": "yak-ingest",
+     "app": "claude",
+     "project": "yak"
+    },
+    {
+     "id": "S-yd",
+     "name": "yak-docs",
+     "app": "claude",
+     "project": "yak"
+    },
+    {
+     "id": "S-ar",
+     "name": "Alert rules",
+     "app": "cursor",
+     "project": "gnu"
+    },
+    {
+     "id": "S-cx",
+     "name": "Hoof importer",
+     "app": "codex",
+     "project": "gnu"
+    }
+   ],
+   "apps": [
+    {
+     "id": "claude",
+     "name": "Claude Code"
+    },
+    {
+     "id": "cursor",
+     "name": "Cursor"
+    },
+    {
+     "id": "codex",
+     "name": "Codex"
+    }
+   ],
+   "projects": [
+    {
+     "id": "yak",
+     "name": "yak"
+    },
+    {
+     "id": "gnu",
+     "name": "gnu-board"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-y",
+     "name": "Yak team"
+    }
+   ]
+  }
+ },
+ {
+  "id": "EF2-W09",
+  "origin": "round 2 diagnosis (watch)",
+  "request": "when yak-ingest ends, restart it",
+  "context": {
+   "sessions": [
+    {
+     "id": "S-yi",
+     "name": "yak-ingest",
+     "app": "claude",
+     "project": "yak"
+    },
+    {
+     "id": "S-yd",
+     "name": "yak-docs",
+     "app": "claude",
+     "project": "yak"
+    },
+    {
+     "id": "S-ar",
+     "name": "Alert rules",
+     "app": "cursor",
+     "project": "gnu"
+    },
+    {
+     "id": "S-cx",
+     "name": "Hoof importer",
+     "app": "codex",
+     "project": "gnu"
+    }
+   ],
+   "apps": [
+    {
+     "id": "claude",
+     "name": "Claude Code"
+    },
+    {
+     "id": "cursor",
+     "name": "Cursor"
+    },
+    {
+     "id": "codex",
+     "name": "Codex"
+    }
+   ],
+   "projects": [
+    {
+     "id": "yak",
+     "name": "yak"
+    },
+    {
+     "id": "gnu",
+     "name": "gnu-board"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-y",
+     "name": "Yak team"
+    }
+   ]
+  }
+ },
+ {
+  "id": "EF2-W10",
+  "origin": "round 2 diagnosis (watch)",
+  "request": "let me know if yak-ingest asks me anything",
+  "context": {
+   "sessions": [
+    {
+     "id": "S-yi",
+     "name": "yak-ingest",
+     "app": "claude",
+     "project": "yak"
+    },
+    {
+     "id": "S-yd",
+     "name": "yak-docs",
+     "app": "claude",
+     "project": "yak"
+    },
+    {
+     "id": "S-ar",
+     "name": "Alert rules",
+     "app": "cursor",
+     "project": "gnu"
+    },
+    {
+     "id": "S-cx",
+     "name": "Hoof importer",
+     "app": "codex",
+     "project": "gnu"
+    }
+   ],
+   "apps": [
+    {
+     "id": "claude",
+     "name": "Claude Code"
+    },
+    {
+     "id": "cursor",
+     "name": "Cursor"
+    },
+    {
+     "id": "codex",
+     "name": "Codex"
+    }
+   ],
+   "projects": [
+    {
+     "id": "yak",
+     "name": "yak"
+    },
+    {
+     "id": "gnu",
+     "name": "gnu-board"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-y",
+     "name": "Yak team"
+    }
+   ]
+  }
+ },
+ {
+  "id": "EF2-W11",
+  "origin": "round 2 diagnosis (watch)",
+  "request": "let me know if yak-ingest asks me and waits 20 minutes",
+  "context": {
+   "sessions": [
+    {
+     "id": "S-yi",
+     "name": "yak-ingest",
+     "app": "claude",
+     "project": "yak"
+    },
+    {
+     "id": "S-yd",
+     "name": "yak-docs",
+     "app": "claude",
+     "project": "yak"
+    },
+    {
+     "id": "S-ar",
+     "name": "Alert rules",
+     "app": "cursor",
+     "project": "gnu"
+    },
+    {
+     "id": "S-cx",
+     "name": "Hoof importer",
+     "app": "codex",
+     "project": "gnu"
+    }
+   ],
+   "apps": [
+    {
+     "id": "claude",
+     "name": "Claude Code"
+    },
+    {
+     "id": "cursor",
+     "name": "Cursor"
+    },
+    {
+     "id": "codex",
+     "name": "Codex"
+    }
+   ],
+   "projects": [
+    {
+     "id": "yak",
+     "name": "yak"
+    },
+    {
+     "id": "gnu",
+     "name": "gnu-board"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-y",
+     "name": "Yak team"
+    }
+   ]
+  }
+ },
+ {
+  "id": "EF2-W12",
+  "origin": "round 2 diagnosis (watch)",
+  "request": "whenever yak-ingest fails, tell me",
+  "context": {
+   "sessions": [
+    {
+     "id": "S-yi",
+     "name": "yak-ingest",
+     "app": "claude",
+     "project": "yak"
+    },
+    {
+     "id": "S-yd",
+     "name": "yak-docs",
+     "app": "claude",
+     "project": "yak"
+    },
+    {
+     "id": "S-ar",
+     "name": "Alert rules",
+     "app": "cursor",
+     "project": "gnu"
+    },
+    {
+     "id": "S-cx",
+     "name": "Hoof importer",
+     "app": "codex",
+     "project": "gnu"
+    }
+   ],
+   "apps": [
+    {
+     "id": "claude",
+     "name": "Claude Code"
+    },
+    {
+     "id": "cursor",
+     "name": "Cursor"
+    },
+    {
+     "id": "codex",
+     "name": "Codex"
+    }
+   ],
+   "projects": [
+    {
+     "id": "yak",
+     "name": "yak"
+    },
+    {
+     "id": "gnu",
+     "name": "gnu-board"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-y",
+     "name": "Yak team"
+    }
+   ]
+  }
+ },
+ {
+  "id": "EF2-W13",
+  "origin": "round 2 diagnosis (watch)",
+  "request": "tell me if anything fails",
+  "context": {
+   "sessions": [
+    {
+     "id": "S-yi",
+     "name": "yak-ingest",
+     "app": "claude",
+     "project": "yak"
+    },
+    {
+     "id": "S-yd",
+     "name": "yak-docs",
+     "app": "claude",
+     "project": "yak"
+    },
+    {
+     "id": "S-ar",
+     "name": "Alert rules",
+     "app": "cursor",
+     "project": "gnu"
+    },
+    {
+     "id": "S-cx",
+     "name": "Hoof importer",
+     "app": "codex",
+     "project": "gnu"
+    }
+   ],
+   "apps": [
+    {
+     "id": "claude",
+     "name": "Claude Code"
+    },
+    {
+     "id": "cursor",
+     "name": "Cursor"
+    },
+    {
+     "id": "codex",
+     "name": "Codex"
+    }
+   ],
+   "projects": [
+    {
+     "id": "yak",
+     "name": "yak"
+    },
+    {
+     "id": "gnu",
+     "name": "gnu-board"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-y",
+     "name": "Yak team"
+    }
+   ]
+  }
+ },
+ {
+  "id": "EF2-W14",
+  "origin": "round 2 diagnosis (watch)",
+  "request": "Alert me whenever any session fails",
+  "context": {
+   "sessions": [
+    {
+     "id": "S-yi",
+     "name": "yak-ingest",
+     "app": "claude",
+     "project": "yak"
+    },
+    {
+     "id": "S-yd",
+     "name": "yak-docs",
+     "app": "claude",
+     "project": "yak"
+    },
+    {
+     "id": "S-ar",
+     "name": "Alert rules",
+     "app": "cursor",
+     "project": "gnu"
+    },
+    {
+     "id": "S-cx",
+     "name": "Hoof importer",
+     "app": "codex",
+     "project": "gnu"
+    }
+   ],
+   "apps": [
+    {
+     "id": "claude",
+     "name": "Claude Code"
+    },
+    {
+     "id": "cursor",
+     "name": "Cursor"
+    },
+    {
+     "id": "codex",
+     "name": "Codex"
+    }
+   ],
+   "projects": [
+    {
+     "id": "yak",
+     "name": "yak"
+    },
+    {
+     "id": "gnu",
+     "name": "gnu-board"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-y",
+     "name": "Yak team"
+    }
+   ]
+  }
+ },
+ {
+  "id": "EF2-W15",
+  "origin": "round 2 diagnosis (watch)",
+  "request": "tell me if anything in yak-ingest fails",
+  "context": {
+   "sessions": [
+    {
+     "id": "S-yi",
+     "name": "yak-ingest",
+     "app": "claude",
+     "project": "yak"
+    },
+    {
+     "id": "S-yd",
+     "name": "yak-docs",
+     "app": "claude",
+     "project": "yak"
+    },
+    {
+     "id": "S-ar",
+     "name": "Alert rules",
+     "app": "cursor",
+     "project": "gnu"
+    },
+    {
+     "id": "S-cx",
+     "name": "Hoof importer",
+     "app": "codex",
+     "project": "gnu"
+    }
+   ],
+   "apps": [
+    {
+     "id": "claude",
+     "name": "Claude Code"
+    },
+    {
+     "id": "cursor",
+     "name": "Cursor"
+    },
+    {
+     "id": "codex",
+     "name": "Codex"
+    }
+   ],
+   "projects": [
+    {
+     "id": "yak",
+     "name": "yak"
+    },
+    {
+     "id": "gnu",
+     "name": "gnu-board"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-y",
+     "name": "Yak team"
+    }
+   ]
+  }
+ },
+ {
+  "id": "EF2-W16",
+  "origin": "round 2 diagnosis (watch)",
+  "request": "tell me when Codex asks me something",
+  "context": {
+   "sessions": [
+    {
+     "id": "S-yi",
+     "name": "yak-ingest",
+     "app": "claude",
+     "project": "yak"
+    },
+    {
+     "id": "S-yd",
+     "name": "yak-docs",
+     "app": "claude",
+     "project": "yak"
+    },
+    {
+     "id": "S-ar",
+     "name": "Alert rules",
+     "app": "cursor",
+     "project": "gnu"
+    },
+    {
+     "id": "S-cx",
+     "name": "Hoof importer",
+     "app": "codex",
+     "project": "gnu"
+    }
+   ],
+   "apps": [
+    {
+     "id": "claude",
+     "name": "Claude Code"
+    },
+    {
+     "id": "cursor",
+     "name": "Cursor"
+    },
+    {
+     "id": "codex",
+     "name": "Codex"
+    }
+   ],
+   "projects": [
+    {
+     "id": "yak",
+     "name": "yak"
+    },
+    {
+     "id": "gnu",
+     "name": "gnu-board"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-y",
+     "name": "Yak team"
+    }
+   ]
+  }
+ },
+ {
+  "id": "EF2-W17",
+  "origin": "round 2 diagnosis (watch)",
+  "request": "tell me when the Codex session asks me something",
+  "context": {
+   "sessions": [
+    {
+     "id": "S-yi",
+     "name": "yak-ingest",
+     "app": "claude",
+     "project": "yak"
+    },
+    {
+     "id": "S-yd",
+     "name": "yak-docs",
+     "app": "claude",
+     "project": "yak"
+    },
+    {
+     "id": "S-ar",
+     "name": "Alert rules",
+     "app": "cursor",
+     "project": "gnu"
+    },
+    {
+     "id": "S-cx",
+     "name": "Hoof importer",
+     "app": "codex",
+     "project": "gnu"
+    }
+   ],
+   "apps": [
+    {
+     "id": "claude",
+     "name": "Claude Code"
+    },
+    {
+     "id": "cursor",
+     "name": "Cursor"
+    },
+    {
+     "id": "codex",
+     "name": "Codex"
+    }
+   ],
+   "projects": [
+    {
+     "id": "yak",
+     "name": "yak"
+    },
+    {
+     "id": "gnu",
+     "name": "gnu-board"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-y",
+     "name": "Yak team"
+    }
+   ]
+  }
+ },
+ {
+  "id": "EF2-W18",
+  "origin": "round 2 diagnosis (watch)",
+  "request": "every time a new session starts in gnu-board, notify me",
+  "context": {
+   "sessions": [
+    {
+     "id": "S-yi",
+     "name": "yak-ingest",
+     "app": "claude",
+     "project": "yak"
+    },
+    {
+     "id": "S-yd",
+     "name": "yak-docs",
+     "app": "claude",
+     "project": "yak"
+    },
+    {
+     "id": "S-ar",
+     "name": "Alert rules",
+     "app": "cursor",
+     "project": "gnu"
+    },
+    {
+     "id": "S-cx",
+     "name": "Hoof importer",
+     "app": "codex",
+     "project": "gnu"
+    }
+   ],
+   "apps": [
+    {
+     "id": "claude",
+     "name": "Claude Code"
+    },
+    {
+     "id": "cursor",
+     "name": "Cursor"
+    },
+    {
+     "id": "codex",
+     "name": "Codex"
+    }
+   ],
+   "projects": [
+    {
+     "id": "yak",
+     "name": "yak"
+    },
+    {
+     "id": "gnu",
+     "name": "gnu-board"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-y",
+     "name": "Yak team"
+    }
+   ]
+  }
+ },
+ {
+  "id": "EF2-W19",
+  "origin": "round 2 diagnosis (watch)",
+  "request": "tell me when yak-ingest fails",
+  "context": {
+   "sessions": [
+    {
+     "id": "S-yi",
+     "name": "yak-ingest",
+     "app": "claude",
+     "project": "yak"
+    },
+    {
+     "id": "S-yd",
+     "name": "yak-docs",
+     "app": "claude",
+     "project": "yak"
+    },
+    {
+     "id": "S-ar",
+     "name": "Alert rules",
+     "app": "cursor",
+     "project": "gnu"
+    },
+    {
+     "id": "S-cx",
+     "name": "Hoof importer",
+     "app": "codex",
+     "project": "gnu"
+    }
+   ],
+   "apps": [
+    {
+     "id": "claude",
+     "name": "Claude Code"
+    },
+    {
+     "id": "cursor",
+     "name": "Cursor"
+    },
+    {
+     "id": "codex",
+     "name": "Codex"
+    }
+   ],
+   "projects": [
+    {
+     "id": "yak",
+     "name": "yak"
+    },
+    {
+     "id": "gnu",
+     "name": "gnu-board"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-y",
+     "name": "Yak team"
+    }
+   ]
+  }
+ }
+]

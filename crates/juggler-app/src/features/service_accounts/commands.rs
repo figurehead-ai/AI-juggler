@@ -145,7 +145,7 @@ pub fn service_account_add_impl(
         && !preset.plans.iter().any(|known| known == plan)
     {
         return Err(AppError::Refused(format!(
-            "{} has no plan called «{plan}»",
+            "{} has no plan called “{plan}”",
             preset.name
         )));
     }
@@ -230,7 +230,7 @@ fn checked_profiles<'a>(
         }
         if taken.contains(&label.to_lowercase()) {
             return Err(AppError::Refused(format!(
-                "Another profile is already called «{label}» — pick another name"
+                "Another profile is already called “{label}” — pick another name"
             )));
         }
         taken.push(label.to_lowercase());

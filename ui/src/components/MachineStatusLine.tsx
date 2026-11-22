@@ -29,6 +29,14 @@ function levelWords(status: Status): { full: string; brief: string } {
   return { full: `${status.words}: ${status.cause}`, brief: `${SHORT_LEVEL[status.level] ?? status.words}: ${status.cause}` };
 }
 
+/** D1: the line's help says what room counts and when it turns tight,
+ * in the backend's words from its thresholds (memory pressure keeps its
+ * own, `PRESSURE_SHORT`); none before the first sample. */
+function roomHelp(info: React.ContextType<typeof ThisMacContext> | null, words: string): string | undefined {
+  const room = info ? [info.machine.summary.counts, info.machine.summary.measures].filter(Boolean).join(" ") : "";
+  return room ? `${words}. ${room}` : undefined;
+}
+
 export function MachineStatusLine({ minimal, onOpen, short = false }: { minimal: boolean; onOpen?: () => void; short?: boolean }): JSX.Element {
   const info = useContext(ThisMacContext);
   const status = machineStatus(info);
@@ -45,11 +53,10 @@ export function MachineStatusLine({ minimal, onOpen, short = false }: { minimal:
   // "Under memory pressure"): a voice user says what they see (axe,
   // label-content-name-mismatch).
   const spoken = shown === words ? undefined : `${name} · ${shown}`;
-  // D1: its help says what room counts and when it turns tight, in the
-  // backend's words from its thresholds (memory pressure keeps its own).
-  const room = status && info ? [info.machine.summary.counts, info.machine.summary.measures].filter(Boolean).join(" ") : "";
-  const help = why ?? (room ? `${words}. ${room}` : undefined);
-  const dot = status ? status.dot : "bg-faint";
+  const help = why ?? roomHelp(status ? info : null, words);
+  // D-117: calm (plenty of room) is a neutral faint dot; amber when
+  // tight (L2), red under pressure (L3).
+  const dot = status && !status.calm ? status.dot : "bg-faint";
   // The level, by which the dot breathes when it changes, then rests
   // (styles.css).
   const breath = status?.level ?? "unsampled";
@@ -66,6 +73,8 @@ export function MachineStatusLine({ minimal, onOpen, short = false }: { minimal:
       </div>
     );
   }
+  // The top bar's line is snug (its words fit at 1280 with the list open).
+  const gap = short ? "gap-1.5" : "gap-2";
   const line = (
     <>
       {/* whose room it is: the computer's, not an Account's (AJ-E3514: "Plenty
@@ -75,16 +84,26 @@ export function MachineStatusLine({ minimal, onOpen, short = false }: { minimal:
       {/* The readability bar: meta 13 px, in ink at 80 % (7:1 or better). */}
       {/* In the top bar (short) a bar too narrow for its words keeps the
           dot alone, its words in the title and spoken name: cut, it read
-          "P…" at 1280 with the rail open (the 0.4.1 gate). */}
-      <span className={"min-w-0 shrink truncate text-meta" + (short ? " @max-[1120px]/header:hidden" : "")}>{shown}</span>
+          "P…" at 1280 with the rail open (the 0.4.1 gate). D-118's mock
+          shows them at 1280 with the list open: from 970 px of bar, the
+          clean-up and runway counts and the Floor kept snug for them. */}
+      {/* Never cut mid-word in the top bar: whole, or given way (the
+          header's useGiveWay) to the dot alone. */}
+      {short ? (
+        <span data-give-at="1" className="shrink-0 whitespace-nowrap text-meta data-gone:hidden @max-[969px]/header:hidden" data-testid="machine-status-words">
+          {shown}
+        </span>
+      ) : (
+        <span className="min-w-0 shrink truncate text-meta">{shown}</span>
+      )}
     </>
   );
   return onOpen ? (
-    <button type="button" onClick={onOpen} title={help ?? (shown !== words || short ? words : undefined)} aria-label={spoken} className="flex min-h-6 min-w-0 shrink items-center gap-2 rounded-md text-left text-muted outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60" data-testid="machine-status" data-level={breath}>
+    <button type="button" onClick={onOpen} title={help ?? (shown !== words || short ? words : undefined)} aria-label={spoken} className={"flex min-h-6 items-center rounded-md text-left text-muted outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60 " + (short ? "shrink-0 " : "min-w-0 shrink ") + gap} data-testid="machine-status" data-level={breath}>
       {line}
     </button>
   ) : (
-    <span className="flex min-w-0 shrink items-center gap-2 text-muted" title={help} data-testid="machine-status" data-level={breath}>
+    <span className={"flex min-w-0 shrink items-center text-muted " + gap} title={help} data-testid="machine-status" data-level={breath}>
       {line}
     </span>
   );

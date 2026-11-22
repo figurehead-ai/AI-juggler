@@ -12,17 +12,20 @@
 use juggler_adapter::ToolQuota;
 mod conformance;
 mod grok_fixture;
+mod hermes_fixture;
 mod kimi_fixture;
+mod muse_fixture;
 mod opencode_fixture;
 mod subagent_fixture;
+mod zcode_fixture;
 
 use std::path::{Path, PathBuf};
 
 use conformance::{Sandbox, Subject, UsageSubject};
 use juggler_adapter::HarnessAdapter;
 use juggler_adapters::{
-    ClaudeCodeAdapter, CodexAdapter, FakeHarnessAdapter, GrokBuildAdapter, KimiCodeAdapter,
-    OpenCodeAdapter,
+    ClaudeCodeAdapter, CodexAdapter, FakeHarnessAdapter, GrokBuildAdapter, HermesAdapter,
+    KimiCodeAdapter, MuseAdapter, OpenCodeAdapter, ZCodeAdapter,
 };
 use juggler_core::quota::{UsageEvent, UsageSource};
 use opencode_fixture::Line;
@@ -576,6 +579,33 @@ impl Subject for Kimi {
     fn sandboxed_default(&self) -> bool {
         true
     }
+
+    /// AJ-E1603 R3: a turn that failed at the 5-hour limit, as Kimi Code
+    /// writes it in the event log (every value invented), then a turn
+    /// that completed.
+    fn limit_tails(&self) -> Option<(String, String)> {
+        let hit = kimi_fixture::record(
+            "turn.ended",
+            1_792_580_460_000,
+            serde_json::json!({
+                "agentId": "main", "turnId": 1, "reason": "failed",
+                "error": {"code": "provider.api_error",
+                    "message": "You've reached your 5-hour usage limit. kit",
+                    "name": "APIProviderQuotaExhaustedError",
+                    "details": {"statusCode": 429}, "retryable": false},
+            }),
+        );
+        let done = kimi_fixture::record(
+            "turn.ended",
+            1_792_580_500_000,
+            serde_json::json!({"agentId": "main", "turnId": 2, "reason": "completed"}),
+        );
+        let meta = kimi_fixture::WIRE_META;
+        Some((
+            format!("{meta}\n{hit}\n"),
+            format!("{meta}\n{hit}\n{done}\n"),
+        ))
+    }
 }
 
 struct KimiUsage;
@@ -673,10 +703,224 @@ impl Subject for Grok {
     }
 }
 
+// ZCode (AJ-E1605): its engine run on its app's own runtime and driven
+// over its app-server (round 3: no terminal UI ships), sessions and usage from
+// the App's own store (`<tree>/cli/db/db.sqlite`); a tree brought in is
+// `~/.zcode` where it is, or a copy without its sign-in or store.
+
+struct ZCode;
+
+impl Subject for ZCode {
+    fn adapter(&self, sandbox: &Sandbox) -> Box<dyn HarnessAdapter> {
+        let engine = zcode_fixture::app(&sandbox.bin.join("Applications"), "dev.zcode.app");
+        Box::new(
+            ZCodeAdapter::with_engine(engine)
+                .with_runtime(sandbox.stub("ZCode", "0.16.9"))
+                .with_home(&sandbox.home),
+        )
+    }
+
+    fn write_session(&self, state_dir: &Path, cwd: &Path, n: u32) -> String {
+        let id = format!("sess_kit{n:04}");
+        // A sub-agent's session in the same folder is never the one.
+        zcode_fixture::add_session(state_dir, &id, cwd);
+        id
+    }
+
+    fn seed_source(&self, sandbox: &Sandbox, canary: &str) -> Option<PathBuf> {
+        let source = sandbox.home.join(".zcode");
+        zcode_fixture::settings(&source);
+        zcode_fixture::sign_in(&source, canary);
+        zcode_fixture::add_session(&source, "sess_old", &sandbox.project);
+        Some(source)
+    }
+
+    fn credential_files(&self) -> &'static [&'static str] {
+        &["v2/credentials.json"]
+    }
+
+    fn session_record(&self, state_dir: &Path, id: &str) -> Option<PathBuf> {
+        Some(juggler_adapters::zcode_sessions::session_ref(
+            &zcode_fixture::db(state_dir),
+            id,
+        ))
+    }
+
+    fn usage(&self) -> Option<&dyn UsageSubject> {
+        Some(&ZCodeUsage)
+    }
+
+    fn sandboxed_default(&self) -> bool {
+        true
+    }
+
+    /// AJ-E1605 R3: a session whose last call Z.ai refused at the 5-hour
+    /// limit, and one that was answered after such a refusal (every value
+    /// made up; the message's shape as measured).
+    fn limit_records(&self, state_dir: &Path, cwd: &Path) -> Option<(PathBuf, PathBuf)> {
+        zcode_fixture::add_session(state_dir, "sess_hit", cwd);
+        zcode_fixture::add_session(state_dir, "sess_on", cwd);
+        let conn = zcode_fixture::create(state_dir);
+        // 2026-10-21 10:00 UTC; the reset 18:30 UTC+8 is 10:30 UTC.
+        let at = 1_792_576_800_000;
+        let message = zcode_fixture::five_hour("2026-10-21 18:30:00");
+        zcode_fixture::refused(&conn, "mu_hit", "sess_hit", at, "rate_limited", &message);
+        zcode_fixture::refused(&conn, "mu_was", "sess_on", at, "rate_limited", &message);
+        zcode_fixture::answered(&conn, "mu_on", "sess_on", at + 60_000);
+        let db = zcode_fixture::db(state_dir);
+        Some((
+            juggler_adapters::zcode_sessions::session_ref(&db, "sess_hit"),
+            juggler_adapters::zcode_sessions::session_ref(&db, "sess_on"),
+        ))
+    }
+}
+
+struct ZCodeUsage;
+
+impl UsageSubject for ZCodeUsage {
+    fn seed(&self, state_dir: &Path) {
+        let conn = zcode_fixture::create(state_dir);
+        let at = 1_792_580_400_000; // 2026-10-21
+        zcode_fixture::usage(&conn, "mu_1", "GLM-5.3", "completed", at + 10, 1000);
+        zcode_fixture::usage(&conn, "mu_2", "GLM-5.3-Flash", "completed", at + 20, 400);
+        // Still streaming: its counts may grow, so it isn't read yet.
+        zcode_fixture::usage(&conn, "mu_3", "GLM-5.3", "streaming", at + 30, 50);
+    }
+
+    /// What the usage pipeline runs: the adapter's store read.
+    fn read(&self, account: &str, state_dir: &Path) -> Vec<UsageEvent> {
+        let adapter = ZCodeAdapter::new();
+        let mut record = conformance::account(&adapter, state_dir);
+        record.id = juggler_core::model::AccountId::new(account);
+        adapter
+            .usage_since(&record, 0)
+            .expect("ZCode reads its usage from its store")
+            .unwrap()
+    }
+
+    fn source(&self) -> UsageSource {
+        UsageSource::Sqlite
+    }
+
+    fn distinct_messages(&self) -> usize {
+        2
+    }
+}
+
+// Muse Code (AJ-E1608): Meta's `muse`, each account a home of its own,
+// sessions from Muse's own index, driven over `muse serve`. Its
+// subscription sign-in is one per Mac (the Keychain), so an account other
+// than the user's own runs on its own API key from its Launch settings;
+// no copy is offered (the sign-in can't move), only the user's own setup
+// where it is.
+
+struct Muse;
+
+impl Subject for Muse {
+    fn adapter(&self, sandbox: &Sandbox) -> Box<dyn HarnessAdapter> {
+        Box::new(
+            MuseAdapter::with_bin(sandbox.stub("muse", "Muse Code 1.4.13 (1.4.13-R6996.1)"))
+                .with_home(&sandbox.home),
+        )
+    }
+
+    fn write_session(&self, state_dir: &Path, cwd: &Path, n: u32) -> String {
+        let id = format!("01a1d5e2-0000-7000-8000-00000000000{n}");
+        muse_fixture::add_session(state_dir, &id, cwd, "kit session");
+        id
+    }
+
+    fn seed_source(&self, _sandbox: &Sandbox, _canary: &str) -> Option<PathBuf> {
+        None
+    }
+
+    fn credential_files(&self) -> &'static [&'static str] {
+        &["auth.json"]
+    }
+
+    fn session_record(&self, state_dir: &Path, id: &str) -> Option<PathBuf> {
+        Some(juggler_adapters::muse_sessions::session_ref(
+            &muse_fixture::index(state_dir),
+            id,
+        ))
+    }
+
+    fn usage(&self) -> Option<&dyn UsageSubject> {
+        None
+    }
+
+    fn sandboxed_default(&self) -> bool {
+        true
+    }
+
+    fn launch_env(&self) -> std::collections::BTreeMap<String, String> {
+        [(
+            juggler_adapters::muse::ENV_API_KEY.to_owned(),
+            "kit-made-up-meta-key".to_owned(),
+        )]
+        .into()
+    }
+}
+
+// Hermes Agent (AJ-E1607): Nous Research's `hermes`, each account a
+// HERMES_HOME of its own with its own gateway lock folder and the guard
+// that keeps it away from Codex's and Claude's homes; sessions from its
+// `state.db`. Its sign-ins (`auth.json`, keys in `.env`) never move in a
+// copy.
+
+struct Hermes;
+
+impl Subject for Hermes {
+    fn adapter(&self, sandbox: &Sandbox) -> Box<dyn HarnessAdapter> {
+        let bin = sandbox.bin.join("hermes");
+        hermes_fixture::stub(&bin);
+        Box::new(
+            HermesAdapter::with_bin(bin)
+                .with_home(&sandbox.home)
+                .with_system_policy(sandbox.home.join("no-etc-hermes")),
+        )
+    }
+
+    fn write_session(&self, state_dir: &Path, cwd: &Path, n: u32) -> String {
+        let id = format!("20261113_kit{n}");
+        hermes_fixture::add_session(state_dir, &id, cwd, "kit session");
+        id
+    }
+
+    fn seed_source(&self, sandbox: &Sandbox, canary: &str) -> Option<PathBuf> {
+        let home = sandbox.home.join(".hermes");
+        hermes_fixture::settings(&home);
+        hermes_fixture::sign_in(&home, canary);
+        Some(home)
+    }
+
+    fn credential_files(&self) -> &'static [&'static str] {
+        &["auth.json", ".env"]
+    }
+
+    fn session_record(&self, state_dir: &Path, id: &str) -> Option<PathBuf> {
+        Some(juggler_adapters::hermes_sessions::session_ref(
+            &hermes_fixture::store(state_dir),
+            id,
+        ))
+    }
+
+    fn usage(&self) -> Option<&dyn UsageSubject> {
+        None
+    }
+
+    fn sandboxed_default(&self) -> bool {
+        true
+    }
+}
+
 conformance!(claude_code, Claude);
+conformance!(hermes_agent, Hermes);
+conformance!(muse_code, Muse);
 conformance!(grok_build, Grok);
 conformance!(kimi_code, Kimi);
 conformance!(opencode_v1, OpenCode(Line::V1));
 conformance!(opencode_v2, OpenCode(Line::V2));
 conformance!(codex, Codex);
+conformance!(zcode, ZCode);
 conformance!(fake, Fake);

@@ -50,7 +50,7 @@ export function ProjectAgentsCard({ project }: { project: ProjectInfo }): JSX.El
         <p className="min-w-0 flex-1 text-body text-ink">
           <span className="font-medium">Kept apart: {apart ? "yes" : "no"}</span>
           <span className="text-meta text-muted">
-            {apart ? ` · in «${apart.name}», its sessions are in no other pool, and nothing leaves it through AI Juggler` : " · its sessions can be in your other pools too"}
+            {apart ? ` · in “${apart.name}”, its sessions are in no other pool, and nothing leaves it through AI Juggler` : " · its sessions can be in your other pools too"}
           </span>
         </p>
         {apart ? (

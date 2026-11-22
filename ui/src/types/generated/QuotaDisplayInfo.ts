@@ -17,6 +17,13 @@ export type QuotaDisplayInfo = {
  */
 account: string, 
 /**
+ * AJ-E3210 (D-135): the Account these readings were read under: the
+ * folder's own (its CLI's sign-in), or, for a second display of the
+ * same folder, another Account an App on it is signed in to (a Claude
+ * app profile on its own sign-in). `None`: the folder isn't signed in.
+ */
+signed_in_as?: string | null, 
+/**
  * The 5 h window, when the plan has one.
  */
 five_hour: WindowDisplay | null, 

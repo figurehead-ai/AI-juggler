@@ -24,6 +24,9 @@ pub struct ToolFlowInfo {
     pub first_run: bool,
     /// The tool a fresh account is for when nothing else says.
     pub primary: bool,
+    /// Walked live end to end with a signed-in account (its adapter names
+    /// the evidence): only these are named where support is claimed.
+    pub live_verified: bool,
 }
 
 /// A tool's own terms, and one line on several accounts under them.

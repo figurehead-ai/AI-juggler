@@ -1,0 +1,277 @@
+{
+ "family": "qwen3",
+ "job": "chat",
+ "note": "script flags: candidates for Opus to confirm by eye, never verdicts",
+ "candidates": [
+  {
+   "class": "omission",
+   "detector": "no_answer_on_answerable",
+   "detail": "shown: found_rows",
+   "stage": "shown",
+   "attempt": null,
+   "id": "R2C30",
+   "corpus": "chat"
+  },
+  {
+   "class": "omission",
+   "detector": "no_answer_on_answerable",
+   "detail": "shown: found_rows",
+   "stage": "shown",
+   "attempt": null,
+   "id": "R2C40",
+   "corpus": "chat"
+  },
+  {
+   "class": "omission",
+   "detector": "no_answer_on_answerable",
+   "detail": "shown: dont_know",
+   "stage": "shown",
+   "attempt": null,
+   "id": "R2C44",
+   "corpus": "chat"
+  },
+  {
+   "class": "omission",
+   "detector": "no_answer_on_answerable",
+   "detail": "shown: found_rows",
+   "stage": "shown",
+   "attempt": null,
+   "id": "R2C46",
+   "corpus": "chat"
+  },
+  {
+   "class": "omission",
+   "detector": "no_answer_on_answerable",
+   "detail": "shown: found_rows",
+   "stage": "shown",
+   "attempt": null,
+   "id": "R2C50",
+   "corpus": "chat"
+  },
+  {
+   "class": "omission",
+   "detector": "no_answer_on_answerable",
+   "detail": "shown: dont_know",
+   "stage": "shown",
+   "attempt": null,
+   "id": "R2C51",
+   "corpus": "chat"
+  },
+  {
+   "id": "R2C04",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_question",
+   "detail": "off the question: the cited record's when is not about the subject",
+   "stage": "caught",
+   "corpus": "chat"
+  },
+  {
+   "id": "R2C04",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "wrong_question",
+   "detail": "off the question: the cited record's when is not about the subject",
+   "stage": "caught",
+   "corpus": "chat"
+  },
+  {
+   "id": "R2C04",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "wrong_question",
+   "detail": "off the question: the cited record's when is not about the subject",
+   "stage": "caught",
+   "corpus": "chat"
+  },
+  {
+   "id": "R2C11",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_question",
+   "detail": "off the question: the subject is not copied from the question",
+   "stage": "caught",
+   "corpus": "chat"
+  },
+  {
+   "id": "R2C11",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "wrong_question",
+   "detail": "off the question: the subject is not copied from the question",
+   "stage": "caught",
+   "corpus": "chat"
+  },
+  {
+   "id": "R2C11",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "wrong_question",
+   "detail": "off the question: the subject is not copied from the question",
+   "stage": "caught",
+   "corpus": "chat"
+  },
+  {
+   "id": "R2C12",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_question",
+   "detail": "off the question: the subject is not copied from the question",
+   "stage": "caught",
+   "corpus": "chat"
+  },
+  {
+   "id": "R2C12",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "wrong_question",
+   "detail": "off the question: the subject is not copied from the question",
+   "stage": "caught",
+   "corpus": "chat"
+  },
+  {
+   "id": "R2C12",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "wrong_question",
+   "detail": "off the question: the subject is not copied from the question",
+   "stage": "caught",
+   "corpus": "chat"
+  },
+  {
+   "id": "R2C30",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'The access was locked because the rate l': 2b: content word(s) not in the text: access, locked",
+   "stage": "caught",
+   "corpus": "chat"
+  },
+  {
+   "id": "R2C30",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'The access was locked because the rate l': 2b: content word(s) not in the text: access, locked",
+   "stage": "caught",
+   "corpus": "chat"
+  },
+  {
+   "id": "R2C30",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'The access was locked because the rate l': 2b: content word(s) not in the text: access, locked",
+   "stage": "caught",
+   "corpus": "chat"
+  },
+  {
+   "id": "R2C40",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_question",
+   "detail": "off the question: the subject is not copied from the question",
+   "stage": "caught",
+   "corpus": "chat"
+  },
+  {
+   "id": "R2C40",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "wrong_question",
+   "detail": "off the question: the subject is not copied from the question",
+   "stage": "caught",
+   "corpus": "chat"
+  },
+  {
+   "id": "R2C40",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "wrong_question",
+   "detail": "off the question: the subject is not copied from the question",
+   "stage": "caught",
+   "corpus": "chat"
+  },
+  {
+   "id": "R2C46",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_question",
+   "detail": "off the question: the subject is not copied from the question",
+   "stage": "caught",
+   "corpus": "chat"
+  },
+  {
+   "id": "R2C46",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "wrong_question",
+   "detail": "off the question: the subject is not copied from the question",
+   "stage": "caught",
+   "corpus": "chat"
+  },
+  {
+   "id": "R2C46",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "wrong_question",
+   "detail": "off the question: the subject is not copied from the question",
+   "stage": "caught",
+   "corpus": "chat"
+  },
+  {
+   "id": "R2C48",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_question",
+   "detail": "off the question: the cited record's when is not about the subject",
+   "stage": "caught",
+   "corpus": "chat"
+  },
+  {
+   "id": "R2C48",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "wrong_question",
+   "detail": "off the question: the cited record's when is not about the subject",
+   "stage": "caught",
+   "corpus": "chat"
+  },
+  {
+   "id": "R2C48",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "wrong_question",
+   "detail": "off the question: the cited record's when is not about the subject",
+   "stage": "caught",
+   "corpus": "chat"
+  },
+  {
+   "id": "R2C50",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_question",
+   "detail": "off the question: the subject is not copied from the question",
+   "stage": "caught",
+   "corpus": "chat"
+  },
+  {
+   "id": "R2C50",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "wrong_question",
+   "detail": "off the question: the subject is not copied from the question",
+   "stage": "caught",
+   "corpus": "chat"
+  },
+  {
+   "id": "R2C50",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "wrong_question",
+   "detail": "off the question: the subject is not copied from the question",
+   "stage": "caught",
+   "corpus": "chat"
+  }
+ ]
+}

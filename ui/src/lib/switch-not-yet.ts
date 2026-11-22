@@ -10,6 +10,7 @@
  * with it, so the page tells one story.
  */
 import { useSyncExternalStore } from "react";
+import { listeners } from "./listeners";
 
 /** SK-2 (the 0.4.6 soak, A5): why one of AI Juggler's sessions can't
  * switch yet, before any switch list has asked: it has no conversation
@@ -24,19 +25,14 @@ export function cantSwitchYet(row: { conversation_id: string | null }): string |
 /** By the switch source key (AI Juggler's session id, or another app's
  * session's key): why it can't switch yet, or null once it can. */
 const notYet = new Map<string, string | null>();
-const listeners = new Set<() => void>();
+const { subscribe, notify } = listeners();
 
 /** Keeps what a switch list was told for `sessionId`. */
 export function noteSwitchTargets(sessionId: string, rows: ReadonlyArray<{ not_yet?: string | null }>): void {
   const why = rows.find((row) => row.not_yet)?.not_yet ?? null;
   if (notYet.has(sessionId) && notYet.get(sessionId) === why) return;
   notYet.set(sessionId, why);
-  for (const listener of listeners) listener();
-}
-
-function subscribe(listener: () => void): () => void {
-  listeners.add(listener);
-  return () => listeners.delete(listener);
+  notify();
 }
 
 /** Why `sessionId` can't switch yet, as its switch list last heard it;
@@ -49,5 +45,5 @@ export function useSwitchNotYet(sessionId: string | null | undefined): string | 
 /** Tests: forget every answer. */
 export function resetSwitchNotYet(): void {
   notYet.clear();
-  for (const listener of listeners) listener();
+  notify();
 }

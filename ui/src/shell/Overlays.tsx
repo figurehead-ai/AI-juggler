@@ -161,14 +161,22 @@ export function ShellOverlays({ shell }: { shell: Shell }): JSX.Element {
           targetLabel={switchFlow.targetLabel}
           onClose={() => shell.setSwitchFlow(null)}
           onSwitched={(sessionId, undo) => {
-            shell.setSwitchFlow(null);
-            void refresh();
-            selectSession(sessionId);
+            const done = () => {
+              shell.setSwitchFlow(null);
+              void refresh();
+              selectSession(sessionId);
+            };
+            if (!undo) {
+              done();
+              return;
+            }
             // AJ-E206: a completed 1-click switch leaves the 10s undo
-            // window open (the graph keeps the edge as the handle).
-            if (undo) {
-              const targetLabel = switchFlow.targetLabel;
-              void import("../components/SwitchFlow").then((module) =>
+            // window open (the graph keeps the edge as the handle). Its
+            // toast shows before the dialog closes, so the close hands its
+            // Undo the focus (lib/inert), never by which ran first.
+            const targetLabel = switchFlow.targetLabel;
+            void import("../components/SwitchFlow")
+              .then((module) =>
                 module.showSwitchUndoToast({
                   edgeId: undo.edgeId,
                   targetLabel,
@@ -177,8 +185,8 @@ export function ShellOverlays({ shell }: { shell: Shell }): JSX.Element {
                     selectSession(undoneId);
                   },
                 }),
-              );
-            }
+              )
+              .finally(done);
           }}
         />
       )}

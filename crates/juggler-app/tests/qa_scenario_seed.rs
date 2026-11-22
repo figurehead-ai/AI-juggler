@@ -81,6 +81,7 @@ fn lab_room(
     let resets = match window {
         WindowKind::FiveHour => resets_in_ms.unwrap_or(2 * 3_600_000),
         WindowKind::Weekly { .. } => 3 * 24 * 3_600_000,
+        WindowKind::Monthly => 20 * 24 * 3_600_000,
     };
     let sample = QuotaSample {
         ts: now - 60_000,
@@ -634,6 +635,47 @@ fn account_named(
         .account_id
 }
 
+/// T16 (AJ-E1612): fresh App `id`'s Sign in as its action runs it — its
+/// adapter's `login_spec` on its folder: the program, its words, where it
+/// runs and every variable it sets or removes (no key: a sign-in takes
+/// none). A sign-in its adapter refuses (the tool missing, Muse on a
+/// version whose file backend wasn't checked) is recorded with the reason.
+fn fresh_sign_in(state: &Arc<AppState>, id: &str, tool: &str, account_id: &str) -> Value {
+    let folder = dir_of(state, account_id);
+    let adapter = state
+        .registry
+        .get(&juggler_core::model::HarnessId::new(tool))
+        .expect("a tool this build knows");
+    let mut out = serde_json::json!({
+        "id": id,
+        "tool": tool,
+        "account": account_id,
+        "folder": folder,
+    });
+    match adapter.login_spec(&folder) {
+        Ok(spec) => {
+            let env: serde_json::Map<String, Value> = spec
+                .env
+                .iter()
+                .map(|(key, value)| {
+                    let shown = if value == juggler_adapter::launch::ENV_UNSET {
+                        Value::Null
+                    } else {
+                        Value::String(value.clone())
+                    };
+                    (key.clone(), shown)
+                })
+                .collect();
+            out["program"] = Value::String(spec.program.to_string_lossy().into_owned());
+            out["args"] = serde_json::json!(spec.args);
+            out["cwd"] = Value::String(spec.cwd.to_string_lossy().into_owned());
+            out["env"] = Value::Object(env);
+        }
+        Err(error) => out["refused"] = Value::String(error.to_string()),
+    }
+    out
+}
+
 fn level_of(word: &str) -> Option<AccessLevel> {
     AccessLevel::parse(&word.replace('-', "_"))
 }
@@ -735,6 +777,8 @@ fn seed_lab(
     let lab_roots = [home, data_dir.as_path()];
     let adopt = std::env::var("AIJ_LAB_ADOPT").ok();
     let mut adopted_once = false;
+    // T16 (AJ-E1612): each fresh App's Sign in, as its action runs it.
+    let mut sign_ins: Vec<Value> = Vec::new();
     for app in seed["apps"].as_array().cloned().unwrap_or_default() {
         let (id, tool) = (app["id"].as_str().unwrap(), app["tool"].as_str().unwrap());
         if tool == "codex-app" {
@@ -832,15 +876,21 @@ fn seed_lab(
             // profile, their transcripts in its Claude Code folder), and
             // scripts' runs in that folder.
             let who = slug(app["account"].as_str().unwrap_or(id));
+            let records = juggler_adapters::claude_live::app_root(&dir)
+                .join(format!("lab-account-{who}"))
+                .join(format!("lab-org-{who}"));
+            // A signed-in profile has its records folder even with no Code
+            // session yet, as one opened on its account has: Move's target
+            // reads its account there (the 0.5.0 re-walk, R12: PL1's
+            // personal profile had none, so Move stayed off).
+            if signed_in(&app).is_some() {
+                std::fs::create_dir_all(&records).unwrap();
+            }
             let surface = Surface {
                 tool: "claude-code",
                 own: StartedBy::ClaudeApp,
                 folder: code.clone(),
-                records: Some(
-                    juggler_adapters::claude_live::app_root(&dir)
-                        .join(format!("lab-account-{who}"))
-                        .join(format!("lab-org-{who}")),
-                ),
+                records: Some(records),
             };
             lab_past(&app, &surface, &cwds, &lab_roots, &mut notes);
             if app["running"].as_bool() == Some(true) {
@@ -934,9 +984,17 @@ fn seed_lab(
                 }
             }
         } else {
-            let Ok(account) =
+            // T16 (AJ-E1612): `fresh = true` is an App made as Add a fresh
+            // app makes it (its "Main" launch settings with it), signed
+            // out; nothing written for it.
+            let made = if app["fresh"].as_bool() == Some(true) {
+                juggler_app::features::account::create_account_for_person(
+                    &state, tool, &label, None,
+                )
+            } else {
                 juggler_app::features::account::create_account(&state, tool, &label, None)
-            else {
+            };
+            let Ok(account) = made else {
                 notes.push(format!(
                     "{id}: {tool} isn't a tool this build knows; left out"
                 ));
@@ -969,10 +1027,35 @@ fn seed_lab(
             records: None,
         };
         lab_past(&app, &surface, &cwds, &lab_roots, &mut notes);
-        let profile =
+        let recipe = if app["fresh"].as_bool() == Some(true) {
+            sign_ins.push(fresh_sign_in(&state, id, tool, &account.id));
+            // The launch settings Add a fresh app made with it.
+            state
+                .storage
+                .lock()
+                .unwrap()
+                .profiles()
+                .list_by_account(&juggler_core::model::AccountId::new(account.id.clone()))
+                .unwrap()
+                .remove(0)
+                .id
+                .to_string()
+        } else {
             juggler_app::features::profile::create_profile(&state, &account.id, "Main", None, None)
-                .unwrap();
-        recipes.insert(id.to_owned(), (account.id, profile.id));
+                .unwrap()
+                .id
+        };
+        recipes.insert(id.to_owned(), (account.id, recipe));
+    }
+    if !sign_ins.is_empty() {
+        // Beside the data folder, in the lab (never the repo): what
+        // `scripts/qa/lab_sign_ins.py check` holds to the lab.
+        std::fs::write(
+            home.join("sign-ins.json"),
+            serde_json::to_string_pretty(&Value::Array(sign_ins)).unwrap(),
+        )
+        .unwrap();
+        notes.push("the fresh Apps' Sign in, as each runs it: sign-ins.json".to_owned());
     }
     // A10: a sign-in that can't be read, made by the seeder in the lab.
     seed_unreadable_sign_ins(
@@ -1047,7 +1130,11 @@ fn seed_lab(
         // The M4 walk on P1S6 (rc33): a seeded session had no conversation,
         // so "Continue in another app" rightly refused it. `conversation =
         // true` gives it one in its tool's own format.
-        if session["conversation"].as_bool() == Some(true) {
+        // AJ-E2312 (K3's "may be stuck"): `open_turn = true` gives it one
+        // whose last turn started and never ended, quiet since.
+        if session["conversation"].as_bool() == Some(true)
+            || session["open_turn"].as_bool() == Some(true)
+        {
             let (account, _) = &recipes[session["app"].as_str().unwrap()];
             lab_conversation(&state, &session, account, &mut notes);
         }
@@ -1173,6 +1260,7 @@ fn seed_lab(
                     ago_minutes: *ago_minutes,
                     // Every third of each App's (they take turns).
                     titled: (n / terminal.len()).is_multiple_of(3),
+                    open_turn: false,
                 },
                 account,
                 &mut notes,
@@ -1400,10 +1488,18 @@ fn lab_conversation(
         return;
     }
     // Persona D3: its title and what was said, and when it ended (a
-    // session from `days_ago` ended half an hour after it started).
-    let ago_minutes = session["days_ago"]
-        .as_u64()
-        .map_or(0, |days| (days * 24 * 60).saturating_sub(30));
+    // session from `days_ago` ended half an hour after it started). An
+    // open turn has been quiet longer than "Stuck after" (5 min by
+    // default): [`OPEN_TURN_QUIET_MINUTES`].
+    let open_turn = session["open_turn"].as_bool() == Some(true);
+    let ago_minutes = session["days_ago"].as_u64().map_or(
+        if open_turn {
+            OPEN_TURN_QUIET_MINUTES
+        } else {
+            0
+        },
+        |days| (days * 24 * 60).saturating_sub(30),
+    );
     lab_talk(
         state,
         &LabTalk {
@@ -1414,6 +1510,7 @@ fn lab_conversation(
             said: session["said"].as_str(),
             ago_minutes,
             titled: session["title"].is_string(),
+            open_turn,
         },
         account,
         notes,
@@ -1462,7 +1559,14 @@ struct LabTalk<'a> {
     said: Option<&'a str>,
     ago_minutes: u64,
     titled: bool,
+    /// Its last turn started and never ended (`replica.py conversation
+    /// --open-turn`): Claude Code only.
+    open_turn: bool,
 }
+
+/// How long an open turn has been quiet at the seed: past "Stuck after"'s
+/// default five minutes, so "may be stuck" is due once the lab opens.
+const OPEN_TURN_QUIET_MINUTES: u64 = 10;
 
 /// The tool scenario Account `account` runs (`claude-code`, `codex`, …).
 fn lab_tool(state: &Arc<AppState>, account: &str) -> String {
@@ -1534,6 +1638,9 @@ fn lab_talk(state: &Arc<AppState>, talk: &LabTalk<'_>, account: &str, notes: &mu
     let untitled = !talk.titled && tool == "claude-code";
     if untitled {
         args.push("--untitled".into());
+    }
+    if talk.open_turn && tool == "claude-code" {
+        args.push("--open-turn".into());
     }
     let written = replica(&args);
     let path = PathBuf::from(written["path"].as_str().unwrap());
@@ -1636,12 +1743,29 @@ fn lab_sleeper(cwd: &std::path::Path, home: &std::path::Path, name: &str, secs: 
         std::thread::sleep(std::time::Duration::from_millis(20));
     };
     std::fs::remove_file(&ready).unwrap();
+    // The shell writes the pid right after its fork, and until the child
+    // execs it is still the shell's image. Read then (a busy machine, as
+    // CI's Linux runners are), its identity would record the shell's
+    // program, and the stop's identity check would rightly refuse the
+    // live `sleep` as a different program. Wait for the exec: the child's
+    // program is no longer the shell's.
+    if let Some(shell) = os_process(group).0 {
+        loop {
+            if os_process(pid).0.is_some_and(|exe| exe != shell) {
+                break;
+            }
+            assert!(
+                std::time::Instant::now() < deadline,
+                "{name}: its sleep never started"
+            );
+            std::thread::sleep(std::time::Duration::from_millis(5));
+        }
+    }
     (group, pid)
 }
 
-/// Process `pid`'s identity as the ledger keys it: its exe (`fallback`
-/// when the OS won't say) and its OS start time.
-fn os_identity(pid: u32, fallback: &str) -> (PathBuf, i64) {
+/// Process `pid`'s exe (when the OS says) and OS start time, as read now.
+fn os_process(pid: u32) -> (Option<PathBuf>, Option<i64>) {
     let mut system = sysinfo::System::new();
     system.refresh_processes_specifics(
         sysinfo::ProcessesToUpdate::Some(&[sysinfo::Pid::from_u32(pid)]),
@@ -1650,13 +1774,24 @@ fn os_identity(pid: u32, fallback: &str) -> (PathBuf, i64) {
             .without_tasks()
             .with_exe(sysinfo::UpdateKind::Always),
     );
-    let live = system
+    system
         .process(sysinfo::Pid::from_u32(pid))
-        .expect("the lab's process runs");
-    let exe = live
-        .exe()
-        .map_or_else(|| PathBuf::from(fallback), std::path::Path::to_path_buf);
-    (exe, i64::try_from(live.start_time()).unwrap())
+        .map_or((None, None), |live| {
+            (
+                live.exe().map(std::path::Path::to_path_buf),
+                i64::try_from(live.start_time()).ok(),
+            )
+        })
+}
+
+/// Process `pid`'s identity as the ledger keys it: its exe (`fallback`
+/// when the OS won't say) and its OS start time.
+fn os_identity(pid: u32, fallback: &str) -> (PathBuf, i64) {
+    let (exe, start) = os_process(pid);
+    (
+        exe.unwrap_or_else(|| PathBuf::from(fallback)),
+        start.expect("the lab's process runs"),
+    )
 }
 
 /// One process of lab session `record` as AI Juggler's process ledger
@@ -3062,12 +3197,13 @@ fn week_used_keeps_an_account_out_past_the_five_hour_reset() {
         "out for days"
     );
     // Out five hours from now, as the check reads it: the week's reading.
+    // AJ-E3210: by App, its folder's CLI App.
     let read = presence_reads(
         &state,
         &[],
         "sorted(ps.out_accounts(db, int(time.time() * 1000) + 5 * 3600 * 1000))",
     );
-    assert_eq!(read, serde_json::json!([id]));
+    assert_eq!(read, serde_json::json!([format!("cli:{id}")]));
 }
 
 /// The PL1 lab as its scenario file seeds it: the six shapes 0.4.3's rail
@@ -3133,7 +3269,8 @@ fn pl1s_lab_holds_the_six_shapes() {
           'personal_scripts': ps.script_runs(a[1]), \
           'terminal': ps.cli_records(a[6], set(), {}).listed, \
           'codex': [len(ids) for ids in ps.codex_listed(a[7])], \
-          'out': sorted(label for (label,) in db.execute('select label from accounts where id in (%s)' % ','.join('?' * len(o)), list(o))) \
+          'out': sorted({label for (label,) in db.execute('select a.label from apps p join accounts a on a.id = p.folder_id where p.id in (%s) \
+              union select label from accounts where id in (%s)' % (','.join('?' * len(o)), ','.join('?' * len(o))), list(o) * 2)}) \
               if (o := ps.out_accounts(db, int(time.time() * 1000) + 5 * 3600 * 1000)) else []}",
     );
     assert_eq!(
@@ -3151,6 +3288,16 @@ fn pl1s_lab_holds_the_six_shapes() {
             "out": ["client", "work"],
         })
     );
+    // The 0.5.0 re-walk (R12): each signed-in profile has its records
+    // folder, personal's too (empty), so Move's target reads its account
+    // there and Move to personal is on.
+    for name in ["personal", "work", "client"] {
+        assert_eq!(
+            juggler_adapters::claude_limits::instance_sign_ins(&profile(name)).len(),
+            1,
+            "{name}: one records folder"
+        );
+    }
     // What a walker needs to know: start-apps starts the two running
     // profiles; the Codex app is this Mac's own.
     for (id, word) in [
@@ -3165,6 +3312,94 @@ fn pl1s_lab_holds_the_six_shapes() {
             "{id}: {notes:?}"
         );
     }
+}
+
+/// AJ-E2312 item 8 (SK48-7, K3's step 1d): K3's "stuck" session was a
+/// process with no conversation, which the app rightly never calls stuck
+/// (it waits at its prompt), so "may be stuck" couldn't be walked. Seeded
+/// now with `open_turn`, its conversation's last turn started and never
+/// ended (an ask, a tool call with no result), quiet past "Stuck after";
+/// picked up when the app opens, the app's own rule calls it probably
+/// stuck once two looks 30 s apart agree. (A picked-up session's output
+/// isn't read: its transcript's last write is its last sign of work.)
+#[cfg(unix)]
+#[test]
+fn k3s_stuck_session_has_an_open_turn_the_apps_rule_calls_stuck() {
+    let mut k3 = scenario_seed("K3");
+    // Its stuck session alone: the walk's other rows aren't this check's.
+    let stuck: Vec<Value> = k3["sessions"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|session| session["id"] == "stuck")
+        .cloned()
+        .collect();
+    assert_eq!(stuck[0]["open_turn"], Value::Bool(true), "K3 seeds it so");
+    k3["sessions"] = Value::Array(stuck);
+    k3["ended_sessions"] = Value::from(0);
+    let (lab, state, notes) = seeded_with_notes(&k3, "k3-stuck");
+    let id = SessionId::new("stuck");
+    let record = state.storage.lock().unwrap().sessions().get(&id).unwrap();
+    let transcript = record
+        .transcript_ref
+        .clone()
+        .unwrap_or_else(|| panic!("its conversation is linked: {notes:?}"))
+        .path;
+    let lines: Vec<Value> = std::fs::read_to_string(&transcript)
+        .unwrap()
+        .lines()
+        .map(|line| serde_json::from_str(line).unwrap())
+        .collect();
+    let (ask, call) = (&lines[lines.len() - 2], &lines[lines.len() - 1]);
+    assert_eq!(ask["type"], "user", "the turn's ask");
+    assert_eq!(call["message"]["stop_reason"], "tool_use", "a tool call…");
+    assert_eq!(
+        call["parentUuid"], ask["uuid"],
+        "…of that turn, never answered"
+    );
+    let written = std::fs::metadata(&transcript)
+        .unwrap()
+        .modified()
+        .unwrap()
+        .elapsed()
+        .unwrap();
+    assert!(
+        written >= std::time::Duration::from_secs(9 * 60),
+        "quiet past Stuck after: {written:?}"
+    );
+    drop(state);
+
+    // The lab opens: its session is picked up running, its turn open.
+    let reopened = Arc::new(
+        AppState::init_with_registry(lab.path().join("data"), default_registry()).unwrap(),
+    );
+    assert!(
+        reopened.supervisor.alive_adopted_sessions().contains(&id),
+        "picked up again"
+    );
+    // "Stuck after" short (1 min): its transcript is 10 min quiet anyway.
+    reopened
+        .heuristics
+        .set_thresholds(juggler_app::settings_policy::thresholds_with_stuck_after(
+            reopened.heuristics.thresholds(),
+            1,
+        ));
+    let now = Timestamp::now().millis();
+    let inputs = |at: i64| {
+        juggler_app::features::sessions::attention::heuristic_inputs_now(&reopened, &id, at)
+            .expect("the stuck rule reads it")
+    };
+    assert!(!inputs(now).turn_ended, "its turn is open");
+    assert!(
+        reopened.heuristics.evaluate(&id, &inputs(now)).is_none(),
+        "one look is no proof (debounce)"
+    );
+    let stuck = reopened
+        .heuristics
+        .evaluate(&id, &inputs(now + 31_000))
+        .expect("probably stuck, the second look 30 s on");
+    assert_eq!(stuck.status, SessionStatus::Stuck);
+    assert_eq!(stuck.reason.rule, "stuck_no_output");
 }
 
 /// The rc37 persona walks: PD4's working sessions and PM4's writer read
@@ -3389,4 +3624,103 @@ fn pf1s_first_run_runs_a_session_per_claude_setup() {
         std::thread::sleep(std::time::Duration::from_millis(50));
     }
     drop(lab);
+}
+
+/// SK48-14 (the 0.4.8 soak, PD4 step 2): after the sheet stopped the
+/// leftover `sleep`, the list said "Nothing needs you" while the tile,
+/// the header chip, the rail's need and the bell still counted 1 for 45 s
+/// and more. Every count reads the graph's, so once the stop is done the
+/// next tick must leave nothing to clean up anywhere.
+#[cfg(unix)]
+#[test]
+fn pd4s_stopped_leftover_leaves_every_count_at_the_next_tick() {
+    use juggler_supervisor::tree::LedgerStore as _;
+    let mut stop = StopGroup(None);
+    let (lab, state) = seeded(&scenario_seed("PD4"), "pd4-stop");
+    let helper = state
+        .ledger
+        .session_rows(&SessionId::new("billing-dev"))
+        .unwrap()
+        .into_iter()
+        .find(|row| row.role == "helper")
+        .expect("its leftover");
+    stop.0 = helper.pgid;
+    let pid = helper.pid.unwrap();
+    drop(state);
+    // The lab opens, as the walk did.
+    let app = Arc::new(
+        AppState::init_with_registry(lab.path().join("data"), default_registry()).unwrap(),
+    );
+    let counts = |app: &Arc<AppState>| {
+        let graph = app.processes.graph();
+        let listed = juggler_app::features::processes::query::rows(
+            &graph,
+            &serde_json::from_value(serde_json::json!({
+                "view": "attention", "session_id": null, "session_ids": [], "states": [],
+                "app": null, "account_id": null, "project_id": null, "has_port": false,
+                "heavy": false, "show_internal": false, "others": false, "search": "",
+                "expanded": [], "collapsed": []
+            }))
+            .unwrap(),
+        )
+        .into_iter()
+        .filter(|row| row.kind == "process")
+        .count();
+        (graph.counts.to_clean, listed)
+    };
+    // Two ticks: the first reads the slow facts too.
+    let leftover_needs = |app: &Arc<AppState>| {
+        use juggler_app::features::notifications::{centre, tray};
+        let storage = app.storage.lock().unwrap();
+        centre::open_needs(&storage, Timestamp::now().millis(), tray::NEEDS_LISTED)
+            .into_iter()
+            .filter(|row| row.kind == "leftovers")
+            .count()
+    };
+    juggler_app::features::processes::tick::processes_tick(&app);
+    let change = juggler_app::features::processes::tick(&app).expect("the first graph");
+    assert_eq!(counts(&app), (1, 1), "the leftover, counted and listed");
+    // This Mac sampled (its 5 s tick), and Needs you worked out from it.
+    juggler_app::features::processes::after_change(&app, &change);
+    app.notifier.set_this_mac(
+        juggler_app::machine_health::this_mac_impl(&app, Timestamp::now().millis()).unwrap(),
+    );
+    juggler_app::features::notifications::needs::refresh(&app);
+    assert_eq!(leftover_needs(&app), 1, "Needs you: 1 process left running");
+
+    let cancel = Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let outcome = juggler_app::features::kill::kill_execute_audited(
+        &app,
+        app.audit.as_ref(),
+        "billing-dev",
+        pid,
+        "pid",
+        &cancel,
+        None,
+    )
+    .unwrap();
+    assert!(outcome.all_succeeded, "stopped: {outcome:?}");
+    juggler_app::features::processes::tick::processes_tick(&app);
+    let change = juggler_app::features::processes::tick(&app);
+    assert_eq!(counts(&app), (0, 0), "nothing to clean up, nothing listed");
+    let change = change.expect("the page and the counts hear of it");
+    assert_eq!(change.counts.to_clean, 0, "{change:?}");
+    // The same tick: the top bar's count moved, and Needs you (the rail,
+    // the bell, Home) follows it, before This Mac's next sample.
+    assert!(
+        juggler_app::features::processes::after_change(&app, &change),
+        "the top bar's count moved"
+    );
+    assert_eq!(
+        leftover_needs(&app),
+        0,
+        "Needs you lets it go on the same tick"
+    );
+    assert_eq!(
+        juggler_app::machine_health::this_mac_impl(&app, Timestamp::now().millis())
+            .unwrap()
+            .leftover_processes,
+        0,
+        "This Mac and the rail's need read it too"
+    );
 }

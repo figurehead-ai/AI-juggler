@@ -7,7 +7,7 @@
  * once). No e-mail or id on the page, only its name, organisation and
  * plan (AJ-E3205 R1).
  */
-import { RoomChip, useRoomMark } from "../../components/RoomChip";
+import { RoomChip, useAccountRoomMark } from "../../components/RoomChip";
 import { useEffect, useMemo, useState, type JSX, type ReactNode } from "react";
 import { Section } from "../../components/charts/ChartCard";
 import { IconFolder, IconPlay } from "../../components/usage/controls";
@@ -118,7 +118,9 @@ function AccountBody({ sub, onChanged, sessions, projects, accounts, now, onOpen
   // 0.4.1: out of room or low (lib/room-mark, read as every other mark
   // reads it): its header's chip, and the Overview says what that
   // affects (A5).
-  const room = useRoomMark(sub.profiles[0]?.id);
+  // AJ-E3210: its own readings, wherever read (an Account only a Claude
+  // app profile is on has no folder of its own).
+  const room = useAccountRoomMark(sub);
   // AJ-E3102: Sessions counts what its list pages through (the backend's
   // relation counts); Apps and Projects, what their lists show.
   const related = useRelationCounts("subscription", sub.account_id);

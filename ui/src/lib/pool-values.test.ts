@@ -129,7 +129,7 @@ describe("one short identity for an App (D-126 critique)", () => {
 
   it("Review says each row in one short sentence", () => {
     expect(reviewLines(shape(), "web", "web team")).toEqual({
-      where: "«web team» works in web.",
+      where: "“web team” works in web.",
       who: "Claude and Codex, and every new session in web.",
       lead: "Claude's next session in web leads.",
       everyone: "Codex checks the work. Everyone else builds.",

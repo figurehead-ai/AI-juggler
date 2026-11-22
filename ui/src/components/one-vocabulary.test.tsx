@@ -45,7 +45,9 @@ describe("one state vocabulary (AJ-E2104 Req.3)", () => {
   it("a session's state, or why it needs you, in the place rows' words", () => {
     for (const [status, word] of EXPECTED) expect(sessionState(session(status)).word, status).toBe(word);
     expect(sessionState(session("waiting_user"))).toMatchObject({ state: "asks_you", needs: true, tone: "text-warning" });
-    expect(sessionState(session("running"))).toMatchObject({ state: "working", needs: false, tone: "text-live" });
+    // D-117: normal running is calm (a muted word beside the calm live dot).
+    expect(sessionState(session("running"))).toMatchObject({ state: "working", needs: false, tone: "text-muted", dot: "bg-live" });
+    expect(sessionState(session("failed"))).toMatchObject({ needs: true, tone: "text-danger" });
   });
 
   it("a paired Mac's row (a status alone) says it the same way", () => {

@@ -16,6 +16,8 @@ import type { JSX } from "react";
 import type { PreflightInfoData, SwitchExecutedData } from "../../lib/ipc/switch-preflight";
 import { restartPlace } from "../../lib/go-to";
 import { Button } from "../primitives";
+import { IconClock } from "../icons-menu";
+import { Fact } from "./Facts";
 import type { Destination } from "./WhereChoice";
 
 /** "A", "A and B", "A, B and C". */
@@ -30,23 +32,25 @@ export function AutomationBefore({ preflight, destination, app }: { preflight: P
   if (moves.length === 0 && stays.length === 0) return null;
   const left = moves.length > 0 && preflight.automation_needs_desktop === true && destination === "cli";
   return (
-    <div className="flex flex-col gap-1" data-testid="switch-automation">
-      {moves.length > 0 &&
-        (left ? (
-          <p className="text-body font-medium text-warning" data-testid="switch-automation-left">
-            {joined(moves)} {moves.length === 1 ? "stays" : "stay"} with the original: only {app} runs {moves.length === 1 ? "it" : "them"}. Continue in {app} to take {moves.length === 1 ? "it" : "them"} along.
-          </p>
-        ) : (
-          <p className="text-body text-ink-2" data-testid="switch-automation-moves">
-            {joined(moves)} {moves.length === 1 ? "moves" : "move"} to the copy and {moves.length === 1 ? "is" : "are"} turned off on the original, so only one of them works.
-          </p>
+    <Fact icon={IconClock} label="Runs by itself" tone={left ? "warn" : "plain"}>
+      <span className="flex flex-col gap-1" data-testid="switch-automation">
+        {moves.length > 0 &&
+          (left ? (
+            <span className="font-medium" data-testid="switch-automation-left">
+              {joined(moves)} {moves.length === 1 ? "stays" : "stay"} with the original: only {app} runs {moves.length === 1 ? "it" : "them"}. Continue in {app} to take {moves.length === 1 ? "it" : "them"} along.
+            </span>
+          ) : (
+            <span data-testid="switch-automation-moves">
+              {joined(moves)} {moves.length === 1 ? "moves" : "move"} to the copy and {moves.length === 1 ? "is" : "are"} turned off on the original, so only one of them works.
+            </span>
+          ))}
+        {stays.map((line) => (
+          <span key={line} data-testid="switch-automation-stays">
+            {line}.
+          </span>
         ))}
-      {stays.map((line) => (
-        <p key={line} className="text-body text-ink-2" data-testid="switch-automation-stays">
-          {line}.
-        </p>
-      ))}
-    </div>
+      </span>
+    </Fact>
   );
 }
 
@@ -57,27 +61,27 @@ export function AutomationAfter({ result, app, sourceApp }: { result: SwitchExec
   const place = result.automation_copy_place ?? null;
   const one = moved.length === 1;
   return (
-    <div className="flex flex-col items-start gap-2" data-testid="switch-done-automation">
-      {moved.length > 0 && (
-        <p className="text-body text-ink-2">
-          {place
-            ? `${joined(moved)} ${one ? "runs" : "run"} in the copy once ${app} restarts: it reads ${one ? "it" : "them"} only when it starts.`
-            : `${joined(moved)} now ${one ? "runs" : "run"} in the copy.`}{" "}
-          {result.automation_original_waits
-            ? `On the original ${one ? "it's" : "they're"} turned off when ${sourceApp} next closes (it reads the change only when it starts).`
-            : `On the original ${one ? "it's" : "they're"} off; switching back turns ${one ? "it" : "them"} on there again.`}
-        </p>
-      )}
-      {place && (
-        <Button size="sm" variant="secondary" data-testid="switch-done-automation-restart" onClick={() => restartPlace(place, true)}>
-          Restart {app}
-        </Button>
-      )}
-      {kept.map((line) => (
-        <p key={line} className="text-body text-ink-2">
-          {line}.
-        </p>
-      ))}
-    </div>
+    <Fact icon={IconClock} label="Runs by itself">
+      <span className="flex flex-col items-start gap-2" data-testid="switch-done-automation">
+        {moved.length > 0 && (
+          <span>
+            {place
+              ? `${joined(moved)} ${one ? "runs" : "run"} in the copy once ${app} restarts: it reads ${one ? "it" : "them"} only when it starts.`
+              : `${joined(moved)} now ${one ? "runs" : "run"} in the copy.`}{" "}
+            {result.automation_original_waits
+              ? `On the original ${one ? "it's" : "they're"} turned off when ${sourceApp} next closes (it reads the change only when it starts).`
+              : `On the original ${one ? "it's" : "they're"} off; switching back turns ${one ? "it" : "them"} on there again.`}
+          </span>
+        )}
+        {place && (
+          <Button size="sm" variant="secondary" data-testid="switch-done-automation-restart" onClick={() => restartPlace(place, true)}>
+            Restart {app}
+          </Button>
+        )}
+        {kept.map((line) => (
+          <span key={line}>{line}.</span>
+        ))}
+      </span>
+    </Fact>
   );
 }

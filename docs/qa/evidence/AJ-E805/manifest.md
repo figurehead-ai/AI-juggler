@@ -91,3 +91,15 @@ reviews were estimates, and nothing here is quoted from them.
 - Every test row in the fixture shows "A0" as the Account initials,
   because the fixture's labels are all "Account NN". This comes from
   the fixture's names, not a product defect.
+
+## The release app (2026-11-13)
+
+Measured on a release build, not the test harnesses: CI's release candidate of main at b281d3ee6 (AI Juggler Dev 0.4.3, release profile, arm64; `rc-dev-app`), on the backend load test's own seeded data folder (`AIJ_KEEP_LOAD_FIXTURE`, 10 Accounts, 50 Instances, 20 Projects; synthetic), each run in a throwaway home, on the reference Mac (Mac17,15, 30 cores, load about 4 from other work). Nothing real was opened; the installed apps were not touched.
+
+| Budget | Target | Measured | Verdict | Date | Reviewer |
+|---|---|---|---|---|---|
+| R1 cold start to interactive, release build | < 2.5 s | Open (as a double-click: `open -n`) to the main window's "AI Juggler · …" title, which the UI sets once the shell has rendered: **582 ms** median of 5 (552–625), after one uncounted warm-up; of which the system's launch 437 ms and the app 144 ms. [`release-cold-start.txt`](release-cold-start.txt), `scripts/qa/release_cold_start.sh` | PASS | 2026-11-13 | claude-opus |
+| R3 memory, release app, excluding children | < 600 MB | **165 MB** resident, idle on the fixture. [`release-idle.txt`](release-idle.txt) | PASS (no live Instance) | 2026-11-13 | claude-opus |
+| R3 idle CPU, release app | < 2 % with 10 live Instances | **5.7 %** of one core mean (3.9–8.5 %) idle on the fixture with **no** live Instance: over budget before any Instance is live. The backend alone measured 0.39 % (above), so the cost is in the app process's other work (the UI's refreshes over IPC, the window). The installed beta seen the same day used about 20 % of a core with real data. Not attributed yet: the release binary has no symbols | FAIL | 2026-11-13 | claude-opus |
+
+The idle CPU is a 0.4.x performance bug (D-104: it comes before 0.5 work), reported to the coordinating session on 2026-11-13. With 10 live provider Instances the maintainer's step 8 still applies once it's fixed.

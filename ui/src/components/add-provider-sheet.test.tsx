@@ -58,11 +58,11 @@ beforeEach(() => {
 
 describe("AJ-E306 flow (c) — Add account's tool choice", () => {
   it("renders one card per adapter — installed first, plain words, desktop limit stated BEFORE selection", async () => {
-    const { container } = render(
+    render(
       <AddProviderSheet onClose={() => {}} onChoose={() => {}} />,
     );
     const cards = await waitFor(() => {
-      const found = container.querySelectorAll("[data-testid='provider-card']");
+      const found = document.body.querySelectorAll("[data-testid='provider-card']");
       expect(found.length).toBe(3);
       return Array.from(found);
     });
@@ -85,13 +85,13 @@ describe("AJ-E306 flow (c) — Add account's tool choice", () => {
   });
 
   it("not-installed cards are never selectable — only [Install →] (Req.1)", async () => {
-    const { container } = render(
+    render(
       <AddProviderSheet onClose={() => {}} onChoose={() => {}} />,
     );
     await waitFor(() =>
-      expect(container.querySelectorAll("[data-testid='provider-card']").length).toBe(3),
+      expect(document.body.querySelectorAll("[data-testid='provider-card']").length).toBe(3),
     );
-    const missing = container.querySelector(
+    const missing = document.body.querySelector(
       "[data-testid='provider-card'][data-status='not_installed']",
     )!;
     expect(missing.querySelector("[data-testid='provider-choose']")).toBeNull();
@@ -103,12 +103,12 @@ describe("AJ-E306 flow (c) — Add account's tool choice", () => {
   it("choosing a card hands that tool to Add account (Req.2); Escape closes; it is a labelled dialog", async () => {
     const onChoose = vi.fn();
     const onClose = vi.fn();
-    const { container, getByRole } = render(<AddProviderSheet onClose={onClose} onChoose={onChoose} />);
+    const { getByRole } = render(<AddProviderSheet onClose={onClose} onChoose={onChoose} />);
     await waitFor(() =>
-      expect(container.querySelectorAll("[data-testid='provider-card']").length).toBe(3),
+      expect(document.body.querySelectorAll("[data-testid='provider-card']").length).toBe(3),
     );
     expect(getByRole("dialog", { name: "Add an app: which tool?" })).toBeTruthy();
-    const choices = container.querySelectorAll<HTMLButtonElement>("[data-testid='provider-choose']");
+    const choices = document.body.querySelectorAll<HTMLButtonElement>("[data-testid='provider-choose']");
     fireEvent.click(choices[1]!);
     // Installed sort first: the second card is the installed desktop tool.
     expect(onChoose).toHaveBeenCalledWith("fake-desktop");
@@ -119,9 +119,9 @@ describe("AJ-E306 flow (c) — Add account's tool choice", () => {
 
 describe("AJ-E1023 the tool choice is a real modal dialog (WCAG 2.4.3)", () => {
   it("a parent re-render with a new onClose doesn't pull focus off the card the user is on", async () => {
-    const { container, rerender } = render(<AddProviderSheet onClose={() => {}} onChoose={() => {}} />);
-    await waitFor(() => expect(container.querySelectorAll("[data-testid='provider-choose']").length).toBe(2));
-    const second = container.querySelectorAll<HTMLButtonElement>("[data-testid='provider-choose']")[1]!;
+    const { rerender } = render(<AddProviderSheet onClose={() => {}} onChoose={() => {}} />);
+    await waitFor(() => expect(document.body.querySelectorAll("[data-testid='provider-choose']").length).toBe(2));
+    const second = document.body.querySelectorAll<HTMLButtonElement>("[data-testid='provider-choose']")[1]!;
     second.focus();
     // App passes a fresh arrow on every render (its 15 s clock, session events).
     rerender(<AddProviderSheet onClose={() => {}} onChoose={() => {}} />);
@@ -130,10 +130,10 @@ describe("AJ-E1023 the tool choice is a real modal dialog (WCAG 2.4.3)", () => {
   });
 
   it("Tab and Shift+Tab stay inside it", async () => {
-    const { container } = render(<AddProviderSheet onClose={() => {}} onChoose={() => {}} />);
-    await waitFor(() => expect(container.querySelectorAll("[data-testid='provider-choose']").length).toBe(2));
+    render(<AddProviderSheet onClose={() => {}} onChoose={() => {}} />);
+    await waitFor(() => expect(document.body.querySelectorAll("[data-testid='provider-choose']").length).toBe(2));
     const focusables = Array.from(
-      container.querySelectorAll<HTMLElement>("[role='dialog'] button:not(:disabled), [role='dialog'] a[href]"),
+      document.body.querySelectorAll<HTMLElement>("[role='dialog'] button:not(:disabled), [role='dialog'] a[href]"),
     );
     const first = focusables[0]!;
     const last = focusables[focusables.length - 1]!;
@@ -150,7 +150,7 @@ describe("AJ-E1023 the tool choice is a real modal dialog (WCAG 2.4.3)", () => {
     document.body.append(opener);
     opener.focus();
     const view = render(<AddProviderSheet onClose={() => {}} onChoose={() => {}} />);
-    await waitFor(() => expect(view.container.querySelectorAll("[data-testid='provider-card']").length).toBe(3));
+    await waitFor(() => expect(document.body.querySelectorAll("[data-testid='provider-card']").length).toBe(3));
     expect(document.activeElement).not.toBe(opener);
     view.unmount();
     expect(document.activeElement).toBe(opener);
@@ -160,8 +160,8 @@ describe("AJ-E1023 the tool choice is a real modal dialog (WCAG 2.4.3)", () => {
   it("the latest onClose runs on Escape", async () => {
     const first = vi.fn();
     const latest = vi.fn();
-    const { container, rerender } = render(<AddProviderSheet onClose={first} onChoose={() => {}} />);
-    await waitFor(() => expect(container.querySelectorAll("[data-testid='provider-card']").length).toBe(3));
+    const { rerender } = render(<AddProviderSheet onClose={first} onChoose={() => {}} />);
+    await waitFor(() => expect(document.body.querySelectorAll("[data-testid='provider-card']").length).toBe(3));
     rerender(<AddProviderSheet onClose={latest} onChoose={() => {}} />);
     fireEvent.keyDown(window, { key: "Escape" });
     expect(first).not.toHaveBeenCalled();

@@ -45,8 +45,8 @@ function openPalette({ host = {} as ActionHost, onClose = vi.fn(), app = doings(
       </ActionHostProvider>,
     );
   rerender(true);
-  const input = () => view.container.querySelector<HTMLInputElement>("input[role='combobox']")!;
-  const groups = () => [...view.container.querySelectorAll<HTMLElement>("ul[role='group']")].map((group) => group.getAttribute("aria-label"));
+  const input = () => document.body.querySelector<HTMLInputElement>("input[role='combobox']")!;
+  const groups = () => [...document.body.querySelectorAll<HTMLElement>("ul[role='group']")].map((group) => group.getAttribute("aria-label"));
   return { view, input, groups, rerender, invoker, onClose, app };
 }
 

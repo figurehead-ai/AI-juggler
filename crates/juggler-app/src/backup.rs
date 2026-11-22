@@ -35,6 +35,7 @@ pub use juggler_core::backup_archive::{
 pub(crate) use juggler_core::backup_archive::{MAX_FILE_BYTES, MAX_FILES, MAX_TOTAL_BYTES};
 use juggler_core::model::Timestamp;
 use juggler_core::storage::Storage;
+use juggler_core::storage::memory::backup::Destination as MemoryDestination;
 use sha2::{Digest, Sha256};
 
 use crate::error::{AppError, AppResult};
@@ -174,8 +175,9 @@ fn counts(storage: &Storage) -> AppResult<BTreeMap<String, u64>> {
 }
 
 /// Removes what only means something on this Mac and blanks environment
-/// values; returns what was withheld.
-fn scrub(snapshot: &Path) -> AppResult<Vec<String>> {
+/// values; returns what was withheld. The memory store's rows go by
+/// D-133's backup rule for `memory` (ADR-0037 §1.8).
+fn scrub(snapshot: &Path, memory: MemoryDestination) -> AppResult<Vec<String>> {
     let storage = Storage::open(snapshot)?;
     let conn = storage.raw_conn();
     let core = juggler_core::CoreError::from;
@@ -198,6 +200,7 @@ fn scrub(snapshot: &Path) -> AppResult<Vec<String>> {
     ] {
         conn.execute(sql, []).map_err(core)?;
     }
+    juggler_core::storage::memory::backup::scrub_snapshot(conn, memory)?;
     let mut withheld = Vec::new();
     // Every account's, removed ones too (AJ-E1501): their launch
     // settings are still in the database.
@@ -334,13 +337,46 @@ pub fn backup_before_update(
     backup_write(state, dest, progress, Purpose::StaysOnThisMac)
 }
 
-/// Where a backup goes, which decides whether a secret look-alike stops it.
+/// The backup for the encrypted cloud copy: as [`backup_export_impl`],
+/// but of Chat's memory only the watches and preferences the user stated
+/// (ADR-0037 §1.8, D-133): Chat's history, remembered answers, notes and
+/// inferred memories stay in this Mac's own backups.
+///
+/// # Errors
+///
+/// As [`backup_export_impl`].
+pub fn backup_for_cloud(
+    state: &Arc<AppState>,
+    dest: &Path,
+    progress: Progress<'_>,
+) -> AppResult<BackupExportInfo> {
+    backup_write(state, dest, progress, Purpose::Cloud)
+}
+
+/// Where a backup goes, which decides whether a secret look-alike stops it
+/// and which of Chat's memory goes with it.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 enum Purpose {
-    /// An export or a cloud copy: anything secret-looking stops it.
+    /// An export: anything secret-looking stops it.
     LeavesTheMac,
+    /// The cloud copy: anything secret-looking stops it, and Chat's words
+    /// stay behind.
+    Cloud,
     /// The copy before an update, in AI Juggler's own folder.
     StaysOnThisMac,
+}
+
+impl Purpose {
+    /// The memory store's destination class (ADR-0037 §1.8).
+    const fn memory(self) -> MemoryDestination {
+        match self {
+            Self::Cloud => MemoryDestination::Cloud,
+            Self::LeavesTheMac => MemoryDestination::Local,
+            // A copy AI Juggler keeps on its own: a later forget couldn't
+            // reach it, so it holds no memory (ADR-0037 §1.8).
+            Self::StaysOnThisMac => MemoryDestination::OwnCopy,
+        }
+    }
 }
 
 fn backup_write(
@@ -408,7 +444,7 @@ fn export_from(
 ) -> AppResult<BackupExportInfo> {
     let snapshot = work.join("juggler.sqlite");
     crate::commands::lock_storage_arc(state)?.snapshot_to(&snapshot)?;
-    let withheld = scrub(&snapshot)?;
+    let withheld = scrub(&snapshot, purpose.memory())?;
     let counts = counts(&Storage::open(&snapshot)?)?;
 
     let sources = sources(&state.data_dir, &snapshot);
@@ -619,6 +655,8 @@ pub fn backup_restore_impl(
     token: &str,
 ) -> AppResult<RestoreResultInfo> {
     let staging = state.data_dir.join(STAGING_DIR);
+    // The staged backup goes on every exit, a failed one too.
+    let _staging = RemoveOnDrop(staging.clone());
     let expected = format!("{token}:{}", path.display());
     {
         let storage = crate::commands::lock_storage_arc(state)?;
@@ -646,30 +684,41 @@ pub fn backup_restore_impl(
     let stamp = Timestamp::now().millis();
     let data = &state.data_dir;
     let mut kept_before = Vec::new();
-    let before_db = data.join(format!("juggler.sqlite.before-restore-{stamp}"));
-    crate::commands::lock_storage_arc(state)?.snapshot_to(&before_db)?;
-    kept_before.push(before_db.display().to_string());
-    for (name, live) in [
-        ("settings/heuristics.json", data.join("heuristics.json")),
-        ("parked", data.join("parked")),
-    ] {
-        if live.exists() {
-            let aside = data.join(format!(
-                "{}.before-restore-{stamp}",
-                live.file_name()
-                    .map_or_else(String::new, |n| n.to_string_lossy().into_owned())
-            ));
-            std::fs::rename(&live, &aside).map_err(|e| io_error("restore", &e))?;
-            kept_before.push(aside.display().to_string());
-        }
-        let staged = staging.join(name);
-        if staged.exists() {
-            std::fs::rename(&staged, &live).map_err(|e| io_error("restore", &e))?;
-        }
-    }
+    let before_db = data.join(format!("{RESTORE_COPY_PREFIX}{stamp}"));
+    let staged_db = staging.join("db/juggler.sqlite");
+    prune_aged_copies(data, stamp);
     let counts = {
+        // One hold from the copy to the end (the re-review's N5): a forget
+        // asked for meanwhile waits, then applies to the restored data.
         let mut storage = crate::commands::lock_storage_arc(state)?;
-        storage.restore_from(&staging.join("db/juggler.sqlite"))?;
+        storage.snapshot_to(&before_db)?;
+        // However this ends, the copy keeps no memory (ADR-0037 §1.5),
+        // scrubbed before the hold ends; a crash leaves it to the sweep at
+        // start ([`sweep_kept_copies`]).
+        let _kept_copy = ScrubOnDrop(before_db.clone());
+        kept_before.push(before_db.display().to_string());
+        for (name, live) in [
+            ("settings/heuristics.json", data.join("heuristics.json")),
+            ("parked", data.join("parked")),
+        ] {
+            if live.exists() {
+                let aside = data.join(format!(
+                    "{}.before-restore-{stamp}",
+                    live.file_name()
+                        .map_or_else(String::new, |n| n.to_string_lossy().into_owned())
+                ));
+                std::fs::rename(&live, &aside).map_err(|e| io_error("restore", &e))?;
+                kept_before.push(aside.display().to_string());
+            }
+            let staged = staging.join(name);
+            if staged.exists() {
+                std::fs::rename(&staged, &live).map_err(|e| io_error("restore", &e))?;
+            }
+        }
+        // What this Mac forgot is dropped from the staged copy before it
+        // replaces anything (and again after, as a check).
+        apply_tombstones(&staged_db, &before_db)?;
+        storage.restore_from(&staged_db)?;
         keep_this_macs_rows(&storage, &before_db)?;
         let verified = counts(&storage)?;
         // Instances that were live on the writing Mac are not live here
@@ -682,15 +731,17 @@ pub fn backup_restore_impl(
         }
         verified
     };
-    let _ = std::fs::remove_dir_all(&staging);
     for (name, expected) in &manifest.counts {
         if counts.get(name) != Some(expected) {
+            // Kept under its own name: the way back isn't pruned.
+            let kept = data.join(format!("juggler.sqlite.before-failed-restore-{stamp}"));
+            let kept = std::fs::rename(&before_db, &kept).map_or(before_db, |()| kept);
             return Err(validation(
                 "restore",
                 format!(
                     "restored {name} = {} but the backup lists {expected} — the data from before is at {}",
                     counts.get(name).copied().unwrap_or(0),
-                    before_db.display()
+                    kept.display()
                 ),
             ));
         }
@@ -721,8 +772,8 @@ pub fn read_manifest(path: &Path) -> AppResult<BackupManifestInfo> {
 }
 
 /// Puts back what belongs to this Mac, not to the backup: its process
-/// ledger, its Fleet sync state and its machine-only settings (the
-/// backup carries none of them).
+/// ledger, its Fleet sync state, its machine-only settings and its memory
+/// forget tombstones (the backup carries none of them).
 fn keep_this_macs_rows(storage: &Storage, before: &Path) -> AppResult<()> {
     use std::fmt::Write as _;
     let conn = storage.raw_conn();
@@ -747,10 +798,152 @@ fn keep_this_macs_rows(storage: &Storage, before: &Path) -> AppResult<()> {
          INSERT OR REPLACE INTO main.app_settings SELECT * FROM prior.app_settings WHERE {cond};",
         cond = machine_only_where("key")
     );
-    let copied = conn.execute_batch(&sql).map_err(core);
+    // What this Mac forgot stays forgotten (ADR-0037 §1.5): its
+    // tombstones are kept and drop those subjects from what came back.
+    let copied = conn.execute_batch(&sql).map_err(core).and_then(|()| {
+        juggler_core::storage::memory::backup::after_restore(conn, "prior").map(drop)
+    });
     conn.execute("DETACH DATABASE prior", []).map_err(core)?;
     copied?;
     Ok(())
+}
+
+/// Drops the backup a verify staged and its confirmation (the second
+/// re-check's L5): a forget calls this under the same storage hold, so a
+/// staged backup made before the forget never outlives it; the user
+/// verifies again to restore.
+///
+/// # Errors
+///
+/// The typed storage error clearing the confirmation.
+pub(crate) fn drop_staged(storage: &Storage, data_dir: &Path) -> AppResult<()> {
+    storage.app_settings().set(TOKEN_KEY, "")?;
+    let staging = data_dir.join(STAGING_DIR);
+    if staging.exists() {
+        std::fs::remove_dir_all(&staging).map_err(|e| io_error("forget", &e))?;
+    }
+    Ok(())
+}
+
+/// The name a database copy kept before a restore starts with.
+const RESTORE_COPY_PREFIX: &str = "juggler.sqlite.before-restore-";
+/// How long a database copy kept before a restore is kept: a day to go
+/// back if the restore was the wrong one. It holds no memory from the
+/// moment the restore ends, so this bounds its other data only.
+pub const RESTORE_COPY_KEEP_MS: i64 = 24 * 3_600_000;
+
+/// Removes a folder however the function holding it ends.
+struct RemoveOnDrop(PathBuf);
+
+impl Drop for RemoveOnDrop {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_dir_all(&self.0);
+    }
+}
+
+/// Empties the memory from a database copy however the restore ends.
+struct ScrubOnDrop(PathBuf);
+
+impl Drop for ScrubOnDrop {
+    fn drop(&mut self) {
+        if let Err(error) = juggler_core::storage::memory::backup::scrub_copy(&self.0) {
+            tracing::warn!(%error, "the copy kept before a restore couldn't be scrubbed");
+        }
+    }
+}
+
+/// Drops from the staged database every subject this Mac forgot (the
+/// tombstones in `before`, the live database's copy), before the staged
+/// database replaces the live one (the security review's M1).
+fn apply_tombstones(staged: &Path, before: &Path) -> AppResult<()> {
+    let storage = Storage::open(staged)?; // migrates it, as the restore would
+    let conn = storage.raw_conn();
+    let core = juggler_core::CoreError::from;
+    conn.execute(
+        "ATTACH DATABASE ?1 AS prior",
+        [before.to_string_lossy().as_ref()],
+    )
+    .map_err(core)?;
+    let applied = juggler_core::storage::memory::backup::after_restore(conn, "prior");
+    conn.execute("DETACH DATABASE prior", []).map_err(core)?;
+    applied?;
+    Ok(())
+}
+
+/// The folders a backup or a restore works in, and the name a database
+/// copy kept before a restore starts with: a crash leaves them behind.
+const WORK_DIRS: [&str; 3] = ["backup-work-", "cloud-backup-work-", STAGING_DIR];
+/// The database copies AI Juggler keeps beside the live one (restores):
+/// `(name prefix, how long it is kept)`; `None` is never pruned.
+const KEPT_COPIES: [(&str, Option<i64>); 5] = [
+    (RESTORE_COPY_PREFIX, Some(RESTORE_COPY_KEEP_MS)),
+    ("juggler.sqlite.before-failed-restore-", None),
+    // Going back (`newer_data`): the data as it was, the newer data an
+    // older build moved aside, and a copy a failed going-back tried. Kept
+    // (the user's way forward), emptied of memory only (ADR-0037 §1.5).
+    ("juggler.sqlite.from-v", None),
+    ("juggler.sqlite.from-newer-", None),
+    ("juggler.sqlite.unused-", None),
+];
+const DB_SUFFIXES: [&str; 3] = ["-wal", "-shm", "-journal"];
+
+/// The database file a name belongs to (its `-wal`, `-shm` or `-journal`
+/// mapped to it).
+fn base_name(name: &str) -> &str {
+    DB_SUFFIXES
+        .iter()
+        .find_map(|suffix| name.strip_suffix(suffix))
+        .unwrap_or(name)
+}
+
+/// The entries of `dir`, each with its name (none when it can't be read).
+fn named_entries(dir: &Path) -> impl Iterator<Item = (String, std::fs::DirEntry)> {
+    std::fs::read_dir(dir)
+        .into_iter()
+        .flatten()
+        .flatten()
+        .map(|entry| (entry.file_name().to_string_lossy().into_owned(), entry))
+}
+
+/// At start (the re-review's N3 and L5): what a crash or a quit left
+/// behind goes. The work folders of a backup or a restore (an unscrubbed
+/// snapshot, a staged backup) are removed; every database copy AI Juggler
+/// keeps is emptied of memory ([`juggler_core::storage::memory::backup::scrub_copy`]),
+/// then removed once past its age.
+pub fn sweep_kept_copies(data_dir: &Path, now_ms: i64) {
+    for (name, entry) in named_entries(data_dir) {
+        let path = entry.path();
+        if path.is_dir() && WORK_DIRS.iter().any(|dir| name.starts_with(dir)) {
+            let _ = std::fs::remove_dir_all(&path);
+        } else if base_name(&name) == name
+            && KEPT_COPIES
+                .iter()
+                .any(|(prefix, _)| name.starts_with(prefix))
+            && let Err(error) = juggler_core::storage::memory::backup::scrub_copy(&path)
+        {
+            tracing::warn!(%error, "a kept copy couldn't be scrubbed");
+        }
+    }
+    prune_aged_copies(data_dir, now_ms);
+}
+
+/// Removes each kept database copy once it is older than its keep (by the
+/// stamp its name ends with); a failed restore's copy stays.
+pub fn prune_aged_copies(data_dir: &Path, now_ms: i64) {
+    for (name, entry) in named_entries(data_dir) {
+        let base = base_name(&name);
+        let Some(keep) = KEPT_COPIES
+            .iter()
+            .find_map(|(prefix, keep)| base.starts_with(prefix).then_some(*keep))
+            .flatten()
+        else {
+            continue;
+        };
+        let stamp = base.rsplit('-').next().and_then(|s| s.parse::<i64>().ok());
+        if stamp.is_some_and(|stamp| now_ms.saturating_sub(stamp) > keep) {
+            let _ = std::fs::remove_file(entry.path());
+        }
+    }
 }
 
 /// One progress update on the `backup://progress` event.
@@ -824,4 +1017,251 @@ pub async fn backup_restore(
     tauri::async_runtime::spawn_blocking(move || backup_restore_impl(&state, &path, &token))
         .await
         .map_err(|e| io_error("restore", &e))?
+}
+
+#[cfg(test)]
+mod tests {
+    #![allow(clippy::unwrap_used, reason = "a test: a failed step fails the test")]
+
+    use super::*;
+    use juggler_core::storage::memory::Actor;
+
+    const CANARY: &str = "qzxwvrestorecanary";
+
+    /// The live database in `data`, holding the canary.
+    fn canary_store(data: &Path) -> Storage {
+        let live = Storage::open(&data.join("juggler.sqlite")).unwrap();
+        canary_note(&live);
+        live
+    }
+
+    /// A note holding [`CANARY`], written as the store writes it.
+    fn canary_note(storage: &Storage) {
+        storage
+            .raw_conn()
+            .execute(
+                "INSERT INTO memory_records (id, subject_key, subject_id, version, kind, scope_kind,
+                     tier, priority, authority, untrusted, source_kind, confidence, as_of_ms, text,
+                     created_ms)
+                 VALUES ('r1', 'note:gone', 'sub-gone', 1, 'note', 'global', 'long', 1, 'user', 0,
+                         'settings', 1, 1, ?1, 1)",
+                [format!("remember {CANARY} please")],
+            )
+            .unwrap();
+    }
+
+    fn holds(path: &Path) -> bool {
+        ["", "-wal", "-shm"].iter().any(|suffix| {
+            let mut name = path.as_os_str().to_owned();
+            name.push(suffix);
+            std::fs::read(PathBuf::from(name))
+                .unwrap_or_default()
+                .windows(CANARY.len())
+                .any(|w| w == CANARY.as_bytes())
+        })
+    }
+
+    /// ADR-0037 §1.5, the security review's H3 and M1: the staged backup
+    /// loses what this Mac forgot before it replaces anything; the copy
+    /// kept before the restore keeps no memory however the restore ends,
+    /// and goes after a day.
+    #[test]
+    fn a_restore_drops_the_forgotten_and_keeps_no_copy_holding_it() {
+        let dir = tempfile::tempdir().unwrap();
+        let live_path = dir.path().join("juggler.sqlite");
+        let live = Storage::open(&live_path).unwrap();
+        canary_note(&live);
+        // A backup made before the forget, staged for a restore.
+        let staged = dir.path().join("staged.sqlite");
+        live.snapshot_to(&staged).unwrap();
+        // The copy kept before a restore holds what is remembered now.
+        let stamp = 10 * 86_400_000;
+        let before = dir.path().join(format!("{RESTORE_COPY_PREFIX}{stamp}"));
+        live.snapshot_to(&before).unwrap();
+        assert!(
+            holds(&before),
+            "the kept copy holds the words before its scrub"
+        );
+        live.memory().forget("note:gone", &Actor::User, 2).unwrap();
+        let after_forget = dir.path().join("after-forget.sqlite");
+        live.snapshot_to(&after_forget).unwrap();
+        assert!(holds(&staged));
+
+        apply_tombstones(&staged, &after_forget).unwrap();
+        assert!(!holds(&staged), "the staged backup still holds it");
+        let restored = Storage::open(&staged).unwrap();
+        assert!(restored.memory().current("note:gone").unwrap().is_none());
+        drop(restored);
+
+        // However the restore ends, the kept copy keeps no memory.
+        drop(ScrubOnDrop(before.clone()));
+        assert!(!holds(&before), "the kept copy still holds the words");
+        // And it goes after a day; a failed restore's copy stays.
+        let failed = dir
+            .path()
+            .join(format!("juggler.sqlite.before-failed-restore-{stamp}"));
+        std::fs::write(&failed, b"kept").unwrap();
+        prune_aged_copies(dir.path(), stamp + RESTORE_COPY_KEEP_MS / 2);
+        assert!(before.exists());
+        prune_aged_copies(dir.path(), stamp + RESTORE_COPY_KEEP_MS + 1);
+        assert!(!before.exists() && failed.exists());
+
+        // The staging folder goes on every exit.
+        let staging = dir.path().join("staging");
+        std::fs::create_dir_all(staging.join("db")).unwrap();
+        drop(RemoveOnDrop(staging.clone()));
+        assert!(!staging.exists());
+    }
+
+    /// The re-review's N3 and L5: a crash between taking the copy and its
+    /// scrub, or mid-backup, leaves nothing unscrubbed past the next start.
+    #[test]
+    fn the_sweep_at_start_leaves_no_unscrubbed_copy_or_work_folder() {
+        let dir = tempfile::tempdir().unwrap();
+        let data = dir.path();
+        let live = canary_store(data);
+        let now = 100 * 86_400_000;
+        // A crashed restore's copy, unscrubbed; a crashed backup's and a
+        // verified-but-never-confirmed restore's folders.
+        let crashed = data.join(format!("{RESTORE_COPY_PREFIX}{now}"));
+        live.snapshot_to(&crashed).unwrap();
+        let failed = data.join(format!(
+            "juggler.sqlite.before-failed-restore-{}",
+            now - 90 * 86_400_000
+        ));
+        live.snapshot_to(&failed).unwrap();
+        for work in [
+            format!("backup-work-{now}"),
+            format!("cloud-backup-work-{now}"),
+            STAGING_DIR.to_owned(),
+        ] {
+            std::fs::create_dir_all(data.join(&work)).unwrap();
+            live.snapshot_to(&data.join(&work).join("juggler.sqlite"))
+                .unwrap();
+        }
+        assert!(holds(&crashed) && holds(&failed));
+
+        sweep_kept_copies(data, now + 1);
+        assert!(
+            !holds(&crashed),
+            "the crashed restore's copy still holds the words"
+        );
+        assert!(
+            !holds(&failed),
+            "the failed restore's copy still holds the words"
+        );
+        assert!(failed.exists(), "the way back after a failed restore stays");
+        for work in ["backup-work-", "cloud-backup-work-", STAGING_DIR] {
+            assert!(
+                !std::fs::read_dir(data)
+                    .unwrap()
+                    .flatten()
+                    .any(|e| e.file_name().to_string_lossy().starts_with(work)),
+                "{work} is still there"
+            );
+        }
+        sweep_kept_copies(data, now + RESTORE_COPY_KEEP_MS + 1);
+        assert!(!crashed.exists(), "a day on, the copy is gone");
+    }
+
+    /// The re-review's N2 and the second re-check's N6: the data kept aside
+    /// when going back (by this build, or by an older one that knows
+    /// nothing of memory) is emptied of memory at the next start, and is
+    /// otherwise kept: never deleted, however old.
+    #[test]
+    fn the_sweep_scrubs_and_keeps_the_going_back_copies() {
+        let dir = tempfile::tempdir().unwrap();
+        let data = dir.path();
+        let live = canary_store(data);
+        let now = 100 * 86_400_000;
+        let copies = [
+            data.join(format!("juggler.sqlite.from-v54-{now}")),
+            data.join(format!("juggler.sqlite.from-newer-{now}")),
+            data.join(format!("juggler.sqlite.unused-{now}")),
+        ];
+        for copy in &copies {
+            live.snapshot_to(copy).unwrap();
+            assert!(holds(copy));
+        }
+        sweep_kept_copies(data, now + 1);
+        for copy in &copies {
+            assert!(copy.exists() && !holds(copy), "{}", copy.display());
+        }
+        sweep_kept_copies(data, now + 3_650 * 86_400_000);
+        assert!(
+            copies.iter().all(|copy| copy.exists()),
+            "ten years on, they're still kept"
+        );
+    }
+
+    /// The re-review's N5 (its second re-check's appendix): a forget asked
+    /// for while a restore holds the storage waits, then applies to the
+    /// restored data; the forgotten words come back nowhere in the data
+    /// folder. The forget starts only once the copy before the restore
+    /// exists (inside the hold), so the order is fixed. Fails when the hold
+    /// is split, or when `ScrubOnDrop` does nothing.
+    #[test]
+    fn a_forget_during_a_restore_applies_to_the_restored_data() {
+        let dir = tempfile::tempdir().unwrap();
+        let out = tempfile::tempdir().unwrap();
+        let data = dir.path().to_path_buf();
+        let state = crate::test_support::bare_state(data.clone());
+        canary_note(&state.storage.lock().unwrap());
+        let archive = out.path().join("before.ajbackup");
+        backup_export_impl(&state, &archive, &mut |_, _| {}).unwrap();
+        // Verify stages it; the confirmation is set as verify sets it.
+        let _ = backup_verify_impl(&state, &archive);
+        assert!(data.join(STAGING_DIR).join("db/juggler.sqlite").exists());
+        state
+            .storage
+            .lock()
+            .unwrap()
+            .app_settings()
+            .set(TOKEN_KEY, &format!("tok:{}", archive.display()))
+            .unwrap();
+
+        let forgetter = {
+            let state = Arc::clone(&state);
+            let data = data.clone();
+            std::thread::spawn(move || {
+                let start = std::time::Instant::now();
+                while !std::fs::read_dir(&data).unwrap().flatten().any(|e| {
+                    e.file_name()
+                        .to_string_lossy()
+                        .starts_with(RESTORE_COPY_PREFIX)
+                }) {
+                    assert!(start.elapsed().as_secs() < 30, "no restore started");
+                    // poll: a test waiting for the restore's copy to appear.
+                    std::thread::sleep(std::time::Duration::from_millis(1));
+                }
+                crate::commands::lock_storage_arc(&state)
+                    .unwrap()
+                    .memory()
+                    .forget("note:gone", &Actor::User, 5)
+                    .unwrap()
+            })
+        };
+        backup_restore_impl(&state, &archive, "tok").unwrap();
+        let forgot = forgetter.join().unwrap();
+        assert_eq!(forgot.subjects, 1, "the forget found the restored subject");
+        {
+            let storage = state.storage.lock().unwrap();
+            assert!(storage.memory().current("note:gone").unwrap().is_none());
+            storage
+                .raw_conn()
+                .query_row("PRAGMA wal_checkpoint(TRUNCATE)", [], |_| Ok(()))
+                .unwrap();
+        }
+        let holding = crate::test_support::holding(&data, CANARY);
+        assert!(holding.is_empty(), "these still hold it: {holding:?}");
+    }
+
+    /// AI Juggler's own copy (before an update) holds no memory; the
+    /// user's export and the cloud copy go by ADR-0037 §1.8.
+    #[test]
+    fn each_purpose_takes_its_memory_class() {
+        assert_eq!(Purpose::StaysOnThisMac.memory(), MemoryDestination::OwnCopy);
+        assert_eq!(Purpose::LeavesTheMac.memory(), MemoryDestination::Local);
+        assert_eq!(Purpose::Cloud.memory(), MemoryDestination::Cloud);
+    }
 }

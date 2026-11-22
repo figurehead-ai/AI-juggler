@@ -462,7 +462,7 @@ pub fn ask_for_session(
         actor_name: actor.name.clone(),
         change: note.clone(),
         summary: format!(
-            "«{}» asks for a new session for {}",
+            "“{}” asks for a new session for {}",
             actor.name,
             super::words::quoted(&task.title)
         ),

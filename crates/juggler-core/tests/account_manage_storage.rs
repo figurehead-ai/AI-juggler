@@ -109,7 +109,7 @@ fn audit_rows_are_kept_in_order() {
     let id = AccountId::new("a");
     storage
         .account_audit()
-        .record(&id, "rename", Some("«a» → «b»"), "user")
+        .record(&id, "rename", Some("“a” → “b”"), "user")
         .unwrap();
     storage
         .account_audit()
@@ -120,7 +120,7 @@ fn audit_rows_are_kept_in_order() {
         rows.iter().map(|r| r.action.as_str()).collect::<Vec<_>>(),
         ["rename", "remove"]
     );
-    assert_eq!(rows[0].detail.as_deref(), Some("«a» → «b»"));
+    assert_eq!(rows[0].detail.as_deref(), Some("“a” → “b”"));
     assert!(
         storage
             .account_audit()

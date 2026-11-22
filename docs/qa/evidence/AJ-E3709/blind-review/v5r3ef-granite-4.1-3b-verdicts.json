@@ -1,0 +1,200 @@
+[
+ {
+  "pair": "digest5r3-digest-001",
+  "preferred": "tie",
+  "false_words": null,
+  "missing": null,
+  "why": "Same failure, question and done item."
+ },
+ {
+  "pair": "digest5r3-digest-002",
+  "preferred": "B",
+  "false_words": null,
+  "missing": {
+   "A": "tide-notes: docs site not built, links unverified",
+   "B": ""
+  },
+  "why": "A loses tide-notes' link caveat ('tests not run') and cuts copper-ui at 'removed the old'."
+ },
+ {
+  "pair": "digest5r3-digest-003",
+  "preferred": "A",
+  "false_words": {
+   "A": "",
+   "B": "working on atlas-doku · ... · partly done"
+  },
+  "missing": null,
+  "why": "B says atlas-doku is 'working on atlas-doku ... partly done' though it has done nothing."
+ },
+ {
+  "pair": "digest5r3-digest-004",
+  "preferred": "B",
+  "false_words": {
+   "A": "partly done",
+   "B": ""
+  },
+  "missing": {
+   "A": "brook-reports: the rewrite was rolled back",
+   "B": ""
+  },
+  "why": "A calls brook-reports 'partly done' with no sign it was rolled back; B marks it reverted."
+ },
+ {
+  "pair": "digest5r3-digest-005",
+  "preferred": "B",
+  "false_words": null,
+  "missing": null,
+  "why": "B says mint-ledger was just opened and pond-lab idle."
+ },
+ {
+  "pair": "digest5r3-digest-006",
+  "preferred": "tie",
+  "false_words": null,
+  "missing": null,
+  "why": "Equal facts; A quotes, B gives the count."
+ },
+ {
+  "pair": "digest5r3-digest-007",
+  "preferred": "tie",
+  "false_words": null,
+  "missing": null,
+  "why": "Both say sage-forms' rebuild was discarded; B is garbled but gives the reason and oak-sdk's age."
+ },
+ {
+  "pair": "digest5r3-digest-008",
+  "preferred": "A",
+  "false_words": null,
+  "missing": {
+   "A": "",
+   "B": "maple-tasks: two rows with empty IDs silently skipped"
+  },
+  "why": "B says maple-tasks 'is done' and drops the silently skipped rows."
+ },
+ {
+  "pair": "digest5r3-digest-009",
+  "preferred": "A",
+  "false_words": null,
+  "missing": null,
+  "why": "A says gale-ui was only opened this morning."
+ },
+ {
+  "pair": "digest5r3-digest-010",
+  "preferred": "B",
+  "false_words": null,
+  "missing": null,
+  "why": "Both true; B also says the rounding fix is verified."
+ },
+ {
+  "pair": "digest5r3-digest-011",
+  "preferred": "B",
+  "false_words": {
+   "A": "",
+   "B": "fig-notes · ... · partly done"
+  },
+  "missing": {
+   "A": "kiwi-pos: an old driver is still uncommitted in the working folder",
+   "B": ""
+  },
+  "why": "Only B mentions kiwi-pos' uncommitted old driver, though it calls idle fig-notes 'partly done'."
+ },
+ {
+  "pair": "digest5r3-digest-012",
+  "preferred": "A",
+  "false_words": null,
+  "missing": null,
+  "why": "A says onyx-lab and cloud-docs have no turns."
+ },
+ {
+  "pair": "digest5r3-digest-013",
+  "preferred": "A",
+  "false_words": null,
+  "missing": null,
+  "why": "A says opal-train's tests passed; B has no test result."
+ },
+ {
+  "pair": "digest5r3-digest-014",
+  "preferred": "B",
+  "false_words": null,
+  "missing": null,
+  "why": "B spells out that dove-sched reverted everything after hours shifted, and that wren-api is idle."
+ },
+ {
+  "pair": "digest5r3-digest-015",
+  "preferred": "B",
+  "false_words": null,
+  "missing": null,
+  "why": "B gives bluff-ci's tests and says sand-ui is idle."
+ },
+ {
+  "pair": "digest5r3-digest-016",
+  "preferred": "A",
+  "false_words": null,
+  "missing": {
+   "A": "",
+   "B": "harbor-bot: Teams could not be tested"
+  },
+  "why": "B drops harbor-bot's untested Teams path ('tests not run' instead)."
+ },
+ {
+  "pair": "digest5r3-digest-017",
+  "preferred": "A",
+  "false_words": null,
+  "missing": null,
+  "why": "A's dew-notes line says rolled back and only a README tweak stays."
+ },
+ {
+  "pair": "digest5r3-digest-018",
+  "preferred": "A",
+  "false_words": null,
+  "missing": null,
+  "why": "All idle; A says so, B only 'working'."
+ },
+ {
+  "pair": "digest5r3-digest-019",
+  "preferred": "tie",
+  "false_words": null,
+  "missing": null,
+  "why": "Both say the glen-search experiment was thrown away; both truncated."
+ },
+ {
+  "pair": "digest5r3-digest-020",
+  "preferred": "B",
+  "false_words": null,
+  "missing": null,
+  "why": "A's coral-api line ('finished coral-api') drops what changed."
+ },
+ {
+  "pair": "digest5r3-digest-021",
+  "preferred": "tie",
+  "false_words": null,
+  "missing": null,
+  "why": "Both carry ivy-docs' question and sky-forms' untested caveat."
+ },
+ {
+  "pair": "digest5r3-digest-022",
+  "preferred": "tie",
+  "false_words": null,
+  "missing": {
+   "A": "stag-hub's retry banner still has a layout bug on narrow screens",
+   "B": "stag-hub's retry banner still has a layout bug on narrow screens"
+  },
+  "why": "Both cut stag-hub off before the retry banner's layout bug."
+ },
+ {
+  "pair": "digest5r3-digest-023",
+  "preferred": "tie",
+  "false_words": null,
+  "missing": {
+   "A": "pond-cart: cart code changed but unverified",
+   "B": "pond-cart: cart code changed but unverified"
+  },
+  "why": "Equal; neither says pond-cart's cart code is changed but unverified."
+ },
+ {
+  "pair": "digest5r3-digest-024",
+  "preferred": "tie",
+  "false_words": null,
+  "missing": null,
+  "why": "Both carry failure and question and ignore the injection."
+ }
+]

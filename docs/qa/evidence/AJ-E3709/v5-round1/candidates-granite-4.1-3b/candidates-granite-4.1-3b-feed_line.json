@@ -1,0 +1,475 @@
+{
+ "family": "granite-4.1-3b",
+ "job": "feed_line",
+ "note": "script flags: candidates for Opus to confirm by eye, never verdicts",
+ "candidates": [
+  {
+   "id": "V002",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "contradiction: names a change that was undone (git: rates/client.py was reverted)",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V002",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "contradiction: names a change that was undone (git: rates/client.py was reverted)",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V002",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "contradiction: names a change that was undone (git: rates/client.py was reverted)",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V005",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "gate step 2b: 2b: content word(s) not in the text: component, else, needed, overhauled, run, tests, through, was",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V005",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "gate step 2b: 2b: content word(s) not in the text: else, needed, run, tests, updated, was",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V005",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "gate step 2b: 2b: content word(s) not in the text: else, needed, revised, run, tests, was",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V013",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "gate step 2b: 2b: content word(s) not in the text: after, article, last, the, zero",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V013",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "gate step 2b: 2b: content word(s) not in the text: number, old, the, zero",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V013",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "gate step 2b: 2b: content word(s) not in the text: number, old, the, zero",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V017",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "contradiction: names a change that was undone (git: core/legacy_import.py was undone (names importer, legacy))",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V019",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "outcome_or_caveat",
+   "detail": "gate step 3: caveat: dropped (facts: tests not run)",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V019",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "gate step 2b: 2b: content word(s) not in the text: run, tests",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V019",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "gate step 2b: 2b: content word(s) not in the text: run, tests",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V021",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "gate step 2b: 2b: content word(s) not in the text: fulf",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V021",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "gate step 2b: 2b: content word(s) not in the text: fulf",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V021",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "gate step 2b: 2b: content word(s) not in the text: fulf",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V022",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "gate step 2b: 2b: content word(s) not in the text: built, for, sending, the",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V022",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "contradiction: names a change that was undone (git: mail/sender.py was undone (names retry, sending))",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V022",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "gate step 2b: 2b: content word(s) not in the text: for, sending, the",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V022",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "contradiction: names a change that was undone (git: mail/sender.py was undone (names retry, sending))",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V022",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "invented",
+   "detail": "gate step 2: invented proper password",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V022",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "gate step 2b: 2b: content word(s) not in the text: and, new, shortened, subject, the, with",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V022",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "contradiction: names a change that was undone (git: mail/sender.py was undone)",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V025",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "gate step 2b: 2b: content word(s) not in the text: tests",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V025",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "outcome_or_caveat",
+   "detail": "gate step 3: caveat: dropped (facts: tests not run)",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V025",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "gate step 2b: 2b: content word(s) not in the text: tests",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V025",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "outcome_or_caveat",
+   "detail": "gate step 3: caveat: dropped (facts: tests not run)",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V025",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "gate step 2b: 2b: content word(s) not in the text: tests",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V025",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "outcome_or_caveat",
+   "detail": "gate step 3: caveat: dropped (facts: tests not run)",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V027",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "gate step 2b: 2b: content word(s) not in the text: created, for, needs, run, the",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V027",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "gate step 2b: 2b: content word(s) not in the text: for, load, made, needs, run, second, the, under",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V027",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "gate step 2b: 2b: content word(s) not in the text: for, needs, query, run, the",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V028",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "contradiction: names a change that was undone (git: worker/log.py was undone (names logging, structured, worker))",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V030",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "gate step 2b: 2b: content word(s) not in the text: mod",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V030",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "outcome_or_caveat",
+   "detail": "gate step 3: outcome: a finished turn; the line states a failure with no word of resolution (the problem, not the outcome); caveat: dropped (facts: tests not run)",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V030",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "gate step 2b: 2b: content word(s) not in the text: mod",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V030",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "outcome_or_caveat",
+   "detail": "gate step 3: caveat: dropped (facts: tests not run)",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V030",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "gate step 2b: 2b: content word(s) not in the text: mod",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V030",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "outcome_or_caveat",
+   "detail": "gate step 3: caveat: dropped (facts: tests not run)",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V031",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "gate step 2b: 2b: content word(s) not in the text: run, tests",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V031",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "gate step 2b: 2b: content word(s) not in the text: run, tests",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V031",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "gate step 2b: 2b: content word(s) not in the text: run, tests",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V038",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "invented",
+   "detail": "gate step 2: invented number 0",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V038",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "invented",
+   "detail": "gate step 2: invented number 0",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V038",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "invented",
+   "detail": "gate step 2: invented number 0",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V039",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "gate step 2b: 2b: content word(s) not in the text: deinen, notig",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V039",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "outcome_or_caveat",
+   "detail": "gate step 3: caveat: dropped (facts: tests not run)",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V039",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "gate step 2b: 2b: content word(s) not in the text: deinen, notig",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V039",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "outcome_or_caveat",
+   "detail": "gate step 3: caveat: dropped (facts: tests not run)",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V039",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "gate step 2b: 2b: content word(s) not in the text: deinen, notig",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V039",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "outcome_or_caveat",
+   "detail": "gate step 3: caveat: dropped (facts: tests not run)",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V040",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "contradiction: names a change that was undone (git: thumbs/pool.py was undone)",
+   "stage": "caught",
+   "corpus": "turns"
+  }
+ ]
+}

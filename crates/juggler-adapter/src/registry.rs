@@ -68,6 +68,16 @@ impl AdapterRegistry {
         self.adapters.iter().map(|a| a.id()).collect()
     }
 
+    /// D-128: every registered adapter's compat features, in
+    /// registration order (the `compat` section's controls).
+    #[must_use]
+    pub fn compat_features(&self) -> Vec<crate::compat::CompatFeature> {
+        self.adapters
+            .iter()
+            .flat_map(|adapter| adapter.compat_features().iter().copied())
+            .collect()
+    }
+
     /// Runs discovery across every registered adapter.
     #[must_use]
     pub fn discover_all(&self) -> Vec<DiscoveryReport> {

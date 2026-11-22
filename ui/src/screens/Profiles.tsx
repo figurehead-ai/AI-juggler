@@ -332,6 +332,16 @@ export function NewProfileModal({
       title={`Launch settings · ${cliAppName(account.provider, account.label)}`}
       subtitle="Launch settings applied when this app starts (model, environment)."
       onClose={onClose}
+      footer={
+        <>
+            <Button variant="ghost" size="sm" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button variant="primary" size="sm" disabled={busy} onClick={() => void submit()}>
+              Create Launch settings
+            </Button>
+        </>
+      }
     >
       <div className="flex flex-col gap-4">
         <Field label="Name">
@@ -361,14 +371,6 @@ export function NewProfileModal({
           </div>
         </Field>
         {error && <p className="text-xs text-danger">{error}</p>}
-        <div className="ml-auto flex gap-2">
-          <Button variant="ghost" size="sm" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button variant="primary" size="sm" disabled={busy} onClick={() => void submit()}>
-            Create Launch settings
-          </Button>
-        </div>
       </div>
     </Modal>
   );

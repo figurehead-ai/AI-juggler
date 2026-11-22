@@ -177,7 +177,7 @@ export async function launchSession(
     const decision = await askIdentityDecision(check);
     if (decision.kind === "cancel") {
       throw new Error(
-        `Not launched — «${check.account_label}» is signed in as ${check.detected ?? "someone else"}, not ${check.expected ?? "its account"}.`,
+        `Not launched — “${check.account_label}” is signed in as ${check.detected ?? "someone else"}, not ${check.expected ?? "its account"}.`,
       );
     }
     if (decision.kind === "switch") recipe = decision.recipeId;

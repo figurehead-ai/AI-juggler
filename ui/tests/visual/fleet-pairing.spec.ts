@@ -71,9 +71,10 @@ test("host pairing completes keyboard-only, and View only is the default", async
   await expect(viewOnly).toBeFocused();
   await expect(page.getByRole("radio", { name: /View \+ control/ })).not.toBeChecked();
   await expect(page.getByTestId("pairing-permission-control")).toContainText("never read credentials");
-  // Back is always available: Permissions → Verify → Permissions.
+  // Back is always available: Permissions → Verify → Permissions. The
+  // wizard's own Back (the header has a Back of its own since 0.4).
   await page.keyboard.press("Tab");
-  await expect(page.getByRole("button", { name: "Back" })).toBeFocused();
+  await expect(wizard.getByRole("button", { name: "Back" })).toBeFocused();
   await page.keyboard.press("Tab");
   await expect(page.getByTestId("pairing-pair")).toBeFocused();
   await page.keyboard.press("Enter");
@@ -229,6 +230,10 @@ test("machine filter persists, a Fleet alert opens its machine, access is change
   await openFilters(page);
   await expect(page.getByTestId("rail-view-only-mac")).toContainText("Mac mini");
   await expect(page.getByTestId("board-machine-local")).toHaveCount(0);
+  // The View closed: an open menu makes the page under it inert (AJ-E3011
+  // round 4), so the alert's Open could not be pressed through it.
+  await page.keyboard.press("Escape");
+  await expect(page.getByTestId("rail-view-only-mac")).toHaveCount(0);
 
   // The alert names the machine and opens its inspector.
   await expect(page.getByTestId("remote-alert-exhausted")).toContainText("Mac mini");

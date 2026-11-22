@@ -1,0 +1,1510 @@
+{
+ "family": "qwen3",
+ "job": "review",
+ "note": "script flags: candidates for Opus to confirm by eye, never verdicts",
+ "candidates": [
+  {
+   "id": "V002",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'I added a caching layer for the exchange': contradiction: describes a change that was undone (git: rates/client.py was reverted)",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V002",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'I added a caching layer for the exchange': contradiction: describes a change that was undone (git: rates/client.py was reverted)",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V002",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'I added a caching layer for the exchange': contradiction: describes a change that was undone (git: rates/client.py was reverted)",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V004",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the hooks config file was modified': 2b: content word(s) not in the text: modified",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V004",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "risk reason: 2b: content word(s) not in the text: decided, yet",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V004",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the hooks config file was modified': 2b: content word(s) not in the text: modified",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V004",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "risk reason: 2b: content word(s) not in the text: decided, yet",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V004",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the hooks config file was modified': 2b: content word(s) not in the text: modified",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V004",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "risk reason: 2b: content word(s) not in the text: decided, yet",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V005",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the Login-Dialog der Desktop-App überarb': 2b: content word(s) not in the text: the",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V005",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'new, +12 -0': 2b: content word(s) not in the text: new",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V005",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "risk reason: words: passed word with none in the source",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V005",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'new, +12 -0': 2b: content word(s) not in the text: new",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V005",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "risk reason: words: passed word with none in the source",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V005",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'new, +12 -0': 2b: content word(s) not in the text: new",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V005",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "risk reason: words: passed word with none in the source",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V006",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'the whole suite passes, including the DS': contradiction: a success claim ('the whole suite passes') on a turn AI Juggler's facts show failed; never repeat it, even as the agent's",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V006",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "risk reason: contradiction: a success claim ('the whole suite passes') on a turn AI Juggler's facts show failed; never repeat it, even as the agent's",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V007",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "invented",
+   "detail": "'ein Rate-Limiter für die Upload-Schnitts': invented: path anfragen/ü",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V007",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'ein Rate-Limiter für die Upload-Schnitts': contradiction: describes a change that was undone (git: upload/limiter.py was undone (names limit, limiter, rate))",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V007",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "invented",
+   "detail": "'ein Rate-Limiter für die Upload-Schnitts': invented: path anfragen/ü",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V007",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'ein Rate-Limiter für die Upload-Schnitts': contradiction: describes a change that was undone (git: upload/limiter.py was undone (names limit, limiter, rate))",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V007",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "invented",
+   "detail": "'ein Rate-Limiter für die Upload-Schnitts': invented: path anfragen/ü",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V007",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'ein Rate-Limiter für die Upload-Schnitts': contradiction: describes a change that was undone (git: upload/limiter.py was undone (names limit, limiter, rate))",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V009",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "risk reason: 2b: content word(s) not in the text: forthem",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V009",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "risk reason: 2b: content word(s) not in the text: forthem",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V009",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "risk reason: 2b: content word(s) not in the text: forthem",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V010",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the export after PDF now works with embe': 2b: content word(s) not in the text: after, embedded, the, with",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V010",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the export fonts function is new, +40 -0': 2b: content word(s) not in the text: new, the",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V010",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "risk reason: 2b: content word(s) not in the text: answer, question, the",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V010",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "risk reason: words: pending word with none in the source",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V010",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the export after PDF now works with embe': 2b: content word(s) not in the text: after, embedded, the, with",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V010",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the export fonts function is new, +40 -0': 2b: content word(s) not in the text: new, the",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V010",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "risk reason: 2b: content word(s) not in the text: answer, question, the",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V010",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "risk reason: words: pending word with none in the source",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V010",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the export after PDF now works with embe': 2b: content word(s) not in the text: after, embedded, the, with",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V010",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the export fonts function is new, +40 -0': 2b: content word(s) not in the text: new, the",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V010",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "risk reason: 2b: content word(s) not in the text: answer, question, the",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V010",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "risk reason: words: pending word with none in the source",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V013",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the cart badge now shows 0 instead of th': 2b: content word(s) not in the text: after, badge, cart, item, last, number, old, the",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V013",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'all 41 tests are green': 2b: content word(s) not in the text: are",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V013",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "risk reason: 2b: content word(s) not in the text: are",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V013",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the cart badge now shows 0 instead of th': 2b: content word(s) not in the text: after, badge, cart, item, last, number, old, the",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V013",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'all 41 tests are green': 2b: content word(s) not in the text: are",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V013",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "risk reason: 2b: content word(s) not in the text: are",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V013",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the cart badge now shows 0 instead of th': 2b: content word(s) not in the text: after, badge, cart, item, last, number, old, the",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V013",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'all 41 tests are green': 2b: content word(s) not in the text: are",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V013",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "risk reason: 2b: content word(s) not in the text: are",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V014",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "invented",
+   "detail": "risk reason: invented: number 5",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V014",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "invented",
+   "detail": "risk reason: invented: number 5",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V014",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "invented",
+   "detail": "risk reason: invented: number 5",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V015",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'the Rechnungsnummern werden jetzt lücken': contradiction: a success claim ('lückenlos') on a turn AI Juggler's facts show failed; never repeat it, even as the agent's",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V015",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the Rechnungsnummern werden jetzt lücken': 2b: content word(s) not in the text: the",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V015",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'the Testsuite laufen lassen und alles is': contradiction: a success claim ('alles ist bestanden') on a turn AI Juggler's facts show failed; never repeat it, even as the agent's",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V015",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the Testsuite laufen lassen und alles is': 2b: content word(s) not in the text: the",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V015",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "risk reason: contradiction: a success claim ('alles ist bestanden') on a turn AI Juggler's facts show failed; never repeat it, even as the agent's",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V015",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "risk reason: 2b: content word(s) not in the text: the",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V015",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'the Rechnungsnummern werden jetzt lücken': contradiction: a success claim ('lückenlos') on a turn AI Juggler's facts show failed; never repeat it, even as the agent's",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V015",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the Rechnungsnummern werden jetzt lücken': 2b: content word(s) not in the text: the",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V015",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'the Testsuite laufen lassen und alles is': contradiction: a success claim ('alles ist bestanden') on a turn AI Juggler's facts show failed; never repeat it, even as the agent's",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V015",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the Testsuite laufen lassen und alles is': 2b: content word(s) not in the text: the",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V015",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "risk reason: contradiction: a success claim ('alles ist bestanden') on a turn AI Juggler's facts show failed; never repeat it, even as the agent's",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V015",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "risk reason: 2b: content word(s) not in the text: the",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V015",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'the Rechnungsnummern werden jetzt lücken': contradiction: a success claim ('lückenlos') on a turn AI Juggler's facts show failed; never repeat it, even as the agent's",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V015",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the Rechnungsnummern werden jetzt lücken': 2b: content word(s) not in the text: the",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V015",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'the Testsuite laufen lassen und alles is': contradiction: a success claim ('alles ist bestanden') on a turn AI Juggler's facts show failed; never repeat it, even as the agent's",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V015",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the Testsuite laufen lassen und alles is': 2b: content word(s) not in the text: the",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V015",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "risk reason: contradiction: a success claim ('alles ist bestanden') on a turn AI Juggler's facts show failed; never repeat it, even as the agent's",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V015",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "risk reason: 2b: content word(s) not in the text: the",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V017",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'removed the unused legacy importer modul': contradiction: describes a change that was undone (git: core/legacy_import.py was undone (names importer, legacy))",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V017",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "risk reason: words: failure word with none in the source",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V017",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "risk reason: contradiction: states a failure the facts and the message don't report",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V017",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'removed the unused legacy importer modul': contradiction: describes a change that was undone (git: core/legacy_import.py was undone (names importer, legacy))",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V017",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "risk reason: words: failure word with none in the source",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V017",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "risk reason: contradiction: states a failure the facts and the message don't report",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V017",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'removed the unused legacy importer modul': contradiction: describes a change that was undone (git: core/legacy_import.py was undone (names importer, legacy))",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V017",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "risk reason: words: failure word with none in the source",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V017",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "risk reason: contradiction: states a failure the facts and the message don't report",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V018",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "invented",
+   "detail": "'the translations for French were expande': invented: proper english, proper french",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V018",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the translations for French were expande': 2b: content word(s) not in the text: and, expanded, for, french, keys, order, sorted, the, translations, were",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V018",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "invented",
+   "detail": "'the translations for Spanish were expand': invented: proper english, proper spanish",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V018",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the translations for Spanish were expand': 2b: content word(s) not in the text: and, expanded, for, keys, order, sorted, the, translations, were",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V018",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "risk reason: 2b: content word(s) not in the text: because, present, run, text, were",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V018",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "invented",
+   "detail": "'the translations for French were expande': invented: proper english, proper french",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V018",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the translations for French were expande': 2b: content word(s) not in the text: and, expanded, for, french, keys, order, sorted, the, translations, were",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V018",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "invented",
+   "detail": "'the translations for Spanish were expand': invented: proper english, proper spanish",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V018",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the translations for Spanish were expand': 2b: content word(s) not in the text: and, expanded, for, keys, order, sorted, the, translations, were",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V018",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "risk reason: 2b: content word(s) not in the text: because, present, run, text, were",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V018",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "invented",
+   "detail": "'the translations for French were expande': invented: proper english, proper french",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V018",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the translations for French were expande': 2b: content word(s) not in the text: and, expanded, for, french, keys, order, sorted, the, translations, were",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V018",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "invented",
+   "detail": "'the translations for Spanish were expand': invented: proper english, proper spanish",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V018",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the translations for Spanish were expand': 2b: content word(s) not in the text: and, expanded, for, keys, order, sorted, the, translations, were",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V018",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "risk reason: 2b: content word(s) not in the text: because, present, run, text, were",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V019",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "risk reason: 2b: content word(s) not in the text: run, tests",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V019",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "risk reason: 2b: content word(s) not in the text: run, tests",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V019",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "risk reason: 2b: content word(s) not in the text: run, tests",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V022",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the password reset email with the new se': 2b: content word(s) not in the text: and, email, new, shortened, subject, the, with",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V022",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'the password reset email with the new se': contradiction: describes a change that was undone (git: mail/sender.py was undone)",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V022",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "risk reason: 2b: content word(s) not in the text: ran",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V022",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the password reset email with the new se': 2b: content word(s) not in the text: and, email, new, shortened, subject, the, with",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V022",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'the password reset email with the new se': contradiction: describes a change that was undone (git: mail/sender.py was undone)",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V022",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "risk reason: 2b: content word(s) not in the text: ran",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V022",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the password reset email with the new se': 2b: content word(s) not in the text: and, email, new, shortened, subject, the, with",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V022",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'the password reset email with the new se': contradiction: describes a change that was undone (git: mail/sender.py was undone)",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V022",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "risk reason: 2b: content word(s) not in the text: ran",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V023",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the notification preferences are now sav': 2b: content word(s) not in the text: shown",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V023",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "risk reason: words: failure word with none in the source",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V023",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "risk reason: contradiction: states a failure the facts and the message don't report",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V023",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the notification preferences are now sav': 2b: content word(s) not in the text: shown",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V023",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "risk reason: words: failure word with none in the source",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V023",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "risk reason: contradiction: states a failure the facts and the message don't report",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V023",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the notification preferences are now sav': 2b: content word(s) not in the text: shown",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V023",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "risk reason: words: failure word with none in the source",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V023",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "risk reason: contradiction: states a failure the facts and the message don't report",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V025",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "risk reason: 2b: content word(s) not in the text: run, tests",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V025",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "risk reason: words: a negation with none in the source",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V025",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "risk reason: 2b: content word(s) not in the text: run, tests",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V025",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "risk reason: words: a negation with none in the source",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V025",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "risk reason: 2b: content word(s) not in the text: run, tests",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V025",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "risk reason: words: a negation with none in the source",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V026",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the auth middleware refactored, with cha': 2b: content word(s) not in the text: code",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V026",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the auth middleware refactored, with cha': 2b: content word(s) not in the text: code",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V026",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the auth middleware refactored, with cha': 2b: content word(s) not in the text: code",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V027",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the new index is locally created; for pr': 2b: content word(s) not in the text: created, for, locally, needs, new, run, the",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V027",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the query was optimized with an index': 2b: content word(s) not in the text: optimized, query, the, was, with",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V027",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "risk reason: words: failure word with none in the source",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V027",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "risk reason: contradiction: states a failure the facts and the message don't report",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V027",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the new index is locally created; for pr': 2b: content word(s) not in the text: created, for, locally, needs, new, run, the",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V027",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the query was optimized with an index': 2b: content word(s) not in the text: optimized, query, the, was, with",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V027",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "risk reason: words: failure word with none in the source",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V027",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "risk reason: contradiction: states a failure the facts and the message don't report",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V027",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the new index is locally created; for pr': 2b: content word(s) not in the text: created, for, locally, needs, new, run, the",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V027",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the query was optimized with an index': 2b: content word(s) not in the text: optimized, query, the, was, with",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V027",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "risk reason: words: failure word with none in the source",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V027",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "risk reason: contradiction: states a failure the facts and the message don't report",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V028",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'the logging library was switched to stru': contradiction: describes a change that was undone (git: worker/log.py was undone (names logging, structured, worker))",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V030",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "risk reason: 2b: content word(s) not in the text: run, tests",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V030",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "risk reason: 2b: content word(s) not in the text: run, tests",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V030",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "risk reason: 2b: content word(s) not in the text: run, tests",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V031",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "risk reason: 2b: content word(s) not in the text: run, tests",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V031",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "risk reason: 2b: content word(s) not in the text: run, tests",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V031",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "risk reason: 2b: content word(s) not in the text: run, tests",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V034",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the database connection pool was switche': 2b: content word(s) not in the text: connection, database, switched, the",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V034",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "risk reason: 2b: content word(s) not in the text: the",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V034",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the database connection pool was switche': 2b: content word(s) not in the text: connection, database, switched, the",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V034",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "risk reason: 2b: content word(s) not in the text: the",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V034",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the database connection pool was switche': 2b: content word(s) not in the text: connection, database, switched, the",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V034",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "risk reason: 2b: content word(s) not in the text: the",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V037",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the currency rounding now rounds commerc': 2b: content word(s) not in the text: commercially, currency, the",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V037",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'all tests are successful, including edge': 2b: content word(s) not in the text: are, cases, edge, for, half",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V037",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "risk reason: 2b: content word(s) not in the text: three",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V037",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the currency rounding now rounds commerc': 2b: content word(s) not in the text: commercially, currency, the",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V037",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'all tests are successful, including edge': 2b: content word(s) not in the text: are, cases, edge, for, half",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V037",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "risk reason: 2b: content word(s) not in the text: three",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V037",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the currency rounding now rounds commerc': 2b: content word(s) not in the text: commercially, currency, the",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V037",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'all tests are successful, including edge': 2b: content word(s) not in the text: are, cases, edge, for, half",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V037",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "risk reason: 2b: content word(s) not in the text: three",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V038",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "invented",
+   "detail": "risk reason: invented: number 0",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V038",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "invented",
+   "detail": "risk reason: invented: number 0",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V038",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "invented",
+   "detail": "risk reason: invented: number 0",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V039",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the new section to Cookies added': 2b: content word(s) not in the text: new, section, the",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V039",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "risk reason: 2b: content word(s) not in the text: run",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V039",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the new section to Cookies added': 2b: content word(s) not in the text: new, section, the",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V039",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "risk reason: 2b: content word(s) not in the text: run",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V039",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the new section to Cookies added': 2b: content word(s) not in the text: new, section, the",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V039",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "risk reason: 2b: content word(s) not in the text: run",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V040",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'tried three ways to speed up the thumbna': contradiction: describes a change that was undone (git: thumbs/pool.py was undone)",
+   "stage": "caught",
+   "corpus": "turns"
+  }
+ ]
+}

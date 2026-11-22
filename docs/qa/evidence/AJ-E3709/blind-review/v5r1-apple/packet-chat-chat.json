@@ -1,0 +1,193 @@
+[
+ {
+  "pair": "chat-chat-001",
+  "item": "C504",
+  "question": "Was ist der Status der Sitzung mit dem Branch feat/mailer?",
+  "records": [
+   {
+    "id": "s1",
+    "kind": "session",
+    "fields": {
+     "status": "waiting",
+     "branch": "feat/mailer"
+    },
+    "text": "Sitzung auf feat/mailer wartet auf Antwort des Nutzers"
+   },
+   {
+    "id": "s2",
+    "kind": "session",
+    "fields": {
+     "status": "finished",
+     "branch": "feat/pdf"
+    },
+    "text": "Sitzung auf feat/pdf ist abgeschlossen"
+   }
+  ],
+  "first": "Der Status der Sitzung mit dem Branch feat/mailer ist waiting [s1]",
+  "second": "session s1 [s1]: waiting"
+ },
+ {
+  "pair": "chat-chat-002",
+  "item": "C510",
+  "question": "How many files did the ledger-core session change?",
+  "records": [
+   {
+    "id": "s1",
+    "kind": "session",
+    "fields": {
+     "files_changed": 14,
+     "branch": "feat/vat"
+    },
+    "text": "ledger-core session: 14 files changed, branch feat/vat"
+   },
+   {
+    "id": "s2",
+    "kind": "session",
+    "fields": {
+     "files_changed": 6
+    },
+    "text": "ledger-core older session: 6 files changed"
+   }
+  ],
+  "first": "The ledger-core session changed 14 files; the ledger-core older session changed 6 files [s1] [s2]",
+  "second": "ledger-core session [s1]: 14\nledger-core older session [s2]: 6"
+ },
+ {
+  "pair": "chat-chat-003",
+  "item": "C517",
+  "question": "Wann wurde die Sitzung ibis-mobile gestartet?",
+  "records": [
+   {
+    "id": "s1",
+    "kind": "session",
+    "fields": {
+     "ended_at": "17:45",
+     "duration_s": 1980
+    },
+    "text": "Sitzung ibis-mobile endete um 17:45 nach 33 Minuten"
+   }
+  ],
+  "first": "I can't say that for sure. Here's what I found:\n[s1] session \"session s1\"",
+  "second": "Die Sitzung ibis-mobile endete um 17:45 nach 33 Minuten. [s1]"
+ },
+ {
+  "pair": "chat-chat-004",
+  "item": "C520",
+  "question": "Which session is currently running?",
+  "records": [
+   {
+    "id": "s1",
+    "kind": "session",
+    "fields": {
+     "status": "finished",
+     "ended_at": "11:10"
+    },
+    "text": "kelp-ci session finished at 11:10"
+   },
+   {
+    "id": "s2",
+    "kind": "session",
+    "fields": {
+     "status": "finished",
+     "ended_at": "12:30"
+    },
+    "text": "reef-site session finished at 12:30"
+   }
+  ],
+  "first": "Both sessions are finished [s1] [s2]",
+  "second": "session s1 [s1]: finished\nsession s2 [s2]: finished"
+ },
+ {
+  "pair": "chat-chat-005",
+  "item": "C526",
+  "question": "Wie viele Dateien hat die Sitzung gale-admin geändert?",
+  "records": [
+   {
+    "id": "s1",
+    "kind": "session",
+    "fields": {
+     "files_changed": 9
+    },
+    "text": "Sitzung gale-admin: 9 Dateien geändert, 120 Zeilen hinzugefügt"
+   },
+   {
+    "id": "s2",
+    "kind": "session",
+    "fields": {
+     "files_changed": 3
+    },
+    "text": "Sitzung gale-admin zweiter Lauf: 3 Dateien geändert"
+   }
+  ],
+  "first": "Sitzung gale-admin [s1]: 9\nSitzung gale-admin zweiter Lauf [s2]: 3",
+  "second": "Die Sitzung gale-admin hat 9 Dateien geändert; die Sitzung gale-admin zweiter Lauf hat 3 Dateien geändert [s1] [s2]"
+ },
+ {
+  "pair": "chat-chat-006",
+  "item": "C531",
+  "question": "Which turns of amber-sdk were reverted?",
+  "records": [
+   {
+    "id": "f1",
+    "kind": "fact",
+    "fields": {
+     "path": "src/client.ts"
+    },
+    "text": "amber-sdk turn 6: changes to src/client.ts reverted (reset to HEAD~1)"
+   },
+   {
+    "id": "t1",
+    "kind": "turn",
+    "fields": {
+     "files_changed": 0
+    },
+    "text": "amber-sdk turn 6 finished, 0 files changed"
+   }
+  ],
+  "first": "I can't say that for sure. Here's what I found:\n[f1] fact \"amber-sdk turn 6\"\n[t1] turn \"turn t1\"",
+  "second": "Changes to src/client.ts were reverted (reset to HEAD~1). [f1]"
+ },
+ {
+  "pair": "chat-chat-007",
+  "item": "C533",
+  "question": "How many tests ran in turn 3 of lotus-pay?",
+  "records": [
+   {
+    "id": "t1",
+    "kind": "turn",
+    "fields": {
+     "tests_passed": 40,
+     "tests_failed": 0
+    },
+    "text": "lotus-pay turn 3: 40 passed, 0 failed"
+   }
+  ],
+  "first": "I can't say that for sure. Here's what I found:\n[t1] turn \"lotus-pay turn 3\"",
+  "second": "40 tests passed in turn 3 of lotus-pay. [t1]"
+ },
+ {
+  "pair": "chat-chat-008",
+  "item": "C537",
+  "question": "Wann endete der letzte Turn von pine-notes?",
+  "records": [
+   {
+    "id": "t1",
+    "kind": "turn",
+    "fields": {
+     "ended_at": "2026-11-16T18:30"
+    },
+    "text": "pine-notes Turn 8 endete 2026-11-16 18:30"
+   },
+   {
+    "id": "t2",
+    "kind": "turn",
+    "fields": {
+     "ended_at": "2026-11-16T17:50"
+    },
+    "text": "pine-notes Turn 7 endete 2026-11-16 17:50"
+   }
+  ],
+  "first": "I can't say that for sure. Here's what I found:\n[t1] turn \"turn t1\"\n[t2] turn \"turn t2\"",
+  "second": "Der letzte Turn von pine-notes endete am 2026-11-16 18:30. [t1]"
+ }
+]

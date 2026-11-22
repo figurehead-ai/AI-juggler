@@ -114,6 +114,24 @@ pub struct Naming<'a> {
     pub named: Option<&'a str>,
 }
 
+/// A CLI App's label from its tool and folder alone ("Claude Code CLI ·
+/// Personal"), for a row that carries neither the App's id nor a name the
+/// user gave it (the bell's rows).
+#[must_use]
+pub fn cli_label(tool: &str, folder: &str) -> String {
+    identity(Naming {
+        id: "",
+        desktop: false,
+        app: tool,
+        instance_dir: None,
+        default_instance: false,
+        folder_label: Some(folder),
+        folder_shared: false,
+        named: None,
+    })
+    .label
+}
+
 /// An App's one identity ([`AppIdentity`]).
 #[must_use]
 pub fn identity(naming: Naming<'_>) -> AppIdentity {

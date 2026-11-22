@@ -61,9 +61,9 @@ function openPalette({ host = {}, onClose = vi.fn(), accounts = [] }: { host?: A
   const invoker = view.getByTestId("invoker");
   invoker.focus();
   view.rerender(tree(true));
-  const input = () => view.container.querySelector<HTMLInputElement>("input[role='combobox']")!;
+  const input = () => document.body.querySelector<HTMLInputElement>("input[role='combobox']")!;
   const type = (value: string) => fireEvent.change(input(), { target: { value } });
-  const groups = () => [...view.container.querySelectorAll<HTMLElement>("ul[role='group']")].map((group) => group.getAttribute("aria-label"));
+  const groups = () => [...document.body.querySelectorAll<HTMLElement>("ul[role='group']")].map((group) => group.getAttribute("aria-label"));
   return { view, input, type, groups, invoker, onClose, app, rerender: (open: boolean) => view.rerender(tree(open)) };
 }
 
@@ -134,14 +134,14 @@ describe("R2 — the top actions before typing", () => {
 
 describe("R3 — typed, groups by their best match, each labelled", () => {
   it("an exact project leads a loose action; each group has its section label; Search last", () => {
-    const { view, type, groups } = openPalette();
+    const { type, groups } = openPalette();
     type("payments");
     const order = groups();
     expect(order[0]).toBe("Projects");
     expect(order.at(-1)).toBe("Search");
     for (const label of order) {
       const key = label!.toLowerCase();
-      expect(view.container.querySelector(`div#goto-group-${key}`)?.textContent).toContain(label!);
+      expect(document.body.querySelector(`div#goto-group-${key}`)?.textContent).toContain(label!);
     }
     type("new");
     expect(groups()[0]).toBe("Actions");
@@ -247,7 +247,7 @@ describe("R7 — → previews a session, an app, a project or an account", () =>
     expect(facts.Where).not.toBe("");
     expect(facts["Last active"]).toBe(agoWords(NOW - 5 * 60_000, Date.now()));
     expect(view.getByTestId("goto-preview-open").textContent).toBe("Open");
-    expect(view.getByTestId("goto-preview-continue").textContent).toBe("Continue in another app…");
+    expect(view.getByTestId("goto-preview-continue").textContent).toBe("Switch account…");
   });
 
   it("an app: open now or not, which app, signed in as; Open its page and Bring it forward", async () => {
@@ -351,6 +351,9 @@ describe("R11 — a shortcut, never the only path", () => {
       "go:thismac": "This Mac",
       "go:privacy": "Privacy",
       "go:floor": "The Floor list",
+      "go:bot": "Bot",
+      // AJ-E3816 (no top-bar door, as approved): the bell's centre links to it.
+      "go:watches": "Notifications",
       notifications: "Notifications",
       shortcuts: "Keyboard shortcuts",
       "toggle-rail": "Show icons only",

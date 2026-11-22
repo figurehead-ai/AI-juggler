@@ -78,6 +78,10 @@ on:
         required: false
       TAURI_SIGNING_PRIVATE_KEY_PASSWORD:
         required: false
+      # D-108: Sentry's address for crash reports, compiled into release
+      # builds only (crates/juggler-app/build.rs, `cfg(crash_sender)`).
+      AI_JUGGLER_CRASH_ENDPOINT:
+        required: false
 
 # Each job asks for what it needs, nothing more.
 permissions: {}
@@ -174,7 +178,12 @@ jobs:
         # is ever restored here), before the version stamp below edits the
         # manifests. The build then runs --offline: only our own crates'
         # stamped versions change in the lock, and nothing is downloaded.
-        run: cargo fetch --locked
+        # The local-model helper is its own workspace with its own lock
+        # (D-131: llama.cpp never builds in the app's workspace).
+        run: |
+          set -euo pipefail
+          cargo fetch --locked
+          cargo fetch --locked --manifest-path crates/juggler-local-ai/Cargo.toml
 
       - name: Version and notes
         env:
@@ -232,6 +241,36 @@ jobs:
           cargo auditable build --release --offline -p juggler-agentbridge --bin juggler-agent --target "$arch"
           cp "target/$arch/release/juggler-agent" "crates/juggler-app/binaries/juggler-agent-$arch"
 
+      - name: The Apple model's helper, signed ad hoc (arm64)
+        # AJ-E3802 (ADR-0033 §4.1): `juggler-apple-ai` ships beside the app
+        # too, built with the system's Swift compiler (the one the icon
+        # step runs) and signed ad hoc with its sandbox; the sign job signs
+        # it again with the Developer ID. arm64 only (the system model needs
+        # Apple silicon): the x86_64 half's build wants a file of its name
+        # as well, so both halves take the same arm64 build, and `build`
+        # bundles it as the universal one. The script checks it: valid
+        # signature, its identifier, hardened runtime, exactly its
+        # entitlements, no Private Cloud Compute symbol.
+        run: |
+          set -euo pipefail
+          scripts/build_apple_ai_helper.sh release "target/$ARCH/release"
+          cp "target/$ARCH/release/juggler-apple-ai" "crates/juggler-app/binaries/juggler-apple-ai-$ARCH"
+
+      - name: The local-model helper, signed ad hoc (arm64)
+        # D-131 (ADR-0033 §4.2): `juggler-local-ai` (llama.cpp through
+        # llama-cpp-2, pinned) ships beside the app too, built from its own
+        # workspace, offline from the crates fetched above, for arm64 (Apple
+        # silicon only; both halves take the same build, as for the Apple
+        # helper) and signed ad hoc (hardened runtime, no entitlements: its
+        # sandbox is the profile the app applies at start); the sign job
+        # signs it again with the Developer ID. The script checks it: valid
+        # signature, its identifier, hardened runtime, no entitlements, no
+        # network call imported.
+        run: |
+          set -euo pipefail
+          scripts/build_local_ai_helper.sh release "target/$ARCH/release"
+          cp "target/$ARCH/release/juggler-local-ai" "crates/juggler-app/binaries/juggler-local-ai-$ARCH"
+
       - name: Compile the app, unsigned (this architecture)
         env:
           # Public: baked into the app as the key its updater verifies.
@@ -240,6 +279,12 @@ jobs:
           # also trusts, so a rotation needs no new build first
           # (docs/RELEASING.md, "If a key leaks").
           AIJ_UPDATER_NEXT_PUBKEYS: ${{ vars.AIJ_UPDATER_NEXT_PUBKEYS }}
+          # D-108 (AJ-E1107): crash reports' Sentry address, compiled in so
+          # the app can send a report the user agreed to. A Sentry address
+          # is public by design (every shipped app carries it); it's a
+          # secret here only so it isn't printed or forked. Empty (a
+          # rehearsal, a fork): the app is built without the sender.
+          AI_JUGGLER_CRASH_ENDPOINT: ${{ secrets.AI_JUGGLER_CRASH_ENDPOINT }}
         run: |
           set -euo pipefail
           # `build` bundles with this very file (compiled-*/config-*.json),
@@ -275,7 +320,7 @@ jobs:
           cargo tauri build --target "$ARCH" --no-bundle --config "$out/config-$ARCH.json" \
             --runner "$PWD/scripts/cargo_auditable_runner.sh" -- --offline
           # A tar keeps the modes (an artifact wouldn't).
-          tar -C "target/$ARCH/release" -cf "$out/$ARCH.tar" juggler-app juggler-agent
+          tar -C "target/$ARCH/release" -cf "$out/$ARCH.tar" juggler-app juggler-agent juggler-apple-ai juggler-local-ai
           tar -tvf "$out/$ARCH.tar"
 
       - name: SBOMs (AJ-E2007 R5; once, from the main edition's arm64 compile)
@@ -388,7 +433,16 @@ jobs:
             "$RUNNER_TEMP/aarch64-apple-darwin/juggler-app" "$RUNNER_TEMP/x86_64-apple-darwin/juggler-app"
           lipo -create -output crates/juggler-app/binaries/juggler-agent-universal-apple-darwin \
             "$RUNNER_TEMP/aarch64-apple-darwin/juggler-agent" "$RUNNER_TEMP/x86_64-apple-darwin/juggler-agent"
-          lipo -info "$universal/juggler-app" crates/juggler-app/binaries/juggler-agent-universal-apple-darwin
+          # AJ-E3802: the Apple model's helper is arm64 only; the arm64
+          # compile's copy is the bundle's.
+          cp "$RUNNER_TEMP/aarch64-apple-darwin/juggler-apple-ai" \
+            crates/juggler-app/binaries/juggler-apple-ai-universal-apple-darwin
+          # D-131: so is the local-model helper.
+          cp "$RUNNER_TEMP/aarch64-apple-darwin/juggler-local-ai" \
+            crates/juggler-app/binaries/juggler-local-ai-universal-apple-darwin
+          lipo -info "$universal/juggler-app" crates/juggler-app/binaries/juggler-agent-universal-apple-darwin \
+            crates/juggler-app/binaries/juggler-apple-ai-universal-apple-darwin \
+            crates/juggler-app/binaries/juggler-local-ai-universal-apple-darwin
           # The compile's configuration: both architectures had the same.
           config="$RUNNER_TEMP/compiled/config-aarch64-apple-darwin.json"
           cmp "$config" "$RUNNER_TEMP/compiled/config-x86_64-apple-darwin.json"
@@ -399,6 +453,10 @@ jobs:
           # The bridge is inside, beside the app's executable.
           # Every helper in tauri.bundle.json is inside the .app.
           python3 scripts/bundle_check.py "$bundle"/*.app
+          # The Apple model's helper inside it, still as it was signed.
+          app=("$bundle"/*.app)
+          scripts/build_apple_ai_helper.sh check "${app[0]}/Contents/MacOS/juggler-apple-ai" "${app[0]}"
+          scripts/build_local_ai_helper.sh check "${app[0]}/Contents/MacOS/juggler-local-ai" "${app[0]}"
           lipo -info "$bundle"/*.app/Contents/MacOS/*
           (cd "$bundle" && tar -cf "$out/app.tar" ./*.app)
           tar -tf "$out/app.tar" | sed -n 1,3p
@@ -445,6 +503,9 @@ jobs:
           persist-credentials: false
           sparse-checkout: |
             scripts/sign_macos.sh
+            scripts/build_apple_ai_helper.sh
+            crates/juggler-app/helpers/juggler-apple-ai.entitlements
+            scripts/build_local_ai_helper.sh
             scripts/release_seams_check.sh
             scripts/apple_retry.py
             scripts/updater_sig_check.py
@@ -513,6 +574,9 @@ jobs:
           persist-credentials: false
           sparse-checkout: |
             scripts/sign_macos.sh
+            scripts/build_apple_ai_helper.sh
+            crates/juggler-app/helpers/juggler-apple-ai.entitlements
+            scripts/build_local_ai_helper.sh
             scripts/release_seams_check.sh
             scripts/apple_retry.py
             scripts/updater_sig_check.py

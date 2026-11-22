@@ -62,12 +62,32 @@ async function shoot(page: Page, name: string, theme: string) {
   expect(bad.map((finding) => `${finding.id}: ${finding.targets[0]}`), `axe on ${name}`).toEqual([]);
 }
 
+/** D-118 R2: wherever Home is two columns (Your apps 320 px wide) — 1280
+ * and 1200 with the rail open, 1024 with it as icons (the 860 px stack
+ * point, AJ-E3701 R4) — every row reads whole: no profile, line or
+ * kept-alive word cut or past its row. */
+async function rowsReadWhole(page: Page, size = "1280") {
+  await expect(page.getByTestId("home"), `two columns at ${size}`).toHaveAttribute("data-layout", "columns");
+  await expect(page.getByTestId("home-app-profile").first()).toBeVisible();
+  const cut = await page.getByTestId("home-apps").evaluate((box) => {
+    const right = box.getBoundingClientRect().right;
+    const parts = box.querySelectorAll<HTMLElement>("[data-testid='home-app-profile'], [data-testid='home-app-line'], [data-testid='home-app-kept-mark']");
+    return [...parts].filter((part) => part.scrollWidth > part.clientWidth + 1 || part.getBoundingClientRect().right > right + 0.5).map((part) => part.textContent);
+  });
+  expect(cut, `Your apps rows cut at ${size}`).toEqual([]);
+}
+
 for (const theme of ["dark", "light"] as const) {
   test(`Home: a kept-alive profile that's down, and one kept alive running — ${theme}`, async ({ page }) => {
     await seed(page, theme);
     await expect(page.getByTestId("home-app-closed").first()).toContainText("Closed · keep alive starts it");
     await expect(page.getByTestId("home-app-kept-mark")).toHaveText("kept alive");
+    await rowsReadWhole(page);
     await shoot(page, "home-kept", theme);
+    for (const size of [{ width: 1200, height: 800 }, { width: 1024, height: 680 }]) {
+      await page.setViewportSize(size);
+      await rowsReadWhole(page, String(size.width));
+    }
   });
 
   test(`Home: keep alive paused after 3 stops — ${theme}`, async ({ page }) => {

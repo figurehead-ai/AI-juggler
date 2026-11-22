@@ -3,8 +3,8 @@
  * each cloud feature does and sends, its switch, the consent screen, the
  * connected view and the Unlink confirmation.
  */
-import { useEffect, useRef, useState, type JSX } from "react";
-import { Button, Card, Chip } from "./primitives";
+import { useEffect, useState, type JSX } from "react";
+import { Button, Chip } from "./primitives";
 import { RecoveryCodeSheet } from "./RecoveryCodeSheet";
 import { CloudBackupPanel } from "./CloudBackupPanel";
 import { figureheadOpenPage, figureheadRename, figureheadSaveChoices, figureheadUnlink } from "../lib/ipc/figurehead";
@@ -12,6 +12,7 @@ import type { CloudFeatureInfo } from "../types/generated/CloudFeatureInfo";
 import type { FigureheadStatusInfo } from "../types/generated/FigureheadStatusInfo";
 import { vaultStatus } from "../lib/ipc/vault";
 import type { VaultStatusInfo } from "../types/generated/VaultStatusInfo";
+import { ConfirmSheet } from "./ConfirmSheet";
 
 /** What each cloud feature does and sends (plain words, D-18 §4.5). */
 const FEATURE_COPY: Record<string, { title: string; does: string; sends: string; note?: string; locked?: string }> = {
@@ -282,7 +283,7 @@ export function Connected({
           Open dashboard
         </Button>
         <Button size="sm" variant="ghost" onClick={() => setConfirmUnlink(true)} data-testid="cloud-unlink">
-          Unlink this Mac…
+          Unlink this computer…
         </Button>
         <span className="flex-1" />
         <button
@@ -295,67 +296,23 @@ export function Connected({
         </button>
       </div>
       {confirmUnlink && (
-        <UnlinkSheet
+        <ConfirmSheet
+          idPrefix="unlink"
+          testId="cloud-unlink-confirm"
+          title="Unlink this computer from Figurehead?"
+          action="Unlink"
+          actionTestId="cloud-unlink-yes"
           busy={busy}
           onCancel={() => setConfirmUnlink(false)}
           onConfirm={() => {
             setConfirmUnlink(false);
             void run(figureheadUnlink);
           }}
-        />
-      )}
-    </div>
-  );
-}
-
-function UnlinkSheet({
-  busy,
-  onCancel,
-  onConfirm,
-}: {
-  busy: boolean;
-  onCancel: () => void;
-  onConfirm: () => void;
-}): JSX.Element {
-  const cancelRef = useRef<HTMLButtonElement | null>(null);
-  useEffect(() => {
-    const previous = document.activeElement as HTMLElement | null;
-    cancelRef.current?.focus();
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onCancel();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => {
-      window.removeEventListener("keydown", onKey);
-      previous?.focus?.();
-    };
-  }, [onCancel]);
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6">
-      <Card
-        className="w-full max-w-sm p-5"
-        role="alertdialog"
-        aria-modal="true"
-        aria-labelledby="unlink-title"
-        aria-describedby="unlink-body"
-        data-testid="cloud-unlink-confirm"
-      >
-        <p id="unlink-title" className="text-sm font-semibold">
-          Unlink this Mac from Figurehead?
-        </p>
-        <p id="unlink-body" className="mt-1.5 text-xs leading-relaxed text-ink-2">
+        >
           Cloud features stop on this Mac and its sign-in is removed. Everything stored on this Mac
           stays as it is, and backups already on figurehead.ai stay there until you delete them.
-        </p>
-        <div className="mt-4 flex justify-end gap-2">
-          <Button ref={cancelRef} size="sm" variant="secondary" onClick={onCancel}>
-            Cancel
-          </Button>
-          <Button size="sm" variant="danger" disabled={busy} onClick={onConfirm} data-testid="cloud-unlink-yes">
-            Unlink
-          </Button>
-        </div>
-      </Card>
+        </ConfirmSheet>
+      )}
     </div>
   );
 }

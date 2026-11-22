@@ -434,8 +434,8 @@ fn each_level_refuses_what_it_doesnt_allow_and_every_call_is_audited() {
     assert_eq!(answer.refused, Some(Refusal::Deny));
     assert!(
         answer.reason.as_deref().is_some_and(|words| {
-            words.starts_with("No pool has the id or name «pool-other»")
-                && words.contains("Its pools: «")
+            words.starts_with("No pool has the id or name “pool-other”")
+                && words.contains("Its pools: “")
         }),
         "{answer:?}"
     );

@@ -9,9 +9,7 @@ import { firstWords, namedByFacts, shortName, startedWords, tellApart, untitledN
 import { conversationTitle } from "./conversations";
 import { clock, pastWhen } from "./time-words";
 import type { ConversationInfo } from "./ipc/conversations";
-import { recentRows } from "../components/HomeRecent";
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
-import type { ProjectInfo } from "../types/generated/ProjectInfo";
 import { handoverTeaser } from "../components/HandoverSection";
 import cases from "./fixtures/session-names.json";
 
@@ -131,35 +129,6 @@ function session(id: string, over: Partial<InstanceInfo> = {}): InstanceInfo {
     project_id: "proj-payments", conversation_id: null, ...over,
   } as InstanceInfo;
 }
-const PROJECTS = [{ id: "proj-payments", root: "/Users/you/Dev/payments-api", name: "payments-api" }] as ProjectInfo[];
-
-describe("recentRows", () => {
-  it("titles a row by its conversation's title (its first prompt, 0.4.5), the where line keeps the project", () => {
-    const [row] = recentRows([session("a", { conversation_id: "c-1", title: "Keep the old shortcuts working" })], PROJECTS, NOW);
-    expect(row!.title).toBe("Keep the old shortcuts working");
-    expect(row!.where).toBe("payments-api · main · Work Max");
-  });
-  it("without a first prompt: its facts — project · when it started, never 'Untitled' (D-96), never its Account (D-103.8)", () => {
-    const [row] = recentRows([session("a", { conversation_id: "c-1" })], PROJECTS, NOW);
-    expect(row!.title).toBe(`payments-api · started ${clock(NOW - 7_200_000)}`);
-    expect(row!.title).not.toMatch(/Untitled/);
-    // The where line doesn't say again what the title says; it says the Account.
-    expect(row!.where).toBe("main · Work Max");
-  });
-  it("two untitled in one project and minute are numbered", () => {
-    const rows = recentRows([session("a"), session("b")], PROJECTS, NOW);
-    expect(rows.map((row) => row.title)).toEqual([`payments-api · started ${clock(NOW - 7_200_000)} (1)`, `payments-api · started ${clock(NOW - 7_200_000)} (2)`]);
-  });
-  it("never shows two rows alike", () => {
-    const rows = recentRows(
-      [session("a", { title: "Fix it" }), session("b", { title: "Fix it", account_label: "Personal" }), session("c", { title: "Fix it", account_label: "Personal", started_at_ms: NOW - 50_000_000 })],
-      PROJECTS,
-      NOW,
-    );
-    expect(new Set(rows.map((row) => row.title)).size).toBe(3);
-    expect(rows[0]!.title).toBe("Fix it · Work Max");
-  });
-});
 
 describe("handoverTeaser", () => {
   it("says how many can take it, and the suggestion", () => {

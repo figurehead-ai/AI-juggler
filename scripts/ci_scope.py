@@ -91,6 +91,8 @@ JOBS = {
     "build-linux": "rust",
     "build-windows": "rust",
     "rc-dev-app": "app",
+    "rc-v49": "app",
+    "rc-first-open": "app",
 }
 
 
@@ -215,7 +217,7 @@ def selftest() -> None:
     # A UI-only change: the UI gates, the release candidate, and the tests
     # of the package that reads ui/ (juggler-app); no Rust build or lint.
     ui = scope(["ui/src/App.tsx"], packages)
-    assert jobs(ui) == ["rust-build", "rust-test", "ui", "visual-shard", "a11y-shard", "rc-dev-app"], jobs(ui)
+    assert jobs(ui) == ["rust-build", "rust-test", "ui", "visual-shard", "a11y-shard", "rc-dev-app", "rc-v49", "rc-first-open"], jobs(ui)
     assert filterset(ui) == "package(=juggler-app)", filterset(ui)
     # A Rust-only change: the Rust jobs, its package's tests and its
     # dependents'; no UI gate, no Floor gallery unless the Floor depends on it.

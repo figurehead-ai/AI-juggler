@@ -55,7 +55,7 @@ describe("the project pick follows the template (AJ-E2312 item 6)", () => {
     // Not carried into a pool that keeps its project apart.
     expect(checked("team")).toBe(false);
     expect(checked("client")).toBe(false);
-    expect(screen.getByTestId("new-pool-where-words").textContent).toBe("«Sealed client project» keeps one project apart, so your pick (team) was cleared. Pick at least one project: only its sessions can join.");
+    expect(screen.getByTestId("new-pool-where-words").textContent).toBe("“Sealed client project” keeps one project apart, so your pick (team) was cleared. Pick at least one project: only its sessions can join.");
     expect(screen.getByTestId("new-pool-next")).toHaveProperty("disabled", true);
     // Picked again: the note goes, and Next goes on.
     fireEvent.click(within(where()).getByRole("checkbox", { name: "client" }));
@@ -92,8 +92,8 @@ describe("the project pick follows the template (AJ-E2312 item 6)", () => {
     const names = (ids: (string | null)[]) => ids.join(" and ");
     const team = { template: "writer-reviewer", every: false, projects: ["team"] as (string | null)[] };
     expect(projectsOnChoose(team, templateById("scouts"), { start: "web", picked: true, names })).toEqual({ every: false, projects: ["team"], cleared: null });
-    expect(projectsOnChoose(team, templateById("across-repos"), { start: "web", picked: true, names })).toEqual({ every: false, projects: [], cleared: { what: "team", why: "«Across repositories» works across two or more projects" } });
-    expect(projectsOnChoose(team, templateById("reviewer-for-everything"), { start: "web", picked: true, names })).toEqual({ every: true, projects: [], cleared: { what: "team", why: "«A reviewer for everything» works in every project" } });
+    expect(projectsOnChoose(team, templateById("across-repos"), { start: "web", picked: true, names })).toEqual({ every: false, projects: [], cleared: { what: "team", why: "“Across repositories” works across two or more projects" } });
+    expect(projectsOnChoose(team, templateById("reviewer-for-everything"), { start: "web", picked: true, names })).toEqual({ every: true, projects: [], cleared: { what: "team", why: "“A reviewer for everything” works in every project" } });
     expect(projectsOnChoose({ template: "reviewer-for-everything", every: true, projects: [] }, templateById("blank"), { start: "web", picked: true, names }).cleared?.what).toBe("every project");
     // Where not reached yet: the new template starts where the work is.
     expect(projectsOnChoose(team, templateById("sealed-client"), { start: "web", picked: false, names })).toEqual({ every: false, projects: ["web"], cleared: null });

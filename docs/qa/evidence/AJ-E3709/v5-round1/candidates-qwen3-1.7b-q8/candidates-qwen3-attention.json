@@ -1,0 +1,79 @@
+{
+ "family": "qwen3",
+ "job": "attention",
+ "note": "script flags: candidates for Opus to confirm by eye, never verdicts",
+ "candidates": [
+  {
+   "class": "omission",
+   "detector": "attention_miss",
+   "detail": "gold: needs the user; no note",
+   "stage": "shown",
+   "attempt": null,
+   "id": "V002",
+   "corpus": "turns"
+  },
+  {
+   "class": "omission",
+   "detector": "attention_miss",
+   "detail": "gold: needs the user; no note",
+   "stage": "shown",
+   "attempt": null,
+   "id": "V007",
+   "corpus": "turns"
+  },
+  {
+   "class": "omission",
+   "detector": "attention_miss",
+   "detail": "gold: needs the user; no note",
+   "stage": "shown",
+   "attempt": null,
+   "id": "V012",
+   "corpus": "turns"
+  },
+  {
+   "class": "omission",
+   "detector": "attention_miss",
+   "detail": "gold: needs the user; no note",
+   "stage": "shown",
+   "attempt": null,
+   "id": "V017",
+   "corpus": "turns"
+  },
+  {
+   "class": "omission",
+   "detector": "attention_miss",
+   "detail": "gold: needs the user; no note",
+   "stage": "shown",
+   "attempt": null,
+   "id": "V022",
+   "corpus": "turns"
+  },
+  {
+   "class": "omission",
+   "detector": "attention_miss",
+   "detail": "gold: needs the user; no note",
+   "stage": "shown",
+   "attempt": null,
+   "id": "V025",
+   "corpus": "turns"
+  },
+  {
+   "class": "omission",
+   "detector": "attention_miss",
+   "detail": "gold: needs the user; no note",
+   "stage": "shown",
+   "attempt": null,
+   "id": "V028",
+   "corpus": "turns"
+  },
+  {
+   "class": "omission",
+   "detector": "emphasis",
+   "detail": "a 'might need you' note on a calm turn",
+   "stage": "shown",
+   "attempt": null,
+   "id": "V040",
+   "corpus": "turns"
+  }
+ ]
+}

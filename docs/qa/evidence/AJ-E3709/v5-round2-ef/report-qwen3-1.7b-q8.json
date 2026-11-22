@@ -1,0 +1,486 @@
+{
+ "meta": {
+  "harness": "v5",
+  "prompt_version": 5,
+  "engine": "local model (llama.cpp, Metal) via local_probe",
+  "hello": "{\"arch\":\"qwen3\",\"available\":\"available\",\"chat_template\":\"the GGUF's own (tokenizer.chat_template), Jinja\",\"engine\":\"local model (llama.cpp, Metal) via local_probe\",\"extensions\":[\"fields\",\"sampling\"],\"gpu_offload\":true,\"guided\":true,\"hello\":true,\"line_grammar\":\"root ::= first rest{0,159}\\nfirst ::= [^ \\\\t\\\\n\\\\r\\\\x0B\\\\x0C\\\\u0085   -     　\\\"“”„«»「」]\\nrest ::= [^\\\\t\\\\n\\\\r\\\\x0B\\\\x0C\\\\u0085   -     　\\\"“”„«»「」]\\n\",\"line_max_chars\":160,\"llama_cpp\":\"llama-cpp-2 0.1.146 / llama-cpp-sys-2 0.1.146 (llama-cpp-rs 4afdaf0782ef, vendored llama.cpp), Metal\",\"model_file\":\"Qwen3-1.7B-Q8_0.gguf\",\"model_sha256\":\"061b54daade076b5d3362dac252678d17da8c68f07560be70818cace6590cb1a\",\"n_ctx\":4096,\"os\":\"27.0.1\",\"protocol\":3,\"quant\":\"Q8_0\",\"sampler\":\"greedy\",\"sha256_source\":\"MANIFEST.md\",\"system_info\":\"MTL : EMBED_LIBRARY = 1 | CPU : NEON = 1 | ARM_FMA = 1 | FP16_VA = 1 | DOTPROD = 1 | LLAMAFILE = 1 | ACCELERATE = 1 | REPACK = 1 | \",\"temperature\":0,\"thinking\":\"off: enable_thinking=false (flag and template kwarg)\"}",
+  "family": "qwen3",
+  "model_label": "qwen3",
+  "sampling_name": "low",
+  "sampling": {
+   "temperature": 0.2,
+   "top_p": 0.8,
+   "top_k": 20,
+   "min_p": 0.0,
+   "presence_penalty": 0.0
+  },
+  "sampling_source": "v4 sweep: low (0.2/0.8/20/0, presence 0) and datamark off chosen; card arm kept",
+  "datamark": "off",
+  "retries": 2,
+  "jobs": [
+   "digest",
+   "watch"
+  ],
+  "prompt_sha256": {
+   "digest": "f3ea70f8b719be408815d446b2de29b6dda17520f4cdbec1119e1473db64428a",
+   "watch": "b84f3b6ce41d0548952b377a2be38dba45f0757a69d2332e3bd2c176c23050cf"
+  },
+  "context_tokens": 4096,
+  "code_sha256": {
+   "core.py": "841c2f2d11adbca001f2fa80b1bf43790de9638bcc198c85273726eb361b8e27",
+   "turns.py": "864a70fd425995c8bba8afbcc3bf5129242f4feeadc9a8febff57849d2adb131",
+   "chat.py": "3448ca4dd0a51f7a25ab78d4b7e3fe49e19e0830242ca3513fd121a0b79d9409",
+   "severity.py": "84a3deb960d0343e1e52757ea130c7ba181248347cc5ea62dd094f525c707fe9",
+   "digest.py": "eb4b6b89379df63fd33d7e77b2da0a32334a1a30d762c1446cc7c1cbe9014a85",
+   "watch.py": "3547137f707e432149251fe1aae774f22d44b916e95da99d0edc2a2eeb8f21e0"
+  },
+  "gate_py_sha256": "22152d013af518c34237464f53fd92dbdc83b8b1fa21b1cff8588f5d08735a68",
+  "frozen_gate_commit": "7acec4f50",
+  "jobs_v4_sha256": "17ac6523b2382ec497e392a55a78c23aa6cc56c57430dd43463f2bb67bf5ca94",
+  "repeats": 1,
+  "limit": null,
+  "corpora": [
+   {
+    "label": "digest5r2",
+    "file": "digest-v5r2.json",
+    "sha256": "c694eb85ce11b015d1d85cb086416a7b9346ecb904a0889a240c6bf577e16667",
+    "items_in_file": 30,
+    "items_run": 30
+   },
+   {
+    "label": "watch5r2",
+    "file": "watch-v5r2.json",
+    "sha256": "ab2f0f2f8d484ab658ca2596bb9481d3e1b9e11e3d9ab7beb8f63ac2a9f18a26",
+    "items_in_file": 60,
+    "items_run": 60
+   }
+  ],
+  "calls": 165,
+  "wall_s": 319.7,
+  "machine": {
+   "macos": "27.0.1",
+   "macos_build": "26A434",
+   "arch": "arm64",
+   "model": "Mac17,15",
+   "chip": "Apple M5 Ultra",
+   "ram_gb": 96.0,
+   "cpus": 30
+  },
+  "load_avg_start": [
+   33.5,
+   32.9,
+   25.5
+  ],
+  "load_avg_end": [
+   27.4,
+   35.8,
+   30.0
+  ],
+  "helper_cpu_s": 193.45,
+  "cpu_deltas": [
+   {
+    "name": "local_probe",
+    "cpu_s": 193.06
+   },
+   {
+    "name": "modelcatalogd",
+    "cpu_s": 1.27
+   },
+   {
+    "name": "modelmanagerd",
+    "cpu_s": 0.57
+   },
+   {
+    "name": "GenerativeExperiencesSafetyInferenceProvider",
+    "cpu_s": 0.34
+   },
+   {
+    "name": "IntelligencePlatformComputeService",
+    "cpu_s": 0.08
+   }
+  ],
+  "watched_rss_mb": {
+   "before": 2375.3,
+   "peak": 2560.6,
+   "after": 2525.4
+  },
+  "started": "2026-11-18 15:02:43"
+ },
+ "criteria": "D-130 as clarified 2026-11-18 (0.5 chat and summary jobs only)",
+ "corpora": {
+  "digest5r2": {
+   "digest": {
+    "stats": {
+     "items": 30,
+     "decided_by_code": 4,
+     "model_called": 26,
+     "passed_first_attempt": 14,
+     "passed_after_a_retry": 1,
+     "fell_back": 11,
+     "passed_first_pct": 53.85,
+     "passed_with_retries_pct": 57.69,
+     "fallback_pct": 42.31,
+     "attempts_per_item": {
+      "1": 14,
+      "2": 1,
+      "3": 11
+     },
+     "drafts_parsed_and_valid_pct": 100.0,
+     "latency_ms_first_attempt": {
+      "median": 2427.5,
+      "p95": 5206
+     },
+     "latency_ms_item_total": {
+      "median": 3521.0,
+      "p95": 17118
+     },
+     "kinds_shown": {
+      "ai": 15,
+      "partial": 8,
+      "rollup": 3,
+      "rollup_routed": 4
+     }
+    },
+    "severity": {
+     "items": 30,
+     "model_shown_items": 34,
+     "ai_items_shown": 34,
+     "digests": 30,
+     "digests_with_ai_items": 23,
+     "critical_reaching_the_user": 1,
+     "critical_reaching_pct": 2.94,
+     "critical_by_detector": {
+      "quiet_flagged": 1
+     },
+     "systematic": [],
+     "systematic_rule": "an error class in 2 or more windows (ADR-0036 §3.1)",
+     "critical_caught_drafts": 42,
+     "critical_caught_items": 8,
+     "critical_caught_by_detector": {
+      "wrong_agent": 14,
+      "outcome_against_facts": 15,
+      "anchoring": 13
+     },
+     "omission_items": 7,
+     "omission_denominator": 30,
+     "omission_pct": 23.33,
+     "omission_pct_ai_digests": 13.04,
+     "omission_by_detector": {
+      "must_surface_missed": 7
+     },
+     "quiet_agents_flagged": 1,
+     "questions_or_failures_hidden": 0,
+     "feed_model_lines_on_loud_items": 0,
+     "structural_in_drafts": {},
+     "items_on_loud_agents_dropped": 0,
+     "structural_reaching_the_user": 0,
+     "items_passing_without_fallback_pct": 65.4,
+     "gist_overlap_pct": 79.4,
+     "latency_ms_item_total": {
+      "median": 3521.0,
+      "p95": 17118
+     },
+     "minor": {},
+     "unmapped_items": [],
+     "extra": {
+      "AI items shown": 34,
+      "quiet agents flagged": 1,
+      "items on loud agents dropped (bug count)": 0,
+      "items passing without fallback %": 65.4
+     }
+    },
+    "bar_check": [
+     {
+      "bar": "critical reaching the user, % of shown AI items",
+      "op": "<=",
+      "bar_value": 1.0,
+      "measured": 2.94,
+      "ok": false
+     },
+     {
+      "bar": "systematic critical patterns (2+ windows)",
+      "op": "==",
+      "bar_value": 0,
+      "measured": 0,
+      "ok": true
+     },
+     {
+      "bar": "omissions, % of shown digests",
+      "op": "<=",
+      "bar_value": 10.0,
+      "measured": 23.33,
+      "ok": false
+     },
+     {
+      "bar": "quiet agents flagged",
+      "op": "==",
+      "bar_value": 0,
+      "measured": 1,
+      "ok": false
+     },
+     {
+      "bar": "questions or failures hidden",
+      "op": "==",
+      "bar_value": 0,
+      "measured": 0,
+      "ok": true
+     },
+     {
+      "bar": "refs, cites or loud-agent words reaching the user",
+      "op": "==",
+      "bar_value": 0,
+      "measured": 0,
+      "ok": true
+     },
+     {
+      "bar": "items passing without fallback, %",
+      "op": ">=",
+      "bar_value": 80.0,
+      "measured": 65.4,
+      "ok": false
+     },
+     {
+      "bar": "value: AI digest preferred over the rollup, % of decided pairs",
+      "op": ">=",
+      "bar_value": 60.0,
+      "measured": null,
+      "ok": null
+     },
+     {
+      "bar": "latency median, ms",
+      "op": "<=",
+      "bar_value": 10000,
+      "measured": 3521.0,
+      "ok": true
+     },
+     {
+      "bar": "latency p95, ms",
+      "op": "<=",
+      "bar_value": 20000,
+      "measured": 17118,
+      "ok": true
+     }
+    ]
+   }
+  },
+  "watch5r2": {
+   "watch": {
+    "stats": {
+     "items": 60,
+     "decided_by_code": 0,
+     "model_called": 60,
+     "passed_first_attempt": 32,
+     "passed_after_a_retry": 0,
+     "fell_back": 28,
+     "passed_first_pct": 53.33,
+     "passed_with_retries_pct": 53.33,
+     "fallback_pct": 46.67,
+     "attempts_per_item": {
+      "1": 32,
+      "3": 28
+     },
+     "drafts_parsed_and_valid_pct": 100.0,
+     "latency_ms_first_attempt": {
+      "median": 1268.0,
+      "p95": 2074
+     },
+     "latency_ms_item_total": {
+      "median": 1854.0,
+      "p95": 6067
+     },
+     "kinds_shown": {
+      "watch": 16,
+      "form": 28,
+      "unsupported": 16
+     }
+    },
+    "severity": {
+     "items": 60,
+     "model_shown_items": 32,
+     "supported_items": 41,
+     "exact_rule_matches": 8,
+     "exact_rule_match_pct": 19.51,
+     "mismatches": [
+      {
+       "id": "R2-W02",
+       "diffs": [
+        "lifetime (unsaid; ADR-0036's default) today != once"
+       ],
+       "planted": false
+      },
+      {
+       "id": "R2-W04",
+       "diffs": [
+        "lifetime (unsaid; ADR-0036's default) today != once"
+       ],
+       "planted": false
+      },
+      {
+       "id": "R2-W13",
+       "diffs": [
+        "target [('session', 's-ops')] != ('app', 'app-cursor')",
+        "lifetime (unsaid; ADR-0036's default) today != once"
+       ],
+       "planted": false
+      },
+      {
+       "id": "R2-W16",
+       "diffs": [
+        "lifetime (unsaid; ADR-0036's default) today != once"
+       ],
+       "planted": false
+      },
+      {
+       "id": "R2-W18",
+       "diffs": [
+        "lifetime (unsaid; ADR-0036's default) today != once"
+       ],
+       "planted": false
+      },
+      {
+       "id": "R2-W31",
+       "diffs": [
+        "lifetime (unsaid; ADR-0036's default) today != once"
+       ],
+       "planted": false
+      },
+      {
+       "id": "R2-W32",
+       "diffs": [
+        "lifetime (unsaid; ADR-0036's default) today != always"
+       ],
+       "planted": false
+      },
+      {
+       "id": "R2-W52",
+       "diffs": [
+        "lifetime (unsaid; ADR-0036's default) today != once"
+       ],
+       "planted": false
+      }
+     ],
+     "exact_rule_matches_with_defaults": 15,
+     "exact_rule_match_with_defaults_pct": 36.59,
+     "lifetime_default_differs": 7,
+     "unsupported_items": 19,
+     "unsupported_claimed": 0,
+     "nearest_due": 13,
+     "nearest_offered": 3,
+     "nearest_offered_pct": 23.08,
+     "nearest_matches_gold": 2,
+     "nearest_matches_gold_pct": 15.38,
+     "asked_picker": 0,
+     "false_unsupported": 9,
+     "planted_mismatches": 0,
+     "outcome_kinds": {
+      "watch": 16,
+      "form": 28,
+      "unsupported": 16
+     },
+     "unknown_gold_types": {
+      "quand la session se termine": 1,
+      "cuando una sesión falle": 1
+     },
+     "store_writes_by_the_job": 0,
+     "store_unchanged": true,
+     "critical_reaching_the_user": 0,
+     "critical_reaching_pct": 0.0,
+     "critical_by_detector": {},
+     "systematic": [],
+     "critical_caught_drafts": 413,
+     "critical_caught_items": 21,
+     "critical_caught_by_detector": {
+      "wrong_target": 410,
+      "invented": 3
+     },
+     "omission_items": 25,
+     "omission_by_detector": {
+      "no_watch": 16,
+      "false_unsupported": 9
+     },
+     "omission_pct": 41.67,
+     "questions_or_failures_hidden": 0,
+     "feed_model_lines_on_loud_items": 0,
+     "latency_ms_item_total": {
+      "median": 1854.0,
+      "p95": 6067
+     },
+     "extra": {
+      "exact rule matches": "8 of 41",
+      "exact with ADR-0036's default for an unsaid lifetime": "15 of 41",
+      "an unsaid lifetime whose ADR default differs from gold": 7,
+      "unsupported claimed": 0,
+      "nearest offered": "3 of 13",
+      "nearest equal to gold": "2 of 13",
+      "asked (picker)": 0,
+      "quiet hours broken unasked": 0,
+      "quiet hours asked, drafted off": 0,
+      "unknown gold condition types": {
+       "quand la session se termine": 1,
+       "cuando una sesión falle": 1
+      }
+     }
+    },
+    "bar_check": [
+     {
+      "bar": "exact rule matches on supported requests, %",
+      "op": ">=",
+      "bar_value": 95.0,
+      "measured": 19.51,
+      "ok": false
+     },
+     {
+      "bar": "exact rule matches, an unsaid lifetime by ADR-0036's default, %",
+      "op": ">=",
+      "bar_value": 95.0,
+      "measured": 36.59,
+      "ok": false
+     },
+     {
+      "bar": "unsupported conditions claimed",
+      "op": "==",
+      "bar_value": 0,
+      "measured": 0,
+      "ok": true
+     },
+     {
+      "bar": "nearest option offered on unsupported requests, %",
+      "op": ">=",
+      "bar_value": 90.0,
+      "measured": 23.08,
+      "ok": false
+     },
+     {
+      "bar": "watches written by the job (not the user's click)",
+      "op": "==",
+      "bar_value": 0,
+      "measured": 0,
+      "ok": true
+     },
+     {
+      "bar": "mismatches on items with a planted order (candidates)",
+      "op": "==",
+      "bar_value": 0,
+      "measured": 0,
+      "ok": true
+     },
+     {
+      "bar": "latency median, ms",
+      "op": "<=",
+      "bar_value": 2000,
+      "measured": 1854.0,
+      "ok": true
+     },
+     {
+      "bar": "latency p95, ms",
+      "op": "<=",
+      "bar_value": 4000,
+      "measured": 6067,
+      "ok": false
+     }
+    ]
+   }
+  }
+ },
+ "replay_mismatches": []
+}

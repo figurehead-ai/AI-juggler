@@ -4,7 +4,7 @@
  * PURE function; the component test walks the 2-click path (tile →
  * Start session) and the no-account inline detour.
  */
-import { fireEvent, render, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { NewProjectSheet, pickRecipe } from "../screens/NewProjectSheet";
 import { pickLaunch } from "../lib/launch-pick";
@@ -12,6 +12,9 @@ import * as bridgeModule from "../lib/ipc/quota";
 import * as bridgeModuleLaunch from "../lib/ipc/launch";
 import type { LaunchRecipeInfo } from "../types/generated/LaunchRecipeInfo";
 import type { ProjectInfo } from "../types/generated/ProjectInfo";
+
+// Dialogs draw in the page body (DialogOverlay): each test starts with an empty one.
+afterEach(cleanup);
 
 const recipe = (
   id: string,
@@ -121,73 +124,73 @@ describe("AJ-E305 NewProjectSheet — flow (b) in ≤3 clicks", () => {
   };
 
   it("tile click → recommended account preselected → Start session launches it (2 clicks, 0 typed)", async () => {
-    const { container, launchSpy, launched } = mountSheet();
+    const { launchSpy, launched } = mountSheet();
     const tiles = await waitFor(() => {
-      const found = container.querySelectorAll("[data-testid='project-tiles'] button[data-tile]");
+      const found = document.body.querySelectorAll("[data-testid='project-tiles'] button[data-tile]");
       expect(found.length).toBeGreaterThan(0);
       return found;
     });
     // Click 1: the recent-dir tile.
     fireEvent.click(tiles[0]!);
     await waitFor(() =>
-      expect(container.querySelector("[data-testid='project-account']")).not.toBeNull(),
+      expect(document.body.querySelector("[data-testid='project-account']")).not.toBeNull(),
     );
-    expect(container.querySelector("[data-testid='project-account']")!.textContent).toContain(
+    expect(document.body.querySelector("[data-testid='project-account']")!.textContent).toContain(
       "Work",
     );
-    expect(container.querySelector("[data-testid='project-account']")!.textContent).toContain(
+    expect(document.body.querySelector("[data-testid='project-account']")!.textContent).toContain(
       "last used here",
     );
     // Click 2: Start session → with the recommended recipe + the dir.
-    fireEvent.click(container.querySelector("[data-testid='start-session']")!);
+    fireEvent.click(document.body.querySelector("[data-testid='start-session']")!);
     await waitFor(() => expect(launchSpy).toHaveBeenCalled());
     expect(launchSpy).toHaveBeenCalledWith("a", "/Users/you/dev-api");
     expect(launched).toHaveBeenCalledWith("s1", "Work · Default");
   });
 
   it("no Account → inline flow (d) detour, and the pending directory survives it (Req.7)", async () => {
-    const { container } = mountSheet({ recipes: [] });
+    mountSheet({ recipes: [] });
     const tiles = await waitFor(() => {
-      const found = container.querySelectorAll("[data-testid='project-tiles'] button[data-tile]");
+      const found = document.body.querySelectorAll("[data-testid='project-tiles'] button[data-tile]");
       expect(found.length).toBeGreaterThan(0);
       return found;
     });
     fireEvent.click(tiles[0]!);
     await waitFor(() =>
-      expect(container.querySelector("[data-testid='no-account-detour']")).not.toBeNull(),
+      expect(document.body.querySelector("[data-testid='no-account-detour']")).not.toBeNull(),
     );
     fireEvent.click(
-      Array.from(container.querySelectorAll("button")).find((button) =>
+      Array.from(document.body.querySelectorAll("button")).find((button) =>
         button.textContent?.includes("Add an app"),
       )!,
     );
     // Add account opens INLINE over the sheet (AJ-E1022) — pending dir kept.
     await waitFor(() =>
-      expect(container.querySelector("[data-testid='first-run'][data-mode='add']")).not.toBeNull(),
+      expect(document.body.querySelector("[data-testid='first-run'][data-mode='add']")).not.toBeNull(),
     );
-    expect(container.textContent).toContain("Starting in dev-api");
+    expect(document.body.textContent).toContain("Starting in dev-api");
   });
 
   it("Escape leaves the detour and keeps the sheet, the folder still chosen (Req.7)", async () => {
     const onClose = vi.fn();
-    const { container } = mountSheet({ recipes: [], onClose });
+    mountSheet({ recipes: [], onClose });
     const tiles = await waitFor(() => {
-      const found = container.querySelectorAll("[data-testid='project-tiles'] button[data-tile]");
+      const found = document.body.querySelectorAll("[data-testid='project-tiles'] button[data-tile]");
       expect(found.length).toBeGreaterThan(0);
       return found;
     });
     fireEvent.click(tiles[0]!);
     const add = await waitFor(() => {
-      const button = container.querySelector("[data-testid='no-account-detour'] button");
+      const button = document.body.querySelector("[data-testid='no-account-detour'] button");
       expect(button).not.toBeNull();
       return button!;
     });
     fireEvent.click(add);
-    await waitFor(() => expect(container.querySelector("[data-testid='first-run'][data-mode='add']")).not.toBeNull());
+    await waitFor(() => expect(document.body.querySelector("[data-testid='first-run'][data-mode='add']")).not.toBeNull());
     fireEvent.keyDown(window, { key: "Escape" });
-    await waitFor(() => expect(container.querySelector("[data-testid='first-run']")).toBeNull());
+    await waitFor(() => expect(document.body.querySelector("[data-testid='first-run']")).toBeNull());
     expect(onClose).not.toHaveBeenCalled();
-    expect(container.textContent).toContain("Starting in dev-api");
+    expect(document.body.textContent).toContain("Starting in dev-api");
     // With the detour gone, Escape closes the sheet as before.
     fireEvent.keyDown(window, { key: "Escape" });
     expect(onClose).toHaveBeenCalledTimes(1);
@@ -202,7 +205,7 @@ describe("AJ-E305 NewProjectSheet — flow (b) in ≤3 clicks", () => {
       .mockResolvedValue({ session_id: "s1" } as never);
     vi.spyOn(bridgeModuleLaunch, "launchRecipesList").mockResolvedValue([recipe("a", "Work")]);
     vi.spyOn(bridgeModule, "quotaDisplayAll").mockResolvedValue([]);
-    const mounted = render(
+    render(
       <NewProjectSheet
         projects={[project("/Users/you/dev-api", ["Work"])]}
         accounts={signedOut}
@@ -214,14 +217,14 @@ describe("AJ-E305 NewProjectSheet — flow (b) in ≤3 clicks", () => {
       />,
     );
     const start = await waitFor(() => {
-      const button = mounted.container.querySelector(
+      const button = document.body.querySelector(
         "[data-testid='start-session']",
       ) as HTMLButtonElement;
       expect(button).not.toBeNull();
       return button!;
     });
     expect(start.disabled).toBe(true);
-    expect(mounted.container.textContent).toContain("needs sign-in");
+    expect(document.body.textContent).toContain("needs sign-in");
     launchSpy.mockRestore();
   });
 });

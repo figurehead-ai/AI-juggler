@@ -9,7 +9,7 @@ import { switchSourceOf, type ConversationInfo, type PlaceInfo } from "../../lib
 import type { InstanceInfo } from "../../types/generated/InstanceInfo";
 import { stateWord } from "../../components/OutsideConversations";
 import { openingIn } from "../../lib/just-opened";
-import { statusTone } from "../ItemHeader";
+import { statusTone } from "../item-header-facts";
 import { sessionState } from "../../lib/rail-items";
 import { toolSpec } from "../../lib/tools";
 import { waitingSince } from "../../lib/waiting";

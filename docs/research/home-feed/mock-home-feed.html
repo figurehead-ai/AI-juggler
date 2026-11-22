@@ -1,0 +1,364 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Home Feed Mock</title>
+<style>
+:root{--pg-bg:#f4f5f7;--pg-ink:#14171c;--pg-muted:#5b6270;--pg-line:#d9dde4;--pg-chip:#fff}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--pg-bg:#07090d;--pg-ink:#eef1f5;--pg-muted:#a3abb8;--pg-line:#252b36;--pg-chip:#12161d}}
+:root[data-theme="dark"]{--pg-bg:#07090d;--pg-ink:#eef1f5;--pg-muted:#a3abb8;--pg-line:#252b36;--pg-chip:#12161d}
+*{box-sizing:border-box}
+body{margin:0;background:var(--pg-bg);color:var(--pg-ink);font:14px/1.5 -apple-system,BlinkMacSystemFont,"SF Pro Text",Inter,"Segoe UI",Roboto,sans-serif}
+.page{max-width:1320px;margin:0 auto;padding:24px 16px 64px}
+.page h1{font-size:22px;margin:0 0 4px;font-weight:600}
+.lead{margin:0 0 14px;color:var(--pg-muted);max-width:860px}
+.controls{display:flex;gap:8px;margin:0 0 18px;flex-wrap:wrap}
+.controls button{font:inherit;font-size:13px;border:1px solid var(--pg-line);background:var(--pg-chip);color:var(--pg-ink);border-radius:8px;padding:5px 12px;cursor:pointer}
+.controls button[aria-pressed="true"]{border-color:var(--pg-ink);font-weight:600}
+.cap{display:flex;gap:6px 14px;flex-wrap:wrap;align-items:baseline;margin:26px 0 8px}
+.cap h2{font-size:16px;margin:0;font-weight:600}.cap span{color:var(--pg-muted);font-size:13px}
+.scroller{overflow-x:auto;border-radius:12px;border:1px solid var(--pg-line)}
+
+/* ---------- app tokens: round 2 (dark default) ---------- */
+.app{
+  --canvas:#0b0e14;--surface:#151a23;--surface-2:#1e2430;--surface-3:#242935;--fill:#181d27;--divider:#232a36;--hairline:#2f3645;
+  --ink:#f3f5f9;--ink-2:#d2d8e1;--section:#c3cad5;--muted:#b0b8c5;--faint:#8e97a6;
+  --accent:#8787f6;--accent-hi:#a9a9ff;--accent-fill:#5b5bea;
+  --live:#7bbfcc;--success:#79c3a0;--warning:#e8b25a;--danger:#ff8578;--danger-soft:#ff857824;
+  --count:#d2d8e1;--count-ink:#0b0e14;--tone-op:.78;
+  --appA:oklch(0.627 0.16 255);--appB:oklch(0.549 0.143 130);--appC:oklch(0.629 0.16 345);--appD:oklch(0.562 0.16 320);
+  --acct1:oklch(0.571 0.16 280);--acct2:oklch(0.619 0.136 115);--acct3:oklch(0.645 0.16 325);
+}
+:root[data-theme="light"] .app{
+  --canvas:#eceef3;--surface:#ffffff;--surface-2:#f5f6f9;--surface-3:#e6e9ef;--fill:#ffffff;--divider:#e2e6ed;--hairline:#d3d8e2;
+  --ink:#0e1219;--ink-2:#2c3341;--section:#3d4553;--muted:#4f5767;--faint:#5f6777;
+  --accent:#4747d1;--accent-hi:#4646e0;--accent-fill:#4f4fd8;
+  --live:#056074;--success:#065f46;--warning:#9c4807;--danger:#b91c1c;--danger-soft:#b91c1c14;
+  --count:#2c3341;--count-ink:#fff;--tone-op:.72;
+}
+@media (prefers-color-scheme:light){:root:not([data-theme]) .app{
+  --canvas:#eceef3;--surface:#ffffff;--surface-2:#f5f6f9;--surface-3:#e6e9ef;--fill:#ffffff;--divider:#e2e6ed;--hairline:#d3d8e2;
+  --ink:#0e1219;--ink-2:#2c3341;--section:#3d4553;--muted:#4f5767;--faint:#5f6777;
+  --accent:#4747d1;--accent-hi:#4646e0;--accent-fill:#4f4fd8;
+  --live:#056074;--success:#065f46;--warning:#9c4807;--danger:#b91c1c;--danger-soft:#b91c1c14;
+  --count:#2c3341;--count-ink:#fff;--tone-op:.72;}}
+
+.app{display:grid;grid-template-columns:232px 1fr;background:var(--canvas);color:var(--ink);font-size:13px;line-height:1.42;overflow:hidden}
+.app.wide{min-width:1240px;height:1350px}
+.app.narrow{grid-template-columns:56px 1fr;width:820px;height:auto}
+/* rail (round 2, abbreviated) */
+.rail{border-right:1px solid var(--divider);display:flex;flex-direction:column;padding:0 8px;min-height:0}
+.brand{display:flex;align-items:center;gap:10px;height:50px;padding:0 6px;font-weight:600;font-size:15px}
+.logo{width:18px;height:18px;border-radius:50%;background:radial-gradient(circle at 30% 30%,var(--accent) 0 3px,transparent 3.5px),radial-gradient(circle at 72% 30%,var(--accent) 0 3px,transparent 3.5px),radial-gradient(circle at 50% 75%,var(--accent) 0 3px,transparent 3.5px)}
+.search{height:28px;border-radius:8px;background:var(--fill);color:var(--muted);display:flex;align-items:center;padding:0 10px;margin-bottom:8px}
+.lens{display:flex;background:var(--fill);border-radius:8px;padding:2px;margin-bottom:4px}
+.lens span{flex:1;text-align:center;padding:3px 0;border-radius:6px;color:var(--muted);font-size:12.5px;font-weight:500}
+.lens span.on{background:var(--surface-3);color:var(--ink-2)}
+.sl{font-size:12px;font-weight:500;letter-spacing:.07em;text-transform:uppercase;color:var(--section);display:flex;align-items:center;gap:6px}
+.sl .n{letter-spacing:0;color:var(--muted)}
+.sl .n.l2{color:var(--warning);font-weight:600;display:inline-flex;align-items:center;gap:3px}
+.sl .chev{margin-left:auto;color:var(--muted);font-size:10px;letter-spacing:0}
+.sl svg{width:12px;height:12px}
+.rail .sl{height:30px;padding:10px 4px 0}
+.rrow{display:flex;gap:9px;padding:5px 4px;align-items:flex-start}
+.adot{flex:none;width:6px;height:6px;border-radius:50%;margin-top:6px}
+.tone{filter:saturate(.25);opacity:var(--tone-op)}
+.lit{filter:none;opacity:1}
+.rrow .t{font-weight:500;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rrow .w{font-size:12px;font-weight:600}
+.rrow .s{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rrow>div{min-width:0}
+.mark{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--warning);vertical-align:middle}
+.mark.ring{background:transparent;box-shadow:inset 0 0 0 1.5px var(--warning)}
+.grp{display:flex;align-items:center;gap:5px;height:26px;font-size:12px;padding:0 2px}
+.gi{width:13px;height:13px;border-radius:3px;flex:none;display:grid;place-items:center;font-size:8px;font-weight:700;color:#fff}
+.grp .pf{font-weight:500;color:var(--ink-2)}.grp .an{color:var(--muted)}.grp .n{margin-left:auto;color:var(--muted)}
+.orow{display:flex;gap:8px;align-items:center;padding:4px 6px 4px 22px}
+.orow .sd{width:6px;height:6px;border-radius:50%;flex:none}
+.orow .t{color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1}
+.orow .w{font-size:12px;color:var(--muted)}
+.rfoot{margin-top:auto;padding:10px 0;display:flex;gap:6px}
+.btn{display:inline-flex;align-items:center;gap:6px;border:1px solid transparent;border-radius:7px;padding:4px 9px;color:var(--ink-2);font-size:12.5px;font-weight:500;white-space:nowrap;background:transparent}
+.btn.fill{background:var(--accent-fill);border-color:var(--accent-fill);color:#fff}
+.btn.acc{color:var(--accent-hi)}
+/* header */
+.main{display:flex;flex-direction:column;min-width:0;min-height:0}
+.hdr{height:50px;display:flex;align-items:center;gap:6px;padding:0 18px}
+.nav{display:flex;gap:2px}.nav span{padding:5px 9px;color:var(--muted);font-weight:500}.nav span.on{color:var(--ink);font-weight:600}
+.sp{flex:1}
+.status{color:var(--muted);font-size:12.5px;display:flex;gap:6px;align-items:center}.status i{width:7px;height:7px;border-radius:50%;background:var(--faint)}
+.bell{position:relative;width:28px;height:28px;display:grid;place-items:center;color:var(--muted)}
+.bell b{position:absolute;right:-2px;top:-2px;min-width:17px;height:17px;border-radius:999px;background:var(--count);color:var(--count-ink);font-size:11px;display:grid;place-items:center;padding:0 4px}
+.avatar{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;font-weight:600;font-size:12px;background:var(--surface-3);color:var(--ink)}
+/* home head */
+.head{display:flex;align-items:baseline;gap:14px;padding:6px 22px 12px}
+.head h3{margin:0;font-size:21px;font-weight:600}
+.head .counts{color:var(--ink-2);font-size:13.5px}
+.head .counts .l1{color:var(--muted)}
+.head .jump{margin-left:auto;color:var(--ink-2);font-size:12.5px;text-decoration:underline;text-decoration-color:var(--hairline)}
+/* columns */
+.cols{display:grid;grid-template-columns:minmax(480px,1fr) clamp(320px,30%,390px);gap:24px;padding:0 22px;min-height:0;flex:1}
+.col{overflow:hidden;min-height:0;display:flex;flex-direction:column;gap:12px;padding-bottom:20px}
+.feedcol{max-width:720px;padding-left:14px}
+.narrow .cols{display:flex;flex-direction:column;gap:18px}
+.narrow .col{overflow:visible}
+/* pinned */
+.pinned{display:flex;flex-direction:column;gap:8px}
+.pin{background:var(--surface);border-radius:12px;padding:12px 14px;display:flex;gap:11px}
+.pin.l3{background:var(--danger-soft)}
+.av{flex:none;width:22px;height:22px;border-radius:6px;display:grid;place-items:center;font-size:11px;font-weight:700;color:#fff;margin-top:1px}
+.av.agent{border-radius:50%;background:var(--surface-3);color:var(--ink-2);font-weight:600}
+.av.sys{border-radius:6px;background:var(--fill)}
+.av.sys .logo{width:14px;height:14px}
+.av.acct{border-radius:50%}
+.pin .body,.it .body{flex:1;min-width:0}
+.by{display:flex;gap:6px;align-items:baseline;font-size:12.5px;white-space:nowrap}
+.by .a{color:var(--ink-2);font-weight:500}.by .pl{color:var(--muted);overflow:hidden;text-overflow:ellipsis}
+.by .tm{margin-left:auto;color:var(--muted);font-size:12px;flex:none}
+.sent{font-size:13.5px;color:var(--ink);margin-top:2px}
+.sent b{font-weight:600}
+.state2{color:var(--warning);font-weight:600}
+.quote{margin-top:6px;background:var(--fill);border-radius:8px;padding:7px 10px;color:var(--ink-2);font-size:13px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.facts{margin-top:5px;color:var(--muted);font-size:12px}
+.acts{display:flex;gap:4px;margin-top:8px;margin-left:-9px;align-items:center}
+.chips{display:flex;align-items:center;gap:8px;margin-top:4px}
+.seg{display:inline-flex;background:var(--fill);border-radius:8px;padding:2px}
+.seg span{padding:3px 8px;border-radius:6px;color:var(--muted);font-size:12px;font-weight:500}
+.seg span.on{background:var(--surface-3);color:var(--ink-2)}
+.picker{color:var(--ink-2);font-size:12.5px;font-weight:500}
+.day{margin-top:6px}
+.it{display:flex;gap:11px;padding:8px 2px 8px 0;position:relative}
+.it.sel{background:var(--surface-3);border-radius:10px;margin:0 0 0 -10px;padding:8px 8px 8px 10px}
+.it .unread{position:absolute;left:-12px;top:16px;width:6px;height:6px;border-radius:50%;background:var(--ink-2)}
+.it.sel .unread{left:-8px}
+.it .acts{display:none}.it.sel .acts,.it:hover .acts{display:flex}
+.names{margin-top:6px;display:flex;flex-direction:column;gap:3px;color:var(--ink-2);font-size:12.5px}
+.names span{display:flex;gap:8px}.names em{font-style:normal;color:var(--muted);margin-left:auto}
+.more{color:var(--ink-2);font-size:12.5px;font-weight:500;margin-top:6px;display:inline-flex;gap:4px}
+.away{display:flex;align-items:center;gap:10px;margin:8px 0 2px;color:var(--section);font-size:12px;font-weight:500;letter-spacing:.07em;text-transform:uppercase}
+.away:before,.away:after{content:"";height:1px;background:var(--hairline);flex:1}
+.away:before{flex:0 0 14px}
+.digest{background:var(--surface);border-radius:12px;padding:12px 14px}
+.digest .sent{font-size:13.5px}
+.digest ul{margin:8px 0 0;padding:0;list-style:none;display:flex;flex-direction:column;gap:4px;color:var(--ink-2);font-size:12.5px}
+.digest li{display:flex;gap:8px;align-items:baseline}.digest li em{font-style:normal;color:var(--muted);margin-left:auto;white-space:nowrap;padding-left:12px}
+.newpill{align-self:center;background:var(--surface-3);color:var(--ink);font-size:12px;font-weight:500;border-radius:999px;padding:3px 12px}
+/* right column */
+.rc{background:var(--surface);border-radius:12px;padding:10px 12px}
+.app-row{display:flex;align-items:center;gap:10px;padding:6px 0}
+.app-row .ic{width:20px;height:20px;border-radius:5px;display:grid;place-items:center;font-size:10px;font-weight:700;color:#fff;flex:none}
+.app-row .nm{font-weight:600;color:var(--ink);white-space:nowrap}
+.app-row .pf{color:var(--muted);font-size:12px;white-space:nowrap;display:flex;align-items:center;gap:4px}
+.app-row .pf b{color:var(--ink-2);font-weight:500}
+.app-row .x{margin-left:auto;display:flex;align-items:center;gap:8px;color:var(--muted);font-size:12px;white-space:nowrap}
+.app-row .nd{color:var(--ink-2);display:inline-flex;gap:4px;align-items:center}
+.sub{color:var(--faint);font-size:12px;padding:6px 0 2px}
+.acct{padding:8px 0}
+.acct .a{display:flex;align-items:center;gap:8px}
+.acct .disc{width:8px;height:8px;border-radius:50%}
+.acct .an{font-weight:500;color:var(--ink)}
+.acct .pct{margin-left:auto;font-weight:600;color:var(--ink);font-size:14px}
+.meter{height:6px;border-radius:999px;background:var(--surface-3);overflow:hidden;margin:6px 0 5px}
+.meter i{display:block;height:100%;border-radius:999px;background:color-mix(in srgb,var(--ink-2) 55%,var(--surface-3))}
+:root[data-theme="light"] .meter i{background:color-mix(in srgb,var(--ink-2) 65%,var(--surface-3))}
+.acct .s{font-size:12px;color:var(--muted)}
+.acct .s a{color:var(--ink-2);text-decoration:underline;text-decoration-color:var(--hairline)}
+.low{color:var(--muted);font-size:12px}
+</style>
+</head>
+<body>
+<main class="page">
+  <h1>Home as a living feed: mock</h1>
+  <p class="lead">Round-2 calm look, with generic fixture names only. On the left is the activity feed. Open needs are pinned at the top, followed by the stream newest first. Repeated events are rolled up, and a "while you were away" divider marks your last look. On the right are your apps, then runway by account. Each column scrolls on its own. In the app the chevrons fold sections. In this mock they are static.</p>
+  <div class="controls" role="group" aria-label="Theme">
+    <button type="button" data-set="dark">Dark</button><button type="button" data-set="light">Light</button><button type="button" data-set="system">Follow system</button>
+  </div>
+
+  <div class="cap"><h2>Wide (1280 px window)</h2><span>A busy morning after a night away, with two needs pinned. The frame is drawn taller than a laptop screen so every item type shows. In the app each column scrolls on its own.</span></div>
+  <div class="scroller"><div class="app wide" data-frame="wide">
+    <aside class="rail" aria-label="Sessions">
+      <div class="brand"><span class="logo"></span>AI Juggler</div>
+      <div class="search">⌕ Search ⌘K</div>
+      <div class="lens"><span class="on">App</span><span>Project</span><span>Account</span></div>
+      <div class="sl">Needs you <span class="n l2"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M8 2 15 14H1z"/><path d="M8 6.5v3.5M8 12v.2"/></svg>2</span><span class="chev">▾</span></div>
+      <div class="rrow"><span class="adot tone lit" style="background:var(--appD)"></span><div><div class="t">Migrate the billing webhooks</div><div class="w" style="color:var(--warning)">Asks you</div><div class="s">payments-api · Claude app · Work Max</div></div></div>
+      <div class="rrow"><span class="adot" style="background:var(--surface-3)"></span><div><div class="t">Export flow</div><div class="w" style="color:var(--warning)">builder-1 asks you</div><div class="s">Release pool</div></div></div>
+      <div class="sl">Open now <span class="n">7</span><span class="chev">▾</span></div>
+      <div class="grp"><span class="gi tone" style="background:#6b6bf0">◎</span><span class="mark tone" style="background:var(--appA);width:5px;height:5px"></span><span class="pf">Work Max</span><span class="an">Claude Code</span><span class="n">3</span></div>
+      <div class="orow"><span class="sd" style="background:var(--live)"></span><span class="t">Port the settings parser</span><span class="w">Working</span></div>
+      <div class="orow"><span class="sd" style="background:var(--live)"></span><span class="t">feat/read-model</span><span class="w">Working</span></div>
+      <div class="orow"><span class="sd" style="background:var(--faint)"></span><span class="t">Nightly tests</span><span class="w">Idle</span></div>
+      <div class="grp"><span class="gi lit" style="background:#6b6bf0">◎</span><span class="mark lit" style="background:var(--appD);width:5px;height:5px"></span><span class="pf">Work Max</span><span class="an">Claude app</span><span class="n" style="display:flex;gap:4px;align-items:center"><span class="mark"></span>1 · 2</span></div>
+      <div class="orow"><span class="sd" style="background:var(--live)"></span><span class="t">Draft the onboarding copy</span><span class="w">Working</span></div>
+      <div class="grp"><span class="gi tone" style="background:#2b2b2b">◇</span><span class="mark tone" style="background:var(--appC);width:5px;height:5px"></span><span class="pf">Personal</span><span class="an">Codex</span><span class="n">2</span></div>
+      <div class="orow"><span class="sd" style="background:var(--live)"></span><span class="t">Answer the release question</span><span class="w">Working</span></div>
+      <div class="orow"><span class="sd" style="background:var(--faint)"></span><span class="t">Plan the trip notes app</span><span class="w">Idle</span></div>
+      <div class="rfoot"><span class="btn">›_ New session</span></div>
+    </aside>
+    <section class="main">
+      <div class="hdr"><div class="nav"><span class="on">Home</span><span>Projects</span><span>Pools</span><span>Tasks</span><span>Accounts</span><span>Usage</span><span>History</span></div><span class="sp"></span>
+        <span class="status"><i></i>Plenty of room</span><span class="btn">⌫ 7 to clean up</span><span class="btn acc">›_ New session</span>
+        <span class="bell"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M4 11V7a4 4 0 0 1 8 0v4l1 1.5H3z"/><path d="M6.5 14h3"/></svg><b>2</b></span><span class="avatar">S</span></div>
+      <div class="head"><h3>2 need you</h3><span class="counts">7 open · <span class="l1">6 finished today · 1 to review</span></span></div>
+      <div class="cols">
+        <section class="col feedcol" aria-labelledby="act-h">
+          <h4 id="act-h" class="sl" style="margin:0">Needs you now <span class="n l2"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M8 2 15 14H1z"/><path d="M8 6.5v3.5M8 12v.2"/></svg>2</span><span class="chev">▾</span></h4>
+          <div class="pinned" role="region" aria-label="Needs you now">
+            <article class="pin">
+              <span class="av lit" style="background:#6b6bf0">◎</span>
+              <div class="body">
+                <div class="by"><span class="a">Claude app · Work Max</span><span class="pl">payments-api</span><span class="tm">waiting 12 min</span></div>
+                <div class="sent"><b>Migrate the billing webhooks</b> <span class="state2">asks you</span>: allow edits to 3 files in payments-api?</div>
+                <div class="acts"><span class="btn fill">Open its page ↵</span><span class="btn">Continue in another app…</span><span class="btn">↗</span></div>
+              </div>
+            </article>
+            <article class="pin">
+              <span class="av agent">b1</span>
+              <div class="body">
+                <div class="by"><span class="a">builder-1</span><span class="pl">Release pool · Export flow</span><span class="tm">5 min</span></div>
+                <div class="sent"><span class="state2">Asks you</span>: "Use the v2 export API, or keep v1 for this release?"</div>
+                <div class="acts"><span class="btn">Reply</span><span class="btn">Open the thread</span></div>
+              </div>
+            </article>
+          </div>
+
+          <div class="chips"><span class="seg"><span class="on">All</span><span>Finished</span><span>Switches &amp; limits</span><span>Pools &amp; tasks</span><span>This Mac</span></span><span class="picker">Project ▾</span><span class="picker">App ▾</span></div>
+
+          <div role="feed" aria-busy="false" aria-label="Activity" style="display:flex;flex-direction:column">
+            <div class="sl day">Today</div>
+            <article class="it sel" aria-posinset="1" aria-setsize="-1">
+              <span class="unread"></span>
+              <span class="av tone lit" style="background:#6b6bf0">◎</span>
+              <div class="body">
+                <div class="by"><span class="a">Claude Code · Work Max</span><span class="pl">web-app</span><span class="tm">just now</span></div>
+                <div class="sent">finished <b>Fix the flaky login test</b> in 42 min</div>
+                <div class="quote">"Fixed the race in the login test by awaiting the session cookie before the redirect check. All 212 tests pass; no other files touched."</div>
+                <div class="facts">feat/login · 3 files changed · 6 turns · about 41k tokens</div>
+                <div class="acts"><span class="btn">Open</span><span class="btn">Mark reviewed</span><span class="btn">↗</span></div>
+              </div>
+            </article>
+            <article class="it" aria-posinset="2" aria-setsize="-1">
+              <span class="unread"></span>
+              <span class="av tone" style="background:#6b6bf0">◎</span>
+              <div class="body">
+                <div class="by"><span class="a">Claude Code · Work Max</span><span class="pl">web-app</span><span class="tm">8 min</span></div>
+                <div class="sent">opened <b>PR #142 "Add the export button"</b></div>
+                <div class="facts">feat/export → main · 4 commits · from <span style="color:var(--ink-2)">Wire the export button</span></div>
+              </div>
+            </article>
+            <article class="it" aria-posinset="3" aria-setsize="-1">
+              <span class="av acct" style="background:var(--acct1)"></span>
+              <div class="body">
+                <div class="by"><span class="a">Work Max</span><span class="pl">Account</span><span class="tm">14 min</span></div>
+                <div class="sent">is at <b>12%</b> of its 5-hour window <span class="low">⌁ low</span>. It resets at 3:13 PM, and 2 sessions use it.</div>
+                <div class="acts"><span class="btn">Continue elsewhere</span><span class="btn">Open the account</span></div>
+              </div>
+            </article>
+            <article class="it" aria-posinset="4" aria-setsize="-1">
+              <span class="av agent">rv</span>
+              <div class="body">
+                <div class="by"><span class="a">reviewer → builder-1</span><span class="pl">Release pool · Export flow</span><span class="tm">21 min</span></div>
+                <div class="quote">"The migration misses its down step. Adding it before merge, then this is ready for review."</div>
+                <div class="more">+3 more messages in this thread ▸</div>
+              </div>
+            </article>
+            <article class="it" aria-posinset="5" aria-setsize="-1">
+              <span class="av agent">b2</span>
+              <div class="body">
+                <div class="by"><span class="a">builder-2</span><span class="pl">Release pool</span><span class="tm">34 min</span></div>
+                <div class="sent">finished the task <b>Wire the export button</b></div>
+                <div class="facts">Note: "CSV and JSON both covered; the PDF export is a follow-up task."</div>
+              </div>
+            </article>
+            <article class="it" aria-posinset="6" aria-setsize="-1">
+              <span class="av sys"><span class="logo"></span></span>
+              <div class="body">
+                <div class="by"><span class="a">AI Juggler</span><span class="pl">switch</span><span class="tm">9:58 AM</span></div>
+                <div class="sent">moved <b>Answer the release question</b> from Claude Code · Work Max to Codex · Personal</div>
+                <div class="facts">History, 2 tasks and 2 MCP servers carried · the original is archived</div>
+              </div>
+            </article>
+            <article class="it" aria-posinset="7" aria-setsize="-1">
+              <span class="av tone" style="background:#2b2b2b">◇</span>
+              <div class="body">
+                <div class="by"><span class="a">Codex · Personal</span><span class="pl">trip-notes</span><span class="tm">8:40–9:35 AM</span></div>
+                <div class="sent">finished <b>4 sessions</b> in trip-notes</div>
+                <div class="names"><span>Sketch the notes data model<em>18 min</em></span><span>Add the offline cache<em>31 min</em></span><span>Fix the date picker on Safari<em>12 min</em></span></div>
+                <div class="more">Show all 4 ▸</div>
+              </div>
+            </article>
+
+            <div class="away">While you were away · since 9:12 PM</div>
+            <div class="digest">
+              <div class="sent">Overnight: <b>6 finished</b>, 1 stopped with an error and was restarted, 1 switch. Personal's window reset at 3:13 AM.</div>
+              <ul>
+                <li>Port the settings parser stopped with an error (exit code 1). AI Juggler restarted it, and it's working again.<em>2:04 AM</em></li>
+                <li>Personal has room again: its 5-hour window reset.<em>3:13 AM</em></li>
+                <li>This Mac was under memory pressure for 12 min.<em>4:40 AM</em></li>
+              </ul>
+              <div class="acts"><span class="btn">Show all 9</span><span class="btn">Mark all seen</span></div>
+            </div>
+          </div>
+        </section>
+
+        <aside class="col" aria-label="Apps and runway">
+          <div class="sl">Your apps <span class="n">5</span><span class="chev">▾</span></div>
+          <div class="rc">
+            <div class="app-row"><span class="ic lit" style="background:#6b6bf0">◎</span><div><div class="nm">Claude app</div><div class="pf"><span class="mark lit" style="background:var(--appD)"></span><b>Work Max</b> · 2 open</div></div><div class="x"><span class="nd"><span class="mark"></span>1 needs you</span><span class="btn">Open</span></div></div>
+            <div class="app-row"><span class="ic tone" style="background:#6b6bf0">◎</span><div><div class="nm">Claude Code</div><div class="pf"><span class="mark tone" style="background:var(--appA)"></span><b>Work Max</b> · 3 open</div></div><div class="x"><span class="btn">Open</span></div></div>
+            <div class="app-row"><span class="ic tone" style="background:#2b2b2b">◇</span><div><div class="nm">Codex</div><div class="pf"><span class="mark tone" style="background:var(--appC)"></span><b>Personal</b> · 2 open</div></div><div class="x"><span class="btn">Open</span></div></div>
+            <div class="app-row"><span class="ic tone" style="background:#2e9e6a">G</span><div><div class="nm">ChatGPT</div><div class="pf">1 open</div></div><div class="x"><span class="btn">Open</span></div></div>
+            <div class="sub">Not running</div>
+            <div class="app-row"><span class="ic tone" style="background:#6b6bf0;opacity:.5">◎</span><div><div class="nm" style="color:var(--ink-2);font-weight:500">Claude app</div><div class="pf"><span class="mark tone" style="background:var(--appB)"></span><b>Lab</b> · seen 2 days ago</div></div><div class="x"><span class="btn">Start</span></div></div>
+          </div>
+          <div class="sl" style="margin-top:6px">Runway by account <span class="chev">▾</span></div>
+          <div class="rc">
+            <div class="acct"><div class="a"><span class="disc" style="background:var(--acct1)"></span><span class="an">Work Max</span><span class="pct">12% left</span></div><div class="meter"><i style="width:12%"></i></div><div class="s">⌁ low · resets 3:13 PM · 2 sessions on it</div></div>
+            <div class="acct"><div class="a"><span class="disc" style="background:var(--acct2)"></span><span class="an">Personal</span><span class="pct">64% left</span></div><div class="meter"><i style="width:64%"></i></div><div class="s">Resets 8:13 PM</div></div>
+            <div class="acct"><div class="a"><span class="disc" style="background:var(--acct3)"></span><span class="an">Team Plus</span></div><div class="s">Not measured yet · <a>Measure its limits ›</a></div></div>
+          </div>
+        </aside>
+      </div>
+    </section>
+  </div></div>
+
+  <div class="cap"><h2>Narrow (about 900 px window, rail folded)</h2><span>The columns stack with the feed first. The feed shows one page, then "Show more", so the apps and runway stay reachable. The head adds a jump link.</span></div>
+  <div class="scroller"><div class="app narrow" data-frame="narrow">
+    <aside class="rail" aria-label="Sessions" style="align-items:center;padding:0 4px"><div class="brand" style="padding:0"><span class="logo"></span></div><span class="sl" style="padding:6px 0;"><span class="n l2">2</span></span></aside>
+    <section class="main">
+      <div class="head" style="padding-top:16px"><h3>2 need you</h3><span class="counts">7 open</span><span class="jump">Apps &amp; runway ↓</span></div>
+      <div class="cols">
+        <section class="col" aria-label="Activity">
+          <div class="sl">Needs you now <span class="n l2">2</span><span class="chev">▾</span></div>
+          <article class="pin"><span class="av lit" style="background:#6b6bf0">◎</span><div class="body"><div class="by"><span class="a">Claude app · Work Max</span><span class="tm">waiting 12 min</span></div><div class="sent"><b>Migrate the billing webhooks</b> <span class="state2">asks you</span>: allow edits to 3 files?</div><div class="acts"><span class="btn fill">Open its page ↵</span><span class="btn">Continue in another app…</span></div></div></article>
+          <article class="pin"><span class="av agent">b1</span><div class="body"><div class="by"><span class="a">builder-1</span><span class="tm">5 min</span></div><div class="sent"><span class="state2">Asks you</span>: "Use the v2 export API, or keep v1?"</div></div></article>
+          <div class="sl day">Today</div>
+          <article class="it"><span class="av tone" style="background:#6b6bf0">◎</span><div class="body"><div class="by"><span class="a">Claude Code · Work Max</span><span class="tm">just now</span></div><div class="sent">finished <b>Fix the flaky login test</b> in 42 min</div></div></article>
+          <article class="it"><span class="av tone" style="background:#6b6bf0">◎</span><div class="body"><div class="by"><span class="a">Claude Code · Work Max</span><span class="tm">8 min</span></div><div class="sent">opened <b>PR #142 "Add the export button"</b></div></div></article>
+          <span class="btn" style="align-self:flex-start;margin-left:24px">Show more (12)</span>
+        </section>
+        <aside class="col" aria-label="Apps and runway" style="padding-bottom:22px">
+          <div class="sl">Your apps <span class="n">5</span><span class="chev">▾</span></div>
+          <div class="rc">
+            <div class="app-row"><span class="ic lit" style="background:#6b6bf0">◎</span><div><div class="nm">Claude app</div><div class="pf"><span class="mark lit" style="background:var(--appD)"></span><b>Work Max</b> · 2 open</div></div><div class="x"><span class="nd"><span class="mark"></span>1 needs you</span><span class="btn">Open</span></div></div>
+            <div class="app-row"><span class="ic tone" style="background:#6b6bf0">◎</span><div><div class="nm">Claude Code</div><div class="pf"><span class="mark tone" style="background:var(--appA)"></span><b>Work Max</b> · 3 open</div></div><div class="x"><span class="btn">Open</span></div></div>
+          </div>
+          <div class="sl">Runway by account <span class="chev">▾</span></div>
+          <div class="rc"><div class="acct"><div class="a"><span class="disc" style="background:var(--acct1)"></span><span class="an">Work Max</span><span class="pct">12% left</span></div><div class="meter"><i style="width:12%"></i></div><div class="s">⌁ low · resets 3:13 PM</div></div></div>
+        </aside>
+      </div>
+    </section>
+  </div></div>
+</main>
+<script>
+const root=document.documentElement;
+function setTheme(t){ if(t==='system'){delete root.dataset.theme;} else root.dataset.theme=t;
+  document.querySelectorAll('[data-set]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.set===t)));
+  try{localStorage.setItem('feed-mock-theme',t)}catch(e){} }
+let saved='system'; try{saved=localStorage.getItem('feed-mock-theme')||'system'}catch(e){}
+setTheme(saved);
+document.querySelectorAll('[data-set]').forEach(b=>b.addEventListener('click',()=>setTheme(b.dataset.set)));
+</script>
+</body>
+</html>

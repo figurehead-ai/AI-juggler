@@ -20,6 +20,7 @@ import { StatePill } from "../../components/Pill";
 import { IconProjects } from "../../components/icons";
 import { SETUP } from "./setup-words";
 import { CrumbButton } from "../PageHeader";
+import { SELECTED } from "../../components/controls/selected";
 import { PoolHeaderMenu } from "../../screens/pools/PoolCard";
 
 export type Panel = "tasks" | "messages" | null;
@@ -91,7 +92,7 @@ function Toggle({ on, onClick, icon, children, testId }: { on: boolean; onClick:
       type="button"
       aria-pressed={on}
       onClick={onClick}
-      className={"flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-meta outline-none transition-colors focus-visible:ring-1 focus-visible:ring-accent/60 " + (on ? "bg-accent-soft text-accent-hi" : "text-muted hover:bg-surface-2 hover:text-ink")}
+      className={"flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-meta outline-none transition-colors focus-visible:ring-1 focus-visible:ring-accent/60 " + (on ? SELECTED : "text-muted hover:bg-surface-2 hover:text-ink")}
       data-testid={testId}
     >
       {icon}

@@ -22,6 +22,11 @@
  * and a press by place, its name the title and its description the rest
  * of the card's words. A part of the face that shows a hint on hover sits
  * above the input (positioned, after it).
+ *
+ * SK48-13 (the 0.4.8 soak, P10): a press on a Who leads card's body found
+ * nothing to press: its logo (a positioned MemberLogo) and its check mark
+ * paint above the input, so a press there landed on a picture. They take
+ * no pointer now: the press passes through to the input, the card's own.
  */
 import { Children, createContext, useContext, useId, type JSX, type KeyboardEvent, type ReactNode } from "react";
 import { IconCheck } from "../icons-controls";
@@ -41,6 +46,9 @@ interface CardWords {
   /** Why it can't be chosen now. */
   reason?: string;
   layout?: Layout;
+  /** `row` only: the logo beside the title (`start`, for cards whose words
+   * run to several lines: the d126 kit's) or centred on the words. */
+  align?: "center" | "start";
   testId?: string;
 }
 
@@ -50,7 +58,7 @@ function Mark({ on, shape }: { on: boolean; shape: "round" | "square" }): JSX.El
     <span
       aria-hidden="true"
       className={
-        "absolute right-3.5 top-3.5 flex size-5 items-center justify-center " +
+        "pointer-events-none absolute right-3.5 top-3.5 flex size-5 items-center justify-center " +
         (shape === "round" ? "rounded-full " : "rounded-md ") +
         (on ? "bg-accent-fill text-white" : "inset-ring-[1.5px] inset-ring-faint")
       }
@@ -63,10 +71,10 @@ function Mark({ on, shape }: { on: boolean; shape: "round" | "square" }): JSX.El
 /** The card's body: logo, words, more. Its input is named by the title
  * and described by the rest; the words stay readable, because a label
  * hidden from assistive tech is no label (axe's label-title-only). */
-function Body({ logo, title, sub, children, layout = "row", titleId, subId, moreId }: CardWords & { titleId: string; subId: string; moreId: string }): JSX.Element {
+function Body({ logo, title, sub, children, layout = "row", align = "center", titleId, subId, moreId }: CardWords & { titleId: string; subId: string; moreId: string }): JSX.Element {
   return (
-    <span className={layout === "row" ? "flex min-w-0 items-center gap-3.5 pr-7" : "flex min-w-0 flex-col items-start gap-2.5 pr-7"}>
-      {logo && <span className="flex shrink-0">{logo}</span>}
+    <span className={layout === "row" ? `flex min-w-0 ${align === "start" ? "items-start" : "items-center"} gap-3.5 pr-7` : "flex min-w-0 flex-col items-start gap-2.5 pr-7"}>
+      {logo && <span className="pointer-events-none flex shrink-0">{logo}</span>}
       <span className="flex min-w-0 flex-col gap-0.5">
         <span id={titleId} className="text-body font-semibold text-ink">
           {title}
@@ -168,11 +176,20 @@ export function RadioCards({
   testId?: string;
 }): JSX.Element {
   const name = useId();
-  const grid = columns === 1 ? "grid-cols-1" : columns === 2 ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-1 sm:grid-cols-3";
+  // Columns by the room the group itself has, not the window's (the 0.5.0
+  // walk, F6: at 1024 wide the pool wizard's two columns squeezed each
+  // card to about 140 px, a word to a line). A card spanning the row says
+  // `@xl:col-span-2`.
+  // Three to a row once each card gets about 185 px (34rem), two at 26rem:
+  // the pool wizard's three ways to talk stay in one row at 1280 (its
+  // column is about 578 px), one to a row at 1024.
+  const grid = columns === 1 ? "grid-cols-1" : columns === 2 ? "grid-cols-1 @xl:grid-cols-2" : "grid-cols-1 @[26rem]:grid-cols-2 @[34rem]:grid-cols-3";
   return (
     <Group.Provider value={{ name, value, onChange }}>
-      <div role="radiogroup" aria-label={label} className={`grid min-w-0 gap-2.5 ${grid}`} data-testid={testId}>
-        {children}
+      <div className="@container min-w-0">
+        <div role="radiogroup" aria-label={label} className={`grid min-w-0 gap-2.5 ${grid}`} data-testid={testId}>
+          {children}
+        </div>
       </div>
     </Group.Provider>
   );

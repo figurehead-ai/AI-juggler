@@ -63,6 +63,7 @@ import type { SourceInspectInfo } from "../types/generated/SourceInspectInfo";
 import { byteSize } from "../lib/compact";
 import { Disclosure, Radio } from "../components/controls";
 import { lazyNamed } from "../lib/lazy";
+import { SELECTED_CARD } from "../components/controls/selected";
 
 // The sign-in terminal shows in the step itself (0.4.1: it opened behind
 // this full-window flow); xterm loads only when a sign-in starts.
@@ -445,7 +446,7 @@ function FoundStep({
               key={option.id}
               className={
                 "flex cursor-pointer gap-3 rounded-xl border px-4 py-3 " +
-                (placement === option.id ? "border-accent bg-accent-soft/40" : "border-hairline bg-surface hover:bg-surface-2/60")
+                (placement === option.id ? SELECTED_CARD : "border-hairline bg-surface hover:bg-surface-2/60")
               }
               data-testid={`first-run-placement-${option.id}`}
             >
@@ -1206,7 +1207,8 @@ export function FirstRun({
       ref={frameRef}
       tabIndex={-1}
     >
-      <div data-tauri-drag-region className="flex h-11 shrink-0 items-center justify-end px-4">
+      {/* 0.5.0 (DLG-1): the way out stays at the top while the page scrolls. */}
+      <div data-tauri-drag-region className="sticky top-0 z-20 flex h-11 shrink-0 items-center justify-end bg-canvas px-4" data-dialog-part="header">
         {/* Always a visible way out (0.0.7 dogfood: "no way to close"):
             first run → Home, which offers "Find my apps" to come back. */}
         <Button

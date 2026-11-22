@@ -21,7 +21,7 @@ Design: `plugins/claude-code/` (a marketplace listing one plugin, `ai-juggler`: 
 | Goal: "even outside AI Juggler's launches" | Ruled by D-73: the plugin works only while AI Juggler runs, in sessions it started, and says so elsewhere (ADR-0020 gives a session its identity only with a launch; D-30) | PASS (as ruled, D-73) |
 | Live: the plugin in a real Claude Code session outside AI Juggler | 2026-10-26, `claude -p --plugin-dir plugins/claude-code/ai-juggler` (session-only, nothing installed) on the lab profile, the server pointed at this branch's `juggler-agent` ([AJ-E1902/lab-2026-10-26.md](docs/qa/evidence/AJ-E1902/lab-2026-10-26.md)): connected; the tools listed and the skill loaded | PASS |
 | Gate: a plugin install test in a fixture home | `installed_in_a_fixture_home_…` (copied as Claude Code's plugin cache keeps it, run as its `.mcp.json` says) | PASS |
-| Docs | `plugins/claude-code/ai-juggler/README.md`; `docs/RELEASING.md` (the asset). The guide's section (`docs/guide/pools.md` § The Claude Code plugin) was left out of the 0.4.6 cherry-pick (AJ-E3013): the pool guide's owner adds it with the connector's wording | PENDING (the guide) |
+| Docs | `docs/guide/pools.md` § The Claude Code plugin (optional; what it does and doesn't; marketplace, a release's tag, the zip, removing it); `plugins/claude-code/ai-juggler/README.md`; `docs/RELEASING.md` (the asset) | PASS |
 
 Open design note (2026-11-13): the lab below saw that outside AI Juggler's launches the model gets the tools, each answering why it can't. D-73 ruled publishing it as built; listing no tools there (with the reason in the server's instructions) is the alternative if the tools' failures prove noisy in use.
 

@@ -19,7 +19,7 @@
 use std::path::{Path, PathBuf};
 
 use juggler_adapter::live::{
-    AppSession, HostApp, HostKind, LiveSession, LiveStatus, TurnOutcome, ctime_utc_secs, read_small,
+    AppSession, HostApp, LiveSession, LiveStatus, TurnOutcome, ctime_utc_secs, read_small,
 };
 
 /// The largest pid file read (they are under 1 KB).
@@ -230,40 +230,19 @@ pub fn app_sessions(instance_dir: &Path) -> Vec<AppSession> {
 /// The Claude app's id in the host registry.
 pub const CLAUDE_APP_HOST: &str = "claude-app";
 
-/// The Claude app, as data: one bundle id for every instance, told apart
-/// by `--user-data-dir` (so Go to it activates the instance's process,
-/// never the bundle id). AJ-E3203: its profiles sit side by side, so the
-/// folder names beside one that runs are the ones that don't.
+/// The Claude app, as data (`desktop_apps.json`, AJ-E1610): one bundle id
+/// for every instance, told apart by `--user-data-dir` (so Go to it
+/// activates the instance's process, never the bundle id). AJ-E3203: its
+/// profiles sit side by side, so the folder names beside one that runs
+/// are the ones that don't. A profile is paired with its Claude Code
+/// folder by `CLAUDE_CONFIG_DIR`; Claude Code hands a session to the app
+/// by `claude://resume`, and the app records what it took under
+/// `claude-code-sessions`. 0.4.1: its own link to one of its Code
+/// sessions (`local_<uuid>`, its record's file name), as its sidebar's
+/// links read; proved live in AJ-E2102.
 #[must_use]
 pub fn host_apps() -> Vec<HostApp> {
-    vec![HostApp {
-        id: CLAUDE_APP_HOST.to_owned(),
-        name: "Claude".to_owned(),
-        bundle: "Claude.app".to_owned(),
-        bundle_id: Some("com.anthropic.claudefordesktop".to_owned()),
-        kind: HostKind::Desktop,
-        instance_arg: Some("--user-data-dir".to_owned()),
-        default_instance: Some("Library/Application Support/Claude".to_owned()),
-        thread_link: None,
-        folder_link: None,
-        folder_command: None,
-        tab_script: None,
-        shown: Some("Claude app".to_owned()),
-        // A profile other than the default is a folder of its own, kept
-        // beside the user's other profiles (`ClaudeProfiles/<name>`).
-        siblings: true,
-        // How a profile is paired with its Claude Code folder, and how
-        // Claude Code itself hands a session to the app (`--desktop`
-        // opens this link); the app records what it took here.
-        folder_env: Some("CLAUDE_CONFIG_DIR".to_owned()),
-        handoff_link: Some("claude://resume?session={id}".to_owned()),
-        handoff_record: Some("claude-code-sessions".to_owned()),
-        // 0.4.1: its own links to one of its Code sessions, by the id it
-        // keeps for it (`local_<uuid>`, the file name of its record under
-        // `claude-code-sessions`), as its sidebar's own links read.
-        session_link: Some("claude://claude.ai/epitaxy/{id}".to_owned()),
-        default_folder: None,
-    }]
+    crate::desktop_apps::for_tool(crate::claude_code::CLAUDE_CODE_ID)
 }
 
 #[cfg(test)]

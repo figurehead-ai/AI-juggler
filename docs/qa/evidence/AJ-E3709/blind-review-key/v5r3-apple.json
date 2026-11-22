@@ -1,0 +1,368 @@
+[
+ {
+  "pair": "chat-chat-001",
+  "job": "chat",
+  "first": "model",
+  "second": "non-AI"
+ },
+ {
+  "pair": "chat-chat-002",
+  "job": "chat",
+  "first": "model",
+  "second": "non-AI"
+ },
+ {
+  "pair": "chat-chat-003",
+  "job": "chat",
+  "first": "non-AI",
+  "second": "model"
+ },
+ {
+  "pair": "chat-chat-004",
+  "job": "chat",
+  "first": "model",
+  "second": "non-AI"
+ },
+ {
+  "pair": "chat-chat-005",
+  "job": "chat",
+  "first": "non-AI",
+  "second": "model"
+ },
+ {
+  "pair": "chat-chat-006",
+  "job": "chat",
+  "first": "non-AI",
+  "second": "model"
+ },
+ {
+  "pair": "chat-chat-007",
+  "job": "chat",
+  "first": "non-AI",
+  "second": "model"
+ },
+ {
+  "pair": "chat-chat-008",
+  "job": "chat",
+  "first": "non-AI",
+  "second": "model"
+ },
+ {
+  "pair": "chat-chat-009",
+  "job": "chat",
+  "first": "model",
+  "second": "non-AI"
+ },
+ {
+  "pair": "chat-chat-010",
+  "job": "chat",
+  "first": "model",
+  "second": "non-AI"
+ },
+ {
+  "pair": "chat-chat-011",
+  "job": "chat",
+  "first": "non-AI",
+  "second": "model"
+ },
+ {
+  "pair": "chat-chat-012",
+  "job": "chat",
+  "first": "model",
+  "second": "non-AI"
+ },
+ {
+  "pair": "chat-chat-013",
+  "job": "chat",
+  "first": "non-AI",
+  "second": "model"
+ },
+ {
+  "pair": "chat-chat-014",
+  "job": "chat",
+  "first": "non-AI",
+  "second": "model"
+ },
+ {
+  "pair": "chat-chat-015",
+  "job": "chat",
+  "first": "non-AI",
+  "second": "model"
+ },
+ {
+  "pair": "chat-chat-016",
+  "job": "chat",
+  "first": "non-AI",
+  "second": "model"
+ },
+ {
+  "pair": "chat-chat-017",
+  "job": "chat",
+  "first": "model",
+  "second": "non-AI"
+ },
+ {
+  "pair": "chat-chat-018",
+  "job": "chat",
+  "first": "model",
+  "second": "non-AI"
+ },
+ {
+  "pair": "chat-chat-019",
+  "job": "chat",
+  "first": "non-AI",
+  "second": "model"
+ },
+ {
+  "pair": "chat-chat-020",
+  "job": "chat",
+  "first": "model",
+  "second": "non-AI"
+ },
+ {
+  "pair": "chat-chat-021",
+  "job": "chat",
+  "first": "non-AI",
+  "second": "model"
+ },
+ {
+  "pair": "turns-feed_line-001",
+  "job": "feed_line",
+  "first": "non-AI",
+  "second": "model"
+ },
+ {
+  "pair": "turns-feed_line-002",
+  "job": "feed_line",
+  "first": "non-AI",
+  "second": "model"
+ },
+ {
+  "pair": "turns-feed_line-003",
+  "job": "feed_line",
+  "first": "model",
+  "second": "non-AI"
+ },
+ {
+  "pair": "turns-feed_line-004",
+  "job": "feed_line",
+  "first": "non-AI",
+  "second": "model"
+ },
+ {
+  "pair": "turns-feed_line-005",
+  "job": "feed_line",
+  "first": "non-AI",
+  "second": "model"
+ },
+ {
+  "pair": "turns-feed_line-006",
+  "job": "feed_line",
+  "first": "non-AI",
+  "second": "model"
+ },
+ {
+  "pair": "turns-feed_line-007",
+  "job": "feed_line",
+  "first": "non-AI",
+  "second": "model"
+ },
+ {
+  "pair": "turns-feed_line-008",
+  "job": "feed_line",
+  "first": "non-AI",
+  "second": "model"
+ },
+ {
+  "pair": "turns-feed_line-009",
+  "job": "feed_line",
+  "first": "non-AI",
+  "second": "model"
+ },
+ {
+  "pair": "turns-feed_line-010",
+  "job": "feed_line",
+  "first": "non-AI",
+  "second": "model"
+ },
+ {
+  "pair": "turns-review-001",
+  "job": "review",
+  "first": "non-AI",
+  "second": "model"
+ },
+ {
+  "pair": "turns-review-002",
+  "job": "review",
+  "first": "model",
+  "second": "non-AI"
+ },
+ {
+  "pair": "turns-review-003",
+  "job": "review",
+  "first": "model",
+  "second": "non-AI"
+ },
+ {
+  "pair": "turns-review-004",
+  "job": "review",
+  "first": "non-AI",
+  "second": "model"
+ },
+ {
+  "pair": "turns-review-005",
+  "job": "review",
+  "first": "non-AI",
+  "second": "model"
+ },
+ {
+  "pair": "turns-review-006",
+  "job": "review",
+  "first": "non-AI",
+  "second": "model"
+ },
+ {
+  "pair": "turns-review-007",
+  "job": "review",
+  "first": "non-AI",
+  "second": "model"
+ },
+ {
+  "pair": "turns-review-008",
+  "job": "review",
+  "first": "model",
+  "second": "non-AI"
+ },
+ {
+  "pair": "turns-review-009",
+  "job": "review",
+  "first": "model",
+  "second": "non-AI"
+ },
+ {
+  "pair": "turns-review-010",
+  "job": "review",
+  "first": "non-AI",
+  "second": "model"
+ },
+ {
+  "pair": "turns-review-011",
+  "job": "review",
+  "first": "model",
+  "second": "non-AI"
+ },
+ {
+  "pair": "turns-review-012",
+  "job": "review",
+  "first": "model",
+  "second": "non-AI"
+ },
+ {
+  "pair": "turns-review-013",
+  "job": "review",
+  "first": "non-AI",
+  "second": "model"
+ },
+ {
+  "pair": "turns-review-014",
+  "job": "review",
+  "first": "non-AI",
+  "second": "model"
+ },
+ {
+  "pair": "turns-review-015",
+  "job": "review",
+  "first": "model",
+  "second": "non-AI"
+ },
+ {
+  "pair": "turns-review-016",
+  "job": "review",
+  "first": "non-AI",
+  "second": "model"
+ },
+ {
+  "pair": "turns-review-017",
+  "job": "review",
+  "first": "model",
+  "second": "non-AI"
+ },
+ {
+  "pair": "turns-review-018",
+  "job": "review",
+  "first": "model",
+  "second": "non-AI"
+ },
+ {
+  "pair": "turns-review-019",
+  "job": "review",
+  "first": "non-AI",
+  "second": "model"
+ },
+ {
+  "pair": "turns-review-020",
+  "job": "review",
+  "first": "model",
+  "second": "non-AI"
+ },
+ {
+  "pair": "turns-review-021",
+  "job": "review",
+  "first": "non-AI",
+  "second": "model"
+ },
+ {
+  "pair": "turns-review-022",
+  "job": "review",
+  "first": "model",
+  "second": "non-AI"
+ },
+ {
+  "pair": "turns-review-023",
+  "job": "review",
+  "first": "model",
+  "second": "non-AI"
+ },
+ {
+  "pair": "turns-review-024",
+  "job": "review",
+  "first": "model",
+  "second": "non-AI"
+ },
+ {
+  "pair": "turns-review-025",
+  "job": "review",
+  "first": "model",
+  "second": "non-AI"
+ },
+ {
+  "pair": "turns-review-026",
+  "job": "review",
+  "first": "model",
+  "second": "non-AI"
+ },
+ {
+  "pair": "turns-review-027",
+  "job": "review",
+  "first": "non-AI",
+  "second": "model"
+ },
+ {
+  "pair": "turns-review-028",
+  "job": "review",
+  "first": "model",
+  "second": "non-AI"
+ },
+ {
+  "pair": "turns-review-029",
+  "job": "review",
+  "first": "model",
+  "second": "non-AI"
+ },
+ {
+  "pair": "turns-review-030",
+  "job": "review",
+  "first": "non-AI",
+  "second": "model"
+ }
+]

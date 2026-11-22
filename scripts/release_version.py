@@ -35,6 +35,12 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 CARGO = Path("Cargo.toml")
 TAURI = Path("crates/juggler-app/tauri.conf.json")
+# D-131: the local-model helper is its own workspace with its own lock, built
+# --locked; its lock's entry for the protocol crate (a member of the app's
+# workspace, so stamped) follows the stamp too. The helper's own version is
+# its manifest's, unstamped.
+HELPER_LOCK = Path("crates/juggler-local-ai/Cargo.lock")
+OWN_LOCK_ENTRY = re.compile(r'(name = "juggler-local-ai-protocol"\nversion = ")[^"]*(")')
 # AJ-E1905: the plugin is released with the app and says which version.
 PLUGIN = Path("plugins/claude-code/ai-juggler/.claude-plugin/plugin.json")
 WORKSPACE_VERSION = re.compile(r'^(version\s*=\s*")(\d+)\.(\d+)\.(\d+)(")', re.M)
@@ -111,6 +117,11 @@ def stamp(root: Path, version: str) -> None:
         for pattern in PATH_DEP_VERSION:
             text = pattern.sub(lambda m: f"{m.group(1)}{version}{m.group(2)}", text)
         manifest.write_text(text)
+    helper_lock = root / HELPER_LOCK
+    if helper_lock.exists():
+        helper_lock.write_text(
+            OWN_LOCK_ENTRY.sub(lambda m: f"{m.group(1)}{version}{m.group(2)}", helper_lock.read_text())
+        )
     tauri = root / TAURI
     conf = json.loads(tauri.read_text())
     conf["version"] = version
@@ -137,6 +148,12 @@ def selftest() -> int:
             'link = { path = "../link", version = "0.3.1" }\n'
             'serde = { version = "1.0.200", features = ["derive"] }\n'
         )
+        (root / HELPER_LOCK).parent.mkdir(parents=True)
+        (root / HELPER_LOCK).write_text(
+            '[[package]]\nname = "juggler-local-ai"\nversion = "0.4.0"\n\n'
+            '[[package]]\nname = "juggler-local-ai-protocol"\nversion = "0.3.1"\n\n'
+            '[[package]]\nname = "llama-cpp-2"\nversion = "0.1.146"\n'
+        )
         ordered = ["0.9.0", "0.10.0-alpha", "0.10.0-alpha.1", "0.10.0-alpha.beta", "0.10.0-beta.2", "0.10.0-beta.11", "0.10.0-rc.1", "0.10.0", "1.0.0"]
         assert sorted(reversed(ordered), key=semver) == ordered, "SemVer precedence, not text order"
         assert semver("0.4.1+build.7") == semver("0.4.1"), "build metadata doesn't count"
@@ -162,6 +179,10 @@ def selftest() -> int:
         assert 'core = { version = "0.3.57", path = "../core" }' in app, app
         assert 'link = { path = "../link", version = "0.3.57" }' in app, app
         assert 'serde = { version = "1.0.200"' in app, "a registry dependency is left alone"
+        lock = (root / HELPER_LOCK).read_text()
+        assert 'name = "juggler-local-ai-protocol"\nversion = "0.3.57"' in lock, lock
+        assert 'name = "llama-cpp-2"\nversion = "0.1.146"' in lock, "the helper's pins are left alone"
+        assert 'name = "juggler-local-ai"\nversion = "0.4.0"' in lock, "the helper's own version is its manifest's"
         assert json.loads((root / TAURI).read_text())["version"] == "0.3.57"
         assert json.loads((root / TAURI).read_text())["productName"] == "AI Juggler"
         assert json.loads((root / PLUGIN).read_text()) == {"name": "ai-juggler", "version": "0.3.57"}, "the plugin says the release it came with"

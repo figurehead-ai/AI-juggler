@@ -16,7 +16,7 @@ import { ownQuietLine, useOwnRoomNotices } from "../lib/own-room-notices";
 
 export function ContinueFold({ open, onToggle, testId, children }: { open: boolean; onToggle: (open: boolean) => void; testId: string; children: ReactNode }): JSX.Element {
   return (
-    <Disclosure tone="title" open={open} onToggle={onToggle} summary={<span className="text-section">Continue in another app</span>} testId={testId}>
+    <Disclosure tone="title" open={open} onToggle={onToggle} summary={<span className="text-section">Apps that can take it over</span>} testId={testId}>
       {children}
     </Disclosure>
   );

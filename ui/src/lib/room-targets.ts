@@ -11,7 +11,8 @@ import type { QuotaDisplayData } from "./ipc/quota";
 import type { SwitchTargetData } from "./ipc/switch-targets";
 import { rankByRoom, type RoomKind } from "./room";
 import type { CreditsCover } from "./credits";
-import { accountDisplay, accountName, accountOfProfile, shareAccount, type SubscriptionInfo } from "./subscriptions";
+import { accountDisplay, accountName, accountOfApp, accountOfProfile, listsApps, shareAccount, type SubscriptionInfo } from "./subscriptions";
+import { ACCOUNT_NOT_KNOWN_YET } from "./account-words";
 
 /** A target's room, in the one runway's words. */
 export interface TargetRoom {
@@ -42,6 +43,18 @@ export function roomOfProfile(profileId: string, accounts: SubscriptionInfo[] | 
   const display = account ? accountDisplay(account, displays) : displays.find((d) => d.account === profileId);
   const run = runwayOf(display);
   return { left: run.left, words: run.words, resets: run.resets, resetsAtMs: run.resetsAtMs ?? null, credits: run.credits ?? null, age: run.age ?? null, account: account?.account_id ? accountName(account) : null };
+}
+
+/** AJ-E3210 (D-135): the room of the Account desktop App `appId` is on
+ * (its own sign-in's, from its records), for a session it runs; before
+ * that's known, "Account not known yet", never its folder's CLI's room.
+ * A CLI App, or one not named, reads its folder's (`roomOfProfile`). */
+export function roomOfApp(appId: string | null | undefined, profileId: string, accounts: SubscriptionInfo[] | null, displays: QuotaDisplayData[]): Omit<TargetRoom, "kind"> {
+  if (!appId?.startsWith("app:") || !accounts || !listsApps(accounts)) return roomOfProfile(profileId, accounts, displays);
+  const account = accountOfApp(accounts, appId);
+  if (!account) return { left: null, words: ACCOUNT_NOT_KNOWN_YET, resets: null, resetsAtMs: null, credits: null, account: null };
+  const run = runwayOf(accountDisplay(account, displays));
+  return { left: run.left, words: run.words, resets: run.resets, resetsAtMs: run.resetsAtMs ?? null, credits: run.credits ?? null, account: accountName(account) };
 }
 
 /** The words for a folder whose tool isn't signed in in a terminal (the

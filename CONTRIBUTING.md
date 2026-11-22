@@ -117,7 +117,13 @@ CI's verify jobs.
   paths, documented public items, `unsafe` is forbidden (two audited
   exceptions, each its own small crate: D-17 and D-26). Rustdoc runs with warnings as errors —
   don't leave a bare `<X>` in a `///` comment.
-- **UI:** both themes (Light and Dark) are first-class, colours come only
+- **UI:** follow the design system,
+  [docs/design/DESIGN-SYSTEM.md](docs/design/DESIGN-SYSTEM.md) (D-142):
+  its rules have IDs a review or test can name. Every changed screen,
+  dialog or menu is scored on the screen-review checklist in
+  [docs/design/VALIDATION.md](docs/design/VALIDATION.md) §5, at 4 or more
+  on every line, before its baselines; [GAPS.md](docs/design/GAPS.md)
+  lists where the app doesn't follow it yet. Both themes (Light and Dark) are first-class, colours come only
   from the tokens in `ui/src/styles.css`, and small text uses
   `text-muted` or `text-ink` (`text-faint` fails AA contrast on the
   canvas). Every new state gets a gallery capture in

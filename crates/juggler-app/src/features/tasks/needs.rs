@@ -63,7 +63,7 @@ pub fn needs(state: &Arc<AppState>) -> AppResult<Vec<TaskNeedInfo>> {
         let detail = match need.kind.as_str() {
             "launch" => need.change.as_deref().map_or_else(
                 || "You pick the account and start it; nothing starts by itself.".to_owned(),
-                |note| format!("«{}»", super::words::name_tasks(&storage, note)),
+                |note| format!("“{}”", super::words::name_tasks(&storage, note)),
             ),
             _ => format!("{pool_name} · above what the pool lets agents do"),
         };
@@ -122,7 +122,7 @@ fn review_need(
         pool_id: task.pool_id.clone(),
         task_title: Some(task.title.clone()),
         task_id: Some(task.id.clone()),
-        title: format!("«{}» waits on your review", task.title),
+        title: format!("“{}” waits on your review", task.title),
         detail: format!("{holder}approve it or send it back"),
         offer_always: false,
         at_ms: task.updated_at,

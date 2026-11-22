@@ -13,6 +13,8 @@ export type PaneId =
   | "accounts"
   | "sessions"
   | "switching"
+  | "ai-jobs"
+  | "ai-models"
   | "agent-access"
   | "notifications"
   | "privacy"
@@ -23,10 +25,26 @@ export type PaneId =
 /** The tile's colour: a token from styles.css, never a hex. */
 export type PaneTone = "muted" | "accent" | "live" | "success" | "warning" | "danger" | "faint";
 
+/** A group of panes under one sidebar row (Settings › AI › Jobs, Models):
+ * its name, tile and icon are the row's, and it opens `opens`. */
+export interface PaneGroup {
+  id: "ai";
+  label: string;
+  tone: PaneTone;
+  opens: PaneId;
+}
+
+export const GROUPS: Record<PaneGroup["id"], PaneGroup> = {
+  // AJ-E3812 (D-131): the AI models and the jobs they do.
+  ai: { id: "ai", label: "AI", tone: "accent", opens: "ai-models" },
+};
+
 export interface PaneSpec {
   id: PaneId;
   label: string;
   tone: PaneTone;
+  /** It sits under a group's row, indented, with no tile of its own. */
+  group?: PaneGroup["id"];
   /** When it shows in the sidebar (always, unless it says). */
   shown?: (context: PaneContext) => boolean;
 }
@@ -44,6 +62,8 @@ export const PANES: readonly PaneSpec[] = [
   { id: "accounts", label: "Accounts", tone: "live" },
   { id: "sessions", label: "Sessions", tone: "success" },
   { id: "switching", label: "Switching", tone: "accent" },
+  { id: "ai-jobs", label: "Jobs", tone: "accent", group: "ai" },
+  { id: "ai-models", label: "Models", tone: "accent", group: "ai" },
   // AJ-E1702, D-28: what agents may do in each pool, and your rules.
   // Always shown: every project has its default pool (D-33), whose level
   // applies too, so these controls are in reach before you make a pool.
@@ -97,6 +117,9 @@ const ANCHORS: Record<string, SettingsTarget> = {
   agents: { pane: "agent-access" },
   // AJ-E1704: whether sessions get the agent tools, and where they're off.
   "agent-tools": { pane: "agent-access", anchor: "agent-tools" },
+  // AJ-E3812: Settings › AI opens Models.
+  ai: { pane: "ai-models" },
+  models: { pane: "ai-models" },
 };
 
 /** Where `section` (an older section id, a pane id, or nothing) lands. */

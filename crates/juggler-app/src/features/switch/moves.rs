@@ -71,7 +71,7 @@ pub async fn switch_move_undo(
     app: tauri::AppHandle,
     state: tauri::State<'_, Arc<AppState>>,
     move_id: String,
-) -> AppResult<String> {
+) -> AppResult<crate::features::handover::moving::MoveUndoneInfo> {
     crate::ipc::blocking(state.inner(), "undo the move", move |state| {
         let said = undo(state, &move_id)?;
         let _ = crate::features::sessions::read_model::emit_sessions(&app, state);

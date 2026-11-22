@@ -251,3 +251,15 @@
 **Files to touch**: `crates/juggler-app/src/features/places/keep.rs`, `crates/juggler-app/src/features/notifications/sources.rs`, `ui/src/components/PlaceHeader.tsx`.
 **Research basis**: AJ-E1509's restart limits (`sessions::restart`).
 **Handover note**: tries are counted in memory, as a session's are; an AI Juggler restart counts again.
+
+### AJ-E2113 An ended session files under the App whose own list shows it; a running one where it runs | Status: TODO | Priority P1 | Effort M | Depends: ADR-0032, D-102
+**Goal**: Go to finds a session where the user would look for it.
+**Context**: the 0.4.6 presence report (25f5cd67a). Four of aij-test's Claude-app conversations were later resumed in an AI Juggler terminal. 0.4.6 files them under "Claude Code CLI · aij-test", where they ran (D-102's documented rule: consistent, nothing twice), but the Claude app's own sidebar lists all 26, so the user looks for them under the profile. The coordinating session's ruling for 0.5, 2026-11-16.
+**Requirements**:
+1. A **running** session SHALL file under the App it runs in, as today.
+2. An **ended** session SHALL file under the App whose own list shows it: the Claude app profile when its records name the conversation, even if AI Juggler ran it last in a terminal; otherwise the App it ran in.
+3. Nothing SHALL appear twice (D-102). Each surface (the rail, App pages, Go to, Accounts' counts) follows the one rule.
+4. `places::app_of` (backend), the shared fixture `session-apps.json` (new cases: a profile's conversation resumed in a terminal, ended and running), `appKeyOf` (UI) and the D-102 test SHALL change together. The presence check (`scripts/qa/presence_sessions.py`) SHALL follow the same rule.
+**Quality gates**: the fixture's cases pass in Rust and the UI; the presence check passes on a real Mac.
+**Evidence/validation proof**: a fixture diff, plus a presence record showing such a conversation under the profile once ended.
+**Handover note**: 0.4.6 keeps the documented rule. While such a conversation is open in the Claude app, the rail must show it open there; 0.4.6's rc2 checks that live on aij-test.

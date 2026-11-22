@@ -2,6 +2,7 @@ import { sayPainted } from "./lib/ipc/app-lifecycle";
 import { useEffect } from "react";
 import { AppActions } from "./components/AppActions";
 import { AppHeader } from "./components/AppHeader";
+import { BotDockHost, BotNavProvider } from "./components/bot/BotHost";
 import { LegendPopover } from "./components/LegendPopover";
 import { MachineStatusLine } from "./components/MachineStatusLine";
 import { NoticeOpeners } from "./components/NoticeOpeners";
@@ -134,12 +135,26 @@ export default function App() {
         {/* Content: detail panel (work mode) or global screen. tabIndex
          * -1: programmatic focus target when overlays (AJ-E510
          * recovery summary) dismiss and return focus to the board. */}
-        <main tabIndex={-1} className="flex min-h-0 flex-1 flex-col overflow-hidden p-5 outline-none">
-          <OfflineBanner onRetry={() => void refresh()} />
-          <div className="min-h-0 flex-1">
-            {screen ? screen(shell) : workArea(shell, { homeScroll })}
+        {/* D-136: Bot's panel docks beside the page (a sheet over it
+            under 1100 px), holding the one conversation the Bot page holds. */}
+        <BotNavProvider
+          sessions={sessions}
+          openSession={shell.selectSession}
+          openPool={(id) => openPage({ kind: "pool", id })}
+          openAccount={(id) => openPage({ kind: "app", id: cliAppId(id) })}
+          openHome={shell.openHome}
+          openUsage={() => setGlobal("usage")}
+        >
+          <div className="relative flex min-h-0 flex-1">
+            <main tabIndex={-1} className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden p-5 outline-none">
+              <OfflineBanner onRetry={() => void refresh()} />
+              <div className="min-h-0 flex-1">
+                {screen ? screen(shell) : workArea(shell, { homeScroll })}
+              </div>
+            </main>
+            <BotDockHost />
           </div>
-        </main>
+        </BotNavProvider>
       </div>
 
       <ShellOverlays shell={shell} />

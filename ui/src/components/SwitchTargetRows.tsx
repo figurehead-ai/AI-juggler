@@ -22,13 +22,15 @@ import type { SwitchTargetData } from "../lib/ipc/switch-targets";
 import { lowRoomWords, ROOM_ORDER_WORDS, outOfRoomConsequence, outOfRoomWords } from "../lib/room";
 import { DESKTOP_ONLY, roomless, type TargetRoom } from "../lib/room-targets";
 import { creditsConsequence, usingCreditsWords } from "../lib/credits";
-import { useTargetApp } from "../lib/apps";
+import { useTargetApp, type TargetApp } from "../lib/apps";
+import { afterColon, BadgeLine, RoomTag, SuggestedTag, TargetButton, TargetLogo } from "./switch/TargetCard";
 
-/** "Suggested": the one with the most room (the one order by room). */
+/** "Suggested": the one with the most room (the one order by room). One
+ * look everywhere (TAG-5): the accent tag. */
 export function SuggestedMark({ className = "" }: { className?: string }): JSX.Element {
   return (
-    <span className={"shrink-0 rounded border border-accent/50 px-1 text-label text-accent-hi " + className} data-testid="suggested-mark">
-      Suggested
+    <span className={"inline-flex shrink-0 " + className}>
+      <SuggestedTag />
     </span>
   );
 }
@@ -36,10 +38,10 @@ export function SuggestedMark({ className = "" }: { className?: string }): JSX.E
 /** An account's room under its name, in the one runway's words; out of
  * room says until when and what picking it anyway does (the 0.2 walk, F1:
  * it was offered like any other). */
-export function RoomLine({ name, room, testId = "target-room" }: { name: string; room: TargetRoom; testId?: string }): JSX.Element {
+export function RoomLine({ name, room, testId = "target-room", chip = true }: { name: string; room: TargetRoom; testId?: string; chip?: boolean }): JSX.Element {
   // 0.4.1: out or low, the one mark every screen shows, whatever this
   // target is ranked (on the source's own account it can't take it).
-  const mark = room.kind !== "credits" && room.left !== null ? roomMarkFrom(room.left, room.resetsAtMs, false, undefined, room.age ?? null) : null;
+  const mark = chip && room.kind !== "credits" && room.left !== null ? roomMarkFrom(room.left, room.resetsAtMs, false, undefined, room.age ?? null) : null;
   const line = roomWords(name, room, testId);
   if (!mark) return line;
   return (
@@ -53,8 +55,8 @@ export function RoomLine({ name, room, testId = "target-room" }: { name: string;
 function roomWords(name: string, room: TargetRoom, testId: string): JSX.Element {
   if (room.kind === "out") {
     return (
-      <span className="flex flex-col text-label text-danger" data-testid={testId} data-room="out">
-        <span className="font-medium">{outOfRoomWords(room.resetsAtMs)}</span>
+      <span className="flex flex-col text-meta text-ink-2" data-testid={testId} data-room="out">
+        <span className="font-medium text-ink">{outOfRoomWords(room.resetsAtMs)}</span>
         <span>{outOfRoomConsequence(name, room.resetsAtMs)}</span>
       </span>
     );
@@ -62,53 +64,23 @@ function roomWords(name: string, room: TargetRoom, testId: string): JSX.Element 
   // 0.3.2: its window is used up, but its credits carry a session on.
   if (room.kind === "credits" && room.credits) {
     return (
-      <span className="flex flex-col text-label text-ink" data-testid={testId} data-room="credits">
-        <span className="font-medium">{usingCreditsWords(room.credits)}</span>
-        <span className="text-muted">{creditsConsequence(room.resetsAtMs)}</span>
+      <span className="flex flex-col text-meta text-ink-2" data-testid={testId} data-room="credits">
+        <span className="font-medium text-ink">{usingCreditsWords(room.credits)}</span>
+        <span>{creditsConsequence(room.resetsAtMs)}</span>
       </span>
     );
   }
   if (room.kind === "low" && room.left !== null) {
     return (
-      <span className="text-label text-warning" data-testid={testId} data-room="low">
+      <span className="text-meta text-ink-2" data-testid={testId} data-room="low">
         {lowRoomWords(name, room.left)}
         {room.resets ? ` ${room.resets}.` : ""}
       </span>
     );
   }
   return (
-    <span className="text-label text-muted" data-testid={testId} data-room={room.kind}>
+    <span className="text-meta text-ink-2" data-testid={testId} data-room={room.kind}>
       {runwayDetail(room)}
-    </span>
-  );
-}
-
-/** The badge chip: solid when validated, hatched while beta. The text
- * carries the state (a beta switch's badge ends "· Beta", from the
- * backend; D-127: a switch is listed in beta only when the user turned
- * beta switches on, and never says "proven") — the hatching is
- * decoration only, legible in greyscale. */
-export function FidelityBadge({ badge, validated }: { badge: string; validated: boolean }) {
-  return (
-    <span
-      data-testid="fidelity-badge"
-      data-validated={validated ? "true" : "false"}
-      className={
-        "inline-flex items-center rounded border px-1.5 py-px text-label " +
-        (validated ? "border-accent/60 text-accent-hi" : "border-warning/60 text-warning")
-      }
-      style={
-        validated
-          ? undefined
-          : {
-              // Hatched fill marks a beta switch — the words say it
-              // too; this is never the only signal.
-              backgroundImage:
-                "repeating-linear-gradient(45deg, transparent 0 3px, rgba(217,119,6,0.18) 3px 5px)",
-            }
-      }
-    >
-      {badge}
     </span>
   );
 }
@@ -128,6 +100,7 @@ export function SwitchTargetRows({
   const appOf = useTargetApp();
   // AJ-E1103: a suggestion shown, then taken or passed over.
   const suggested = targets.find((target) => target.suggested && !target.filtered_reason);
+  const notYet = targets.find((target) => target.not_yet)?.not_yet ?? null;
   const suggestedProvider = suggested?.provider ?? "other";
   useEffect(() => {
     if (suggested) statsEvent("usage.suggestion", { provider: suggestedProvider, action: "shown" });
@@ -154,86 +127,90 @@ export function SwitchTargetRows({
     buttons[(index + delta + buttons.length) % buttons.length]!.focus();
   };
   return (
-    <div className="flex flex-col gap-1.5" data-testid="switch-target-rows">
-      <div className="flex items-center justify-between">
-        <p className="text-section font-semibold text-ink">Ranked for you</p>
-        <button
-          type="button"
-          aria-expanded={whyOpen}
-          className="py-1 text-label underline focus:outline-none focus:ring-2 focus:ring-accent"
-          onClick={() => setWhyOpen((open) => !open)}
-        >
+    <div className="flex flex-col gap-3" data-testid="switch-target-rows">
+      <div className="flex items-baseline justify-between gap-3">
+        <p className="type-section">Ranked for you</p>
+        <button type="button" aria-expanded={whyOpen} className="rounded text-meta font-medium text-accent-hi outline-none hover:underline focus-visible:ring-2 focus-visible:ring-accent" onClick={() => setWhyOpen((open) => !open)}>
           Why this order?
         </button>
       </div>
       {whyOpen && (
-        <p className="text-label text-muted" data-testid="why-this-order">
+        <p className="text-meta text-ink-2" data-testid="why-this-order">
           {ROOM_ORDER_WORDS}
         </p>
       )}
-      <ul
-        ref={listRef}
-        onKeyDown={onKeyDown}
-        aria-label="Switch destinations, ranked"
-        className="flex flex-col gap-1.5"
-      >
-        {targets.map((target) => {
-          const filtered = target.filtered_reason != null;
-          return (
-            <li key={target.recipe_id}>
-              <button
-                type="button"
-                data-row
-                disabled={filtered}
-                aria-pressed={target.suggested}
-                onClick={() => pick(target)}
-                className={`flex w-full flex-col gap-1 rounded-lg border px-3 py-2 text-left text-xs transition-colors focus:outline-none focus:ring-2 focus:ring-accent ${
-                  filtered
-                    ? "cursor-not-allowed border-hairline"
-                    : "border-hairline hover:border-accent/40 hover:bg-surface"
-                }`}
-              >
-                <span className="flex flex-wrap items-center gap-2">
-                  <span className={`font-medium ${filtered ? "text-muted" : ""}`}>
-                    {appOf({ folder: target.account_id, tool: target.provider, label: target.account_label }).name}
-                  </span>
-                  <FidelityBadge badge={target.badge} validated={target.validated} />
-                  {target.suggested && !filtered && <SuggestedMark />}
-                  {!filtered && !roomless(target) && <span className="ml-auto text-label text-muted">{forecastWords(target.tte_min, target.confidence)}</span>}
-                </span>
-                {target.room && !filtered && <RoomLine name={target.room.account ?? target.account_label} room={target.room} />}
-                {!filtered && target.signed_out && target.desktop && (
-                  <span className="text-label text-muted" data-testid="target-sign-in">
-                    {DESKTOP_ONLY}
-                  </span>
-                )}
-                {target.cross_provider && target.drops.length > 0 && (
-                  <span className="text-label text-warning" data-testid="target-drop-list">
-                    Doesn't carry: {target.drops.join(", ")}
-                  </span>
-                )}
-                {filtered ? (
-                  <span className="text-label text-muted">{target.filtered_reason}</span>
-                ) : (
-                  <span className="text-label text-muted">
-                    {[...target.top_factors, ...(target.first_run ? ["its first-run setup is done as it switches"] : [])].join(" · ")}
-                  </span>
-                )}
-                {whyOpen && !filtered && (
-                  <span className="text-label text-muted">
-                    {target.factors.map(([words]) => words).join(" · ")}
-                  </span>
-                )}
-              </button>
-              {target.held_back === "set_up" && <StartThereLink accountId={target.account_id} label={target.account_label} />}
-            </li>
-          );
-        })}
+      {/* Why the session itself can't switch yet, said once, not cut on
+          every card (BTN-5, LST-3; the 0.5.0 walk, F2). */}
+      {notYet && (
+        <p className="text-meta leading-snug text-ink-2" data-testid="switch-not-yet-line">
+          {notYet}
+        </p>
+      )}
+      <ul ref={listRef} onKeyDown={onKeyDown} aria-label="Switch destinations, ranked" className="flex flex-col gap-2.5">
+        {targets.map((target) => (
+          <TargetRow key={target.recipe_id} target={target} saidOnce={notYet} app={appOf({ folder: target.account_id, tool: target.provider, label: target.account_label })} whyOpen={whyOpen} onPick={() => pick(target)} />
+        ))}
       </ul>
-      <p className="text-label text-muted">
-        What carries is checked for each pair of tools, never assumed.
-      </p>
+      <p className="text-meta text-ink-2">What carries is checked for each pair of tools, never assumed.</p>
     </div>
+  );
+}
+
+/** One ranked target, as a card: its App, its account and forecast, the
+ * room and Suggested as its two tags, then how much carries, the room in
+ * words, what doesn't carry and why it ranks there. */
+function TargetRow({ target, saidOnce, app, whyOpen, onPick }: { target: SwitchTargetData & { room?: TargetRoom }; saidOnce: string | null; app: TargetApp; whyOpen: boolean; onPick: () => void }): JSX.Element {
+  const filtered = target.filtered_reason != null;
+  // Its own reason, unless the list already says it once above.
+  const reason = filtered && target.filtered_reason !== saidOnce ? target.filtered_reason : null;
+  const forecast = !filtered && !roomless(target) ? forecastWords(target.tte_min, target.confidence) : null;
+  const factors = [...target.top_factors, ...(target.first_run ? ["its first-run setup is done as it switches"] : [])].join(" · ");
+  const open = !filtered;
+  return (
+    <li className="flex flex-col gap-1">
+      <TargetButton
+        data-row
+        disabled={filtered}
+        aria-pressed={target.suggested}
+        onClick={onPick}
+        suggested={target.suggested && open}
+        logo={<TargetLogo tool={target.provider ?? null} kind={app.kind} place={app.mark} folderId={target.account_id} label={target.account_label} />}
+        name={app.name}
+        sub={reason ?? `On ${target.room?.account ?? target.account_label}${forecast ? ` · ${forecast}` : ""}`}
+        tags={open && (target.room || target.suggested) && <TwoTags room={target.room ?? null} suggested={target.suggested} />}
+        detail={
+          <>
+            <BadgeLine badge={target.badge} validated={target.validated} />
+            {open && <RowDetail target={target} />}
+            {/* The top two, or with "Why this order?" open, every input. */}
+            {open && (whyOpen || factors) && <span>{whyOpen ? target.factors.map(([words]) => words).join(" · ") : factors}</span>}
+          </>
+        }
+      />
+      {target.held_back === "set_up" && <StartThereLink accountId={target.account_id} label={target.account_label} />}
+    </li>
+  );
+}
+
+/** A card's two tags at most (TAG-2): its room, and Suggested. */
+function TwoTags({ room, suggested }: { room: TargetRoom | null; suggested: boolean }): JSX.Element {
+  return (
+    <>
+      {room && <RoomTag room={room} />}
+      {suggested && <SuggestedTag />}
+    </>
+  );
+}
+
+/** Under the badge: the room in words, a desktop-only sign-in, and what
+ * doesn't carry to another tool. */
+function RowDetail({ target }: { target: SwitchTargetData & { room?: TargetRoom } }): JSX.Element {
+  return (
+    <>
+      {target.room && <RoomLine name={target.room.account ?? target.account_label} room={target.room} chip={false} />}
+      {target.signed_out && target.desktop && <span data-testid="target-sign-in">{DESKTOP_ONLY}</span>}
+      {target.cross_provider && target.drops.length > 0 && <span data-testid="target-drop-list">Doesn't carry: {afterColon(target.drops)}</span>}
+    </>
   );
 }
 

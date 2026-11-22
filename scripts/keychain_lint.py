@@ -13,10 +13,13 @@ use goes through code that honours that mode:
   like) only in `crates/juggler-platform/src/keychain.rs`
   (`keychain::item_exists`, which runs nothing when off).
 
-`security_framework`'s code-signing module (AJ-E3013, M1 round 2: whether
-a running process's code meets a requirement) never opens a keychain; it
-is allowed in `crates/juggler-platform/src/code_sign.rs` alone, and any
-other part of the crate there is still refused.
+The same crate's code-signing calls (`security_framework::os::macos::
+code_signing`) touch no keychain; they have their own doors:
+`crates/juggler-platform/src/code_trust.rs` (AJ-E3802: a helper's
+signature checked before it runs) and
+`crates/juggler-platform/src/code_sign.rs` (AJ-E3013, M1 round 2: whether
+a running process's code meets a requirement). Any other part of the
+crate there is still refused.
 
 Fails naming each other place. Test files are left out.
 
@@ -32,13 +35,16 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import rust_tests  # noqa: E402  (one test-code finder for every lint, D-94)
 
+CODE_SIGNING = r"security_framework::os::macos::code_signing\b"
+
 RULES = [
     (re.compile(r"\bsecurity_framework\b(?!::os::macos::code_signing\b)|\bSecItem\w*|\bSecKeychain\w*"),
      {"crates/juggler-account/src/secrets.rs"},
      "the Keychain APIs: only through juggler-account's stores (secrets.rs)"),
-    (re.compile(r"\bsecurity_framework::os::macos::code_signing\b"),
-     {"crates/juggler-account/src/secrets.rs", "crates/juggler-platform/src/code_sign.rs"},
-     "code signing: only through juggler_platform::code_sign"),
+    (re.compile(CODE_SIGNING),
+     {"crates/juggler-account/src/secrets.rs", "crates/juggler-platform/src/code_trust.rs",
+      "crates/juggler-platform/src/code_sign.rs"},
+     "code signing: only through juggler_platform::code_trust or code_sign"),
     (re.compile(r"/usr/bin/security\b|\b(find|add|delete)-(generic|internet)-password\b|\bdump-keychain\b"),
      {"crates/juggler-platform/src/keychain.rs"},
      "the security tool: only through juggler_platform::keychain"),
@@ -77,13 +83,21 @@ def selftest() -> None:
         ok = root / "crates/juggler-platform/src/keychain.rs"
         ok.parent.mkdir(parents=True)
         ok.write_text('const SECURITY: &str = "/usr/bin/security";\n')
+        signing = root / "crates/juggler-platform/src/code_trust.rs"
+        signing.write_text("use security_framework::os::macos::code_signing::{Flags, SecCode};\n")
         sign = root / "crates/juggler-platform/src/code_sign.rs"
         sign.write_text("use security_framework::os::macos::code_signing::SecCode;\n"
                         "use security_framework::passwords::get_generic_password;\n")
+        elsewhere = root / "crates/y/src/lib.rs"
+        elsewhere.parent.mkdir(parents=True)
+        elsewhere.write_text("use security_framework::os::macos::code_signing::SecCode;\n"
+                             "use security_framework::os::macos::keychain::SecKeychain;\n")
         found = findings(root)
         assert found == [
             "crates/juggler-platform/src/code_sign.rs:2: the Keychain APIs: only through juggler-account's stores (secrets.rs)",
             "crates/x/src/lib.rs:1: the security tool: only through juggler_platform::keychain",
+            "crates/y/src/lib.rs:1: code signing: only through juggler_platform::code_trust or code_sign",
+            "crates/y/src/lib.rs:2: the Keychain APIs: only through juggler-account's stores (secrets.rs)",
         ], found
     print("keychain-lint: selftest ok")
 

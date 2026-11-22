@@ -35,7 +35,7 @@ it("Enter on About Claude Code opens the tool's page, with focus on its tabs", a
     return found!;
   });
   const row = await waitFor(() => {
-    const found = [...rail.querySelectorAll<HTMLButtonElement>("button")].find((b) => /feat\/read-model/.test(b.textContent ?? ""));
+    const found = [...rail.querySelectorAll<HTMLButtonElement>("button")].find((b) => /Fix the flaky login test/.test(b.textContent ?? ""));
     expect(found).toBeTruthy();
     return found!;
   });

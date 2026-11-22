@@ -7,6 +7,7 @@ import {
   type KillExecuteData,
   type KillVerifyData,
 } from "./KillSheet";
+import { resetToasts, toastEntries } from "./Toast";
 
 /**
  * AJ-E507: the verify-before-kill sheet — the three steps, the
@@ -130,7 +131,7 @@ describe("KillSheet (AJ-E507)", () => {
     await waitFor(() => expect(view.getByTestId("kill-confirm-8123")).toBeTruthy());
     fireEvent.click(view.getByTestId("kill-scope-pgid-8123"));
     fireEvent.keyDown(view.getByTestId("kill-sheet-8123"), { key: "Enter", metaKey: true });
-    await waitFor(() => expect(view.getByTestId("kill-report-8123")).toBeTruthy());
+    await waitFor(() => expect(b.execute).toHaveBeenCalledTimes(1));
     expect(b.execute).toHaveBeenCalledWith(
       "sess-kill",
       8123,
@@ -227,7 +228,9 @@ describe("KillSheet (AJ-E507)", () => {
     view.unmount();
   });
 
-  it("already-gone-only outcomes report success for the goal port", async () => {
+  it("already-gone-only outcomes report success for the goal port, in a toast (R3)", async () => {
+    resetToasts();
+    const onClose = vi.fn();
     const b = bridge({
       execute: () =>
         Promise.resolve(
@@ -235,12 +238,14 @@ describe("KillSheet (AJ-E507)", () => {
         ),
     });
     const view = render(
-      <KillSheet session="sess-kill" pid={8123} goalPort={5173} bridge={b} onClose={() => {}} />,
+      <KillSheet session="sess-kill" pid={8123} goalPort={5173} bridge={b} onClose={onClose} />,
     );
     await waitFor(() => expect(view.getByTestId("kill-confirm-8123")).toBeTruthy());
     fireEvent.click(view.getByTestId("kill-confirm-8123"));
-    await waitFor(() => expect(view.getByTestId("kill-report-8123")).toBeTruthy());
-    expect(view.getByTestId("kill-success-8123").textContent ?? "").toContain(":5173 is free.");
+    await waitFor(() => expect(onClose).toHaveBeenCalledWith(true));
+    const [toast] = toastEntries();
+    expect(toast?.options.tone).toBe("success");
+    expect(`${toast?.options.message} ${toast?.options.detail}`).toContain(":5173 is free.");
     view.unmount();
   });
 

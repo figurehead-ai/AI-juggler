@@ -42,10 +42,10 @@ async function sheet() {
 
 describe("dropping a folder on New session", () => {
   it("the app's own drop picks the folder while the sheet is open", async () => {
-    const view = await sheet();
+    await sheet();
     await waitFor(() => expect(native.handler).not.toBeNull());
     native.handler!("/Users/me/Dev/payments-api");
-    await waitFor(() => expect(view.container.textContent).toContain("payments-api"));
+    await waitFor(() => expect(document.body.textContent).toContain("payments-api"));
   });
 
   it("a page drop with a file address picks it too, and the highlight goes", async () => {
@@ -53,7 +53,7 @@ describe("dropping a folder on New session", () => {
     const zone = view.getByTestId("new-session-drop");
     fireEvent.dragOver(zone, { dataTransfer: { getData: () => "" } });
     fireEvent.drop(zone, { dataTransfer: { getData: (type: string) => (type === "text/uri-list" ? "file:///Users/me/Dev/web%20app/" : "") } });
-    await waitFor(() => expect(view.container.textContent).toContain("web app"));
+    await waitFor(() => expect(document.body.textContent).toContain("web app"));
   });
 
   it("reads only file addresses", () => {

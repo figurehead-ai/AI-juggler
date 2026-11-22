@@ -203,6 +203,12 @@ read_routes! {
     "sessions_history" => async_result features::sessions::commands::sessions_history(state; session_id: String, page: crate::paging::PageRequest);
     "transcript_search" => async_result history::transcript_search(state; query: String);
     "projects_list" => async_result features::projects::commands::projects_list(state);
+    "remote_config_values" => async_result features::remote_config::commands::remote_config_values(; section: crate::features::remote_config::dto::RemoteSection);
+    "remote_config_about" => async_result features::remote_config::commands::remote_config_about();
+    "notices_list" => async_result features::notices::commands::notices_list(state);
+    // AJ-E3803: the models on this Mac and the download, from the store's
+    // index; nothing is fetched.
+    "ai_models_installed" => async_result features::ai::models::commands::ai_models_installed(state);
     "ranking_rows" => async_result features::ranking::commands::ranking_rows(state; project: Option<String>);
     "switch_back_suggestions" => async_result features::switch::commands::switch_back_suggestions(state);
     // The switch screen (AJ-E1543): its targets, its check and its
@@ -252,6 +258,14 @@ read_routes! {
     // release/0.1's reads (AJ-E1525, E1502, E1504, E1529, E1533).
     "tools_catalog" => async_result features::tools::commands::tools_catalog(state);
     "tool_updates_status" => async_result features::tool_updates::commands::tool_updates_status(state; tool: String);
+    // D-118: Home's activity feed, one keyset page.
+    "feed_page" => async_result features::feed::commands::feed_page(state; request: crate::paging::PageRequest, filters: features::feed::dto::FeedFiltersInfo);
+    // AJ-E3814: the watches, read only (create, edit, pause and remove are
+    // the user's clicks in the app).
+    "watches_list" => async_result features::watches::commands::watches_list(state; request: crate::paging::PageRequest, which: Option<features::watches::commands::WatchListWhich>, lang: Option<features::watches::words::Lang>);
+    "watches_summary" => async_result features::watches::commands::watches_summary(state);
+    "watches_catalogue" => async_result features::watches::commands::watches_catalogue(state; target: features::watches::model::WatchTarget, lang: Option<features::watches::words::Lang>);
+    "watches_preview" => async_result features::watches::commands::watches_preview(state; draft: features::watches::commands::WatchDraftInfo, lang: Option<features::watches::words::Lang>);
     "conversations_list" => async_result features::conversations::commands::conversations_list(state);
     "conversations_building" => async_result features::conversations::commands::conversations_building(state);
     // 0.3.3: the apps and profiles remembered (reads only; Open and Keep
@@ -374,6 +388,30 @@ read_routes! {
 /// checks it).
 #[cfg(test)]
 pub const NOT_SERVED: &[(&str, &str)] = &[
+    (
+        "features::bot::commands::bot_page",
+        "Bot's conversation is the user's own words and stays in the app's window (ADR-0037 §9: never off this Mac's own process); the real window walks it",
+    ),
+    (
+        "features::bot::commands::bot_find",
+        "searches Bot's conversation, the user's own words (ADR-0037 §9); the real window walks it",
+    ),
+    (
+        "features::bot::commands::bot_memories",
+        "What Bot remembers is the user's own words (ADR-0037 §9: never off this Mac's own process); the real window walks it",
+    ),
+    (
+        "features::bot::commands::bot_count",
+        "counts Bot's conversation and memory for the clear sheet (ADR-0037 §9); the real window walks it",
+    ),
+    (
+        "features::ai::commands::ai_jobs",
+        "asking it may start the system model's helper and tells the app's own windows (AJ-E3802); the real window walks it",
+    ),
+    (
+        "features::ai::models::commands::ai_models_catalog",
+        "asking it may start the system model's helper, as ai_jobs does (AJ-E3812); the real window walks it",
+    ),
     (
         "main_window::app_close_note_due",
         "the note a close of the native window owes (D-112); a browser page has no such window",

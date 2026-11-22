@@ -16,7 +16,8 @@ import type { RetentionPreviewInfo } from "../types/generated/RetentionPreviewIn
 import { CardTitle } from "./CardTitle";
 import { byteSize } from "../lib/compact";
 import { Picker } from "./controls";
-import { folderAppName } from "../lib/app-name";
+import { useFolderAppName } from "../lib/apps";
+import { DialogFrame, DialogOverlay } from "./DialogFrame";
 
 const CHOICES: Array<{ value: string; label: string }> = [
   { value: "forever", label: "Keep forever" },
@@ -27,6 +28,7 @@ const CHOICES: Array<{ value: string; label: string }> = [
 ];
 
 export function StorageRetentionCard(): JSX.Element {
+  const folderAppName = useFolderAppName();
   const [rows, setRows] = useState<AccountStorageInfo[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [preview, setPreview] = useState<RetentionPreviewInfo | null>(null);
@@ -135,17 +137,43 @@ function RetentionDryRun({
   }, [onClose]);
   const n = preview.deletes.length;
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6 backdrop-blur-sm">
-      <div
+    <DialogOverlay className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+      <DialogFrame
         role="alertdialog"
         aria-modal="true"
         aria-labelledby="dry-run-title"
         data-testid="retention-dry-run"
-        className="flex max-h-full w-full max-w-lg flex-col gap-3 overflow-y-auto rounded-xl border border-hairline bg-surface p-5 shadow-card"
+        className="w-full max-w-lg rounded-xl border border-hairline bg-surface shadow-card"
+        headerClassName="px-5 pt-5"
+        bodyClassName="flex flex-col gap-3 px-5 pt-3 pb-3"
+        footerClassName="px-5 pt-3 pb-5"
+        header={
+          <h3 id="dry-run-title" className="text-sm font-semibold">
+            Dry run — {label}, older than {preview.retention_days} days
+          </h3>
+        }
+        footer={
+          <div className="flex justify-end gap-2">
+            <button type="button" autoFocus onClick={() => onClose(null)} className="rounded-lg border border-hairline px-3 py-1.5 text-xs text-ink">
+              Cancel
+            </button>
+            {preview.token && (
+              <button
+                type="button"
+                onClick={() =>
+                  void retentionApply(preview.account_id, preview.token!)
+                    .then((deleted) => onClose(deleted))
+                    .catch((cause) => setError(errorText(cause)))
+                }
+                className="rounded-lg border border-danger/60 px-3 py-1.5 text-xs text-ink hover:border-danger"
+                data-testid="dry-run-apply"
+              >
+                Remove {n} {n === 1 ? "record" : "records"}
+              </button>
+            )}
+          </div>
+        }
       >
-        <h3 id="dry-run-title" className="text-sm font-semibold">
-          Dry run — {label}, older than {preview.retention_days} days
-        </h3>
         {n === 0 ? (
           <p className="text-label text-ink" data-testid="dry-run-nothing">
             Nothing to remove — no ended session is past the policy.
@@ -184,26 +212,7 @@ function RetentionDryRun({
             {error}
           </p>
         )}
-        <div className="flex justify-end gap-2">
-          <button type="button" autoFocus onClick={() => onClose(null)} className="rounded-lg border border-hairline px-3 py-1.5 text-xs text-ink">
-            Cancel
-          </button>
-          {preview.token && (
-            <button
-              type="button"
-              onClick={() =>
-                void retentionApply(preview.account_id, preview.token!)
-                  .then((deleted) => onClose(deleted))
-                  .catch((cause) => setError(errorText(cause)))
-              }
-              className="rounded-lg border border-danger/60 px-3 py-1.5 text-xs text-ink hover:border-danger"
-              data-testid="dry-run-apply"
-            >
-              Remove {n} {n === 1 ? "record" : "records"}
-            </button>
-          )}
-        </div>
-      </div>
-    </div>
+      </DialogFrame>
+    </DialogOverlay>
   );
 }

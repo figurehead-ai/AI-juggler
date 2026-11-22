@@ -107,6 +107,8 @@ export const SHORTCUTS = [
   // `key` reads on a Mac).
   { id: "notifications", owner: "app", area: "Anywhere", keys: ["⌥⌘N"], label: "Notifications", match: cmdAltCode("KeyN", "n") },
   { id: "toggle-rail", owner: "app", area: "Anywhere", keys: ["⌘B"], label: "Show or hide the list", match: cmd("b") },
+  // D-136: Bot, the docked panel (Esc closes it, focus back to its icon).
+  { id: "bot", owner: "app", area: "Anywhere", keys: ["⌘J"], label: "Open or close Bot", match: cmd("j") },
   { id: "inspector", owner: "app", area: "Anywhere", keys: ["⌘⇧I"], label: "Fold or unfold the inspector", match: cmd("i", { shift: true }) },
   {
     id: "density",
@@ -163,7 +165,7 @@ export const SHORTCUTS = [
   { id: "processes-search", owner: "app", area: "Screens", keys: ["⌘F"], label: "Search Processes (on Processes)", match: cmd("f") },
   // Session
   { id: "stop", owner: "app", area: "Session", keys: ["⌘."], label: "Stop the session (5 s to undo)", match: cmd(".") },
-  { id: "handover", owner: "app", area: "Session", keys: ["⌘⇧H"], label: "Continue in another app", match: cmd("h", { shift: true }) },
+  { id: "handover", owner: "app", area: "Session", keys: ["⌘⇧H"], label: "Switch account", match: cmd("h", { shift: true }) },
   // AJ-E2905 R8: a project's switch graph resumes its open epoch itself.
   { id: "epoch-resume", owner: "page", area: "Session", keys: ["⌘R"], label: "Resume the open epoch (a project's switch graph)" },
   // AJ-E2810 R8: the Subagents tab's search, from its list

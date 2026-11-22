@@ -13,8 +13,9 @@ import type { MoveDoneInfo } from "../../types/generated/MoveDoneInfo";
 import type { MoveOfferInfo } from "../../types/generated/MoveOfferInfo";
 import type { MoveProgressInfo } from "../../types/generated/MoveProgressInfo";
 import type { MoveRecordInfo } from "../../types/generated/MoveRecordInfo";
+import type { MoveUndoneInfo } from "../../types/generated/MoveUndoneInfo";
 
-export type { MoveDoneInfo, MoveOfferInfo, MoveProgressInfo, MoveRecordInfo };
+export type { MoveDoneInfo, MoveOfferInfo, MoveProgressInfo, MoveRecordInfo, MoveUndoneInfo };
 
 /** 0.4.9: how a running move goes (`move://progress`). */
 const MOVE_PROGRESS = "move://progress";
@@ -26,7 +27,7 @@ declare global {
     __AIJ_MOVE_ERROR__?: string | { code: string; retryable: boolean; user_message: string; detail?: string };
     __AIJ_MOVE_PROGRESS__?: MoveProgressInfo[];
     __AIJ_MOVE_HOLD__?: boolean;
-    __AIJ_MOVE_UNDONE__?: string;
+    __AIJ_MOVE_UNDONE__?: MoveUndoneInfo;
     __AIJ_MOVES__?: MoveRecordInfo[];
   }
 }
@@ -82,8 +83,8 @@ export async function switchMoveExecute(sessionId: string, targetProfileId: stri
 }
 
 /** Undoes a move (the user's click). */
-export async function switchMoveUndo(moveId: string): Promise<string> {
-  if (!hasLiveBackend()) return window.__AIJ_MOVE_UNDONE__ ?? "Undone: the conversation is back where it was.";
+export async function switchMoveUndo(moveId: string): Promise<MoveUndoneInfo> {
+  if (!hasLiveBackend()) return window.__AIJ_MOVE_UNDONE__ ?? { words: "Undone: the conversation is back where it was.", kept: "" };
   return call("switch_move_undo", { moveId });
 }
 

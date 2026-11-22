@@ -24,6 +24,7 @@ import { projectSyncApply, projectSyncDiff, projectSyncRules, type RulesDiffInfo
 import { ServersSection } from "./ProjectSyncServers";
 import { DoneLine, SYNC_HEADING, type Done } from "./SyncDoneLine";
 import { Radio } from "./controls";
+import { SELECTED_CARD } from "./controls/selected";
 
 /** A file the master can be applied to that differs from it, or isn't
  * there. */
@@ -261,7 +262,7 @@ function HowButton({ pressed, onClick, children }: { pressed: boolean; onClick: 
       type="button"
       aria-pressed={pressed}
       onClick={onClick}
-      className={`rounded-lg border px-2 py-1 text-label ${pressed ? "border-accent/60 bg-accent-soft text-ink" : "border-hairline text-muted hover:bg-surface-2"}`}
+      className={`rounded-lg border px-2 py-1 text-label ${pressed ? `${SELECTED_CARD} font-semibold text-selected-ink` : "border-hairline text-muted hover:bg-surface-2"}`}
     >
       {children}
     </button>

@@ -5,6 +5,7 @@
  * until closed. The store and its rules are in Toast.tsx.
  */
 import { keysOf } from "../lib/shortcuts";
+import { FOCUS_WHEN_FREE } from "../lib/inert";
 import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type CSSProperties, type JSX, type RefObject } from "react";
 import { dismissToast, pauseToast, resumeToast, toastStore, undoToast, type ToastEntry, type ToastOptions } from "./Toast";
 
@@ -95,9 +96,9 @@ function ToastWords({ message }: { message: string }): JSX.Element {
 }
 
 /** Undo, with the seconds left. `below`: under the words. */
-function UndoButton({ id, left, below, testId, buttonRef }: { id: string; left: number; below: boolean; testId: string | undefined; buttonRef: RefObject<HTMLButtonElement | null> }): JSX.Element {
+function UndoButton({ id, left, below, testId, buttonRef, asks }: { id: string; left: number; below: boolean; testId: string | undefined; buttonRef: RefObject<HTMLButtonElement | null>; asks: boolean }): JSX.Element {
   return (
-    <button type="button" ref={buttonRef} onClick={() => void undoToast(id)} data-testid={testId ?? "toast-undo"} title={`Undo (${keysOf("undo")[0]})`} className={BUTTON + " border-accent/40 bg-accent-soft text-accent-hi hover:border-accent/60" + (below ? " mt-2 mr-2" : "")}>
+    <button type="button" ref={buttonRef} {...(asks ? { [FOCUS_WHEN_FREE]: "" } : {})} onClick={() => void undoToast(id)} data-testid={testId ?? "toast-undo"} title={`Undo (${keysOf("undo")[0]})`} className={BUTTON + " border-accent/40 bg-accent-soft text-accent-hi hover:border-accent/60" + (below ? " mt-2 mr-2" : "")}>
       Undo ({left}s)
     </button>
   );
@@ -105,11 +106,12 @@ function UndoButton({ id, left, below, testId, buttonRef }: { id: string; left: 
 
 /** Its one other action: runs, then the toast goes. `below`: under the
  * words (a long label), else beside them. */
-function ToastAction({ id, action, below, buttonRef }: { id: string; action: NonNullable<ToastOptions["action"]>; below: boolean; buttonRef: RefObject<HTMLButtonElement | null> }): JSX.Element {
+function ToastAction({ id, action, below, buttonRef, asks }: { id: string; action: NonNullable<ToastOptions["action"]>; below: boolean; buttonRef: RefObject<HTMLButtonElement | null>; asks: boolean }): JSX.Element {
   return (
     <button
       type="button"
       ref={buttonRef}
+      {...(asks ? { [FOCUS_WHEN_FREE]: "" } : {})}
       onClick={() => {
         void remove(id);
         void action.run();
@@ -153,15 +155,22 @@ export function Toast({ entry }: { entry: ToastEntry }): JSX.Element {
   const placed = useRef(false);
   useEffect(() => {
     if (!options.focusWhenFree) return;
+    // Undo, else its one action (Start another, D-96 F).
+    const target = undoRef.current ?? actionRef.current;
     // Free: on nothing, or resting on the page itself (a page opened
     // puts the keyboard on `<main>`, F11), never on a control.
     const active = document.activeElement;
     if (!active || active === document.body || active.tagName === "MAIN") {
       placed.current = true;
-      // Undo, else its one action (Start another, D-96 F).
-      (undoRef.current ?? actionRef.current)?.focus();
+      target?.focus();
       placed.current = false;
     }
+    // Its control is drawn asking for the focus (FOCUS_WHEN_FREE), so a
+    // dialog that closes as it shows (a 1-click switch) hands it there, not
+    // back to its opener, whichever runs first (lib/inert; the keyboard
+    // flows found Undo or the opener by which did). It keeps asking only
+    // while a dialog holds the focus.
+    if (!active?.closest('[aria-modal="true"]')) target?.removeAttribute(FOCUS_WHEN_FREE);
   }, [options.focusWhenFree]);
   // Under the words, a control never covers them (the rc31 walk: Undo
   // over "…archived — nothing deleted.")
@@ -169,8 +178,8 @@ export function Toast({ entry }: { entry: ToastEntry }): JSX.Element {
   // Undo, then its one action: beside the words, or under them.
   const controls = (
     <>
-      {options.undo && <UndoButton id={entry.id} left={left} below={below} testId={options.testId} buttonRef={undoRef} />}
-      {options.action && <ToastAction id={entry.id} action={options.action} below={below} buttonRef={actionRef} />}
+      {options.undo && <UndoButton id={entry.id} left={left} below={below} testId={options.testId} buttonRef={undoRef} asks={options.focusWhenFree === true} />}
+      {options.action && <ToastAction id={entry.id} action={options.action} below={below} buttonRef={actionRef} asks={options.focusWhenFree === true && !options.undo} />}
     </>
   );
   const tone = phase === "failed" ? "error" : (options.tone ?? "neutral");
@@ -187,7 +196,7 @@ export function Toast({ entry }: { entry: ToastEntry }): JSX.Element {
       data-tone={tone}
       onMouseEnter={hold}
       onMouseLeave={go}
-      onFocus={() => !placed.current && hold()}
+      onFocus={(event) => !placed.current && !(event.target as HTMLElement).hasAttribute(FOCUS_WHEN_FREE) && hold()}
       onBlur={go}
     >
       <div className="flex items-start gap-3 px-4 py-3">

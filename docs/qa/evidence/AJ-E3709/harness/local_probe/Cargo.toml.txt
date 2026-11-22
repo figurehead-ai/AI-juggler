@@ -1,0 +1,21 @@
+# AJ-E3709 local-tier probe (ADR-0033 §4.2/§5): a throwaway test harness, not product code.
+# Its own Cargo project (the empty [workspace] keeps it out of any parent workspace); built offline into
+# CARGO_TARGET_DIR=$HOME/Dev/AIJuggler-shared-target/r05-probe (CMAKE_DISABLE_FIND_PACKAGE_OpenSSL=TRUE). llama-cpp-2 approved by the maintainer for testing only.
+[package]
+name = "local_probe"
+version = "0.1.0"
+edition = "2021"
+publish = false
+license = "MIT OR Apache-2.0"
+
+[workspace]
+
+[dependencies]
+llama-cpp-2 = { version = "=0.1.146", default-features = false, features = ["metal"] }
+llama-cpp-sys-2 = { version = "=0.1.146", default-features = false, features = ["metal"] }
+encoding_rs = "0.8.35"
+serde_json = "1"
+libc = "0.2"
+
+[profile.release]
+debug = false

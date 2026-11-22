@@ -13,7 +13,8 @@
 //!    (0700), outside the home the user record names (and so outside the
 //!    real AI Juggler data), with the app's data folder inside it
 //!    ([`checked_home`]); and with no tool's folder override inherited
-//!    ([`check_this`]). Then nothing of the bridge starts.
+//!    ([`check_this`]; the lab's own stand-in programs and its `HOME`,
+//!    inside it, may stay: [`inherited`]). Then nothing of the bridge starts.
 //! 3. Each write is one of the app's own commands, the function the
 //!    window calls, with its typed arguments (`deny_unknown_fields`):
 //!    no logic of its own. Same token, same loopback, same Origin.
@@ -66,35 +67,7 @@ pub fn checked_home(
     data_dir: &Path,
     me: u32,
 ) -> Result<PathBuf, String> {
-    if !home.is_absolute() {
-        return Err(format!("HOME {} isn't an absolute path", home.display()));
-    }
-    let resolved =
-        std::fs::canonicalize(home).map_err(|e| format!("HOME {}: {e}", home.display()))?;
-    // Spelled as it resolves (only macOS's /tmp → /private/tmp allowed): a
-    // symlink anywhere in it, a trailing `/` or `/.`, is refused.
-    let spelled = home.to_string_lossy();
-    let shown = resolved.to_string_lossy();
-    if shown != spelled && shown != format!("/private{spelled}") {
-        return Err(format!(
-            "HOME {} is a symlink or isn't spelled as it resolves ({shown})",
-            home.display()
-        ));
-    }
-    let in_tmp = matches!(
-        resolved.parent().and_then(Path::to_str),
-        Some("/tmp" | "/private/tmp")
-    );
-    let named = resolved
-        .file_name()
-        .and_then(|name| name.to_str())
-        .is_some_and(|name| name.starts_with("aij-lab"));
-    if !in_tmp || !named {
-        return Err(format!(
-            "HOME {} isn't a lab folder (/tmp/aij-lab…)",
-            resolved.display()
-        ));
-    }
+    let resolved = juggler_core::lab::throwaway_lab(home)?;
     // A real folder, this user's, and closed to everyone else (0700).
     if !juggler_platform::file_trust::dir_is_ours(
         &resolved,
@@ -193,6 +166,42 @@ fn adopted(account: &juggler_core::model::Account) -> bool {
     })
 }
 
+/// Whether isolation variable `key`, set to `value` in this process, may
+/// stay with the lab at `lab` (pure: tested). A tool's folder override
+/// never may (a shell inside a tool's session carries one, pointing at a
+/// real folder). Two of the lab's own may:
+///
+/// - AI Juggler's own stand-in program variables (`AI_JUGGLER_<TOOL>_BIN`,
+///   and `AI_JUGGLER_ZCODE_ENGINE`, the engine file a `--standins` lab
+///   points `ZCode` at), when they name a program inside the lab: the 0.5.0
+///   final walk (F11) found the write mode refused in every lab because
+///   the lab's own stand-in was set.
+/// - `HOME`, which an adapter whose tool keeps its files under the home
+///   lists as its isolation key (Muse), when it is a folder inside the lab
+///   (`scripts/qa/lab_env.sh` starts the lab with `HOME` the lab itself):
+///   the 0.5.0 re-walk (R12) found every plain lab refused for it.
+///
+/// # Errors
+///
+/// Why it may not, in words.
+pub fn inherited(key: &str, value: &Path, lab: &Path) -> Result<(), String> {
+    let stand_in =
+        key.starts_with("AI_JUGGLER_") && (key.ends_with("_BIN") || key.ends_with("_ENGINE"));
+    let inside_lab = |is_kind: fn(&Path) -> bool| {
+        resolved(value).is_some_and(|found| found.starts_with(lab) && is_kind(&found))
+    };
+    if (stand_in && inside_lab(Path::is_file)) || (key == "HOME" && inside_lab(Path::is_dir)) {
+        return Ok(());
+    }
+    Err(if stand_in {
+        format!("{key} names a program outside the lab (the lab's stand-ins live inside it)")
+    } else if key == "HOME" {
+        format!("HOME {} isn't a folder inside the lab", value.display())
+    } else {
+        format!("{key} is set in this process (start the lab through scripts/qa/lab_env.sh)")
+    })
+}
+
 /// The lab check for this process: `$HOME`, the user record, the app's
 /// data folder, and no tool's folder override inherited (a shell inside
 /// a tool's session carries one, pointing at a real folder).
@@ -201,17 +210,6 @@ fn adopted(account: &juggler_core::model::Account) -> bool {
 ///
 /// As [`checked_home`], or an isolation variable is set.
 pub fn check_this(state: &AppState) -> Result<PathBuf, String> {
-    for id in state.registry.ids() {
-        if let Some(adapter) = state.registry.get(&id) {
-            for key in adapter.isolation_env_keys() {
-                if std::env::var_os(key).is_some() {
-                    return Err(format!(
-                        "{key} is set in this process (start the lab through scripts/qa/lab_env.sh)"
-                    ));
-                }
-            }
-        }
-    }
     let home = juggler_platform::user::home().ok_or("HOME isn't set")?;
     let me = juggler_platform::user::current()
         .map_err(|e| e.to_string())?
@@ -222,6 +220,15 @@ pub fn check_this(state: &AppState) -> Result<PathBuf, String> {
         &state.data_dir,
         me,
     )?;
+    for id in state.registry.ids() {
+        if let Some(adapter) = state.registry.get(&id) {
+            for key in adapter.isolation_env_keys() {
+                if let Some(value) = std::env::var_os(key) {
+                    inherited(key, Path::new(&value), &lab)?;
+                }
+            }
+        }
+    }
     let _ = LAB_HOME.set(lab.clone());
     crate::lab_scope::set(&lab);
     if let Some(tool) = std::env::var_os(ENV_ADOPT) {

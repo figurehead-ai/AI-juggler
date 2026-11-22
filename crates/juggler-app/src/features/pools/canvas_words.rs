@@ -29,19 +29,19 @@ fn whom(to: &[(String, String)]) -> String {
 /// What a task event says, by its verb.
 fn task_words(actor: &str, verb: &str, title: &str, detail: Option<&str>) -> String {
     match (verb, detail) {
-        ("created", _) => format!("{actor} wrote «{title}»"),
-        ("claimed", _) => format!("{actor} took «{title}»"),
-        ("assigned", Some(to)) => format!("{actor} gave «{title}» to {to}"),
-        ("unassigned" | "released", _) => format!("{actor} let go of «{title}»"),
-        ("status", Some(change)) => format!("{actor} moved «{title}»: {change}"),
-        ("approved", _) => format!("{actor} approved «{title}»"),
-        ("sent_back", _) => format!("{actor} sent «{title}» back"),
-        ("review_approved", _) => format!("{actor} reviewed «{title}»: looks right"),
-        ("review_sent_back", _) => format!("{actor} reviewed «{title}» and sent it back"),
-        ("freed", _) => format!("{actor} freed «{title}»"),
-        ("cancelled", _) => format!("{actor} cancelled «{title}»"),
-        ("noted", _) => format!("{actor} added a note to «{title}»"),
-        _ => format!("{actor} changed «{title}»"),
+        ("created", _) => format!("{actor} wrote “{title}”"),
+        ("claimed", _) => format!("{actor} took “{title}”"),
+        ("assigned", Some(to)) => format!("{actor} gave “{title}” to {to}"),
+        ("unassigned" | "released", _) => format!("{actor} let go of “{title}”"),
+        ("status", Some(change)) => format!("{actor} moved “{title}”: {change}"),
+        ("approved", _) => format!("{actor} approved “{title}”"),
+        ("sent_back", _) => format!("{actor} sent “{title}” back"),
+        ("review_approved", _) => format!("{actor} reviewed “{title}”: looks right"),
+        ("review_sent_back", _) => format!("{actor} reviewed “{title}” and sent it back"),
+        ("freed", _) => format!("{actor} freed “{title}”"),
+        ("cancelled", _) => format!("{actor} cancelled “{title}”"),
+        ("noted", _) => format!("{actor} added a note to “{title}”"),
+        _ => format!("{actor} changed “{title}”"),
     }
 }
 
@@ -54,8 +54,8 @@ fn member_words(name: &str, verb: &str, account: Option<&str>) -> String {
         "joined"
     };
     account.map_or_else(
-        || format!("«{name}» {went}: its account can't be read"),
-        |account| format!("«{name}» {went}: its account is now {account}"),
+        || format!("“{name}” {went}: its account can't be read"),
+        |account| format!("“{name}” {went}: its account is now {account}"),
     )
 }
 
@@ -68,9 +68,9 @@ pub fn line(entry: &StreamEntry, session_of: impl Fn(&str) -> Option<String>) ->
     } else if entry.source == "task" {
         task_words(&actor, &entry.verb, &entry.title, entry.detail.as_deref())
     } else if entry.verb == "question" {
-        format!("{actor} asked {}: «{}»", whom(&entry.to), entry.title)
+        format!("{actor} asked {}: “{}”", whom(&entry.to), entry.title)
     } else {
-        format!("{actor} wrote to {}: «{}»", whom(&entry.to), entry.title)
+        format!("{actor} wrote to {}: “{}”", whom(&entry.to), entry.title)
     };
     StreamLineInfo {
         at_ms: entry.at,
@@ -110,17 +110,17 @@ mod tests {
     fn says_who_did_what_in_plain_words() {
         let none = |_: &str| None;
         let gave = line(&entry("task", "assigned", &[], Some("Cart totals")), none);
-        assert_eq!(gave.words, "Planner gave «Round tax» to Cart totals");
+        assert_eq!(gave.words, "Planner gave “Round tax” to Cart totals");
         let wrote = line(
             &entry("message", "note", &[("session:b", "Cart totals")], None),
             none,
         );
-        assert_eq!(wrote.words, "Planner wrote to Cart totals: «Round tax»");
+        assert_eq!(wrote.words, "Planner wrote to Cart totals: “Round tax”");
         let asked = line(
             &entry("message", "question", &[("user", "You")], None),
             none,
         );
-        assert_eq!(asked.words, "Planner asked You: «Round tax»");
+        assert_eq!(asked.words, "Planner asked You: “Round tax”");
         let many = line(
             &entry(
                 "message",
@@ -130,15 +130,15 @@ mod tests {
             ),
             none,
         );
-        assert_eq!(many.words, "Planner wrote to B and 2 others: «Round tax»");
+        assert_eq!(many.words, "Planner wrote to B and 2 others: “Round tax”");
         let other = line(&entry("task", "linked", &[], None), none);
-        assert_eq!(other.words, "Planner changed «Round tax»");
+        assert_eq!(other.words, "Planner changed “Round tax”");
         let left = line(&entry("member", "member_left", &[], Some("Other")), none);
-        assert_eq!(left.words, "«Round tax» left: its account is now Other");
+        assert_eq!(left.words, "“Round tax” left: its account is now Other");
         let joined = line(&entry("member", "member_joined", &[], Some("Other")), none);
-        assert_eq!(joined.words, "«Round tax» joined: its account is now Other");
+        assert_eq!(joined.words, "“Round tax” joined: its account is now Other");
         let unread = line(&entry("member", "member_left", &[], None), none);
-        assert_eq!(unread.words, "«Round tax» left: its account can't be read");
+        assert_eq!(unread.words, "“Round tax” left: its account can't be read");
     }
 
     #[test]

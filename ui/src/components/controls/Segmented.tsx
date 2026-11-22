@@ -23,6 +23,8 @@ export interface Segment<T extends string> {
   title?: string;
   /** An icon before the word. */
   icon?: ControlIcon;
+  /** A count after the word, quieter (a filter's "Paused 3"). */
+  count?: number;
 }
 
 type SegmentedSize = "sm" | "md";
@@ -116,6 +118,7 @@ export function Segmented<T extends string>({
           >
             {Icon && <Icon aria-hidden="true" width={look.icon} height={look.icon} className="shrink-0" />}
             <span className={wrap ? "" : "min-w-0 truncate"}>{segment.label}</span>
+            {segment.count !== undefined && <span className="ml-1 font-normal tabular-nums text-muted">{segment.count}</span>}
           </button>
         );
       })}

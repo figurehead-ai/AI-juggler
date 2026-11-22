@@ -1,0 +1,220 @@
+[
+ {
+  "pair": "digest5-digest-001",
+  "item": "D015",
+  "agents": [
+   {
+    "agent": "rechnungen",
+    "app": "Claude Code CLI · Work",
+    "project": "rechnungen",
+    "session_id": "sess-d015-a",
+    "turns": [
+     {
+      "turn_id": "sess-d015-a-t1",
+      "ended_at": "2026-11-17T11:02:00Z",
+      "source": "Added pagination to the list endpoint in rechnungen. Tests pass (30), and I updated the OpenAPI file. This was a minor edit with no effect on behaviour or tests; nothing else is pending and there are no open questions.",
+      "facts": {
+       "outcome": "done",
+       "level": "info",
+       "tests": {
+        "passed": 22,
+        "failed": 0
+       },
+       "questions": [],
+       "failures": []
+      }
+     }
+    ],
+    "events": [
+     {
+      "kind": "runway_low",
+      "at": "2026-11-17T11:32:00Z",
+      "detail": "12 percent of the weekly allowance left"
+     },
+     {
+      "kind": "ended",
+      "at": "2026-11-17T11:33:00Z",
+      "detail": "done"
+     }
+    ]
+   },
+   {
+    "agent": "audit-tool",
+    "app": "Claude app · Work",
+    "project": "audit-tool",
+    "session_id": "sess-d015-b",
+    "turns": [
+     {
+      "turn_id": "sess-d015-b-t1",
+      "ended_at": "2026-11-17T11:11:00Z",
+      "source": "Continued the dashboard work in audit-tool after the account switch. History was intact and I picked up at the chart component. Two components are left.",
+      "facts": {
+       "outcome": "running",
+       "level": "info",
+       "tests": {},
+       "questions": [],
+       "failures": []
+      }
+     }
+    ],
+    "events": [
+     {
+      "kind": "switched",
+      "at": "2026-11-17T11:41:00Z",
+      "detail": "moved from Work to Personal account"
+     }
+    ]
+   },
+   {
+    "agent": "mail-relay",
+    "app": "Claude Code CLI · Work",
+    "project": "mail-relay",
+    "session_id": "sess-d015-c",
+    "turns": [
+     {
+      "turn_id": "sess-d015-c-t1",
+      "ended_at": "2026-11-17T11:20:00Z",
+      "source": "While updating mail-relay I noticed a fixture file that contains what looks like a real access token (starts with akia-demo). I replaced it with a placeholder but you should rotate it. The rest of the update is done.",
+      "facts": {
+       "outcome": "done",
+       "level": "attention",
+       "tests": {
+        "passed": 12,
+        "failed": 0
+       },
+       "questions": [],
+       "failures": [
+        "possible leaked token in fixtures"
+       ]
+      }
+     }
+    ],
+    "events": [
+     {
+      "kind": "ended",
+      "at": "2026-11-17T11:50:00Z",
+      "detail": "update finished"
+     }
+    ]
+   },
+   {
+    "agent": "data-lake",
+    "app": "Claude app · Privat",
+    "project": "data-lake",
+    "session_id": "sess-d015-d",
+    "turns": [],
+    "events": [
+     {
+      "kind": "started",
+      "at": "2026-11-17T11:59:00Z",
+      "detail": "seit Stunden offen"
+     }
+    ]
+   },
+   {
+    "agent": "mobile-app",
+    "app": "Codex CLI · Arbeit",
+    "project": "mobile-app",
+    "session_id": "sess-d015-e",
+    "turns": [
+     {
+      "turn_id": "sess-d015-e-t1",
+      "ended_at": "2026-11-17T11:38:00Z",
+      "source": "Kleine Umbenennung in mobile-app erledigt. Das war eine kleine Änderung ohne Auswirkung auf Verhalten oder Tests; es gibt nichts weiter zu tun und keine offenen Fragen.",
+      "facts": {
+       "outcome": "done",
+       "level": "info",
+       "tests": {},
+       "questions": [],
+       "failures": []
+      }
+     },
+     {
+      "turn_id": "sess-d015-e-t2",
+      "ended_at": "2026-11-17T11:58:00Z",
+      "source": "Einen Kommentar in mobile-app korrigiert. Das war eine kleine Änderung ohne Auswirkung auf Verhalten oder Tests; es gibt nichts weiter zu tun und keine offenen Fragen.",
+      "facts": {
+       "outcome": "done",
+       "level": "info",
+       "tests": {},
+       "questions": [],
+       "failures": []
+      }
+     },
+     {
+      "turn_id": "sess-d015-e-t3",
+      "ended_at": "2026-11-17T12:18:00Z",
+      "source": "Eine Datei in mobile-app neu formatiert. Das war eine kleine Änderung ohne Auswirkung auf Verhalten oder Tests; es gibt nichts weiter zu tun und keine offenen Fragen.",
+      "facts": {
+       "outcome": "done",
+       "level": "info",
+       "tests": {},
+       "questions": [],
+       "failures": []
+      }
+     }
+    ],
+    "events": []
+   },
+   {
+    "agent": "webshop",
+    "app": "Claude Code CLI · Work",
+    "project": "webshop",
+    "session_id": "sess-d015-f",
+    "turns": [
+     {
+      "turn_id": "sess-d015-f-t1",
+      "ended_at": "2026-11-17T11:47:00Z",
+      "source": "Finished the retry refactor in webshop. All 15 tests pass and the linter is clean. The change sits on branch feature/retry-15, ready for review. I did not touch the public API or any config files.",
+      "facts": {
+       "outcome": "done",
+       "level": "info",
+       "tests": {
+        "passed": 15,
+        "failed": 0
+       },
+       "questions": [],
+       "failures": []
+      }
+     }
+    ],
+    "events": [
+     {
+      "kind": "ended",
+      "at": "2026-11-17T12:17:00Z",
+      "detail": "finished cleanly"
+     }
+    ]
+   },
+   {
+    "agent": "billing-svc",
+    "app": "Cursor",
+    "project": "billing-svc",
+    "session_id": "sess-d015-g",
+    "turns": [
+     {
+      "turn_id": "sess-d015-g-t1",
+      "ended_at": "2026-11-17T11:56:00Z",
+      "source": "Rewrote the quickstart page for billing-svc: shorter intro, three runnable examples, and a troubleshooting table. No code was changed, so there were no tests to run. Preview builds locally without warnings.",
+      "facts": {
+       "outcome": "done",
+       "level": "info",
+       "tests": {},
+       "questions": [],
+       "failures": []
+      }
+     }
+    ],
+    "events": [
+     {
+      "kind": "ended",
+      "at": "2026-11-17T12:26:00Z",
+      "detail": "docs rewritten"
+     }
+    ]
+   }
+  ],
+  "first": "Digest · 12:26 · 7 agents\nmail-relay · failed: “possible leaked token in fixtures”\nbilling-svc · ended · rewrote the quickstart page for billing-svc · tests not run\nmobile-app · working · 3 turns · last: “Eine Datei in mobile-app neu formatiert.”\nwebshop · ended · finished the retry refactor in webshop · all 15 tests pass and the linter is clean\ndata-lake · working\naudit-tool · working · 1 turn · last: “Continued the dashboard work in audit-tool after the account switch.”\nand 1 more agent",
+  "second": "Digest · 12:26 · 7 agents\nmail-relay · failed: “possible leaked token in fixtures”\nbilling-svc · ended · 1 turn · last: “Rewrote the quickstart page for billing-svc: shorter intro, three runnable examples, and a…”\nwebshop · ended · 1 turn · tests passed · last: “Finished the retry refactor in webshop.”\nrechnungen · ended · runway below 12 % · 1 turn · tests passed · last: “Added pagination to the list endpoint in rechnungen.”\nmobile-app · working · 3 turns · last: “Eine Datei in mobile-app neu formatiert.”\ndata-lake · working\nand 1 more agent"
+ }
+]

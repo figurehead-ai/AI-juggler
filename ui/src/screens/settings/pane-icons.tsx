@@ -7,6 +7,7 @@ import { base, IconProfiles, IconSessions, IconShield } from "../../components/i
 import { IconBell, IconComputer, IconKey, IconSliders } from "../../components/icons-actions";
 import { IconKeyboard } from "../../components/icons-menu";
 import { IconFloor } from "../../components/icons-places";
+import { IconChip } from "./ai/model-icons";
 import type { PaneId } from "./panes";
 
 function IconGear(props: SVGProps<SVGSVGElement>) {
@@ -51,6 +52,9 @@ const PANE_ICONS: Record<PaneId, (props: SVGProps<SVGSVGElement>) => JSX.Element
   keyboard: IconKeyboard,
   "the-floor": IconFloor,
   advanced: IconSliders,
+  // AJ-E3812: the AI group's row draws the chip; its sub-rows draw none.
+  "ai-jobs": IconChip,
+  "ai-models": IconChip,
 };
 
 export function PaneIcon({ pane }: { pane: PaneId }): JSX.Element {

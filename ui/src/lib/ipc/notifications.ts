@@ -11,7 +11,8 @@ import type { SystemNotificationsInfo } from "../../types/generated/SystemNotifi
 
 export type { SystemNotificationsInfo };
 
-/** Every kind starts off (Req.1). */
+/** Every kind starts off (Req.1), but the watches the user set
+ * (AJ-E3817: they asked for each when they confirmed it). */
 const NOTIFY_DEFAULT: SystemNotificationsInfo = {
   waiting: false,
   stuck: false,
@@ -22,6 +23,8 @@ const NOTIFY_DEFAULT: SystemNotificationsInfo = {
   quota: false,
   crash: false,
   reset: false,
+  watch: true,
+  digest: false,
 };
 
 /** What a clicked notification opens. */
@@ -31,8 +34,9 @@ export interface OpenRequest {
    * Floor (AJ-E3510) also `app`, `conversation` (another app's session),
    * `subagents`, `usage` (an Account) and `tasks` (an App's), each with
    * its `id`; from its View menu (AJ-E3519) `settings`, its `id` the
-   * pane (`the-floor`). */
-  page: "this_mac" | "notifications" | "app" | "conversation" | "subagents" | "usage" | "pool" | "tasks" | "settings" | null;
+   * pane (`the-floor`); (AJ-E3712) `home`: Home's feed, where several
+   * calm items told as one notification are. */
+  page: "this_mac" | "notifications" | "home" | "app" | "conversation" | "subagents" | "usage" | "pool" | "tasks" | "settings" | null;
   /** AJ-E1515: the paired Mac the session runs on (absent: this one). */
   machine_id?: string | null;
   /** What `page` opens: an App's id, `<account>/<id>` of another app's

@@ -50,7 +50,7 @@ export async function accountImport(
       throw {
         code: "already_imported",
         retryable: false,
-        user_message: `Already imported as «${duplicateLabel}» — open it from Accounts instead of importing again`,
+        user_message: `Already imported as “${duplicateLabel}” — open it from Accounts instead of importing again`,
       };
     }
     // AJ-E1022 test seam: reject with a given error (a moved folder…).

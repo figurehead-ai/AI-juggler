@@ -1427,7 +1427,9 @@ fn re_ingesting_the_same_fixtures_inserts_zero_new_rows() {
 
 /// No ingest code path may talk to a Provider: the crate carries no
 /// HTTP client dependency and no client construction exists anywhere
-/// in its sources (doc URLs are fine; client APIs are not).
+/// in its sources (doc URLs are fine; client APIs are not). The one
+/// exception, by name (D-106): `local_http.rs`, which reaches only a
+/// tool's own server on 127.0.0.1 (Kimi Code's `kimi web`).
 #[test]
 fn no_http_client_anywhere_in_the_adapters_crate() {
     let manifest =
@@ -1450,6 +1452,12 @@ fn no_http_client_anywhere_in_the_adapters_crate() {
             }
             if path.extension().is_some_and(|extension| extension == "rs") {
                 let text = std::fs::read_to_string(&path).unwrap();
+                if path.ends_with("src/local_http.rs") {
+                    // Loopback only: the one address it builds.
+                    assert!(text.contains("SocketAddr::from((Ipv4Addr::LOCALHOST, port))"));
+                    assert!(!text.contains("ToSocketAddrs") && !text.contains("UdpSocket"));
+                    continue;
+                }
                 for banned in [
                     "reqwest::",
                     "ureq::",

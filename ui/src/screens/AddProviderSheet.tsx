@@ -1,6 +1,6 @@
 import { ToolMark } from "../components/ToolMark";
 import { useEffect, useRef, useState } from "react";
-import { Button, Card, Chip } from "../components/primitives";
+import { Button, Chip } from "../components/primitives";
 import { IconJuggler } from "../components/icons";
 import { funnelStep } from "../lib/funnel";
 import { providersDiscover, type ProviderInstallData } from "../lib/ipc/providers";
@@ -10,6 +10,7 @@ import { servicesList, type ServiceInfo } from "../lib/ipc/services";
 import { lazyNamed } from "../lib/lazy";
 import { LetterMark } from "../components/ToolMark";
 import { Disclosure } from "../components/controls";
+import { DialogFrame, DialogOverlay } from "../components/DialogFrame";
 
 const ServiceAccountSheet = lazyNamed(() => import("./accounts/ServiceAccountSheet"), "ServiceAccountSheet");
 
@@ -100,122 +101,128 @@ export function AddProviderSheet({
   }
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6 outline-none backdrop-blur-sm"
+    <DialogOverlay
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 outline-none backdrop-blur-sm"
       role="dialog"
       aria-modal="true"
       aria-label="Add an app: which tool?"
       ref={frameRef}
       tabIndex={-1}
     >
-      <Card className="flex max-h-[86vh] w-full max-w-xl flex-col overflow-hidden p-0">
-        <div className="flex items-center gap-3 border-b border-hairline/60 px-6 py-4">
+      <DialogFrame
+        className="sheen rounded-card border border-hairline bg-surface shadow-card w-full max-w-xl"
+        headerClassName="flex items-center gap-3 px-6 py-4"
+        header={
+          <>
           <span className="text-accent">
             <IconJuggler width={16} height={16} />
           </span>
           <h3 className="text-sm font-semibold">Add an app</h3>
-        </div>
-
-        <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5" data-testid="provider-cards">
-          <p className="text-xs leading-relaxed text-ink-2">
-            Which tool is it for? Installed tools are ready; others link to their install page.
-          </p>
-          {installs === null && <p className="mt-4 text-xs text-ink-2">Checking your machine…</p>}
-          <ul className="mt-3 flex flex-col gap-2">
-            {sorted.map((row) => {
-              const ready = selectable(row);
-              const desktop = row.kind === "desktop";
-              return (
-                <li
-                  key={row.provider}
-                  className="flex items-center gap-3 rounded-xl border border-hairline px-4 py-3"
-                  data-testid="provider-card"
-                  data-provider={row.provider}
-                  data-status={row.status}
-                  data-kind={row.kind ?? "terminal"}
-                >
-                  <div className="flex min-w-0 flex-1 flex-col gap-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <ToolMark tool={row.provider} size={16} className="text-muted" />
-                      <span className="text-xs font-medium text-ink">{row.display_name}</span>
-                      {/* 0.0.11 walk, Q4: plain words here; the version and
-                          what it was tested with are in the tool's own view. */}
-                      {desktop && <Chip tone="accent">Desktop</Chip>}
-                      <span className="text-label text-muted" data-testid="provider-state">
-                        {(row.status === "installed" || row.status === "unverified" || row.status === "found") && "Installed"}
-                        {row.status === "not_installed" && "Not installed"}
-                        {versionUnchecked(row) && FOUND_UNCHECKED}
-                        {row.status === "probe_failed" && !row.binary && "Couldn't check"}
-                      </span>
-                    </div>
-                    {desktop && row.single_instance_note && (
-                      <span className="text-label leading-relaxed text-muted">
-                        {row.single_instance_note} — one session at a time with this tool.
-                      </span>
-                    )}
-                  </div>
-                  {ready ? (
-                    <Button
-                      size="sm"
-                      variant="primary"
-                      onClick={() => {
-                        funnelStep("c-add-provider", "choose");
-                        onChoose(row.provider);
-                      }}
-                      data-testid="provider-choose"
-                    >
-                      {row.display_name} →
-                    </Button>
-                  ) : (
-                    row.status === "not_installed" &&
-                    row.install_url && (
-                      <a
-                        href={row.install_url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="shrink-0 text-label text-accent underline-offset-2 hover:underline"
-                      >
-                        Install {row.display_name} →
-                      </a>
-                    )
-                  )}
-                </li>
-              );
-            })}
-          </ul>
-          {onServiceAdded && services.length > 0 && (
-            <Disclosure className="mt-5" summary="More" testId="add-more">
-              <div className="mt-3 flex flex-col gap-2" data-testid="add-through-service">
-                <p className="text-label uppercase tracking-wider text-muted">Through another service</p>
-                <p className="text-xs leading-relaxed text-ink-2">
-                  A subscription that answers for your tools at the address it publishes. You paste its key once.
-                </p>
-                <ul className="flex flex-col gap-2">
-                  {services.map((row) => (
-                    <li key={row.service.id} className="flex items-center gap-3 rounded-xl border border-hairline px-4 py-3" data-testid="service-card" data-service={row.service.id}>
-                      <LetterMark name={row.service.name} size={16} className="text-muted" />
-                      <div className="flex min-w-0 flex-1 flex-col">
-                        <span className="text-xs font-medium text-ink">{row.service.name}</span>
-                        <span className="text-label text-muted">{row.tools.map((tool) => providerDisplayName(tool.tool)).join(", ")}</span>
-                      </div>
-                      <Button size="sm" variant="secondary" onClick={() => setServiceFor(row.service.id)} data-testid="service-choose">
-                        {row.service.name} →
-                      </Button>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </Disclosure>
-          )}
-        </div>
-
-        <div className="flex items-center justify-end border-t border-hairline/60 px-6 py-4">
+          </>
+        }
+        bodyClassName="px-6 py-5"
+        bodyTestId="provider-cards"
+        footerClassName="flex items-center justify-end px-6 py-4"
+        footer={
+          <>
           <Button size="sm" variant="secondary" onClick={onClose}>
             Close
           </Button>
-        </div>
-      </Card>
+          </>
+        }
+      >
+        <p className="text-xs leading-relaxed text-ink-2">
+          Which tool is it for? Installed tools are ready; others link to their install page.
+        </p>
+        {installs === null && <p className="mt-4 text-xs text-ink-2">Checking your machine…</p>}
+        <ul className="mt-3 flex flex-col gap-2">
+          {sorted.map((row) => {
+            const ready = selectable(row);
+            const desktop = row.kind === "desktop";
+            return (
+              <li
+                key={row.provider}
+                className="flex items-center gap-3 rounded-xl border border-hairline px-4 py-3"
+                data-testid="provider-card"
+                data-provider={row.provider}
+                data-status={row.status}
+                data-kind={row.kind ?? "terminal"}
+              >
+                <div className="flex min-w-0 flex-1 flex-col gap-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <ToolMark tool={row.provider} size={16} className="text-muted" />
+                    <span className="text-xs font-medium text-ink">{row.display_name}</span>
+                    {/* 0.0.11 walk, Q4: plain words here; the version and
+                        what it was tested with are in the tool's own view. */}
+                    {desktop && <Chip tone="accent">Desktop</Chip>}
+                    <span className="text-label text-muted" data-testid="provider-state">
+                      {(row.status === "installed" || row.status === "unverified" || row.status === "found") && "Installed"}
+                      {row.status === "not_installed" && "Not installed"}
+                      {versionUnchecked(row) && FOUND_UNCHECKED}
+                      {row.status === "probe_failed" && !row.binary && "Couldn't check"}
+                    </span>
+                  </div>
+                  {desktop && row.single_instance_note && (
+                    <span className="text-label leading-relaxed text-muted">
+                      {row.single_instance_note} — one session at a time with this tool.
+                    </span>
+                  )}
+                </div>
+                {ready ? (
+                  <Button
+                    size="sm"
+                    variant="primary"
+                    onClick={() => {
+                      funnelStep("c-add-provider", "choose");
+                      onChoose(row.provider);
+                    }}
+                    data-testid="provider-choose"
+                  >
+                    {row.display_name} →
+                  </Button>
+                ) : (
+                  row.status === "not_installed" &&
+                  row.install_url && (
+                    <a
+                      href={row.install_url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="shrink-0 text-label text-accent underline-offset-2 hover:underline"
+                    >
+                      Install {row.display_name} →
+                    </a>
+                  )
+                )}
+              </li>
+            );
+          })}
+        </ul>
+        {onServiceAdded && services.length > 0 && (
+          <Disclosure className="mt-5" summary="More" testId="add-more">
+            <div className="mt-3 flex flex-col gap-2" data-testid="add-through-service">
+              <p className="text-label uppercase tracking-wider text-muted">Through another service</p>
+              <p className="text-xs leading-relaxed text-ink-2">
+                A subscription that answers for your tools at the address it publishes. You paste its key once.
+              </p>
+              <ul className="flex flex-col gap-2">
+                {services.map((row) => (
+                  <li key={row.service.id} className="flex items-center gap-3 rounded-xl border border-hairline px-4 py-3" data-testid="service-card" data-service={row.service.id}>
+                    <LetterMark name={row.service.name} size={16} className="text-muted" />
+                    <div className="flex min-w-0 flex-1 flex-col">
+                      <span className="text-xs font-medium text-ink">{row.service.name}</span>
+                      <span className="text-label text-muted">{row.tools.map((tool) => providerDisplayName(tool.tool)).join(", ")}</span>
+                    </div>
+                    <Button size="sm" variant="secondary" onClick={() => setServiceFor(row.service.id)} data-testid="service-choose">
+                      {row.service.name} →
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </Disclosure>
+        )}
+      </DialogFrame>
 
-    </div>
+    </DialogOverlay>
   );
 }

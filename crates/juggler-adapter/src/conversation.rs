@@ -246,7 +246,7 @@ mod tests {
         );
         assert_eq!(
             prompt_title(
-                "[AI Juggler: you started this session for the task T-1 in the pool «x». …]",
+                "[AI Juggler: you started this session for the task T-1 in the pool “x”. …]",
                 80
             ),
             None

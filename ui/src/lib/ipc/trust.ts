@@ -8,7 +8,7 @@
 import { hasLiveBackend } from "../bridge";
 import { call } from "./transport";
 
-export type TrustLink = { kind: "terms"; id: string } | { kind: "source"; id: string } | { kind: "report" } | { kind: "guide"; id: string };
+export type TrustLink = { kind: "terms"; id: string } | { kind: "source"; id: string } | { kind: "report" } | { kind: "guide"; id: string } | { kind: "licence"; id: string };
 
 /** Opens `link` in the user's browser. */
 export async function trustOpen(link: TrustLink): Promise<void> {

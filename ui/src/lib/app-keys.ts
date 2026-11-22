@@ -9,6 +9,7 @@ import { useEffect, useLayoutEffect, useRef } from "react";
 import { hasLiveBackend } from "./bridge";
 import { statsEvent } from "./ipc/usage-stats";
 import { matches, SHORTCUTS, type AppShortcutId, type KeyLike, type ShortcutId } from "./shortcuts";
+import { toggleBot } from "./bot-store";
 import { loadBindings } from "./shortcut-bindings";
 import { showToast, undoLatest } from "../components/Toast";
 import { focusHandover, NO_SESSION_OPEN } from "./handover-focus";
@@ -94,6 +95,10 @@ export function useAppKeys(actions: AppKeyActions): void {
     "toggle-rail": () => {
       shortcutUsed("toggle_rail");
       d.toggleRail();
+    },
+    bot: () => {
+      shortcutUsed("other");
+      toggleBot();
     },
     inspector: () => {
       shortcutUsed("other");

@@ -94,8 +94,8 @@ describe("N1 the usual, made and said", () => {
   });
 
   it("has exactly one primary button, and it starts the same", async () => {
-    const { container, launchSpy } = mountSheet();
-    expect(container.querySelectorAll("[data-testid='launch-now']")).toHaveLength(1);
+    const { launchSpy } = mountSheet();
+    expect(document.body.querySelectorAll("[data-testid='launch-now']")).toHaveLength(1);
     fireEvent.click(screen.getByTestId("launch-now"));
     await waitFor(() => expect(launchSpy).toHaveBeenCalledWith("p-1", "/Users/dev/api", undefined));
   });
@@ -383,9 +383,9 @@ describe("words", () => {
     w().__AIJ_FIXTURE__ = {
       subscriptions: [{ key: "k1", account_id: "acct-1", name: "Work", tool: "claude-code", state: "signed_in", email: null, organisation: null, reason: null, plan: "max", renewal_date: null, fee_usd: null, differs: [], profiles: [{ id: "claude-work", label: "Work Max", folder: "~/.claude-work", plan: null, renewal_date: null, fee_usd: null }] }],
     };
-    const { container } = mountSheet();
+    mountSheet();
     await waitFor(() => expect(screen.getByTestId("launch-preselected").textContent).toMatch(/Account\s*Work/));
-    expect(container.textContent).not.toMatch(/\bprofile\b/i);
+    expect(document.body.textContent).not.toMatch(/\bprofile\b/i);
     // F-rc3f-1: one line shows the App and its Account. D-69: it wears the
     // App's mark; the Account beside it is named in words, without colour.
     const line = screen.getByTestId("launch-app-line");

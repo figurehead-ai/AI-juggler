@@ -78,8 +78,10 @@ describe("AJ-E2905 Settings search", () => {
     fireEvent.change(field, { target: { value: "cache" } });
     const hits = within(getByTestId("settings-search-results")).getAllByTestId("settings-search-hit");
     expect(hits[0]!.textContent).toBe("AdvancedLocal cache");
-    expect(getByTestId("settings-nav").querySelector("[data-pane='general']")!.className).toContain("opacity-45");
-    expect(getByTestId("settings-nav").querySelector("[data-pane='advanced']")!.className).not.toContain("opacity-45");
+    expect(getByTestId("settings-nav").querySelector("[data-pane='sessions']")!.getAttribute("data-dimmed")).toBe("true");
+    // The pane shown keeps its selected look, never dimmed (axe: 3.97:1).
+    expect(getByTestId("settings-nav").querySelector("[aria-current='page']")!.getAttribute("data-dimmed")).toBeNull();
+    expect(getByTestId("settings-nav").querySelector("[data-pane='advanced']")!.getAttribute("data-dimmed")).toBeNull();
     fireEvent.keyDown(field, { key: "Enter" });
     await findByTestId("settings-pane-advanced");
     expect(getByTestId("settings-nav").querySelector("[aria-current='page']")?.textContent).toBe("Advanced");

@@ -10,7 +10,7 @@ import { useCallback, useEffect, useState, type JSX } from "react";
 import { Button, Card, Chip } from "./primitives";
 import { TierToggles } from "../pages/AccountPage";
 import { AccessSheet } from "../screens/FleetScreen";
-import { cliAppName } from "../lib/app-name";
+import { useFolderAppName } from "../lib/apps";
 import { accountSetRenewal } from "../lib/ipc/accounts";
 import { appSettingGet, appSettingSet, cleanupDefaultGet, cleanupDefaultSet } from "../lib/ipc/settings";
 import { cleanupPauseSet, cleanupStatus } from "../lib/ipc/cleanup";
@@ -21,11 +21,15 @@ import type { AccountInfo } from "../types/generated/AccountInfo";
 import type { FleetPeerInfo } from "../types/generated/FleetPeerInfo";
 import { CardTitle } from "./CardTitle";
 import { AccountRenewalRow } from "../screens/settings/AccountRenewalRow";
-import { useSubscriptions } from "../lib/subscriptions";
+import { accountNamesApart, useSubscriptions } from "../lib/subscriptions";
 import { Checkbox, DateField, Picker } from "./controls";
 
-export function accountName(account: AccountInfo): string {
-  return cliAppName(account.provider, account.label);
+/** A folder row's App by name, as the Apps list names it (useFolderAppName):
+ * a folder only a Claude app profile holds reads "Claude app · …" (the
+ * 0.5 walk's F-05 and N-01). */
+export function useAccountName(): (account: AccountInfo) => string {
+  const name = useFolderAppName();
+  return (account) => name(account.id, account.label);
 }
 
 export function NoAccounts(): JSX.Element {
@@ -51,6 +55,7 @@ export function Status({ status, error }: { status: string | null; error: string
 /** D-08: automatic cleanup is opt-in per Account; the default for new
  * Accounts is off unless the user picks it. */
 export function CleanupSettingsCard({ accounts }: { accounts: AccountInfo[] }): JSX.Element {
+  const accountName = useAccountName();
   const [defaultOn, setDefaultOn] = useState<boolean | null>(null);
   const [paused, setPaused] = useState<boolean | null>(null);
   // The pause switch reads the live status; if that fails it says so and
@@ -165,6 +170,7 @@ export function CleanupSettingsCard({ accounts }: { accounts: AccountInfo[] }): 
 const WARN_DAYS = [1, 3, 7, 14, 30];
 
 function RenewalRow({ account }: { account: AccountInfo }): JSX.Element {
+  const accountName = useAccountName();
   const [date, setDate] = useState(account.renewal_date ?? "");
   const [error, setError] = useState<string | null>(null);
   const id = `settings-renewal-${account.id}`;
@@ -219,6 +225,8 @@ export function RenewalSettingsCard({ accounts }: { accounts: AccountInfo[] }): 
   const [version, setVersion] = useState(0);
   const subs = useSubscriptions(version);
   const onAccount = (subs ?? []).filter((sub) => sub.account_id);
+  // F3 (SK48-8): twin Accounts listed together carry their tool.
+  const named = accountNamesApart(onAccount);
   const covered = new Set(onAccount.flatMap((sub) => sub.profiles.map((profile) => profile.id)));
   const loose = accounts.filter((account) => !covered.has(account.id));
   const [warnDays, setWarnDays] = useState<number | null>(null);
@@ -271,7 +279,7 @@ export function RenewalSettingsCard({ accounts }: { accounts: AccountInfo[] }): 
           subs !== null && (
             <>
               {onAccount.map((sub) => (
-                <AccountRenewalRow key={sub.key} sub={sub} onChanged={() => setVersion((was) => was + 1)} />
+                <AccountRenewalRow key={sub.key} sub={sub} name={named(sub)} onChanged={() => setVersion((was) => was + 1)} />
               ))}
               {loose.map((account) => (
                 <RenewalRow key={account.id} account={account} />

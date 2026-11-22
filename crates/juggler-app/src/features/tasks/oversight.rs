@@ -168,7 +168,7 @@ pub(crate) fn tell_holder_as_reviewer(
         || (reviewer.name.clone(), "its tool".to_owned()),
         |member| (member.name, member.tool),
     );
-    let (subject, body) = sent_back_words(task, note, &format!("«{name}»"));
+    let (subject, body) = sent_back_words(task, note, &format!("“{name}”"));
     let sent = send(
         state,
         &Outgoing {

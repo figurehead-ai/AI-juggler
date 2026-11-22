@@ -4,16 +4,16 @@
  * its state, two or three facts, and its actions with its ⋯ menu.
  */
 import { keysOf } from "../lib/shortcuts";
-import { focusHandover } from "../lib/handover-focus";
-import { useSwitchNotYet } from "../lib/switch-not-yet";
-import { WhyButton } from "../components/WhyTip";
+import { useOwnRoom } from "../lib/own-room-notices";
+import { ownRoomWantsSwitch } from "../components/SwitchAccountButton";
 import type { ReactNode } from "react";
 import { PageHeader, type Crumb } from "./PageHeader";
 import type { PageKind } from "./registry";
 import { ProjectFacts } from "./ProjectPage";
-import { Button, Chip, type ChipTone } from "../components/primitives";
-import { STATE_WORDS, isActiveStatus, lowLeftWords, stateChip } from "../components/indicator";
-import { conversationWorking, openWords, sessionWorking, type ProjectOpen } from "../lib/project-summary";
+import { Button, Chip } from "../components/primitives";
+import { AskBot } from "../components/bot/BotButton";
+import { WatchDoor } from "../components/watches/WatchDoor";
+import { isActiveStatus, lowLeftWords } from "../components/indicator";
 import { ProjectMark } from "../components/ProjectMark";
 import { ToolMark } from "../components/ToolMark";
 import { InspectorHeaderMenu } from "../components/InspectorHeaderMenu";
@@ -24,19 +24,19 @@ import { sessionTitle } from "../components/ManageWork";
 import { freshnessText } from "../components/RemoteTabs";
 import { IconFleet, IconJuggler, IconProjects, IconTerminal } from "../components/icons";
 import type { InspectorData, InspectorKind } from "../components/RightInspector";
-import { outside, useConversations } from "../lib/conversations";
+import { useConversations } from "../lib/conversations";
 import { resourceLine, useHeavyNote } from "../lib/machine";
 import { agoWords } from "../lib/time-words";
 import type { AccountInfo } from "../types/generated/AccountInfo";
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import type { LaunchRecipeInfo } from "../types/generated/LaunchRecipeInfo";
 import type { ProjectInfo } from "../types/generated/ProjectInfo";
-import type { ConversationInfo } from "../lib/ipc/conversations";
 import { accountOfProfile, useSubscriptions } from "../lib/subscriptions";
 import { GoToButton, SessionChips, SessionMark, SessionWhere } from "./session/SessionHead";
 import { fromInstance, sessionAppName } from "./session/model";
 import { Dot, MacDoor, SessionContinuesDoor, SessionPoolChip, SessionToolChip } from "./session/HeaderDoors";
 import { ProjectChips } from "./project/ProjectChips";
+import { statusTone, toolFacts } from "./item-header-facts";
 
 function KindIcon({ kind }: { kind: InspectorKind }) {
   const props = { width: 16, height: 16 };
@@ -107,7 +107,8 @@ export function InspectorHeader({
   const instance = data.instance ?? null;
   const shownTitle = instance ? sessionTitle(instance) : "Session";
   // rc33 M4: why its switch would refuse, said on its doors here too.
-  const switchNotYet = useSwitchNotYet(instance?.id);
+  // D-143: out of room or low, the side column's Switch account… is the primary.
+  const ownRoom = useOwnRoom(kind === "instance" ? (instance?.account_id ?? null) : null);
 
   if (remote) {
     const crumbs: Crumb[] = [{ label: "Fleet", onOpen: onRemoteBack }];
@@ -248,12 +249,12 @@ export function InspectorHeader({
       {model && instance && instance.kind === "desktop" && model.live && host.focusSession && (
         <GoToButton onGo={() => void host.focusSession!(instance)} why={null} />
       )}
-      {/* D-25: the one-step-away move, beside its Stop; only with a conversation to carry over (the menu's rule). */}
-      {kind === "instance" && instance && instance.kind !== "desktop" && instance.conversation_id !== null && (
-        <WhyButton size="sm" variant="secondary" why={switchNotYet} data-testid="header-switch" onClick={() => focusHandover(instance.id)}>
-          Continue in another app…
-        </WhyButton>
-      )}
+      {/* D-136: Bot, scoped to this session or project, by id. */}
+      {kind === "instance" && instance && <AskBot scope={{ kind: "session", id: instance.id, name, sessions: [] }} />}
+      {/* AJ-E3816: watched, or Watch… in the same spot (by its id). */}
+      {kind === "instance" && instance && <WatchDoor target={{ kind: "session", id: instance.id }} name={name} />}
+      {kind === "project" && data.project && <AskBot scope={{ kind: "project", id: data.project.id, name: data.project.name, sessions: [] }} />}
+      {/* D-143: the switch is the side column's Switch account… (PAT-SW). */}
       {kind === "project" && data.project && host.openProjectIn && (
         <Button
           size="sm"
@@ -306,10 +307,10 @@ export function InspectorHeader({
           session={instance}
           openIn={conversations.some((c) => c.id === instance.conversation_id && c.live) ? "another app" : null}
           onOpen={host.openSessionById}
-          onContinue={() => focusHandover(instance.id)}
-          continueWhy={switchNotYet}
+          quiet={ownRoomWantsSwitch(ownRoom)}
           onOpenOriginal={host.openConversationById}
           hint={hinted ? "Same conversation" : null}
+          whyLine={!folded}
         />
       )}
       {primaryAction ?? null}
@@ -354,46 +355,4 @@ function sessionFacts(session: InstanceInfo, now: number, withAccount: boolean):
 function startedAgo(startedMs: number, now: number): string | null {
   const words = agoWords(startedMs, now);
   return words === "" ? null : `started ${words}`;
-}
-
-/** How many of a tool's sessions run now, outside ones too (AJ-E1529). */
-export function toolRunning(toolId: string, sessions: InstanceInfo[], conversations: ConversationInfo[]): number {
-  return (
-    sessions.filter((s) => s.provider === toolId && isActiveStatus(s.status)).length +
-    outside(conversations).filter((c) => c.tool === toolId && c.live).length
-  );
-}
-
-/** A tool's sessions now, as a project's are counted: open (AI
- * Juggler's and other apps'), and working (one asking you or stuck is
- * open, not working; the 0.4 review). */
-export function toolOpen(toolId: string, sessions: InstanceInfo[], conversations: ConversationInfo[]): ProjectOpen {
-  const mine = sessions.filter((s) => s.provider === toolId && isActiveStatus(s.status));
-  const theirs = outside(conversations).filter((c) => c.tool === toolId && c.live);
-  return { open: toolRunning(toolId, sessions, conversations), working: mine.filter(sessionWorking).length + theirs.filter(conversationWorking).length, apps: 0 };
-}
-
-/** A tool's facts in the project's words: "2 working · 5 open". */
-function toolFacts(toolId: string, sessions: InstanceInfo[], conversations: ConversationInfo[]): string {
-  return openWords(toolOpen(toolId, sessions, conversations));
-}
-
-
-/** A session state as a chip: its tone, and the rail's words for it. */
-export function statusTone(status: string): { tone: ChipTone; label: string } {
-  const chip = stateChip(status);
-  const tone: ChipTone =
-    chip.tone === "live"
-      ? "live"
-      : chip.tone === "success"
-        ? "success"
-        : chip.tone === "warning"
-          ? "warning"
-          : chip.tone === "danger"
-            ? "danger"
-            : chip.tone === "accent"
-              ? "accent"
-              : "neutral";
-  // One source per fact: the state in the rail's own words.
-  return { tone, label: STATE_WORDS[status] ?? chip.label };
 }

@@ -773,6 +773,71 @@ def write_app_record(records: Path, session: str, cwd: str, title: str, created:
     return path
 
 
+# AJ-E3210 (F-rc3c-3): the split folder. One person, two Accounts: the
+# personal plan (out of room) and a Team seat.
+SPLIT_ACCOUNT = "replica-acct-same"
+SPLIT_PERSONAL = "replica-org-personal"
+SPLIT_TEAM = "replica-org-team"
+
+
+def split(args: argparse.Namespace) -> None:
+    """AJ-E3210: the rc3c walk's split folder, added to a built replica. A
+    Claude app profile (`ClaudeProfiles/aij-test`) shares its Claude Code
+    folder (`.claude-aij-test`) with that folder's CLI: the CLI is signed
+    in to the Team seat (its credential), the app to the personal plan (its
+    own records' folder names), and the app's Code tab ran there last, so
+    the folder's state file holds the app's sign-in. A folder of the
+    personal plan's own (`.claude-personal-max`) and both Accounts' meter
+    readings in the profile (the personal plan at 100%, the Team seat at 7%)
+    come with it. What each App is on is written to the truth's `split`."""
+    home = Path(args.home).expanduser()
+    if not (home / MARKER).is_dir():
+        sys.exit(f"replica: {home} isn't a built replica — refusing")
+    now = dt.datetime.fromisoformat(args.now) if args.now else dt.datetime.now(dt.timezone.utc)
+
+    def sign_in(org: str) -> dict:
+        return {"oauthAccount": {"accountUuid": SPLIT_ACCOUNT, "organizationUuid": org,
+                                 "emailAddress": f"same@{DOMAIN}", "organizationName": f"Replica {org}"}}
+
+    shared, personal = home / ".claude-aij-test", home / ".claude-personal-max"
+    for folder, org in ((shared, SPLIT_PERSONAL), (personal, SPLIT_PERSONAL)):
+        write_json(folder / "settings.json", claude_settings(False))
+        write_json(folder / ".claude.json", sign_in(org))
+        write_json(folder / ".credentials.json", {"claudeAiOauth": {"accessToken": "replica-not-a-real-token"}})
+    cwd = str(home / "repos" / "acme-web")
+    project = shared / "projects" / claude_dir_name(cwd)
+    # A terminal run on the Team seat, then the app's Code tab (the newest).
+    for minutes, session, entry in ((30, "aaaaaaaa-0000-4000-8000-000000000001", "cli"),
+                                    (5, "aaaaaaaa-0000-4000-8000-000000000002", "claude-desktop")):
+        at = now - dt.timedelta(minutes=minutes)
+        line, _ = claude_line("user", cwd, session, "main", None, at, random.Random(session),
+                              "Explain this stack trace", entrypoint=entry)
+        path = project / f"{session}.jsonl"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(line) + "\n")
+        touch(path, at)
+    instance = home / "Library" / "Application Support" / "ClaudeProfiles" / "aij-test"
+    write_json(instance / "config.json", {"replica": True})
+    records = instance / "claude-code-sessions" / SPLIT_ACCOUNT / SPLIT_PERSONAL
+    write_app_record(records, "aaaaaaaa-0000-4000-8000-000000000002", cwd, "Explain this stack trace",
+                     now - dt.timedelta(minutes=6), now - dt.timedelta(minutes=5), 2)
+    t_ms = int(now.timestamp() * 1000)
+    write_json(instance / "plan-usage-history.json", {"version": 1, "samples": [
+        {"org": SPLIT_TEAM, "t": t_ms - 120_000, "u": {"fh": 4, "sd": 7}},
+        {"org": SPLIT_PERSONAL, "t": t_ms - 60_000, "u": {"fh": 100, "sd": 100}}]})
+    # The Team seat's own record folder in the profile's instance, as the
+    # meter's org has: the profile used it once, before it signed in again.
+    (instance / "claude-code-sessions" / SPLIT_ACCOUNT / SPLIT_TEAM).mkdir(parents=True, exist_ok=True)
+    truth_path = home / MARKER / "truth.json"
+    truth = json.loads(truth_path.read_text())
+    truth["split"] = {
+        "folder": str(shared), "profile": str(instance), "personal_folder": str(personal),
+        "cli_app_on": "team", "desktop_app_on": "personal", "personal_out": True,
+    }
+    write_json(truth_path, truth)
+    print(f"replica: the split folder in {shared} (its CLI on the Team seat, its Claude app profile on the personal plan)")
+
+
 def conversation(args: argparse.Namespace) -> None:
     """A lab session's conversation (the 0.4 scenario seeder, `conversation =
     true`; `past` and `script_runs` on a Claude App): a few harmless turns
@@ -785,7 +850,11 @@ def conversation(args: argparse.Namespace) -> None:
     `claude-desktop`, a script's `sdk-cli`); `--app-record DIR` adds the
     Claude app's own record of it in DIR (a profile's
     `claude-code-sessions/<account>/<org>`), as a Code-tab session has.
-    Only under a lab's or the replica's folder."""
+    `--open-turn` (AJ-E2312, K3's "may be stuck"): its last turn started
+    and never ended, as a stuck turn lies on disk: an ask, and a reply
+    that began a tool call whose result never came, last written
+    `--ago-minutes` (plus one) ago. Only under a lab's or the replica's
+    folder."""
     folder = Path(args.folder)
     lab_only(folder)
     if args.app_record:
@@ -798,12 +867,32 @@ def conversation(args: argparse.Namespace) -> None:
                                                      topic=args.topic, said=args.said, entrypoint=args.entrypoint,
                                                      titled=not args.untitled)
     path = folder / "projects" / claude_dir_name(args.cwd) / f"{session}.jsonl"
+    if getattr(args, "open_turn", False):
+        open_turn(path, args.cwd, session, ended, rng, args.entrypoint)
     touch(path, ended)
     written = {"path": str(path), "session": session, "topic": topic}
     if args.app_record:
         record = write_app_record(Path(args.app_record), session, args.cwd, topic, start, ended, args.turns)
         written["record"] = str(record)
     print(json.dumps(written))
+
+
+def open_turn(path: Path, cwd: str, session: str, at: dt.datetime, rng: random.Random,
+              entrypoint: str | None) -> None:
+    """A turn that started at `at` and never ended, after `path`'s last
+    line: an ask, and Claude's reply beginning a tool call (`stop_reason`
+    `tool_use`) whose result never came back."""
+    last = json.loads(path.read_text().splitlines()[-1])
+    model = last.get("message", {}).get("model") or rng.choice(MODELS_CLAUDE)
+    ask, parent = claude_line("user", cwd, session, "main", last.get("uuid"), at - dt.timedelta(seconds=20), rng,
+                              text="Run the whole test suite and fix what fails.", entrypoint=entrypoint)
+    call, _ = claude_line("assistant", cwd, session, "main", parent, at, rng, text="Running the whole suite first.",
+                          model=model, entrypoint=entrypoint)
+    call["message"]["content"].append({"type": "tool_use", "id": f"toolu_{call['uuid'][:12]}", "name": "Bash",
+                                       "input": {"command": "npm test", "description": "Run the test suite"}})
+    call["message"]["stop_reason"] = "tool_use"
+    with path.open("a") as out:
+        out.write(json.dumps(ask) + "\n" + json.dumps(call) + "\n")
 
 
 # Codex's thread store (`state_<n>.sqlite`'s `threads`), its columns as
@@ -914,6 +1003,15 @@ def selftest() -> None:
         except SystemExit:
             pass
         assert (real / "keep.txt").read_text() == "mine"
+        # AJ-E3210: the split folder, added to it.
+        split(argparse.Namespace(home=str(home), now="2026-10-21T12:00:00+00:00"))
+        split_truth = json.loads((home / MARKER / "truth.json").read_text())["split"]
+        state = json.loads((home / ".claude-aij-test" / ".claude.json").read_text())["oauthAccount"]
+        assert state["organizationUuid"] == SPLIT_PERSONAL, "the app wrote last"
+        assert (home / ".claude-aij-test" / ".credentials.json").is_file(), "its CLI is signed in"
+        newest = max((home / ".claude-aij-test" / "projects").glob("*/*.jsonl"), key=lambda p: p.stat().st_mtime)
+        assert json.loads(newest.read_text())["entrypoint"] == "claude-desktop"
+        assert (Path(split_truth["profile"]) / "claude-code-sessions" / SPLIT_ACCOUNT / SPLIT_PERSONAL).is_dir()
         lab_writers(Path(tmp))
         if sys.platform == "darwin":
             stand_in_bundles(Path(tmp))
@@ -976,7 +1074,20 @@ def lab_writers(tmp: Path) -> None:
             folder=str(lab / "term"), cwd=str(lab / "repos/api"), session="0a1b2c3d-0000-4000-8000-000000000002",
             turns=2, topic="Tidy the settings page", said=None, ago_minutes=0, entrypoint=None, app_record=None,
             untitled=True))
+        conversation(argparse.Namespace(
+            folder=str(lab / "term"), cwd=str(lab / "repos/api"), session="0a1b2c3d-0000-4000-8000-000000000003",
+            turns=2, topic="Fix the build", said=None, ago_minutes=10, entrypoint="cli", app_record=None,
+            untitled=False, open_turn=True))
     written = [json.loads(line) for line in out.getvalue().splitlines()]
+    # An open turn: its ask, then a tool call never answered, written
+    # eleven minutes ago (K3's "may be stuck").
+    stuck = Path(written[4]["path"])
+    tail = [json.loads(line) for line in stuck.read_text().splitlines()[-2:]]
+    assert tail[0]["type"] == "user" and tail[1]["type"] == "assistant", tail
+    assert tail[1]["message"]["stop_reason"] == "tool_use" and tail[1]["message"]["content"][-1]["type"] == "tool_use"
+    assert tail[1]["parentUuid"] == tail[0]["uuid"]
+    import time as _time
+    assert 10 * 60 <= _time.time() - stuck.stat().st_mtime <= 12 * 60, stuck.stat().st_mtime
     # Untitled: no title line; the topic is only its first ask.
     bare = [json.loads(line) for line in Path(written[3]["path"]).read_text().splitlines()]
     assert all(line["type"] != "summary" for line in bare), bare[0]
@@ -1032,6 +1143,8 @@ def main() -> None:
     c.add_argument("--ago-minutes", type=int, default=0, help="how long before now it ended")
     c.add_argument("--entrypoint", help="where Claude Code says it ran: cli, claude-desktop, sdk-cli")
     c.add_argument("--app-record", help="also the Claude app's record of it, in this records folder")
+    c.add_argument("--open-turn", action="store_true",
+                   help="its last turn started and never ended (a tool call with no result), as a stuck one lies")
     x = sub.add_parser("codex-thread", help="a lab's Codex thread: its rollout and its row in the thread store")
     x.add_argument("--home", required=True, help="the Codex home")
     x.add_argument("--cwd", required=True)
@@ -1041,6 +1154,9 @@ def main() -> None:
     x.add_argument("--turns", type=int, default=2)
     x.add_argument("--topic", help="its first ask (default: one of the replica's)")
     x.add_argument("--ago-minutes", type=int, default=0, help="how long before now it ended")
+    s = sub.add_parser("split", help="AJ-E3210: a Claude app profile and its CLI on one folder, two sign-ins")
+    s.add_argument("--home", required=True)
+    s.add_argument("--now")
     t = sub.add_parser("truth")
     t.add_argument("--home", required=True)
     d = sub.add_parser("teardown", help="the stand-in apps out of LaunchServices' records, then deleted")
@@ -1055,6 +1171,8 @@ def main() -> None:
         conversation(args)
     elif args.command == "codex-thread":
         codex_thread(args)
+    elif args.command == "split":
+        split(args)
     elif args.command == "teardown":
         teardown(args)
     elif args.command == "selftest":

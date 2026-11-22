@@ -211,6 +211,17 @@ function ClearSheet({ info, onClose, onClear }: { info: CacheInfo; onClose: () =
       subtitle={`Frees ${cacheSize(info.used_bytes)} on this computer. Nothing of yours is lost.`}
       onClose={onClose}
       testId="cache-clear-sheet"
+      footer={
+        <>
+            <Button size="sm" variant="ghost" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button size="sm" variant="primary" onClick={onClear} data-autofocus data-testid="cache-clear-go">
+              <IconBroom width={14} height={14} aria-hidden="true" />
+              Clear cache
+            </Button>
+        </>
+      }
     >
       <div className="flex flex-col gap-4">
         <div className="flex flex-col gap-2">
@@ -222,15 +233,6 @@ function ClearSheet({ info, onClose, onClear }: { info: CacheInfo; onClose: () =
               </li>
             ))}
           </ul>
-        </div>
-        <div className="flex justify-end gap-2">
-          <Button size="sm" variant="ghost" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button size="sm" variant="primary" onClick={onClear} data-autofocus data-testid="cache-clear-go">
-            <IconBroom width={14} height={14} aria-hidden="true" />
-            Clear cache
-          </Button>
         </div>
       </div>
     </Modal>

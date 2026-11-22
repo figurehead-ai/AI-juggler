@@ -125,7 +125,7 @@ pub fn refresh_on(surface: &dyn Surface, state: &Arc<AppState>) {
     let needs = state
         .storage
         .lock()
-        .map(|storage| centre::open_needs(&storage, now, tray::NEEDS_LISTED))
+        .map(|storage| centre::open_needs(&storage, now, tray::NEEDS_READ))
         .unwrap_or_default();
     let menu = tray::build(summary.count, &needs, &state.notifier.open_now(), now);
     let count = summary.count;

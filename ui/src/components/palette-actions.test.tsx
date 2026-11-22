@@ -51,8 +51,8 @@ function open(selected: InstanceInfo | null, host: ActionHost, onClose = vi.fn()
       />
     </ActionHostProvider>,
   );
-  const options = () => [...view.container.querySelectorAll("li[role='option']")];
-  return { view, onClose, options, input: view.container.querySelector("input")! };
+  const options = () => [...document.body.querySelectorAll("li[role='option']")];
+  return { view, onClose, options, input: document.body.querySelector("input")! };
 }
 
 const appHost = (): ActionHost => ({
@@ -108,7 +108,7 @@ describe("AJ-E2106 ⌘K on a selected session", () => {
 
   it("typing narrows the actions and finds projects", () => {
     const host = appHost();
-    const { options, input, view } = open(live(), host);
+    const { options, input } = open(live(), host);
     fireEvent.change(input, { target: { value: "alpha" } });
     const ids = options().map((option) => option.getAttribute("data-testid"));
     expect(ids).toContain("goto-row-project::p1");
@@ -118,7 +118,7 @@ describe("AJ-E2106 ⌘K on a selected session", () => {
     expect(options().map((option) => option.getAttribute("data-testid"))[0]).toBe("goto-row-action::stop");
     expect(options().filter((option) => option.getAttribute("data-testid")?.startsWith("goto-row-action::"))).toHaveLength(1);
     fireEvent.change(input, { target: { value: "alp" } });
-    fireEvent.click(within(view.container).getByText("/w/alpha").closest("li")!);
+    fireEvent.click(within(document.body).getByText("/w/alpha").closest("li")!);
     expect(host.openProjectById).toHaveBeenCalledWith("p1");
   });
 

@@ -1,0 +1,397 @@
+[
+ {
+  "pair": "turns-review-001",
+  "item": "R2T01",
+  "source": "Alles grün, die Migration läuft sauber durch. Ich habe die Nutzertabelle auf das neue Schema gezogen.",
+  "facts": {
+   "outcome": "failed",
+   "level": "L3",
+   "tests": {
+    "state": "failed",
+    "passed": 48,
+    "failed": 1
+   },
+   "questions": [],
+   "failures": [
+    "test_migrate_users_v3: AssertionError: expected 12 rows, got 11"
+   ]
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "db/migrations/0042_users_v3.sql",
+     "added": 61,
+     "removed": 4,
+     "status": "A"
+    },
+    {
+     "path": "tests/test_migrate_users.py",
+     "added": 22,
+     "removed": 3,
+     "status": "M"
+    }
+   ],
+   "reverted": [],
+   "reflog": [
+    "a1b2c3d commit: users v3 migration"
+   ],
+   "uncommitted": false
+  },
+  "first": "Geändert (git): db/migrations/0042_users_v3.sql (new, +61 -4) — die Nutzertabelle auf das neue Schema gezogen; tests/test_migrate_users.py (+22 -3)\nFehlgeschlagen: test_migrate_users_v3: AssertionError: expected 12 rows, got 11\nOffen: sonst nichts genannt\nRisiko: hoch (test_migrate_users_v3: AssertionError: expected 12 rows, got 11)",
+  "second": "Geändert (git): db/migrations/0042_users_v3.sql (new, +61 -4); tests/test_migrate_users.py (+22 -3)\nFehlgeschlagen: test_migrate_users_v3: AssertionError: expected 12 rows, got 11\nOffen: sonst nichts genannt\nRisiko: hoch"
+ },
+ {
+  "pair": "turns-review-002",
+  "item": "R2T05",
+  "source": "Tests laufen durch, ich habe den Cache-Ansatz noch mal komplett umgebaut.",
+  "facts": {
+   "outcome": "failed",
+   "level": "L3",
+   "tests": {
+    "state": "failed",
+    "passed": 77,
+    "failed": 2
+   },
+   "questions": [],
+   "failures": [
+    "test_cache_eviction: KeyError 'lru_head'",
+    "test_cache_ttl: timeout after 30s"
+   ]
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "src/cache/store.py",
+     "added": 120,
+     "removed": 64,
+     "status": "M"
+    },
+    {
+     "path": "src/cache/lru.py",
+     "added": 0,
+     "removed": 95,
+     "status": "D"
+    }
+   ],
+   "reverted": [
+    {
+     "path": "src/cache/redis_backend.py",
+     "note": "first attempt with Redis thrown away"
+    },
+    {
+     "path": "src/cache/shim.py",
+     "note": "experimental shim reverted"
+    }
+   ],
+   "reflog": [
+    "e1f2a3b reset: moving to HEAD~1"
+   ],
+   "uncommitted": false
+  },
+  "first": "Geändert (git): src/cache/store.py (+120 -64); src/cache/lru.py (deleted, +0 -95)\nZurückgenommen (git): src/cache/redis_backend.py (first attempt with Redis thrown away); src/cache/shim.py (experimental shim reverted); Verlauf: e1f2a3b reset: moving to HEAD~1\nFehlgeschlagen: test_cache_eviction: KeyError 'lru_head'\nFehlgeschlagen: test_cache_ttl: timeout after 30s\nOffen: sonst nichts genannt\nRisiko: hoch",
+  "second": "Geändert (git): src/cache/store.py (+120 -64) — den Cache-Ansatz noch mal komplett umgebaut; src/cache/lru.py (deleted, +0 -95)\nZurückgenommen (git): src/cache/redis_backend.py (first attempt with Redis thrown away); src/cache/shim.py (experimental shim reverted); Verlauf: e1f2a3b reset: moving to HEAD~1\nFehlgeschlagen: test_cache_eviction: KeyError 'lru_head'\nFehlgeschlagen: test_cache_ttl: timeout after 30s\nOffen: sonst nichts genannt\nRisiko: hoch (Tests laufen durch)"
+ },
+ {
+  "pair": "turns-review-003",
+  "item": "R2T06",
+  "source": "Green across the board. Added retries around the upload client.",
+  "facts": {
+   "outcome": "failed",
+   "level": "L3",
+   "tests": {
+    "state": "failed",
+    "passed": 203,
+    "failed": 3
+   },
+   "questions": [],
+   "failures": [
+    "tests/net/test_upload.py::test_retry_backoff TIMEOUT",
+    "tests/net/test_upload.py::test_retry_cap TIMEOUT",
+    "tests/net/test_upload.py::test_abort TIMEOUT"
+   ]
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "src/net/upload.rs",
+     "added": 58,
+     "removed": 12,
+     "status": "M"
+    },
+    {
+     "path": "tests/net/test_upload.py",
+     "added": 40,
+     "removed": 0,
+     "status": "M"
+    }
+   ],
+   "reverted": [],
+   "reflog": [
+    "77aa88b commit: retries for upload"
+   ],
+   "uncommitted": false
+  },
+  "first": "Changed (git): src/net/upload.rs (+58 -12); tests/net/test_upload.py (+40 -0)\nFailed: tests/net/test_upload.py::test_retry_backoff TIMEOUT\nFailed: tests/net/test_upload.py::test_retry_cap TIMEOUT\nFailed: tests/net/test_upload.py::test_abort TIMEOUT\nLeft: nothing else stated\nRisk: high",
+  "second": "Changed (git): src/net/upload.rs (+58 -12) — retries around the upload client; tests/net/test_upload.py (+40 -0)\nFailed: tests/net/test_upload.py::test_retry_backoff TIMEOUT\nFailed: tests/net/test_upload.py::test_retry_cap TIMEOUT\nFailed: tests/net/test_upload.py::test_abort TIMEOUT\nLeft: nothing else stated\nRisk: high (tests failed)"
+ },
+ {
+  "pair": "turns-review-004",
+  "item": "R2T07",
+  "source": "Alles erledigt, die CI wird grün sein. Ich habe die Übersetzungsdateien aktualisiert.",
+  "facts": {
+   "outcome": "failed",
+   "level": "L3",
+   "tests": {
+    "state": "failed",
+    "passed": 320,
+    "failed": 4
+   },
+   "questions": [],
+   "failures": [
+    "i18n check: 4 keys missing in locales/fr.json",
+    "test_locale_fallback FAILED"
+   ]
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "locales/de.json",
+     "added": 44,
+     "removed": 3,
+     "status": "M"
+    },
+    {
+     "path": "locales/en.json",
+     "added": 44,
+     "removed": 3,
+     "status": "M"
+    },
+    {
+     "path": "locales/fr.json",
+     "added": 2,
+     "removed": 0,
+     "status": "M"
+    }
+   ],
+   "reverted": [],
+   "reflog": [
+    "bb11cc2 commit: update locales"
+   ],
+   "uncommitted": false
+  },
+  "first": "Geändert (git): locales/de.json (+44 -3); locales/en.json (+44 -3); locales/fr.json (+2 -0)\nFehlgeschlagen: i18n check: 4 keys missing in locales/fr.json\nFehlgeschlagen: test_locale_fallback FAILED\nOffen: sonst nichts genannt\nRisiko: hoch",
+  "second": "Geändert (git): locales/de.json (+44 -3) — die Übersetzungsdateien aktualisiert; locales/en.json (+44 -3) — die Übersetzungsdateien aktualisiert; locales/fr.json (+2 -0) — i18n check: 4 keys missing\nFehlgeschlagen: i18n check: 4 keys missing in locales/fr.json\nFehlgeschlagen: test_locale_fallback FAILED\nOffen: sonst nichts genannt\nRisiko: hoch (i18n check: 4 keys missing)"
+ },
+ {
+  "pair": "turns-review-005",
+  "item": "R2T09",
+  "source": "Alle 120 Tests bestanden. Der Parser behandelt jetzt verschachtelte Listen.",
+  "facts": {
+   "outcome": "failed",
+   "level": "L3",
+   "tests": {
+    "state": "failed",
+    "passed": 118,
+    "failed": 2
+   },
+   "questions": [],
+   "failures": [
+    "test_nested_list_depth_5: RecursionError",
+    "test_nested_empty: expected [] got None"
+   ]
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "src/parser/lists.py",
+     "added": 76,
+     "removed": 22,
+     "status": "M"
+    },
+    {
+     "path": "tests/test_lists.py",
+     "added": 30,
+     "removed": 0,
+     "status": "M"
+    }
+   ],
+   "reverted": [],
+   "reflog": [
+    "0a1b2c3 commit: nested lists"
+   ],
+   "uncommitted": false
+  },
+  "first": "Geändert (git): src/parser/lists.py (+76 -22); tests/test_lists.py (+30 -0)\nFehlgeschlagen: test_nested_list_depth_5: RecursionError\nFehlgeschlagen: test_nested_empty: expected [] got None\nOffen: sonst nichts genannt\nRisiko: hoch",
+  "second": "Geändert (git): src/parser/lists.py (+76 -22) — Der Parser behandelt jetzt verschachtelte Listen; tests/test_lists.py (+30 -0)\nFehlgeschlagen: test_nested_list_depth_5: RecursionError\nFehlgeschlagen: test_nested_empty: expected [] got None\nOffen: sonst nichts genannt\nRisiko: hoch (test_nested_list_depth_5: RecursionError | test_nested_empty: expected [] got None)"
+ },
+ {
+  "pair": "turns-review-006",
+  "item": "R2T10",
+  "source": "No regressions. Bumped the chart library to v4.",
+  "facts": {
+   "outcome": "failed",
+   "level": "L3",
+   "tests": {
+    "state": "failed",
+    "passed": 90,
+    "failed": 1
+   },
+   "questions": [],
+   "failures": [
+    "ui/charts.test.tsx: snapshot mismatch (1 obsolete, 1 changed)"
+   ]
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "package.json",
+     "added": 2,
+     "removed": 2,
+     "status": "M"
+    },
+    {
+     "path": "ui/charts.tsx",
+     "added": 14,
+     "removed": 9,
+     "status": "M"
+    },
+    {
+     "path": "package-lock.json",
+     "added": 310,
+     "removed": 288,
+     "status": "M"
+    }
+   ],
+   "reverted": [],
+   "reflog": [
+    "12ab34c commit: chart v4"
+   ],
+   "uncommitted": false
+  },
+  "first": "Changed (git): package.json (+2 -2); ui/charts.tsx (+14 -9); package-lock.json (+310 -288)\nFailed: ui/charts.test.tsx: snapshot mismatch (1 obsolete, 1 changed)\nLeft: nothing else stated\nRisk: high",
+  "second": "Changed (git): package.json (+2 -2); ui/charts.tsx (+14 -9) — Bumped the chart library to v4; package-lock.json (+310 -288)\nFailed: ui/charts.test.tsx: snapshot mismatch (1 obsolete, 1 changed)\nLeft: nothing else stated\nRisk: high (snapshot mismatch (1 obsolete, 1 changed))"
+ },
+ {
+  "pair": "turns-review-007",
+  "item": "R2T36",
+  "source": "Der Build ist wieder stabil, ich habe die Abhängigkeiten angepasst.",
+  "facts": {
+   "outcome": "completed",
+   "level": "L1",
+   "tests": {
+    "state": "passed",
+    "passed": 402,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "Cargo.toml",
+     "added": 5,
+     "removed": 5,
+     "status": "M"
+    },
+    {
+     "path": "Cargo.lock",
+     "added": 60,
+     "removed": 40,
+     "status": "M"
+    }
+   ],
+   "reverted": [],
+   "reflog": [
+    "55f6e7d commit: pin deps"
+   ],
+   "uncommitted": true
+  },
+  "first": "Geändert (git): Cargo.toml (+5 -5); Cargo.lock (+60 -40)\nNicht committet (git): ja\nOffen: nichts genannt\nRisiko: nicht genannt",
+  "second": "Geändert (git): Cargo.toml (+5 -5) — die Abhängigkeiten angepasst; Cargo.lock (+60 -40)\nNicht committet (git): ja\nOffen: nichts genannt\nRisiko: niedrig (Build ist wieder stabil)"
+ },
+ {
+  "pair": "turns-review-008",
+  "item": "R2T37",
+  "source": "Added an e-mail validator and tests; contact example support@example.com is only a fixture. All 14 new tests pass.",
+  "facts": {
+   "outcome": "completed",
+   "level": "L1",
+   "tests": {
+    "state": "passed",
+    "passed": 14,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "src/validate/email.py",
+     "added": 38,
+     "removed": 0,
+     "status": "A"
+    },
+    {
+     "path": "tests/test_email.py",
+     "added": 44,
+     "removed": 0,
+     "status": "A"
+    }
+   ],
+   "reverted": [],
+   "reflog": [
+    "a9b8c7d commit: email validator"
+   ],
+   "uncommitted": false
+  },
+  "first": "Changed (git): src/validate/email.py (new, +38 -0); tests/test_email.py (new, +44 -0)\nLeft: nothing stated\nRisk: not stated",
+  "second": "Changed (git): src/validate/email.py (new, +38 -0) — an e-mail validator and tests; contact example support@example.com is only a fixture; tests/test_email.py (new, +44 -0)\nLeft: nothing stated\nRisk: low (the agent says All 14 new tests pass)"
+ },
+ {
+  "pair": "turns-review-009",
+  "item": "R2T39",
+  "source": "Wrote the new onboarding emails, 3 templates. Linting is clean.",
+  "facts": {
+   "outcome": "completed",
+   "level": "L1",
+   "tests": {
+    "state": "none",
+    "passed": 0,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "mail/welcome.html",
+     "added": 60,
+     "removed": 0,
+     "status": "A"
+    },
+    {
+     "path": "mail/tips.html",
+     "added": 55,
+     "removed": 0,
+     "status": "A"
+    },
+    {
+     "path": "mail/reminder.html",
+     "added": 48,
+     "removed": 0,
+     "status": "A"
+    }
+   ],
+   "reverted": [],
+   "reflog": [
+    "dd44ee5 commit: onboarding mails"
+   ],
+   "uncommitted": false
+  },
+  "first": "Changed (git): mail/welcome.html (new, +60 -0); mail/tips.html (new, +55 -0); mail/reminder.html (new, +48 -0)\nLeft: nothing stated\nRisk: not stated",
+  "second": "Changed (git): mail/welcome.html (new, +60 -0) — the new onboarding emails, 3 templates; mail/tips.html (new, +55 -0); mail/reminder.html (new, +48 -0)\nLeft: nothing stated\nRisk: low (Linting is clean)"
+ }
+]

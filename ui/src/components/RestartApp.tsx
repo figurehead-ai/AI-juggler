@@ -9,6 +9,7 @@
 import { useEffect, useRef, useState, type JSX } from "react";
 import { Button } from "./primitives";
 import { restartPlace } from "../lib/go-to";
+import { DialogFrame, DialogOverlay } from "./DialogFrame";
 
 const ASK = "aij:restart-app";
 
@@ -71,38 +72,45 @@ export function RestartAppDialog({ ask, onClose }: { ask: RestartAsk; onClose: (
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6 backdrop-blur-sm">
-      <div
+    <DialogOverlay className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+      <DialogFrame
         role="alertdialog"
         aria-modal="true"
         aria-labelledby="restart-title"
         aria-describedby="restart-body"
         data-testid="restart-dialog"
-        className="flex w-full max-w-md flex-col gap-3 rounded-xl border border-hairline bg-surface p-5 shadow-card"
+        className="w-full max-w-md rounded-xl border border-hairline bg-surface shadow-card"
+        headerClassName="px-5 pt-5"
+        bodyClassName="flex flex-col gap-3 px-5 pt-3 pb-3"
+        footerClassName="px-5 pt-3 pb-5"
+        header={
+          <h3 id="restart-title" className="text-body font-semibold text-ink">
+            Restart {ask.name}?
+          </h3>
+        }
+        footer={
+          <div className="mt-1 flex justify-end gap-2">
+            <Button ref={cancel} size="sm" variant="secondary" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              variant="danger"
+              data-testid="restart-confirm"
+              onClick={() => {
+                onClose();
+                restartPlace(ask.placeId, true);
+              }}
+            >
+              Restart
+            </Button>
+          </div>
+        }
       >
-        <h3 id="restart-title" className="text-body font-semibold text-ink">
-          Restart {ask.name}?
-        </h3>
         <p id="restart-body" className="text-meta text-ink-2" data-testid="restart-body">
           {restartWords(ask.open, ask.working)} AI Juggler quits it, waits for it to close, and starts it again on the same profile.
         </p>
-        <div className="mt-1 flex justify-end gap-2">
-          <Button ref={cancel} size="sm" variant="secondary" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button
-            size="sm"
-            variant="danger"
-            data-testid="restart-confirm"
-            onClick={() => {
-              onClose();
-              restartPlace(ask.placeId, true);
-            }}
-          >
-            Restart
-          </Button>
-        </div>
-      </div>
-    </div>
+      </DialogFrame>
+    </DialogOverlay>
   );
 }

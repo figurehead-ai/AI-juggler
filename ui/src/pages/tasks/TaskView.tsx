@@ -171,7 +171,7 @@ export function TaskView({
           <span className="font-semibold uppercase tracking-wider">{KIND_WORDS[task.kind]}</span>
           {detail.parent_title && task.parent_id && (
             <button type="button" className="truncate underline decoration-hairline underline-offset-2 hover:text-ink" onClick={() => onOpenTask(task.parent_id!)}>
-              in «{detail.parent_title}»
+              in “{detail.parent_title}”
             </button>
           )}
         </div>

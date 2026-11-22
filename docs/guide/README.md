@@ -24,7 +24,7 @@
   usual settings, the default app and launch settings.
 - [Usage and limits](usage-and-limits.md): what the numbers mean, "Not
   measured yet", and measuring Claude limits for sessions started elsewhere.
-- [Continue in another app](switching.md): carrying a conversation to
+- [Switch account](switching.md): carrying a conversation to
   another app or tool, what carries over, and switching back.
 - [Rules and MCP servers](rules-and-servers.md): keeping `CLAUDE.md` and
   `AGENTS.md` the same, and your apps' MCP servers.
@@ -44,6 +44,8 @@
   shared documents, and the pool's tasks.
 - [The Floor](the-floor.md): all your AI work as an office, what each
   sign on it means, getting to what needs you, and moving around.
+- [AI models](ai-models.md) (beta): the model AI Juggler recommends for
+  your Mac, what it costs in disk, and how we test models.
 
 - [What AI Juggler touches](trust.md): what it reads, changes and sends,
   and what it never does, each line checked by tests.

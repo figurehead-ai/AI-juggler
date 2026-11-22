@@ -24,6 +24,7 @@ pub mod error;
 pub mod fs;
 pub mod funnel_events;
 pub mod injected;
+pub mod lab;
 pub mod messaging;
 pub mod model;
 pub mod naming;

@@ -194,9 +194,11 @@ describe("every rail element opens a page here (place lens)", () => {
     const list = await view.findByTestId("place-board");
     await waitFor(() => expect(row(list, "c:claude-work/outside-3")).toBeTruthy());
     const asks = row(list, "c:claude-work/outside-3").parentElement!;
-    // Needs you: always shown, named for its app and profile.
+    // Needs you: named for its app and profile; D-117 (R10): shown on
+    // hover, focus or the selected row, as everywhere (still in the Tab
+    // order, and ⌘↩ and the menu go there too).
     const arrow = within(asks).getByRole("button", { name: "Go to it in Claude app · Work Max" });
-    expect(arrow.className).not.toContain("opacity-0");
+    expect(arrow.className).toContain("group-hover:opacity-100");
     fireEvent.click(arrow);
     expect(host.goToConversation).toHaveBeenCalledTimes(1);
     fireEvent.keyDown(row(list, "c:claude-work/outside-3"), { key: "Enter", metaKey: true });
@@ -232,18 +234,20 @@ describe("every rail element opens a page here (Project lens)", () => {
     fireEvent.click(rail.querySelector<HTMLElement>("[data-instance-id='aj-working']")!);
     fireEvent.click(rail.querySelector<HTMLElement>("[data-conversation-id='outside-1']")!);
     // Needs you's rows here too (the one waiting longest first, as in every
-    // grouping).
-    fireEvent.click(within(view.getByTestId("rail-needs-you")).getAllByTestId("rail-outside")[0]!);
+    // grouping; D-117: the App lens's Needs you rows).
+    fireEvent.click(view.getByTestId("rail-needs-you").querySelector<HTMLElement>("[data-rail-item^='c:']")!);
     // A project with no session here yet.
     fireEvent.click(within(view.getByTestId("rail-history-projects")).getByText("quiet-lib"));
-    expect(landed()).toEqual(["project:proj-ai-juggler", "session:aj-working", "conversation:outside-1", "conversation:outside-5", "project:proj-quiet"]);
+    // D-117: what asks (outside-3, L2) leads; "Done, review it" (outside-5,
+    // L1) is listed last, under To review.
+    expect(landed()).toEqual(["project:proj-ai-juggler", "session:aj-working", "conversation:outside-1", "conversation:outside-3", "project:proj-quiet"]);
 
     // Needs you and Open now fold in place.
     const needs = within(view.getByTestId("rail-needs-you")).getByRole("button", { name: /^Needs you/ });
     fireEvent.click(needs);
-    expect(within(view.getByTestId("rail-needs-you")).queryAllByTestId("rail-outside")).toHaveLength(0);
+    expect(view.getByTestId("rail-needs-you").querySelectorAll("[data-rail-item]")).toHaveLength(0);
     fireEvent.click(needs);
-    expect(within(view.getByTestId("rail-needs-you")).queryAllByTestId("rail-outside").length).toBeGreaterThan(0);
+    expect(view.getByTestId("rail-needs-you").querySelectorAll("[data-rail-item]").length).toBeGreaterThan(0);
     const open = within(view.getByTestId("rail-open-now")).getByRole("button", { name: /^Open now/ });
     fireEvent.click(open);
     expect(rail.querySelector("[data-conversation-id='outside-1']")).toBeNull();

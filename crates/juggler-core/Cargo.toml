@@ -28,6 +28,9 @@ ts-rs = { workspace = true, optional = true, features = ["no-serde-warnings"] }
 [features]
 # The app turns it on: domain types a command serves export their TypeScript.
 ts = ["dep:ts-rs"]
+# ADR-0037 §1.1: `Writers::for_tests` for another crate's tests (the app's
+# watches, AJ-E3814). Only a dev-dependency turns it on; never a build.
+test-writers = []
 
 [dev-dependencies]
 proptest = { workspace = true }

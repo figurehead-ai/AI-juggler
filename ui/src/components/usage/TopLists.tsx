@@ -23,7 +23,7 @@ import { IconFolder, IconList } from "./controls";
 import type { Scope } from "./useUsage";
 import { ProfileBadge } from "../ProfileBadge";
 import { newTokens } from "../../lib/usage/tokens";
-import { folderAppName } from "../../lib/app-name";
+import { useFolderAppName } from "../../lib/apps";
 import { untitledName } from "../../lib/session-titles";
 
 const TOP = 10;
@@ -61,6 +61,7 @@ function profileParts(share: UsageShareInfo, labels: Map<string, string>) {
 }
 
 export function TopProjects({ data, busy, className = "" }: { data: UsageHistoryInfo | null; busy: boolean; className?: string }): JSX.Element {
+  const folderAppName = useFolderAppName();
   const host = useActionHost();
   const [all, setAll] = useState(false);
   // Each App by its full name (the 0.4 review: "Ran in Work").
@@ -189,6 +190,7 @@ export function SessionsHeader(): JSX.Element {
 }
 
 export function TopSessions({ data, busy, range, scope, className = "" }: { data: UsageHistoryInfo | null; busy: boolean; range: RangeId; scope: Scope; className?: string }): JSX.Element {
+  const folderAppName = useFolderAppName();
   const [all, setAll] = useState(false);
   const projects = new Map((data?.by_project ?? []).map((share) => [share.key, share.label]));
   const labels = new Map((data?.by_profile ?? []).map((share) => [share.key, folderAppName(share.key, share.label)]));

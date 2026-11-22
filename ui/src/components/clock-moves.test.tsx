@@ -74,7 +74,7 @@ describe("SK48-6: every relative time moves on the app's one clock", () => {
     render(
       <>
         <Row />
-        <HomeApps items={[]} runwayOf={() => null} />
+        <HomeApps items={[]} />
       </>,
     );
     await act(async () => {
@@ -82,9 +82,9 @@ describe("SK48-6: every relative time moves on the app's one clock", () => {
     });
     const tile = () => screen.getByTestId("home-app-closed").textContent ?? "";
     expect(screen.getByTestId("row-when").textContent).toBe("6 min ago");
-    expect(tile()).toContain("last open 7 min ago");
+    expect(tile()).toContain("7 min ago");
     await pass(4);
     expect(screen.getByTestId("row-when").textContent).toBe("10 min ago");
-    expect(tile()).toContain("last open 11 min ago");
+    expect(tile()).toContain("11 min ago");
   });
 });

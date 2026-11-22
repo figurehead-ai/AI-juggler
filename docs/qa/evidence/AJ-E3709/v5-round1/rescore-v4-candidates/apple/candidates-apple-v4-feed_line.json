@@ -1,0 +1,43 @@
+{
+ "family": "apple-v4",
+ "job": "feed_line",
+ "note": "script flags: candidates for Opus to confirm by eye, never verdicts",
+ "candidates": [
+  {
+   "class": "omission",
+   "detector": "detail_dropped",
+   "detail": "streams rows|stays under 80 MB",
+   "stage": "shown",
+   "attempt": null,
+   "id": "H001",
+   "corpus": "heldout"
+  },
+  {
+   "class": "omission",
+   "detector": "detail_dropped",
+   "detail": "verify_lock\\.sh",
+   "stage": "shown",
+   "attempt": null,
+   "id": "H004",
+   "corpus": "heldout"
+  },
+  {
+   "class": "omission",
+   "detector": "detail_dropped",
+   "detail": "every 30 minutes",
+   "stage": "shown",
+   "attempt": null,
+   "id": "H009",
+   "corpus": "heldout"
+  },
+  {
+   "class": "omission",
+   "detector": "detail_dropped",
+   "detail": "refactor",
+   "stage": "shown",
+   "attempt": null,
+   "id": "H021",
+   "corpus": "heldout"
+  }
+ ]
+}

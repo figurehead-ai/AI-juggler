@@ -48,13 +48,18 @@ pub async fn quota_display_all(
     state: tauri::State<'_, std::sync::Arc<crate::state::AppState>>,
 ) -> AppResult<Vec<QuotaDisplayInfo>> {
     crate::ipc::blocking_list(state.inner(), "show the usage", |state, storage, now| {
-        storage
-            .accounts()
-            .list()
-            .unwrap_or_default()
-            .iter()
-            .map(|account| crate::features::quota::shown(state, storage, account, now))
-            .collect()
+        // AJ-E3210: every folder's own display first, then the displays of
+        // other Accounts read on a folder (a reader by folder takes the
+        // first it finds: the folder's own).
+        let mut own = Vec::new();
+        let mut others = Vec::new();
+        for account in storage.accounts().list().unwrap_or_default() {
+            let mut all =
+                crate::features::quota::shown_all(state, storage, &account, now).into_iter();
+            own.extend(all.next());
+            others.extend(all);
+        }
+        own.into_iter().chain(others).collect()
     })
     .await
 }

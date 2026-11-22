@@ -3,10 +3,9 @@
  * both themes (the source; ui/tests/visual/contrast.spec.ts measures the
  * running app's computed values too). Every meaning-bearing text token
  * clears WCAG AA (4.5:1) on all five surfaces; the count badges' ink
- * clears it on the badge; danger clears it on its own L3 tint.
- *
- * 0.4.6 (AJ-E3011) takes 0.5's new tokens only, for the pool screens; the
- * dark status ladder's retune and its APCA floors are 0.5's (fa5b883d8).
+ * clears it on the badge; danger clears it on its own L3 tint; and in
+ * dark the alarm colours keep their APCA floors (warning Lc 60, danger
+ * Lc 52), so the alarm is never the quietest status colour again.
  */
 import { describe, expect, it } from "vitest";
 import styles from "../styles.css?raw";
@@ -40,6 +39,19 @@ function over(tint: string, surface: string): string {
 }
 
 const ratio = (a: string, b: string) => contrast(hexLuminance(a), hexLuminance(b));
+
+/** APCA 0.0.98G (W3C Silver draft), |Lc| of text on a background. */
+function apca(text: string, background: string): number {
+  const y = (hex: string) => {
+    const [r, g, b] = rgb(hex).map((c) => (c / 255) ** 2.4);
+    const lum = 0.2126729 * r! + 0.7151522 * g! + 0.072175 * b!;
+    return lum > 0.022 ? lum : lum + (0.022 - lum) ** 1.414;
+  };
+  const [txt, bg] = [y(text), y(background)];
+  const sapc = bg > txt ? (bg ** 0.56 - txt ** 0.57) * 1.14 : (bg ** 0.65 - txt ** 0.62) * 1.14;
+  const lc = Math.abs(sapc) < 0.1 ? 0 : sapc > 0 ? sapc - 0.027 : sapc + 0.027;
+  return Math.abs(lc * 100);
+}
 
 describe.each(["dark", "light"] as const)("the calm-attention tokens (%s)", (theme) => {
   it("every text token is 4.5:1 or more on every surface", () => {
@@ -87,6 +99,25 @@ describe.each(["dark", "light"] as const)("the calm-attention tokens (%s)", (the
     }
     expect(ratio(token(theme, "selected-ink"), token(theme, "selected"))).toBeGreaterThanOrEqual(4.5);
     expect(token(theme, "selected-ring")).not.toBe(token(theme, "accent"));
+  });
+});
+
+describe("the dark alarm ladder (APCA)", () => {
+  it("warning reads Lc 60 or more and danger Lc 52 or more on every surface", () => {
+    for (const surface of SURFACES) {
+      expect(apca(token("dark", "warning"), token("dark", surface)), `warning on ${surface}`).toBeGreaterThanOrEqual(60);
+      expect(apca(token("dark", "danger"), token("dark", surface)), `danger on ${surface}`).toBeGreaterThanOrEqual(52);
+    }
+  });
+
+  it("the calm L1 colours are no louder than the alarm (chroma ladder)", () => {
+    // Danger was the quietest status colour in dark (Lc 45–49 against
+    // live's 66–69); now live and success sit below warning.
+    for (const surface of SURFACES) {
+      const bg = token("dark", surface);
+      expect(apca(token("dark", "live"), bg)).toBeLessThan(apca(token("dark", "warning"), bg));
+      expect(apca(token("dark", "success"), bg)).toBeLessThan(apca(token("dark", "warning"), bg));
+    }
   });
 });
 

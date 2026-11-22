@@ -149,7 +149,7 @@ fn watched_line(
         pool_id: place.pool_id.clone(),
         kind: "watched".to_owned(),
         words: format!(
-            "Stays in «{}», watched: it runs in {app}, so the pool's tools and rules reach it once it's continued in AI Juggler.",
+            "Stays in “{}”, watched: it runs in {app}, so the pool's tools and rules reach it once it's continued in AI Juggler.",
             name.unwrap_or("a pool")
         ),
         confirm: false,
@@ -324,12 +324,12 @@ fn lines(
                 kind: if full { "stays" } else { "shell" }.to_owned(),
                 words: if full {
                     format!(
-                        "Stays in «{}»; {tool_name} acts there with full tools.",
+                        "Stays in “{}”; {tool_name} acts there with full tools.",
                         name(&place.pool_id)
                     )
                 } else {
                     format!(
-                        "Stays in «{}»; {tool_name} acts there through its shell only.",
+                        "Stays in “{}”; {tool_name} acts there through its shell only.",
                         name(&place.pool_id)
                     )
                 },
@@ -344,7 +344,7 @@ fn lines(
         let (words, confirm) = match skip.map(|skip| &skip.reason) {
             Some(SkipReason::SealedElsewhere { sealed_pool }) => (
                 format!(
-                    "Leaves «{}» for «{}», which is sealed: its sessions are in no other pool.",
+                    "Leaves “{}” for “{}”, which is sealed: its sessions are in no other pool.",
                     name(&place.pool_id),
                     name(sealed_pool)
                 ),
@@ -352,14 +352,14 @@ fn lines(
             ),
             Some(SkipReason::OutOfScope) => (
                 format!(
-                    "Leaves «{}»: it doesn't take its project.",
+                    "Leaves “{}”: it doesn't take its project.",
                     name(&place.pool_id)
                 ),
                 false,
             ),
             Some(SkipReason::HeldElsewhere { by_pool }) => (
                 format!(
-                    "Leaves «{}»: «{}» names it on its own.",
+                    "Leaves “{}”: “{}” names it on its own.",
                     name(&place.pool_id),
                     name(by_pool)
                 ),
@@ -367,7 +367,7 @@ fn lines(
             ),
             None => (
                 format!(
-                    "Leaves «{}»: it came in through its App, Account or tool, and the new one isn't a member there.",
+                    "Leaves “{}”: it came in through its App, Account or tool, and the new one isn't a member there.",
                     name(&place.pool_id)
                 ),
                 place.sealed,
@@ -387,12 +387,12 @@ fn lines(
                 kind: if place.sealed { "sealed" } else { "joins" }.to_owned(),
                 words: if place.sealed {
                     format!(
-                        "Joins «{}», which is sealed: it leaves every other pool.",
+                        "Joins “{}”, which is sealed: it leaves every other pool.",
                         name(&place.pool_id)
                     )
                 } else {
                     format!(
-                        "Joins «{}» through its {}.",
+                        "Joins “{}” through its {}.",
                         name(&place.pool_id),
                         place.via().as_str()
                     )
@@ -467,10 +467,10 @@ mod tests {
         assert_eq!(
             full,
             [
-                ("team".into(), "stays".into(), "Stays in «TEAM»; Codex acts there with full tools.".into(), false),
-                ("web".into(), "leaves".into(), "Leaves «WEB»: it doesn't take its project.".into(), false),
-                ("old".into(), "leaves".into(), "Leaves «OLD» for «CLIENT», which is sealed: its sessions are in no other pool.".into(), true),
-                ("client".into(), "sealed".into(), "Joins «CLIENT», which is sealed: it leaves every other pool.".into(), true),
+                ("team".into(), "stays".into(), "Stays in “TEAM”; Codex acts there with full tools.".into(), false),
+                ("web".into(), "leaves".into(), "Leaves “WEB”: it doesn't take its project.".into(), false),
+                ("old".into(), "leaves".into(), "Leaves “OLD” for “CLIENT”, which is sealed: its sessions are in no other pool.".into(), true),
+                ("client".into(), "sealed".into(), "Joins “CLIENT”, which is sealed: it leaves every other pool.".into(), true),
             ]
         );
         let shell = said(false);
@@ -478,7 +478,7 @@ mod tests {
             (shell[0].1.as_str(), shell[0].2.as_str()),
             (
                 "shell",
-                "Stays in «TEAM»; Codex acts there through its shell only."
+                "Stays in “TEAM”; Codex acts there through its shell only."
             )
         );
     }

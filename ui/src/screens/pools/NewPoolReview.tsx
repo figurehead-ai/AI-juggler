@@ -68,7 +68,7 @@ const ROWS: readonly { row: Row; title: string; icon: Icon; step?: SetupStep }[]
 function words(row: Row, shape: PoolShape, where: string, name: string, tools: TeamTools | null): ReactNode {
   switch (row) {
     case "where":
-      return `«${name}» works in ${where}.`;
+      return `“${name}” works in ${where}.`;
     case "who":
       return whoSentence(shape);
     case "lead":

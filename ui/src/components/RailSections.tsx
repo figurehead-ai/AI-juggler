@@ -15,7 +15,15 @@ import type { RowGroup } from "../lib/railview";
 import { useBackendNeeds } from "../lib/needs-you";
 import { useNoticeActions } from "../lib/notice-actions";
 import { RailNoticeRow } from "./RailNoticeRow";
-import { byNeed, needOfAttention } from "../lib/rail-items";
+import { itemsOf, needsYou } from "../lib/rail-items";
+import { brokenOf, counted, highest, itemLevel, noticeLevel } from "../lib/attention";
+import { useSeen } from "../lib/seen";
+import type { ProjectInfo } from "../types/generated/ProjectInfo";
+import { SectionHead, ToReviewCaption } from "./PlaceBoardParts";
+import { NeedRow } from "./PlaceRows";
+import { SELECTED } from "./controls/selected";
+import { loudLines } from "../lib/needs-order";
+import { useMessageAbout } from "../lib/ipc/messages";
 
 const ENDED = new Set(["finished", "stopped", "failed", "handed_over"]);
 
@@ -101,13 +109,10 @@ function SectionLabel({ children, testId, open, onToggle }: { children: ReactNod
 /** The fold key of the Project lens's Open now (kept with the groups'). */
 export const OPEN_NOW = "rail-open-now";
 
-/** "Open now", above the projects' open sessions: folds them in place. */
+/** "Open now", above the projects' open sessions: folds them in place.
+ * D-117: every lens's section head is the one calm head. */
 export function OpenNowLabel({ open, onToggle }: { open: boolean; onToggle: () => void }): JSX.Element {
-  return (
-    <SectionLabel testId="rail-open-now" open={open} onToggle={onToggle}>
-      Open now
-    </SectionLabel>
-  );
+  return <SectionHead id="open" open={open} onToggle={onToggle} />;
 }
 
 interface RowProps {
@@ -137,32 +142,47 @@ function Rows({ rows, selectedId, density, now }: RowProps & { rows: Conversatio
 /** Needs you: AI Juggler's sessions that need you and the ones other
  * apps say ask you, in one order (the kind of need, then the one waiting
  * longest: the App grouping's), then the rest the bell counts (a sign-in, a cap, an agent's message; AJ-E3104: the same
- * number as the bell's, in every lens). Never grouped. */
-export function NeedsYouSection({ rows, renderRow, sessions, ...props }: RowProps & { rows: InstanceInfo[]; renderRow: (row: InstanceInfo) => ReactNode; sessions: InstanceInfo[] }): JSX.Element | null {
+ * number as the bell's, in every lens). Never grouped. D-117: the App
+ * lens's section, from its parts — the calm head counts L2 and L3 (its
+ * level's glyph, its words), its rows are Needs you rows (NeedRow), and
+ * the notes (L1) come last under "To review", uncounted. */
+export function NeedsYouSection({ rows, sessions, projects, onSelect, ...props }: RowProps & { rows: InstanceInfo[]; sessions: InstanceInfo[]; projects: ProjectInfo[]; onSelect: (id: string) => void }): JSX.Element | null {
   const { all } = useConversations();
   const { needOf, rows: needs } = useBackendNeeds();
+  const seen = useSeen();
   const actions = useNoticeActions(sessions);
+  const about = useMessageAbout(); // D-118: an agent's message, subject first
   const [open, setOpen] = useState(true);
   const asking = outside(all).filter((c) => asksYou(c) && needOf.has(`c:${c.account_id}/${c.id}`));
   const others = needs.filter((row) => !needOf.has(row.subject));
-  const count = rows.length + asking.length + others.length;
-  if (count === 0) return null;
+  // One order with the other groupings' (AJ-E2802 R7): by the kind of
+  // need, then the one waiting longest; AI Juggler's and other apps'
+  // sessions together.
+  const items = needsYou(itemsOf({ sessions: rows, conversations: asking, projects, seen, needOf }));
+  const loud = items.filter((item) => counted(itemLevel(item)));
+  const loudRest = others.filter((notice) => counted(noticeLevel(notice)));
+  const notes = items.filter((item) => !counted(itemLevel(item)));
+  const notesRest = others.filter((notice) => !counted(noticeLevel(notice)));
+  if (items.length + others.length === 0) return null;
+  const count = loud.length + loudRest.length;
+  const level = highest([...loud.map(itemLevel), ...loudRest.map(noticeLevel)]);
+  const broken = [...brokenOf(loud, itemLevel, (item) => item.need), ...brokenOf(loudRest, noticeLevel, (notice) => notice.kind)];
+  const needRow = (item: (typeof items)[number]) => (
+    <NeedRow key={item.key} item={item} selected={props.selectedId === (item.session?.id ?? item.conversation?.id)} onSelect={onSelect} now={props.now} compact={props.density === "compact"} />
+  );
+  const noticeRow = (notice: (typeof others)[number]) => <RailNoticeRow key={notice.subject} notice={notice} now={props.now} onOpen={actions.primary} canHandOver={actions.canHandOver(notice)} about={about.get(notice.subject ?? "")} />;
   return (
     <section aria-label="Needs you" data-testid="rail-needs-you" className="mb-1 flex flex-col gap-0.5">
-      <SectionLabel open={open} onToggle={() => setOpen((now) => !now)}>
-        Needs you <span className="tabular-nums">{count}</span>
-      </SectionLabel>
-      {open &&
-        // One order with the other groupings' (AJ-E2802 R7): by the kind of
-        // need, then the one waiting longest; AI Juggler's and other apps'
-        // sessions together.
-        [
-          ...rows.map((row) => ({ need: needOfAttention(row.needs_attention ?? row.status), lastMs: row.last_activity_ms ?? row.started_at_ms, key: `s:${row.id}`, session: row, row, talk: null })),
-          ...asking.map((c) => ({ need: "asks" as const, lastMs: c.last_activity_ms ?? 0, key: `c:${c.account_id}/${c.id}`, conversation: c, row: null, talk: c })),
-        ]
-          .sort(byNeed)
-          .map((entry) => <Fragment key={entry.key}>{entry.row ? renderRow(entry.row) : entry.talk && <Rows rows={[entry.talk]} {...props} />}</Fragment>)}
-      {open && others.map((notice) => <RailNoticeRow key={notice.subject} notice={notice} now={props.now} onOpen={actions.primary} canHandOver={actions.canHandOver(notice)} />)}
+      <SectionHead id="needs" testId={null} count={count} level={level} broken={broken} open={open} onToggle={() => setOpen((now) => !now)} />
+      {open && (
+        <>
+          {/* D-118's mock: one order with Home's (the louder, then the one waiting longest). */}
+          {loudLines(loud, loudRest).map((line) => (line.kind === "need" ? needRow(line.item) : line.kind === "notice" ? noticeRow(line.notice) : null))}
+          {notes.length + notesRest.length > 0 && <ToReviewCaption />}
+          {notes.map(needRow)}
+          {notesRest.map(noticeRow)}
+        </>
+      )}
     </section>
   );
 }
@@ -188,7 +208,7 @@ export function AlsoLine({ ended, renderRow, ...props }: RowProps & { ended: Ins
         <span>Also:</span>
         {VIEWS.filter((view) => count(view) > 0).map((view) => (
           <Fragment key={view}>
-            <button type="button" aria-pressed={shown.has(view)} data-testid={`rail-also-${view}`} onClick={() => toggle(view)} className={link + (shown.has(view) ? " text-accent-hi" : "")}>
+            <button type="button" aria-pressed={shown.has(view)} data-testid={`rail-also-${view}`} onClick={() => toggle(view)} className={link + (shown.has(view) ? " " + SELECTED : "")}>
               {count(view)} {WORDS[view]}
             </button>
             <span aria-hidden="true">·</span>

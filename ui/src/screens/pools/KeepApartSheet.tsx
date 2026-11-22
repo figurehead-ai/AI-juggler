@@ -97,7 +97,23 @@ export function KeepApartSheet({
     }
   };
   return (
-    <Modal title={words.title} onClose={onClose} broad testId="keep-apart">
+    <Modal title={words.title} onClose={onClose} broad testId="keep-apart"
+      footer={
+        <>
+            <Button variant="ghost" onClick={onClose} data-testid="keep-apart-cancel">
+              Cancel
+            </Button>
+            <span className="flex-1" />
+            <Button variant="secondary" onClick={onCustomise} disabled={busy} data-testid="keep-apart-customise">
+              {words.customise}
+            </Button>
+            <Button variant="primary" onClick={() => void keep()} disabled={busy} data-autofocus data-testid="keep-apart-keep">
+              <IconCheck aria-hidden="true" width={16} height={16} strokeWidth={2.4} className="mr-1.5" />
+              {busy ? "Keeping it apart…" : words.keep}
+            </Button>
+        </>
+      }
+    >
       <div className="flex max-h-[calc(100dvh-9rem)] flex-col">
         <div className="-mx-1 flex min-h-0 flex-col gap-4 overflow-y-auto px-1 pb-1">
           <div className="flex items-start gap-3">
@@ -136,19 +152,6 @@ export function KeepApartSheet({
         <p className="mt-4 text-meta text-muted" data-testid="keep-apart-makes">
           {words.makes(draft.name, joinSentence(project.name, everyone?.role ?? null, draft.level))}
         </p>
-        <div className="mt-4 flex items-center gap-2 border-t border-divider pt-4">
-          <Button variant="ghost" onClick={onClose} data-testid="keep-apart-cancel">
-            Cancel
-          </Button>
-          <span className="flex-1" />
-          <Button variant="secondary" onClick={onCustomise} disabled={busy} data-testid="keep-apart-customise">
-            {words.customise}
-          </Button>
-          <Button variant="primary" onClick={() => void keep()} disabled={busy} data-autofocus data-testid="keep-apart-keep">
-            <IconCheck aria-hidden="true" width={16} height={16} strokeWidth={2.4} className="mr-1.5" />
-            {busy ? "Keeping it apart…" : words.keep}
-          </Button>
-        </div>
       </div>
     </Modal>
   );

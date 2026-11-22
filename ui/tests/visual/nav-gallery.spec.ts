@@ -176,13 +176,15 @@ for (const theme of ["dark", "light"] as const) {
     await shoot(page, "projects-1024x700", theme);
   });
 
-  for (const tab of ["Overview", "Tasks", "Pool", "Subagents", "History"]) {
+  // AJ-E3104: the project's Pool tab is "Pools" (panel `pools`); its
+  // capture keeps its name.
+  for (const [tab, shot] of [["Overview", "overview"], ["Tasks", "tasks"], ["Pools", "pool"], ["Subagents", "subagents"], ["History", "history"]] as const) {
     test(`a project's ${tab} — ${theme}`, async ({ page }) => {
       await open(page, theme);
       await projectPage(page, tab);
       await expect(nav(page, "Projects")).toHaveAttribute("aria-current", "page");
       await expect(page.getByTestId(`page-panel-${tab.toLowerCase()}`)).toBeVisible();
-      await shoot(page, `project-${tab.toLowerCase()}-1280x800`, theme);
+      await shoot(page, `project-${shot}-1280x800`, theme);
     });
   }
 

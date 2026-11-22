@@ -28,4 +28,9 @@ queued: number,
 /**
  * This build can send them.
  */
-can_send: boolean, };
+can_send: boolean, 
+/**
+ * D-108: the Sentry event the first waiting report (`asking[0]`, the
+ * one the next-launch question shows) would send, exactly, as JSON.
+ */
+asking_event: string | null, };

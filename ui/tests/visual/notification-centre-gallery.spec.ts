@@ -129,12 +129,13 @@ test("notifications and your menu — every state, both themes", gate("96-notifi
   for (const theme of ["dark", "light"] as const) {
     // The header: the bell's one count (Home's Needs you count), your menu.
     await show(page, { theme, notices: POPULATED });
-    // "3 sessions and 2 more things need you": the count is both. D-49:
-    // the list is the backend's (here its stand-in), there once its
-    // sessions are.
-    await expect(page.getByTestId("home-heading")).toContainText(/sessions? (?:and|needs?)/);
+    // D-118 (AJ-E3701): Home's title is the one count, "6 need you", its
+    // parts said after it ("…: 5 sessions, Claude Max 20x is almost out
+    // of room"). D-49: the list is the backend's (here its stand-in),
+    // there once its sessions are.
+    await expect(page.getByTestId("home-heading")).toContainText(/^\d+ needs? you: \d+ sessions?/);
     const heading = (await page.getByTestId("home-heading").textContent()) ?? "";
-    const home = [...heading.matchAll(/(\d+) (?:sessions?|more|things?)/g)].reduce((sum, match) => sum + Number(match[1]), 0);
+    const home = Number(/^(\d+) needs? you/.exec(heading)?.[1]);
     await expect(page.getByTestId("bell-count")).toHaveText(String(home));
     // The rail's Needs you is the same count.
     await expect(page.getByTestId("rail-needs-you")).toContainText(String(home));

@@ -14,9 +14,14 @@
 //!   plain words and, when there is something it can read — a
 //!   `before-v<N>` copy or a backup in `backups/` (every update writes one
 //!   first) — offers to go back to it ([`at_launch`], [`go_back`]): the
-//!   newer database is moved aside (`juggler.sqlite.from-newer-<ms>`, never
-//!   deleted), the copy is put in place or the backup verified and
-//!   restored, and the app starts on it.
+//!   newer database is moved aside (`juggler.sqlite.from-newer-<ms>`), the
+//!   copy is put in place or the backup verified and restored, and the app
+//!   starts on it.
+//!
+//! ADR-0037 §1.5: the data kept aside (`from-v<N>-<ms>`, `from-newer-<ms>`)
+//! holds no memory or Chat history (a forget made later couldn't reach
+//! it); the sweep at start empties any such copy an older build left.
+//! Nothing else in it changes, and it is never deleted.
 //!
 //! Account folders are not part of the data being swapped: they stay
 //! where they are, so the accounts find their own folders. Any failure on
@@ -48,7 +53,9 @@ const DB_FILES: [&str; 3] = ["", "-wal", "-shm"];
 // deleted, D-60); 0.4.0 ships 46 (40, the Account and the App, to 46, the
 // Floor's areas); 0.4.1 to 0.4.5 ship 52 (47 to 52 came in together with
 // 0.4.1); 0.4.6 ships 53 (the App whose next session leads a pool,
-// AJ-E3011). The schemas no release stayed on are NEVER_SHIPPED_ALONE.
+// AJ-E3011); 0.5.0 ships 55 (54, the memory store and the AI log, and 55,
+// AJ-E3210's per-App Account, come in together, so no release stays on
+// 54). The schemas no release stayed on are NEVER_SHIPPED_ALONE.
 // Each patch on the newest schema moves its line to that patch (the P9
 // walk found 39 still naming 0.3.1).
 const SCHEMA_RELEASES: &[(i64, &str)] = &[
@@ -63,6 +70,7 @@ const SCHEMA_RELEASES: &[(i64, &str)] = &[
     (46, "0.4.0"),
     (52, "0.4.5"),
     (53, "0.4.6"),
+    (55, "0.5.0"),
 ];
 
 /// The schemas no release stayed on: each came in with a newer one in the
@@ -77,6 +85,7 @@ const NEVER_SHIPPED_ALONE: &[(std::ops::RangeInclusive<i64>, &str)] = &[
     (33..=36, "0.2.0 shipped 33 to 37 together"),
     (40..=45, "0.4.0 shipped 40 to 46 together"),
     (47..=51, "0.4.1 shipped 47 to 52 together"),
+    (54..=54, "0.5.0 ships 54 and 55 together"),
 ];
 
 /// The released version that reads `schema`, when it is known.
@@ -231,7 +240,13 @@ pub fn go_back(
             }),
     };
     match restored {
-        Ok(next_steps) => Ok(WentBack { kept, next_steps }),
+        Ok(next_steps) => {
+            // ADR-0037 §1.5: the newer data kept aside holds no memory.
+            if let Err(error) = juggler_core::storage::memory::backup::scrub_copy(&kept) {
+                tracing::warn!(%error, "the newer data kept aside couldn't be scrubbed");
+            }
+            Ok(WentBack { kept, next_steps })
+        }
         Err(error) => {
             // Put everything back as it was: what was tried aside, the
             // newer data where it was.
@@ -355,6 +370,10 @@ pub fn going_back_prepare_at(
         juggler_core::model::Timestamp::now().millis()
     ));
     storage.snapshot_to(&kept)?;
+    // ADR-0037 §1.5: the copy kept aside holds no memory; if it can't be
+    // emptied, nothing is replaced.
+    juggler_core::storage::memory::backup::scrub_copy(&kept)
+        .map_err(juggler_core::CoreError::from)?;
     storage.replace_with_older(&copy)?;
     // The older build finds it all in the database file itself.
     let _ = storage
@@ -494,7 +513,7 @@ pub fn launch_message(
             (
                 title,
                 format!(
-                    "{opening}\n\nYou can go back to {what}. {comes_back} What the newer version saved is kept beside it in the data folder; nothing is deleted.\n\nOr quit, and install the newer version again to keep working with its data."
+                    "{opening}\n\nYou can go back to {what}. {comes_back} What the newer version saved is kept beside it in the data folder. That copy leaves out Bot's memory and conversation history, which this version doesn't use; nothing else changes.\n\nOr quit, and install the newer version again to keep working with its data."
                 ),
                 Some(match offer.kind {
                     Source::Copy => format!("Use the data from {when}"),

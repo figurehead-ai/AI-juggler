@@ -18,6 +18,8 @@ import { AppIcon } from "../../components/AppIcon";
 import { AppKindBadge } from "../../components/AppKindBadge";
 import { ProfileBadge } from "../../components/ProfileBadge";
 import { Button } from "../../components/primitives";
+import { AskBot } from "../../components/bot/BotButton";
+import { WatchDoor } from "../../components/watches/WatchDoor";
 import { showToast } from "../../components/Toast";
 import { useActionHost } from "../../components/ItemMenu";
 import { PageShell } from "../PageShell";
@@ -121,6 +123,9 @@ function AppBody({
     return appItems(all, app.railKey, appByConversation(places), appByFolder(places));
   }, [sessions, conversations, projects, seen, app.railKey, places]);
   const worked = useWorkedProjects("app", app.id, items, projects);
+  // AJ-E1610: the project it worked in last, for its app's "New session in …".
+  const lastProject = worked[0] ? projects.find((project) => project.id === worked[0]!.id) : undefined;
+  const lastFolder = lastProject ? { name: lastProject.name, root: lastProject.root } : null;
   const openIds = items.filter(openHere).flatMap((item) => item.session?.id ?? item.conversation?.id ?? []);
   const open = openIds.length;
   const restart = restartCounts(items.filter(openHere));
@@ -165,13 +170,17 @@ function AppBody({
               <>
                 {/* D-100: Desktop or CLI, by icon and word. */}
                 <AppKindBadge kind={app.kind} variant="chip" />
-                <ProfileRoomChip profileId={app.folder?.id} size="md" testId="app-room-chip" />
+                <ProfileRoomChip profileId={app.folder?.id} appId={app.id} size="md" testId="app-room-chip" />
               </>
             }
             facts={<AppFacts app={app} now={now} sharedWith={sharedWith.map((other) => other.name)} unchecked={signInUnchecked(subs, app.folder?.id)} />}
             actions={
               <>
                 <AppAction app={app} restart={restart} />
+                {/* D-136: Bot, scoped to every session in this App (by id). */}
+                <AskBot scope={{ kind: "app", id: app.id, name: app.name, sessions: items.flatMap((item) => (item.session ? [item.session.id] : [])).slice(0, 200) }} />
+                {/* AJ-E3816: watched, or Watch… in the same spot, by its App id. */}
+                <WatchDoor target={{ kind: "app", id: app.id }} name={app.name} />
                 {app.kind === "cli" && app.folder && <FolderMenu account={app.folder} sessions={sessions} onChanged={onChanged} />}
               </>
             }
@@ -180,7 +189,7 @@ function AppBody({
         render={(tab, visible) => {
           switch (tab) {
             case "overview":
-              return <AppOverview app={app} items={items} projects={worked} now={now} host={host} onOpenSession={onOpenSession} onOpenProject={onOpenProject} />;
+              return <AppOverview app={app} items={items} projects={worked} now={now} host={host} onOpenSession={onOpenSession} onOpenProject={onOpenProject} lastFolder={lastFolder} />;
             case "sessions":
               return (
                 <RelatedList

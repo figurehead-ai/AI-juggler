@@ -147,10 +147,10 @@ pub struct NoticeMute {
     pub created_at: i64,
 }
 
-const COLUMNS: &str = "id, key, kind, origin, needs, title, detail, project_id, project, data, \
+pub(super) const COLUMNS: &str = "id, key, kind, origin, needs, title, detail, project_id, project, data, \
     action, meter, created_at, updated_at, read_at, resolved_at, dismissed_at";
 
-fn notice(row: &Row<'_>) -> rusqlite::Result<Notice> {
+pub(super) fn notice(row: &Row<'_>) -> rusqlite::Result<Notice> {
     Ok(Notice {
         id: row.get("id")?,
         key: row.get("key")?,

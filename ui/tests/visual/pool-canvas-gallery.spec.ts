@@ -106,7 +106,8 @@ for (const theme of ["dark", "light"] as const) {
       await open(page, theme, width, height);
       await poolsScreen(page);
       const team = page.getByTestId("pool-card-tile").filter({ hasText: "Checkout team" });
-      await expect(team.getByTestId("pool-card-words")).toHaveText("6 sessions · 4 need you · 2 tasks moving");
+      // AJ-E3602 (D-117): a parked session is calm, not counted.
+      await expect(team.getByTestId("pool-card-words")).toHaveText("6 sessions · 3 need you · 2 tasks moving");
       await expect(page.getByTestId("pool-card-tile").filter({ hasText: "project pool" })).toHaveCount(2);
       await page.mouse.move(0, 0);
       await page.screenshot({ path: resolve(OUT, `pools-screen-${size}-${theme}.png`) });
@@ -200,6 +201,15 @@ for (const theme of ["dark", "light"] as const) {
       await open(page, theme, width, height);
       await canvas(page);
       await fullCards(page);
+      // The canvas pans under its floating zoom bar (bottom left), so what
+      // sits there is half hidden wherever 100 % lands: at 1024 x 700 the
+      // lowest row's App link (axe target-size: 7 of its 24 px under the
+      // bar). The frame scrolls that row 48 px clear, as a person would.
+      if (height < 800) {
+        const box = (await page.getByRole("region", { name: /: diagram$/ }).boundingBox())!;
+        await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+        await page.mouse.wheel(0, 48);
+      }
       await expect(page.locator('[data-node="s-copy"]').getByTestId("node-ask")).toContainText("wants to message Planner");
       // The paused line on the card it was going to; no line says it at rest.
       await expect(page.locator('[data-node="s-review"]').getByTestId("node-paused")).toBeVisible();

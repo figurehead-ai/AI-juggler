@@ -15,29 +15,30 @@
  * ⌘⇧H, the header's or the bell's Continue), never on opening the page. A
  * live one lists its apps at once, as before.
  */
-import { RoomChip } from "../../components/RoomChip";
-import { roomMarkFrom } from "../../lib/room-mark";
 import { useEffect, useMemo, useRef, useState, type JSX } from "react";
 import { useHandoverFocus } from "../../lib/handover-focus";
-import { CliAppMark, PlaceMark, ProfileBadge } from "../../components/PlaceMarks";
-import { Button, Card } from "../../components/primitives";
+import { Card } from "../../components/primitives";
+import { RoomChip } from "../../components/RoomChip";
+import { roomMarkFrom } from "../../lib/room-mark";
+import { Pill } from "../../components/Pill";
 import { WhyButton } from "../../components/WhyTip";
-import { FidelityBadge, RoomLine, StartThereLink, SuggestedMark } from "../../components/SwitchTargetRows";
+import { RoomLine, StartThereLink } from "../../components/SwitchTargetRows";
+import { BadgeLine, RoomTag, SuggestedTag, TargetButton, TargetLogo } from "../../components/switch/TargetCard";
 import { switchTargets, type SwitchTargetData } from "../../lib/ipc/switch-targets";
 import type { QuotaDisplayData } from "../../lib/ipc/quota";
 import type { SwitchBackSuggestionData } from "../../lib/ipc/switchBack";
 import { switchSetupCheck, type SetupCheckInfo } from "../../lib/ipc/switchSetup";
 import { NOT_SIGNED_IN, rankTargets, roomless, signInWords, type RoomTarget, type TargetRoom } from "../../lib/room-targets";
-import { accountName, accountOfProfile, type SubscriptionInfo } from "../../lib/subscriptions";
+import { accountNamesApart, accountOfProfile, type SubscriptionInfo } from "../../lib/subscriptions";
 import { appWords, sessionAppName, type SessionModel } from "./model";
-import { cliAppId } from "../../lib/app-name";
 import { targetApp, useTargetApp, type FolderTarget, type TargetApp } from "../../lib/apps";
 import type { RailPlace } from "../../lib/rail-items";
 import { CardTitle } from "./CardTitle";
 import { toolSpec } from "../../lib/tools";
 import { SaveHandover } from "../../components/HandoverView";
 import { ContinueDialog } from "../../components/ContinueDialog";
-import { AccountRoomLine, ContinueFold } from "../../components/ContinueSummary";
+import { ContinueFold } from "../../components/ContinueSummary";
+import { FoldedLines, useFold } from "./ContinueFold";
 
 /** A target App (D-62: a tool on one of its folders), as the page shows
  * it. */
@@ -110,7 +111,10 @@ export function byAccount(targets: Target[], accounts: SubscriptionInfo[], sourc
   }
   const same = source?.state === "signed_in" ? (groups.get(source.key)?.targets ?? []) : [];
   if (source) groups.delete(source.key);
-  return { others: [...groups.values()], sameAccount: same };
+  // SK48-8 (the 0.5.0 walk, F3): twins listed together carry their tool.
+  const named = accountNamesApart([...groups.values()].flatMap((group) => (group.account ? [group.account] : [])));
+  const others = [...groups.values()].map((group) => ({ ...group, name: group.account ? named(group.account) : group.targets[0]!.label }));
+  return { others, sameAccount: same };
 }
 
 /** The backend's rows as the page's targets: never its own profile, which
@@ -182,10 +186,11 @@ export function ContinueOn({
   // session starts from "Looking for room…".
   const turn = `${model.conversationId ?? ""}|${model.state.working ? "working" : "still"}`;
   const asked = useRef<string | null>(null);
-  // D-103.3: an ended one searches only once the user opens it.
+  // D-103.3: an ended one searches only once the user opens it. D-143
+  // amends it: its account out of room or low, it searches at once, and
+  // out of room its list opens by itself (its user can still fold it).
   const quiet = !model.live;
-  const [chosen, setChosen] = useState(false);
-  const searching = !quiet || chosen || dialog;
+  const { open, setChosen, searching } = useFold(model, dialog);
   useEffect(() => {
     let alive = true;
     if (searching) {
@@ -209,6 +214,7 @@ export function ContinueOn({
     [rows, accounts, displays, model.profileId, appOf],
   );
   const { others, sameAccount } = byAccount(targets, accounts, model.profileId);
+  const notYet = rows?.find((row) => row.not_yet)?.not_yet ?? null;
   // The one-line checks, for the first few profiles offered.
   useEffect(() => {
     let alive = true;
@@ -239,62 +245,34 @@ export function ContinueOn({
         <span className="text-muted">Go back to where it came from ▸</span>
       </button>
     )}
+    {/* Why the session itself can't switch yet, said once, not on every
+        card (BTN-5, LST-3; the 0.5.0 walk, F2). */}
+    {notYet && others.length > 0 && (
+      <p className="text-meta leading-snug text-ink-2" data-testid="continue-not-yet">
+        {notYet}
+      </p>
+    )}
     {rows === null ? (
       <p className="text-meta text-ink-2" role="status">Looking for room…</p>
     ) : others.length === 0 ? (
       <p className="text-meta text-ink-2" data-testid="continue-none">No other app to continue in.</p>
     ) : (
-      <ul className="flex flex-col gap-3" aria-label="Apps to continue in">
+      <ul className="flex flex-col gap-4" aria-label="Apps to continue in">
         {others.map((group) => {
-          const name = group.account ? accountName(group.account) : group.targets[0]!.label;
+          const name = group.name;
           // The account's room, from a target signed in there; "Not
           // signed in" only when none is.
           const room = (group.targets.find((target) => !roomless({ signed_out: target.signedOut, desktop: target.desktop })) ?? group.targets[0]!).room;
           return (
-            <li key={group.account?.key ?? group.targets[0]!.profileId} className="flex flex-col gap-1.5" data-testid="continue-account" data-room={room?.kind}>
-              <span className="flex items-baseline justify-between gap-2 text-meta">
-                <span className="truncate font-medium text-ink">{name}</span>
+            <li key={group.account?.key ?? group.targets[0]!.profileId} className="flex flex-col gap-2" data-testid="continue-account" data-room={room?.kind}>
+              <span className="flex min-w-0 items-center justify-between gap-2">
+                <span className="min-w-0 text-label font-semibold uppercase tracking-[0.07em] text-section-label [overflow-wrap:anywhere]">{name}</span>
                 <RoomFigure room={room} />
               </span>
-              {room && room.kind !== "blocked" && <RoomLine name={name} room={room} testId="continue-room" />}
-              {group.targets.map((target) => {
-                // Its own sign-in, when the account's line doesn't say it.
-                const sign = signInWords({ signed_out: target.signedOut, desktop: target.desktop });
-                const own = sign && !(sign === NOT_SIGNED_IN && room?.kind === "blocked") ? sign : null;
-                const words = own ?? withFirstRun(target.recipeId in checks ? setupWords(checks[target.recipeId]) : null, target.firstRun === true);
-                return (
-                  <div key={target.profileId + target.recipeId} className="flex flex-col gap-0.5">
-                    <Button
-                      size="md"
-                      variant="secondary"
-                      className="justify-start"
-                      disabled={!pick || target.blocked !== null}
-                      title={target.blocked ?? `Continue in ${target.name ?? target.label}`}
-                      onClick={() => pick?.(target.recipeId, target.label)}
-                      data-testid="continue-target"
-                      data-cross-tool={target.crossTool ? "true" : undefined}
-                      data-suggested={target.suggested ? "true" : undefined}
-                    >
-                      {target.mark ? (
-                        <PlaceMark place={target.mark} size={16} ring="var(--color-surface-2)" />
-                      ) : target.tool ? (
-                        <CliAppMark tool={target.tool} folderId={target.profileId} folder={target.label} size={16} ring="var(--color-surface-2)" />
-                      ) : (
-                        <ProfileBadge app={cliAppId(target.profileId)} name={target.label} />
-                      )}
-                      <span className="truncate">{target.name ?? target.label}</span>
-                      {target.suggested && <SuggestedMark className="ml-auto" />}
-                    </Button>
-                    {(target.blocked || words || (target.crossTool && target.badge)) && (
-                      <span className="flex flex-wrap items-center gap-x-2 gap-y-1 pl-1 text-label text-muted" data-testid="continue-check">
-                        {target.crossTool && target.badge && <FidelityBadge badge={target.badge.words} validated={target.badge.validated} />}
-                        {target.blocked ?? words}
-                      </span>
-                    )}
-                    {target.setupNeeded && <StartThereLink accountId={target.profileId} label={target.label} onStart={() => setDialog(false)} />}
-                  </div>
-                );
-              })}
+              {room && room.kind !== "blocked" && <RoomLine name={name} room={room} testId="continue-room" chip={false} />}
+              {group.targets.map((target) => (
+                <ContinueTarget key={target.profileId + target.recipeId} target={target} saidOnce={notYet} accountRoom={room} check={target.recipeId in checks ? checks[target.recipeId] : undefined} pick={pick} onStart={() => setDialog(false)} />
+              ))}
             </li>
           );
         })}
@@ -305,25 +283,7 @@ export function ContinueOn({
         {target.name ?? target.label} shares this account, so it gives no new room.
       </p>
     ))}
-    {outside && (
-      <div className="flex flex-col gap-2 border-t border-hairline pt-3" data-testid="continue-outside">
-        <p className="text-meta leading-[1.5] text-ink-2">
-          {/* 0.3.5: where it goes on, said plainly: Desktop or CLI, chosen before it switches. */}
-          {`Picking one continues it on that account, in the ${toolSpec(model.tool).desktop_app ?? "desktop"} app (Desktop) or in a terminal (CLI): you choose before it switches. ${model.live ? `The original stays open in ${app ?? "its app"}, untouched.` : "The original stays as it is."}`}
-        </p>
-        {model.live ? (
-          <p className="text-label text-muted" data-testid="continue-same-profile">
-            To carry on with it in {sessionAppName(model)} itself, close it in {app ?? "its app"} first: one conversation can't have two writers.
-          </p>
-        ) : (
-          onCarryIn && (
-            <WhyButton size="md" variant="secondary" why={carryInWhy} onClick={onCarryIn} data-testid="continue-carry-in" className="w-fit">
-              Continue in AI Juggler
-            </WhyButton>
-          )
-        )}
-      </div>
-    )}
+    {outside && <OutsideNote model={model} app={app} onCarryIn={onCarryIn} carryInWhy={carryInWhy} />}
     </>
   );
   const shown = dialog ? (
@@ -336,21 +296,21 @@ export function ContinueOn({
   return (
     <Card className="flex flex-col gap-3 p-5" data-testid="continue-on">
       {quiet ? (
-        <ContinueFold open={chosen} onToggle={setChosen} testId="continue-fold">
-          {chosen && <div className="mt-3 flex flex-col gap-3">{shown}</div>}
+        <ContinueFold open={open} onToggle={setChosen} testId="continue-fold">
+          {open && <div className="mt-3 flex flex-col gap-3">{shown}</div>}
         </ContinueFold>
       ) : (
         <>
-          <CardTitle>Continue in another app</CardTitle>
+          <CardTitle>Apps that can take it over</CardTitle>
           {shown}
         </>
       )}
-      {quiet && !chosen && <AccountRoomLine accountId={model.profileId} />}
+      {quiet && !open && <FoldedLines rows={searching ? rows : undefined} targets={others.flatMap((group) => group.targets)} accountId={model.profileId} />}
       {/* 0.3: save its handover, beside the switch actions (a session
           another app runs is only read for it). */}
       <SaveHandover sessionId={source} />
       {dialog && (
-        <ContinueDialog title="Continue in another app" detail={`Now in ${sessionAppName(model)}`} onClose={() => setDialog(false)}>
+        <ContinueDialog title="Switch account" detail={`Now in ${sessionAppName(model)}`} onClose={() => setDialog(false)}>
           {list}
         </ContinueDialog>
       )}
@@ -358,14 +318,83 @@ export function ContinueOn({
   );
 }
 
+/** A target card's one line: its own reason (unless the list says it once
+ * above), else its own sign-in (when the account's line doesn't say it),
+ * else what its set-up check found. */
+function targetWords(target: Target, saidOnce: string | null, accountRoom: TargetRoom | null, check: SetupCheckInfo | null | undefined): string | null {
+  const sign = signInWords({ signed_out: target.signedOut, desktop: target.desktop });
+  const own = sign && !(sign === NOT_SIGNED_IN && accountRoom?.kind === "blocked") ? sign : null;
+  const reason = target.blocked !== null && target.blocked !== saidOnce ? target.blocked : null;
+  return reason ?? own ?? withFirstRun(check === undefined ? null : setupWords(check), target.firstRun === true);
+}
+
+/** A session another app runs: where a pick goes on (Desktop or CLI), and the original. */
+function OutsideNote({ model, app, onCarryIn, carryInWhy }: { model: SessionModel; app: string | null; onCarryIn?: () => void; carryInWhy: string | null }): JSX.Element {
+  return (
+    <div className="flex flex-col gap-2 border-t border-hairline pt-3" data-testid="continue-outside">
+      <p className="text-meta leading-[1.5] text-ink-2">
+        {`Picking one continues it on that account, in the ${toolSpec(model.tool).desktop_app ?? "desktop"} app (Desktop) or in a terminal (CLI): you choose before it switches. ${model.live ? `The original stays open in ${app ?? "its app"}, untouched.` : "The original stays as it is."}`}
+      </p>
+      {model.live ? (
+        <p className="text-label text-muted" data-testid="continue-same-profile">
+          To carry on with it in {sessionAppName(model)} itself, close it in {app ?? "its app"} first: one conversation can't have two writers.
+        </p>
+      ) : (
+        onCarryIn && (
+          <WhyButton size="md" variant="secondary" why={carryInWhy} onClick={onCarryIn} data-testid="continue-carry-in" className="w-fit">
+            Continue in AI Juggler
+          </WhyButton>
+        )
+      )}
+    </div>
+  );
+}
+
+/** One App to continue in, as a target card (D-142): its logo and badge,
+ * its name, Suggested and how much carries as tags, and its one-line
+ * check (its own sign-in, or what it lacks) under them. */
+function ContinueTarget({ target, saidOnce = null, accountRoom, check, pick, onStart }: { target: Target; saidOnce?: string | null; accountRoom: TargetRoom | null; check: SetupCheckInfo | null | undefined; pick: ((recipeId: string, label: string) => void) | undefined; onStart: () => void }): JSX.Element {
+  const words = targetWords(target, saidOnce, accountRoom, check);
+  const badge = target.crossTool ? target.badge : null;
+  return (
+    <div className="flex flex-col gap-1">
+      <TargetButton
+        disabled={!pick || target.blocked !== null}
+        title={target.blocked ?? `Continue in ${target.name ?? target.label}`}
+        onClick={() => pick?.(target.recipeId, target.label)}
+        data-testid="continue-target"
+        data-cross-tool={target.crossTool ? "true" : undefined}
+        data-suggested={target.suggested ? "true" : undefined}
+        suggested={target.suggested && target.blocked === null}
+        logo={<TargetLogo tool={target.tool ?? null} kind={target.mark?.kind === "desktop" ? "desktop" : "cli"} place={target.mark} folderId={target.profileId} label={target.label} />}
+        name={target.name ?? target.label}
+        tags={target.suggested && <SuggestedTag />}
+        detail={
+          (badge || words) && (
+            <>
+              {badge && <BadgeLine badge={badge.words} validated={badge.validated} />}
+              {words && <span data-testid="continue-check">{words}</span>}
+            </>
+          )
+        }
+      />
+      {target.setupNeeded && <StartThereLink accountId={target.profileId} label={target.label} onStart={onStart} />}
+    </div>
+  );
+}
+
 /** An account's room, short, beside its name ("75% left", "Out of room",
  * "Using credits"). */
 function RoomFigure({ room }: { room: TargetRoom | null }): JSX.Element {
-  if (room?.kind === "credits") return <span className="shrink-0 text-ink">Using credits</span>;
-  if (room?.kind === "blocked") return <span className="shrink-0 text-muted" data-testid="continue-signed-out">{NOT_SIGNED_IN}</span>;
-  if (room === null || room.left === null) return <span className="shrink-0 text-muted">not measured</span>;
-  // 0.4.1: out or low, the one mark every screen shows (never suggested);
-  // F-rc3c-1: its title and screen-reader words say an old reading's age.
-  if (room.kind === "out" || room.kind === "low") return <RoomChip mark={roomMarkFrom(room.left, room.resetsAtMs, false, undefined, room.age ?? null)} compact testId="switch-target-room" />;
-  return <span className="shrink-0 tabular-nums text-muted">{`${room.left}% left`}</span>;
+  // 0.5.0: a tag in its status colour (TAG-5, the same as the switch's).
+  if (room?.kind === "blocked")
+    return (
+      <span className="inline-flex shrink-0" data-testid="continue-signed-out">
+        <Pill tone="neutral">{NOT_SIGNED_IN}</Pill>
+      </span>
+    );
+  // 0.4.1: out or low, the one mark every screen shows (never suggested),
+  // its title and screen-reader words saying an old reading's age.
+  if (room && room.left !== null && (room.kind === "out" || room.kind === "low")) return <RoomChip mark={roomMarkFrom(room.left, room.resetsAtMs, false, undefined, room.age ?? null)} compact testId="switch-target-room" />;
+  return <RoomTag room={room} />;
 }

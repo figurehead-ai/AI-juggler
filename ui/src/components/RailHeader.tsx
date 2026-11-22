@@ -29,7 +29,8 @@ export function RailHeader({ minimal, info, onToggle }: { minimal: boolean; info
         onClick={onToggle}
         className={"shrink-0 rounded-md text-accent outline-none hover:bg-surface focus-visible:ring-1 focus-visible:ring-accent/60 " + (minimal && edition ? "p-0.5" : "p-1")}
       >
-        <span className="block drop-shadow-[0_0_10px_#7c7cf466]">
+        {/* D-117: the brand mark in its accent, no glow. */}
+        <span className="block">
           <IconJuggler width={22} height={22} />
         </span>
       </button>

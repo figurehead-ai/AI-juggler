@@ -101,6 +101,29 @@ session, on This Mac, or on the notification centre.
   digest and notifications** stays quiet.
 - **Not what you snoozed or muted** in the notification centre.
 
+## Watches you set
+
+A watch tells you when something you picked happens: a session finishes,
+asks you, looks stuck or fails; an app, a project, a pool or an account
+does something you chose. A watch only tells you. It never sends, stops
+or approves anything.
+
+- **Make one** on the **Watches** page (**New watch**), from **Watch…** on
+  a session, or by asking Bot ("tell me when api finishes"); Bot shows the
+  watch in plain words and makes it only when you press **Watch**.
+- **Only what can be told:** the choices are what the apps you picked can
+  report. Something an app can't report isn't offered for it.
+- **How long:** **Once**, **Until it ends** (sessions only), **Today**,
+  **Until** a time, or **Always**. Ended watches stay under **Ended** for 30
+  days, each saying why it ended, with a way to renew it.
+- **Quiet hours** hold watch alerts too, unless you turn on **Even during
+  quiet hours** for that watch.
+- **At most 50** watches at once. Pause one to keep it without being told;
+  remove one, and **Undo** brings it back for a few seconds.
+- **Watches you set** in Settings › Notifications turns all watch alerts
+  on or off, and links to the page. Every watch alert has **Edit watch**,
+  and the notification centre links to **Watches** at its head.
+
 ## Your menu
 
 Your avatar, at the top right, holds what isn't daily work: **Settings**

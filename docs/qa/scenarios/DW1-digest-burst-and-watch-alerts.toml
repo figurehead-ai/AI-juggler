@@ -1,0 +1,85 @@
+id = "DW1"
+title = "The digest, a burst of finishes, and a watch that fires"
+epic = "E37"
+decisions = ["D-132"]
+layers = ["L4"]
+exercises = ["the digest (AJ-E3712)", "a burst is one notification", "a digest item opened", "watches (AJ-E3814)", "a watch alert (AJ-E3817)"]
+needs = ["lab"]
+sheet = "docs/qa/0.5-walks/DW1.md"
+
+# The 0.5.0 re-walk (R12) could not walk the burst notification, a digest
+# item opened, or a watch alert firing: K3's one watched session had hit
+# its limit and could not ask, and its stand-in asks only at a fresh start
+# (T16 is the live sign-in lab, with none of these). This lab is K3's
+# stand-ins, small and bare, driven live by the walker:
+#
+# - Every session started from New session runs the lab's stand-in for
+#   Claude Code (scripts/qa/lab_standin.sh), at its prompt (no `standin =
+#   "asks"`): a line typed at the prompt makes it ask ("Bash: npm test")
+#   AFTER the watch exists, and `/exit` there ends it on its own (exit 0,
+#   "finished"), as Claude Code's /exit does.
+# - The burst: three sessions ended within a minute are one digest a
+#   minute after the first (the scheduler's NOTABLE_DELAY_MS), and with
+#   "The digest" on (off by default) one notification ("3 agents
+#   finished"), not three. Walk it first: a digest is never sooner than
+#   five minutes after the last (MIN_GAP_MS).
+# - The watch: on project web, "Asks you", Always; then a fourth session
+#   in web asks.
+#
+# Notifications reach macOS only if the lab's Dev build may post them;
+# otherwise read them where AI Juggler lists them (Home's feed, Needs you,
+# the watch's own row). Set no quiet hours: they hold both.
+[setup]
+replica = false
+projects = ["web", "api"]
+
+[[setup.apps]]
+id = "cc-work"
+tool = "claude-code"
+account = "Work"
+profile = "work"
+
+[[setup.apps]]
+id = "cc-personal"
+tool = "claude-code"
+account = "Personal"
+profile = "personal"
+
+[[steps]]
+do = "Settings › Notifications: turn on The digest (off by default); leave Watches you set on and quiet hours unset"
+expect = "Both switches read on; nothing else changed"
+
+[[steps]]
+do = "New session three times within a minute: cc-work in web, cc-personal in api, cc-work in api"
+expect = "Each opens its session page with the stand-in at its prompt (Welcome to Claude Code (lab stand-in)); Home lists three working agents"
+
+[[steps]]
+do = "In each of the three terminals type /exit and Return, all three within 30 seconds"
+expect = "Each session ends Finished (not Stopped or Failed); no notification yet, none per session"
+measure = "the three ends within 30 s of the first"
+
+[[steps]]
+do = "Wait about a minute after the first /exit"
+expect = "ONE notification for the burst (The digest: 3 agents finished), and one digest item on Home's feed naming the three sessions; never three notifications"
+measure = "first /exit to the notification ≈ 60 s"
+
+[[steps]]
+do = "Open the digest item (from the notification, then from Home's feed)"
+expect = "The notification opens Home with the digest item on its feed; each session name in the item opens that session's page"
+
+[[steps]]
+do = "Watches › New watch: project web, Asks you, Always; save"
+expect = "Toast Watching.; the list reads Watching 1 active, the row Waiting · never told you"
+
+[[steps]]
+do = "New session: cc-work in web; at its prompt type run the tests and Return"
+expect = "The stand-in asks (Bash: npm test); the session reads Asks you, Needs you counts it"
+
+[[steps]]
+do = "Watch the notifications and the watch's row"
+expect = "One watch alert: the session in web asks you; the row says when it told you; opening the alert opens that session's page"
+measure = "the ask to the alert ≤ 10 s"
+
+[[steps]]
+do = "Answer 1 in its terminal, then type /exit"
+expect = "Back at its prompt, then Finished; the watch stays active (Always) and tells nothing more"

@@ -1,0 +1,37 @@
+{
+ "packet": "v4-apple-heldout-jobs-review.json",
+ "reviewer": "Opus, blind (blind-review-key/, v4-heldout results/reports and harness prompts not opened)",
+ "date": "2026-11-18",
+ "scale": "PASS faithful + keeps what matters + clear at a glance; WEAK faithful but clumsy/vague/ungrammatical/loses something useful; FAIL misleading (incl. a lost failure, caveat that matters, or question)",
+ "entries": [
+  {"pair": "heldout-jobs-review-001", "item": "R001", "first": "WEAK", "second": "PASS", "prefer": "second",
+   "why": "first is one copied sentence; loses the limit cap, the OpenAPI update and the 48/0 tests; second keeps all three with risk grounded in the tests"},
+  {"pair": "heldout-jobs-review-002", "item": "R002", "first": "WEAK", "second": "WEAK", "prefer": "second",
+   "why": "first is ungrammatical German ('die Tests haben ich nicht ausgefuehrt', 'Geaendert: ueberarbeitet den') and files the untouched reset page under Geaendert; second is clear but has a '.;' glitch, files the browser check under Offen and rates risk mittel; both drop the ask to run the tests locally before merging"},
+  {"pair": "heldout-jobs-review-003", "item": "R003", "first": "WEAK", "second": "PASS", "prefer": "second",
+   "why": "first repeats 'Partial progress...' in Changed and Left and drops the done scheduler hook, the 3 ignored tests and the untouched retry logic; second lists done/stubbed/ignored, the next steps and the hour estimate (retry logic misfiled as 'Not checked', minor)"},
+  {"pair": "heldout-jobs-review-004", "item": "R004", "first": "FAIL", "second": "FAIL", "prefer": "first",
+   "why": "first says 'Changed: bumped harbor-sdk to 4.2' though the bump was reverted, and files the user's decision (wait for 4.3 or migrate by hand) as 'Not checked'; second keeps 'build is red' but says 'Left: nothing stated', losing the decision the user must make, the cause and the revert. First still tells the developer more (cause, options, tree unchanged)"},
+  {"pair": "heldout-jobs-review-005", "item": "R005", "first": "FAIL", "second": "WEAK", "prefer": "second",
+   "why": "first drops the question itself (delete on read or by the sweeper?) on a question item; second keeps the full question but files it under Changed, repeats it truncated under Left and drops the Entry type / 9 tests"},
+  {"pair": "heldout-jobs-review-006", "item": "R007", "first": "WEAK", "second": "PASS", "prefer": "second",
+   "why": "first only implies the failing test ('the symlink failure') without naming it or saying it now fails; second names tests/test_scan_symlink.py as failing and keeps the not-investigated caveat"},
+  {"pair": "heldout-jobs-review-007", "item": "R008", "first": "WEAK", "second": "FAIL", "prefer": "first",
+   "why": "first keeps the change, the voucher-export issue and the 2 failing tests but has dangling fragments ('den habe ich nicht geaendert', 'die alte Reihenfolge erwarten', '2 Schlugen Fehl'); second says only 'Das war der gewuenschte Fehler-Fix', 'Offen: nichts genannt' and loses both failing tests and the voucher-export bug"},
+  {"pair": "heldout-jobs-review-008", "item": "R009", "first": "PASS", "second": "WEAK", "prefer": "first",
+   "why": "first keeps not-run, 'run the suite before merging' and the no-fallback break risk; second keeps not-run and the reason but drops the user-breaking risk and the ask ('Left: nothing stated', risk medium)"},
+  {"pair": "heldout-jobs-review-009", "item": "R010", "first": "PASS", "second": "FAIL", "prefer": "first",
+   "why": "first keeps the staging alerts breaking and the scripts left in plain text (dashboard misfiled as 'Not checked', minor); second says 'Left: nothing stated, Risk: low' and hides that alerts will stop matching"},
+  {"pair": "heldout-jobs-review-010", "item": "R012", "first": "PASS", "second": "FAIL", "prefer": "first",
+   "why": "first keeps the Python 3.9 vs 3.8 mismatch and 'Please pick one' (labels 'Tests (AI Juggler)' and 'Risk: not stated' a little odd); second says 'Left: nothing stated' and loses the question"}
+ ],
+ "counts": {"PASS": 6, "WEAK": 8, "FAIL": 6, "prefer_first": 5, "prefer_second": 5, "prefer_same": 0},
+ "fails": [
+  {"pair": "heldout-jobs-review-004", "option": "first", "why": "shows a reverted bump as 'Changed', files the user's decision as 'Not checked'"},
+  {"pair": "heldout-jobs-review-004", "option": "second", "why": "'Left: nothing stated' loses the decision the user must make"},
+  {"pair": "heldout-jobs-review-005", "option": "first", "why": "the question is gone on a question item"},
+  {"pair": "heldout-jobs-review-007", "option": "second", "why": "loses the 2 failing tests and the voucher-export bug; 'Offen: nichts genannt'"},
+  {"pair": "heldout-jobs-review-009", "option": "second", "why": "risk low, nothing left; hides the staging alerts breaking"},
+  {"pair": "heldout-jobs-review-010", "option": "second", "why": "loses the 'Please pick one' version question"}
+ ]
+}

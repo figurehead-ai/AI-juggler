@@ -16,6 +16,7 @@ import type { MarkChoice } from "../types/generated/MarkChoice";
 import type { MarkShows } from "../types/generated/MarkShows";
 import type { ProjectMarkInfo } from "../types/generated/ProjectMarkInfo";
 import { Radio } from "./controls";
+import { SELECTED_CARD } from "./controls/selected";
 
 export function MarkSheet({ project, onClose, onDone }: { project: ProjectInfo; onClose: () => void; onDone: () => void }): JSX.Element {
   const mark: ProjectMarkInfo = project.mark ?? { letters: initialsOf(project.name), swatch: 0, shows: "letters" };
@@ -48,8 +49,24 @@ export function MarkSheet({ project, onClose, onDone }: { project: ProjectInfo; 
   };
 
   return (
-    <Modal title={`Change ${project.name}'s mark`} onClose={onClose}>
-      <form
+    <Modal title={`Change ${project.name}'s mark`} onClose={onClose}
+      footer={
+        <>
+            {mark.choice && (
+              <Button size="sm" variant="ghost" className="mr-auto" disabled={busy} onClick={() => void save({})} data-testid="mark-reset">
+                Use its own
+              </Button>
+            )}
+            <Button size="sm" variant="ghost" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button size="sm" variant="primary" type="submit" form="marksheet-form" disabled={busy} data-testid="mark-save">
+              {busy ? "Saving…" : "Save"}
+            </Button>
+        </>
+      }
+    >
+      <form id="marksheet-form"
         className="flex flex-col gap-4"
         data-testid="mark-sheet"
         onSubmit={(event) => {
@@ -99,7 +116,7 @@ export function MarkSheet({ project, onClose, onDone }: { project: ProjectInfo; 
             ).map((option) => (
               <label
                 key={option.id}
-                className={"flex items-center gap-2 rounded-lg border px-3 py-1.5 text-sm " + (shows === option.id ? "border-accent/60 bg-accent-soft" : "border-hairline")}
+                className={"flex items-center gap-2 rounded-lg border px-3 py-1.5 text-sm " + (shows === option.id ? SELECTED_CARD : "border-hairline")}
               >
                 <Radio name="mark-shows" checked={shows === option.id} onChange={() => setShows(option.id)} data-testid={`mark-shows-${option.id}`} />
                 {option.label}
@@ -122,19 +139,6 @@ export function MarkSheet({ project, onClose, onDone }: { project: ProjectInfo; 
             {error}
           </p>
         )}
-        <div className="flex items-center justify-end gap-2">
-          {mark.choice && (
-            <Button size="sm" variant="ghost" className="mr-auto" disabled={busy} onClick={() => void save({})} data-testid="mark-reset">
-              Use its own
-            </Button>
-          )}
-          <Button size="sm" variant="ghost" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button size="sm" variant="primary" type="submit" disabled={busy} data-testid="mark-save">
-            {busy ? "Saving…" : "Save"}
-          </Button>
-        </div>
       </form>
     </Modal>
   );

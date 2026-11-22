@@ -183,3 +183,47 @@
 **Files to touch**: `crates/juggler-app/src/features/places/`, `ui/src/components/` (the app menu), `ui/src/pages/app/`.
 **Research basis**: 0.3.8's lost-window restart.
 **Handover note**: —
+
+### AJ-E3210 Each App on its own sign-in's Account, even when a Claude app profile and its CLI share a folder (F-rc3c-3) | Status: IN-PROGRESS (built 2026-11-19 on release/0.5: Q1-A as ruled, Q2–Q6 answered under D-135, V55; acceptance tests 1–9 pass; the live aij-test walk, test 10, is left) | Priority P1 | Effort L | Depends: AJ-E3202 (stored Accounts and Apps), a D-63 amendment (Q1)
+**Goal**: Each App is on the Account it actually uses, even when a
+Claude app profile and its CLI share a folder with different sign-ins.
+**User story**: As someone whose test profile's Claude app is on my
+personal plan and whose CLI is on my team seat, I see the app under the
+plan and the CLI under the team. Each shows its own room, and neither
+moves when the other runs.
+**Requirements**:
+1. A desktop App's Account SHALL come from its own sign-in, by the folder
+   names of its Code records only (Q1-A, after the D-63 amendment).
+2. A CLI App's Account SHALL come from the folder's CLI sign-in: moved
+   only by a read a CLI wrote; "Not signed in" when the folder has no CLI
+   sign-in (Q2).
+3. Each App SHALL store its Account (Q3-i). Every surface that groups or
+   marks room SHALL read it by App (Q6).
+4. Readings SHALL carry the Account they were read under. An Account's
+   room SHALL use only its own (Q4-i).
+5. A change of Account SHALL be recorded once and told once (Q5).
+**UI/UX reasoning**: Account = subscription; an App is on the one it
+uses. Never show a wrong Out mark; say a change once.
+**Performance budget**: the Accounts read stays ≤ its 0.4.6 time (it now
+runs every 30 seconds while shown, acadb1b67); per-App grouping ≤ 5 ms.
+**Quality gates**: L1 the tests above; L2 on the replica (a split
+folder); the live aij-test walk.
+**Evidence/validation proof**: the walk's record, the presence check's
+PASS on the real setup.
+**Visual testing**: the Runway and the rail with a split folder, in both
+themes; the change notice.
+**Files to touch**:
+- `crates/juggler-adapters/src/claude_code.rs`, `claude_limits.rs`
+- `crates/juggler-app/src/features/subscriptions/`, `features/quota/records.rs`,
+  `features/pools/sign_in.rs`
+- `crates/juggler-core/src/storage/` (a migration taking the next free number on release/0.5)
+- `ui/src/lib/subscriptions.ts`, `room-mark.ts`, `room-targets.ts`
+- `ui/src/components/RoomChip.tsx`, `HomeRunway.tsx`
+- `ui/src/pages/session/ResumeButton.tsx`
+- `scripts/qa/presence_sessions.py`
+**Research basis**: [the write-up](../research/split-sign-in-folder.md) (root cause with file:line on release/0.4.6, six design questions, ten acceptance tests; the first is the ignored `stored_accounts.rs` test from 920d9666e); `docs/research/desktop-pool-members.md` §2;
+`docs/research/entity-model-audit.md` (Account and App);
+`claude_limits.rs` (`instance_sign_ins`, `app_usage_samples_from`).
+**Handover note**: 0.4.6 shipped the stale-mark fix (acadb1b67) and the
+ignored repro test (920d9666e) only. No link-keeping stopgap shipped, for
+the reasons in "Why no 0.4.6 mitigation".

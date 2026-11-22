@@ -1,0 +1,331 @@
+{
+ "family": "apple",
+ "job": "review",
+ "note": "script flags: candidates for Opus to confirm by eye, never verdicts",
+ "candidates": [
+  {
+   "id": "V005",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'neue Fehlermeldungen unter den Feldern': 2b: content word(s) not in the text: neue",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V005",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'neue Fehlermeldungen unter den Feldern': 2b: content word(s) not in the text: neue",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V005",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'neue Fehlermeldungen unter den Feldern': 2b: content word(s) not in the text: neue",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V006",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'the whole suite: everything passes, incl': contradiction: a success claim ('everything passes') on a turn AI Juggler's facts show failed; never repeat it, even as the agent's",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V006",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'the whole suite: everything passes, incl': contradiction: a success claim on a failed turn",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V006",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "risk reason: contradiction: a success claim ('everything passes') on a turn AI Juggler's facts show failed; never repeat it, even as the agent's",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V006",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "risk reason: contradiction: a success claim on a failed turn",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V006",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'the whole suite: everything passes, incl': contradiction: a success claim ('everything passes') on a turn AI Juggler's facts show failed; never repeat it, even as the agent's",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V006",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'the whole suite: everything passes, incl': contradiction: a success claim on a failed turn",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V006",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "risk reason: contradiction: a success claim ('everything passes') on a turn AI Juggler's facts show failed; never repeat it, even as the agent's",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V006",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "risk reason: contradiction: a success claim on a failed turn",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V006",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "risk reason: contradiction: a success claim ('everything passes') on a turn AI Juggler's facts show failed; never repeat it, even as the agent's",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V006",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "risk reason: contradiction: a success claim on a failed turn",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V010",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "risk reason: 2b: content word(s) not in the text: unknown",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V013",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'den Warenkorb-Zähler im Header behoben: ': 2b: drops 'statt' from between 'null' and 'alten'",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V013",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'den Warenkorb-Zähler im Header behoben: ': 2b: drops 'statt' from between 'null' and 'alten'",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V013",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'den Warenkorb-Zähler im Header behoben: ': 2b: drops 'statt' from between 'null' and 'alten'",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V015",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'Die Rechnungsnummern werden jetzt lücken': contradiction: a success claim ('lückenlos') on a turn AI Juggler's facts show failed; never repeat it, even as the agent's",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V015",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "risk reason: contradiction: a success claim ('alles ist bestanden') on a turn AI Juggler's facts show failed; never repeat it, even as the agent's",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V024",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'Die Schnittstellen bleiben so, wie sie v': 2b: content word(s) not in the text: angestellt",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V024",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "risk reason: 2b: content word(s) not in the text: angestellt",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V024",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'Die Schnittstellen bleiben so, wie sie v': 2b: content word(s) not in the text: angestellt",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V024",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "risk reason: 2b: content word(s) not in the text: angestellt",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V024",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'Die Schnittstellen bleiben so, wie sie v': 2b: content word(s) not in the text: angestellt",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V024",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "risk reason: 2b: content word(s) not in the text: angestellt",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V027",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the new index is only locally created': 2b: content word(s) not in the text: created, locally, new, the",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V027",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "risk reason: 2b: content word(s) not in the text: created, locally, new, the",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V027",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the Statistikseite lädt jetzt in unter e': 2b: content word(s) not in the text: the",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V027",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the Statistikseite lädt jetzt in unter e': 2b: content word(s) not in the text: the",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V031",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'added input validation to the signup for': facts: no tests ran; the text says tests pass",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V031",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "contradiction: risk low with tests not run",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V031",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'added input validation to the signup for': facts: no tests ran; the text says tests pass",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V031",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "contradiction: risk low with tests not run",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V031",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'added input validation to the signup for': facts: no tests ran; the text says tests pass",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V031",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "contradiction: risk low with tests not run",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V037",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "risk reason: contradiction: a success claim ('alle Tests sind erfolgreich') on a turn AI Juggler's facts show failed; never repeat it, even as the agent's",
+   "stage": "caught",
+   "corpus": "turns"
+  }
+ ]
+}

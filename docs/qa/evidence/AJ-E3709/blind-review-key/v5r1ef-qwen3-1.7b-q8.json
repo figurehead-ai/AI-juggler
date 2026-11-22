@@ -1,0 +1,26 @@
+[
+ {
+  "pair": "digest5b-digest-001",
+  "job": "digest",
+  "first": "model",
+  "second": "non-AI"
+ },
+ {
+  "pair": "digest5b-digest-002",
+  "job": "digest",
+  "first": "model",
+  "second": "non-AI"
+ },
+ {
+  "pair": "digest5b-digest-003",
+  "job": "digest",
+  "first": "non-AI",
+  "second": "model"
+ },
+ {
+  "pair": "digest5b-digest-004",
+  "job": "digest",
+  "first": "model",
+  "second": "non-AI"
+ }
+]

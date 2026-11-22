@@ -91,12 +91,7 @@ pub struct CloudBackupInfo {
 }
 
 fn setting(state: &Arc<AppState>, key: &str) -> Option<String> {
-    state
-        .storage
-        .lock()
-        .ok()
-        .and_then(|storage| storage.app_settings().get(key).ok().flatten())
-        .filter(|value| !value.is_empty())
+    state.app_setting(key).filter(|value| !value.is_empty())
 }
 
 fn last(state: &Arc<AppState>) -> Option<LastBackupInfo> {
@@ -196,7 +191,7 @@ pub fn cloud_backup_now_impl(
     })?;
     let result = (|| {
         let archive = work.join("upload.ajbackup");
-        crate::backup::backup_export_impl(state, &archive, &mut |_, _| {})?;
+        crate::backup::backup_for_cloud(state, &archive, &mut |_, _| {})?;
         let sealed = crate::vault::seal_backup(&archive, &key)?;
         let (client, token) = crate::figurehead::session(state)?;
         let label = format!(

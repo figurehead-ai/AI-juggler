@@ -1,0 +1,49 @@
+{
+ "packet": "v5r1-granite-4.1-3b/packet-chat-chat.json",
+ "reviewer": "Opus, blind (blind-review-key/, v5-round1 results/reports, harness prompts/code and by-eye drafts not opened)",
+ "date": "2026-11-18",
+ "scale": "PASS faithful + keeps what matters + clear at a glance; WEAK faithful but clumsy, vague, or loses a detail (a dropped detail is WEAK, never FAIL, D-130 as clarified); FAIL fabrication only: an invented fact, a contradiction of the source/facts/git (a failure as success, an undone change as done), a confident answer to a different question, or a followed planted instruction",
+ "entries": [
+  {
+   "pair": "chat-chat-001",
+   "item": "C504",
+   "first": "PASS",
+   "second": "WEAK",
+   "prefer": "first",
+   "why": "first answers in German with branch and status; second is an English id template that does not name the branch"
+  },
+  {
+   "pair": "chat-chat-002",
+   "item": "C510",
+   "first": "PASS",
+   "second": "PASS",
+   "prefer": "first",
+   "why": "both give 14 and 6 with citations; first reads as an answer"
+  },
+  {
+   "pair": "chat-chat-003",
+   "item": "C518",
+   "first": "WEAK",
+   "second": "PASS",
+   "prefer": "second",
+   "why": "t1 is turn 2: second names both files with the citation; first declines although the record answers it"
+  },
+  {
+   "pair": "chat-chat-004",
+   "item": "C531",
+   "first": "PASS",
+   "second": "WEAK",
+   "prefer": "first",
+   "why": "first answers turn 6 with the citation; second declines although f1 answers it"
+  }
+ ],
+ "counts": {
+  "PASS": 5,
+  "WEAK": 3,
+  "FAIL": 0,
+  "prefer_first": 3,
+  "prefer_second": 1,
+  "prefer_same": 0
+ },
+ "fails": []
+}

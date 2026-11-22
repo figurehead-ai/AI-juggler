@@ -11,7 +11,8 @@
 //!               [--exit CODE] [--prompt TEXT] [--wait-prompt TEXT]
 //!               [--quota-exit] [--limit-hit-ms MS]
 //!               [--spawn-child PROG --child-args "A B"]
-//!               [--child-ignore-term] [--mcp-config FILE] [--exit-when FILE]
+//!               [--child-ignore-term] [--child-pid-file FILE] [--mcp-config FILE]
+//!               [--exit-when FILE]
 //! fake-harness write --format claude|codex --file PATH --cwd DIR
 //!               --session-id ID [--every-ms MS] [--used FIVE WEEK]
 //! fake-harness drive --dir DIR [--session-id ID | --resume ID]
@@ -34,7 +35,9 @@
 //! `--spawn-child` starts a detached child (stdio null, so it never holds
 //! the harness's output pipes) that OUTLIVES the harness — the orphan
 //! fixture (AJ-E410); `--child-ignore-term` makes it ignore SIGTERM
-//! (the stop-ladder escalation fixture, unix only). `--exit-when` holds the
+//! (the stop-ladder escalation fixture, unix only); `--child-pid-file` writes
+//! the child's pid there once it runs, the test's signal that it exists (no
+//! clock to miss on a loaded machine). `--exit-when` holds the
 //! end until a file exists (at most two minutes), so a test ends the run
 //! once it has seen what it needs, whatever the machine's load. `--mcp-config` makes
 //! it an MCP client of the servers in FILE (AJ-E1704, `support/mcp_client.rs`):
@@ -142,6 +145,8 @@ struct RunOptions {
     child_args: String,
     /// Make the child ignore SIGTERM (stop-ladder escalation fixture).
     child_ignore_term: bool,
+    /// Where to write the child's pid once it runs: the test's signal.
+    child_pid_file: Option<PathBuf>,
     /// The MCP servers to call, as a tool's `--mcp-config` file names them.
     mcp_config: Option<PathBuf>,
     /// The hook command to run at its events (AJ-E2306, `support/hooks.rs`).
@@ -198,6 +203,7 @@ fn parse_options(args: &[String]) -> Result<RunOptions, String> {
         spawn_child: None,
         child_args: String::new(),
         child_ignore_term: false,
+        child_pid_file: None,
         mcp_config: None,
         hooks_config: None,
         exit_when: None,
@@ -270,6 +276,10 @@ fn parse_options(args: &[String]) -> Result<RunOptions, String> {
             }
             "--child-args" => {
                 opts.child_args = value()?;
+                true
+            }
+            "--child-pid-file" => {
+                opts.child_pid_file = Some(PathBuf::from(value()?));
                 true
             }
             "--hooks-config" => {
@@ -381,7 +391,18 @@ fn run(args: &[String]) -> ExitCode {
             .stdout(std::process::Stdio::null())
             .stderr(std::process::Stdio::null());
         match child.spawn() {
-            Ok(spawned) => println!("spawned child {program} (pid {})", spawned.id()),
+            Ok(spawned) => {
+                println!("spawned child {program} (pid {})", spawned.id());
+                // Written whole, then renamed in: a reader never sees half.
+                if let Some(file) = &opts.child_pid_file {
+                    let part = file.with_extension("part");
+                    let wrote = std::fs::write(&part, spawned.id().to_string())
+                        .and_then(|()| std::fs::rename(&part, file));
+                    if let Err(message) = wrote {
+                        eprintln!("fake-harness: cannot write {}: {message}", file.display());
+                    }
+                }
+            }
             Err(message) => eprintln!("fake-harness: cannot spawn {program:?}: {message}"),
         }
     }

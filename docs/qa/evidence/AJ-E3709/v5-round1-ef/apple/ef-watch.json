@@ -1,0 +1,2590 @@
+{
+ "meta": {
+  "harness": "v5",
+  "prompt_version": 5,
+  "engine": "Apple on-device Foundation Model via apple_probe.swift",
+  "hello": "{\"protocol\":3,\"hello\":true,\"os\":\"Version 27.0.1 (Build 26A434)\",\"available\":\"available\",\"extensions\":[\"fields\",\"sampling\"],\"guided\":true}",
+  "family": "apple",
+  "model_label": "apple",
+  "sampling_name": "greedy",
+  "sampling": {
+   "mode": "greedy",
+   "temperature": 0
+  },
+  "sampling_source": "v4 sweep (v4-sweep.md): greedy, pinned; datamark on chosen",
+  "datamark": "on",
+  "retries": 2,
+  "jobs": [
+   "watch"
+  ],
+  "prompt_sha256": {
+   "watch": "b84f3b6ce41d0548952b377a2be38dba45f0757a69d2332e3bd2c176c23050cf"
+  },
+  "context_tokens": 4096,
+  "code_sha256": {
+   "core.py": "e2571d2b3f29d1262f247ebff6a5a499a1dc8bc42fa769e31983987d138efcf2",
+   "turns.py": "864a70fd425995c8bba8afbcc3bf5129242f4feeadc9a8febff57849d2adb131",
+   "chat.py": "5cb717203c817881405524beb7c797489fd57482eedb3af4db7b375ab304a307",
+   "severity.py": "f3dbd7047abc7d1aaa32a110b52a6337677d4ac8f4d968601726536dbe4437e1",
+   "digest.py": "7a4fc2512ff9081a364dfe7045b3b8c2c007f322fb69d4c6d9477b1f74668c7e",
+   "watch.py": "b7bc6aca93e393afea887d8ec7b23830b7473348378c77e9e4238664c183bb55"
+  },
+  "gate_py_sha256": "22152d013af518c34237464f53fd92dbdc83b8b1fa21b1cff8588f5d08735a68",
+  "frozen_gate_commit": "7acec4f50",
+  "jobs_v4_sha256": "17ac6523b2382ec497e392a55a78c23aa6cc56c57430dd43463f2bb67bf5ca94",
+  "repeats": 1,
+  "limit": null,
+  "corpora": [
+   {
+    "label": "watch5",
+    "file": "watch-v5.json",
+    "sha256": "c856f82889320a1e3855499c2e024d54c89042f99cee9966984904783b3e8990",
+    "items_in_file": 60,
+    "items_run": 60
+   }
+  ],
+  "calls": 66,
+  "wall_s": 211.5,
+  "machine": {
+   "macos": "27.0.1",
+   "macos_build": "26A434",
+   "arch": "arm64",
+   "model": "Mac17,15",
+   "chip": "Apple M5 Ultra",
+   "ram_gb": 96.0,
+   "cpus": 30
+  },
+  "load_avg_start": [
+   7.1,
+   9.9,
+   10.7
+  ],
+  "load_avg_end": [
+   8.9,
+   8.9,
+   10.0
+  ],
+  "helper_cpu_s": 4.46,
+  "cpu_deltas": [
+   {
+    "name": "modelcatalogd",
+    "cpu_s": 10.18
+   },
+   {
+    "name": "modelmanagerd",
+    "cpu_s": 9.32
+   },
+   {
+    "name": "GenerativeExperiencesSafetyInferenceProvider",
+    "cpu_s": 2.8
+   }
+  ],
+  "watched_rss_mb": {
+   "before": 119.0,
+   "peak": 122.3,
+   "after": 120.7
+  },
+  "started": "2026-11-18 12:31:10"
+ },
+ "results": [
+  {
+   "corpus": "watch5",
+   "job": "watch",
+   "setting": "main",
+   "id": "W001",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"nearest\": \"finishes\", \"until\": \"none\", \"targets\": [\"s1\", \"p1\"], \"conditions\": [{\"param\": \"none\", \"type\": \"finishes\"}], \"matching\": \"each\", \"unsupported_asked\": \"the billing one finishes\", \"intent\": \"create\", \"lifetime\": \"unsaid\"}",
+     "finish": "stop",
+     "latency_ms": 2869,
+     "gen_ms": 2868.5519695281982,
+     "out_tokens": 75,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2887,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “the billing one finishes”. I can tell you when “Invoice rounding fix” or “billing-svc” finishes.",
+    "model_text": [
+     "the billing one finishes"
+    ],
+    "notes": [
+     "unsupported (model)"
+    ],
+    "nearest": "finishes",
+    "via": "model",
+    "asked": "the billing one finishes"
+   }
+  },
+  {
+   "corpus": "watch5",
+   "job": "watch",
+   "setting": "main",
+   "id": "W002",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"nearest\": \"stuck\", \"until\": \"none\", \"targets\": [\"s1\", \"p1\"], \"conditions\": [{\"param\": \"none\", \"type\": \"finishes\"}, {\"type\": \"stuck\", \"param\": \"10\"}], \"matching\": \"each\", \"unsupported_asked\": \"the billing agent finishes or gets stuck for 10 minutes\", \"intent\": \"create\", \"lifetime\": \"once\"}",
+     "finish": "stop",
+     "latency_ms": 3187,
+     "gen_ms": 3186.6589784622192,
+     "out_tokens": 97,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2897,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “the billing agent finishes or gets stuck for 10 minutes”. I can tell you when “Invoice rounding fix” or “billing-svc” looks stuck.",
+    "model_text": [
+     "the billing agent finishes or gets stuck for 10 minutes"
+    ],
+    "notes": [
+     "unsupported (model)"
+    ],
+    "nearest": "stuck",
+    "via": "model",
+    "asked": "the billing agent finishes or gets stuck for 10 minutes"
+   }
+  },
+  {
+   "corpus": "watch5",
+   "job": "watch",
+   "setting": "main",
+   "id": "W003",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"nearest\": \"asks_you\", \"until\": \"none\", \"targets\": [\"s2\", \"app2\", \"p2\", \"any\"], \"conditions\": [{\"param\": \"none\", \"type\": \"asks_you\"}], \"matching\": \"each\", \"unsupported_asked\": \"the checkout redesign asks me a question\", \"intent\": \"create\", \"lifetime\": \"unsaid\"}",
+     "finish": "stop",
+     "latency_ms": 3040,
+     "gen_ms": 3039.5259857177734,
+     "out_tokens": 89,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2891,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “the checkout redesign asks me a question”. I can tell you when “Checkout redesign” or “Claude app · Personal” or “webshop” or “any session” asks you.",
+    "model_text": [
+     "the checkout redesign asks me a question"
+    ],
+    "notes": [
+     "unsupported (model)"
+    ],
+    "nearest": "asks_you",
+    "via": "model",
+    "asked": "the checkout redesign asks me a question"
+   }
+  },
+  {
+   "corpus": "watch5",
+   "job": "watch",
+   "setting": "main",
+   "id": "W004",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"nearest\": \"fails\", \"until\": \"none\", \"targets\": [\"s1\", \"s2\", \"s3\", \"s4\", \"s5\", \"app1\", \"app2\", \"app3\", \"app4\", \"app5\"], \"conditions\": [{\"param\": \"none\", \"type\": \"fails\"}], \"matching\": \"each\", \"unsupported_asked\": \"anything fails\", \"intent\": \"create\", \"lifetime\": \"unsaid\"}",
+     "finish": "stop",
+     "latency_ms": 3281,
+     "gen_ms": 3280.717968940735,
+     "out_tokens": 101,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2886,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “anything fails”. I can tell you when “Invoice rounding fix” or “Checkout redesign” or “Rewrite quickstart” or “Training loop” or “DB migration” or “Claude Code CLI · Work” or “Claude app · Personal” or “Cursor” or “Claude Code CLI · Lab” or “Codex CLI · Work” fails.",
+    "model_text": [
+     "anything fails"
+    ],
+    "notes": [
+     "unsupported (model)"
+    ],
+    "nearest": "fails",
+    "via": "model",
+    "asked": "anything fails"
+   }
+  },
+  {
+   "corpus": "watch5",
+   "job": "watch",
+   "setting": "main",
+   "id": "W005",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"nearest\": \"runway_below\", \"until\": \"none\", \"targets\": [\"acct1\", \"any\"], \"conditions\": [{\"param\": \"15\", \"type\": \"runway_below\"}], \"matching\": \"each\", \"unsupported_asked\": \"my lab account has under 15%\", \"intent\": \"create\", \"lifetime\": \"today\"}",
+     "finish": "stop",
+     "latency_ms": 2898,
+     "gen_ms": 2897.9090452194214,
+     "out_tokens": 81,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2890,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “my lab account has under 15%”. I can tell you when “Work Pro” or “any session” runs below … %.",
+    "model_text": [
+     "my lab account has under 15%"
+    ],
+    "notes": [
+     "unsupported (model)"
+    ],
+    "nearest": "runway_below",
+    "via": "model",
+    "asked": "my lab account has under 15%"
+   }
+  },
+  {
+   "corpus": "watch5",
+   "job": "watch",
+   "setting": "main",
+   "id": "W006",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"nearest\": \"fails\", \"until\": \"none\", \"targets\": [\"s1\", \"s2\", \"s3\", \"s4\", \"s5\", \"app1\", \"app2\", \"app3\", \"app4\", \"app5\"], \"conditions\": [{\"type\": \"fails\", \"param\": \"none\"}, {\"param\": \"none\", \"type\": \"asks_you\"}], \"matching\": \"each\", \"unsupported_asked\": \"the docs session fails or asks something\", \"intent\": \"create\", \"lifetime\": \"once\"}",
+     "finish": "stop",
+     "latency_ms": 3762,
+     "gen_ms": 3761.451005935669,
+     "out_tokens": 127,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2892,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “the docs session fails or asks something”. I can tell you when “Invoice rounding fix” or “Checkout redesign” or “Rewrite quickstart” or “Training loop” or “DB migration” or “Claude Code CLI · Work” or “Claude app · Personal” or “Cursor” or “Claude Code CLI · Lab” or “Codex CLI · Work” fails.",
+    "model_text": [
+     "the docs session fails or asks something"
+    ],
+    "notes": [
+     "unsupported (model)"
+    ],
+    "nearest": "fails",
+    "via": "model",
+    "asked": "the docs session fails or asks something"
+   }
+  },
+  {
+   "corpus": "watch5",
+   "job": "watch",
+   "setting": "main",
+   "id": "W007",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"nearest\": \"ends\", \"until\": \"none\", \"targets\": [\"s3\", \"app3\"], \"conditions\": [{\"param\": \"none\", \"type\": \"ends\"}], \"matching\": \"each\", \"unsupported_asked\": \"the Cursor app stops\", \"intent\": \"create\", \"lifetime\": \"unsaid\"}",
+     "finish": "stop",
+     "latency_ms": 2861,
+     "gen_ms": 2860.6940507888794,
+     "out_tokens": 71,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2886,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “the Cursor app stops”. I can tell you when “Rewrite quickstart” or “Cursor” ends.",
+    "model_text": [
+     "the Cursor app stops"
+    ],
+    "notes": [
+     "unsupported (model)"
+    ],
+    "nearest": "ends",
+    "via": "model",
+    "asked": "the Cursor app stops"
+   }
+  },
+  {
+   "corpus": "watch5",
+   "job": "watch",
+   "setting": "main",
+   "id": "W008",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"nearest\": \"stuck\", \"until\": \"none\", \"targets\": [\"s4\", \"p4\"], \"conditions\": [{\"type\": \"finishes\", \"param\": \"none\"}, {\"param\": \"none\", \"type\": \"fails\"}, {\"type\": \"stuck\", \"param\": \"20\"}], \"matching\": \"each\", \"unsupported_asked\": \"ML project\", \"intent\": \"create\", \"lifetime\": \"once\"}",
+     "finish": "stop",
+     "latency_ms": 3276,
+     "gen_ms": 3276.1539220809937,
+     "out_tokens": 101,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2900,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “ML project”. I can tell you when “Training loop” or “ml-pipeline” looks stuck.",
+    "model_text": [
+     "ML project"
+    ],
+    "notes": [
+     "unsupported (model)"
+    ],
+    "nearest": "stuck",
+    "via": "model",
+    "asked": "ML project"
+   }
+  },
+  {
+   "corpus": "watch5",
+   "job": "watch",
+   "setting": "main",
+   "id": "W009",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"nearest\": \"runway_below\", \"until\": \"none\", \"targets\": [\"acct1\", \"any\"], \"conditions\": [{\"type\": \"runway_below\", \"param\": \"10\"}], \"matching\": \"each\", \"unsupported_asked\": \"runs below 10 percent\", \"intent\": \"create\", \"lifetime\": \"today\"}",
+     "finish": "stop",
+     "latency_ms": 3077,
+     "gen_ms": 3076.7409801483154,
+     "out_tokens": 87,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2896,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “runs below 10 percent”. I can tell you when “Work Pro” or “any session” runs below … %.",
+    "model_text": [
+     "runs below 10 percent"
+    ],
+    "notes": [
+     "unsupported (model)"
+    ],
+    "nearest": "runway_below",
+    "via": "model",
+    "asked": "runs below 10 percent"
+   }
+  },
+  {
+   "corpus": "watch5",
+   "job": "watch",
+   "setting": "main",
+   "id": "W010",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"nearest\": \"finishes\", \"until\": \"none\", \"targets\": [\"s5\", \"app5\", \"p5\", \"acct3\", \"any\"], \"conditions\": [{\"type\": \"finishes\", \"param\": \"none\"}], \"matching\": \"each\", \"unsupported_asked\": \"the migration is done\", \"intent\": \"create\", \"lifetime\": \"unsaid\"}",
+     "finish": "stop",
+     "latency_ms": 3202,
+     "gen_ms": 3202.147960662842,
+     "out_tokens": 89,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2886,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “the migration is done”. I can watch your agents for: finish, end, ask you, fail, look stuck…",
+    "model_text": [
+     "the migration is done"
+    ],
+    "notes": [
+     "unsupported (model)"
+    ],
+    "nearest": null,
+    "via": "model",
+    "asked": "the migration is done"
+   }
+  },
+  {
+   "corpus": "watch5",
+   "job": "watch",
+   "setting": "main",
+   "id": "W011",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"nearest\": \"starts\", \"until\": \"none\", \"targets\": [\"app2\"], \"conditions\": [{\"type\": \"starts\", \"param\": \"none\"}], \"matching\": \"each\", \"unsupported_asked\": \"the personal Claude app starts a new session\", \"intent\": \"create\", \"lifetime\": \"once\"}",
+     "finish": "stop",
+     "latency_ms": 2870,
+     "gen_ms": 2869.8030710220337,
+     "out_tokens": 79,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2894,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “the personal Claude app starts a new session”. I can tell you when “Claude app · Personal” starts a new session.",
+    "model_text": [
+     "the personal Claude app starts a new session"
+    ],
+    "notes": [
+     "unsupported (model)"
+    ],
+    "nearest": "starts",
+    "via": "model",
+    "asked": "the personal Claude app starts a new session"
+   }
+  },
+  {
+   "corpus": "watch5",
+   "job": "watch",
+   "setting": "main",
+   "id": "W012",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"nearest\": \"asks_you\", \"until\": \"none\", \"targets\": [\"s1\", \"s2\", \"s3\", \"s4\", \"s5\", \"app1\", \"app2\", \"app3\", \"app4\", \"app5\"], \"conditions\": [{\"param\": \"none\", \"type\": \"asks_you\"}], \"matching\": \"each\", \"unsupported_asked\": \"anything asks me a question\", \"intent\": \"create\", \"lifetime\": \"today\"}",
+     "finish": "stop",
+     "latency_ms": 3410,
+     "gen_ms": 3409.6720218658447,
+     "out_tokens": 113,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2893,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “anything asks me a question”. I can tell you when “Invoice rounding fix” or “Checkout redesign” or “Rewrite quickstart” or “Training loop” or “DB migration” or “Claude Code CLI · Work” or “Claude app · Personal” or “Cursor” or “Claude Code CLI · Lab” or “Codex CLI · Work” asks you.",
+    "model_text": [
+     "anything asks me a question"
+    ],
+    "notes": [
+     "unsupported (model)"
+    ],
+    "nearest": "asks_you",
+    "via": "model",
+    "asked": "anything asks me a question"
+   }
+  },
+  {
+   "corpus": "watch5",
+   "job": "watch",
+   "setting": "main",
+   "id": "W013",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"nearest\": \"stuck\", \"until\": \"none\", \"targets\": [\"s4\"], \"conditions\": [{\"type\": \"stuck\", \"param\": \"30\"}], \"matching\": \"each\", \"unsupported_asked\": \"the training loop\", \"intent\": \"create\", \"lifetime\": \"once\"}",
+     "finish": "stop",
+     "latency_ms": 2600,
+     "gen_ms": 2599.699020385742,
+     "out_tokens": 75,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2893,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “the training loop”. I can tell you when “Training loop” looks stuck.",
+    "model_text": [
+     "the training loop"
+    ],
+    "notes": [
+     "unsupported (model)"
+    ],
+    "nearest": "stuck",
+    "via": "model",
+    "asked": "the training loop"
+   }
+  },
+  {
+   "corpus": "watch5",
+   "job": "watch",
+   "setting": "main",
+   "id": "W014",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"nearest\": \"fails\", \"until\": \"00:00\", \"targets\": [\"s2\", \"p2\", \"app2\", \"any\"], \"conditions\": [{\"type\": \"fails\", \"param\": \"none\"}, {\"param\": \"none\", \"type\": \"finishes\"}], \"matching\": \"each\", \"unsupported_asked\": \"webshop project fails or finishes\", \"intent\": \"create\", \"lifetime\": \"today\"}",
+     "finish": "stop",
+     "latency_ms": 3322,
+     "gen_ms": 3321.8770027160645,
+     "out_tokens": 101,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2894,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “webshop project fails or finishes”. I can tell you when “Checkout redesign” or “webshop” or “Claude app · Personal” or “any session” fails.",
+    "model_text": [
+     "webshop project fails or finishes"
+    ],
+    "notes": [
+     "unsupported (model)"
+    ],
+    "nearest": "fails",
+    "via": "model",
+    "asked": "webshop project fails or finishes"
+   }
+  },
+  {
+   "corpus": "watch5",
+   "job": "watch",
+   "setting": "main",
+   "id": "W015",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"nearest\": \"ends\", \"until\": \"none\", \"targets\": [\"app1\"], \"conditions\": [{\"param\": \"none\", \"type\": \"ends\"}], \"matching\": \"each\", \"unsupported_asked\": \"Codex on work\", \"intent\": \"create\", \"lifetime\": \"today\"}",
+     "finish": "stop",
+     "latency_ms": 2648,
+     "gen_ms": 2647.36008644104,
+     "out_tokens": 71,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2886,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “Codex on work”. I can tell you when “Claude Code CLI · Work” ends.",
+    "model_text": [
+     "Codex on work"
+    ],
+    "notes": [
+     "unsupported (model)"
+    ],
+    "nearest": "ends",
+    "via": "model",
+    "asked": "Codex on work"
+   }
+  },
+  {
+   "corpus": "watch5",
+   "job": "watch",
+   "setting": "main",
+   "id": "W016",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"nearest\": \"stuck\", \"until\": \"none\", \"targets\": [\"s3\", \"p3\", \"app3\", \"acct3\", \"any\"], \"conditions\": [{\"type\": \"stuck\", \"param\": \"5\"}, {\"param\": \"none\", \"type\": \"finishes\"}], \"matching\": \"each\", \"unsupported_asked\": \"the docs one gets stuck\", \"intent\": \"create\", \"lifetime\": \"once\"}",
+     "finish": "stop",
+     "latency_ms": 3382,
+     "gen_ms": 3381.7739486694336,
+     "out_tokens": 105,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2896,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “the docs one gets stuck”. I can watch your agents for: finish, end, ask you, fail, look stuck…",
+    "model_text": [
+     "the docs one gets stuck"
+    ],
+    "notes": [
+     "unsupported (model)"
+    ],
+    "nearest": null,
+    "via": "model",
+    "asked": "the docs one gets stuck"
+   }
+  },
+  {
+   "corpus": "watch5",
+   "job": "watch",
+   "setting": "main",
+   "id": "W017",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"nearest\": \"asks_you\", \"until\": \"none\", \"targets\": [\"s1\", \"app1\", \"p1\", \"acct1\", \"any\"], \"conditions\": [{\"type\": \"asks_you\", \"param\": \"none\"}], \"matching\": \"each\", \"unsupported_asked\": \"when the invoice thing needs my input\", \"intent\": \"create\", \"lifetime\": \"unsaid\"}",
+     "finish": "stop",
+     "latency_ms": 3108,
+     "gen_ms": 3107.714056968689,
+     "out_tokens": 99,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2891,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “when the invoice thing needs my input”. I can watch your agents for: finish, end, ask you, fail, look stuck…",
+    "model_text": [
+     "when the invoice thing needs my input"
+    ],
+    "notes": [
+     "unsupported (model)"
+    ],
+    "nearest": null,
+    "via": "model",
+    "asked": "when the invoice thing needs my input"
+   }
+  },
+  {
+   "corpus": "watch5",
+   "job": "watch",
+   "setting": "main",
+   "id": "W018",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"nearest\": \"runway_below\", \"until\": \"00:00\", \"targets\": [\"acct2\"], \"conditions\": [{\"param\": \"25\", \"type\": \"runway_below\"}], \"matching\": \"each\", \"unsupported_asked\": \"less than a quarter of my personal allowance left\", \"intent\": \"create\", \"lifetime\": \"today\"}",
+     "finish": "stop",
+     "latency_ms": 3119,
+     "gen_ms": 3118.3429956436157,
+     "out_tokens": 85,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2896,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “less than a quarter of my personal allowance left”. I can tell you when “Personal” runs below … %.",
+    "model_text": [
+     "less than a quarter of my personal allowance left"
+    ],
+    "notes": [
+     "unsupported (model)"
+    ],
+    "nearest": "runway_below",
+    "via": "model",
+    "asked": "less than a quarter of my personal allowance left"
+   }
+  },
+  {
+   "corpus": "watch5",
+   "job": "watch",
+   "setting": "main",
+   "id": "W019",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"nearest\": \"fails\", \"until\": \"none\", \"targets\": [\"s5\", \"p5\", \"acct3\", \"any\"], \"conditions\": [{\"param\": \"none\", \"type\": \"fails\"}], \"matching\": \"each\", \"unsupported_asked\": \"the CRM migration crashes\", \"intent\": \"create\", \"lifetime\": \"once\"}",
+     "finish": "stop",
+     "latency_ms": 3079,
+     "gen_ms": 3078.701972961426,
+     "out_tokens": 85,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2889,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “the CRM migration crashes”. I can watch your agents for: finish, end, ask you, fail, look stuck…",
+    "model_text": [
+     "the CRM migration crashes"
+    ],
+    "notes": [
+     "unsupported (model)"
+    ],
+    "nearest": null,
+    "via": "model",
+    "asked": "the CRM migration crashes"
+   }
+  },
+  {
+   "corpus": "watch5",
+   "job": "watch",
+   "setting": "main",
+   "id": "W020",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"nearest\": \"runway_below\", \"until\": \"none\", \"targets\": [\"acct1\"], \"conditions\": [{\"param\": \"20\", \"type\": \"runway_below\"}], \"matching\": \"each\", \"unsupported_asked\": \"my lab account drops below 20%\", \"intent\": \"create\", \"lifetime\": \"today\"}",
+     "finish": "stop",
+     "latency_ms": 3009,
+     "gen_ms": 3008.2489252090454,
+     "out_tokens": 85,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2894,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “my lab account drops below 20%”. I can tell you when “Work Pro” runs below … %.",
+    "model_text": [
+     "my lab account drops below 20%"
+    ],
+    "notes": [
+     "unsupported (model)"
+    ],
+    "nearest": "runway_below",
+    "via": "model",
+    "asked": "my lab account drops below 20%"
+   }
+  },
+  {
+   "corpus": "watch5",
+   "job": "watch",
+   "setting": "main",
+   "id": "W021",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"nearest\": \"finishes\", \"until\": \"none\", \"targets\": [\"s5\", \"app5\", \"p5\", \"any\"], \"conditions\": [{\"param\": \"none\", \"type\": \"finishes\"}], \"matching\": \"each\", \"unsupported_asked\": \"the shop checkout finishes\", \"intent\": \"create\", \"lifetime\": \"unsaid\"}",
+     "finish": "stop",
+     "latency_ms": 3155,
+     "gen_ms": 3154.6000242233276,
+     "out_tokens": 89,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2889,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “the shop checkout finishes”. I can tell you when “DB migration” or “Codex CLI · Work” or “legacy-crm” or “any session” finishes.",
+    "model_text": [
+     "the shop checkout finishes"
+    ],
+    "notes": [
+     "unsupported (model)"
+    ],
+    "nearest": "finishes",
+    "via": "model",
+    "asked": "the shop checkout finishes"
+   }
+  },
+  {
+   "corpus": "watch5",
+   "job": "watch",
+   "setting": "main",
+   "id": "W022",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"nearest\": \"finishes\", \"until\": \"none\", \"targets\": [\"s3\", \"p3\", \"any\"], \"conditions\": [{\"type\": \"finishes\", \"param\": \"none\"}], \"matching\": \"each\", \"unsupported_asked\": \"the docs project finishes\", \"intent\": \"create\", \"lifetime\": \"once\"}",
+     "finish": "stop",
+     "latency_ms": 2912,
+     "gen_ms": 2911.527991294861,
+     "out_tokens": 79,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2892,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “the docs project finishes”. I can tell you when “Rewrite quickstart” or “docs-site” or “any session” finishes.",
+    "model_text": [
+     "the docs project finishes"
+    ],
+    "notes": [
+     "unsupported (model)"
+    ],
+    "nearest": "finishes",
+    "via": "model",
+    "asked": "the docs project finishes"
+   }
+  },
+  {
+   "corpus": "watch5",
+   "job": "watch",
+   "setting": "main",
+   "id": "W023",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"nearest\": \"starts\", \"until\": \"none\", \"targets\": [\"s4\", \"app4\", \"p4\", \"any\"], \"conditions\": [{\"type\": \"starts\", \"param\": \"none\"}], \"matching\": \"each\", \"unsupported_asked\": \"ML run\", \"intent\": \"create\", \"lifetime\": \"once\"}",
+     "finish": "stop",
+     "latency_ms": 2910,
+     "gen_ms": 2909.7390174865723,
+     "out_tokens": 79,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2887,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “ML run”. I can tell you when “Training loop” or “Claude Code CLI · Lab” or “ml-pipeline” or “any session” finishes.",
+    "model_text": [
+     "ML run"
+    ],
+    "notes": [
+     "unsupported (model)"
+    ],
+    "nearest": "finishes",
+    "via": "model",
+    "asked": "ML run"
+   }
+  },
+  {
+   "corpus": "watch5",
+   "job": "watch",
+   "setting": "main",
+   "id": "W024",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"nearest\": \"asks_you\", \"until\": \"none\", \"targets\": [\"s3\", \"app3\", \"any\"], \"conditions\": [{\"type\": \"asks_you\", \"param\": \"none\"}], \"matching\": \"each\", \"unsupported_asked\": \"Cursor asks me anything\", \"intent\": \"create\", \"lifetime\": \"unsaid\"}",
+     "finish": "stop",
+     "latency_ms": 3079,
+     "gen_ms": 3078.442931175232,
+     "out_tokens": 85,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2887,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “Cursor asks me anything”. I can tell you when “Rewrite quickstart” or “Cursor” or “any session” asks you.",
+    "model_text": [
+     "Cursor asks me anything"
+    ],
+    "notes": [
+     "unsupported (model)"
+    ],
+    "nearest": "asks_you",
+    "via": "model",
+    "asked": "Cursor asks me anything"
+   }
+  },
+  {
+   "corpus": "watch5",
+   "job": "watch",
+   "setting": "main",
+   "id": "W025",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"nearest\": \"runway_below\", \"until\": \"none\", \"targets\": [\"acct1\"], \"conditions\": [{\"param\": \"5\", \"type\": \"runway_below\"}], \"matching\": \"each\", \"unsupported_asked\": \"work account runway drops below 5%\", \"intent\": \"create\", \"lifetime\": \"today\"}",
+     "finish": "stop",
+     "latency_ms": 3003,
+     "gen_ms": 3002.946972846985,
+     "out_tokens": 81,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2890,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “work account runway drops below 5%”. I can tell you when “Work Pro” runs below … %.",
+    "model_text": [
+     "work account runway drops below 5%"
+    ],
+    "notes": [
+     "unsupported (model)"
+    ],
+    "nearest": "runway_below",
+    "via": "model",
+    "asked": "work account runway drops below 5%"
+   }
+  },
+  {
+   "corpus": "watch5",
+   "job": "watch",
+   "setting": "main",
+   "id": "W026",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"nearest\": \"ends\", \"until\": \"23:59\", \"targets\": [\"s1\", \"s2\", \"s3\", \"s4\", \"s5\", \"acct1\", \"any\"], \"conditions\": [{\"type\": \"ends\", \"param\": \"none\"}], \"matching\": \"each\", \"unsupported_asked\": \"anything on the work account ends\", \"intent\": \"create\", \"lifetime\": \"today\"}",
+     "finish": "stop",
+     "latency_ms": 3426,
+     "gen_ms": 3426.111936569214,
+     "out_tokens": 101,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2890,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “anything on the work account ends”. I can watch your agents for: finish, end, ask you, fail, look stuck…",
+    "model_text": [
+     "anything on the work account ends"
+    ],
+    "notes": [
+     "unsupported (model)"
+    ],
+    "nearest": null,
+    "via": "model",
+    "asked": "anything on the work account ends"
+   }
+  },
+  {
+   "corpus": "watch5",
+   "job": "watch",
+   "setting": "main",
+   "id": "W027",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"nearest\": \"asks_you\", \"until\": \"none\", \"targets\": [\"s5\", \"app5\", \"p5\", \"acct3\", \"any\"], \"conditions\": [{\"type\": \"asks_you\", \"param\": \"none\"}, {\"param\": \"none\", \"type\": \"finishes\"}], \"matching\": \"each\", \"unsupported_asked\": \"the CRM migration asks for a decision\", \"intent\": \"create\", \"lifetime\": \"today\"}",
+     "finish": "stop",
+     "latency_ms": 3521,
+     "gen_ms": 3520.5060243606567,
+     "out_tokens": 103,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2899,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “the CRM migration asks for a decision”. I can watch your agents for: finish, end, ask you, fail, look stuck…",
+    "model_text": [
+     "the CRM migration asks for a decision"
+    ],
+    "notes": [
+     "unsupported (model)"
+    ],
+    "nearest": null,
+    "via": "model",
+    "asked": "the CRM migration asks for a decision"
+   }
+  },
+  {
+   "corpus": "watch5",
+   "job": "watch",
+   "setting": "main",
+   "id": "W028",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"nearest\": \"runway_below\", \"until\": \"none\", \"targets\": [\"s4\", \"app4\", \"p4\", \"acct3\", \"any\"], \"conditions\": [{\"type\": \"runway_below\", \"param\": \"10\"}], \"matching\": \"each\", \"unsupported_asked\": \"the lab one hits under 10 percent\", \"intent\": \"create\", \"lifetime\": \"today\"}",
+     "finish": "stop",
+     "latency_ms": 3328,
+     "gen_ms": 3327.601909637451,
+     "out_tokens": 97,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2889,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “the lab one hits under 10 percent”. I can watch your agents for: finish, end, ask you, fail, look stuck…",
+    "model_text": [
+     "the lab one hits under 10 percent"
+    ],
+    "notes": [
+     "unsupported (model)"
+    ],
+    "nearest": null,
+    "via": "model",
+    "asked": "the lab one hits under 10 percent"
+   }
+  },
+  {
+   "corpus": "watch5",
+   "job": "watch",
+   "setting": "main",
+   "id": "W029",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"nearest\": \"stuck\", \"until\": \"none\", \"targets\": [\"s2\", \"app2\"], \"conditions\": [{\"type\": \"stuck\", \"param\": \"60\"}], \"matching\": \"each\", \"unsupported_asked\": \"the checkout agent has been stuck\", \"intent\": \"create\", \"lifetime\": \"once\"}",
+     "finish": "stop",
+     "latency_ms": 3066,
+     "gen_ms": 3065.147042274475,
+     "out_tokens": 79,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2893,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “the checkout agent has been stuck”. I can tell you when “Checkout redesign” or “Claude app · Personal” looks stuck.",
+    "model_text": [
+     "the checkout agent has been stuck"
+    ],
+    "notes": [
+     "unsupported (model)"
+    ],
+    "nearest": "stuck",
+    "via": "model",
+    "asked": "the checkout agent has been stuck"
+   }
+  },
+  {
+   "corpus": "watch5",
+   "job": "watch",
+   "setting": "main",
+   "id": "W030",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"nearest\": \"finishes\", \"until\": \"none\", \"targets\": [\"s1\"], \"conditions\": [{\"type\": \"finishes\", \"param\": \"none\"}], \"matching\": \"each\", \"unsupported_asked\": \"der Mahnlauf fertig ist\", \"intent\": \"create\", \"lifetime\": \"unsaid\"}",
+     "finish": "stop",
+     "latency_ms": 2726,
+     "gen_ms": 2725.926995277405,
+     "out_tokens": 71,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2869,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "Darauf kann ich nicht achten: „der Mahnlauf fertig ist“. Ich kann dir Bescheid sagen, wenn “Mahnlauf” fertig ist.",
+    "model_text": [
+     "der Mahnlauf fertig ist"
+    ],
+    "notes": [
+     "unsupported (model)"
+    ],
+    "nearest": "finishes",
+    "via": "model",
+    "asked": "der Mahnlauf fertig ist"
+   }
+  },
+  {
+   "corpus": "watch5",
+   "job": "watch",
+   "setting": "main",
+   "id": "W031",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"nearest\": \"asks_you\", \"until\": \"none\", \"targets\": [\"s2\", \"app2\"], \"conditions\": [{\"type\": \"asks_you\", \"param\": \"none\"}], \"matching\": \"each\", \"unsupported_asked\": \"nachfragt\", \"intent\": \"create\", \"lifetime\": \"unsaid\"}",
+     "finish": "stop",
+     "latency_ms": 2979,
+     "gen_ms": 2978.2700538635254,
+     "out_tokens": 75,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2874,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "Darauf kann ich nicht achten: „nachfragt“. Ich kann dir Bescheid sagen, wenn “Login-Flow” oder “Codex CLI · Arbeit” dich etwas fragt.",
+    "model_text": [
+     "nachfragt"
+    ],
+    "notes": [
+     "unsupported (model)"
+    ],
+    "nearest": "asks_you",
+    "via": "model",
+    "asked": "nachfragt"
+   }
+  },
+  {
+   "corpus": "watch5",
+   "job": "watch",
+   "setting": "main",
+   "id": "W032",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"nearest\": \"fails\", \"until\": \"none\", \"targets\": [\"s1\", \"s2\", \"s3\", \"s4\", \"s5\", \"app1\", \"app2\", \"app3\", \"app4\", \"app5\"], \"conditions\": [{\"type\": \"fails\", \"param\": \"none\"}], \"matching\": \"each\", \"unsupported_asked\": \"fehlschlägt\", \"intent\": \"create\", \"lifetime\": \"unsaid\"}",
+     "finish": "stop",
+     "latency_ms": 3339,
+     "gen_ms": 3338.6610746383667,
+     "out_tokens": 105,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2871,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "Darauf kann ich nicht achten: „fehlschlägt“. Ich kann dir Bescheid sagen, wenn “Mahnlauf” oder “Login-Flow” oder “Testabdeckung” oder “Rate Limits” oder “Hero-Bild” oder “Claude app · Arbeit” oder “Codex CLI · Arbeit” oder “Claude Code CLI · Arbeit” oder “Claude Code CLI · Privat” oder “Cursor” fehlschlägt.",
+    "model_text": [
+     "fehlschlägt"
+    ],
+    "notes": [
+     "unsupported (model)"
+    ],
+    "nearest": "fails",
+    "via": "model",
+    "asked": "fehlschlägt"
+   }
+  },
+  {
+   "corpus": "watch5",
+   "job": "watch",
+   "setting": "main",
+   "id": "W033",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"nearest\": \"runway_below\", \"until\": \"none\", \"targets\": [\"acct2\"], \"conditions\": [{\"type\": \"runway_below\", \"param\": \"10\"}], \"matching\": \"each\", \"unsupported_asked\": \"Arbeitskonto unter 10 Prozent fällt\", \"intent\": \"create\", \"lifetime\": \"today\"}",
+     "finish": "stop",
+     "latency_ms": 2961,
+     "gen_ms": 2960.953950881958,
+     "out_tokens": 89,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2872,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "Darauf kann ich nicht achten: „Arbeitskonto unter 10 Prozent fällt“. Ich kann dir Bescheid sagen, wenn “Privat” unter … % Spielraum fällt.",
+    "model_text": [
+     "Arbeitskonto unter 10 Prozent fällt"
+    ],
+    "notes": [
+     "unsupported (model)"
+    ],
+    "nearest": "runway_below",
+    "via": "model",
+    "asked": "Arbeitskonto unter 10 Prozent fällt"
+   }
+  },
+  {
+   "corpus": "watch5",
+   "job": "watch",
+   "setting": "main",
+   "id": "W034",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"nearest\": \"finishes\", \"until\": \"none\", \"targets\": [\"s4\"], \"conditions\": [{\"type\": \"finishes\", \"param\": \"none\"}], \"matching\": \"each\", \"unsupported_asked\": \"Rate-Limits-Sitzung\", \"intent\": \"create\", \"lifetime\": \"once\"}",
+     "finish": "stop",
+     "latency_ms": 2731,
+     "gen_ms": 2730.3249835968018,
+     "out_tokens": 71,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2876,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "Darauf kann ich nicht achten: „Rate-Limits-Sitzung“. Ich kann dir Bescheid sagen, wenn “Rate Limits” fertig ist.",
+    "model_text": [
+     "Rate-Limits-Sitzung"
+    ],
+    "notes": [
+     "unsupported (model)"
+    ],
+    "nearest": "finishes",
+    "via": "model",
+    "asked": "Rate-Limits-Sitzung"
+   }
+  },
+  {
+   "corpus": "watch5",
+   "job": "watch",
+   "setting": "main",
+   "id": "W035",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"nearest\": \"finishes\", \"until\": \"00:00\", \"targets\": [\"s5\"], \"conditions\": [{\"type\": \"finishes\", \"param\": \"none\"}], \"matching\": \"each\", \"unsupported_asked\": \"Hero-Bild fertig\", \"intent\": \"create\", \"lifetime\": \"today\"}",
+     "finish": "stop",
+     "latency_ms": 2902,
+     "gen_ms": 2902.0379781723022,
+     "out_tokens": 73,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2870,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "Darauf kann ich nicht achten: „Hero-Bild fertig“. Ich kann dir Bescheid sagen, wenn “Hero-Bild” fertig ist.",
+    "model_text": [
+     "Hero-Bild fertig"
+    ],
+    "notes": [
+     "unsupported (model)"
+    ],
+    "nearest": "finishes",
+    "via": "model",
+    "asked": "Hero-Bild fertig"
+   }
+  },
+  {
+   "corpus": "watch5",
+   "job": "watch",
+   "setting": "main",
+   "id": "W036",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"nearest\": \"finishes\", \"until\": \"none\", \"targets\": [\"s5\", \"app5\"], \"conditions\": [{\"param\": \"none\", \"type\": \"finishes\"}], \"matching\": \"each\", \"unsupported_asked\": \"beendet wird\", \"intent\": \"create\", \"lifetime\": \"unsaid\"}",
+     "finish": "stop",
+     "latency_ms": 2959,
+     "gen_ms": 2958.6480855941772,
+     "out_tokens": 73,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2867,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "Darauf kann ich nicht achten: „beendet wird“. Ich kann dir Bescheid sagen, wenn “Hero-Bild” oder “Cursor” fertig ist.",
+    "model_text": [
+     "beendet wird"
+    ],
+    "notes": [
+     "unsupported (model)"
+    ],
+    "nearest": "finishes",
+    "via": "model",
+    "asked": "beendet wird"
+   }
+  },
+  {
+   "corpus": "watch5",
+   "job": "watch",
+   "setting": "main",
+   "id": "W037",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"nearest\": \"stuck\", \"until\": \"none\", \"targets\": [\"s3\"], \"conditions\": [{\"type\": \"stuck\", \"param\": \"20\"}], \"matching\": \"each\", \"unsupported_asked\": \"wenn die Testabdeckung festhängt, länger als 20 Minuten\", \"intent\": \"create\", \"lifetime\": \"once\"}",
+     "finish": "stop",
+     "latency_ms": 2873,
+     "gen_ms": 2872.8020191192627,
+     "out_tokens": 89,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2875,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "Darauf kann ich nicht achten: „wenn die Testabdeckung festhängt, länger als 20 Minuten“. Ich kann dir Bescheid sagen, wenn “Testabdeckung” festzuhängen scheint.",
+    "model_text": [
+     "wenn die Testabdeckung festhängt, länger als 20 Minuten"
+    ],
+    "notes": [
+     "unsupported (model)"
+    ],
+    "nearest": "stuck",
+    "via": "model",
+    "asked": "wenn die Testabdeckung festhängt, länger als 20 Minuten"
+   }
+  },
+  {
+   "corpus": "watch5",
+   "job": "watch",
+   "setting": "main",
+   "id": "W038",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"nearest\": \"starts\", \"until\": \"none\", \"targets\": [\"s3\", \"p2\"], \"conditions\": [{\"param\": \"none\", \"type\": \"starts\"}], \"matching\": \"each\", \"unsupported_asked\": \"sitzung\", \"intent\": \"create\", \"lifetime\": \"unsaid\"}",
+     "finish": "stop",
+     "latency_ms": 2946,
+     "gen_ms": 2945.2669620513916,
+     "out_tokens": 79,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2875,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "Darauf kann ich nicht achten: „sitzung“. Ich kann dir Bescheid sagen, wenn “Testabdeckung” oder “mobile-app” fertig ist.",
+    "model_text": [
+     "sitzung"
+    ],
+    "notes": [
+     "unsupported (model)"
+    ],
+    "nearest": "finishes",
+    "via": "model",
+    "asked": "sitzung"
+   }
+  },
+  {
+   "corpus": "watch5",
+   "job": "watch",
+   "setting": "main",
+   "id": "W039",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"nearest\": \"asks_you\", \"until\": \"00:00\", \"targets\": [\"s4\", \"p4\", \"any\"], \"conditions\": [{\"type\": \"asks_you\", \"param\": \"0\"}, {\"type\": \"idle_for\", \"param\": \"5\"}], \"matching\": \"each\", \"unsupported_asked\": \"Rückfrage im Projekt kunden-api\", \"intent\": \"create\", \"lifetime\": \"today\"}",
+     "finish": "stop",
+     "latency_ms": 3465,
+     "gen_ms": 3464.367985725403,
+     "out_tokens": 109,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2876,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "Darauf kann ich nicht achten: „Rückfrage im Projekt kunden-api“. Ich kann dir Bescheid sagen, wenn “Rate Limits” oder “landing-page” oder “any session” dich etwas fragt.",
+    "model_text": [
+     "Rückfrage im Projekt kunden-api"
+    ],
+    "notes": [
+     "unsupported (model)"
+    ],
+    "nearest": "asks_you",
+    "via": "model",
+    "asked": "Rückfrage im Projekt kunden-api"
+   }
+  },
+  {
+   "corpus": "watch5",
+   "job": "watch",
+   "setting": "main",
+   "id": "W040",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"nearest\": \"runway_below\", \"until\": \"none\", \"targets\": [\"acct2\"], \"conditions\": [{\"type\": \"runway_below\", \"param\": \"30\"}], \"matching\": \"each\", \"unsupported_asked\": \"Privatkonto weniger\", \"intent\": \"create\", \"lifetime\": \"today\"}",
+     "finish": "stop",
+     "latency_ms": 2777,
+     "gen_ms": 2776.2579917907715,
+     "out_tokens": 77,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2875,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "Darauf kann ich nicht achten: „Privatkonto weniger“. Ich kann dir Bescheid sagen, wenn “Privat” unter … % Spielraum fällt.",
+    "model_text": [
+     "Privatkonto weniger"
+    ],
+    "notes": [
+     "unsupported (model)"
+    ],
+    "nearest": "runway_below",
+    "via": "model",
+    "asked": "Privatkonto weniger"
+   }
+  },
+  {
+   "corpus": "watch5",
+   "job": "watch",
+   "setting": "main",
+   "id": "W041",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"nearest\": \"finishes\", \"until\": \"none\", \"targets\": [\"s1\"], \"conditions\": [{\"type\": \"finishes\", \"param\": \"none\"}], \"matching\": \"each\", \"unsupported_asked\": \"die Rechnungen-Sitzung fertig ist und wenn sie nachfragt\", \"intent\": \"create\", \"lifetime\": \"unsaid\"}",
+     "finish": "stop",
+     "latency_ms": 2931,
+     "gen_ms": 2931.1059713363647,
+     "out_tokens": 89,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2878,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "Darauf kann ich nicht achten: „die Rechnungen-Sitzung fertig ist und wenn sie nachfragt“. Ich kann dir Bescheid sagen, wenn “Mahnlauf” fertig ist.",
+    "model_text": [
+     "die Rechnungen-Sitzung fertig ist und wenn sie nachfragt"
+    ],
+    "notes": [
+     "unsupported (model)"
+    ],
+    "nearest": "finishes",
+    "via": "model",
+    "asked": "die Rechnungen-Sitzung fertig ist und wenn sie nachfragt"
+   }
+  },
+  {
+   "corpus": "watch5",
+   "job": "watch",
+   "setting": "main",
+   "id": "W042",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"nearest\": \"finishes\", \"until\": \"none\", \"targets\": [\"s1\"], \"conditions\": [{\"type\": \"finishes\", \"param\": \"none\"}], \"matching\": \"each\", \"unsupported_asked\": \"Sitzung mit den Tests\", \"intent\": \"create\", \"lifetime\": \"unsaid\"}",
+     "finish": "stop",
+     "latency_ms": 2714,
+     "gen_ms": 2713.271975517273,
+     "out_tokens": 71,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2871,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "Darauf kann ich nicht achten: „Sitzung mit den Tests“. Ich kann dir Bescheid sagen, wenn “Mahnlauf” fertig ist.",
+    "model_text": [
+     "Sitzung mit den Tests"
+    ],
+    "notes": [
+     "unsupported (model)"
+    ],
+    "nearest": "finishes",
+    "via": "model",
+    "asked": "Sitzung mit den Tests"
+   }
+  },
+  {
+   "corpus": "watch5",
+   "job": "watch",
+   "setting": "main",
+   "id": "W043",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"nearest\": \"asks_you\", \"until\": \"none\", \"targets\": [\"s1\", \"s2\", \"s3\", \"s4\", \"s5\", \"app1\", \"app2\", \"app3\", \"app4\", \"app5\"], \"conditions\": [{\"type\": \"asks_you\", \"param\": \"none\"}], \"matching\": \"each\", \"unsupported_asked\": \"der Code gut ist\", \"intent\": \"create\", \"lifetime\": \"unsaid\"}",
+     "finish": "stop",
+     "latency_ms": 3400,
+     "gen_ms": 3399.55997467041,
+     "out_tokens": 113,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2864,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "Darauf kann ich nicht achten: „der Code gut ist“. Ich kann dir Bescheid sagen, wenn “Mahnlauf” oder “Login-Flow” oder “Testabdeckung” oder “Rate Limits” oder “Hero-Bild” oder “Claude app · Arbeit” oder “Codex CLI · Arbeit” oder “Claude Code CLI · Arbeit” oder “Claude Code CLI · Privat” oder “Cursor” dich etwas fragt.",
+    "model_text": [
+     "der Code gut ist"
+    ],
+    "notes": [
+     "unsupported (model)"
+    ],
+    "nearest": "asks_you",
+    "via": "model",
+    "asked": "der Code gut ist"
+   }
+  },
+  {
+   "corpus": "watch5",
+   "job": "watch",
+   "setting": "main",
+   "id": "W044",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"nearest\": \"asks_you\", \"until\": \"none\", \"targets\": [\"s5\", \"app5\", \"any\"], \"conditions\": [{\"type\": \"asks_you\", \"param\": \"none\"}], \"matching\": \"each\", \"unsupported_asked\": \"mein Chef antwortet\", \"intent\": \"create\", \"lifetime\": \"unsaid\"}",
+     "finish": "stop",
+     "latency_ms": 2974,
+     "gen_ms": 2973.560929298401,
+     "out_tokens": 85,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2869,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "Darauf kann ich nicht achten: „mein Chef antwortet“. Ich kann dir Bescheid sagen, wenn “Hero-Bild” oder “Cursor” oder “any session” dich etwas fragt.",
+    "model_text": [
+     "mein Chef antwortet"
+    ],
+    "notes": [
+     "unsupported (model)"
+    ],
+    "nearest": "asks_you",
+    "via": "model",
+    "asked": "mein Chef antwortet"
+   }
+  },
+  {
+   "corpus": "watch5",
+   "job": "watch",
+   "setting": "main",
+   "id": "W045",
+   "rep": 0,
+   "model_called": true,
+   "used": "fallback",
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"nearest\": \"none\", \"until\": \"none\", \"targets\": [\"any\"], \"conditions\": [{\"type\": \"asks_you\", \"param\": \"none\"}], \"matching\": \"each\", \"unsupported_asked\": \"the Aktienkurs steigt\", \"intent\": \"create\", \"lifetime\": \"unsaid\"}",
+     "finish": "stop",
+     "latency_ms": 2674,
+     "gen_ms": 2673.991918563843,
+     "out_tokens": 75,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2866,
+     "cut": false,
+     "retry_note": false,
+     "errors": [
+      "invented: unsupported_asked is not the request's words (2b: content word(s) not in the text: the)"
+     ],
+     "ok": false,
+     "soft": []
+    },
+    {
+     "attempt": 1,
+     "text": "{\"nearest\": \"asks_you\", \"until\": \"none\", \"targets\": [\"any\"], \"conditions\": [{\"type\": \"asks_you\", \"param\": \"none\"}], \"matching\": \"each\", \"unsupported_asked\": \"the Aktienkurs steigt\", \"intent\": \"create\", \"lifetime\": \"unsaid\"}",
+     "finish": "stop",
+     "latency_ms": 2876,
+     "gen_ms": 2875.6920099258423,
+     "out_tokens": 79,
+     "error": "",
+     "refused": false,
+     "est_tokens": 3002,
+     "cut": false,
+     "retry_note": true,
+     "errors": [
+      "invented: unsupported_asked is not the request's words (2b: content word(s) not in the text: the)"
+     ],
+     "ok": false,
+     "soft": []
+    },
+    {
+     "attempt": 2,
+     "text": "{\"nearest\": \"asks_you\", \"until\": \"none\", \"targets\": [\"any\"], \"conditions\": [{\"type\": \"asks_you\", \"param\": \"none\"}], \"matching\": \"each\", \"unsupported_asked\": \"the Aktienkurs steigt\", \"intent\": \"create\", \"lifetime\": \"unsaid\"}",
+     "finish": "stop",
+     "latency_ms": 2990,
+     "gen_ms": 2989.405035972595,
+     "out_tokens": 79,
+     "error": "",
+     "refused": false,
+     "est_tokens": 3003,
+     "cut": false,
+     "retry_note": true,
+     "errors": [
+      "invented: unsupported_asked is not the request's words (2b: content word(s) not in the text: the)"
+     ],
+     "ok": false,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "form",
+    "shown": "Das konnte ich nicht einrichten. „Neue Beobachtung…“ öffnet das Formular.",
+    "model_text": [],
+    "notes": [
+     "every attempt failed its checks: the Watches form"
+    ]
+   }
+  },
+  {
+   "corpus": "watch5",
+   "job": "watch",
+   "setting": "main",
+   "id": "W046",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"nearest\": \"asks_you\", \"until\": \"none\", \"targets\": [\"s1\", \"s2\", \"s3\", \"s4\", \"s5\", \"app1\", \"app2\", \"app3\", \"app4\", \"app5\"], \"conditions\": [{\"type\": \"asks_you\", \"param\": \"none\"}], \"matching\": \"each\", \"unsupported_asked\": \"writes good code\", \"intent\": \"create\", \"lifetime\": \"unsaid\"}",
+     "finish": "stop",
+     "latency_ms": 3589,
+     "gen_ms": 3589.164972305298,
+     "out_tokens": 111,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2888,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “writes good code”. I can tell you when “Invoice rounding fix” or “Checkout redesign” or “Rewrite quickstart” or “Training loop” or “DB migration” or “Claude Code CLI · Work” or “Claude app · Personal” or “Cursor” or “Claude Code CLI · Lab” or “Codex CLI · Work” asks you.",
+    "model_text": [
+     "writes good code"
+    ],
+    "notes": [
+     "unsupported (model)"
+    ],
+    "nearest": "asks_you",
+    "via": "model",
+    "asked": "writes good code"
+   }
+  },
+  {
+   "corpus": "watch5",
+   "job": "watch",
+   "setting": "main",
+   "id": "W047",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"nearest\": \"asks_you\", \"until\": \"none\", \"targets\": [\"s1\", \"s2\", \"s3\", \"s4\", \"s5\", \"app1\", \"app2\", \"app3\", \"app4\", \"app5\"], \"conditions\": [{\"type\": \"asks_you\", \"param\": \"none\"}], \"matching\": \"each\", \"unsupported_asked\": \"my boss replies\", \"intent\": \"create\", \"lifetime\": \"unsaid\"}",
+     "finish": "stop",
+     "latency_ms": 3514,
+     "gen_ms": 3513.2020711898804,
+     "out_tokens": 111,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2886,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “my boss replies”. I can tell you when “Invoice rounding fix” or “Checkout redesign” or “Rewrite quickstart” or “Training loop” or “DB migration” or “Claude Code CLI · Work” or “Claude app · Personal” or “Cursor” or “Claude Code CLI · Lab” or “Codex CLI · Work” asks you.",
+    "model_text": [
+     "my boss replies"
+    ],
+    "notes": [
+     "unsupported (model)"
+    ],
+    "nearest": "asks_you",
+    "via": "model",
+    "asked": "my boss replies"
+   }
+  },
+  {
+   "corpus": "watch5",
+   "job": "watch",
+   "setting": "main",
+   "id": "W048",
+   "rep": 0,
+   "model_called": true,
+   "used": "fallback",
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"nearest\": \"fails\", \"until\": \"none\", \"targets\": [\"s1\", \"s2\", \"s3\", \"s4\", \"s5\", \"app1\", \"app2\", \"app3\", \"app4\", \"app5\"], \"conditions\": [{\"type\": \"fails\", \"param\": \"flaky\"}], \"matching\": \"each\", \"unsupported_asked\": \"the tests are flaky\", \"intent\": \"create\", \"lifetime\": \"unsaid\"}",
+     "finish": "stop",
+     "latency_ms": 3547,
+     "gen_ms": 3546.734929084778,
+     "out_tokens": 107,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2886,
+     "cut": false,
+     "retry_note": false,
+     "errors": [
+      "param: fails takes no parameter, got 'flaky'"
+     ],
+     "ok": false,
+     "soft": []
+    },
+    {
+     "attempt": 1,
+     "text": "{\"nearest\": \"fails\", \"until\": \"none\", \"targets\": [\"s1\", \"s2\", \"s3\", \"s4\", \"s5\", \"app1\", \"app2\", \"app3\", \"app4\", \"app5\"], \"conditions\": [{\"type\": \"fails\", \"param\": \"flaky\"}], \"matching\": \"each\", \"unsupported_asked\": \"the tests are flaky\", \"intent\": \"create\", \"lifetime\": \"unsaid\"}",
+     "finish": "stop",
+     "latency_ms": 3543,
+     "gen_ms": 3543.179988861084,
+     "out_tokens": 107,
+     "error": "",
+     "refused": false,
+     "est_tokens": 3024,
+     "cut": false,
+     "retry_note": true,
+     "errors": [
+      "param: fails takes no parameter, got 'flaky'"
+     ],
+     "ok": false,
+     "soft": []
+    },
+    {
+     "attempt": 2,
+     "text": "{\"nearest\": \"fails\", \"until\": \"none\", \"targets\": [\"s1\", \"s2\", \"s3\", \"s4\", \"s5\", \"app1\", \"app2\", \"app3\", \"app4\", \"app5\"], \"conditions\": [{\"type\": \"fails\", \"param\": \"flaky\"}], \"matching\": \"each\", \"unsupported_asked\": \"the tests are flaky\", \"intent\": \"create\", \"lifetime\": \"unsaid\"}",
+     "finish": "stop",
+     "latency_ms": 3573,
+     "gen_ms": 3572.2460746765137,
+     "out_tokens": 107,
+     "error": "",
+     "refused": false,
+     "est_tokens": 3024,
+     "cut": false,
+     "retry_note": true,
+     "errors": [
+      "param: fails takes no parameter, got 'flaky'"
+     ],
+     "ok": false,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "form",
+    "shown": "I couldn't set that up from your words. New watch… opens the form.",
+    "model_text": [],
+    "notes": [
+     "every attempt failed its checks: the Watches form"
+    ]
+   }
+  },
+  {
+   "corpus": "watch5",
+   "job": "watch",
+   "setting": "main",
+   "id": "W049",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"nearest\": \"task_changes\", \"until\": \"none\", \"targets\": [\"s1\", \"s2\", \"s3\", \"s4\", \"s5\", \"app1\", \"app2\", \"app3\", \"app4\", \"app5\"], \"conditions\": [{\"type\": \"task_changes\", \"param\": \"done\"}], \"matching\": \"each\", \"unsupported_asked\": \"the pull request gets approved on GitHub\", \"intent\": \"create\", \"lifetime\": \"once\"}",
+     "finish": "stop",
+     "latency_ms": 3638,
+     "gen_ms": 3637.434959411621,
+     "out_tokens": 117,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2892,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “the pull request gets approved on GitHub”. I can watch your agents for: finish, end, ask you, fail, look stuck…",
+    "model_text": [
+     "the pull request gets approved on GitHub"
+    ],
+    "notes": [
+     "unsupported (model)"
+    ],
+    "nearest": null,
+    "via": "model",
+    "asked": "the pull request gets approved on GitHub"
+   }
+  },
+  {
+   "corpus": "watch5",
+   "job": "watch",
+   "setting": "main",
+   "id": "W050",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"nearest\": \"asks_you\", \"until\": \"none\", \"targets\": [\"s1\", \"s2\", \"s3\", \"s4\", \"s5\", \"app1\", \"app2\", \"app3\", \"app4\", \"app5\"], \"conditions\": [{\"type\": \"asks_you\", \"param\": \"none\"}], \"matching\": \"each\", \"unsupported_asked\": \"the stock market drops\", \"intent\": \"create\", \"lifetime\": \"unsaid\"}",
+     "finish": "stop",
+     "latency_ms": 3484,
+     "gen_ms": 3483.172059059143,
+     "out_tokens": 113,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2887,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “the stock market drops”. I can tell you when “Invoice rounding fix” or “Checkout redesign” or “Rewrite quickstart” or “Training loop” or “DB migration” or “Claude Code CLI · Work” or “Claude app · Personal” or “Cursor” or “Claude Code CLI · Lab” or “Codex CLI · Work” asks you.",
+    "model_text": [
+     "the stock market drops"
+    ],
+    "notes": [
+     "unsupported (model)"
+    ],
+    "nearest": "asks_you",
+    "via": "model",
+    "asked": "the stock market drops"
+   }
+  },
+  {
+   "corpus": "watch5",
+   "job": "watch",
+   "setting": "main",
+   "id": "W051",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"nearest\": \"asks_you\", \"until\": \"none\", \"targets\": [\"s1\", \"s2\", \"s3\", \"s4\", \"s5\", \"app1\", \"app2\", \"app3\", \"app4\", \"app5\"], \"conditions\": [{\"type\": \"asks_you\", \"param\": \"none\"}], \"matching\": \"each\", \"unsupported_asked\": \"the model feels confident\", \"intent\": \"create\", \"lifetime\": \"unsaid\"}",
+     "finish": "stop",
+     "latency_ms": 3495,
+     "gen_ms": 3494.6000576019287,
+     "out_tokens": 113,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2887,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “the model feels confident”. I can tell you when “Invoice rounding fix” or “Checkout redesign” or “Rewrite quickstart” or “Training loop” or “DB migration” or “Claude Code CLI · Work” or “Claude app · Personal” or “Cursor” or “Claude Code CLI · Lab” or “Codex CLI · Work” asks you.",
+    "model_text": [
+     "the model feels confident"
+    ],
+    "notes": [
+     "unsupported (model)"
+    ],
+    "nearest": "asks_you",
+    "via": "model",
+    "asked": "the model feels confident"
+   }
+  },
+  {
+   "corpus": "watch5",
+   "job": "watch",
+   "setting": "main",
+   "id": "W052",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"nearest\": \"none\", \"until\": \"none\", \"targets\": [\"s1\", \"s2\", \"s3\", \"s4\", \"s5\", \"app1\", \"app2\", \"app3\", \"app4\", \"app5\"], \"conditions\": [{\"type\": \"asks_you\", \"param\": \"none\"}], \"matching\": \"each\", \"unsupported_asked\": \"the agent is hallucinating\", \"intent\": \"create\", \"lifetime\": \"unsaid\"}",
+     "finish": "stop",
+     "latency_ms": 3506,
+     "gen_ms": 3505.7541131973267,
+     "out_tokens": 111,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2887,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “the agent is hallucinating”. I can watch your agents for: finish, end, ask you, fail, look stuck…",
+    "model_text": [
+     "the agent is hallucinating"
+    ],
+    "notes": [
+     "unsupported (model)"
+    ],
+    "nearest": null,
+    "via": "model",
+    "asked": "the agent is hallucinating"
+   }
+  },
+  {
+   "corpus": "watch5",
+   "job": "watch",
+   "setting": "main",
+   "id": "W053",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"nearest\": \"finishes\", \"until\": \"none\", \"targets\": [\"s1\", \"p1\"], \"conditions\": [{\"type\": \"finishes\", \"param\": \"none\"}], \"matching\": \"each\", \"unsupported_asked\": \"billing finishes\", \"intent\": \"create\", \"lifetime\": \"once\"}",
+     "finish": "stop",
+     "latency_ms": 2817,
+     "gen_ms": 2816.73002243042,
+     "out_tokens": 79,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2888,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “billing finishes”. I can tell you when “Invoice rounding fix” or “billing-svc” finishes.",
+    "model_text": [
+     "billing finishes"
+    ],
+    "notes": [
+     "unsupported (model)"
+    ],
+    "nearest": "finishes",
+    "via": "model",
+    "asked": "billing finishes"
+   }
+  },
+  {
+   "corpus": "watch5",
+   "job": "watch",
+   "setting": "main",
+   "id": "W054",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"nearest\": \"task_changes\", \"until\": \"none\", \"targets\": [\"s1\", \"s2\", \"s3\", \"s4\", \"s5\", \"app1\", \"app2\", \"app3\", \"app4\", \"app5\"], \"conditions\": [{\"param\": \"done\", \"type\": \"task_changes\"}, {\"type\": \"task_changes\", \"param\": \"blocked\"}], \"matching\": \"each\", \"unsupported_asked\": \"the deploy goes live\", \"intent\": \"create\", \"lifetime\": \"once\"}",
+     "finish": "stop",
+     "latency_ms": 3809,
+     "gen_ms": 3808.3341121673584,
+     "out_tokens": 129,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2890,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “the deploy goes live”. I can watch your agents for: finish, end, ask you, fail, look stuck…",
+    "model_text": [
+     "the deploy goes live"
+    ],
+    "notes": [
+     "unsupported (model)"
+    ],
+    "nearest": null,
+    "via": "model",
+    "asked": "the deploy goes live"
+   }
+  },
+  {
+   "corpus": "watch5",
+   "job": "watch",
+   "setting": "main",
+   "id": "W055",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"nearest\": \"none\", \"until\": \"none\", \"targets\": [\"s1\", \"s2\", \"s3\", \"s4\", \"s5\", \"app1\", \"app2\", \"app3\", \"app4\", \"app5\"], \"conditions\": [{\"type\": \"finishes\", \"param\": \"none\"}], \"matching\": \"each\", \"unsupported_asked\": \"90%\", \"intent\": \"create\", \"lifetime\": \"unsaid\"}",
+     "finish": "stop",
+     "latency_ms": 3373,
+     "gen_ms": 3373.1809854507446,
+     "out_tokens": 103,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2886,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “90%”. I can watch your agents for: finish, end, ask you, fail, look stuck…",
+    "model_text": [
+     "90%"
+    ],
+    "notes": [
+     "unsupported (model)"
+    ],
+    "nearest": null,
+    "via": "model",
+    "asked": "90%"
+   }
+  },
+  {
+   "corpus": "watch5",
+   "job": "watch",
+   "setting": "main",
+   "id": "W056",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"nearest\": \"task_changes\", \"until\": \"none\", \"targets\": [\"s1\", \"s2\", \"s3\", \"s4\", \"s5\", \"app1\", \"app2\", \"app3\", \"app4\", \"app5\"], \"conditions\": [{\"param\": \"done\", \"type\": \"task_changes\"}, {\"type\": \"task_changes\", \"param\": \"blocked\"}], \"matching\": \"each\", \"unsupported_asked\": \"pushes to the repo\", \"intent\": \"create\", \"lifetime\": \"once\"}",
+     "finish": "stop",
+     "latency_ms": 3800,
+     "gen_ms": 3799.3969917297363,
+     "out_tokens": 121,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2889,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “pushes to the repo”. I can watch your agents for: finish, end, ask you, fail, look stuck…",
+    "model_text": [
+     "pushes to the repo"
+    ],
+    "notes": [
+     "unsupported (model)"
+    ],
+    "nearest": null,
+    "via": "model",
+    "asked": "pushes to the repo"
+   }
+  },
+  {
+   "corpus": "watch5",
+   "job": "watch",
+   "setting": "main",
+   "id": "W057",
+   "rep": 0,
+   "model_called": true,
+   "used": "fallback",
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"nearest\": \"hits_limit\", \"until\": \"none\", \"targets\": [\"s1\", \"s2\", \"s3\", \"s4\", \"s5\", \"app1\", \"app2\", \"app3\", \"app4\", \"app5\"], \"conditions\": [{\"param\": \"20\", \"type\": \"hits_limit\"}], \"matching\": \"each\", \"unsupported_asked\": \"cost more than 20 dollars\", \"intent\": \"create\", \"lifetime\": \"unsaid\"}",
+     "finish": "stop",
+     "latency_ms": 3531,
+     "gen_ms": 3530.985951423645,
+     "out_tokens": 111,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2891,
+     "cut": false,
+     "retry_note": false,
+     "errors": [
+      "param: hits_limit takes no parameter, got '20'"
+     ],
+     "ok": false,
+     "soft": []
+    },
+    {
+     "attempt": 1,
+     "text": "{\"nearest\": \"hits_limit\", \"until\": \"none\", \"targets\": [\"s1\", \"s2\", \"s3\", \"s4\", \"s5\", \"app1\", \"app2\", \"app3\", \"app4\", \"app5\"], \"conditions\": [{\"param\": \"20\", \"type\": \"hits_limit\"}], \"matching\": \"each\", \"unsupported_asked\": \"cost more than 20 dollars\", \"intent\": \"create\", \"lifetime\": \"unsaid\"}",
+     "finish": "stop",
+     "latency_ms": 3640,
+     "gen_ms": 3639.894962310791,
+     "out_tokens": 111,
+     "error": "",
+     "refused": false,
+     "est_tokens": 3034,
+     "cut": false,
+     "retry_note": true,
+     "errors": [
+      "param: hits_limit takes no parameter, got '20'"
+     ],
+     "ok": false,
+     "soft": []
+    },
+    {
+     "attempt": 2,
+     "text": "{\"nearest\": \"hits_limit\", \"until\": \"none\", \"targets\": [\"s1\", \"s2\", \"s3\", \"s4\", \"s5\", \"app1\", \"app2\", \"app3\", \"app4\", \"app5\"], \"conditions\": [{\"type\": \"hits_limit\", \"param\": \"20\"}], \"matching\": \"each\", \"unsupported_asked\": \"cost more than 20 dollars\", \"intent\": \"create\", \"lifetime\": \"unsaid\"}",
+     "finish": "stop",
+     "latency_ms": 3733,
+     "gen_ms": 3732.6580286026,
+     "out_tokens": 111,
+     "error": "",
+     "refused": false,
+     "est_tokens": 3034,
+     "cut": false,
+     "retry_note": true,
+     "errors": [
+      "param: hits_limit takes no parameter, got '20'"
+     ],
+     "ok": false,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "form",
+    "shown": "I couldn't set that up from your words. New watch… opens the form.",
+    "model_text": [],
+    "notes": [
+     "every attempt failed its checks: the Watches form"
+    ]
+   }
+  },
+  {
+   "corpus": "watch5",
+   "job": "watch",
+   "setting": "main",
+   "id": "W058",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"nearest\": \"ends\", \"until\": \"23:59\", \"targets\": [\"s1\", \"s2\", \"s3\", \"s4\", \"s5\", \"app1\", \"app2\", \"app3\", \"app4\", \"app5\"], \"conditions\": [{\"type\": \"ends\", \"param\": \"none\"}], \"matching\": \"each\", \"unsupported_asked\": \"weekly summary\", \"intent\": \"create\", \"lifetime\": \"today\"}",
+     "finish": "stop",
+     "latency_ms": 3605,
+     "gen_ms": 3604.9779653549194,
+     "out_tokens": 107,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2887,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “weekly summary”. I can tell you when “Invoice rounding fix” or “Checkout redesign” or “Rewrite quickstart” or “Training loop” or “DB migration” or “Claude Code CLI · Work” or “Claude app · Personal” or “Cursor” or “Claude Code CLI · Lab” or “Codex CLI · Work” ends.",
+    "model_text": [
+     "weekly summary"
+    ],
+    "notes": [
+     "unsupported (model)"
+    ],
+    "nearest": "ends",
+    "via": "model",
+    "asked": "weekly summary"
+   }
+  },
+  {
+   "corpus": "watch5",
+   "job": "watch",
+   "setting": "main",
+   "id": "W059",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"nearest\": \"stuck\", \"until\": \"none\", \"targets\": [\"s1\", \"s2\", \"s3\", \"s4\", \"s5\", \"app1\", \"app2\", \"app3\", \"app4\", \"app5\"], \"conditions\": [{\"type\": \"stuck\", \"param\": \"0\"}, {\"param\": \"5\", \"type\": \"idle_for\"}], \"matching\": \"each\", \"unsupported_asked\": \"going in circles\", \"intent\": \"create\", \"lifetime\": \"once\"}",
+     "finish": "stop",
+     "latency_ms": 3798,
+     "gen_ms": 3798.0929613113403,
+     "out_tokens": 123,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2889,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “going in circles”. I can tell you when “Invoice rounding fix” or “Checkout redesign” or “Rewrite quickstart” or “Training loop” or “DB migration” or “Claude Code CLI · Work” or “Claude app · Personal” or “Cursor” or “Claude Code CLI · Lab” or “Codex CLI · Work” looks stuck.",
+    "model_text": [
+     "going in circles"
+    ],
+    "notes": [
+     "unsupported (model)"
+    ],
+    "nearest": "stuck",
+    "via": "model",
+    "asked": "going in circles"
+   }
+  },
+  {
+   "corpus": "watch5",
+   "job": "watch",
+   "setting": "main",
+   "id": "W060",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"nearest\": \"ends\", \"until\": \"none\", \"targets\": [\"s1\", \"s2\", \"s3\", \"s4\", \"s5\", \"app1\", \"app2\", \"app3\", \"app4\", \"app5\"], \"conditions\": [{\"type\": \"ends\", \"param\": \"none\"}], \"matching\": \"each\", \"unsupported_asked\": \"the company website goes down\", \"intent\": \"create\", \"lifetime\": \"unsaid\"}",
+     "finish": "stop",
+     "latency_ms": 3578,
+     "gen_ms": 3577.8099298477173,
+     "out_tokens": 107,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2889,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “the company website goes down”. I can tell you when “Invoice rounding fix” or “Checkout redesign” or “Rewrite quickstart” or “Training loop” or “DB migration” or “Claude Code CLI · Work” or “Claude app · Personal” or “Cursor” or “Claude Code CLI · Lab” or “Codex CLI · Work” ends.",
+    "model_text": [
+     "the company website goes down"
+    ],
+    "notes": [
+     "unsupported (model)"
+    ],
+    "nearest": "ends",
+    "via": "model",
+    "asked": "the company website goes down"
+   }
+  }
+ ]
+}

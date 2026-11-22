@@ -173,6 +173,7 @@ mod tests {
             handoff_record: None,
             session_link: None,
             default_folder: None,
+            desktop: crate::desktop_app::DesktopFacts::default(),
         }
     }
 

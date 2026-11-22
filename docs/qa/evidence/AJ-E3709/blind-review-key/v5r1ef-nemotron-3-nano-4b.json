@@ -1,0 +1,104 @@
+[
+ {
+  "pair": "digest5-digest-001",
+  "job": "digest",
+  "first": "model",
+  "second": "non-AI"
+ },
+ {
+  "pair": "digest5-digest-002",
+  "job": "digest",
+  "first": "model",
+  "second": "non-AI"
+ },
+ {
+  "pair": "digest5-digest-003",
+  "job": "digest",
+  "first": "non-AI",
+  "second": "model"
+ },
+ {
+  "pair": "digest5-digest-004",
+  "job": "digest",
+  "first": "model",
+  "second": "non-AI"
+ },
+ {
+  "pair": "digest5-digest-005",
+  "job": "digest",
+  "first": "non-AI",
+  "second": "model"
+ },
+ {
+  "pair": "digest5-digest-006",
+  "job": "digest",
+  "first": "non-AI",
+  "second": "model"
+ },
+ {
+  "pair": "digest5-digest-007",
+  "job": "digest",
+  "first": "non-AI",
+  "second": "model"
+ },
+ {
+  "pair": "digest5-digest-008",
+  "job": "digest",
+  "first": "non-AI",
+  "second": "model"
+ },
+ {
+  "pair": "digest5-digest-009",
+  "job": "digest",
+  "first": "model",
+  "second": "non-AI"
+ },
+ {
+  "pair": "digest5-digest-010",
+  "job": "digest",
+  "first": "model",
+  "second": "non-AI"
+ },
+ {
+  "pair": "digest5-digest-011",
+  "job": "digest",
+  "first": "non-AI",
+  "second": "model"
+ },
+ {
+  "pair": "digest5-digest-012",
+  "job": "digest",
+  "first": "model",
+  "second": "non-AI"
+ },
+ {
+  "pair": "digest5b-digest-001",
+  "job": "digest",
+  "first": "non-AI",
+  "second": "model"
+ },
+ {
+  "pair": "digest5b-digest-002",
+  "job": "digest",
+  "first": "non-AI",
+  "second": "model"
+ },
+ {
+  "pair": "digest5b-digest-003",
+  "job": "digest",
+  "first": "non-AI",
+  "second": "model"
+ },
+ {
+  "pair": "digest5b-digest-004",
+  "job": "digest",
+  "first": "non-AI",
+  "second": "model"
+ },
+ {
+  "pair": "digest5b-digest-005",
+  "job": "digest",
+  "first": "model",
+  "second": "non-AI"
+ }
+]

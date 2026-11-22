@@ -5,7 +5,7 @@
 crates/juggler-app/src/features/quota/mod.rs 2
 crates/juggler-app/src/machine_health.rs 1
 crates/juggler-app/src/state.rs 1
-crates/juggler-app/src/usage_pipeline.rs 7
+crates/juggler-app/src/usage_pipeline.rs 5
 crates/juggler-app/src/usage_stats.rs 6
 crates/juggler-core/src/recommendation.rs 3
 crates/juggler-handover/src/fidelity.rs 42
