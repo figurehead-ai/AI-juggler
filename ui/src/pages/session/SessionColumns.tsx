@@ -32,7 +32,10 @@ export function SessionColumns({ main, side, lead, testId = "session-overview" }
   // were 13 px narrower than it; `lead` leaves the same room.
   const gutter = useScrollbarGutter(box);
   return (
-    <div className="@container flex min-h-0 flex-1 flex-col" data-testid={testId}>
+    // R2 (the 0.5.0 re-walk): named, so what sits inside the main pane
+    // (under the conversation switcher's own container) asks this one
+    // whether the page has two columns (`@4xl/session:`).
+    <div className="@container/session flex min-h-0 flex-1 flex-col" data-testid={testId}>
       {/* D-143 (PAT-SW): `lead`, the side column's first thing, never scrolls
           away: above the column (outside its scroll) when wide, above the
           main area when narrow (at 1024 wide the column stacks below it). */}

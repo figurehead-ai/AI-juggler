@@ -224,7 +224,12 @@ export function PageShell({
           ))}
         </div>
       )}
-      <div className="flex min-h-64 flex-1 flex-col">
+      {/* R2 (the 0.5.0 re-walk): the body's floor is 10rem, so a page
+          whose header and notice leave it a little less than 16rem fits
+          the window (a session page scrolled 9 px at 1024×680 with its
+          account's notice up, and its column with it); only a window too
+          short for a usable body (200 % zoom) scrolls the page whole. */}
+      <div className="flex min-h-40 flex-1 flex-col">
         {tabs.map((entry) => (
           <TabPanel key={entry.id} id={entry.id} strip={strip} shown={tab === entry.id} scrollKey={subject === undefined ? null : `page:${kind}:${subject}:${entry.id}`}>
             {render(entry.id, tab === entry.id)}

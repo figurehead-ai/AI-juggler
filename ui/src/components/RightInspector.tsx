@@ -266,7 +266,11 @@ export function RightInspector({
       }
       footer={(tab) => (
         // Sticky with a solid background: a long tab scrolls under it.
-        <footer className="sticky bottom-0 z-10 mt-auto flex items-center gap-1.5 border-t border-hairline/60 bg-canvas pt-2 pb-1 text-label text-muted">
+        // R2 (the 0.5.0 re-walk): a window under 720 px tall gives its row
+        // to the page (the session column's first card stays whole at
+        // 1024×680 with the account's notice up); the header says when it
+        // started and its last activity.
+        <footer className="sticky bottom-0 z-10 mt-auto flex items-center gap-1.5 border-t border-hairline/60 bg-canvas pt-2 pb-1 text-label text-muted [@media(max-height:719px)]:hidden">
           <span>
             Updated{" "}
             {since(remote ? (remote.machine.last_heard_ms ?? now) : (freshness[data.instance?.id ?? ""]?.resources ?? now), now)} ago
@@ -516,7 +520,9 @@ function InstanceOverview(props: PanelProps) {
     // main pane, the side column beside it).
     if (!isDesktop) {
       const terminalCard = (
-        <Card className="min-h-[280px] flex-1 overflow-hidden bg-[#05070b] p-0">
+        // R2: its 280 px floor is for the stacked page only; beside the
+        // side column the page's height decides (`@4xl/session`).
+        <Card className="min-h-[280px] flex-1 overflow-hidden bg-[#05070b] p-0 @4xl/session:min-h-0">
           <TerminalView id={terminalId} title={terminalTitle ?? session.account_label} status={session.status} rule={session.attention?.rule ?? null} />
         </Card>
       );

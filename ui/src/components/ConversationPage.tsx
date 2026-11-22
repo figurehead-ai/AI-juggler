@@ -256,7 +256,8 @@ function ConversationView({
           )
         }
         footer={(tab) => (
-          <footer className="sticky bottom-0 z-10 mt-auto border-t border-hairline/60 bg-canvas pt-2 pb-1 text-label text-muted">from {tab.source}</footer>
+          // R2: a window under 720 px tall gives this row to the page.
+          <footer className="sticky bottom-0 z-10 mt-auto border-t border-hairline/60 bg-canvas pt-2 pb-1 text-label text-muted [@media(max-height:719px)]:hidden">from {tab.source}</footer>
         )}
       />
       {menu.element}

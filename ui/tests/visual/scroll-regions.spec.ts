@@ -18,6 +18,7 @@
  */
 import { expect, test, type Locator, type Page } from "@playwright/test";
 import { open } from "./gallery-04";
+import { GATE_NOW } from "./axe-gallery";
 import { allStatuses, openRailSession, openSwitch, switchRows } from "./fixtures";
 
 const SIZES = [
@@ -65,6 +66,64 @@ async function traps(page: Page): Promise<string[]> {
     return found;
   });
 }
+
+/** An account almost out of room, as the model holds it: the session
+ * page's own notice ("This session's account, Work Max, is almost out of
+ * room") for `account`'s sessions. */
+function roomNotice(account: string): Record<string, unknown> {
+  const facts = { window: "5-hour", resets_at_ms: GATE_NOW + 95 * 60_000, sessions: 2, version: null, channel: null, attempt: null, tries: null, account: "Work Max" };
+  const target = { session_id: null, conversation_id: null, account_id: account, project_id: null, page: null, task_id: null, pool_id: null };
+  return { app: [{ id: 41, kind: "quota", needs: true, unread: true, title: "Work Max is almost out of room", detail: "7% of its 5-hour window left", project_id: null, project: null, target, facts, action: "hand-over", meter: 7, created_ms: GATE_NOW - 180_000, snoozed_until_ms: null, muted: false, dismissed: false }], earlier: [] };
+}
+
+/** Every box on the page that scrolls now, but a terminal's own. */
+async function scrollers(page: Page): Promise<string[]> {
+  return page.evaluate(() =>
+    Array.from(document.querySelectorAll<HTMLElement>("[data-page-kind], [data-page-kind] *"))
+      .filter((el) => /(auto|scroll)/.test(getComputedStyle(el).overflowY) && el.scrollHeight > el.clientHeight + 1 && !el.closest(".xterm"))
+      .map((el) => el.dataset.testid ?? el.tagName.toLowerCase()),
+  );
+}
+
+// R2 (the 0.5.0 re-walk): at 1024×680 with the account's notice up, a
+// session page scrolled three boxes inside each other: the page (9 px),
+// its tab's section (24 px, a 22rem floor the conversation kept beside the
+// column) and the column, 131 px of 704. One region per area: the page
+// and its section never scroll; the column (and the conversation's own
+// list) do; Switch account… and the column's first card are in view.
+test.describe("R2 a session page at 1024×680 with its account's notice", () => {
+  for (const [session, account, notice] of [
+    ["sess-2", "claude-work", true],
+    ["sess-3", "claude-personal", true],
+    // An ended one: its conversation is its main pane (the 22rem floor).
+    ["sess-8", "claude-work", false],
+  ] as const) {
+    test(`${session}: one scroll region per area`, async ({ page }) => {
+      const size = { width: 1024, height: 680 };
+      await open(page, "dark", size, { __AIJ_FIXTURE__: allStatuses, __AIJ_NOTICES__: roomNotice(account) });
+      await openRailSession(page, session);
+      if (notice) await expect(page.getByTestId("session-notice-quota")).toBeVisible();
+      const button = page.getByTestId("switch-account");
+      await expect(button).toBeVisible();
+      await settle(page);
+      const found = await scrollers(page);
+      expect(found.filter((name) => name !== "session-side" && name !== "last-messages-scroll"), "only the column and the conversation's own list scroll").toEqual([]);
+      const root = page.locator("[data-page-kind]").first();
+      const state = await scrollState(root);
+      expect(state.height, "the page itself doesn't scroll").toBeLessThanOrEqual(state.client + 1);
+      const lead = await boxOf(button);
+      expect(lead.y + lead.height, "Switch account… whole").toBeLessThanOrEqual(size.height);
+      const side = await boxOf(page.getByTestId("session-side"));
+      const first = await boxOf(page.getByTestId("session-side").locator(":scope > *").first());
+      expect(first.y, "the first card starts in the column").toBeGreaterThanOrEqual(side.y - 1);
+      // With the notice up, its first card whole; an ended one's (its
+      // header two rows, its card a line longer) mostly, More below under it.
+      if (notice) expect(first.y + first.height, "the first card whole").toBeLessThanOrEqual(side.y + side.height + 1);
+      else expect(side.y + side.height - first.y, "most of the first card").toBeGreaterThanOrEqual(200);
+      expect(await traps(page)).toEqual([]);
+    });
+  }
+});
 
 for (const theme of ["dark", "light"] as const) {
   for (const size of SIZES) {
