@@ -1173,3 +1173,57 @@ fn an_ai_app_s_own_tree_is_listed_in_everything_running_d1_rc29() {
         "Sessions Claude runs"
     );
 }
+
+/// R11 (the 0.5.0 re-walk; lab safety): a lab's AI Juggler Dev listed the
+/// Mac's real Claude app processes in Everything running, each with
+/// Stop…. In a lab it lists only the lab's own (the healthy session's
+/// tree, say); the rest of the Mac, its sessions, Apps, totals and
+/// "others" are left out, and the stop refuses a process outside the lab
+/// even when everything else about it checks (`stop::check`).
+#[test]
+fn a_lab_lists_and_stops_only_its_own_processes() {
+    use juggler_app::features::processes::stop::{self, Facts, Now, refusal};
+    let mut inputs = fixture();
+    inputs.others.push(model::OtherProgram {
+        name: "Claude".into(),
+        processes: 150,
+        rss_bytes: 4_000_000_000,
+    });
+    let full = model::build(&inputs);
+    let lab: std::collections::HashSet<u32> = [100, 101, 102, 103, 104].into();
+    let graph = model::scoped(full.clone(), &|pid| lab.contains(&pid));
+    let pids: Vec<u32> = graph
+        .apps
+        .iter()
+        .flat_map(|app| app.sessions.iter().flat_map(|session| session.processes.iter().map(|node| node.pid)))
+        .collect();
+    assert!(!pids.is_empty(), "the lab's own are listed");
+    assert!(pids.iter().all(|pid| lab.contains(pid)), "{pids:?}");
+    assert!(graph.others.is_empty(), "the rest of the Mac isn't listed");
+    assert!(graph.counts.processes < full.counts.processes);
+    assert_eq!(graph.counts.left_behind, 0, "the Mac's leftovers aren't the lab's to clean");
+    let mut everything = input("running");
+    everything.others = true;
+    let rows = query::rows(&graph, &everything);
+    assert!(
+        rows.iter().all(|row| row.process.as_ref().is_none_or(|p| lab.contains(&p.pid))),
+        "{:?}",
+        rows.iter().map(|row| &row.key).collect::<Vec<_>>()
+    );
+    assert!(rows.iter().all(|row| row.kind != "program"), "no other program");
+    // The stop: a leftover that checks on every other leg is refused
+    // outside the lab, before anything is signalled.
+    let facts = Facts {
+        now: Some(Now {
+            start_time: 1_000,
+            exe: Some("/Applications/Claude.app/Contents/MacOS/Claude".into()),
+            name: "Claude".into(),
+            zombie: false,
+        }),
+        boot_id: "boot".into(),
+        own_pid: 99,
+        outside_lab: true,
+        ..Facts::default()
+    };
+    assert_eq!(stop::check(4242, &facts), Err(refusal::OUTSIDE_LAB));
+}

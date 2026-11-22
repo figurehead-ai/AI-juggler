@@ -235,6 +235,13 @@ pub fn kill_verify_inner(
             ..verify_info_of(row, session_id, pid)
         });
     }
+    // R11: outside a lab's home, a lab's AI Juggler won't stop it.
+    if crate::features::processes::lab_scope::outside(pid) {
+        return Ok(KillVerifyInfo {
+            refusal: Some(crate::features::processes::stop::refusal::OUTSIDE_LAB.to_string()),
+            ..verify_info_of(row, session_id, pid)
+        });
+    }
     // Click-time verification: identity against the kernel NOW —
     // the shared rule (`verify_kill_target`). Unverifiable rows
     // (state `unverifiable`, a missing start-time, a probe error)
@@ -465,6 +472,11 @@ pub fn kill_execute_as(
     // PID-reuse refusal).
     if row.machine_id != local_machine_id(state).as_str() {
         return Ok(refused_kill(pid, KILL_WRONG_MACHINE_COPY));
+    }
+    // R11 (lab safety): a lab's AI Juggler never stops a process outside
+    // its lab, whatever its ledger says.
+    if crate::features::processes::lab_scope::outside(pid) {
+        return Ok(refused_kill(pid, crate::features::processes::stop::refusal::OUTSIDE_LAB));
     }
     // AJ-E708 Req.5: a diverged Instance takes no destructive action
     // until the user picks what to keep.
