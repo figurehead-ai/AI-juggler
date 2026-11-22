@@ -89,6 +89,17 @@ fn nothing() -> SwitchSpaceInfo {
     }
 }
 
+/// A size, said as roughly that much: "about 3 MB", but "under 1 MB" as
+/// it is (the 0.5.0 walk, F5: "about under 1 MB").
+fn about(bytes: u64) -> String {
+    let words = bytes_words(bytes);
+    if words.starts_with("under ") {
+        words
+    } else {
+        format!("about {words}")
+    }
+}
+
 /// The words for `room` with `free` bytes free on the target's disk.
 #[must_use]
 pub fn space(room: SwitchRoom, free: Option<u64>) -> SwitchSpaceInfo {
@@ -101,10 +112,7 @@ pub fn space(room: SwitchRoom, free: Option<u64>) -> SwitchSpaceInfo {
             bytes_words(room.writes)
         )
     } else {
-        format!(
-            "the copy takes about {} of disk space",
-            bytes_words(room.writes)
-        )
+        format!("the copy takes {} of disk space", about(room.writes))
     };
     let free_words = free.map_or_else(String::new, |free| format!(" ({} free)", bytes_words(free)));
     let mut info = SwitchSpaceInfo {
@@ -123,20 +131,20 @@ pub fn space(room: SwitchRoom, free: Option<u64>) -> SwitchSpaceInfo {
     if free < needed {
         "short".clone_into(&mut info.kind);
         info.words = format!(
-            "Not enough disk space: the copy needs about {} and AI Juggler always leaves {} free, but {} is free.",
-            bytes_words(room.writes),
+            "Not enough disk space: the copy needs {} and AI Juggler always leaves {} free, but {} is free.",
+            about(room.writes),
             DISK_RESERVE_WORDS,
             bytes_words(free)
         );
         info.advice = Some(format!(
-            "Free about {} ({make_room}), then switch. Nothing has moved.",
-            bytes_words(needed - free)
+            "Free {} ({make_room}), then switch. Nothing has moved.",
+            about(needed - free)
         ));
     } else if room.writes > 0 && free - room.writes < LOW_AFTER {
         "low".clone_into(&mut info.kind);
         info.advice = Some(format!(
-            "That leaves about {} free. If you can, {make_room} first.",
-            bytes_words(free - room.writes)
+            "That leaves {} free. If you can, {make_room} first.",
+            about(free - room.writes)
         ));
     }
     info
@@ -193,6 +201,16 @@ mod tests {
                 .contains("the copy takes about 800 MB of disk space (49 GB free)"),
             "{}",
             info.words
+        );
+    }
+
+    /// The 0.5.0 walk, F5: "the copy takes about under 1 MB of disk space".
+    #[test]
+    fn a_small_copy_says_under_1_mb_without_about() {
+        let info = space(room(300_000, 300_000, false), Some(49 * GB));
+        assert_eq!(
+            info.words,
+            "This conversation is under 1 MB; the copy takes under 1 MB of disk space (49 GB free)."
         );
     }
 
