@@ -1,4 +1,4 @@
-<!-- captures: 9958d97a0806 -->
+<!-- captures: a9be66109f82 -->
 # 20-kill: the "Stop vite?" sheet for a process AI Juggler started: choosing what to stop, the 5-second wait, the outcome, and when the PID now belongs to another program
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design passes.
@@ -13,3 +13,5 @@ The verify-* sheets read top to bottom as they should: what was checked, a Detai
 - verify-pgid-*, verify-tree-*: the stop button still names only "PID 8123" when a wider choice is selected.
 - grace-countdown-*: an empty footer band under the divider.
 - verification-failed-*: "Juggler" and "AI Juggler" in the same sheet; the only button is "Cancel".
+
+**0.5.0 (the re-walk's R3, CI on bfbc2013c):** outcome-freed-* now show the Processes page with the success toast, "Stopped vite (PID 8123). :5173 is free. Saved in Cleanup history.", and a Cleanup history action: a plain success closes the sheet (one press, one stop) instead of drawing a report inside it. The report itself still shows for a stop that left something behind (outcome-report-*). Checked by eye at 1440x900 light.
