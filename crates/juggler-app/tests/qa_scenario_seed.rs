@@ -1743,12 +1743,29 @@ fn lab_sleeper(cwd: &std::path::Path, home: &std::path::Path, name: &str, secs: 
         std::thread::sleep(std::time::Duration::from_millis(20));
     };
     std::fs::remove_file(&ready).unwrap();
+    // The shell writes the pid right after its fork, and until the child
+    // execs it is still the shell's image. Read then (a busy machine, as
+    // CI's Linux runners are), its identity would record the shell's
+    // program, and the stop's identity check would rightly refuse the
+    // live `sleep` as a different program. Wait for the exec: the child's
+    // program is no longer the shell's.
+    if let Some(shell) = os_process(group).0 {
+        loop {
+            if os_process(pid).0.is_some_and(|exe| exe != shell) {
+                break;
+            }
+            assert!(
+                std::time::Instant::now() < deadline,
+                "{name}: its sleep never started"
+            );
+            std::thread::sleep(std::time::Duration::from_millis(5));
+        }
+    }
     (group, pid)
 }
 
-/// Process `pid`'s identity as the ledger keys it: its exe (`fallback`
-/// when the OS won't say) and its OS start time.
-fn os_identity(pid: u32, fallback: &str) -> (PathBuf, i64) {
+/// Process `pid`'s exe (when the OS says) and OS start time, as read now.
+fn os_process(pid: u32) -> (Option<PathBuf>, Option<i64>) {
     let mut system = sysinfo::System::new();
     system.refresh_processes_specifics(
         sysinfo::ProcessesToUpdate::Some(&[sysinfo::Pid::from_u32(pid)]),
@@ -1757,13 +1774,24 @@ fn os_identity(pid: u32, fallback: &str) -> (PathBuf, i64) {
             .without_tasks()
             .with_exe(sysinfo::UpdateKind::Always),
     );
-    let live = system
+    system
         .process(sysinfo::Pid::from_u32(pid))
-        .expect("the lab's process runs");
-    let exe = live
-        .exe()
-        .map_or_else(|| PathBuf::from(fallback), std::path::Path::to_path_buf);
-    (exe, i64::try_from(live.start_time()).unwrap())
+        .map_or((None, None), |live| {
+            (
+                live.exe().map(std::path::Path::to_path_buf),
+                i64::try_from(live.start_time()).ok(),
+            )
+        })
+}
+
+/// Process `pid`'s identity as the ledger keys it: its exe (`fallback`
+/// when the OS won't say) and its OS start time.
+fn os_identity(pid: u32, fallback: &str) -> (PathBuf, i64) {
+    let (exe, start) = os_process(pid);
+    (
+        exe.unwrap_or_else(|| PathBuf::from(fallback)),
+        start.expect("the lab's process runs"),
+    )
 }
 
 /// One process of lab session `record` as AI Juggler's process ledger
