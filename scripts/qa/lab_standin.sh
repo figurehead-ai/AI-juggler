@@ -7,7 +7,9 @@
 #
 #   claude --version         2.1.296 (Claude Code), as the adapter checks
 #   claude [launch args]     Claude Code's screen at its prompt; a line typed
-#                            there makes it ask to run a command
+#                            there makes it ask to run a command; `/exit`
+#                            (or `/quit`) there ends it on its own, exit 0, as
+#                            Claude Code's does (DW1: a burst of finishes)
 #   claude --lab-idle        the same, started by the seeder (PF1's running
 #                            sessions: no terminal, so it stays at its prompt)
 #   codex  …                 the same, as Codex CLI
@@ -101,6 +103,14 @@ if [ "${1:-}" = "--selftest" ]; then
   [ ! -e "$record" ] || fail "its record stayed after it ended"
   [ -f "$tmp/hook-SessionEnd.json" ] || fail "no SessionEnd"
   exec 4>&-
+  # DW1: `/exit` at its prompt ends it on its own, exit 0, its record gone.
+  rm -f "$tmp"/hook-*.json
+  (cd "$tmp/home/repo" || exit 1
+   env -u CLAUDE_CONFIG_DIR HOME="$tmp/home" AIJ_LAB_STANDIN_SECS=20 "$tmp/claude" --settings "$tmp/settings.json" \
+     < <(sleep 1; echo /exit) > "$tmp/out5" 2>&1; echo $? > "$tmp/code5")
+  [ "$(cat "$tmp/code5")" = 0 ] || fail "/exit ended it with $(cat "$tmp/code5")"
+  grep -q '"reason":"prompt_input_exit"' "$tmp/hook-SessionEnd.json" 2>/dev/null || fail "/exit: no SessionEnd"
+  [ -z "$(ls "$tmp/home/.claude/sessions/" 2>/dev/null)" ] || fail "/exit left its record"
   # Asking at start (K3), with no terminal at all.
   mkdir -p "$tmp/home/.aij-lab-bin" && touch "$tmp/home/.aij-lab-bin/asks-at-start"
   (cd "$tmp/home/repo" || exit 1
@@ -219,7 +229,7 @@ finish() {
   trap - TERM INT HUP
   # Its own children (a wait's sleep, a hook) end with it, never after.
   pkill -P $$ 2>/dev/null
-  hook SessionEnd ',"reason":"other"'
+  hook SessionEnd ",\"reason\":\"${1:-other}\""
   [ -n "$record" ] && rm -f "$record"
   exit 0
 }
@@ -279,6 +289,9 @@ while [ "$SECONDS" -lt "$deadline" ]; do
       hook Stop ',"stop_hook_active":false'
       asking=0
       prompt
+    elif [ "${line// /}" = /exit ] || [ "${line// /}" = /quit ]; then
+      # Ended at its prompt, as Claude Code's /exit ends: on its own, 0.
+      finish prompt_input_exit
     elif [ -n "${line// /}" ]; then
       hook UserPromptSubmit ',"prompt":"(lab)"'
       ask

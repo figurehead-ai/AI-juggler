@@ -15,6 +15,7 @@
 #   scripts/qa/lab_scenario.sh stop-apps PL1 [--home …]  # quits them (teardown does too)
 #   scripts/qa/lab_scenario.sh teardown P1 [--home …] [--force-abandon]
 #   scripts/qa/lab_scenario.sh setup T16 --standins [--with-hermes]   # a dry run on stand-ins
+#   scripts/qa/lab_scenario.sh setup DW1  # the digest, a burst of finishes, a watch alert (stand-ins; T16 holds none)
 #
 # --standins (T16's dry run, AJ-E1612): the stand-in tools
 # (scripts/qa/standins/) are put in <lab>/standins and Dev is pointed at
