@@ -175,7 +175,9 @@ impl Stopped {
 /// A lock on the folders a move touches, held while the move runs, shared
 /// by every AI Juggler on this Mac (the Dev build and the installed one
 /// keep different data folders, so the lock is in the user's own temporary
-/// folder, named by the folders it guards).
+/// folder, named by the folders it guards in their one real spelling:
+/// AJ-E2315, a link, `..` or a trailing slash never makes a second lock on
+/// one folder).
 pub struct Lock {
     _files: Vec<std::fs::File>,
 }
@@ -188,7 +190,10 @@ impl Lock {
     /// Another move holds one of them.
     pub fn take(roots: &[PathBuf]) -> Result<Self, MoveError> {
         let mut files = Vec::new();
-        let mut roots = roots.to_vec();
+        let mut roots: Vec<PathBuf> = roots
+            .iter()
+            .map(|root| juggler_platform::real_path::canonical(root))
+            .collect();
         roots.sort();
         roots.dedup();
         for root in roots {

@@ -373,6 +373,29 @@ fn a_second_move_of_the_same_folders_waits() {
     assert!(Lock::take(&roots).is_ok());
 }
 
+/// AJ-E2315 (the review's E11): two spellings of one folder are one lock
+/// (the old key was the raw path, so both moves ran).
+#[test]
+fn two_spellings_of_one_folder_are_one_lock() {
+    let lab = lab();
+    let held = Lock::take(std::slice::from_ref(&lab.a)).unwrap();
+    let slash = PathBuf::from(format!("{}/", lab.a.display()));
+    let dots = lab.a.join("x").join("..");
+    for spelling in [slash, dots] {
+        assert!(
+            Lock::take(std::slice::from_ref(&spelling)).is_err(),
+            "{spelling:?}"
+        );
+    }
+    #[cfg(unix)]
+    {
+        let link = lab.a.with_extension("link");
+        std::os::unix::fs::symlink(&lab.a, &link).unwrap();
+        assert!(Lock::take(&[link]).is_err(), "through a link");
+    }
+    drop(held);
+}
+
 fn walk(dir: &Path) -> Vec<PathBuf> {
     let mut out = Vec::new();
     if let Ok(entries) = std::fs::read_dir(dir) {
