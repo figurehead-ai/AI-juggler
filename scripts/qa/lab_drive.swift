@@ -1161,9 +1161,18 @@ func wheelLines(_ direction: String, _ count: String?) -> Int32? {
 }
 
 /// The wheel at `point` (screen points; nil: the middle of Dev's main
-/// window), `lines` clicks one line at a time, posted to Dev's pid only:
-/// each click behind the full guard at that point, as a key is. The
-/// pointer doesn't move.
+/// window), `lines` clicks one line at a time, each behind the full guard
+/// at that point, as a key is.
+///
+/// R12 (the 0.5.0 re-walk): a wheel event posted to Dev's pid moved
+/// nothing (Page Down and End, posted the same way, did): AppKit gives a
+/// posted key to the key window, but a scroll to the window under the
+/// pointer, and a WKWebView takes it there only as the window server
+/// routes it. So the wheel is a user's: the pointer goes to the point
+/// (the guard has just said Dev's main window is frontmost and topmost
+/// there), the click is posted at the HID level there, and the pointer
+/// goes back where it was. The scratchpad probe (a WKWebView with a tall
+/// page) moved under neither the pid-posted line nor pixel wheel.
 func scrollWheel(_ pid: pid_t, lines: Int32, at given: CGPoint?) {
     let step: Int32 = lines < 0 ? -1 : 1
     for _ in 0..<abs(lines) {
@@ -1174,11 +1183,20 @@ func scrollWheel(_ pid: pid_t, lines: Int32, at given: CGPoint?) {
             guard win.bounds.contains(point) else { stop(4, "the point \(Int(point.x)),\(Int(point.y)) isn't inside Dev's main window; nothing sent") }
             if guarded(pid, at: point) == .send { break }
         }
-        let source = CGEventSource(stateID: .privateState)
-        guard let event = CGEvent(scrollWheelEvent2Source: source, units: .line, wheelCount: 1, wheel1: step, wheel2: 0, wheel3: 0) else { stop(3, "no wheel event") }
+        let source = CGEventSource(stateID: .hidSystemState)
+        let back = CGEvent(source: nil)?.location ?? point
+        guard let event = CGEvent(scrollWheelEvent2Source: source, units: .line, wheelCount: 1, wheel1: step, wheel2: 0, wheel3: 0),
+              let there = CGEvent(mouseEventSource: source, mouseType: .mouseMoved, mouseCursorPosition: point, mouseButton: .left),
+              let home = CGEvent(mouseEventSource: source, mouseType: .mouseMoved, mouseCursorPosition: back, mouseButton: .left)
+        else { stop(3, "no wheel event") }
         event.location = point
         ledger.noteOwn(Date().timeIntervalSince1970)
-        event.postToPid(pid)
+        there.post(tap: .cghidEventTap)
+        usleep(40_000)
+        event.post(tap: .cghidEventTap)
+        usleep(40_000)
+        home.post(tap: .cghidEventTap)
+        ledger.noteOwn(Date().timeIntervalSince1970)
         saveLedger()
         usleep(useconds_t(keyGap * 1_000_000))
     }
@@ -1195,11 +1213,36 @@ func resizeMain(_ pid: pid_t, to size: CGSize) {
         if guarded(pid, at: CGPoint(x: win.bounds.midX, y: win.bounds.midY)) == .send { break }
     }
     guard let main = mainWindow(pid) else { stop(3, "Dev's main window isn't there; nothing sent") }
+    // R12 (the 0.5.0 re-walk): the size was accepted (0) and settable, and
+    // the window stayed 1701×1348 at 1727,80: the right half of the
+    // screen, a window macOS tiled (or full screen), which keeps its tile's
+    // frame over a size alone. So: out of full screen first; then as a
+    // window manager does it, size, then a position that keeps the new
+    // size on its screen (a move takes a window out of its tile), then the
+    // size again; up to three times.
+    if (attr(main.ax, "AXFullScreen") as? Bool) == true {
+        _ = AXUIElementSetAttributeValue(main.ax, "AXFullScreen" as CFString, kCFBooleanFalse)
+        usleep(1_200_000)
+    }
     var wanted = size
     guard let value = AXValueCreate(.cgSize, &wanted) else { stop(3, "no size value") }
-    let result = AXUIElementSetAttributeValue(main.ax, kAXSizeAttribute as CFString, value)
-    usleep(400_000)
-    let now = frame(main.ax)?.size ?? .zero
+    var result = AXError.success
+    var now = frame(main.ax)?.size ?? .zero
+    for _ in 0..<3 {
+        result = AXUIElementSetAttributeValue(main.ax, kAXSizeAttribute as CFString, value)
+        let at = frame(main.ax)?.origin ?? .zero
+        let screen = NSScreen.screens.first { $0.frame.contains(NSPoint(x: at.x + 1, y: (NSScreen.screens.first?.frame.maxY ?? 0) - at.y - 1)) } ?? NSScreen.main
+        let room = screen.map { CGRect(x: $0.visibleFrame.minX, y: (NSScreen.screens.first?.frame.maxY ?? 0) - $0.visibleFrame.maxY, width: $0.visibleFrame.width, height: $0.visibleFrame.height) } ?? .zero
+        var origin = CGPoint(x: min(max(at.x, room.minX), max(room.minX, room.maxX - size.width)) + 1,
+                             y: min(max(at.y, room.minY), max(room.minY, room.maxY - size.height)))
+        if let place = AXValueCreate(.cgPoint, &origin) {
+            _ = AXUIElementSetAttributeValue(main.ax, kAXPositionAttribute as CFString, place)
+        }
+        result = AXUIElementSetAttributeValue(main.ax, kAXSizeAttribute as CFString, value)
+        usleep(400_000)
+        now = frame(main.ax)?.size ?? .zero
+        if abs(now.width - size.width) <= 2 && abs(now.height - size.height) <= 2 { break }
+    }
     say("SIZE \(Int(now.width))×\(Int(now.height)) (asked \(Int(size.width))×\(Int(size.height)), accessibility said \(result.rawValue))")
     if abs(now.width - size.width) > 2 || abs(now.height - size.height) > 2 {
         stop(4, "the main window didn't take that size (its minimum is 1024×680, and a full-screen or tiled window keeps its own)")
