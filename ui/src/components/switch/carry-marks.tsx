@@ -9,7 +9,7 @@
  */
 import type { JSX, SVGProps } from "react";
 import { IconGitBranch, IconSubtasks } from "../icons";
-import { IconPage, IconRename, IconSliders } from "../icons-actions";
+import { IconPage, IconRemove, IconRename, IconSliders } from "../icons-actions";
 import { IconMessage } from "../icons-canvas";
 import { IconCheck } from "../icons-controls";
 import { IconConnect } from "../icons-menu";
@@ -44,8 +44,10 @@ export const CARRY_TONES: Record<CarryTone, { chip: string; icon: string }> = {
   stays: { chip: "bg-surface-3", icon: "text-ink-2" },
 };
 
-/** A carry item's icon, by its kind (a check for one without a kind). */
-export function CarryIcon({ kind, className = "" }: { kind: string | undefined; className?: string }): JSX.Element {
-  const Mark = KIND_ICONS[kind ?? ""] ?? IconCheck;
+/** A carry item's icon, by its kind; one without a kind by how it fares:
+ * a check where it goes along, a minus where it stays behind (never the
+ * same mark on both sides of the list). */
+export function CarryIcon({ kind, tone = "moves", className = "" }: { kind: string | undefined; tone?: CarryTone; className?: string }): JSX.Element {
+  const Mark = KIND_ICONS[kind ?? ""] ?? (tone === "stays" ? IconRemove : IconCheck);
   return <Mark aria-hidden="true" width={14} height={14} className={"shrink-0 " + className} />;
 }

@@ -164,7 +164,8 @@ export function CrossProject({ target, projectId, onProject, confirmed, onConfir
 function carryItems(target: RemoteSwitchTargetInfo): CarryItemData[] {
   const machine = target.machine_label;
   return [
-    ...target.carried.map((label) => ({ label, hint: `It goes to ${machine}.`, how: "moves" as const })),
+    // The group's heading says it goes along: no line on each row (LST-3).
+    ...target.carried.map((label) => ({ label, hint: "", how: "moves" as const })),
     ...target.regenerated.map((label) => ({ label, hint: `${machine} makes it again, from its own latest version.`, how: "recreated" as const })),
     ...target.dropped.map((label) => ({ label, hint: "It doesn't go along: the new session starts without it.", how: "stays" as const })),
   ];

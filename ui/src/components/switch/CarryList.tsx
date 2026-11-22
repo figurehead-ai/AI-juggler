@@ -25,17 +25,19 @@ function Items({ items, testId, tone }: { items: CarryItemData[]; testId: string
         <li
           key={item.label}
           tabIndex={0}
-          aria-describedby={`${id}-${index}`}
+          aria-describedby={item.hint ? `${id}-${index}` : undefined}
           className="flex min-w-0 items-start gap-3 rounded-[10px] px-3 py-2 outline-none hover:bg-surface-2 focus-visible:ring-2 focus-visible:ring-accent/60"
         >
           <span aria-hidden="true" className={"flex size-[30px] shrink-0 items-center justify-center rounded-lg " + look.chip}>
-            <CarryIcon kind={item.kind} className={look.icon} />
+            <CarryIcon kind={item.kind} tone={tone} className={look.icon} />
           </span>
           <span className="flex min-w-0 flex-1 flex-col">
             <span className="text-body font-medium text-ink">{item.label}</span>
-            <span id={`${id}-${index}`} className="text-meta text-ink-2">
-              {item.hint}
-            </span>
+            {item.hint && (
+              <span id={`${id}-${index}`} className="text-meta text-ink-2">
+                {item.hint}
+              </span>
+            )}
           </span>
         </li>
       ))}

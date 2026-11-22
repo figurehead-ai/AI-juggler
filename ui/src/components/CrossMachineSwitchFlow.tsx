@@ -165,7 +165,7 @@ export function CrossMachineSwitchFlow({
             {cancel}
             {step > 0 && <BackButton onClick={() => setStep(step - 1)} testId="cross-switch-back" />}
             {current !== "Confirm" ? (
-              <ContinueButton ready={stepReady} onClick={() => setStep(step + 1)} testId="cross-switch-next" />
+              <ContinueButton ready={stepReady} onClick={() => setStep(step + 1)} testId="cross-switch-next" next={steps[step + 1]} />
             ) : (
               <Button variant="primary" type="button" disabled={!armed} onClick={(event) => event.detail < 2 && void execute()} data-testid="cross-switch-go">
                 {/* 0.3.5: the button says where it continues, as on this Mac. */}

@@ -83,6 +83,8 @@ describe("AJ-E706 wizard", () => {
     expect(q("cross-switch-project")).toBeNull();
     fireEvent.click(q("cross-switch-next")!);
     expect(q("switch-carry-stays")!.textContent).toContain("MCP servers");
+    // LST-3: the "Goes along" heading says it; no row repeats "It goes to …".
+    expect(q("switch-carry-moves")!.textContent).not.toContain("It goes to");
     fireEvent.click(q("cross-switch-next")!);
     expect(q("cross-switch-go")!.textContent).toBe("Switch to CLI on Studio Mac");
     expect(calls()).toEqual([]);
@@ -170,7 +172,7 @@ describe("AJ-E706 the shared switch frame", () => {
     return { view, onClose, q: (id: string) => document.body.querySelector<HTMLElement>(`[data-testid='${id}']`) };
   };
 
-  it("has Cancel and × on every step, Back from the second, Continue to go on", () => {
+  it("has Cancel and × on every step, Back from the second, Next naming its step", () => {
     const { q, onClose } = mount({ same_path_project: null, readiness: "needs_mapping" });
     const body = q("switch-body")!;
     for (let step = 0; step < 4; step += 1) {
@@ -181,7 +183,8 @@ describe("AJ-E706 the shared switch frame", () => {
       expect(q("switch-header")!.contains(q("cross-switch-steps"))).toBe(true);
       expect(q("cross-switch-back") === null).toBe(step === 0);
       const next = q("cross-switch-next") as HTMLButtonElement | null;
-      if (step < 3) expect(next!.textContent).toBe("Continue");
+      // WIZ-3: Next names where it goes.
+      if (step < 3) expect(next!.textContent).toBe(`Next: ${["Project", "What's carried", "Confirm"][step]}`);
       if (step === 1) {
         fireEvent.click(q("cross-switch-project-option")!);
         fireEvent.click(q("cross-switch-confirm-mapping")!);
