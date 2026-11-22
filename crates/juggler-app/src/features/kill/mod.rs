@@ -476,7 +476,10 @@ pub fn kill_execute_as(
     // R11 (lab safety): a lab's AI Juggler never stops a process outside
     // its lab, whatever its ledger says.
     if crate::features::processes::lab_scope::outside(pid) {
-        return Ok(refused_kill(pid, crate::features::processes::stop::refusal::OUTSIDE_LAB));
+        return Ok(refused_kill(
+            pid,
+            crate::features::processes::stop::refusal::OUTSIDE_LAB,
+        ));
     }
     // AJ-E708 Req.5: a diverged Instance takes no destructive action
     // until the user picks what to keep.

@@ -64,12 +64,19 @@ fn names(text: &str, root: &str) -> bool {
 #[must_use]
 pub fn inside(home: &Path, whose: &Whose) -> bool {
     let resolved = home.to_string_lossy();
-    let short = resolved.strip_prefix("/private").unwrap_or(&resolved).to_owned();
+    let short = resolved
+        .strip_prefix("/private")
+        .unwrap_or(&resolved)
+        .to_owned();
     let mut roots = vec![resolved.into_owned()];
     if short != roots[0] {
         roots.push(short);
     }
-    let fields = [whose.exe.as_deref(), whose.cwd.as_deref(), Some(whose.cmdline.as_str())];
+    let fields = [
+        whose.exe.as_deref(),
+        whose.cwd.as_deref(),
+        Some(whose.cmdline.as_str()),
+    ];
     fields
         .into_iter()
         .flatten()
@@ -119,18 +126,41 @@ mod tests {
     fn a_process_is_the_labs_by_its_program_folder_or_command_line() {
         let home = Path::new("/private/tmp/aij-lab-k3");
         // The lab's stand-in, by its program.
-        assert!(inside(home, &whose("/private/tmp/aij-lab-k3/.aij-lab-bin/claude", "/", "claude")));
+        assert!(inside(
+            home,
+            &whose("/private/tmp/aij-lab-k3/.aij-lab-bin/claude", "/", "claude")
+        ));
         // A child it left, by its folder (`/tmp` spelled short).
-        assert!(inside(home, &whose("/bin/sleep", "/tmp/aij-lab-k3/repos/api", "sleep 600")));
+        assert!(inside(
+            home,
+            &whose("/bin/sleep", "/tmp/aij-lab-k3/repos/api", "sleep 600")
+        ));
         // A lab Claude app, by its data folder on the command line.
         assert!(inside(
             home,
-            &whose("/Applications/Claude.app/Contents/MacOS/Claude", "/", "Claude --user-data-dir=/tmp/aij-lab-k3/apps/work")
+            &whose(
+                "/Applications/Claude.app/Contents/MacOS/Claude",
+                "/",
+                "Claude --user-data-dir=/tmp/aij-lab-k3/apps/work"
+            )
         ));
         // The Mac's own: the real Claude app, a shell elsewhere, another lab.
-        assert!(!inside(home, &whose("/Applications/Claude.app/Contents/MacOS/Claude", "/", "Claude")));
-        assert!(!inside(home, &whose("/bin/zsh", "/Users/someone/Dev", "-zsh")));
-        assert!(!inside(home, &whose("/bin/sleep", "/tmp/aij-lab-k30", "sleep 1")));
+        assert!(!inside(
+            home,
+            &whose(
+                "/Applications/Claude.app/Contents/MacOS/Claude",
+                "/",
+                "Claude"
+            )
+        ));
+        assert!(!inside(
+            home,
+            &whose("/bin/zsh", "/Users/someone/Dev", "-zsh")
+        ));
+        assert!(!inside(
+            home,
+            &whose("/bin/sleep", "/tmp/aij-lab-k30", "sleep 1")
+        ));
     }
 
     #[test]

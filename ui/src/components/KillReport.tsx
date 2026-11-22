@@ -8,6 +8,35 @@
 import { Button } from "./primitives";
 import { outcomeWords } from "../lib/process-states";
 import type { KillExecuteData, KillMemberOutcomeInfo } from "./KillSheet";
+import { showToast } from "./Toast";
+
+/** A stop with nothing more to say than "stopped": every process it
+ * signalled ended, nothing holds the port, nothing was left alone. */
+export function plainSuccess(report: KillExecuteData, pid: number): boolean {
+  return (
+    report.refusal === null &&
+    !report.cancelled &&
+    report.all_succeeded &&
+    report.still_holding.length === 0 &&
+    (report.reoffer_pid === null || report.reoffer_pid === pid) &&
+    report.members.every((member) => member.pid === pid || !(member.outcome === "already gone" || member.outcome.startsWith("left alone")))
+  );
+}
+
+/** R3 (the 0.5.0 re-walk): a plain success says so in a toast, with
+ * Cleanup history; true when it did (the sheet then closes). A report
+ * with more to say (a port still held, a re-offer, what a wider stop left
+ * alone, a refusal or a cancel) stays in the sheet. */
+export function sayStopped(report: KillExecuteData, pid: number, name: string, goalPort: number | null, onShowHistory?: () => void): boolean {
+  if (!plainSuccess(report, pid)) return false;
+  showToast({
+    tone: "success",
+    message: `Stopped ${name} (PID ${pid}).`,
+    detail: goalPort !== null ? `:${goalPort} is free. Saved in Cleanup history.` : "Saved in Cleanup history.",
+    action: onShowHistory ? { label: "Cleanup history", run: onShowHistory } : undefined,
+  });
+  return true;
+}
 
 export function KillReport({
   report,

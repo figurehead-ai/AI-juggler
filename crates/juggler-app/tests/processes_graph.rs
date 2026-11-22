@@ -1195,22 +1195,33 @@ fn a_lab_lists_and_stops_only_its_own_processes() {
     let pids: Vec<u32> = graph
         .apps
         .iter()
-        .flat_map(|app| app.sessions.iter().flat_map(|session| session.processes.iter().map(|node| node.pid)))
+        .flat_map(|app| {
+            app.sessions
+                .iter()
+                .flat_map(|session| session.processes.iter().map(|node| node.pid))
+        })
         .collect();
     assert!(!pids.is_empty(), "the lab's own are listed");
     assert!(pids.iter().all(|pid| lab.contains(pid)), "{pids:?}");
     assert!(graph.others.is_empty(), "the rest of the Mac isn't listed");
     assert!(graph.counts.processes < full.counts.processes);
-    assert_eq!(graph.counts.left_behind, 0, "the Mac's leftovers aren't the lab's to clean");
+    assert_eq!(
+        graph.counts.left_behind, 0,
+        "the Mac's leftovers aren't the lab's to clean"
+    );
     let mut everything = input("running");
     everything.others = true;
     let rows = query::rows(&graph, &everything);
     assert!(
-        rows.iter().all(|row| row.process.as_ref().is_none_or(|p| lab.contains(&p.pid))),
+        rows.iter()
+            .all(|row| row.process.as_ref().is_none_or(|p| lab.contains(&p.pid))),
         "{:?}",
         rows.iter().map(|row| &row.key).collect::<Vec<_>>()
     );
-    assert!(rows.iter().all(|row| row.kind != "program"), "no other program");
+    assert!(
+        rows.iter().all(|row| row.kind != "program"),
+        "no other program"
+    );
     // The stop: a leftover that checks on every other leg is refused
     // outside the lab, before anything is signalled.
     let facts = Facts {

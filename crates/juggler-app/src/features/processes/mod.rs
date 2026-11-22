@@ -696,7 +696,12 @@ pub fn tick(state: &Arc<AppState>) -> Option<ProcessGraphChangedInfo> {
             let pids: Vec<u32> = graph
                 .apps
                 .iter()
-                .flat_map(|app| app.sessions.iter().flat_map(|session| session.processes.iter().map(|node| node.pid)).chain(app.pid))
+                .flat_map(|app| {
+                    app.sessions
+                        .iter()
+                        .flat_map(|session| session.processes.iter().map(|node| node.pid))
+                        .chain(app.pid)
+                })
                 .collect();
             let lab = lab_scope::keep(home, pids);
             graph = model::scoped(graph, &|pid| lab.get(&pid).copied().unwrap_or(false));

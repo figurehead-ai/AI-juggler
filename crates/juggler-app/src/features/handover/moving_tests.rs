@@ -418,7 +418,10 @@ fn a_move_quits_both_profiles_by_their_own_process_moves_and_opens_in_the_target
     // R4 (the 0.5.0 re-walk): no raw path in its words; the folder is for
     // Copy details.
     assert!(!said.words.contains('/'), "{said:?}");
-    assert!(said.kept.ends_with(&done.move_id) || said.kept.contains(&done.move_id), "{said:?}");
+    assert!(
+        said.kept.ends_with(&done.move_id) || said.kept.contains(&done.move_id),
+        "{said:?}"
+    );
     assert!(unchanged(&lab));
     let moves = moves(&lab.state);
     assert_eq!(moves[0].state, "undone");

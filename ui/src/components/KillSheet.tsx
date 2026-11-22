@@ -4,9 +4,8 @@ import { ChoiceOption, Disclosure } from "./controls";
 import { errorText } from "../lib/bridge";
 import { killDisplayName, probablyWords } from "../lib/process-words";
 import { proofWords } from "../lib/process-states";
-import { KillReport } from "./KillReport";
+import { KillReport, sayStopped } from "./KillReport";
 import { DialogFrame, DialogOverlay } from "./DialogFrame";
-import { showToast } from "./Toast";
 
 /**
  * AJ-E507: the verify-before-kill sheet — the ONLY manual kill path
@@ -126,19 +125,6 @@ export { killDisplayName } from "../lib/process-words";
 
 type Phase = "verifying" | "ready" | "refused" | "running" | "report";
 
-/** A stop with nothing more to say than "stopped": every process it
- * signalled ended, nothing holds the port, nothing was left alone. */
-export function plainSuccess(report: KillExecuteData, pid: number): boolean {
-  return (
-    report.refusal === null &&
-    !report.cancelled &&
-    report.all_succeeded &&
-    report.still_holding.length === 0 &&
-    (report.reoffer_pid === null || report.reoffer_pid === pid) &&
-    report.members.every((member) => member.pid === pid || !(member.outcome === "already gone" || member.outcome.startsWith("left alone")))
-  );
-}
-
 export function KillSheet(props: {
   session: string;
   /** Where the process is, in words ("web-app · Fix the login test · ended
@@ -162,11 +148,8 @@ export function KillSheet(props: {
   onShowHistory?: () => void;
 }) {
   const bridge = props.bridge ?? defaultKillBridge;
-  // R3 (the 0.5.0 re-walk): the calls are read through a ref, so a parent
-  // that hands a new bridge object on each render (the Processes page's
-  // observed stop, re-rendered by the live list and the recount) never
-  // re-runs the check: after a stop it said "Won't stop it: It has
-  // already ended". One open is one check; a re-offer checks afresh.
+  // R3: calls through a ref, so a parent's new bridge object on a re-render
+  // never re-checks (after a stop it said "Won't stop it: already ended").
   const bridgeRef = useRef(bridge);
   useEffect(() => {
     bridgeRef.current = bridge;
@@ -315,7 +298,6 @@ export function KillSheet(props: {
 
   const confirm = () => {
     if (verify === null || phase !== "ready") return;
-    const stoppedName = killDisplayName(verify.cmdline, verify.exe_path);
     const attempt = `kill-${props.pid}-${Date.now()}`;
     attemptRef.current = attempt;
     setPhase("running");
@@ -323,19 +305,8 @@ export function KillSheet(props: {
     bridge
       .execute(props.session, props.pid, scope, attempt, goalPort)
       .then((result) => {
-        // R3: a plain success says so in a toast and the sheet goes; a
-        // report with more to say (a port still held, a re-offer, what a
-        // wider stop left alone, a refusal or a cancel) stays open.
-        if (plainSuccess(result, props.pid)) {
-          showToast({
-            tone: "success",
-            message: `Stopped ${stoppedName} (PID ${props.pid}).`,
-            detail: goalPort !== null ? `:${goalPort} is free. Saved in Cleanup history.` : "Saved in Cleanup history.",
-            action: props.onShowHistory ? { label: "Cleanup history", run: props.onShowHistory } : undefined,
-          });
-          close(true);
-          return;
-        }
+        // R3: a plain success is a toast and the sheet goes.
+        if (sayStopped(result, props.pid, killDisplayName(verify.cmdline, verify.exe_path), goalPort, props.onShowHistory)) return close(true);
         setReport(result);
         setPhase("report");
       })
