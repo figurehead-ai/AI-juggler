@@ -163,17 +163,7 @@ fn started_words(started_ms: Option<i64>, now_ms: i64) -> Option<String> {
 fn own_app_words(row: &InstanceInfo, tools: &HashMap<String, String>) -> String {
     match tools.get(&row.provider) {
         Some(tool) if row.app_id.is_none() => {
-            crate::features::presence::identity(crate::features::presence::Naming {
-                id: "",
-                desktop: false,
-                app: tool,
-                instance_dir: None,
-                default_instance: false,
-                folder_label: Some(&row.account_label),
-                folder_shared: false,
-                named: None,
-            })
-            .label
+            crate::features::presence::cli_label(tool, &row.account_label)
         }
         _ => join([Some(OWN_APP.to_owned()), Some(row.account_label.clone())]),
     }
@@ -510,19 +500,7 @@ pub fn work_out<S: std::hash::BuildHasher>(
             .count()
             > 1;
         let name = match sources.tool_names.get(&account.provider) {
-            Some(tool) if shared => {
-                crate::features::presence::identity(crate::features::presence::Naming {
-                    id: "",
-                    desktop: false,
-                    app: tool,
-                    instance_dir: None,
-                    default_instance: false,
-                    folder_label: Some(&account.label),
-                    folder_shared: false,
-                    named: None,
-                })
-                .label
-            }
+            Some(tool) if shared => crate::features::presence::cli_label(tool, &account.label),
             _ => account.label.clone(),
         };
         let own = sources
