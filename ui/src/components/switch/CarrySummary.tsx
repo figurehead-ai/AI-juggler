@@ -12,13 +12,13 @@ import type { SetupCheckInfo } from "../../lib/ipc/switchSetup";
 import { IconInfo } from "../icons-actions";
 import { IconCheck } from "../icons-controls";
 import { Disclosure } from "../controls";
-import { CarryList, withSetup } from "./CarryList";
+import { CarryList, carryGroups } from "./CarryList";
 import { Section } from "../Section";
 
-/** "Everything goes along · 8 items", or what doesn't: "7 go along · 1
- * stays behind", and the turns a cut leaves out ("the first 800 turns
- * stay behind", D-76). `warn` when something stays behind or isn't there
- * yet. */
+/** "Everything goes along · 8 items", or each group as the list below
+ * draws it: "6 go along · 1 recreated · 1 stays behind", and the turns a
+ * cut leaves out ("the first 800 turns stay behind", D-76). `warn` when
+ * something stays behind or isn't there yet. */
 export function carryWords(
   items: CarryItemData[],
   setup: SetupCheckInfo | null | undefined,
@@ -27,16 +27,22 @@ export function carryWords(
   picked?: ReadonlySet<string>,
   turnsLeftOut = 0,
 ): { words: string; warn: boolean } {
-  const { items: kept, missing } = withSetup(items, setup, target, tool, picked);
-  const going = kept.filter((item) => item.how !== "stays").length;
-  const stays = kept.length - going;
+  // One count from one source: each group exactly as the list draws it.
+  const groups = carryGroups(items, setup, target, tool, picked);
+  const going = groups.moves.length;
+  const recreated = groups.recreated.length;
+  const missing = groups.missing.length;
+  const stays = groups.stays.length;
   const turns = turnsLeftOut > 0 ? `the first ${turnsLeftOut} ${turnsLeftOut === 1 ? "turn stays" : "turns stay"} behind` : null;
-  if (stays === 0 && missing.length === 0 && !turns) return { words: `Everything goes along · ${going} ${going === 1 ? "item" : "items"}`, warn: false };
-  const parts = [`${going} ${going === 1 ? "goes" : "go"} along`];
-  if (missing.length > 0) parts.push(`${missing.length} to set up`);
+  const whole = stays === 0 && missing === 0 && !turns;
+  if (whole && recreated === 0) return { words: `Everything goes along · ${going} ${going === 1 ? "item" : "items"}`, warn: false };
+  const parts = [];
+  if (going > 0) parts.push(`${going} ${going === 1 ? "goes" : "go"} along`);
+  if (recreated > 0) parts.push(`${recreated} recreated`);
+  if (missing > 0) parts.push(`${missing} to set up`);
   if (stays > 0) parts.push(`${stays} ${stays === 1 ? "stays" : "stay"} behind`);
   if (turns) parts.push(turns);
-  return { words: parts.join(" · "), warn: true };
+  return { words: whole ? `Nothing stays behind · ${parts.join(" · ")}` : parts.join(" · "), warn: !whole };
 }
 
 /** The words with an icon chip: ✓ on the quiet green when all of it goes,

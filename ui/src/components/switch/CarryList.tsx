@@ -108,6 +108,25 @@ export function withSetup(
 /** This project's notes, in the carry list (D-51). */
 const NOTES_LABEL = "This project's notes";
 
+/** What the list draws in each group: the one count its summary says too
+ * (the 0.5.0 walk, F4: "7 go along" over "Goes along · 6", the recreated
+ * one counted as going). */
+export function carryGroups(
+  given: CarryItemData[],
+  setup: SetupCheckInfo | null | undefined,
+  target: string,
+  tool?: string,
+  picked?: ReadonlySet<string>,
+): { moves: CarryItemData[]; recreated: CarryItemData[]; missing: CarryItemData[]; stays: CarryItemData[] } {
+  const { items, missing } = withSetup(given, setup, target, tool, picked);
+  return {
+    moves: items.filter((item) => item.how === "moves"),
+    recreated: items.filter((item) => item.how === "recreated"),
+    missing,
+    stays: items.filter((item) => item.how === "stays"),
+  };
+}
+
 export function CarryList({
   items: given,
   target,
@@ -122,10 +141,7 @@ export function CarryList({
   /** What the user ticked on the last step (this project's notes follow it). */
   picked?: ReadonlySet<string>;
 }): JSX.Element {
-  const { items, missing } = withSetup(given, setup, target, tool, picked);
-  const moves = items.filter((item) => item.how === "moves");
-  const recreated = items.filter((item) => item.how === "recreated");
-  const stays = items.filter((item) => item.how === "stays");
+  const { moves, recreated, missing, stays } = carryGroups(given, setup, target, tool, picked);
   // One card, a short heading over each group: how it fares and how many.
   const group = (tone: CarryTone, title: string, list: CarryItemData[], testId: string, listId: string) =>
     list.length > 0 && (

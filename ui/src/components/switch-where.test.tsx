@@ -212,9 +212,9 @@ describe("0.3.5 simple by default, details on demand", () => {
     const view = mount(ONECLICK, EXAMPLE_DESTINATIONS);
     await waitFor(() => expect(view.getByTestId("switch-carry-summary")).toBeTruthy());
     const summary = view.getByTestId("switch-carry-summary");
-    const fold = within(summary).getByRole("button", { name: "Everything goes along · 3 items" });
+    const fold = within(summary).getByRole("button", { name: "Nothing stays behind · 2 go along · 1 recreated" });
     expect(fold.getAttribute("aria-expanded")).toBe("false");
-    expect(within(summary).getByTestId("switch-carry-words").textContent).toBe("Everything goes along · 3 items");
+    expect(within(summary).getByTestId("switch-carry-words").textContent).toBe("Nothing stays behind · 2 go along · 1 recreated");
     const moves = within(summary).getByTestId("switch-carry-moves");
     expect(moves.querySelectorAll("svg").length).toBe(2);
     expect(moves.querySelector("span")!.className).toContain("bg-success-soft");
