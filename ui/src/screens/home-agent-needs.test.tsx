@@ -46,7 +46,7 @@ it("holds the agents' messages, asks, paused chains and prepared launches, each 
     msgNeed("deliver:ask-2", "deliver", "A reply would wake Reviewer", "ask-2"),
     msgNeed("waiting:m-3", "waiting", "Planner wrote to you", null),
   ];
-  const tasks = [{ id: "tneed-2", kind: "launch", pool_id: "pool-team", pool_name: "Checkout team", task_id: "aj-7f3c", task_title: "Build the orders API", title: "«Planner» asks for a new session for «Build the orders API»", detail: "«Use the Work account»", offer_always: false, project_id: null, at_ms: WHEN }];
+  const tasks = [{ id: "tneed-2", kind: "launch", pool_id: "pool-team", pool_name: "Checkout team", task_id: "aj-7f3c", task_title: "Build the orders API", title: "“Planner” asks for a new session for “Build the orders API”", detail: "“Use the Work account”", offer_always: false, project_id: null, at_ms: WHEN }];
   setSeam("__AIJ_MESSAGES__", { threads: [], messages: {}, needs: messages });
   setSeam("__AIJ_TASKS__", { needs: tasks });
   // The backend counts them too (Needs you is the backend's, D-49).

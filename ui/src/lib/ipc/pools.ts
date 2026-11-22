@@ -180,7 +180,7 @@ function checkedName(name: string, except: string | null): string {
   if (trimmed === "") throw refused("Give the pool a name");
   if ([...trimmed].length > 48) throw refused("A pool's name is at most 48 characters");
   const other = preview().pools.find((pool) => pool.id !== except && pool.name.toLowerCase() === trimmed.toLowerCase());
-  if (other) throw refused(`There's already a pool called «${other.name}» — pick another name`);
+  if (other) throw refused(`There's already a pool called “${other.name}” — pick another name`);
   return trimmed;
 }
 
@@ -243,7 +243,7 @@ export async function poolCreate(name: string, projectId: string | null): Promis
 export async function poolRename(poolId: string, name: string): Promise<PoolsInfo> {
   if (!hasLiveBackend()) {
     const pool = livePool(poolId);
-    if (pool.kind === "default") throw refused(`«${pool.name}» keeps its name: rename its project instead`);
+    if (pool.kind === "default") throw refused(`“${pool.name}” keeps its name: rename its project instead`);
     pool.name = checkedName(name, poolId);
     record(`rename:${poolId}:${pool.name}`);
     return preview();
@@ -255,7 +255,7 @@ export async function poolRename(poolId: string, name: string): Promise<PoolsInf
 export async function poolDelete(poolId: string): Promise<PoolsInfo> {
   if (!hasLiveBackend()) {
     const pool = livePool(poolId);
-    if (pool.kind === "default") throw refused(`«${pool.name}» can't be deleted — it holds every session of its project that isn't in another pool`);
+    if (pool.kind === "default") throw refused(`“${pool.name}” can't be deleted — it holds every session of its project that isn't in another pool`);
     record(`delete:${poolId}`);
     store!.pools = store!.pools.filter((row) => row.id !== poolId);
     for (const row of store!.places) {
@@ -275,10 +275,10 @@ export async function poolMove(sessionId: string, poolId: string): Promise<Pools
     if (!session) throw refused("That session isn't there any more");
     if (pool.project_id !== null && session.project_id !== pool.project_id) {
       const project = previewHooks().fixtures.MOCK_PROJECTS.find((row) => row.id === pool.project_id);
-      throw refused(`«${pool.name}» is for ${project?.name ?? "one project"} only — this session works somewhere else`);
+      throw refused(`“${pool.name}” is for ${project?.name ?? "one project"} only — this session works somewhere else`);
     }
     if (pool.id === NO_PROJECT_POOL_ID && session.project_id) {
-      throw refused("«No project · all sessions» is for sessions with no project — this one has one");
+      throw refused("“No project · all sessions” is for sessions with no project — this one has one");
     }
     record(`move:${sessionId}:${poolId}`);
     Object.assign(store!.places.find((row) => row.session_id === sessionId)!, { pool_id: poolId, role: "member" });

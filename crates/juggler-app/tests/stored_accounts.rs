@@ -312,7 +312,7 @@ fn a_folder_that_moves_to_an_api_key_leaves_its_account() {
         row.reason.as_deref(),
         Some("API-key sign-ins carry no account id")
     );
-    assert_eq!(profile.unchecked, None, "no «couldn't check» for a key");
+    assert_eq!(profile.unchecked, None, "no “couldn't check” for a key");
 }
 
 /// A key folder from the start stands alone, as it always did.

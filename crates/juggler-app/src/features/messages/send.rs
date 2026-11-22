@@ -277,7 +277,7 @@ fn by_name<'a>(
                 .iter()
                 .map(|&at| match of(at) {
                     Called::Member(member) => super::member_words(member),
-                    Called::Desktop(one) => format!("«{}» (session_id {})", one.name, one.member),
+                    Called::Desktop(one) => format!("“{}” (session_id {})", one.name, one.member),
                 })
                 .collect();
             Err(refuse(Refusal::Bad, super::namesake_words(who, &each)))
@@ -296,7 +296,7 @@ fn not_here(state: &Arc<AppState>, pool_id: &str, who: &str) -> String {
     let sealed = |id: &str| storage.pools().get(id).ok().filter(|pool| pool.sealed);
     if let Some(pool) = sealed(pool_id) {
         return format!(
-            "{NOT_IN} «{}» is sealed: nothing goes out of it, and it can't be linked to another pool.",
+            "{NOT_IN} “{}” is sealed: nothing goes out of it, and it can't be linked to another pool.",
             pool.name
         );
     }
@@ -307,7 +307,7 @@ fn not_here(state: &Arc<AppState>, pool_id: &str, who: &str) -> String {
         .and_then(|id| sealed(&id));
     if let Some(pool) = theirs {
         return format!(
-            "{NOT_IN} That session is in «{}», which is sealed: nothing comes into it from another pool.",
+            "{NOT_IN} That session is in “{}”, which is sealed: nothing comes into it from another pool.",
             pool.name
         );
     }
@@ -480,7 +480,7 @@ fn within_rate(
     if messaging::breaker_trips(&hits, now) {
         let _ = repo.pause_pool(
             pool_id,
-            &format!("«{name}» kept sending past its limit"),
+            &format!("“{name}” kept sending past its limit"),
             "system",
         );
     }
@@ -519,7 +519,7 @@ pub fn send(state: &Arc<AppState>, out: &Outgoing) -> Result<Sent, Response> {
             return Err(refuse(
                 Refusal::Limit,
                 format!(
-                    "Messages in «{pool_name}» are paused ({why}). Only the user can resume them, in AI Juggler."
+                    "Messages in “{pool_name}” are paused ({why}). Only the user can resume them, in AI Juggler."
                 ),
             ));
         }
@@ -720,7 +720,7 @@ pub fn send(state: &Arc<AppState>, out: &Outgoing) -> Result<Sent, Response> {
             action: AgentAction::PostMessage.as_str().to_owned(),
             object_ref: message.id.clone(),
             summary: format!(
-                "«{name}» wants to message {}",
+                "“{name}” wants to message {}",
                 to.iter()
                     .map(|(_, n, _)| n.as_str())
                     .collect::<Vec<_>>()
@@ -756,7 +756,7 @@ pub fn send(state: &Arc<AppState>, out: &Outgoing) -> Result<Sent, Response> {
                 actor_name: name.clone(),
                 action: action.to_owned(),
                 object_ref: message.id.clone(),
-                summary: format!("«{name}» wants to message {}", waiting.join(", ")),
+                summary: format!("“{name}” wants to message {}", waiting.join(", ")),
                 created_at: Timestamp::now().millis(),
             });
         }
@@ -813,7 +813,7 @@ fn loop_check(storage: &Storage, pool_id: &str) {
         let _ = repo.pause_pool(
             pool_id,
             &format!(
-                "«{}» and «{}» kept answering each other ({} messages without you)",
+                "“{}” and “{}” kept answering each other ({} messages without you)",
                 pair[0],
                 pair[1],
                 messaging::PING_PONG_RUN
@@ -911,7 +911,7 @@ fn route_with(
                 state,
                 message,
                 &format!(
-                    "«{}»'s message would go on to «{name}» past this pool's hop limit",
+                    "“{}”'s message would go on to “{name}” past this pool's hop limit",
                     message.sender_name
                 ),
             );

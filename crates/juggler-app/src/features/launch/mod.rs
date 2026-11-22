@@ -176,7 +176,7 @@ pub fn launch_profile_primed(
         .is_removed(&account.id)?
     {
         return Err(AppError::Refused(format!(
-            "«{}» was removed — add it again to start a session on it",
+            "“{}” was removed — add it again to start a session on it",
             account.label
         )));
     }
@@ -187,7 +187,7 @@ pub fn launch_profile_primed(
         let home = juggler_platform::user::home().unwrap_or_default();
         if let Some(why) = crate::lab_scope::refuses_real_folder(&account.state_dir, &home) {
             return Err(AppError::Refused(format!(
-                "AI Juggler Dev won't start a session on «{}»: {why}",
+                "AI Juggler Dev won't start a session on “{}”: {why}",
                 account.label
             )));
         }
@@ -198,7 +198,7 @@ pub fn launch_profile_primed(
         .is_removed(&profile.id)?
     {
         return Err(AppError::Refused(format!(
-            "«{}» was deleted — pick other launch settings to start a session",
+            "“{}” was deleted — pick other launch settings to start a session",
             profile.name
         )));
     }

@@ -125,7 +125,7 @@ fn two_pools_share_one_sessions_message_rate() {
     assert_eq!(over.refused, Some(Refusal::Limit), "{over:?}");
     let words = over.reason.clone().unwrap_or_default();
     assert!(words.contains("in all its pools together"), "{words}");
-    assert!(!words.contains('«'), "no one pool named: {words}");
+    assert!(!words.contains('“') && !words.contains('«'), "no one pool named: {words}");
 }
 
 /// AJ-E3304 R2, named risky triple 4: Full × waking × the same session in

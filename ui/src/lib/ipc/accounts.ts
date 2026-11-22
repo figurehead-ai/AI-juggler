@@ -33,7 +33,7 @@ export async function accountRename(accountId: string, label: string, plan: stri
     const name = label.trim();
     if (name === "") throw refused("Give the account a name");
     const other = accounts.find((row) => row.id !== accountId && row.label.trim().toLowerCase() === name.toLowerCase());
-    if (other) throw refused(`Another account is already called «${other.label}» — pick another name`);
+    if (other) throw refused(`Another account is already called “${other.label}” — pick another name`);
     account.label = name;
     account.plan = plan && plan.trim() !== "" ? plan.trim() : null;
     for (const recipe of previewHooks().fixtures.MOCK_PROFILES) if (recipe.account_id === accountId) recipe.account_label = name;
@@ -60,7 +60,7 @@ export async function accountRemove(accountId: string, folder: "keep" | "trash")
     if (open.length > 0) {
       const names = [...new Set(open)].sort().join(", ");
       throw refused(
-        `«${account.label}» has ${open.length === 1 ? "a session" : `${open.length} sessions`} open: ${names}. Stop ${open.length === 1 ? "it" : "them"} first, then remove the account`,
+        `“${account.label}” has ${open.length === 1 ? "a session" : `${open.length} sessions`} open: ${names}. Stop ${open.length === 1 ? "it" : "them"} first, then remove the account`,
       );
     }
     accounts.splice(index, 1);

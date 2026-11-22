@@ -640,7 +640,7 @@ describe("AJ-E1022 another folder", () => {
       fireEvent.click(await view.findByTestId("first-run-folder-bring-in"));
     });
     const dup = await view.findByTestId("first-run-folder-duplicate");
-    expect(dup.textContent).toContain("Already imported as «Work»");
+    expect(dup.textContent).toContain("Already imported as “Work”");
     fireEvent.click(within(dup).getByRole("button", { name: "Done" }));
     expect(onDone).toHaveBeenCalledOnce();
   });

@@ -72,7 +72,7 @@ fn checked_name(storage: &Storage, name: &str, except: Option<&str>) -> AppResul
         .find(|(id, shown)| Some(id.as_str()) != except && shown.to_lowercase() == lower)
     {
         return Err(AppError::Refused(format!(
-            "There's already a pool called «{}» — pick another name",
+            "There's already a pool called “{}” — pick another name",
             other.1
         )));
     }
@@ -332,7 +332,7 @@ pub fn pool_rename_impl(state: &Arc<AppState>, pool_id: &str, name: &str) -> App
     let pool = live_pool(&storage, pool_id)?;
     if pool.kind == PoolKind::Default {
         return Err(AppError::Refused(format!(
-            "«{}» keeps its name: rename its project instead",
+            "“{}” keeps its name: rename its project instead",
             shown_name(&pool, &project_names(&storage)?)
         )));
     }
@@ -352,7 +352,7 @@ pub fn pool_delete_impl(state: &Arc<AppState>, pool_id: &str) -> AppResult<Pools
     let pool = live_pool(&storage, pool_id)?;
     if pool.kind == PoolKind::Default {
         return Err(AppError::Refused(format!(
-            "«{}» can't be deleted — it holds every session of its project that isn't in another pool",
+            "“{}” can't be deleted — it holds every session of its project that isn't in another pool",
             shown_name(&pool, &project_names(&storage)?)
         )));
     }

@@ -80,8 +80,8 @@ const need = (over: Partial<MessageNeedInfo>): MessageNeedInfo => ({
   session_id: null,
   ask_id: "ask-1",
   offer_always: false,
-  title: "«Planner» wants to message Builder",
-  detail: "«Start on the API» · above what the pool lets agents do",
+  title: "“Planner” wants to message Builder",
+  detail: "“Start on the API” · above what the pool lets agents do",
   preview: "Can I start?",
   at_ms: NOW,
   ...over,
@@ -130,7 +130,7 @@ describe("a pool's messages", () => {
   });
 
   it("says when the pool is paused, and why, with Resume", async () => {
-    seams().__AIJ_MESSAGES__!.paused = [{ pool_id: "pool-team", pool_name: "Checkout redesign", at_ms: NOW, reason: "«Alpha» and «Beta» kept answering each other (8 messages without you)" }];
+    seams().__AIJ_MESSAGES__!.paused = [{ pool_id: "pool-team", pool_name: "Checkout redesign", at_ms: NOW, reason: "“Alpha” and “Beta” kept answering each other (8 messages without you)" }];
     const { findByTestId } = render(<MessagesView poolId="pool-team" members={members} now={NOW} />);
     const banner = await findByTestId("messages-paused");
     expect(banner.textContent).toContain("kept answering each other");
@@ -187,7 +187,7 @@ describe("a pool's messages", () => {
   // answers: Deliver and Don't deliver.
   it("a chain paused at the hop limit has Deliver and Don't deliver on its message", async () => {
     seams().__AIJ_MESSAGES__!.threads![0] = thread({ state: "paused", state_reason: "it reached this pool's hop limit", hop: 3, hop_cap: 2 });
-    seams().__AIJ_MESSAGES__!.needs = [need({ kind: "deliver", key: "ask:hop", ask_id: "ask-hop", title: "«Planner»'s message would start «Builder»'s next turn" })];
+    seams().__AIJ_MESSAGES__!.needs = [need({ kind: "deliver", key: "ask:hop", ask_id: "ask-hop", title: "“Planner”'s message would start “Builder”'s next turn" })];
     const { findByTestId, getByTestId } = render(<MessagesView poolId="pool-team" members={members} now={NOW} />);
     const answers = await findByTestId("message-held-answers");
     expect(getByTestId("thread-resume")).toBeTruthy();
@@ -294,7 +294,7 @@ describe("Needs you", () => {
   it("offers the rule from the second time, never for the hop limit", () => {
     const { getAllByTestId, rerender } = render(<MessageNeeds needs={[need({ offer_always: true })]} />);
     expect(getAllByTestId("ask-option-always")).toHaveLength(1);
-    rerender(<MessageNeeds needs={[need({ kind: "deliver", key: "ask:2", ask_id: "ask-2", offer_always: false, title: "«Planner»'s message would start another session's turn" })]} />);
+    rerender(<MessageNeeds needs={[need({ kind: "deliver", key: "ask:2", ask_id: "ask-2", offer_always: false, title: "“Planner”'s message would start another session's turn" })]} />);
     expect(document.querySelector("[data-testid='ask-option-always']")).toBeNull();
     expect(getAllByTestId("ask-card")[0]!.textContent).toContain("Don't deliver");
   });

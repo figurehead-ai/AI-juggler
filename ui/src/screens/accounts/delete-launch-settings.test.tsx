@@ -38,7 +38,7 @@ describe("deleting launch settings", () => {
   });
 
   it("shows a refusal in the backend's words and keeps the settings", async () => {
-    const words = "«Deep work» has a session open: api. Stop it first, then delete the launch settings";
+    const words = "“Deep work” has a session open: api. Stop it first, then delete the launch settings";
     const onClose = vi.fn();
     render(<DeleteLaunchSettingsModal recipe={RECIPE} onClose={onClose} onDelete={async () => Promise.reject(new Error(words))} />);
     fireEvent.click(screen.getByTestId("delete-launch-settings-confirm"));

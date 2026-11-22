@@ -668,7 +668,7 @@ pub fn work_out<S: std::hash::BuildHasher>(
                         Some(message.detail.clone()),
                     ])
                 },
-                |line| format!("{} in «{}»", line.reason, message.pool_name),
+                |line| format!("{} in “{}”", line.reason, message.pool_name),
             ),
             target: NoticeTarget {
                 pool_id: Some(message.pool_id.clone()),

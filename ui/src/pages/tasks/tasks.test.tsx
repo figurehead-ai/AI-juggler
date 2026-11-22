@@ -80,7 +80,7 @@ const need = (over: Partial<TaskNeedInfo>): TaskNeedInfo => ({
   pool_name: "Checkout redesign",
   task_id: "aj-7f3c",
   task_title: "Build the orders API",
-  title: "«Planner» wants to give «Build the orders API» to Builder",
+  title: "“Planner” wants to give “Build the orders API” to Builder",
   detail: "Checkout redesign · above what the pool lets agents do",
   offer_always: false,
   project_id: "p-shop",
@@ -357,7 +357,7 @@ describe("Needs you", () => {
     const { getByTestId, queryByText } = render(<TaskNeeds needs={[need({})]} projects={[project]} />);
     const card = getByTestId("ask-card");
     expect(card.textContent).toContain("An agent asks about a task");
-    expect(card.textContent).toContain("«Build the orders API»");
+    expect(card.textContent).toContain("“Build the orders API”");
     expect(queryByText("Always allow in this pool")).toBeNull();
     fireEvent.keyDown(card, { key: "1" });
     await waitFor(() => expect(calls()).toContain("answer:tneed-1:once"));
@@ -369,7 +369,7 @@ describe("Needs you", () => {
   });
 
   it("an agent's request for a session: you start it on your pick, or leave it", async () => {
-    const launch = need({ id: "tneed-2", kind: "launch", title: "«Planner» asks for a new session for «Build the orders API»", detail: "«Use the Work account»" });
+    const launch = need({ id: "tneed-2", kind: "launch", title: "“Planner” asks for a new session for “Build the orders API”", detail: "“Use the Work account”" });
     const { getByTestId, findByTestId } = render(<TaskNeeds needs={[launch]} projects={[project]} />);
     const row = getByTestId("task-need-launch");
     expect(row.textContent).toContain("in shop");
@@ -384,13 +384,13 @@ describe("Needs you", () => {
 
 describe("SK-14: a held change is answered where its doors lead", () => {
   it("on its task's page, and in its pool's Tasks: the same card as Needs you", async () => {
-    seams().__AIJ_TASKS__!.needs = [need({}), need({ id: "tneed-3", task_id: "aj-1a2b", task_title: "Cart endpoints", title: "«Planner» wants to give «Cart endpoints» to Builder" })];
+    seams().__AIJ_TASKS__!.needs = [need({}), need({ id: "tneed-3", task_id: "aj-1a2b", task_title: "Cart endpoints", title: "“Planner” wants to give “Cart endpoints” to Builder" })];
     const { findByTestId } = render(<PoolTasks poolId="pool-team" sessions={MOCK_SESSIONS} projects={[project]} now={NOW} />);
     // The open task (the rail's and the bell's rows open it) has its own.
     const view = await findByTestId("task-view");
     const own = await within(view).findByTestId("ask-card");
     expect(own.textContent).toContain("An agent asks about a task");
-    expect(own.textContent).toContain("«Build the orders API»");
+    expect(own.textContent).toContain("“Build the orders API”");
     // Another task's waits above the list, once (not on this page too).
     const strip = await findByTestId("pool-task-asks");
     expect(within(strip).getAllByTestId("ask-card")).toHaveLength(1);

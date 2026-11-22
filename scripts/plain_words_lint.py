@@ -68,6 +68,9 @@ BANNED: dict[str, tuple[re.Pattern[str], str]] = {
     "tier-paren": (re.compile(r"\((?:Measured|Computed|estimate)\)"), "say how sure in words, or not at all"),
     "screen-name": (re.compile(r"\bReady home\b"), "name the place the user knows (\"Accounts\")"),
     "detector-id": (re.compile(r"\b(?:sk-key|env-value)\b"), "\"an API key\", \"a secret in an environment value\""),
+    # R8 (the 0.5.0 re-walk): "Messages in «Notes» are paused". A name or
+    # a quote is said with the app's own quotes, never guillemets.
+    "guillemets": (re.compile("[\u00ab\u00bb]"), "plain quotes: \u201cNotes\u201d"),
 }
 # A one-word literal that is a banned tag on its own still counts.
 TAGS = {"COMP", "MEAS", "EST", "Comp", "Meas", "Est", "tok"}

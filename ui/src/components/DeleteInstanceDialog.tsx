@@ -102,7 +102,7 @@ export function DeleteInstanceDialog({
                 </ul>
               </div>
               <label className="flex flex-col gap-1 text-label text-ink">
-                Type «delete» to confirm
+                Type “delete” to confirm
                 <input autoCorrect="off" autoCapitalize="off" spellCheck={false}
                   type="text"
                   value={typed}

@@ -1259,7 +1259,7 @@ mod tests {
         assert_eq!(accounts[0].state, "signed_in");
         assert_eq!(accounts[0].email.as_deref(), Some("o…@work.com"));
         assert_eq!(ids(&accounts[1]), ["alone"]);
-        assert_eq!(accounts[1].state, "signed_in", "its Account, not «unknown»");
+        assert_eq!(accounts[1].state, "signed_in", "its Account, not “unknown”");
         assert_eq!(accounts[1].reason, None);
         // Never linked (a Codex API key): it stands alone, as before.
         assert_eq!(ids(&accounts[2]), ["never"]);

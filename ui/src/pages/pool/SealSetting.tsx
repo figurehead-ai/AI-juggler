@@ -57,7 +57,7 @@ export function SealSetting({ pool, members }: { pool: PoolInfo; members: { id: 
         </span>
       ) : (
         <div ref={confirmRef} className={"flex flex-col gap-2 rounded-lg border p-2.5 " + (pool.sealed ? "border-hairline bg-surface-2" : "border-warning/40 bg-warning-soft")} role="group" aria-label={pool.sealed ? "Unseal this pool?" : "Seal this pool?"} data-testid="pool-seal-confirm">
-          <span className="text-meta font-semibold text-ink">{pool.sealed ? `Unseal «${pool.name}»?` : `Seal «${pool.name}»?`}</span>
+          <span className="text-meta font-semibold text-ink">{pool.sealed ? `Unseal “${pool.name}”?` : `Seal “${pool.name}”?`}</span>
           {changes.length > 0 ? (
             <ul className="flex flex-col gap-0.5 text-meta text-ink" data-testid="pool-seal-changes">
               {changes.map((line) => (

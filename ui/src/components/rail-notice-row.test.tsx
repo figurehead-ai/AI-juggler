@@ -37,7 +37,7 @@ it("walk A5: the rail names a hand-over as it will act, the switch with somethin
 // "Open" under it: the row itself opens it. Its pool is said once.
 it("a pool member's question: the title is the mark, no bare Open, its pool once", async () => {
   const { RailNoticeRow } = await import("./RailNoticeRow");
-  const asked = notice({ id: 10, kind: "message", needs: true, unread: true, title: "builder-1 asks you", detail: "Release pool · «Export flow»", action: "pool" });
+  const asked = notice({ id: 10, kind: "message", needs: true, unread: true, title: "builder-1 asks you", detail: "Release pool · “Export flow”", action: "pool" });
   const view = render(<RailNoticeRow notice={asked} now={Date.now()} onOpen={() => undefined} canHandOver={false} />);
   // AJ-E3603 R5: the title in ink, the level's colour on its mark alone.
   const title = view.getByTestId("rail-notice-title");
@@ -45,7 +45,7 @@ it("a pool member's question: the title is the mark, no bare Open, its pool once
   expect(title.className).not.toMatch(/text-(warning|danger)/);
   expect(title.querySelector(".level-mark[data-level='2']")).toBeTruthy();
   expect(view.queryByTestId("rail-notice-action")).toBeNull();
-  expect(view.getByTestId("rail-notice-line").textContent).toBe("Release pool · «Export flow»");
+  expect(view.getByTestId("rail-notice-line").textContent).toBe("Release pool · “Export flow”");
   expect(view.getByRole("button").textContent).not.toMatch(/Open$/);
   view.unmount();
 });
@@ -55,7 +55,7 @@ it("a pool member's question: the title is the mark, no bare Open, its pool once
 // flow", then "builder-1 asks you" after its amber mark, then "Release pool".
 it("a pool member's question, subject first: its thread, then who asks (its amber mark), then its pool", async () => {
   const { RailNoticeRow } = await import("./RailNoticeRow");
-  const asked = notice({ id: 11, kind: "message", needs: true, unread: true, title: "builder-1 asks you", detail: "Release pool · «Export flow»", action: "pool" });
+  const asked = notice({ id: 11, kind: "message", needs: true, unread: true, title: "builder-1 asks you", detail: "Release pool · “Export flow”", action: "pool" });
   const view = render(<RailNoticeRow notice={asked} now={Date.now()} onOpen={() => undefined} canHandOver={false} about={{ subject: "Export flow", context: "Release pool" }} />);
   expect(view.getByTestId("rail-notice-title").textContent).toBe("Export flow");
   expect(view.getByTestId("rail-notice-action").textContent).toBe("builder-1 asks you");
@@ -76,9 +76,9 @@ it("rc19: a held message's row keeps its reason under a two-line title", async (
   const { RailNoticeRow } = await import("./RailNoticeRow");
   const tall = vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue({ height: 36, width: 200, top: 0, left: 0, right: 200, bottom: 36, x: 0, y: 0, toJSON: () => ({}) });
   try {
-    const held = notice({ id: 9, kind: "message", needs: true, unread: true, title: "«r3-tools» wants to message «web»", detail: "Ask first in «Team»", action: "pool" });
+    const held = notice({ id: 9, kind: "message", needs: true, unread: true, title: "“r3-tools” wants to message “web”", detail: "Ask first in “Team”", action: "pool" });
     const view = render(<RailNoticeRow notice={held} now={Date.now()} onOpen={() => undefined} canHandOver={false} />);
-    expect(view.getByTestId("rail-notice-line").textContent).toBe("Ask first in «Team»");
+    expect(view.getByTestId("rail-notice-line").textContent).toBe("Ask first in “Team”");
     view.unmount();
     const long = render(<RailNoticeRow notice={quota} now={Date.now()} onOpen={() => undefined} canHandOver={false} />);
     expect(long.queryByTestId("rail-notice-line")).toBeNull();

@@ -73,7 +73,7 @@ fn edges_count_who_wrote_to_whom_and_the_stream_says_it() {
     assert!(info.stream.len() >= 3);
     assert!(
         info.stream.iter().any(
-            |line| line.words == "Alpha wrote to Beta: «Round per line?»"
+            |line| line.words == "Alpha wrote to Beta: “Round per line?”"
                 && line.session_id.as_deref() == Some("s-a")
                 && line.other_session_id.as_deref() == Some("s-b")
         ),

@@ -645,7 +645,7 @@ fn answer(
             return Err(Response::refused(
                 Refusal::Ask,
                 format!(
-                    "{} isn't within what the pool «{}» lets agents do. Only the user can allow it, in AI Juggler (the pool's page, or Settings › Agent access).",
+                    "{} isn't within what the pool “{}” lets agents do. Only the user can allow it, in AI Juggler (the pool's page, or Settings › Agent access).",
                     asks(request.call),
                     place.pool_name
                 ),
@@ -830,7 +830,7 @@ fn named_place<'r>(
             .iter()
             .map(|place| {
                 format!(
-                    "«{}» (id {})",
+                    "“{}” (id {})",
                     known.name_of(&place.pool_id).unwrap_or(&place.pool_id),
                     place.pool_id
                 )
@@ -860,7 +860,7 @@ fn named_place<'r>(
             [] => Err((
                 Refusal::Deny,
                 format!(
-                    "No pool has the id or name «{asked}»: name a pool by its id (or its name) from whoami's pools. {}",
+                    "No pool has the id or name “{asked}”: name a pool by its id (or its name) from whoami's pools. {}",
                     its_pools()
                 ),
             )),
@@ -870,7 +870,7 @@ fn named_place<'r>(
         (_, []) => Err((
             Refusal::Bad,
             format!(
-                "{} of this session's pools are named «{asked}»: name the one this is for by its id. {}",
+                "{} of this session's pools are named “{asked}”: name the one this is for by its id. {}",
                 named.len(),
                 its_pools()
             ),
@@ -881,7 +881,7 @@ fn named_place<'r>(
             Err((
                 Refusal::Bad,
                 format!(
-                    "«{asked}» could be {} of this session's pools: {}. Name the one this is for by its name or its id.",
+                    "“{asked}” could be {} of this session's pools: {}. Name the one this is for by its name or its id.",
                     both.len(),
                     listed(&both)
                 ),
@@ -922,18 +922,18 @@ fn not_in_pool(
             .filter(|skip| skip.pool_id == pool.id)
             .find_map(|skip| match &skip.reason {
                 SkipReason::SealedElsewhere { sealed_pool } => Some(format!(
-                    "This session isn't in the pool «{name}»: it's in «{}», which is sealed, and nothing goes out of a sealed pool. whoami lists the pools it's in.",
+                    "This session isn't in the pool “{name}”: it's in “{}”, which is sealed, and nothing goes out of a sealed pool. whoami lists the pools it's in.",
                     name_of(sealed_pool)
                 )),
                 SkipReason::HeldElsewhere { by_pool } => Some(format!(
-                    "This session isn't in the pool «{name}»: the user put it in «{held}» (id {by_pool}), so it left its project's own pool. Name «{held}» for this, or ask the user to add it to «{name}» in AI Juggler.",
+                    "This session isn't in the pool “{name}”: the user put it in “{held}” (id {by_pool}), so it left its project's own pool. Name “{held}” for this, or ask the user to add it to “{name}” in AI Juggler.",
                     held = name_of(by_pool)
                 )),
                 SkipReason::OutOfScope => None,
             })
     });
     why.unwrap_or_else(|| {
-        format!("This session isn't in the pool «{name}». whoami lists the pools it's in.")
+        format!("This session isn't in the pool “{name}”. whoami lists the pools it's in.")
     })
 }
 
@@ -967,13 +967,13 @@ mod refusal_words {
         };
         let words = super::not_in_pool(&storage, &held, &web.id);
         assert!(
-            words.contains("«Web»") && words.contains("«Client», which is sealed"),
+            words.contains("“Web”") && words.contains("“Client”, which is sealed"),
             "{words}"
         );
         assert!(!words.contains(&web.id), "{words}");
         let plain = super::not_in_pool(&storage, &Resolution::default(), "Web");
         assert!(
-            plain.starts_with("This session isn't in the pool «Web»."),
+            plain.starts_with("This session isn't in the pool “Web”."),
             "{plain}"
         );
     }
@@ -1021,12 +1021,12 @@ mod refusal_words {
         let words = super::not_in_pool(&storage, &held, &web.id);
         assert!(
             words
-                .starts_with("This session isn't in the pool «web»: the user put it in «web team»"),
+                .starts_with("This session isn't in the pool “web”: the user put it in “web team”"),
             "{words}"
         );
         assert!(words.contains(&format!("(id {})", team.id)), "{words}");
         assert!(
-            words.contains("Name «web team» for this, or ask the user to add it to «web»"),
+            words.contains("Name “web team” for this, or ask the user to add it to “web”"),
             "{words}"
         );
     }
@@ -1075,11 +1075,11 @@ mod refusal_words {
             super::named_place(&storage, &lead, "Writer and reviewer").unwrap_err();
         assert_eq!(refusal, super::Refusal::Deny);
         assert!(
-            words.starts_with("No pool has the id or name «Writer and reviewer»"),
+            words.starts_with("No pool has the id or name “Writer and reviewer”"),
             "{words}"
         );
         assert!(
-            words.contains(&format!("«Writer and reviewer 2» (id {})", writer.id)),
+            words.contains(&format!("“Writer and reviewer 2” (id {})", writer.id)),
             "its pools are listed: {words}"
         );
         assert!(!words.contains("isn't in the pool"), "{words}");
@@ -1087,7 +1087,7 @@ mod refusal_words {
         let (refusal, words) = super::named_place(&storage, &lead, "Other").unwrap_err();
         assert_eq!(refusal, super::Refusal::Deny);
         assert!(
-            words.starts_with("This session isn't in the pool «Other»."),
+            words.starts_with("This session isn't in the pool “Other”."),
             "{words}"
         );
         let _ = other;
@@ -1151,7 +1151,7 @@ mod refusal_words {
         let (refusal, words) = super::named_place(&storage, &session, "team").unwrap_err();
         assert_eq!(refusal, super::Refusal::Deny);
         assert!(
-            words.starts_with("This session isn't in the pool «team · all sessions»."),
+            words.starts_with("This session isn't in the pool “team · all sessions”."),
             "{words}"
         );
         assert!(!words.contains(&default_pool_id(Some(&team))), "{words}");
@@ -1165,12 +1165,12 @@ mod refusal_words {
         let (refusal, words) = super::named_place(&storage, &both, "web").unwrap_err();
         assert_eq!(refusal, super::Refusal::Bad);
         assert!(
-            words.starts_with("«web» could be 2 of this session's pools:"),
+            words.starts_with("“web” could be 2 of this session's pools:"),
             "{words}"
         );
         assert!(
-            words.contains(&format!("«web» (id {})", named_web.id))
-                && words.contains(&format!("«web · all sessions (in lab)» (id {own})")),
+            words.contains(&format!("“web” (id {})", named_web.id))
+                && words.contains(&format!("“web · all sessions (in lab)” (id {own})")),
             "both by name: {words}"
         );
         // Its full name still picks one.

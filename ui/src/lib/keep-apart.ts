@@ -59,11 +59,11 @@ export function keepApartWords(project: string) {
     not: `It doesn't tie ${project} to one account: sessions there can still start on any of your apps. It starts or stops nothing, and what each agent may change in your files stays with its own app's settings.`,
     tips: [sealLine({ sealed: true }), SEAL_SWITCH, SEAL_CLAUDE, SEAL_UNDO],
     /** What Keep apart makes, before it does. */
-    makes: (pool: string, joins: string) => `It makes the pool «${pool}». ${joins} Change any of it first with Customise…, or later on its diagram.`,
+    makes: (pool: string, joins: string) => `It makes the pool “${pool}”. ${joins} Change any of it first with Customise…, or later on its diagram.`,
     keep: "Keep apart",
     customise: "Customise…",
     made: `${project} is kept apart`,
-    madeDetail: (pool: string) => `Its sessions are in «${pool}» and in no other pool.`,
+    madeDetail: (pool: string) => `Its sessions are in “${pool}” and in no other pool.`,
     open: "Open it",
     failed: "Couldn't keep it apart",
   };

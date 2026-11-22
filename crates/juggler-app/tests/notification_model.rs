@@ -765,7 +765,7 @@ fn a_held_message_says_who_and_why_in_the_rails_room() {
     let mut sources = every_source(&state, dir.path());
     sources.messages[0].pool_name = "Team".to_owned();
     sources.messages[0].line = Some(juggler_app::features::messages::dto::NeedLine {
-        title: "«r3-tools» wants to message «web»".to_owned(),
+        title: "“r3-tools” wants to message “web”".to_owned(),
         reason: "Ask first".to_owned(),
     });
     let (needs, _) = needs::work_out(&sources, &HashSet::<String>::new());
@@ -773,8 +773,8 @@ fn a_held_message_says_who_and_why_in_the_rails_room() {
         .iter()
         .find(|need| need.key == "message:ask-1")
         .unwrap();
-    assert_eq!(row.title, "«r3-tools» wants to message «web»");
-    assert_eq!(row.detail, "Ask first in «Team»");
+    assert_eq!(row.title, "“r3-tools” wants to message “web”");
+    assert_eq!(row.detail, "Ask first in “Team”");
 }
 
 /// 0.4 (walk A1): a folder a Claude app profile signs in for (its Code

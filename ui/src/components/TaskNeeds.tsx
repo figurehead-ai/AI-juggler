@@ -31,7 +31,7 @@ function asAsk(need: TaskNeedInfo): AskInfo {
     kind: "approval",
     approval_kind: null,
     summary: need.title,
-    reason: [need.task_title ? `«${need.task_title}»` : null, need.detail].filter(Boolean).join(" · "),
+    reason: [need.task_title ? `“${need.task_title}”` : null, need.detail].filter(Boolean).join(" · "),
     options: [
       { id: "once", label: "Allow once", effect: "allow_once", rule: null },
       ...(need.offer_always ? [{ id: "always", label: "Always allow in this pool", effect: "allow_rule", rule: null }] : []),

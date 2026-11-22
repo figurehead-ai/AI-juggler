@@ -96,7 +96,7 @@ function InspectEdge({ pool, canvas, edgeId, names, now, onOther }: { pool: Pool
           <ul className="flex flex-col gap-1.5">
             {edge.pending.map((pending) => (
               <li key={pending.message_id} className="flex flex-col gap-1 rounded-lg border border-hairline/70 px-2.5 py-2">
-                <span className="truncate text-meta text-ink">«{pending.subject}»</span>
+                <span className="truncate text-meta text-ink">“{pending.subject}”</span>
                 <span className="text-label text-muted">
                   {pending.kind === "hop_limit" ? "Paused: these replies went back and forth as many times as the pool allows." : pending.kind === "asked" ? `Above what the pool allows: answer it on ${from}.` : `Waits for ${to} to read it, or for your Deliver.`}
                 </span>

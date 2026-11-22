@@ -11,7 +11,7 @@ import { NoticeRow } from "./NoticeRow";
 afterEach(cleanup);
 
 const target = { session_id: "s-1", conversation_id: null, account_id: null, project_id: null, page: null, task_id: null, pool_id: "pool-team" };
-const notice = (pool: string | null): NoticeInfo => ({ id: 7, kind: "message", needs: true, title: "Reviewer asks you", detail: "In «Team»", project_id: null, project: null, target: { ...target, pool_id: pool }, facts: { window: null, resets_at_ms: null, sessions: null, version: null, channel: null, attempt: null, tries: null, account: null }, action: null, meter: null, created_ms: 0, unread: true, subject: "m:7", snoozed: false, snoozed_until_ms: null, muted: false, dismissed: false });
+const notice = (pool: string | null): NoticeInfo => ({ id: 7, kind: "message", needs: true, title: "Reviewer asks you", detail: "In “Team”", project_id: null, project: null, target: { ...target, pool_id: pool }, facts: { window: null, resets_at_ms: null, sessions: null, version: null, channel: null, attempt: null, tries: null, account: null }, action: null, meter: null, created_ms: 0, unread: true, subject: "m:7", snoozed: false, snoozed_until_ms: null, muted: false, dismissed: false });
 
 function actions(mute: NoticeActions["mute"]): NoticeActions {
   return { primary: vi.fn(), canHandOver: () => false, handOverSubject: () => null, second: vi.fn(), snooze: vi.fn(async () => true), wake: vi.fn(), mute, quietSince: () => null };

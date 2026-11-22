@@ -253,7 +253,7 @@ fn each_project_has_its_own_default_pool_holding_all_its_sessions() {
         " SHOP · all sessions ",
         None,
     ));
-    assert!(words.contains("«shop · all sessions»"), "{words}");
+    assert!(words.contains("“shop · all sessions”"), "{words}");
     // A default pool takes only its own project's sessions.
     let words = refused(pools::pool_move_impl(&state, b.as_str(), &shop_pool));
     assert!(
@@ -459,7 +459,7 @@ fn a_planner_and_two_builders_in_checkout_redesign_with_the_planner_as_lead() {
     // Rename: a taken name is refused; the members stay.
     pools::pool_create_impl(&state, "Docs", None).unwrap();
     let words = refused(pools::pool_rename_impl(&state, &checkout, "docs"));
-    assert!(words.contains("«Docs»"), "{words}");
+    assert!(words.contains("“Docs”"), "{words}");
     let info = pools::pool_rename_impl(&state, &checkout, "Checkout v2").unwrap();
     assert_eq!(pool_id(&info, "Checkout v2"), checkout);
     assert_eq!(
@@ -632,7 +632,7 @@ fn a_pool_for_one_project_refuses_a_session_from_another_in_words() {
     let words = refused(pools::pool_move_impl(&state, in_blog.as_str(), &team));
     assert_eq!(
         words,
-        "«Shop team» takes shop only; this one works in blog. Add blog to its scope to let it in."
+        "“Shop team” takes shop only; this one works in blog. Add blog to its scope to let it in."
     );
     refused(pools::pool_move_impl(&state, loose.as_str(), &team));
     let words = refused(pools::pool_create_impl(&state, "Ghost", Some("proj-gone")));
@@ -1348,7 +1348,7 @@ fn a_switch_says_what_happens_to_each_pool_d62() {
     );
     // Through the old App: it leaves, and says why.
     assert!(
-        line(&by_app).words.contains("Leaves «Work app»"),
+        line(&by_app).words.contains("Leaves “Work app”"),
         "{lines:?}"
     );
     // The new App is sealed: it joins, and the switch asks first.
@@ -1361,7 +1361,7 @@ fn a_switch_says_what_happens_to_each_pool_d62() {
     let lines = pools::switching::switch_lines_impl(&state, s.as_str(), "rec-home", None).unwrap();
     let stays = lines.iter().find(|line| line.pool_id == named).unwrap();
     assert_eq!(stays.kind, "shell");
-    assert!(stays.words.contains("Stays in «Named»"), "{stays:?}");
+    assert!(stays.words.contains("Stays in “Named”"), "{stays:?}");
     assert!(
         lines
             .iter()
@@ -1401,7 +1401,7 @@ fn a_desktop_copy_stays_in_the_originals_pools_watched() {
     let line = lines.iter().find(|line| line.pool_id == team).unwrap();
     assert_eq!((line.kind.as_str(), line.confirm), ("watched", false));
     assert!(
-        line.words.starts_with("Stays in «Team», watched"),
+        line.words.starts_with("Stays in “Team”, watched"),
         "{line:?}"
     );
 
@@ -1706,7 +1706,7 @@ fn an_app_signing_in_to_another_account_moves_its_open_session_between_account_p
     // started (its App and Account beside it, never in its name).
     // Its start time only where the system can say one (not on every CI
     // host): "«folder · started 11:20 PM»", else "«folder»".
-    let lead = format!("«{}", dir.path().file_name().unwrap().to_str().unwrap());
+    let lead = format!("“{}", dir.path().file_name().unwrap().to_str().unwrap());
     let said = |pool: &str| -> Vec<String> {
         pools::canvas::canvas_impl(&state, pool, Vec::new())
             .unwrap()
@@ -1718,7 +1718,7 @@ fn an_app_signing_in_to_another_account_moves_its_open_session_between_account_p
     let one = |lines: Vec<String>, what: &str| {
         assert_eq!(lines.len(), 1, "{lines:?}");
         let line = lines.into_iter().next().unwrap();
-        let tail = format!("» {what}: its account is now Other account");
+        let tail = format!("” {what}: its account is now Other account");
         assert!(line.starts_with(&lead) && line.ends_with(&tail), "{line}");
         let name = line[lead.len()..line.len() - tail.len()].to_owned();
         assert!(name.is_empty() || name.starts_with(" · started "), "{line}");

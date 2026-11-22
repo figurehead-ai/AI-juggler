@@ -106,7 +106,7 @@ pub fn account_use_original_impl(
         }) {
             return Err(AppError::Validation {
                 subject: "account",
-                message: format!("«{}» already uses that folder", other.label),
+                message: format!("“{}” already uses that folder", other.label),
             });
         }
     }

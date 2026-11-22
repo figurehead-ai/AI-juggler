@@ -77,10 +77,10 @@ pub fn may_join(storage: &Storage, pool: &Pool, session: &SessionId) -> AppResul
             "this one has no project".to_owned()
         };
         return Err(AppError::Refused(if pool.kind == PoolKind::Default {
-            format!("«{}» holds {takes}; {works}.", shown(&pool.id))
+            format!("“{}” holds {takes}; {works}.", shown(&pool.id))
         } else {
             format!(
-                "«{}» takes {takes}; {works}. Add {here} to its scope to let it in.",
+                "“{}” takes {takes}; {works}. Add {here} to its scope to let it in.",
                 shown(&pool.id)
             )
         }));
@@ -92,7 +92,7 @@ pub fn may_join(storage: &Storage, pool: &Pool, session: &SessionId) -> AppResul
         .find(|place| place.sealed && place.pool_id != pool.id)
     {
         return Err(AppError::Refused(format!(
-            "It's in «{}», which is sealed: its sessions are in no other pool. Take it out there first.",
+            "It's in “{}”, which is sealed: its sessions are in no other pool. Take it out there first.",
             shown(&seal.pool_id)
         )));
     }

@@ -189,13 +189,13 @@ pub(crate) fn decide(
                     .find(|r| {
                         super::live_session_of(&storage, &r.recipient_ref).as_ref() == Some(session)
                     })
-                    .map(|r| format!("«{}»", r.recipient_name))
+                    .map(|r| format!("“{}”", r.recipient_name))
             });
             pause_at_hop_limit(
                 state,
                 message,
                 &format!(
-                    "«{}»'s message would start {}'s next turn",
+                    "“{}”'s message would start {}'s next turn",
                     message.sender_name,
                     to.as_deref().unwrap_or("another session")
                 ),

@@ -129,7 +129,7 @@ fn allow(
         Decision::Ask { .. } => Err(refuse(
             Refusal::Ask,
             format!(
-                "{what} isn't within what the pool «{}» lets agents do. Only the user can allow it, in AI Juggler (the pool's page, or Settings › Agent access).",
+                "{what} isn't within what the pool “{}” lets agents do. Only the user can allow it, in AI Juggler (the pool's page, or Settings › Agent access).",
                 caller.pool_name
             ),
         )),
@@ -178,7 +178,7 @@ fn send_message(
         return Err(refuse(
             Refusal::Ask,
             format!(
-                "Sending messages isn't within what the pool «{}» lets agents do, so this one ({}) is held for the user's OK in AI Juggler. If they allow it, it goes out: into its recipient's session at once, or to its inbox for its next turn, as they choose.",
+                "Sending messages isn't within what the pool “{}” lets agents do, so this one ({}) is held for the user's OK in AI Juggler. If they allow it, it goes out: into its recipient's session at once, or to its inbox for its next turn, as they choose.",
                 caller.pool_name, sent.message.id
             ),
         ));

@@ -113,7 +113,7 @@ export function projectsOnChoose(
   const fresh = draftOf(template, start);
   if (!picked) return { every: fresh.every, projects: fresh.projects, cleared: null };
   const had = was.every ? "every project" : was.projects.length > 0 ? names(was.projects) : null;
-  return { every: template.scope === "every", projects: [], cleared: had ? { what: had, why: `«${template.name}» ${projectUseWords(template)}` } : null };
+  return { every: template.scope === "every", projects: [], cleared: had ? { what: had, why: `“${template.name}” ${projectUseWords(template)}` } : null };
 }
 
 /** Where a one-project template starts: the project with the most

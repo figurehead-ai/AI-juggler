@@ -245,7 +245,7 @@ fn rename_changes_the_label_everywhere_and_refuses_a_duplicate() {
     let duplicate =
         manage::account_rename_impl(&state, "acc-work", "max (PERSONAL)", None).unwrap_err();
     let words = refusal(duplicate);
-    assert!(words.contains("already called «Max (personal)»"), "{words}");
+    assert!(words.contains("already called “Max (personal)”"), "{words}");
     assert!(
         refusal(manage::account_rename_impl(&state, "acc-work", "   ", None).unwrap_err())
             .contains("name")
@@ -262,7 +262,7 @@ fn rename_changes_the_label_everywhere_and_refuses_a_duplicate() {
         [
             (
                 "rename".to_owned(),
-                "«acme-max» → «Max (personal)»".to_owned()
+                "“acme-max” → “Max (personal)”".to_owned()
             ),
             ("plan".to_owned(), "none → max-20x".to_owned()),
         ]
@@ -431,7 +431,7 @@ fn an_account_with_open_sessions_is_not_removed_and_they_are_named() {
     );
     assert_eq!(
         words,
-        "«Busy» has 2 sessions open: api, web. Stop them first, then remove the account"
+        "“Busy” has 2 sessions open: api, web. Stop them first, then remove the account"
     );
     assert_eq!(labels(&state), ["Busy"]);
     assert!(audit_actions(&state, "acc-busy").is_empty());
@@ -613,7 +613,7 @@ fn deleting_launch_settings_keeps_their_sessions_and_waits_for_open_ones() {
     let words = refusal(manage::launch_settings_remove_impl(&state, "rec-acc-main").unwrap_err());
     assert_eq!(
         words,
-        "«Main» has a session open: api. Stop it first, then delete the launch settings"
+        "“Main” has a session open: api. Stop it first, then delete the launch settings"
     );
 
     // The open one ends; the delete goes through.
@@ -656,7 +656,7 @@ fn deleting_launch_settings_keeps_their_sessions_and_waits_for_open_ones() {
         juggler_app::features::launch::launch_profile(&state, "rec-acc-main", None).unwrap_err();
     assert_eq!(
         refusal(launch),
-        "«Main» was deleted — pick other launch settings to start a session"
+        "“Main” was deleted — pick other launch settings to start a session"
     );
     assert!(matches!(
         manage::launch_settings_remove_impl(&state, "rec-acc-main"),
@@ -678,7 +678,7 @@ fn a_delete_never_slips_between_a_launch_and_its_session() {
     let words = refusal(manage::launch_settings_remove_impl(&state, "rec-acc-main").unwrap_err());
     assert_eq!(
         words,
-        "«Main» has a session starting now. Wait for it, stop it, then delete the launch settings"
+        "“Main” has a session starting now. Wait for it, stop it, then delete the launch settings"
     );
     // Many launches and deletes at once: every delete either refuses or
     // lands before every launch's check, never between.

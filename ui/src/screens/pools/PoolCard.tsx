@@ -75,7 +75,7 @@ export function DeletePool({ pool, members, onClose, onDeleted }: { pool: PoolIn
   };
   const who = members === 0 ? "It has no members." : members === 1 ? "Its one session goes back to its project's own pool." : `Its ${members} sessions go back to their projects' own pools.`;
   return (
-    <Modal title={`Delete «${pool.name}»?`} onClose={onClose} testId="pool-delete-sheet"
+    <Modal title={`Delete “${pool.name}”?`} onClose={onClose} testId="pool-delete-sheet"
       footer={
         <>
             <Button variant="ghost" onClick={onClose}>

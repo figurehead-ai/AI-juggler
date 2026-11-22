@@ -54,7 +54,7 @@ pub enum AppError {
     StatePoisoned,
     /// AJ-E1001: the Account's state dir is signed in as someone else —
     /// nothing launched (no silent continuation exists).
-    #[error("«{account}» is signed in as {detected} here, not {expected} — nothing was launched")]
+    #[error("“{account}” is signed in as {detected} here, not {expected} — nothing was launched")]
     IdentityMismatch {
         /// The Account's label.
         account: String,
@@ -65,7 +65,7 @@ pub enum AppError {
     },
     /// AJ-E307 Req.2: the source is already imported under another
     /// Account — the duplicate-import hole, closed at the command.
-    #[error("Already imported as «{label}» — open it from Accounts instead of importing again")]
+    #[error("Already imported as “{label}” — open it from Accounts instead of importing again")]
     AlreadyImported {
         /// The existing account's label.
         label: String,

@@ -137,7 +137,7 @@ export async function deleteProfile(profileId: string): Promise<void> {
     if (open.length === 0) return;
     const name = (await launchRecipesList()).find((recipe) => recipe.id === profileId)?.name ?? profileId;
     const places = [...new Set(open.map((row) => row.git_branch ?? row.cwd.split("/").pop() ?? row.cwd))].sort();
-    throw refused(`«${name}» has ${open.length === 1 ? "a session" : `${open.length} sessions`} open: ${places.join(", ")}. Stop ${open.length === 1 ? "it" : "them"} first, then delete the launch settings`);
+    throw refused(`“${name}” has ${open.length === 1 ? "a session" : `${open.length} sessions`} open: ${places.join(", ")}. Stop ${open.length === 1 ? "it" : "them"} first, then delete the launch settings`);
   }
   await call("profile_delete", { profileId });
 }

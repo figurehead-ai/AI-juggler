@@ -568,7 +568,7 @@ fn duplicate_import_is_blocked_with_the_existing_label_e307() {
     assert_eq!(wire.code, "already_imported");
     assert!(
         wire.user_message
-            .contains("Already imported as «Work, a copy»"),
+            .contains("Already imported as “Work, a copy”"),
         "{}",
         wire.user_message
     );

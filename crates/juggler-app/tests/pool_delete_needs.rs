@@ -57,10 +57,17 @@ fn a_deleted_pools_holds_and_notices_leave_needs_you() {
     }
     let before = needs::needs(&lab.state).unwrap();
     assert!(before.iter().any(|need| need.kind == "ask"), "{before:?}");
+    let paused = before
+        .iter()
+        .find(|need| need.kind == "pool_paused")
+        .unwrap_or_else(|| panic!("{before:?}"));
+    // R8 (the 0.5.0 re-walk): "Messages in «Notes» are paused". The app's
+    // own quotes, never guillemets.
     assert!(
-        before.iter().any(|need| need.kind == "pool_paused"),
-        "{before:?}"
+        paused.title.starts_with("Messages in “") && paused.title.ends_with("” are paused"),
+        "{paused:?}"
     );
+    assert!(!paused.title.contains('«'), "{paused:?}");
     assert_eq!(
         juggler_app::features::tasks::needs::needs(&lab.state)
             .unwrap()
@@ -109,7 +116,7 @@ fn a_hold_whose_pool_is_gone_never_shows_an_empty_name() {
     let rows = needs::needs(&lab.state).unwrap();
     assert!(
         rows.iter()
-            .all(|need| !need.title.contains("«»") && !need.pool_name.is_empty()),
+            .all(|need| !need.title.contains("“”") && !need.pool_name.is_empty()),
         "{rows:?}"
     );
     assert!(rows.is_empty(), "{rows:?}");

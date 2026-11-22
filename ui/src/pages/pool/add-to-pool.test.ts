@@ -57,7 +57,7 @@ describe("adding a session on the canvas", () => {
   it("moves it into a sealed pool and says which pool it left", async () => {
     await addToPool(poolB(true), session, null, place, "pool-a", "A");
     expect(calls).toEqual(["move:s1:pool-b"]);
-    expect(toasts[0]!.detail).toContain("It left «A»");
+    expect(toasts[0]!.detail).toContain("It left “A”");
     await toasts[0]!.undo!.onUndo();
     expect(calls).toEqual(["move:s1:pool-b", "move:s1:pool-a"]);
   });

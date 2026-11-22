@@ -53,7 +53,7 @@ export async function addToPool(pool: PoolInfo, session: InstanceInfo, at: Point
     const moved = pool.sealed && from !== null && from !== pool.id;
     showToast({
       message: `${nameOf(session)} is in ${pool.name}`,
-      detail: moved ? `It left «${fromName ?? "its pool"}»: a sealed pool's sessions are in no other pool.` : undefined,
+      detail: moved ? `It left “${fromName ?? "its pool"}”: a sealed pool's sessions are in no other pool.` : undefined,
       undo: pool.sealed
         ? from
           ? { onUndo: async () => setPools(await poolMove(session.id, from)) }

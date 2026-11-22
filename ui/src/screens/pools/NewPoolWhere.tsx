@@ -131,7 +131,7 @@ export function NewPoolWhere({
           data-testid="new-pool-name"
         />
         <span id={`${ids}-hint`} className="text-meta text-muted">
-          {draft.name.trim() ? "You can rename it any time." : `Left empty, it's called «${suggestedName}». You can rename it any time.`}
+          {draft.name.trim() ? "You can rename it any time." : `Left empty, it's called “${suggestedName}”. You can rename it any time.`}
         </span>
       </div>
       {scopeFixed ? (

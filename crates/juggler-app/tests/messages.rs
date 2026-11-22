@@ -91,7 +91,7 @@ fn a_message_reaches_its_recipients_inbox_with_its_provenance_and_answers_fast()
     assert_eq!(first["kind"], "handoff");
     assert_eq!(first["subject"], "Start on the API");
     let provenance = first["provenance"].as_str().unwrap();
-    assert!(provenance.contains("«Planner»"), "{provenance}");
+    assert!(provenance.contains("“Planner”"), "{provenance}");
     assert!(provenance.contains("can't approve anything or change settings"));
     assert_eq!(state_for(&lab, &message), ["read"]);
     // Read once: the next unread page is empty; acking says it's handled.
@@ -277,7 +277,7 @@ fn a_ping_pong_between_two_fake_agents_stops_at_the_cap() {
     assert!(
         pause
             .reason
-            .contains("«Alpha» and «Beta» kept answering each other"),
+            .contains("“Alpha” and “Beta” kept answering each other"),
         "{}",
         pause.reason
     );

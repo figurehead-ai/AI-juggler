@@ -157,7 +157,7 @@ fn endpoint_for<'a>(
         .and_then(|wire| preset.endpoint(wire))
         .ok_or_else(|| {
             AppError::Refused(format!(
-                "«{}» can't run through {}",
+                "“{}” can't run through {}",
                 account.label, preset.name
             ))
         })
@@ -180,14 +180,14 @@ pub(crate) fn session_env(
     };
     let preset = juggler_adapters::services::preset(&link.service).ok_or_else(|| {
         AppError::Refused(format!(
-            "«{}» runs through a service this version of AI Juggler doesn't know",
+            "“{}” runs through a service this version of AI Juggler doesn't know",
             account.label
         ))
     })?;
     let endpoint = endpoint_for(state, account, preset)?;
     let key = state.service_keys.store()?.get(&link.account).ok_or_else(|| {
         AppError::Refused(format!(
-            "«{}»'s {} isn't in this Mac's Keychain. Choose Replace key on its account and paste it again",
+            "“{}”'s {} isn't in this Mac's Keychain. Choose Replace key on its account and paste it again",
             account.label, preset.key_name
         ))
     })?;

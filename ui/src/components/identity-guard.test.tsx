@@ -70,7 +70,7 @@ describe("AJ-E1001 identity guard", () => {
     await act(async () => {
       fireEvent.click(q("identity-cancel")!);
     });
-    expect(await cancelled).toMatch(/Not launched — «Work Max» is signed in as o…@home.example/);
+    expect(await cancelled).toMatch(/Not launched — “Work Max” is signed in as o…@home.example/);
     expect(w().__AIJ_LAUNCH_CALLS__).toBeUndefined();
 
     let rechecked: Promise<unknown> = Promise.resolve();
