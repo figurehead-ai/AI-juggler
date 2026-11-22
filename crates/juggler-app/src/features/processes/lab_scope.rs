@@ -38,8 +38,8 @@ pub fn home() -> Option<&'static Path> {
 
 #[cfg(feature = "lab-bridge")]
 fn lab_home() -> Option<PathBuf> {
-    let home = std::env::var_os("HOME")?;
-    juggler_core::lab::throwaway_lab(Path::new(&home)).ok()
+    let home = juggler_platform::user::home()?;
+    juggler_core::lab::throwaway_lab(&home).ok()
 }
 
 #[cfg(not(feature = "lab-bridge"))]
