@@ -64,6 +64,8 @@ verify-static:
     python3 scripts/ci_parity.py
     python3 scripts/visual_specs_check.py --selftest
     python3 scripts/visual_specs_check.py
+    # Dead and copied code (knip, jscpd), found while a batch is built, not only at the preflight; it needs the UI's packages (CI runs it in `ui`).
+    if [ -d ui/node_modules ]; then python3 scripts/debt_baseline.py; else echo "debt-baseline: skipped, ui/node_modules missing (pnpm --dir ui install --offline)"; fi
     cargo fmt --all --check
     cargo clippy --workspace --all-targets -- -D warnings
     cargo clippy --workspace --all-targets --no-default-features -- -D warnings
