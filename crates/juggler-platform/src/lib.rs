@@ -17,6 +17,8 @@
 //! - [`process`]: AI Juggler's own helper processes, with only what they need.
 //! - [`transfer`]: a file's identity on disk, clones, and renames that never
 //!   cross a disk (ADR-0031: a switch by move).
+//! - [`real_path`]: a path's one real spelling (links, `..`, case), so two
+//!   spellings of one folder compare alike (AJ-E2315).
 //!
 //! Each seam has one implementation per platform. Where a platform has no
 //! honest implementation yet, the seam says so (an `Unsupported` error, or
@@ -47,6 +49,7 @@ pub mod keychain;
 pub mod local_ipc;
 pub mod private_fs;
 pub mod process;
+pub mod real_path;
 pub mod room;
 pub mod safe_fs;
 pub mod system;
