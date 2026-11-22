@@ -1279,6 +1279,48 @@ pub(crate) fn date_compact_from_millis(millis: i64) -> String {
     format!("{year:04}{month:02}{day:02}")
 }
 
+/// Whether the five-hour window `account` was in at `switched_at_ms` has
+/// reset by `now_ms` (AJ-E207's reset trigger; the 0.5.0 walk, F1). Any of:
+/// the reading in force at the switch named a reset that has come; a
+/// reading taken since describes a window that began after the switch; or
+/// five hours have passed, so any window open then has closed. Without
+/// one of these nothing says it reset, so nothing claims it did.
+fn window_reset_since(
+    storage: &juggler_core::storage::Storage,
+    account: &Account,
+    switched_at_ms: i64,
+    now_ms: i64,
+) -> bool {
+    use juggler_core::quota::{FIVE_HOURS_MS, WindowKind};
+    if now_ms.saturating_sub(switched_at_ms) >= FIVE_HOURS_MS {
+        return true;
+    }
+    let own = storage
+        .subscriptions()
+        .of_folder(account.id.as_str())
+        .unwrap_or_default();
+    // The reading in force at the switch first (the newest before it),
+    // then every one since.
+    let samples = storage
+        .usage()
+        .sourced_samples_since_as(
+            account.id.as_str(),
+            WindowKind::FiveHour,
+            switched_at_ms,
+            juggler_core::storage::SignedInAs::Own(own.as_deref()),
+        )
+        .unwrap_or_default();
+    samples.iter().any(|(sample, _)| {
+        sample.resets_at.is_some_and(|resets_at| {
+            if sample.ts <= switched_at_ms {
+                resets_at > switched_at_ms && resets_at <= now_ms
+            } else {
+                resets_at.saturating_sub(FIVE_HOURS_MS) >= switched_at_ms
+            }
+        })
+    })
+}
+
 /// Core implementation shared with integration tests.
 ///
 /// # Errors
@@ -1336,14 +1378,23 @@ pub fn switch_back_suggestions_impl(
             else {
                 continue;
             };
-            // The reset trigger: the original account has headroom
-            // again (not exhausted, not tight).
+            // The reset trigger: the window the original account was in
+            // when the work left it has reset since (the 0.5.0 walk, F1:
+            // "Personal has reset" showed right after the switch, at 5%
+            // left), and it has headroom now (not exhausted, not tight).
+            if !window_reset_since(&storage, original_account, edge.created_at.millis(), now) {
+                continue;
+            }
             let display = quota_display_inner(&storage, original_account, now);
-            let headroom = match display.five_hour.as_ref().map(|w| w.state.as_str()) {
-                Some("exhausted") => false,
-                Some(_) => display.forecast.tte_min.is_none_or(|tte| tte >= 45.0),
-                None => true,
+            let exhausted = |window: Option<&crate::features::quota::WindowDisplay>| {
+                window.is_some_and(|window| window.state == "exhausted")
             };
+            let headroom = !exhausted(display.weekly.as_ref())
+                && match display.five_hour.as_ref().map(|w| w.state.as_str()) {
+                    Some("exhausted") => false,
+                    Some(_) => display.forecast.tte_min.is_none_or(|tte| tte >= 45.0),
+                    None => true,
+                };
             if !headroom {
                 continue;
             }

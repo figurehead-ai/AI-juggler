@@ -218,6 +218,78 @@ fn switch_a_to_b_named(work: &Path, name: Option<&str>) -> RoundTrip {
     }
 }
 
+/// The id of the Account labelled `label` (its folder).
+fn account_id(trip: &RoundTrip, label: &str) -> String {
+    trip.state
+        .storage
+        .lock()
+        .unwrap()
+        .accounts()
+        .list()
+        .unwrap()
+        .into_iter()
+        .find(|account| account.label == label)
+        .unwrap()
+        .id
+        .to_string()
+}
+
+/// One five-hour reading of `label`'s folder, taken `ts_ago_ms` ago.
+fn read_five_hour(trip: &RoundTrip, label: &str, ts_ago_ms: i64, used: f64, resets_in_ms: i64) {
+    use juggler_core::model::{Confidence, Timestamp};
+    use juggler_core::quota::{QuotaSample, WindowKind};
+    let id = account_id(trip, label);
+    let now = Timestamp::now().millis();
+    trip.state
+        .storage
+        .lock()
+        .unwrap()
+        .usage()
+        .insert_sample(
+            &id,
+            WindowKind::FiveHour,
+            &QuotaSample {
+                ts: now - ts_ago_ms,
+                used_pct: used,
+                resets_at: Some(now + resets_in_ms),
+                confidence: Confidence::Measured,
+                held_until: None,
+            },
+        )
+        .unwrap();
+}
+
+/// A reading of a new window on `label`, begun since the switch: its
+/// window has reset.
+fn reset_since_the_switch(trip: &RoundTrip, label: &str) {
+    read_five_hour(trip, label, 0, 10.0, 5 * 3_600_000);
+}
+
+/// The 0.5.0 walk, F1: "Personal has reset. Resume the original
+/// conversation there?" showed right after a switch from Personal, while
+/// Personal had 5% left and reset hours later. A switch back is suggested
+/// only once the window the work left has reset.
+#[test]
+fn no_switch_back_is_suggested_before_the_original_window_resets() {
+    let work = tempfile::tempdir().unwrap();
+    let trip = switch_a_to_b(work.path());
+    let suggestions =
+        || juggler_app::features::switch::back::switch_back_suggestions_impl(&trip.state).unwrap();
+    // No reading at all, minutes after the switch: nothing says it reset.
+    assert!(suggestions().is_empty(), "no reading, just switched");
+    // Read at the switch: 95% used, resetting in two hours.
+    read_five_hour(&trip, "Work Max", 60_000, 95.0, 2 * 3_600_000);
+    assert!(suggestions().is_empty(), "5% left, not reset yet");
+    // Read again since, the same window (it still resets in two hours).
+    read_five_hour(&trip, "Work Max", 0, 96.0, 2 * 3_600_000);
+    assert!(suggestions().is_empty(), "the same window, read again");
+    // A new window, begun since the switch: now it has reset (read a
+    // moment later: a reading is keyed by its time).
+    std::thread::sleep(std::time::Duration::from_millis(5));
+    reset_since_the_switch(&trip, "Work Max");
+    assert_eq!(suggestions().len(), 1, "reset since the switch");
+}
+
 #[test]
 fn a_to_b_to_a_resumes_original_with_one_delta_and_no_copy_back() {
     let work = tempfile::tempdir().unwrap();
@@ -255,7 +327,9 @@ fn a_to_b_to_a_resumes_original_with_one_delta_and_no_copy_back() {
     );
 
     // The suggestion exists (suggest-only) with the verbatim copy (D-62:
-    // folders no Account lists, by their own names).
+    // folders no Account lists, by their own names), once Work Max's
+    // window has reset.
+    reset_since_the_switch(&trip, "Work Max");
     let suggestions =
         juggler_app::features::switch::back::switch_back_suggestions_impl(&trip.state).unwrap();
     assert_eq!(suggestions.len(), 1, "one open excursion");
@@ -475,6 +549,7 @@ fn the_switch_back_card_names_the_account_that_reset() {
     assert_ne!(name, "Work Max", "an Account is never named by its folder");
     let expected = juggler_handover::switch_back::suggestion_copy(&name, "Personal");
 
+    reset_since_the_switch(&trip, "Work Max");
     let suggestions =
         juggler_app::features::switch::back::switch_back_suggestions_impl(&trip.state).unwrap();
     assert_eq!(suggestions.len(), 1);
