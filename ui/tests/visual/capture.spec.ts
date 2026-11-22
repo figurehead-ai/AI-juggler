@@ -1433,15 +1433,20 @@ for (const state of [
             timeout: 8_000,
           });
           await expect(page.getByTestId("kill-tick-8123")).toContainText("running");
-        } else if (state === "outcome-report" || state === "outcome-freed") {
+        } else if (state === "outcome-report") {
           await expect(page.getByTestId("kill-ready-8123")).toBeVisible();
           await page.getByTestId("kill-confirm-8123").click();
           await expect(page.getByTestId("kill-report-8123")).toBeVisible();
-          if (state === "outcome-report") {
-            await expect(page.getByTestId("kill-still-holding-8123")).toContainText(":5173");
-          } else {
-            await expect(page.getByTestId("kill-success-8123")).toContainText(":5173 is free.");
-          }
+          await expect(page.getByTestId("kill-still-holding-8123")).toContainText(":5173");
+        } else if (state === "outcome-freed") {
+          // R3 (the 0.5.0 re-walk): a plain success has nothing more to
+          // say than "stopped", so the sheet closes and a toast says it.
+          await expect(page.getByTestId("kill-ready-8123")).toBeVisible();
+          await page.getByTestId("kill-confirm-8123").click();
+          await expect(page.getByTestId("kill-sheet-8123")).toHaveCount(0);
+          const stopped = page.getByTestId("toast").filter({ hasText: "Stopped vite (PID 8123)." });
+          await expect(stopped).toBeVisible();
+          await expect(stopped).toContainText(":5173 is free.");
         } else if (state === "windows-wording") {
           await expect(page.getByTestId("kill-platform-8123")).toContainText(
             "a stop is immediate",
