@@ -1,8 +1,9 @@
-import { cleanup, fireEvent, render, waitFor, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { ProcessesScreen } from "./processes/ProcessesScreen";
 import { forgetProcessRows, prefetchProcessRows } from "./processes/useProcessRows";
 import type { KillVerifyData } from "../components/KillSheet";
+import { resetToasts, toastEntries } from "../components/Toast";
 
 /**
  * AJ-E2404/E2405: the Processes page on the preview's made-up Mac (the
@@ -171,10 +172,14 @@ describe("AJ-E2404 the Processes page", () => {
       );
       // Another app's leftover is one process: its warning shows anyway.
       expect(document.querySelector('[data-testid="kill-unsaved-7301"]')!.textContent).toBe("Includes an MCP server that may hold unsaved state.");
+      resetToasts();
       fireEvent.click(document.querySelector('[data-testid="kill-confirm-7301"]')!);
-      await waitFor(() => expect(document.querySelector('[data-testid="kill-history-link-7301"]')).not.toBeNull());
-      fireEvent.click(document.querySelector('[data-testid="kill-history-link-7301"]')!);
+      // R3: a plain success closes the sheet and says so in a toast, whose
+      // one action opens Cleanup history.
       await waitFor(() => expect(document.querySelector('[data-testid^="kill-sheet-"]')).toBeNull());
+      const stopped = toastEntries().find((entry) => entry.options.tone === "success");
+      expect(stopped?.options.action?.label).toBe("Cleanup history");
+      act(() => void stopped?.options.action?.run());
       expect(getByTestId("process-view-history").getAttribute("aria-selected")).toBe("true");
     } finally {
       delete (window as unknown as { __AIJ_OBSERVED_VERIFY__?: unknown }).__AIJ_OBSERVED_VERIFY__;

@@ -194,6 +194,9 @@ export function ProcessesView({
 
   const stopRow = stopping?.row;
   const stopSession = stopRow ? sessionOf(stopRow) : null;
+  // R3: one bridge per stop, not one per render.
+  const observedStart = stopRow?.process?.stop === "observed" ? stopRow.process.start_time : undefined;
+  const stopBridge = useMemo(() => (observedStart === undefined ? undefined : observedBridge(observedStart)), [observedStart]);
   // Explained when one shows (its row is listed), not when one is elsewhere.
   const zombies = rows.filter((row) => row.state === "zombie").length;
   const empty =
@@ -272,7 +275,7 @@ export function ProcessesView({
           pid={stopRow.process.pid}
           goalPort={stopRow.ports[0] ?? null}
           trigger={stopping.trigger ?? undefined}
-          bridge={stopRow.process.stop === "observed" ? observedBridge(stopRow.process.start_time) : undefined}
+          bridge={stopBridge}
           onlyThisProcess={stopRow.process.stop === "observed" ? "Only this process: the app's session and its other processes are never touched." : undefined}
           observed={stopRow.process.stop === "observed"}
           sessionEnded={stopRow.state === "left_behind" || stopRow.state === "left_behind_closed" || stopSession?.state === "ended"}
