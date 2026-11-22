@@ -858,3 +858,57 @@ fn the_labs_own_stand_in_program_may_stay_and_a_folder_override_never() {
             .contains("is set in this process")
     );
 }
+
+/// The 0.5.0 re-walk (R12): the write mode still refused in every lab, for
+/// the lab's own `HOME` (an adapter lists it among its isolation keys) and,
+/// under `--standins`, for the stand-in ZCode engine
+/// (`AI_JUGGLER_ZCODE_ENGINE`). Both may stay while inside the lab; a
+/// `HOME`, an engine or a folder override pointing outside it still refuse.
+#[cfg(feature = "lab-bridge")]
+#[test]
+fn the_labs_own_home_and_stand_in_engine_may_stay_and_outside_ones_never() {
+    use super::lab::inherited;
+    let lab = tempfile::tempdir().unwrap();
+    let lab_path = lab.path().canonicalize().unwrap();
+    let engine = lab_path.join("standins/ZCode.app/Contents/Resources/glm/zcode.cjs");
+    std::fs::create_dir_all(engine.parent().unwrap()).unwrap();
+    std::fs::write(&engine, "// stand-in\n").unwrap();
+    let elsewhere = tempfile::tempdir().unwrap();
+    let elsewhere_path = elsewhere.path().canonicalize().unwrap();
+    std::fs::write(elsewhere_path.join("zcode.cjs"), "// real\n").unwrap();
+
+    // The lab's own HOME (lab_env.sh: the lab itself) and its stand-in engine.
+    assert_eq!(inherited("HOME", &lab_path, &lab_path), Ok(()));
+    assert_eq!(
+        inherited("AI_JUGGLER_ZCODE_ENGINE", &engine, &lab_path),
+        Ok(())
+    );
+
+    // Outside the lab: a real home, a real engine, a real folder override.
+    assert!(
+        inherited("HOME", &elsewhere_path, &lab_path)
+            .unwrap_err()
+            .contains("isn't a folder inside the lab")
+    );
+    assert!(
+        inherited("HOME", &engine, &lab_path).is_err(),
+        "a file is no HOME"
+    );
+    assert!(
+        inherited(
+            "AI_JUGGLER_ZCODE_ENGINE",
+            &elsewhere_path.join("zcode.cjs"),
+            &lab_path
+        )
+        .unwrap_err()
+        .contains("outside the lab")
+    );
+    assert!(
+        inherited("XDG_CONFIG_HOME", &elsewhere_path, &lab_path)
+            .unwrap_err()
+            .contains("is set in this process")
+    );
+    // A `..` never passes, even spelled from inside the lab.
+    assert!(inherited("HOME", &lab_path.join("standins/.."), &lab_path).is_err());
+    assert!(inherited("HOME", &lab_path.join("../x"), &lab_path).is_err());
+}

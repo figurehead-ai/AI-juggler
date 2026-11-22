@@ -13,8 +13,8 @@
 //!    (0700), outside the home the user record names (and so outside the
 //!    real AI Juggler data), with the app's data folder inside it
 //!    ([`checked_home`]); and with no tool's folder override inherited
-//!    ([`check_this`]; the lab's own stand-in programs, inside it, may
-//!    stay: [`inherited`]). Then nothing of the bridge starts.
+//!    ([`check_this`]; the lab's own stand-in programs and its `HOME`,
+//!    inside it, may stay: [`inherited`]). Then nothing of the bridge starts.
 //! 3. Each write is one of the app's own commands, the function the
 //!    window calls, with its typed arguments (`deny_unknown_fields`):
 //!    no logic of its own. Same token, same loopback, same Origin.
@@ -169,24 +169,34 @@ fn adopted(account: &juggler_core::model::Account) -> bool {
 /// Whether isolation variable `key`, set to `value` in this process, may
 /// stay with the lab at `lab` (pure: tested). A tool's folder override
 /// never may (a shell inside a tool's session carries one, pointing at a
-/// real folder). AI Juggler's own stand-in program variable
-/// (`AI_JUGGLER_<TOOL>_BIN`, the lab's stand-in tool that
-/// `scripts/qa/lab_scenario.sh` sets) may, when it is a program inside
-/// the lab: the 0.5.0 final walk (F11) found the write mode refused in
-/// every lab because the lab's own stand-in was set.
+/// real folder). Two of the lab's own may:
+///
+/// - AI Juggler's own stand-in program variables (`AI_JUGGLER_<TOOL>_BIN`,
+///   and `AI_JUGGLER_ZCODE_ENGINE`, the engine file a `--standins` lab
+///   points `ZCode` at), when they name a program inside the lab: the 0.5.0
+///   final walk (F11) found the write mode refused in every lab because
+///   the lab's own stand-in was set.
+/// - `HOME`, which an adapter whose tool keeps its files under the home
+///   lists as its isolation key (Muse), when it is a folder inside the lab
+///   (`scripts/qa/lab_env.sh` starts the lab with `HOME` the lab itself):
+///   the 0.5.0 re-walk (R12) found every plain lab refused for it.
 ///
 /// # Errors
 ///
 /// Why it may not, in words.
 pub fn inherited(key: &str, value: &Path, lab: &Path) -> Result<(), String> {
-    let stand_in = key.starts_with("AI_JUGGLER_") && key.ends_with("_BIN");
-    if stand_in
-        && resolved(value).is_some_and(|program| program.starts_with(lab) && program.is_file())
-    {
+    let stand_in =
+        key.starts_with("AI_JUGGLER_") && (key.ends_with("_BIN") || key.ends_with("_ENGINE"));
+    let inside_lab = |is_kind: fn(&Path) -> bool| {
+        resolved(value).is_some_and(|found| found.starts_with(lab) && is_kind(&found))
+    };
+    if (stand_in && inside_lab(Path::is_file)) || (key == "HOME" && inside_lab(Path::is_dir)) {
         return Ok(());
     }
     Err(if stand_in {
         format!("{key} names a program outside the lab (the lab's stand-ins live inside it)")
+    } else if key == "HOME" {
+        format!("HOME {} isn't a folder inside the lab", value.display())
     } else {
         format!("{key} is set in this process (start the lab through scripts/qa/lab_env.sh)")
     })
