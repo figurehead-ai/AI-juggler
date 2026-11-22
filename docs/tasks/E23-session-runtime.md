@@ -308,3 +308,10 @@
 4. Tests: this exact shape (another profile's disclaimer → claude, with an `--add-dir` into the moving profile) is not a member; the existing members (its own disclaimer → its own claude-code, helpers by `--user-data-dir`, the pre-quit tree) still are; the move suite passes.
 **Quality gates**: `just keep-going verify-static`; failing-before tests; the move suite; a live re-walk of Move on lab PL1 with a second lab profile's Code session holding an `--add-dir` into the moving one.
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E2315/manifest.md`.
+
+### AJ-E2316 The rail's gallery captures wait for the rail to be still | Status: DONE (0.5.1) | Priority P2 | Effort S | Depends: AJ-E2314
+**Found** on CI for bde5fa4d8 (visual 4/4): `pools-gallery.spec.ts` "the rail's Pool lens — dark" differed by 4668 px; the actual image showed the rail's "N new above" pill and rows still moving: a notice arrived while the test's pointer held the list, and the held reorder applied after it left. No commit of that push touched the rail; a flake, fixed for good rather than by a higher threshold.
+**Requirements**:
+1. A shared `railStill(page)` (ui/tests/visual/fixtures.ts) waits for the rail at rest: no `rail-new-above` pill, every `[data-line-key]` line's place unchanged across several checks.
+2. The Pool lens capture waits on it before its hover and before its screenshot.
+**Evidence/validation proof**: the capture passes 3 runs of each theme on the host (`--repeat-each=3`); CI's visual gate.

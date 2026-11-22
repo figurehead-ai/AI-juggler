@@ -407,6 +407,32 @@ export async function openRailGroup(page: import("@playwright/test").Page, name:
   }).toPass({ timeout: 20_000 });
 }
 
+/** AJ-E2316: the rail at rest before a capture: no "N new above" pill, and
+ * every line's place unchanged across several checks (a late notice drawn,
+ * a reorder held while the pointer was in the list applied). The gallery
+ * waits on `data-loading-parts` the same way; a capture taken while lines
+ * still moved differed by thousands of pixels (CI, bde5fa4d8, 91-pools). */
+export async function railStill(page: import("@playwright/test").Page): Promise<void> {
+  const rail = page.getByTestId("rail");
+  let last = "";
+  await expect
+    .poll(
+      async () => {
+        const now = await rail.evaluate((el) =>
+          Array.from(el.querySelectorAll<HTMLElement>("[data-line-key]"))
+            .map((line) => `${line.dataset.lineKey}:${Math.round(line.getBoundingClientRect().top)}`)
+            .join("|"),
+        );
+        const same = now === last;
+        last = now;
+        return same;
+      },
+      { intervals: [200, 250, 250, 300, 400, 500], timeout: 10_000 },
+    )
+    .toBe(true);
+  await expect(page.getByTestId("rail-new-above")).toHaveCount(0);
+}
+
 /** A rail group's Open door, shown by hovering it (for a capture of it). */
 export async function hoverRailGroup(page: import("@playwright/test").Page, name: string): Promise<void> {
   const header = page.getByTestId("place-header").filter({ hasText: name });

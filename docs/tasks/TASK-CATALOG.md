@@ -299,6 +299,7 @@
 | AJ-E2313 | A hooked session whose turn hangs is said "may be stuck", without false alarms on long thinking | E23-session-runtime.md | P1 | M | AJ-E2312 |
 | AJ-E2314 | 0.5.0's walks: the later findings, in the 0.5.1 rebuild before beta | E23-session-runtime.md | P2 | M | AJ-E2312 |
 | AJ-E2315 | Move to account counts only the moving profile's own processes: a wrapper is its by the program it runs, never by a flag's path | E23-session-runtime.md | P0 | M | AJ-E2312 |
+| AJ-E2316 | The rail's gallery captures wait for the rail to be still | E23-session-runtime.md | P2 | S | AJ-E2314 |
 | AJ-E2306 | Claude terminal sessions with hooks and the status line | E23-session-runtime.md | P0 | M | AJ-E2302 |
 | AJ-E2307 | Answers from Needs you and the session page | E23-session-runtime.md | P0 | M | AJ-E2303 |
 | AJ-E2308 | Run without a terminal: answer from AI Juggler (Beta) | E23-session-runtime.md | P1 | L | AJ-E2302, AJ-E2307 |
@@ -489,5 +490,5 @@
 | AJ-E3818 | The harness for the digest (job e) and watch parsing (job f), on D-130's criteria | E38-chat.md | P0 | L | AJ-E3709, AJ-E3712, AJ-E3815 |
 | AJ-E3819 | Chat memory, short and long term, with context budgets (ADR-0037) | E38-chat.md | P0 | XL | AJ-E3804, AJ-E3805, AJ-E3808, AJ-E3815 |
 | AJ-E3820 | The turn review: the code-only review, the model's Beta lines on it, and where it shows | E38-chat.md | P0 | L | AJ-E3802, AJ-E3705, AJ-E3806 |
-Total: 487 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
+Total: 488 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
 Status of every task at generation: TODO. The epic files are canonical; this catalog is an index, never edited to claim progress.
