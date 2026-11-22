@@ -383,7 +383,7 @@
 **Quality gates**: `just keep-going verify-static`; failing-before tests; the move suite.
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E2323/manifest.md`.
 
-### AJ-E2324 Move's speed: event-driven waits, an open-file write guard and half the reads | Status: TODO (0.5.2) | Priority P2 | Effort M | Depends: AJ-E2323
+### AJ-E2324 Move's speed: event-driven waits, an open-file write guard and half the reads | Status: TODO (0.5.1) | Priority P2 | Effort M | Depends: AJ-E2323
 **Found** Review A4.2, A6.2, A6.3, A1.9, B3, B4, C: polling waits (about 1–2 s of CPU per move), a 1.5 s stillness floor, every byte read and hashed four times. (`docs/research/move-reliability-review.md`).
 **Requirements**:
 1. Process-exit and file-change waits by kqueue (Linux pidfd/inotify, Windows wait handles), behind `juggler_platform`.
