@@ -150,7 +150,9 @@ export function HomeRunway({ accounts, quota, quotaKnown = true, sessions }: { a
     <HomeSection id="home-runway" label="Runway by account">
       <div className="flex flex-col rounded-xl bg-surface px-4 py-1.5" data-testid="home-runway">
         {accountGroups(accounts, subscriptions).map((group) => {
-          const first = group.profiles[0]!;
+          // An Account with only desktop apps (AJ-E3210) has no CLI folder:
+          // no first profile (the 0.5.0 re-walk, R1: Home crashed on lab PL1).
+          const first: AccountInfo | undefined = group.profiles[0];
           const row = lineOf(group);
           const live = liveOn(group, sessions);
           // D-117: neutral, amber at 10 % or less with a live session, red
@@ -167,7 +169,7 @@ export function HomeRunway({ accounts, quota, quotaKnown = true, sessions }: { a
                 <span className="flex min-w-0 items-center gap-2" title={named || undefined}>
                   {/* D-117 (c2): an 8 px disc in the Account's colour; a group
                       not signed in is no Account yet: neutral. */}
-                  <AccountAvatar tone={group.subscription?.state === "signed_in" ? "colour" : "neutral"} account={group.subscription ?? { folder: first.id }} label={group.name} size={8} />
+                  <AccountAvatar tone={group.subscription?.state === "signed_in" ? "colour" : "neutral"} account={group.subscription ?? { folder: first?.id ?? group.key }} label={group.name} size={8} />
                   {group.subscription?.account_id ? (
                     // D-62 (AJ-E3205): the account's name opens its page.
                     <button type="button" onClick={() => openAccount(group.subscription!.account_id!)} title={`Open ${group.name}'s page`} className="truncate rounded text-left font-medium text-ink outline-none hover:underline focus-visible:ring-1 focus-visible:ring-accent/60" data-testid="home-runway-name">
@@ -211,7 +213,7 @@ export function HomeRunway({ accounts, quota, quotaKnown = true, sessions }: { a
                 <span className="flex flex-wrap items-baseline gap-x-2 text-label text-muted">
                 {row.words}
                 {/* 0.4.4: it measures here (the tool's own check), not a page. */}
-                {(row.words.startsWith("Not measured") || row.words.startsWith("Last reading")) && (
+                {first && (row.words.startsWith("Not measured") || row.words.startsWith("Last reading")) && (
                   <MeasureLimits folders={group.profiles.map((profile) => profile.id)} tool={first.provider} name={group.name} />
                 )}
                 </span>
