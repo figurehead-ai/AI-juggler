@@ -84,10 +84,16 @@ export function SessionPoolChip({ sessionId }: { sessionId: string }): JSX.Eleme
         <span className="shrink-0">Pools:</span>
         {named.map((pool, index) => (
           <span key={pool.id} className="inline-flex min-w-0 items-center">
+            {/* R7 (the 0.5.0 re-walk): the comma follows the name inside
+                its door, so a short name's 24 px target (min-w-6) pads
+                after the comma, never between ("Pools: A , B"). It is not
+                underlined (inline-block) and not in the door's name. */}
             <button type="button" onClick={() => host.openPool?.(pool.id)} title={`Open the pool ${pool.name}`} className={`min-w-6 ${DOOR_LOOK}`} data-testid="session-pool-door">
-              <span className="truncate">{pool.name}</span>
+              <span className="flex min-w-0">
+                <span className="truncate">{pool.name}</span>
+                {index < named.length - 1 && <span aria-hidden="true" className="inline-block shrink-0">,</span>}
+              </span>
             </button>
-            {index < named.length - 1 && <span aria-hidden="true">,</span>}
           </span>
         ))}
         {more > 0 && <span className="shrink-0 text-muted">and {more} more</span>}

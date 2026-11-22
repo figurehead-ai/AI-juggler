@@ -40,6 +40,12 @@ it("names both pools a session is in, each a door to its pool", () => {
   // Its project's own pool, with no one else in it, isn't named.
   expect(view.getByTestId("session-pool-chip").textContent).toBe("Pools:A,B");
   const doors = view.getAllByTestId("session-pool-door");
+  // R7 (the 0.5.0 re-walk): "Pools: A , B". A short name's door keeps a
+  // 24 px target, so the comma sits inside it, right after the name, and
+  // the padding falls after the comma; the door's name is the pool's.
+  expect(doors[0]!.textContent).toBe("A,");
+  expect(doors[0]!.querySelector('[aria-hidden="true"]')?.textContent).toBe(",");
+  expect(doors[1]!.textContent).toBe("B");
   fireEvent.click(doors[1]!);
   expect(openPool).toHaveBeenCalledWith("p-b");
 });
