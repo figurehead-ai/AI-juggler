@@ -310,6 +310,7 @@ export function InspectorHeader({
           quiet={ownRoomWantsSwitch(ownRoom)}
           onOpenOriginal={host.openConversationById}
           hint={hinted ? "Same conversation" : null}
+          whyLine={!folded}
         />
       )}
       {primaryAction ?? null}

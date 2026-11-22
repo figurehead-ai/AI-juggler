@@ -38,6 +38,26 @@ describe("AJ-E2908 — an ended session's page", () => {
     expect(resumeBlocked({ session: session(), account: account("signed_in"), out: null, openIn: null })).toBeNull();
   });
 
+  it("R10: a greyed Resume says why in a visible line under it, the whole reason on hover and focus", () => {
+    render(<ResumeButton session={session({ conversation_id: null })} openIn={null} hint="Same conversation" />);
+    const button = screen.getByTestId("header-resume");
+    expect(button.getAttribute("aria-disabled")).toBe("true");
+    expect(screen.getByTestId("header-resume-hint").textContent).toBe("No conversation yet");
+    expect(button.getAttribute("aria-description")).toBe("It has no conversation to resume yet");
+    cleanup();
+    // With no line of its own (no Relaunch beside it) it still says why.
+    render(<ResumeButton session={session({ conversation_id: null })} openIn={null} />);
+    expect(screen.getByTestId("header-resume-hint").textContent).toBe("No conversation yet");
+    cleanup();
+    // A folded header has no room for the line: the tip says it.
+    render(<ResumeButton session={session({ conversation_id: null })} openIn={null} hint={null} whyLine={false} />);
+    expect(screen.queryByTestId("header-resume-hint")).toBeNull();
+    cleanup();
+    // It can run: the line says what it does.
+    render(<ResumeButton session={session()} openIn={null} hint="Same conversation" />);
+    expect(screen.getByTestId("header-resume-hint").textContent).toBe("Same conversation");
+  });
+
   it("resumes the same conversation and opens the new session", async () => {
     const onOpen = vi.fn();
     render(<ResumeButton session={session()} openIn={null} onOpen={onOpen} />);

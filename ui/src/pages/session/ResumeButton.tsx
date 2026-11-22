@@ -54,6 +54,30 @@ export function resumeBlocked({
   return null;
 }
 
+/** R10 (the 0.5.0 re-walk): a greyed Resume's visible line, short enough
+ * for the line under its button (where "Same conversation" goes); the
+ * whole reason is its tip on hover and focus (BTN-5, as F2 did for
+ * Switch account…). */
+export function resumeBlockedLine({
+  session,
+  account,
+  out,
+  openIn,
+}: {
+  session: InstanceInfo;
+  account: AccountInfo | null;
+  out: string | null;
+  openIn: string | null;
+}): string | null {
+  if (!toolSpec(session.provider).supports.resume) return "Can't resume here";
+  if (!session.conversation_id) return "No conversation yet";
+  if (resumeRefusalWords(session.resume_refusal)) return "Its tool won't open it";
+  if (account && !signedIn(account.login_state)) return "Sign in first";
+  if (out) return "Out of room";
+  if (openIn) return `Open in ${openIn}`;
+  return null;
+}
+
 export function ResumeButton({
   session,
   openIn,
@@ -61,6 +85,7 @@ export function ResumeButton({
   quiet = false,
   onOpenOriginal,
   hint = null,
+  whyLine = true,
 }: {
   session: InstanceInfo;
   /** The app the conversation is open in now, if any. */
@@ -75,6 +100,9 @@ export function ResumeButton({
    * Juggler and Continue on another account stay beside it on the
    * header's row (CI #218: in the hint's column they stacked under it). */
   hint?: string | null;
+  /** Whether a greyed Resume says why in a line under it (R10); off where
+   * the header is folded and has no room for a line. */
+  whyLine?: boolean;
 }): JSX.Element {
   const [account, setAccount] = useState<AccountInfo | null>(null);
   const [busy, setBusy] = useState(false);
@@ -93,6 +121,7 @@ export function ResumeButton({
   const room = useTargetRoom(session.account_id ?? undefined, !!session.app_id, session.app_id ?? null);
   const out = room?.kind === "out" ? `${room.account ?? account?.label ?? "This account"} is ${outOfRoomWords(room.resetsAtMs).replace(/^Out/, "out")}` : null;
   const blocked = resumeBlocked({ session, account, out, openIn });
+  const line = blocked !== null && whyLine ? resumeBlockedLine({ session, account, out, openIn }) : hint;
   // 0.4.6 (the rc3c walk): AI Juggler's run of a conversation an app had
   // open, ended: back in that app, as its own page offers (the run stands
   // for the conversation, so that page isn't reached from here).
@@ -127,7 +156,7 @@ export function ResumeButton({
   };
   return (
     <>
-      <Hinted hint={hint} testId="header-resume-hint">
+      <Hinted hint={line} testId="header-resume-hint">
         <WhyButton
           size="sm"
           variant={quiet ? "secondary" : "primary"}
