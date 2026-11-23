@@ -308,6 +308,7 @@
 | AJ-E2322 | Move says \"opened\" only when the conversation is open, and keeps a timeline of every phase | E23-session-runtime.md | P1 | S | AJ-E2318 |
 | AJ-E2323 | The switch's verification matrix: every ownership shape as a fixture in CI, and the real cases walked in lab PL1 | E23-session-runtime.md | P0 | M | AJ-E2315 |
 | AJ-E2324 | Move's speed: event-driven waits, an open-file write guard and half the reads | E23-session-runtime.md | P2 | M | AJ-E2322 |
+| AJ-E2325 | Move backups clean themselves up: refused attempts at once, committed moves after a chosen time, sizes that say what deleting frees | E23-session-runtime.md | P0 | M | AJ-E2321 |
 | AJ-E2306 | Claude terminal sessions with hooks and the status line | E23-session-runtime.md | P0 | M | AJ-E2302 |
 | AJ-E2307 | Answers from Needs you and the session page | E23-session-runtime.md | P0 | M | AJ-E2303 |
 | AJ-E2308 | Run without a terminal: answer from AI Juggler (Beta) | E23-session-runtime.md | P1 | L | AJ-E2302, AJ-E2307 |
@@ -499,5 +500,5 @@
 | AJ-E3819 | Chat memory, short and long term, with context budgets (ADR-0037) | E38-chat.md | P0 | XL | AJ-E3804, AJ-E3805, AJ-E3808, AJ-E3815 |
 | AJ-E3820 | The turn review: the code-only review, the model's Beta lines on it, and where it shows | E38-chat.md | P0 | L | AJ-E3802, AJ-E3705, AJ-E3806 |
 | AJ-E3821 | Remove frees a model's disk at once: the local helper lets go of the file before it is deleted | E38-chat.md | P1 | S | AJ-E3803 |
-Total: 497 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
+Total: 498 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
 Status of every task at generation: TODO. The epic files are canonical; this catalog is an index, never edited to claim progress.

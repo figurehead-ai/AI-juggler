@@ -392,3 +392,16 @@
 4. Targets: a typical move ≤ 10 s p50, ≤ 20 s p95; CPU during the waits ≤ 50 ms.
 **Quality gates**: `just keep-going verify-static`; failing-before tests; the move suite.
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E2324/manifest.md`.
+
+### AJ-E2325 Move backups clean themselves up: refused attempts at once, committed moves after a chosen time, sizes that say what deleting frees | Status: TODO (0.5.1) | Priority P0 | Effort M | Depends: AJ-E2321
+**Found** by the maintainer (2026-11-22): every successful move's backup was kept for ever. On the real Mac `moves/` held 21 GB (19 GB from one morning's move, plus four tiny folders from refused attempts).
+**Requirements**:
+1. A refused or "nothing changed" attempt deletes its move folder at once (nothing was changed, nothing to undo).
+2. A committed move's backup is kept for Undo, then deleted automatically. The setting "Keep move backups for: 1 day / 7 days (default) / 30 days / Until I delete them". The sweep runs at startup and once a day, after AJ-E2321's recovery, never while a move runs (it honours AJ-E2320's hold and the move lock). Interrupted or uncommitted moves are never deleted automatically: they go to the Moves door.
+3. The Moves door (AJ-E2321) shows each move's date, from → to, the conversation's title, its backup's size and "Kept until <date>", with Undo, Delete backup ("You can no longer undo this move") and Keep; and the total. Rich mode of the design system: sticky header and footer.
+4. Disk pressure: when free space falls below the disk guard's warn line, or a new move's backup won't fit (AJ-E2321's room check), offer to clear backups older than a day, naming what it frees. Never cleared silently.
+5. Backups count toward the header's "N to clean up", with their size, so the existing clean-up surface finds them.
+6. Sizes are what deleting frees: APFS clones share blocks, so the reclaimable amount is measured (behind `juggler_platform`), not a `du` total.
+7. The first 0.5.1 sweep applies the policy to backups made by 0.4.9 and 0.5.0: under the 7-day default, the 21 and 22 Nov backups stay until 28 and 29 Nov; refused-attempt folders go at once.
+**Quality gates**: `just keep-going verify-static`; tests for retention by age, never during a move, never an interrupted move, the refused-attempt clean-up, the reclaimable size and the disk-pressure offer; in AJ-E2323's matrix and its PL1 walk.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E2325/manifest.md`.
