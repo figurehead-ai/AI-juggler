@@ -167,7 +167,7 @@ describe("the notification centre", () => {
     render(<NotificationCentre summary={behind} sessions={[]} onClose={() => {}} />);
     const rows = await screen.findByTestId("notices-needs");
     await waitFor(() => expect(within(rows).getAllByRole("listitem")).toHaveLength(2));
-    expect(screen.getByTestId("notices-needs-heading").textContent).toBe("Needs action · 2");
+    expect(screen.getByTestId("notices-needs-heading").textContent).toBe("Needs you · 2");
   });
 
   it("lists Needs action and Earlier; opening it changes nothing by itself", async () => {
@@ -181,7 +181,7 @@ describe("the notification centre", () => {
     const needs = await screen.findByTestId("notices-needs");
     expect(within(needs).getAllByTestId("notice-need").map((row) => row.getAttribute("data-kind"))).toEqual(["asks", "quota"]);
     expect(within(screen.getByTestId("notices-earlier")).getAllByTestId("notice-earlier").map((row) => row.getAttribute("data-kind"))).toEqual(["restarted"]);
-    expect(screen.getByText("Needs action · 2")).toBeTruthy();
+    expect(screen.getByText("Needs you · 2")).toBeTruthy();
     // Rendering it read nothing, snoozed nothing, opened nothing.
     expect(await notificationsSummary()).toEqual(before);
     expect(onClose).not.toHaveBeenCalled();

@@ -14,15 +14,15 @@
   "cases": [
     {
       "watch": { "id": "w-1", "targets": [{ "kind": "session", "id": "s-api" }], "matching": "each", "conditions": [{ "code": "finishes" }], "lifetime": { "kind": "once" }, "paused": false, "evenInQuietHours": false, "createdMs": 0 },
-      "words": "Tell you when “api” finishes. Once."
+      "words": "Tell you when “api” finishes its turn. Once."
     },
     {
       "watch": { "id": "w-2", "targets": [{ "kind": "session", "id": "s-api" }, { "kind": "session", "id": "s-web" }], "matching": "each", "conditions": [{ "code": "finishes" }, { "code": "stuck", "param": { "kind": "minutes", "value": 15 } }], "lifetime": { "kind": "until_ends" }, "paused": false, "evenInQuietHours": false, "createdMs": 0 },
-      "words": "Tell you when “api” or “web” finishes, or looks stuck for 15 minutes. Until they end."
+      "words": "Tell you when “api” or “web” finishes its turn, or looks stuck for 15 minutes. Until they end."
     },
     {
       "watch": { "id": "w-3", "targets": [{ "kind": "session", "id": "s-api" }, { "kind": "session", "id": "s-web" }], "matching": "all", "conditions": [{ "code": "finishes" }], "lifetime": { "kind": "once" }, "paused": false, "evenInQuietHours": true, "createdMs": 0 },
-      "words": "Tell you when all of “api” and “web” finish. Once. Even during quiet hours."
+      "words": "Tell you when all of “api” and “web” finish their turn. Once. Even during quiet hours."
     },
     {
       "watch": { "id": "w-4", "targets": [{ "kind": "app", "id": "p-two" }], "matching": "each", "conditions": [{ "code": "asks_you", "param": { "kind": "minutes", "value": 10 } }], "lifetime": { "kind": "always" }, "paused": false, "evenInQuietHours": true, "createdMs": 0 },

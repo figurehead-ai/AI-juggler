@@ -24,9 +24,13 @@ type Status = NonNullable<ReturnType<typeof machineStatus>>;
  * rc29: "Plenty of room" with swap at 39 of 40 GB): in full ("Getting
  * tight: swap almost full") and for the top bar ("Tight: swap almost
  * full"). */
-function levelWords(status: Status): { full: string; brief: string } {
-  if (!status.cause) return { full: status.words, brief: SHORT_WORDS[status.words] ?? status.words };
-  return { full: `${status.words}: ${status.cause}`, brief: `${SHORT_LEVEL[status.level] ?? status.words}: ${status.cause}` };
+export function levelWords(status: Pick<Status, "level" | "words" | "cause" | "calm">): { full: string; brief: string } {
+  // AJ-E1548 #11: the top bar names its subject ("This Mac: fine"), so
+  // "room" stays the accounts' word and never sits beside "1 account low".
+  const subject = (state: string) => `${THIS_MACHINE}: ${state}`;
+  if (status.calm) return { full: status.words, brief: subject("fine") };
+  if (!status.cause) return { full: status.words, brief: subject((SHORT_WORDS[status.words] ?? status.words).toLowerCase()) };
+  return { full: `${status.words}: ${status.cause}`, brief: subject(`${(SHORT_LEVEL[status.level] ?? status.words).toLowerCase()}, ${status.cause}`) };
 }
 
 /** D1: the line's help says what room counts and when it turns tight,
@@ -52,7 +56,8 @@ export function MachineStatusLine({ minimal, onOpen, short = false }: { minimal:
   // Its spoken name holds the words it shows ("Under pressure", not only
   // "Under memory pressure"): a voice user says what they see (axe,
   // label-content-name-mismatch).
-  const spoken = shown === words ? undefined : `${name} · ${shown}`;
+  // The brief words name This Mac already ("This Mac: fine").
+  const spoken = shown === words ? undefined : shown;
   const help = why ?? roomHelp(status ? info : null, words);
   // D-117: calm (plenty of room) is a neutral faint dot; amber when
   // tight (L2), red under pressure (L3).

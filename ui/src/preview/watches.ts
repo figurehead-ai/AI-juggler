@@ -153,7 +153,7 @@ const minutes = (name: string, min: number, max: number, required: boolean): P =
 const E = (code: string, label: string, told: string, need: boolean, param: P = null): CatalogueEntry => ({ code, label, told, need, param });
 
 const C = {
-  finishes: E("finishes", "Finishes", "finished", false),
+  finishes: E("finishes", "Its turn ends", "finished its turn", false),
   asks_you: E("asks_you", "Asks you", "asks you", true, minutes("after_min", 0, 120, false)),
   stuck: E("stuck", "Looks stuck", "looks stuck", true, minutes("for_min", 0, 240, false)),
   fails: E("fails", "Fails", "failed", true),

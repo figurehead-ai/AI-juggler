@@ -129,7 +129,7 @@ fn every_change_is_a_version_and_a_logged_event() {
     assert!(!record.untrusted);
     assert_eq!(
         record.text,
-        "Tell you when a session finishes, or looks stuck for 10 minutes. Until it ends. Even during quiet hours."
+        "Tell you when a session finishes its turn, or looks stuck for 10 minutes. Until it ends. Even during quiet hours."
     );
 }
 

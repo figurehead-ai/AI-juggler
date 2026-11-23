@@ -290,10 +290,10 @@ describe("acting needs a confirm card", () => {
     await screen.findAllByTestId("bot-row");
     fireEvent.mouseEnter(screen.getAllByTestId("bot-row")[1]!);
     fireEvent.click(screen.getAllByTestId("bot-row-watch")[1]!);
-    await waitFor(() => expect(screen.getByTestId("bot-watch-echo").textContent).toContain("Tell you when “web” finishes. Once."));
+    await waitFor(() => expect(screen.getByTestId("bot-watch-echo").textContent).toContain("Tell you when “web” finishes its turn. Once."));
     expect(window.__AIJ_WATCH_VIEW__?.calls ?? []).toHaveLength(0);
     fireEvent.click(screen.getByTestId("bot-watch-asks_you"));
-    await waitFor(() => expect((screen.getByTestId("bot-watch-echo"))?.textContent ?? '').toContain("finishes, or asks you"));
+    await waitFor(() => expect((screen.getByTestId("bot-watch-echo"))?.textContent ?? '').toContain("finishes its turn, or asks you"));
     expect(window.__AIJ_WATCH_VIEW__?.calls ?? []).toHaveLength(0);
     fireEvent.click(screen.getByTestId("bot-watch-confirm"));
     await screen.findByTestId("bot-watch-done");

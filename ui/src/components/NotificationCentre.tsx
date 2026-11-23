@@ -171,7 +171,7 @@ export function NotificationCentre({ summary, sessions, anchor, onClose }: { sum
           <>
             <section aria-labelledby={`${titleId}-needs`}>
               <h3 id={`${titleId}-needs`} className="flex items-center justify-between px-3.5 pb-1 pt-2.5 text-label font-semibold uppercase tracking-wide text-muted">
-                <span data-testid="notices-needs-heading">{needs.loading ? "Needs action" : `Needs action · ${count}`}</span>
+                <span data-testid="notices-needs-heading">{needs.loading ? "Needs you" : `Needs you · ${count}`}</span>
                 {snoozed.length > 0 && (
                   <button type="button" aria-expanded={showSnoozed} onClick={() => setShowSnoozed((open) => !open)} className="rounded px-1 font-medium normal-case tracking-normal text-muted hover:text-ink" data-testid="notices-snoozed">
                     Snoozed: {snoozed.length}

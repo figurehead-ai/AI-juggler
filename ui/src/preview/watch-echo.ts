@@ -15,7 +15,7 @@ type Phrase = [one: string, many: string];
 
 /** Each condition: its phrase, and with its parameter (`{n}`, `{s}`, `{a}`). */
 const CONDITIONS: Record<string, { plain: Phrase; param?: Phrase }> = {
-  finishes: { plain: ["finishes", "finish"] },
+  finishes: { plain: ["finishes its turn", "finish their turn"] },
   ends: { plain: ["ends", "end"] },
   asks_you: { plain: ["asks you", "ask you"], param: ["asks you and waits {n} minutes", "ask you and wait {n} minutes"] },
   fails: { plain: ["fails", "fail"] },

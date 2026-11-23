@@ -120,7 +120,7 @@ export const ENDED = {
 
 export const EMPTY = {
   eyebrow: "No watches yet",
-  heading: "Get told when an agent finishes, asks you or gets stuck",
+  heading: "Get told when a session finishes its turn, asks you or gets stuck",
   body: "Pick a session, an app, a project or an account, and what to watch it for. AI Juggler tells you once, the way it tells you everything else, and keeps your quiet hours.",
   orAskBot: "or ask Bot: “tell me when api finishes”",
   orAskBotNamed: (name: string) => `or ask Bot: “tell me when ${name} finishes”`,
@@ -278,7 +278,7 @@ export const DOORS = {
 
 /** Each condition as a thing that happens, for the preview's lines. */
 export const NOUN: Record<string, string> = {
-  finishes: "A finish",
+  finishes: "A turn ending",
   ends: "An ending",
   fails: "A failure",
   asks_you: "A question",
@@ -297,7 +297,7 @@ export const NOUN: Record<string, string> = {
 
 /** Each condition's line on its choice card. */
 export const CONDITION_LINE: Record<string, string> = {
-  finishes: "A turn ends and it waits for you",
+  finishes: "Its turn ends and it waits for you",
   asks_you: "A question, or an OK to go on",
   stuck: "Working, but nothing moves",
   fails: "A turn or the session stops with an error",

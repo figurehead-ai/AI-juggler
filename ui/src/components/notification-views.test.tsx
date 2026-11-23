@@ -151,7 +151,7 @@ describe("AJ-E2503 R2 — a row's parts", () => {
     expect(fold.textContent).toBe("Snoozed: 2");
     expect(fold.getAttribute("aria-expanded")).toBe("false");
     expect(within(screen.getByTestId("notices-needs")).getAllByTestId("notice-need")).toHaveLength(1);
-    expect(screen.getByTestId("notices-needs-heading").textContent).toBe("Needs action · 1");
+    expect(screen.getByTestId("notices-needs-heading").textContent).toBe("Needs you · 1");
     fireEvent.click(fold);
     expect(within(screen.getByTestId("notices-needs")).getAllByTestId("notice-need")).toHaveLength(3);
   });
