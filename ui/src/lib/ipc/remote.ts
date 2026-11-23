@@ -104,6 +104,18 @@ export async function remoteAbout(): Promise<RemoteAboutInfo> {
   return call("remote_config_about");
 }
 
+/** Settings › Privacy "Check for configuration updates" on or off
+ * (AJ-E1548 #15; on by default, D-129). */
+export async function remoteCheckSet(on: boolean): Promise<void> {
+  if (!hasLiveBackend()) {
+    const host = preview();
+    host.about = { ...(await remoteAbout()), checking: on };
+    window.dispatchEvent(new Event(REMOTE_CHANGED));
+    return;
+  }
+  return call("remote_config_set_check", { on });
+}
+
 /** Calls `on` whenever the configuration changes: the backend's word
  * while the window can be seen (read again once when it shows), and the
  * preview's own changes. Returns the stop. */

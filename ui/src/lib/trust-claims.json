@@ -192,6 +192,21 @@
           ]
         },
         {
+          "id": "bot-history",
+          "text": "Bot's conversation and the notes you ask it to remember are kept on this Mac only. Clear deletes the conversation, and Forget deletes a note from every turn it was in.",
+          "tests": [
+            "crates/juggler-app/src/features/bot/tests.rs::asking_keeps_turns_that_page_find_and_clear",
+            "crates/juggler-app/src/features/bot/tests.rs::forget_reaches_every_turn_the_memory_was_said_or_used_in"
+          ]
+        },
+        {
+          "id": "watches-kept",
+          "text": "Watches you set are kept on this Mac only, with what each one told you. Remove ends one at once, and Undo brings it back.",
+          "tests": [
+            "crates/juggler-app/src/features/watches/tests/live_tests.rs::the_view_reads_parts_counts_and_brings_back_a_removed_watch"
+          ]
+        },
+        {
           "id": "search-index",
           "text": "With Search the words of every session on, its index holds the words to search, not the conversations, in its own folder; turning it off deletes the index.",
           "tests": [
@@ -407,6 +422,14 @@
             "crates/juggler-app/tests/tool_updates.rs::one_request_per_tool_a_day_only_for_tools_in_use_and_none_when_off",
             "crates/juggler-app/src/features/tool_updates/mod.rs::no_update_is_ever_run",
             "crates/juggler-app/tests/trust.rs::the_app_reaches_only_its_own_addresses"
+          ]
+        },
+        {
+          "id": "remote-config",
+          "text": "If “Check for configuration updates” is on (Settings › Privacy; on unless you turn it off), it fetches AI Juggler's signed configuration file at most once a day: which tool versions and models work here, and short notices. The request is a plain download that carries nothing about you, and a file that doesn't verify is never used.",
+          "tests": [
+            "crates/juggler-app/src/features/remote_config/mod.rs::the_request_is_a_bare_get",
+            "crates/juggler-app/src/features/remote_config/mod.rs::check_for_configuration_updates_is_on_by_default_and_the_switch_holds"
           ]
         },
         {

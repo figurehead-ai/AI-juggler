@@ -50,6 +50,7 @@ export const SETTINGS_INDEX: readonly IndexEntry[] = [
   { pane: "notifications", anchor: "notifications", title: "Alerts and the digest", words: "notify notification quiet hours digest waiting threshold quota warning 80 95 send test sound alert" },
   { pane: "notifications", anchor: "notification-mutes", title: "Muted", words: "mute muted unmute silence project kind snooze" },
   { pane: "privacy", anchor: "reads", title: "What AI Juggler reads", words: "privacy reads files transcripts what is read trust" },
+  { pane: "privacy", anchor: "config", title: "Configuration updates", words: "check for configuration updates remote config download signed file daily notices models" },
   { pane: "privacy", anchor: "stats", title: "Usage statistics, crash reports and search", words: "usage statistics telemetry crash reports search index words send share" },
   { pane: "macs", anchor: "fleet", title: "What your other Macs may do here", words: "fleet paired macs other computers access stop start" },
   { pane: "advanced", anchor: "cleanup", title: "Cleanup", words: "cleanup left behind processes dev server stop automatic tidy" },

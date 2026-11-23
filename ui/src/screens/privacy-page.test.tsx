@@ -4,7 +4,7 @@
  * disclosure and linked to their source; what each tool's terms say about
  * several accounts, linked, on the page and while accounts are added.
  */
-import { cleanup, fireEvent, render, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { PrivacyScreen } from "./PrivacyScreen";
 import { FirstRun } from "./FirstRun";
@@ -116,6 +116,28 @@ describe("AJ-E1518 the Privacy page", () => {
     } finally {
       setToolsForTests(PREVIEW_TOOLS);
     }
+  });
+
+  it("AJ-E1548 #15: Check for configuration updates is on by default, says what it fetches, and turns off; Bot's notes and watches have their lines", async () => {
+    const { PrivacyPane } = await import("./settings/PrivacyPane");
+    const { remoteAbout } = await import("../lib/ipc/remote");
+    const view = render(<PrivacyPane />);
+    const row = view.getByTestId("privacy-config-check");
+    expect(row.textContent).toContain("Check for configuration updates");
+    expect(row.textContent).toContain("At most once a day");
+    expect(row.textContent).toContain("carries nothing about you");
+    const toggle = view.getByTestId("privacy-config-check-switch");
+    await waitFor(() => expect(toggle.getAttribute("aria-checked")).toBe("true"));
+    fireEvent.click(toggle);
+    await waitFor(() => expect(toggle.getAttribute("aria-checked")).toBe("false"));
+    expect((await remoteAbout()).checking).toBe(false);
+    const text = view.getByTestId("privacy-page").textContent ?? "";
+    for (const id of ["remote-config", "bot-history", "watches-kept"]) {
+      const claim = claims.groups.flatMap((group) => group.claims).find((c) => c.id === id);
+      expect(claim, id).toBeTruthy();
+      expect(text).toContain(claim!.text);
+    }
+    Reflect.deleteProperty(window, "__AIJ_REMOTE__");
   });
 
   it("Settings › Privacy holds every line, in one place (0.1.5)", async () => {

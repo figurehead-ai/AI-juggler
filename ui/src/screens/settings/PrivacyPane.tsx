@@ -6,13 +6,51 @@
  * then every line of what it reads, changes and sends, each naming the
  * tests that check it (0.1.5: the Privacy page's lines, in one place).
  */
-import type { JSX } from "react";
+import { useEffect, useState, type JSX } from "react";
 import { Button } from "../../components/primitives";
 import { PrivacyCard } from "../../components/PrivacyCard";
 import { PrivacyClaims } from "../PrivacyScreen";
-import { Pane, PaneSection, SettingRow } from "./parts";
+import { Pane, PaneSection, SettingRow, SwitchRow } from "./parts";
+import { onRemoteChanged, remoteAbout, remoteCheckSet } from "../../lib/ipc/remote";
+import { errorText } from "../../lib/bridge";
 
 const openSection = (section: string) => window.dispatchEvent(new CustomEvent("aij:open-settings", { detail: { section } }));
+
+/** AJ-E1548 #15 (AJ-E2023 Req 3, D-129): the configuration check, on by
+ * default, with what it fetches and when. */
+function ConfigCheckRow(): JSX.Element {
+  const [on, setOn] = useState<boolean | null>(null);
+  const [failed, setFailed] = useState<string | null>(null);
+  useEffect(() => {
+    let live = true;
+    const read = () => void remoteAbout().then((about) => live && setOn(about.checking), () => undefined);
+    read();
+    const stop = onRemoteChanged(read);
+    return () => {
+      live = false;
+      stop();
+    };
+  }, []);
+  return (
+    <SwitchRow
+      title="Check for configuration updates"
+      description="At most once a day, AI Juggler downloads its signed configuration file: which tool versions and models work here, and short notices. The download carries nothing about you, and a file that doesn't verify is never used."
+      checked={on ?? true}
+      disabled={on === null}
+      onChange={(next) => {
+        setOn(next);
+        setFailed(null);
+        remoteCheckSet(next).catch((cause: unknown) => {
+          setOn(!next);
+          setFailed(errorText(cause));
+        });
+      }}
+      note={failed}
+      noteTone="warning"
+      testId="privacy-config-check"
+    />
+  );
+}
 
 export function PrivacyPane({ anchor }: { anchor?: string }): JSX.Element {
   return (
@@ -47,6 +85,9 @@ export function PrivacyPane({ anchor }: { anchor?: string }): JSX.Element {
             </Button>
           }
         />
+      </PaneSection>
+      <PaneSection id="config" title="Configuration updates" footer="Off, AI Juggler uses the settings it shipped with.">
+        <ConfigCheckRow />
       </PaneSection>
       <PaneSection
         id="stats"

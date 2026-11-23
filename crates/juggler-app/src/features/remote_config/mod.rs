@@ -87,6 +87,20 @@ mod tests {
     use super::*;
 
     #[test]
+    fn check_for_configuration_updates_is_on_by_default_and_the_switch_holds() {
+        // AJ-E1548 #15 (D-129): on unless turned off; About says it at once.
+        let root = tempfile::tempdir().unwrap();
+        let state = crate::state::AppState::init(root.path().join("data")).unwrap();
+        assert!(service::checking_on(&state));
+        service::set_checking(&state, false).unwrap();
+        assert!(!service::checking_on(&state));
+        assert!(!current().about().checking);
+        service::set_checking(&state, true).unwrap();
+        assert!(service::checking_on(&state));
+        assert!(current().about().checking);
+    }
+
+    #[test]
     fn the_request_is_a_bare_get() {
         let account = Arc::new(juggler_account::RecordingTransport::default());
         account.respond(200, "{}");
