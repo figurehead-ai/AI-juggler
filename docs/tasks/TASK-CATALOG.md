@@ -214,6 +214,7 @@
 | AJ-E1545 | Welcome leads into a guided setup wizard (find your apps, permissions one card each with live grant detection, keep it running, the tour), and every brand mark is the real app icon | E15-spec-gaps.md | P0 | L | AJ-E1524, AJ-E1527 |
 | AJ-E1546 | A guided tour on the real UI, offered once, and short clips for every "What it does for you" card and "How it works" step | E15-spec-gaps.md | P1 | L | AJ-E1545 |
 | AJ-E1547 | No system prompt the user wasn't told about first: one registry of every OS prompt, priming in setup, one just-in-time gate every trigger goes through | E15-spec-gaps.md | P0 | L | AJ-E1545, AJ-E3822 |
+| AJ-E1548 | The 0.5.0 usability audit's findings, fixed in 0.5.1: one name per thing, no rows nobody can use, every mark and limit said plainly | E15-spec-gaps.md | P1 | M | AJ-E3823 |
 | AJ-E1601 | Accounts on a compatible endpoint: OpenCode Go and Kimi on Claude Code and Codex | E16-more-tools.md | P0 | S | AJ-E1521 |
 | AJ-E1602 | OpenCode CLI | E16-more-tools.md | P0 | M | AJ-E1521 |
 | AJ-E1603 | Kimi Code CLI | E16-more-tools.md | P0 | M | AJ-E1521 |
@@ -508,5 +509,5 @@
 | AJ-E3822 | Helpers never share an identifier across identities, and every one names itself: no "(null) differs from previously opened versions" prompt | E38-chat.md | P1 | S | AJ-E3802 |
 | AJ-E3823 | One engine-setup guide for Bot: what this Mac can do, Apple's AI first, Qwen named and explained, never a bare "Download · 1.8 GB" | E38-chat.md | P0 | M | AJ-E3822, AJ-E1545, AJ-E1547 |
 | AJ-E3824 | Search (⌘K) takes over everything the no-AI Bot did: record look-ups, the "go straight to" shortcuts, and Watch a session | E38-chat.md | P0 | M | AJ-E3823 |
-Total: 506 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
+Total: 507 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
 Status of every task at generation: TODO. The epic files are canonical; this catalog is an index, never edited to claim progress.

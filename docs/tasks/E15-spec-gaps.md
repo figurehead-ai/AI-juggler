@@ -759,3 +759,26 @@ What the code does today (mapped 2026-10-22 on release/0.1): a same-tool switch 
 5. **Validation**: the newcomer-persona walk notes every system dialog that appears; one with no priming sheet before it is a blocker.
 **Quality gates**: `just keep-going verify-static` with the new lint; registry tests (every entry complete, every gated path named); the gate's sheet and outcome tests; the a11y gate; an Opus critique in both themes.
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E1547/manifest.md` with the registry and the walk's dialog log.
+
+### AJ-E1548 The 0.5.0 usability audit's findings, fixed in 0.5.1: one name per thing, no rows nobody can use, every mark and limit said plainly | Status: TODO (0.5.1) | Priority P1 | Effort M | Depends: AJ-E3823
+**Found** by the PAT-USE audit of every feature 0.5.0 shipped (`docs/qa/0.5.1-usability-audit.md`, Opus, 2026-11-23): 28 findings, none a blocker. The 21 below change words or looks only and go in under the continuous-train rule. Seven change behaviour (#2, #5, #9, #13, #14, #15, #27) and wait for the maintainer's ruling before they are built.
+**UI**: yes
+**Usability reasoning** (Opus, before building; re-checked on the built screen):
+(1) Daily users of Bot, Models, Watches, Home's feed and digest, the bell and header, the Floor, Processes and Unlink this computer, who read each name as meaning one thing everywhere.
+(2) Every term means one thing (Finishes, Needs you, room, sessions not "agents"), every mark is explained (the level marks, the three "mark all" actions), and every limit shows only when it matters.
+(3) The same surfaces, made clearer; nothing added, no second door.
+(4) Rows nobody can use are hidden until a model passes (#3), and the not-yet-shipped toggle is hidden (#18), both D-127.
+(5) Keychain access for the device token (#16) and the first watch alert's notification permission join AJ-E1547's registry, primed at the Watches form's Watch button.
+(6) Watch for: a count that disagrees with its list (#1); one switch with two names (#6); "Plenty of room" next to "1 account low" (#11); twin rows that can't be told apart (#20).
+**Requirements** (the audit's numbers):
+1. #1 the Bot page's memory count matches its list (one read, refreshed on Remember and Forget; a test), confirmed on the 0.5.1 build.
+2. #3 #4 #7 Models and AI › Jobs list only jobs a model can do here today, with one quiet line for the rest; Attention hints leaves AI › Jobs; the Models lead says only what ships (with AJ-E3823).
+3. #6 one name for Bot's written-answers switch in Bot and Settings (with AJ-E3823).
+4. #8 "Finishes" means one event across Watches, Notifications and the feed, with a vocabulary test; #10 the bell says "Needs you · N"; #28 Processes' tab says "Needs you".
+5. #11 the header's machine chip names its subject ("This Mac: fine"), "room" kept for Accounts; #12 the level marks read plainly and the legend draws exactly the rail's marks.
+6. #16 Keychain access in AJ-E1547's registry, the token's reads and writes through the gate; the first watch alert's notification permission primed at the Watches form's Watch button.
+7. #17 one machine word in the Unlink sheet (`machine-words.ts`); #18 the not-yet-shipped toggle hidden.
+8. #19 each "mark all" says what it clears; #20 the digest counts sessions and names twins as everywhere else; #21 the feed's scope picker says what it narrows; #22 "While you were away" and "the digest" kept apart in the notes and the guide.
+9. #23 #24 the Floor says what it is (tooltip, a first-open line) and names its floors by what is on them; #25 the watch limit shows only near it; #26 Bot's memory says which watches it counts and links to them.
+**Quality gates**: `just keep-going verify-static`; a test per wording rule (vocabulary, counts, hidden rows); the visual gate with Opus's critique in both themes.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E1548/manifest.md`, one row per finding.
