@@ -549,6 +549,7 @@ A serious choice changes what happens to the user's work, money, data or another
 - **PAT-SER-3.** Ask only when the answer changes what happens; the backend decides whether it applies. (M:serious-choices-explained)
 - **PAT-SER-4.** Every option's words are true for each mechanism behind it. (M:serious-choices-explained)
 - **PAT-SER-5.** The consequence of the chosen option shows in a tinted summary panel that updates as the choice changes ("This copies X, never Y"). (AUDIT §3, KIT preview)
+- **PAT-SER-7.** Providers' terms and other fine print are never shown open: a collapsed "Providers' terms" disclosure (a line per provider with its link) or a plain link, closed by default, and nothing opens it automatically, whatever the user ticked. It is the user's to read, not ours to push (the maintainer, 2026-11-23).
 - **PAT-SER-6.** **Gap:** there is no shared Explain or docs-link component outside the switch; build one (`Explain` promoted to `components/`). (`GAPS.md` A10)
 
 ### 5.2 Destructive and irreversible actions (PAT-DES)
