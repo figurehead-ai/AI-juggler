@@ -23,7 +23,7 @@ import { keepIfSame } from "../lib/same";
 import { withDeadline } from "../lib/loading";
 import { coalesced } from "../lib/shown-window";
 import { useWithSelected } from "../lib/session-lookup";
-import { useLoginTerminals, type LoginTerminal } from "./use-login-terminals";
+import { useLoginTerminals } from "./use-login-terminals";
 import { staleSubscriptions } from "../lib/subscriptions";
 import type { AccountInfo } from "../types/generated/AccountInfo";
 import type { AppInfo } from "../types/generated/AppInfo";
@@ -35,7 +35,6 @@ import type { Selection } from "./selection";
 /** AJ-E1103: the board became interactive once, after launch. */
 let boardInteractiveCounted = false;
 
-export type { LoginTerminal };
 /** How a sign-in's terminal joins: shown at once or not, and its App. */
 export type LoginTerminalOptions = { select?: boolean; account?: string };
 

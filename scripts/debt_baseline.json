@@ -1032,9 +1032,6 @@
  "ui/src/lib/pools.ts": {
   "knip:exports": 3
  },
- "ui/src/lib/providers.ts": {
-  "knip:exports": 1
- },
  "ui/src/lib/quotaWindow.ts": {
   "knip:exports": 1,
   "knip:types": 1

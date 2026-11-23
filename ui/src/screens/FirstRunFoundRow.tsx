@@ -45,7 +45,7 @@ function RowState({ found, plain, progress }: { found: DiscoveredInfo; plain: bo
  * joins a profile and its folder into one row). Every row has one (the
  * 0.5.1 walk's F1): a folder no desktop app is seen using is its tool's
  * terminal folder. */
-export function chipsOf(found: DiscoveredInfo, desktop: boolean): string[] {
+function chipsOf(found: DiscoveredInfo, desktop: boolean): string[] {
   const open = found.in_use ?? [];
   const onDesktop = desktop || open.includes("desktop");
   const inTerminal = open.includes("terminal") || !onDesktop;

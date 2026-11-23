@@ -6,7 +6,7 @@
  */
 import type { RailItem } from "./rail-items";
 
-export type CountKind = "working" | "needs" | "review" | "subagents";
+type CountKind = "working" | "needs" | "review" | "subagents";
 
 export interface HeadCount {
   kind: CountKind;

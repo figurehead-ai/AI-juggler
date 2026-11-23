@@ -83,7 +83,7 @@ const SCREEN_WORDS: Partial<Record<GlobalId | "home", string>> = {
 };
 
 /** D-144: the command Bot's no-AI panel had, now Search's. */
-export const WATCH_A_SESSION = "Watch a session…";
+const WATCH_A_SESSION = "Watch a session…";
 
 /** The keys a shortcut reads as on the ? sheet. */
 export function keysOf(id: ShortcutId | undefined): string | undefined {
