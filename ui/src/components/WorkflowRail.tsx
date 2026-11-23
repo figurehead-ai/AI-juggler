@@ -8,17 +8,15 @@ import { markOf, swatchColor } from "../lib/palette";
 import { RailQuietNotes } from "./RailNotes";
 import { parkedWords } from "../lib/parked";
 import { providerDisplayName } from "../lib/providers";
-import { type JSX, type ReactNode, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { IconProjects, IconTerminal } from "./icons";
 import { IconHistory } from "./icons-places";
 import { PinMark, ProjectRow, RailProjectHeader } from "./RailProjectRows";
 import { FoldedRail } from "./RailFolded";
 import { useRoving } from "../lib/roving";
+import { RailLoading } from "./RailLoading";
 import { useRailListScroll } from "./rail-list-scroll";
 import { FoldButton, FoldedNeeds, HISTORY_GROUP, HISTORY_SHOWN, readFolded, repoGroups, safeId, writeFolded } from "./rail-groups";
-import { RowPlaceholders } from "./Placeholder";
-import { useLoadDeadline } from "../lib/loading";
-import { LoadingState } from "./LoadingState";
 import { showToast } from "./Toast";
 import { sessionLabel } from "../lib/stop";
 
@@ -833,19 +831,4 @@ export function RailRow({
 /** D-25: the plain project view — no filter, no search. */
 function quietView(group: GroupBy, filters: ChipFilters, query: string): boolean {
   return group === "project" && filters.chips.length === 0 && filters.provider === null && filters.account === null && filters.project === null && query.trim() === "";
-}
-
-/** The rail's stored width (kept here for its callers). */
-export { readWidth } from "./RailSplitter";
-
-/** AJ-E1552: the rail's rows while the sessions are first read: Still
- * loading after 3 s; the shell's first read has the deadline, and its
- * "stopped answering" notice and Retry take over when it misses. */
-export function RailLoading(): JSX.Element {
-  const { slow } = useLoadDeadline(true, "the sessions", { timeoutMs: Number.POSITIVE_INFINITY });
-  return (
-    <LoadingState state="loading" slow={slow} what="the sessions" skeleton={<RowPlaceholders shape="rail" rows={4} label="Loading sessions" />} empty={null} onRetry={() => undefined}>
-      {null}
-    </LoadingState>
-  );
 }

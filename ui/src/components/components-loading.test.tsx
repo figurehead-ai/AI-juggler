@@ -18,7 +18,7 @@ import { expectEmpty, expectErrorRetry, expectSlowSkeleton, never } from "../tes
 import { AccountAppRows } from "../pages/subscription/AccountApps";
 import { StatTile } from "./charts/StatTile";
 import { AppChips } from "./usage/RunwayCards";
-import { RailLoading } from "./WorkflowRail";
+import { RailLoading } from "./RailLoading";
 import { HomeFeed } from "./HomeFeed";
 import { NotificationCentre } from "./NotificationCentre";
 import { ConversationPage } from "./ConversationPage";

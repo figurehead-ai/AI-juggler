@@ -26,9 +26,7 @@ import { runwayOf } from "../components/AccountRunway";
 import { useMachineLevel, type ThisMacInfo } from "../lib/machine";
 import { LegendPopover } from "../components/LegendPopover";
 import { sessionLabel } from "../lib/stop";
-import { RowPlaceholders } from "../components/Placeholder";
-import { LoadingState } from "../components/LoadingState";
-import { useLoadDeadline } from "../lib/loading";
+import { HomeLoading } from "./HomeLoading";
 import { Welcome } from "../components/Welcome";
 import { useKnownPlaces } from "../lib/places";
 import { HomeFeed } from "../components/HomeFeed";
@@ -296,38 +294,13 @@ export function HomeScreen({
   // The one runway decides, a tool that doesn't report its limits
   // included (the backend's unavailable reason, from the same capability).
   const firstLoad = loading && accounts.length === 0 && sessions.length === 0;
-  const { slow: firstLoadSlow } = useLoadDeadline(firstLoad, "Home", { timeoutMs: Number.POSITIVE_INFINITY });
   const runway = accounts.map((account) => ({
     account,
     ...runwayOf(quota.find((q) => q.account === account.id), sessions.filter((s) => s.account_id === account.id)),
   }));
 
-  // AJ-E1503 Req.4: rows shaped like Home's while the first load answers.
-  // AJ-E1552: "Still loading…" after 3 s. The shell's first read has its
-  // own deadline (shell/use-app-data); when it misses, the read counts as
-  // done and the "service stopped answering" banner, with its Retry, takes
-  // over, so this skeleton never stays. With no account, the welcome below
-  // is Home's empty state.
-  if (firstLoad) {
-    return (
-      <LoadingState
-        state="loading"
-        slow={firstLoadSlow}
-        what="Home"
-        skeleton={
-          <div className="mx-auto flex w-full max-w-content flex-col gap-6 pb-10" data-testid="home-loading">
-            <span className="block h-7 w-64 rounded bg-skeleton motion-safe:animate-pulse" aria-hidden="true" />
-            <RowPlaceholders shape="home" rows={3} label="Loading Home" />
-          </div>
-        }
-        empty={null}
-        // never asked for: the shell's banner has the Retry (see above)
-        onRetry={() => undefined}
-      >
-        {null}
-      </LoadingState>
-    );
-  }
+  // AJ-E1503 Req.4 / AJ-E1552: rows shaped like Home's, then Still loading.
+  if (firstLoad) return <HomeLoading />;
 
   // AJ-E1524: a new install is welcomed — what it's for, what's on this
   // Mac, the way in.
