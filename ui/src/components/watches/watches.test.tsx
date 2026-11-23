@@ -71,7 +71,8 @@ describe("AJ-E3816 the Watches list", () => {
   it("lists each watch by its echo, names bold, with its target, chips and state; one primary", async () => {
     const page = await show(STATES.list!);
     await waitFor(() => expect(screen.getAllByTestId("watch-row")).toHaveLength(6));
-    expect(screen.getByTestId("watches-count").textContent).toBe("6 of 50");
+    // AJ-E1548 #25: far from the limit, no count beside the title.
+    expect(screen.queryByTestId("watches-count")).toBeNull();
     const [first] = screen.getAllByTestId("watch-row");
     expect(within(first!).getByTestId("watch-echo").textContent).toBe("Tell you when “api” finishes its turn, or looks stuck for 15 minutes.");
     expect(within(first!).getByTestId("watch-echo").querySelector("b")?.textContent).toBe("“api”");
@@ -225,7 +226,7 @@ describe("AJ-E3816 empty and many", () => {
   it("many: the toolbar, compact rows ten at a time, and the limit only once New watch is pressed", async () => {
     await show(STATES.many!);
     await waitFor(() => expect(screen.getAllByTestId("watch-row")).toHaveLength(10));
-    expect(screen.getByTestId("watches-count").textContent).toBe("50 of 50");
+    expect(screen.getByTestId("watches-count").textContent).toBe("50 of 50 watches");
     expect(screen.getByTestId("watches-toolbar")).toBeTruthy();
     expect(screen.getByTestId("watches-pager").textContent).toContain("10 of 50 shown");
     expect(screen.queryByTestId("watches-limit")).toBeNull();

@@ -12,7 +12,10 @@ export const PAGE = {
   how: "How watches work",
   newWatch: "New watch",
   askBot: "Ask Bot",
-  of: (n: number, limit: number) => `${n} of ${limit}`,
+  // AJ-E1548 #25: the limit shows only near it ("40 of 50 watches").
+  of: (n: number, limit: number) => `${n} of ${limit} watches`,
+  /** From how many watches the limit shows (four fifths of it). */
+  nearLimit: (limit: number) => Math.ceil(limit * 0.8),
   watching: "Watching",
   watchingLine: (active: number, paused: number) => [active > 0 || paused === 0 ? `${active} active` : null, paused > 0 ? `${paused} paused` : null].filter(Boolean).join(" · "),
   ended: "Ended",

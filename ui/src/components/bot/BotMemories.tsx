@@ -15,6 +15,8 @@ import { askForget, editMemory, useMemories } from "../../lib/bot-memory";
 import { agoWords } from "../../lib/time-words";
 import type { BotMemoryInfo } from "../../types/generated/BotMemoryInfo";
 import { THIS_MACHINE_IN_TEXT } from "../../lib/machine-words";
+import { openWatches } from "../../lib/watches-open";
+import { DOORS } from "../watches/watches-words";
 
 const KIND_WORDS: Record<string, string> = { session: "Session", project: "Project", pool: "Pool", app: "App" };
 
@@ -113,7 +115,18 @@ export function BotMemories(): JSX.Element {
         </div>
         {info && (
           <div className="flex flex-wrap items-stretch gap-4">
-            <Tile icon={IconEye} title={`Watches · ${info.watches}`} help="Kept while they run. They stay when you clear the conversation." />
+            {/* AJ-E1548 #26: these are every watch, not Bot's memory: said so,
+                with the door to them. */}
+            <Tile
+              icon={IconEye}
+              title={`All your watches · ${info.watches}`}
+              help="Set here or on the Watches page. They aren’t part of Bot’s memory, and stay when you clear the conversation."
+              aside={
+                <button type="button" onClick={() => openWatches()} className="shrink-0 rounded text-meta font-medium text-accent-hi outline-none hover:underline focus-visible:ring-2 focus-visible:ring-accent/60" data-testid="bot-memories-watches">
+                  {DOORS.manage(info.watches).replace(/ · \d+$/, "")} <span aria-hidden="true">›</span>
+                </button>
+              }
+            />
             <Tile icon={IconQuestion} title={`What you asked · ${info.questions}`} help={`Your questions, on ${THIS_MACHINE_IN_TEXT}. Clear them from the conversation’s ⋯ menu.`} />
           </div>
         )}

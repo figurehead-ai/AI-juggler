@@ -259,6 +259,35 @@ describe("every state of the mock-up", () => {
     fireEvent.click(screen.getByRole("radio", { name: /What Bot remembers/ }));
     expect((await screen.findByTestId("bot-memories"))?.textContent ?? '').toContain("You call “web” the api agent");
   });
+
+  it("AJ-E1548 #1: the remembers tab's count is its list's, after Remember too (one read for the page)", async () => {
+    seed("full");
+    render(<BotPage onBack={() => undefined} />);
+    fireEvent.click(await screen.findByRole("radio", { name: /What Bot remembers/ }));
+    const rows = () => within(screen.getByTestId("bot-memories")).queryAllByRole("listitem").length;
+    const count = () => Number(/(\d+)$/.exec(screen.getByRole("radio", { name: /What Bot remembers/ }).textContent ?? "")?.[1] ?? 0);
+    await waitFor(() => expect(rows()).toBeGreaterThan(0));
+    expect(count()).toBe(rows());
+    // A note kept in the conversation: the tab and the list read it once, together.
+    const was = window.__AIJ_BOT__!.memories!;
+    const memories = { ...was, items: [...was.items, { ...was.items[0]!, key: "m-new", slot: "note" as const, about: null, text: "deploys wait for Friday" }] };
+    window.__AIJ_BOT__!.memories = memories;
+    act(() => void window.dispatchEvent(new Event("aij:bot-memory-changed")));
+    await waitFor(() => expect(rows()).toBe(memories.items.length));
+    expect(count()).toBe(rows());
+  });
+
+  it("AJ-E1548 #26: the watches tile says it counts every watch, not Bot's memory, and opens the Watches page", async () => {
+    seed("full");
+    render(<BotPage onBack={() => undefined} />);
+    fireEvent.click(await screen.findByRole("radio", { name: /What Bot remembers/ }));
+    const memory = await screen.findByTestId("bot-memories");
+    await waitFor(() => expect(memory.textContent).toContain("All your watches · 5"));
+    expect(memory.textContent).toContain("They aren’t part of Bot’s memory");
+    const { takeWatchesIntent } = await import("../../lib/watches-open");
+    fireEvent.click(screen.getByTestId("bot-memories-watches"));
+    expect(takeWatchesIntent()).toEqual({ kind: "list" });
+  });
 });
 
 describe("the scope chip", () => {

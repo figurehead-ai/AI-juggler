@@ -8,6 +8,7 @@ import { render } from "@testing-library/react";
 import { CONDITION_LINE, NOUN } from "../components/watches/watches-words";
 import { levelWords } from "../components/MachineStatusLine";
 import { LegendLevels } from "../components/LegendLevels";
+import { WatchesHead } from "../components/watches/WatchesHead";
 import { MARK_HINTS } from "./feed-words";
 
 // The screens' own words, read as text (Vite's ?raw), for the word rules.
@@ -74,5 +75,19 @@ describe("AJ-E1548 #19 #21: the feed's marks and scope say what they do", () => 
 
   it("the scope picker, closed, says it narrows the feed", () => {
     expect(source("../components/HomeFeedFilters.tsx")).toContain('prefix="Showing:"');
+  });
+});
+
+describe("AJ-E1548 #23 #25: the Floor says what it is; the watch limit shows only near it", () => {
+  it("the Floor's tooltip says what it is", () => {
+    expect(source("../components/FloorButton.tsx")).toContain("title={`The Floor: your Apps as a live office (${keys.words})`}");
+  });
+
+  it("the count beside Watches shows from 40 of 50, said as watches", () => {
+    const far = render(<WatchesHead count={39} limit={50} empty={false} onNew={() => {}} onAskBot={null} />);
+    expect(far.queryByTestId("watches-count")).toBeNull();
+    far.unmount();
+    const near = render(<WatchesHead count={40} limit={50} empty={false} onNew={() => {}} onAskBot={null} />);
+    expect(near.getByTestId("watches-count").textContent).toBe("40 of 50 watches");
   });
 });

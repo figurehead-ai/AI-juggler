@@ -1494,3 +1494,28 @@ fn a_flag_opens_what_it_names() {
         frame.marks
     );
 }
+
+#[test]
+fn a_floor_is_named_by_the_apps_on_it() {
+    // AJ-E1548 #24: "FLOOR 2" read like a level or an account; a floor is
+    // a page of Apps, named by their places in the office's order.
+    let apps: Vec<FloorApp> = (0..12)
+        .map(|n| {
+            app(
+                &format!("cli:{n}"),
+                "workshop",
+                vec![session(&format!("s:{n}"), FloorState::Asks, 0)],
+            )
+        })
+        .collect();
+    let scene = build(&snapshot(apps));
+    assert_eq!(scene.floors, 2);
+    assert_eq!(scene.floor_label(0), "APPS 1–10");
+    assert_eq!(scene.floor_label(1), "APPS 11–12");
+    let one = build(&snapshot(vec![app(
+        "cli:a",
+        "workshop",
+        vec![session("s:1", FloorState::Asks, 0)],
+    )]));
+    assert_eq!(one.floor_label(0), "APP 1");
+}

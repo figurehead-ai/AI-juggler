@@ -101,7 +101,7 @@ pub(super) fn switcher(o: &mut Out<'_>, view: &View, u: f32) -> Vec<Chip> {
     items.extend(
         (0..o.scene.floors)
             .rev()
-            .map(|f| (format!("FLOOR {}", f + 1), Some(f))),
+            .map(|f| (o.scene.floor_label(f), Some(f))),
     );
     for (s, floor) in items {
         let active = view.focus == floor;

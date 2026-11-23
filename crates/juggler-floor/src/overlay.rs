@@ -1028,7 +1028,7 @@ fn lift(o: &mut Out<'_>, f: usize, u: f32, (w, h): (f32, f32)) -> (Vec<Chip>, Op
     let k = (u - 1.0).max(1.0);
     let label = |n: usize| {
         let waiting = o.scene.tower_floors.get(n).map_or(0, |t| t.waiting);
-        (format!("FLOOR {}", n + 1), waiting)
+        (o.scene.floor_label(n), waiting)
     };
     let mut rows: Vec<(Option<usize>, String, usize, i8)> = Vec::new();
     if f + 1 < floors {
@@ -1177,7 +1177,7 @@ fn tower(
         .filter_map(|(t, left)| {
             let (_, ly) = (*left)?;
             let mut parts: Vec<(String, [f32; 4])> =
-                vec![(format!("FLOOR {}", t.floor + 1), [0.97, 0.95, 1.0, 1.0])];
+                vec![(o.scene.floor_label(t.floor), [0.97, 0.95, 1.0, 1.0])];
             let summary = o.scene.floor_summary(t.floor);
             if summary.is_empty() {
                 parts.push(("ALL CALM".to_owned(), CALM));
