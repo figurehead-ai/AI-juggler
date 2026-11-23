@@ -848,3 +848,23 @@ Step 2, "Sign in": (1) a newcomer signing in expects the provider's own page, no
 3. A Playwright layout-shift check (a cumulative layout shift budget of about 0) on opening a session, switching tabs and opening Home.
 **Quality gates**: `just keep-going verify-static`; the layout-shift check; the visual gate.
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E1551/manifest.md`.
+
+### AJ-E1552 Nothing loads forever: one loading primitive (loading, ready, empty, error, stale), a deadline on every resource, an empty state wherever there is a skeleton | Status: TODO (0.5.1) | Priority P0 | Effort M | Depends: AJ-E2327
+**Found** by the maintainer on the 0.5.0 Nightly (2026-11-23): "We need much more reliable loading and delayed loading systems. We can't leave them in these forever loading states." On Accounts (filter "Out"), one Account card's Apps row stayed a skeleton bar for over a minute and never resolved; the other cards showed their App rows. The coordinating session's suspicion, to be confirmed: that Account has no added App on the fresh install (its desktop app sat in "Running, not added", AJ-E2327) and the card treats an empty list as still loading.
+**UI**: yes
+**Usability reasoning** (Opus, before building; re-checked on the built screen):
+(1) Everyone, on every screen; a skeleton promises "coming in a moment".
+(2) A skeleton shows only while something really loads; after about 3 s it says "Still loading…"; after its timeout, an error in plain words with Retry.
+(3) One loading system for the whole app instead of each screen's own guess.
+(4) Empty is its own state with a guided next step (for this card: "No app uses this account yet · Add its app", into AJ-E2327's Add); an error says what failed and offers Retry (D-127).
+(5) None.
+(6) A bar that never resolves reads as a hang or a broken app.
+**Requirements**:
+1. Root cause the stuck card first (file:line), then one shared loading primitive (extending `use-resource`) with explicit states: loading, ready, empty, error and stale-while-revalidate. Every skeleton in the app renders only in loading, never because a list is empty or a value is null.
+2. A deadline per resource: "Still loading…" after about 3 s; after the resource's own timeout (about 10–15 s) an error row in plain words with Retry, the cause logged. Nothing stays a skeleton forever.
+3. An empty state everywhere there is a skeleton; the Account card's is "No app uses this account yet · Add its app", opening AJ-E2327's Add.
+4. A lint or test: no component renders a skeleton outside the primitive's loading state; every skeleton site has an empty-state and an error-state test; a Playwright sweep opens every screen and filter and fails if any skeleton is still visible after 15 s.
+5. The backend: every query a screen waits on returns within its budget (a typed empty or error included); no IPC hangs; a call over its budget is logged.
+6. The same card's cramped wrapping (the "…has 100% left." line squeezed between the Out chip and the button) is fixed in AJ-E1550's pass.
+**Quality gates**: `just keep-going verify-static` with the new lint; the skeleton sweep; the per-site empty and error tests.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E1552/manifest.md`.
