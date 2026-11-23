@@ -381,7 +381,7 @@ Legend: **A** = existing automated, **N#** = new automated (§3), **R** = Opus r
 | MNU-3 Also a command | A palette-commands.test; R15 |
 | MNU-4 Keys | A menus-a11y.spec |
 | MNU-5 Hint grid | A visual regression; R14 |
-| PAT-SER-1…6 | N11; R10 |
+| PAT-SER-1…7 | N11; R10; PAT-SER-7: a test per place that the providers' terms render closed (AJ-E1548) |
 | PAT-DES-1 Undo over confirm | R10 |
 | PAT-DES-2 Says what remains | R12 |
 | PAT-DES-3 Danger not default | N10 |
