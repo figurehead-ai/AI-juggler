@@ -55,6 +55,7 @@ export function Banner({
   role,
   aside,
   testId,
+  className,
   children,
 }: {
   tone?: BannerTone;
@@ -75,6 +76,8 @@ export function Banner({
   /** Beside the title (a channel chip). */
   aside?: ReactNode;
   testId?: string;
+  /** Extra classes for its box (a page's own fit, e.g. a short window's). */
+  className?: string;
   /** Under the lines (an error from its action). */
   children?: ReactNode;
 }): JSX.Element {
@@ -84,6 +87,7 @@ export function Banner({
       stack
       live={role ?? null}
       testId={testId}
+      className={className}
       data-tone={tone}
       title={
         <span className="flex flex-wrap items-center gap-2">

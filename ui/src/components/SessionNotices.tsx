@@ -91,6 +91,7 @@ export function SessionNotices({
         ]}
         onDismiss={() => hideWhile(key, () => acted(() => notificationsDismiss(notice.id)))}
         dismissLabel={`Close: ${ownTitle(notice)} (it stays in Notifications)`}
+        className={SHORT_WINDOW_FIT}
         testId="session-notice-quota"
       />,
     );
@@ -134,6 +135,14 @@ export function SessionNotices({
     </output>
   );
 }
+
+/** AJ-E2314 L2 (the 0.5.0 re-walk, 1024×680): with this notice up, the
+ * session page left its side column a 204 px window onto 723. In a window
+ * under 720 px tall the notice takes one paragraph instead of three lines:
+ * its title and detail run on, the meter goes (the detail says the same
+ * "5% … left"), and its padding tightens, so the column gets that height. */
+export const SHORT_WINDOW_FIT =
+  "[@media(max-height:719px)]:py-2 [@media(max-height:719px)]:[&>div>p]:inline [@media(max-height:719px)]:[&>div>p]:mr-1.5 [@media(max-height:719px)]:[&>div>p>span]:inline [@media(max-height:719px)]:[&>div>p+div]:inline [@media(max-height:719px)]:[&_[role=meter]]:hidden";
 
 function without(set: ReadonlySet<string>, key: string): ReadonlySet<string> {
   const next = new Set(set);

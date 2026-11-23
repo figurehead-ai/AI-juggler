@@ -97,6 +97,19 @@ describe("D-87 a session's page: its own notices, inline", () => {
     expect(screen.getByTestId("session-notice-remind").textContent).toMatch(/^Remind me at .+ · a watch$/);
   });
 
+  it("AJ-E2314 L2: in a short window the notice folds to one paragraph, without its meter, so the side column keeps the height", async () => {
+    seams.__AIJ_NOTICES__ = { app: [quota(1, "acc-west", "West")] };
+    page();
+    const own = await screen.findByTestId("session-notice-quota");
+    const short = (cls: string) => own.className.split(/\s+/).includes(`[@media(max-height:719px)]:${cls}`);
+    expect(short("py-2")).toBe(true);
+    expect(short("[&>div>p]:inline") && short("[&>div>p+div]:inline")).toBe(true);
+    expect(short("[&_[role=meter]]:hidden")).toBe(true);
+    // The meter is still there in a taller window, and the detail says the same.
+    expect(own.querySelector("[role=meter]")).not.toBeNull();
+    expect(own.textContent).toContain("7% of its 5-hour window left");
+  });
+
   it("another account's session's page shows nothing of it", async () => {
     seams.__AIJ_NOTICES__ = { app: [quota(2, "acc-work", "Work")] };
     render(<SessionNotices accountId="acc-west" reminderKey="s-1" parkedId="s-1" sessions={[LIVE]} />);
