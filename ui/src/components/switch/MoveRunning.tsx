@@ -45,7 +45,7 @@ export function Moving({ target, holding, progress }: { target: string; holding:
   return (
     <div className="flex flex-col gap-4" data-testid="switch-moving" data-stage={progress?.stage ?? "starting"}>
       <h3 className="type-section">Moving to {target}…</h3>
-      <div className="flex flex-col gap-2 rounded-card bg-accent-soft px-4 py-3.5 inset-ring-1 inset-ring-accent/15">
+      <div className="flex flex-col gap-2 rounded-card bg-accent-soft px-4 py-3.5">
         <p className="flex items-baseline gap-2 text-body font-semibold text-ink">
           <span aria-live="polite" data-testid="switch-moving-now">
             {progress ? progress.words : `Moving to ${target}: both profiles quit, the conversation moves, and both start again.`}

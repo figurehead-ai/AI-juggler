@@ -240,7 +240,7 @@ export function ContinueOn({
   const list = (
     <>
     {switchBack && onSwitchBack && (
-      <button type="button" onClick={onSwitchBack} data-testid="continue-switch-back" className="rounded-lg border border-accent/40 bg-accent-soft px-3 py-2 text-left text-meta text-accent-hi outline-none hover:border-accent/60 focus-visible:ring-1 focus-visible:ring-accent/60">
+      <button type="button" onClick={onSwitchBack} data-testid="continue-switch-back" className="rounded-lg border border-transparent bg-accent-soft px-3 py-2 text-left text-meta text-accent-hi outline-none hover:bg-accent/15 focus-visible:ring-1 focus-visible:ring-accent/60">
         <span className="block">{switchBack.copy}</span>
         <span className="text-muted">Go back to where it came from ▸</span>
       </button>

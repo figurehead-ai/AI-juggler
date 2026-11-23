@@ -27,7 +27,7 @@ function DialogButton({ label, marked }: { label: string; marked: boolean }): JS
     <span
       className={
         "relative inline-flex min-w-[72px] items-center justify-center rounded-md px-3 py-1 text-xs font-medium " +
-        (marked ? "border border-accent-hi/40 bg-accent-fill text-white ring-2 ring-accent ring-offset-2 ring-offset-surface" : "border border-hairline bg-surface-2 text-ink-2")
+        (marked ? "border border-transparent bg-accent-fill text-white ring-2 ring-attention ring-offset-2 ring-offset-surface" : "border border-hairline bg-surface-2 text-ink-2")
       }
       data-marked={marked ? "1" : undefined}
     >

@@ -81,7 +81,7 @@ export function OsPromptSheet({
     <DialogOverlay ref={boxRef}>
       <DialogFrame
         size="M"
-        className="sheen rounded-card border border-hairline bg-surface shadow-card"
+        className="rounded-card border border-hairline bg-surface shadow-card"
         onKeyDown={(event) => keepTabInside(boxRef.current, event)}
         // eslint-disable-next-line jsx-a11y/prefer-tag-over-role -- the one dialog frame (DLG-1) is a div inside its overlay; a native <dialog> would leave the frame's sticky parts and focus trap
         role="dialog"
