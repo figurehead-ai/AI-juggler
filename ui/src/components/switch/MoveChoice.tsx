@@ -9,10 +9,10 @@
  * shown waiting only for what the user can clear, saying how.
  */
 import { useEffect, useRef, useState, type JSX, type ReactNode } from "react";
-import { onMoveProgress, switchMoveExecute, switchMoveOffer, switchMoves, type MoveDoneInfo, type MoveOfferInfo, type MoveProgressInfo } from "../../lib/ipc/switch-move";
+import { onMoveProgress, switchMoveExecute, switchMoveOffer, type MoveDoneInfo, type MoveOfferInfo, type MoveProgressInfo } from "../../lib/ipc/switch-move";
 import { errorText } from "../../lib/bridge";
 import { MoveDone } from "./MoveDone";
-import { MoveFailed, Moving, nothingMoved } from "./MoveRunning";
+import { MoveFailed, Moving, leftPartWay, nextStep } from "./MoveRunning";
 import { MoveBody, MoveChoice, MoveHeader, type How } from "./MoveScreen";
 import { Button } from "../primitives";
 
@@ -35,7 +35,7 @@ type MovePhase =
   | { kind: "idle" }
   | { kind: "moving" }
   | { kind: "moved"; done: MoveDoneInfo }
-  // A move that stopped part way names itself in the moves list, for Undo.
+  // A move that stopped part way names itself in its error, for Undo.
   | { kind: "failed"; message: string; cause: unknown; left: string | null };
 
 /**
@@ -91,23 +91,27 @@ export function useMoveFlow(sessionId: string, targetProfileId: string, attempt:
       setPhase({ kind: "moved", done: await switchMoveExecute(sessionId, targetProfileId, takeNotes, targetPlaceId) });
     } catch (cause) {
       started.current = false;
-      // A refusal left nothing to undo; only a move left part way has one.
-      const left = nothingMoved(cause)
-        ? null
-        : await switchMoves()
-            .then((moves) => moves.find((m) => m.state === "interrupted")?.move_id ?? null)
-            .catch(() => null);
-      setPhase({ kind: "failed", message: errorText(cause), cause, left });
+      // AJ-E2319: only a move left part way has an Undo, of that very move
+      // (its id from the error, never the newest interrupted one).
+      setPhase({ kind: "failed", message: errorText(cause), cause, left: leftPartWay(cause) });
     } finally {
       stop();
     }
   };
-  /** After a refusal: back to Move, its offer read again. */
+  /** Check again: back to Move, its offer read again (nothing quits). */
   const again = () => {
     started.current = false;
     setProgress(null);
     setPhase({ kind: "idle" });
     setNonce((n) => n + 1);
+  };
+  /** AJ-E2319: this setup can't move: Move hidden, Copy is the switch. */
+  const copyInstead = () => {
+    started.current = false;
+    setProgress(null);
+    setOffer(null);
+    setHow("copy");
+    setPhase({ kind: "idle" });
   };
   /** What the dialog shows: the move's own screens once it started, else
    * the switch's `shown` ones. */
@@ -132,17 +136,29 @@ export function useMoveFlow(sessionId: string, targetProfileId: string, attempt:
       };
     }
     if (phase.kind === "failed") {
-      // 0.4.9: Cancel, × and Esc close it (nothing stays busy); Retry
-      // when nothing was moved (deep/11 §4.9: "Nothing was changed.
-      // [Retry][Cancel]").
+      // 0.4.9: Cancel, × and Esc close it (nothing stays busy). AJ-E2319:
+      // the next step by the stop's class: Retry only where trying again
+      // can help (each try quits and reopens both apps), Check again where
+      // only the person can clear it, Copy where this setup can't move.
+      const next = phase.left ? "none" : nextStep(phase.cause);
       return {
         body: <MoveFailed target={target} message={phase.message} cause={phase.cause} left={phase.left} source={source} />,
         footer: (
           <>
             {cancelButton}
-            {nothingMoved(phase.cause) && !phase.left && (
-              <Button variant="primary" type="button" data-autofocus onClick={again} data-testid="switch-move-again">
+            {next === "retry" && (
+              <Button variant="primary" type="button" data-autofocus onClick={() => void start()} data-testid="switch-move-again">
                 Retry
+              </Button>
+            )}
+            {next === "check" && (
+              <Button variant="primary" type="button" data-autofocus onClick={again} data-testid="switch-move-check">
+                Check again
+              </Button>
+            )}
+            {next === "copy" && (
+              <Button variant="primary" type="button" data-autofocus onClick={copyInstead} data-testid="switch-move-copy">
+                Copy instead
               </Button>
             )}
           </>

@@ -1039,13 +1039,7 @@ fn a_profile_whose_tools_outlive_it_too_long_is_refused_calmly() {
     };
     let error = run(&lab.state, &lab.sides, &system).unwrap_err();
     assert!(
-        matches!(
-            error,
-            AppError::Move {
-                unchanged: true,
-                ..
-            }
-        ),
+        matches!(&error, AppError::Move(stop) if stop.unchanged),
         "calm, both accounts as they were: {error}"
     );
     let words = error.wire().user_message;
@@ -1166,5 +1160,7 @@ fn an_undone_move_lets_its_backups_go() {
 
 #[path = "moving_pick_tests.rs"]
 mod picking;
+#[path = "moving_stop_tests.rs"]
+mod stops;
 #[path = "moving_wait_tests.rs"]
 mod wait;

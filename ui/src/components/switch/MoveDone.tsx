@@ -64,6 +64,14 @@ export function MoveUndone({ undone, source }: { undone: MoveUndoneInfo; source:
           </p>
         </div>
       </div>
+      {/* AJ-E2319 R5: what kept running, as the move itself says it. */}
+      {undone.notes.length > 0 && (
+        <Alert level="info" live={null} testId="switch-undone-notes">
+          {undone.notes.map((note) => (
+            <p key={note}>{sentence(note)}</p>
+          ))}
+        </Alert>
+      )}
       <div className="flex flex-wrap items-center gap-2">
         <Button size="sm" variant="secondary" type="button" onClick={copy} data-testid="switch-undone-copy">
           <IconCopy aria-hidden="true" width={14} height={14} />

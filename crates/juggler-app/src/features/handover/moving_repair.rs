@@ -33,7 +33,7 @@ use super::{
     KnownPlace, MoveSystem, Writing, engine, hold_still, lock, moves_dir, new_id, pause,
     place_name, quiet, refused, start_again, still_down, stop_places,
 };
-use crate::error::{AppError, AppResult};
+use crate::error::{AppError, AppResult, MoveStop, StopClass};
 use crate::features::ownership::InstanceKey;
 use crate::state::AppState;
 
@@ -510,34 +510,43 @@ pub(super) fn run_repair(
         let untouched = txn.manifest.phase == Phase::Planned;
         if !untouched && let Err(started) = still_down(state, &stopped_places, system) {
             let _ = txn.stop_with(&format!("{detail}; {started}"));
-            return AppError::Move {
-                words: format!(
+            // AJ-E2319: typed, naming the repair for Undo by its id.
+            let mut stop = MoveStop::new(
+                StopClass::NeedsYou,
+                format!(
                     "{words}, and {started}, so AI Juggler left both profiles as they are now. Quit it, then Undo the repair from the switch screen."
                 ),
                 detail,
-                unchanged: false,
-            };
+            );
+            stop.move_id = Some(txn.manifest.id.clone());
+            stop.unchanged = false;
+            return stop.into();
         }
         match txn.undo(&stopped, juggler_core::model::Timestamp::now().millis()) {
             Ok(_) => {
                 let _ = txn.drop_backups();
                 start_again(state, &stopped_places, &repairing.request, system);
-                AppError::Move {
-                    words: format!("{words}, so nothing was changed. Try again in a moment."),
+                let mut stop = MoveStop::new(
+                    StopClass::Transient,
+                    format!("{words}, so nothing was changed. Try again in a moment."),
                     detail,
-                    unchanged: true,
-                }
+                );
+                stop.move_id = Some(txn.manifest.id.clone());
+                stop.into()
             }
             Err(error) => {
                 let _ = txn.stop_with(&format!("{detail}; undo: {error}"));
                 pause(state, &stopped_places);
-                AppError::Move {
-                    words: format!(
+                let mut stop = MoveStop::new(
+                    StopClass::Bug,
+                    format!(
                         "{words}. Undoing it didn't finish; both profiles stay closed, and Undo from the switch screen finishes it."
                     ),
-                    detail: format!("{detail}; undo: {error}"),
-                    unchanged: false,
-                }
+                    format!("{detail}; undo: {error}"),
+                );
+                stop.move_id = Some(txn.manifest.id.clone());
+                stop.unchanged = false;
+                stop.into()
             }
         }
     };

@@ -48,7 +48,7 @@ use juggler_adapter::moving::{
 use juggler_core::model::Account;
 use juggler_handover::moving::{Lock, MoveError, Phase, Recovery, Stopped, Transaction};
 
-use crate::error::{AppError, AppResult};
+use crate::error::{AppError, AppResult, MoveHolder, MoveStop, StopClass};
 use crate::features::conversations::procs::Table;
 use crate::features::ownership::ProcId;
 use crate::features::places::book::KnownPlace;
@@ -74,6 +74,8 @@ const EVERY: Duration = Duration::from_millis(250);
 const STILL: Duration = Duration::from_millis(1500);
 /// How many such windows a move waits at most for them.
 const STILL_LOOKS: u32 = 6;
+/// AJ-E2319: how long a transient stop waits before its one try more.
+const AGAIN: Duration = Duration::from_secs(3);
 
 /// How a move is going, for the switch screen while it runs (0.4.9: a
 /// long backup never looks frozen).
@@ -209,6 +211,9 @@ pub struct MoveUndoneInfo {
     pub words: String,
     /// The folder that keeps what was done since the move.
     pub kept: String,
+    /// What of the profiles kept running when they quit (a server they
+    /// started), in words: as the move itself says it (AJ-E2319 R5).
+    pub notes: Vec<String>,
 }
 
 /// What a move did.
@@ -381,6 +386,50 @@ fn engine(error: MoveError) -> AppError {
     refused(error.to_string())
 }
 
+/// AJ-E2319: `error` as a typed stop: a typed one as it is; a refusal (or
+/// what isn't found) of `class`; anything else is a bug.
+fn typed(error: AppError, class: StopClass) -> AppError {
+    match error {
+        AppError::Move(_) => error,
+        AppError::Refused(words) => MoveStop::new(class, words.clone(), words).into(),
+        other @ (AppError::NotFound { .. } | AppError::Validation { .. }) => MoveStop::new(
+            class,
+            crate::error_words::user_words(&other),
+            other.to_string(),
+        )
+        .into(),
+        other => MoveStop::new(
+            StopClass::Bug,
+            crate::error_words::user_words(&other),
+            other.to_string(),
+        )
+        .into(),
+    }
+}
+
+/// AJ-E2319: what stands in Move's way, as one stop: setup when anything
+/// the person can't clear is among it, else theirs to clear.
+fn refusals(why_not: &[Refusal]) -> AppError {
+    let class = if why_not.iter().any(|r| matches!(r.kind, RefusalKind::Setup)) {
+        StopClass::Setup
+    } else {
+        StopClass::NeedsYou
+    };
+    let words = juggler_handover::moving::words(why_not);
+    MoveStop::new(class, words.clone(), words).into()
+}
+
+/// AJ-E2319: `error` names the move it stopped.
+fn of_move(error: AppError, move_id: &str) -> AppError {
+    match error {
+        AppError::Move(mut stop) => {
+            stop.move_id = Some(move_id.to_owned());
+            AppError::Move(stop)
+        }
+        other => other,
+    }
+}
+
 /// The installed version of `account`'s tool (Claude Code's), as AI
 /// Juggler's tool check found it.
 fn tool_version(state: &Arc<AppState>, account: &Account) -> Option<String> {
@@ -491,14 +540,30 @@ fn still_down(
     stopped: &[StoppedPlace],
     system: &dyn MoveSystem,
 ) -> Result<(), String> {
+    still_down_held(state, stopped, system).map_err(|(words, _)| words)
+}
+
+/// [`still_down`], with the profile that started as the holder
+/// (AJ-E2319).
+fn still_down_held(
+    state: &Arc<AppState>,
+    stopped: &[StoppedPlace],
+    system: &dyn MoveSystem,
+) -> Result<(), (String, MoveHolder)> {
     match stopped
         .iter()
         .find(|p| system.running(state, &p.id).is_some())
     {
-        Some(place) => Err(format!(
-            "{} was started while the move ran",
-            place_name(state, &place.place)
-        )),
+        Some(place) => {
+            let name = place_name(state, &place.place);
+            Err((
+                format!("{name} was started while the move ran"),
+                MoveHolder {
+                    name,
+                    place_id: Some(place.id.clone()),
+                },
+            ))
+        }
         None => Ok(()),
     }
 }
@@ -769,25 +834,34 @@ fn still_writing(
     path: &Path,
     system: &dyn MoveSystem,
     writing: &Writing<'_>,
-) -> String {
+) -> (String, Vec<MoveHolder>) {
     let table = system.table(state);
-    let named: Vec<String> = quit::writers_now(&table, writing)
+    let named: Vec<(String, String)> = quit::writers_now(&table, writing)
         .iter()
         .filter_map(|writer| {
             let name = table.get(&writer.pid)?.exe.as_deref()?.file_name()?;
-            Some(format!(
-                "{} (process {})",
-                name.to_string_lossy(),
-                writer.pid
-            ))
+            let name = name.to_string_lossy().into_owned();
+            Some((format!("{name} (process {})", writer.pid), name))
         })
         .collect();
     if !named.is_empty() {
-        return format!(
+        let words = format!(
             "{} {} still writing this conversation",
-            named.join(" and "),
+            named
+                .iter()
+                .map(|(said, _)| said.as_str())
+                .collect::<Vec<_>>()
+                .join(" and "),
             if named.len() == 1 { "was" } else { "were" }
         );
+        let holders = named
+            .into_iter()
+            .map(|(_, name)| MoveHolder {
+                name,
+                place_id: None,
+            })
+            .collect();
+        return (words, holders);
     }
     let both = [
         (
@@ -809,15 +883,27 @@ fn still_writing(
                 .is_some_and(|dir| path.starts_with(dir));
         if holds {
             return match place {
-                Some((_, place)) => format!(
-                    "{} was still writing this conversation as it closed",
-                    place_name(state, place)
+                Some((id, place)) => {
+                    let name = place_name(state, place);
+                    (
+                        format!("{name} was still writing this conversation as it closed"),
+                        vec![MoveHolder {
+                            name,
+                            place_id: Some(id.clone()),
+                        }],
+                    )
+                }
+                None => (
+                    format!("a session on {label} was still writing this conversation"),
+                    Vec::new(),
                 ),
-                None => format!("a session on {label} was still writing this conversation"),
             };
         }
     }
-    "another app was still writing this conversation".to_owned()
+    (
+        "another app was still writing this conversation".to_owned(),
+        Vec::new(),
+    )
 }
 
 /// A size in words ("406 MB"), as the switch screen says sizes.
@@ -907,9 +993,34 @@ pub fn execute(
     notes: NotesChoice,
     tell: Tell,
 ) -> AppResult<MoveDoneInfo> {
-    let mut sides = sides(state, session_id, target_profile_id, target_place_id)?;
+    let mut sides = sides(state, session_id, target_profile_id, target_place_id)
+        .map_err(|error| typed(error, StopClass::NeedsYou))?;
     sides.request.notes = notes;
-    run(state, &sides, &Real::telling(tell))
+    run_once_more(state, &sides, &Real::telling(tell))
+}
+
+/// AJ-E2319: the move, typed; a transient stop that changed nothing is
+/// tried once more by itself, after a pause.
+fn run_once_more(
+    state: &Arc<AppState>,
+    sides: &Sides,
+    system: &dyn MoveSystem,
+) -> AppResult<MoveDoneInfo> {
+    let once = |system: &dyn MoveSystem| {
+        run(state, sides, system).map_err(|error| typed(error, StopClass::NeedsYou))
+    };
+    match once(system) {
+        Err(AppError::Move(stop)) if stop.retryable() => {
+            tracing::info!(target: "juggler::move", "a transient stop, tried once more: {}", stop.detail);
+            system.tell(&MoveProgressInfo::step(
+                "closing",
+                "Trying once more…".to_owned(),
+            ));
+            system.settle(AGAIN);
+            once(system)
+        }
+        done => done,
+    }
 }
 
 /// The move of resolved `sides`.
@@ -919,27 +1030,40 @@ pub fn execute(
 )]
 fn run(state: &Arc<AppState>, sides: &Sides, system: &dyn MoveSystem) -> AppResult<MoveDoneInfo> {
     if let Some(stop) = &sides.stop {
-        return Err(refused(stop.words.clone()));
+        return Err(refusals(std::slice::from_ref(stop)));
     }
-    let plan = plan_of(sides)?;
-    let writing = writing_of(sides, &plan).ok_or_else(|| refused("no mover"))?;
+    // AJ-E2319: a tool that can't plan this move is the setup's.
+    let plan = plan_of(sides).map_err(|error| typed(error, StopClass::Setup))?;
+    let writing =
+        writing_of(sides, &plan).ok_or_else(|| typed(refused("no mover"), StopClass::Setup))?;
     let folder = moves_dir(state);
     let mut why_not = juggler_handover::moving::preflight(&plan, &folder);
     why_not.extend(busy(state, sides, system, &writing));
     if !why_not.is_empty() {
-        return Err(refused(juggler_handover::moving::words(&why_not)));
+        return Err(refusals(&why_not));
     }
     let places: Vec<(String, KnownPlace)> = [&sides.source_place, &sides.target_place]
         .into_iter()
         .flatten()
         .cloned()
         .collect();
-    let _lock = lock(state, &plan.roots)?;
+    // AJ-E2319: another move on these files ends by itself.
+    let _lock = lock(state, &plan.roots).map_err(|error| typed(error, StopClass::Transient))?;
     let ids: Vec<String> = places.iter().map(|(id, _)| id.clone()).collect();
     let now = juggler_core::model::Timestamp::now().millis();
     let move_id = new_id(now);
     // AJ-E2320: held in every AI Juggler before anything quits.
-    let _hold = crate::features::places::MoveHold::take(state, &ids, &move_id).map_err(refused)?;
+    let _hold =
+        crate::features::places::MoveHold::take(state, &ids, &move_id).map_err(|words| {
+            // AJ-E2319: a running move ends by itself; a crashed one is the
+            // person's to undo; anything else is never expected.
+            let class = match words.as_str() {
+                hold::BUSY => StopClass::Transient,
+                hold::UNFINISHED => StopClass::NeedsYou,
+                _ => StopClass::Bug,
+            };
+            typed(refused(words), class)
+        })?;
     let previous = hold::all_moves(&state.data_dir)
         .into_iter()
         .rev()
@@ -957,9 +1081,9 @@ fn run(state: &Arc<AppState>, sides: &Sides, system: &dyn MoveSystem) -> AppResu
         previous,
         now,
     )
-    .map_err(engine)?;
+    .map_err(|error| typed(engine(error), StopClass::Bug))?;
     txn.remember_places(ids, sides.accounts.clone())
-        .map_err(engine)?;
+        .map_err(|error| of_move(typed(engine(error), StopClass::Bug), &move_id))?;
 
     // The single-writer phase.
     let (stopped_places, kept_running) =
@@ -973,66 +1097,79 @@ fn run(state: &Arc<AppState>, sides: &Sides, system: &dyn MoveSystem) -> AppResu
                     juggler_core::model::Timestamp::now().millis(),
                 );
                 let _ = txn.drop_backups();
-                return Err(error);
+                return Err(of_move(error, &move_id));
             }
         };
     let stopped = Stopped::checked();
-    // `words` say why in plain words (no path); `detail` is the program's
-    // own, for Copy details.
-    let fail = |txn: &mut Transaction, words: String, detail: String| -> AppError {
+    // `stop`'s words say why in plain words (no path), its detail is the
+    // program's own, for Copy details; its class and holders say what
+    // comes next (AJ-E2319). It names this move, for Undo by its id.
+    let fail = |txn: &mut Transaction, mut stop: MoveStop| -> AppError {
+        stop.move_id = Some(txn.manifest.id.clone());
+        let (words, detail) = (stop.words.clone(), stop.detail.clone());
         let untouched = txn.manifest.phase == Phase::Planned;
         // Never undo under a running app: it would write over the restore
         // (a move only planned has nothing to restore).
-        if !untouched && let Err(started) = still_down(state, &stopped_places, system) {
+        if !untouched
+            && let Err((started, holder)) = still_down_held(state, &stopped_places, system)
+        {
             let _ = txn.stop_with(&format!("{detail}; {started}"));
-            return AppError::Move {
-                words: format!(
-                    "{words}, and {started}, so AI Juggler left both accounts as they are now. Quit it, then Undo the move here."
-                ),
-                detail,
-                unchanged: false,
-            };
+            stop.words = format!(
+                "{words}, and {started}, so AI Juggler left both accounts as they are now. Quit it, then Undo the move here."
+            );
+            stop.class = StopClass::NeedsYou;
+            stop.holders = vec![holder];
+            stop.unchanged = false;
+            return stop.into();
         }
         match txn.undo(&stopped, juggler_core::model::Timestamp::now().millis()) {
             Ok(_) => {
                 // Nothing is left to restore from them.
                 let _ = txn.drop_backups();
                 start_again(state, &stopped_places, &sides.request, system);
-                AppError::Move {
-                    words: format!("{words}, so nothing was moved. Try again in a moment."),
-                    detail,
-                    unchanged: true,
-                }
+                // Only a stop that can clear by itself says try again.
+                stop.words = if stop.class == StopClass::Transient {
+                    format!("{words}, so nothing was moved. Try again in a moment.")
+                } else {
+                    format!("{words}, so nothing was moved.")
+                };
+                stop.into()
             }
             Err(error) => {
                 // Left closed: an app writing into a half-undone folder
                 // would make the next Undo reconcile its writes.
                 let _ = txn.stop_with(&format!("{detail}; undo: {error}"));
                 pause(state, &stopped_places);
-                AppError::Move {
-                    words: format!(
-                        "{words}. Undoing it didn't finish; both profiles stay closed, the move's journal and backups are kept, and Undo the move here finishes it."
-                    ),
-                    detail: format!("{detail}; undo: {error}"),
-                    unchanged: false,
-                }
+                stop.words = format!(
+                    "{words}. Undoing it didn't finish; both profiles stay closed, the move's journal and backups are kept, and Undo the move here finishes it."
+                );
+                stop.detail = format!("{detail}; undo: {error}");
+                stop.class = StopClass::Bug;
+                stop.unchanged = false;
+                stop.into()
             }
         }
+    };
+    // A profile started again while it ran: the person's (it names the
+    // profile, with its door).
+    let started_again = |(started, holder): (String, MoveHolder)| {
+        MoveStop::new(StopClass::NeedsYou, started.clone(), started).held_by(vec![holder])
     };
     // The apps write their records when they quit: plan again, refuse a
     // changed family.
     let again = plan_of(sides).and_then(|plan| txn.replan(plan).map_err(engine));
     if let Err(error) = again {
         let words = "the conversation's family or files changed while the apps closed".to_owned();
-        return Err(fail(&mut txn, words, error.to_string()));
+        let stop = MoveStop::new(StopClass::Transient, words, error.to_string());
+        return Err(fail(&mut txn, stop));
     }
     let plan = txn.manifest.plan.clone();
     let mover = sides
         .adapter
         .in_place_move()
-        .ok_or_else(|| refused("no mover"))?;
-    if let Err(started) = still_down(state, &stopped_places, system) {
-        return Err(fail(&mut txn, started.clone(), started));
+        .ok_or_else(|| of_move(typed(refused("no mover"), StopClass::Bug), &move_id))?;
+    if let Err(started) = still_down_held(state, &stopped_places, system) {
+        return Err(fail(&mut txn, started_again(started)));
     }
     // 0.4.9: every file it touches holds still before it is backed up.
     let watched: Vec<PathBuf> = txn.touched().into_iter().map(Path::to_path_buf).collect();
@@ -1051,8 +1188,10 @@ fn run(state: &Arc<AppState>, sides: &Sides, system: &dyn MoveSystem) -> AppResu
                 .collect::<Vec<_>>()
                 .join(", ")
         );
-        let words = still_writing(state, sides, &first, system, &writing);
-        return Err(fail(&mut txn, words, detail));
+        // A writer still finishing: tried once more (AJ-E2319).
+        let (words, holders) = still_writing(state, sides, &first, system, &writing);
+        let stop = MoveStop::new(StopClass::Transient, words, detail).held_by(holders);
+        return Err(fail(&mut txn, stop));
     }
     let mut told = 0_u64;
     let mut progress = |done: u64, total: u64| {
@@ -1073,33 +1212,49 @@ fn run(state: &Arc<AppState>, sides: &Sides, system: &dyn MoveSystem) -> AppResu
         let _ = hold_still(&watched, system);
     });
     if let Err(error) = backed_up {
-        let words = match &error {
-            MoveError::Changed(path) => still_writing(state, sides, path, system, &writing),
-            _ => "AI Juggler couldn't back up the conversation's files".to_owned(),
+        let stop = match &error {
+            MoveError::Changed(path) => {
+                let (words, holders) = still_writing(state, sides, path, system, &writing);
+                MoveStop::new(StopClass::Transient, words, error.to_string()).held_by(holders)
+            }
+            _ => MoveStop::new(
+                StopClass::Bug,
+                "AI Juggler couldn't back up the conversation's files",
+                error.to_string(),
+            ),
         };
-        return Err(fail(&mut txn, words, error.to_string()));
+        return Err(fail(&mut txn, stop));
     }
-    if let Err(started) = still_down(state, &stopped_places, system) {
-        return Err(fail(&mut txn, started.clone(), started));
+    if let Err(started) = still_down_held(state, &stopped_places, system) {
+        return Err(fail(&mut txn, started_again(started)));
     }
     system.tell(&MoveProgressInfo::step(
         "moving",
         "Moving the conversation…".to_owned(),
     ));
     if let Err(error) = txn.apply(&stopped, 0) {
-        let words = "the conversation's files couldn't be moved".to_owned();
-        return Err(fail(&mut txn, words, error.to_string()));
+        let words = "the conversation's files couldn't be moved";
+        return Err(fail(
+            &mut txn,
+            MoveStop::new(StopClass::Bug, words, error.to_string()),
+        ));
     }
     let cold = match txn.verify_cold(mover.verify(&sides.request, &plan)) {
         Ok(report) => report,
         Err(error) => {
-            let words = "AI Juggler couldn't record its checks of the move".to_owned();
-            return Err(fail(&mut txn, words, error.to_string()));
+            let words = "AI Juggler couldn't record its checks of the move";
+            return Err(fail(
+                &mut txn,
+                MoveStop::new(StopClass::Bug, words, error.to_string()),
+            ));
         }
     };
     if !cold.passed() {
-        let words = "a check before reopening failed".to_owned();
-        return Err(fail(&mut txn, words, cold.failures().join("; ")));
+        let words = "a check before reopening failed";
+        return Err(fail(
+            &mut txn,
+            MoveStop::new(StopClass::Bug, words, cold.failures().join("; ")),
+        ));
     }
 
     // Both profiles again, each on its own folders; the conversation
@@ -1294,7 +1449,9 @@ pub(crate) fn undo_with(
         return Err(refused(juggler_handover::moving::words(&why_not)));
     }
     // R4: a refused Undo says "nothing was undone", not the Move's words.
-    let stopped_places = stop_places(state, both, system, "undone", &writing)?.stopped;
+    // AJ-E2319 R5: what kept running is told, as the move tells it.
+    let stopping = stop_places(state, both, system, "undone", &writing)?;
+    let (stopped_places, kept_running) = (stopping.stopped, stopping.notes);
     if let Err(started) = still_down(state, &stopped_places, system) {
         start_again(state, &stopped_places, &txn.manifest.request, system);
         return Err(refused(format!("{started}, so nothing was undone")));
@@ -1342,6 +1499,7 @@ pub(crate) fn undo_with(
     Ok(MoveUndoneInfo {
         words: "Undone: the conversation is back where it was. Anything done since the move is kept aside; Copy details says where.".to_owned(),
         kept: kept.display().to_string(),
+        notes: kept_running,
     })
 }
 

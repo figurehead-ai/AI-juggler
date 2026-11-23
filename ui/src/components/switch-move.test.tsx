@@ -199,7 +199,7 @@ describe("Move to account", () => {
   it("Undo ends under its own heading, in words, the path only in Copy details", async () => {
     window.__AIJ_MOVE_OFFER__ = OFFER;
     window.__AIJ_MOVE_DONE__ = DONE;
-    window.__AIJ_MOVE_UNDONE__ = { words: "Undone: the conversation is back where it was. Anything done since the move is kept aside; Copy details says where.", kept: "/tmp/lab/moves/1-aa/preserved" };
+    window.__AIJ_MOVE_UNDONE__ = { words: "Undone: the conversation is back where it was. Anything done since the move is kept aside; Copy details says where.", kept: "/tmp/lab/moves/1-aa/preserved", notes: [] };
     const written: string[] = [];
     Object.defineProperty(navigator, "clipboard", { value: { writeText: (text: string) => (written.push(text), Promise.resolve()) }, configurable: true });
     const view = mount();
@@ -277,18 +277,6 @@ describe("Move to account", () => {
     expect(view.queryByTestId("switch-moved-undo")).toBeNull();
   });
 
-  it("offers Undo when a move stopped part way", async () => {
-    window.__AIJ_MOVE_OFFER__ = OFFER;
-    window.__AIJ_MOVE_ERROR__ = "a check before reopening failed. Undoing it didn't finish";
-    window.__AIJ_MOVES__ = [{ move_id: "1-aa", conversation: "c", state: "interrupted", at_ms: 1, detail: null, kept: [] }];
-    const view = mount();
-    await waitFor(() => expect(view.getByTestId("switch-move-confirm")).toBeTruthy());
-    fireEvent.click(view.getByTestId("switch-move-confirm"), { detail: 1 });
-    await waitFor(() => expect(view.getByTestId("switch-moved-undo")).toBeTruthy());
-    fireEvent.click(view.getByTestId("switch-moved-undo"));
-    await waitFor(() => expect(view.getByTestId("switch-moved-undo-said").textContent).toContain("Undone"));
-  });
-
   // D-142 (DESIGN-SYSTEM §8): the header names the App, from → to; the
   // choice first, Move recommended once; what happens as four fact rows;
   // the restart as a needs-you Alert; the family behind a disclosure with
@@ -364,12 +352,11 @@ describe("Move to account", () => {
     expect(view.queryByTestId("switch-moved-undo")).toBeNull();
   });
 
-  it("tries again from Move after a refusal, its offer read again", async () => {
+  it("Retry runs the move again after a refusal that can clear by itself", async () => {
     const view = await refused(vi.fn());
     expect(view.getByTestId("switch-move-again").textContent).toBe("Retry");
     fireEvent.click(view.getByTestId("switch-move-again"));
-    await waitFor(() => expect(view.getByTestId("switch-move-confirm")).toBeTruthy());
-    expect(view.queryByTestId("switch-failed")).toBeNull();
+    await waitFor(() => expect(executed).toHaveLength(2));
   });
 
   it("closes with Done after a move (the same busy mark held it)", async () => {

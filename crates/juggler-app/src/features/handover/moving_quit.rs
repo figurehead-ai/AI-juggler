@@ -36,10 +36,10 @@ use std::time::Instant;
 use juggler_adapter::moving::{InPlaceMove, MoveRequest, ProcView, Writer};
 
 use super::{
-    EVERY, KnownPlace, Member, MoveProgressInfo, MoveSystem, StoppedPlace, place_name, refused,
-    start_again, tree,
+    EVERY, KnownPlace, Member, MoveProgressInfo, MoveSystem, StoppedPlace, place_name, start_again,
+    tree,
 };
-use crate::error::{AppError, AppResult};
+use crate::error::{AppResult, MoveHolder, MoveStop, StopClass};
 use crate::features::conversations::procs::Table;
 use crate::features::ownership::ProcId;
 use crate::features::ownership::signal::{self, NotAsked};
@@ -181,6 +181,8 @@ fn still(system: &dyn MoveSystem, waited: &[(ProcId, Member, String)]) -> Vec<us
 
 /// One profile the move closes, decided before anything quits.
 struct Closing {
+    /// The place's id, for the holder's door (AJ-E2319).
+    id: String,
     name: String,
     main: ProcId,
     /// Everything of it looked at before the quit (reported, not waited).
@@ -225,14 +227,27 @@ pub(super) fn stop_places(
         // The pid is this profile's process still (not one the system
         // gave another program since): its start, to the microsecond.
         let Some(main) = ids.get(pid).copied().filter(|id| id.started_in(*start)) else {
-            return Err(refused(format!(
+            // AJ-E2319: it was starting or quitting just then.
+            let words = format!(
                 "AI Juggler couldn't be sure which process is {name}, so nothing was quit or {outcome}"
-            )));
+            );
+            return Err(MoveStop::new(StopClass::Transient, words.clone(), words)
+                .held_by(vec![held(&places[*at].0, &name)])
+                .into());
         };
         // All of it, looked at before it quits: once its main process
         // ends, what it started belongs to launchd.
         let tree = system.tree(state, place, &[*pid]);
-        closing.insert(*at, Closing { name, main, tree });
+        let id = places[*at].0.clone();
+        closing.insert(
+            *at,
+            Closing {
+                id,
+                name,
+                main,
+                tree,
+            },
+        );
     }
     let inside: Vec<u32> = closing
         .values()
@@ -240,10 +255,21 @@ pub(super) fn stop_places(
         .collect();
     let elsewhere = outside(&table, &writers, &inside);
     if !elsewhere.is_empty() {
-        return Err(refused(format!(
+        // AJ-E2319: a program outside the profiles writes it: the person's.
+        let words = format!(
             "{}, so nothing was quit or {outcome}",
             outside_words(&elsewhere, !places.is_empty())
-        )));
+        );
+        let holders = elsewhere
+            .iter()
+            .map(|member| MoveHolder {
+                name: member.name.clone(),
+                place_id: None,
+            })
+            .collect();
+        return Err(MoveStop::new(StopClass::NeedsYou, words.clone(), words)
+            .held_by(holders)
+            .into());
     }
     // The writers to wait for, by their exact process, each with the
     // profile it runs in.
@@ -284,13 +310,23 @@ pub(super) fn stop_places(
         let asked = signal::quit_checked(c.main, &now, &|pid| system.quit(pid));
         if let Err(not) = asked {
             start_again(state, &stopped, request, system);
-            return Err(refused(match not {
-                NotAsked::NotThatProcess => format!(
-                    "AI Juggler couldn't be sure which process is {}, so nothing was quit or {outcome}",
-                    c.name
+            // AJ-E2319: one that ended just then can clear by itself; a
+            // quit the system refused is never expected.
+            let (class, words) = match not {
+                NotAsked::NotThatProcess => (
+                    StopClass::Transient,
+                    format!(
+                        "AI Juggler couldn't be sure which process is {}, so nothing was quit or {outcome}",
+                        c.name
+                    ),
                 ),
-                NotAsked::Refused(why) => format!("couldn't quit {}: {why}", c.name),
-            }));
+                NotAsked::Refused(why) => {
+                    (StopClass::Bug, format!("couldn't quit {}: {why}", c.name))
+                }
+            };
+            return Err(MoveStop::new(class, words.clone(), words)
+                .held_by(vec![held(&c.id, &c.name)])
+                .into());
         }
     }
     // The apps, to their deadline.
@@ -308,11 +344,15 @@ pub(super) fn stop_places(
         }
         if Instant::now() >= until {
             start_again(state, &stopped, request, system);
-            return Err(refused(format!(
+            // AJ-E2319: it is asking something; only the person answers.
+            let words = format!(
                 "{} didn't quit within {} seconds, so nothing was {outcome}. It may be asking something: look at its window",
                 left[0].name,
                 wait.as_secs().max(1)
-            )));
+            );
+            return Err(MoveStop::new(StopClass::NeedsYou, words.clone(), words)
+                .held_by(vec![held(&left[0].id, &left[0].name)])
+                .into());
         }
         std::thread::sleep(EVERY);
     }
@@ -351,17 +391,25 @@ pub(super) fn stop_places(
             let left: Vec<Member> = alive.iter().map(|at| waited[*at].1.clone()).collect();
             let owner = waited[alive[0]].2.clone();
             let secs = wait.as_secs().max(1);
-            return Err(AppError::Move {
-                words: tree::not_closed(&owner, secs, outcome, &left),
-                detail: format!(
+            // AJ-E2319: writers still finishing: tried once more.
+            let holders = closing
+                .values()
+                .filter(|c| c.name == owner)
+                .map(|c| held(&c.id, &c.name))
+                .collect();
+            return Err(MoveStop::new(
+                StopClass::Transient,
+                tree::not_closed(&owner, secs, outcome, &left),
+                format!(
                     "still writing {secs} s after the apps closed: {}",
                     left.iter()
                         .map(|m| format!("{} (process {})", m.name, m.pid))
                         .collect::<Vec<_>>()
                         .join(", ")
                 ),
-                unchanged: true,
-            });
+            )
+            .held_by(holders)
+            .into());
         }
         std::thread::sleep(EVERY);
     }
@@ -389,6 +437,14 @@ pub(super) fn stop_places(
 /// What `name` started that keeps running after it closed, in words
 /// ("node that Claude app · Work started is still running; the move
 /// doesn't need it closed"). `None`: nothing.
+/// A profile that holds the files, with its door (AJ-E2319).
+fn held(id: &str, name: &str) -> MoveHolder {
+    MoveHolder {
+        name: name.to_owned(),
+        place_id: Some(id.to_owned()),
+    }
+}
+
 pub(super) fn kept_running(name: &str, still: &[Member]) -> Option<String> {
     if still.is_empty() {
         return None;

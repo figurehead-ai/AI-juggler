@@ -9,22 +9,80 @@
  *   count. A long backup never looks frozen.
  * - **Stopped with nothing changed**: said calmly (an info Alert under
  *   "Nothing was moved"), the paths only in Copy details. A move left part
- *   way keeps the warning look and offers Undo.
+ *   way keeps the warning look and offers Undo of that very move (its id
+ *   from the error, AJ-E2319).
+ * - **AJ-E2319**: what holds the files is named; for a stop only the person
+ *   can clear, each app holding them has its door ("Go to Claude app · Work").
  */
 import { useState, type JSX } from "react";
-import type { MoveProgressInfo, MoveUndoneInfo } from "../../lib/ipc/switch-move";
+import { stopOf, type MoveProgressInfo, type MoveStopInfo, type MoveUndoneInfo } from "../../lib/ipc/switch-move";
+import { placesOpen } from "../../lib/ipc/places";
+import { errorText } from "../../lib/bridge";
+import { Button } from "../primitives";
 import { ProgressBar } from "../UpdateProgress";
 import { Alert } from "../Alert";
-import { FailedStep } from "./FailedStep";
+import { FailedStep, failureOf } from "./FailedStep";
 import { StepList } from "./StepParts";
 import { MoveUndo, MoveUndone } from "./MoveDone";
 import { sentence } from "./MoveScreen";
 
 /** Whether a move's failure left both accounts as they were (a refusal):
- * said calmly, and trying again can work. */
+ * said calmly. */
 export function nothingMoved(cause: unknown): boolean {
   const code = cause !== null && typeof cause === "object" ? (cause as { code?: unknown }).code : null;
   return code === "refused" || code === "move_refused";
+}
+
+/** AJ-E2319: what a stopped move offers next, by its class: Retry only for
+ * one that can clear by itself and changed nothing; Check again (reads the
+ * offer, quits nothing) for one only the person can clear; Copy for a setup
+ * that can't move; none for a bug (Copy details and Report are there). A
+ * move left part way offers Undo instead. */
+export type NextStep = "retry" | "check" | "copy" | "none";
+
+export function nextStep(cause: unknown): NextStep {
+  const stop = stopOf(cause);
+  if (!stop) return nothingMoved(cause) && failureOf(cause).retryable ? "retry" : "none";
+  if (!stop.unchanged) return "none";
+  return ({ transient: "retry", needs_you: "check", setup: "copy", bug: "none" } as const)[stop.class];
+}
+
+/** The move a failure left part way, by the error's own id; never a guess
+ * from the moves list (it could be another conversation's). */
+export function leftPartWay(cause: unknown): string | null {
+  const stop = stopOf(cause);
+  return stop && !stop.unchanged ? stop.move_id : null;
+}
+
+/** What holds the files, each app with its door when only the person can
+ * clear it. */
+function Holders({ stop }: { stop: MoveStopInfo }): JSX.Element | null {
+  const [said, setSaid] = useState<string | null>(null);
+  const doors = stop.class === "needs_you" ? stop.holders.filter((holder) => holder.place_id) : [];
+  if (stop.holders.length === 0) return null;
+  const goTo = (id: string) =>
+    void placesOpen(id).then(
+      (outcome) => setSaid(outcome.outcome),
+      (cause) => setSaid(errorText(cause)),
+    );
+  return (
+    <div className="flex flex-col gap-2" data-testid="switch-move-holders">
+      <p className="text-body text-ink">
+        <span className="text-muted">Holding the files: </span>
+        {stop.holders.map((holder) => holder.name).join(", ")}
+      </p>
+      {doors.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2">
+          {doors.map((holder) => (
+            <Button key={holder.place_id} size="sm" variant="secondary" type="button" onClick={() => goTo(holder.place_id!)} data-testid="switch-move-holder-door">
+              Go to {holder.name}
+            </Button>
+          ))}
+          {said && <output className="text-meta text-ink-2">{said}</output>}
+        </div>
+      )}
+    </div>
+  );
 }
 
 /** How far the step is, in percent; null when it has nothing to count. */
@@ -78,12 +136,14 @@ function withoutNothingMoved(message: string): string {
 
 export function MoveFailed({ target, message, cause, left, source = null }: { target: string; message: string; cause: unknown; left: string | null; source?: string | null }): JSX.Element {
   const calm = nothingMoved(cause) && !left;
+  const stop = stopOf(cause);
   const [undone, setUndone] = useState<MoveUndoneInfo | null>(null);
   // R4: undone, the move's failure is behind it: its own end state.
   if (undone) return <MoveUndone undone={undone} source={source} />;
   return (
     <div className="flex flex-col gap-4">
       <FailedStep target={target} message={sentence(calm ? withoutNothingMoved(message) : message)} cause={cause} results={[]} calm={calm ? { title: "Nothing was moved" } : undefined} />
+      {stop && <Holders stop={stop} />}
       {left && <MoveUndo moveId={left} onUndone={setUndone} />}
     </div>
   );

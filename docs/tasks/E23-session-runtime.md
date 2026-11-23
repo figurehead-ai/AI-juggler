@@ -356,7 +356,7 @@
 **Quality gates**: `just keep-going verify-static`; failing-before tests; the move suite.
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E2318/manifest.md`.
 
-### AJ-E2319 Move's refusals are typed (transient, needs you, setup, bug), name what holds the files and carry the move id; Retry only for transient | Status: TODO (0.5.1) | Priority P0 | Effort S | Depends: AJ-E2318
+### AJ-E2319 Move's refusals are typed (transient, needs you, setup, bug), name what holds the files and carry the move id; Retry only for transient | Status: DONE (0.5.1) | Priority P0 | Effort S | Depends: AJ-E2318
 **Found** Review A9.1, A3.1, A5.5, B6, E9: Retry showed for every "nothing changed" failure (each retry quit and restarted both apps again), and the UI's Undo picked the newest interrupted move, not this one. (`docs/research/move-reliability-review.md`).
 **UI**: yes
 **Usability reasoning** (Opus, before building; re-checked on the built screen):

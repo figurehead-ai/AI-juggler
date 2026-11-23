@@ -13,9 +13,10 @@ import type { MoveDoneInfo } from "../../types/generated/MoveDoneInfo";
 import type { MoveOfferInfo } from "../../types/generated/MoveOfferInfo";
 import type { MoveProgressInfo } from "../../types/generated/MoveProgressInfo";
 import type { MoveRecordInfo } from "../../types/generated/MoveRecordInfo";
+import type { MoveStopInfo } from "../../types/generated/MoveStopInfo";
 import type { MoveUndoneInfo } from "../../types/generated/MoveUndoneInfo";
 
-export type { MoveDoneInfo, MoveOfferInfo, MoveProgressInfo, MoveRecordInfo, MoveUndoneInfo };
+export type { MoveDoneInfo, MoveOfferInfo, MoveProgressInfo, MoveRecordInfo, MoveStopInfo, MoveUndoneInfo };
 
 /** 0.4.9: how a running move goes (`move://progress`). */
 const MOVE_PROGRESS = "move://progress";
@@ -24,7 +25,7 @@ declare global {
   interface Window {
     __AIJ_MOVE_OFFER__?: MoveOfferInfo | null;
     __AIJ_MOVE_DONE__?: MoveDoneInfo;
-    __AIJ_MOVE_ERROR__?: string | { code: string; retryable: boolean; user_message: string; detail?: string };
+    __AIJ_MOVE_ERROR__?: string | { code: string; retryable: boolean; user_message: string; detail?: string; stop?: MoveStopInfo };
     __AIJ_MOVE_PROGRESS__?: MoveProgressInfo[];
     __AIJ_MOVE_HOLD__?: boolean;
     __AIJ_MOVE_UNDONE__?: MoveUndoneInfo;
@@ -83,9 +84,20 @@ export async function switchMoveExecute(sessionId: string, targetProfileId: stri
   return call("switch_move_execute", { sessionId, targetProfileId, targetPlaceId, takeNotes });
 }
 
+/** AJ-E2319: a move's stop, typed (its class, what holds the files, its
+ * move's id); null for a failure that isn't a move's. */
+export function stopOf(cause: unknown): MoveStopInfo | null {
+  if (cause === null || typeof cause !== "object" || !("stop" in cause)) return null;
+  return isStop(cause.stop) ? cause.stop : null;
+}
+
+function isStop(value: unknown): value is MoveStopInfo {
+  return value !== null && typeof value === "object" && "class" in value && "holders" in value && "unchanged" in value;
+}
+
 /** Undoes a move (the user's click). */
 export async function switchMoveUndo(moveId: string): Promise<MoveUndoneInfo> {
-  if (!hasLiveBackend()) return window.__AIJ_MOVE_UNDONE__ ?? { words: "Undone: the conversation is back where it was.", kept: "" };
+  if (!hasLiveBackend()) return window.__AIJ_MOVE_UNDONE__ ?? { words: "Undone: the conversation is back where it was.", kept: "", notes: [] };
   return call("switch_move_undo", { moveId });
 }
 
