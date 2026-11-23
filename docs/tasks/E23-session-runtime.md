@@ -285,7 +285,7 @@
 **Quality gates**: `just keep-going verify-static`; a failing-before test; a live check on aij-test.
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E2313/manifest.md` (the measured traces, the rule's numbers).
 
-### AJ-E2314 0.5.0's walks: the later findings, in the 0.5.1 rebuild before beta | Status: TODO (0.5.1) | Priority P2 | Effort M | Depends: AJ-E2312
+### AJ-E2314 0.5.0's walks: the later findings, in the 0.5.1 rebuild before beta | Status: DONE (0.5.1) | Priority P2 | Effort M | Depends: AJ-E2312
 **Found** in 0.5.0's final walk and its two re-walks (`docs/qa/evidence/0.5.0-final-walk.md`, `0.5.0-rewalk.md`, `0.5.0-rewalk-2.md`); triaged "later" by Opus: none blocks 0.5.0.
 **UI**: yes
 **Usability reasoning** (Opus, before building; re-checked on the built screen):

@@ -209,6 +209,7 @@
 | AJ-E2310 | PASS10 UNPROVEN2 | 2026-11-07 | [manifest](AJ-E2310/manifest.md) |
 | AJ-E2311 | PASS7 | 2026-11-21 | [manifest](AJ-E2311/manifest.md) |
 | AJ-E2312 | PASS2 | 2026-11-21 | [manifest](AJ-E2312/manifest.md) |
+| AJ-E2314 | PASS8 | 2026-11-23 | [manifest](AJ-E2314/manifest.md) |
 | AJ-E2320 | PASS4 | 2026-11-23 | [manifest](AJ-E2320/manifest.md) |
 | AJ-E2327 | PASS6 | 2026-11-23 | [manifest](AJ-E2327/manifest.md) |
 | AJ-E2328 | PASS11 | 2026-11-23 | [manifest](AJ-E2328/manifest.md) |
