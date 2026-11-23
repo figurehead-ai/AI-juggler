@@ -23,6 +23,8 @@ import { IconUpRight } from "./icons-places";
 import { appTone, type AttentionLevel } from "../lib/attention";
 import { DROP, Grip, type Arrangeable } from "./RowTools";
 import type { RailPlace } from "../lib/rail-items";
+import { NOT_SHOWN, toneTip, unlinked } from "../lib/app-folder";
+import type { PlaceFolderInfo } from "../types/generated/PlaceFolderInfo";
 
 /** A place's header: the fold chevron; app, profile, count (its page);
  * Open. Folded, it reads "Work · 4 idle". */
@@ -53,7 +55,14 @@ export function PlaceHeader({
   probably = false,
   lit = false,
   broken = [],
+  folder = null,
+  onChooseFolder,
 }: {
+  /** AJ-E2327: its tool folder (what told), or why none is linked: an App
+   * whose sessions can't be shown says so, never just a grey icon. */
+  folder?: PlaceFolderInfo | null;
+  /** AJ-E2327: Choose its folder… (the system's picker), in its menu. */
+  onChooseFolder?: () => void;
   /** D-117: each L3 thing's word here, said in its name (its red dot is
    * decoration): "2 need you, 1 stopped with an error". */
   broken?: readonly string[];
@@ -110,6 +119,10 @@ export function PlaceHeader({
   // ADR-0032: an App that runs with nothing open in it says so, folded or
   // not (its last ones may show under it, 0.4.3).
   const empty = count === 0 && folded === null;
+  // AJ-E2327: no folder linked: its sessions can't be shown, and it says
+  // why (the row's words and its icon's tooltip), not "nothing open".
+  const notShown = empty && unlinked(folder) ? folder.why : null;
+  const tip = toneTip(level >= 2 || lit, folder);
   const mark = useRoomMark(roomOf, [], roomApp);
   const room = mark ? <RoomChip mark={mark} iconOnly testId="place-room" /> : null;
   const [menu, setMenu] = useState<MenuAt | null>(null);
@@ -149,12 +162,12 @@ export function PlaceHeader({
         className="relative flex min-h-6 min-w-0 flex-1 items-center gap-1.5 rounded-md px-1 py-1 text-left outline-none hover:bg-surface/60 focus-visible:ring-1 focus-visible:ring-accent/60"
       >
         {/* 0.4.3: its Out or low mark in its name too (the mark itself is drawn aria-hidden). */}
-        <span className="sr-only">{[folded ?? `${name}, ${empty ? "nothing open" : `${count} open`}${needs > 0 ? `, ${headNeedsWords(needs, broken)}` : ""}`, mark?.title].filter(Boolean).join(", ")}</span>
+        <span className="sr-only">{[folded ?? `${name}, ${notShown ? `${NOT_SHOWN}: ${notShown}` : empty ? "nothing open" : `${count} open`}${needs > 0 ? `, ${headNeedsWords(needs, broken)}` : ""}`, mark?.title].filter(Boolean).join(", ")}</span>
         <span aria-hidden="true" className="flex min-w-0 flex-1 items-center gap-[3px]">
           {/* D-100: its kind beside its icon (a window, or >_), never over it. */}
           {children ?? (place && (
             <>
-              <AppIcon appId={place.appId} appPid={place.appPid} name={place.app} size={16} className={appTone(level >= 2 || lit)} />
+              <AppIcon appId={place.appId} appPid={place.appPid} name={place.app} size={16} className={appTone(level >= 2 || lit)} tip={tip} />
               <AppKindBadge kind={appKindOfKey(place.key)} />
             </>
           ))}
@@ -191,7 +204,8 @@ export function PlaceHeader({
               needed you never said so. */}
           <span ref={extra} style={needs > 0 ? { minWidth: `calc(19px + ${String(needs).length}ch)` } : undefined} className={"flex h-[18px] min-w-0 flex-1 basis-0 items-center gap-x-[3px] overflow-hidden text-label tabular-nums" + (folded === null && !empty ? " justify-end" : "")} data-testid="place-name-line">
             {folded !== null && needs === 0 && <span className="shrink-0 whitespace-nowrap text-label leading-[18px] text-muted">{folded.slice(folded.indexOf("·") + 1).trim()}</span>}
-            {empty && <span className="shrink-0 whitespace-nowrap text-label leading-[18px] text-muted" data-testid="place-nothing-open" data-fit="first">nothing open</span>}
+            {empty && !notShown && <span className="shrink-0 whitespace-nowrap text-label leading-[18px] text-muted" data-testid="place-nothing-open" data-fit="first">nothing open</span>}
+            {notShown && <span className="shrink-0 whitespace-nowrap text-label leading-[18px] text-muted" data-testid="place-not-shown" data-fit="first" title={notShown}>{NOT_SHOWN}</span>}
             {needs > 0 && (
               <span className="flex shrink-0" data-fit="first">
                 <HeadNeeds needs={needs} level={level} probably={probably} />
@@ -258,6 +272,11 @@ export function PlaceHeader({
           {onRecent && (
             <MenuItem onClick={run(onRecent)} testId="place-header-menu-recent">
               Show recent
+            </MenuItem>
+          )}
+          {onChooseFolder && (
+            <MenuItem onClick={run(onChooseFolder)} testId="place-header-menu-folder">
+              Choose its folder…
             </MenuItem>
           )}
           {onRestart && (

@@ -592,3 +592,154 @@ fn a_running_profile_is_found_however_its_folder_was_spelled() {
     let t: Table = [main_on(20, OTHER)].into_iter().collect();
     assert!(running_place(&t, &hosts, home, &place, &nobody).is_none());
 }
+
+// ---------------------------------------------------------------------
+// AJ-E2327: which tool folder a profile uses, by the strongest evidence.
+
+mod link_evidence {
+    use std::collections::HashSet;
+    use std::path::{Path, PathBuf};
+
+    use super::super::sessions::{Evidence, LinkSource, contradicts, decide, folder_of_records};
+
+    const CLIENT_A: &str = "/Users/you/Library/Application Support/ClaudeCodeProfiles/client-a";
+    const TEAM_A: &str = "/Users/you/Library/Application Support/ClaudeCodeProfiles/team-a";
+    const WORK: &str = "/Users/you/Library/Application Support/ClaudeCodeProfiles/work";
+
+    fn holding(folder: &str, ids: &[&str]) -> (PathBuf, HashSet<String>) {
+        (
+            PathBuf::from(folder),
+            ids.iter().map(|id| (*id).to_owned()).collect(),
+        )
+    }
+
+    fn ids(list: &[&str]) -> Vec<String> {
+        list.iter().map(|id| (*id).to_owned()).collect()
+    }
+
+    /// The fresh 0.5.0 install: profile `team-a` writes in `client-a`;
+    /// the folder named like it (`team-a`) holds nothing of its. Its own
+    /// records find it while it's closed.
+    #[test]
+    fn a_closed_profile_is_linked_by_where_its_records_are() {
+        let folders = [
+            holding(TEAM_A, &[]),
+            holding(CLIENT_A, &["s-1", "s-2", "s-3"]),
+            holding(WORK, &["s-9"]),
+        ];
+        let found = folder_of_records(&ids(&["s-1", "s-2", "s-3"]), &folders, &[Path::new(TEAM_A)]);
+        assert_eq!(found, Some(Path::new(CLIENT_A)));
+        // None of its conversations anywhere: nothing tells.
+        assert_eq!(folder_of_records(&ids(&["s-7"]), &folders, &[]), None);
+        assert_eq!(folder_of_records(&[], &folders, &[]), None);
+    }
+
+    /// A switch copies a conversation into another profile's folder under
+    /// the same id: a tie is never decided by counting. Its link so far
+    /// (or the folder named like it) among the tied is confirmed; else
+    /// nothing is decided.
+    #[test]
+    fn a_tie_is_confirmed_by_its_link_or_left() {
+        let folders = [holding(CLIENT_A, &["s-1"]), holding(WORK, &["s-1"])];
+        let mine = ids(&["s-1"]);
+        assert_eq!(folder_of_records(&mine, &folders, &[]), None);
+        assert_eq!(
+            folder_of_records(&mine, &folders, &[Path::new(WORK)]),
+            Some(Path::new(WORK))
+        );
+        assert_eq!(
+            folder_of_records(&mine, &folders, &[Path::new(TEAM_A)]),
+            None,
+            "a preference outside the tie decides nothing"
+        );
+    }
+
+    /// 0.4.3 (D-102), kept: its own folder wins over one holding switch
+    /// copies of some of its sessions; the folder holding most of them
+    /// wins where its own holds none.
+    #[test]
+    fn the_folder_holding_most_of_its_sessions_wins() {
+        let mine: Vec<String> = (1..=21).map(|n| format!("s-{n}")).collect();
+        let refs: Vec<&str> = mine.iter().map(String::as_str).collect();
+        let folders = [holding(CLIENT_A, &refs), holding(WORK, &refs[..11])];
+        assert_eq!(
+            folder_of_records(&mine, &folders, &[]),
+            Some(Path::new(CLIENT_A))
+        );
+        let folders = [
+            holding(TEAM_A, &[]),
+            holding(CLIENT_A, &refs[..3]),
+            holding(WORK, &refs[..9]),
+        ];
+        assert_eq!(
+            folder_of_records(&mine, &folders, &[Path::new(TEAM_A)]),
+            Some(Path::new(WORK))
+        );
+    }
+
+    /// The order: its running sessions, its records, its app's declared
+    /// folder, AI Juggler's own record, then the name: a fallback only.
+    #[test]
+    fn the_strongest_evidence_decides() {
+        let (a, b, c) = (Path::new(CLIENT_A), Path::new(WORK), Path::new(TEAM_A));
+        let all = Evidence {
+            running: Some(a),
+            records: Some(b),
+            recorded: Some(c),
+            declared: None,
+            named: Some(c),
+        };
+        assert_eq!(decide(&all), Some((a, LinkSource::Running)));
+        let closed = Evidence {
+            running: None,
+            ..all
+        };
+        assert_eq!(decide(&closed), Some((b, LinkSource::Records)));
+        let recalled = Evidence {
+            records: None,
+            ..closed
+        };
+        assert_eq!(decide(&recalled), Some((c, LinkSource::Recorded)));
+        let guessed = Evidence {
+            recorded: None,
+            ..recalled
+        };
+        assert_eq!(decide(&guessed), Some((c, LinkSource::Named)));
+        assert_eq!(decide(&Evidence::default()), None);
+        for source in [
+            LinkSource::Running,
+            LinkSource::Records,
+            LinkSource::Recorded,
+            LinkSource::Declared,
+            LinkSource::Named,
+        ] {
+            assert_eq!(LinkSource::of_word(source.word()), Some(source));
+        }
+        assert!(LinkSource::Running.is_evidence() && !LinkSource::Named.is_evidence());
+    }
+
+    /// For AJ-E2317: only proof contradicts a link; the name or a recorded
+    /// folder never does.
+    #[test]
+    fn only_proof_contradicts_a_link() {
+        let (a, b) = (Path::new(CLIENT_A), Path::new(TEAM_A));
+        let running = Evidence {
+            running: Some(a),
+            named: Some(b),
+            ..Evidence::default()
+        };
+        assert_eq!(contradicts(&running, b), Some((a, LinkSource::Running)));
+        assert_eq!(contradicts(&running, a), None, "the link is the evidence");
+        let guessed = Evidence {
+            named: Some(a),
+            recorded: Some(a),
+            ..Evidence::default()
+        };
+        assert_eq!(contradicts(&guessed, b), None);
+        let records = Evidence {
+            records: Some(a),
+            ..Evidence::default()
+        };
+        assert_eq!(contradicts(&records, b), Some((a, LinkSource::Records)));
+    }
+}

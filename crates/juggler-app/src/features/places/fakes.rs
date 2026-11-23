@@ -141,7 +141,8 @@ impl Desktop for FakeDesktop {
 
 /// A state over `root` whose places see a made-up Mac: only this test's
 /// own process runs on it (its pid and start are real, so a place pinned
-/// to it is found alive), and its home is `root/home`. Nothing the test
+/// to it is found alive), its home is `root/home`, and discovery finds
+/// no tool folder. Nothing the test
 /// asserts then depends on what runs on the machine (a real ChatGPT or
 /// Codex app was found and brought forward instead of started).
 pub(crate) fn on_made_up_mac(
@@ -152,6 +153,8 @@ pub(crate) fn on_made_up_mac(
     let _ = state.places.made_up.set(super::MadeUpMac {
         table: crate::features::conversations::procs::some(&[me]),
         home: root.join("home"),
+        // AJ-E2327: none of this Mac's tool folders either.
+        installs: Some(Vec::new()),
     });
     std::sync::Arc::new(state)
 }

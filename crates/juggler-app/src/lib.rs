@@ -652,6 +652,10 @@ macro_rules! app_commands {
             // D-84: what AI Juggler found running, offered, never added by itself.
             Read  features::places::commands::places_offers,
             Write features::places::commands::places_offer_answer,
+            // AJ-E2327: Choose its folder… (a picked folder only), and each
+            // profile paired with its folder by evidence (first run's apps).
+            Write features::places::commands::places_choose_folder,
+            Read  features::places::commands::places_pairings,
             Write features::places::commands::places_open,
             // 0.3.8: quits and starts again one that lost its window when
             // macOS restarted its display (asked first, in the toast).

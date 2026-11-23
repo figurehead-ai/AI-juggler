@@ -20,8 +20,9 @@ pub mod book;
 pub mod commands;
 pub mod handoff;
 pub mod keep;
-mod link;
+pub(crate) mod link;
 use link::link_its_folder;
+pub(crate) use link::{LinkNote, Linked, link_note};
 pub mod open_session;
 pub mod profiles;
 pub mod reach;
@@ -82,6 +83,13 @@ pub struct Places {
     /// 0.4.3 (D-102): the profiles whose folder link was checked against
     /// their own records, this run (`link::correct_by_records`).
     link_checked: Mutex<HashSet<String>>,
+    /// AJ-E2327: what the last look for each App's tool folder found
+    /// (`link::LinkNote`): its row says it.
+    link_notes: Mutex<std::collections::HashMap<String, link::LinkNote>>,
+    /// AJ-E2327: when a look that found nothing (or only a recalled or
+    /// guessed folder) is tried again, and whether the App ran then (a
+    /// start looks at once).
+    link_retry: Mutex<std::collections::HashMap<String, (Instant, bool)>>,
     /// ADR-0031: the profiles a move (a switch by move) holds closed while
     /// it changes their files: keep alive, Open, Restart and the automation
     /// watch leave them alone until the move lets go ([`MoveHold`]).
@@ -104,6 +112,9 @@ pub struct MadeUpMac {
     pub table: procs::Table,
     /// The user's home.
     pub home: std::path::PathBuf,
+    /// AJ-E2327: the tool folders discovery finds on it (`None`: this
+    /// Mac's own scan).
+    pub installs: Option<Vec<juggler_adapter::environment::DiscoveredInstall>>,
 }
 
 impl Places {
@@ -378,7 +389,9 @@ fn read_records(state: &Arc<AppState>) -> bool {
     let mut titles = std::collections::HashMap::new();
     let mut index = RecordIndex::default();
     for (id, app_id, dir, unlinked) in places {
-        let first_look = unlinked
+        // AJ-E2327: unlinked, or linked by a recalled or guessed folder
+        // only (looked at again, throttled, until evidence settles it).
+        let first_look = (unlinked || !link::proven(state, &id))
             && state
                 .places
                 .looked
@@ -421,8 +434,7 @@ fn read_records(state: &Arc<AppState>) -> bool {
                     .lock()
                     .is_ok_and(|mut seen| seen.insert(id.clone()))
             {
-                let ids: Vec<String> = records.iter().map(|record| record.id.clone()).collect();
-                changed |= link::correct_by_records(state, &id, harness.as_str(), &ids);
+                changed |= link::correct_by_records(state, &id);
             }
             if let Some(folder) = &folder {
                 index.read.insert(id.clone());
@@ -1001,11 +1013,14 @@ pub fn offers(state: &Arc<AppState>) -> AppResult<Vec<(String, String)>> {
 }
 
 /// D-84: the user adds offer `id` (or answers "Not now": `add` false).
+/// AJ-E2327: Add is the consent to bring in the tool folder its sessions
+/// use, found by evidence (`link::link_by_evidence`); what it linked, or
+/// why nothing, is returned for Add's confirmation.
 ///
 /// # Errors
 ///
 /// [`AppError::Refused`] for an id that isn't an offer; storage errors.
-pub fn answer_offer(state: &Arc<AppState>, id: &str, add: bool) -> AppResult<()> {
+pub fn answer_offer(state: &Arc<AppState>, id: &str, add: bool) -> AppResult<Linked> {
     {
         let storage = crate::commands::lock_storage_arc(state)?;
         if add {
@@ -1018,9 +1033,11 @@ pub fn answer_offer(state: &Arc<AppState>, id: &str, add: bool) -> AppResult<()>
             storage.apps().decline(id)?;
         }
     }
-    if add {
-        link_its_folder(state, id, true);
-    }
+    let linked = if add {
+        link::link_by_evidence(state, id, true).1
+    } else {
+        Linked::default()
+    };
     // The book reads its rows again: the place is the user's now (or
     // declined).
     if let Ok(mut slot) = state.places.book.lock() {
@@ -1030,7 +1047,37 @@ pub fn answer_offer(state: &Arc<AppState>, id: &str, add: bool) -> AppResult<()>
         read_records(state);
     }
     changed(state);
-    Ok(())
+    Ok(linked)
+}
+
+/// AJ-E2327, "Choose its folder…": App `id` uses `folder` (the user
+/// picked it; no evidence told which). Brought in where it is and linked
+/// (`link::choose_folder`).
+///
+/// # Errors
+///
+/// [`AppError::Refused`] with why it can't be its folder.
+pub fn choose_folder(
+    state: &Arc<AppState>,
+    id: &str,
+    folder: &std::path::Path,
+) -> AppResult<Linked> {
+    let linked = link::choose_folder(state, id, folder).map_err(AppError::Refused)?;
+    read_records(state);
+    changed(state);
+    Ok(linked)
+}
+
+/// AJ-E2327: the tool folder evidence pairs with desktop place `id` (an
+/// App, an offer, or one found beside it), what told, and whether that's
+/// certain: nothing is brought in or linked (first run's "Your apps").
+#[must_use]
+pub fn pairing(
+    state: &Arc<AppState>,
+    id: &str,
+) -> Option<(std::path::PathBuf, ownership::sessions::LinkSource, bool)> {
+    let place = with_book(state, |book| book.places.get(id).cloned()).ok()??;
+    link::pairing(state, id, &place)
 }
 
 /// Forgets `id` (it's remembered again the next time it runs).
@@ -1516,5 +1563,7 @@ mod d84_tests;
 mod desktop_apps_tests;
 #[cfg(test)]
 pub(crate) mod fakes;
+#[cfg(test)]
+mod link_tests;
 #[cfg(test)]
 mod tests;

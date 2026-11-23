@@ -274,6 +274,7 @@ fn an_added_profiles_folder_is_the_one_its_sessions_write_in() {
         .into_iter()
         .collect(),
         home: root.path().join("home"),
+        installs: None,
     });
     let state = Arc::new(state);
     let mut place = crate::test_support::claude_profile(&profile.to_string_lossy());

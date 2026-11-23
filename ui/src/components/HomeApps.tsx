@@ -23,6 +23,7 @@ import { ProfileBadge } from "./ProfileBadge";
 import { HomeSection } from "./HomeSection";
 import { showToast } from "./Toast";
 import { appTone, brokenOf, brokenParts, counted, highest, itemLevel, type AttentionLevel } from "../lib/attention";
+import { toneTip } from "../lib/app-folder";
 import { showGoTo } from "../lib/go-to";
 import { conversationsBringForward } from "../lib/ipc/conversations";
 import { placesOpen, type KnownPlaceInfo } from "../lib/ipc/places";
@@ -157,7 +158,7 @@ function OpenRow({ group, appId, kept }: { group: RailGroup; appId: string | nul
   return (
     <Row
       id={appId}
-      icon={<AppIcon appId={place.appId} appPid={place.appPid} name={place.app} size={20} className={appTone(level >= 2)} />}
+      icon={<AppIcon appId={place.appId} appPid={place.appPid} name={place.app} size={20} className={appTone(level >= 2)} tip={toneTip(level >= 2)} />}
       app={place.app}
       profile={place.profile ?? null}
       slot={place.key}
@@ -191,7 +192,7 @@ function CliRow({ app }: { app: AppModel }): JSX.Element {
   return (
     <Row
       id={app.id}
-      icon={<AppIcon appId={app.appId} appPid={null} name={app.app} size={20} className={appTone(false)} />}
+      icon={<AppIcon appId={app.appId} appPid={null} name={app.app} size={20} className={appTone(false)} tip={toneTip(false)} />}
       app={app.app}
       profile={app.profile}
       slot={app.slot}
@@ -227,7 +228,7 @@ function KeptRow({ place }: { place: KnownPlaceInfo }): JSX.Element {
   return (
     <Row
       id={place.id}
-      icon={<AppIcon appId={place.app_id} appPid={null} name={app} size={20} className={appTone(false)} />}
+      icon={<AppIcon appId={place.app_id} appPid={null} name={app} size={20} className={appTone(false)} tip={toneTip(false, place.folder)} />}
       app={app}
       profile={profile}
       slot={place.colour_slot ?? place.id}
@@ -264,7 +265,7 @@ function Strip({ places, kept, cli, pageOf }: { places: RailGroup[]; kept: Known
         return (
           <li key={group.key}>
             <button type="button" className={cell} aria-label={`Open ${name}${page !== null ? "'s page" : ""}${level >= 2 ? ", needs you" : ""}`} title={name} onClick={go} data-testid="home-app-tile" data-place={place.key} data-level={level}>
-              <AppIcon appId={place.appId} appPid={place.appPid} name={place.app} size={24} className={appTone(level >= 2)} />
+              <AppIcon appId={place.appId} appPid={place.appPid} name={place.app} size={24} className={appTone(level >= 2)} tip={toneTip(level >= 2)} />
               {level >= 2 && <span aria-hidden="true" className="level-mark absolute right-0.5 top-0.5" data-level={level} />}
             </button>
           </li>
@@ -275,7 +276,7 @@ function Strip({ places, kept, cli, pageOf }: { places: RailGroup[]; kept: Known
         return (
           <li key={place.id}>
             <button type="button" className={cell + " opacity-70"} aria-label={`${place.app_pid !== null ? "Open" : "Start"} ${name}`} title={name} onClick={() => start(place, name)} disabled={place.app_pid === null && place.cannot_start !== null} data-testid={place.app_pid !== null ? "home-app-kept" : "home-app-closed"}>
-              <AppIcon appId={place.app_id} appPid={null} name={knownAppWord(place)} size={24} className={appTone(false)} />
+              <AppIcon appId={place.app_id} appPid={null} name={knownAppWord(place)} size={24} className={appTone(false)} tip={toneTip(false, place.folder)} />
             </button>
           </li>
         );
@@ -283,7 +284,7 @@ function Strip({ places, kept, cli, pageOf }: { places: RailGroup[]; kept: Known
       {cli.map((app) => (
         <li key={app.id}>
           <button type="button" className={cell + " opacity-70"} aria-label={`Open ${app.defaultName}'s page`} title={app.defaultName} onClick={() => openApp(app.id)} data-testid="home-app-cli">
-            <AppIcon appId={app.appId} appPid={null} name={app.app} size={24} className={appTone(false)} />
+            <AppIcon appId={app.appId} appPid={null} name={app.app} size={24} className={appTone(false)} tip={toneTip(false)} />
           </button>
         </li>
       ))}

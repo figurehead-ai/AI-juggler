@@ -28,7 +28,7 @@ export function FoundOnThisMac({ offers: { offers, answer, note }, held }: { off
   return (
     <PaneSection id="found" title="Found on this computer" footer="Seen running, or found beside a profile that ran, and not added. AI Juggler adds an app only when you say so; until then it isn't in your apps, the rail or Home.">
       {shown.map((offer) => (
-        <OfferRow key={offer.id} offer={offer} onAnswer={(add) => answer(offer, add)} />
+        <OfferRow key={offer.id} offer={offer} onAnswer={(add) => void answer(offer, add)} />
       ))}
       {note && <RowNote>{note}</RowNote>}
     </PaneSection>
@@ -44,7 +44,7 @@ export function ForgottenRow({ one, offers }: { one: Forgotten; offers: Offers }
         <span className="font-medium text-ink-2">{one.name}</span> · forgotten{offer ? "; it's running, so it's offered again" : ""}
       </span>
       {offer && (
-        <Button size="sm" variant="secondary" onClick={() => offers.answer(offer, true)} data-testid="desktop-place-add-again">
+        <Button size="sm" variant="secondary" onClick={() => void offers.answer(offer, true)} data-testid="desktop-place-add-again">
           Add again
         </Button>
       )}

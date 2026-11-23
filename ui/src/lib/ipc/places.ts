@@ -11,10 +11,12 @@ import type { GoToOutcomeInfo } from "../../types/generated/GoToOutcomeInfo";
 import type { KnownPlaceInfo } from "../../types/generated/KnownPlaceInfo";
 import type { FindProfilesInfo } from "../../types/generated/FindProfilesInfo";
 import type { PlaceOfferInfo } from "../../types/generated/PlaceOfferInfo";
+import type { PlaceAddedInfo } from "../../types/generated/PlaceAddedInfo";
+import type { PlacePairingInfo } from "../../types/generated/PlacePairingInfo";
 import { previewHooks } from "../preview-hooks";
 import { listenWhileShown } from "../shown-window";
 
-export type { FindProfilesInfo, KnownPlaceInfo };
+export type { FindProfilesInfo, KnownPlaceInfo, PlaceAddedInfo, PlacePairingInfo };
 
 /** The event the backend sends when a place changed. */
 export const PLACES_CHANGED = "places-changed";
@@ -201,15 +203,45 @@ export async function placesOffers(): Promise<PlaceOfferInfo[]> {
   return call("places_offers");
 }
 
-/** D-84: Add an offer as an App, or Not now. */
-export async function placesOfferAnswer(id: string, add: boolean): Promise<void> {
+/** D-84: Add an offer as an App, or Not now. AJ-E2327: what Add did
+ * with its tool folder (brought in where it is, by what evidence, or why
+ * none), for its confirmation. */
+export async function placesOfferAnswer(id: string, add: boolean): Promise<PlaceAddedInfo> {
+  let added: PlaceAddedInfo;
   if (!hasLiveBackend()) {
     const now = preview();
     now.offers = (now.offers ?? []).filter((offer) => offer.id !== id);
     const found = now.profiles?.beside?.find((place) => place.id === id);
     if (add && found) now.places.push({ ...found });
+    added = { id, folder: (add ? found?.folder : null) ?? { tool: null, name: null, path: null, by: null, why: null } };
   } else {
-    await call("places_offer_answer", { id, add });
+    added = await call("places_offer_answer", { id, add });
   }
   changedHere();
+  return added;
+}
+
+/** AJ-E2327, "Choose its folder…": App `id` uses `folder`, one the user
+ * picked in the system's picker. */
+export async function placesChooseFolder(id: string, folder: string): Promise<PlaceAddedInfo> {
+  let added: PlaceAddedInfo;
+  if (!hasLiveBackend()) {
+    const name = folder.split("/").filter(Boolean).pop() ?? folder;
+    const info = { tool: "Claude Code", name, path: folder, by: "recorded", why: null };
+    const now = preview();
+    now.places = now.places.map((place) => (place.id === id ? { ...place, folder: info } : place));
+    added = { id, folder: info };
+  } else {
+    added = await call("places_choose_folder", { id, folder });
+  }
+  changedHere();
+  return added;
+}
+
+/** AJ-E2327: each desktop profile known (Apps and offers) paired with the
+ * tool folder evidence says it uses, and whether that's certain; none
+ * without a backend. Reads only. */
+export async function placesPairings(): Promise<PlacePairingInfo[]> {
+  if (!hasLiveBackend()) return [];
+  return call("places_pairings");
 }

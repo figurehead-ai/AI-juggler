@@ -142,7 +142,9 @@ import type { PairingStateInfo } from "./PairingStateInfo";
 import type { ParkedInfo } from "./ParkedInfo";
 import type { ParkedOfferInfo } from "./ParkedOfferInfo";
 import type { PickKind } from "./PickKind";
+import type { PlaceAddedInfo } from "./PlaceAddedInfo";
 import type { PlaceOfferInfo } from "./PlaceOfferInfo";
+import type { PlacePairingInfo } from "./PlacePairingInfo";
 import type { PoolCanvasInfo } from "./PoolCanvasInfo";
 import type { PoolMemberInfo } from "./PoolMemberInfo";
 import type { PoolMemberRow } from "./PoolMemberRow";
@@ -839,6 +841,8 @@ export interface Commands {
   parked_resume: { args: { sessionId: string }; result: LaunchResult };
   /** Write picked::pick_path */
   pick_path: { args: { kind: PickKind; fileName?: string | null }; result: string | null };
+  /** Write features::places::commands::places_choose_folder */
+  places_choose_folder: { args: { id: string; folder: string }; result: PlaceAddedInfo };
   /** Read features::places::commands::places_find */
   places_find: { args: { tool: string; conversationId: string; account?: string | null; app?: string | null }; result: KnownPlaceInfo | null };
   /** Write features::places::commands::places_forget */
@@ -848,11 +852,13 @@ export interface Commands {
   /** Read features::places::commands::places_list */
   places_list: { args: { page?: PageRequest | null }; result: Page<KnownPlaceInfo> };
   /** Write features::places::commands::places_offer_answer */
-  places_offer_answer: { args: { id: string; add: boolean }; result: void };
+  places_offer_answer: { args: { id: string; add: boolean }; result: PlaceAddedInfo };
   /** Read features::places::commands::places_offers */
   places_offers: { args: Record<string, never>; result: PlaceOfferInfo[] };
   /** Write features::places::commands::places_open */
   places_open: { args: { id: string; conversationId?: string | null; action?: string | null; folder?: string | null }; result: GoToOutcomeInfo };
+  /** Read features::places::commands::places_pairings */
+  places_pairings: { args: Record<string, never>; result: PlacePairingInfo[] };
   /** Read features::places::commands::places_profiles */
   places_profiles: { args: Record<string, never>; result: FindProfilesInfo };
   /** Write features::places::commands::places_profiles_set */

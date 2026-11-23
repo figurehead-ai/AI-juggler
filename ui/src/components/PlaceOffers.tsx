@@ -13,13 +13,34 @@ import { appKindOfKey, appKindWords } from "../lib/app-kind";
 import { Button } from "./primitives";
 import { errorText } from "../lib/bridge";
 import { onPlacesChanged, placesOfferAnswer, placesOffers } from "../lib/ipc/places";
+import { addedNote } from "../lib/app-folder";
+import { chooseAppFolder } from "../lib/choose-app-folder";
+import { showToast } from "./Toast";
 import type { PlaceOfferInfo } from "../types/generated/PlaceOfferInfo";
+import type { PlaceAddedInfo } from "../types/generated/PlaceAddedInfo";
+
+/** AJ-E2327: Add's confirmation, wherever Add is (the rail, Settings,
+ * first run, an App page's Find them): the App and the tool folder that
+ * came with it, where it is; or why none did, with Choose its folder…. */
+export function sayAdded(offer: PlaceOfferInfo, added: PlaceAddedInfo): void {
+  const note = addedNote(offer.label, added.folder);
+  showToast({
+    id: `place-added-${offer.id}`,
+    tone: note.unlinked ? "neutral" : "success",
+    message: note.message,
+    detail: note.detail ?? undefined,
+    action: note.unlinked ? { label: "Choose its folder…", run: () => void chooseAppFolder(offer.id, offer.label) } : undefined,
+    actionBelow: note.unlinked,
+    waits: note.unlinked,
+  });
+}
 
 /** The offers (`null` until read), again whenever a place changes;
- * `only` keeps the ones of one app (its icon's id). */
+ * `only` keeps the ones of one app (its icon's id). `answer` says what
+ * Add did (`sayAdded`) and resolves with it (`null` when it failed). */
 export function usePlaceOffers(only: string | null = null): {
   offers: PlaceOfferInfo[] | null;
-  answer: (offer: PlaceOfferInfo, add: boolean) => void;
+  answer: (offer: PlaceOfferInfo, add: boolean) => Promise<PlaceAddedInfo | null>;
   note: string | null;
   /** Reads them now (after Find them: its answer, not an older one). */
   reload: () => Promise<void>;
@@ -33,9 +54,16 @@ export function usePlaceOffers(only: string | null = null): {
   }, []);
   const answer = (offer: PlaceOfferInfo, add: boolean) => {
     setNote(null);
-    placesOfferAnswer(offer.id, add).then(
-      () => setOffers((now) => (now ?? []).filter((one) => one.id !== offer.id)),
-      (cause) => setNote(errorText(cause)),
+    return placesOfferAnswer(offer.id, add).then(
+      (added) => {
+        setOffers((now) => (now ?? []).filter((one) => one.id !== offer.id));
+        if (add) sayAdded(offer, added);
+        return added;
+      },
+      (cause) => {
+        setNote(errorText(cause));
+        return null;
+      },
     );
   };
   const reload = () => placesOffers().then(setOffers, () => setOffers([]));

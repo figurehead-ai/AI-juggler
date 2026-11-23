@@ -15,6 +15,9 @@ import { SessionRow, type SessionRowProps } from "./row/SessionRow";
 import { AlsoLine, Chevron, RailCaption, RailLink, RailSearchFoundNothing, SectionHead, ToReviewCaption, scrollerOf, stepPastEdge } from "./PlaceBoardParts";
 import { idleAppPage, RailAllSessions, RailIdleApp } from "./RailIdleApp";
 import { RailOfferRow, usePlaceOffers } from "./PlaceOffers";
+import { headerFolder } from "./AppFolderNote";
+import { RailEmpty } from "./RailEmpty";
+import { useAddOffer } from "./rail-add";
 import { RailOrderMenu } from "./RailOrderMenu";
 import { useArrange } from "./rail-arrange";
 import { LINE_KEY, useHoldStill } from "./rail-hold";
@@ -38,7 +41,7 @@ import { renamedPlaces, type RailGroup } from "../lib/rail-places";
 import { dayOf, lensOf, LONG_GROUP, rankOf } from "../lib/rail-order";
 import { useOffRail } from "../lib/rail-shown";
 import { reconcileOrder, toggleFold, useRailOrder } from "../lib/rail-order-store";
-import { parseQuery, RAIL_REVEAL_EVENT, showInRail, useRailView } from "../lib/rail-view";
+import { isSearching, parseQuery, RAIL_REVEAL_EVENT, showInRail, useRailView } from "../lib/rail-view";
 import { isSnoozed, type SnoozeState } from "../lib/railview";
 import { useBackendNeeds } from "../lib/needs-you";
 import { useNoticeActions } from "../lib/notice-actions";
@@ -143,6 +146,7 @@ export function PlaceBoard({ sessions, projects, accounts, snooze, now, selected
     if (!root.current?.contains(active) && !root.current?.matches(":hover")) setFrozen(null);
   };
   const hold = useHoldStill(root, { enter: freeze, leave: thaw, slot: cueSlot });
+  const addOffer = useAddOffer(root, hold.ownChange, offers.answer, places); // AJ-E2327: the rail keeps its place
 
   // A header's own click: its App's page here (its Account's in the
   // Account lens, a pool's in the Pool lens); AI Juggler's own place is Home.
@@ -296,7 +300,8 @@ export function PlaceBoard({ sessions, projects, accounts, snooze, now, selected
           lens === "pool"
             ? group.poolId !== null && host.openPool !== undefined
             : lens !== "account" && (known !== null || group.items.some((item) => (item.session !== null && item.place.kind === "own") || item.place.appPid !== null));
-        return (
+        const { folder, choose, note } = headerFolder(lens, known, group.label, { folded: line.folded !== null, rows: group.items.length }); // AJ-E2327
+        return (<>
           <PlaceHeader
             place={lens === "account" || lens === "pool" ? null : group.place}
             label={group.label}
@@ -314,10 +319,13 @@ export function PlaceBoard({ sessions, projects, accounts, snooze, now, selected
             onNew={lens === "place" && group.key.startsWith("cli|") ? () => window.dispatchEvent(new CustomEvent("aij:new-session", { detail: { accountId: group.items[0]?.accountId ?? null } })) : undefined}
             {...headerActions(known, group)} roomOf={lens === "pool" ? null : (group.accountId ?? group.items[0]?.accountId)} roomApp={lens === "place" ? (known?.id ?? null) : null} foldable={line.foldable} /* 0.4.3: by App, its App's own folder */
             recent={line.recent && { ...line.recent, onToggle: () => toggle(`${group.key}#recent`) }}
+            folder={folder}
+            onChooseFolder={choose}
           >
             {/* Grouped by Account: its icon, not a colour (colour is the Apps' in the rows below). */}
             {lens === "account" ? <IconAccount width={14} height={14} aria-hidden="true" className="shrink-0 text-muted" data-testid="rail-account-icon" /> : undefined}
           </PlaceHeader>
+          {note}</>
         );
       }
       case "row":
@@ -343,7 +351,7 @@ export function PlaceBoard({ sessions, projects, accounts, snooze, now, selected
       case "idle-more":
         return <RailLink onClick={() => toggle("idle#all")} testId="rail-idle-more">{`Show ${line.hidden} more`}</RailLink>;
       case "offer":
-        return <RailOfferRow offer={line.offer} onAdd={() => offers.answer(line.offer, true)} />;
+        return <RailOfferRow offer={line.offer} onAdd={() => addOffer(line.offer)} />;
       case "also":
         return <AlsoLine also={built.also} hidden={hidden} offRail={built.offRail} openApp={openOffRail} />;
       case "label":
@@ -386,12 +394,7 @@ export function PlaceBoard({ sessions, projects, accounts, snooze, now, selected
       <p role="status" aria-live="polite" className="sr-only" data-testid="rail-order-said">
         {arrange.said}
       </p>
-      {items.length === 0 && (
-        <div className="flex flex-col gap-1.5 px-3 py-6" data-testid="rail-empty">
-          <p className="text-label font-medium text-ink">Nothing open yet</p>
-          <p className="text-label leading-relaxed text-muted">Start one with New session, or open one in your apps: it shows here.</p>
-        </div>
-      )}
+      <RailEmpty lens={lens} lines={built.lines} filtering={isSearching(parsed) || Object.keys(view.only).length > 0} />
     </div>
   );
 }
