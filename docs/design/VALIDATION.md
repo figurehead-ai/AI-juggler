@@ -399,6 +399,7 @@ Legend: **A** = existing automated, **N#** = new automated (§3), **R** = Opus r
 | PAT-ATT-1…5 | A attention-budget; N20 extends it to every calm family |
 | PAT-DOOR-1…3 | R11; A actions-by-id tests where they exist |
 | PAT-SW-1…5 | N21, N22; walk step "from any session page, the switch is one visible click"; R2, R9 |
+| PAT-OSP-1…6 | the registry tests and the gate's lint (AJ-E1547); `release_scope.py` (the walks' dialog log, from 0.5.1); R17 |
 | CNT-1 Plain words | A plain_words_lint, plain-words-on-screen.test |
 | CNT-2 One word per thing | A terminology_lint, one-vocabulary.test |
 | CNT-3 Sentence case | N13 |
@@ -439,6 +440,7 @@ Legend: **A** = existing automated, **N#** = new automated (§3), **R** = Opus r
 | 14 | **Consistency.** Uses the kit and closest existing pattern; icons from the set, one meaning each, on every menu line; radii, shadows and motion from tokens; side by side with the app's best screens (the row menus, the rail's order menu, Usage, Processes, the pool wizard). (PR-11, ICN, M:ui-consistency) | hand-made look | indistinguishable from the best screens |
 | 15 | **Accessibility by hand.** Keyboard through every control; focus visible and returned; names make sense read aloud; 200% zoom; Reduce Motion; Increase Contrast. (A11Y) | traps, unnamed | smooth |
 | 16 | **Hand walk.** Every element clicked in the real Dev app or the preview, every path (success, refusal, error, empty, many), at 1024 and 1280, both themes; each scored works / speed / clarity / layout. (M:test-by-hand) | not walked | walked, each element ≥ 4 |
+| 17 | **System prompts.** What system prompts can this cause? Each is in the registry (`docs/design/os-prompts.md`), primed in setup or by the gate's sheet before the call, its outcome said after; none from background work. The walk's dialog log shows no unprimed one. (PAT-OSP, AJ-E1547) | an unannounced system dialog | every one told first |
 
 **Dialog add-on (every dialog, sheet and window sheet):** header and footer fixed; the body alone scrolls; the choices visible on open at 1024×680; the primary visible at every scroll position (scroll it and look); divider and fade when it scrolls; focus in on open and back on close; Escape behaviour honest during long actions. N1 measures these; the reviewer still looks.
 

@@ -28,7 +28,7 @@ It combines what is already decided (the decision log, the maintainer's recorded
 2. The two modes
 3. Foundations: colour, type, spacing, radii, elevation, icons, motion, density and layout
 4. Components
-5. Patterns
+5. Patterns (5.10: system prompts are told first)
 6. Content rules
 7. Accessibility
 8. Worked example: the Move or Copy dialog
@@ -614,6 +614,17 @@ Switching a session to another account is the product's main action (M:switching
 - **PAT-SW-3.** Its press opens the ranked list of Apps (the same dialog as ⌘⇧H, the row menus and the bell's notices). One visible door, one word: every switch action everywhere says "Switch account…", its dialog "Switch account" (CNT-2, CNT-5). (D-143)
 - **PAT-SW-4.** The card behind it stays folded with its list. Out of room, the list opens by itself; low, its folded line says what's possible first ("2 apps can take it over · Personal suggested"), never only the account's fact. (D-143, amends D-103.3)
 - **PAT-SW-5.** When it can't switch yet, the button stays focusable and says why (BTN-5, `WhyButton`).
+
+### 5.10 System prompts are told first (PAT-OSP)
+
+A standing rule, on every operating system and in every release (the maintainer, 2026-11-23, AJ-E1547): AI Juggler never causes a system prompt the user wasn't told about first. A dialog that appears unannounced reads as a bug or a crash.
+
+- **PAT-OSP-1.** Every system prompt AI Juggler can cause is an entry in the registry, `docs/design/os-prompts.md`, beside the gate: what triggers it (file and function), what the system shows in its own words, why we need it, what to click, what happens when declined.
+- **PAT-OSP-2.** Setup primes every entry this setup needs (AJ-E1545's "Let AI Juggler work with…" step): a card each, a picture of the dialog, what to click; Skip for now always there; only what this setup can use (PAT-HIDE).
+- **PAT-OSP-3.** Every triggering call goes through the one gate, an OS seam (`juggler_platform`). An entry not primed yet gets our sheet first ("…will now ask: here's why, click X", Continue and Not now), then the call, then the outcome said (granted, or declined with how to change it later). Background work never prompts: it waits, or raises a calm needs-you item.
+- **PAT-OSP-4.** A lint keeps prompt-triggering APIs inside the gate.
+- **PAT-OSP-5.** Every walk logs each system dialog it sees, with what primed it; an unprimed one is a release blocker (`docs/qa/evidence/os-prompts/<version>.md`, gated by `scripts/release_scope.py` from 0.5.1).
+- **PAT-OSP-6.** Windows (UAC, SmartScreen) and Linux (portals, polkit) get their entries when those ports start (D-52).
 
 ## 6. Content rules
 

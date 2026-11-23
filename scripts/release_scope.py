@@ -44,6 +44,14 @@ Usage:
                      # also writes every named task's state and the output
                      # (promote.yml's sign-off record reads it, D-109)
     release_scope.py --selftest
+System prompts (the maintainer's standing rule, 2026-11-23, AJ-E1547) are
+gated like presence, on every channel from 0.5.1: `check x.y.z` fails
+unless docs/qa/evidence/os-prompts/x.y.z.md (the walks' log of every
+system dialog they saw, each with the priming sheet or setup card that
+came before it) has no UNPRIMED line and ends in a PASS line, and the
+registry docs/design/os-prompts.md exists. A system dialog the user wasn't
+told about first reads as a bug or a crash.
+
 D-127/D-128: under the scope it prints the gate watch (scripts/gate_watch.py):
 the fidelity register's routes whose tool moved to a new major on this Mac,
 and the shape checks AI Juggler found failing, each to be re-checked in the
@@ -77,6 +85,33 @@ DEFERRED = re.compile(r"^\*\*Deferred \((D-\d+)\):\*\*(.*)$", re.M)
 EVIDENCE = ROOT / "docs/qa/evidence"
 # ADR-0032: the first release the real-Mac presence check gates.
 PRESENCE_FROM = (0, 4, 2)
+
+
+# AJ-E1547: the first release the system-prompt log gates.
+OS_PROMPTS_FROM = (0, 5, 1)
+OS_PROMPTS_REGISTRY = ROOT / "docs/design/os-prompts.md"
+
+
+def os_prompts(version: str) -> str | None:
+    """Why `version`'s walks don't prove every system dialog was primed
+    (None: they do, or it's older than the gate)."""
+    parts = version.split(".")
+    if len(parts) != 3 or not all(part.isdigit() for part in parts):
+        return None
+    if tuple(int(part) for part in parts) < OS_PROMPTS_FROM:
+        return None
+    if not OS_PROMPTS_REGISTRY.exists():
+        return "no system-prompt registry (docs/design/os-prompts.md)"
+    log = EVIDENCE / "os-prompts" / f"{version}.md"
+    if not log.exists():
+        return f"no system-dialog log from the walks (docs/qa/evidence/os-prompts/{version}.md)"
+    lines = [line for line in log.read_text(encoding="utf-8").splitlines() if line.strip()]
+    unprimed = [line for line in lines if "UNPRIMED" in line]
+    if unprimed:
+        return f"a system dialog appeared with no priming first: {unprimed[0].strip()[:120]}"
+    if not lines or not lines[-1].startswith("PASS"):
+        return f"the system-dialog log doesn't pass: {lines[-1] if lines else 'empty'}"
+    return None
 
 
 def presence(version: str) -> str | None:
@@ -270,6 +305,27 @@ def selftest() -> int:
             with contextlib.redirect_stdout(io.StringIO()):
                 assert run(["check", "9.9.1", "--channel", "beta"]) == want, text
         (EVIDENCE / "presence" / "9.9.1.txt").write_text("presence-check\nPASS Open now is exactly your running Apps\n", encoding="utf-8")
+        # AJ-E1547: no registry, no log, an unprimed dialog or no PASS fail every channel.
+        global OS_PROMPTS_REGISTRY
+        saved_registry = OS_PROMPTS_REGISTRY
+        OS_PROMPTS_REGISTRY = EVIDENCE / "os-prompts.md"
+        (EVIDENCE / "os-prompts").mkdir()
+        log = EVIDENCE / "os-prompts" / "9.9.1.md"
+        for registry, text, want in [
+            (False, None, 1),
+            (True, None, 1),
+            (True, "| Automation: System Events | none | UNPRIMED |\nPASS\n", 1),
+            (True, "| Accessibility | setup card | PRIMED |\n", 1),
+        ]:
+            if registry:
+                OS_PROMPTS_REGISTRY.write_text("registry", encoding="utf-8")
+            if text is not None:
+                log.write_text(text, encoding="utf-8")
+            with contextlib.redirect_stdout(io.StringIO()):
+                assert run(["check", "9.9.1", "--channel", "beta"]) == want, (registry, text)
+        log.write_text("| Accessibility | setup card | PRIMED |\nPASS every dialog primed\n", encoding="utf-8")
+        # Older than the gate: nothing asked.
+        assert os_prompts("0.5.0") is None
         for argv, want in [
             (["report", "9.9"], 0),
             (["check", "9.9.1"], 0),
@@ -296,6 +352,8 @@ def selftest() -> int:
         scope = real
         gate_lines = real_gate
         EVIDENCE = saved
+        if "saved_registry" in locals():
+            OS_PROMPTS_REGISTRY = saved_registry
     print("release-scope selftest: OK")
     return 0
 
@@ -365,6 +423,12 @@ def run(args: list[str]) -> int:
     if unseen:
         lines.append(f"  PRESENCE  {unseen}")
         lines.append("release_scope: the rail isn't proven to match what runs on the real Mac (ADR-0032).")
+        code = 1
+    # AJ-E1547: no system dialog the user wasn't told about first.
+    unprimed = os_prompts(version) if mode == "check" and not unseen else None
+    if unprimed:
+        lines.append(f"  PROMPTS   {unprimed}")
+        lines.append("release_scope: a system dialog isn't proven primed (the standing rule, AJ-E1547).")
         code = 1
     elif mode == "check" and (open_ or missing or unchecked or weak):
         if channel != "stable":
