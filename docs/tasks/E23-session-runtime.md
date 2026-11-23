@@ -334,6 +334,7 @@
 1. The source is the profile whose records list the conversation (the holder); two claiming it is a Bug refusal.
 2. The target is the App the user picked in the switch list: its place id carried end to end through `switch_move_execute` (actions target by id).
 3. Two profiles on one account: fixtures and a PL1 walk.
+**Follow-up (2026-11-23)**: the Copy hand-off's Desktop took its App by account too (`handoff::profile_for`, the running or last-seen profile); it now takes the App picked, by place id through `switch_preflight` and `switch_execute` (`target_place_id`), and `profile_for` is gone (ef8c39fee).
 **Quality gates**: `just keep-going verify-static`; failing-before tests; the move suite.
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E2317/manifest.md`.
 
