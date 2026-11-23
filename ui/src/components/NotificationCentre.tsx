@@ -2,8 +2,8 @@
  * AJ-E2503 (§4.14, wireframe 27; the approved design of 2026-10-27) — the
  * notification centre, from the bell or ⌥⌘N. **Needs action** mirrors
  * Needs you (the same items, the same count; snoozed ones folded under
- * "Snoozed"); **Earlier** keeps what happened — resets, finishes, crashes
- * and restarts, updates — 30 days, a page at a time. Mark all read, the
+ * "Snoozed"); **Latest** shows the last few things that happened, with
+ * "See all on Home" (AJ-E1548 #9: the 30-day history lives in the feed). Mark all read, the
  * day's digest, and the way to Notification settings. Empty, it says
  * "You're all caught up."; in the quiet hours, what is muted and until
  * when. A labelled dialog: focus moves in, Tab stays inside, Esc closes
@@ -26,9 +26,12 @@ import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import { openWatches } from "../lib/watches-open";
 import { watchesSummary } from "../lib/ipc/watch-view";
 import { DOORS } from "./watches/watches-words";
+import { openHomeScreen } from "../lib/landing";
 
 /** Earlier notices read at a time. */
 const EARLIER_PAGE = 20;
+/** AJ-E1548 #9: how many of the latest events the bell shows. */
+const LATEST = 5;
 
 /** Puts the centre under `anchor` (the bell), its right edge on the
  * bell's, 8 px below it, and keeps it there as the window resizes. Fixed
@@ -197,23 +200,31 @@ export function NotificationCentre({ summary, sessions, anchor, onClose }: { sum
                 </ul>
               </LoadingState>
             </section>
+            {/* AJ-E1548 #9: the latest few only; the 30-day history lives
+                once, in Home's feed. */}
             {earlier.items.length > 0 && (
               <section aria-labelledby={`${titleId}-earlier`} className="mt-1">
                 <h3 id={`${titleId}-earlier`} className="px-3.5 pb-1 pt-2.5 text-label font-semibold uppercase tracking-wide text-muted">
-                  Earlier
+                  Latest
                 </h3>
                 <ul data-testid="notices-earlier">
-                  {earlier.items.map((notice) => (
+                  {earlier.items.slice(0, LATEST).map((notice) => (
                     <NoticeRow key={notice.id} notice={notice} actions={actions} now={now} onEditWatch={editWatch} />
                   ))}
                 </ul>
-                {earlier.hasMore && (
-                  <div className="px-3.5 py-2">
-                    <button type="button" onClick={earlier.loadMore} disabled={earlier.loadingMore} className="rounded text-meta font-medium text-accent-hi hover:underline disabled:text-muted" data-testid="notices-more">
-                      {earlier.loadingMore ? "Loading…" : "Show earlier"}
-                    </button>
-                  </div>
-                )}
+                <div className="px-3.5 py-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onClose();
+                      openHomeScreen();
+                    }}
+                    className="rounded text-meta font-medium text-accent-hi hover:underline"
+                    data-testid="notices-see-all"
+                  >
+                    See all on Home <span aria-hidden="true">›</span>
+                  </button>
+                </div>
               </section>
             )}
           </>
@@ -230,7 +241,7 @@ export function NotificationCentre({ summary, sessions, anchor, onClose }: { sum
                   <span className="whitespace-nowrap">{part}</span>
                 </span>
               ))
-            : "History is kept for 30 days."}
+            : "Everything from the last 30 days is in Home's feed."}
         </span>
         <button
           type="button"

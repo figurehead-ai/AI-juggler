@@ -11,7 +11,7 @@ import { useCleanupCount } from "../lib/cleanup-count";
 import { useResource } from "../lib/use-resource";
 import { emptyHistory, goBack, goForward, visit, type NavHistory } from "../lib/nav-history";
 import type { Selection } from "./selection";
-import { landingOf, type Landing } from "../lib/landing";
+import { OPEN_HOME, landingOf, type Landing } from "../lib/landing";
 
 /** A page the window was on: what was selected, or a global screen. */
 type Page = { selection: Selection; global: GlobalId | null };
@@ -134,6 +134,15 @@ export function useNavigation() {
   const openOn = useCallback((id: GlobalId, filter: string) => {
     setLanding({ id, filter });
     setGlobal(id);
+  }, []);
+  // AJ-E1548 #9: the bell's "See all on Home".
+  useEffect(() => {
+    const home = () => {
+      setGlobal(null);
+      setSelection({ kind: "none" });
+    };
+    window.addEventListener(OPEN_HOME, home);
+    return () => window.removeEventListener(OPEN_HOME, home);
   }, []);
   // The rail's "Search all history for …" (persona D3, rc33): History,
   // searching for its words (the screen itself opens on the same event).

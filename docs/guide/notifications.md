@@ -17,14 +17,14 @@ Nothing in any of them acts by itself: every action is your click.
 
 Click the bell, or press ⌥⌘N.
 
-- **Needs action** is your Needs you list: sessions that ask you or may be
+- **Needs you** is your Needs you list: sessions that ask you or may be
   stuck, a usage limit reached, finished work to review, a sign-in, an
   account almost out of room, an agent's message or task. Each line says
   what happened and offers its action (Open, Review, Continue in another
   app…, Sign in…).
-- **Earlier** keeps what happened: an account with room again, a session
-  that finished, a crash AI Juggler restarted, an update. History is kept
-  for 30 days; **Show earlier** reads more.
+- **Latest** shows the last few things that happened: an account with room
+  again, a session that finished, a crash AI Juggler restarted, an update.
+  **See all on Home** opens Home's feed, which keeps them for 30 days.
 - **⋯** on an item: **Snooze 1 h**, **Snooze until tomorrow**, **Mute this
   project** or **Mute this kind**. Both stop interrupting you — no dot, no
   banner, no notification. A **snoozed** item also leaves the Needs you

@@ -28,6 +28,14 @@ export function openScreenOn(id: GlobalId, filter: string | null): void {
   window.dispatchEvent(new CustomEvent("aij:open-screen", { detail: filter ? { id, filter } : { id } }));
 }
 
+/** The event that opens Home (Home isn't a global screen). */
+export const OPEN_HOME = "aij:open-home";
+
+/** Opens Home (the bell's "See all on Home", AJ-E1548 #9). */
+export function openHomeScreen(): void {
+  window.dispatchEvent(new Event(OPEN_HOME));
+}
+
 /** The view a landing names on screen `id`, else `null`. */
 export function landedOn(landing: Landing | null, id: GlobalId): string | null {
   return landing?.id === id ? landing.filter : null;
