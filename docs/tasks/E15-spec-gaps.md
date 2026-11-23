@@ -887,3 +887,23 @@ Step 2, "Sign in": (1) a newcomer signing in expects the provider's own page, no
 5. Through the adapters' sign-in hooks only (no per-tool code outside them).
 **Quality gates**: `just keep-going verify-static`; per-adapter tests for success detection, an early exit and stale-entry cleanup; the persona walk signs in through the wizard and sees the rail's entry leave.
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E1553/manifest.md`.
+
+### AJ-E1554 The rail's rows hold still on hover, and every group says quietly what more there is, one click from it | Status: TODO (0.5.1) | Priority P1 | Effort M | Depends: AJ-E1550, AJ-E2327
+**Found** by the maintainer on the 0.5.0 Nightly (2026-11-23): on hover a session row's actions (grip, pin, open) cover its title and a handle mark slides under the status dot, which looks broken; and the rail, calm with only open sessions, gave no sign of what else exists (a main session with 6 subagents running and 220 in all showed nothing of them).
+**UI**: yes
+**Usability reasoning** (Opus, before building; re-checked on the built screen):
+(1) Everyone, all day: the rail is the map of what is open; they expect rows to stay put under the pointer and the map to hint at what lies beyond it.
+(2) Counts are small, muted and summarised, non-zero only, each with a tooltip saying what it counts ("3 sessions need you"); a "+12 more · 3 idle today" footer says what opening it shows.
+(3) The rail stays calm (open sessions only) while every group says what else exists; each count is a door to exactly those items, so nothing needs a second list.
+(4) Zero values are hidden; a group with nothing more has no footer; inactive Apps collapse to one summary line.
+(5) None.
+(6) Actions covering the title; a dot that moves; a bare "2" with no meaning; 220 subagents invisible.
+**Requirements**:
+1. Every rail row type (session, App header, sign-in, not-added) has fixed slots: a leading gutter (the status dot, or the grip on hover in the same slot), the title (truncating), and a trailing slot (the state label, which hover and keyboard focus swap for the action icons). Actions never overlap the title or move the dot. A visual test per row type for rest, hover and focus.
+2. An App header shows a compact status cluster on its right, non-zero values only, tabular numbers and tooltips: working (n), needs you (n, amber), done to review (n), subagents running (branch icon + n), replacing the bare count.
+3. A session row shows a small branch icon + n when it has running subagents, opening its Subagents tab.
+4. An App group with more sessions than shown has a quiet footer row ("+12 more · 3 idle today") opening that App's page filtered.
+5. The collapsed inactive Apps header carries a summary ("10 apps · 48 sessions"); expanded, the list as today. A collapsed Needs you keeps its count chip.
+6. Every count opens exactly those items, by id; every count comes from the cached relation counts (instant, no new scan). AJ-E1550's tokens throughout (calm, no bright borders).
+**Quality gates**: `just keep-going verify-static`; tests for counts against fixtures, zero values hidden, a click target per count, the layout unchanged under hover; the persona walk asks "can a newcomer tell there is more, and get to it in one click?".
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E1554/manifest.md`.
