@@ -32,10 +32,11 @@ use juggler_adapter::compat::{CompatFeature, Gate, Span};
 use juggler_adapter::error::AdapterError;
 use juggler_adapter::moving::{
     Appended, HoldWhy, InPlaceMove, MemberSide, MoveCheck, MoveMember, MovePlan, MoveRequest,
-    MoveStep, NotesChoice, Refusal, Retained,
+    MoveStep, NotesChoice, ProcView, Refusal, Retained, Writer,
 };
 
 mod shape;
+mod writers;
 
 /// D-128, ADR-0035 §2: a move between Claude app profiles, in the remote
 /// `compat` section: offered for the app's 4.x and later (where its
@@ -1210,6 +1211,16 @@ impl InPlaceMove for ClaudeMove {
             .chars()
             .all(|c| c.is_ascii_alphanumeric() || c == '-')
             .then(|| format!("claude://resume?session={conversation}"))
+    }
+
+    // AJ-E2318: its pid files and `--resume` (`writers`).
+    fn writers(
+        &self,
+        tool_dir: &Path,
+        conversations: &[String],
+        table: &[ProcView<'_>],
+    ) -> Vec<Writer> {
+        writers::of(tool_dir, conversations, table)
     }
 }
 

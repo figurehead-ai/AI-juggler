@@ -342,6 +342,55 @@ pub enum Appended {
     Unknown,
 }
 
+/// AJ-E2318 (the review's B2): one running process as the move's
+/// [`InPlaceMove::writers`] hook reads it, as the OS lists it. Nothing
+/// else of the process (never its environment) is handed to an adapter.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct ProcView<'a> {
+    /// Its pid.
+    pub pid: u32,
+    /// Its parent's pid, when known.
+    pub ppid: Option<u32>,
+    /// Its executable, when the OS reports it.
+    pub exe: Option<&'a Path>,
+    /// Its arguments, the first being the program.
+    pub args: &'a [String],
+    /// When it started, epoch seconds.
+    pub start_secs: Option<i64>,
+}
+
+/// What tells that a process writes a conversation the move touches.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum WriterEvidence {
+    /// The tool's own per-session file names it (Claude Code's
+    /// `<tool_dir>/sessions/<pid>.json`), its recorded start matching the
+    /// live process's.
+    SessionFile,
+    /// It was started to resume the conversation (`--resume=<id>`).
+    ResumeArg,
+    /// It holds the tool's own writer lock of the conversation (Codex's
+    /// `thread-writer-locks/<id>.lock`).
+    HeldLock,
+    /// It holds a file the move touches open for writing (a backup for
+    /// writers no hook names).
+    OpenFile,
+}
+
+/// A process that can write a conversation the move touches now, with
+/// the evidence that says so.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Writer {
+    /// Its pid.
+    pub pid: u32,
+    /// When it started, epoch seconds, as the OS lists it.
+    pub start_secs: Option<i64>,
+    /// The conversation it writes, when the evidence names one.
+    pub conversation: Option<String>,
+    /// How it is known.
+    pub evidence: WriterEvidence,
+}
+
 /// A tool's in-place move ([`crate::ToolHandover::in_place_move`]).
 pub trait InPlaceMove: Send + Sync {
     /// Plans a move of `request.conversation` and its whole family from
@@ -365,6 +414,21 @@ pub trait InPlaceMove: Send + Sync {
     /// The link that opens `conversation` in the target's app, sent to
     /// that app's own process.
     fn resume_link(&self, conversation: &str) -> Option<String>;
+
+    /// AJ-E2318 (the review's B2): the processes in `table` that can write
+    /// any of `conversations` under the tool folder `tool_dir` now, each
+    /// with its evidence. The move waits only on these and the apps' main
+    /// processes; it asks for both accounts' folders, whatever the place.
+    /// Reads only. Default: none known.
+    fn writers(
+        &self,
+        tool_dir: &Path,
+        conversations: &[String],
+        table: &[ProcView<'_>],
+    ) -> Vec<Writer> {
+        let _ = (tool_dir, conversations, table);
+        Vec::new()
+    }
 }
 
 /// Whether `path` is inside one of `roots` (by its components, never by
