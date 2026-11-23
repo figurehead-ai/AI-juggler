@@ -850,7 +850,7 @@ Step 2, "Sign in": (1) a newcomer signing in expects the provider's own page, no
 **Quality gates**: `just keep-going verify-static`; the layout-shift check; the visual gate.
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E1551/manifest.md`.
 
-### AJ-E1552 Nothing loads forever: one loading primitive (loading, ready, empty, error, stale), a deadline on every resource, an empty state wherever there is a skeleton | Status: TODO (0.5.1) | Priority P0 | Effort M | Depends: AJ-E2327
+### AJ-E1552 Nothing loads forever: one loading primitive (loading, ready, empty, error, stale), a deadline on every resource, an empty state wherever there is a skeleton | Status: DONE (0.5.1) | Priority P0 | Effort M | Depends: AJ-E2327
 **Found** by the maintainer on the 0.5.0 Nightly (2026-11-23): "We need much more reliable loading and delayed loading systems. We can't leave them in these forever loading states." On Accounts (filter "Out"), one Account card's Apps row stayed a skeleton bar for over a minute and never resolved; the other cards showed their App rows. The coordinating session's suspicion, to be confirmed: that Account has no added App on the fresh install (its desktop app sat in "Running, not added", AJ-E2327) and the card treats an empty list as still loading.
 **UI**: yes
 **Usability reasoning** (Opus, before building; re-checked on the built screen):
