@@ -11,6 +11,8 @@ import { IconProfiles, IconStateHandover } from "../icons";
 import { LogoTile, ToolLogo } from "../ToolLogo";
 import { toolSpec } from "../../lib/tools";
 import { destinationsOf, type Destination } from "./WhereChoice";
+import { LoadingState } from "../LoadingState";
+import { useLoadDeadline, type LoadState } from "../../lib/loading";
 
 type Icon = (props: SVGProps<SVGSVGElement>) => JSX.Element;
 
@@ -121,18 +123,39 @@ export function FlowHeader({ move, marks, target, preflight, destination }: { mo
 }
 
 /** While the check runs (EMP-2, never a blank body): the words, and the
- * summary panel's shape where its facts will be. */
-export function Checking({ target }: { target: string }): JSX.Element {
+ * summary panel's shape where its facts will be, only while it reads
+ * (AJ-E1552: LoadingState), "Still loading…" after 3 s; a check that
+ * failed says so with Retry; one with nothing to say has its own words.
+ * The switch flow shows it while its check reads (its failure is the
+ * flow's own failed step). */
+export function Checking({ target, state = "loading", failed, onRetry = () => {} }: { target: string; state?: LoadState; failed?: string; onRetry?: () => void }): JSX.Element {
+  const { slow } = useLoadDeadline(state === "loading", `the switch to ${target}`, { timeoutMs: Number.POSITIVE_INFINITY });
   return (
-    <div className="flex flex-col gap-4" aria-busy="true">
-      <p className="text-body text-ink-2" data-testid="switch-preflighting">
-        Checking the switch to {target}…
-      </p>
-      <div aria-hidden="true" className="flex flex-col gap-3 rounded-card bg-accent-soft px-4 py-4">
-        {[72, 88, 64].map((width) => (
-          <span key={width} className="h-3 rounded-full bg-skeleton" style={{ width: `${width}%` }} />
-        ))}
-      </div>
-    </div>
+    <LoadingState
+      state={state}
+      slow={slow}
+      what={`the check of the switch to ${target}`}
+      failed={failed}
+      onRetry={onRetry}
+      skeleton={
+        <div className="flex flex-col gap-4" aria-busy="true" data-testid="switch-checking">
+          <p className="text-body text-ink-2" data-testid="switch-preflighting">
+            Checking the switch to {target}…
+          </p>
+          <div aria-hidden="true" className="flex flex-col gap-3 rounded-card bg-accent-soft px-4 py-4">
+            {[72, 88, 64].map((width) => (
+              <span key={width} className="h-3 rounded-full bg-skeleton" style={{ width: `${width}%` }} />
+            ))}
+          </div>
+        </div>
+      }
+      empty={
+        <p className="text-body text-ink-2" data-testid="switch-check-empty">
+          Nothing to check for the switch to {target}.
+        </p>
+      }
+    >
+      {null}
+    </LoadingState>
   );
 }

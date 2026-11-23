@@ -31,9 +31,7 @@ const BY_DESIGN: Record<string, string> = {
 
 /** Before the primitive (AJ-E1552): the skeletons each draws today. Only
  * falls; a file moved onto LoadingState leaves this list. */
-const LEGACY: Record<string, number> = {
-  "components/switch/SwitchHeader.tsx": 1,
-};
+const LEGACY: Record<string, number> = {};
 
 function sources(dir: string): string[] {
   return readdirSync(dir).flatMap((name) => {
