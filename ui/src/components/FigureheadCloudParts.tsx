@@ -12,20 +12,24 @@ import type { CloudFeatureInfo } from "../types/generated/CloudFeatureInfo";
 import type { FigureheadStatusInfo } from "../types/generated/FigureheadStatusInfo";
 import { vaultStatus } from "../lib/ipc/vault";
 import type { VaultStatusInfo } from "../types/generated/VaultStatusInfo";
+import { MACHINES_WORD, MACHINE_WORD, THIS_MACHINE, THIS_MACHINE_IN_TEXT } from "../lib/machine-words";
 import { ConfirmSheet } from "./ConfirmSheet";
 
 /** What each cloud feature does and sends (plain words, D-18 §4.5). */
-const FEATURE_COPY: Record<string, { title: string; does: string; sends: string; note?: string; locked?: string }> = {
+// AJ-E1548 #17: every machine word from machine-words (one per platform).
+// #18 (D-127): `unshipped` hides a feature that can't work yet; its stored
+// choice is kept and saved as it is.
+const FEATURE_COPY: Record<string, { title: string; does: string; sends: string; note?: string; locked?: string; unshipped?: boolean }> = {
   cloudBackup: {
     title: "Cloud backup",
-    does: "Back up AI Juggler's settings, Launch settings and history, and restore them on another Mac.",
+    does: `Back up AI Juggler's settings, Launch settings and history, and restore them on another ${MACHINE_WORD}.`,
     sends: "An encrypted backup file. Figurehead can't read it.",
   },
   fleetDiscovery: {
-    title: "Find my Macs",
-    does: "Lists your other linked Macs in Fleet so they can pair without a code — you still confirm each one.",
-    sends: "This Mac's name, platform, app version and public key.",
-    note: "Arrives in an upcoming beta build — your choice is kept until then.",
+    title: `Find my ${MACHINES_WORD}`,
+    does: `Lists your other linked ${MACHINES_WORD} in Fleet so they can pair without a code — you still confirm each one.`,
+    sends: `${THIS_MACHINE}'s name, platform, app version and public key.`,
+    unshipped: true,
   },
   usageSync: {
     title: "Sync usage stats to my dashboard",
@@ -35,7 +39,7 @@ const FEATURE_COPY: Record<string, { title: string; does: string; sends: string;
   },
   alerts: {
     title: "Alerts when you're away",
-    does: "Sends AI Juggler's alerts to you when you're away from this Mac.",
+    does: `Sends AI Juggler's alerts to you when you're away from ${THIS_MACHINE_IN_TEXT}.`,
     sends: "The alert's text and time.",
   },
   configSync: {
@@ -123,6 +127,11 @@ function FeatureRow({
   );
 }
 
+/** The features a person can use today (D-127: an unshipped one is hidden). */
+export function shownFeatures(features: readonly CloudFeatureInfo[]): CloudFeatureInfo[] {
+  return features.filter((feature) => !FEATURE_COPY[feature.key]?.unshipped);
+}
+
 export function Consent({
   status,
   busy,
@@ -142,13 +151,13 @@ export function Consent({
   );
   return (
     <div className="flex flex-col gap-2" data-testid="cloud-consent">
-      <p className="text-sm font-medium">Turn on Cloud for this Mac</p>
+      <p className="text-sm font-medium">Turn on Cloud for {THIS_MACHINE_IN_TEXT}</p>
       <p className="text-xs text-ink-2">
-        Linked to {status.email ?? "your Figurehead account"}. Choose what this Mac may use — you can change
+        Linked to {status.email ?? "your Figurehead account"}. Choose what {THIS_MACHINE_IN_TEXT} may use — you can change{" "}
         any of it here later.
       </p>
       <ul className="flex flex-col divide-y divide-hairline">
-        {status.features.map((feature) => (
+        {shownFeatures(status.features).map((feature) => (
           <FeatureRow
             key={feature.key}
             feature={feature}
@@ -240,7 +249,7 @@ export function Connected({
         <p className="text-label text-warning" role="status" data-testid="cloud-offline">
           ○ Offline — showing what Figurehead said
           {status.refreshed_at_ms ? ` at ${new Date(status.refreshed_at_ms).toLocaleString()}` : " last time"}.
-          Everything on this Mac keeps working.
+          Everything on {THIS_MACHINE_IN_TEXT} keeps working.
         </p>
       )}
       <form
@@ -251,7 +260,7 @@ export function Connected({
         }}
       >
         <label className="flex flex-col gap-1 text-label font-medium">
-          This Mac's name on Figurehead
+          {THIS_MACHINE}'s name on Figurehead
           <input autoCorrect="off" autoCapitalize="off" spellCheck={false}
             value={name}
             maxLength={64}
@@ -265,9 +274,9 @@ export function Connected({
         </Button>
       </form>
       <div>
-        <p className="text-xs font-medium">Cloud features on this Mac</p>
+        <p className="text-xs font-medium">Cloud features on {THIS_MACHINE_IN_TEXT}</p>
         <ul className="flex flex-col divide-y divide-hairline">
-          {status.features.map((feature) => (
+          {shownFeatures(status.features).map((feature) => (
             <FeatureRow
               key={feature.key}
               feature={feature}
@@ -283,7 +292,7 @@ export function Connected({
           Open dashboard
         </Button>
         <Button size="sm" variant="ghost" onClick={() => setConfirmUnlink(true)} data-testid="cloud-unlink">
-          Unlink this computer…
+          Unlink {THIS_MACHINE_IN_TEXT}…
         </Button>
         <span className="flex-1" />
         <button
@@ -299,7 +308,7 @@ export function Connected({
         <ConfirmSheet
           idPrefix="unlink"
           testId="cloud-unlink-confirm"
-          title="Unlink this computer from Figurehead?"
+          title={`Unlink ${THIS_MACHINE_IN_TEXT} from Figurehead?`}
           action="Unlink"
           actionTestId="cloud-unlink-yes"
           busy={busy}
@@ -309,7 +318,7 @@ export function Connected({
             void run(figureheadUnlink);
           }}
         >
-          Cloud features stop on this Mac and its sign-in is removed. Everything stored on this Mac
+          Cloud features stop on {THIS_MACHINE_IN_TEXT} and its sign-in is removed. Everything stored on {THIS_MACHINE_IN_TEXT}{" "}
           stays as it is, and backups already on figurehead.ai stay there until you delete them.
         </ConfirmSheet>
       )}

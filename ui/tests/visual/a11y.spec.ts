@@ -1503,7 +1503,7 @@ for (const theme of ["dark", "light"] as const) {
     expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
     await page.getByTestId("cloud-turn-on").click();
     await page.getByTestId("cloud-unlink").click();
-    const sheet = page.getByRole("alertdialog", { name: "Unlink this computer from Figurehead?" });
+    const sheet = page.getByRole("alertdialog", { name: "Unlink this Mac from Figurehead?" });
     await expect(sheet.getByRole("button", { name: "Cancel" })).toBeFocused();
     expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
     await page.keyboard.press("Escape");

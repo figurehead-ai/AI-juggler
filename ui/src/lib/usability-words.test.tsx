@@ -13,12 +13,14 @@ import notificationSettings from "../components/NotificationSettings.tsx?raw";
 import notificationCentre from "../components/NotificationCentre.tsx?raw";
 import processesToolbar from "../screens/processes/Toolbar.tsx?raw";
 import railGroups from "../components/rail-groups.tsx?raw";
+import cloudParts from "../components/FigureheadCloudParts.tsx?raw";
 
 const SOURCES: Record<string, string> = {
   "../components/NotificationSettings.tsx": notificationSettings,
   "../components/NotificationCentre.tsx": notificationCentre,
   "../screens/processes/Toolbar.tsx": processesToolbar,
   "../components/rail-groups.tsx": railGroups,
+  "../components/FigureheadCloudParts.tsx": cloudParts,
 };
 const source = (path: string): string => SOURCES[path] ?? "";
 
@@ -56,5 +58,14 @@ describe("AJ-E1548 #11 #12: the header names its subject; the marks read plainly
     // The rail draws the count first, then its mark.
     const rail = source("../components/rail-groups.tsx");
     expect(rail.indexOf("{count}</span>\n      <span aria-hidden=\"true\" className=\"level-mark\"")).toBeGreaterThan(0);
+  });
+});
+
+describe("AJ-E1548 #17: one machine word in the Unlink sheet", () => {
+  it("the button, title, body and section all say it through machine-words", () => {
+    const text = source("../components/FigureheadCloudParts.tsx");
+    expect(text).not.toMatch(/this computer/i);
+    expect(text).not.toMatch(/"[^"]*\bthis Mac\b[^"]*"/);
+    expect(text).toContain("Unlink {THIS_MACHINE_IN_TEXT}…");
   });
 });
