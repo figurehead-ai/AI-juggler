@@ -52,12 +52,14 @@ const OUTSIDE = { ...ONECLICK, source_keeps_running: true, source_outside: true,
 type Seams = {
   __AIJ_SWITCH_PREFLIGHT__?: unknown;
   __AIJ_SWITCH_EXECUTE_DESTINATION__?: string[];
+  __AIJ_SWITCH_EXECUTE_PLACE__?: (string | null)[];
   __AIJ_SWITCH_EXECUTE_HANG__?: boolean;
 };
 const seams = () => window as never as Seams;
 
 beforeEach(() => {
   delete seams().__AIJ_SWITCH_EXECUTE_DESTINATION__;
+  delete seams().__AIJ_SWITCH_EXECUTE_PLACE__;
   delete seams().__AIJ_SWITCH_EXECUTE_HANG__;
 });
 afterEach(() => {
@@ -140,6 +142,15 @@ describe("0.3.5 where it continues: Desktop or CLI", () => {
     await toConfirm(view);
     expect(radio(view, /^Desktop/)).toBeTruthy();
     expect(radio(view, /^CLI/)).toBeTruthy();
+  });
+
+  it("sends the App picked in the list, by its place id (AJ-E2317: two on one account each pickable)", async () => {
+    seams().__AIJ_SWITCH_PREFLIGHT__ = { ...ONECLICK, destinations: EXAMPLE_DESTINATIONS };
+    const view = render(<SwitchFlow sessionId="sess-1" targetProfileId="p-1" targetLabel="Personal" targetPlaceId="place-team" onClose={vi.fn()} onSwitched={vi.fn()} />);
+    await waitFor(() => expect(view.getByTestId("switch-where")).toBeTruthy());
+    fireEvent.click(radio(view, /^Desktop/));
+    fireEvent.click(view.getByTestId("switch-confirm"));
+    await waitFor(() => expect(seams().__AIJ_SWITCH_EXECUTE_PLACE__).toEqual(["place-team"]));
   });
 
   it("sends the choice to the switch", async () => {

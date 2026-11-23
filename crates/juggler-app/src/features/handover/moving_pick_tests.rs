@@ -5,7 +5,7 @@
 //! quit or started).
 
 use super::*;
-use crate::features::places::handoff::profile_for;
+use crate::features::places::handoff::apps_on;
 
 /// Two Accounts, each with two Claude app profiles, and a terminal
 /// session on the first whose conversation (`main`) one profile lists.
@@ -121,16 +121,11 @@ fn two() -> Two {
 fn two_profiles_on_one_account_the_source_by_its_records_the_target_by_the_pick() {
     let two = two();
     two.lists_main("work");
-    // What the old pick (the Account's running profile, else the one seen
-    // last) took on each side: the wrong one in both.
-    assert_eq!(
-        profile_for(&two.state, "acct-a").unwrap().0,
-        two.id("team-a")
-    );
-    assert_eq!(
-        profile_for(&two.state, "acct-b").unwrap().0,
-        two.id("team-b")
-    );
+    // Each Account has two Apps that take sessions: a pick by Account
+    // (the old one: the running profile, else the one seen last) took
+    // the wrong one on both sides.
+    assert_eq!(apps_on(&two.state, "acct-a").len(), 2);
+    assert_eq!(apps_on(&two.state, "acct-b").len(), 2);
     let sides = two.sides(Some("lab"));
     assert!(sides.stop.is_none(), "{:?}", sides.stop);
     assert_eq!(

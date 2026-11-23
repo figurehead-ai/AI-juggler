@@ -115,10 +115,13 @@ export async function switchDoorCount(door: string, steps: string[]): Promise<vo
 }
 
 /** AJ-E205: preflight — ordered checks stop BEFORE any byte moves;
- * warnings render in the freeze dialog. */
+ * warnings render in the freeze dialog. `targetPlaceId` (AJ-E2317): the
+ * desktop App picked in the switch list, by its place id; its Desktop is
+ * that App. */
 export async function switchPreflight(
   sessionId: string,
   targetProfileId: string,
+  targetPlaceId: string | null = null,
 ): Promise<PreflightInfoData> {
   if (!hasBackend) {
     const seam = (window as unknown as { __AIJ_SWITCH_PREFLIGHT__?: Partial<PreflightInfoData> })
@@ -138,7 +141,7 @@ export async function switchPreflight(
     }
     return base;
   }
-  return call("switch_preflight", { sessionId, targetProfileId });
+  return call("switch_preflight", { sessionId, targetProfileId, targetPlaceId });
 }
 
 /** AJ-E206 §8.2: undoes a completed switch — stops the continuation

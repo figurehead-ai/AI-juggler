@@ -116,7 +116,7 @@ export function SwitchFlow({
   useEffect(() => {
     let alive = true;
     setPhase({ kind: "preflight" });
-    switchPreflight(sessionId, targetProfileId)
+    switchPreflight(sessionId, targetProfileId, targetPlaceId ?? null)
       .then((preflight) => {
         if (alive) {
           setStep(0);
@@ -134,7 +134,7 @@ export function SwitchFlow({
     };
     // The door is counted for the first check only.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sessionId, targetProfileId, attempt]);
+  }, [sessionId, targetProfileId, targetPlaceId, attempt]);
 
   const steps = phase.kind === "confirm" && phase.preflight.door === "wizard" && !move.moving ? phase.preflight.wizard_steps : [];
   const keysPending = phase.kind === "confirm" && keysRequired(phase.preflight, answer, changing);
@@ -170,7 +170,7 @@ export function SwitchFlow({
       // AJ-E1542: what the user picked is set up first, so the target
       // starts with it.
       const applied = await setupCheck.applyPicked();
-      const result = await switchExecute(sessionId, targetProfileId, freeze, choice, answer === "strip" ? [...unhide] : [], setupCheck.approved(), destination, carry.args);
+      const result = await switchExecute(sessionId, targetProfileId, freeze, choice, answer === "strip" ? [...unhide] : [], setupCheck.approved(), destination, carry.args, targetPlaceId ?? null);
       const continuedIn: Destination = result.continued_in === "desktop" ? "desktop" : "cli";
       const opened = openedPage(result, continuedIn, preflight); // its page: the Claude app's conversation (Starting till it says)
       if (oneClick && applied.length === 0 && continuedIn === "cli") {

@@ -25,7 +25,8 @@ export function noteSwitchPick(suggested: boolean): void {
  * check's offers the user ticked that the switch itself carries out
  * (D-51: this project's notes quoted in the handover, for a tool that
  * keeps none). `destination` (0.3.5): where it continues, `desktop` (the
- * target's Claude app profile) or `cli` (a terminal). */
+ * App picked: `targetPlaceId`, its place id end to end, AJ-E2317) or `cli`
+ * (a terminal). */
 export async function switchExecute(
   sessionId: string,
   targetProfileId: string,
@@ -36,6 +37,8 @@ export async function switchExecute(
   destination: "desktop" | "cli" = "cli",
   /** D-76: the start left out (null: everything travels). */
   cut: SwitchCutArgs | null = null,
+  /** AJ-E2317: the desktop App picked in the switch list, by its place id. */
+  targetPlaceId: string | null = null,
 ): Promise<SwitchExecutedData> {
   if (!hasLiveBackend()) {
     const seams = window as unknown as {
@@ -47,6 +50,7 @@ export async function switchExecute(
       }[];
       __AIJ_SWITCH_EXECUTE_APPROVED__?: string[][];
       __AIJ_SWITCH_EXECUTE_DESTINATION__?: string[];
+      __AIJ_SWITCH_EXECUTE_PLACE__?: (string | null)[];
       __AIJ_SWITCH_EXECUTE_CUT__?: (SwitchCutArgs | null)[];
     };
     // The guardrail seam: the redaction payload is observable so
@@ -60,6 +64,7 @@ export async function switchExecute(
     ];
     seams.__AIJ_SWITCH_EXECUTE_APPROVED__ = [...(seams.__AIJ_SWITCH_EXECUTE_APPROVED__ ?? []), approved];
     seams.__AIJ_SWITCH_EXECUTE_DESTINATION__ = [...(seams.__AIJ_SWITCH_EXECUTE_DESTINATION__ ?? []), destination];
+    seams.__AIJ_SWITCH_EXECUTE_PLACE__ = [...(seams.__AIJ_SWITCH_EXECUTE_PLACE__ ?? []), targetPlaceId];
     seams.__AIJ_SWITCH_EXECUTE_CUT__ = [...(seams.__AIJ_SWITCH_EXECUTE_CUT__ ?? []), cut];
     if (seams.__AIJ_SWITCH_EXECUTE_FAIL__ !== undefined) {
       return Promise.reject(seams.__AIJ_SWITCH_EXECUTE_FAIL__);
@@ -88,6 +93,7 @@ export async function switchExecute(
     trigger,
     approved,
     destination,
+    targetPlaceId,
     cut,
   });
 }

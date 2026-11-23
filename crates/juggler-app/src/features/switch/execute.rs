@@ -82,6 +82,7 @@ pub fn switch_execute_to(
         &[],
         Some(destination),
         None,
+        None,
     )
 }
 
@@ -107,6 +108,7 @@ pub fn switch_execute_cut(
         &[],
         "manual",
         &[],
+        None,
         None,
         Some(cut),
     )
@@ -136,6 +138,7 @@ pub fn switch_execute_with(
         redaction_unredact,
         "manual",
         approved,
+        None,
         None,
         None,
     )
@@ -194,6 +197,7 @@ pub(crate) fn switch_execute_core(
     trigger: &'static str,
     approved: &[String],
     destination: Option<&str>,
+    target_place: Option<&str>,
     cut: Option<juggler_adapter::handover::Cut>,
 ) -> AppResult<SwitchExecutedInfo> {
     use juggler_handover::pipeline::{self, Mechanism};
@@ -201,9 +205,10 @@ pub(crate) fn switch_execute_core(
 
     let freeze = freeze_of(freeze_choice);
     let sides = switch_sides(state, session_id, target_profile_id)?;
-    // 0.3.5: Desktop continues in the target account's app profile; CLI
-    // (the default) in a terminal.
-    let desktop = desktop_place(state, &sides, destination)?;
+    // 0.3.5: Desktop continues in the App the user picked (its place id,
+    // AJ-E2317), never one found again from the account; CLI (the
+    // default) in a terminal.
+    let desktop = desktop_place(state, &sides, destination, target_place)?;
     // AJ-E1304 (D-11): across Providers the conversation REPLAYS into a
     // primed session — one vendor's file is never installed into the
     // other's home.
@@ -450,11 +455,13 @@ pub(crate) fn user_warnings(report: &juggler_handover::pipeline::PreflightReport
 
 /// 0.3.5: the preflight's two choices. A session the desktop app started
 /// (its tool says so) stays in the app by default; across tools only CLI.
+/// Desktop is the App picked (`target_place`, its place id, AJ-E2317).
 pub(crate) fn switch_destinations(
     state: &Arc<AppState>,
     account_a: &Account,
     account_b: &Account,
     reference: &juggler_core::model::TranscriptRef,
+    target_place: Option<&str>,
 ) -> crate::features::places::handoff::DestinationsInfo {
     use crate::features::places::handoff::{DestinationsInfo, destinations};
     if account_a.harness != account_b.harness {
@@ -479,6 +486,7 @@ pub(crate) fn switch_destinations(
         &account_b.label,
         ran_in_desktop,
         terminal_signed_in(state, account_b),
+        target_place,
     )
 }
 
@@ -503,12 +511,15 @@ fn landed_key(account: &Account, record: &juggler_handover::pipeline::SwitchReco
 }
 
 /// 0.3.5: the profile a switch continues in when the user picked Desktop
-/// (`None` for CLI); refused in words when there's none to pick, or the
-/// switch crosses tools (a replay starts a new session in a terminal).
+/// (`None` for CLI): AJ-E2317, the App picked in the switch list
+/// (`target_place`, its place id), never one found from the account;
+/// refused in words when there's none to pick, or the switch crosses
+/// tools (a replay starts a new session in a terminal).
 fn desktop_place(
     state: &Arc<AppState>,
     sides: &SwitchSides,
     destination: Option<&str>,
+    target_place: Option<&str>,
 ) -> AppResult<Option<String>> {
     if destination == Some("cli")
         && sides.account_a.harness == sides.account_b.harness
@@ -526,6 +537,7 @@ fn desktop_place(
             &sides.account_b.label,
             true,
             false,
+            target_place,
         );
         return Err(AppError::Refused(offered.cli_why_not.unwrap_or_else(
             || "It signs in through its desktop app: continue there".to_owned(),
@@ -546,6 +558,7 @@ fn desktop_place(
         &sides.account_b.label,
         true,
         true,
+        target_place,
     );
     match offered.desktop {
         Some(desktop) => Ok(Some(desktop.place_id)),

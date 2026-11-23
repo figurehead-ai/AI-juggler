@@ -1184,7 +1184,7 @@ export interface Commands {
   /** Write features::switch::commands::switch_door_count */
   switch_door_count: { args: { door: string; steps: string[] }; result: void };
   /** Write features::switch::commands::switch_execute */
-  switch_execute: { args: { sessionId: string; targetProfileId: string; freezeChoice: string; redactionChoice?: string | null; redactionUnredact?: number[] | null; trigger?: string | null; approved?: string[] | null; destination?: string | null; cut?: SwitchCutArgs | null }; result: SwitchExecutedInfo };
+  switch_execute: { args: { sessionId: string; targetProfileId: string; freezeChoice: string; redactionChoice?: string | null; redactionUnredact?: number[] | null; trigger?: string | null; approved?: string[] | null; destination?: string | null; targetPlaceId?: string | null; cut?: SwitchCutArgs | null }; result: SwitchExecutedInfo };
   /** Read features::switch::commands::switch_graph_overview */
   switch_graph_overview: { args: { projectId: string }; result: WorkGraphInfo[] };
   /** Write features::switch::moves::switch_move_execute */
@@ -1200,7 +1200,7 @@ export interface Commands {
   /** Write features::switch::moves::switch_ownership_repair */
   switch_ownership_repair: { args: { key: string }; result: OwnershipRepairedInfo };
   /** Read features::switch::commands::switch_preflight */
-  switch_preflight: { args: { sessionId: string; targetProfileId: string }; result: PreflightInfo };
+  switch_preflight: { args: { sessionId: string; targetProfileId: string; targetPlaceId?: string | null }; result: PreflightInfo };
   /** Write features::switch_setup::switch_setup_apply */
   switch_setup_apply: { args: { sessionId: string; targetProfileId: string; offers: string[] }; result: AppliedInfo[] };
   /** Read features::switch_setup::switch_setup_check */

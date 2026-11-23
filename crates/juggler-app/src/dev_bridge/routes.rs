@@ -215,7 +215,7 @@ read_routes! {
     // set-up list, all reads. The check's secret previews are masked
     // before they leave ([`masked`]).
     "switch_targets" => async_result features::switch::commands::switch_targets(state; session_id: String);
-    "switch_preflight" => async_result features::switch::commands::switch_preflight(state; session_id: String, target_profile_id: String);
+    "switch_preflight" => async_result features::switch::commands::switch_preflight(state; session_id: String, target_profile_id: String, target_place_id: Option<String>);
     // D-93 (ADR-0031): the Move offer a switch shows (whether Move applies,
     // why not, the family, the restarts); it reads, it moves nothing.
     "switch_move_offer" => async_result features::switch::moves::switch_move_offer(state; session_id: String, target_profile_id: String, target_place_id: Option<String>);

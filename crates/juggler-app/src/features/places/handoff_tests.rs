@@ -170,20 +170,20 @@ fn an_app_profile_not_signed_in_at_the_terminal_continues_in_the_app() {
     assert!(!signs_in_through_app(&state, "acct-other"));
     let folders = folders_signed_in_through_apps(&state);
     assert!(folders.contains("acct-work") && !folders.contains("acct-other"));
-    let offered = destinations(&state, "acct-work", "Work Max", false, false);
+    let offered = destinations(&state, "acct-work", "Work Max", false, false, None);
     assert!(offered.desktop.is_some(), "Desktop is there to pick");
     assert_eq!(offered.suggested, "cli", "still where the original ran");
     let why = offered.cli_why_not.expect("CLI says why not");
     assert!(why.starts_with("Work Max signs in through"), "{why}");
     // Signed in at the terminal too: both are open.
     assert!(
-        destinations(&state, "acct-work", "Work Max", false, true)
+        destinations(&state, "acct-work", "Work Max", false, true, None)
             .cli_why_not
             .is_none()
     );
     // No app profile: nothing to continue in, nothing said here (the
     // target list holds it back for its sign-in).
-    let none = destinations(&state, "acct-other", "Personal", false, false);
+    let none = destinations(&state, "acct-other", "Personal", false, false, None);
     assert!(none.cli_why_not.is_none());
     assert_eq!(none.suggested, "cli");
 }
@@ -192,7 +192,7 @@ fn an_app_profile_not_signed_in_at_the_terminal_continues_in_the_app() {
 fn desktop_is_offered_for_an_account_with_a_profile_and_said_why_not_otherwise() {
     let root = tempfile::tempdir().unwrap();
     let (state, id, _) = state_with_profile(root.path(), Some("acct-work"));
-    let with = destinations(&state, "acct-work", "Work Max", true, true);
+    let with = destinations(&state, "acct-work", "Work Max", true, true, None);
     let desktop = with.desktop.expect("the profile on that account");
     assert_eq!(desktop.place_id, id);
     assert_eq!(desktop.app_id, "claude-app");
@@ -201,10 +201,10 @@ fn desktop_is_offered_for_an_account_with_a_profile_and_said_why_not_otherwise()
         "a session from the app stays in the app"
     );
     assert_eq!(
-        destinations(&state, "acct-work", "Work Max", false, true).suggested,
+        destinations(&state, "acct-work", "Work Max", false, true, None).suggested,
         "cli"
     );
-    let without = destinations(&state, "acct-other", "Personal", true, true);
+    let without = destinations(&state, "acct-other", "Personal", true, true, None);
     assert!(without.desktop.is_none());
     assert_eq!(without.suggested, "cli");
     assert!(
@@ -213,6 +213,43 @@ fn desktop_is_offered_for_an_account_with_a_profile_and_said_why_not_otherwise()
             .unwrap()
             .contains("No desktop app profile on Personal")
     );
+}
+
+/// AJ-E2317 follow-up: two profiles on one account: the Copy hand-off's
+/// Desktop is the App picked, by its place id, and each one is pickable;
+/// never the account's running or last-seen one.
+#[test]
+fn two_profiles_on_one_account_each_is_the_desktop_when_picked() {
+    let root = tempfile::tempdir().unwrap();
+    let (state, first, _) = state_with_profile(root.path(), Some("acct-work"));
+    let (second, _, _) = crate::features::places::remember_test_profile(
+        &state,
+        root.path(),
+        "b-team",
+        Some("acct-work"),
+    );
+    // The second is seen last: a pick by account takes it whatever the
+    // user picked.
+    with_book(&state, |book| {
+        book.places.get_mut(&second).unwrap().seen_ms = 20;
+    })
+    .unwrap();
+    for picked in [&first, &second] {
+        let offered = destinations(&state, "acct-work", "Work Max", true, true, Some(picked));
+        assert_eq!(
+            offered.desktop.map(|desktop| desktop.place_id).as_ref(),
+            Some(picked),
+            "the App picked"
+        );
+    }
+    // No pick with two: neither is chosen for the user.
+    let none = destinations(&state, "acct-work", "Work Max", true, true, None);
+    assert!(none.desktop.is_none());
+    let why = none.desktop_why_not.unwrap();
+    assert!(why.contains("pick the one"), "{why}");
+    // A pick that isn't on the target account is never taken.
+    let elsewhere = destinations(&state, "acct-other", "Personal", true, true, Some(&first));
+    assert!(elsewhere.desktop.is_none());
 }
 
 #[test]
@@ -260,7 +297,7 @@ fn an_app_that_cant_take_a_session_is_named_as_the_reason() {
         );
     })
     .unwrap();
-    let codex = destinations(&state, "acct-codex", "Codex work", true, true);
+    let codex = destinations(&state, "acct-codex", "Codex work", true, true, None);
     assert!(codex.desktop.is_none());
     assert_eq!(codex.suggested, "cli");
     let why = codex.desktop_why_not.unwrap();
