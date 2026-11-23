@@ -390,3 +390,70 @@ fn pairings_pair_each_profile_by_evidence_and_add_nothing() {
             .is_empty()
     );
 }
+
+/// 0.5.1 F2: in "Your apps" a profile not yet added takes "Choose its
+/// folder…" too. The pick is checked as an App's is, kept with the offer
+/// (nothing added, brought in or linked: D-84), pairs it for sure, and
+/// its Add links that folder.
+#[test]
+fn a_folder_chosen_before_add_is_kept_and_linked_by_add() {
+    let mac = Mac::new(&["client-a", "team-a"], |_| Vec::new());
+    let team = mac.offer("team-a");
+    let accounts = |mac: &Mac| {
+        crate::commands::lock_storage_arc(&mac.state)
+            .unwrap()
+            .accounts()
+            .list()
+            .unwrap()
+            .len()
+    };
+    // Guessed by its name, so Your apps asks.
+    let all = commands::pairings(&mac.state).unwrap();
+    let row = all.iter().find(|one| one.id == team).unwrap();
+    assert_eq!(row.folder.name.as_deref(), Some("team-a"));
+    assert!(!row.certain && !row.added);
+
+    // A folder that isn't a Claude Code one is refused, as for an App.
+    let empty = mac.home.join("empty");
+    std::fs::create_dir_all(&empty).unwrap();
+    assert!(link::choose_folder(&mac.state, &team, &empty).is_err());
+
+    let chosen = link::choose_folder(&mac.state, &team, &mac.folder("client-a")).unwrap();
+    assert_eq!(chosen.folder, Some(mac.folder("client-a")));
+    assert_eq!(chosen.by, Some(ownership::sessions::LinkSource::Recorded));
+    // Kept with the offer only: not added, nothing brought in or linked.
+    assert_eq!(accounts(&mac), 0);
+    assert_eq!(mac.account_dir(&team), None);
+    let all = commands::pairings(&mac.state).unwrap();
+    let row = all.iter().find(|one| one.id == team).unwrap();
+    assert_eq!(row.folder.name.as_deref(), Some("client-a"));
+    assert!(row.certain, "the user's pick settles the pairing");
+    assert!(!row.added);
+
+    // Their Add links the chosen folder, brought in where it is.
+    let added = answer_offer(&mac.state, &team, true).unwrap();
+    assert_eq!(added.folder, Some(mac.folder("client-a")));
+    assert_eq!(added.by, Some(ownership::sessions::LinkSource::Recorded));
+    assert_eq!(mac.account_dir(&team), Some(mac.folder("client-a")));
+    assert_eq!(accounts(&mac), 1);
+}
+
+/// Proof outranks a pick made before Add: its running sessions in another
+/// folder refuse the pick, as they do for an App.
+#[test]
+fn proof_refuses_a_pick_before_add() {
+    let mac = Mac::new(&["client-a", "work"], |home| running(home, "team-a", 100));
+    pid_file(&mac.folder("client-a"), 104, "s-1");
+    let team = mac.offer("team-a");
+    let why = link::choose_folder(&mac.state, &team, &mac.folder("work")).unwrap_err();
+    assert!(why.contains("client-a"), "{why}");
+}
+
+/// A declined offer ("Not now") takes no pick.
+#[test]
+fn a_declined_offer_takes_no_pick() {
+    let mac = Mac::new(&["client-a"], |_| Vec::new());
+    let team = mac.offer("team-a");
+    answer_offer(&mac.state, &team, false).unwrap();
+    assert!(link::choose_folder(&mac.state, &team, &mac.folder("client-a")).is_err());
+}

@@ -9,6 +9,7 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-li
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import type { PlacePairingInfo } from "../types/generated/PlacePairingInfo";
 import { FirstRun } from "./FirstRun";
+import { PLACES_CHANGED } from "../lib/ipc/places";
 
 const PAIRS: PlacePairingInfo[] = [
   { id: "p-work", label: "work", added: false, certain: true, folder: { tool: "claude-code", name: "work", path: "/Users/you/Library/Application Support/ClaudeCodeProfiles/work", by: null, why: null } },
@@ -16,10 +17,15 @@ const PAIRS: PlacePairingInfo[] = [
   { id: "p-side", label: "side", added: true, certain: false, folder: { tool: "claude-code", name: ".claude-side", path: "/Users/you/.claude-side", by: null, why: null } },
 ];
 
-const chosen: string[] = [];
-vi.mock("../lib/choose-app-folder", () => ({ chooseAppFolder: (id: string) => (chosen.push(id), Promise.resolve()) }));
+const chosen: Array<[string, boolean | undefined]> = [];
+vi.mock("../lib/choose-app-folder", () => ({
+  chooseAppFolder: (id: string, _label: string, options?: { added?: boolean }) => (chosen.push([id, options?.added]), Promise.resolve(true)),
+}));
 
-vi.mock("../lib/ipc/places", async (actual) => ({ ...(await actual<typeof import("../lib/ipc/places")>()), placesPairings: () => Promise.resolve(PAIRS) }));
+// The backend's pairings, read again when a place changes (a folder
+// chosen before Add pairs the profile for sure: F2).
+let pairs: PlacePairingInfo[] = PAIRS;
+vi.mock("../lib/ipc/places", async (actual) => ({ ...(await actual<typeof import("../lib/ipc/places")>()), placesPairings: () => Promise.resolve(pairs) }));
 
 const setup = (path: string, origin: string) => ({
   harness: "claude-code",
@@ -75,19 +81,40 @@ it("every row has a Desktop and/or Terminal chip (F1)", async () => {
   expect(within(rowWith("team-a")!).getAllByTestId("first-run-chip").map((chip) => chip.textContent)).toEqual(["Terminal"]);
 });
 
-it("an uncertain pairing offers its fix: Choose its folder… for an App, Change (unpair) before (F2)", async () => {
+it("an uncertain pairing offers Choose its folder…, for an App and before it's added (F2)", async () => {
   chosen.length = 0;
+  pairs = PAIRS;
   render(<FirstRun mode="first-run" onDone={() => null} openLoginTerminal={() => null} />);
   await screen.findByTestId("first-run-found");
   await waitFor(() => expect(rowWith("Claude app · side")).toBeDefined());
   fireEvent.click(within(rowWith("Claude app · side")!).getByRole("button", { name: "Choose its folder…" }));
-  await waitFor(() => expect(chosen).toEqual(["p-side"]));
+  await waitFor(() => expect(chosen).toEqual([["p-side", true]]));
   expect(rowWith("Claude app · side")?.textContent).toContain("Its folder was chosen");
-  // Not added yet: Change takes the pairing off; the row is the folder.
-  fireEvent.click(within(rowWith("Claude app · lab")!).getByRole("button", { name: "Change" }));
-  expect(rowWith("Claude app · lab")).toBeUndefined();
-  expect(rowWith("claude-lab")?.querySelector("[data-testid=first-run-unsure]")).toBeNull();
+  // Not added yet: the same one action, the pick kept until its Add.
+  const lab = rowWith("Claude app · lab")!;
+  expect(within(lab).queryByRole("button", { name: "Change" })).toBeNull();
+  fireEvent.click(within(lab).getByRole("button", { name: "Choose its folder…" }));
+  await waitFor(() => expect(chosen).toEqual([["p-side", true], ["p-lab", false]]));
+  expect(rowWith("Claude app · lab")?.textContent).toContain("Its folder was chosen");
   expect(screen.queryAllByText(/Check it on its App page after/)).toHaveLength(0);
+});
+
+it("a folder chosen before Add moves the profile to that folder's row, sure (F2)", async () => {
+  pairs = PAIRS;
+  render(<FirstRun mode="first-run" onDone={() => null} openLoginTerminal={() => null} />);
+  await screen.findByTestId("first-run-found");
+  await waitFor(() => expect(rowWith("Claude app · lab")).toBeDefined());
+  // The backend now pairs lab with the folder the user chose, for sure.
+  pairs = PAIRS.map((row) =>
+    row.id === "p-lab" ? { ...row, certain: true, folder: { ...row.folder, name: ".claude-team-a", path: "/Users/you/.claude-team-a", by: "recorded" } } : row,
+  );
+  window.dispatchEvent(new CustomEvent(PLACES_CHANGED));
+  await waitFor(() => expect(rowWith("Claude app · lab")?.textContent).toContain("Desktop"));
+  expect(rowWith("Claude app · lab")?.querySelector("[data-testid=first-run-unsure]")).toBeNull();
+  // Its old folder is its own row again, nothing added.
+  expect(rowWith("claude-lab")?.querySelector("[data-testid=first-run-unsure]")).toBeNull();
+  expect(screen.getAllByTestId("first-run-row")).toHaveLength(4);
+  pairs = PAIRS;
 });
 
 it("Add app pairs nothing (AJ-E1548 keeps its look)", async () => {

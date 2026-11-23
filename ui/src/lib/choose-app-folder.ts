@@ -11,15 +11,23 @@ import { pickDirectory } from "./ipc/project-folders";
 import { placesChooseFolder } from "./ipc/places";
 
 /** Picks App `id`'s folder (named `label` in the words) and links it;
- * says what happened. */
-export async function chooseAppFolder(id: string, label: string): Promise<void> {
+ * says what happened. A profile not added yet (`added: false`, first
+ * run's Your apps, the 0.5.1 walk's F2) keeps the pick until its Add
+ * links it: nothing is added here. Resolves whether a folder was taken. */
+export async function chooseAppFolder(id: string, label: string, { added = true }: { added?: boolean } = {}): Promise<boolean> {
   const picked = await pickDirectory();
-  if (picked === null) return;
+  if (picked === null) return false;
   try {
     const done = await placesChooseFolder(id, picked);
     const name = done.folder.name ?? picked;
-    showToast({ id: `place-folder-${id}`, tone: "success", message: `${label} uses ${name} now`, detail: "Its sessions show here; nothing was copied." });
+    showToast(
+      added
+        ? { id: `place-folder-${id}`, tone: "success", message: `${label} uses ${name} now`, detail: "Its sessions show here; nothing was copied." }
+        : { id: `place-folder-${id}`, tone: "success", message: `${label} will use ${name}`, detail: "When you add it. Nothing is added or copied until then." },
+    );
+    return true;
   } catch (cause) {
     showToast({ id: `place-folder-${id}`, tone: "warning", message: `${label}'s folder wasn't changed`, detail: errorText(cause) });
+    return false;
   }
 }

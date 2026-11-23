@@ -34,6 +34,11 @@ const RETRY_CLOSED: Duration = Duration::from_mins(10);
 /// The stored record of what linked each App (`<prefix><place id>` →
 /// the [`LinkSource`]'s word), so its row says it after a restart.
 const SOURCE_KEY: &str = "places.folder_by:";
+/// 0.5.1 F2: the folder the user chose for a profile (`<prefix><place
+/// id>` → the path; empty once proof or another folder replaces it).
+/// Chosen before Add, it's kept with the offer and linked by the Add
+/// (D-84: nothing is added or brought in before it).
+const CHOSEN_KEY: &str = "places.chosen_folder:";
 
 /// AJ-E2327: what the last look for a desktop App's tool folder found,
 /// for its row: the folder and what told, or why nothing did.
@@ -198,7 +203,8 @@ fn look(state: &Arc<AppState>, id: &str, place: &KnownPlace) -> Option<Look> {
             installs: Vec::new(),
             running: None,
             records: None,
-            recorded: super::tool_folder(state, place),
+            // The user's pick for an offer comes before its link so far.
+            recorded: chosen(state, id).or_else(|| super::tool_folder(state, place)),
             declared: None,
             named: None,
             listed: None,
@@ -366,6 +372,31 @@ fn link_to(
     Ok(changed)
 }
 
+/// 0.5.1 F2: the folder the user chose for profile `id`, while it stands.
+fn chosen(state: &Arc<AppState>, id: &str) -> Option<PathBuf> {
+    crate::commands::lock_storage_arc(state)
+        .ok()?
+        .app_settings()
+        .get(&format!("{CHOSEN_KEY}{id}"))
+        .ok()
+        .flatten()
+        .filter(|path| !path.is_empty())
+        .map(PathBuf::from)
+}
+
+/// Keeps `folder` as profile `id`'s chosen folder (`None`: forgets it).
+fn keep_chosen(state: &Arc<AppState>, id: &str, folder: Option<&Path>) {
+    if folder.is_none() && chosen(state, id).is_none() {
+        return;
+    }
+    if let Ok(storage) = crate::commands::lock_storage_arc(state) {
+        let value = folder.map(|folder| folder.to_string_lossy().into_owned());
+        let _ = storage
+            .app_settings()
+            .set(&format!("{CHOSEN_KEY}{id}"), value.as_deref().unwrap_or(""));
+    }
+}
+
 /// A folder as its row names it: its own name.
 fn folder_word(folder: &Path) -> String {
     folder.file_name().map_or_else(
@@ -490,6 +521,11 @@ pub(super) fn link_by_evidence(
     let folder = folder.to_path_buf();
     match link_to(state, id, &place, &look, &folder, by, consent) {
         Ok(changed) => {
+            // The user's pick stands while it's the one linked; proof,
+            // or another folder, replaces it.
+            if by.is_evidence() || chosen(state, id).as_deref() != Some(folder.as_path()) {
+                keep_chosen(state, id, None);
+            }
             note(
                 state,
                 id,
@@ -566,6 +602,10 @@ fn forget_looked(state: &Arc<AppState>, id: &str) {
 /// folder it's started with from now on, until its own running sessions
 /// or records say otherwise.
 ///
+/// 0.5.1 F2: a profile not yet added (first run's "Your apps") takes a
+/// pick too: it's checked the same way and kept with the offer, nothing
+/// brought in or linked, and its Add links it (D-84).
+///
 /// # Errors
 ///
 /// Why it can't be its folder, in words.
@@ -577,7 +617,7 @@ pub(crate) fn choose_folder(
     let place = with_book(state, |book| book.places.get(id).cloned())
         .ok()
         .flatten()
-        .filter(|place| place.users)
+        .filter(|place| !place.declined)
         .ok_or_else(|| super::NOT_ADDED.to_owned())?;
     let look = look(state, id, &place)
         .ok_or_else(|| "AI Juggler doesn't know that app's tool".to_owned())?;
@@ -601,7 +641,18 @@ pub(crate) fn choose_folder(
             folder_word(other)
         ));
     }
+    if !place.users {
+        // Kept with the offer; linked (and brought in) by its Add.
+        keep_chosen(state, id, Some(folder));
+        super::changed(state);
+        return Ok(Linked {
+            folder: Some(folder.to_path_buf()),
+            by: Some(LinkSource::Recorded),
+            why: None,
+        });
+    }
     link_to(state, id, &place, &look, folder, LinkSource::Recorded, true)?;
+    keep_chosen(state, id, Some(folder));
     let linked = LinkNote::Linked {
         folder: folder.to_path_buf(),
         by: LinkSource::Recorded,
@@ -636,8 +687,8 @@ pub(crate) fn folder_mismatch(state: &Arc<AppState>, id: &str) -> Option<(PathBu
 
 /// AJ-E2327: the folder evidence pairs with profile `place` (not yet one
 /// of the user's Apps: first run's "Your apps"), what told, and whether
-/// it's certain (proof, not a recalled or guessed folder). Nothing is
-/// brought in or linked.
+/// it's certain (proof, or the folder the user chose for it: not a
+/// recalled or guessed folder). Nothing is brought in or linked.
 #[must_use]
 pub(crate) fn pairing(state: &Arc<AppState>, id: &str) -> Option<(PathBuf, LinkSource, bool)> {
     let place = with_book(state, |book| book.places.get(id).cloned())
@@ -645,7 +696,8 @@ pub(crate) fn pairing(state: &Arc<AppState>, id: &str) -> Option<(PathBuf, LinkS
         .flatten()?;
     let look = look(state, id, &place)?;
     let (folder, by) = ownership::sessions::decide(&look.evidence())?;
-    Some((folder.to_path_buf(), by, by.is_evidence()))
+    let picked = by == LinkSource::Recorded && chosen(state, id).as_deref() == Some(folder);
+    Some((folder.to_path_buf(), by, by.is_evidence() || picked))
 }
 
 /// 0.4.3 (D-102), AJ-E2327: a linked profile's link is checked once a run

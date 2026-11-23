@@ -6,7 +6,7 @@
  */
 import { useEffect, useId, useState, type JSX, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { placesPairings } from "../lib/ipc/places";
+import { onPlacesChanged, placesPairings } from "../lib/ipc/places";
 import { desktopAppWord } from "../lib/app-name";
 import { toolSpec } from "../lib/tools";
 import { Checkbox } from "../components/controls";
@@ -72,31 +72,43 @@ export interface Paired {
   certain: boolean;
   /** The profile's place id (AJ-E2327's "Choose its folder…" takes it). */
   id: string;
-  /** It's one of the user's Apps already (its folder can be chosen now). */
+  /** It's one of the user's Apps already (a folder chosen before is
+   * kept until its Add links it). */
   added: boolean;
 }
 
 /** Each desktop profile's folder, by path: the folder's row becomes the
- * profile's ("Claude app · work", Desktop). Read once; never paired by
- * name (the backend's evidence only). */
+ * profile's ("Claude app · work", Desktop). Read again when a place
+ * changes (a folder chosen for one moves its row); never paired by name
+ * (the backend's evidence, or the user's own pick, only). */
 export function usePairings(on: boolean): Map<string, Paired> {
   const [pairs, setPairs] = useState<Map<string, Paired>>(new Map());
   useEffect(() => {
-    if (!on) return;
-    void placesPairings().then(
-      (rows) =>
-        setPairs(
-          new Map(
-            rows.flatMap((row) => {
-              const tool = row.folder.tool;
-              const app = tool ? toolSpec(tool).desktop_app : null;
-              if (!row.folder.path || !tool || !app) return [];
-              return [[row.folder.path, { title: `${desktopAppWord(app, tool)} · ${row.label}`, certain: row.certain, id: row.id, added: row.added }] as const];
-            }),
-          ),
-        ),
-      () => null,
-    );
+    if (!on) return undefined;
+    let live = true;
+    const read = () =>
+      void placesPairings().then(
+        (rows) => {
+          if (!live) return;
+          setPairs(
+            new Map(
+              rows.flatMap((row) => {
+                const tool = row.folder.tool;
+                const app = tool ? toolSpec(tool).desktop_app : null;
+                if (!row.folder.path || !tool || !app) return [];
+                return [[row.folder.path, { title: `${desktopAppWord(app, tool)} · ${row.label}`, certain: row.certain, id: row.id, added: row.added }] as const];
+              }),
+            ),
+          );
+        },
+        () => null,
+      );
+    read();
+    const stop = onPlacesChanged(read);
+    return () => {
+      live = false;
+      stop();
+    };
   }, [on]);
   return pairs;
 }

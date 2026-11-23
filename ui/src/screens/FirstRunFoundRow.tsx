@@ -53,39 +53,26 @@ export function chipsOf(found: DiscoveredInfo, desktop: boolean): string[] {
 }
 
 /** An uncertain pairing asks, with the one thing to do about it (the
- * 0.5.1 walk's F2): an App already added chooses its folder now
- * (AJ-E2327's "Choose its folder…"); one not added yet can be unpaired
- * ("Change": the row is the folder alone, its App's folder chosen on its
- * page later). */
-function PairingAsk({ paired, onUnpair }: { paired: Paired; onUnpair: () => void }): JSX.Element {
+ * 0.5.1 walk's F2): "Choose its folder…" (AJ-E2327's), for an App already
+ * added and for a profile not added yet alike. Before Add the pick is
+ * kept with the profile and its Add links it (D-84: nothing is added
+ * here); the row then follows the folder chosen. */
+function PairingAsk({ paired }: { paired: Paired }): JSX.Element {
   const [done, setDone] = useState(false);
   if (done) return <span data-testid="first-run-unsure"> · Its folder was chosen</span>;
   return (
     <span data-testid="first-run-unsure">
       {" · Is this right? "}
-      {paired.added ? (
-        <button
-          type="button"
-          className="text-accent-hi hover:underline"
-          onClick={(event) => {
-            event.preventDefault();
-            void chooseAppFolder(paired.id, paired.title).then(() => setDone(true));
-          }}
-        >
-          Choose its folder…
-        </button>
-      ) : (
-        <button
-          type="button"
-          className="text-accent-hi hover:underline"
-          onClick={(event) => {
-            event.preventDefault();
-            onUnpair();
-          }}
-        >
-          Change
-        </button>
-      )}
+      <button
+        type="button"
+        className="text-accent-hi hover:underline"
+        onClick={(event) => {
+          event.preventDefault();
+          void chooseAppFolder(paired.id, paired.title, { added: paired.added }).then((chosen) => chosen && setDone(true));
+        }}
+      >
+        Choose its folder…
+      </button>
     </span>
   );
 }
@@ -133,9 +120,6 @@ export function FoundRow({
   const id = `first-run-${found.path}`;
   const detailsId = useId();
   const [open, setOpen] = useState(false);
-  // F2: "Change" unpairs an uncertain profile from this folder.
-  const [unpaired, setUnpaired] = useState(false);
-  const pairing = unpaired ? undefined : paired;
   const confidence = rowConfidence(found);
   const source = sourceWords(found, toolName);
   return (
@@ -147,9 +131,9 @@ export function FoundRow({
           {plain ? (
             <span className="flex min-w-0 flex-1 flex-col">
               <span className="flex min-w-0 items-center gap-2">
-                <span className="truncate text-section font-medium text-ink">{pairing?.title ?? name}</span>
+                <span className="truncate text-section font-medium text-ink">{paired?.title ?? name}</span>
                 {/* AJ-E1545: where it's used, as chips; no confidence badges. */}
-                {chipsOf(found, pairing !== undefined).map((chip) => (
+                {chipsOf(found, paired !== undefined).map((chip) => (
                   <span key={chip} className="shrink-0 rounded-md bg-surface-3 px-1.5 text-label text-ink-2" data-testid="first-run-chip">
                     {chip}
                   </span>
@@ -157,7 +141,7 @@ export function FoundRow({
               </span>
               <span className="truncate text-meta text-muted" data-testid="first-run-status">
                 {statusWords(found)} · <span className={live ? "text-live" : ""}>{used}</span>
-                {pairing && !pairing.certain && <PairingAsk paired={pairing} onUnpair={() => setUnpaired(true)} />}
+                {paired && !paired.certain && <PairingAsk paired={paired} />}
               </span>
             </span>
           ) : (
