@@ -8,6 +8,8 @@
 import { cleanup, fireEvent, render, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { HomeFeedDigest } from "./HomeFeedDigest";
+import { whenOf } from "./HomeFeedCard";
+import { cardsOf, digestCovered } from "../lib/feed-rollup";
 import { digestHeader, digestLineWords, digestMoreWords } from "../lib/feed-words";
 import { feedItem } from "../preview/feed";
 import type { DigestInfo } from "../types/generated/DigestInfo";
@@ -118,5 +120,32 @@ describe("AJ-E3712 — the digest item", () => {
     const { getAllByRole, getByTestId } = render(<HomeFeedDigest item={item} digest={twins} when="10:45 AM" onOpen={() => {}} />);
     expect(getByTestId("digest-header").textContent).toBe("3 sessions");
     expect(getAllByRole("button").map((b) => b.textContent)).toEqual(["api (2)", "api (1)", "web"]);
+  });
+});
+
+describe("AJ-E2314 L5: after a digest, Home's feed says each finish once", () => {
+  const NOW = 10_000_000;
+  const MIN = 60_000;
+  const done = (session: string, at: number, project: string) =>
+    feedItem({ id: `l:${session}`, at_ms: at, kind: "finished", category: "finished", level: 1, coalesce: `s:${session}`, rollup: `v:finished:work:${project}:L1`, rollup_window_ms: 2 * 3_600_000, scope: "f:work", subject: project, target: { session_id: session } });
+  const told: DigestInfo = { start_ms: NOW - 3 * MIN, end_ms: NOW - MIN, lines: [line("web", { session_id: "s-web", state: "finished" }), line("api", { session_id: "s-api1", state: "finished" }), line("api", { session_id: "s-api2", state: "finished" })], shown: 3, quiet: 0, ai: false };
+  const summary = feedItem({ id: "d:1", at_ms: NOW - MIN, kind: "digest", category: "finished", digest: told });
+
+  it("the finishes its digest tells aren't cards beside it; one outside its window or not in it still is", () => {
+    const older = done("s-old", NOW - 30 * MIN, "docs");
+    const other = done("s-other", NOW - 2 * MIN, "notes");
+    const items = [summary, done("s-web", NOW - 2 * MIN, "web"), done("s-api1", NOW - 2 * MIN, "api"), done("s-api2", NOW - 2 * MIN + 5_000, "api"), other, older];
+    expect([...digestCovered(items)].sort()).toEqual(["l:s-api1", "l:s-api2", "l:s-web"]);
+    expect(cardsOf(items).map((card) => card.head.id)).toEqual(["d:1", "l:s-other", "l:s-old"]);
+    // Without its digest (the Finished filter), each finish shows.
+    expect(digestCovered(items.slice(1)).size).toBe(0);
+  });
+
+  it("a rollup of two finishes of the same age reads one time, never “2 min–2 min”", () => {
+    const [card] = cardsOf([done("s-a", NOW - 2 * MIN, "api"), done("s-b", NOW - 2 * MIN - 10_000, "api")]);
+    expect(card!.rolled).toBe(true);
+    expect(whenOf(card!, NOW)).toBe("2 min");
+    const [apart] = cardsOf([done("s-a", NOW - 2 * MIN, "api"), done("s-b", NOW - 20 * MIN, "api")]);
+    expect(whenOf(apart!, NOW)).toMatch(/^20 min–2 min$/);
   });
 });

@@ -181,10 +181,12 @@ function Actions({ item, actions }: { item: FeedItemInfo; actions: CardActions }
 }
 
 /** When a card happened: a rollup from its oldest to its newest. */
-function whenOf(card: FeedCard, now: number): string {
+export function whenOf(card: FeedCard, now: number): string {
   const newest = card.head.at_ms;
   const oldest = card.things[card.things.length - 1]!.head.at_ms;
-  return card.rolled && oldest !== newest ? `${feedWhen(oldest, now)}–${feedWhen(newest, now)}` : feedWhen(newest, now);
+  // AJ-E2314 L5: never "2 min–2 min": a range only when its ends read apart.
+  const [from, to] = [feedWhen(oldest, now), feedWhen(newest, now)];
+  return card.rolled && from !== to ? `${from}–${to}` : to;
 }
 
 export function HomeFeedCard({ card, pos, now, unread, fresh, actions }: { card: FeedCard; pos: number; now: number; unread: boolean; fresh: boolean; actions: CardActions }): JSX.Element {
