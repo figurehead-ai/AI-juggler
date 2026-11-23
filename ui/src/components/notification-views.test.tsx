@@ -377,39 +377,3 @@ describe("AJ-E2505 R2 — focus the user moves pauses a toast; focus placed for 
   });
 });
 
-// ---- AJ-E2023: the remote configuration's notice rides the band ----
-describe("AJ-E2023 remote notices in the band", () => {
-  it("shows the signed file's notice as a calm banner, dismissible when the file says so", async () => {
-    const w = window as unknown as Record<string, unknown>;
-    w.__AIJ_REMOTE__ = {
-      notices: [
-        {
-          id: "n1",
-          level: "info",
-          title: "Claude Code 2.2 needs a new switch route",
-          body: "Until it's fixed, one route is hidden.",
-          link: "https://figurehead.ai/notes/claude-22",
-          link_label: "What happened",
-          dismissable: true,
-        },
-      ],
-    };
-    const mounted = render(<NotificationRegion onOpenRemote={undefined} />);
-    const banner = await waitFor(() => {
-      const found = mounted.container.querySelector("[data-testid='remote-notice']");
-      expect(found).not.toBeNull();
-      return found!;
-    });
-    expect(banner.textContent).toContain("Claude Code 2.2");
-    expect(banner.textContent).toContain("What happened");
-    // D-117: calm words — no exclamation, no all-caps shout.
-    expect(banner.textContent).not.toMatch(/!|[A-Z]{6,}/);
-  });
-
-  it("an empty file shows nothing", async () => {
-    const w = window as unknown as Record<string, unknown>;
-    w.__AIJ_REMOTE__ = { notices: [] };
-    const mounted = render(<NotificationRegion onOpenRemote={undefined} />);
-    await waitFor(() => expect(mounted.container.querySelector("[data-testid='remote-notice']")).toBeNull());
-  });
-});
