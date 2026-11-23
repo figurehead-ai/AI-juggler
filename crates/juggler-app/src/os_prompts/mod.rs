@@ -507,7 +507,7 @@ pub fn prime_call(
         // (Check again's own probe), so the system asks now if it will.
         "helper" => {
             let gated = gate.through(prompt, presence, &|| None, || {
-                crate::features::ai::service::mac_checked(state);
+                let _ = crate::features::ai::service::mac_checked(state);
             });
             gated_info(state, prompt, &gated)
         }

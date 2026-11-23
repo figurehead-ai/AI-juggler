@@ -322,6 +322,22 @@ impl<'a> Gate<'a> {
     }
 }
 
+/// A ledger kept in memory only (a test, or a run with no storage).
+#[derive(Debug, Default)]
+pub struct MemoryLedger(std::sync::Mutex<std::collections::HashSet<String>>);
+
+impl Ledger for MemoryLedger {
+    fn primed(&self, id: &str) -> bool {
+        self.0.lock().is_ok_and(|primed| primed.contains(id))
+    }
+
+    fn set_primed(&self, id: &str) {
+        if let Ok(mut primed) = self.0.lock() {
+            primed.insert(id.to_owned());
+        }
+    }
+}
+
 /// Nothing primed, and nothing kept: what the gate uses before the app
 /// installed its own ledger (every prompt waits).
 struct NoLedger;
@@ -525,11 +541,17 @@ pub fn script(
     source: &str,
     args: &[&str],
 ) -> Gated<Result<String, String>> {
-    let status = || match prompt.kind {
+    gate().through(prompt, presence, &|| automation_of(prompt), || {
+        run_script(source, args)
+    })
+}
+
+/// What the system says of an Automation prompt now (never asks).
+fn automation_of(prompt: Prompt) -> Option<Status> {
+    match prompt.kind {
         Kind::Automation(target) => automation_status(target.bundle_id),
         _ => None,
-    };
-    gate().through(prompt, presence, &status, || run_script(source, args))
+    }
 }
 
 fn run_script(source: &str, args: &[&str]) -> Result<String, String> {
@@ -559,11 +581,7 @@ pub fn send_link(
     pid: u32,
     link: &str,
 ) -> Gated<std::io::Result<()>> {
-    let status = || match prompt.kind {
-        Kind::Automation(target) => automation_status(target.bundle_id),
-        _ => None,
-    };
-    gate().through(prompt, presence, &status, || {
+    gate().through(prompt, presence, &|| automation_of(prompt), || {
         crate::apps::send_link(pid, link)
     })
 }

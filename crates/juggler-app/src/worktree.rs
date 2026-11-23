@@ -78,19 +78,24 @@ fn git_command() -> Result<Command, AppError> {
         })
 }
 
-fn git(dir: &Path, args: &[&str]) -> Option<String> {
-    // AJ-E1547: never the system's folder prompt (Documents, Desktop,
-    // Downloads) for a read nobody was told about.
+/// `git` in `dir`, run: never where reading `dir` could raise the
+/// system's folder prompt (Documents, Desktop, Downloads) nobody was told
+/// about (AJ-E1547).
+fn run_git(dir: &Path, args: &[&str]) -> Option<std::process::Output> {
     if !crate::os_prompts::may_read(dir) {
         return None;
     }
-    let output = git_command()
+    git_command()
         .ok()?
         .arg("-C")
         .arg(dir)
         .args(args)
         .output()
-        .ok()?;
+        .ok()
+}
+
+fn git(dir: &Path, args: &[&str]) -> Option<String> {
+    let output = run_git(dir, args)?;
     output
         .status
         .success()
@@ -99,16 +104,7 @@ fn git(dir: &Path, args: &[&str]) -> Option<String> {
 
 /// `git` in `dir`, its raw stdout when it exits with one of `codes`.
 fn git_bytes(dir: &Path, args: &[&str], codes: &[i32]) -> Option<Vec<u8>> {
-    if !crate::os_prompts::may_read(dir) {
-        return None;
-    }
-    let output = git_command()
-        .ok()?
-        .arg("-C")
-        .arg(dir)
-        .args(args)
-        .output()
-        .ok()?;
+    let output = run_git(dir, args)?;
     output
         .status
         .code()

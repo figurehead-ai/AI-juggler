@@ -326,9 +326,6 @@
  "crates/juggler-app/src/features/conversations/asks.rs": {
   "jscpd:lines": 8
  },
- "crates/juggler-app/src/features/conversations/goto.rs": {
-  "jscpd:lines": 12
- },
  "crates/juggler-app/src/features/conversations/last_messages.rs": {
   "jscpd:lines": 10
  },
@@ -468,7 +465,7 @@
   "jscpd:lines": 16
  },
  "crates/juggler-app/src/focus.rs": {
-  "jscpd:lines": 24
+  "jscpd:lines": 12
  },
  "crates/juggler-app/src/history.rs": {
   "jscpd:lines": 49

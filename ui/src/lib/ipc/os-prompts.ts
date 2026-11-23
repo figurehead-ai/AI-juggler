@@ -22,9 +22,9 @@ export type { OsPromptInfo, OsPromptOutcomeInfo };
 export type { OsPromptDialogInfo } from "../../types/generated/OsPromptDialogInfo";
 
 /** The backend is about to make the system ask: show the sheet first. */
-export const OS_PROMPT_ASK = "os-prompt://ask";
+const OS_PROMPT_ASK = "os-prompt://ask";
 /** What came of a call the user said Continue to. */
-export const OS_PROMPT_OUTCOME = "os-prompt://outcome";
+const OS_PROMPT_OUTCOME = "os-prompt://outcome";
 
 declare global {
   interface Window {
@@ -39,7 +39,8 @@ function previewOutcome(id: string, result: string): OsPromptOutcomeInfo {
   return { id, result, status: "asked", words: "Asked." };
 }
 
-/** Every system prompt AI Juggler can cause (never asks). */
+/** Every system prompt AI Juggler can cause (never asks).
+ * @public setup's "Let AI Juggler work with…" step reads it (AJ-E1545). */
 export async function osPromptsList(): Promise<OsPromptInfo[]> {
   if (!hasBackend) return seams().__AIJ_OS_PROMPTS__ ?? [];
   return call("os_prompts_list");
@@ -51,7 +52,8 @@ export async function osPromptStatus(id: string): Promise<OsPromptInfo | null> {
   return call("os_prompt_status", { id });
 }
 
-/** Setup's Allow on a priming card: primes `id` and makes its call. */
+/** Setup's Allow on a priming card: primes `id` and makes its call.
+ * @public setup's "Let AI Juggler work with…" step calls it (AJ-E1545). */
 export async function osPromptPrime(id: string): Promise<OsPromptOutcomeInfo> {
   if (!hasBackend) return previewOutcome(id, "called");
   return call("os_prompt_prime", { id });

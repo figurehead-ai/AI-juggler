@@ -30,20 +30,26 @@ pub(super) fn screen_recording_ask() -> bool {
 /// `osascript`, by absolute path.
 const OSASCRIPT: &str = "/usr/bin/osascript";
 
+/// What a finished tool said: its output when it succeeded, else its
+/// error words.
+fn said(out: std::io::Result<std::process::Output>) -> Result<String, String> {
+    let out = out.map_err(|error| error.to_string())?;
+    let words = |bytes: &[u8]| String::from_utf8_lossy(bytes).trim().to_owned();
+    if out.status.success() {
+        Ok(words(&out.stdout))
+    } else {
+        Err(words(&out.stderr))
+    }
+}
+
 /// Runs `source` with `args` (`on run argv`), its output or its error.
 pub(super) fn osascript(source: &str, args: &[&str]) -> Result<String, String> {
-    let out = crate::process::helper(OSASCRIPT)
-        .arg("-e")
-        .arg(source)
-        .arg("--")
-        .args(args)
-        .output()
-        .map_err(|error| error.to_string())?;
-    if out.status.success() {
-        Ok(String::from_utf8_lossy(&out.stdout).trim().to_owned())
-    } else {
-        Err(String::from_utf8_lossy(&out.stderr).trim().to_owned())
-    }
+    said(
+        crate::process::helper(OSASCRIPT)
+            .args(["-e", source, "--"])
+            .args(args)
+            .output(),
+    )
 }
 
 /// `errAEEventWouldRequireUserConsent`: it would have asked.
@@ -86,14 +92,12 @@ pub(super) fn automation_status(bundle_id: &str) -> Option<Status> {
 /// The quarantine flags of a download at `path` (`None`: it carries none,
 /// so the system won't ask when it opens).
 pub(super) fn quarantine_flags(path: &std::path::Path) -> Option<u32> {
-    let out = crate::process::helper("/usr/bin/xattr")
-        .args(["-p", "com.apple.quarantine"])
-        .arg(path)
-        .output()
-        .ok()?;
-    if !out.status.success() {
-        return None;
-    }
-    let text = String::from_utf8_lossy(&out.stdout);
+    let text = said(
+        crate::process::helper("/usr/bin/xattr")
+            .args(["-p", "com.apple.quarantine"])
+            .arg(path)
+            .output(),
+    )
+    .ok()?;
     u32::from_str_radix(text.split(';').next()?.trim(), 16).ok()
 }

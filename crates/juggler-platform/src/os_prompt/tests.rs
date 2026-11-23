@@ -1,20 +1,8 @@
 use super::*;
-use std::collections::HashSet;
 use std::path::Path;
 use std::sync::Mutex;
 
-#[derive(Default)]
-struct Kept(Mutex<HashSet<String>>);
-
-impl Ledger for Kept {
-    fn primed(&self, id: &str) -> bool {
-        self.0.lock().unwrap().contains(id)
-    }
-
-    fn set_primed(&self, id: &str) {
-        self.0.lock().unwrap().insert(id.to_owned());
-    }
-}
+type Kept = MemoryLedger;
 
 /// A primer that answers `answer` and logs, in order, what happened.
 struct Sheet {
@@ -50,6 +38,11 @@ impl Primer for Sheet {
     }
 }
 
+/// A ledger with nothing primed and a sheet that answers `answer`.
+fn fresh(answer: Answer) -> (Kept, Sheet) {
+    (Kept::default(), Sheet::new(answer))
+}
+
 const ACCESS: Prompt = Prompt {
     id: "accessibility",
     kind: Kind::Accessibility,
@@ -57,8 +50,7 @@ const ACCESS: Prompt = Prompt {
 
 #[test]
 fn the_sheet_comes_before_the_call_and_the_outcome_after() {
-    let ledger = Kept::default();
-    let sheet = Sheet::new(Answer::Continue);
+    let (ledger, sheet) = fresh(Answer::Continue);
     let gated = Gate::new(&ledger).through(
         ACCESS,
         Presence::User(&sheet),
@@ -83,8 +75,7 @@ fn the_sheet_comes_before_the_call_and_the_outcome_after() {
 
 #[test]
 fn not_now_never_calls_and_never_primes() {
-    let ledger = Kept::default();
-    let sheet = Sheet::new(Answer::NotNow);
+    let (ledger, sheet) = fresh(Answer::NotNow);
     let gated = Gate::new(&ledger).through(ACCESS, Presence::User(&sheet), &|| None, || {
         sheet.note("call".to_owned());
     });
@@ -124,8 +115,7 @@ fn background_work_never_prompts_until_primed() {
 
 #[test]
 fn an_entry_the_system_already_allows_needs_no_sheet() {
-    let ledger = Kept::default();
-    let sheet = Sheet::new(Answer::NotNow);
+    let (ledger, sheet) = fresh(Answer::NotNow);
     let gated = Gate::new(&ledger).through(
         ACCESS,
         Presence::User(&sheet),
@@ -145,8 +135,7 @@ fn an_entry_the_system_already_allows_needs_no_sheet() {
 
 #[test]
 fn an_entry_the_system_already_declined_gets_no_sheet_since_no_dialog_follows() {
-    let ledger = Kept::default();
-    let sheet = Sheet::new(Answer::Continue);
+    let (ledger, sheet) = fresh(Answer::Continue);
     let gated = Gate::new(&ledger).through(
         ACCESS,
         Presence::User(&sheet),

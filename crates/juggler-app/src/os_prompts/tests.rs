@@ -69,24 +69,11 @@ fn the_design_doc_lists_every_entry_and_its_triggers() {
     }
 }
 
-#[derive(Default)]
-struct Kept(Mutex<HashSet<String>>);
-
-impl Ledger for Kept {
-    fn primed(&self, id: &str) -> bool {
-        self.0.lock().unwrap().contains(id)
-    }
-
-    fn set_primed(&self, id: &str) {
-        self.0.lock().unwrap().insert(id.to_owned());
-    }
-}
-
 /// Background work never prompts: a session that waits (or a watch, on
 /// from the start) shows no notification until the entry is primed.
 #[test]
 fn background_notifications_wait_until_primed() {
-    let ledger = Kept::default();
+    let ledger = juggler_platform::os_prompt::MemoryLedger::default();
     let shown = Mutex::new(0);
     let show = |_: &crate::features::notifications::Outgoing| *shown.lock().unwrap() += 1;
     let outgoing = crate::features::notifications::Outgoing {
