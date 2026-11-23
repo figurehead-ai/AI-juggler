@@ -26,25 +26,21 @@ Every file exists as `-dark` and `-light`.
 | Bot leads "What it does for you", full width, Beta tag, its clip of a cited answer; D-144's words | PASS | `welcome.test.tsx`; clip `what-bot` |
 | A rich-mode window sheet: sticky header (the real icon), the step column (Your apps · Sign in · Mac access · Meet Bot · Keep running), sticky foot, Not now and Skip for now on every step, left and resumed where it was | PASS | `setup-wizard.test.tsx` |
 | Your apps: "Which AI apps do you use?", one group per tool with the tool's icon (`ToolLogo`, read at run time) and select-all, plain status words, no badges or paths up front, not-set-up tools in one closed unticked group, copies under More options, the tools' terms closed at the foot, Bring in N = the ticked rows | PASS | `first-run.test.tsx`, `first-run-pf1.test.tsx`, `tools-catalog.test.tsx` |
-| Mac access: one card per permission in AJ-E1547's entry shape (what the system shows, what to click, why, if declined, `needed` only), its clip, Allow raises the system prompt, the grant seen live (✓ only when the system says so), Skip for now per card, a line when the dialog may be behind the window | PASS | `setup-wizard.test.tsx`; adapter `lib/setup-permissions.ts` |
-| Meet Bot after the permissions, before Keep running: what Bot does (answers, cites, never acts), never an engine or a download of its own | PASS | `setup-wizard.test.tsx` (three standings from the gallery's model fixtures) |
+| Mac access on AJ-E1547's registry and gate: one card per needed prompt with the picture of the system's dialog and the button to click, why, if declined, where to change it later, its clip; Allow primes it through the gate; ✓ only when the system says so; Skip for now per card; a line when the dialog may be behind the window | PASS | `setup-wizard.test.tsx` |
+| Meet Bot after the permissions, before Keep running: what Bot does (answers, cites, never acts), then the shared EngineSetup (AJ-E3823) with its Skip for now; nothing downloaded without a click | PASS | `setup-wizard.test.tsx` (Apple, local offer, no engine, ready) |
+| Your apps pairs a desktop profile and its folder into one row by AJ-E2327's evidence (never by name); an uncertain one asks | PASS | `first-run-pairing.test.tsx` |
 | Keep running: opening at login only where the build can, keep awake (on when plugged in) | PASS | `setup-wizard.test.tsx` |
 | The large mark is one hand-drawn SVG of `icons/icon.png`; the small mark the same arc and balls | PASS | `components/AppMark.tsx`, `IconJuggler`; captures |
 
 ## Not done here, and why
 
-- **Pairing a desktop profile with its folder into one row** ("Claude app ·
-  work" [Desktop] [Terminal], "Claude app (main)"): waits for AJ-E2327's
-  evidence-first linking through the first-run IPC. Until then each folder
-  is its own row; chips show only where it's seen open now; profiles seen
-  open and not added are offered under the list (no "Desktop apps" section).
-- **Meet Bot's engine choice** is AJ-E3823's shared component; the step has
-  its slot (`BotEngineSlot`), which says where Bot stands and opens
-  Settings › AI › Models meanwhile. "Setting up Bot" priming is AJ-E1547's.
-- **Permission cards on `os_prompts_list`**: one adapter function to switch
-  once AJ-E1547's IPC lands.
-- **The friendly sign-in card (step 2) and AJ-E1553's "signed in?" signal**:
-  adapter work in `crates/juggler-adapters`; not started in this batch.
+- **The friendly sign-in card (step 2) and AJ-E1553's "signed in?" signal
+  and rail clean-up**: adapter work in `crates/juggler-adapters` (a
+  sign-in prompt parse per adapter, fixture tests), not started in this
+  batch. Sign in is today first run's own sign-in step, in place.
+- **"Is this right? Change"** on an uncertain pairing: the row asks and
+  points to the App page; choosing the folder from here needs AJ-E2327's
+  chooser.
 
 ## Design critique (Opus, against DESIGN-SYSTEM and the d126 kit)
 
@@ -54,11 +50,12 @@ Every file exists as `-dark` and `-light`.
   One filled primary per view; Skip for now is secondary, Not now ghost.
   Permission cards: icon tile, title ink, help ink-2, the system's words in a
   surface-2 panel, the grant as a quiet ✓ (L1) with a success edge.
-- Gaps to fix next: on Your apps, first run's own heading is 28 px (the
-  other steps' titles are 22 px) and its Bring in bar sits in the body, not
-  in the wizard's sticky foot; the 32 px header mark reads small on the dark
-  surface; the permission clips are generic page loops (the focus clip shows
-  an App page), not the effect itself.
+- Fixed after the first critique: Your apps' title is the steps' 22 px;
+  its actions (Bring in N, Set up a new app instead, Add from another
+  folder…, Look again) sit in the wizard's sticky foot; the 32 px header
+  mark has an edge that stands off the dark surface.
+- Still weak: the permission clips are page loops (the focus clip shows an
+  App page opening), not the effect itself.
 
 ## Usability reasoning, re-checked on the built screens
 

@@ -31,9 +31,24 @@ const SCAN = {
   desktop_apps: ["Claude"],
   cancelled: false,
 };
-const ACCESS = [
-  { id: "focus", title: "Jump to a session's own window", why: "Brings the right terminal window to the front when you open a session.", system_name: "Accessibility and Automation", status: "not_asked", action: "prompt", note: null },
-  { id: "preview", title: "See a live preview of each session", why: "Shows a session's window inside AI Juggler, on this computer only; nothing is recorded or sent.", system_name: "Screen Recording", status: "not_asked", action: "prompt", note: null },
+const prompt = (id: string, title: string, why: string) => ({
+  id,
+  title,
+  why,
+  system_says: "“AI Juggler” would like to control this computer using accessibility features.",
+  click: "Open System Settings",
+  if_declined: "Opening a session still brings its app forward; you pick the window yourself.",
+  needed: true,
+  status: "not_asked",
+  primed: false,
+  change_later: "System Settings › Privacy & Security",
+  background: "waits",
+  never_shown: false,
+  dialog: { style: "alert", title: "“AI Juggler” would like to control this computer using accessibility features.", body: "Grant access to this application in Privacy & Security settings, located in System Settings.", buttons: ["Deny", "Open System Settings"], click: "Open System Settings" },
+});
+const PROMPTS = [
+  prompt("accessibility", "Jump to a session's own window", "Brings the right terminal window to the front when you open a session."),
+  prompt("screen-recording", "See a live preview of each session", "Shows a session's window inside AI Juggler, on this computer only; nothing is recorded or sent."),
 ];
 
 test.skip(!process.env.AIJ_EVIDENCE, "evidence captures run by hand");
@@ -67,19 +82,25 @@ const shot = async (page: Page, task: string, name: string) => {
 
 for (const theme of ["dark", "light"] as const) {
   test(`welcome and the setup wizard — ${theme}`, async ({ page }) => {
-    await open(page, theme, EMPTY, { __AIJ_SCAN_REPORT__: SCAN, __AIJ_OS_ACCESS__: ACCESS, ...seedsOf("models") }, true);
+    await open(page, theme, EMPTY, { __AIJ_SCAN_REPORT__: SCAN, __AIJ_OS_PROMPTS__: PROMPTS, ...seedsOf("models") }, true);
     await expect(page.getByTestId("setup-wizard")).toBeVisible();
     await expect(page.getByTestId("first-run-found")).toBeVisible();
     await shot(page, "AJ-E1545", `step1-your-apps-${theme}`);
     await page.getByTestId("setup-skip").click();
     await expect(page.getByTestId("setup-permissions")).toBeVisible();
     await shot(page, "AJ-E1545", `step3-mac-access-${theme}`);
-    await page.getByTestId("setup-permission-focus-allow").click();
-    await expect(page.getByTestId("setup-permission-focus-allowed")).toBeVisible();
-    await page.getByTestId("setup-permission-preview-skip").click();
+    await page.getByTestId("setup-permission-accessibility-allow").click();
+    await page.evaluate(() => {
+      const w = window as unknown as { __AIJ_OS_PROMPTS__: Array<{ id: string; status: string }> };
+      w.__AIJ_OS_PROMPTS__ = w.__AIJ_OS_PROMPTS__.map((one) => (one.id === "accessibility" ? { ...one, status: "allowed" } : one));
+      window.dispatchEvent(new Event("focus"));
+    });
+    await expect(page.getByTestId("setup-permission-accessibility-allowed")).toBeVisible();
+    await page.getByTestId("setup-permission-screen-recording-skip").click();
     await shot(page, "AJ-E1545", `step3-mac-access-allowed-and-skipped-${theme}`);
     await page.getByTestId("setup-next").click();
-    await expect(page.getByTestId("setup-bot")).toBeVisible();
+    await expect(page.getByTestId("engine-setup")).toBeVisible();
+    await page.waitForTimeout(500);
     await shot(page, "AJ-E1545", `step4-meet-bot-apple-${theme}`);
     await page.getByTestId("setup-next").click();
     await expect(page.getByTestId("setup-keep")).toBeVisible();
@@ -94,9 +115,10 @@ for (const theme of ["dark", "light"] as const) {
 
   for (const state of ["noapple", "nolist"] as const) {
     test(`Meet Bot, ${state} — ${theme}`, async ({ page }) => {
-      await open(page, theme, EMPTY, { __AIJ_SCAN_REPORT__: SCAN, __AIJ_OS_ACCESS__: [], ...seedsOf(state) }, true);
+      await open(page, theme, EMPTY, { __AIJ_SCAN_REPORT__: SCAN, __AIJ_OS_PROMPTS__: [], ...seedsOf(state) }, true);
       await page.getByTestId("setup-skip").click();
-      await expect(page.getByTestId("setup-bot")).toBeVisible();
+      await expect(page.getByTestId("engine-setup")).toBeVisible();
+      await page.waitForTimeout(500);
       await shot(page, "AJ-E1545", `step4-meet-bot-${state}-${theme}`);
     });
   }
