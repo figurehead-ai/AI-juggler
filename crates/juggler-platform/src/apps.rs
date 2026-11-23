@@ -70,8 +70,10 @@ pub fn open_command(
 ///
 /// # Errors
 ///
-/// The system refused (no such app, or it couldn't start), or starting
-/// apps isn't built on this system yet.
+/// The system refused (no such app, or it couldn't start), starting apps
+/// isn't built on this system yet, or (AJ-E1547) the app came from the
+/// internet and was never opened, so the system would ask first: the
+/// user opens it once themselves.
 pub fn open_app(
     bundle: &Path,
     start: Start,
@@ -80,6 +82,14 @@ pub fn open_app(
 ) -> std::io::Result<()> {
     if !cfg!(target_os = "macos") {
         return Err(crate::unsupported("starting an app"));
+    }
+    // AJ-E1547: never the system's "downloaded from the Internet. Are you
+    // sure you want to open it?" for an app the user never opened.
+    if let Some(why) = crate::os_prompt::first_open_refusal(bundle) {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::PermissionDenied,
+            why,
+        ));
     }
     let (program, words) = open_command(bundle, start, env, args);
     let out = crate::process::helper(program)

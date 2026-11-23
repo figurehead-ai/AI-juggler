@@ -296,6 +296,8 @@ impl Apple {
                 StartFailure::Blocked => Seen::Blocked,
                 StartFailure::NoAnswer => Seen::NoAnswer,
                 StartFailure::Broken => Seen::Failed,
+                // AJ-E1547: not set up yet; nothing was asked.
+                StartFailure::NotSetUp => Seen::NotAsked,
             });
             why.error()
         })?;

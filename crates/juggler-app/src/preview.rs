@@ -344,6 +344,14 @@ mod macos {
             // D-17 (2026-10-13): the audited init shim — one call per
             // process, without which the first capture SIGSEGVs (the
             // parked state's crash evidence). Idempotent via `Once`.
+            // AJ-E1547: reading the screen's windows makes the system ask
+            // for Screen Recording when it isn't allowed: a poll nobody
+            // clicked never does (the gate's Allow is the one way to ask).
+            if juggler_platform::os_prompt::screen_recording_status()
+                != juggler_platform::os_prompt::Status::Allowed
+            {
+                return Err(CaptureError::PermissionDenied);
+            }
             juggler_scap_init::initialize();
             let content = SCShareableContent::get().map_err(|_| CaptureError::PermissionDenied)?;
             let snapshot = content

@@ -1,0 +1,7 @@
+# AJ-E1547: calls that can make the system ask, still outside the gate,
+# each waiting on the session that owns its file (`path rule  # why`).
+# Only shrinks: scripts/os_prompt_lint.py fails on an entry that matches
+# nothing any more.
+crates/juggler-app/src/features/conversations/goto.rs script  # its Desktop::osascript_with runs /usr/bin/osascript: route through juggler_platform::os_prompt::script (SYSTEM_EVENTS, or TERMINAL/ITERM for the tab script)
+crates/juggler-app/src/features/conversations/goto.rs link-event  # send_link_to(may_ask=true): route through juggler_platform::os_prompt::send_link(APP_LINKS, user(), ..)
+crates/juggler-app/src/features/places/handoff.rs link-event  # Real::send: route through juggler_platform::os_prompt::send_link(APP_LINKS, user(), ..)

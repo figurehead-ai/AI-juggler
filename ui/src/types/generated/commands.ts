@@ -131,6 +131,8 @@ import type { NoticeMuteInfo } from "./NoticeMuteInfo";
 import type { NoticeSummaryInfo } from "./NoticeSummaryInfo";
 import type { NotificationPrefsInfo } from "./NotificationPrefsInfo";
 import type { OsAccessInfo } from "./OsAccessInfo";
+import type { OsPromptInfo } from "./OsPromptInfo";
+import type { OsPromptOutcomeInfo } from "./OsPromptOutcomeInfo";
 import type { OutsideSearchEstimateInfo } from "./OutsideSearchEstimateInfo";
 import type { OutsideSearchInfo } from "./OutsideSearchInfo";
 import type { OvernightSummaryInfo } from "./OvernightSummaryInfo";
@@ -797,6 +799,16 @@ export interface Commands {
   os_access_open_settings: { args: { id: string }; result: void };
   /** Write os_access::os_access_request */
   os_access_request: { args: { id: string }; result: OsAccessInfo[] };
+  /** Write os_prompts::os_prompt_answer */
+  os_prompt_answer: { args: { id: string; go: boolean }; result: void };
+  /** Write os_prompts::os_prompt_prime */
+  os_prompt_prime: { args: { id: string }; result: OsPromptOutcomeInfo };
+  /** Write os_prompts::os_prompt_request */
+  os_prompt_request: { args: { id: string }; result: OsPromptOutcomeInfo };
+  /** Read os_prompts::os_prompt_status */
+  os_prompt_status: { args: { id: string }; result: OsPromptInfo };
+  /** Read os_prompts::os_prompts_list */
+  os_prompts_list: { args: Record<string, never>; result: OsPromptInfo[] };
   /** Read features::outside_search::commands::outside_search_estimate */
   outside_search_estimate: { args: Record<string, never>; result: OutsideSearchEstimateInfo };
   /** Write features::outside_search::commands::outside_search_set */

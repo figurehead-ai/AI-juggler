@@ -19,6 +19,7 @@ import { PRIMARY_NAV } from "./lib/nav";
 import { useModalsInert } from "./lib/inert";
 import { useScrollMemory } from "./lib/scroll-memory";
 import { ShellOverlays } from "./shell/Overlays";
+import { OsPromptHost } from "./components/OsPromptSheet";
 import { workArea } from "./shell/pages";
 import { SCREENS } from "./shell/screens";
 import { useShell } from "./shell/use-shell";
@@ -158,6 +159,8 @@ export default function App() {
       </div>
 
       <ShellOverlays shell={shell} />
+      {/* AJ-E1547: the system prompts' sheet, before any system dialog. */}
+      <OsPromptHost />
     </div>
     </AppActions>
     </ConversationsProvider>

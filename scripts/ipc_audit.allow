@@ -146,6 +146,8 @@ unbounded notification_prefs_get  # bounded: a fixed set (settings, checks, choi
 unbounded notification_prefs_set  # bounded: a fixed set (settings, checks, choices or tools)
 unbounded os_access_list  # bounded: one row per account, tool, launch setting or paired Mac
 unbounded os_access_request  # bounded: one row per account, tool, launch setting or paired Mac
+unbounded os_prompts_list  # bounded: one row per system prompt in the registry (16, os_prompts::registry::ENTRIES)
+unbounded os_prompt_status  # bounded: one entry; its dialog's buttons are at most three
 unbounded overnight_summary  # TO PAGE: what happened while away (grows with sessions)
 unbounded packs_open_preview  # bounded: a fixed set (settings, checks, choices or tools)
 unbounded parked_list  # bounded: the parked sessions (one per waiting session)

@@ -65,6 +65,7 @@ pub mod main_window;
 pub mod manage;
 pub mod newer_data;
 pub mod os_access;
+pub mod os_prompts;
 pub mod overnight;
 pub mod paging;
 pub mod parked;
@@ -555,6 +556,11 @@ macro_rules! app_commands {
             Read  os_access::os_access_list,
             Write os_access::os_access_request,
             Write os_access::os_access_open_settings,
+            Read  os_prompts::os_prompts_list,
+            Read  os_prompts::os_prompt_status,
+            Write os_prompts::os_prompt_prime,
+            Write os_prompts::os_prompt_request,
+            Write os_prompts::os_prompt_answer,
             // Relaunches the app: never from the read-only bridge.
             Write app_relaunch::app_relaunch,
             Read  settings_policy::notification_prefs_get,
@@ -1105,6 +1111,11 @@ pub fn run() {
             features::tasks::start_emitter(
                 &tauri::Manager::state::<Arc<state::AppState>>(app),
                 app.handle().clone(),
+            );
+            // AJ-E1547: the system prompts' gate, before anything can ask.
+            os_prompts::install(
+                app.handle(),
+                &tauri::Manager::state::<Arc<state::AppState>>(app),
             );
             features::notifications::connect(
                 app.handle(),

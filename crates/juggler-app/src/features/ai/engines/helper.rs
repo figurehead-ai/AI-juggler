@@ -40,6 +40,11 @@ pub enum StartFailure {
     NoAnswer,
     /// It couldn't be started, ended early, or its hello wasn't JSON.
     Broken,
+    /// AJ-E1547: one of AI Juggler's own helpers whose first start the
+    /// user hasn't been told about yet (the `helper` entry isn't primed:
+    /// Bot's setup, "Use Apple's AI" or Check again primes it). Nothing
+    /// was started, so the system asked nothing.
+    NotSetUp,
 }
 
 impl StartFailure {
@@ -49,6 +54,7 @@ impl StartFailure {
         match self {
             Self::NoAnswer => EngineError::TimedOut,
             Self::Blocked | Self::Broken => EngineError::Crashed,
+            Self::NotSetUp => EngineError::NotHere(crate::features::ai::engine::Reason::Unknown),
         }
     }
 }
@@ -162,6 +168,11 @@ impl Helper {
     ///
     /// The [`StartFailure`].
     pub fn launch_checked(mut command: Command, wait: Duration) -> Result<Self, StartFailure> {
+        // AJ-E1547: a first start of one of our own helpers may make the
+        // system ask about it, so it waits until the user was told.
+        if !crate::os_prompts::helper_may_start(&command) {
+            return Err(StartFailure::NotSetUp);
+        }
         let mut child = command
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())

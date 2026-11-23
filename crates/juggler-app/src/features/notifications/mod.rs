@@ -705,16 +705,20 @@ const TEST_ID: i32 = 2_904;
 ///
 /// [`crate::error::AppError::Refused`] before notifications are connected.
 pub fn send_test(state: &Arc<AppState>) -> crate::error::AppResult<String> {
-    let sink = state.notifier.sink.get().ok_or_else(|| {
-        crate::error::AppError::Refused(
+    if state.notifier.sink.get().is_none() {
+        return Err(crate::error::AppError::Refused(
             "Notifications aren't ready yet. Try again in a moment.".into(),
-        )
-    })?;
-    sink(&Outgoing {
+        ));
+    }
+    // AJ-E1547: through the gate, so a first one is told about first.
+    let sent = crate::os_prompts::notify::through_gate(&Outgoing {
         id: TEST_ID,
         title: format!("{} test", crate::edition::current().app_name()),
         body: "Notifications reach you.".to_owned(),
     });
+    if sent.value().is_none() {
+        return Ok("Nothing was sent: the system wasn't asked.".to_owned());
+    }
     Ok(format!(
         "Sent. If nothing appeared, allow {} in {}.",
         crate::edition::current().app_name(),
@@ -894,32 +898,8 @@ pub fn clicked<R: tauri::Runtime>(app: &tauri::AppHandle<R>, state: &Arc<AppStat
     });
 }
 
-/// The system's own notifications (the Tauri plugin), clicks routed back.
+/// The system's own notifications, clicks routed back: behind the gate
+/// for system prompts (AJ-E1547, [`crate::os_prompts::notify`]).
 pub fn connect(app: &tauri::AppHandle, state: &Arc<AppState>) {
-    use tauri_plugin_notification::NotificationExt;
-    let shower = app.clone();
-    state
-        .notifier
-        .set_sink(Box::new(move |outgoing: &Outgoing| {
-            let _ = shower
-                .notification()
-                .builder()
-                .id(outgoing.id)
-                .title(&outgoing.title)
-                .body(&outgoing.body)
-                .show();
-        }));
-    let clicks = app.clone();
-    let click_state = Arc::clone(state);
-    let _ = app.notification().on_action(move |performed| {
-        if performed.action_id() != "tap" {
-            return;
-        }
-        if let Some(id) = performed
-            .notification()
-            .map(tauri_plugin_notification::ActiveNotification::id)
-        {
-            clicked(&clicks, &click_state, id);
-        }
-    });
+    crate::os_prompts::notify::connect(app, state);
 }

@@ -23,6 +23,7 @@ import {
   type StartInfo,
 } from "../../../lib/ipc/models";
 import { refreshModels } from "../../../lib/ai-models";
+import { BOT_HELPER, osPromptRequest } from "../../../lib/ipc/os-prompts";
 import { betaJobs } from "./models-view";
 import { REFUSALS } from "./models-words";
 
@@ -102,12 +103,18 @@ export function useModelActions(jobs: readonly AiJobInfo[] | null): ModelActions
     pick: (job, modelId) => run(() => aiJobPickSet(job, modelId)),
     checkAgain: () => {
       setChecking(true);
-      run(() =>
-        aiEnginesCheck().finally(() => {
+      run(async () => {
+        try {
+          // AJ-E1547: the check may start Bot's AI helper the first time:
+          // the gate's sheet first (nothing when it's set up already).
+          // Not now checks nothing; the next click asks again.
+          if ((await osPromptRequest(BOT_HELPER)).result === "not_now") return;
+          await aiEnginesCheck();
+        } finally {
           setChecking(false);
           refreshModels();
-        }),
-      );
+        }
+      });
     },
     checking,
     openStorage: () => run(() => aiOpenSystemPage("storage")),

@@ -42,7 +42,6 @@ crates/juggler-app/src/fleet.rs mac-words 1
 crates/juggler-app/src/fleet.rs unix-api 1
 crates/juggler-app/src/fleet_account.rs mac-words 3
 crates/juggler-app/src/focus.rs mac-words 4
-crates/juggler-app/src/focus.rs usr-bin 1
 crates/juggler-app/src/lib.rs unix-api 1
 crates/juggler-app/src/lib.rs unix-socket 1
 crates/juggler-app/src/link.rs mac-words 1
@@ -56,7 +55,6 @@ crates/juggler-app/src/machine_recommendations.rs mac-words 2
 crates/juggler-app/src/manage.rs app-bundle 11
 crates/juggler-app/src/manage.rs applications 1
 crates/juggler-app/src/os_access.rs mac-words 3
-crates/juggler-app/src/os_access.rs usr-bin 1
 crates/juggler-app/src/vault.rs mac-words 1
 crates/juggler-core/src/funnel_events.rs mac-words 1
 crates/juggler-core/src/storage/mod.rs unix-api 1

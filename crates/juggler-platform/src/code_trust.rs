@@ -61,6 +61,22 @@ pub fn own_helper(name: &str, identifier: &str) -> Option<PathBuf> {
     signed_as(&path, identifier, own_signer()?).then_some(path)
 }
 
+/// AJ-E1547: whether `path` is one of this running app's own helpers by
+/// place (beside its executable, where [`own_helper`] looks): the first
+/// start of such a helper goes through the system prompts' gate.
+#[must_use]
+pub fn beside_app(path: &Path) -> bool {
+    let canonical = |p: &Path| std::fs::canonicalize(p).ok();
+    let Some(dir) = std::env::current_exe()
+        .ok()
+        .and_then(|exe| canonical(&exe))
+        .and_then(|exe| exe.parent().map(Path::to_path_buf))
+    else {
+        return false;
+    };
+    canonical(path).is_some_and(|path| path.parent() == Some(dir.as_path()))
+}
+
 /// A name a code requirement may quote: letters, digits, `.` and `-`.
 fn quotable(text: &str) -> bool {
     !text.is_empty()

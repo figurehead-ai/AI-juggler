@@ -19,7 +19,7 @@ import { setupView, showsSetup } from "./engine-setup-view";
 afterEach(() => {
   cleanup();
   forgetSharedReads();
-  for (const key of ["__AIJ_AI_CATALOG__", "__AIJ_AI_MODELS__", "__AIJ_AI_JOBS__", "__AIJ_AI_START__", "__AIJ_OPENED__"]) Reflect.deleteProperty(window, key);
+  for (const key of ["__AIJ_AI_CATALOG__", "__AIJ_AI_MODELS__", "__AIJ_AI_JOBS__", "__AIJ_AI_START__", "__AIJ_OPENED__", "__AIJ_OS_PROMPTS__"]) Reflect.deleteProperty(window, key);
 });
 
 /** A state with this Mac's Apple Intelligence set to `apple`. */
@@ -154,6 +154,22 @@ describe("AJ-E3823 the guide on screen", () => {
       expect(window.__AIJ_AI_MODELS__?.download).toBeNull();
     });
   }
+
+  // AJ-E1547: never checked because Bot's AI helper isn't set up yet: the
+  // check is its first start, and the click goes through the gate first.
+  it("not set up yet: says so, and Check this Mac is the one primary", async () => {
+    window.__AIJ_OS_PROMPTS__ = [
+      { id: "helper", title: "Start Bot's AI", why: "", system_says: "", click: "", if_declined: "", needed: true, status: "not_asked", primed: false, change_later: null, background: "", never_shown: false, dialog: null },
+    ];
+    const setup = await show(withApple("unchecked", STATES.noanswer));
+    await waitFor(() => expect(screen.getByTestId("setup-apple-state").textContent).toBe("Not checked yet"));
+    expect(screen.getByTestId("setup-apple-why").textContent).toContain("tells you first");
+    expect(setup.textContent).not.toContain("install AI Juggler again");
+    expect(primariesIn(setup).map((b) => b.textContent)).toEqual(["Check this Mac"]);
+    fireEvent.click(screen.getByTestId("setup-apple-set-up"));
+    await waitFor(() => expect(screen.getByTestId("setup-apple-set-up").hasAttribute("disabled")).toBe(false));
+    expect(window.__AIJ_AI_MODELS__?.download).toBeNull();
+  });
 
   it("this Mac can't run Apple's: one line says so; Qwen recommended; Download starts only on its click", async () => {
     const setup = await show(STATES.noapple!);

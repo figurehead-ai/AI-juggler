@@ -128,7 +128,21 @@ function CheckAgain({ act, primary }: { act: ModelActions; primary: boolean }): 
 }
 
 /** Apple's card's body: what to do in its state. */
-export function AppleAction({ view, act, onAdopt }: { view: SetupView; act: ModelActions; onAdopt: () => void }): JSX.Element | null {
+export function AppleAction({ view, act, onAdopt, notSetUp = false }: { view: SetupView; act: ModelActions; onAdopt: () => void; notSetUp?: boolean }): JSX.Element | null {
+  // AJ-E1547: never checked because its helper isn't set up yet: the
+  // check is the helper's first start, told first through the gate.
+  if (view.apple === "unchecked" && notSetUp) {
+    return (
+      <div className="flex flex-col gap-2.5">
+        <p className="text-meta leading-snug text-ink-2" data-testid="setup-apple-why">
+          {APPLE.setUpLine}
+        </p>
+        <Button variant="primary" onClick={act.checkAgain} disabled={act.checking} className="self-start" data-testid="setup-apple-set-up">
+          {act.checking ? SETUP.checkingAgain : APPLE.setUp}
+        </Button>
+      </div>
+    );
+  }
   switch (view.apple) {
     case "ready":
       return view.appleInUse ? (

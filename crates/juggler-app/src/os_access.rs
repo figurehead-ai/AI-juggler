@@ -4,7 +4,8 @@
 //! - **Reading never prompts.** [`os_access_list_impl`] only checks, so the
 //!   UI can poll it while the step is open and flip an entry the moment the
 //!   user says yes in the system dialog.
-//! - **Allow does the asking.** [`os_access_request_impl`] raises the
+//! - **Allow does the asking**, through the gate (AJ-E1547): our sheet
+//!   first for a prompt not primed yet. [`os_access_request_impl`] raises the
 //!   system's own prompts (on macOS: the Accessibility prompt that adds AI
 //!   Juggler to the list, the Automation prompt for System Events, the
 //!   Screen Recording prompt). When the user said no before, the system
@@ -53,8 +54,6 @@ pub struct OsAccessInfo {
 }
 
 const ASKED_PREFIX: &str = "os_access_asked:";
-// Only macOS has entries that read these back.
-#[cfg(target_os = "macos")]
 const AUTOMATION_KEY: &str = "os_access_automation";
 
 #[cfg(target_os = "macos")]
@@ -132,35 +131,15 @@ pub fn automation_from_probe(ok: bool, stderr: &str) -> Option<bool> {
 #[cfg(target_os = "macos")]
 mod platform {
     use super::{AppState, Arc, OsAccessInfo};
+    use juggler_platform::os_prompt::{self, Status};
 
+    /// AJ-E1547: read through the gate's seam, never asking.
     pub(super) fn accessibility_trusted() -> bool {
-        macos_accessibility_client::accessibility::application_is_trusted()
-    }
-
-    pub(super) fn accessibility_prompt() -> bool {
-        macos_accessibility_client::accessibility::application_is_trusted_with_prompt()
+        os_prompt::accessibility_status() == Status::Allowed
     }
 
     pub(super) fn screen_recording_allowed() -> bool {
-        core_graphics::access::ScreenCaptureAccess.preflight()
-    }
-
-    pub(super) fn screen_recording_request() -> bool {
-        core_graphics::access::ScreenCaptureAccess.request()
-    }
-
-    /// Asks System Events for nothing but whether UI scripting is on:
-    /// the first run raises the Automation prompt (and blocks until it's
-    /// answered); later runs only report.
-    pub(super) fn automation_probe() -> Option<bool> {
-        let out = juggler_adapter::process::helper("/usr/bin/osascript")
-            .args([
-                "-e",
-                "tell application \"System Events\" to return UI elements enabled",
-            ])
-            .output()
-            .ok()?;
-        super::automation_from_probe(out.status.success(), &String::from_utf8_lossy(&out.stderr))
+        os_prompt::screen_recording_status() == Status::Allowed
     }
 
     pub(super) fn settings_url(id: &str) -> &'static str {
@@ -231,14 +210,24 @@ mod platform {
     }
 }
 
-#[cfg(target_os = "macos")]
-fn stored_automation(state: &Arc<AppState>) -> Option<bool> {
+/// What AI Juggler's own System Events ask found (`None`: never asked).
+#[must_use]
+pub fn stored_automation(state: &Arc<AppState>) -> Option<bool> {
     state
         .storage
         .lock()
         .ok()
         .and_then(|storage| storage.app_settings().get(AUTOMATION_KEY).ok().flatten())
         .map(|raw| raw == "1")
+}
+
+/// Keeps what the System Events ask found.
+///
+/// # Errors
+///
+/// A poisoned lock or a storage error.
+pub fn store_automation(state: &Arc<AppState>, allowed: bool) -> AppResult<()> {
+    set_setting(state, AUTOMATION_KEY, if allowed { "1" } else { "0" })
 }
 
 /// AJ-E2102: whether Go to it may reach exact windows: the user turned on
@@ -296,19 +285,30 @@ pub fn os_access_request_impl(state: &Arc<AppState>, id: &str) -> AppResult<Vec<
             message: format!("{id:?} isn't needed on this computer"),
         });
     }
-    set_setting(state, &format!("{ASKED_PREFIX}{id}"), "1")?;
-    #[cfg(target_os = "macos")]
-    match id {
-        "focus" => {
-            platform::accessibility_prompt();
-            if let Some(allowed) = platform::automation_probe() {
-                set_setting(state, AUTOMATION_KEY, if allowed { "1" } else { "0" })?;
+    // AJ-E1547: each system prompt through the gate, our sheet first for
+    // one not primed yet; Not now asks nothing and marks nothing.
+    let prompts = match id {
+        "focus" => [
+            crate::os_prompts::registry::ACCESSIBILITY,
+            crate::os_prompts::registry::SYSTEM_EVENTS,
+        ]
+        .as_slice(),
+        "preview" => [crate::os_prompts::registry::SCREEN_RECORDING].as_slice(),
+        _ => [].as_slice(),
+    };
+    let mut called = false;
+    for prompt in prompts {
+        if let Some(entry) = crate::os_prompts::registry::entry(prompt.id) {
+            let outcome =
+                crate::os_prompts::prime_call(state, entry, juggler_platform::os_prompt::user())?;
+            if outcome.result != "called" {
+                break;
             }
+            called = true;
         }
-        "preview" => {
-            platform::screen_recording_request();
-        }
-        _ => {}
+    }
+    if called {
+        set_setting(state, &format!("{ASKED_PREFIX}{id}"), "1")?;
     }
     Ok(os_access_list_impl(state))
 }

@@ -79,6 +79,11 @@ fn git_command() -> Result<Command, AppError> {
 }
 
 fn git(dir: &Path, args: &[&str]) -> Option<String> {
+    // AJ-E1547: never the system's folder prompt (Documents, Desktop,
+    // Downloads) for a read nobody was told about.
+    if !crate::os_prompts::may_read(dir) {
+        return None;
+    }
     let output = git_command()
         .ok()?
         .arg("-C")
@@ -94,6 +99,9 @@ fn git(dir: &Path, args: &[&str]) -> Option<String> {
 
 /// `git` in `dir`, its raw stdout when it exits with one of `codes`.
 fn git_bytes(dir: &Path, args: &[&str], codes: &[i32]) -> Option<Vec<u8>> {
+    if !crate::os_prompts::may_read(dir) {
+        return None;
+    }
     let output = git_command()
         .ok()?
         .arg("-C")

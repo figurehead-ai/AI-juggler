@@ -17,6 +17,8 @@
 //! - [`process`]: AI Juggler's own helper processes, with only what they need.
 //! - [`transfer`]: a file's identity on disk, clones, and renames that never
 //!   cross a disk (ADR-0031: a switch by move).
+//! - [`os_prompt`] (AJ-E1547): the one gate every system prompt goes
+//!   through, told first and never raised by background work.
 //! - [`real_path`]: a path's one real spelling (links, `..`, case), so two
 //!   spellings of one folder compare alike (AJ-E2315).
 //!
@@ -47,6 +49,7 @@ pub mod code_trust;
 pub mod file_trust;
 pub mod keychain;
 pub mod local_ipc;
+pub mod os_prompt;
 pub mod private_fs;
 pub mod process;
 pub mod real_path;

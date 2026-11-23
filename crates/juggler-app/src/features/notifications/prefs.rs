@@ -220,9 +220,58 @@ pub async fn notifications_set(
     kinds: SystemNotificationsInfo,
 ) -> AppResult<SystemNotificationsInfo> {
     crate::ipc::blocking(state.inner(), "notification settings", move |state| {
+        // AJ-E1547: turning a kind on is when the system may first ask:
+        // the sheet first, then a first notification. Not now keeps the
+        // kinds as they were (the next turning on asks again).
+        if turns_on(state, &kinds)? && !crate::os_prompts::notify::may_turn_on() {
+            let storage = state
+                .storage
+                .lock()
+                .map_err(|_| crate::error::AppError::StatePoisoned)?;
+            return Ok(read(&storage));
+        }
         notifications_set_impl(state, kinds)
     })
     .await
+}
+
+fn values(kinds: &SystemNotificationsInfo) -> [bool; 11] {
+    [
+        kinds.waiting,
+        kinds.stuck,
+        kinds.limit,
+        kinds.finished,
+        kinds.this_mac,
+        kinds.left_behind,
+        kinds.quota,
+        kinds.crash,
+        kinds.reset,
+        kinds.watch,
+        kinds.digest,
+    ]
+}
+
+/// Whether `kinds` turns on a kind that is off now.
+fn turns_on(state: &Arc<AppState>, kinds: &SystemNotificationsInfo) -> AppResult<bool> {
+    let storage = state
+        .storage
+        .lock()
+        .map_err(|_| crate::error::AppError::StatePoisoned)?;
+    let now = values(&read(&storage));
+    Ok(values(kinds)
+        .into_iter()
+        .zip(now)
+        .any(|(wanted, on)| wanted && !on))
+}
+
+/// AJ-E1547: whether the user ever saved a kind on (before 0.5.1 the
+/// system asked at the first notification): the entry counts as primed.
+#[must_use]
+pub fn any_turned_on(state: &AppState) -> bool {
+    state.storage.lock().is_ok_and(|storage| {
+        KEYS.iter()
+            .any(|key| storage.app_settings().get(key).ok().flatten().as_deref() == Some("true"))
+    })
 }
 
 #[cfg(test)]

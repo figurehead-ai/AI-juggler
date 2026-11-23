@@ -18,6 +18,7 @@ import { Alert } from "../Alert";
 import { Button } from "../primitives";
 import { useAiJob, useAiJobs } from "../../lib/ai-availability";
 import { useModelsCatalog, useModelsInstalled } from "../../lib/ai-models";
+import { useHelperSetUp } from "../../lib/helper-setup";
 import type { AiJob } from "../../lib/ipc/ai";
 import type { ModelsCatalog } from "../../lib/ipc/models";
 import { ApprovalDialog } from "../../screens/settings/ai/ModelsApproval";
@@ -78,6 +79,9 @@ type Chosen = (run: () => void) => () => void;
 
 function AppleCard({ id, view, act, chosen }: { id: string; view: SetupView; act: ModelActions; chosen: Chosen }): JSX.Element {
   const apple = view.apple ?? "unchecked";
+  // AJ-E1547: its helper hasn't started yet (not set up), so it wasn't checked.
+  const helperSetUp = useHelperSetUp();
+  const notSetUp = apple === "unchecked" && helperSetUp === false;
   let tone: "ok" | "wait" | "warn" = "warn";
   if (apple === "ready") tone = "ok";
   else if (apple === "preparing" || apple === "off") tone = "wait";
@@ -88,14 +92,14 @@ function AppleCard({ id, view, act, chosen }: { id: string; view: SetupView; act
       name={APPLE.name}
       sub={APPLE.sub}
       recommended={view.recommended === "apple"}
-      state={APPLE.state[apple]}
+      state={notSetUp ? APPLE.notSetUp : APPLE.state[apple]}
       stateTone={tone}
       facts={<ModelFacts model={view.appleModel} inCard />}
       points={APPLE.points}
       need={{ met: apple === "ready" || apple === "preparing" }}
       testId="setup-apple"
     >
-      <AppleAction view={view} act={act} onAdopt={chosen(() => act.use(view.appleModel, BOT))} />
+      <AppleAction view={view} act={act} notSetUp={notSetUp} onAdopt={chosen(() => act.use(view.appleModel, BOT))} />
     </Choice>
   );
 }

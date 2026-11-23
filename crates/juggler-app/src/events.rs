@@ -94,11 +94,18 @@ pub enum AppEvent {
     /// What a Go to it or an Open did, after it said it was still on it
     /// (0.4.6, the rc3c walk; carries its `GoToOutcomeInfo` and ticket).
     GoToLate,
+    /// AJ-E1547: the system is about to ask the user something; the
+    /// window shows our sheet first (carries its `OsPromptInfo`) and
+    /// answers with `os_prompt_answer`.
+    OsPromptAsk,
+    /// AJ-E1547: what came of a call the user said go to (carries its
+    /// `OsPromptOutcomeInfo`).
+    OsPromptOutcome,
 }
 
 impl AppEvent {
     /// Every event, in declaration order.
-    pub const ALL: [Self; 36] = [
+    pub const ALL: [Self; 38] = [
         Self::AppReady,
         Self::SessionsUpdated,
         Self::SessionsResources,
@@ -135,6 +142,8 @@ impl AppEvent {
         Self::AiModelsChanged,
         Self::AiModelsProgress,
         Self::GoToLate,
+        Self::OsPromptAsk,
+        Self::OsPromptOutcome,
     ];
 
     /// The wire name the UI listens to.
@@ -177,6 +186,8 @@ impl AppEvent {
             Self::AiModelsChanged => "ai-models://changed",
             Self::AiModelsProgress => "ai-models://progress",
             Self::GoToLate => "go-to://late",
+            Self::OsPromptAsk => "os-prompt://ask",
+            Self::OsPromptOutcome => "os-prompt://outcome",
         }
     }
 }

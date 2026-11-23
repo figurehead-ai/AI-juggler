@@ -2947,7 +2947,6 @@ version = "0.5.0"
 dependencies = [
  "base64 0.23.1",
  "bytes",
- "core-graphics",
  "cpu-time",
  "dirs",
  "ed25519-dalek",
@@ -2975,7 +2974,6 @@ dependencies = [
  "juggler-stats",
  "juggler-supervisor",
  "juggler-window-events",
- "macos-accessibility-client",
  "objc2",
  "objc2-app-kit",
  "objc2-foundation",
@@ -3126,6 +3124,9 @@ name = "juggler-platform"
 version = "0.5.0"
 dependencies = [
  "core-foundation 0.10.1",
+ "core-graphics",
+ "juggler-login-item",
+ "macos-accessibility-client",
  "nix 0.31.3",
  "objc2",
  "objc2-app-kit",
