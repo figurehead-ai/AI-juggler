@@ -309,7 +309,7 @@
 | AJ-E2323 | The switch's verification matrix: every ownership shape as a fixture in CI, and the real cases walked in lab PL1 | E23-session-runtime.md | P0 | M | AJ-E2315 |
 | AJ-E2324 | Move's speed: event-driven waits, an open-file write guard and half the reads | E23-session-runtime.md | P2 | M | AJ-E2322 |
 | AJ-E2325 | Move backups clean themselves up: refused attempts at once, committed moves after a chosen time, sizes that say what deleting frees | E23-session-runtime.md | P0 | M | AJ-E2321 |
-| AJ-E2326 | One conversation open in two places is seen and said: both live places shown, a notice with one click to stop ours, and a continued session says where it came from | E23-session-runtime.md | P0 | M | AJ-E2315, AJ-E2317 |
+| AJ-E2326 | A refused move leaves the conversation where it was, never in a terminal here: every start path honours a move's hold, the source reopens it, and two live places are seen and said | E23-session-runtime.md | P0 | M | AJ-E2315, AJ-E2317, AJ-E2320 |
 | AJ-E2306 | Claude terminal sessions with hooks and the status line | E23-session-runtime.md | P0 | M | AJ-E2302 |
 | AJ-E2307 | Answers from Needs you and the session page | E23-session-runtime.md | P0 | M | AJ-E2303 |
 | AJ-E2308 | Run without a terminal: answer from AI Juggler (Beta) | E23-session-runtime.md | P1 | L | AJ-E2302, AJ-E2307 |
