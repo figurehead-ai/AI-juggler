@@ -429,6 +429,7 @@
 3. A PL1 lab walk (Sonnet, verified by Opus) of: two profiles on one account; the E2315 shape; another AI Juggler with keep alive; a crash mid-move then restart.
 4. The walk also starts from an EMPTY Dev-identity data folder with real running lab profiles and tries every add path (Welcome's Find my apps, the rail's Add, Settings, ⌘K), then checks each App's sessions show (AJ-E2327).
 5. Left by AJ-E2318: a timing test that the offer's checks (one process table, the pid files, one tree per profile) stay within 500 ms on a large fixture; AJ-E2318's evidence manifest.
+6. **AJ-E2328's caveats closed on the real Claude app, in two lab profiles only, never the maintainer's** (the coordinating session, 2026-11-23; any failure is a blocker): (a) move a Code session that has its own worktree, restart the target profile and resume it: the app's log has NO "was recycled" line for it, the target's worktree file leases that worktree on its real branch, and a Write into it is not blocked by the worktree-write guard; (b) after the source profile's next untracked-dir sweep (logged about every 30 minutes), that worktree is not in its sightings; (c) "Repair ownership" on a deliberately split lab setup, then (a) again. The log lines are the evidence (anonymised).
 **Quality gates**: `just keep-going verify-static`; failing-before tests; the move suite.
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E2323/manifest.md`.
 
