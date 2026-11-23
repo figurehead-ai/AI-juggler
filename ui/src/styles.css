@@ -20,7 +20,28 @@
   --color-surface: #151a23;
   --color-surface-2: #1e2430;
   --color-surface-3: #242935; /* not #282e3b: a profile badge (white letters, AA) must also stand 3:1 off it */
-  --color-hairline: #2f3645;
+  /* AJ-E1550 (PAT-SURF): a floating layer's own tone (menus, popovers,
+     pickers, dialogs), a step above the area it floats over, with a soft
+     shadow (--shadow-popover / --shadow-dialog). Text keeps 7:1 on it. */
+  --color-overlay: #1b202b;
+  /* AJ-E1550 (PAT-SURF, the maintainer 2026-11-23: "only on highlight or
+     mouse over or to really really bring attention"): tone separates,
+     lines don't. border-subtle is a near-invisible hairline (the ink at
+     7 % on dark, 9 % on light: 1.16–1.2:1, was 1.44:1), used only where
+     tone can't separate (a rule inside an area, an input's edge, a
+     floating layer's rim). hairline is the same line (its 244 files calm
+     at once); Increase Contrast raises both to faint (below). */
+  --color-border-subtle: #f3f5f912;
+  --color-hairline: var(--color-border-subtle);
+  /* Hover: a subtle fill step over whatever it sits on (the ink at 5 %). */
+  --color-hover: #f3f5f90d;
+  /* A filled control in place of a stroke (a secondary button, a picker's
+     field): the ink at 8 %, 12 % on hover, over whatever it sits on. */
+  --color-control: #f3f5f914;
+  --color-control-hi: #f3f5f91f;
+  /* A card's or a filled control's frame: none (the surface step
+     separates it); Increase Contrast gives it a line (below). */
+  --color-frame: transparent;
   /* 0.3.2: loading placeholders, seen on the page and on a card alike. */
   --color-skeleton: #242935;
 
@@ -72,6 +93,21 @@
   /* The L3 row tint (one block per surface): danger on it 5.86:1 on
      surface, 4.84:1 on surface-3; ink on it 12.7:1. */
   --color-danger-soft: #ff857824;
+  /* AJ-E1550 req 5 (PAT-COLOR, DESIGN-SYSTEM §5.13): one hue, one meaning,
+     each in two steps. The soft step is the tint plus the words above
+     (danger, warning, success, live: text, AA on every surface). The
+     strong step (*-strong) is a fill that must be seen: a runway bar, a
+     chip's fill, the rail's mark. The strong set and the accent's fill
+     pass the dataviz palette validator in each theme (lightness band,
+     chroma, normal-vision ΔE ≥ 15 between neighbours, 3:1 on every
+     surface; CVD 6.4–6.8, legal with the words that always go with
+     them) and stay ≥ 9 ΔE and ≥ 20° from the eight identity marks:
+     red out, blocked, failed; amber needs you, running low; green
+     healthy, done, ready, signed in; teal working, live, activity. */
+  --color-danger-strong: #db2943;
+  --color-warning-strong: #d37e01;
+  --color-success-strong: #09af51;
+  --color-live-strong: #059eb1;
 
   /* 0.5 (D-117) — calm surroundings. Agreed names: 0.4.6's pools use
      them exactly, so never rename. A colour's name never repeats a
@@ -103,9 +139,21 @@
      glance (the 0.4 review's 32). Neutral, not the accent: the accent
      stays for actions and keyboard focus, so focus never looks like
      selection. Agreed names with 0.4.6's pools: never rename. */
-  --color-selected: #242935;
+  --color-selected: #292f3c;
   --color-selected-ink: #f3f5f9;
   --color-selected-ring: #8e97a6;
+  /* AJ-E1550 (PAT-SURF): selected is a soft fill and stronger words, never
+     an outline. The fill is a clear step (1.30:1 on surface, 1.44:1 on
+     canvas, 1.26:1 on the filled control; was 1.16–1.2:1 with a ring);
+     muted keeps 6.7:1 and faint 4.55:1 on it. The edge is drawn only under
+     Increase Contrast, where it becomes selected-ring (≥ 3:1, WCAG 1.4.11;
+     the ring's own measures above stay gated). */
+  --color-selected-edge: transparent;
+  /* Accent lines have two jobs only: keyboard focus (:focus-visible) and
+     a rare true-attention state (a Needs-you item pointed at, a
+     destructive confirm). Never selection, never "Suggested" (a tag). */
+  --color-focus: var(--color-accent);
+  --color-attention: var(--color-accent);
 
   /* Type: native stack, mono for identifiers */
   --font-sans:
@@ -153,8 +201,13 @@
   /* Motion */
   --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
 
-  /* Depth */
-  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px -16px rgba(0, 0, 0, 0.5);
+  /* Depth. AJ-E1550 (PAT-SURF): shadows on floating layers only (menus,
+     popovers, tips, the toast, a dialog), very soft; cards and areas have
+     none (the surface step separates them). shadow-card stays the name
+     the floating layers already use; shadow-popover is the same. */
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.28), 0 10px 28px -12px rgba(0, 0, 0, 0.45);
+  --shadow-popover: 0 1px 2px rgba(0, 0, 0, 0.28), 0 10px 28px -12px rgba(0, 0, 0, 0.45);
+  --shadow-dialog: 0 2px 6px rgba(0, 0, 0, 0.25), 0 24px 64px -20px rgba(0, 0, 0, 0.6);
   --shadow-glow-accent: 0 0 24px -6px #7c7cf459;
   --shadow-glow-live: 0 0 24px -6px #22d3ee59;
   /* A scroller's top edge under a fixed head (.scroll-edge). */
@@ -170,16 +223,15 @@
  *   L1 Note       --level-1-done  (success: to review)
  *                 --level-1-live  (live: a calm working mark)
  *   L0 Calm       the four text levels, no hue
- * An App's icon and mark are muted at rest (--tone-*) and in full colour
- * when it is at L2/L3, selected or current, hovered or focused (.app-tone).
+ * AJ-E1550 req 5 (PAT-COLOR): an App's icon and mark are always in full
+ * colour (greyed icons looked broken); idle and not running are said by
+ * the status dot, muted words and row order, never by the icon.
  */
 :root {
   --level-3: var(--color-danger);
   --level-2: var(--color-warning);
   --level-1-done: var(--color-success);
   --level-1-live: var(--color-live);
-  --tone-saturate: 0.25;
-  --tone-opacity: 0.78;
 }
 
 /* The canvas: a flat canvas-hi → canvas step (0.5, D-117: the violet and
@@ -203,9 +255,16 @@ body {
   --color-surface: #ffffff;
   --color-surface-2: #f5f6f9;
   --color-surface-3: #e6e9ef;
-  --color-hairline: #d3d8e2;
+  --color-overlay: #ffffff;
+  --color-border-subtle: #0e121917; /* AJ-E1550: the ink at 9 % */
+  --color-hover: #0e12190d;
+  --color-control: #0e12190f;
+  --color-control-hi: #0e12191a;
   --color-skeleton: #ced3dd; /* surface-3 vanished on the grey page; 0.3.2: darker, 1.3:1 on the page */
   --shadow-edge: 0 2px 6px -1px rgba(14, 18, 25, 0.14);
+  --shadow-card: 0 1px 2px rgba(14, 18, 25, 0.06), 0 10px 28px -12px rgba(14, 18, 25, 0.18);
+  --shadow-popover: 0 1px 2px rgba(14, 18, 25, 0.06), 0 10px 28px -12px rgba(14, 18, 25, 0.18);
+  --shadow-dialog: 0 2px 6px rgba(14, 18, 25, 0.06), 0 24px 64px -24px rgba(14, 18, 25, 0.28);
 
   --color-ink: #0e1219;
   --color-ink-2: #2c3341;
@@ -234,6 +293,11 @@ body {
      clears AA (≥ 4.7:1) on every surface it sits on. */
   --color-danger: #b91c1c;
   --color-danger-soft: #b91c1c14;
+  /* AJ-E1550 req 5 (PAT-COLOR): the strong step, validated for light. */
+  --color-danger-strong: #c50031;
+  --color-warning-strong: #b46d10;
+  --color-success-strong: #006e30;
+  --color-live-strong: #028f95;
 
   /* 0.5 (D-117): section 7.80–9.66:1; count 12.7:1; count-alarm 6.5:1. */
   --color-section-label: #3d4553;
@@ -245,27 +309,29 @@ body {
   --color-count-alarm-ink: #ffffff;
   /* Selected: the edge 4.59–5.69:1 (canvas-hi → surface), 5.69:1 on the
      filled control; ink on the fill 15.4:1 (13.3:1 dark). */
-  --color-selected: #e6e9ef;
+  --color-selected: #dfe3ea; /* AJ-E1550: 1.29:1 on surface, 1.11:1 on canvas; muted 7.0:1 on it */
   --color-selected-ink: #0e1219;
   --color-selected-ring: #5f6777;
-  --tone-opacity: 0.72;
 }
 
 /*
  * macOS Increase Contrast (prefers-contrast: more), with no setting of
- * our own: the one divider rises to the hairline, the hairline to faint,
- * ghost buttons take a border, section labels rise to ink-2 and Apps'
- * icons keep half their colour at full opacity.
+ * our own: the one divider rises to the hairline, the hairline (and
+ * border-subtle) to faint, ghost buttons take a border, section labels
+ * rise to ink-2 and Apps' icons keep half their colour at full opacity.
+ * AJ-E1550 (PAT-SURF): the lines tone took away come back here: cards and
+ * filled controls get their edge, and what is selected its ring.
  */
 @media (prefers-contrast: more) {
   :root {
-    --color-divider: var(--color-hairline);
-    --tone-saturate: 0.5;
-    --tone-opacity: 1;
+    --color-divider: var(--color-faint);
   }
   :root,
   [data-theme="light"] {
+    --color-border-subtle: var(--color-faint);
     --color-hairline: var(--color-faint);
+    --color-frame: var(--color-faint);
+    --color-selected-edge: var(--color-selected-ring);
     --color-section-label: var(--color-ink-2);
   }
 }
@@ -274,9 +340,9 @@ body {
   background: var(--color-accent-soft);
 }
 
-/* Focus ring: consistent, keyboard-first */
+/* Focus ring: consistent, keyboard-first (the accent's first job, PAT-SURF) */
 :focus-visible {
-  outline: 2px solid var(--color-accent);
+  outline: 2px solid var(--color-focus);
   outline-offset: 2px;
 }
 /* AJ-E3603: where a page puts the keyboard by script (the app's <main>,
@@ -296,7 +362,7 @@ body {
 /* Scrollbars: quiet, overlay-style where supported */
 * {
   scrollbar-width: thin;
-  scrollbar-color: var(--color-hairline) transparent;
+  scrollbar-color: color-mix(in oklab, var(--color-muted) 30%, transparent) transparent;
 }
 
 /* ---- Motion utilities (iteration 2) ---- */
@@ -418,24 +484,10 @@ body {
   .section-icon {
     display: none;
   }
-  /* An App's icon or mark at rest: muted, its own shape kept (saturate,
-     never a tint, so no App's colour lands on another). Lit — at L2/L3,
-     selected or current, hovered or focused — it is in full colour. The
-     filter is on the image only; a profile's dot takes the class itself. */
-  .app-tone {
-    filter: saturate(var(--tone-saturate));
-    opacity: var(--tone-opacity);
-    transition:
-      filter 150ms,
-      opacity 150ms;
-  }
-  .app-tone.is-lit,
-  .tone-host:hover .app-tone,
-  .tone-host:focus-within .app-tone,
-  .tone-host[data-lit="true"] .app-tone {
-    filter: none;
-    opacity: 1;
-  }
+  /* An App's icon or mark (.app-tone, kept as the marker class): always
+     in full colour, never desaturated or faded (AJ-E1550 req 5, PAT-COLOR:
+     greyed icons looked broken). scripts/design_tokens_lint.py keeps any
+     grayscale or saturate filter off icons. */
   /* A ghost button: words in ink-2, a fill on hover, a border only on
      focus (and under Increase Contrast, above). */
   .btn-ghost {
@@ -542,7 +594,6 @@ body {
   --color-surface: #0d0d0e;
   --color-surface-2: #1b1b1d;
   --color-surface-3: #242427;
-  --color-hairline: #2b2b2e;
   --color-ink: #f2f2f0;
   --color-ink-2: #e2e2de;
   --color-muted: #ababa6;
@@ -552,7 +603,6 @@ body {
   --color-surface: #ffffff;
   --color-surface-2: #f4f4f3;
   --color-surface-3: #e8e8e6;
-  --color-hairline: #dcdcd9;
   --color-ink: #141414;
   --color-ink-2: #2e2e2c;
   --color-muted: #55554f;
@@ -672,9 +722,6 @@ main::-webkit-scrollbar-track,
   }
   .dot-live, .animate-breathe, .welcome-rise, .feed-fresh {
     animation: none !important;
-  }
-  .app-tone {
-    transition: none !important;
   }
 }
 

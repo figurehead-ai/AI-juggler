@@ -127,7 +127,8 @@ describe("the level aliases and App tone", () => {
     expect(styles).toMatch(/--level-2:\s*var\(--color-warning\)/);
     expect(styles).toMatch(/--level-1-done:\s*var\(--color-success\)/);
     expect(styles).toMatch(/--level-1-live:\s*var\(--color-live\)/);
-    expect(styles).toMatch(/--tone-saturate:\s*0\.25/);
+    // AJ-E1550 req 5 (PAT-COLOR): App icons are never desaturated or faded.
+    expect(styles).not.toMatch(/--tone-saturate|saturate\(|grayscale\(/);
   });
 
   it("honour Increase Contrast", () => {

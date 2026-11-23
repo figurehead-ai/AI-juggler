@@ -19,8 +19,6 @@
   --color-danger: #f87171;
   --color-danger-soft: #f871711a;
   --color-divider: var(--color-hairline);
-  --tone-saturate: 1;
-  --tone-opacity: 1;
   /* Selection in 0.4's accent tint (the edge kept, so it stays readable). */
   --color-selected: var(--color-accent-soft);
   --color-selected-ink: var(--color-accent-hi);

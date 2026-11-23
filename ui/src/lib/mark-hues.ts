@@ -27,16 +27,21 @@
 import type { Oklch } from "./oklch";
 
 export const MARK_COLOURS: readonly Oklch[] = [
-  // Apps' first: a blue, a green, a rose, a magenta.
+  // Apps' first: a blue, a green, a rose, a dark olive.
   { l: 0.627, c: 0.16, h: 255 },
   { l: 0.549, c: 0.143, h: 130 },
   { l: 0.629, c: 0.16, h: 345 },
-  { l: 0.562, c: 0.16, h: 320 },
-  // Accounts' first (ACCOUNT_HUE_OFFSET): a violet, an olive, a pink, a rose.
+  // AJ-E1550 req 5 (PAT-COLOR): the palette validator (the dataviz
+  // skill's validate_palette.js, both themes) failed the magenta here
+  // beside the rose and the violet (ΔE 9.7 and 11.0 for normal vision,
+  // under 15); a dark olive clears both, and the states' gaps.
+  { l: 0.56, c: 0.11, h: 110 },
+  // Accounts' first (ACCOUNT_HUE_OFFSET): a violet, an olive, a pink, a
+  // deep blue (was a second rose, 9.7 from the pink: the same check).
   { l: 0.571, c: 0.16, h: 280 },
   { l: 0.619, c: 0.136, h: 115 },
   { l: 0.645, c: 0.16, h: 325 },
-  { l: 0.564, c: 0.16, h: 345 },
+  { l: 0.56, c: 0.2, h: 260 },
 ];
 
 /** How far (OKLab ΔE) every mark stays from every status colour. */
