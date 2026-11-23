@@ -1880,7 +1880,7 @@
  "src/pages/session/ConversationSwitcher.tsx": {
   "jsx-a11y(control-has-associated-label)": 1,
   "react(purity)": 1,
-  "typescript(consistent-return)": 2
+  "typescript(consistent-return)": 1
  },
  "src/pages/session/ConversationTurn.tsx": {
   "react(purity)": 1

@@ -53,6 +53,7 @@ import { useRailAccountOf } from "../lib/rail-accounts";
 import { railPoolOf, usePools, warmPool } from "../lib/pools";
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import type { ProjectInfo } from "../types/generated/ProjectInfo";
+import { RailNeedsHeld } from "./RailNeedsHeld";
 
 interface BoardProps {
   sessions: InstanceInfo[];
@@ -133,8 +134,7 @@ export function PlaceBoard({ sessions, projects, accounts, snooze, now, selected
     reconcileOrder({ known: items.map((item) => item.key), open: items.filter(openNow), lens: orderLens, groups: groupKeys === "" ? [] : groupKeys.split("\n"), today: dayOf(now), renamed: new Map(pairs) });
   }, [items, orderLens, groupKeys, now, renamed]);
   // Needs you, Open now and Inactive apps fold in place from their heads;
-  // Inactive apps starts folded, and each one stays as it was left.
-  const [closed, foldSection] = useClosedSections();
+  const [closed, foldSection] = useClosedSections(); // Inactive apps starts folded, each stays as it was left
   const lines = foldSections(built.lines, closed);
   useEffect(() => {
     last.current = shownOrder(built.lines);
@@ -381,7 +381,7 @@ export function PlaceBoard({ sessions, projects, accounts, snooze, now, selected
       onKeyDown={onKeyDown}
       className="flex flex-col"
     >
-      {hold.before}<RailSearchFoundNothing query={query} anything={items.length > 0} lines={built.lines} />
+      <RailNeedsHeld lines={lines} heights={heights} known={needsNow.known} />{hold.before}<RailSearchFoundNothing query={query} anything={items.length > 0} lines={built.lines} />
       {win && <div style={{ height: win.before }} aria-hidden="true" />}
       {shown.map((line, index) => (
         <div key={lineKey(line, index)} data-rail-line {...{ [LINE_KEY]: lineKey(line, index) }} style={{ minHeight: heights[line.kind] }} className="flex flex-col justify-center">

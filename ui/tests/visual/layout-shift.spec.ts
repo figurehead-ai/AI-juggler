@@ -1,0 +1,114 @@
+/**
+ * AJ-E1551 — nothing moves after it appears. Cumulative layout shift,
+ * measured by the browser (Chromium's `layout-shift` entries), on the
+ * three moments the maintainer named: opening Home, opening a session
+ * (the subagent tree used to arrive a moment later and push the page
+ * over), and switching a session's tabs. Every shift counts here, even
+ * one right after the click (the browser's own CLS forgives those; the
+ * eye doesn't): the budget is about 0.
+ *
+ * A session the rail knows has subagents (the fixture's sess-1) has its
+ * tree's column reserved from the first frame; the others have none.
+ * Writes the numbers to `docs/qa/evidence/AJ-E1551/layout-shift.json`.
+ */
+import { expect, test, type Page } from "@playwright/test";
+import { mkdirSync, writeFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { allStatuses, goTo, openRailSession } from "./fixtures";
+
+const T0 = 1_728_800_000_000;
+/** About zero: a shift a person could notice is ~0.05 and more. */
+const BUDGET = 0.01;
+const OUT = resolve(process.cwd(), "../docs/qa/evidence/AJ-E1551");
+const results: Record<string, { cls: number; shifts: number; worst: string | null }> = {};
+
+async function seed(page: Page, theme: "dark" | "light") {
+  await page.addInitScript(
+    ({ fixture, theme, t0 }) => {
+      (window as unknown as Record<string, unknown>).__AIJ_FIXTURE__ = fixture;
+      localStorage.setItem("aij.theme", theme);
+      localStorage.setItem("aij.onboarding.dismissed", "1");
+      sessionStorage.setItem("aij.ready.skipped", "1");
+      Date.now = () => t0;
+      // Every shift from the first paint on, with what moved.
+      const store = { cls: 0, shifts: 0, worst: null as string | null, worstValue: 0 };
+      (window as unknown as Record<string, unknown>).__AIJ_SHIFTS__ = store;
+      new PerformanceObserver((list) => {
+        for (const entry of list.getEntries() as unknown as Array<{ value: number; sources?: Array<{ node?: Node | null }> }>) {
+          store.cls += entry.value;
+          store.shifts += 1;
+          if (entry.value > store.worstValue) {
+            store.worstValue = entry.value;
+            const node = entry.sources?.[0]?.node;
+            const el = node instanceof Element ? node : node?.parentElement;
+            store.worst = el ? `${el.tagName.toLowerCase()}${el.getAttribute("data-testid") ? `[data-testid=${el.getAttribute("data-testid")}]` : ""} ${(el.textContent ?? "").trim().slice(0, 40)}` : null;
+          }
+        }
+      }).observe({ type: "layout-shift", buffered: true });
+    },
+    { fixture: allStatuses, theme, t0: T0 },
+  );
+  await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
+  await page.setViewportSize({ width: 1280, height: 800 });
+}
+
+/** Settles (two frames and a quiet moment), then reads and resets the count. */
+async function shifts(page: Page): Promise<{ cls: number; shifts: number; worst: string | null }> {
+  await page.waitForTimeout(800);
+  await page.evaluate(() => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))));
+  return page.evaluate(() => {
+    const store = (window as unknown as { __AIJ_SHIFTS__: { cls: number; shifts: number; worst: string | null; worstValue: number } }).__AIJ_SHIFTS__;
+    const out = { cls: Math.round(store.cls * 10_000) / 10_000, shifts: store.shifts, worst: store.worst };
+    Object.assign(store, { cls: 0, shifts: 0, worst: null, worstValue: 0 });
+    return out;
+  });
+}
+
+test.afterAll(() => {
+  mkdirSync(OUT, { recursive: true });
+  writeFileSync(resolve(OUT, "layout-shift.json"), JSON.stringify({ budget: BUDGET, viewport: "1280x800", results }, null, 2) + "\n");
+});
+
+for (const theme of ["dark", "light"] as const) {
+  test(`opening Home holds still (${theme})`, async ({ page }) => {
+    await seed(page, theme);
+    // A first run has nothing kept yet; Home's places are sized from the
+    // last look (D-103.6, kept in local storage). Opening Home is the
+    // second launch's first frame, as the user opens the app each day.
+    await page.goto("/");
+    await page.getByRole("navigation", { name: "Main" }).getByRole("button", { name: "Home", exact: true }).waitFor();
+    await shifts(page);
+    await page.reload();
+    await page.getByRole("navigation", { name: "Main" }).getByRole("button", { name: "Home", exact: true }).waitFor();
+    const home = await shifts(page);
+    results[`home-open-${theme}`] = home;
+    expect(home.cls, `Home moved after it appeared: ${home.worst}`).toBeLessThanOrEqual(BUDGET);
+  });
+
+  test(`opening a session and switching its tabs hold still (${theme})`, async ({ page }) => {
+    await seed(page, theme);
+    await page.goto("/");
+    await expect(page.getByTestId("rail")).toBeVisible();
+    await shifts(page);
+    for (const id of ["sess-1", "sess-2"]) {
+      await openRailSession(page, id);
+      const opened = await shifts(page);
+      results[`session-open-${id}-${theme}`] = opened;
+      expect(opened.cls, `opening ${id} moved: ${opened.worst}`).toBeLessThanOrEqual(BUDGET);
+    }
+    const tabs = page.getByRole("tablist").first().getByRole("tab");
+    const count = await tabs.count();
+    for (let n = 1; n < count; n += 1) {
+      const name = (await tabs.nth(n).textContent())?.trim() ?? String(n);
+      await tabs.nth(n).click();
+      const switched = await shifts(page);
+      results[`session-tab-${name}-${theme}`] = switched;
+      expect(switched.cls, `the ${name} tab moved: ${switched.worst}`).toBeLessThanOrEqual(BUDGET);
+    }
+    // Back to Home from a session.
+    await goTo(page, "Home");
+    const back = await shifts(page);
+    results[`home-from-session-${theme}`] = back;
+    expect(back.cls, `Home moved after it appeared: ${back.worst}`).toBeLessThanOrEqual(BUDGET);
+  });
+}

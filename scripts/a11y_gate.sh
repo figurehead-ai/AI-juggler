@@ -51,6 +51,7 @@ AJ_AXE_GALLERY=1 AJ_A11Y_EVIDENCE=1 pnpm exec playwright test \
   tests/visual/fleet-pairing.spec.ts \
   tests/visual/flows-cde.spec.ts \
   tests/visual/idle.spec.ts \
+  tests/visual/layout-shift.spec.ts \
   tests/visual/menus-a11y.spec.ts \
   tests/visual/models-gallery.spec.ts \
   tests/visual/new-project.spec.ts \
