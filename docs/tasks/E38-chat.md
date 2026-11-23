@@ -448,3 +448,13 @@
 2. A job running on the model ends with the engine's usual stop, never a crash report.
 **Quality gates**: `just keep-going verify-static`; the local engine's release test; the E2323 PL1 walk re-checks Remove's free space at once.
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E3712/qwen-download-check.md` (re-check row).
+
+### AJ-E3822 Helpers never share an identifier across identities, and every one names itself: no "(null) differs from previously opened versions" prompt | Status: TODO (0.5.1) | Priority P1 | Effort S | Depends: AJ-E3802
+**Found** by the maintainer on the 0.5.0 nightly (2026-11-23): opening Bot showed macOS's prompt '"(null)" differs from previously opened versions. Are you sure you want to open it?'. Nightly's `juggler-apple-ai` is `ai.figurehead.juggler.apple-ai` signed with the team's Developer ID; the Dev and lab builds ran the same identifier signed ad hoc, so macOS's app-data protection saw one identifier with two signers and asked. "(null)" because the helpers' embedded Info.plist has no CFBundleName.
+**Requirements**:
+1. Every helper (`juggler-apple-ai`, `juggler-local-ai`, `juggler-agent`, and any later one) takes its identifier from the build's identity: Dev and lab builds carry the Dev identity's prefix, as the app does, so they never share one with Nightly or Stable (which share the team's signer). Whatever reads the identifier at run time (sandbox container, cache folder, a code requirement) follows the same identity.
+2. Each helper's embedded plist has CFBundleName and CFBundleDisplayName ("AI Juggler"), so no system prompt says "(null)".
+3. A test or lint over the build scripts and build.rs: helper identifiers follow the identity, and every embedded plist names itself.
+4. A release-notes line: Nightly testers who ran a Dev build may see this prompt once; it is our signed helper.
+**Quality gates**: `just keep-going verify-static`; the new lint; a Dev build's helpers checked with `codesign -dv` (identifier and plist).
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E3822/manifest.md`.
