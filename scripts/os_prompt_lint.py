@@ -57,7 +57,8 @@ RULES: list[tuple[str, re.Pattern[str], tuple[str, ...]]] = [
     ("ax-prompt", re.compile(r"AXIsProcessTrustedWithOptions|kAXTrustedCheckOptionPrompt|application_is_trusted_with_prompt"), (GATE,)),
     ("screen", re.compile(r"ScreenCaptureAccess|CGRequestScreenCaptureAccess"), (GATE,)),
     ("script", re.compile(r"/usr/bin/osascript|\"osascript\"|\bNSAppleScript\b|\bOSAScript\b|\bAEDeterminePermission\b"), (GATE,)),
-    ("link-event", re.compile(r"\bsend_link\s*\("), (GATE, "crates/juggler-platform/src/apps.rs")),
+    # A call to the gate's own `os_prompt::send_link` is the routed one.
+    ("link-event", re.compile(r"(?<!os_prompt::)\bsend_link\s*\("), (GATE, "crates/juggler-platform/src/apps.rs")),
     ("notify-auth", re.compile(r"requestAuthorization|UNUserNotificationCenter|\bNotificationExt\b"), (GATE, APP_GATE + "notify.rs")),
     ("login-item", re.compile(r"\bSMAppService\b|registerAndReturnError"), ("crates/juggler-login-item/src/lib.rs",)),
     ("login-item", re.compile(r"\bjuggler_login_item::set\s*\("), (GATE,)),
@@ -149,7 +150,8 @@ def selftest() -> None:
             "#[cfg(test)]\nmod tests {\n    fn t() { let _ = \"osascript\"; }\n}\n")
         put("crates/juggler-platform/src/os_prompt/mac.rs", 'const OSASCRIPT: &str = "/usr/bin/osascript";\n')
         put("crates/juggler-app/src/os_prompts/notify.rs", "use tauri_plugin_notification::NotificationExt;\n")
-        put("crates/y/src/lib.rs", "use tauri_plugin_notification::NotificationExt;\nfn c() { juggler_platform::apps::send_link(1, \"x\"); }\n")
+        put("crates/y/src/lib.rs", "use tauri_plugin_notification::NotificationExt;\nfn c() { juggler_platform::apps::send_link(1, \"x\"); }\n"
+            "fn g() { os_prompt::send_link(APP_LINKS, user(), 1, \"x\"); }\n")
         put("crates/juggler-app/src/preview.rs", "fn p() { SCShareableContent::get(); }\n")
         put("crates/juggler-app/src/features/ai/engines/helper.rs", "fn launch() { command.spawn(); }\n")
         put("crates/z/src/lib.rs", "fn d() { juggler_platform::apps::send_link(1, \"x\"); }\n")

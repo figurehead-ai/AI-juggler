@@ -287,6 +287,19 @@ describe("AJ-E3816 the form", () => {
     expect(draftWords(created).words).toBe(expected);
   });
 
+  it("AJ-E1548 #16: Watch primes the notification permission first (our sheet), and Not now still saves the watch", async () => {
+    const prompts = await import("../../lib/ipc/os-prompts");
+    const asked = vi.spyOn(prompts, "osPromptRequest").mockResolvedValue({ id: "notifications", result: "not_now" } as never);
+    await show(STATES.list!);
+    act(() => openWatches({ kind: "new", target: { kind: "session", id: "s-api" } }));
+    await waitFor(() => expect(screen.getByTestId("watch-form-save")).toBeTruthy());
+    await waitFor(() => expect((screen.getByTestId("watch-form-save") as HTMLButtonElement).disabled).toBe(false));
+    fireEvent.click(screen.getByTestId("watch-form-save"));
+    await waitFor(() => expect(screen.queryByTestId("watch-form")).toBeNull());
+    expect(asked).toHaveBeenCalledWith("notifications");
+    expect(calls().some(([name]) => name === "watches_create")).toBe(true);
+  });
+
   it("Edit: a second session shows For each / When all, the Was line, and saves by id", async () => {
     await show(STATES.edit!);
     await waitFor(() => expect(screen.getAllByTestId("watch-row")).toHaveLength(6));

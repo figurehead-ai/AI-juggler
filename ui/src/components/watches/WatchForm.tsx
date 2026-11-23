@@ -7,6 +7,7 @@
  * compiled bounds; the echo is the backend's, word for word. Nothing is
  * written until Watch (or Save changes) is pressed.
  */
+import { osPromptRequest } from "../../lib/ipc/os-prompts";
 import { useEffect, useId, useMemo, useRef, useState, type JSX, type ReactNode } from "react";
 import { FlowLayout } from "../FlowLayout";
 import { Button } from "../primitives";
@@ -347,6 +348,10 @@ export function WatchForm(props: WatchFormProps): JSX.Element {
     setSaving(true);
     setFailed(null);
     try {
+      // AJ-E1548 #16 (PAT-OSP): a watch tells you by notification, so the
+      // first one primes macOS's permission here, at the user's click (our
+      // sheet first). Not now, or no answer, still saves the watch.
+      if (mode === "new") await osPromptRequest("notifications").catch(() => undefined);
       await props.onSave(draft);
     } catch (error) {
       setFailed(errorText(error));

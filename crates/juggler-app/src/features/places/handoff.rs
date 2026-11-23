@@ -218,10 +218,19 @@ impl System for Real {
         super::start_place(state, place, &hosts, &start::System, false)
     }
 
+    /// AJ-E1548: through AJ-E1547's gate, at the user's click: our sheet
+    /// first for an entry not primed; Not now sends nothing.
     fn send(&self, pid: u32, link: &str) -> Result<(), String> {
-        juggler_platform::apps::send_link(pid, link).map_err(|error| error.to_string())
+        use juggler_platform::os_prompt::{self, Gated, user};
+        match os_prompt::send_link(crate::os_prompts::registry::APP_LINKS, user(), pid, link) {
+            Gated::Called { value, .. } => value.map_err(|error| error.to_string()),
+            Gated::NotNow | Gated::Waiting => Err(NOT_SENT.to_owned()),
+        }
     }
 }
+
+/// A link the user chose not to let AI Juggler send yet.
+const NOT_SENT: &str = "not sent: AI Juggler may not send links to apps yet";
 
 /// How long a hand-off waits: for a started profile to come up, and for
 /// the profile to record the session.

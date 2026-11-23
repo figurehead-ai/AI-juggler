@@ -645,3 +645,25 @@ fn an_app_id_that_isnt_plain_is_never_put_in_a_link() {
     assert_eq!(done.reached, "app");
     assert!(!mac.log().iter().any(|line| line.starts_with("send")));
 }
+
+#[test]
+fn each_script_waits_on_its_own_apps_prompt() {
+    // AJ-E1548 (AJ-E1547's last routes): the tab scripts ask about
+    // Terminal or iTerm, every other script about System Events.
+    use crate::os_prompts::registry::{ITERM, SYSTEM_EVENTS, TERMINAL};
+    let hosts = include_str!("../hosts.json");
+    assert!(hosts.contains("tell application \\\"Terminal\\\""));
+    assert!(hosts.contains("tell application \\\"iTerm2\\\""));
+    assert_eq!(
+        script_prompt("tell application \"Terminal\"\nend tell").id,
+        TERMINAL.id
+    );
+    assert_eq!(
+        script_prompt("tell application \"iTerm2\"\nend tell").id,
+        ITERM.id
+    );
+    assert_eq!(
+        script_prompt("tell application \"System Events\" to count windows").id,
+        SYSTEM_EVENTS.id
+    );
+}
