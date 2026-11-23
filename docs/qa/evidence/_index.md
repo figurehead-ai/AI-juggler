@@ -214,6 +214,7 @@
 | AJ-E2317 | PASS1 | 2026-11-23 | [manifest](AJ-E2317/manifest.md) |
 | AJ-E2319 | PASS5 | 2026-11-23 | [manifest](AJ-E2319/manifest.md) |
 | AJ-E2320 | PASS4 | 2026-11-23 | [manifest](AJ-E2320/manifest.md) |
+| AJ-E2321 | PASS4 | 2026-11-23 | [manifest](AJ-E2321/manifest.md) |
 | AJ-E2327 | PASS6 | 2026-11-23 | [manifest](AJ-E2327/manifest.md) |
 | AJ-E2328 | PASS11 | 2026-11-23 | [manifest](AJ-E2328/manifest.md) |
 | AJ-E2401 | PASS8 | 2026-10-31 | [manifest](AJ-E2401/manifest.md) |

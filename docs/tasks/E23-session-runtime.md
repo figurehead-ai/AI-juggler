@@ -386,7 +386,7 @@
 **Quality gates**: `just keep-going verify-static`; failing-before tests; the move suite.
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E2320/manifest.md`.
 
-### AJ-E2321 A move survives a crash: startup recovery before keep alive, and a Moves door to undo or finish each move by id | Status: TODO (0.5.1) | Priority P0 | Effort M | Depends: AJ-E2320
+### AJ-E2321 A move survives a crash: startup recovery before keep alive, and a Moves door to undo or finish each move by id | Status: DONE (0.5.1) | Priority P0 | Effort M | Depends: AJ-E2320
 **Found** Review A5.1–A5.4, A6.1, A6.4, B5.2–B5.5: no recovery at startup (keep alive restarted apps onto a half-moved folder), no door back to an interrupted move, Undo blocked by a full disk, committed backups kept for ever. (`docs/research/move-reliability-review.md`).
 **UI**: yes
 **Usability reasoning** (Opus, before building; re-checked on the built screen):
