@@ -374,7 +374,7 @@
 **Quality gates**: `just keep-going verify-static`; failing-before tests; the move suite.
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E2319/manifest.md`.
 
-### AJ-E2320 One shared, persistent hold marker every AI Juggler honours, and a move never quits AI Juggler's own parents | Status: TODO (0.5.1) | Priority P0 | Effort S | Depends: AJ-E2315
+### AJ-E2320 One shared, persistent hold marker every AI Juggler honours, and a move never quits AI Juggler's own parents | Status: DONE (0.5.1) | Priority P0 | Effort S | Depends: AJ-E2315
 **Found** Review A3.4, A7.1–A7.3, A1.5, B5.1, E10, E11: `MoveHold` lived in one process's memory; the other AI Juggler's keep alive relaunched a profile mid-move (every retry), and the Dev AI Juggler started from a profile's Code tab could be quit by its own move. (`docs/research/move-reliability-review.md`).
 **UI**: no
 **Requirements**:
