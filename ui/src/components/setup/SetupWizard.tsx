@@ -97,6 +97,8 @@ export function SetupWizard({
   const [signinValue, setSigninValue] = useState<string | undefined>(undefined);
   const [keep, setKeep] = useState<{ login: boolean | null; awake: boolean | null }>({ login: null, awake: null });
   const [busy, setBusy] = useState(false);
+  // First run's actions (Bring in N) sit in this sticky foot.
+  const [footSlot, setFootSlot] = useState<HTMLElement | null>(null);
   const chat = useAiJob("chat");
   const onKeepValue = useCallback((login: boolean | null, awake: boolean | null) => setKeep({ login, awake }), []);
 
@@ -197,7 +199,7 @@ export function SetupWizard({
             disabled: busy,
             testId: "setup-skip",
           }}
-          note={busy ? "Bringing your apps in. Stop is above the list." : undefined}
+          middle={<div ref={setFootSlot} className="flex min-w-0 flex-1 px-2" data-testid="setup-foot-slot" />}
         />
       );
     }
@@ -268,6 +270,7 @@ export function SetupWizard({
             <FirstRun
               embedded
               onStep={onFirstRunStep}
+              footSlot={footSlot}
               openLoginTerminal={openLoginTerminal}
               onAccountsChanged={() => {
                 setAppsValue("Apps brought in");

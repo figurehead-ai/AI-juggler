@@ -150,6 +150,8 @@ describe("Find your apps", () => {
     // First run titles its own step (no second title over it).
     expect(screen.queryByTestId("setup-title")).toBeNull();
     expect(screen.getByTestId("setup-eyebrow").textContent).toBe("Step 1 of 5");
+    // Its own actions (Bring in N) sit in the wizard's sticky foot.
+    await waitFor(() => expect(within(screen.getByTestId("setup-foot-slot")).queryByTestId("first-run-actions")).not.toBeNull());
     fireEvent.click(screen.getByTestId("setup-skip"));
     // Past Sign in (part of Your apps' flow) to the permissions.
     expect(await screen.findByTestId("setup-permissions")).toBeTruthy();

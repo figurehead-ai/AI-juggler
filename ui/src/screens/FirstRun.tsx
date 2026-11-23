@@ -39,7 +39,7 @@ import { AccessStep } from "../components/AccessStep";
 import { Check } from "../components/StepCheck";
 import { colourAt, FreshAccountStep, freeLabel } from "./FreshAccountStep";
 import { ProvidersTerms, StepMarks, TermsLine, YOUR_APPS, type Step } from "./FirstRunSteps";
-import { ToolGroup, usePairings } from "./FirstRunToolGroup";
+import { FoundActions, ToolGroup, usePairings } from "./FirstRunToolGroup";
 import { FirstRunFrame } from "./FirstRunFrame";
 import { funnelEvent, funnelStep, reasonCode } from "../lib/funnel";
 import { foundWords, useSetupScan } from "./firstRunScan";
@@ -179,9 +179,12 @@ function FoundStep({
   inPlace,
   taken,
   firstRun,
+  footSlot,
 }: {
   /** First run (not Add app): AJ-E1545's Your apps. */
   firstRun: boolean;
+  /** The setup wizard's foot: the actions go there (its sticky foot). */
+  footSlot?: HTMLElement | null;
   report: ScanReportData | null;
   /** The names of the Apps already in AI Juggler (`null` while read). */
   taken: string[] | null;
@@ -378,8 +381,8 @@ function FoundStep({
   return (
     <div className="flex flex-col gap-6" data-testid="first-run-found">
       <div className="flex flex-col gap-2">
-        <h1 className="text-stat font-semibold leading-tight tracking-tight">{words.heading}</h1>
-        <p className="max-w-2xl text-section leading-relaxed text-ink-2">{words.lead}</p>
+        <h1 className={yourApps ? "type-title" : "text-stat font-semibold leading-tight tracking-tight"}>{words.heading}</h1>
+        <p className={"max-w-2xl leading-relaxed text-ink-2 " + (yourApps ? "text-body" : "text-section")}>{words.lead}</p>
         {scanError !== null && (
           <div>
             <Button onClick={onScanAgain} data-testid="first-run-scan-again">
@@ -551,7 +554,7 @@ function FoundStep({
       )}
 
       {/* Always in view, so Bring in is never below the fold (0.4 design review). */}
-      <div className="sticky bottom-0 z-10 -mx-2 flex flex-wrap items-center justify-between gap-4 border-t border-hairline bg-canvas/95 px-2 py-3 backdrop-blur" data-testid="first-run-actions">
+      <FoundActions slot={footSlot}>
         <div className="flex flex-wrap items-center gap-5 text-sm">
           <button type="button" className="text-accent-hi hover:underline" onClick={onAddFresh}>
             {listed ? (yourApps ? "Set up a new app instead" : "Add a fresh app instead") : "Add an app"}
@@ -591,7 +594,7 @@ function FoundStep({
             </Button>
           </div>
         )}
-      </div>
+      </FoundActions>
 
       {showLooked && (
         <ul className="flex flex-col gap-1 rounded-xl border border-hairline bg-surface px-4 py-3 text-xs" data-testid="first-run-looked">
@@ -1053,6 +1056,7 @@ export function FirstRun({
   embedded = false,
   onBusy,
   onStep,
+  footSlot,
 }: {
   /** First run is over: Home. */
   onDone: () => void;
@@ -1075,6 +1079,7 @@ export function FirstRun({
   onBusy?: (busy: boolean) => void;
   /** Its own step now (the wizard's Your apps or Sign in). */
   onStep?: (step: Step) => void;
+  footSlot?: HTMLElement | null;
 }): JSX.Element {
   const [step, setStep] = useState<Step>(resumeAtAccess ? "access" : startAt);
   useEffect(() => onStep?.(step), [step, onStep]);
@@ -1234,6 +1239,7 @@ export function FirstRun({
           onImportFolder={() => void pickFolder()}
           stopRef={stopRef}
           firstRun={mode === "first-run"}
+          footSlot={footSlot}
           onBusy={(busy) => {
             setImporting(busy);
             onBusy?.(busy);

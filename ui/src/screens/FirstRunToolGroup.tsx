@@ -5,6 +5,7 @@
  * many were found, and a select-all for the group.
  */
 import { useEffect, useId, useState, type JSX, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { placesPairings } from "../lib/ipc/places";
 import { desktopAppWord } from "../lib/app-name";
 import { toolSpec } from "../lib/tools";
@@ -94,4 +95,23 @@ export function usePairings(on: boolean): Map<string, Paired> {
     );
   }, [on]);
   return pairs;
+}
+
+/** The found step's actions: in the setup wizard's sticky foot when it
+ * gives one (AJ-E1545, DLG-1), else a bar that stays in view at the
+ * bottom of the page (0.4 design review: Bring in never below the fold). */
+export function FoundActions({ slot, children }: { slot?: HTMLElement | null; children: ReactNode }): JSX.Element {
+  if (slot) {
+    return createPortal(
+      <div className="flex flex-1 flex-wrap items-center justify-between gap-4" data-testid="first-run-actions">
+        {children}
+      </div>,
+      slot,
+    );
+  }
+  return (
+    <div className="sticky bottom-0 z-10 -mx-2 flex flex-wrap items-center justify-between gap-4 border-t border-hairline bg-canvas/95 px-2 py-3 backdrop-blur" data-testid="first-run-actions">
+      {children}
+    </div>
+  );
 }

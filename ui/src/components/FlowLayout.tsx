@@ -213,6 +213,7 @@ export const FlowFoot = forwardRef(function FlowFoot(
     secondary,
     primary,
     note,
+    middle,
   }: {
     cancel?: FlowAction;
     back?: FlowAction;
@@ -222,6 +223,9 @@ export const FlowFoot = forwardRef(function FlowFoot(
     primary?: FlowAction;
     /** A line before the actions ("The rest is prefilled…"). */
     note?: ReactNode;
+    /** Between Cancel and the rest, in place of the space (the setup
+     * wizard's first run puts its own actions there). */
+    middle?: ReactNode;
   },
   primaryRef: Ref<HTMLButtonElement>,
 ): JSX.Element {
@@ -234,7 +238,7 @@ export const FlowFoot = forwardRef(function FlowFoot(
           {cancel.label}
         </Button>
       )}
-      <span className="flex-1" />
+      {middle ?? <span className="flex-1" />}
       {why ? (
         <p id={whyId} className="mr-3 min-w-0 text-meta text-ink-2" data-testid="flow-foot-why">
           {why}

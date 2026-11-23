@@ -41,7 +41,8 @@ export function AppMark({ size = 72, className = "" }: { size?: number; classNam
       </defs>
       {/* The tile: a continuous-corner square, as macOS draws app icons. */}
       <rect x="0" y="0" width="100" height="100" rx="22.5" fill={ref("tile")} />
-      <rect x="0.5" y="0.5" width="99" height="99" rx="22" fill="none" stroke="white" strokeOpacity="0.06" />
+      {/* Its edge: faint on a large mark; at small sizes, enough to stand off a dark surface. */}
+      <rect x="1" y="1" width="98" height="98" rx="21.5" fill="none" stroke="white" strokeOpacity={size <= 40 ? 0.22 : 0.06} strokeWidth={size <= 40 ? 2.5 : 1} />
       {/* The glows, under the arc and the balls. */}
       <circle cx="50" cy="35.8" r="22" fill={ref("glow-top")} />
       <circle cx="25.2" cy="72.6" r="19" fill={ref("glow-left")} />
