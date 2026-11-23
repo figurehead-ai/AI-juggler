@@ -32,7 +32,7 @@ use juggler_adapter::compat::{CompatFeature, Gate, Span};
 use juggler_adapter::error::AdapterError;
 use juggler_adapter::moving::{
     Appended, Carried, HoldWhy, InPlaceMove, MemberSide, MoveCheck, MoveMember, MovePlan,
-    MoveRequest, MoveStep, NotesChoice, ProcView, Refusal, Retained, Split, Writer,
+    MoveRequest, MoveStep, NotesChoice, ProcView, Refusal, Retained, Split, Tidied, Writer,
 };
 
 mod shape;
@@ -1307,6 +1307,14 @@ impl InPlaceMove for ClaudeMove {
 
     fn repair(&self, split: &Split, version: Option<&str>) -> MovePlan {
         worktrees::repair(split, version)
+    }
+
+    fn also_tidied(&self, hosts: &[PathBuf]) -> Result<Vec<Tidied>, String> {
+        worktrees::also_tidied(hosts)
+    }
+
+    fn moves_checked(&self, version: Option<&str>) -> Option<bool> {
+        Some(worktrees::moves_checked(version))
     }
 
     // AJ-E2318: its pid files and `--resume` (`writers`).

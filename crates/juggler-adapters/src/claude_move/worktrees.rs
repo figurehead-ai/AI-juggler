@@ -46,7 +46,7 @@ use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 
 use juggler_adapter::compat::Version;
-use juggler_adapter::moving::{Carried, MoveCheck, MovePlan, MoveStep, Refusal, Split};
+use juggler_adapter::moving::{Carried, MoveCheck, MovePlan, MoveStep, Refusal, Split, Tidied};
 use serde_json::{Map, Value};
 
 use super::{Builder, LOCAL, Record, shown};
@@ -734,6 +734,13 @@ pub(super) fn splits(hosts: &[PathBuf]) -> Result<Vec<Split>, String> {
                 .as_deref()
                 .is_some_and(|now| had != Some(now) || record_branch.is_some_and(|b| b != now));
             let elsewhere = holder.0 != *owner;
+            // One conversation, two worktrees: its record names a fresh
+            // one the app made.
+            let other_worktree = record
+                .get("worktreeName")
+                .and_then(Value::as_str)
+                .filter(|n| *n != name)
+                .map(str::to_owned);
             if !elsewhere && !branch_differs {
                 continue;
             }
@@ -760,10 +767,71 @@ pub(super) fn splits(hosts: &[PathBuf]) -> Result<Vec<Split>, String> {
                 branch,
                 branch_differs,
                 also_swept_by,
+                other_worktree,
             });
         }
     }
     out.sort_by(|a, b| a.key.cmp(&b.key));
+    Ok(out)
+}
+
+/// The repair's note when a conversation has two worktrees.
+pub(super) const TWO_WORKTREES: &str = "This conversation has two worktrees; both are kept";
+
+/// AJ-E2328 (the maintainer's ruling): the worktrees among `hosts` that one
+/// profile owns and another profile's cleanup has seen (its sightings name
+/// the folder), so that cleanup may remove it once it looks unused there.
+/// Only folders that are there count. Reads only.
+///
+/// # Errors
+///
+/// As [`splits`].
+pub(super) fn also_tidied(hosts: &[PathBuf]) -> Result<Vec<Tidied>, String> {
+    let mut files: Vec<(&PathBuf, Value)> = Vec::new();
+    for host in hosts {
+        match read(host) {
+            Worktrees::Absent => {}
+            Worktrees::Known(value) => files.push((host, value)),
+            Worktrees::Unknown(what) => {
+                return Err(format!(
+                    "{} keeps its worktrees in a format AI Juggler doesn't know yet ({what})",
+                    profile_name(host)
+                ));
+            }
+        }
+    }
+    let seen = |value: &Value, folder: &Path| {
+        value
+            .get("untrackedDirGc")
+            .and_then(|gc| gc.get("sightings"))
+            .and_then(Value::as_object)
+            .is_some_and(|m| m.keys().any(|k| Path::new(k) == folder))
+    };
+    let mut out = Vec::new();
+    for (owner, value) in &files {
+        for (name, entry) in leases(value) {
+            let Some(path) = text(entry, "path") else {
+                continue;
+            };
+            let folder = Path::new(path);
+            if !folder.is_dir() {
+                continue;
+            }
+            let by: Vec<PathBuf> = files
+                .iter()
+                .filter(|(h, v)| *h != *owner && seen(v, folder))
+                .map(|(h, _)| (*h).clone())
+                .collect();
+            if !by.is_empty() {
+                out.push(Tidied {
+                    worktree: name,
+                    owner: (*owner).clone(),
+                    by,
+                });
+            }
+        }
+    }
+    out.sort_by(|a, b| (&a.worktree, &a.owner).cmp(&(&b.worktree, &b.owner)));
     Ok(out)
 }
 
@@ -929,6 +997,12 @@ pub(super) fn repair(split: &Split, version: Option<&str>) -> MovePlan {
     }
     if let Some(note) = swept_note(&now.also_swept_by, &name) {
         plan.notes.push(note);
+    }
+    // The maintainer's ruling: a claim on another worktree than the one the
+    // record names is moved too, never dropped (an unowned folder is
+    // removed by a cleanup, and may hold unpushed work).
+    if now.other_worktree.is_some() {
+        plan.notes.push(TWO_WORKTREES.to_owned());
     }
     plan.carried.push(Carried::Worktree {
         name,

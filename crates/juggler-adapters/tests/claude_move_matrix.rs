@@ -1652,3 +1652,80 @@ fn e2328_the_repair_puts_a_04x_split_right() {
         "undone: as it was"
     );
 }
+
+/// R7 (the maintainer's ruling): one conversation, two worktrees. The
+/// stale claim in profile A is on wt-old, while B's record now names a
+/// fresh wt-new B owns: the check still finds wt-old, and the repair moves
+/// that claim to B too (never drops it: a folder no profile owns is
+/// removed by a cleanup) and says both are kept.
+#[test]
+fn e2328_the_repair_keeps_a_conversations_two_worktrees() {
+    let lab = Lab::new();
+    let (a, b) = (lab.account("a"), lab.account("b"));
+    let old = worktree(&lab, "wt-old", "claude/wt-old");
+    let new = worktree(&lab, "wt-new", "claude/wt-new");
+    worktree_record(&b, "local_main", "main", None, &new, "claude/wt-new", &[]);
+    worktree_file(
+        &a.host,
+        &[("wt-old", &old, "local_main", "claude/wt-old")],
+        &[],
+    );
+    worktree_file(
+        &b.host,
+        &[("wt-new", &new, "local_main", "claude/wt-new")],
+        &[],
+    );
+    let hosts = vec![a.host.clone(), b.host.clone()];
+    let found = ClaudeMove.splits(&hosts).unwrap();
+    assert_eq!(found.len(), 1, "{found:?}");
+    assert_eq!(found[0].worktree, "wt-old");
+    assert_eq!(found[0].other_worktree.as_deref(), Some("wt-new"));
+    let plan = ClaudeMove.repair(&found[0], Some("5.11492.5"));
+    assert!(plan.can_move(), "{:?}", plan.refusals);
+    assert!(
+        plan.notes
+            .iter()
+            .any(|n| n == "This conversation has two worktrees; both are kept"),
+        "{:?}",
+        plan.notes
+    );
+    let holder = plan
+        .steps
+        .iter()
+        .find_map(|s| match s {
+            MoveStep::WriteAppFile { path, value } if path.starts_with(&b.host) => Some(value),
+            _ => None,
+        })
+        .expect("B's worktree file is written");
+    assert_eq!(holder["worktrees"]["wt-old"]["leasedBy"], "local_main");
+    assert_eq!(holder["worktrees"]["wt-new"]["leasedBy"], "local_main");
+}
+
+/// R7 (the maintainer's ruling): a worktree B owns that A's cleanup has
+/// seen is told (A may remove it once it looks unused there); one no other
+/// profile has seen isn't.
+#[test]
+fn e2328_a_worktree_another_profile_tidies_is_told() {
+    let lab = Lab::new();
+    let (a, b) = (lab.account("a"), lab.account("b"));
+    let seen = worktree(&lab, "wt-seen", "claude/wt-seen");
+    let alone = worktree(&lab, "wt-alone", "claude/wt-alone");
+    worktree_file(&a.host, &[], &[&seen]);
+    worktree_file(
+        &b.host,
+        &[
+            ("wt-seen", &seen, "local_main", "claude/wt-seen"),
+            ("wt-alone", &alone, "local_other", "claude/wt-alone"),
+        ],
+        &[],
+    );
+    let tidied = ClaudeMove
+        .also_tidied(&[a.host.clone(), b.host.clone()])
+        .unwrap();
+    assert_eq!(tidied.len(), 1, "{tidied:?}");
+    assert_eq!(tidied[0].worktree, "wt-seen");
+    assert_eq!(tidied[0].owner, b.host);
+    assert_eq!(tidied[0].by, vec![a.host.clone()]);
+    assert_eq!(ClaudeMove.moves_checked(Some("5.11492.5")), Some(true));
+    assert_eq!(ClaudeMove.moves_checked(Some("5.11610.2")), Some(false));
+}

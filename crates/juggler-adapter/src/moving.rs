@@ -458,6 +458,24 @@ pub struct Split {
     /// Other app profiles that clean up unused folders where the worktree
     /// is (said in the repair's words, left as they are).
     pub also_swept_by: Vec<PathBuf>,
+    /// The worktree the conversation's record names now, when it is
+    /// another one (one conversation, two worktrees: the app made a fresh
+    /// one). The repair keeps both.
+    #[serde(default)]
+    pub other_worktree: Option<String>,
+}
+
+/// AJ-E2328: a worktree one app profile owns that another profile's
+/// cleanup of unused folders has seen (and so may remove once it looks
+/// unused there). Told, never changed.
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct Tidied {
+    /// The worktree's folder name.
+    pub worktree: String,
+    /// The app profile that owns it.
+    pub owner: PathBuf,
+    /// The other profiles whose cleanup has seen it.
+    pub by: Vec<PathBuf>,
 }
 
 /// A tool's in-place move ([`crate::ToolHandover::in_place_move`]).
@@ -509,6 +527,26 @@ pub trait InPlaceMove: Send + Sync {
     fn splits(&self, hosts: &[PathBuf]) -> Result<Vec<Split>, String> {
         let _ = hosts;
         Ok(Vec::new())
+    }
+
+    /// AJ-E2328: the worktrees among the app profiles `hosts` that one
+    /// owns and another's cleanup has seen ([`Tidied`]). Reads only.
+    /// Default: none.
+    ///
+    /// # Errors
+    ///
+    /// As [`InPlaceMove::splits`].
+    fn also_tidied(&self, hosts: &[PathBuf]) -> Result<Vec<Tidied>, String> {
+        let _ = hosts;
+        Ok(Vec::new())
+    }
+
+    /// AJ-E2328 req 9: whether moves (and the repair) were checked on the
+    /// app's installed `version`; `None`: this tool's moves have no such
+    /// gate.
+    fn moves_checked(&self, version: Option<&str>) -> Option<bool> {
+        let _ = version;
+        None
     }
 
     /// AJ-E2328: the plan that puts `split` right (its ownership moved to
