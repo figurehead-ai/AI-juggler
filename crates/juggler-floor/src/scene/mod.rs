@@ -1112,4 +1112,6 @@ pub type Clicked = HashMap<u32, f32>;
 pub type LampsOff = HashSet<u32>;
 
 #[cfg(test)]
+mod overlay_tests;
+#[cfg(test)]
 mod tests;
