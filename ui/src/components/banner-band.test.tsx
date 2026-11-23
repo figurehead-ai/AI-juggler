@@ -78,7 +78,7 @@ describe("D-87 a session's page: its own notices, inline", () => {
     expect(remind.textContent).toMatch(/ · a watch$/);
     fireEvent.click(remind);
     await waitFor(() => expect(window.__AIJ_WATCH_VIEW__?.calls?.some(([name]) => name === "watches_create")).toBe(true));
-    const [, draft] = window.__AIJ_WATCH_VIEW__!.calls!.find(([name]) => name === "watches_create")!;
+    const [, draft] = (window.__AIJ_WATCH_VIEW__?.calls ?? []).find(([name]) => name === "watches_create")!;
     expect(draft).toMatchObject({ targets: [{ kind: "account", id: "acc-west" }], conditions: [{ code: "runway_resets" }], lifetime: { kind: "once" } });
     delete window.__AIJ_WATCH_VIEW__;
   });
