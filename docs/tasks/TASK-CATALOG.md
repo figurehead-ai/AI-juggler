@@ -321,6 +321,7 @@
 | AJ-E2325 | Move backups clean themselves up: refused attempts at once, committed moves after a chosen time, sizes that say what deleting frees | E23-session-runtime.md | P0 | M | AJ-E2321 |
 | AJ-E2326 | A refused move leaves the conversation where it was, never in a terminal here: every start path honours a move's hold, the source reopens it, and two live places are seen and said | E23-session-runtime.md | P0 | M | AJ-E2315, AJ-E2317, AJ-E2320 |
 | AJ-E2327 | Add on a running desktop profile brings in its Claude Code folder by evidence, so its sessions show at once; the rail keeps its place and never contradicts itself | E23-session-runtime.md | P0 | M | AJ-E2315 |
+| AJ-E2328 | A move carries the worktree's ownership: the Claude app's worktree lease, its cleanup sightings, the side-session notes and the permission paths move with the conversation; a health check finds and repairs sessions already split | E23-session-runtime.md | P0 | L | AJ-E2315, AJ-E2317 |
 | AJ-E2306 | Claude terminal sessions with hooks and the status line | E23-session-runtime.md | P0 | M | AJ-E2302 |
 | AJ-E2307 | Answers from Needs you and the session page | E23-session-runtime.md | P0 | M | AJ-E2303 |
 | AJ-E2308 | Run without a terminal: answer from AI Juggler (Beta) | E23-session-runtime.md | P1 | L | AJ-E2302, AJ-E2307 |
