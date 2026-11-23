@@ -10,6 +10,8 @@
  * and focus goes back to the bell. Nothing here acts by itself.
  */
 import { useEffect, useId, useLayoutEffect, useRef, useState, type JSX, type RefObject } from "react";
+import { usePagedState } from "../lib/paged-state";
+import { LoadingState } from "./LoadingState";
 import { useClock } from "../lib/clock";
 import { useInertOutside } from "../lib/inert";
 import { keepTabInside } from "./form";
@@ -111,7 +113,9 @@ export function NotificationCentre({ summary, sessions, anchor, onClose }: { sum
   // counts the rows under it, read in the same answer.
   const count = awake.length;
   const digest = summary ? digestLine(summary.digest, now) : null;
-  const empty = !needs.loading && !earlier.loading && needs.items.length === 0 && earlier.items.length === 0;
+  // AJ-E1552: a failed read is never "all caught up".
+  const empty = !needs.loading && !earlier.loading && needs.items.length === 0 && earlier.items.length === 0 && needs.error === null && earlier.error === null;
+  const needsRead = usePagedState(needs, "what needs you");
   const unread = (summary?.unread ?? 0) > 0;
   return (
     <div
@@ -174,17 +178,24 @@ export function NotificationCentre({ summary, sessions, anchor, onClose }: { sum
                   </button>
                 )}
               </h3>
-              {needs.loading ? (
-                <RowPlaceholders shape="home" rows={3} label="Loading notifications" />
-              ) : awake.length === 0 && !showSnoozed ? (
-                <p className="px-3.5 pb-2.5 text-meta text-ink-2">Nothing needs you right now.</p>
-              ) : (
+              <LoadingState
+                state={needsRead.state === "ready" && awake.length === 0 && !showSnoozed ? "empty" : needsRead.state}
+                slow={needsRead.slow}
+                what="what needs you"
+                skeleton={<RowPlaceholders shape="home" rows={3} label="Loading notifications" />}
+                empty={
+                  <p className="px-3.5 pb-2.5 text-meta text-ink-2" data-testid="notices-needs-none">
+                    Nothing needs you right now.
+                  </p>
+                }
+                onRetry={needs.refresh}
+              >
                 <ul data-testid="notices-needs">
                   {[...awake, ...(showSnoozed ? snoozed : [])].map((notice) => (
                     <NoticeRow key={notice.id} notice={notice} actions={actions} now={now} onEditWatch={editWatch} />
                   ))}
                 </ul>
-              )}
+              </LoadingState>
             </section>
             {earlier.items.length > 0 && (
               <section aria-labelledby={`${titleId}-earlier`} className="mt-1">

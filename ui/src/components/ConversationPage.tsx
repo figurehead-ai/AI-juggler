@@ -23,6 +23,8 @@ import { pageTabs } from "../pages/registry";
 import { conversationTitle, useConversations } from "../lib/conversations";
 import { useSubscriptions, accountOfProfile } from "../lib/subscriptions";
 import { lazyNamed } from "../lib/lazy";
+import { useReadState } from "../lib/loading";
+import { LoadingState } from "./LoadingState";
 import type { ConversationInfo } from "../lib/ipc/conversations";
 import { SessionNotices } from "./SessionNotices";
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
@@ -91,21 +93,38 @@ export function ConversationPage({
   projects?: ProjectInfo[];
   onSwitch?: OpenSwitch;
 }): JSX.Element {
-  const { all } = useConversations();
+  const { all, loaded, refresh } = useConversations();
   const { row, gone } = useSteadyRow(all, accountId, id);
-  if (gone) {
+  // AJ-E1552: the skeleton only while the list is read (Still loading
+  // after 3 s, an error with Retry at the deadline); "gone" only once the
+  // list answered without it.
+  const [round, setRound] = useState(0);
+  const read = useReadState(row, "this session", { round, isEmpty: () => false });
+  const isGone = gone && (loaded || row !== null);
+  if (!row || isGone) {
     return (
-      <Card className="m-6 p-6 text-body text-muted" data-testid="conversation-gone">
-        This conversation isn't there any more.
-      </Card>
-    );
-  }
-  if (!row) {
-    return (
-      <div className="m-6 flex flex-col gap-3" role="status" aria-label="Loading the session" data-testid="conversation-loading">
-        <span className="h-12 w-2/3 rounded-xl bg-skeleton motion-safe:animate-pulse" />
-        <span className="h-64 rounded-xl bg-skeleton motion-safe:animate-pulse" />
-      </div>
+      <LoadingState
+        state={isGone ? "empty" : read.state}
+        slow={read.slow}
+        what="this session"
+        skeleton={
+          <output className="m-6 flex flex-col gap-3" aria-label="Loading the session" data-testid="conversation-loading">
+            <span className="h-12 w-2/3 rounded-xl bg-skeleton motion-safe:animate-pulse" />
+            <span className="h-64 rounded-xl bg-skeleton motion-safe:animate-pulse" />
+          </output>
+        }
+        empty={
+          <Card className="m-6 p-6 text-body text-muted" data-testid="conversation-gone">
+            This conversation isn't there any more. Find it in History, or open another from the rail.
+          </Card>
+        }
+        onRetry={() => {
+          refresh();
+          setRound((was) => was + 1);
+        }}
+      >
+        {null}
+      </LoadingState>
     );
   }
   return <ConversationView conversation={row} now={now} projects={projects} onSwitch={onSwitch} />;

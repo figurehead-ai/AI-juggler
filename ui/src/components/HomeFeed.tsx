@@ -23,6 +23,8 @@ import { cardsOf, dayStarts, splitAway, type FeedCard } from "../lib/feed-rollup
 import { dayLabel, EMPTY_FEED } from "../lib/feed-words";
 import { markAllRead, markRead, readHorizon, readIds, unread, useFeedFilters } from "../lib/feed-state";
 import { clock } from "../lib/time-words";
+import { usePagedState } from "../lib/paged-state";
+import { LoadingState } from "./LoadingState";
 import { useFeedStream, type FeedStream } from "../lib/use-feed-stream";
 import type { FeedItemInfo } from "../lib/ipc/feed";
 
@@ -33,6 +35,7 @@ const STACKED_CARDS = 12;
 
 const GHOST = "btn-ghost self-start rounded-md px-3 py-1 text-meta font-medium outline-none focus-visible:ring-1 focus-visible:ring-accent/60";
 
+/** The feed's rows while its first page is read. */
 function Skeleton(): JSX.Element {
   return (
     <div aria-hidden="true" className="flex flex-col gap-1" data-testid="feed-skeleton">
@@ -72,8 +75,11 @@ function useAutoPage(active: boolean, loadMore: () => void, read: number): (node
 /** Loading, a failed read, or nothing yet (R8, R12). */
 function States({ stream, quiet, onNewSession, onOpenApp }: { stream: FeedStream; quiet: boolean; onNewSession: () => void; onOpenApp: () => void }): JSX.Element | null {
   const { list } = stream;
+  // AJ-E1552: the skeleton only while the first page is read, Still
+  // loading after 3 s; the error keeps its own words (what was loaded).
+  const { state, slow } = usePagedState(list, "the activity feed");
   const retry = <button type="button" onClick={list.refresh} className="btn-ghost rounded-md px-2 py-0.5 font-medium outline-none focus-visible:ring-1 focus-visible:ring-accent/60">Retry</button>;
-  if (list.loading) return <Skeleton />;
+  if (state === "loading") return <LoadingState state={state} slow={slow} what="the activity feed" skeleton={<Skeleton />} empty={null} onRetry={list.refresh}>{null}</LoadingState>;
   if (list.error !== null) {
     return (
       <output className="flex items-center gap-2 rounded-lg bg-surface px-3 py-2 text-meta text-ink-2" data-testid="feed-error">

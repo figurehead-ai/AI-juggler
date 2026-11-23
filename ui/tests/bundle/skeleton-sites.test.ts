@@ -20,6 +20,7 @@ const MARKER = /bg-skeleton|<[A-Z][A-Za-z]*Skeleton\b|<AppRowPending|<Placeholde
 
 /** Skeletons themselves, and boundaries that draw one only while code loads. */
 const BY_DESIGN: Record<string, string> = {
+  "components/AppIcon.tsx": "an icon's pulse while its picture is read; at the deadline (useLoadDeadline) it shows its letters instead: an icon's slot has no room for words or Retry (AJ-E1552)",
   "components/ListSkeleton.tsx": "the list skeleton itself",
   "components/Placeholder.tsx": "the row placeholders themselves",
   "components/ScreenBoundary.tsx": "AreaSkeleton, drawn only as a lazy part's Suspense fallback (AJ-E1549)",
@@ -31,15 +32,7 @@ const BY_DESIGN: Record<string, string> = {
 /** Before the primitive (AJ-E1552): the skeletons each draws today. Only
  * falls; a file moved onto LoadingState leaves this list. */
 const LEGACY: Record<string, number> = {
-  "components/AppIcon.tsx": 1,
-  "components/ConversationPage.tsx": 2,
-  "components/HomeFeed.tsx": 3,
-  "components/NotificationCentre.tsx": 1,
-  "components/WorkflowRail.tsx": 2,
-  "components/charts/StatTile.tsx": 1,
   "components/switch/SwitchHeader.tsx": 1,
-  "components/usage/RunwayCards.tsx": 1,
-  "pages/subscription/AccountApps.tsx": 3,
 };
 
 function sources(dir: string): string[] {

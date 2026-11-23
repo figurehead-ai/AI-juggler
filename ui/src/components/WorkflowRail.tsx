@@ -8,7 +8,7 @@ import { markOf, swatchColor } from "../lib/palette";
 import { RailQuietNotes } from "./RailNotes";
 import { parkedWords } from "../lib/parked";
 import { providerDisplayName } from "../lib/providers";
-import { type ReactNode, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { type JSX, type ReactNode, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { IconProjects, IconTerminal } from "./icons";
 import { IconHistory } from "./icons-places";
 import { PinMark, ProjectRow, RailProjectHeader } from "./RailProjectRows";
@@ -17,6 +17,8 @@ import { useRoving } from "../lib/roving";
 import { useRailListScroll } from "./rail-list-scroll";
 import { FoldButton, FoldedNeeds, HISTORY_GROUP, HISTORY_SHOWN, readFolded, repoGroups, safeId, writeFolded } from "./rail-groups";
 import { RowPlaceholders } from "./Placeholder";
+import { useLoadDeadline } from "../lib/loading";
+import { LoadingState } from "./LoadingState";
 import { showToast } from "./Toast";
 import { sessionLabel } from "../lib/stop";
 
@@ -440,13 +442,13 @@ export function InstanceBoard({
             This Mac
           </p>
         )}
-        {showLocal && !byProject && (loading && sessions.length === 0 ? <RowPlaceholders shape="rail" rows={4} label="Loading sessions" /> :
+        {showLocal && !byProject && (loading && sessions.length === 0 ? <RailLoading /> :
           <PlaceBoard sessions={sessions} projects={projects} accounts={accounts} snooze={snooze} now={now} selectedId={selectedId} onSelect={onSelect} query={query} scroll={{ top: scrollTop, height: viewportH, box: scrollRef.current }} density={effectiveDensity} cueSlot={cueSlot} />
         )}
         {byProject && <>
         {showLocal && order && !holding && <NeedsYouSection rows={order.needs} sessions={sessions} projects={projects} onSelect={onSelect} selectedId={selectedId} density={effectiveDensity} now={now} />}
         {!showLocal ? null : (loading && sessions.length === 0) || holding ? (
-          <RowPlaceholders shape="rail" rows={4} label="Loading sessions" />
+          <RailLoading />
         ) : sorted.length === 0 && idleProjects.length === 0 && !groups.some((g) => railSlice(conversations, g.id, scope).shown.length > 0) ? (
           sessions.length === 0 ? (
             /* D-25: empty means "start here" — the legend lives behind
@@ -833,3 +835,15 @@ function quietView(group: GroupBy, filters: ChipFilters, query: string): boolean
 
 /** The rail's stored width (kept here for its callers). */
 export { readWidth } from "./RailSplitter";
+
+/** AJ-E1552: the rail's rows while the sessions are first read: Still
+ * loading after 3 s; the shell's first read has the deadline, and its
+ * "stopped answering" notice and Retry take over when it misses. */
+export function RailLoading(): JSX.Element {
+  const { slow } = useLoadDeadline(true, "the sessions", { timeoutMs: Number.POSITIVE_INFINITY });
+  return (
+    <LoadingState state="loading" slow={slow} what="the sessions" skeleton={<RowPlaceholders shape="rail" rows={4} label="Loading sessions" />} empty={null} onRetry={() => undefined}>
+      {null}
+    </LoadingState>
+  );
+}

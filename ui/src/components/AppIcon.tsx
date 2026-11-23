@@ -15,6 +15,7 @@
  * Decorative (`alt=""`): the app's name is always beside it in words.
  */
 import { memo, useEffect, useRef, useState, type JSX, type ReactNode } from "react";
+import { useLoadDeadline } from "../lib/loading";
 import { appIconRead, type AppIconAsk, type AppIconPixels } from "../lib/ipc/appIcons";
 import { IconJuggler } from "./icons";
 import { OWN_PLACE } from "../lib/rail-items";
@@ -147,6 +148,14 @@ export interface AppIconProps {
  * its read change, never because the row, tile or page around it did
  * (Home's tiles and the rail's rows drew every icon on each list read,
  * about 60 a minute with ten sessions at work). */
+/** AJ-E1552: an icon's read, given up at its deadline (its letters show
+ * instead: an icon's slot has no room for words or a Retry). */
+function useIconRead(app: AppIconAsk, px: AppIconPixels, visible: boolean, name: string): { url: string | null; done: boolean } {
+  const { url, done } = useAppIcon(app, px, visible);
+  const { timedOut } = useLoadDeadline(!done && visible, `${name}'s icon`);
+  return { url, done: done || timedOut };
+}
+
 export const AppIconTile = memo(function AppIconTile({
   appId,
   appPid = null,
@@ -166,7 +175,7 @@ export const AppIconTile = memo(function AppIconTile({
   const px = pixelsFor(size);
   const cached = keyOf({ appId, appPid }, px);
   const visible = useOnScreen(box, cached !== null && icons.has(cached));
-  const { url, done } = useAppIcon({ appId, appPid }, px, visible);
+  const { url, done } = useIconRead({ appId, appPid }, px, visible, name);
   const [broken, setBroken] = useState(false);
   useEffect(() => setBroken(false), [url]);
   const radius = macRadius(size);

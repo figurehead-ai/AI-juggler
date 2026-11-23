@@ -3,7 +3,9 @@
  * its icon, what's open in it and when it was last used, and a door to
  * its page. Quiet ones (no session yet) last, on a tinted surface.
  */
-import type { JSX } from "react";
+import { useState, type JSX } from "react";
+import { LoadingState } from "../../components/LoadingState";
+import { useReadState } from "../../lib/loading";
 import { AppIcon } from "../../components/AppIcon";
 import { AppKindBadge } from "../../components/AppKindBadge";
 import { ProfileBadge } from "../../components/ProfileBadge";
@@ -22,9 +24,32 @@ export function AppRowPending(): JSX.Element {
 }
 
 /** `apps`: `null` while they're read (a placeholder row). */
-export function AccountAppRows({ apps, now, compact = false, empty = "No app uses this account yet." }: { apps: AccountApp[] | null; now: number; compact?: boolean; empty?: string }): JSX.Element {
-  if (apps === null) return <AppRowPending />;
-  if (apps.length === 0) return <p className="text-meta text-ink-2">{empty}</p>;
+/** AJ-E1552: `null` while the Apps are read (the pending row, Still
+ * loading after 3 s, an error with Retry at the deadline; Retry is the
+ * caller's re-read, else a fresh wait), the `empty` words for none. */
+export function AccountAppRows({ apps, now, compact = false, empty = "No app uses this account yet.", onRetry }: { apps: AccountApp[] | null; now: number; compact?: boolean; empty?: string; onRetry?: () => void }): JSX.Element {
+  const [round, setRound] = useState(0);
+  const read = useReadState(apps, "its apps", { round });
+  if (apps === null || apps.length === 0)
+    return (
+      <LoadingState
+        state={read.state}
+        slow={read.slow}
+        what="its apps"
+        skeleton={<AppRowPending />}
+        empty={
+          <p className="text-meta text-ink-2" data-testid="account-apps-empty">
+            {empty}
+          </p>
+        }
+        onRetry={() => {
+          onRetry?.();
+          setRound((was) => was + 1);
+        }}
+      >
+        {null}
+      </LoadingState>
+    );
   const busy = apps.filter((one) => one.sessions > 0);
   const quiet = apps.filter((one) => one.sessions === 0);
   return (

@@ -75,7 +75,6 @@
   "typescript(no-unsafe-type-assertion)": 1
  },
  "src/components/ConversationPage.tsx": {
-  "jsx-a11y(prefer-tag-over-role)": 1,
   "react(no-unstable-nested-components)": 1,
   "react(refs)": 8,
   "react(set-state-in-effect)": 1,
@@ -1741,16 +1740,11 @@
   "typescript(no-unsafe-type-assertion)": 3
  },
  "src/pages/messages/MessagesView.tsx": {
-  "jsx-a11y(prefer-tag-over-role)": 2,
+  "jsx-a11y(prefer-tag-over-role)": 1,
   "typescript(consistent-return)": 1
  },
  "src/pages/messages/SharedDocs.tsx": {
-  "jsx-a11y(no-noninteractive-tabindex)": 1,
-  "jsx-a11y(prefer-tag-over-role)": 1
- },
- "src/pages/messages/ThreadView.tsx": {
-  "jsx-a11y(prefer-tag-over-role)": 1,
-  "react(set-state-in-effect)": 1
+  "jsx-a11y(no-noninteractive-tabindex)": 1
  },
  "src/pages/messages/messages.test.tsx": {
   "import(default)": 6,
@@ -1788,8 +1782,6 @@
   "typescript(no-unsafe-type-assertion)": 3
  },
  "src/pages/pool/InspectNode.tsx": {
-  "jsx-a11y(prefer-tag-over-role)": 1,
-  "react(set-state-in-effect)": 1,
   "typescript(no-unsafe-type-assertion)": 1
  },
  "src/pages/pool/InspectPool.tsx": {
@@ -1890,7 +1882,7 @@
  },
  "src/pages/session/LastMessages.tsx": {
   "jsx-a11y(no-noninteractive-tabindex)": 1,
-  "jsx-a11y(prefer-tag-over-role)": 5
+  "jsx-a11y(prefer-tag-over-role)": 4
  },
  "src/pages/session/Markdown.tsx": {
   "eslint(complexity)": 1,
@@ -1913,9 +1905,6 @@
  "src/pages/session/SessionHead.tsx": {
   "typescript(consistent-return)": 1,
   "typescript(no-unsafe-type-assertion)": 1
- },
- "src/pages/session/SessionPools.tsx": {
-  "jsx-a11y(prefer-tag-over-role)": 1
  },
  "src/pages/session/TurnWork.tsx": {
   "typescript(no-unsafe-type-assertion)": 2
@@ -1991,9 +1980,6 @@
   "react(purity)": 1
  },
  "src/pages/subagents/SubagentDetail.tsx": {
-  "jsx-a11y(prefer-tag-over-role)": 1,
-  "react(exhaustive-effect-dependencies)": 1,
-  "react(set-state-in-effect)": 1,
   "typescript(no-meaningless-void-operator)": 1,
   "typescript(no-unsafe-type-assertion)": 1
  },
@@ -2009,7 +1995,7 @@
  "src/pages/subagents/SubagentsView.tsx": {
   "eslint(complexity)": 1,
   "eslint(no-shadow)": 1,
-  "jsx-a11y(prefer-tag-over-role)": 2,
+  "jsx-a11y(prefer-tag-over-role)": 1,
   "react(immutability)": 1,
   "react(set-state-in-effect)": 1,
   "typescript(no-unnecessary-type-arguments)": 1
@@ -2034,15 +2020,13 @@
   "typescript(no-unsafe-type-assertion)": 3
  },
  "src/pages/tasks/PoolTasks.tsx": {
-  "eslint(complexity)": 1,
-  "jsx-a11y(prefer-tag-over-role)": 3,
+  "jsx-a11y(prefer-tag-over-role)": 2,
   "react(set-state-in-effect)": 1
  },
  "src/pages/tasks/TaskView.tsx": {
   "eslint(complexity)": 1,
   "jsx-a11y(no-autofocus)": 1,
-  "jsx-a11y(prefer-tag-over-role)": 2,
-  "react(set-state-in-effect)": 1
+  "jsx-a11y(prefer-tag-over-role)": 1
  },
  "src/pages/tasks/tasks.test.tsx": {
   "eslint(max-lines)": 1,
@@ -2301,7 +2285,6 @@
   "jsx-a11y(prefer-tag-over-role)": 1
  },
  "src/screens/pools/PoolsScreen.tsx": {
-  "jsx-a11y(prefer-tag-over-role)": 1,
   "typescript(consistent-return)": 1
  },
  "src/screens/pools/new-pool.test.tsx": {
@@ -2324,9 +2307,7 @@
   "jsx-a11y(prefer-tag-over-role)": 1
  },
  "src/screens/processes/HistoryView.tsx": {
-  "jsx-a11y(prefer-tag-over-role)": 1,
-  "react(purity)": 1,
-  "react(set-state-in-effect)": 1
+  "jsx-a11y(prefer-tag-over-role)": 1
  },
  "src/screens/processes/ProcessTree.tsx": {
   "jsx-a11y(click-events-have-key-events)": 1,

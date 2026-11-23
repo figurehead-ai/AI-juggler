@@ -4,7 +4,9 @@
  * account's first profile page.
  */
 import { openAccount } from "../../lib/accounts-page";
-import { useMemo, type JSX } from "react";
+import { useMemo, useState, type JSX } from "react";
+import { LoadingState } from "../LoadingState";
+import { useReadState } from "../../lib/loading";
 import { useActionHost } from "../ItemMenu";
 import type { AccountInfo } from "../../types/generated/AccountInfo";
 import type { QuotaDisplayData } from "../../lib/ipc/quota";
@@ -100,21 +102,42 @@ export function RunwayCards({ accounts, className = "" }: { accounts: AccountInf
               <RunwayPanel display={display} limitsProfile={measuredProfile} usage={week.values(group.profiles)} usageTotal={week.total(group.profiles)} color={group.color} name={group.label} now={now} />
               {/* AJ-E1512: each window's sessions left and its burn-down. */}
               <BurnDowns display={display} />
-              {chips === null && <span aria-hidden="true" className="h-5 w-40 animate-pulse rounded-md bg-skeleton" data-testid="usage-account-apps-pending" />}
-              {chips !== null && chips.length > 0 && (
-                <ul className="flex flex-wrap gap-1.5" aria-label={`Apps on ${group.label}`}>
-                  {chips.map((chip) => (
-                    <li key={chip.key} className="flex min-w-0 items-center gap-1.5 rounded-md border border-hairline bg-surface-2 px-2 py-0.5 text-label text-ink" data-testid="usage-account-app">
-                      <ProfileBadge app={chip.mark} name={chip.name} size={6} />
-                      <span className="truncate">{chip.name}</span>
-                    </li>
-                  ))}
-                </ul>
-              )}
+              <AppChips chips={chips} label={group.label} />
             </li>
           );
         })}
       </ul>
     </section>
+  );
+}
+
+/** AJ-E1552: an Account card's App chips: the pending bar only while its
+ * Apps are read (Still loading after 3 s, an error with Retry at the
+ * deadline), and words when no app uses it. */
+export function AppChips({ chips, label }: { chips: ReturnType<typeof runwayChips>; label: string }): JSX.Element {
+  const [round, setRound] = useState(0);
+  const read = useReadState(chips, "its apps", { round });
+  return (
+    <LoadingState
+      state={read.state}
+      slow={read.slow}
+      what="its apps"
+      skeleton={<span aria-hidden="true" className="h-5 w-40 animate-pulse rounded-md bg-skeleton" data-testid="usage-account-apps-pending" />}
+      empty={
+        <p className="text-meta text-muted" data-testid="usage-account-apps-empty">
+          No app uses this account yet. Add its app from its card on Accounts.
+        </p>
+      }
+      onRetry={() => setRound((was) => was + 1)}
+    >
+      <ul className="flex flex-wrap gap-1.5" aria-label={`Apps on ${label}`}>
+        {(chips ?? []).map((chip) => (
+          <li key={chip.key} className="flex min-w-0 items-center gap-1.5 rounded-md border border-hairline bg-surface-2 px-2 py-0.5 text-label text-ink" data-testid="usage-account-app">
+            <ProfileBadge app={chip.mark} name={chip.name} size={6} />
+            <span className="truncate">{chip.name}</span>
+          </li>
+        ))}
+      </ul>
+    </LoadingState>
   );
 }
