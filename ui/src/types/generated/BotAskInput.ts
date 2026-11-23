@@ -12,4 +12,9 @@ question: string,
 /**
  * The chip, when one rides on it.
  */
-scope: BotScope | null, };
+scope: BotScope | null, 
+/**
+ * AJ-E1548 #2: Ask again: the turn whose answer was marked wrong
+ * (its question asked again with a note saying so).
+ */
+again?: string | null, };

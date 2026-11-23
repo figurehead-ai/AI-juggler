@@ -159,16 +159,27 @@ pub fn shape() -> serde_json::Value {
     })
 }
 
-/// The request for one answer.
+/// AJ-E1548 #2 (F9): Ask again's note, after the question: the last
+/// answer to it was marked wrong. Only the note: the answer marked wrong
+/// is never sent back (no earlier answer ever is).
+const AGAIN_EN: &str = "The user marked the last answer to this question as wrong. Answer again from the records alone.";
+const AGAIN_DE: &str = "Der Nutzer hat die letzte Antwort auf diese Frage als falsch markiert. Antworte neu, nur aus den Einträgen.";
+
+/// The request for one answer; `again`: asked again after the last
+/// answer to it was marked wrong (its note, never that answer).
 #[must_use]
-pub fn request(question: &str, lang: BotLang, rows: &[BotRowInfo]) -> Request {
-    let instructions = match lang {
-        BotLang::En => INSTRUCTIONS_EN,
-        BotLang::De => INSTRUCTIONS_DE,
+pub fn request(question: &str, lang: BotLang, rows: &[BotRowInfo], again: bool) -> Request {
+    let (instructions, note) = match lang {
+        BotLang::En => (INSTRUCTIONS_EN, AGAIN_EN),
+        BotLang::De => (INSTRUCTIONS_DE, AGAIN_DE),
     };
+    let mut prompt = format!("{}\n\nQuestion: {}", frame(rows), neutral(question));
+    if again {
+        let _ = write!(prompt, "\n\n{note}");
+    }
     Request {
         instructions: instructions.to_owned(),
-        prompt: format!("{}\n\nQuestion: {}", frame(rows), neutral(question)),
+        prompt,
         shape: Some(shape()),
         max_tokens: 220,
     }
@@ -258,9 +269,10 @@ pub fn answer(
     lang: BotLang,
     rows: &[BotRowInfo],
     removed: &[String],
+    again: bool,
 ) -> (Option<BotWritten>, &'static str) {
     let stop = Stop::at(Instant::now() + DEADLINE);
-    let request = request(question, lang, rows);
+    let request = request(question, lang, rows, again);
     match crate::features::ai::service::respond_for(
         state,
         crate::features::ai::models::Job::Bot,
@@ -293,6 +305,26 @@ mod tests {
         Draft {
             text: text.into(),
             finish: Finish::Stop,
+        }
+    }
+
+    /// AJ-E1548 #2 (F9): Ask again sends the same request with one note
+    /// added (the last answer was marked wrong), in the question's
+    /// language; nothing else, so the answer marked wrong is never fed
+    /// back.
+    #[test]
+    fn ask_again_carries_only_its_note_never_an_earlier_answer() {
+        let rows = vec![row(
+            BotRowKind::Session,
+            "Fix the login",
+            Some(BotState::Working),
+        )];
+        for (lang, said) in [(BotLang::En, AGAIN_EN), (BotLang::De, AGAIN_DE)] {
+            let first = request("What is running?", lang, &rows, false);
+            let again = request("What is running?", lang, &rows, true);
+            assert_eq!(again.instructions, first.instructions);
+            assert_eq!(again.prompt, format!("{}\n\n{said}", first.prompt));
+            assert!(!first.prompt.contains(said));
         }
     }
 

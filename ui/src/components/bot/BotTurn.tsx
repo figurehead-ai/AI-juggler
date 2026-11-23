@@ -179,7 +179,7 @@ function Answer({ turn, now, latest, find, onWatch }: { turn: BotTurnInfo; now: 
   return (
     <div className="flex flex-col gap-2">
       {written ? (
-        <BotWrittenCard written={written} rows={turn.rows.length} turnId={turn.id} flagged={turn.flagged} />
+        <BotWrittenCard written={written} rows={turn.rows.length} turn={turn} />
       ) : before && turn.rows.length > 0 && !latest ? (
         <span className="text-meta text-muted">{WORDS.askedBefore(turn.at_ms, now)}</span>
       ) : (

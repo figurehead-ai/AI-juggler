@@ -126,14 +126,13 @@ describe("every state of the mock-up", () => {
     expect((card)?.textContent ?? '').toContain("Checked against the 2 records below");
     fireEvent.click(screen.getByTestId("bot-how-made"));
     expect((screen.getByTestId("bot-made"))?.textContent ?? '').toContain("Written by Apple’s built-in AI, on this Mac.");
-    fireEvent.click(screen.getByTestId("bot-wrong"));
-    await waitFor(() => expect(window.__AIJ_BOT__?.calls?.some(([c]) => c === "bot_wrong")).toBe(true));
     // D-144: a conversation with cited answers, never a records-only mode.
     expect(screen.queryByTestId("bot-records-only")).toBeNull();
-    const rows = screen.getAllByTestId("bot-row");
-    expect(rows).toHaveLength(2);
+    expect(screen.getAllByTestId("bot-row")).toHaveLength(2);
     expect(card.querySelectorAll("[aria-label^='record ']")).toHaveLength(2);
     expect(screen.getByTestId("bot-input")).toBeTruthy();
+    fireEvent.click(screen.getByTestId("bot-wrong"));
+    await waitFor(() => expect(window.__AIJ_BOT__?.calls?.some(([c]) => c === "bot_wrong")).toBe(true));
   });
 
   it("D-144, an answer the AI couldn't check: I don't know, with the records it checked", async () => {

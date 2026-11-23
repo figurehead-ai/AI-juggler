@@ -73,8 +73,12 @@ export const WORDS = {
   madeCheck: (n: number) => `Every name, number and state in it was found in ${n === 1 ? "record 1" : `records 1–${n}`}. An answer that fails this check is never shown: Bot says it doesn’t know, with the records it checked.`,
   madeBeta: "Beta: tested on sample work, not on real messages yet.",
   wrong: "This is wrong",
-  wrongSaid: `Thanks: noted on ${THIS_MACHINE_IN_TEXT}.`,
+  // AJ-E1548 #2: what marking it does, said where it collapses.
+  wrongMarked: "Marked wrong: Bot won’t use it in this conversation.",
   wrongKept: `“This is wrong” is kept on ${THIS_MACHINE_IN_TEXT} only.`,
+  undo: "Undo",
+  askAgain: "Ask again",
+  askAgainHint: "Asks the same question again, saying the last answer was wrong",
   copy: "Copy",
   // The clear sheet (its own backup words: CLEAR_AND_BACKUPS).
   clearTitle: "Clear the whole conversation?",

@@ -468,4 +468,9 @@ pub struct BotAskInput {
     pub question: String,
     /// The chip, when one rides on it.
     pub scope: Option<BotScope>,
+    /// AJ-E1548 #2: Ask again: the turn whose answer was marked wrong
+    /// (its question asked again with a note saying so).
+    #[serde(default)]
+    #[ts(optional = nullable)]
+    pub again: Option<String>,
 }

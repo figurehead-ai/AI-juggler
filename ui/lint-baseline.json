@@ -2184,7 +2184,6 @@
   "jsx-a11y(prefer-tag-over-role)": 1
  },
  "src/screens/WorkPanels.tsx": {
-  "eslint(complexity)": 1,
   "typescript(no-misused-promises)": 1
  },
  "src/screens/accounts-no-limits.test.tsx": {

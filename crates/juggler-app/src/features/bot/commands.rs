@@ -98,8 +98,14 @@ pub fn bot_ask_impl(state: &Arc<AppState>, input: &BotAskInput) -> AppResult<Bot
         if found.unknown.is_some() {
             (BotOutcome::DontKnow, found.rows, None)
         } else if !found.rows.is_empty() && written_on(state) {
-            let (written, _why) =
-                super::written::answer(state, &question, reading.lang, &found.rows, &world.removed);
+            let (written, _why) = super::written::answer(
+                state,
+                &question,
+                reading.lang,
+                &found.rows,
+                &world.removed,
+                marked_wrong(state, input.again.as_deref()),
+            );
             let outcome = if written.is_some() {
                 BotOutcome::Answered
             } else {
@@ -324,13 +330,30 @@ pub fn bot_clear_impl(state: &Arc<AppState>) -> AppResult<u32> {
     Ok(cleared.turns)
 }
 
-/// "This is wrong" about a turn's written answer: kept on this Mac only,
-/// in the AI log (ADR-0036 §1.8).
+/// AJ-E1548 #2: whether Ask again's `turn` has its answer marked wrong
+/// now (the request says so only then).
+fn marked_wrong(state: &AppState, turn: Option<&str>) -> bool {
+    let (Some(turn), Ok(storage)) = (turn, state.storage.lock()) else {
+        return false;
+    };
+    storage
+        .chat()
+        .turn(turn)
+        .ok()
+        .flatten()
+        .and_then(|kept| serde_json::from_str::<Meta>(&kept.entities).ok())
+        .is_some_and(|meta| meta.flagged)
+}
+
+/// "This is wrong" about a turn's written answer (`wrong`), or its Undo:
+/// kept on this Mac only, in the turn and the AI log (ADR-0036 §1.8).
+/// AJ-E1548 #2: an answer marked wrong is never sent back to the AI (no
+/// earlier answer is); Ask again re-asks its question with a note.
 ///
 /// # Errors
 ///
 /// No such turn; storage failures.
-pub fn bot_wrong_impl(state: &Arc<AppState>, turn: &str) -> AppResult<()> {
+pub fn bot_wrong_impl(state: &Arc<AppState>, turn: &str, wrong: bool) -> AppResult<()> {
     let storage = state.storage.lock().map_err(|_| AppError::StatePoisoned)?;
     let chat = storage.chat();
     let Some(kept) = chat.turn(turn).map_err(memory_error)? else {
@@ -340,14 +363,15 @@ pub fn bot_wrong_impl(state: &Arc<AppState>, turn: &str) -> AppResult<()> {
         });
     };
     let mut meta: Meta = serde_json::from_str(&kept.entities).unwrap_or_default();
-    meta.flagged = true;
+    meta.flagged = wrong;
     chat.annotate(
         turn,
         &serde_json::to_string(&meta).unwrap_or_else(|_| "{}".to_owned()),
     )
     .map_err(memory_error)?;
     let now = state.notifier.clock().now;
-    let mut event = NewEvent::new(now, Stream::Feedback, "wrong", Actor::User);
+    let what = if wrong { "wrong" } else { "wrong_undone" };
+    let mut event = NewEvent::new(now, Stream::Feedback, what, Actor::User);
     event.subject = Some(("chat_turn", turn.to_owned()));
     storage
         .ai_log()
@@ -459,15 +483,20 @@ pub async fn bot_clear(state: tauri::State<'_, Arc<AppState>>) -> AppResult<u32>
     crate::ipc::blocking(state.inner(), "Bot", bot_clear_impl).await
 }
 
-/// "This is wrong" (see [`bot_wrong_impl`]).
+/// "This is wrong", or its Undo with `wrong: false` (see
+/// [`bot_wrong_impl`]).
 ///
 /// # Errors
 ///
 /// As [`bot_wrong_impl`].
 #[tauri::command]
-pub async fn bot_wrong(state: tauri::State<'_, Arc<AppState>>, turn: String) -> AppResult<()> {
+pub async fn bot_wrong(
+    state: tauri::State<'_, Arc<AppState>>,
+    turn: String,
+    wrong: Option<bool>,
+) -> AppResult<()> {
     crate::ipc::blocking(state.inner(), "Bot", move |state| {
-        bot_wrong_impl(state, &turn)
+        bot_wrong_impl(state, &turn, wrong.unwrap_or(true))
     })
     .await
 }

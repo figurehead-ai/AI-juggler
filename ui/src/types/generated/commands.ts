@@ -430,7 +430,7 @@ export interface Commands {
   /** Read features::bot::commands::bot_page */
   bot_page: { args: { beforeMs?: number | null; beforeId?: string | null; limit?: number | null }; result: BotPageInfo };
   /** Write features::bot::commands::bot_wrong */
-  bot_wrong: { args: { turn: string }; result: void };
+  bot_wrong: { args: { turn: string; wrong?: boolean | null }; result: void };
   /** Read features::budgets::commands::budgets_list */
   budgets_list: { args: { monthStartMs: number }; result: BudgetInfo[] };
   /** Write features::budgets::commands::budgets_remove */

@@ -2,7 +2,9 @@
  * AJ-E3806, D-131 — a Beta written answer: labelled "Written by AI ·
  * Beta", each sentence with its numbered citations, "Checked against the
  * records below", and "How this was made" (the AI, on this Mac, the
- * check, Beta's honesty line, This is wrong). D-144: no "records only"
+ * check, Beta's honesty line, This is wrong). AJ-E1548 #2: marked wrong,
+ * it collapses to one line saying Bot won't use it, with Undo and Ask
+ * again (the same question, saying the last answer was wrong). D-144: no "records only"
  * mode; the cited records are always below it. It is
  * shown only because every name, number and state in it was found in the
  * records it cites (the backend's check).
@@ -14,7 +16,9 @@ import { IconCheckCircle, IconChip, IconFlag, IconSparkle } from "./bot-icons";
 import { IconShield } from "../icons";
 import { FoldChevron } from "../controls";
 import { WORDS } from "../../lib/bot-words";
+import { ask, markWrong } from "../../lib/bot-store";
 import { botWrong } from "../../lib/ipc/bot";
+import type { BotTurnInfo } from "../../types/generated/BotTurnInfo";
 import type { BotWritten } from "../../types/generated/BotWritten";
 
 export function BetaPill({ children }: { children: string }): JSX.Element {
@@ -26,14 +30,42 @@ export function BetaPill({ children }: { children: string }): JSX.Element {
   );
 }
 
-export function BotWrittenCard({ written, rows, turnId, flagged }: { written: BotWritten; rows: number; turnId: string; flagged: boolean }): JSX.Element {
+const QUIET_BUTTON = "inline-flex h-7 items-center gap-1.5 rounded-lg bg-surface-2 px-2.5 text-meta font-medium text-ink outline-none hover:bg-surface-3 focus-visible:ring-2 focus-visible:ring-accent/60";
+
+/** AJ-E1548 #2: an answer marked wrong, collapsed: what that does, Undo
+ * and Ask again. */
+function MarkedWrong({ turn, onUndo }: { turn: BotTurnInfo; onUndo: () => void }): JSX.Element {
+  return (
+    <section className="flex flex-wrap items-center gap-2 rounded-[14px] bg-surface-2 px-3.5 py-2" aria-label={WORDS.writtenLabel} data-testid="bot-written" data-wrong="">
+      <IconFlag width={13} height={13} aria-hidden="true" className="shrink-0 text-faint" />
+      <span className="text-meta text-ink-2" data-testid="bot-wrong-marked">
+        {WORDS.wrongMarked}
+      </span>
+      <span className="grow" />
+      <button type="button" className={QUIET_BUTTON} onClick={onUndo} data-testid="bot-wrong-undo">
+        {WORDS.undo}
+      </button>
+      <button type="button" className={QUIET_BUTTON} title={WORDS.askAgainHint} onClick={() => void ask(turn.question, { turn: turn.id, scope: turn.scope })} data-testid="bot-ask-again">
+        {WORDS.askAgain}
+      </button>
+    </section>
+  );
+}
+
+export function BotWrittenCard({ written, rows, turn }: { written: BotWritten; rows: number; turn: BotTurnInfo }): JSX.Element {
   const [open, setOpen] = useState(false);
-  const [said, setSaid] = useState(flagged);
+  const [said, setSaid] = useState(turn.flagged);
   const text = written.parts.map((p) => p.text).join(" ");
-  const wrong = async () => {
-    await botWrong(turnId);
-    setSaid(true);
+  const mark = async (wrong: boolean) => {
+    try {
+      await botWrong(turn.id, wrong);
+      markWrong(turn.id, wrong);
+      setSaid(wrong);
+    } catch {
+      showToast({ id: "bot-wrong", message: "Couldn’t save that. Try again." });
+    }
   };
+  if (said) return <MarkedWrong turn={turn} onUndo={() => void mark(false)} />;
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(text);
@@ -87,9 +119,9 @@ export function BotWrittenCard({ written, rows, turnId, flagged }: { written: Bo
             <span>{WORDS.madeBeta}</span>
           </div>
           <div className="flex items-center gap-2.5 px-2 pt-1.5 pb-0.5">
-            <button type="button" disabled={said} className="inline-flex h-7 items-center gap-1.5 rounded-lg bg-surface-2 px-2.5 text-meta font-medium text-ink inset-ring-1 inset-ring-hairline outline-none hover:bg-surface-3 focus-visible:ring-2 focus-visible:ring-accent/60 disabled:opacity-60" onClick={() => void wrong()} data-testid="bot-wrong">
+            <button type="button" className="inline-flex h-7 items-center gap-1.5 rounded-lg bg-surface-2 px-2.5 text-meta font-medium text-ink inset-ring-1 inset-ring-hairline outline-none hover:bg-surface-3 focus-visible:ring-2 focus-visible:ring-accent/60" onClick={() => void mark(true)} data-testid="bot-wrong">
               <IconFlag width={13} height={13} aria-hidden="true" />
-              {said ? WORDS.wrongSaid : WORDS.wrong}
+              {WORDS.wrong}
             </button>
           </div>
           <span className="px-2 pb-1 text-label text-faint">{WORDS.wrongKept}</span>
