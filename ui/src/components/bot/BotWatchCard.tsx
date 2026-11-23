@@ -114,7 +114,7 @@ export function BotWatchCard({ row, turnId, onClose }: { row: BotRowInfo; turnId
   }
   const toggle = (code: string) => setCodes((now) => (now.includes(code) ? now.filter((c) => c !== code) : [...now, code]));
   return (
-    <section ref={card} aria-label="Confirm a new watch" className="flex flex-col gap-3 rounded-[14px] bg-[color-mix(in_srgb,var(--color-accent)_6%,var(--color-surface))] p-3.5 inset-ring-[1.5px] inset-ring-accent/55 [[data-theme=dark]_&]:bg-[color-mix(in_srgb,var(--color-accent)_9%,var(--color-surface))]" data-testid="bot-watch-card">
+    <section ref={card} aria-label="Confirm a new watch" className="flex flex-col gap-3 rounded-[14px] bg-[color-mix(in_srgb,var(--color-accent)_6%,var(--color-surface))] p-3.5 inset-ring-1 inset-ring-hairline/75 [[data-theme=dark]_&]:bg-[color-mix(in_srgb,var(--color-accent)_9%,var(--color-surface))]" data-testid="bot-watch-card">
       <div className="flex items-center gap-2">
         <span className="grow text-label font-semibold tracking-[.07em] text-accent-hi uppercase">{WORDS.confirmEyebrow}</span>
         <button type="button" className="grid size-6 place-items-center rounded-lg text-muted outline-none hover:bg-surface-2 focus-visible:ring-2 focus-visible:ring-accent/60" title={WORDS.cancel} aria-label={WORDS.cancel} onClick={onClose}>
@@ -140,7 +140,7 @@ export function BotWatchCard({ row, turnId, onClose }: { row: BotRowInfo; turnId
             const on = codes.includes(entry.code);
             const Icon = CONDITION_ICON[entry.code] ?? IconCheckCircle;
             return (
-              <button key={entry.code} type="button" aria-pressed={on} className={"inline-flex h-8 items-center gap-1.5 rounded-[10px] px-2.5 text-meta outline-none focus-visible:ring-2 focus-visible:ring-accent/60 " + (on ? "bg-[color-mix(in_srgb,var(--color-accent)_9%,var(--color-surface))] font-medium text-ink inset-ring-[1.5px] inset-ring-accent" : "text-ink-2 inset-ring-1 inset-ring-hairline hover:bg-surface-2")} onClick={() => toggle(entry.code)} data-testid={`bot-watch-${entry.code}`}>
+              <button key={entry.code} type="button" aria-pressed={on} className={"inline-flex h-8 items-center gap-1.5 rounded-[10px] px-2.5 text-meta outline-none focus-visible:ring-2 focus-visible:ring-accent/60 " + (on ? "bg-selected font-medium text-ink" : "text-ink-2 inset-ring-1 inset-ring-hairline hover:bg-surface-2")} onClick={() => toggle(entry.code)} data-testid={`bot-watch-${entry.code}`}>
                 <Icon width={14} height={14} aria-hidden={true} />
                 {entry.label}
               </button>
@@ -151,7 +151,7 @@ export function BotWatchCard({ row, turnId, onClose }: { row: BotRowInfo; turnId
       {changing && (
         <div className="flex flex-wrap gap-1.5" aria-label="For how long">
           {LIFETIMES.filter(({ choice }) => !(over && choice.kind === "until_ends")).map(({ choice, label }) => (
-            <button key={choice.kind} type="button" aria-pressed={lifetime.kind === choice.kind} className={"inline-flex h-7 items-center rounded-full px-2.5 text-meta outline-none focus-visible:ring-2 focus-visible:ring-accent/60 " + (lifetime.kind === choice.kind ? "bg-selected font-semibold text-ink inset-ring-[1.5px] inset-ring-selected-ring" : "text-ink-2 inset-ring-1 inset-ring-hairline")} onClick={() => setLifetime(choice)}>
+            <button key={choice.kind} type="button" aria-pressed={lifetime.kind === choice.kind} className={"inline-flex h-7 items-center rounded-full px-2.5 text-meta outline-none focus-visible:ring-2 focus-visible:ring-accent/60 " + (lifetime.kind === choice.kind ? "bg-selected font-semibold text-ink" : "text-ink-2 inset-ring-1 inset-ring-hairline")} onClick={() => setLifetime(choice)}>
               {label}
             </button>
           ))}
@@ -173,7 +173,7 @@ export function BotWatchCard({ row, turnId, onClose }: { row: BotRowInfo; turnId
       )}
       {error && <p className="text-meta text-danger" role="alert">{error}</p>}
       <div className="flex items-center gap-2">
-        <button type="button" disabled={codes.length === 0 || problem !== null} className="inline-flex h-7 items-center gap-1.5 rounded-lg bg-accent-fill px-2.5 text-meta font-medium text-white shadow-glow-accent inset-ring-1 inset-ring-accent-hi/40 outline-none focus-visible:ring-2 focus-visible:ring-accent/60 disabled:opacity-50 disabled:shadow-none" onClick={() => void confirm()} data-testid="bot-watch-confirm">
+        <button type="button" disabled={codes.length === 0 || problem !== null} className="inline-flex h-7 items-center gap-1.5 rounded-lg bg-accent-fill px-2.5 text-meta font-medium text-white outline-none focus-visible:ring-2 focus-visible:ring-accent/60 disabled:opacity-50 disabled:shadow-none" onClick={() => void confirm()} data-testid="bot-watch-confirm">
           <IconEye width={14} height={14} aria-hidden="true" />
           {WORDS.watchButton}
         </button>

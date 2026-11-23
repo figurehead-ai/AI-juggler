@@ -371,7 +371,7 @@ export function useHoldStill(
             type="button"
             data-testid="rail-new-above"
             onClick={(event) => showAbove(event.detail === 0)}
-            className="inline-flex min-h-6 items-center gap-1 rounded-full border border-accent/40 bg-surface px-2.5 text-label font-medium text-ink outline-none hover:bg-surface-2 focus-visible:ring-1 focus-visible:ring-accent/60 motion-safe:animate-[aij-fade-in_140ms_ease-out]"
+            className="inline-flex min-h-6 items-center gap-1 rounded-full border border-transparent bg-control px-2.5 text-label font-medium text-ink outline-none hover:bg-surface-2 focus-visible:ring-1 focus-visible:ring-accent/60 motion-safe:animate-[aij-fade-in_140ms_ease-out]"
           >
             <IconChevronDown width={12} height={12} strokeWidth={2} aria-hidden="true" className="rotate-180" />
             {fresh.length} new above

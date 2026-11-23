@@ -169,7 +169,7 @@ export function SessionPanel({
                     className={
                       "rounded-lg border px-2.5 py-1.5 text-label transition-colors " +
                       (ready
-                        ? "border-accent/30 bg-accent-soft text-accent-hi hover:border-accent/50"
+                        ? "border-transparent bg-accent-soft text-accent-hi hover:bg-accent/15"
                         : "border-hairline/50 text-muted")
                     }
                   >
@@ -237,7 +237,7 @@ export function NewSessionModal({
         role={DIALOG}
         aria-modal="true"
         aria-label="New session"
-        className="sheen rounded-card border border-hairline bg-surface shadow-card w-full max-w-md"
+        className="rounded-card border border-hairline bg-surface shadow-card w-full max-w-md"
         headerClassName="px-5 pt-5"
         bodyClassName="px-5 pb-1.5"
         footerClassName="px-5 pt-2.5 pb-5"

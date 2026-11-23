@@ -243,7 +243,6 @@ export function RecommendedCard({
         </div>
         <FitPanel rows={fit} needs={pick.action === "no-disk"} />
       </div>
-      <span aria-hidden="true" className="pointer-events-none absolute inset-0 rounded-2xl inset-ring-[1.5px] inset-ring-accent" />
     </div>
   );
 }

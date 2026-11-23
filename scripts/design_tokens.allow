@@ -20,11 +20,6 @@ ui/src/components/HandoverSection.tsx bright-line 2
 ui/src/components/MarkSheet.tsx bright-line 1
 ui/src/components/OsPromptPicture.tsx bright-line 2
 ui/src/components/OsPromptSheet.tsx sheen 1
-ui/src/components/bot/BotComposer.tsx bright-line 1
-ui/src/components/bot/BotHead.tsx bright-line 2
-ui/src/components/bot/BotWatchCard.tsx bright-line 4
-ui/src/components/bot/BotWritten.tsx bright-line 1
-ui/src/components/rail-hold.tsx bright-line 1
 ui/src/components/switch/MoveRunning.tsx bright-line 1
 ui/src/components/usage/TopLists.tsx identity 1
 ui/src/components/usage/accounts.ts identity 2
@@ -36,10 +31,7 @@ ui/src/pages/session/ContinueOn.tsx bright-line 1
 ui/src/pages/subscription/SubscriptionPage.tsx identity 1
 ui/src/screens/FreshAccountStep.tsx identity 1
 ui/src/screens/NewSession.tsx bright-line 1
-ui/src/screens/WorkPanels.tsx bright-line 1
-ui/src/screens/WorkPanels.tsx sheen 1
 ui/src/screens/accounts/AccountCard.tsx identity 2
 ui/src/screens/pools/NewPoolPreview.tsx bright-line 2
 ui/src/screens/pools/PoolMini.tsx bright-line 1
 ui/src/screens/settings/KeyCapture.tsx bright-line 1
-ui/src/screens/settings/ai/ModelsRecommended.tsx bright-line 1

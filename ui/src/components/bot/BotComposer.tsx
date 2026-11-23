@@ -64,7 +64,7 @@ export function BotComposer({ footnote }: { footnote?: string }): JSX.Element {
       <div className="relative flex flex-col gap-2 rounded-[14px] bg-fill py-[11px] pr-2.5 pl-3.5 inset-ring-1 inset-ring-hairline/75 focus-within:inset-ring-accent/70" data-testid="bot-composer">
         {bot.scope && (
           <div>
-            <span className="inline-flex h-[26px] max-w-full items-center gap-1.5 rounded-full bg-accent-soft pr-1 pl-2.5 text-meta font-medium whitespace-nowrap text-accent-hi inset-ring-1 inset-ring-accent/30" data-testid="bot-scope-chip">
+            <span className="inline-flex h-[26px] max-w-full items-center gap-1.5 rounded-full bg-accent-soft pr-1 pl-2.5 text-meta font-medium whitespace-nowrap text-accent-hi" data-testid="bot-scope-chip">
               <span className="truncate">{WORDS.aboutChip} {bot.scope.name}</span>
               <button type="button" className="grid size-[18px] shrink-0 place-items-center rounded-full outline-none hover:bg-accent/20 focus-visible:ring-2 focus-visible:ring-accent/60" title={WORDS.widen} aria-label={`${WORDS.widen} (remove “${bot.scope.name}”)`} onClick={widenScope} data-testid="bot-scope-x">
                 <IconClose width={12} height={12} aria-hidden="true" />

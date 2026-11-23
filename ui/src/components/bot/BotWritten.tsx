@@ -43,7 +43,7 @@ export function BotWrittenCard({ written, rows, turnId, flagged }: { written: Bo
     }
   };
   return (
-    <section className="flex flex-col gap-2.5 rounded-[14px] bg-surface px-3.5 py-3 inset-ring-1 inset-ring-accent/35 [[data-theme=dark]_&]:bg-surface-2" aria-label={WORDS.writtenLabel} data-testid="bot-written">
+    <section className="flex flex-col gap-2.5 rounded-[14px] bg-surface px-3.5 py-3 inset-ring-1 inset-ring-hairline [[data-theme=dark]_&]:bg-surface-2" aria-label={WORDS.writtenLabel} data-testid="bot-written">
       <div className="flex items-center gap-2">
         <BetaPill>{WORDS.writtenLabel}</BetaPill>
         <span className="grow" />
