@@ -46,6 +46,9 @@ export default defineConfig({
   testDir: "./tests/visual",
   projects: [
     { name: "regression", testMatch: /regression\.spec\.ts/ },
+    // AJ-E1549: assertion specs with no baseline, run here so CI runs
+    // them: no frame painted mostly white.
+    { name: "assertions", testMatch: /no-white-flash\.spec\.ts/ },
     // AJ-E1522: one state per evidence-gallery family (tagged with
     // `gate()` in its spec), compared like the screens above.
     {

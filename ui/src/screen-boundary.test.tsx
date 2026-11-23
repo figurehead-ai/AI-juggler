@@ -6,7 +6,8 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { ScreenBoundary, errorDetails } from "./components/ScreenBoundary";
+import { ScreenBoundary, SkeletonArea, errorDetails } from "./components/ScreenBoundary";
+import { lazyNamed } from "./lib/lazy";
 
 vi.mock("./components/TerminalView", () => ({
   TerminalView: ({ id }: { id: string }) => <div data-testid={`terminal-${id}`} />,
@@ -113,4 +114,32 @@ it("the details are the error and its place in the code", () => {
   const error = new TypeError("x is null");
   error.stack = "TypeError: x is null\n    at CostMatrix (index.js:1:2)";
   expect(errorDetails("usage", error)).toBe("Screen: usage\nTypeError: x is null\nTypeError: x is null\n    at CostMatrix (index.js:1:2)");
+});
+
+// AJ-E1549: a part still loading inside a screen or a page is that area's
+// skeleton, never an empty box; a sheet over the page, and anything
+// outside a screen, draws nothing meanwhile.
+it("a screen's part draws the area's skeleton while its code loads", () => {
+  const never = new Promise<{ Part: () => null }>(() => {});
+  const Part = lazyNamed(() => never, "Part");
+  const Sheet = lazyNamed(() => never, "Part", false, () => null);
+  const view = render(
+    <>
+      <ScreenBoundary screen="usage" label="Usage">
+        <Part />
+      </ScreenBoundary>
+      <SkeletonArea label="the page">
+        <Part />
+        <Sheet />
+      </SkeletonArea>
+      <ScreenBoundary screen="app" label="AI Juggler" root>
+        <Part />
+      </ScreenBoundary>
+    </>,
+  );
+  const skeletons = view.getAllByTestId("area-skeleton");
+  // The screen's and the page's part; neither the sheet nor the root's.
+  expect(skeletons).toHaveLength(2);
+  expect(within(skeletons[0]!).getByRole("status", { name: "Loading Usage" })).toBeTruthy();
+  expect(within(skeletons[1]!).getByRole("status", { name: "Loading the page" })).toBeTruthy();
 });

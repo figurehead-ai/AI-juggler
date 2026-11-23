@@ -20,7 +20,7 @@ import { lazyNamed } from "../../lib/lazy";
 import type { InstanceInfo } from "../../types/generated/InstanceInfo";
 
 // The replay loads when asked for (lazy-load rule).
-const ReplayDialog = lazyNamed(() => import("../../components/ReplayDialog"), "ReplayDialog");
+const ReplayDialog = lazyNamed(() => import("../../components/ReplayDialog"), "ReplayDialog", false, () => null); // a dialog, over the page
 
 /** Scrolls the project's "How this work travelled" card into view once
  * the project page has drawn it (a few frames; gives up after 2 s). */

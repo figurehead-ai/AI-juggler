@@ -20,7 +20,7 @@ import { IconMoney, IconTokens } from "./controls";
 import { lazyNamed } from "../../lib/lazy";
 import { toolSpec } from "../../lib/tools";
 
-const WastedSheet = lazyNamed(() => import("./WastedSheet"), "WastedSheet");
+const WastedSheet = lazyNamed(() => import("./WastedSheet"), "WastedSheet", false, () => null); // a sheet, over the page
 
 /** The cuts for a range (all usage), read with the charts' range cut. */
 export function useCostCuts(range: RangeId): { input: UsageQueryInput; data: UsageCostCutsInfo | null; loading: boolean } {

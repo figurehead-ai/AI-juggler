@@ -9,10 +9,29 @@
  * the screen — scrubbed, and kept only if the user's crash-report setting
  * allows.
  */
-import { Component, useState, type ErrorInfo, type JSX, type ReactNode } from "react";
+import { Component, useMemo, useState, type ErrorInfo, type JSX, type ReactNode } from "react";
 import { crashUiError } from "../lib/ipc/crash";
+import { PartPlaceholder } from "../lib/lazy";
 import { useScrollMemory } from "../lib/scroll-memory";
+import { ListSkeleton } from "./ListSkeleton";
 import { Button, Card } from "./primitives";
+
+/** An area's skeleton while a part of it loads (AJ-E1549, SK-8): rows in
+ * the area's own place, never an empty box. */
+export function AreaSkeleton({ label }: { label: string }): JSX.Element {
+  return (
+    <div className="p-6" data-testid="area-skeleton">
+      <ListSkeleton label={`Loading ${label}`} rows={4} />
+    </div>
+  );
+}
+
+/** Inside `children`, a lazy part with no placeholder of its own draws
+ * this area's skeleton while its code loads (lib/lazy `PartPlaceholder`). */
+export function SkeletonArea({ label, children }: { label: string; children: ReactNode }): JSX.Element {
+  const placeholder = useMemo(() => () => <AreaSkeleton label={label} />, [label]);
+  return <PartPlaceholder.Provider value={placeholder}>{children}</PartPlaceholder.Provider>;
+}
 
 type Props = {
   /** The screen's id for the report (`usage`, `home`, …, `app`). */
@@ -49,7 +68,9 @@ export class ScreenBoundary extends Component<Props, State> {
 
   override render(): ReactNode {
     const { error } = this.state;
-    if (!error) return this.props.children;
+    // A screen's parts load inside it as its skeleton; the root's are
+    // sheets and dialogs, over a window already drawn.
+    if (!error) return this.props.root ? this.props.children : <SkeletonArea label={this.props.label}>{this.props.children}</SkeletonArea>;
     return <ProblemPanel {...this.props} error={error} retry={() => this.setState({ error: null })} />;
   }
 }

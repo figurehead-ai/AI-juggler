@@ -1,13 +1,15 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "terminal-window",
-  "description": "A terminal in its own window (AJ-E1506, AJ-E2003): its own commands (permissions/terminal-window.toml) and events in. No dialogs, no menus, no window controls.",
+  "description": "A terminal in its own window (AJ-E1506, AJ-E2003): its own commands (permissions/terminal-window.toml), events in, and the window's background, the theme's base colour (AJ-E1549). No dialogs, no menus, no window controls.",
   "windows": [
     "terminal-*"
   ],
   "permissions": [
     "terminal-window",
     "core:event:allow-listen",
-    "core:event:allow-unlisten"
+    "core:event:allow-unlisten",
+    "core:window:allow-set-background-color",
+    "core:webview:allow-set-webview-background-color"
   ]
 }

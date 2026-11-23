@@ -31,7 +31,7 @@ import { focusHandoverSoon } from "../lib/handover-focus";
 import { continueWhy, resumeRefusalWords, type ResumeRefusalInfo } from "../lib/resume-refusal";
 
 /** R4: "Keep it apart…"'s one sheet, loaded on first use. */
-const KeepApartSheet = lazyNamed(() => import("../screens/pools/KeepApartSheet"), "KeepApartSheet");
+const KeepApartSheet = lazyNamed(() => import("../screens/pools/KeepApartSheet"), "KeepApartSheet", false, () => null); // a sheet, over the page
 
 async function copy(text: Promise<string> | string, done: string): Promise<void> {
   try {

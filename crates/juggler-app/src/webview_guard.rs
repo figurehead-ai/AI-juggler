@@ -25,13 +25,23 @@ pub fn page_allowed(url: &Url) -> bool {
     }
 }
 
-/// `builder`, kept on the app's own pages and with popups refused. Every
-/// window the app makes goes through this.
+/// The colour a window paints before its page does, and wherever the page
+/// has nothing on screen (AJ-E1549): the dark theme's canvas,
+/// `--color-canvas` in `ui/src/styles.css` (dark is the default theme).
+/// Without one, the web view keeps WebKit's own opaque white under the
+/// page, and a window shown again, or seen again after the page was
+/// suspended behind another window, flashed white for a frame. The page
+/// sets its theme's own colour at run time (`ui/src/theme.ts`).
+pub const BASE_COLOUR: tauri::window::Color = tauri::window::Color(0x0b, 0x0e, 0x14, 0xff);
+
+/// `builder`, kept on the app's own pages and with popups refused, on the
+/// base colour. Every window the app makes goes through this.
 #[must_use]
 pub fn guarded<R: Runtime, M: Manager<R>>(
     builder: WebviewWindowBuilder<'_, R, M>,
 ) -> WebviewWindowBuilder<'_, R, M> {
     builder
+        .background_color(BASE_COLOUR)
         .on_navigation(page_allowed)
         .on_new_window(|_, _| NewWindowResponse::Deny)
 }
@@ -187,6 +197,18 @@ mod tests {
         assert!(made.visible && made.focus, "shown, outside a test launch");
         let hidden = main_config(made, true);
         assert!(hidden.accept_first_mouse && !hidden.visible && !hidden.focus);
+    }
+
+    /// AJ-E1549: the main window is made on the base colour (its config
+    /// entry, which the page's tokens are checked against in
+    /// `ui/tests/bundle/theme-base.test.ts`), so nothing under the page is white.
+    #[test]
+    fn the_main_window_is_made_on_the_base_colour() {
+        let config: tauri::utils::config::Config =
+            serde_json::from_str(include_str!("../tauri.conf.json")).expect("the app's config");
+        let entry = config.app.windows.first().expect("a window entry");
+        assert_eq!(entry.background_color, Some(BASE_COLOUR));
+        assert_eq!(BASE_COLOUR.3, 0xff, "opaque: nothing behind it shows");
     }
 
     #[test]
