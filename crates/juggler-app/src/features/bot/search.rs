@@ -105,25 +105,25 @@ pub fn records_in(text: &str, world: &World) -> SearchRecordsInfo {
 /// # Errors
 ///
 /// The records can't be read.
-pub fn search_records_impl(state: &Arc<AppState>, text: &str) -> AppResult<SearchRecordsInfo> {
+pub fn bot_search_impl(state: &Arc<AppState>, text: &str) -> AppResult<SearchRecordsInfo> {
     if !asks_for_records(&read(text)) {
         return Ok(SearchRecordsInfo::default());
     }
     Ok(by_kind(super::lookup::find_records(state, text, None)?))
 }
 
-/// Search's records for what's typed (see [`search_records_impl`]).
+/// Search's records for what's typed (see [`bot_search_impl`]).
 ///
 /// # Errors
 ///
-/// As [`search_records_impl`].
+/// As [`bot_search_impl`].
 #[tauri::command]
-pub async fn search_records(
+pub async fn bot_search(
     state: tauri::State<'_, Arc<AppState>>,
     text: String,
 ) -> AppResult<SearchRecordsInfo> {
     crate::ipc::blocking(state.inner(), "Search", move |state| {
-        search_records_impl(state, &text)
+        bot_search_impl(state, &text)
     })
     .await
 }

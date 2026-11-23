@@ -25,6 +25,7 @@ unbounded bot_ask  # bounded: one turn, at most 8 rows (ADR-0034 §6.2) and the 
 unbounded bot_find  # bounded: at most 500 turn ids (FIND_MAX), the find bar's matches
 unbounded bot_memories  # bounded: at most 200 stated memories a kind (LISTED), the user's own words
 unbounded bot_page  # paged by its own keyset: at most 50 turns a page, before the oldest shown
+unbounded bot_search  # bounded: at most 8 rows in all (lookup::SHOWN), split by kind; its pools only those rows' own
 unbounded account_import  # bounded: one import's notes and top-level folders
 unbounded sign_ins_list  # bounded: at most 16 sign-ins (sign_ins::MOST), the newest kept
 unbounded account_audit  # TO PAGE: an account's audit log
@@ -224,6 +225,9 @@ unbounded switch_back_suggestions  # bounded: a fixed set (settings, checks, cho
 unbounded switch_graph_overview  # TO PAGE: a project's switch history
 unbounded switch_move_execute  # bounded: one move's family (its conversations) and a few notes
 unbounded switch_move_offer  # bounded: one conversation's family, the two profiles and a few notes
+unbounded switch_move_undo  # bounded: one Undo's notes, what of its two profiles kept running (a few lines)
+unbounded switch_ownership  # bounded: one row per desktop app moves run on, and the conversations an older move left split (a few)
+unbounded switch_ownership_repair  # bounded: one repair's notes (a few lines)
 unbounded switch_preflight  # bounded: a fixed set (settings, checks, choices or tools)
 unbounded switch_setup_apply  # bounded: a fixed set (settings, checks, choices or tools)
 unbounded switch_setup_check  # bounded: a fixed set (settings, checks, choices or tools)

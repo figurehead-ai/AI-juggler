@@ -6,7 +6,7 @@
  * record opens its page by id; nothing found says what was searched.
  */
 import { useEffect, useState, type JSX } from "react";
-import { NOTHING_FOUND, searchRecords, type SearchRecordsInfo } from "../../lib/ipc/search";
+import { NOTHING_FOUND, botSearch, type SearchRecordsInfo } from "../../lib/ipc/search";
 import type { AppDoings } from "../../lib/palette-commands";
 import type { InstanceInfo } from "../../types/generated/InstanceInfo";
 import type { PaletteRow } from "./rows";
@@ -21,7 +21,7 @@ export function useFoundRecords(open: boolean, typed: string): SearchRecordsInfo
     let live = open && asked !== "";
     const timer = live
       ? window.setTimeout(() => {
-          void searchRecords(asked)
+          void botSearch(asked)
             .catch(() => NOTHING_FOUND)
             .then((records) => {
               if (live) setFound({ text: asked, records });

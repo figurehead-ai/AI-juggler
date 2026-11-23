@@ -11,7 +11,7 @@ use std::sync::Arc;
 use super::super::dto::{BotRowInfo, BotRowKind, BotState};
 use super::super::world::World;
 use super::super::world::tests_support::row;
-use super::{SearchPoolInfo, SearchRecordsInfo, records_in, search_records_impl};
+use super::{SearchPoolInfo, SearchRecordsInfo, bot_search_impl, records_in};
 use crate::state::AppState;
 
 /// 2026-11-19 12:00 UTC.
@@ -171,11 +171,11 @@ fn the_command_reads_the_records_and_writes_nothing() {
         .unwrap(),
     );
     assert_eq!(
-        search_records_impl(&state, "What needs me?").unwrap(),
+        bot_search_impl(&state, "What needs me?").unwrap(),
         SearchRecordsInfo::default()
     );
     assert_eq!(
-        search_records_impl(&state, "hi").unwrap(),
+        bot_search_impl(&state, "hi").unwrap(),
         SearchRecordsInfo::default()
     );
     assert!(

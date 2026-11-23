@@ -430,6 +430,8 @@ export interface Commands {
   bot_new_topic: { args: Record<string, never>; result: BotTopicInfo };
   /** Read features::bot::commands::bot_page */
   bot_page: { args: { beforeMs?: number | null; beforeId?: string | null; limit?: number | null }; result: BotPageInfo };
+  /** Read features::bot::search::bot_search */
+  bot_search: { args: { text: string }; result: SearchRecordsInfo };
   /** Write features::bot::commands::bot_wrong */
   bot_wrong: { args: { turn: string; wrong?: boolean | null }; result: void };
   /** Read features::budgets::commands::budgets_list */
@@ -1106,8 +1108,6 @@ export interface Commands {
   runtime_trust_choose: { args: { profileId: string; cwd?: string | null; trusted: boolean }; result: FolderTrustInfo | null };
   /** Write features::environment::commands::scan_cancel */
   scan_cancel: { args: Record<string, never>; result: void };
-  /** Read features::bot::search::search_records */
-  search_records: { args: { text: string }; result: SearchRecordsInfo };
   /** Write features::service_accounts::commands::service_accounts_add */
   service_accounts_add: { args: { request: ServiceAccountRequest }; result: AccountInfo[] };
   /** Read features::service_accounts::commands::service_accounts_catalog */

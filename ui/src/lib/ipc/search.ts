@@ -1,7 +1,7 @@
 /**
  * AJ-E3824 (D-144): Search's records — the sessions, tasks, their pools
  * and usage AI Juggler's records hold for what's typed, through Bot's one
- * look-up (`bot::search::search_records`). Nothing is written.
+ * look-up (`bot::search::bot_search`). Nothing is written.
  *
  * The preview and tests set `window.__AIJ_SEARCH__`: what each text
  * finds. With none, nothing is found.
@@ -22,7 +22,7 @@ declare global {
 export const NOTHING_FOUND: SearchRecordsInfo = { sessions: [], tasks: [], pools: [], usage: [] };
 
 /** What the records hold for `text`. */
-export async function searchRecords(text: string): Promise<SearchRecordsInfo> {
+export async function botSearch(text: string): Promise<SearchRecordsInfo> {
   if (!hasLiveBackend()) return window.__AIJ_SEARCH__?.[text.trim().toLowerCase()] ?? NOTHING_FOUND;
-  return call("search_records", { text });
+  return call("bot_search", { text });
 }

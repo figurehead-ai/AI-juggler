@@ -1,6 +1,6 @@
 # Evidence manifest: AJ-E3824 (Search (⌘K) takes over Bot's look-ups; D-144)
 
-Built 2026-11-23 on release/0.5.1 (Opus). Backend: `bot::search::search_records`, a Read
+Built 2026-11-23 on release/0.5.1 (Opus). Backend: `bot::search::bot_search`, a Read
 command over `bot::lookup::find_records` (Bot's one look-up, no copy); unit tests on a
 fixture world (generic names). UI: the ⌘K palette's own rows and groups
 (`ui/src/components/palette/`), vitest with the `window.__AIJ_SEARCH__` seam; the
