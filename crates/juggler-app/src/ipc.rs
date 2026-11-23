@@ -3,9 +3,21 @@
 //! that work off the main thread through [`blocking`].
 
 use std::sync::Arc;
+use std::time::{Duration, Instant};
 
 use crate::error::{AppError, AppResult};
 use crate::state::AppState;
+
+/// AJ-E1552: how long a command may take before the app log says so. A
+/// screen waits on most of them (its skeleton shows until they answer, and
+/// gives up at 12 s), so a slow one is named with its time, never silent.
+pub const BUDGET: Duration = Duration::from_secs(2);
+
+/// Whether a command that took `took` went over [`BUDGET`].
+#[must_use]
+pub fn over_budget(took: Duration) -> bool {
+    took > BUDGET
+}
 
 /// Runs `body` on the blocking pool with the app state; a task that
 /// could not finish (it panicked or was cancelled) is an `Io` error named
@@ -25,7 +37,16 @@ pub async fn blocking<T: Send + 'static>(
     let span = tracing::info_span!("command", what = context);
     tauri::async_runtime::spawn_blocking(move || {
         let _entered = span.enter();
+        let started = Instant::now();
         let result = body(&state);
+        let took = started.elapsed();
+        if over_budget(took) {
+            tracing::warn!(
+                "{context}: took {} ms, over its {} ms budget",
+                took.as_millis(),
+                BUDGET.as_millis()
+            );
+        }
         if let Err(error) = &result {
             tracing::warn!("{context}: {error}");
         }
@@ -57,4 +78,17 @@ pub async fn blocking_list<T: Send + 'static>(
         Ok(body(state, &storage, now))
     })
     .await
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// AJ-E1552: a command past its budget is logged; one within it isn't.
+    #[test]
+    fn a_command_over_its_budget_is_named() {
+        assert!(!over_budget(Duration::from_millis(40)));
+        assert!(!over_budget(BUDGET));
+        assert!(over_budget(BUDGET + Duration::from_millis(1)));
+    }
 }

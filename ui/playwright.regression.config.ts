@@ -46,9 +46,10 @@ export default defineConfig({
   testDir: "./tests/visual",
   projects: [
     { name: "regression", testMatch: /regression\.spec\.ts/ },
-    // AJ-E1549: assertion specs with no baseline, run here so CI runs
-    // them: no frame painted mostly white.
-    { name: "assertions", testMatch: /no-white-flash\.spec\.ts/ },
+    // Assertion specs with no baseline, run here so CI runs them: no
+    // frame painted mostly white (AJ-E1549); no skeleton left 15 s after
+    // a screen opens (AJ-E1552, a long walk).
+    { name: "assertions", testMatch: /(no-white-flash|skeleton-sweep)\.spec\.ts/, timeout: 600_000 },
     // AJ-E1522: one state per evidence-gallery family (tagged with
     // `gate()` in its spec), compared like the screens above.
     {

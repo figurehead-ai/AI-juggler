@@ -20,6 +20,7 @@ import { singleFlight, useLiveDeltas, type Freshness } from "../lib/live-deltas"
 import { withMarks } from "../lib/palette";
 import { withFolderMarks } from "../lib/marks";
 import { keepIfSame } from "../lib/same";
+import { withDeadline } from "../lib/loading";
 import { coalesced } from "../lib/shown-window";
 import { useWithSelected } from "../lib/session-lookup";
 import { staleSubscriptions } from "../lib/subscriptions";
@@ -91,14 +92,18 @@ export function useAppData(selection: Selection, openPage: (next: Selection) => 
 
   const refresh = useMemo(() => singleFlight(async () => {
     try {
-      const [projectRows, sessionRows, accountRows, profileRows, backSuggestions] =
-        await Promise.all([
+      // AJ-E1552: within the read deadline, or it failed (logged): the
+      // window's first skeleton never waits for ever.
+      const [projectRows, sessionRows, accountRows, profileRows, backSuggestions] = await withDeadline(
+        "the app's lists",
+        Promise.all([
           projectsList(),
           instancesList(),
           accountsList(),
           launchRecipesList(),
           switchBackSuggestions().catch(() => []),
-        ]);
+        ]),
+      );
       // AJ-E805: an equal answer keeps its identity, so the shell doesn't
       // draw again (with sessions at work this read runs every few seconds).
       const projectsNow = withMarks(projectRows); // AJ-E1532: each project its mark
