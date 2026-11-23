@@ -36,7 +36,7 @@ export function chipWords(appleSilicon: boolean, chip: number | null): string {
 export const JOB_NAMES: Record<ModelJob, string> = {
   review: "Turn reviews",
   // AJ-E1548 #6: the one name Bot and Settings both use.
-  chat: "Written answers",
+  chat: "Bot’s AI",
   attention: "Attention hints",
   feed: "Feed lines",
   digest: "Digest",

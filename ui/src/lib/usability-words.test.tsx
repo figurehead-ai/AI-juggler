@@ -10,6 +10,8 @@ import { levelWords } from "../components/MachineStatusLine";
 import { LegendLevels } from "../components/LegendLevels";
 import { WatchesHead } from "../components/watches/WatchesHead";
 import { MARK_HINTS } from "./feed-words";
+import { JOB_NAMES } from "../screens/settings/ai/models-words";
+import { WORDS as BOT_WORDS } from "./bot-ui-words";
 
 // The screens' own words, read as text (Vite's ?raw), for the word rules.
 const SOURCES = import.meta.glob<string>("../{components,screens}/**/*.tsx", { query: "?raw", import: "default", eager: true });
@@ -89,5 +91,13 @@ describe("AJ-E1548 #23 #25: the Floor says what it is; the watch limit shows onl
     far.unmount();
     const near = render(<WatchesHead count={40} limit={50} empty={false} onNew={() => {}} onAskBot={null} />);
     expect(near.getByTestId("watches-count").textContent).toBe("40 of 50 watches");
+  });
+});
+
+describe("AJ-E1548 #6: one name for Bot's written-answers switch", () => {
+  it("Settings and Bot both call it Bot’s AI", () => {
+    expect(JOB_NAMES.chat).toBe("Bot’s AI");
+    expect(BOT_WORDS.betaSwitch).toBe(`${JOB_NAMES.chat} · Beta`);
+    expect(Object.values(JOB_NAMES)).not.toContain("Bot answers");
   });
 });
