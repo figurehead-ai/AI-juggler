@@ -1,6 +1,20 @@
 
 # cargo-vet audits file
 
+[[audits.cookie]]
+who = "claude-opus for AI Juggler"
+criteria = "safe-to-deploy"
+delta = "0.18.2 -> 0.18.3"
+notes = """
+RUSTSEC-2026-0594 (private-cookie AES-GCM nonces could repeat after fork()).
+The only code change: PrivateJar's nonce comes from rand's OsRng instead of
+thread_rng (src/secure/private.rs, two lines); the version bump and its
+changelog entry. No new dependency, no unsafe, no I/O beyond the OS RNG.
+Pulled in by Tauri with cookie's default features (no `private`), so the
+changed code isn't compiled into AI Juggler; updated with the maintainer's
+yes (2026-11-23).
+"""
+
 [[audits.form_urlencoded]]
 who = "claude-opus for AI Juggler"
 criteria = "safe-to-deploy"
