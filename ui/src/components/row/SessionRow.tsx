@@ -62,8 +62,6 @@ export interface SessionRowProps {
   arrange?: Arrangeable | null;
   /** The rail's Your order: the drag handle and the pin. */
   tools?: boolean;
-  /** "Subagents" is on in the View: the row says how many it runs. */
-  subagents?: boolean;
   /** 0.3.9: how deep it sits under the session it was started from. */
   depth?: number;
   /** That session's title, for a screen reader. */

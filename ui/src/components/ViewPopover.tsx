@@ -10,7 +10,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, type JSX } from "react";
 import { IconView, IconWindow } from "./icons-places";
 import { IconArchive, IconComputer, IconKey, IconPool, IconReplay } from "./icons-actions";
-import { IconProjects, IconSubtasks } from "./icons";
+import { IconProjects } from "./icons";
 import { IconBackground, IconChevronRight, IconEnded, IconInactive, IconQuiet } from "./icons-controls";
 import { MenuItem, MenuSeparator, MenuSubmenu, RowMenu, type MenuAt } from "./RowMenu";
 import { ChoiceLine, type ControlIcon } from "./controls";
@@ -23,7 +23,6 @@ const SHOW_ICONS: Record<ShowKey, ControlIcon> = {
   quiet: IconQuiet,
   ended: IconEnded,
   background: IconBackground,
-  subagents: IconSubtasks,
   otherMacs: IconComputer,
   archived: IconArchive,
 };

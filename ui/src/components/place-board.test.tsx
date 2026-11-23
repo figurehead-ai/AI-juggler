@@ -209,7 +209,6 @@ describe("the rail by place", () => {
 
 describe("a row's sub-agents (AJ-E1520, 0.2)", () => {
   it("every tool's session says how many it runs: AI Juggler's own and the ones other apps run", async () => {
-    setRailView({ ...DEFAULT_VIEW, show: { ...DEFAULT_VIEW.show, subagents: true } });
     const view = board(
       [own("aj", { subtask_count: 1 })],
       [elsewhere("codex-1", "codex", { subtask_count: 3 }), elsewhere("kimi-1", "kimi-code", { subtask_count: 1, pid: 78 }), elsewhere("grok-1", "grok-build", { pid: 79 })],

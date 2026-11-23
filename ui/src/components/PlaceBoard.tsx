@@ -284,7 +284,7 @@ export function PlaceBoard({ sessions, projects, accounts, snooze, now, selected
   };
 
   // A session row's props, in Open now and among the ended alike.
-  const rowOf = (item: SessionRowProps["item"]): SessionRowProps => ({ item, density: compact ? "compact" : "cozy", within: { app: true }, selected: selectedId === (item.session?.id ?? item.conversation?.id), onSelect, now, subagents: view.show.subagents });
+  const rowOf = (item: SessionRowProps["item"]): SessionRowProps => ({ item, density: compact ? "compact" : "cozy", within: { app: true }, selected: selectedId === (item.session?.id ?? item.conversation?.id), onSelect, now });
   const draw = (line: Line): ReactNode => {
     switch (line.kind) {
       case "section":
