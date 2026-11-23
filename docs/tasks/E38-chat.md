@@ -494,7 +494,7 @@
 **Quality gates**: `just keep-going verify-static`; unit tests for each state and the badge; the router-order test; the a11y gate; an Opus critique in both themes; the persona walk covers each state, and both of D-144's (no AI: setup only; AI ready: a conversation).
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E3823/manifest.md`.
 
-### AJ-E3824 Search (⌘K) takes over everything the no-AI Bot did: record look-ups, the "go straight to" shortcuts, and Watch a session | Status: TODO (0.5.1) | Priority P0 | Effort M | Depends: AJ-E3823
+### AJ-E3824 Search (⌘K) takes over everything the no-AI Bot did: record look-ups, the "go straight to" shortcuts, and Watch a session | Status: DONE (0.5.1) | Priority P0 | Effort M | Depends: AJ-E3823
 **D-144 (the maintainer's ruling, 2026-11-23)**: all search belongs to Search (⌘K); plain search never lives in Bot's input.
 **UI**: yes
 **Usability reasoning** (Opus, before building; re-checked on the built screen):
