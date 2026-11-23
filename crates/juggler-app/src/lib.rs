@@ -518,6 +518,10 @@ macro_rules! app_commands {
             Write features::sessions::commands::stop_session,
             Read  features::dashboard::commands::dashboard_stats,
             Write features::terminal::commands::terminal_spawn_login,
+            // AJ-E1553: the sign-ins, their pages and their outcomes.
+            Read  features::sign_ins::commands::sign_ins_list,
+            Write features::sign_ins::commands::sign_ins_open_page,
+            Write features::sign_ins::commands::sign_ins_dismiss,
             Write features::terminal::commands::terminal_attach,
             Write features::terminal::commands::terminal_write,
             Write features::terminal::commands::terminal_resize,

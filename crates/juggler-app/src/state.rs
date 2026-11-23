@@ -111,6 +111,8 @@ pub struct AppState {
     /// Terminal ids with a live output forwarder (dedup: one forwarder per
     /// terminal no matter how often the UI re-attaches).
     pub terminal_taps: Mutex<std::collections::HashSet<String>>,
+    /// AJ-E1553: the sign-ins running, finished or ended early.
+    pub sign_ins: crate::features::sign_ins::SignIns,
     /// Live kill-ladder cancel flags by attempt id (AJ-E507 Req.3:
     /// the grace window is cancellable). Entries exist only while a
     /// ladder runs; flipped by `kill_cancel`.
@@ -493,6 +495,7 @@ impl AppState {
             account_directory: Mutex::new(None),
             export_reads: Mutex::new(Vec::new()),
             terminal_taps: Mutex::new(std::collections::HashSet::new()),
+            sign_ins: crate::features::sign_ins::SignIns::default(),
             kill_cancels: Mutex::new(std::collections::HashMap::new()),
             fleet: Mutex::new(None),
             link: crate::link::LinkManager::default(),

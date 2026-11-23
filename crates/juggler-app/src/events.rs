@@ -103,11 +103,13 @@ pub enum AppEvent {
     /// AJ-E1547: what came of a call the user said go to (carries its
     /// `OsPromptOutcomeInfo`).
     OsPromptOutcome,
+    /// AJ-E1553: the sign-ins changed (carries every `SignInInfo`).
+    SignInsChanged,
 }
 
 impl AppEvent {
     /// Every event, in declaration order.
-    pub const ALL: [Self; 39] = [
+    pub const ALL: [Self; 40] = [
         Self::AppReady,
         Self::SessionsUpdated,
         Self::SessionsResources,
@@ -147,6 +149,7 @@ impl AppEvent {
         Self::GoToLate,
         Self::OsPromptAsk,
         Self::OsPromptOutcome,
+        Self::SignInsChanged,
     ];
 
     /// The wire name the UI listens to.
@@ -192,6 +195,7 @@ impl AppEvent {
             Self::GoToLate => "go-to://late",
             Self::OsPromptAsk => "os-prompt://ask",
             Self::OsPromptOutcome => "os-prompt://outcome",
+            Self::SignInsChanged => "sign-ins://changed",
         }
     }
 }

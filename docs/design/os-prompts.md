@@ -46,4 +46,5 @@ How the gate keeps the usability answers (PAT-USE, AJ-E1547 (6)):
 - **The local model helper** (`juggler-local-ai`): runs under `sandbox-exec` and `taskpolicy`, asks nothing; its first start is the `helper` entry.
 - **`juggler-agent`** (the agent bridge): started by the tools, not by AI Juggler.
 - **Microphone, camera, location, contacts, calendars, photos, Bluetooth**: no code uses them.
+- **A tool's sign-in page** (AJ-E1545 R8, AJ-E1553: `crates/juggler-app/src/features/sign_ins/mod.rs:open_page`, the opener's `open_url` for an `https` page its adapter read): opening a web page in the default browser asks nothing. AI Juggler makes no other call for a sign-in: the tool's own sign-in runs in AI Juggler's terminal, and the "signed in?" check reads file metadata and Keychain item names only (the `keychain` entry's quiet path).
 - **Apple events sent quietly** (`apps::send_link_quietly`, `kAEDoNotPromptForUserConsent`): never ask; they report "would need consent" instead.

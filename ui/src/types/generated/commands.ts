@@ -212,6 +212,7 @@ import type { SessionsFacetsInfo } from "./SessionsFacetsInfo";
 import type { SessionsQuery } from "./SessionsQuery";
 import type { SetUpInfo } from "./SetUpInfo";
 import type { SetupCheckInfo } from "./SetupCheckInfo";
+import type { SignInInfo } from "./SignInInfo";
 import type { SourceHealthInfo } from "./SourceHealthInfo";
 import type { SourceInspectInfo } from "./SourceInspectInfo";
 import type { StagedSwitchInfo } from "./StagedSwitchInfo";
@@ -1137,6 +1138,12 @@ export interface Commands {
   sessions_resume_command: { args: { sessionId: string }; result: string };
   /** Write lifecycle::sessions_unmark_reviewed */
   sessions_unmark_reviewed: { args: { atMs: number }; result: number };
+  /** Write features::sign_ins::commands::sign_ins_dismiss */
+  sign_ins_dismiss: { args: { id: string }; result: void };
+  /** Read features::sign_ins::commands::sign_ins_list */
+  sign_ins_list: { args: Record<string, never>; result: SignInInfo[] };
+  /** Write features::sign_ins::commands::sign_ins_open_page */
+  sign_ins_open_page: { args: { id: string }; result: void };
   /** Write features::account::commands::source_inspect */
   source_inspect: { args: { harness: string; sourcePath: string }; result: SourceInspectInfo };
   /** Read features::staging::staging_ready */

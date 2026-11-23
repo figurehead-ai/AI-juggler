@@ -61,6 +61,7 @@ pub mod reset_queue;
 pub mod runtime;
 pub mod service_accounts;
 pub mod sessions;
+pub mod sign_ins;
 pub mod staging;
 pub mod subagents;
 pub mod subscriptions;
