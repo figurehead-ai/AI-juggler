@@ -1162,6 +1162,8 @@ fn an_undone_move_lets_its_backups_go() {
 mod picking;
 #[path = "moving_recover_tests.rs"]
 mod recovering;
+#[path = "moving_shape_tests.rs"]
+mod shapes;
 #[path = "moving_stop_tests.rs"]
 mod stops;
 #[path = "moving_wait_tests.rs"]
