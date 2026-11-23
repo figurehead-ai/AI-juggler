@@ -38,7 +38,7 @@ describe("the loading states", () => {
     await vi.advanceTimersByTimeAsync(1_000);
     const cause = await caught;
     expect(cause).toBeInstanceOf(TookTooLong);
-    expect((cause as Error).message).toBe("the runways took longer than 1 s");
+    expect(cause instanceof Error ? cause.message : cause).toBe("the runways took longer than 1 s");
   });
 });
 

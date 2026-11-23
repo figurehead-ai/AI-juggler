@@ -81,25 +81,28 @@ export function withDeadline<T>(what: string, work: Promise<T>, ms = DEADLINE_MS
  * after `timeoutMs` (logged once), both reset when loading ends or
  * `round` changes (a Retry). */
 export function useLoadDeadline(loading: boolean, what: string, { timeoutMs = DEADLINE_MS, round = 0 }: { timeoutMs?: number; round?: number } = {}): { slow: boolean; timedOut: boolean } {
-  const [phase, setPhase] = useState<{ round: number; slow: boolean; timedOut: boolean }>({ round, slow: false, timedOut: false });
+  // The clock of this wait: a new `what`, deadline or Retry is a new one.
+  const clock = `${round}|${timeoutMs}|${what}`;
+  const [phase, setPhase] = useState<{ clock: string; slow: boolean; timedOut: boolean }>({ clock: "", slow: false, timedOut: false });
   useEffect(() => {
-    setPhase({ round, slow: false, timedOut: false });
     if (!loading) return undefined;
-    const slow = setTimeout(() => setPhase((was) => ({ ...was, slow: true })), SLOW_MS);
+    const slow = setTimeout(() => setPhase({ clock, slow: true, timedOut: false }), SLOW_MS);
     // No deadline of its own (`Infinity`): the read has one already.
     const out = Number.isFinite(timeoutMs)
       ? setTimeout(() => {
           logLoadFailure(what, new TookTooLong(what, timeoutMs));
-          setPhase((was) => ({ ...was, timedOut: true }));
+          setPhase({ clock, slow: true, timedOut: true });
         }, timeoutMs)
       : undefined;
     return () => {
       clearTimeout(slow);
       clearTimeout(out);
+      // the wait ended: the next one starts its clock afresh
+      setPhase({ clock: "", slow: false, timedOut: false });
     };
-  }, [loading, what, timeoutMs, round]);
-  const current = phase.round === round;
-  return { slow: loading && current && phase.slow, timedOut: loading && current && phase.timedOut };
+  }, [loading, what, timeoutMs, clock]);
+  const current = loading && phase.clock === clock;
+  return { slow: current && phase.slow, timedOut: current && phase.timedOut };
 }
 
 /** AJ-E1552: the state of a read a component keeps itself (`null` or

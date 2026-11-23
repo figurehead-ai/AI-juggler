@@ -82,13 +82,14 @@ export function useResource<T>(
   const reload = useCallback(() => setRound((was) => was + 1), []);
   const loading = key !== null && state.key !== key;
   const { slow } = useLoadDeadline(loading && state.data === undefined, key ?? "", { timeoutMs: Number.POSITIVE_INFINITY, round });
-  const answered = state.data !== undefined;
+  const answer = state.data;
+  const answered = answer !== undefined;
   return {
     data: state.data,
     error: state.error,
     loading,
     reload,
-    state: key === null ? "empty" : loadStateOf({ hasData: answered, loading, error: loading ? undefined : state.error, empty: answered && isEmpty(state.data as T) }),
+    state: key === null ? "empty" : loadStateOf({ hasData: answered, loading, error: loading ? undefined : state.error, empty: answer !== undefined && isEmpty(answer) }),
     slow,
   };
 }

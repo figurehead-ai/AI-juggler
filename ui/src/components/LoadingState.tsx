@@ -36,9 +36,9 @@ export function LoadingState({
       <div className="flex flex-col gap-1" data-testid="loading-state" data-state="loading">
         {skeleton}
         {slow && (
-          <p className="px-2 text-label text-muted" role="status" data-testid="loading-slow">
+          <output className="block px-2 text-label text-muted" data-testid="loading-slow">
             Still loading…
-          </p>
+          </output>
         )}
       </div>
     );

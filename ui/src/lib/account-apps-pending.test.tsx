@@ -84,7 +84,10 @@ describe("an Account's Apps row: loading, empty, error (AJ-E1552)", () => {
   it("an Account with no App: the empty state, and Add its app opens the tool's Add flow", () => {
     card(sub([]), []);
     const asked: string[] = [];
-    const listen = (event: Event) => asked.push((event as CustomEvent<{ tool: string }>).detail.tool);
+    const listen = (event: Event) => {
+      const detail: unknown = event instanceof CustomEvent ? event.detail : null;
+      if (detail && typeof detail === "object" && "tool" in detail) asked.push(String(detail.tool));
+    };
     window.addEventListener(ADD_APP, listen);
     fireEvent.click(screen.getByTestId("account-apps-add"));
     window.removeEventListener(ADD_APP, listen);
