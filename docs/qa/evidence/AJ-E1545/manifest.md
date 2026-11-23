@@ -29,18 +29,18 @@ Every file exists as `-dark` and `-light`.
 | Mac access on AJ-E1547's registry and gate: one card per needed prompt with the picture of the system's dialog and the button to click, why, if declined, where to change it later, its clip; Allow primes it through the gate; ✓ only when the system says so; Skip for now per card; a line when the dialog may be behind the window | PASS | `setup-wizard.test.tsx` |
 | Meet Bot after the permissions, before Keep running: what Bot does (answers, cites, never acts), then the shared EngineSetup (AJ-E3823) with its Skip for now; nothing downloaded without a click | PASS | `setup-wizard.test.tsx` (Apple, local offer, no engine, ready) |
 | Your apps pairs a desktop profile and its folder into one row by AJ-E2327's evidence (never by name); an uncertain one asks | PASS | `first-run-pairing.test.tsx` |
+| F2: an uncertain pairing offers "Choose its folder…" for an added App and, before Add, for a profile not added yet: the pick is checked as an App's (a non-tool folder and one its running sessions contradict are refused), kept with the offer, nothing added or brought in (D-84), linked by its Add; the row then follows the folder chosen (2026-11-23, c59a5031d) | PASS | `places::link_tests` `a_folder_chosen_before_add_is_kept_and_linked_by_add`, `proof_refuses_a_pick_before_add`, `a_declined_offer_takes_no_pick`; `first-run-pairing.test.tsx` "an uncertain pairing offers Choose its folder…, for an App and before it's added (F2)", "a folder chosen before Add moves the profile to that folder's row, sure (F2)" |
+| R8: Step 2, Sign in: a tool that shows a page gets a card, not its terminal: "Open <tool>'s sign-in page" as the one primary, the code large with Copy and "Check the page shows this code, then approve" (or a field for a code the page gives back), a calm "Waiting for you to approve…" turning into ✓ signed in; the terminal under "Show details", collapsed; a sign-in that can't be read keeps its terminal with one plain line; each row the tool's icon and a Terminal chip; the header "Each opens its own sign-in page; AI Juggler never sees your password"; each tool's output read in its adapter with a fixture test per tool (2026-11-23: 00a379508, c6afbf9c2, 252f1b311, f6187543f, 85d1f8cf2) | PASS | `sign-in-card.test.tsx` (page + code with Copy, paste-back, waiting, ✓ signed in, ended early with last lines and Try again, unreadable → terminal with one line, Show details collapsed, the panel's Terminal chip); `first-run.test.tsx` (the step's header words); `sign_in_finish.rs` (8 adapters' fixtures); `no_bare_tools` |
 | Keep running: opening at login only where the build can, keep awake (on when plugged in) | PASS | `setup-wizard.test.tsx` |
 | The large mark is one hand-drawn SVG of `icons/icon.png`; the small mark the same arc and balls | PASS | `components/AppMark.tsx`, `IconJuggler`; captures |
 
 ## Not done here, and why
 
-- **The friendly sign-in card (step 2) and AJ-E1553's "signed in?" signal
-  and rail clean-up**: adapter work in `crates/juggler-adapters` (a
-  sign-in prompt parse per adapter, fixture tests), not started in this
-  batch. Sign in is today first run's own sign-in step, in place.
-- **"Is this right? Change"** on an uncertain pairing: the row asks and
-  points to the App page; choosing the folder from here needs AJ-E2327's
-  chooser.
+- (Done since, 2026-11-23: the sign-in card, R8 above, with AJ-E1553;
+  "Is this right?" now offers "Choose its folder…" before and after Add,
+  F2 above.)
+- The Sonnet newcomer-persona walk and its captures of the sign-in card
+  (both themes) come with the next RC.
 
 ## Design critique (Opus, against DESIGN-SYSTEM and the d126 kit)
 
@@ -70,3 +70,25 @@ Every file exists as `-dark` and `-light`.
    until Allow); dialog behind the window gets its line; every step skippable;
    no download without a click (no Download here); ✓ only when the system
    reports it; the mark matches the Dock icon (both themes).
+
+## Usability reasoning for R8 (the sign-in card), re-checked on the built UI
+
+1. A newcomer signing in to each app expects the tool's own page, not a
+   terminal: matches (one primary, "Open <tool>'s sign-in page"; the
+   terminal only under Show details, closed).
+2. One sentence before any control, no internal words: matches ("Check
+   the page shows this code, then approve", "If the page gives you a
+   code, paste it here for <tool>:"; no "provider", "lease" or ids).
+3. One card for the wizard's step and a sign-in's own page (the rail's
+   Sign-ins): matches (`SignInCard` in both, fed by one list).
+4. Nothing to read → no fake card: matches (the terminal with "<tool>'s
+   sign-in runs below: follow its steps there. AI Juggler notices when
+   you're done."); signed in → "✓ <tool> is signed in" with Done; ended →
+   its last lines, Try again, Dismiss.
+5. No system prompt unannounced: matches (opening a web page raises
+   none; recorded in `docs/design/os-prompts.md`; the address is the one
+   the adapter read, opened by the backend).
+6. Watch-fors: a code too small to compare (it's `text-stat`, spaced, with
+   Copy), a terminal that opens by itself (collapsed by default), an
+   empty terminal after an early end (never: its lines or one sentence),
+   a second primary (Copy and Send are secondary): all match.

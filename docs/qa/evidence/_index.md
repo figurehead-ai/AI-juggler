@@ -114,13 +114,14 @@
 | AJ-E1542 | PASS8 | 2026-10-22 | [manifest](AJ-E1542/manifest.md) |
 | AJ-E1543 | PASS4 | 2026-10-21 | [manifest](AJ-E1543/manifest.md) |
 | AJ-E1544 | PASS2 | 2026-10-23 | [manifest](AJ-E1544/manifest.md) |
-| AJ-E1545 | PASS9 | 2026-11-23 | [manifest](AJ-E1545/manifest.md) |
+| AJ-E1545 | PASS11 | 2026-11-23 | [manifest](AJ-E1545/manifest.md) |
 | AJ-E1546 | PASS6 | 2026-11-23 | [manifest](AJ-E1546/manifest.md) |
 | AJ-E1547 | PASS4 UNPROVEN1 | 2026-11-23 | [manifest](AJ-E1547/manifest.md) |
 | AJ-E1549 | PASS5 | 2026-11-23 | [manifest](AJ-E1549/manifest.md) |
 | AJ-E1550 | (no claims yet) | 2026-11-23 | [manifest](AJ-E1550/manifest.md) |
 | AJ-E1551 | (no claims yet) | 2026-11-23 | [manifest](AJ-E1551/manifest.md) |
 | AJ-E1552 | PASS2 | 2026-11-23 | [manifest](AJ-E1552/manifest.md) |
+| AJ-E1553 | PASS5 | 2026-11-23 | [manifest](AJ-E1553/manifest.md) |
 | AJ-E1601 | PASS15 UNPROVEN1 | 2026-10-25 | [manifest](AJ-E1601/manifest.md) |
 | AJ-E1602 | PASS15 UNPROVEN1 | 2026-10-24 | [manifest](AJ-E1602/manifest.md) |
 | AJ-E1603 | PASS18 UNPROVEN3 | 2026-11-13 | [manifest](AJ-E1603/manifest.md) |

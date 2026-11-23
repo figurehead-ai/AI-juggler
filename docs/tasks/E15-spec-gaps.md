@@ -870,7 +870,7 @@ Step 2, "Sign in": (1) a newcomer signing in expects the provider's own page, no
 **Quality gates**: `just keep-going verify-static` with the new lint; the skeleton sweep; the per-site empty and error tests.
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E1552/manifest.md`.
 
-### AJ-E1553 A sign-in finishes itself: AI Juggler sees it succeed, says so, and clears its entry; one that ends early says so and keeps its last lines | Status: TODO (0.5.1) | Priority P1 | Effort M | Depends: AJ-E1545
+### AJ-E1553 A sign-in finishes itself: AI Juggler sees it succeed, says so, and clears its entry; one that ends early says so and keeps its last lines | Status: DONE (0.5.1) | Priority P1 | Effort M | Depends: AJ-E1545
 **Found** by the maintainer on the 0.5.0 Nightly (2026-11-23), after finishing a tool's sign-in in the import wizard: the tool's sign-in file was written and no process of it ran (checked by name, date and size only), yet the rail still showed a "Sign-ins · Sign in · <tool>" entry; opening it showed an empty terminal (the process had ended and its scrollback was gone); and the footer asked for a manual re-check ("…then check the app again from Accounts — it flips to ready").
 **UI**: yes
 **Usability reasoning** (Opus, before building; re-checked on the built screen):
