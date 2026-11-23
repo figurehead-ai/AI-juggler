@@ -12,6 +12,9 @@ import { useEffect, useMemo, useState, type JSX } from "react";
 
 import { Page, PageGrid } from "../../components/Page";
 import { Button } from "../../components/primitives";
+import { LoadingState } from "../../components/LoadingState";
+import { usePoolsFailure } from "../../lib/pools-failure";
+import { useReadState } from "../../lib/loading";
 import { IconPlus } from "../../components/icons-actions";
 import { useActionHost } from "../../components/ItemMenu";
 import type { AccountInfo } from "../../types/generated/AccountInfo";
@@ -25,7 +28,7 @@ import { useApps } from "../../lib/apps";
 import { sessionNames, shortName } from "../../lib/session-titles";
 import { nodeTitles, type NodeTitle } from "../../pages/pool/node-title";
 import type { PoolInfo } from "../../lib/ipc/pools";
-import { doneNewPoolRequest, heldOut, needWords, onNewPoolRequest, poolIdsOf, poolNeedCount, roleOf, scopeLabel, takeNewPoolRequest, usePools, warmPool, type NewPoolRequest } from "../../lib/pools";
+import { doneNewPoolRequest, heldOut, needWords, onNewPoolRequest, poolIdsOf, poolNeedCount, refreshPools, roleOf, scopeLabel, takeNewPoolRequest, usePools, warmPool, type NewPoolRequest } from "../../lib/pools";
 import { sessionState } from "../../lib/rail-items";
 import { NewPool } from "./NewPool";
 import { miniTeam, PoolMini, withoutBareWork, withoutHeld } from "./PoolMini";
@@ -86,11 +89,11 @@ function SkeletonCards(): JSX.Element {
   return (
     <PageGrid min={280} testId="pools-loading">
       {Array.from({ length: 3 }, (_, n) => (
-        <div key={n} className="flex flex-col gap-3 rounded-card border border-hairline bg-surface p-3" role="status" aria-label="Reading the pools">
+        <output key={n} className="flex flex-col gap-3 rounded-card border border-hairline bg-surface p-3" aria-label="Reading the pools">
           <span className="h-[92px] rounded-lg bg-skeleton motion-safe:animate-pulse" />
           <span className="h-4 w-2/3 rounded bg-skeleton motion-safe:animate-pulse" />
           <span className="h-3 w-1/2 rounded bg-skeleton motion-safe:animate-pulse" />
-        </div>
+        </output>
       ))}
     </PageGrid>
   );
@@ -134,6 +137,10 @@ const CARD_MEMBERS = 24;
 
 export function PoolsScreen({ sessions, projects, accounts }: { sessions: InstanceInfo[]; projects: ProjectInfo[]; accounts: AccountInfo[] }): JSX.Element {
   const pools = usePools();
+  // AJ-E1552: the cards' skeleton only while the pools are read, then an
+  // error with Retry; no pool with anyone in it is the screen's own words.
+  const [round, setRound] = useState(0);
+  const poolsRead = useReadState(pools, "the pools", { error: usePoolsFailure(), round, isEmpty: () => false });
   const host = useActionHost();
   const messageNeeds = useMessageNeeds();
   const taskNeeds = useTaskNeeds();
@@ -245,7 +252,19 @@ export function PoolsScreen({ sessions, projects, accounts }: { sessions: Instan
         />
       )}
       {pools === null ? (
-        <SkeletonCards />
+        <LoadingState
+          state={poolsRead.state}
+          slow={poolsRead.slow}
+          what="the pools"
+          skeleton={<SkeletonCards />}
+          empty={null}
+          onRetry={() => {
+            setRound((was) => was + 1);
+            void refreshPools();
+          }}
+        >
+          {null}
+        </LoadingState>
       ) : (
         <>
           <PageGrid min={280} fill testId="pools-cards">
