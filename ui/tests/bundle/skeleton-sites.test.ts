@@ -33,7 +33,6 @@ const LEGACY: Record<string, number> = {
   "components/ConversationPage.tsx": 2,
   "components/HomeFeed.tsx": 3,
   "components/NotificationCentre.tsx": 1,
-  "components/PagedList.tsx": 3,
   "components/WorkflowRail.tsx": 2,
   "components/charts/StatTile.tsx": 1,
   "components/switch/SwitchHeader.tsx": 1,

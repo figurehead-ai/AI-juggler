@@ -101,3 +101,20 @@ export function useLoadDeadline(loading: boolean, what: string, { timeoutMs = DE
   const current = phase.round === round;
   return { slow: loading && current && phase.slow, timedOut: loading && current && phase.timedOut };
 }
+
+/** AJ-E1552: the state of a read a component keeps itself (`null` or
+ * `undefined` until its answer, `error` once it failed): loading until
+ * then, with "Still loading…" after 3 s and an error at the deadline;
+ * then ready, or empty by `isEmpty`. `round` restarts the clock (a
+ * Retry). */
+export function useReadState<T>(
+  data: T | null | undefined,
+  what: string,
+  { error, isEmpty = emptyAnswer, round = 0, timeoutMs = DEADLINE_MS }: { error?: unknown; isEmpty?: (data: T) => boolean; round?: number; timeoutMs?: number } = {},
+): { state: LoadState; slow: boolean } {
+  const waiting = data === null || data === undefined;
+  const failed = error !== undefined && error !== null;
+  const { slow, timedOut } = useLoadDeadline(waiting && !failed, what, { round, timeoutMs });
+  if (!waiting) return { state: isEmpty(data) ? "empty" : "ready", slow: false };
+  return { state: failed || timedOut ? "error" : "loading", slow };
+}

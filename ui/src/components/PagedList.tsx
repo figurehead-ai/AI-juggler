@@ -13,6 +13,8 @@
  */
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type JSX, type KeyboardEvent, type ReactNode } from "react";
 import type { PagedList as Paged } from "../lib/paged";
+import { useLoadDeadline } from "../lib/loading";
+import { LoadingState } from "./LoadingState";
 
 /** Rows drawn beyond each edge of the view. */
 const OVERSCAN = 6;
@@ -173,27 +175,40 @@ export function PagedList<T>({
     setMeasured((n) => n + 1);
   };
 
-  if (list.loading) {
+  const { slow } = useLoadDeadline(list.loading, label, { timeoutMs: Number.POSITIVE_INFINITY });
+  // AJ-E1552: the skeleton only while the first page is read (Still
+  // loading after 3 s; the read's deadline makes a hung one an error with
+  // Retry); no rows is the list's own empty state.
+  if (list.loading || items.length === 0) {
+    const state = list.loading ? "loading" : list.error ? "error" : "empty";
     return (
-      <ul aria-label={label} aria-busy="true" className={(plain ? "overflow-hidden " : "overflow-hidden rounded-xl border border-hairline bg-surface ") + className} data-testid={`${testId}-skeleton`}>
-        {Array.from({ length: skeletonRows }, (_, i) => (
-          <li key={i} aria-hidden="true" className="flex items-center gap-3 border-t border-hairline/60 px-4 first:border-t-0" style={{ height: rowHeight }}>
-            <span className="size-2 shrink-0 animate-pulse rounded-full bg-skeleton" />
-            <span className="h-3 flex-1 animate-pulse rounded bg-skeleton" style={{ maxWidth: `${60 + ((i * 17) % 30)}%` }} />
-            <span className="h-3 w-14 shrink-0 animate-pulse rounded bg-skeleton" />
-          </li>
-        ))}
-        <li className="sr-only" role="status">
-          Loading…
-        </li>
-      </ul>
-    );
-  }
-  if (items.length === 0) {
-    return (
-      <div className={className} data-testid={`${testId}-empty`}>
-        {list.error ? <p className="text-xs text-warning" role="alert">This list couldn't be read. </p> : empty}
-      </div>
+      <LoadingState
+        state={state}
+        slow={slow}
+        what={label.toLowerCase()}
+        onRetry={list.refresh}
+        empty={
+          <div className={className} data-testid={`${testId}-empty`}>
+            {empty}
+          </div>
+        }
+        skeleton={
+          <ul aria-label={label} aria-busy="true" className={(plain ? "overflow-hidden " : "overflow-hidden rounded-xl border border-hairline bg-surface ") + className} data-testid={`${testId}-skeleton`}>
+            {Array.from({ length: skeletonRows }, (_, i) => (
+              <li key={i} aria-hidden="true" className="flex items-center gap-3 border-t border-hairline/60 px-4 first:border-t-0" style={{ height: rowHeight }}>
+                <span className="size-2 shrink-0 animate-pulse rounded-full bg-skeleton" />
+                <span className="h-3 flex-1 animate-pulse rounded bg-skeleton" style={{ maxWidth: `${60 + ((i * 17) % 30)}%` }} />
+                <span className="h-3 w-14 shrink-0 animate-pulse rounded bg-skeleton" />
+              </li>
+            ))}
+            <li className="sr-only" role="status">
+              Loading…
+            </li>
+          </ul>
+        }
+      >
+        {null}
+      </LoadingState>
     );
   }
   const shownRows = items.slice(from, to);
