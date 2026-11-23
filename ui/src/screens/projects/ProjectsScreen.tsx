@@ -13,6 +13,8 @@
  */
 import { useEffect, useMemo, useRef, useState, type JSX, type KeyboardEvent } from "react";
 import { Page } from "../../components/Page";
+import { LoadingState } from "../../components/LoadingState";
+import { useLoadDeadline } from "../../lib/loading";
 import { Button } from "../../components/primitives";
 import { IconPlus } from "../../components/icons-actions";
 import { useActionHost } from "../../components/ItemMenu";
@@ -83,6 +85,8 @@ export function ProjectsScreen({ projects, sessions, loading, now, onNewProject 
   const week = useUsageHistory("7d", "profile", {}, 0);
   const tokens = useMemo(() => new Map((week.data?.by_project ?? []).map((share) => [share.key, share.io])), [week.data]);
   useEffect(() => setPages(1), [words]);
+  const firstLoad = loading && projects.length === 0;
+  const { slow: firstLoadSlow } = useLoadDeadline(firstLoad, "your projects", { timeoutMs: Number.POSITIVE_INFINITY });
 
   // ↑ and ↓ move between rows; Home and End to the first and last.
   const onKeyDown = (event: KeyboardEvent<HTMLUListElement>) => {
@@ -121,23 +125,36 @@ export function ProjectsScreen({ projects, sessions, loading, now, onNewProject 
     >
       <div className="@container flex flex-col">
         <ProjectRowsHead />
-        {loading && projects.length === 0 ? (
-          <ul className="flex flex-col" aria-label="Loading projects" aria-busy="true">
-            {Array.from({ length: 5 }, (_, n) => (
-              <ProjectRowSkeleton key={n} />
-            ))}
-          </ul>
-        ) : shown.length === 0 ? (
-          <div className="flex flex-col items-center gap-3 rounded-lg border border-dashed border-hairline px-4 py-6 text-center text-body text-ink-2" data-testid="projects-empty">
-            <p>{words.trim() ? `No project matches “${words.trim()}”.` : "No projects yet. A project appears when a session runs in its folder."}</p>
-            {!words.trim() && (
-              <Button size="sm" variant="secondary" onClick={onNewProject} title={`New project (${keysOf("new-project")})`} data-testid="projects-empty-new">
-                <IconPlus width={14} height={14} aria-hidden="true" />
-                New project…
-              </Button>
-            )}
-          </div>
-        ) : (
+        {/* AJ-E1552: rows shaped like the list while the shell's first read
+            loads ("Still loading…" after 3 s). That read has its own
+            deadline (shell/use-app-data): when it misses, the read counts
+            as done and the "service stopped answering" banner, with its
+            Retry, takes over. */}
+        <LoadingState
+          state={firstLoad ? "loading" : shown.length === 0 ? "empty" : "ready"}
+          slow={firstLoadSlow}
+          what="your projects"
+          skeleton={
+            <ul className="flex flex-col" aria-label="Loading projects" aria-busy="true" data-testid="projects-loading">
+              {Array.from({ length: 5 }, (_, n) => (
+                <ProjectRowSkeleton key={n} />
+              ))}
+            </ul>
+          }
+          empty={
+            <div className="flex flex-col items-center gap-3 rounded-lg border border-dashed border-hairline px-4 py-6 text-center text-body text-ink-2" data-testid="projects-empty">
+              <p>{words.trim() ? `No project matches “${words.trim()}”.` : "No projects yet. A project appears when a session runs in its folder."}</p>
+              {!words.trim() && (
+                <Button size="sm" variant="secondary" onClick={onNewProject} title={`New project (${keysOf("new-project")})`} data-testid="projects-empty-new">
+                  <IconPlus width={14} height={14} aria-hidden="true" />
+                  New project…
+                </Button>
+              )}
+            </div>
+          }
+          // never asked for: the shell's banner has the Retry (see above)
+          onRetry={() => undefined}
+        >
           <ul ref={listRef} className="flex flex-col divide-y divide-hairline/70" aria-label="Projects" onKeyDown={onKeyDown} data-testid="projects-list">
             {page.map((project) => (
               <ProjectRow
@@ -153,7 +170,7 @@ export function ProjectsScreen({ projects, sessions, loading, now, onNewProject 
               />
             ))}
           </ul>
-        )}
+        </LoadingState>
         {shown.length > page.length && (
           <Button size="sm" variant="ghost" className="mt-3 self-center" onClick={() => setPages((n) => n + 1)} data-testid="projects-more">
             Show more projects ({shown.length - page.length} more)
