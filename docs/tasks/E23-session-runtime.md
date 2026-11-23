@@ -370,6 +370,7 @@
 2. Transient: Retry (auto-retried once). Needs you: no Retry; "Check again" re-reads the offer without quitting; the holder named with a door. Setup: Move hidden, Copy offered. Bug: Copy details and Report.
 3. The UI targets Undo and Finish by the error's move id; never `find(interrupted)`.
 4. A table test from each failure to its class and Retry's visibility, Rust and UI.
+5. Left by AJ-E2318: Undo keeps the move's "still running" notes (`MoveUndoneInfo` carries them), as the move itself does.
 **Quality gates**: `just keep-going verify-static`; failing-before tests; the move suite.
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E2319/manifest.md`.
 
@@ -380,6 +381,7 @@
 1. A shared move area for every AI Juggler on the Mac (a platform path): canonical-root lock files, the journals, and a `held/<place-key>` marker per profile written before the first quit, removed only on Committed or RolledBack, naming the move id and its owner (pid, start).
 2. Keep alive, Open, Restart and automation in every AI Juggler (Dev and installed) check the marker; a hold whose owner is gone is a crashed move, not a free profile.
 3. The self rule: refuse up front when the processes to be quit include AI Juggler's own ancestry or the other AI Juggler's.
+4. Left by AJ-E2318: keep alive's Restart kill path (`places::restart` → `Starter::quit(pid)`) signals through `ownership::signal::quit_checked` (pid and start time checked right before), like Move's.
 **Quality gates**: `just keep-going verify-static`; failing-before tests; the move suite.
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E2320/manifest.md`.
 
@@ -426,6 +428,7 @@
 2. D2's engine fault injection (crash after each phase, ENOSPC during apply and undo, two AI Juggler data folders sharing the move area) and D3's app-level integration (a second AppState's keep alive, a relaunching agent, an app asking at quit, parallel quit, startup with a held profile).
 3. A PL1 lab walk (Sonnet, verified by Opus) of: two profiles on one account; the E2315 shape; another AI Juggler with keep alive; a crash mid-move then restart.
 4. The walk also starts from an EMPTY Dev-identity data folder with real running lab profiles and tries every add path (Welcome's Find my apps, the rail's Add, Settings, ⌘K), then checks each App's sessions show (AJ-E2327).
+5. Left by AJ-E2318: a timing test that the offer's checks (one process table, the pid files, one tree per profile) stay within 500 ms on a large fixture; AJ-E2318's evidence manifest.
 **Quality gates**: `just keep-going verify-static`; failing-before tests; the move suite.
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E2323/manifest.md`.
 
