@@ -213,6 +213,7 @@
 | AJ-E1544 | LiveStatsCollector in its own module | E15-spec-gaps.md | P2 | S | AJ-E2011 |
 | AJ-E1545 | Welcome leads into a guided setup wizard (find your apps, permissions one card each with live grant detection, keep it running, the tour), and every brand mark is the real app icon | E15-spec-gaps.md | P0 | L | AJ-E1524, AJ-E1527 |
 | AJ-E1546 | A guided tour on the real UI, offered once, and short clips for every "What it does for you" card and "How it works" step | E15-spec-gaps.md | P1 | L | AJ-E1545 |
+| AJ-E1547 | No system prompt the user wasn't told about first: one registry of every OS prompt, priming in setup, one just-in-time gate every trigger goes through | E15-spec-gaps.md | P0 | L | AJ-E1545, AJ-E3822 |
 | AJ-E1601 | Accounts on a compatible endpoint: OpenCode Go and Kimi on Claude Code and Codex | E16-more-tools.md | P0 | S | AJ-E1521 |
 | AJ-E1602 | OpenCode CLI | E16-more-tools.md | P0 | M | AJ-E1521 |
 | AJ-E1603 | Kimi Code CLI | E16-more-tools.md | P0 | M | AJ-E1521 |
@@ -504,5 +505,5 @@
 | AJ-E3820 | The turn review: the code-only review, the model's Beta lines on it, and where it shows | E38-chat.md | P0 | L | AJ-E3802, AJ-E3705, AJ-E3806 |
 | AJ-E3821 | Remove frees a model's disk at once: the local helper lets go of the file before it is deleted | E38-chat.md | P1 | S | AJ-E3803 |
 | AJ-E3822 | Helpers never share an identifier across identities, and every one names itself: no "(null) differs from previously opened versions" prompt | E38-chat.md | P1 | S | AJ-E3802 |
-Total: 502 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
+Total: 503 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
 Status of every task at generation: TODO. The epic files are canonical; this catalog is an index, never edited to claim progress.
