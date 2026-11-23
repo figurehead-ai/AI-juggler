@@ -134,7 +134,7 @@ The same list is in the app: More › **Privacy**, and Settings › Privacy link
 
 ## Your accounts and the vendors' terms
 
-Use only accounts that are yours. When you add one, AI Juggler shows what that tool's terms say about having several, with a link to the terms. What they say, where it comes from and the day it was checked are in the [terms register](../qa/evidence/AJ-E1518/terms-claims-register.md).
+Use only accounts that are yours. When you add one, **Providers’ terms** (closed until you open it) says what that tool's terms say about having several, with a link to the terms; Settings › Privacy has the same, closed too. What they say, where it comes from and the day it was checked are in the [terms register](../qa/evidence/AJ-E1518/terms-claims-register.md).
 
 ## Found something that doesn't match?
 
