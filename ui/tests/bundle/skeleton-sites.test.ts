@@ -39,8 +39,6 @@ const LEGACY: Record<string, number> = {
   "components/charts/StatTile.tsx": 1,
   "components/switch/SwitchHeader.tsx": 1,
   "components/usage/RunwayCards.tsx": 1,
-  "pages/subagents/SubagentDetail.tsx": 2,
-  "pages/subagents/SubagentsView.tsx": 1,
   "pages/subscription/AccountApps.tsx": 3,
 };
 
