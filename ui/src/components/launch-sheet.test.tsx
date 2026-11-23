@@ -293,7 +293,8 @@ describe("N5 the usual is out of room", () => {
   it("D-97: gives way to the App with room before you start, and says why", async () => {
     w().__AIJ_QUOTA_DISPLAY__ = [display("claude-work", 0), display("claude-side", 80)];
     const { launchSpy } = mountSheet({ projects: shared });
-    await waitFor(() => expect(sentence()).toMatch(/^Start in api on Claude Code CLI · Side — Claude Code CLI · Work Max is out of room until \S/));
+    // AJ-E3207 req. 4: the reason names its Account (preview, unnamed: tool and plan).
+    await waitFor(() => expect(sentence()).toMatch(/^Start in api on Claude Code CLI · Side — Claude Max 20x is out of room until \S/));
     // The choice has room: nothing to warn about below.
     expect(screen.queryByTestId("launch-out-of-room")).toBeNull();
     fireEvent.click(screen.getByTestId("launch-now"));
@@ -334,13 +335,14 @@ describe("N5 the usual is out of room", () => {
 // D-96 E (persona D5): the right App, and now the reason too.
 describe("a skip says why (D-96 E)", () => {
   // No history and no default: room picks, over Work Max, the App it
-  // would have opened on.
+  // would have opened on. Its reason names that App's Account once the
+  // Accounts are read: in the preview, unnamed, "Claude Max 20x".
   const fresh = PROJECTS.map((row) => ({ ...row, accounts_used: [] }));
 
   it("room picked over an App almost out: the sentence names that one and its room, as the Low mark says it", async () => {
     w().__AIJ_QUOTA_DISPLAY__ = [display("claude-work", 5), display("claude-side", 80)];
     const { launchSpy } = mountSheet({ projects: fresh });
-    await waitFor(() => expect(sentence()).toBe("Start in api on Claude Code CLI · Side — Claude Code CLI · Work Max is almost out (5% left)"));
+    await waitFor(() => expect(sentence()).toBe("Start in api on Claude Code CLI · Side — Claude Max 20x is almost out (5% left)"));
     // The choice has room: nothing to warn about below.
     expect(screen.queryByTestId("launch-low")).toBeNull();
     fireEvent.keyDown(window, { key: "Enter", metaKey: true });
@@ -351,7 +353,7 @@ describe("a skip says why (D-96 E)", () => {
     const estimated = { ...display("claude-work", 5), weekly: { ...display("claude-work", 5).weekly, badge: "estimated" } };
     w().__AIJ_QUOTA_DISPLAY__ = [estimated, display("claude-side", 80)];
     mountSheet({ projects: fresh });
-    await waitFor(() => expect(sentence()).toBe("Start in api on Claude Code CLI · Side — Claude Code CLI · Work Max is almost out (about 5% left)"));
+    await waitFor(() => expect(sentence()).toBe("Start in api on Claude Code CLI · Side — Claude Max 20x is almost out (about 5% left)"));
   });
 
   it("names the Account by its own name, out of room with its reset", async () => {
