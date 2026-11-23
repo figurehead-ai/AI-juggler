@@ -64,10 +64,27 @@ async function shifts(page: Page): Promise<{ cls: number; shifts: number; worst:
   });
 }
 
+/** AJ-E1554 R1: what each rail row's parts measured at rest and under the pointer. */
+const HOVER_OUT = resolve(process.cwd(), "../docs/qa/evidence/AJ-E1554");
+const hovers: Record<string, { cls: number; moved: string[] }> = {};
+
 test.afterAll(() => {
   mkdirSync(OUT, { recursive: true });
   writeFileSync(resolve(OUT, "layout-shift.json"), JSON.stringify({ budget: BUDGET, viewport: "1280x800", results }, null, 2) + "\n");
+  if (Object.keys(hovers).length === 0) return;
+  mkdirSync(HOVER_OUT, { recursive: true });
+  writeFileSync(resolve(HOVER_OUT, "hover-hold-still.json"), JSON.stringify({ budget: BUDGET, viewport: "1280x800", hovers }, null, 2) + "\n");
 });
+
+/** Each part's box, by its test id, inside `row`. */
+async function boxes(row: ReturnType<Page["locator"]>, parts: string[]): Promise<Record<string, string>> {
+  const out: Record<string, string> = {};
+  for (const part of parts) {
+    const box = await row.locator(part).first().boundingBox();
+    out[part] = box ? [box.x, box.y, box.width, box.height].map((n) => Math.round(n * 10) / 10).join(",") : "none";
+  }
+  return out;
+}
 
 for (const theme of ["dark", "light"] as const) {
   test(`opening Home holds still (${theme})`, async ({ page }) => {
@@ -110,5 +127,38 @@ for (const theme of ["dark", "light"] as const) {
     const back = await shifts(page);
     results[`home-from-session-${theme}`] = back;
     expect(back.cls, `Home moved after it appeared: ${back.worst}`).toBeLessThanOrEqual(BUDGET);
+  });
+
+  test(`a rail row and an App header hold still under the pointer and the keyboard (${theme})`, async ({ page }) => {
+    await seed(page, theme);
+    await page.goto("/");
+    const board = page.getByTestId("place-board");
+    await expect(board).toBeVisible();
+    await shifts(page);
+    const cases: Array<[string, ReturnType<Page["locator"]>, string[]]> = [
+      ["session-row", board.locator("[data-rail-row]").filter({ has: page.getByTestId("row-title") }).first(), ["[data-testid='row-title']", "[data-state-dot]", "[data-testid='row-end']", "[data-testid='row-slots']"]],
+      ["app-header", board.getByTestId("place-header").first(), ["[data-testid='place-page']", "[data-testid='place-name-line']"]],
+    ];
+    for (const [name, row, parts] of cases) {
+      await expect(row).toBeVisible();
+      const rest = await boxes(row, parts);
+      // Under the pointer.
+      await row.hover();
+      const hovered = await boxes(row, parts);
+      const hover = await shifts(page);
+      // Under the keyboard (focus on its own way in).
+      await page.mouse.move(0, 0);
+      await row.locator("button").first().focus();
+      await page.keyboard.press("Shift+Tab");
+      await page.keyboard.press("Tab");
+      const focused = await boxes(row, parts);
+      const focus = await shifts(page);
+      const moved = parts.filter((part) => hovered[part] !== rest[part] || focused[part] !== rest[part]);
+      hovers[`${name}-${theme}`] = { cls: Math.max(hover.cls, focus.cls), moved };
+      expect(moved, `${name}: moved under the pointer or focus`).toEqual([]);
+      expect(Math.max(hover.cls, focus.cls), `${name}: shifted (${hover.worst ?? focus.worst})`).toBeLessThanOrEqual(BUDGET);
+      await page.mouse.move(0, 0);
+      await page.locator("body").focus().catch(() => undefined);
+    }
   });
 }

@@ -19,6 +19,17 @@ import { IconGitBranch } from "../icons";
 const LINK =
   "pointer-events-auto relative z-10 -mb-2.5 min-h-6 truncate rounded pb-2.5 text-left text-muted outline-none hover:bg-surface-3 hover:text-ink hover:underline focus-visible:ring-1 focus-visible:ring-accent/60";
 
+/** A session's page on its Subagents tab (`open` opens its page). */
+export function openSubagents(item: RailItem, open: () => void): void {
+  // Its count says it has some: the tab is there from the start.
+  const account = item.session?.account_id ?? item.conversation?.account_id;
+  const conversation = item.session?.conversation_id ?? item.conversation?.id;
+  if (account && conversation) markHasSubagents(account, conversation);
+  rememberTab(item.session ? "session" : "conversation", "subagents");
+  open();
+  showTab("subagents");
+}
+
 /** AJ-E1520: a row's subagent count, its own way in: the session's page
  * on its Subagents tab. AJ-E1554 R3: a branch and the number, quiet
  * (muted, tabular), what it counts in its tooltip and name. */
@@ -32,13 +43,7 @@ export function RowSubagents({ item, words, onSelect }: { item: RailItem; words:
       title={`${words}: opens its Subagents tab`}
       onClick={(event) => {
         event.stopPropagation();
-        // Its count says it has some: the tab is there from the start.
-        const account = item.session?.account_id ?? item.conversation?.account_id;
-        const conversation = item.session?.conversation_id ?? item.conversation?.id;
-        if (account && conversation) markHasSubagents(account, conversation);
-        rememberTab(item.session ? "session" : "conversation", "subagents");
-        primary();
-        showTab("subagents");
+        openSubagents(item, primary);
       }}
       className="pointer-events-auto relative z-10 flex h-6 shrink-0 items-center gap-0.5 rounded px-1 text-label tabular-nums text-muted outline-none hover:bg-hover hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60"
     >

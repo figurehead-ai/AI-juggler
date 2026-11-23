@@ -215,7 +215,7 @@ function enter(line: Line, walk: Walk): void {
       walk.at = line.group.key;
       walk.seen.headers.set(line.group.key, line);
       if (walk.section) push(walk.seen.sections, walk.section, line.group.key);
-      // 0.4.3: an App with something open counts its past ones on its header.
+      // 0.4.3: an App with something open counts its past ones (AJ-E1554: in its footer).
       if (line.recent) link(walk, `+${line.recent.count} recent`);
       return;
     case "idle":
@@ -249,7 +249,8 @@ function under(line: Line, walk: Walk): void {
       link(walk, `All ${line.count} sessions ›`);
       return;
     case "more":
-      link(walk, `+${line.quiet} ${line.words}`);
+      // AJ-E1554 R4: the footer also carries the recent ones (linked with its header, above).
+      if (line.quiet > 0) link(walk, `+${line.quiet} ${line.words}`);
       return;
     case "idle-more":
       walk.seen.idleMore = line.hidden;

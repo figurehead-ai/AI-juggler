@@ -118,7 +118,8 @@ export function RailOfferRow({ offer, onAdd }: { offer: PlaceOfferInfo; onAdd: (
         title={`Add ${offer.label} to your apps`}
         data-rail-nav
         data-testid="rail-offer-add"
-        className="flex h-6 shrink-0 items-center rounded-md border border-hairline px-2 text-label font-medium text-ink outline-none hover:border-accent/40 focus-visible:ring-1 focus-visible:ring-accent/60"
+        // AJ-E1554 (PAT-SURF): a fill and its hover by tone, never a line.
+        className="flex h-6 shrink-0 items-center rounded-md bg-control px-2 text-label font-medium text-ink outline-none transition-colors hover:bg-control-hi focus-visible:ring-1 focus-visible:ring-accent/60"
       >
         Add
       </button>

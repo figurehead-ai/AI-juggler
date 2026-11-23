@@ -54,6 +54,7 @@ import { railPoolOf, usePools, warmPool } from "../lib/pools";
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import type { ProjectInfo } from "../types/generated/ProjectInfo";
 import { RailNeedsHeld } from "./RailNeedsHeld";
+import { HeadCounts, RailFooter, idleSummary } from "./rail-more";
 
 interface BoardProps {
   sessions: InstanceInfo[];
@@ -287,7 +288,7 @@ export function PlaceBoard({ sessions, projects, accounts, snooze, now, selected
   const draw = (line: Line): ReactNode => {
     switch (line.kind) {
       case "section":
-        return <SectionHead id={line.id} count={line.count} level={line.level} broken={line.broken} open={!closed.has(line.id)} onToggle={() => foldSection(line.id)} extra={line.id === "open" ? <RailOrderMenu /> : undefined} />;
+        return <SectionHead id={line.id} count={line.count} level={line.level} broken={line.broken} open={!closed.has(line.id)} onToggle={() => foldSection(line.id)} extra={line.id === "open" ? <RailOrderMenu /> : undefined} summary={line.id === "idle" && closed.has("idle") && line.sessions !== undefined ? idleSummary(line.count, line.sessions) : undefined} />;
       case "to-review": return <ToReviewCaption />; // D-117: notes, last, uncounted
       case "need":
         return <NeedRow item={line.item} selected={selectedId === (line.item.session?.id ?? line.item.conversation?.id)} onSelect={onSelect} now={now} compact={compact} />;
@@ -318,7 +319,7 @@ export function PlaceBoard({ sessions, projects, accounts, snooze, now, selected
             onRecent={recentOfGroup(lens, group, places)}
             onNew={lens === "place" && group.key.startsWith("cli|") ? () => window.dispatchEvent(new CustomEvent("aij:new-session", { detail: { accountId: group.items[0]?.accountId ?? null } })) : undefined}
             {...headerActions(known, group)} roomOf={lens === "pool" ? null : (group.accountId ?? group.items[0]?.accountId)} roomApp={lens === "place" ? (known?.id ?? null) : null} foldable={line.foldable} /* 0.4.3: by App, its App's own folder */
-            recent={line.recent && { ...line.recent, onToggle: () => toggle(`${group.key}#recent`) }}
+            cluster={<HeadCounts items={group.items} needItems={line.needItems} level={line.level ?? 0} probably={line.probably ?? false} selectedId={selectedId} onSelect={onSelect} />} /* AJ-E1554 R2 */
             folder={folder}
             onChooseFolder={choose}
           >
@@ -340,8 +341,7 @@ export function PlaceBoard({ sessions, projects, accounts, snooze, now, selected
       case "plain":
       case "past": // an ended one; under its App (past), nested in its family
         return <SessionRow {...rowOf(line.item)} depth={line.kind === "past" ? line.depth : undefined} parent={line.kind === "past" ? line.parent : undefined} />;
-      case "more":
-        return <RailLink onClick={() => toggle(`${line.group.key}#all`)} testId="rail-more-quiet">{`+${line.quiet} ${line.words}`}</RailLink>;
+      case "more": return <RailFooter line={line} app={line.words === "more" ? appPageOfGroup(lens, line.group, places) : null} toggle={toggle} />; // AJ-E1554 R4
       case "recent": return <RailCaption>Recent</RailCaption>; // D-103.1: an App with nothing open
       case "all": return <RailAllSessions page={line.group ? appPageOfGroup(lens, line.group, places) : line.idle ? idleAppPage(line.idle) : null} loaded={line.count} onOpen={openAppSessions} />; // 0.4.3 (D-64): its page
       case "idle": {

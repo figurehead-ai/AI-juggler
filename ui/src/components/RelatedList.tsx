@@ -36,6 +36,7 @@ import { NO_FILTERS, STATE_WORDS, filtersOn, stateQuery, type FacetKind, type Fi
 import { localRows, useBelongs } from "./related/local";
 import { chosenKey, useFacetNames, useFacets, useStateCounts } from "./related/useFacets";
 import { NothingMatches, RelatedEmpty, type Teach } from "./related/RelatedEmpty";
+import { onListPreset, takeListPreset } from "../lib/list-presets";
 
 /** Past this many rows a list has a search and its filters (QUALITY.md
  * "Finding things": search appears at 9). */
@@ -92,7 +93,16 @@ export function RelatedList(props: RelatedListProps): JSX.Element {
   const live = hasLiveBackend();
   const entity = anchorKind(anchor);
   const counts = useRelationCounts(live ? entity.kind : null, entity.id);
-  const [filters, setFilters] = useState<Filters>(NO_FILTERS);
+  // AJ-E1554 R4: opened from a rail count, on the state it counted.
+  const [filters, setFilters] = useState<Filters>(() => ({ ...NO_FILTERS, state: takeListPreset(listKey) ?? "all" }));
+  useEffect(
+    () =>
+      onListPreset((key) => {
+        const state = key === listKey ? takeListPreset(listKey) : null;
+        if (state) setFilters({ ...NO_FILTERS, state });
+      }),
+    [listKey],
+  );
   const [words, setWords] = useState("");
   const [searched, setSearched] = useState("");
   // The search waits for a pause in typing.

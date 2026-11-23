@@ -124,6 +124,7 @@ describe("D-64 the rail grouped by App", () => {
       "section:open:1",
       "header:app|claude-app|Work+4",
       "row:c:a1/w1",
+      "more", // AJ-E1554 R4: its footer: "+4 recent"
       "section:idle:2",
       "idle:cli|claude-code|a2",
       "idle:app|claude-app|Lab",
@@ -139,6 +140,7 @@ describe("D-64 the rail grouped by App", () => {
       "section:open:1",
       "header:app|claude-app|Work+4",
       "row:c:a1/w1",
+      "more", // AJ-E1554 R4: its footer: "+4 recent"
       "past:c:a1/w2",
       "past:c:a1/w3",
       "past:c:a1/w4",
@@ -234,10 +236,10 @@ describe("AJ-E3206 a desktop session AI Juggler started", () => {
     // (the ended one sat in Inactive apps, the open one in a group apart).
     const cli = cliAppKey("claude-code", "a1", "Work");
     // 0.4.3: the ended one its own App's, counted on its header.
-    expect(kinds2(items, [])).toEqual(["section:open:1", `header:${cli}+1`, "row:s:open", "also"]);
+    expect(kinds2(items, [])).toEqual(["section:open:1", `header:${cli}+1`, "row:s:open", "more", "also"]);
     // One profile on its folder: that profile's, never also an inactive app.
     const work = known("Work", { account_id: "a1" });
-    expect(kinds2(items, [work])).toEqual(["section:open:1", `header:${knownKey(work)}+1`, "row:s:open", "also"]);
+    expect(kinds2(items, [work])).toEqual(["section:open:1", `header:${knownKey(work)}+1`, "row:s:open", "more", "also"]);
   });
 });
 

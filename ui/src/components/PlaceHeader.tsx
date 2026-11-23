@@ -29,6 +29,9 @@ import type { PlaceFolderInfo } from "../types/generated/PlaceFolderInfo";
 /** A place's header: the fold chevron; app, profile, count (its page);
  * Open. Folded, it reads "Work · 4 idle". */
 
+/** AJ-E1554 R1: the App's icon gives way to the grip on hover and focus. */
+const GIVES_WAY = " transition-opacity group-focus-within/head:opacity-0 group-hover/head:opacity-0 motion-reduce:transition-none";
+
 export function PlaceHeader({
   place,
   label,
@@ -50,14 +53,17 @@ export function PlaceHeader({
   roomApp = null,
   onWarm,
   foldable = true,
-  recent = null,
   level = 0,
   probably = false,
   lit = false,
   broken = [],
   folder = null,
   onChooseFolder,
+  cluster,
 }: {
+  /** AJ-E1554 R2: its counts (working, needs you, to review, subagents),
+   * each a way to exactly those, in place of the bare count. */
+  cluster?: ReactNode;
   /** AJ-E2327: its tool folder (what told), or why none is linked: an App
    * whose sessions can't be shown says so, never just a grey icon. */
   folder?: PlaceFolderInfo | null;
@@ -72,10 +78,6 @@ export function PlaceHeader({
   level?: AttentionLevel;
   probably?: boolean;
   lit?: boolean;
-  /** 0.4.3: an App with something open: its past ones' count, shown on
-   * hover and focus ("+3 recent", muted, as its count); a click shows them
-   * under it, in place, and it stays shown while they do. */
-  recent?: { count: number; open: boolean; onToggle: () => void } | null;
   /** 0.4.3: unfolding it shows a row; when it wouldn't, no fold (a
    * chevron that opened nothing was the 0.4.2 rail's dead end). */
   foldable?: boolean;
@@ -144,7 +146,7 @@ export function PlaceHeader({
       }}
       onPointerEnter={onWarm}
       onFocus={onWarm}
-      className={"tone-host group/head flex h-[30px] min-w-0 items-center gap-0.5 rounded-md pr-1" + (arrange?.dragging ? " opacity-50" : "") + (arrange?.drop ? DROP[arrange.drop] : "")}
+      className={"tone-host group/head relative flex h-[30px] min-w-0 items-center gap-0.5 rounded-md pr-1" + (arrange?.dragging ? " opacity-50" : "") + (arrange?.drop ? DROP[arrange.drop] : "")}
       data-testid="place-header"
       data-lit={level >= 2 || lit ? "true" : undefined}
       data-level={needs > 0 ? level : undefined}
@@ -167,7 +169,7 @@ export function PlaceHeader({
           {/* D-100: its kind beside its icon (a window, or >_), never over it. */}
           {children ?? (place && (
             <>
-              <AppIcon appId={place.appId} appPid={place.appPid} name={place.app} size={16} className={appTone(level >= 2 || lit)} tip={tip} />
+              <AppIcon appId={place.appId} appPid={place.appPid} name={place.app} size={16} className={appTone(level >= 2 || lit) + (arrange?.enabled ? GIVES_WAY : "")} tip={tip} />
               <AppKindBadge kind={appKindOfKey(place.key)} />
             </>
           ))}
@@ -206,36 +208,28 @@ export function PlaceHeader({
             {folded !== null && needs === 0 && <span className="shrink-0 whitespace-nowrap text-label leading-[18px] text-muted">{folded.slice(folded.indexOf("·") + 1).trim()}</span>}
             {empty && !notShown && <span className="shrink-0 whitespace-nowrap text-label leading-[18px] text-muted" data-testid="place-nothing-open" data-fit="first">nothing open</span>}
             {notShown && <span className="shrink-0 whitespace-nowrap text-label leading-[18px] text-muted" data-testid="place-not-shown" data-fit="first" title={notShown}>{NOT_SHOWN}</span>}
-            {needs > 0 && (
+            {needs > 0 && cluster === undefined && (
               <span className="flex shrink-0" data-fit="first">
                 <HeadNeeds needs={needs} level={level} probably={probably} />
               </span>
             )}
-            {room ? <span className="flex shrink-0">{room}</span> : folded === null && !empty && <span className="shrink-0 text-label tabular-nums text-muted" title={`${count} open here`}>{count}</span>}
+            {room ? <span className="flex shrink-0">{room}</span> : cluster === undefined && folded === null && !empty && <span className="shrink-0 text-label tabular-nums text-muted" title={`${count} open here`}>{count}</span>}
           </span>
         </span>
       </button>
+      {/* AJ-E1554 R1: the grip in its icon's place on hover and focus (the
+          icon gives way), so it takes no room and moves nothing. Still
+          ⌥⌘↑ and ⌥⌘↓ from the keyboard. */}
       {arrange?.enabled && (
-        // No room of its own until hover or focus (it held ~20 px the App's
-        // name needs: "Wor…" with the Out mark at 1280, the 0.4.1 gate);
-        // still in the Tab order, and focus inside the header widens it.
-        <span className={arrange.dragging ? "" : "w-0 overflow-hidden opacity-0 transition-opacity group-focus-within/head:w-auto group-focus-within/head:opacity-100 group-hover/head:w-auto group-hover/head:opacity-100 motion-reduce:transition-none"}>
+        <span className={"absolute left-[30px] top-1/2 flex -translate-y-1/2 " + (arrange.dragging ? "" : "opacity-0 transition-opacity group-focus-within/head:opacity-100 group-hover/head:opacity-100 motion-reduce:transition-none")} data-testid="place-grip">
           <Grip arrange={arrange} label={name} />
         </span>
       )}
-      {recent && (
-        <button
-          type="button"
-          onClick={recent.onToggle}
-          aria-expanded={recent.open}
-          data-rail-nav
-          title={recent.open ? `Hide ${name}'s recent sessions` : `Show ${name}'s ${recent.count} recent ${recent.count === 1 ? "session" : "sessions"} here`}
-          data-testid="place-recent"
-          className={(recent.open ? "flex" : "hidden focus-visible:flex group-hover/head:flex group-has-[:focus-visible]/head:flex") + " h-6 shrink-0 items-center rounded-md px-1 text-label tabular-nums text-muted outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60"}
-        >
-          +{recent.count} recent
-        </button>
-      )}
+      {/* R2: its counts, always shown, each its own way in. */}
+      {cluster}
+      {/* R1: its ↗ in a slot of its own, as wide at rest as under the
+          pointer (nothing shifts or covers its name), shown on hover and
+          focus. PAT-SURF: a tool's hover is a tone, never a line. */}
       {onOpen && (
         <button
           type="button"
@@ -243,9 +237,7 @@ export function PlaceHeader({
           aria-label={`Open ${name}`}
           title={shortcut ? `${openWords} (${placeKey(shortcut).words})` : openWords}
           data-testid="place-open"
-          // On hover and keyboard focus, as the rows' tools (the 0.4
-          // review: always shown, it took the room the App's name needs).
-          className="hidden size-6 shrink-0 items-center justify-center rounded-md border border-hairline text-muted outline-none hover:border-accent/40 hover:text-ink focus-visible:flex focus-visible:ring-1 focus-visible:ring-accent/60 group-hover/head:flex group-has-[:focus-visible]/head:flex"
+          className="flex size-6 shrink-0 items-center justify-center rounded-md text-muted opacity-0 outline-none transition-opacity hover:bg-hover hover:text-ink focus-visible:opacity-100 focus-visible:ring-1 focus-visible:ring-accent/60 group-focus-within/head:opacity-100 group-hover/head:opacity-100 motion-reduce:transition-none"
         >
           {/* Its ↗, as a row's: the way out to the app. The words are its
               name; the room goes to the place's app and profile. */}

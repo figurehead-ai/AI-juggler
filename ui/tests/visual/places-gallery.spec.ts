@@ -300,6 +300,8 @@ test.describe("a line drawn above the pointer", () => {
  * line, and ↑/↓ past the drawn lines scrolled nothing.
  */
 test("a rail of 1 000 sessions draws only what's in view, and ↑/↓ scroll the list itself", async ({ page }) => {
+  // AJ-E1554 R4: "+n more" opens its App's page; Latest activity's "+n quiet" still shows them in place.
+  await page.addInitScript(() => localStorage.setItem("aij.rail.order.v1", JSON.stringify({ mode: "latest" })));
   await seed(page, "thousand", "dark");
   const list = page.getByTestId("rail-list");
   const search = page.getByRole("searchbox", { name: /^Search sessions/ });

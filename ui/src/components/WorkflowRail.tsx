@@ -674,7 +674,12 @@ function BoardRow({
         </span>
       )}
       <RailRow session={row} showProject={showProject} selected={selected} onSelect={onSelect} density={density} now={now} freshness={freshness} trailing={where !== null && needs} />
-      {where !== null && menu.goTo({ where, shown: needs, className: "absolute right-1 top-1/2 -translate-y-1/2" })}
+      {/* AJ-E1554 R1: its tools at its end, over its App's marks (never the
+          title, never the dot); always up while it needs you. */}
+      <span className={"absolute right-1 top-1/2 z-10 flex -translate-y-1/2 items-center rounded-md bg-surface " + (where !== null && needs ? "" : "opacity-0 transition-opacity group-hover:opacity-100 group-has-[:focus-visible]:opacity-100 motion-reduce:transition-none")} data-testid="row-tools">
+        {menu.button({ label: `Session actions for ${sessionTitle(row)}`, shown: true })}
+        {where !== null && menu.goTo({ where, shown: true })}
+      </span>
       {/* I-03: a drifted model, a calm focusable note beside the row (level 1, never amber; AJ-E3603 R2); compact rows say it in the session view. */}
       {density === "comfortable" && modelDrift(row) && (
         <span
@@ -687,9 +692,6 @@ function BoardRow({
           ⇄
         </span>
       )}
-      {/* The ⋯ button for pointer-free access: 24 px square, the WCAG
-          2.2 minimum target (AJ-E804). */}
-      {menu.button({ label: `Session actions for ${sessionTitle(row)}`, className: "absolute bottom-0 left-0" })}
       {menu.element}
     </div>
   );
@@ -712,7 +714,7 @@ export function RailRow({
   freshness = {},
   trailing = false,
 }: {
-  /** Room for an always-shown ↗ at its end. */
+  /** Room for its always-shown tools (⋯ ↗) at its end. */
   trailing?: boolean;
   session: InstanceInfo;
   showProject?: boolean;
@@ -760,7 +762,7 @@ export function RailRow({
       data-rail-selected={selected ? "true" : undefined}
       onClick={() => onSelect(session.id)}
       className={
-        "tone-host relative flex w-full min-w-0 items-center gap-2.5 rounded-lg pl-2.5 text-left outline-none transition-colors focus-visible:ring-1 focus-visible:ring-accent/60 " + (trailing ? "pr-9 " : "pr-2 ") +
+        "tone-host relative flex w-full min-w-0 items-center gap-2.5 rounded-lg pl-2.5 text-left outline-none transition-colors focus-visible:ring-1 focus-visible:ring-accent/60 " + (trailing ? "pr-14 " : "pr-2 ") +
         (density === "compact" ? "py-1.5 " : "py-2 ") +
         (selected ? SELECTED_FILL : "hover:bg-surface/60") +
         // Ended rows are quieter by their title colour, never by opacity:

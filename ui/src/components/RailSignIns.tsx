@@ -5,6 +5,7 @@
  * that ended early stays, saying so, until Try again or Dismiss.
  */
 import type { JSX } from "react";
+import { SELECTED_FILL } from "./controls/selected";
 
 export function RailSignIns({
   terminals,
@@ -26,12 +27,16 @@ export function RailSignIns({
           type="button"
           onClick={() => onSelect(t.id)}
           className={
-            "relative flex min-w-0 w-full items-center gap-2 rounded-lg py-[7px] pl-3 pr-2.5 text-left outline-none transition-colors focus-visible:ring-1 focus-visible:ring-accent/60 " +
-            (t.id === selectedId ? "bg-surface" : "hover:bg-surface/60")
+            "relative flex min-w-0 w-full items-center gap-2 rounded-lg py-[7px] pl-1.5 pr-2.5 text-left outline-none transition-colors focus-visible:ring-1 focus-visible:ring-accent/60 " +
+            (t.id === selectedId ? SELECTED_FILL : "hover:bg-surface/60")
           }
+          data-testid="rail-sign-in"
         >
-          {t.id === selectedId && <span className="absolute left-0.5 top-1/2 h-4 w-[2px] -translate-y-1/2 rounded-full bg-accent" />}
-          <span className={"size-1.5 shrink-0 rounded-full " + (t.ended ? "bg-faint" : "bg-live animate-breathe")} />
+          {/* AJ-E1554 R1: the rail's slots: its dot in the gutter, its title,
+              its state at the end; selected by a fill, never an accent line (PAT-SURF). */}
+          <span aria-hidden="true" className="flex w-4 shrink-0 justify-center">
+            <span className={"size-1.5 rounded-full " + (t.ended ? "bg-faint" : "bg-live animate-breathe")} />
+          </span>
           <span className="min-w-0 flex-1 truncate text-meta">{t.title}</span>
           {t.state === "ended" && <span className="shrink-0 text-label text-muted">Didn't finish</span>}
         </button>
