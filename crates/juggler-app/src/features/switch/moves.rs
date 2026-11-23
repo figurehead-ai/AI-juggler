@@ -114,6 +114,23 @@ pub async fn switch_move_finish(
     .await
 }
 
+/// Tauri: AJ-E2325, Delete backup (the Moves door, by the move's id, after
+/// its sheet says the move can no longer be undone).
+///
+/// # Errors
+///
+/// As [`crate::features::handover::moving::retention::delete_backup`].
+#[tauri::command]
+pub async fn switch_move_delete_backup(
+    state: tauri::State<'_, Arc<AppState>>,
+    move_id: String,
+) -> AppResult<String> {
+    crate::ipc::blocking(state.inner(), "delete the move's backup", move |state| {
+        crate::features::handover::moving::retention::delete_backup(state, &move_id)
+    })
+    .await
+}
+
 /// Tauri: the moves AI Juggler knows of (Undo, and one left part way),
 /// newest first, a page at a time.
 ///

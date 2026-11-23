@@ -51,6 +51,16 @@ undo_why: string | null,
  */
 can_finish: boolean, 
 /**
+ * AJ-E2325: a committed move's backup is there (Undo restores from
+ * it; Delete backup lets it go).
+ */
+has_backup: boolean, 
+/**
+ * AJ-E2325: until when the policy keeps it (epoch ms); `None` with a
+ * backup: until the person deletes it.
+ */
+kept_until_ms: number | null, 
+/**
  * Its journal, one line per event, for Copy details.
  */
 timeline: Array<string>, 

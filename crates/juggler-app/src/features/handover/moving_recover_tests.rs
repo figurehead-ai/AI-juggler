@@ -278,3 +278,154 @@ fn a_second_move_of_the_same_family_leaves_the_first_moves_backups() {
         "{row:?}"
     );
 }
+
+// AJ-E2325: the backups' policy.
+use crate::features::handover::moving::retention::{self, FIRST_SWEEP_KEY, KEEP_KEY, Keep, Swept};
+
+const DAY: i64 = 24 * 60 * 60 * 1000;
+
+fn set(lab: &Lab, key: &str, value: &str) {
+    lab.state
+        .storage
+        .lock()
+        .unwrap()
+        .app_settings()
+        .set(key, value)
+        .unwrap();
+}
+
+fn move_dirs(lab: &Lab) -> usize {
+    std::fs::read_dir(moves_dir(&lab.state)).map_or(0, |d| d.count())
+}
+
+#[test]
+fn the_setting_reads_its_four_choices_seven_days_by_default() {
+    assert_eq!(retention::keep_of(None), Keep::Days(7));
+    assert_eq!(retention::keep_of(Some("1")), Keep::Days(1));
+    assert_eq!(retention::keep_of(Some("30")), Keep::Days(30));
+    assert_eq!(retention::keep_of(Some("forever")), Keep::UntilDeleted);
+    assert_eq!(retention::keep_of(Some("junk")), Keep::Days(7));
+    // R7: a backup older than the first sweep keeps the default's 7 days.
+    assert_eq!(retention::kept_until(0, Keep::Days(1), 10), Some(7 * DAY));
+    assert_eq!(retention::kept_until(20, Keep::Days(1), 10), Some(20 + DAY));
+    assert_eq!(retention::kept_until(0, Keep::UntilDeleted, 10), None);
+}
+
+#[test]
+fn a_refused_attempts_folder_goes_at_once_and_an_undone_moves_record_stays() {
+    if !clones() {
+        return;
+    }
+    let lab = lab();
+    let id = crashed(&lab, Crash::BackedUp, false);
+    let mut txn = hold::open_move(&lab.state.data_dir, &id).unwrap();
+    txn.undo(&Stopped::checked(), 1).unwrap();
+    assert_eq!(move_dirs(&lab), 1);
+    assert_eq!(retention::drop_refused(&lab.state), 1);
+    assert_eq!(move_dirs(&lab), 0, "nothing changed, nothing to undo");
+    // One undone after it changed files keeps its record (and work kept aside).
+    let Some((lab, system, done)) = moved() else {
+        return;
+    };
+    undo_with(&lab.state, &done.move_id, &system).unwrap();
+    assert_eq!(retention::drop_refused(&lab.state), 0);
+    assert!(moves(&lab.state).iter().any(|m| m.move_id == done.move_id));
+}
+
+#[test]
+fn a_committed_moves_backups_go_after_the_chosen_days_never_before() {
+    let Some((lab, _system, done)) = moved() else {
+        return;
+    };
+    let created = hold::open_move(&lab.state.data_dir, &done.move_id)
+        .unwrap()
+        .manifest
+        .created_ms;
+    // The first sweep ran before the move: its own time counts.
+    set(&lab, FIRST_SWEEP_KEY, &(created - 1).to_string());
+    set(&lab, KEEP_KEY, "1");
+    assert_eq!(
+        retention::sweep(&lab.state, created + DAY / 2),
+        Swept::default()
+    );
+    assert!(!backups(&lab).is_empty(), "kept for its day");
+    assert_eq!(retention::sweep(&lab.state, created + DAY + 1).retired, 1);
+    assert!(backups(&lab).is_empty());
+}
+
+#[test]
+fn backups_made_before_the_first_sweep_keep_seven_days_and_until_deleted_keeps_them() {
+    let Some((lab, _system, done)) = moved() else {
+        return;
+    };
+    let created = hold::open_move(&lab.state.data_dir, &done.move_id)
+        .unwrap()
+        .manifest
+        .created_ms;
+    set(&lab, KEEP_KEY, "1");
+    // The first sweep, two days after the move (a 0.5.0 backup).
+    assert_eq!(retention::sweep(&lab.state, created + 2 * DAY).retired, 0);
+    assert_eq!(retention::sweep(&lab.state, created + 6 * DAY).retired, 0);
+    set(&lab, KEEP_KEY, "forever");
+    assert_eq!(retention::sweep(&lab.state, created + 400 * DAY).retired, 0);
+    assert!(!backups(&lab).is_empty());
+    set(&lab, KEEP_KEY, "7");
+    assert_eq!(
+        retention::sweep(&lab.state, created + 7 * DAY + 1).retired,
+        1
+    );
+}
+
+#[test]
+fn the_sweep_never_runs_during_a_move_nor_touches_an_interrupted_one() {
+    if !clones() {
+        return;
+    }
+    let lab = lab();
+    let id = crashed(&lab, Crash::MidApply, true);
+    let later = juggler_core::model::Timestamp::now().millis() + 400 * DAY;
+    assert_eq!(retention::sweep(&lab.state, later), Swept::default());
+    assert!(
+        !backups(&lab).is_empty(),
+        "an interrupted move keeps its own"
+    );
+    assert_eq!(phase(&lab, &id), Phase::Applying);
+    // A move of this AI Juggler running: nothing at all.
+    let Some((lab, _system, _done)) = moved() else {
+        return;
+    };
+    let ids = vec![source_id(&lab)];
+    let _running = crate::features::places::MoveHold::take(&lab.state, &ids, "running").unwrap();
+    assert_eq!(retention::sweep(&lab.state, later), Swept::default());
+    assert!(!backups(&lab).is_empty());
+}
+
+#[test]
+fn delete_backup_by_its_id_ends_undo_and_never_takes_an_interrupted_ones() {
+    let Some((lab, _system, done)) = moved() else {
+        return;
+    };
+    let row = |lab: &Lab, id: &str| {
+        moves(&lab.state)
+            .into_iter()
+            .find(|m| m.move_id == id)
+            .unwrap()
+    };
+    let before = row(&lab, &done.move_id);
+    assert!(before.has_backup && before.can_undo, "{before:?}");
+    assert!(
+        before.kept_until_ms.is_some(),
+        "kept until a date by default"
+    );
+    let said = retention::delete_backup(&lab.state, &done.move_id).unwrap();
+    assert!(said.contains("can no longer be undone"), "{said}");
+    let after = row(&lab, &done.move_id);
+    assert!(
+        !after.has_backup && !after.can_undo && after.undo_why.is_some(),
+        "{after:?}"
+    );
+    let other = super::lab();
+    let id = crashed(&other, Crash::Verified, true);
+    assert!(retention::delete_backup(&other.state, &id).is_err());
+    assert!(retention::delete_backup(&other.state, "../x").is_err());
+}

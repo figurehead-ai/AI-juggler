@@ -32,6 +32,7 @@ declare global {
     __AIJ_MOVE_UNDONE__?: MoveUndoneInfo;
     __AIJ_MOVES__?: MoveRecordInfo[];
     __AIJ_MOVE_FINISHED__?: MoveFinishedInfo;
+    __AIJ_MOVE_BACKUP_DELETED__?: string;
   }
 }
 
@@ -115,4 +116,11 @@ export async function switchMoves(): Promise<MoveRecordInfo[]> {
 export async function switchMoveFinish(moveId: string): Promise<MoveFinishedInfo> {
   if (!hasLiveBackend()) return window.__AIJ_MOVE_FINISHED__ ?? { words: "Finished: the conversation stays where it moved, checked once more." };
   return call("switch_move_finish", { moveId });
+}
+
+/** AJ-E2325: deletes a finished move's backup (its Undo goes with it), by
+ * its id, after the sheet says so. Returns the words. */
+export async function switchMoveDeleteBackup(moveId: string): Promise<string> {
+  if (!hasLiveBackend()) return window.__AIJ_MOVE_BACKUP_DELETED__ ?? "Backup deleted: this move can no longer be undone.";
+  return call("switch_move_delete_backup", { moveId });
 }

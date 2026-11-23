@@ -1188,6 +1188,8 @@ export interface Commands {
   switch_execute: { args: { sessionId: string; targetProfileId: string; freezeChoice: string; redactionChoice?: string | null; redactionUnredact?: number[] | null; trigger?: string | null; approved?: string[] | null; destination?: string | null; targetPlaceId?: string | null; cut?: SwitchCutArgs | null }; result: SwitchExecutedInfo };
   /** Read features::switch::commands::switch_graph_overview */
   switch_graph_overview: { args: { projectId: string }; result: WorkGraphInfo[] };
+  /** Write features::switch::moves::switch_move_delete_backup */
+  switch_move_delete_backup: { args: { moveId: string }; result: string };
   /** Write features::switch::moves::switch_move_execute */
   switch_move_execute: { args: { sessionId: string; targetProfileId: string; targetPlaceId?: string | null; takeNotes?: boolean | null }; result: MoveDoneInfo };
   /** Write features::switch::moves::switch_move_finish */

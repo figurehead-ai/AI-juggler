@@ -123,18 +123,28 @@ pub fn at_startup(state: &Arc<AppState>) {
     let state = Arc::clone(state);
     let _ = std::thread::Builder::new()
         .name("move-recovery".into())
-        .spawn(move || startup_settle(&state, &claimed, &Real::quiet()));
+        .spawn(move || {
+            startup_settle(&state, &claimed, &Real::quiet());
+            // AJ-E2325: the backups' sweep once a day after the start's.
+            loop {
+                std::thread::sleep(std::time::Duration::from_hours(24));
+                super::retention::sweep(&state, crate::commands::now_millis());
+            }
+        });
 }
 
 /// [`at_startup`]'s background half: what was claimed settled, then the
-/// backups of undone moves let go (0.4.9: nothing is left to restore from
-/// them). Committed and interrupted moves keep theirs.
+/// backups' policy ([`super::retention`]) and the backups of undone moves
+/// let go (0.4.9: nothing is left to restore from them). Interrupted
+/// moves keep theirs.
 pub(crate) fn startup_settle(
     state: &Arc<AppState>,
     claimed: &[(String, Settle)],
     system: &dyn MoveSystem,
 ) {
     settle(state, claimed, system);
+    // AJ-E2325: after recovery, the backups' policy.
+    super::retention::sweep(state, crate::commands::now_millis());
     for folder in hold::journal_folders(&state.data_dir) {
         let went = juggler_handover::moving::sweep_undone(&folder);
         if went > 0 {

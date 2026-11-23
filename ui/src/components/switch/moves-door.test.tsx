@@ -9,7 +9,7 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { JSX } from "react";
-import { MoveRows, detailsOf, stateWords, useMoves } from "./MovesDoor";
+import { MoveRows, detailsOf, keptWords, stateWords, useMoves } from "./MovesDoor";
 import type { MoveRecordInfo } from "../../lib/ipc/switch-move";
 
 const move = (over: Partial<MoveRecordInfo>): MoveRecordInfo => ({
@@ -24,6 +24,8 @@ const move = (over: Partial<MoveRecordInfo>): MoveRecordInfo => ({
   can_undo: true,
   undo_why: null,
   can_finish: false,
+  has_backup: false,
+  kept_until_ms: null,
   timeline: ["phase: phase planned", "intent: step 1"],
   kept: [],
   ...over,
@@ -41,6 +43,7 @@ afterEach(() => {
   delete window.__AIJ_MOVES__;
   delete window.__AIJ_MOVE_UNDONE__;
   delete window.__AIJ_MOVE_FINISHED__;
+  delete window.__AIJ_MOVE_BACKUP_DELETED__;
 });
 
 describe("Moves door", () => {
@@ -120,5 +123,25 @@ describe("Moves door", () => {
     render(<MovesDoor />);
     fireEvent.click(await screen.findByTestId("move-copy"));
     expect(write).toHaveBeenCalledWith(text);
+  });
+
+  it("AJ-E2325: a finished move's backup says until when it is kept", () => {
+    expect(keptWords(move({}))).toBeNull();
+    expect(keptWords(move({ has_backup: true, kept_until_ms: null }))).toBe("Backup kept until you delete it");
+    expect(keptWords(move({ has_backup: true, kept_until_ms: new Date(2026, 10, 30).getTime() }))).toBe("Backup kept until Nov 30");
+  });
+
+  it("AJ-E2325: Delete backup says Undo goes with it, Keep cancels, and it deletes only on its confirm", async () => {
+    window.__AIJ_MOVES__ = [move({ has_backup: true, kept_until_ms: new Date(2026, 10, 30).getTime() })];
+    render(<MovesDoor />);
+    expect((await screen.findByTestId("move-kept-until")).textContent).toBe("Backup kept until Nov 30");
+    fireEvent.click(screen.getByTestId("move-delete"));
+    expect((await screen.findByTestId("move-delete-sheet")).textContent).toContain("You can no longer undo this move.");
+    fireEvent.click(screen.getByText("Keep"));
+    await waitFor(() => expect(screen.queryByTestId("move-delete-sheet")).toBeNull());
+    expect(screen.queryByTestId("move-said")).toBeNull();
+    fireEvent.click(screen.getByTestId("move-delete"));
+    fireEvent.click(await screen.findByTestId("move-delete-confirm"));
+    expect((await screen.findByTestId("move-said")).textContent).toContain("can no longer be undone");
   });
 });

@@ -812,6 +812,16 @@ impl Transaction {
             .all(|name| std::fs::symlink_metadata(backups.join(name)).is_ok())
     }
 
+    /// AJ-E2325: whether the move ever began changing files (its journal
+    /// reached applying). An undone move that never did was a refused
+    /// attempt: nothing to undo, nothing kept aside.
+    #[must_use]
+    pub fn ever_applied(&self) -> bool {
+        self.journal()
+            .iter()
+            .any(|line| line["event"] == "phase" && line["phase"] == "applying")
+    }
+
     /// AJ-E2321: the journal, line by line (a torn last line left out),
     /// for the move's timeline in Copy details.
     #[must_use]

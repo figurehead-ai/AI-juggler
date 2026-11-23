@@ -42,6 +42,13 @@ pub struct MoveRecordInfo {
     /// Finish is offered: it stopped after its checks passed, before the
     /// apps reopened.
     pub can_finish: bool,
+    /// AJ-E2325: a committed move's backup is there (Undo restores from
+    /// it; Delete backup lets it go).
+    pub has_backup: bool,
+    /// AJ-E2325: until when the policy keeps it (epoch ms); `None` with a
+    /// backup: until the person deletes it.
+    #[ts(type = "number | null")]
+    pub kept_until_ms: Option<i64>,
     /// Its journal, one line per event, for Copy details.
     pub timeline: Vec<String>,
     /// What it keeps where it was on purpose (output folders old messages
@@ -108,6 +115,13 @@ fn side_name(state: &Arc<AppState>, txn: &Transaction, host: Option<&Path>, tool
             .map(|place| crate::features::places::named(state, &place))
     });
     named.unwrap_or_else(|| shown(host.unwrap_or(tool)))
+}
+
+/// Whether `txn` is committed with its backups there.
+fn committed_backup(txn: &Transaction) -> bool {
+    txn.manifest.phase == Phase::Committed
+        && txn.backups_kept()
+        && txn.manifest.entries.iter().any(|e| e.backup.is_some())
 }
 
 /// One journal line in words: its event, then what it names.
@@ -188,6 +202,10 @@ pub fn moves(state: &Arc<AppState>) -> Vec<MoveRecordInfo> {
                 },
                 undo_why,
                 can_finish: label == "interrupted" && manifest.phase == Phase::Verified,
+                has_backup: committed_backup(txn),
+                kept_until_ms: committed_backup(txn)
+                    .then(|| super::retention::kept_until_of(state, txn))
+                    .flatten(),
                 timeline: txn.journal().iter().map(line_words).collect(),
                 kept: txn.dependencies().iter().map(|path| shown(path)).collect(),
             }

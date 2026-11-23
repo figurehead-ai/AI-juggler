@@ -11,7 +11,7 @@ import { useCallback, useEffect, useState, type JSX } from "react";
 import { Modal } from "../form";
 import { Button } from "../primitives";
 import { errorText } from "../../lib/bridge";
-import { switchMoveFinish, switchMoveUndo, switchMoves, type MoveRecordInfo } from "../../lib/ipc/switch-move";
+import { switchMoveDeleteBackup, switchMoveFinish, switchMoveUndo, switchMoves, type MoveRecordInfo } from "../../lib/ipc/switch-move";
 
 /** "Nov 22". */
 function dayOf(ms: number): string {
@@ -88,8 +88,39 @@ function UndoSheet({ move, busy, onCancel, onConfirm }: { move: MoveRecordInfo; 
   );
 }
 
+/** "Backup kept until Nov 30" / "Backup kept until you delete it". */
+export function keptWords(move: MoveRecordInfo): string | null {
+  if (!move.has_backup) return null;
+  return move.kept_until_ms === null ? "Backup kept until you delete it" : `Backup kept until ${dayOf(move.kept_until_ms)}`;
+}
+
+function DeleteSheet({ move, busy, onCancel, onConfirm }: { move: MoveRecordInfo; busy: boolean; onCancel: () => void; onConfirm: () => void }): JSX.Element {
+  return (
+    <Modal
+      title={`Delete the backup of “${move.title ?? "this conversation"}”?`}
+      subtitle="You can no longer undo this move."
+      onClose={onCancel}
+      testId="move-delete-sheet"
+      footer={
+        <>
+          <Button size="sm" variant="secondary" onClick={onCancel} data-autofocus>
+            Keep
+          </Button>
+          <Button size="sm" variant="danger" disabled={busy} onClick={onConfirm} data-testid="move-delete-confirm">
+            {busy ? "Deleting…" : "Delete backup"}
+          </Button>
+        </>
+      }
+    >
+      <p className="text-body text-ink-2" data-modal-body>
+        The conversation stays in {move.to}; only the copy Undo restores from goes.
+      </p>
+    </Modal>
+  );
+}
+
 function MoveRow({ move, onChanged }: { move: MoveRecordInfo; onChanged: () => void }): JSX.Element {
-  const [asking, setAsking] = useState(false);
+  const [asking, setAsking] = useState<"undo" | "delete" | null>(null);
   const [busy, setBusy] = useState(false);
   const [said, setSaid] = useState<{ words: string; failed: boolean } | null>(null);
   const act = (run: () => Promise<{ words: string }>) => {
@@ -102,7 +133,7 @@ function MoveRow({ move, onChanged }: { move: MoveRecordInfo; onChanged: () => v
       )
       .finally(() => {
         setBusy(false);
-        setAsking(false);
+        setAsking(null);
         onChanged();
       });
   };
@@ -115,6 +146,11 @@ function MoveRow({ move, onChanged }: { move: MoveRecordInfo; onChanged: () => v
       </span>
       {move.state === "interrupted" && move.detail && <span className="text-meta text-ink-2">{`${move.detail}.`}</span>}
       {move.undo_why && <span className="text-meta text-muted">{`Can't be undone: ${move.undo_why}.`}</span>}
+      {keptWords(move) && (
+        <span className="text-meta text-ink-2" data-testid="move-kept-until">
+          {keptWords(move)}
+        </span>
+      )}
       <div className="flex flex-wrap items-center gap-2">
         {move.can_finish && (
           <Button size="sm" variant="primary" disabled={busy} onClick={() => act(() => switchMoveFinish(move.move_id))} data-testid="move-finish">
@@ -122,8 +158,13 @@ function MoveRow({ move, onChanged }: { move: MoveRecordInfo; onChanged: () => v
           </Button>
         )}
         {move.can_undo && (
-          <Button size="sm" variant="secondary" disabled={busy} onClick={() => setAsking(true)} data-testid="move-undo">
+          <Button size="sm" variant="secondary" disabled={busy} onClick={() => setAsking("undo")} data-testid="move-undo">
             Undo…
+          </Button>
+        )}
+        {move.has_backup && (
+          <Button size="sm" variant="secondary" disabled={busy} onClick={() => setAsking("delete")} data-testid="move-delete">
+            Delete backup…
           </Button>
         )}
         <Button size="sm" variant="ghost" onClick={copy} data-testid="move-copy">
@@ -135,7 +176,8 @@ function MoveRow({ move, onChanged }: { move: MoveRecordInfo; onChanged: () => v
           {said.words}
         </output>
       )}
-      {asking && <UndoSheet move={move} busy={busy} onCancel={() => setAsking(false)} onConfirm={() => act(() => switchMoveUndo(move.move_id))} />}
+      {asking === "undo" && <UndoSheet move={move} busy={busy} onCancel={() => setAsking(null)} onConfirm={() => act(() => switchMoveUndo(move.move_id))} />}
+      {asking === "delete" && <DeleteSheet move={move} busy={busy} onCancel={() => setAsking(null)} onConfirm={() => act(() => switchMoveDeleteBackup(move.move_id).then((words) => ({ words })))} />}
     </li>
   );
 }
