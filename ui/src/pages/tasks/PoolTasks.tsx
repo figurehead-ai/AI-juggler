@@ -21,7 +21,8 @@ import { refreshPaged, usePagedList } from "../../lib/paged";
 import { usePoolPlace, usePools } from "../../lib/pools";
 import { rememberTab } from "../registry";
 import { useActionHost } from "../../components/ItemMenu";
-import { focusTask, onTasksChanged, takeFocusedTask, tasksList, tasksOfSession, tasksPlan, useTaskCounts, type TaskCounts, type TaskInfo } from "../../lib/ipc/tasks";
+import { focusTask, onTasksChanged, takeFocusedTask, tasksList, tasksOfSession, tasksPlan, type TaskCounts, type TaskInfo } from "../../lib/ipc/tasks";
+import { useTaskCounts } from "../../lib/task-counts";
 import { TaskRow } from "./TaskRow";
 import { TaskTree } from "./TaskTree";
 import { TaskView } from "./TaskView";
@@ -61,7 +62,7 @@ export function PoolTasks({ poolId, sessions, projects, now }: { poolId: string;
   const [open, setOpen] = useState<string | null>(takeFocusedTask);
   useTasksRefresh();
   const { words, setWords, query } = useTaskSearch();
-  const counts = useTaskCounts(poolId);
+  const counts = useTaskCounts(poolId).counts;
   const list = usePagedList(`tasks:${poolId}:${filter}:${query}`, (page) => tasksList(poolId, filter, query || null, page), { pageSize: LIST_PAGE, keyOf: (task) => task.id });
   // The plan's folds.
   const plan = usePagedList(`tasks-plan:${poolId}`, (page) => tasksPlan(poolId, page), { pageSize: PLAN_PAGE, keyOf: (task) => task.id });

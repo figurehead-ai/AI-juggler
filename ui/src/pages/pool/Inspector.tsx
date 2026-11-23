@@ -19,7 +19,7 @@ import { inspectorHead, type HeadOf, type InspectorHead } from "./inspector-head
 import { ScrollEdge } from "../../components/ScrollEdge";
 import { SELECTED_EDGE } from "./selection";
 import { sessionAlert } from "./NodeParts";
-import { OverviewFoot, PoolProgress, RunningSummary, SetupView, type InspectorSetup } from "./PoolOverview";
+import { OverviewFoot, PoolProgress, RunningSummary, SetupView, type CanvasRead, type InspectorSetup } from "./PoolOverview";
 import type { SetupPhase, SetupProgress } from "./setup-progress";
 
 import type { ProjectInfo } from "../../types/generated/ProjectInfo";
@@ -265,7 +265,9 @@ export const Inspector = forwardRef<HTMLHeadingElement, {
   onEdit: () => void;
   /** The App whose next session leads, by name. */
   leadNext: string | null;
-}>(function Inspector({ pool, project, canvas, members, open, names, selection, now, onSelect, onOpenTask, onDeleted, rules, ruleLabel, ruleTool, where, needs, setup, leadDir, setupSections, phase, progress, hidden, onHide, onEdit, leadNext }, heading): JSX.Element {
+  /** AJ-E1552: the canvas's last read failure, and reading it again. */
+  canvasRead?: CanvasRead;
+}>(function Inspector({ pool, project, canvas, canvasRead, members, open, names, selection, now, onSelect, onOpenTask, onDeleted, rules, ruleLabel, ruleTool, where, needs, setup, leadDir, setupSections, phase, progress, hidden, onHide, onEdit, leadNext }, heading): JSX.Element {
   const member = selection.kind === "node" ? members.find((row) => row.id === selection.id) : undefined;
   const rule = selection.kind === "rule" ? rules.rules?.members.find((row) => row.member === selection.ref) : undefined;
   const watched = selection.kind === "rule" ? rules.watched.find((row) => row.member === selection.ref) : undefined;
@@ -276,7 +278,7 @@ export const Inspector = forwardRef<HTMLHeadingElement, {
   const head = inspectorHead(of);
   // The selected card and the inspector are linked by the same accent.
   const linked = of.kind !== "pool";
-  const overview = { pool, canvas, members, open, rules, ruleLabel, where, needs, now, setup, progress, onSelect };
+  const overview = { pool, canvas, canvasRead, members, open, rules, ruleLabel, where, needs, now, setup, progress, onSelect };
   // Setting up, the checklist's title heads the panel (the pool's own
   // title stays for screen readers and focus).
   const quietHead = selection.kind === "none" && phase === "setup";

@@ -24,6 +24,7 @@ const BY_DESIGN: Record<string, string> = {
   "components/Placeholder.tsx": "the row placeholders themselves",
   "components/ScreenBoundary.tsx": "AreaSkeleton, drawn only as a lazy part's Suspense fallback (AJ-E1549)",
   "shell/screens.tsx": "the Privacy redirect's one frame (AJ-E1549)",
+  "pages/pool/PoolPanel.tsx": "the Tasks and Messages tabs' list skeletons, drawn only as a lazy part's fallback while its code loads (AJ-E1552)",
 };
 
 /** Before the primitive (AJ-E1552): the skeletons each draws today. Only
@@ -37,10 +38,6 @@ const LEGACY: Record<string, number> = {
   "components/charts/StatTile.tsx": 1,
   "components/switch/SwitchHeader.tsx": 1,
   "components/usage/RunwayCards.tsx": 1,
-  "pages/PoolPage.tsx": 1,
-  "pages/pool/InspectNode.tsx": 1,
-  "pages/pool/PoolOverview.tsx": 2,
-  "pages/pool/PoolPanel.tsx": 2,
   "pages/subagents/SubagentDetail.tsx": 2,
   "pages/subagents/SubagentsView.tsx": 1,
   "pages/subscription/AccountApps.tsx": 3,

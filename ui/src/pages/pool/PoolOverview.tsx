@@ -13,15 +13,17 @@
  * The pool's own settings (selected: the pool) keep its summary in
  * sentences and the checklist as one line (`PoolProgress`).
  */
-import type { JSX } from "react";
+import { useState, type JSX } from "react";
 
 import { Alert } from "../../components/Alert";
+import { LoadingState } from "../../components/LoadingState";
+import { useReadState } from "../../lib/loading";
 import { IconChevronRight } from "../../components/icons-controls";
 import { STREAM_LINES, type PoolCanvasInfo } from "../../lib/ipc/pool-canvas";
 import type { PoolRuleInfo } from "../../lib/ipc/pool-model";
 import type { PoolInfo } from "../../lib/ipc/pools";
 import type { InstanceInfo } from "../../types/generated/InstanceInfo";
-import { useTaskCounts } from "../../lib/ipc/tasks";
+import { useTaskCounts } from "../../lib/task-counts";
 import { nextLine } from "../../lib/pool-sentences";
 import { stepValues } from "../../lib/pool-values";
 import type { SetupRow } from "../../lib/pool-setup";
@@ -57,9 +59,14 @@ export type InspectorSetup = {
  * member by its name's head, so what's held goes with it). */
 const withHeld = (members: readonly MemberNode[], held: readonly HeldMember[] = []) => [...members, ...held.map((one) => ({ id: one.id, name: `${one.name.split(" · ")[0]} (in ${one.by}, sealed)`, role: "member" }))];
 
+/** The canvas's read: its last failure and Retry. */
+export type CanvasRead = { failed: unknown; reread: () => void };
+
 type OverviewProps = {
   pool: PoolInfo;
   canvas: PoolCanvasInfo | null;
+  /** AJ-E1552: why the canvas's last read failed, and reading it again. */
+  canvasRead?: CanvasRead;
   members: readonly MemberNode[];
   /** Its sessions open now, as its header counts them (F-rc3g-8: past 50
    * the canvas draws a member's as one card, never "Nothing open now"). */
@@ -117,13 +124,29 @@ function nowWords(open: readonly InstanceInfo[]): string {
   return parts.join(" · ") || "Nothing open now";
 }
 
+/** A fact read from elsewhere: its words once read, why it failed, how
+ * many Retries, and Retry. */
+type FactRead = { value: string | null; what: string; failed: unknown; round: number; retry: () => void };
+
 /** "3 open · 1 in review", read with the pool's tasks. */
-function useTaskWords(poolId: string): string | null {
-  const counts = useTaskCounts(poolId);
-  if (!counts) return null;
+function useTaskWords(poolId: string): FactRead {
+  const { counts, failed, round, retry } = useTaskCounts(poolId);
+  const read = { what: "its tasks", failed, round, retry };
+  if (!counts) return { ...read, value: null };
   const open = counts.ready + counts.todo + counts.in_progress + counts.in_review + counts.blocked;
-  if (open === 0) return "None open";
-  return [`${open} open`, counts.in_review > 0 ? `${counts.in_review} in review` : null, counts.blocked > 0 ? `${counts.blocked} blocked` : null].filter(Boolean).join(" · ");
+  if (open === 0) return { ...read, value: "None open" };
+  return { ...read, value: [`${open} open`, counts.in_review > 0 ? `${counts.in_review} in review` : null, counts.blocked > 0 ? `${counts.blocked} blocked` : null].filter(Boolean).join(" · ") };
+}
+
+/** AJ-E1552: a fact's value, a skeleton only while it's read, then an
+ * error with Retry (one value: never empty). */
+function FactValue({ fact, testId }: { fact: FactRead; testId: string }): JSX.Element {
+  const read = useReadState(fact.value, fact.what, { error: fact.failed, round: fact.round, isEmpty: () => false });
+  return (
+    <LoadingState state={read.state} slow={read.slow} what={fact.what} skeleton={<span className="inline-block h-3.5 w-24 rounded bg-skeleton motion-safe:animate-pulse" aria-label="Reading" data-testid={testId} />} empty={null} onRetry={fact.retry}>
+      {fact.value}
+    </LoadingState>
+  );
 }
 
 /** "14 · last 2 min ago": the pool's messages this week, every kind its
@@ -144,15 +167,26 @@ export function messageWords(canvas: PoolCanvasInfo | null, now: number): string
 
 /** Running: the pool in a few calm facts, then Live. */
 export function RunningSummary(props: OverviewProps & { leadNext: string | null }): JSX.Element {
-  const { pool, members, open, canvas, now, leadNext } = props;
+  const { pool, members, open, canvas, canvasRead, now, leadNext } = props;
   const tasks = useTaskWords(pool.id);
+  const [canvasRound, setCanvasRound] = useState(0);
+  const messages: FactRead = {
+    value: messageWords(canvas, now),
+    what: "its messages",
+    failed: canvasRead?.failed,
+    round: canvasRound,
+    retry: () => {
+      setCanvasRound((was) => was + 1);
+      canvasRead?.reread();
+    },
+  };
   const lead = members.find((member) => member.role === "lead");
-  const facts: [string, string | null, string][] = [
+  const facts: [string, string | FactRead, string][] = [
     ["Now", nowWords(open), "now"],
     ["Tasks", tasks, "tasks"],
     ["Lead", lead ? lead.name : leadNext ? nextSessionWords(leadNext) : "No lead for now", "lead"],
     ["On their own", ownMay(pool.access.level, pickedCount(pool)), "own"],
-    ["Messages this week", messageWords(canvas, now), "messages"],
+    ["Messages this week", messages, "messages"],
   ];
   return (
     <>
@@ -160,7 +194,7 @@ export function RunningSummary(props: OverviewProps & { leadNext: string | null 
         {facts.map(([term, value, key]) => (
           <div key={key} className="flex flex-col gap-0.5" data-fact={key}>
             <dt className="section-label">{term}</dt>
-            <dd className="text-meta text-ink">{value ?? <span className="inline-block h-3.5 w-24 rounded bg-skeleton motion-safe:animate-pulse" aria-label="Reading" />}</dd>
+            <dd className="text-meta text-ink">{typeof value === "string" ? value : <FactValue fact={value} testId={`fact-${key}-skeleton`} />}</dd>
           </div>
         ))}
       </dl>
@@ -172,21 +206,35 @@ export function RunningSummary(props: OverviewProps & { leadNext: string | null 
 /** The pool's Live stream: shown while it has members, and for an empty
  * one (or one being set up, `quietWhenEmpty`) only once it says something
  * (who just left, P5 step 4). */
-function Live({ pool, canvas, now, onSelect, quietWhenEmpty = false }: OverviewProps & { quietWhenEmpty?: boolean }): JSX.Element {
+function Live({ pool, canvas, canvasRead, now, onSelect, quietWhenEmpty = false }: OverviewProps & { quietWhenEmpty?: boolean }): JSX.Element {
   const empty = pool.members === 0;
+  // AJ-E1552: a skeleton only while the canvas is read, then an error with
+  // Retry; read and quiet, its own words.
+  const [round, setRound] = useState(0);
+  const read = useReadState(canvas, "the pool's activity", { error: canvasRead?.failed, round, isEmpty: (info) => info.stream.length === 0 });
   const said = (canvas?.stream.length ?? 0) > 0;
   const live = quietWhenEmpty ? said : !empty || said;
   return (
     <div className="flex flex-col" data-testid="inspect-activity">
       {live && (
         <Section title="Live" testId="inspect-stream">
-          {canvas === null ? (
-            <output className="h-16 rounded-lg bg-skeleton motion-safe:animate-pulse" aria-label="Reading the pool's activity" />
-          ) : canvas.stream.length === 0 ? (
-            <p className="text-label text-muted">Nothing yet. Messages and task changes between its agents show here as they happen.</p>
-          ) : (
+          <LoadingState
+            state={read.state}
+            slow={read.slow}
+            what="the pool's activity"
+            skeleton={<output className="h-16 rounded-lg bg-skeleton motion-safe:animate-pulse" aria-label="Reading the pool's activity" data-testid="inspect-stream-skeleton" />}
+            empty={
+              <p className="text-label text-muted" data-testid="inspect-stream-empty">
+                Nothing yet. Messages and task changes between its agents show here as they happen.
+              </p>
+            }
+            onRetry={() => {
+              setRound((was) => was + 1);
+              canvasRead?.reread();
+            }}
+          >
             <ol className="flex flex-col gap-2" aria-live="polite" aria-relevant="additions">
-              {canvas.stream.map((line, index) => (
+              {(canvas?.stream ?? []).map((line, index) => (
                 <li key={`${line.at_ms}-${index}`} className="flex gap-2 text-meta">
                   <span className="w-[4.75rem] shrink-0 whitespace-nowrap text-label tabular-nums text-faint">{agoWords(line.at_ms, now)}</span>
                   {line.session_id ? (
@@ -203,7 +251,7 @@ function Live({ pool, canvas, now, onSelect, quietWhenEmpty = false }: OverviewP
                 </li>
               ))}
             </ol>
-          )}
+          </LoadingState>
           {!empty && <p className="text-label text-faint">Select a member or an edge and this panel shows its tasks, messages, usage and rules.</p>}
         </Section>
       )}
