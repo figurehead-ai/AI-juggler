@@ -216,7 +216,7 @@
 | AJ-E2319 | PASS5 | 2026-11-23 | [manifest](AJ-E2319/manifest.md) |
 | AJ-E2320 | PASS4 | 2026-11-23 | [manifest](AJ-E2320/manifest.md) |
 | AJ-E2321 | PASS4 | 2026-11-23 | [manifest](AJ-E2321/manifest.md) |
-| AJ-E2325 | NOT_DONE3 PARTIAL1 PASS3 | 2026-11-23 | [manifest](AJ-E2325/manifest.md) |
+| AJ-E2325 | PASS3 UNPROVEN4 | 2026-11-23 | [manifest](AJ-E2325/manifest.md) |
 | AJ-E2323 | PASS2 | 2026-11-23 | [manifest](AJ-E2323/manifest.md) |
 | AJ-E2327 | PASS6 | 2026-11-23 | [manifest](AJ-E2327/manifest.md) |
 | AJ-E2328 | PASS11 | 2026-11-23 | [manifest](AJ-E2328/manifest.md) |
