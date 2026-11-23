@@ -273,6 +273,9 @@ pub async fn ai_model_remove(
     model_id: String,
 ) -> AppResult<ModelsInfo> {
     on_model(state, model_id, move |state, model_id| {
+        // A loaded helper holds the file open: let it go first, or the
+        // disk stays full until its idle exit (AJ-E3821).
+        crate::features::ai::service::release_engines();
         let removed = store::shared(&state.data_dir)
             .remove(&model_id)
             .map_err(|error| AppError::Io {

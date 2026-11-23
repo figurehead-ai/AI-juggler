@@ -319,6 +319,17 @@ pub fn set_pick(
     answer_now(state, Probe::Never)
 }
 
+/// Before a model's file is removed: every engine lets go of what it
+/// holds, so a loaded helper exits (its drop kills and reaps it) and the
+/// file's space is free the moment Remove says so (AJ-E3821; the Qwen
+/// check found an idle helper pinning the deleted file for minutes).
+/// Nothing to do when no job has asked yet.
+pub fn release_engines() {
+    if let Some(service) = SERVICE.get() {
+        service.engines().release();
+    }
+}
+
 /// After `model_id` was removed: every job picked for it goes back to
 /// Automatic, as the Remove confirmation says.
 ///
