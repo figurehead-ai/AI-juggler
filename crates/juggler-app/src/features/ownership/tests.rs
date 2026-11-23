@@ -353,7 +353,7 @@ fn an_untrusted_instance_flag_is_decided_by_the_lock_its_process_holds() {
 /// processes are its own, whichever runs, by its main process and flag.
 #[test]
 fn two_profiles_on_one_account_keep_their_own_processes() {
-    let code = code("/Users/you/Library/Application Support/ClaudeCodeProfiles/shared");
+    let code = code("/Users/you/Library/Application Support/ClaudeCodeProfiles/team-a");
     let t: Table = code_tab(10, WORK, &code)
         .into_iter()
         .chain(code_tab(20, OTHER, &code))
