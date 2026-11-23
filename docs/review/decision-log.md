@@ -3808,3 +3808,14 @@ Every session and agent brief carries this rule.
 - **One name** (supersedes D-62's label, not its meaning): every switch action is "Switch account…" (the row menus, Home's needs, the notices, the palette, the shortcut sheet), its dialog "Switch account", and the card behind the button "Apps that can take it over". The destination is still named as its App and Account ("Claude Code CLI · Personal").
 - **Recorded as** DESIGN-SYSTEM PAT-SW, checked by VALIDATION N21 and a walk step: from any session page, the switch is one visible click.
 - Sources: the coordinating session's messages, 2026-11-21, quoting the maintainer.
+
+### D-144 "Bot" is AI and conversation only; all search is Search (⌘K); with no AI, Bot shows only "Set up Bot" — SETTLED (2026-11-23)
+
+- **Ruling** (the maintainer, through the coordinating session, 2026-11-23, after finding Bot's composer line "Look-ups need no AI…" confusing: "how does the bot work then?"): "Bot" is reserved for AI and conversation, period. Plain search never lives in Bot's input; all search belongs to Search (⌘K). It replaces the coordinator's footer amendment of the same day.
+- **With an AI ready**, Bot is conversational. Its record look-ups stay as the AI's own tools for grounding and cited links, never a user-facing mode; answers always come from the AI, and a question the records can't answer gets the AI's own "I don't know" with what it checked.
+- **With no AI**, Bot's icon stays (a headline feature), but its panel shows only "Set up Bot": the engine-setup guide (AJ-E3823: Apple's AI first, Qwen named, guided), no input box and no results. This is D-127's "disabled only if the user can clear it".
+- **Search (⌘K) takes over** what the no-AI Bot did: the record look-ups (sessions, tasks, pools, usage); the "Or go straight to" shortcuts (What needs me, What finished today, Runway by account, What's running) as suggested entries; "Watch a session…" as a command. One search, no duplicate.
+- **"Ask Bot"** anywhere (Watches and others) shows only when Bot's AI is ready; otherwise it is hidden (D-127).
+- **Words:** Bot is introduced everywhere (Welcome's lead card, Meet Bot, the tour) as "your AI assistant for everything AI Juggler sees"; no "look-ups" wording anywhere.
+- **Amends** D-131's Bot rows (the look-up view as Bot's default and no-model path) and ADR-0033's look-up Bot; ADR-0034's Chat section, E38's tasks and the design system follow. Built in 0.5.1 under AJ-E3823 (and AJ-E1545/E1546 for the words); the persona walk checks both states.
+- Sources: the coordinating session's messages, 2026-11-23, quoting the maintainer.
