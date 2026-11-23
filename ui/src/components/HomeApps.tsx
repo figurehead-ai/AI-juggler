@@ -196,7 +196,9 @@ function OpenRow({ group, appId, kept, needsKnown }: { group: RailGroup; appId: 
 
 /** A CLI App with nothing open (D-100): its page by its name; Start opens
  * New session on it (a CLI App runs in a session), as the rail's idle CLI
- * App does. */
+ * App does: by its own folder, which is how the sheet knows an App
+ * (AJ-E2314 L6: the stored Account it sent matched none, and the sheet
+ * opened on another App). */
 function CliRow({ app }: { app: AppModel }): JSX.Element {
   const name = appName(app.app, app.profile);
   return (
@@ -214,7 +216,7 @@ function CliRow({ app }: { app: AppModel }): JSX.Element {
       place={app.railKey}
       lit={false}
       action={
-        <button type="button" className={GHOST} aria-label={`Start a new session in ${name}`} title={`New session in ${name}`} onClick={() => window.dispatchEvent(new CustomEvent("aij:new-session", { detail: { accountId: app.accountId } }))}>
+        <button type="button" className={GHOST} aria-label={`Start a new session in ${name}`} title={`New session in ${name}`} onClick={() => window.dispatchEvent(new CustomEvent("aij:new-session", { detail: { accountId: app.folder?.id ?? app.accountId } }))}>
           Start
         </button>
       }

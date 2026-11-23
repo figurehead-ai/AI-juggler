@@ -219,8 +219,9 @@ export function ShellOverlays({ shell }: { shell: Shell }): JSX.Element {
       <ReportBugHost />
       {newSheet.open && (
         <NewSessionModal
-          // Start another opens it afresh on the next project (D-96 F).
-          key={`${newSheet.dir ?? ""}|${newSheet.after?.roots.join("|") ?? ""}`}
+          // Start another opens it afresh on the next project (D-96 F);
+          // another App's Start, on that App (AJ-E2314 L6).
+          key={`${newSheet.dir ?? ""}|${newSheet.account ?? ""}|${newSheet.after?.roots.join("|") ?? ""}`}
           projects={shell.shownProjects}
           accounts={accounts}
           sessions={sessions}

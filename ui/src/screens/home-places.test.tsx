@@ -17,6 +17,8 @@ import { mockMachineHealth } from "../preview/machine";
 import { mockThisMac } from "../preview/this-mac";
 import type { ConversationInfo } from "../lib/ipc/conversations";
 import type { AccountInfo } from "../types/generated/AccountInfo";
+import type { LaunchRecipeInfo } from "../types/generated/LaunchRecipeInfo";
+import { chooseApp } from "../lib/new-session-choice";
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import { needsFor } from "../test/needs-kit";
 import { keptShape, NEEDS_PLACE } from "../lib/needs-place";
@@ -101,6 +103,18 @@ describe("Home, desktop first", () => {
     fireEvent.click(within(idle).getByRole("button", { name: "Start a new session in Claude Code CLI · Personal" }));
     window.removeEventListener("aij:new-session", asked);
     expect(asked).toHaveBeenCalledTimes(1);
+    // AJ-E2314 L6 (the 0.5.0 re-walk, DW1): it opened the sheet on Work.
+    // Home sent the Account its folder was last read as; the sheet picks an
+    // App by its folder, so no App matched and it suggested Work. It sends
+    // the App's own folder, as the rail's idle App does, and the sheet's
+    // pick is Personal's, though Work has more room.
+    const sent = (asked.mock.calls[0]![0] as CustomEvent<{ accountId: string | null }>).detail.accountId;
+    expect(sent).toBe("claude-personal");
+    const cli = (id: string, label: string): LaunchRecipeInfo => ({ id: `r-${id}`, name: "Main", account_id: id, account_label: label, provider: "claude-code", model: null, default_cwd: null, restart_on_crash: null });
+    const folder = (id: string) => ({ id, provider: "claude-code", label: id, plan: null, login_state: "logged_in", cleanup_opt_in: false, renewal_date: null, preview_opt_in: false, in_place: false }) as unknown as AccountInfo;
+    const roomOf = (id: string) => ({ left: id === "claude-work" ? 90 : 40, resetsAtMs: null, credits: false });
+    const pick = chooseApp({ recipes: [cli("claude-work", "Work"), cli("claude-personal", "Personal")], folders: [folder("claude-work"), folder("claude-personal")], roomOf, project: null, chosen: sent });
+    expect(pick).toMatchObject({ recipe: { account_id: "claude-personal" }, why: "chosen" });
     expect(view.getByTestId("home-apps-down").compareDocumentPosition(idle) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     cleanup();
     // Ten places and the two CLI Apps: eight rows, then "Show all 12".
