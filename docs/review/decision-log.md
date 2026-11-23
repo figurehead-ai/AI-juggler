@@ -3819,3 +3819,10 @@ Every session and agent brief carries this rule.
 - **Words:** Bot is introduced everywhere (Welcome's lead card, Meet Bot, the tour) as "your AI assistant for everything AI Juggler sees"; no "look-ups" wording anywhere.
 - **Amends** D-131's Bot rows (the look-up view as Bot's default and no-model path) and ADR-0033's look-up Bot; ADR-0034's Chat section, E38's tasks and the design system follow. Built in 0.5.1 under AJ-E3823 (and AJ-E1545/E1546 for the words); the persona walk checks both states.
 - Sources: the coordinating session's messages, 2026-11-23, quoting the maintainer.
+
+### D-145 Runway's Out chip keeps "Out · resets <time>", and Low starts at 25 % left everywhere (amends AJ-E1550's PAT-COLOR amendment) — SETTLED (2026-11-23)
+
+- **Ruling** (the coordinating session, 2026-11-23, on the two departures AJ-E1550's builder left open): keep the chip's words "Out · resets <day time>" (not "Out · back …"): it is the wording every Out chip, notice and test already uses, and "resets" says why the room comes back. "Low" starts at 25 % left (`LOW_LEFT`), the same in every place: the bar's amber, the Low mark, the header's count and "stops suggesting it" all read one number.
+- **Not changed:** the hollow grey dot for not-running Apps stays out; the "Not running" group's words and position say it.
+- **Recorded in** DESIGN-SYSTEM §5 PAT-COLOR's runway table (already reads so) and AJ-E1550 requirement 5.
+- Sources: the coordinating session's brief to the 0.5.1 builder, 2026-11-23.
