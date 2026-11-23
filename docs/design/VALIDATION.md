@@ -17,6 +17,7 @@ Paths are repo-relative. All new checks follow the repo's existing pattern for l
 
 | Step | What | Who (model tiering) | Blocks? |
 |---|---|---|---|
+| 0 | Usability reasoning (PAT-USE): the task's six answers, written before building | Opus | yes (`release_scope.py`, from 0.5.1) |
 | 1 | Types: a component can't be written wrong (e.g. `PickerKind` forces a top group; `disabled` needs `reason`) | compiler | yes (ui build) |
 | 2 | Static lints in `just verify-static` / `just preflight` | scripts | yes |
 | 3 | Unit and role tests (vitest) | CI `ui` | yes |
@@ -400,6 +401,7 @@ Legend: **A** = existing automated, **N#** = new automated (§3), **R** = Opus r
 | PAT-DOOR-1…3 | R11; A actions-by-id tests where they exist |
 | PAT-SW-1…5 | N21, N22; walk step "from any session page, the switch is one visible click"; R2, R9 |
 | PAT-OSP-1…6 | the registry tests and the gate's lint (AJ-E1547); `release_scope.py` (the walks' dialog log, from 0.5.1); R17 |
+| PAT-USE-1…3 | `release_scope.py` (a UI task's section, from 0.5.1); R18 |
 | CNT-1 Plain words | A plain_words_lint, plain-words-on-screen.test |
 | CNT-2 One word per thing | A terminology_lint, one-vocabulary.test |
 | CNT-3 Sentence case | N13 |
@@ -441,6 +443,7 @@ Legend: **A** = existing automated, **N#** = new automated (§3), **R** = Opus r
 | 15 | **Accessibility by hand.** Keyboard through every control; focus visible and returned; names make sense read aloud; 200% zoom; Reduce Motion; Increase Contrast. (A11Y) | traps, unnamed | smooth |
 | 16 | **Hand walk.** Every element clicked in the real Dev app or the preview, every path (success, refusal, error, empty, many), at 1024 and 1280, both themes; each scored works / speed / clarity / layout. (M:test-by-hand) | not walked | walked, each element ≥ 4 |
 | 17 | **System prompts.** What system prompts can this cause? Each is in the registry (`docs/design/os-prompts.md`), primed in setup or by the gate's sheet before the call, its outcome said after; none from background work. The walk's dialog log shows no unprimed one. (PAT-OSP, AJ-E1547) | an unannounced system dialog | every one told first |
+| 18 | **Usability reasoning.** The task's six answers (PAT-USE) still hold on the built screen: who and what they expect from the name and icon; a newcomer sees every term, size, download and choice named, explained and recommended; the value is in the one right place with no duplicate surface; unavailable or empty is hidden or a guided setup; its system prompts are primed; nothing surprises a sensible person. | the answers don't match the screen | each answer true on the screen |
 
 **Dialog add-on (every dialog, sheet and window sheet):** header and footer fixed; the body alone scrolls; the choices visible on open at 1024×680; the primary visible at every scroll position (scroll it and look); divider and fade when it scrolls; focus in on open and back on close; Escape behaviour honest during long actions. N1 measures these; the reviewer still looks.
 

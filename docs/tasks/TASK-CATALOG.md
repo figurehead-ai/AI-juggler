@@ -308,7 +308,7 @@
 | AJ-E2319 | Move's refusals are typed (transient, needs you, setup, bug), name what holds the files and carry the move id; Retry only for transient | E23-session-runtime.md | P0 | S | AJ-E2318 |
 | AJ-E2320 | One shared, persistent hold marker every AI Juggler honours, and a move never quits AI Juggler's own parents | E23-session-runtime.md | P0 | S | AJ-E2315 |
 | AJ-E2321 | A move survives a crash: startup recovery before keep alive, and a Moves door to undo or finish each move by id | E23-session-runtime.md | P0 | M | AJ-E2320 |
-| AJ-E2322 | Move says \"opened\" only when the conversation is open, and keeps a timeline of every phase | E23-session-runtime.md | P1 | S | AJ-E2318 |
+| AJ-E2322 | Move says "opened" only when the conversation is open, and keeps a timeline of every phase | E23-session-runtime.md | P1 | S | AJ-E2318 |
 | AJ-E2323 | The switch's verification matrix: every ownership shape as a fixture in CI, and the real cases walked in lab PL1 | E23-session-runtime.md | P0 | M | AJ-E2315 |
 | AJ-E2324 | Move's speed: event-driven waits, an open-file write guard and half the reads | E23-session-runtime.md | P2 | M | AJ-E2322 |
 | AJ-E2325 | Move backups clean themselves up: refused attempts at once, committed moves after a chosen time, sizes that say what deleting frees | E23-session-runtime.md | P0 | M | AJ-E2321 |

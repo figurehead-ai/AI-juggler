@@ -28,7 +28,7 @@ It combines what is already decided (the decision log, the maintainer's recorded
 2. The two modes
 3. Foundations: colour, type, spacing, radii, elevation, icons, motion, density and layout
 4. Components
-5. Patterns (5.10: system prompts are told first)
+5. Patterns (5.10: system prompts are told first; 5.11: usability reasoning)
 6. Content rules
 7. Accessibility
 8. Worked example: the Move or Copy dialog
@@ -625,6 +625,14 @@ A standing rule, on every operating system and in every release (the maintainer,
 - **PAT-OSP-4.** A lint keeps prompt-triggering APIs inside the gate.
 - **PAT-OSP-5.** Every walk logs each system dialog it sees, with what primed it; an unprimed one is a release blocker (`docs/qa/evidence/os-prompts/<version>.md`, gated by `scripts/release_scope.py` from 0.5.1).
 - **PAT-OSP-6.** Windows (UAC, SmartScreen) and Linux (portals, polkit) get their entries when those ports start (D-52).
+
+### 5.11 Usability reasoning, before building (PAT-USE)
+
+A standing rule (the maintainer, 2026-11-23): every new or changed feature is reasoned about for usability, value and quality before it is built, and re-checked against the built screen before it ships.
+
+- **PAT-USE-1.** Every UI task carries a **Usability reasoning** section (format in `docs/tasks/README.md`), written by Opus before building, answering six questions: (1) who uses it and what they expect from its name and icon; (2) what a newcomer who knows nothing sees, with every term, size, download and choice named, explained and recommended; (3) its real value, in the one right place, duplicating no other surface; (4) what happens when it is unavailable or empty (hidden, or a guided setup, D-127); (5) what system prompts it can cause (PAT-OSP); (6) what would surprise or confuse a sensible person.
+- **PAT-USE-2.** The answers go to the building agent with its brief; the review (VALIDATION line 18) re-checks them against the built screen, and a mismatch is fixed before baselines.
+- **PAT-USE-3.** `scripts/release_scope.py check` fails a release (from 0.5.1) whose UI item has no such section.
 
 ## 6. Content rules
 

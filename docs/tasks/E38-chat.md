@@ -443,6 +443,7 @@
 
 ### AJ-E3821 Remove frees a model's disk at once: the local helper lets go of the file before it is deleted | Status: IN-PROGRESS (0.5.1) | Priority P1 | Effort S | Depends: AJ-E3803
 **Found** in the Qwen3-1.7B download-and-remove check (2026-11-22, `docs/qa/evidence/AJ-E3712/qwen-download-check.md`): Remove said "Frees 1.8 GB" and deleted the file, but the idle `juggler-local-ai` helper still held it open, so the space came back only at the helper's idle exit, about 4–6 minutes later.
+**UI**: no
 **Requirements**:
 1. Remove lets every engine go of what it holds before the file is deleted (the helper is killed and reaped), so the disk is free when Remove returns.
 2. A job running on the model ends with the engine's usual stop, never a crash report.
@@ -451,6 +452,7 @@
 
 ### AJ-E3822 Helpers never share an identifier across identities, and every one names itself: no "(null) differs from previously opened versions" prompt | Status: TODO (0.5.1) | Priority P1 | Effort S | Depends: AJ-E3802
 **Found** by the maintainer on the 0.5.0 nightly (2026-11-23): opening Bot showed macOS's prompt '"(null)" differs from previously opened versions. Are you sure you want to open it?'. Nightly's `juggler-apple-ai` is `ai.figurehead.juggler.apple-ai` signed with the team's Developer ID; the Dev and lab builds ran the same identifier signed ad hoc, so macOS's app-data protection saw one identifier with two signers and asked. "(null)" because the helpers' embedded Info.plist has no CFBundleName.
+**UI**: no
 **Requirements**:
 1. Every helper (`juggler-apple-ai`, `juggler-local-ai`, `juggler-agent`, and any later one) takes its identifier from the build's identity: Dev and lab builds carry the Dev identity's prefix, as the app does, so they never share one with Nightly or Stable (which share the team's signer). Whatever reads the identifier at run time (sandbox container, cache folder, a code requirement) follows the same identity.
 2. Each helper's embedded plist has CFBundleName and CFBundleDisplayName ("AI Juggler"), so no system prompt says "(null)".
@@ -462,6 +464,14 @@
 ### AJ-E3823 One engine-setup guide for Bot: what this Mac can do, Apple's AI first, Qwen named and explained, never a bare "Download · 1.8 GB" | Status: TODO (0.5.1) | Priority P0 | Effort M | Depends: AJ-E3822, AJ-E1545, AJ-E1547
 **Found** by the maintainer on the 0.5.0 nightly (2026-11-23): Bot's "Get short written answers · Beta" card said "Download · 1.8 GB" without naming what it downloads, and Apple's own model was never offered or explained. "We always must guide the user. Assume our user doesn't know anything."
 **Root cause (checked read-only, 2026-11-23)**: (1) on the maintainer's Mac the nightly's Apple helper shares its identifier and sandbox container with the Dev builds' ad hoc one (AJ-E3822); the container was touched when Bot was opened and the "(null) differs" prompt showed, so the helper's probe got no answer. (2) `apple::Seen::apple_ai()` maps a probe that failed or never answered to `AppleAi::Unavailable` ("this Mac can't run it"), so the recommendation went straight to the Qwen download with nothing said about Apple. The router's order is already Apple first when its probe says ready; the Dev lab walk on the same Mac had Apple's model as the automatic pick.
+**UI**: yes
+**Usability reasoning** (Opus, before building; re-checked on the built screen):
+(1) Anyone opening Bot or Settings › AI › Models for the first time. They expect "Bot" to be an AI assistant that answers (D-144), and its setup to tell them which AI writes the answers and what it costs.
+(2) "Checking what this Mac can do…" first, then each AI in plain words: Apple's (no download, private, needs Apple Intelligence on, with how to turn it on), and Qwen3 1.7B named (a small AI from the Qwen team, 1.8 GB, runs only on this Mac, free disk shown). A recommended badge, buttons that say what they do, and a "What is this?" disclosure.
+(3) One setup component in three places (Meet Bot, Bot's panel, Models), never three copies. With no AI, Bot shows only this setup (D-144).
+(4) Apple's AI off: "Turn on Apple Intelligence (free, nothing to download)" with its steps. Blocked or couldn't check: says so, with what to do, never "this Mac can't". No AI possible: one line on what it needs, and Skip.
+(5) The Apple helper's first start ("Setting up Bot", AJ-E1547). Opening System Settings' pane raises no prompt.
+(6) Watch for: "Download · 1.8 GB" without a name; a download recommended while Apple's AI was only unchecked; an input box with no AI behind it; "model" and "look-ups" as unexplained words.
 **Requirements**:
 1. A failed or blocked probe is its own state ("couldn't check" / "AI Juggler's helper was blocked by macOS"), never "this Mac can't run it"; it never leads to recommending a download.
 2. **One component** (no copies), used in the wizard's "Meet Bot" step, Bot's panel card and Settings › AI › Models: "Checking what this Mac can do…" first, then each engine's state in plain words. Apple's built-in AI: ready; turned off (the exact steps, and a button that opens System Settings › Apple Intelligence & Siri); still being downloaded by macOS; this Mac can't run it; or AI Juggler's helper was blocked by macOS (what to do). The downloadable one by name: "Qwen3 1.7B, a small AI from the Qwen team, 1.8 GB, runs only on this Mac", with the free disk.
@@ -475,6 +485,14 @@
 
 ### AJ-E3824 Search (⌘K) takes over everything the no-AI Bot did: record look-ups, the "go straight to" shortcuts, and Watch a session | Status: TODO (0.5.1) | Priority P0 | Effort M | Depends: AJ-E3823
 **D-144 (the maintainer's ruling, 2026-11-23)**: all search belongs to Search (⌘K); plain search never lives in Bot's input.
+**UI**: yes
+**Usability reasoning** (Opus, before building; re-checked on the built screen):
+(1) Anyone looking for a session, task, pool or usage figure, or wanting a quick view such as "what needs me". They expect ⌘K Search to find everything, with Bot reserved for conversation (D-144).
+(2) The empty query shows the suggested entries (What needs me, What finished today, Runway by account, What's running) and "Watch a session…", each named plainly.
+(3) One search for the whole app, with no second search inside Bot.
+(4) No results: says what was searched and suggests the entries. Search needs no AI, so it never has a setup state.
+(5) None.
+(6) Watch for: the same result appearing twice; Search and Bot both offering look-ups; a shortcut leading to an empty page with no word of why.
 **Requirements**:
 1. Search finds the records Bot's look-up view found: sessions, tasks, pools and usage, through the same backend look-ups (one implementation, no copy), each result opening its page.
 2. The "Or go straight to" shortcuts (What needs me, What finished today, Runway by account, What's running) are Search's suggested entries when the query is empty.

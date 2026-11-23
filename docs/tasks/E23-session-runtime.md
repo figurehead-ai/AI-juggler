@@ -287,6 +287,14 @@
 
 ### AJ-E2314 0.5.0's walks: the later findings, in the 0.5.1 rebuild before beta | Status: TODO (0.5.1) | Priority P2 | Effort M | Depends: AJ-E2312
 **Found** in 0.5.0's final walk and its two re-walks (`docs/qa/evidence/0.5.0-final-walk.md`, `0.5.0-rewalk.md`, `0.5.0-rewalk-2.md`); triaged "later" by Opus: none blocks 0.5.0.
+**UI**: yes
+**Usability reasoning** (Opus, before building; re-checked on the built screen):
+(1) Daily users: a session page at small window sizes, a pool's page, a new watch, Home's feed and New session. Each item fixes where a screen said less, or other, than its name promised.
+(2) L4: "Always" says what it means. L3: one name for a twin everywhere. L5: no doubled finishes and no "2 min–2 min" range.
+(3) Each fix is in place on the screen where the problem was; nothing new is added.
+(4) n/a: no new surface.
+(5) None.
+(6) Watch for: New session opening on another Account than the one the user clicked (L6), and a dimmed sheet left behind a dialog (L7).
 **Requirements**:
 1. L1, walk kit: `dev_bridge_url.py`'s `#token=` URL connects in the browser pane (it worked only with `&token=`).
 2. L2: a session page at 1024x680 with an account banner gives the right column a bigger window than 204 px of 723 (fold or shorten the banner, or give the column priority).
@@ -301,6 +309,7 @@
 
 ### AJ-E2315 Move to account counts only the moving profile's own processes: a wrapper is its by the program it runs, never by a flag's path; one shared ownership module every site uses | Status: IN-PROGRESS (0.5.1) | Priority P0 | Effort M | Depends: AJ-E2312
 **Found** by the coordinating session, 2026-11-22, root-caused live: Move to account on 0.4.9 (Claude app, one profile to another) was refused every time, "didn't finish closing within 30 seconds: claude and disclaimer still run". Those two processes were another profile's: a Code-tab session of a different running Claude app profile, whose `disclaimer` wrapper had `--add-dir=<a folder inside the moving profile's folder>`. `places/tree.rs` `of()`'s third mark ("every program of the app's own bundle that names a path inside the profile's folder") matches any argument value inside the folder, so the other profile's wrapper and its `claude` child were counted as the moving profile's, never ended, and `rest_ended` timed out on every retry. The same code is on release/0.5.
+**UI**: no
 **Requirements**:
 1. A bundle wrapper is this profile's only through the program it runs (for `disclaimer`, the wrapped executable after `--`). Flag values (`--add-dir`, `--settings`, `--plugin-dir`, `--mcp-config`, and any other) never mark a process. No special case per flag: the rule reads what runs, not what is passed (architecture standard).
 2. Stronger evidence wins: a process whose executable is inside another known profile's folder, whose `--user-data-dir` is another profile's, or whose ancestry reaches another known profile's running main process is never this profile's.
@@ -312,6 +321,7 @@
 
 ### AJ-E2316 The rail's gallery captures wait for the rail to be still | Status: DONE (0.5.1) | Priority P2 | Effort S | Depends: AJ-E2314
 **Found** on CI for bde5fa4d8 (visual 4/4): `pools-gallery.spec.ts` "the rail's Pool lens — dark" differed by 4668 px; the actual image showed the rail's "N new above" pill and rows still moving: a notice arrived while the test's pointer held the list, and the held reorder applied after it left. No commit of that push touched the rail; a flake, fixed for good rather than by a higher threshold.
+**UI**: no
 **Requirements**:
 1. A shared `railStill(page)` (ui/tests/visual/fixtures.ts) waits for the rail at rest: no `rail-new-above` pill, every `[data-line-key]` line's place unchanged across several checks.
 2. The Pool lens capture waits on it before its hover and before its screenshot.
@@ -319,6 +329,7 @@
 
 ### AJ-E2317 Move picks the source by the conversation's holder and the target by the App the user picked, never by account | Status: TODO (0.5.1) | Priority P0 | Effort S | Depends: AJ-E2315
 **Found** Review A2.2, A2.3, E5, E6: `places/handoff.rs` `profile_for(account)` takes the running or last-seen profile of an account; with two profiles on one account the move quits, writes into or opens the wrong one. (`docs/research/move-reliability-review.md`).
+**UI**: no
 **Requirements**:
 1. The source is the profile whose records list the conversation (the holder); two claiming it is a Bug refusal.
 2. The target is the App the user picked in the switch list: its place id carried end to end through `switch_move_execute` (actions target by id).
@@ -328,19 +339,35 @@
 
 ### AJ-E2318 Move waits only on real writers and the profiles' main processes, decides before it disrupts, and quits in parallel | Status: TODO (0.5.1) | Priority P0 | Effort M | Depends: AJ-E2315
 **Found** Review A1.1–A1.5, A1.10, A3.6, A9.2, B0.2–B0.3, B2: the whole pre-quit tree had to end (a background dev server, crashpad, another profile's wrapper blocked every retry), and ownership conflicts showed only after both apps were quit. (`docs/research/move-reliability-review.md`).
+**UI**: yes
+**Usability reasoning** (Opus, before building; re-checked on the built screen):
+(1) Someone moving a conversation to another Account. They expect Move to quit only what holds the conversation, and to say before quitting anything if it can't go ahead.
+(2) The offer names any blocker up front, in plain words ("a dev server your session started keeps running"), before anything quits.
+(3) Fewer stuck moves, and no apps quit for nothing. The words stay in the Move sheet, nowhere else.
+(4) When it can't move, nothing quits; the sheet says why and what to do.
+(5) None new: quitting another app is an Apple event already in the registry (Automation), primed by AJ-E1547.
+(6) Watch for: both apps quit and then the move refused; a background process the user cares about being killed.
 **Requirements**:
 1. An adapter `writers(tool_dir, conversations, table)` hook in `InPlaceMove`: Claude's `sessions/<pid>.json` (pid and procStart) and `--resume=<id>`; open-file write checks only as a backup. Run for both accounts' folders, whatever the place.
-2. The wait set is the main process of each instance plus the writers; the rest of the old tree is reported (\"a dev server your session started keeps running\"), never waited on.
+2. The wait set is the main process of each instance plus the writers; the rest of the old tree is reported ("a dev server your session started keeps running"), never waited on.
 3. The offer runs ownership and writers before anything quits (≤ 500 ms) and refuses up front what it can know.
 4. Both profiles quit in parallel, with per-class deadlines.
 **Quality gates**: `just keep-going verify-static`; failing-before tests; the move suite.
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E2318/manifest.md`.
 
 ### AJ-E2319 Move's refusals are typed (transient, needs you, setup, bug), name what holds the files and carry the move id; Retry only for transient | Status: TODO (0.5.1) | Priority P0 | Effort S | Depends: AJ-E2318
-**Found** Review A9.1, A3.1, A5.5, B6, E9: Retry showed for every \"nothing changed\" failure (each retry quit and restarted both apps again), and the UI's Undo picked the newest interrupted move, not this one. (`docs/research/move-reliability-review.md`).
+**Found** Review A9.1, A3.1, A5.5, B6, E9: Retry showed for every "nothing changed" failure (each retry quit and restarted both apps again), and the UI's Undo picked the newest interrupted move, not this one. (`docs/research/move-reliability-review.md`).
+**UI**: yes
+**Usability reasoning** (Opus, before building; re-checked on the built screen):
+(1) Someone whose move didn't go through. They expect to know why, whether trying again can help, and what to do.
+(2) Every refusal names what holds the files and the next step. Retry shows only when retrying can help; otherwise "Check again" or the door to fix it.
+(3) An honest reason in the Move sheet itself, replacing a generic "nothing changed, try again".
+(4) n/a: it is the unavailable state.
+(5) None.
+(6) Watch for: Retry quitting and reopening both apps again for a cause that won't change; Undo or Finish acting on a different move than the one on screen.
 **Requirements**:
 1. `MoveStop { class, holders, move_id, unchanged, words, detail }` replaces `AppError::Move`.
-2. Transient: Retry (auto-retried once). Needs you: no Retry; \"Check again\" re-reads the offer without quitting; the holder named with a door. Setup: Move hidden, Copy offered. Bug: Copy details and Report.
+2. Transient: Retry (auto-retried once). Needs you: no Retry; "Check again" re-reads the offer without quitting; the holder named with a door. Setup: Move hidden, Copy offered. Bug: Copy details and Report.
 3. The UI targets Undo and Finish by the error's move id; never `find(interrupted)`.
 4. A table test from each failure to its class and Retry's visibility, Rust and UI.
 **Quality gates**: `just keep-going verify-static`; failing-before tests; the move suite.
@@ -348,6 +375,7 @@
 
 ### AJ-E2320 One shared, persistent hold marker every AI Juggler honours, and a move never quits AI Juggler's own parents | Status: TODO (0.5.1) | Priority P0 | Effort S | Depends: AJ-E2315
 **Found** Review A3.4, A7.1–A7.3, A1.5, B5.1, E10, E11: `MoveHold` lived in one process's memory; the other AI Juggler's keep alive relaunched a profile mid-move (every retry), and the Dev AI Juggler started from a profile's Code tab could be quit by its own move. (`docs/research/move-reliability-review.md`).
+**UI**: no
 **Requirements**:
 1. A shared move area for every AI Juggler on the Mac (a platform path): canonical-root lock files, the journals, and a `held/<place-key>` marker per profile written before the first quit, removed only on Committed or RolledBack, naming the move id and its owner (pid, start).
 2. Keep alive, Open, Restart and automation in every AI Juggler (Dev and installed) check the marker; a hold whose owner is gone is a crashed move, not a free profile.
@@ -357,16 +385,32 @@
 
 ### AJ-E2321 A move survives a crash: startup recovery before keep alive, and a Moves door to undo or finish each move by id | Status: TODO (0.5.1) | Priority P0 | Effort M | Depends: AJ-E2320
 **Found** Review A5.1–A5.4, A6.1, A6.4, B5.2–B5.5: no recovery at startup (keep alive restarted apps onto a half-moved folder), no door back to an interrupted move, Undo blocked by a full disk, committed backups kept for ever. (`docs/research/move-reliability-review.md`).
+**UI**: yes
+**Usability reasoning** (Opus, before building; re-checked on the built screen):
+(1) Someone whose move was interrupted (a crash, a restart, a full disk), or who wants to undo one later. "Moves" promises the list of moves with Undo and Finish.
+(2) Each move shows from → to, the conversation's title, the date and its state in plain words ("Interrupted: finish or undo"). Undo says what it restores.
+(3) One place to see and fix moves: on the conversation's page and in Settings › Desktop apps, with nothing duplicated elsewhere.
+(4) With no moves, the door is hidden, or says one line. An interrupted move is never hidden.
+(5) None: undo and finish relaunch apps through the gate's existing Automation entry.
+(6) Watch for: keep-alive restarting an app onto a half-moved folder before recovery; Undo of the wrong move; a crash leaving no trace on screen.
 **Requirements**:
-1. Startup recovery, before keep alive's first tick: Planned/Holding/Quiet/BackedUp roll back; Applying rolls back by the journal; Verified/Reopened finish forward; unclear keeps the hold and says \"Finish or Undo\" (bell and the conversation's page).
+1. Startup recovery, before keep alive's first tick: Planned/Holding/Quiet/BackedUp roll back; Applying rolls back by the journal; Verified/Reopened finish forward; unclear keeps the hold and says "Finish or Undo" (bell and the conversation's page).
 2. A Moves door (the conversation's page and Settings › Desktop apps): each move with Undo (committed) or Finish/Undo (interrupted), by id; the timeline in Copy details.
 3. Preflight counts the room Undo needs; committed moves' backups are dropped after the next move of the family commits, or after N days.
 4. Rolling forward an interrupted Applying move comes later; the release notes say so.
 **Quality gates**: `just keep-going verify-static`; failing-before tests; the move suite.
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E2321/manifest.md`.
 
-### AJ-E2322 Move says \"opened\" only when the conversation is open, and keeps a timeline of every phase | Status: TODO (0.5.1) | Priority P1 | Effort S | Depends: AJ-E2318
-**Found** Review A3.7, A3.8, B7, B9 12 and 15: \"opened\" was reported as verified on the link's delivery alone, and a fixed 6 s settle gave false results on a slow start. (`docs/research/move-reliability-review.md`).
+### AJ-E2322 Move says "opened" only when the conversation is open, and keeps a timeline of every phase | Status: TODO (0.5.1) | Priority P1 | Effort S | Depends: AJ-E2318
+**Found** Review A3.7, A3.8, B7, B9 12 and 15: "opened" was reported as verified on the link's delivery alone, and a fixed 6 s settle gave false results on a slow start. (`docs/research/move-reliability-review.md`).
+**UI**: yes
+**Usability reasoning** (Opus, before building; re-checked on the built screen):
+(1) Someone who just moved a conversation. "Opened" must mean they can see it in the target app now.
+(2) "Opened in <app>" only when it is; otherwise "Opening…" or "Open it from <app>" with a button.
+(3) An honest last step of the Move sheet; the timeline sits in Copy details, not on screen.
+(4) When it can't be confirmed open, it says so plainly and offers Open.
+(5) None.
+(6) Watch for: "opened" shown while the app is still starting or shows another conversation.
 **Requirements**:
 1. Verified only when the adapter's after-open check sees the conversation; otherwise pending, said plainly.
 2. Wait for the records' rewrite by event, capped at 15 s, instead of a fixed 6 s.
@@ -376,6 +420,7 @@
 
 ### AJ-E2323 The switch's verification matrix: every ownership shape as a fixture in CI, and the real cases walked in lab PL1 | Status: TODO (0.5.1) | Priority P0 | Effort M | Depends: AJ-E2315
 **Found** Review D1–D4: the fixtures and walks that prove E2315 and E2317–E2322. (`docs/research/move-reliability-review.md`).
+**UI**: no
 **Requirements**:
 1. D1's 13 ownership fixtures (`procs::fixture`, no OS), each asserting what blocks, what is reported and the refusal class.
 2. D2's engine fault injection (crash after each phase, ENOSPC during apply and undo, two AI Juggler data folders sharing the move area) and D3's app-level integration (a second AppState's keep alive, a relaunching agent, an app asking at quit, parallel quit, startup with a held profile).
@@ -385,6 +430,7 @@
 
 ### AJ-E2324 Move's speed: event-driven waits, an open-file write guard and half the reads | Status: TODO (0.5.1) | Priority P2 | Effort M | Depends: AJ-E2322
 **Found** Review A4.2, A6.2, A6.3, A1.9, B3, B4, C: polling waits (about 1–2 s of CPU per move), a 1.5 s stillness floor, every byte read and hashed four times. (`docs/research/move-reliability-review.md`).
+**UI**: no
 **Requirements**:
 1. Process-exit and file-change waits by kqueue (Linux pidfd/inotify, Windows wait handles), behind `juggler_platform`.
 2. An open-file write guard before backup and apply (unknown writers: sync tools, editors).
@@ -395,6 +441,14 @@
 
 ### AJ-E2325 Move backups clean themselves up: refused attempts at once, committed moves after a chosen time, sizes that say what deleting frees | Status: TODO (0.5.1) | Priority P0 | Effort M | Depends: AJ-E2321
 **Found** by the maintainer (2026-11-22): every successful move's backup was kept for ever. On the real Mac `moves/` held 21 GB (19 GB from one morning's move, plus four tiny folders from refused attempts).
+**UI**: yes
+**Usability reasoning** (Opus, before building; re-checked on the built screen):
+(1) Anyone who has moved conversations. They expect backups for Undo to be kept for a while and then cleaned up, without filling the disk silently.
+(2) Each backup shows its size (what deleting really frees), "Kept until <date>", and Delete backup says "You can no longer undo this move". The setting names its choices in days.
+(3) Disk space back without a manual clean-up. It sits in the Moves door and in the header's "N to clean up", one surface each.
+(4) With no backups, the list says nothing is kept. Interrupted moves are never deleted automatically.
+(5) None.
+(6) Watch for: a backup deleted while its Undo still shows; a size that frees less than it said (APFS clones); a clean-up offer during a move.
 **Requirements**:
 1. A refused or "nothing changed" attempt deletes its move folder at once (nothing was changed, nothing to undo).
 2. A committed move's backup is kept for Undo, then deleted automatically. The setting "Keep move backups for: 1 day / 7 days (default) / 30 days / Until I delete them". The sweep runs at startup and once a day, after AJ-E2321's recovery, never while a move runs (it honours AJ-E2320's hold and the move lock). Interrupted or uncommitted moves are never deleted automatically: they go to the Moves door.
@@ -408,6 +462,14 @@
 
 ### AJ-E2326 A refused move leaves the conversation where it was, never in a terminal here: every start path honours a move's hold, the source reopens it, and two live places are seen and said | Status: TODO (0.5.1) | Priority P0 | Effort M | Depends: AJ-E2315, AJ-E2317, AJ-E2320
 **Found** by the maintainer (2026-11-22, checked read-only on the installed 0.4.9). Every attempt was Desktop → Desktop Move to account; no CLI was ever asked for. **The root cause is ours.** A move quits the profile's Claude app; a refused move restarted the profile but did not reopen the conversation, so it stayed not live. A conversation that isn't live puts "Continue in AI Juggler" in the very panel the user retries the move from (the ContinueOn panel's `continue-carry-in`, in place of "close it first"), and as the conversation page's primary action (`conversation-continue`), with the same icon as the "Move to account" choice (`MoveChoice.tsx:237`). The retries became a terminal session on the source Account (`conversations_continue`: an instance of kind terminal, no App, the profile's recipe; ruled out by its records: Copy, a switch, `epoch_resume`, a pickup after a restart, `continue_as`). That `claude --resume <id>` (its parent AI Juggler) ran on; the next morning the profile's Claude app's own Code child resumed the same conversation too. Two live writers on one conversation, and AI Juggler said nothing: the session showed as the Account's "Claude Code CLI" and the desktop App's row said "nothing open" while its Code child held it.
+**UI**: yes
+**Usability reasoning** (Opus, before building; re-checked on the built screen):
+(1) Someone retrying a move that was refused. They expect the conversation back where it was, never a new terminal session they didn't ask for.
+(2) After a refused or undone move, the conversation is reopened in its app. A session continued here says where it came from ("Continued here from Claude app · <profile>"). Two live places on one conversation show "Open in two places", with one click to stop ours.
+(3) No accidental terminal sessions on the wrong Account; every live place shown in one view.
+(4) n/a.
+(5) Reopening the source app is the same Automation entry as the move's (primed by AJ-E1547).
+(6) Watch for: "Continue in AI Juggler" sharing the Move icon; it showing in the move panel after a refusal; "nothing open" while the app's Code child holds the conversation.
 **Requirements**:
 1. **Every start path refuses a held conversation.** In the backend, not only the UI, `continue_impl`, `epoch_resume`, resume, pickup and any launch with `--resume` refuse a conversation a move holds, or one within a short settle window after a refused or undone move, by AJ-E2320's shared hold marker.
 2. **A refused or undone move restores the conversation where it was.** The source profile restarts and the conversation is reopened in it by the same link the move uses for the target, so it is live there again; the reopen is checked (AJ-E2322's signal).

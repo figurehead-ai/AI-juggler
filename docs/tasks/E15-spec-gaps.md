@@ -703,6 +703,14 @@ What the code does today (mapped 2026-10-22 on release/0.1): a same-tool switch 
 
 ### AJ-E1545 Welcome leads into a guided setup wizard (find your apps, permissions one card each with live grant detection, keep it running, the tour), and every brand mark is the real app icon | Status: TODO (0.5.1) | Priority P0 | Effort L | Depends: AJ-E1524, AJ-E1527
 **Found** by the maintainer testing the 0.5.0 nightly (2026-11-23): the Welcome left a newcomer on their own, "Make it smoother" sat on it as a card, and the logo on it was the small three-dot IconJuggler rather than the app's real icon.
+**UI**: yes
+**Usability reasoning** (Opus, before building; re-checked on the built screen):
+(1) A newcomer on first launch, often running several AI subscriptions, who knows neither AI Juggler's words nor macOS's privacy settings. "Get started" promises a guided path with an end; the step indicator says how long. The app icon must look like the one in the Dock, so the window reads as this app.
+(2) Each step says what it does and why in one sentence before any control. Each permission card shows the dialog macOS will show and what to click. Bot's step names both AIs, the size (1.8 GB), the free disk, and a recommended choice. Nothing assumes they know "profile", "instance", "TCC" or "model".
+(3) Setup and first value in one place: apps found, access granted, Bot ready, kept running. It replaces the Welcome's scattered cards (Make it smoother moves in), never a second copy of Settings: each step links to where it lives later.
+(4) A step with nothing to do here (no apps found, no permission this setup can use, no AI possible) says so in one line with Skip, or is left out (D-127). Every step has Skip for now, and the wizard can be left and resumed.
+(5) Accessibility, Automation per target app, Notifications, the login item, app-data access for the tools' folders, the Apple helper's first start: each primed on its card before Allow (PAT-OSP, AJ-E1547's gate).
+(6) Watch for: a system dialog appearing before its card; Allow showing nothing because macOS's dialog went behind the window; a step that can't be skipped; a download starting without a click; "done" before the grant is seen; the brand mark looking unlike the Dock icon.
 **Requirements**:
 1. The Welcome leads with "Let's get you set up"; its primary "Get started" opens a step-by-step wizard (rich mode of the design system: sticky header and footer, a step indicator). Nobody is left on their own.
 2. Step 1, Find your apps: discovery and import, what was found shown with the apps' own icons read at run time.
@@ -716,6 +724,14 @@ What the code does today (mapped 2026-10-22 on release/0.1): a same-tool switch 
 
 ### AJ-E1546 A guided tour on the real UI, offered once, and short clips for every "What it does for you" card and "How it works" step | Status: TODO (0.5.1) | Priority P1 | Effort L | Depends: AJ-E1545
 **Found** by the maintainer testing the 0.5.0 nightly (2026-11-23): nothing showed a newcomer around, and the "What it does for you" and "How it works" words had nothing to show the effect.
+**UI**: yes
+**Usability reasoning** (Opus, before building; re-checked on the built screen):
+(1) A newcomer just after setup, or an existing user after an update. "Take the tour" promises a short, skippable walk over the real screens, with Bot as the guide; "New in 0.5.x" promises only what changed.
+(2) Each stop names the thing and says what it is for in plain words. A clip shows the effect where words aren't enough. Back, Next, Skip, the progress and Esc are always visible.
+(3) It teaches where things are, once, on the real UI rather than in a separate help page. Clips are the same assets the Welcome's cards and How it works use, no second set.
+(4) A stop whose target isn't on screen (an empty state) shows its clip instead. Bot's stop shows "Set up Bot" when no AI is ready (D-144), and "Ask Bot about this" is hidden then. A finished tour is never offered again.
+(5) None: it calls no system API. Clips play inline and muted.
+(6) Watch for: a coach mark pointing at nothing; focus lost when the tour ends; a clip autoplaying with sound or under Reduce Motion; the tour offered again after it was finished; a step that only works with an AI set up.
 **Requirements**:
 1. The tour is offered at the end of setup and from Help › "Take the tour": coach marks anchored by element id to the real UI (Open now, Needs you, a session page, usage and runway, Continue in another app and Move, Pools, Processes, Settings). A step whose target isn't on screen (an empty state) shows its clip instead. Back, Next, Skip, a progress bar, Esc ends it.
 2. The steps live in a registry, each with a feature id and the version it came in; completion is stored per id. A completed tour is never offered again; after an update, only the new features' steps are offered, once, as a calm "New in 0.5.x · Show me".
@@ -727,6 +743,14 @@ What the code does today (mapped 2026-10-22 on release/0.1): a same-tool switch 
 
 ### AJ-E1547 No system prompt the user wasn't told about first: one registry of every OS prompt, priming in setup, one just-in-time gate every trigger goes through | Status: TODO (0.5.1) | Priority P0 | Effort L | Depends: AJ-E1545, AJ-E3822
 **The maintainer's rule (2026-11-23)**: AI Juggler never raises a system prompt the user wasn't told about first ("users will think it's a bug or their Mac is crashing").
+**UI**: yes
+**Usability reasoning** (Opus, before building; re-checked on the built screen):
+(1) Everyone, the first time AI Juggler needs something from macOS. They expect our app, not macOS, to tell them what is coming and why, so a system dialog never feels like a crash or a bug.
+(2) Our sheet names the dialog in macOS's own words, shows a picture of it, says which button to click and what happens if they decline. Afterwards it says plainly whether access was granted, and if not, where to change it later.
+(3) One gate and one registry instead of each feature asking on its own. Setup primes what this setup needs; the gate covers anything later.
+(4) An entry this setup can't use is never primed or shown (D-127). Background work never prompts: it waits, or raises a calm needs-you item.
+(5) This item is the answer for every other item: the registry lists each prompt, its trigger and its words.
+(6) Watch for: a dialog appearing with no sheet before it (the walk logs each one); a sheet with no dialog after it, because access was already granted; Not now treated as a decline forever; the same sheet shown twice.
 **Requirements**:
 1. **One registry of every OS prompt AI Juggler can cause**, built by code audit and Apple's documentation, never by resetting privacy settings (no `tccutil`: a security setting). Each entry: id, the code path that triggers it, what the system shows in its words, why we need it, what to click, what happens when declined. Expected: Accessibility; Automation per target app (System Events, Terminal, iTerm and the others we script); Notifications; the login item's banner; "would like to access data from other apps" (app-data protection when reading the tools' folders); Documents, Desktop and Downloads for projects there; "differs from previously opened versions" (AJ-E3822); whatever the Apple-model helper or the local model can raise. Undocumented ones researched too.
 2. **Priming in setup**: AJ-E1545's "Let AI Juggler work with your Mac" step primes every entry this setup needs, each card showing what the system will show (a picture of the dialog) and what to click.

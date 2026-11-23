@@ -76,6 +76,20 @@ real Files to touch; Research basis with file:line or URL; and a
 Handover note naming traps. If any field is missing, the task is
 defective — fix the task before starting work (see CRITIC-CHECKS.md).
 
+**Usability reasoning (the maintainer's standing rule, 2026-11-23; every
+task from 0.5.1).** Each task says `**UI**: yes` or `**UI**: no`. A UI
+item (any new or changed screen, words, control, prompt or behaviour a
+person meets) carries a `**Usability reasoning**` section, written by
+Opus before building and re-checked against the built screen before
+shipping, answering: (1) who uses it, and what they expect from its name
+and icon; (2) what a newcomer who knows nothing sees, every term, size,
+download and choice named, explained and recommended; (3) the real value,
+in the one right place, duplicating no other surface; (4) when it is
+unavailable or empty: hidden, or a guided setup (D-127); (5) what system
+prompts it can cause (PAT-OSP); (6) what would surprise or confuse a
+sensible person. `scripts/release_scope.py check` fails a release whose
+UI item lacks it (design system §5.11, PAT-USE).
+
 ## Status workflow
 
 - `TODO` — not started (every task's initial state).
