@@ -226,9 +226,9 @@ export function PoolHeader({
         </Toggle>
         {/* Round 3 (#3): the pool's one control for this, saying whom it
             covers; Custom opens its list in place (Sam's round-4 walk).
-            AJ-E1548 #27: while setup is open its checklist owns the rules
-            and the header shows only the state pill; it comes back once
-            setup is done. */}
+            While setup is open its checklist owns the rules and the
+            header shows only the state pill; it comes back once setup is
+            done (the 0.5.1 usability audit, #27). */}
         {!setup && <span className="mx-1 h-5 w-px bg-hairline" aria-hidden="true" />}
         {!setup && <span className="relative">
           <OwnLevelChoice
