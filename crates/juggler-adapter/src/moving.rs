@@ -432,6 +432,34 @@ pub struct Writer {
     pub evidence: WriterEvidence,
 }
 
+/// AJ-E2328: a conversation whose app-side ownership of an outside
+/// resource (its worktree) sits in another app profile than the one that
+/// holds the conversation, or names another branch than the worktree is
+/// on: the damage a move before 0.5.1 could leave. Found by
+/// [`InPlaceMove::splits`], put right by [`InPlaceMove::repair`].
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct Split {
+    /// A stable key for it (the worktree's folder name and both profiles).
+    pub key: String,
+    /// The worktree's folder name.
+    pub worktree: String,
+    /// The app profile that owns it now (holds its lease).
+    pub owner: PathBuf,
+    /// The app profile that holds the conversation.
+    pub holder: PathBuf,
+    /// The conversation's id in the tool.
+    pub conversation: String,
+    /// The app's title for it, when it has one.
+    pub title: Option<String>,
+    /// The branch the worktree is on (read from the worktree), when known.
+    pub branch: Option<String>,
+    /// The branch the app has for it differs from that.
+    pub branch_differs: bool,
+    /// Other app profiles that clean up unused folders where the worktree
+    /// is (said in the repair's words, left as they are).
+    pub also_swept_by: Vec<PathBuf>,
+}
+
 /// A tool's in-place move ([`crate::ToolHandover::in_place_move`]).
 pub trait InPlaceMove: Send + Sync {
     /// Plans a move of `request.conversation` and its whole family from
@@ -469,6 +497,32 @@ pub trait InPlaceMove: Send + Sync {
     ) -> Vec<Writer> {
         let _ = (tool_dir, conversations, table);
         Vec::new()
+    }
+
+    /// AJ-E2328: the conversations among the app profiles `hosts` whose
+    /// ownership is split ([`Split`]). Reads only. Default: none.
+    ///
+    /// # Errors
+    ///
+    /// A profile's files are in a format the adapter doesn't know (in
+    /// words): nothing can be told then.
+    fn splits(&self, hosts: &[PathBuf]) -> Result<Vec<Split>, String> {
+        let _ = hosts;
+        Ok(Vec::new())
+    }
+
+    /// AJ-E2328: the plan that puts `split` right (its ownership moved to
+    /// the profile holding the conversation, the branch the worktree is
+    /// on recorded), made again from the disk now, with `version` the
+    /// app's installed version. Never a step inside the worktree. A
+    /// split that no longer holds, or that can't be put right exactly,
+    /// is a plan with refusals. Reads only.
+    fn repair(&self, split: &Split, version: Option<&str>) -> MovePlan {
+        let _ = (split, version);
+        MovePlan {
+            refusals: vec![Refusal::setup("this tool has nothing to repair")],
+            ..MovePlan::default()
+        }
     }
 }
 

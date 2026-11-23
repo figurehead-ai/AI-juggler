@@ -459,7 +459,7 @@ fn lab() -> Lab {
     let side = |code: &Path, host: &Path| MoveSide {
         tool_dir: code.to_path_buf(),
         host_dir: Some(host.to_path_buf()),
-        version: Some("4.1.0".into()),
+        version: Some("5.11492.5".into()),
     };
     let sides = Sides {
         request: MoveRequest {
