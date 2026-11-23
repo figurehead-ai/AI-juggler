@@ -198,13 +198,14 @@ describe("every rail element opens a page here (place lens)", () => {
     // hover, focus or the selected row, as everywhere (still in the Tab
     // order, and ⌘↩ and the menu go there too).
     const arrow = within(asks).getByRole("button", { name: "Go to it in Claude app · Work Max" });
-    expect(arrow.className).toContain("group-hover:opacity-100");
+    // AJ-E1554: it shows with the row's tools, in its end's slot.
+    expect(arrow.closest("[data-testid='row-tools']")!.className).toContain("group-hover:opacity-100");
     fireEvent.click(arrow);
     expect(host.goToConversation).toHaveBeenCalledTimes(1);
     fireEvent.keyDown(row(list, "c:claude-work/outside-3"), { key: "Enter", metaKey: true });
     expect(host.goToConversation).toHaveBeenCalledTimes(2);
     // Open now: on hover and focus.
-    expect(within(row(list, "c:claude-work/outside-1").parentElement!).getByRole("button", { name: "Go to it in Claude app · Work Max" }).className).toContain("opacity-0");
+    expect(within(row(list, "c:claude-work/outside-1").parentElement!).getByRole("button", { name: "Go to it in Claude app · Work Max" }).closest("[data-testid='row-tools']")!.className).toContain("opacity-0");
     // AI Juggler's own terminal session: its page is where it runs.
     expect(within(row(list, "s:aj-working").parentElement!).queryByRole("button", { name: /^Go to it/ })).toBeNull();
     fireEvent.click(within(header(list, "app|claude-app|Work")).getByTestId("place-open"));

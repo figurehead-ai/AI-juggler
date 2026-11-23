@@ -95,8 +95,7 @@ export function NeedRow({ compact = false, ...props }: RowProps): JSX.Element {
   if (compact) {
     // Two lines: what, and why it needs you (where is in its name).
     return (
-      <RowShell {...props} data={data} label={`${word}, ${item.title}, ${where}`} shape="rounded-lg" className="h-[44px] items-center gap-2 pl-2">
-        {dot}
+      <RowShell {...props} data={data} label={`${word}, ${item.title}, ${where}`} shape="rounded-lg" className="h-[44px] items-center gap-2 pl-1" lead={dot}>
         <span className="flex min-w-0 flex-1 flex-col">
           <span aria-hidden="true" className="truncate text-meta font-semibold leading-[18px] text-ink">
             {item.title}
@@ -107,8 +106,7 @@ export function NeedRow({ compact = false, ...props }: RowProps): JSX.Element {
     );
   }
   return (
-    <RowShell {...props} data={data} label={`${word}, ${item.title}, ${where}`} shape="rounded-lg" className="h-[62px] items-start gap-2.5 pb-2.5 pl-2.5 pt-2">
-      {dot}
+    <RowShell {...props} data={data} label={`${word}, ${item.title}, ${where}`} shape="rounded-lg" className="h-[62px] items-start gap-2.5 pb-2.5 pl-1.5 pt-2" lead={dot}>
       {/* Three lines, each its own width (the review of 0.1.4: the state
           beside the place cut both to "ai-jug… · T…"): what, why it
           needs you, where. */}
