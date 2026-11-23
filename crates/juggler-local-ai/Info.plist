@@ -1,16 +1,22 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <!-- Embedded in the helper's __TEXT,__info_plist (build.rs). The identifier
-     is what it is signed as (scripts/build_local_ai_helper.sh,
+     is the build's identity's (AJ-E3822: <prefix>.local-ai, written in
+     place of @HELPER_IDENTIFIER@ from AIJ_HELPER_IDENTIFIER, which
+     scripts/build_local_ai_helper.sh sets through scripts/helper_identity.sh):
+     what it is signed as (scripts/build_local_ai_helper.sh,
      scripts/sign_macos.sh) and what the app requires
-     (juggler_local_ai_protocol::IDENTIFIER); Metal names the helper's
-     shader cache after it. The helper has no entitlements: its sandbox is
-     the profile the app applies at start (ADR-0033 §4.2). -->
+     (engines/local identifier()); Metal names the helper's shader cache
+     after it. The names are what a system prompt shows for it (never
+     "(null)"). The helper has no entitlements: its sandbox is the profile
+     the app applies at start (ADR-0033 §4.2). -->
 <plist version="1.0">
 <dict>
     <key>CFBundleIdentifier</key>
-    <string>ai.figurehead.juggler.local-ai</string>
+    <string>@HELPER_IDENTIFIER@</string>
     <key>CFBundleName</key>
-    <string>juggler-local-ai</string>
+    <string>AI Juggler</string>
+    <key>CFBundleDisplayName</key>
+    <string>AI Juggler</string>
 </dict>
 </plist>

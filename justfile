@@ -43,6 +43,8 @@ verify-static:
     python3 scripts/spawn_lint.py
     python3 scripts/cleartext_lint.py --selftest
     python3 scripts/cleartext_lint.py
+    python3 scripts/helper_identity_lint.py --selftest
+    python3 scripts/helper_identity_lint.py
     python3 scripts/migration_clash.py --selftest
     python3 scripts/migration_clash.py
     python3 scripts/js_number_lint.py --selftest

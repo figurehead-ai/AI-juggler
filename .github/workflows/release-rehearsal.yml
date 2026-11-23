@@ -18,6 +18,7 @@ on:
       - scripts/sign_macos.sh
       - scripts/build_apple_ai_helper.sh
       - scripts/build_local_ai_helper.sh
+      - scripts/helper_identity.sh
       - crates/juggler-local-ai/**
       - crates/juggler-local-ai-protocol/**
       - crates/juggler-app/helpers/**

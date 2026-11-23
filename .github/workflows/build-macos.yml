@@ -166,6 +166,10 @@ jobs:
       VERSION: ${{ inputs.version }}
       OVERLAY: ${{ matrix.overlay }}
       ARCH: ${{ matrix.arch }}
+      # AJ-E3822: the helpers' identity (scripts/helper_identity.sh): main
+      # and nightly both sign them as ai.figurehead.juggler.<helper>, as
+      # before; a build that names none is Dev's.
+      AIJ_EDITION: ${{ matrix.edition }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
@@ -506,6 +510,7 @@ jobs:
             scripts/build_apple_ai_helper.sh
             crates/juggler-app/helpers/juggler-apple-ai.entitlements
             scripts/build_local_ai_helper.sh
+            scripts/helper_identity.sh
             scripts/release_seams_check.sh
             scripts/apple_retry.py
             scripts/updater_sig_check.py
@@ -577,6 +582,7 @@ jobs:
             scripts/build_apple_ai_helper.sh
             crates/juggler-app/helpers/juggler-apple-ai.entitlements
             scripts/build_local_ai_helper.sh
+            scripts/helper_identity.sh
             scripts/release_seams_check.sh
             scripts/apple_retry.py
             scripts/updater_sig_check.py

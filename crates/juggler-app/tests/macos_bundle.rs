@@ -134,14 +134,50 @@ fn the_agent_bridge_ships_signed_inside_the_bundle() {
 /// bundle list names it, the sign script signs it with exactly its
 /// entitlements before the app and checks it against the app's team, and
 /// both the release candidate and the release check the bundled copy.
+/// AJ-E3822: a helper's Info.plist template takes its identifier from the
+/// build's identity (never one fixed name, which an ad-hoc Dev build then
+/// shared with the team-signed release) and names itself, so no system
+/// prompt says "(null)".
+fn names_itself_as_the_identity(plist: &str) {
+    assert!(
+        value_after(plist, "CFBundleIdentifier").ends_with("<string>@HELPER_IDENTIFIER@"),
+        "the identity's identifier is written in at build time"
+    );
+    for key in ["CFBundleName", "CFBundleDisplayName"] {
+        assert!(
+            value_after(plist, key).ends_with("<string>AI Juggler"),
+            "{key} names it"
+        );
+    }
+}
+
+/// AJ-E3822: the release workflow builds each edition's helpers as that
+/// edition's (main and nightly share AI Juggler's identifiers), and the
+/// sign jobs have the script that says which.
+#[test]
+fn helpers_are_built_as_the_edition_being_released() {
+    let workflow = read("../../.github/workflows/build-macos.yml");
+    assert!(workflow.contains("      AIJ_EDITION: ${{ matrix.edition }}\n"));
+    assert_eq!(
+        workflow
+            .matches("            scripts/helper_identity.sh\n")
+            .count(),
+        2,
+        "the sign jobs' sparse checkout has it"
+    );
+    let identity = read("../../scripts/helper_identity.sh");
+    assert!(identity.contains("AIJ_RELEASE_PREFIX=ai.figurehead.juggler\n"));
+    assert!(identity.contains("AIJ_DEV_PREFIX=ai.figurehead.juggler.dev\n"));
+    let dev = read("../../scripts/build_dev_app.sh");
+    assert!(dev.contains("--identifier \"$(helper_identifier agent)\""));
+    assert!(dev.contains("sign_agent \"$lab_app/Contents/MacOS/juggler-agent\""));
+}
+
 #[test]
 fn the_apple_helper_ships_signed_and_sandboxed_inside_the_bundle() {
-    use juggler_app::features::ai::engines::apple::{IDENTIFIER, PROGRAM};
+    use juggler_app::features::ai::engines::apple::{IDENTIFIER_SUFFIX, PROGRAM};
     let plist = read("helpers/juggler-apple-ai.Info.plist");
-    assert!(
-        value_after(&plist, "CFBundleIdentifier").ends_with(&format!("<string>{IDENTIFIER}")),
-        "signed as the identifier the app requires"
-    );
+    names_itself_as_the_identity(&plist);
     let entitlements = read("helpers/juggler-apple-ai.entitlements");
     let keys: Vec<&str> = entitlements
         .lines()
@@ -156,7 +192,14 @@ fn the_apple_helper_ships_signed_and_sandboxed_inside_the_bundle() {
     let build = read("../../scripts/build_apple_ai_helper.sh");
     assert!(build.contains("-target arm64-apple-macos14.0"));
     assert!(build.contains("__info_plist"));
-    assert!(build.contains(&format!("identifier={IDENTIFIER}")));
+    assert!(build.contains(&format!(
+        "identifier=\"$(helper_identifier {IDENTIFIER_SUFFIX})\""
+    )));
+    assert!(build.contains("helper_plist \"$helpers/juggler-apple-ai.Info.plist\""));
+    assert!(build.contains(&format!(
+        "helper_identifier_for_app \"$app\" {IDENTIFIER_SUFFIX}"
+    )));
+    assert!(build.contains("helper_plist_check \"$bin\" \"$identifier\""));
     assert!(build.contains("--options runtime --entitlements \"$entitlements\""));
     assert!(build.contains("PrivateCloudCompute"));
 
@@ -206,12 +249,12 @@ fn the_apple_helper_ships_signed_and_sandboxed_inside_the_bundle() {
 /// check the bundled copy.
 #[test]
 fn the_local_model_helper_ships_signed_and_sandboxed_inside_the_bundle() {
-    use juggler_local_ai_protocol::{IDENTIFIER, PROGRAM};
+    use juggler_local_ai_protocol::{IDENTIFIER_SUFFIX, PROGRAM};
     let plist = read("../juggler-local-ai/Info.plist");
-    assert!(
-        value_after(&plist, "CFBundleIdentifier").ends_with(&format!("<string>{IDENTIFIER}")),
-        "signed as the identifier the app requires"
-    );
+    names_itself_as_the_identity(&plist);
+    let embeds = read("../juggler-local-ai/build.rs");
+    assert!(embeds.contains("AIJ_HELPER_IDENTIFIER"));
+    assert!(embeds.contains(&format!("const SUFFIX: &str = \"{IDENTIFIER_SUFFIX}\";")));
     // Review M1: no entitlements file. Its sandbox is its own
     // deny-by-default profile, applied by the app at every start.
     assert!(
@@ -226,7 +269,14 @@ fn the_local_model_helper_ships_signed_and_sandboxed_inside_the_bundle() {
     assert!(manifest.contains("unsafe_code = \"forbid\""));
     let build = read("../../scripts/build_local_ai_helper.sh");
     assert!(build.contains("--offline --locked --release --target aarch64-apple-darwin"));
-    assert!(build.contains(&format!("identifier={IDENTIFIER}")));
+    assert!(build.contains(&format!(
+        "identifier=\"$(helper_identifier {IDENTIFIER_SUFFIX})\""
+    )));
+    assert!(build.contains("AIJ_HELPER_IDENTIFIER=\"$identifier\""));
+    assert!(build.contains(&format!(
+        "helper_identifier_for_app \"$app\" {IDENTIFIER_SUFFIX}"
+    )));
+    assert!(build.contains("helper_plist_check \"$bin\" \"$identifier\""));
     assert!(build.contains("codesign --force --options runtime --sign -"));
     assert!(build.contains("carries entitlements"));
     assert!(build.contains("imports a network call"));

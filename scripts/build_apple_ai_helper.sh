@@ -13,12 +13,20 @@
 #       re-signed it without its entitlements: `codesign --deep`).
 #   scripts/build_apple_ai_helper.sh check <helper> [<app>]
 #       checks a built or bundled helper; with <app>, that it is signed by
-#       the app's own team (the same TeamIdentifier, or none for both).
+#       the app's own team (the same TeamIdentifier, or none for both) and
+#       as the identifier the app's edition requires.
+#
+# AJ-E3822: its identifier is the build's identity's
+# (scripts/helper_identity.sh): AIJ_EDITION=main or nightly (the release
+# workflow) signs it as ai.figurehead.juggler.apple-ai; dev, or nothing
+# set (Dev and lab builds), as ai.figurehead.juggler.dev.apple-ai, so an
+# ad-hoc build never shares an identifier with the team-signed one.
 #
 # What a helper must be (the app refuses anything else at run time,
 # juggler_platform::code_trust): arm64 only (the system model needs Apple
-# silicon); signed as ai.figurehead.juggler.apple-ai (its embedded
-# Info.plist); hardened runtime; the App Sandbox and no other entitlement
+# silicon); signed as its identity's identifier (its embedded Info.plist,
+# written from helpers/juggler-apple-ai.Info.plist), which names it;
+# hardened runtime; the App Sandbox and no other entitlement
 # (helpers/juggler-apple-ai.entitlements); a valid signature; and no
 # Private Cloud Compute symbol. The release signs it again with the
 # app's Developer ID (scripts/sign_macos.sh), with the same entitlements.
@@ -29,8 +37,10 @@ cd "$(dirname "$0")/.."
 
 [ "$(uname)" = Darwin ] || { echo "build_apple_ai_helper: macOS only; skipped"; exit 0; }
 
+# shellcheck source=scripts/helper_identity.sh
+. scripts/helper_identity.sh
 helpers=crates/juggler-app/helpers
-identifier=ai.figurehead.juggler.apple-ai
+identifier="$(helper_identifier apple-ai)"
 entitlements="$helpers/juggler-apple-ai.entitlements"
 
 fail() { echo "build_apple_ai_helper: $*" >&2; exit 1; }
@@ -49,10 +59,13 @@ team_of() {
 check() {
   local bin="$1" app="${2:-}"
   [ -f "$bin" ] && [ -x "$bin" ] || fail "no helper at $bin"
+  # Bundled: the identifier the app's own edition requires.
+  if [ -n "$app" ]; then identifier="$(helper_identifier_for_app "$app" apple-ai)"; fi
   [ "$(lipo -archs "$bin")" = arm64 ] || fail "$bin isn't arm64 only: $(lipo -archs "$bin")"
   codesign --verify --strict "$bin" || fail "$bin: invalid signature"
   codesign --verify --strict -R="identifier \"$identifier\"" "$bin" \
     || fail "$bin isn't signed as $identifier"
+  helper_plist_check "$bin" "$identifier" || fail "$bin doesn't name itself as $identifier"
   # Each tool's whole output first: `grep -q` stops reading early, and
   # under pipefail the writer's SIGPIPE would turn a match into a miss.
   local info symbols want got
@@ -69,7 +82,7 @@ check() {
     [ "$(team_of "$bin")" = "$(team_of "$app")" ] \
       || fail "$bin's team ($(team_of "$bin")) isn't the app's ($(team_of "$app"))"
   fi
-  echo "build_apple_ai_helper: $bin checked (arm64, $identifier, runtime, sandbox, team $(team_of "$bin"))"
+  echo "build_apple_ai_helper: $bin checked (arm64, $identifier, named, runtime, sandbox, team $(team_of "$bin"))"
 }
 
 # Ad hoc; the release signs it again with the Developer ID.
@@ -87,10 +100,15 @@ target="${CARGO_TARGET_DIR:-target}"
 out="${2:-$target/$profile}"
 mkdir -p "$out"
 
+# The Info.plist it embeds, with this build's identifier.
+plist="$(mktemp -t juggler-apple-ai-plist)"
+trap 'rm -f "$plist"' EXIT
+helper_plist "$helpers/juggler-apple-ai.Info.plist" "$identifier" "$plist"
+
 swiftc -O -parse-as-library \
   -target arm64-apple-macos14.0 \
   -Xlinker -weak_framework -Xlinker FoundationModels \
-  -Xlinker -sectcreate -Xlinker __TEXT -Xlinker __info_plist -Xlinker "$helpers/juggler-apple-ai.Info.plist" \
+  -Xlinker -sectcreate -Xlinker __TEXT -Xlinker __info_plist -Xlinker "$plist" \
   "$helpers/juggler-apple-ai.swift" \
   -o "$out/juggler-apple-ai"
 chmod 0755 "$out/juggler-apple-ai"

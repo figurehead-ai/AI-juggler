@@ -678,7 +678,7 @@ fn the_helper_starts_sandboxed_then_capped_and_in_its_folder() {
         "the app never lets the helper serve unsandboxed"
     );
     assert!(
-        cache.ends_with("ai.figurehead.juggler.local-ai") || cache.starts_with("/nonexistent"),
+        cache.ends_with(super::identifier()) || cache.starts_with("/nonexistent"),
         "{}",
         cache.display()
     );

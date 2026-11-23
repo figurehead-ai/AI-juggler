@@ -34,10 +34,19 @@ use crate::features::ai::{
 /// The helper's file name, beside AI Juggler's own executable.
 pub const PROGRAM: &str = "juggler-apple-ai";
 
-/// The identifier the helper is signed as (its embedded Info.plist,
-/// `helpers/juggler-apple-ai.Info.plist`); the app runs no helper signed
-/// as anything else.
-pub const IDENTIFIER: &str = "ai.figurehead.juggler.apple-ai";
+/// The last part of the identifier the helper is signed as (its embedded
+/// Info.plist, `helpers/juggler-apple-ai.Info.plist`), after the build's
+/// identity's prefix (AJ-E3822).
+pub const IDENTIFIER_SUFFIX: &str = "apple-ai";
+
+/// The identifier this edition's helper is signed as: the app runs no
+/// helper signed as anything else, and the App Sandbox names its
+/// container after it (AJ-E3822: `ai.figurehead.juggler.apple-ai` for AI
+/// Juggler and Nightly, `ai.figurehead.juggler.dev.apple-ai` for Dev).
+#[must_use]
+pub fn identifier() -> String {
+    crate::edition::current().helper_identifier(IDENTIFIER_SUFFIX)
+}
 
 /// The protocol version this build speaks (2: the `network` request).
 pub const PROTOCOL: u64 = 2;
@@ -240,13 +249,13 @@ impl Apple {
     /// The helper to run: a test's, or the app's own through the one
     /// resolver ([`juggler_platform::code_trust::own_helper`]): in the
     /// app's bundle (or beside it in a development build), ours or
-    /// root's and writable by no one else, and signed as [`IDENTIFIER`]
+    /// root's and writable by no one else, and signed as [`identifier`]
     /// by the app's own team. Anything else is missing (fails closed).
     fn program(&self) -> Option<PathBuf> {
         if let Some(program) = &self.program {
             return program.is_file().then(|| program.clone());
         }
-        juggler_platform::code_trust::own_helper(PROGRAM, IDENTIFIER)
+        juggler_platform::code_trust::own_helper(PROGRAM, &identifier())
     }
 
     /// Starts the helper and reads what its hello says.
