@@ -227,23 +227,54 @@ fn the_door_finishes_an_interrupted_move_by_its_id() {
     );
 }
 
+/// The coordinator's ruling (2026-11-23): retention is AJ-E2325's policy
+/// alone. A second move of the same family, and the start's recovery and
+/// sweep after it, leave the first move's backups (its Undo) in place.
 #[test]
-fn a_committed_moves_backups_retire_after_thirty_days_and_its_undo_goes() {
-    let Some((lab, _system, done)) = moved() else {
+fn a_second_move_of_the_same_family_leaves_the_first_moves_backups() {
+    if !clones() {
         return;
-    };
-    let row = |lab: &Lab| {
-        moves(&lab.state)
+    }
+    let lab = lab();
+    let system = running_both(&lab);
+    let first = run(&lab.state, &lab.sides, &system).unwrap();
+    let first_backups = || {
+        backups(&lab)
             .into_iter()
-            .find(|m| m.move_id == done.move_id)
-            .unwrap()
+            .filter(|path| path.to_string_lossy().contains(&first.move_id))
+            .count()
     };
-    assert!(row(&lab).can_undo);
-    let now = juggler_core::model::Timestamp::now().millis();
-    assert_eq!(recover::retire(&lab.state, now), 0, "a new move keeps them");
-    let later = now + (recover::KEEP_DAYS + 1) * 24 * 60 * 60 * 1000;
-    assert_eq!(recover::retire(&lab.state, later), 1);
-    assert!(backups(&lab).is_empty());
-    let after = row(&lab);
-    assert!(!after.can_undo && after.undo_why.is_some(), "{after:?}");
+    let kept = first_backups();
+    assert!(kept > 0, "a committed move keeps its backups for Undo");
+    let back = Sides {
+        request: MoveRequest {
+            source: lab.sides.request.target.clone(),
+            target: lab.sides.request.source.clone(),
+            ..lab.sides.request.clone()
+        },
+        source_place: lab.sides.target_place.clone(),
+        target_place: lab.sides.source_place.clone(),
+        adapter: lab.sides.adapter.clone(),
+        tool: lab.sides.tool.clone(),
+        source_label: "B".into(),
+        target_label: "A".into(),
+        source_live: false,
+        accounts: lab.sides.accounts.clone(),
+        stop: None,
+    };
+    run(&lab.state, &back, &system).unwrap();
+    let claimed = recover::claim(&lab.state);
+    assert!(claimed.is_empty(), "both moves are settled");
+    recover::startup_settle(&lab.state, &claimed, &system);
+    assert_eq!(first_backups(), kept, "the first move's backups stay");
+    let row = moves(&lab.state)
+        .into_iter()
+        .find(|m| m.move_id == first.move_id)
+        .unwrap();
+    assert!(
+        row.undo_why
+            .as_deref()
+            .is_some_and(|why| why.contains("moved again")),
+        "{row:?}"
+    );
 }

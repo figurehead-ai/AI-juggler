@@ -16,9 +16,10 @@
 //! Rolling an interrupted apply forward comes later (the release notes say
 //! so): Undo is its way back now.
 //!
-//! Also here: Finish by the move's id (the Moves door), and the retirement
-//! of a committed move's backups once the next move of its files commits or
-//! it is [`KEEP_DAYS`] old.
+//! Also here: Finish by the move's id (the Moves door). A committed move's
+//! backups are never retired here: their retention is AJ-E2325's policy
+//! alone (the coordinator's ruling, 2026-11-23), and a move left part way
+//! keeps its own until the person settles it.
 
 use std::sync::Arc;
 
@@ -28,10 +29,6 @@ use super::{MoveSystem, Real, engine, lock, refused, undo_as, writing_of_move};
 use crate::error::AppResult;
 use crate::features::places::hold::{self, Held};
 use crate::state::AppState;
-
-/// How long a committed move keeps its backups (its Undo) at most.
-pub const KEEP_DAYS: i64 = 30;
-const DAY_MS: i64 = 24 * 60 * 60 * 1000;
 
 /// What startup recovery does with a move left part way.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -120,22 +117,30 @@ pub(crate) fn settle(state: &Arc<AppState>, claimed: &[(String, Settle)], system
 }
 
 /// At start: claims what a crash left (before keep alive), then settles
-/// it, retires old backups and sweeps undone moves' in the background.
+/// it and sweeps undone moves' backups in the background.
 pub fn at_startup(state: &Arc<AppState>) {
     let claimed = claim(state);
     let state = Arc::clone(state);
     let _ = std::thread::Builder::new()
         .name("move-recovery".into())
-        .spawn(move || {
-            settle(&state, &claimed, &Real::quiet());
-            retire(&state, crate::commands::now_millis());
-            for folder in hold::journal_folders(&state.data_dir) {
-                let went = juggler_handover::moving::sweep_undone(&folder);
-                if went > 0 {
-                    tracing::info!(target: "juggler::move", "let go of {went} undone moves' backups");
-                }
-            }
-        });
+        .spawn(move || startup_settle(&state, &claimed, &Real::quiet()));
+}
+
+/// [`at_startup`]'s background half: what was claimed settled, then the
+/// backups of undone moves let go (0.4.9: nothing is left to restore from
+/// them). Committed and interrupted moves keep theirs.
+pub(crate) fn startup_settle(
+    state: &Arc<AppState>,
+    claimed: &[(String, Settle)],
+    system: &dyn MoveSystem,
+) {
+    settle(state, claimed, system);
+    for folder in hold::journal_folders(&state.data_dir) {
+        let went = juggler_handover::moving::sweep_undone(&folder);
+        if went > 0 {
+            tracing::info!(target: "juggler::move", "let go of {went} undone moves' backups");
+        }
+    }
 }
 
 /// A move that changed nothing, let go: undone without touching a file,
@@ -228,32 +233,4 @@ pub fn finish(state: &Arc<AppState>, move_id: &str) -> AppResult<MoveFinishedInf
     Ok(MoveFinishedInfo {
         words: "Finished: the conversation stays where it moved, checked once more.".to_owned(),
     })
-}
-
-/// Lets committed moves' backups go once the next move of their files
-/// committed, or after [`KEEP_DAYS`]: their Undo goes with them. Returns
-/// how many retired.
-pub fn retire(state: &Arc<AppState>, now_ms: i64) -> usize {
-    let all = hold::all_moves(&state.data_dir);
-    let due: Vec<String> = all
-        .iter()
-        .filter(|txn| txn.manifest.phase == Phase::Committed)
-        .filter(|txn| {
-            let later = all.iter().any(|other| {
-                other.manifest.id != txn.manifest.id
-                    && other.manifest.created_ms >= txn.manifest.created_ms
-                    && other.manifest.phase == Phase::Committed
-                    && other.overlaps(txn)
-            });
-            later || now_ms - txn.manifest.created_ms > KEEP_DAYS * DAY_MS
-        })
-        .map(|txn| txn.manifest.id.clone())
-        .collect();
-    due.iter()
-        .filter(|id| {
-            hold::open_move(&state.data_dir, id)
-                .and_then(|mut txn| txn.retire())
-                .unwrap_or(false)
-        })
-        .count()
 }

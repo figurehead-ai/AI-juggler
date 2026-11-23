@@ -152,9 +152,9 @@ pub fn moves(state: &Arc<AppState>) -> Vec<MoveRecordInfo> {
                 "committed" if moved_again(&all, txn) => {
                     Some("moved again since: undo the later move first".to_owned())
                 }
-                "committed" if !txn.backups_kept() => Some(
-                    "its backup was let go (a later move of it finished, or it is old), so it can't be undone".to_owned(),
-                ),
+                "committed" if !txn.backups_kept() => {
+                    Some("its backup was deleted, so it can't be undone".to_owned())
+                }
                 _ => None,
             };
             MoveRecordInfo {

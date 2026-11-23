@@ -980,10 +980,7 @@ pub fn execute(
     let mut sides = sides(state, session_id, target_profile_id, target_place_id)
         .map_err(|error| typed(error, StopClass::NeedsYou))?;
     sides.request.notes = notes;
-    let done = run_once_more(state, &sides, &Real::telling(tell))?;
-    // AJ-E2321: the move before it of these files lets its backups go.
-    recover::retire(state, juggler_core::model::Timestamp::now().millis());
-    Ok(done)
+    run_once_more(state, &sides, &Real::telling(tell))
 }
 
 /// AJ-E2319: the move, typed; a transient stop that changed nothing is
@@ -1496,8 +1493,8 @@ pub(crate) fn undo_as(
 }
 
 /// At start, before keep alive (AJ-E2321): what a crash left part way is
-/// held and settled ([`recover`]); in the background, old committed moves'
-/// backups retire and undone moves' go (0.4.9).
+/// held and settled ([`recover`]); in the background, undone moves'
+/// backups go (0.4.9). Committed moves' retention is AJ-E2325's policy.
 pub fn sweep_at_startup(state: &Arc<AppState>) {
     recover::at_startup(state);
 }

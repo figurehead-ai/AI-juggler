@@ -776,8 +776,9 @@ impl Transaction {
         self.drop_backups().map(|_| ())
     }
 
-    /// AJ-E2321 (A6.4): lets a committed move's backups go (the next move
-    /// of its files committed, or it is old): its Undo goes with them.
+    /// AJ-E2321 (A6.4): lets a committed move's backups go, when the
+    /// retention policy (AJ-E2325, the one place that decides) says so:
+    /// its Undo goes with them.
     /// Returns whether anything went.
     ///
     /// # Errors
