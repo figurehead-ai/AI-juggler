@@ -16,6 +16,7 @@ export function LoadingState({
   skeleton,
   empty,
   onRetry,
+  failed,
   children,
 }: {
   state: LoadState;
@@ -29,6 +30,9 @@ export function LoadingState({
   empty: ReactNode;
   /** Reads again (the error's Retry). */
   onRetry: () => void;
+  /** The error's own sentence, when the read knows why it failed
+   * (default "Couldn't load <what>."). */
+  failed?: string;
   children: ReactNode;
 }): JSX.Element {
   if (state === "loading") {
@@ -46,7 +50,7 @@ export function LoadingState({
   if (state === "error") {
     return (
       <div className="flex flex-wrap items-center gap-2 px-2 py-1" role="alert" data-testid="loading-state" data-state="error">
-        <p className="text-meta text-ink-2">Couldn't load {what}.</p>
+        <p className="text-meta text-ink-2">{failed ?? `Couldn't load ${what}.`}</p>
         <Button size="sm" variant="secondary" onClick={onRetry} data-testid="loading-retry">
           Retry
         </Button>

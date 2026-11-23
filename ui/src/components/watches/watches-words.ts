@@ -17,6 +17,7 @@ export const PAGE = {
   watchingLine: (active: number, paused: number) => [active > 0 || paused === 0 ? `${active} active` : null, paused > 0 ? `${paused} paused` : null].filter(Boolean).join(" · "),
   ended: "Ended",
   endedLine: (n: number) => `${n} · kept for 30 days`,
+  endedNone: "No ended watches in the last 30 days.",
   more: (n: number) => `${n} more`,
   show: "Show",
   shown: (shown: number, total: number) => `${shown} of ${total} shown`,
