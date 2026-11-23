@@ -1,7 +1,12 @@
 //! The overlay over the scene: the first-open line (AJ-E1548 #23) and
 //! the Mac alert's chip (0.4.2), each kept clear and calm.
 
-#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
+#![allow(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::panic,
+    reason = "a test (QUALITY.md §2): its fixtures unwrap and panic on a broken setup"
+)]
 
 use super::Live;
 use super::Target;

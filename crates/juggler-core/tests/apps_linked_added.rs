@@ -12,7 +12,8 @@
     clippy::unwrap_used,
     clippy::expect_used,
     clippy::panic,
-    clippy::pedantic
+    clippy::pedantic,
+    reason = "a migration test (QUALITY.md §2): a raw connection builds the old database; fixtures unwrap and panic on a broken setup"
 )]
 
 use juggler_core::storage::{App, Storage};

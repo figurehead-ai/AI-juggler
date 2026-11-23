@@ -1,6 +1,6 @@
 //! AJ-E1545 R8 / AJ-E1553: what a tool's sign-in shows the user, read from
 //! its terminal by its adapter ([`crate::ToolSignIn::sign_in_page`]), so the
-//! sign-in can be a friendly card ("Open <tool>'s sign-in page", the code
+//! sign-in can be a friendly card ("Open `<tool>`'s sign-in page", the code
 //! large with Copy) instead of the tool's terminal.
 //!
 //! Only what the tool prints for the user to see is read: the page's
