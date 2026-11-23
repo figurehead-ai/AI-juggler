@@ -813,3 +813,38 @@ Step 2, "Sign in": (1) a newcomer signing in expects the provider's own page, no
 4. The specific trigger is root-caused (candidates: a lazy screen's empty fallback while the page background lives on an inner element; the theme class applied after first paint; the embedded terminal's canvas being re-created; the Floor's surface reconfiguring) and fixed where it is.
 **Quality gates**: `just keep-going verify-static`; a Playwright check sampling frames while switching screens, stepping through the wizard and opening the terminal panel, in the dark theme, failing on any frame mostly near white; a unit check that `index.html` carries the background before its scripts.
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E1549/manifest.md`.
+
+### AJ-E1550 Calm surfaces: separation by tone, never bright borders; a bright line only for focus, hover or real attention (PAT-SURF, app-wide) | Status: TODO (0.5.1) | Priority P0 | Effort L | Depends: none
+**Found** by the maintainer on the 0.5.0 Nightly (2026-11-23): "what is with all of these highlighted borders… it looks ugly… does that look like peace and calm?", with the Claude app's Code view as the reference (no visible borders, panels told apart by tone, the selected row a soft fill). Their rule: "Only time you can ever use a bright border is on highlight or mouse over or to really really bring attention to the user." Seen: the selected tab and the App/Project/Account segmented control outlined; "This session" boxed; every card outlined (Conversation, Where it runs, Runway, Apps that can take it over); "Switch account…" bordered; the "Suggested" target card ringed in accent; the rail's selected row outlined.
+**UI**: yes
+**Usability reasoning** (Opus, before building; re-checked on the built screen):
+(1) Everyone, all day: AI Juggler is a calm monitoring surface left open beside the user's real work; they expect it to recede, like the Claude app's Code view.
+(2) Hierarchy comes from tone and type, so nothing needs explaining; what is selected or needs them stands out because little else does.
+(3) Calm monitoring is tone hierarchy, not lines: the same screens, quieter, and attention kept for what deserves it (calm attention, D-117).
+(4) n/a.
+(5) None.
+(6) Lines everywhere make every box look equally urgent; an accent ring on "Suggested" reads as an alert.
+**Requirements**:
+1. Research first, written into the design system: how Linear, Vercel Geist, Radix Themes, Apple's macOS HIG and the Claude and ChatGPT desktop apps separate surfaces; then the tokens (PAT-SURF): `border.subtle`, a near-invisible hairline (about 6–8 % of the foreground on dark, 8–10 % on light) used only where tone can't separate; no outline on cards or sections, separation by three or four surface steps (base, raised, overlay) and very soft shadows on floating layers only (menus, popovers, dialogs); selected (tabs, segmented controls, rail rows, the subagent tree) a soft fill and stronger text, never an outline; hover a subtle fill step; an accent border or ring only for `:focus-visible` and rare true-attention states (a Needs-you item, a destructive confirm), never for "Suggested" (a small tag); inputs and secondary buttons a fill, not a bright stroke, the ring on focus; `prefers-contrast: more` brings stronger borders back.
+2. Applied app-wide through the tokens and the shared components (Card, Section, Tabs, Segmented, Button, Input, List row, the rail), every screen.
+3. A lint: no component uses the accent or bright border colours outside the focus, hover or attention tokens.
+4. Baselines (gallery and Happo) re-shot once, at the end of the 0.5.1 batch, after an Opus side-by-side against the Claude app's reference in both themes; every Happo diff verified by eye.
+**Quality gates**: `just keep-going verify-static` with the new lint; the a11y gate (focus visible, contrast, Increase Contrast); the visual gate once; Opus's critique in both themes.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E1550/manifest.md` with the research table and before/after captures.
+
+### AJ-E1551 Nothing moves after it appears: every column, header, rail and badge has its place from the first paint (layout shift near zero) | Status: TODO (0.5.1) | Priority P1 | Effort M | Depends: none
+**Found** by the maintainer on the 0.5.0 Nightly (2026-11-23): opening a session, the left subagent tree appears a split second later and pushes the whole layout over.
+**UI**: yes
+**Usability reasoning** (Opus, before building; re-checked on the built screen):
+(1) Everyone opening a session or switching screens; they expect what they aimed at to stay where it is.
+(2) Nothing to explain: the page holds still.
+(3) Instant and paged: a skeleton at the final size on the first frame, the real content filling it.
+(4) A column with nothing in it is decided from cached data before the first paint, never by a late fetch.
+(5) None.
+(6) A layout that jumps makes people click the wrong thing and feels unfinished.
+**Requirements**:
+1. The session page's columns are reserved from the first paint, the subagent tree as a skeleton at its final width; whether a column shows is decided from cached data, not after a fetch.
+2. A sweep of every screen for the same pattern (side columns, headers, rails, badges that mount late), each fixed the same way.
+3. A Playwright layout-shift check (a cumulative layout shift budget of about 0) on opening a session, switching tabs and opening Home.
+**Quality gates**: `just keep-going verify-static`; the layout-shift check; the visual gate.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E1551/manifest.md`.
