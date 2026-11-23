@@ -36,6 +36,7 @@ import { Pane, PaneSection, RowNote, SettingRow, Switch, SwitchRow } from "./par
 import { GoToKeyControl, GoToKeyError, useGoToKey } from "./KeyCapture";
 import { PathText } from "../../components/PathText";
 import { MovingSection } from "./MovingSection";
+import { MovesSection } from "./MovesSection";
 
 /** AJ-E2102: Go to it may select a session's tab in Terminal or iTerm;
  * off until turned on here. */
@@ -372,6 +373,8 @@ export function DesktopAppsPane({ anchor }: { anchor?: string }): JSX.Element {
       <FoundOnThisMac offers={offers} held={held} />
       <YourApps offers={offers} held={held} onForgot={(one) => setHeld((now) => [...now.filter((was) => was.id !== one.id), one])} onSettle={() => setHeld([])} />
       <MovingSection />
+      {/* AJ-E2321: every move, with Undo and Finish by its id. */}
+      <MovesSection />
       <PaneSection
         id="go-to"
         title="Going to a session"

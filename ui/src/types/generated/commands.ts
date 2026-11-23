@@ -121,6 +121,7 @@ import type { MessageNeedInfo } from "./MessageNeedInfo";
 import type { ModelsCatalog } from "./ModelsCatalog";
 import type { ModelsInfo } from "./ModelsInfo";
 import type { MoveDoneInfo } from "./MoveDoneInfo";
+import type { MoveFinishedInfo } from "./MoveFinishedInfo";
 import type { MoveOfferInfo } from "./MoveOfferInfo";
 import type { MoveRecordInfo } from "./MoveRecordInfo";
 import type { MoveUndoneInfo } from "./MoveUndoneInfo";
@@ -1189,6 +1190,8 @@ export interface Commands {
   switch_graph_overview: { args: { projectId: string }; result: WorkGraphInfo[] };
   /** Write features::switch::moves::switch_move_execute */
   switch_move_execute: { args: { sessionId: string; targetProfileId: string; targetPlaceId?: string | null; takeNotes?: boolean | null }; result: MoveDoneInfo };
+  /** Write features::switch::moves::switch_move_finish */
+  switch_move_finish: { args: { moveId: string }; result: MoveFinishedInfo };
   /** Read features::switch::moves::switch_move_offer */
   switch_move_offer: { args: { sessionId: string; targetProfileId: string; targetPlaceId?: string | null }; result: MoveOfferInfo };
   /** Write features::switch::moves::switch_move_undo */

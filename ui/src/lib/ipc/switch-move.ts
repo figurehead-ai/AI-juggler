@@ -10,13 +10,14 @@
 import { call, listen } from "./transport";
 import { hasLiveBackend } from "../bridge";
 import type { MoveDoneInfo } from "../../types/generated/MoveDoneInfo";
+import type { MoveFinishedInfo } from "../../types/generated/MoveFinishedInfo";
 import type { MoveOfferInfo } from "../../types/generated/MoveOfferInfo";
 import type { MoveProgressInfo } from "../../types/generated/MoveProgressInfo";
 import type { MoveRecordInfo } from "../../types/generated/MoveRecordInfo";
 import type { MoveStopInfo } from "../../types/generated/MoveStopInfo";
 import type { MoveUndoneInfo } from "../../types/generated/MoveUndoneInfo";
 
-export type { MoveDoneInfo, MoveOfferInfo, MoveProgressInfo, MoveRecordInfo, MoveStopInfo, MoveUndoneInfo };
+export type { MoveDoneInfo, MoveFinishedInfo, MoveOfferInfo, MoveProgressInfo, MoveRecordInfo, MoveStopInfo, MoveUndoneInfo };
 
 /** 0.4.9: how a running move goes (`move://progress`). */
 const MOVE_PROGRESS = "move://progress";
@@ -30,6 +31,7 @@ declare global {
     __AIJ_MOVE_HOLD__?: boolean;
     __AIJ_MOVE_UNDONE__?: MoveUndoneInfo;
     __AIJ_MOVES__?: MoveRecordInfo[];
+    __AIJ_MOVE_FINISHED__?: MoveFinishedInfo;
   }
 }
 
@@ -106,4 +108,11 @@ export async function switchMoves(): Promise<MoveRecordInfo[]> {
   if (!hasLiveBackend()) return window.__AIJ_MOVES__ ?? [];
   const page = await call("switch_moves", { page: null });
   return page.items;
+}
+
+/** AJ-E2321: finishes an interrupted move that passed its checks (the
+ * Moves door's Finish, by its id). */
+export async function switchMoveFinish(moveId: string): Promise<MoveFinishedInfo> {
+  if (!hasLiveBackend()) return window.__AIJ_MOVE_FINISHED__ ?? { words: "Finished: the conversation stays where it moved, checked once more." };
+  return call("switch_move_finish", { moveId });
 }

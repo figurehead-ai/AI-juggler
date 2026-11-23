@@ -188,6 +188,13 @@ describe("Move's refusals, by class", () => {
       {
         move_id: "1-aa",
         conversation: "other",
+        title: null,
+        from: "A",
+        to: "B",
+        can_undo: true,
+        undo_why: null,
+        can_finish: false,
+        timeline: [],
         state: "interrupted",
         at_ms: 1,
         detail: null,

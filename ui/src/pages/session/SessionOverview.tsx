@@ -7,6 +7,9 @@
  * profiles come from one shared read (data.ts), not one per page.
  */
 import { SwitchAccountButton } from "../../components/SwitchAccountButton";
+import { MoveRows, useMoves } from "../../components/switch/MovesDoor";
+import { Card } from "../../components/primitives";
+import { CardTitle } from "./CardTitle";
 import { useSwitchNotYet } from "../../lib/switch-not-yet";
 import type { JSX } from "react";
 import type { SwitchBackSuggestionData } from "../../lib/ipc/switchBack";
@@ -42,6 +45,18 @@ export type OverviewProps = {
   onSwitchBack?: () => void;
 };
 
+/** AJ-E2321: the conversation's moves; none: no card. */
+function SessionMoves({ conversation }: { conversation: string }): JSX.Element | null {
+  const [moves, reload] = useMoves(conversation);
+  if (!moves || moves.length === 0) return null;
+  return (
+    <Card className="flex flex-col gap-1 p-5" data-testid="session-moves">
+      <CardTitle>Moves</CardTitle>
+      <MoveRows moves={moves} onChanged={reload} />
+    </Card>
+  );
+}
+
 export function SessionOverview(props: OverviewProps): JSX.Element {
   const { model } = props;
   const accounts = useSubscriptions();
@@ -68,6 +83,8 @@ export function SessionOverview(props: OverviewProps): JSX.Element {
         <>
           <WhereItRuns model={model} outside={props.outside ?? false} accountWords={named.where}
             accountId={account?.state === "signed_in" ? (account.account_id ?? null) : null} />
+          {/* AJ-E2321: its moves, with Undo and Finish by their id. */}
+          {!props.remoteMac && model.conversationId && <SessionMoves conversation={model.conversationId} />}
           <Runway display={display} title={named.runway} profile={profiles.find((p) => p.id === model.profileId) ?? null} />
           {!props.remoteMac && (
             <ContinueOn

@@ -94,6 +94,26 @@ pub async fn switch_move_undo(
     .await
 }
 
+/// Tauri: AJ-E2321, Finish (the Moves door, by the move's id): a move
+/// that stopped after its checks passed is checked once more and kept.
+///
+/// # Errors
+///
+/// As [`crate::features::handover::moving::recover::finish`].
+#[tauri::command]
+pub async fn switch_move_finish(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, Arc<AppState>>,
+    move_id: String,
+) -> AppResult<crate::features::handover::moving::recover::MoveFinishedInfo> {
+    crate::ipc::blocking(state.inner(), "finish the move", move |state| {
+        let said = crate::features::handover::moving::recover::finish(state, &move_id)?;
+        let _ = crate::features::sessions::read_model::emit_sessions(&app, state);
+        Ok(said)
+    })
+    .await
+}
+
 /// Tauri: the moves AI Juggler knows of (Undo, and one left part way),
 /// newest first, a page at a time.
 ///
