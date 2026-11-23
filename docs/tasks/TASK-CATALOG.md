@@ -506,5 +506,6 @@
 | AJ-E3821 | Remove frees a model's disk at once: the local helper lets go of the file before it is deleted | E38-chat.md | P1 | S | AJ-E3803 |
 | AJ-E3822 | Helpers never share an identifier across identities, and every one names itself: no "(null) differs from previously opened versions" prompt | E38-chat.md | P1 | S | AJ-E3802 |
 | AJ-E3823 | One engine-setup guide for Bot: what this Mac can do, Apple's AI first, Qwen named and explained, never a bare "Download · 1.8 GB" | E38-chat.md | P0 | M | AJ-E3822, AJ-E1545, AJ-E1547 |
-Total: 504 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
+| AJ-E3824 | Search (⌘K) takes over everything the no-AI Bot did: record look-ups, the "go straight to" shortcuts, and Watch a session | E38-chat.md | P0 | M | AJ-E3823 |
+Total: 505 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
 Status of every task at generation: TODO. The epic files are canonical; this catalog is an index, never edited to claim progress.

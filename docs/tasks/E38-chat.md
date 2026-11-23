@@ -469,5 +469,16 @@
 4. The recommended badge: Apple's when ready; "Turn on Apple Intelligence (free, nothing to download)" when this Mac can run it but it is off; Qwen only when Apple's can't run here.
 5. Buttons name what they do ("Use Apple's AI", "Download Qwen3 1.7B · 1.8 GB"); a "What is this?" disclosure says what it is, where it is kept, where it comes from, that nothing asked leaves this Mac, and how to remove it.
 6. The router's order is Apple first, proven by a test; anything here that can raise a system prompt goes through AJ-E1547's gate.
-**Quality gates**: `just keep-going verify-static`; unit tests for each state and the badge; the router-order test; the a11y gate; an Opus critique in both themes; the persona walk covers each state.
+7. **D-144 (the maintainer's ruling, 2026-11-23): Bot is AI and conversation only.** With an AI ready, Bot is conversational: its record look-ups are the AI's own tools for grounding and cited links, never a user-facing mode; answers always come from the AI, and one the records can't answer gets the AI's "I don't know" with what it checked. With no AI, Bot's icon stays but its panel shows only "Set up Bot" (this guide), with no input box and no results. "Ask Bot" anywhere (Watches and others) shows only when Bot's AI is ready. No "look-ups" wording anywhere; Bot is "your AI assistant for everything AI Juggler sees". E38's tasks, ADR-0034's Chat section and the design system say so. Search's side is AJ-E3824.
+**Quality gates**: `just keep-going verify-static`; unit tests for each state and the badge; the router-order test; the a11y gate; an Opus critique in both themes; the persona walk covers each state, and both of D-144's (no AI: setup only; AI ready: a conversation).
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E3823/manifest.md`.
+
+### AJ-E3824 Search (⌘K) takes over everything the no-AI Bot did: record look-ups, the "go straight to" shortcuts, and Watch a session | Status: TODO (0.5.1) | Priority P0 | Effort M | Depends: AJ-E3823
+**D-144 (the maintainer's ruling, 2026-11-23)**: all search belongs to Search (⌘K); plain search never lives in Bot's input.
+**Requirements**:
+1. Search finds the records Bot's look-up view found: sessions, tasks, pools and usage, through the same backend look-ups (one implementation, no copy), each result opening its page.
+2. The "Or go straight to" shortcuts (What needs me, What finished today, Runway by account, What's running) are Search's suggested entries when the query is empty.
+3. "Watch a session…" is a Search command.
+4. One search, no duplicate: Bot's own look-up input and results are gone (AJ-E3823), and no other surface keeps a second search.
+**Quality gates**: `just keep-going verify-static`; tests for each record kind, the suggested entries, the command; the a11y gate; an Opus critique in both themes.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E3824/manifest.md`.
