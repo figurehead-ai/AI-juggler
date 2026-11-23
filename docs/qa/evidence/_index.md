@@ -120,7 +120,7 @@
 | AJ-E1549 | PASS5 | 2026-11-23 | [manifest](AJ-E1549/manifest.md) |
 | AJ-E1550 | (no claims yet) | 2026-11-23 | [manifest](AJ-E1550/manifest.md) |
 | AJ-E1551 | (no claims yet) | 2026-11-23 | [manifest](AJ-E1551/manifest.md) |
-| AJ-E1552 | PASS6 | 2026-11-23 | [manifest](AJ-E1552/manifest.md) |
+| AJ-E1552 | PASS2 | 2026-11-23 | [manifest](AJ-E1552/manifest.md) |
 | AJ-E1601 | PASS15 UNPROVEN1 | 2026-10-25 | [manifest](AJ-E1601/manifest.md) |
 | AJ-E1602 | PASS15 UNPROVEN1 | 2026-10-24 | [manifest](AJ-E1602/manifest.md) |
 | AJ-E1603 | PASS18 UNPROVEN3 | 2026-11-13 | [manifest](AJ-E1603/manifest.md) |
