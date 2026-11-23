@@ -259,6 +259,7 @@ macro_rules! app_commands {
             Write features::bot::commands::bot_wrong,
             Read  features::bot::commands::bot_memories,
             Write features::bot::commands::bot_forget,
+            Read  features::bot::search::search_records,
             Read  features::watches::commands::watches_list,
             Read  features::watches::commands::watches_catalogue,
             Read  features::watches::commands::watches_preview,

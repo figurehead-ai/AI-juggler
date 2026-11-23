@@ -12,6 +12,7 @@ pub mod history;
 pub mod lookup;
 pub mod memory;
 pub mod question;
+pub mod search;
 pub mod world;
 pub mod written;
 

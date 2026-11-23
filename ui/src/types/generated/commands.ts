@@ -202,6 +202,7 @@ import type { RuntimeChoicesInfo } from "./RuntimeChoicesInfo";
 import type { RuntimeViewInfo } from "./RuntimeViewInfo";
 import type { SavedHandoverInfo } from "./SavedHandoverInfo";
 import type { ScanReportInfo } from "./ScanReportInfo";
+import type { SearchRecordsInfo } from "./SearchRecordsInfo";
 import type { ServersSyncInfo } from "./ServersSyncInfo";
 import type { ServiceAccountRequest } from "./ServiceAccountRequest";
 import type { ServiceInfo } from "./ServiceInfo";
@@ -1102,6 +1103,8 @@ export interface Commands {
   runtime_trust_choose: { args: { profileId: string; cwd?: string | null; trusted: boolean }; result: FolderTrustInfo | null };
   /** Write features::environment::commands::scan_cancel */
   scan_cancel: { args: Record<string, never>; result: void };
+  /** Read features::bot::search::search_records */
+  search_records: { args: { text: string }; result: SearchRecordsInfo };
   /** Write features::service_accounts::commands::service_accounts_add */
   service_accounts_add: { args: { request: ServiceAccountRequest }; result: AccountInfo[] };
   /** Read features::service_accounts::commands::service_accounts_catalog */
