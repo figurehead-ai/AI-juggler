@@ -47,3 +47,10 @@ export function useAiJobs(): AiJobInfo[] | null {
 export function useAiJob(job: AiJob): AiJobInfo | null {
   return useAiJobs()?.find((info) => info.job === job) ?? null;
 }
+
+/** D-144: whether Bot's AI is ready (it runs, or waits a moment for its
+ * model). Bot is AI and conversation only: without it, Bot's panel shows
+ * only "Set up Bot", and every "Ask Bot" door is hidden. */
+export function useBotReady(): boolean {
+  return isShown(useAiJob("chat"));
+}

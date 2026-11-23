@@ -86,13 +86,38 @@ describe("AJ-E3812 Settings › AI › Models", () => {
     await waitFor(() => expect(window.__AIJ_AI_JOBS__?.filter((job) => job.beta_on).map((job) => job.job)).toEqual(["review", "chat"]));
   });
 
-  it("a download recommended: Download with its size and what it needs, and Apple's tip", async () => {
+  it("a download recommended where Apple's AI can't run: Download names it, its size and what it needs", async () => {
     await show(STATES.noapple!);
-    expect(screen.getByTestId("models-recommended-action").textContent).toBe("Download · 1.8 GB");
+    expect(screen.getByTestId("models-recommended-action").textContent).toBe("Download Qwen3 1.7B · 1.8 GB");
     expect(screen.getByTestId("models-fit").textContent).toContain("48 GB · needs 11.8 GB");
-    expect(screen.getByTestId("models-apple-tip").textContent).toContain("Turn on Apple Intelligence");
+    expect(screen.queryByTestId("models-apple-tip")).toBeNull();
+    expect(screen.queryByTestId("engine-setup")).toBeNull();
     expect(screen.queryByTestId("models-jobs")).toBeNull();
   });
+
+  // AJ-E3823: Apple's AI off, unanswered or blocked: the setup guide leads
+  // in the Recommended card's place; never a download recommended, and the
+  // AI it names isn't listed twice.
+  for (const [name, apple] of [
+    ["appleoff", "off"],
+    ["noanswer", "no_answer"],
+    ["blocked", "blocked"],
+  ] as const) {
+    it(`${name}: the setup guide on top, no download recommended, nothing shown twice`, async () => {
+      const pane = await show(STATES[name]!);
+      const setup = await screen.findByTestId("engine-setup");
+      expect(setup.dataset.place).toBe("models");
+      expect(setup.dataset.apple).toBe(apple);
+      expect(screen.queryByTestId("models-recommended")).toBeNull();
+      expect(screen.queryByTestId("models-nothing")).toBeNull();
+      expect(screen.queryByTestId("models-apple-tip")).toBeNull();
+      expect(within(setup).getByTestId("setup-download-card").dataset.recommended).toBeUndefined();
+      const cards = screen.getAllByTestId("model-card").map((card) => card.dataset.model);
+      expect(cards).not.toContain("qwen3-1-7b-q8");
+      expect(primariesIn(pane)).toHaveLength(1);
+      plain(pane.textContent ?? "");
+    });
+  }
 
   it("downloading: progress, the size done, Cancel, how it's checked", async () => {
     await show(STATES.downloading!);
@@ -104,7 +129,7 @@ describe("AJ-E3812 Settings › AI › Models", () => {
     for (const card of screen.getAllByTestId("model-card")) expect(within(card).getByTestId("model-download").hasAttribute("disabled")).toBe(true);
     fireEvent.click(within(box).getByTestId("models-cancel"));
     await waitFor(() => expect(window.__AIJ_AI_MODELS__?.download?.state).toBe("cancelled"));
-    await waitFor(() => expect(screen.getByTestId("models-recommended-action").textContent).toBe("Download · 1.8 GB"));
+    await waitFor(() => expect(screen.getByTestId("models-recommended-action").textContent).toBe("Download Qwen3 1.7B · 1.8 GB"));
   });
 
   it("one installed: In use, and a second model asks for approval every time", async () => {

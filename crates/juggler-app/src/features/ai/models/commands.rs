@@ -163,38 +163,69 @@ pub async fn ai_models_installed(state: tauri::State<'_, Arc<AppState>>) -> AppR
 #[tauri::command]
 pub async fn ai_models_catalog(state: tauri::State<'_, Arc<AppState>>) -> AppResult<ModelsCatalog> {
     crate::ipc::blocking(state.inner(), "the AI models", |state| {
-        let listing = listing();
-        let offered = super::offered(&listing);
-        let installed =
-            super::installed_entries(&store::shared(&state.data_dir).installed(), &listing);
-        // Free disk read now, not at the engines' last look: Check again
-        // after freeing space shows it at once.
-        let mac = crate::features::ai::service::mac_now(state).map(|mut mac| {
-            if let Ok(free) = juggler_platform::room::free_space(&state.data_dir) {
-                mac.free_disk_bytes = free;
-            }
-            mac
-        });
-        let usable = crate::features::ai::service::usable(&offered, &installed);
-        let recommendation = mac
-            .as_ref()
-            .map(|mac| crate::features::ai::service::recommendation(mac, &usable, &installed));
-        Ok(catalog(
-            mac.as_ref(),
-            // The memory as the system names it ("18 GB"), from the OS
-            // seam the recommendation reads too.
-            juggler_platform::ai::machine().memory_bytes,
-            &listing,
-            &offered,
-            &installed,
-            recommendation.as_ref(),
-        )
-        .in_this_build(|job| {
-            crate::features::ai::jobs::by_name(job.name())
-                .is_none_or(|spec| crate::features::flags::is_on(spec.flag))
-        }))
+        Ok(catalog_now(state, false))
     })
     .await
+}
+
+/// Check again (AJ-E3823): asks the engines again now, whatever their
+/// last look's age (Apple's AI turned on, or a system prompt about AI
+/// Juggler's helper answered), then answers as [`ai_models_catalog`] and
+/// tells every window the AI jobs may have changed.
+///
+/// # Errors
+///
+/// None today; the result keeps the command's shape.
+#[tauri::command]
+pub async fn ai_engines_check(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, Arc<AppState>>,
+) -> AppResult<ModelsCatalog> {
+    let catalog = crate::ipc::blocking(state.inner(), "the AI models", |state| {
+        Ok(catalog_now(state, true))
+    })
+    .await?;
+    app.emit_event(AppEvent::AiJobsChanged, ());
+    Ok(catalog)
+}
+
+/// The screen's list now, the engines asked again first when `fresh`
+/// (else only when their last look is stale).
+fn catalog_now(state: &Arc<AppState>, fresh: bool) -> ModelsCatalog {
+    let listing = listing();
+    let offered = super::offered(&listing);
+    let installed = super::installed_entries(&store::shared(&state.data_dir).installed(), &listing);
+    // Free disk read now, not at the engines' last look: Check again
+    // after freeing space shows it at once.
+    let mac = if fresh {
+        crate::features::ai::service::mac_checked(state)
+    } else {
+        crate::features::ai::service::mac_now(state)
+    }
+    .map(|mut mac| {
+        if let Ok(free) = juggler_platform::room::free_space(&state.data_dir) {
+            mac.free_disk_bytes = free;
+        }
+        mac
+    });
+    let usable = crate::features::ai::service::usable(&offered, &installed);
+    let recommendation = mac
+        .as_ref()
+        .map(|mac| crate::features::ai::service::recommendation(mac, &usable, &installed));
+    catalog(
+        mac.as_ref(),
+        // The memory as the system names it ("18 GB"), from the OS
+        // seam the recommendation reads too.
+        juggler_platform::ai::machine().memory_bytes,
+        &listing,
+        &offered,
+        &installed,
+        recommendation.as_ref(),
+    )
+    .in_this_build(|job| {
+        crate::features::ai::jobs::by_name(job.name())
+            .is_none_or(|spec| crate::features::flags::is_on(spec.flag))
+    })
 }
 
 /// Opens a System Settings page the Models screen names: Storage (not

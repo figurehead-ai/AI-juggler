@@ -486,6 +486,7 @@ macro_rules! app_commands {
             Write features::ai::commands::ai_job_pick_set,
             Read  features::ai::models::commands::ai_models_installed,
             Read  features::ai::models::commands::ai_models_catalog,
+            Read  features::ai::models::commands::ai_engines_check,
             Write features::ai::models::commands::ai_open_system_page,
             Write features::ai::models::commands::ai_model_download_start,
             Write features::ai::models::commands::ai_model_download_cancel,

@@ -278,6 +278,17 @@ fn asking_keeps_turns_that_page_find_and_clear() {
     assert!(bot_page_impl(&state, None, 20).unwrap().turns.is_empty());
 }
 
+/// D-144: Bot takes a question only while its AI is ready (here there is
+/// none), and Search's entry finds the records without writing a turn.
+#[test]
+fn without_an_ai_bot_takes_no_question_and_search_writes_nothing() {
+    let (_dir, state) = state();
+    assert!(super::commands::ai_ready_or_refuse(&state).is_err());
+    let found = super::lookup::find_records(&state, "What needs me?", None).unwrap();
+    assert!(found.unknown.is_none() || found.rows.is_empty());
+    assert!(bot_page_impl(&state, None, 20).unwrap().turns.is_empty());
+}
+
 /// AJ-E3815 Req 1 and 2: asking never writes a watch (or anything but the
 /// turn); a watch exists only after the confirm card's click.
 #[test]

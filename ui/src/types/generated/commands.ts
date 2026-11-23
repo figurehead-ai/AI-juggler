@@ -319,6 +319,8 @@ export interface Commands {
   agent_bridge_set: { args: { scope: string; id: string; on: boolean }; result: AgentBridgeInfo };
   /** Write features::ai::commands::ai_beta_set */
   ai_beta_set: { args: { job: AiJob; on: boolean }; result: AiJobInfo[] };
+  /** Read features::ai::models::commands::ai_engines_check */
+  ai_engines_check: { args: Record<string, never>; result: ModelsCatalog };
   /** Write features::ai::commands::ai_job_pick_set */
   ai_job_pick_set: { args: { job: AiJob; modelId?: string | null }; result: AiJobInfo[] };
   /** Read features::ai::commands::ai_jobs */

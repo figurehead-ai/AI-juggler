@@ -267,6 +267,9 @@ pub enum BotUnknown {
     Costs,
     /// AI Juggler doesn't record who wrote what.
     Authors,
+    /// D-144: the AI couldn't give an answer that checks out against the
+    /// records it looked at (they are shown as what it checked).
+    Unverified,
 }
 
 /// The nearest screen that answers it (no AI needed).

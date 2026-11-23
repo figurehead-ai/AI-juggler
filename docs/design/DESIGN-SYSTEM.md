@@ -28,7 +28,7 @@ It combines what is already decided (the decision log, the maintainer's recorded
 2. The two modes
 3. Foundations: colour, type, spacing, radii, elevation, icons, motion, density and layout
 4. Components
-5. Patterns (5.10: system prompts are told first; 5.11: usability reasoning)
+5. Patterns (5.10: system prompts are told first; 5.11: usability reasoning; 5.12: calm surfaces)
 6. Content rules
 7. Accessibility
 8. Worked example: the Move or Copy dialog
@@ -69,11 +69,11 @@ Tokens, the type scale, icons and their meanings, radii, buttons, the one filled
 |---|---|---|---|
 | Status colour | Only L2 and L3 are loud. Each need is loud once per area. | The same. Status colour still means status. | D-117 |
 | Accent | The one primary button, links, keyboard focus. | Plus selection (the chosen card's accent ring), progress (the current step), and previews. | D-126 §1, `controls/selected.ts` |
-| Selection look | Neutral: `SELECTED` / `SELECTED_FILL` (raised fill, `--color-selected-ring` edge, semibold ink). | Choice cards: `CHOSEN_CARD` (accent ring). Segments, tabs and rows keep `SELECTED`. | D-117 point 2, `controls/selected.ts` |
+| Selection look | Neutral: `SELECTED` / `SELECTED_FILL` (a soft `--color-selected` fill and semibold ink, no outline; the `selected-ring` edge only under Increase Contrast, PAT-SURF). | Choice cards: `CHOSEN_CARD` (accent ring, the rich mode's highlight of a pick). Segments, tabs and rows keep `SELECTED`. | D-117 point 2, AJ-E1550, `controls/selected.ts` |
 | App icons | Muted at rest (`.app-tone`), full colour at L2/L3, when selected, hovered or focused. 6 px App dot on rows. | Full colour, 32–40 px on choices (`ToolLogo`). | D-117, KIT |
 | Icons | App icons stay. Other row icons show on hover, focus or selection. Section labels have no icons. | An icon or logo on every choice, row and section that holds choices. | CALM §b, D-126 §1 |
-| Containers | Surface tone separates. No card borders, no row dividers. | Surface tone for areas. Choice cards and inputs keep their edge (they are controls). A tinted summary panel for consequences. | CALM §c2, KIT |
-| Secondary buttons | Ghost (`.btn-ghost`). | Bordered secondary (`Button variant="secondary"`) beside the primary, ghost for Cancel. | CALM §c2, KIT, `FlowFoot` |
+| Containers | Surface tone separates. No card borders, no row dividers. | Surface tone for areas. Choice cards and inputs keep a quiet `border-subtle` edge (they are controls). A tinted summary panel for consequences, no ring around it. | CALM §c2, KIT, PAT-SURF |
+| Secondary buttons | Ghost (`.btn-ghost`). | Filled secondary (`Button variant="secondary"`, the `control` fill, no stroke) beside the primary, ghost for Cancel. | CALM §c2, KIT, `FlowFoot`, PAT-SURF |
 | Illustrations | None. | One small line illustration or a live preview per step, where it explains the choice. | D-126 §1, KIT |
 | Space | Information-dense, top N plus "See all". | Generous: form to 680 px, preview 320–380 px, no narrow column on an empty canvas. | D-126 §1, `FlowLayout.tsx` |
 | Motion | None at rest. One 600 ms fade when a need arrives. | Transitions on choice and step change (150 ms). | D-117, CALM §a.6 |
@@ -124,8 +124,11 @@ All values below are the real tokens in `styles.css` (`@theme` and `:root`), unl
 | `--color-surface` | `#151a23` | `#ffffff` | An area or a card. |
 | `--color-surface-2` | `#1e2430` | `#f5f6f9` | Inset in an area: an input, a hovered row, an info Alert, a summary panel. |
 | `--color-surface-3` | `#242935` | `#e6e9ef` | A chip, a popover's hover, a ghost button's hover. |
-| `--color-fill` | `#181d27` | `#ffffff` | A filled control in place of its outline (search, segments). |
-| `--color-selected` | `#242935` | `#e6e9ef` | What is selected, chosen or current. |
+| `--color-fill` | `#181d27` | `#ffffff` | A filled control in place of its outline (search). |
+| `--color-overlay` | `#1b202b` | `#ffffff` | A floating layer: menus, popovers, tips, the date picker (PAT-SURF). |
+| `--color-control` / `-control-hi` | ink 8 % / 12 % | ink 6 % / 10 % | A secondary button's, an input's, a picker field's and a segmented track's fill, and its hover (PAT-SURF). |
+| `--color-hover` | ink 5 % | ink 5 % | The hover fill step of a row, tab, segment or menu line. |
+| `--color-selected` | `#292f3c` | `#dfe3ea` | What is selected, chosen or current: a fill a clear step off what is around it (1.26–1.44:1), never an outline (AJ-E1550; was `#242935` / `#e6e9ef` with a ring). |
 | `--color-skeleton` | `#242935` | `#ced3dd` | Loading placeholders. |
 
 **Text (four levels plus the section label):**
@@ -158,7 +161,7 @@ All values below are the real tokens in `styles.css` (`@theme` and `:root`), unl
 
 **Identity:** each App has one colour (its profile badge and dot, `lib/mark-hues`), given once and the same on every screen. Accounts beside an App are neutral. Other groupings use icons, marks and tags, never a second colour. (D-69, SPEC §9.3 AJ-E3206)
 
-**Lines:** `--color-hairline` (rules inside an area, input edges), `--color-divider` (the one rail/main split in calm screens, the FlowLayout step column and foot).
+**Lines (PAT-SURF):** `--color-border-subtle` (the ink at 7 % dark, 9 % light: 1.16–1.2:1), used only where tone can't separate: a rule inside an area, an input's or a floating layer's rim. `--color-hairline` is the same line (an alias, so every existing hairline is calm). `--color-frame` is a card's or filled control's frame: transparent, faint under Increase Contrast. `--color-selected-edge`: transparent, `selected-ring` under Increase Contrast. `--color-divider` (the one rail/main split in calm screens, the FlowLayout step column and foot). `--color-focus` and `--color-attention` (both the accent) are the only accent lines: keyboard focus and a rare true-attention state.
 
 **Rules:**
 - **COL-1.** Colours come only from tokens. No raw hex in components; the terminal palette is the one allowlisted exception. (D-16, QUAL)
@@ -169,7 +172,7 @@ All values below are the real tokens in `styles.css` (`@theme` and `:root`), unl
 - **COL-6.** One filled accent button per view (BTN-1). The accent never marks a status.
 - **COL-7.** Every text token clears 4.5:1 on every surface it can sit on, in both themes. `ink-2` and `muted` also clear APCA Lc 60 in dark. (AJ-E804, PRIN §7, `tests/visual/contrast.spec.ts`)
 - **COL-8.** `muted` text reaches 7:1 on every surface (the maintainer's decided scale). Dark passes (≥ 7.28:1). Light `muted` moves to `#424958` (7.29–9.03:1) in 0.5.0. (M:readability-and-visuals; D-142, `GAPS.md` B1)
-- **COL-9.** Increase Contrast (`prefers-contrast: more`) raises the divider to hairline, the hairline to faint, the section label to ink-2, and gives ghost buttons an edge. Already in `styles.css`. (D-117 point 4)
+- **COL-9.** Increase Contrast (`prefers-contrast: more`) raises the divider, `border-subtle` and the hairline to faint, gives cards and filled controls their frame (`--color-frame`), what is selected its ring (`--color-selected-edge` → `selected-ring`), the section label ink-2, and ghost buttons an edge. In `styles.css`. (D-117 point 4, AJ-E1550)
 - **COL-10.** Charts keep categorical colours (that is data, not status), the same colour per Account everywhere, and each has a table fallback. (CALM §b, M:readability-and-visuals, ADR-0021)
 
 ### 3.2 Type
@@ -237,8 +240,8 @@ Today there is one token (`--radius-card`, 14 px) and ten radii in use (AUDIT; `
 |---|---|---|
 | 0 | Canvas | `canvas-hi` → `canvas` gradient. |
 | 1 | Areas, cards | `surface`. Calm: no border, no shadow. Rich: may keep `--shadow-card` on a raised choice. |
-| 2 | Menus, popovers, pickers, tips | `surface` with a hairline and a popover shadow. **Gap:** no `--shadow-popover` token. |
-| 3 | Dialogs and sheets | `surface`, `--radius-card`, a dialog shadow over a dimmed, blurred canvas (`bg-canvas/70 backdrop-blur-sm`). **Gap:** the shadow is a raw value in `form.tsx`; add `--shadow-dialog`. |
+| 2 | Menus, popovers, pickers, tips | `overlay` with a `border-subtle` rim and `--shadow-popover` (very soft; `shadow-card` is the same value for the floating layers that already use it). |
+| 3 | Dialogs and sheets | `surface`, `--radius-card`, `--shadow-dialog` over a dimmed, blurred canvas (`bg-canvas/70 backdrop-blur-sm`). |
 | 4 | Toasts | Above everything but never over a dialog's footer (`data-toast-avoid`). |
 
 - **ELV-1.** A z-index scale: base 0, sticky heads 20, rail overlays 30, popovers 40, dialogs 50, toasts 60. **Gap:** dialogs and toasts are both `z-50` today. (new)
@@ -384,7 +387,7 @@ Each component lists its anatomy, when to use it, do's and don'ts, accessibility
 - **FRM-7.** No system select, checkbox, radio, date box or `<details>`: use the shared controls. (D-57, `native_controls_lint.py`)
 - **FRM-8.** Text fields for names, paths, ids and keys have autocorrect, autocapitalise and spellcheck off; prose fields keep them. (`text_input_lint.py`)
 - **FRM-9.** Prefer choosing to typing: pickers over free text, a folder picker or drop over a typed path. (HIG Entering data, SPEC §9.1 "never typed paths")
-- **FRM-10.** Field look: 36 px high, `surface-2` fill (or `fill` in calm screens), hairline edge, 12 px radius, accent ring on focus. (`Input`, CALM §c2)
+- **FRM-10.** Field look: 36 px high, the `control` fill, no visible stroke (its `frame` shows under Increase Contrast), 12 px radius, the focus edge on focus. (`Input`, `FIELD_SHELL`, CALM §c2, PAT-SURF)
 
 ### 4.5 ToggleRow and CheckRow
 
@@ -476,7 +479,7 @@ Each component lists its anatomy, when to use it, do's and don'ts, accessibility
 
 - **CRD-1.** A card is an area on `surface` over the canvas, padded 20 px, 16 px between cards, sized to its content in a responsive grid. (M:readability-and-visuals)
 - **CRD-2.** No card inside a card of the same tone; inside a card, group with spacing or `surface-2` insets. (PRIN §6, AUDIT §3)
-- **CRD-3.** Calm cards have no border (the surface step separates them); rich choice cards keep their edge. **Gap:** `Card` draws a hairline border, a shadow, `.sheen` and a hover border on every card. (D-117 round 2, `GAPS.md` A7)
+- **CRD-3.** Cards have no border, shadow or sheen (the surface step separates them; `Card` draws `border-frame`, transparent unless Increase Contrast); rich choice cards keep a quiet `border-subtle` edge. (D-117 round 2, `GAPS.md` A7, closed by AJ-E1550)
 - **CRD-4.** A stat tile shows a number only when it is non-zero or meaningful, with a sparkline when history exists; "Tasks 0" never takes stat size. (PRIN audit, M:readability-and-visuals)
 
 ### 4.12 Picker
@@ -493,7 +496,7 @@ Each component lists its anatomy, when to use it, do's and don'ts, accessibility
 
 ### 4.13 Empty, loading, error and unknown states
 
-**Code today:** `Placeholder` (skeletons shaped like rows), and per-screen empties (`RelatedEmpty`, `WatchesEmpty`, `BotEmpty`, `FleetPeersEmpty`…). **Gap:** no shared `EmptyState` (DEEP §2.3 asked for one).
+**Code today:** `Placeholder` (skeletons shaped like rows), and per-screen empties (`RelatedEmpty`, `WatchesEmpty`, `BotEmpty`, `FleetPeersEmpty`…); a feature that needs setup shows its guided setup instead of an empty (`components/ai/EngineSetup.tsx`, "Set up Bot", D-144). **Gap:** no shared `EmptyState` (DEEP §2.3 asked for one).
 
 **Anatomy (inviting empty, rich):** icon (40–48) or a small line illustration · heading ("No watches yet") · one sentence on what fills it · one action · optional "Learn more". **Calm empty:** one line of text in the area, with a link.
 
@@ -529,7 +532,7 @@ Each component lists its anatomy, when to use it, do's and don'ts, accessibility
 
 ### 4.16 Smaller pieces
 
-- **Segmented** (`controls/Segmented.tsx`): 2–4 short options; one look app-wide, filled with `fill`, the chosen segment `SELECTED`. (KIT, D-117)
+- **Segmented** (`controls/Segmented.tsx`): 2–4 short options; one look app-wide, a `control`-filled track with no edge, the chosen segment `SELECTED` (a fill and semibold ink). (KIT, D-117, PAT-SURF)
 - **Disclosure** (`controls/Disclosure.tsx`): a button with a chevron, never `<details>`; its closed label summarises what is inside. (D-57, AJ-E3011)
 - **WhyTip / WhyButton** (`WhyTip.tsx`): a greyed control stays focusable, says `aria-disabled`, and shows its reason on hover and focus. (rc19/rc21 walks)
 - **ToolLogo** (`ToolLogo.tsx`): the app's own icon read at run time; a neutral letter tile only when no icon exists and the owner allows none. (D-38, KIT)
@@ -575,6 +578,7 @@ A serious choice changes what happens to the user's work, money, data or another
 - **PAT-HIDE-2.** Disabled only when the user can unblock it, with how, in plain words ("4 sessions are working in this profile; Move becomes available once they finish"). (D-127)
 - **PAT-HIDE-3.** No unfinished feature is visible outside its flag, and no "Beta · Not proven yet" on a route the product offers. (D-127 extension)
 - **PAT-HIDE-4.** Version gates are watched; when a tool updates past one, the release scope check lists it. (D-127 §2)
+- **PAT-HIDE-5.** Bot is AI and conversation only. With its AI ready, Bot is a conversation whose answers are the AI's, citing AI Juggler's records; with none, its icon stays and its panel shows only "Set up Bot" (`EngineSetup`: what this computer can do, Apple's built-in AI first, the downloadable AI named, sized and explained), never a question box or results. Every "Ask Bot" door shows only while its AI is ready. Finding records is Search's (⌘K). No "look-ups" on screen (`plain_words_lint.py`). (D-144, AJ-E3823)
 
 ### 5.5 View and edit in place (PAT-INP)
 
@@ -634,6 +638,50 @@ A standing rule (the maintainer, 2026-11-23): every new or changed feature is re
 - **PAT-USE-1.** Every UI task carries a **Usability reasoning** section (format in `docs/tasks/README.md`), written by Opus before building, answering six questions: (1) who uses it and what they expect from its name and icon; (2) what a newcomer who knows nothing sees, with every term, size, download and choice named, explained and recommended; (3) its real value, in the one right place, duplicating no other surface; (4) what happens when it is unavailable or empty (hidden, or a guided setup, D-127); (5) what system prompts it can cause (PAT-OSP); (6) what would surprise or confuse a sensible person.
 - **PAT-USE-2.** The answers go to the building agent with its brief; the review (VALIDATION line 18) re-checks them against the built screen, and a mismatch is fixed before baselines.
 - **PAT-USE-3.** `scripts/release_scope.py check` fails a release (from 0.5.1) whose UI item has no such section.
+
+### 5.12 Calm surfaces: separation by tone (PAT-SURF)
+
+A standing rule (the maintainer, 2026-11-23, AJ-E1550): "Only time you can ever use a bright border is on highlight or mouse over or to really really bring attention to the user." AI Juggler is left open beside the user's real work; it recedes like the Claude app's Code view. Areas are told apart by tone and type, never by lines; what is selected or needs the user stands out because little else does.
+
+**How others separate surfaces (research, 2026-11-23; product knowledge and the repo's earlier research, no downloads):**
+
+| System | Areas and cards | Lines | Selected | Hover | Floating layers | Focus and attention |
+|---|---|---|---|---|---|---|
+| Linear | Layered neutral backgrounds a small lightness step apart (its LCH theme generator) | Near-invisible 1 px edges (white at a few %), mostly between panes | A lighter fill on the sidebar row or tab, words brighter; no outline | A fill step | Command menu and popovers: a raised tone, a soft large shadow, a faint rim | The accent ring on keyboard focus only |
+| Vercel Geist | `background-100` page, `background-200` areas | `gray-alpha-400` hairlines (alpha, so they sit on any surface), on cards and inputs | Tabs: weight and colour plus an underline; menus: a gray-alpha fill | `gray-alpha-100/200` fill | Menus and modals: shadow plus the alpha rim | A 2 px blue focus ring with an offset |
+| Radix Themes | Steps 1–2 of a 12-step scale are backgrounds; `--color-panel` for raised panels | Step 6 subtle borders, 7 for controls, 8 on hover or focus | Step 4–5 fill (component background, pressed/selected); SegmentedControl: a panel-toned indicator with a small shadow | Step 4 fill (one step over rest) | `shadow-4…6`, the only shadows | `accent-8` focus ring; accent elsewhere only for a solid action |
+| Apple macOS HIG | Materials and vibrancy: the sidebar a different material from the content | Thin, low-contrast separators where grouping by space isn't enough | A rounded fill (accent while the list has focus, grey otherwise) | Usually none; pointer feedback by the control | Menus, popovers and sheets float with system shadows | The focus ring on keyboard focus; Increase Contrast adds borders everywhere |
+| Claude desktop (Code view) | Panels by tone; cards have no visible edge | Practically none | A soft fill on the selected row | A lighter fill | Menus with a soft shadow and a faint rim | The brand colour only for the send and primary actions |
+| ChatGPT desktop | The sidebar a darker tone than the conversation | None between sidebar and content beyond tone | A rounded grey fill on the selected chat | A lighter fill | Menus and the model picker: a raised tone, soft shadow, faint rim; the composer a filled pill | Focus rings on keyboard focus only |
+
+The common answer: three or four tone steps carry the hierarchy; lines are alpha hairlines barely above the surface, and only where tone can't separate; selection is a fill plus stronger words; hover is one fill step; shadows belong to what floats; the accent's line means keyboard focus. Every one restores stronger edges for Increase Contrast.
+
+**The tokens (`styles.css`):**
+
+| Job | Token | Dark | Light |
+|---|---|---|---|
+| Base (the window) | `canvas` / `canvas-hi` | `#0b0e14` / `#10141b` | `#eceef3` / `#e4e7ee` |
+| Raised (an area, a card) | `surface` | `#151a23` | `#ffffff` |
+| Inset (inside an area: a summary panel, a target card) | `surface-2` / `surface-3` | `#1e2430` / `#242935` | `#f5f6f9` / `#e6e9ef` |
+| Overlay (menus, popovers, tips) | `overlay` + `--shadow-popover`; dialogs `surface` + `--shadow-dialog` | `#1b202b` | `#ffffff` |
+| The one quiet line | `border-subtle` (= `hairline`) | ink 7 % | ink 9 % |
+| A card's or control's frame | `frame` | transparent | transparent |
+| Hover | `hover` | ink 5 % | ink 5 % |
+| Filled controls | `control` / `control-hi` | ink 8 % / 12 % | ink 6 % / 10 % |
+| Selected | `selected` + semibold `selected-ink`; edge `selected-edge` | `#292f3c`, transparent | `#dfe3ea`, transparent |
+| Focus | `focus` (the accent), `:focus-visible` | `#8787f6` | `#4747d1` |
+| True attention | `attention` (the accent) | `#8787f6` | `#4747d1` |
+| Increase Contrast | `border-subtle`, `hairline`, `frame`, `divider` → `faint`; `selected-edge` → `selected-ring` | | |
+
+**Rules:**
+- **PAT-SURF-1.** No outline on cards, sections or areas. Separation is by the surface steps above; `border-subtle` only where tone can't separate (a rule inside an area, an input's or a floating layer's rim). (AJ-E1550)
+- **PAT-SURF-2.** Shadows only on floating layers (menus, popovers, tips, toasts, dialogs), and very soft. No sheen, no glow except the one primary. (ELV-2)
+- **PAT-SURF-3.** Selected (tabs, segmented controls, rail rows, the subagent tree, chips) is `SELECTED` / `SELECTED_FILL`: a soft fill and stronger words, never an outline. A rich-mode choice card keeps `CHOSEN_CARD`'s accent ring, the highlight of what the user picked (D-126).
+- **PAT-SURF-4.** Hover is a fill step (`hover`, or one surface step), never a brighter border.
+- **PAT-SURF-5.** An accent border or ring only for `:focus-visible` (`focus`) and a rare true-attention state (`attention`: a Needs-you item the user was sent to, a destructive confirm). "Suggested" and "Recommended" are a small accent tag, never a ring.
+- **PAT-SURF-6.** Inputs, picker fields and secondary buttons are a fill (`control`), not a bright stroke; the ring comes on focus. Tags and status pills are their tint, no edge.
+- **PAT-SURF-7.** Increase Contrast (`prefers-contrast: more`) brings the lines back: `border-subtle` and `frame` to faint, selection's ring. (COL-9)
+- **PAT-SURF-8.** `scripts/design_tokens_lint.py` (in `just verify-static`) fails a component that draws a bright line (the accent or a bright neutral as a border, ring, outline or divider) outside a focus or hover variant; its allowlist only shrinks.
 
 ## 6. Content rules
 

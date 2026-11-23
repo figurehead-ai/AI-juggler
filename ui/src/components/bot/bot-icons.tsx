@@ -191,14 +191,6 @@ export function IconGauge(props: P): JSX.Element {
   );
 }
 
-export function IconDownload(props: P): JSX.Element {
-  return (
-    <svg {...base(props)}>
-      <path d="M12 4v11M7 10.5l5 5 5-5M5 20h14" />
-    </svg>
-  );
-}
-
 export function IconQuestion(props: P): JSX.Element {
   return (
     <svg {...base(props)}>

@@ -48,6 +48,31 @@ pub fn helper(program: impl AsRef<OsStr>) -> Command {
     command
 }
 
+/// Whether the system stopped a helper that ended with `status` the way
+/// it stops code it refuses to run (AJ-E3823): macOS kills it outright
+/// (`SIGKILL`, "Killed: 9") when its signature, its identity or its
+/// sandbox container is refused. Other systems can't tell yet: `false`.
+#[must_use]
+pub fn stopped_by_system(status: &std::process::ExitStatus) -> bool {
+    #[cfg(unix)]
+    {
+        use std::os::unix::process::ExitStatusExt as _;
+        status.signal() == Some(nix::sys::signal::Signal::SIGKILL as i32)
+    }
+    #[cfg(not(unix))]
+    {
+        let _ = status;
+        false
+    }
+}
+
+/// Whether the system refused to start a helper (`error` from its
+/// spawn): not allowed to run it, rather than missing or broken.
+#[must_use]
+pub fn refused_to_start(error: &std::io::Error) -> bool {
+    error.kind() == std::io::ErrorKind::PermissionDenied
+}
+
 /// Whether process `pid` is there (it may be another user's): a signal-0
 /// probe on Unix. `false` for pid 0 and anything a pid can't be. Other
 /// systems can't tell yet and answer `false`.
@@ -170,6 +195,21 @@ mod tests {
         for group in [0, 1, u32::MAX] {
             assert!(end_group(group, true).is_err(), "{group}");
         }
+    }
+
+    #[test]
+    fn a_killed_helper_reads_as_stopped_by_the_system() {
+        let mut child = Command::new("/bin/sleep").arg("30").spawn().unwrap();
+        child.kill().unwrap();
+        let status = child.wait().unwrap();
+        assert_eq!(stopped_by_system(&status), cfg!(unix));
+        let ok = Command::new("/usr/bin/true").status().unwrap();
+        assert!(!stopped_by_system(&ok));
+        let denied = std::io::Error::from(std::io::ErrorKind::PermissionDenied);
+        assert!(refused_to_start(&denied));
+        assert!(!refused_to_start(&std::io::Error::from(
+            std::io::ErrorKind::NotFound
+        )));
     }
 
     #[test]

@@ -2,32 +2,38 @@
  * D-136 (AJ-E3804..E3808, E3815, E3819's UI part): Bot's states from the
  * approved mock-up, and the rules each one rests on: the lead follows each
  * row's own state; the scope chip rides on the question and × widens it;
- * with no model the look-ups and the box stay; clearing asks first and
+ * D-144: with no AI ready only "Set up Bot" shows (no box, no results),
+ * and with one Bot is a conversation with cited answers; clearing asks first and
  * names what stays; a watch is written only by the confirm card's click;
  * forget shows FORGET_AND_BACKUPS as the backend gives it.
  */
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AiJobInfo } from "../../lib/ipc/ai";
+import type { ModelsCatalog } from "../../lib/ipc/models";
 import { BOT_NOW, R, STATES } from "../../preview/bot";
 import { CLEAR_AND_BACKUPS, FORGET_AND_BACKUPS, WORDS, lead, leadText } from "../../lib/bot-words";
 import { ask, botState, newTopic, openBot, resetBot } from "../../lib/bot-store";
 import { BotWatchCard } from "./BotWatchCard";
 
 let job: AiJobInfo | null = null;
-vi.mock("../../lib/ai-availability", () => ({ useAiJob: () => job, useAiJobs: () => (job ? [job] : []), isShown: () => true }));
-vi.mock("../../lib/ai-models", () => ({ useModelsCatalog: () => null, useModelsInstalled: () => null, refreshModels: () => undefined }));
+let modelsCatalog: ModelsCatalog | null = null;
+const ready = (info: AiJobInfo | null | undefined) => info?.state === "ready" || info?.state === "waiting";
+vi.mock("../../lib/ai-availability", () => ({ useAiJob: () => job, useAiJobs: () => (job ? [job] : []), isShown: ready, useBotReady: () => ready(job) }));
+vi.mock("../../lib/ai-models", () => ({ useModelsCatalog: () => modelsCatalog, useModelsInstalled: () => null, refreshModels: () => undefined }));
 
 const { BotPanelBody } = await import("./BotDock");
 const { BotPage } = await import("./BotPage");
 const { BotForgetHost } = await import("./BotSheets");
 const { BotDock } = await import("./BotDock");
+const { AskBot } = await import("./BotButton");
 
 function seed(name: keyof typeof STATES): void {
   const state = STATES[name]!;
   window.__AIJ_BOT__ = structuredClone(state.bot);
   window.__AIJ_WATCH_VIEW__ = state.watches ? structuredClone(state.watches) : {};
   job = state.jobs.find((info) => info.job === "chat") ?? null;
+  modelsCatalog = state.catalog ?? null;
 }
 
 function panel(): void {
@@ -80,13 +86,15 @@ describe("the lead follows each row's own state", () => {
 });
 
 describe("every state of the mock-up", () => {
-  it("empty: what Bot does today, three questions, the Beta row where a model passes", async () => {
+  it("empty, AI ready: what Bot is, what it does today, three questions, the box", async () => {
     seed("empty");
     panel();
-    expect((await screen.findByTestId("bot-empty"))?.textContent ?? '').toContain("Doesn’t talk to your agents or change anything else");
+    const empty = await screen.findByTestId("bot-empty");
+    expect(empty.textContent).toContain("Your AI assistant for everything AI Juggler sees.");
+    expect(empty.textContent).toContain("Doesn’t talk to your agents or change anything else");
     expect(screen.getAllByTestId("bot-example")).toHaveLength(3);
-    expect(screen.getByTestId("bot-beta-row")).toBeTruthy();
     expect(screen.getByTestId("bot-input")).toBeTruthy();
+    expect(screen.queryByTestId("bot-setup")).toBeNull();
   });
 
   it("lookup: the lead, the rows as source links, Looked at", async () => {
@@ -120,19 +128,43 @@ describe("every state of the mock-up", () => {
     expect((screen.getByTestId("bot-made"))?.textContent ?? '').toContain("Written by Apple’s built-in AI, on this Mac.");
     fireEvent.click(screen.getByTestId("bot-wrong"));
     await waitFor(() => expect(window.__AIJ_BOT__?.calls?.some(([c]) => c === "bot_wrong")).toBe(true));
-    fireEvent.click(screen.getByTestId("bot-records-only"));
-    expect(screen.queryByTestId("bot-written")).toBeNull();
-    expect(screen.getByTestId("bot-lead")).toBeTruthy();
+    // D-144: a conversation with cited answers, never a records-only mode.
+    expect(screen.queryByTestId("bot-records-only")).toBeNull();
+    const rows = screen.getAllByTestId("bot-row");
+    expect(rows).toHaveLength(2);
+    expect(card.querySelectorAll("[aria-label^='record ']")).toHaveLength(2);
+    expect(screen.getByTestId("bot-input")).toBeTruthy();
   });
 
-  it("nomodel: look-ups still work, the shortcuts, and the question box stays", async () => {
-    seed("nomodel");
+  it("D-144, an answer the AI couldn't check: I don't know, with the records it checked", async () => {
+    seed("beta");
+    window.__AIJ_BOT__ = {
+      ...window.__AIJ_BOT__,
+      turns: [{ ...window.__AIJ_BOT__!.turns![0]!, outcome: "dont_know", unknown: "unverified", written: null }],
+    };
     panel();
-    expect((await screen.findByTestId("bot-no-model"))?.textContent ?? '').toContain("It doesn’t talk to your agents.");
-    for (const s of ["needs_me", "finished_today", "runway", "running"]) expect(screen.getByTestId(`bot-shortcut-${s}`)).toBeTruthy();
-    expect(screen.getByTestId("bot-input")).toBeTruthy();
-    expect(screen.queryByTestId("bot-beta-row")).toBeNull();
+    const said = await screen.findByTestId("bot-lead");
+    expect(said.textContent).toBe("I don’t know. I couldn’t write an answer I could check against these records.");
+    expect(screen.getByRole("list", { name: "What I checked" })).toBeTruthy();
+    expect(screen.getAllByTestId("bot-row")).toHaveLength(2);
   });
+
+  for (const name of ["nomodel", "setupoff", "setupblocked", "setupready"] as const) {
+    it(`${name}, no AI ready (D-144): only Set up Bot, no question box, no results, no shortcuts`, async () => {
+      seed(name);
+      panel();
+      const setup = await screen.findByTestId("bot-setup");
+      expect(within(setup).getByRole("heading", { name: "Set up Bot" })).toBeTruthy();
+      expect(setup.textContent).toContain("Bot is your AI assistant for everything AI Juggler sees.");
+      expect(screen.queryByTestId("bot-input")).toBeNull();
+      expect(screen.queryByTestId("bot-composer")).toBeNull();
+      expect(screen.queryByTestId("bot-conversation")).toBeNull();
+      expect(screen.queryByTestId("bot-search")).toBeNull();
+      expect(screen.queryByTestId("bot-new-topic")).toBeNull();
+      for (const s of ["needs_me", "finished_today", "runway", "running"]) expect(screen.queryByTestId(`bot-shortcut-${s}`)).toBeNull();
+      expect(setup.textContent).not.toMatch(/look-?ups?|look things up/i);
+    });
+  }
 
   it("remember: the echo with Edit and Undo; the receipt names the memory with Forget", async () => {
     seed("remember");
@@ -141,6 +173,19 @@ describe("every state of the mock-up", () => {
     fireEvent.click(screen.getAllByTestId("bot-looked")[0]!.querySelector("button")!);
     expect((screen.getByTestId("bot-receipt"))?.textContent ?? '').toContain("Your name for “web”: the api agent");
     expect(screen.getByText(/you call it the api agent/)).toBeTruthy();
+  });
+
+  it("Ask Bot shows only while Bot's AI is ready (D-144, D-127)", () => {
+    const scope = { kind: "session" as const, id: "s-api", name: "api", sessions: [] };
+    for (const name of ["nomodel", "setupready"] as const) {
+      seed(name);
+      render(<AskBot scope={scope} />);
+      expect(screen.queryByTestId("ask-bot"), name).toBeNull();
+      cleanup();
+    }
+    seed("beta");
+    render(<AskBot scope={scope} />);
+    expect(screen.getByTestId("ask-bot").textContent).toBe("Ask Bot about this");
   });
 
   it("a finished session's watch card says it fires once it's resumed (the 0.5 walk's N-09)", async () => {

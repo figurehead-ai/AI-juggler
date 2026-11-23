@@ -39,6 +39,10 @@ fn mac(raw: &Value) -> MacFacts {
         apple_ai: match raw["apple_ai"].as_str().unwrap() {
             "on" => AppleAi::On,
             "off" => AppleAi::Off,
+            "preparing" => AppleAi::Preparing,
+            "unchecked" => AppleAi::Unchecked,
+            "no_answer" => AppleAi::NoAnswer,
+            "blocked" => AppleAi::Blocked,
             _ => AppleAi::Unavailable,
         },
     }
@@ -84,6 +88,10 @@ fn expected(raw: &Value) -> Recommendation {
     let apple_ai_off = raw["apple_ai_off"].as_bool().unwrap_or(false);
     Recommendation::Nothing(match raw["none"].as_str().unwrap() {
         "not_apple_silicon" => WhyNot::NotAppleSilicon,
+        "turn_on_apple_ai" => WhyNot::TurnOnAppleAi {
+            preparing: raw["preparing"].as_bool().unwrap_or(false),
+        },
+        "apple_ai_unknown" => WhyNot::AppleAiUnknown,
         "not_enough_memory" => WhyNot::NotEnoughMemory { apple_ai_off },
         "not_enough_disk" => WhyNot::NotEnoughDisk {
             needed_bytes: raw["needed_bytes"].as_u64().unwrap(),

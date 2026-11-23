@@ -3,4 +3,4 @@
 /**
  * Why nothing is recommended.
  */
-export type NothingWhy = "not_apple_silicon" | "not_enough_memory" | "not_enough_disk" | "nothing_listed";
+export type NothingWhy = "not_apple_silicon" | "turn_on_apple_ai" | "apple_ai_getting_ready" | "apple_ai_unknown" | "not_enough_memory" | "not_enough_disk" | "nothing_listed";

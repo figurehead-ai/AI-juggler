@@ -250,9 +250,11 @@ export function unknownWords(unknown: BotUnknown): { strong: string; rest: strin
     case "test_results":
       return { strong: "I don’t know.", rest: " AI Juggler doesn’t record a session’s test results." };
     case "costs":
-      return { strong: "I don’t know.", rest: " I don’t look up costs; Usage shows them." };
+      return { strong: "I don’t know.", rest: " I don’t see costs; Usage shows them." };
     case "authors":
       return { strong: "I don’t know.", rest: " AI Juggler doesn’t record who wrote what." };
+    case "unverified":
+      return { strong: "I don’t know.", rest: " I couldn’t write an answer I could check against these records." };
     default:
       return { strong: "I don’t know.", rest: "" };
   }
@@ -266,6 +268,7 @@ export function nearestWords(unknown: BotUnknown, row: BotRowInfo): { lead: stri
     test_results: "its test results",
     costs: "its costs",
     authors: "who wrote it",
+    unverified: "",
   };
   return { lead: "The nearest record is about the ", name: `${row.kind} “${row.title}”`, tail: `, not ${what[unknown]}:` };
 }

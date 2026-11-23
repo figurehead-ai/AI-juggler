@@ -1,8 +1,9 @@
 /**
  * AJ-E3806, D-131 — a Beta written answer: labelled "Written by AI ·
  * Beta", each sentence with its numbered citations, "Checked against the
- * records below", and "How this was made" (the model, on this Mac, the
- * check, Beta's honesty line, This is wrong, Show records only). It is
+ * records below", and "How this was made" (the AI, on this Mac, the
+ * check, Beta's honesty line, This is wrong). D-144: no "records only"
+ * mode; the cited records are always below it. It is
  * shown only because every name, number and state in it was found in the
  * records it cites (the backend's check).
  */
@@ -25,7 +26,7 @@ export function BetaPill({ children }: { children: string }): JSX.Element {
   );
 }
 
-export function BotWrittenCard({ written, rows, turnId, flagged, onRecordsOnly }: { written: BotWritten; rows: number; turnId: string; flagged: boolean; onRecordsOnly: () => void }): JSX.Element {
+export function BotWrittenCard({ written, rows, turnId, flagged }: { written: BotWritten; rows: number; turnId: string; flagged: boolean }): JSX.Element {
   const [open, setOpen] = useState(false);
   const [said, setSaid] = useState(flagged);
   const text = written.parts.map((p) => p.text).join(" ");
@@ -89,10 +90,6 @@ export function BotWrittenCard({ written, rows, turnId, flagged, onRecordsOnly }
             <button type="button" disabled={said} className="inline-flex h-7 items-center gap-1.5 rounded-lg bg-surface-2 px-2.5 text-meta font-medium text-ink inset-ring-1 inset-ring-hairline outline-none hover:bg-surface-3 focus-visible:ring-2 focus-visible:ring-accent/60 disabled:opacity-60" onClick={() => void wrong()} data-testid="bot-wrong">
               <IconFlag width={13} height={13} aria-hidden="true" />
               {said ? WORDS.wrongSaid : WORDS.wrong}
-            </button>
-            <span className="grow" />
-            <button type="button" className="rounded-md text-meta font-medium text-accent-hi outline-none hover:underline focus-visible:ring-2 focus-visible:ring-accent/60" onClick={onRecordsOnly} data-testid="bot-records-only">
-              {WORDS.recordsOnly}
             </button>
           </div>
           <span className="px-2 pb-1 text-label text-faint">{WORDS.wrongKept}</span>

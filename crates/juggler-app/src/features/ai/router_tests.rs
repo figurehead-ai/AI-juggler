@@ -445,6 +445,61 @@ fn the_order_picked_then_recommended_then_no_download_then_tier_then_running() {
     );
 }
 
+/// AJ-E3823 requirement 6: Apple's ready card is Bot's first, over a
+/// downloaded model that is installed, ready and already running, with
+/// no pick of the user's: the recommendation for a Mac with Apple
+/// Intelligence on names Apple's model (Automatic), and even with no
+/// recommendation at all, no download beats one.
+#[test]
+fn apple_s_ready_card_comes_first_over_an_installed_download() {
+    use super::models::recommend::{AppleAi, HostChip, MacFacts, Recommendation, recommend};
+
+    let models = [
+        entry(SYSTEM, Engine::AppleBuiltin, Verdict::Beta),
+        entry(LOCAL, Engine::GgufLocal, Verdict::Beta),
+    ];
+    let cards = vec![system_card(Readiness::Ready), local_card(Readiness::Ready)];
+    assert!(cards[1].running, "the download is running already");
+    let mac = MacFacts {
+        chip: HostChip::Apple(Chip::M3),
+        memory_gb: 18,
+        free_disk_bytes: 200_000_000_000,
+        apple_ai: AppleAi::On,
+    };
+    let automatic = match recommend(&mac, &models, &[LOCAL]) {
+        Recommendation::Model { id, .. } => Some(id),
+        Recommendation::Nothing(why) => panic!("nothing recommended: {why:?}"),
+    };
+    assert_eq!(automatic.as_deref(), Some(SYSTEM));
+    let none = BTreeMap::new();
+    let on = Switches {
+        on: true,
+        beta: true,
+    };
+    for automatic in [automatic.as_deref(), None] {
+        let route = route(
+            &jobs::BOT,
+            on,
+            &Inputs {
+                cards: &cards,
+                models: &models,
+                automatic,
+                picks: &none,
+            },
+        );
+        let Route::Run { card, why, .. } = route else {
+            panic!("Bot doesn't run: {route:?}");
+        };
+        assert_eq!(card, 0, "Apple's card first ({automatic:?})");
+        let expected = if automatic.is_some() {
+            Choice::Recommended
+        } else {
+            Choice::NoDownload
+        };
+        assert_eq!(why, expected);
+    }
+}
+
 #[test]
 fn needs_decide_which_cards_can_serve_a_job() {
     let models = [entry(SYSTEM, Engine::AppleBuiltin, Verdict::Ships)];

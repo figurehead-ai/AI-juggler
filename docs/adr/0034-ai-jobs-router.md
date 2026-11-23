@@ -253,6 +253,8 @@ The panel's look and feel are AJ-E3804's (calm, D-117, the read-specs rule). Thi
 
 #### 6.1 What Chat is
 
+**Amended by D-144 (2026-11-23, AJ-E3823): "Bot" is AI and conversation only.** With an AI ready, Bot is conversational: the six read tools below are the AI's own, for grounding and cited links, never a user-facing mode, and every answer comes from the AI. A question the records can't answer gets the AI's "I don't know" with what it checked. With no AI ready, Bot shows only "Set up Bot" (§6.8). Finding records by themselves belongs to Search (⌘K, AJ-E3824), which reuses the same read functions (`bot::lookup::find_records`). The text below is the original v1 design and stands where D-144 doesn't change it.
+
 A question box, answers that cite sources as links, "I don't know" when the look-ups find nothing, and nothing that acts. Its scope is AI Juggler's own records: sessions, feed events, tasks, pools, usage and runway. A question outside that ("write me a function") gets the fixed sentence "I answer questions about what's happening in AI Juggler. For coding, ask your agent." from the words module.
 
 #### 6.2 The look-up tools: six, read-only by construction
@@ -349,7 +351,11 @@ These answers are the app's fixed sentences from the words module, never the mod
 - **Context for a follow-up:** the last two exchanges' question and shown answer, within §6.4's budget. Never older chats, never the rows of a past answer: a follow-up runs its own look-ups.
 - **Never leaves the Mac:** never to a paired Mac, usage statistics, crash reports or logs (ADR-0033 §2's rule, extended).
 
-#### 6.8 The no-model panel
+#### 6.8 The no-model panel: "Set up Bot" (D-144)
+
+**Amended by D-144 (2026-11-23).** When `ai_jobs` says Bot's job isn't ready (`no_engine`, `beta_off` or `off` with an engine that could run it), the icon still shows and opens **"Set up Bot" only**: AJ-E3823's engine-setup guide (`ui/src/components/ai/EngineSetup.tsx`), the same component as the wizard's Meet Bot step and the top of Settings › AI › Models. It says what this Mac can do (Apple's built-in AI first: ready, turned off with its steps and an Open Apple Intelligence settings button, still being downloaded by the system, can't run here, or couldn't be checked because AI Juggler's helper didn't answer or was blocked), names the downloadable AI (Qwen3 1.7B, its maker, size and the free disk), recommends one, and starts a download only on its own named button, through §5's approval and disk rules. **No question box, no results, no shortcuts:** the shortcuts below and the question box with found records moved to Search (AJ-E3824). `bot_ask` refuses a question that reaches it anyway. A probe that failed, got no answer or was blocked is never "this Mac can't run it" and never makes the recommendation pick a download (§5, `recommend.rs` step 2).
+
+The original v1 design (superseded where it differs):
 
 When `ai_jobs` says Chat is `no_engine`, the icon still shows and opens this panel instead (AJ-E3807):
 
@@ -392,7 +398,7 @@ The check takes under 20 ms an answer (AJ-E3806).
 #### 7.3 The ladder for answers
 
 1. The model's answer passes the check: shown, with its source links.
-2. It fails any step, or the engine fails (`Refused`, `TimedOut`, `TooLong`, `ToolBudget`, `BadToolCall`, `Crashed`): **"I can't say that for sure. Here's what I found:"** and the rows the look-ups returned, as a list of links with their titles, states and times. This is AJ-E3806's "I don't know plus the sources".
+2. It fails any step, or the engine fails (`Refused`, `TimedOut`, `TooLong`, `ToolBudget`, `BadToolCall`, `Crashed`): **"I don't know. I couldn't write an answer I could check against these records."** (D-144, `BotUnknown::Unverified`) and the records it checked, as a list of links with their titles, states and times under "What I checked". This is AJ-E3806's "I don't know plus the sources"; never the records alone as an answer, and no "Show records only".
 3. No rows at all: §6.6's "I don't know".
 
 There is no second try with another engine and no retry of the same one. A user who asks again starts a new job.

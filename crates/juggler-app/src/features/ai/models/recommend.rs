@@ -5,11 +5,17 @@
 //! answer, no model in the loop, no branch on a model id.
 //! 1. **Apple's model first** when Apple Intelligence is on and its entry
 //!    passes a job: it needs no download.
-//! 2. **Otherwise the downloadable model that passes the most jobs** and
+//! 2. **Apple's model can run here but isn't on yet** (turned off, macOS
+//!    still getting it) **or its state couldn't be read** (AJ-E3823: a
+//!    probe that failed, got no answer, or was blocked): a model already
+//!    downloaded that fits keeps working; otherwise nothing is
+//!    recommended, with that reason. Turning it on (or checking again)
+//!    costs no download, so none is recommended on a guess.
+//! 3. **Otherwise the downloadable model that passes the most jobs** and
 //!    fits this Mac: its chip, its memory, and free disk of its size plus
 //!    10 GB (D-121 §2.5). Ties go to one already installed, then the
 //!    smaller file, then the list's order.
-//! 3. **Otherwise nothing,** with the reason. On a Mac without Apple
+//! 4. **Otherwise nothing,** with the reason. On a Mac without Apple
 //!    Intelligence and under 16 GB, that is a correct answer.
 //!
 //! The words for each reason live in the UI's words file; this returns
@@ -35,8 +41,34 @@ pub enum AppleAi {
     On,
     /// Eligible but turned off (the user can turn it on).
     Off,
-    /// Not on this Mac or this macOS.
+    /// On, and the system is still getting its model (it will be ready
+    /// by itself).
+    Preparing,
+    /// Not on this Mac or this macOS (the model or the OS said so).
     Unavailable,
+    /// Couldn't check: the helper failed, is missing, or answered with a
+    /// word this build doesn't know.
+    Unchecked,
+    /// Couldn't check: the helper started and said nothing in time (a
+    /// system prompt about it may be waiting).
+    NoAnswer,
+    /// The system refused to run AI Juggler's helper, or stopped it.
+    Blocked,
+}
+
+impl AppleAi {
+    /// This Mac can run it, and it isn't on yet: turned off, or the
+    /// system is still getting it.
+    #[must_use]
+    pub const fn can_turn_on(self) -> bool {
+        matches!(self, Self::Off | Self::Preparing)
+    }
+
+    /// Its state couldn't be read (never "can't run it").
+    #[must_use]
+    pub const fn unknown(self) -> bool {
+        matches!(self, Self::Unchecked | Self::NoAnswer | Self::Blocked)
+    }
 }
 
 /// What the recommendation reads of this Mac (through the OS seams).
@@ -71,6 +103,15 @@ pub enum Why {
 pub enum WhyNot {
     /// An Intel Mac.
     NotAppleSilicon,
+    /// Apple's model can run here: turn Apple Intelligence on (free,
+    /// nothing to download), or wait while the system gets it.
+    TurnOnAppleAi {
+        /// The system is still getting it; nothing to do but wait.
+        preparing: bool,
+    },
+    /// Apple's model's state couldn't be read: check again, or fix what
+    /// blocked the helper. No download is recommended on a guess.
+    AppleAiUnknown,
     /// No listed model fits this Mac's memory (Apple Intelligence aside).
     NotEnoughMemory {
         /// Whether turning Apple Intelligence on would give one.
@@ -139,12 +180,37 @@ pub fn recommend(mac: &MacFacts, offered: &[ModelEntry], installed: &[&str]) -> 
             why: Why::BuiltIn,
         };
     }
-    // 2. The downloadable model that passes the most jobs and fits.
     let downloads: Vec<&ModelEntry> = passing
         .iter()
         .copied()
         .filter(|entry| entry.engine == Engine::GgufLocal)
         .collect();
+    let is_installed = |entry: &ModelEntry| installed.contains(&entry.id.as_str());
+    // 2. Apple's model could be the answer but isn't on, or its state is
+    //    unknown: one already downloaded keeps working, else no download.
+    let apple_here = passing
+        .iter()
+        .any(|entry| entry.engine == Engine::AppleBuiltin && entry.min_memory_gb <= mac.memory_gb);
+    if apple_here && (mac.apple_ai.can_turn_on() || mac.apple_ai.unknown()) {
+        if let Some(entry) = downloads
+            .iter()
+            .filter(|entry| is_installed(entry) && entry.min_memory_gb <= mac.memory_gb)
+            .min_by_key(|entry| std::cmp::Reverse(passed_jobs(entry)))
+        {
+            return Recommendation::Model {
+                id: entry.id.clone(),
+                why: Why::Installed,
+            };
+        }
+        return Recommendation::Nothing(if mac.apple_ai.unknown() {
+            WhyNot::AppleAiUnknown
+        } else {
+            WhyNot::TurnOnAppleAi {
+                preparing: mac.apple_ai == AppleAi::Preparing,
+            }
+        });
+    }
+    // 3. The downloadable model that passes the most jobs and fits.
     if downloads.is_empty() {
         return Recommendation::Nothing(WhyNot::NothingListed);
     }
@@ -153,11 +219,13 @@ pub fn recommend(mac: &MacFacts, offered: &[ModelEntry], installed: &[&str]) -> 
         .copied()
         .filter(|entry| entry.min_memory_gb <= mac.memory_gb)
         .collect();
-    let apple_ai_off = mac.apple_ai == AppleAi::Off;
+    // Turning it on gives one only when Apple's model could serve here,
+    // and that case was answered above (step 2): kept for the reasons'
+    // shape, honest whenever it's read.
+    let apple_ai_off = apple_here && mac.apple_ai == AppleAi::Off;
     if in_memory.is_empty() {
         return Recommendation::Nothing(WhyNot::NotEnoughMemory { apple_ai_off });
     }
-    let is_installed = |entry: &ModelEntry| installed.contains(&entry.id.as_str());
     let size = |entry: &ModelEntry| entry.download.as_ref().map_or(0, |d| d.size_bytes);
     let best = in_memory
         .iter()

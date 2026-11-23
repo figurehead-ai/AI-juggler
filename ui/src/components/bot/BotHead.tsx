@@ -27,7 +27,7 @@ function betaOffered(job: AiJobInfo | null): boolean {
   return job?.state === "ready" || job?.state === "waiting" || job?.state === "beta_off";
 }
 
-export function BotMenu({ job, onClose, onClear, onMemories, at = "right-2.5 top-[46px]" }: { job: AiJobInfo | null; onClose: () => void; onClear: () => void; onMemories: () => void; at?: string }): JSX.Element {
+export function BotMenu({ job, onClose, onClear, onMemories, at = "right-2.5 top-[46px]", setup = false }: { job: AiJobInfo | null; onClose: () => void; onClear: () => void; onMemories: () => void; at?: string; setup?: boolean }): JSX.Element {
   const nav = useBotNav();
   const memories = useMemories();
   const ref = useRef<HTMLDivElement | null>(null);
@@ -40,11 +40,13 @@ export function BotMenu({ job, onClose, onClear, onMemories, at = "right-2.5 top
   const betaOn = job?.beta_on ?? false;
   return (
     <div ref={ref} role="menu" aria-label={WORDS.moreLabel} className={`absolute ${at} z-30 flex w-[300px] flex-col gap-px rounded-xl bg-surface p-1.5 shadow-[0_18px_48px_-12px_rgba(0,0,0,.45),0_2px_6px_rgba(0,0,0,.2)] inset-ring-1 inset-ring-hairline/75 [[data-theme=dark]_&]:bg-surface-2`} data-testid="bot-menu">
-      <button type="button" role="menuitem" className={item} onClick={pick(openFind)}>
-        <IconSearch width={15} height={15} aria-hidden="true" className="text-muted" />
-        <span className="grow">{WORDS.searchLabel}</span>
-        <span className="text-label text-faint">⌘F</span>
-      </button>
+      {!setup && (
+        <button type="button" role="menuitem" className={item} onClick={pick(openFind)}>
+          <IconSearch width={15} height={15} aria-hidden="true" className="text-muted" />
+          <span className="grow">{WORDS.searchLabel}</span>
+          <span className="text-label text-faint">⌘F</span>
+        </button>
+      )}
       <button type="button" role="menuitem" className={item} onClick={pick(onMemories)}>
         <IconBookmark width={15} height={15} aria-hidden="true" className="text-muted" />
         <span className="grow">{WORDS.whatBotRemembers}</span>
@@ -70,13 +72,15 @@ export function BotMenu({ job, onClose, onClear, onMemories, at = "right-2.5 top
         </>
       )}
       <hr className="mx-1.5 my-1 border-divider" />
-      <button type="button" role="menuitem" className={item + " text-danger"} onClick={pick(onClear)} data-testid="bot-menu-clear">
-        <IconTrash width={15} height={15} aria-hidden="true" />
-        <span className="flex grow flex-col">
-          <span>{WORDS.clear}</span>
-          <span className="text-label text-muted">{WORDS.clearHint}</span>
-        </span>
-      </button>
+      {!setup && (
+        <button type="button" role="menuitem" className={item + " text-danger"} onClick={pick(onClear)} data-testid="bot-menu-clear">
+          <IconTrash width={15} height={15} aria-hidden="true" />
+          <span className="flex grow flex-col">
+            <span>{WORDS.clear}</span>
+            <span className="text-label text-muted">{WORDS.clearHint}</span>
+          </span>
+        </button>
+      )}
       <button type="button" role="menuitem" className={item} onClick={pick(() => nav.openSettings("ai"))}>
         <IconGrid width={15} height={15} aria-hidden="true" className="text-muted" />
         <span className="grow">{WORDS.settingsAi}</span>
@@ -167,7 +171,7 @@ function WatchCount(): JSX.Element | null {
   );
 }
 
-export function BotHead({ job, onClear, onMemories }: { job: AiJobInfo | null; onClear: () => void; onMemories: () => void }): JSX.Element {
+export function BotHead({ job, onClear, onMemories, setup = false }: { job: AiJobInfo | null; onClear: () => void; onMemories: () => void; setup?: boolean }): JSX.Element {
   const bot = useBot();
   const [menu, setMenu] = useState(false);
   return (
@@ -182,11 +186,16 @@ export function BotHead({ job, onClear, onMemories }: { job: AiJobInfo | null; o
         </span>
       )}
       <span className="grow" />
-      <WatchCount />
-      <TopicButton compact={job?.state === "ready" && job.beta} />
-      <button type="button" className={ICON_BUTTON + (bot.find ? " bg-surface-3 text-ink" : "")} title={`${WORDS.searchLabel} (⌘F)`} aria-label={WORDS.searchLabel} aria-pressed={bot.find !== null} onClick={() => (bot.find ? closeFind() : openFind())} data-testid="bot-search">
-        <IconSearch width={16} height={16} aria-hidden="true" />
-      </button>
+      {/* D-144: "Set up Bot" has no conversation to start, search or count in. */}
+      {!setup && (
+        <>
+          <WatchCount />
+          <TopicButton compact={job?.state === "ready" && job.beta} />
+          <button type="button" className={ICON_BUTTON + (bot.find ? " bg-surface-3 text-ink" : "")} title={`${WORDS.searchLabel} (⌘F)`} aria-label={WORDS.searchLabel} aria-pressed={bot.find !== null} onClick={() => (bot.find ? closeFind() : openFind())} data-testid="bot-search">
+            <IconSearch width={16} height={16} aria-hidden="true" />
+          </button>
+        </>
+      )}
       <button type="button" className={ICON_BUTTON} title={WORDS.expandLabel} aria-label={WORDS.expandLabel} onClick={expandBot} data-testid="bot-expand">
         <IconExpand width={15} height={15} aria-hidden="true" />
       </button>
@@ -196,7 +205,7 @@ export function BotHead({ job, onClear, onMemories }: { job: AiJobInfo | null; o
       <button type="button" className={ICON_BUTTON} title={`${WORDS.closeLabel} (Esc)`} aria-label={WORDS.closeLabel} onClick={closeBot} data-testid="bot-close">
         <IconClose width={16} height={16} aria-hidden="true" />
       </button>
-      {menu && <BotMenu job={job} onClose={() => setMenu(false)} onClear={onClear} onMemories={onMemories} />}
+      {menu && <BotMenu job={job} onClose={() => setMenu(false)} onClear={onClear} onMemories={onMemories} setup={setup} />}
     </div>
   );
 }

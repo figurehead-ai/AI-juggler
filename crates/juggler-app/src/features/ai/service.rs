@@ -249,6 +249,13 @@ pub fn mac_now(state: &AppState) -> Option<MacFacts> {
     service().mac_facts(&state.data_dir, Probe::IfStale)
 }
 
+/// This Mac's facts after asking the engines again now (Check again,
+/// AJ-E3823).
+#[must_use]
+pub fn mac_checked(state: &AppState) -> Option<MacFacts> {
+    service().mac_facts(&state.data_dir, Probe::Now)
+}
+
 /// The query: every routed job's answer, probing the engines when the
 /// last probe is stale; and whether the answer changed.
 ///

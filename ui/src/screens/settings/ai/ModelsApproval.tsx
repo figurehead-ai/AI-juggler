@@ -139,7 +139,7 @@ export function ApprovalDialog({
           </Button>
           <Button variant="primary" onClick={onDownload} data-testid="models-approval-download">
             <IconDownload width={16} height={16} aria-hidden="true" />
-            {DOWNLOAD.button(size)}
+            {DOWNLOAD.button(model.name, size)}
           </Button>
         </div>
       </dialog>

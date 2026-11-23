@@ -3,4 +3,4 @@
 /**
  * Why Bot doesn't know.
  */
-export type BotUnknown = "nothing_found" | "test_durations" | "test_results" | "costs" | "authors";
+export type BotUnknown = "nothing_found" | "test_durations" | "test_results" | "costs" | "authors" | "unverified";

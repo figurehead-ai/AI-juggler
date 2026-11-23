@@ -43,9 +43,13 @@ fn written_on(state: &AppState) -> bool {
         .is_some_and(|info| info.state == AiJobState::Ready)
 }
 
-/// Asks Bot a question: read by code, looked up in AI Juggler's records,
-/// kept in this Mac's conversation; a Beta written answer above the rows
-/// only when it passes the check.
+/// Asks Bot a question: read by code, the records it needs looked up as
+/// the AI's own grounding, kept in this Mac's conversation. D-144: the
+/// answer is the AI's, shown only when it passes the check against the
+/// records it cites; one that can't be checked (or no answer at all) is
+/// the AI's "I don't know" with the records it checked. The command takes
+/// a question only while the AI is ready ([`ai_ready_or_refuse`]); with
+/// none (the tests' records-only path) the rows stand alone.
 ///
 /// # Errors
 ///
@@ -99,7 +103,9 @@ pub fn bot_ask_impl(state: &Arc<AppState>, input: &BotAskInput) -> AppResult<Bot
             let outcome = if written.is_some() {
                 BotOutcome::Answered
             } else {
-                BotOutcome::Rows
+                // D-144: never the records alone as an answer.
+                meta.unknown = Some(super::dto::BotUnknown::Unverified);
+                BotOutcome::DontKnow
             };
             (outcome, found.rows, written)
         } else {
@@ -350,17 +356,36 @@ pub fn bot_wrong_impl(state: &Arc<AppState>, turn: &str) -> AppResult<()> {
     Ok(())
 }
 
-/// Asks Bot (see [`bot_ask_impl`]).
+/// D-144: Bot is AI and conversation only. A question is taken only
+/// while Bot's AI is ready; with none, the window shows "Set up Bot" and
+/// no question box, and this refuses anything that reaches it anyway.
 ///
 /// # Errors
 ///
-/// As [`bot_ask_impl`].
+/// Bot's AI isn't ready.
+pub fn ai_ready_or_refuse(state: &AppState) -> AppResult<()> {
+    if written_on(state) {
+        Ok(())
+    } else {
+        Err(AppError::Validation {
+            subject: "bot",
+            message: "Bot's AI isn't set up yet".to_owned(),
+        })
+    }
+}
+
+/// Asks Bot (see [`bot_ask_impl`]), only while its AI is ready (D-144).
+///
+/// # Errors
+///
+/// As [`ai_ready_or_refuse`] and [`bot_ask_impl`].
 #[tauri::command]
 pub async fn bot_ask(
     state: tauri::State<'_, Arc<AppState>>,
     input: BotAskInput,
 ) -> AppResult<BotTurnInfo> {
     crate::ipc::blocking(state.inner(), "Bot", move |state| {
+        ai_ready_or_refuse(state)?;
         bot_ask_impl(state, &input)
     })
     .await

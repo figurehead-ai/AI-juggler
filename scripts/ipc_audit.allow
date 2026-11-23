@@ -42,6 +42,7 @@ unbounded ai_model_decline_extra  # bounded: one row per installed model, at mos
 unbounded ai_model_download_cancel  # bounded: one row per installed model, at most the 16 a list can hold
 unbounded ai_model_remove  # bounded: one row per installed model, at most the 16 a list can hold
 unbounded ai_models_catalog  # bounded: the list's models (at most 16) plus the installed ones, verdicts per compiled job
+unbounded ai_engines_check  # bounded: ai_models_catalog's answer after Check again (AJ-E3823)
 unbounded ai_models_installed  # bounded: one row per installed model, at most the 16 a list can hold
 unbounded app_bug_report_compose  # bounded: the bug form's seven fields at most
 unbounded app_bug_report_preview  # bounded: a report's five parts at most

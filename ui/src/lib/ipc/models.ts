@@ -57,6 +57,14 @@ export async function aiModelsCatalog(): Promise<ModelsCatalog> {
   return call("ai_models_catalog");
 }
 
+/** Check again (AJ-E3823): the engines asked again now (Apple's AI
+ * turned on, or a system message about AI Juggler's helper answered),
+ * then the screen's list. */
+export async function aiEnginesCheck(): Promise<ModelsCatalog> {
+  if (!hasLiveBackend()) return window.__AIJ_AI_CATALOG__ ?? NO_CATALOG;
+  return call("ai_engines_check");
+}
+
 /** The models on this Mac, their total, and the download. */
 export async function aiModelsInstalled(): Promise<ModelsInfo> {
   if (!hasLiveBackend()) return seamModels();

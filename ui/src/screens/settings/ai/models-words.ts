@@ -129,7 +129,8 @@ export const FACTS = {
 };
 
 export const DOWNLOAD = {
-  button: (bytes: number) => `Download · ${gb(bytes)}`,
+  /** AJ-E3823: a download always names what it downloads. */
+  button: (name: string, bytes: number) => `Download ${name} · ${gb(bytes)}`,
   downloading: "Downloading",
   done: (done: number, size: number) => `${gb(done)} of ${gb(size)}`,
   left: (minutes: number) => (minutes <= 1 ? "about 1 min left" : `about ${minutes} min left`),
@@ -261,7 +262,7 @@ export const JOBS = {
   noModel: "No model yet",
   descriptions: {
     review: "Writes a short review when an agent's turn ends",
-    chat: "Writes answers from what Bot looks up",
+    chat: "Writes Bot’s answers from AI Juggler’s records",
     attention: "Built from the facts, so it needs no model",
     feed: "Plain lines for now. No model passes yet",
     digest: "Plain roundup for now. No model passes yet",

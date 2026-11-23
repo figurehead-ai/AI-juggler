@@ -187,7 +187,8 @@ impl CatalogModel {
     }
 }
 
-/// Apple Intelligence on this Mac.
+/// Apple Intelligence on this Mac (AJ-E3823: "couldn't check" and
+/// "blocked" are their own states, never "can't run it").
 #[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, ts_rs::TS)]
 #[serde(rename_all = "snake_case")]
 #[ts(export, export_to = "../../../ui/src/types/generated/")]
@@ -196,8 +197,30 @@ pub enum AppleAiState {
     On,
     /// Eligible but off: the user can turn it on in System Settings.
     Off,
+    /// On, and the system is still getting its model.
+    Preparing,
     /// Not on this Mac or this macOS.
     Unavailable,
+    /// Couldn't check (the helper failed or is missing).
+    Unchecked,
+    /// Couldn't check: AI Juggler's helper didn't answer in time.
+    NoAnswer,
+    /// The system blocked AI Juggler's helper.
+    Blocked,
+}
+
+impl AppleAiState {
+    const fn of(apple_ai: AppleAi) -> Self {
+        match apple_ai {
+            AppleAi::On => Self::On,
+            AppleAi::Off => Self::Off,
+            AppleAi::Preparing => Self::Preparing,
+            AppleAi::Unavailable => Self::Unavailable,
+            AppleAi::Unchecked => Self::Unchecked,
+            AppleAi::NoAnswer => Self::NoAnswer,
+            AppleAi::Blocked => Self::Blocked,
+        }
+    }
 }
 
 /// This Mac, as the recommendation read it.
@@ -241,11 +264,7 @@ impl MacInfo {
             memory_bytes,
             memory_gb: mac.memory_gb,
             free_disk_bytes: mac.free_disk_bytes,
-            apple_ai: match mac.apple_ai {
-                AppleAi::On => AppleAiState::On,
-                AppleAi::Off => AppleAiState::Off,
-                AppleAi::Unavailable => AppleAiState::Unavailable,
-            },
+            apple_ai: AppleAiState::of(mac.apple_ai),
         }
     }
 }
@@ -270,6 +289,14 @@ pub enum RecommendedWhy {
 pub enum NothingWhy {
     /// An Intel Mac.
     NotAppleSilicon,
+    /// Apple's model can run here: turn Apple Intelligence on (nothing to
+    /// download).
+    TurnOnAppleAi,
+    /// Apple's model can run here and the system is still getting it.
+    AppleAiGettingReady,
+    /// Apple's model's state couldn't be read: check again or fix the
+    /// helper; no download is recommended on a guess.
+    AppleAiUnknown,
     /// No listed model fits this Mac's memory.
     NotEnoughMemory,
     /// A model fits the memory, but free disk is short (`needed_bytes`).
@@ -316,6 +343,9 @@ impl RecommendationInfo {
             Recommendation::Nothing(why_not) => {
                 info.nothing = Some(match *why_not {
                     WhyNot::NotAppleSilicon => NothingWhy::NotAppleSilicon,
+                    WhyNot::TurnOnAppleAi { preparing: false } => NothingWhy::TurnOnAppleAi,
+                    WhyNot::TurnOnAppleAi { preparing: true } => NothingWhy::AppleAiGettingReady,
+                    WhyNot::AppleAiUnknown => NothingWhy::AppleAiUnknown,
                     WhyNot::NotEnoughMemory { apple_ai_off } => {
                         info.apple_ai_off = apple_ai_off;
                         NothingWhy::NotEnoughMemory

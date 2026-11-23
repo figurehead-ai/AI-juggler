@@ -25,7 +25,7 @@ use std::time::{Duration, Instant};
 
 use juggler_platform::ai::SystemModel;
 
-use super::helper::{Health, Helper};
+use super::helper::{Health, Helper, StartFailure};
 use crate::features::ai::{
     engine::{AiEngine, Card, Draft, EngineError, Finish, Readiness, Reason, Request, Stop, Tier},
     models::{Engine as ModelEngine, ModelEntry, recommend::AppleAi},
@@ -144,8 +144,13 @@ pub enum Seen {
         /// Its context, in tokens.
         context_tokens: u32,
     },
-    /// The helper didn't answer properly.
+    /// The helper didn't answer properly: couldn't check.
     Failed,
+    /// The helper started and said nothing in time: couldn't check (a
+    /// system prompt about it may be waiting for the user, AJ-E3823).
+    NoAnswer,
+    /// The system refused to run the helper, or stopped it (AJ-E3823).
+    Blocked,
 }
 
 impl Seen {
@@ -181,6 +186,8 @@ impl Seen {
             Self::Os(SystemModel::MayHave)
             | Self::NotAsked
             | Self::Failed
+            | Self::NoAnswer
+            | Self::Blocked
             | Self::Model {
                 availability: Availability::Unknown,
                 ..
@@ -188,7 +195,10 @@ impl Seen {
         }
     }
 
-    /// Apple Intelligence for the recommendation (AJ-E3811).
+    /// Apple Intelligence for the recommendation (AJ-E3811). Only the
+    /// model's own answer or the OS seam says "this Mac can't run it"; a
+    /// probe that failed, got no answer or was blocked couldn't check
+    /// (AJ-E3823), and never leads to a download.
     #[must_use]
     pub const fn apple_ai(self) -> AppleAi {
         match self {
@@ -197,10 +207,30 @@ impl Seen {
                 ..
             } => AppleAi::On,
             Self::Model {
-                availability: Availability::NotEnabled | Availability::NotReady,
+                availability: Availability::NotEnabled,
                 ..
             } => AppleAi::Off,
-            _ => AppleAi::Unavailable,
+            Self::Model {
+                availability: Availability::NotReady,
+                ..
+            } => AppleAi::Preparing,
+            Self::Model {
+                availability: Availability::NotEligible | Availability::NotThisOs,
+                ..
+            }
+            | Self::Os(
+                SystemModel::NotThisChip | SystemModel::NotThisVersion | SystemModel::NotThisSystem,
+            ) => AppleAi::Unavailable,
+            Self::NoAnswer => AppleAi::NoAnswer,
+            Self::Blocked => AppleAi::Blocked,
+            Self::Os(SystemModel::MayHave)
+            | Self::NotAsked
+            | Self::Missing
+            | Self::Failed
+            | Self::Model {
+                availability: Availability::Unknown,
+                ..
+            } => AppleAi::Unchecked,
         }
     }
 
@@ -258,9 +288,17 @@ impl Apple {
         juggler_platform::code_trust::own_helper(PROGRAM, &identifier())
     }
 
-    /// Starts the helper and reads what its hello says.
+    /// Starts the helper and reads what its hello says; a helper that
+    /// doesn't start is seen as why (AJ-E3823).
     fn start(&self, program: &std::path::Path) -> Result<Helper, EngineError> {
-        let helper = Helper::start(program, HELLO_WAIT)?;
+        let helper = Helper::start_checked(program, HELLO_WAIT).map_err(|why| {
+            self.health.see(match why {
+                StartFailure::Blocked => Seen::Blocked,
+                StartFailure::NoAnswer => Seen::NoAnswer,
+                StartFailure::Broken => Seen::Failed,
+            });
+            why.error()
+        })?;
         let hello = &helper.hello;
         if hello["protocol"].as_u64() != Some(PROTOCOL) {
             self.health.see(Seen::Failed);
@@ -326,14 +364,12 @@ impl AiEngine for Apple {
             self.health.see(Seen::Missing);
             return;
         };
-        match self.start(&program) {
-            Ok(helper) => {
-                if self.seen().readiness() == Readiness::Ready {
-                    self.health.healed();
-                }
-                drop(helper);
+        // A helper that doesn't start is seen as why by `start`.
+        if let Ok(helper) = self.start(&program) {
+            if self.seen().readiness() == Readiness::Ready {
+                self.health.healed();
             }
-            Err(_) => self.health.see(Seen::Failed),
+            drop(helper);
         }
     }
 

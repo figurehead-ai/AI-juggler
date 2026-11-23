@@ -107,7 +107,7 @@ function useMinutesLeft(download: DownloadInfo | null | undefined): number | nul
   return left;
 }
 
-function Downloading({ name, download, onCancel }: { name: string; download: DownloadInfo; onCancel: () => void }): JSX.Element {
+export function Downloading({ name, download, onCancel }: { name: string; download: DownloadInfo; onCancel: () => void }): JSX.Element {
   const minutes = useMinutesLeft(download);
   const share = download.size_bytes > 0 ? Math.round((download.done_bytes / download.size_bytes) * 100) : 0;
   const waiting = download.state === "waiting" && download.wait ? WAITS[download.wait.kind](download.wait) : null;
@@ -159,7 +159,7 @@ function NoDisk({ pick, catalog, actions }: { pick: Recommended; catalog: Models
       <div className="flex flex-wrap items-center gap-3 @min-[560px]:flex-nowrap">
         <Button variant="primary" disabled className="shrink-0">
           <IconDownload width={16} height={16} aria-hidden="true" />
-          {DOWNLOAD.button(pick.model.size_bytes ?? 0)}
+          {DOWNLOAD.button(pick.model.name, pick.model.size_bytes ?? 0)}
         </Button>
         <Consequence>{DOWNLOAD.readyOnceRoom}</Consequence>
       </div>
@@ -194,7 +194,7 @@ function Action({ pick, catalog, download, actions }: { pick: Recommended; catal
       <div className="flex flex-wrap items-center gap-3 @min-[560px]:flex-nowrap">
         <Button variant="primary" onClick={adopt ? actions.onUse : actions.onDownload} data-testid="models-recommended-action" className="shrink-0">
           {adopt ? <IconCheck width={15} height={15} strokeWidth={2.2} aria-hidden="true" /> : <IconDownload width={16} height={16} aria-hidden="true" />}
-          {adopt ? RECOMMENDED.adopt : DOWNLOAD.button(pick.model.size_bytes ?? 0)}
+          {adopt ? RECOMMENDED.adopt : DOWNLOAD.button(pick.model.name, pick.model.size_bytes ?? 0)}
         </Button>
         <Consequence>{adopt ? RECOMMENDED.adoptLine(jobs) : RECOMMENDED.downloadLine(jobs)}</Consequence>
       </div>
