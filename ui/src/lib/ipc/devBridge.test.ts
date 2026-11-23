@@ -69,6 +69,23 @@ describe("read-only test bridge — the page's session", () => {
 });
 
 describe("read-only test bridge — the transport", () => {
+  it("a #token= that arrives after load (a fragment-only navigation) is taken, and the page reloads onto it (AJ-E2314 L1)", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => Response.json([])));
+    window.sessionStorage.clear();
+    const reload = vi.fn();
+    await connect(page("devBridge=4321"), reload);
+    expect(document.querySelector("[role=status]")?.textContent).toContain("no token");
+
+    window.location.hash = `token=${TOKEN}`;
+    await vi.waitFor(() => expect(reload).toHaveBeenCalledTimes(1));
+    expect(window.location.href).not.toContain(TOKEN);
+    expect(JSON.parse(window.sessionStorage.getItem("aij.readOnlyBridge") ?? "null")).toEqual({
+      port: 4321,
+      token: TOKEN,
+    });
+    window.sessionStorage.clear();
+  });
+
   it("serves reads with the token and refuses every other command unsent", async () => {
     const fetched: { url: string; init?: RequestInit }[] = [];
     vi.stubGlobal(

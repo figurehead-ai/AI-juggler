@@ -54,8 +54,30 @@ export function sessionFrom(page: URL, storage: Storage | null): Session | null 
   return session;
 }
 
+/** A token that reaches the fragment after the page loaded: the same page
+ * opened again with `#token=` is a fragment-only navigation, which never
+ * reloads, so nothing read it (AJ-E2314 L1, the walk kit's browser pane).
+ * It is kept for this tab, leaves the address bar, and the page reloads
+ * onto it. */
+let lateToken: { storage: Storage | null; reload: () => void } | null = null;
+function takeLateToken(storage: Storage | null, reload: () => void): void {
+  const listening = lateToken !== null;
+  lateToken = { storage, reload };
+  if (listening) return;
+  window.addEventListener("hashchange", () => {
+    const page = new URL(window.location.href);
+    if (!lateToken || !new URLSearchParams(page.hash.replace(/^#/, "")).has("token")) return;
+    const session = sessionFrom(page, lateToken.storage);
+    window.history.replaceState(window.history.state, "", page.toString());
+    if (session) lateToken.reload();
+  });
+}
+
 /** The transport for this page, from its URL. */
-export async function connect(page: URL): Promise<Transport> {
+export async function connect(
+  page: URL,
+  reload: () => void = () => window.location.reload(),
+): Promise<Transport> {
   let storage: Storage | null = null;
   try {
     storage = window.sessionStorage;
@@ -64,6 +86,7 @@ export async function connect(page: URL): Promise<Transport> {
   }
   const session = sessionFrom(page, storage);
   window.history.replaceState(window.history.state, "", page.toString());
+  takeLateToken(storage, reload);
   const notice = banner();
   if (!session) {
     notice.say("Read-only test bridge: no token — open the URL from docs/qa/DEV-BRIDGE.md.");

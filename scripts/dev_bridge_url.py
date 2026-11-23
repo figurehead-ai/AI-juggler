@@ -6,10 +6,13 @@ folder given as the only argument) and prints the Vite page with the port
 in the query and the token in the fragment, which the browser never sends
 to the dev server.
 
+The fragment form also connects when the page is already open on the same
+`?devBridge=PORT`: that navigation changes only the fragment and never
+reloads, so the page takes the token on `hashchange` (AJ-E2314 L1).
 `--query` prints the token in the query instead (`&token=`), for a browser
-that drops a URL's fragment on navigation (the walk kit's in-app pane,
-AJ-E2314 L1). The page reads either and removes the token from the address
-at once; the query form reaches only the local dev server, on this Mac.
+that drops a URL's fragment. The page reads either and removes the token
+from the address at once; the query form reaches only the local dev server,
+on this Mac.
 """
 import json
 import os
