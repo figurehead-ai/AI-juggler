@@ -7,6 +7,8 @@
 import { useEffect, useState, type JSX } from "react";
 import { Button } from "../../components/primitives";
 import { errorText } from "../../lib/bridge";
+import { useReadState } from "../../lib/loading";
+import { LoadingState } from "../../components/LoadingState";
 import { ago } from "../../lib/time-words";
 import { messagesDoc, messagesDocs, onMessagesChanged, type DocContent, type DocInfo } from "../../lib/ipc/messages";
 import { byteSize } from "../../lib/compact";
@@ -24,12 +26,16 @@ export function SharedDocs({ poolId, now }: { poolId: string; now: number }): JS
   const [next, setNext] = useState<string | null>(null);
   const [open, setOpen] = useState<DocContent | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // AJ-E1552: the list's read failure, and its Retry.
+  const [failed, setFailed] = useState<unknown>(undefined);
+  const [round, setRound] = useState(0);
+  const list = useReadState(docs, "the shared documents", { error: failed, round });
   useEffect(() => {
     let alive = true;
     const read = () =>
       void messagesDocs(poolId).then(
-        (page) => alive && (setDocs(page.docs), setNext(page.next)),
-        (cause) => alive && setError(errorText(cause)),
+        (page) => alive && (setFailed(undefined), setDocs(page.docs), setNext(page.next)),
+        (cause: unknown) => alive && setFailed(cause),
       );
     read();
     const off = onMessagesChanged(read);
@@ -37,7 +43,9 @@ export function SharedDocs({ poolId, now }: { poolId: string; now: number }): JS
       alive = false;
       off();
     };
-  }, [poolId]);
+    // `round` is a Retry: it reads again.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [poolId, round]);
   const show = (doc: DocInfo) =>
     void messagesDoc(poolId, doc.id).then(
       (content) => setOpen(content),
@@ -48,13 +56,23 @@ export function SharedDocs({ poolId, now }: { poolId: string; now: number }): JS
       <h3 id={`docs-${poolId}`} className="text-body font-semibold text-ink">
         Shared documents
       </h3>
-      {docs === null ? (
-        <span className="h-10 rounded-lg bg-skeleton motion-safe:animate-pulse" role="status" aria-label="Loading the documents" />
-      ) : docs.length === 0 ? (
-        <p className="text-meta text-ink-2">None yet. When an agent shares a document with this pool, it shows here, with any secrets handled as you chose for handovers.</p>
-      ) : (
+      <LoadingState
+        state={list.state}
+        slow={list.slow}
+        what="the shared documents"
+        skeleton={<output className="h-10 rounded-lg bg-skeleton motion-safe:animate-pulse" aria-label="Loading the documents" data-testid="shared-docs-skeleton" />}
+        empty={
+          <p className="text-meta text-ink-2" data-testid="shared-docs-empty">
+            None yet. When an agent shares a document with this pool, it shows here, with any secrets handled as you chose for handovers.
+          </p>
+        }
+        onRetry={() => {
+          setFailed(undefined);
+          setRound((was) => was + 1);
+        }}
+      >
         <ul className="flex flex-col divide-y divide-hairline/60 rounded-xl border border-hairline">
-          {docs.map((doc) => (
+          {(docs ?? []).map((doc) => (
             <li key={doc.id} className="flex flex-wrap items-center gap-3 px-3 py-2.5" data-testid="shared-doc">
               <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                 <span className="truncate font-mono text-meta text-ink">{doc.name}</span>
@@ -72,7 +90,7 @@ export function SharedDocs({ poolId, now }: { poolId: string; now: number }): JS
             </li>
           ))}
         </ul>
-      )}
+      </LoadingState>
       {next && (
         <Button size="sm" variant="ghost" className="self-start" onClick={() => void messagesDocs(poolId, next).then((page) => (setDocs((was) => [...(was ?? []), ...page.docs]), setNext(page.next)))}>
           Show more documents

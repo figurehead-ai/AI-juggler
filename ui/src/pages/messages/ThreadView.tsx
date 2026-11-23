@@ -19,6 +19,8 @@
  * time; a reply goes at the bottom.
  */
 import { useEffect, useState, type JSX } from "react";
+import { useReadState } from "../../lib/loading";
+import { LoadingState } from "../../components/LoadingState";
 import { loadingPart } from "../../lib/lazy";
 import { Button } from "../../components/primitives";
 import { Pill } from "../../components/Pill";
@@ -129,6 +131,10 @@ export function ThreadView({ threadId, poolId, members, now }: { threadId: strin
   const [more, setMore] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // AJ-E1552: the thread's own read failure, and its Retry.
+  const [failed, setFailed] = useState<unknown>(undefined);
+  const [round, setRound] = useState(0);
+  const shown = useReadState(page, "this thread", { error: failed, round, isEmpty: () => false });
   // The asks that hold a message here (Needs you's list, kept current).
   const needs = useMessageNeeds();
 
@@ -141,10 +147,11 @@ export function ThreadView({ threadId, poolId, members, now }: { threadId: strin
       void (first ? loadingPart(messagesThread(threadId)) : messagesThread(threadId)).then(
         (next) => {
           if (!alive) return;
+          setFailed(undefined);
           setPage(next);
           setMore((was) => was ?? next.earlier);
         },
-        (cause) => alive && setError(errorText(cause)),
+        (cause: unknown) => alive && setFailed(cause),
       );
     setMore(null);
     read(true);
@@ -153,7 +160,9 @@ export function ThreadView({ threadId, poolId, members, now }: { threadId: strin
       alive = false;
       off();
     };
-  }, [threadId]);
+    // `round` is a Retry: it reads again.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [threadId, round]);
 
   const act = (run: () => Promise<ThreadPage>) => {
     setBusy(true);
@@ -191,11 +200,24 @@ export function ThreadView({ threadId, poolId, members, now }: { threadId: strin
 
   if (!page) {
     return (
-      <div className="flex flex-col gap-3 p-4" role="status" aria-label="Loading the thread">
-        <span className="h-12 w-2/3 rounded-2xl bg-skeleton motion-safe:animate-pulse" />
-        <span className="ml-auto h-10 w-1/2 rounded-2xl bg-skeleton motion-safe:animate-pulse" />
-        {error && <p className="text-meta text-danger">{error}</p>}
-      </div>
+      <LoadingState
+        state={shown.state}
+        slow={shown.slow}
+        what="this thread"
+        skeleton={
+          <output className="flex flex-col gap-3 p-4" aria-label="Loading the thread" data-testid="thread-skeleton">
+            <span className="h-12 w-2/3 rounded-2xl bg-skeleton motion-safe:animate-pulse" />
+            <span className="ml-auto h-10 w-1/2 rounded-2xl bg-skeleton motion-safe:animate-pulse" />
+          </output>
+        }
+        empty={null}
+        onRetry={() => {
+          setFailed(undefined);
+          setRound((was) => was + 1);
+        }}
+      >
+        {null}
+      </LoadingState>
     );
   }
   const { thread } = page;

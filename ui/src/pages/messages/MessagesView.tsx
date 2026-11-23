@@ -11,6 +11,8 @@
 import { useEffect, useState, type JSX } from "react";
 import { Button } from "../../components/primitives";
 import { errorText } from "../../lib/bridge";
+import { useReadState } from "../../lib/loading";
+import { LoadingState } from "../../components/LoadingState";
 import { ago } from "../../lib/time-words";
 import {
   FOCUS_THREAD,
@@ -104,6 +106,9 @@ function ScopedMessages({ poolId, sessionId, members, now, composeTo }: ViewProp
   const [query, setQuery] = useState("");
   const [found, setFound] = useState<MessageInfo[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // AJ-E1552: the list's own read failure, and its Retry.
+  const [failed, setFailed] = useState<unknown>(undefined);
+  const [round, setRound] = useState(0);
   const scope = sessionId ? { sessionId } : { poolId };
 
   useEffect(() => {
@@ -112,11 +117,12 @@ function ScopedMessages({ poolId, sessionId, members, now, composeTo }: ViewProp
       void messagesThreads(scope).then(
         (first) => {
           if (!alive) return;
+          setFailed(undefined);
           setPage(first);
           // Pages shown beyond the first stay; their cursor stays too.
           setNext((was) => was ?? first.next);
         },
-        (cause) => alive && setError(errorText(cause)),
+        (cause: unknown) => alive && setFailed(cause),
       );
     read();
     const off = onMessagesChanged(read);
@@ -125,7 +131,7 @@ function ScopedMessages({ poolId, sessionId, members, now, composeTo }: ViewProp
       off();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [poolId, sessionId]);
+  }, [poolId, sessionId, round]);
 
   // E19: a task's thread, asked for while this tab is already open. Taken
   // a moment later, once a link that also opens another page has: that
@@ -171,6 +177,7 @@ function ScopedMessages({ poolId, sessionId, members, now, composeTo }: ViewProp
   }, [selected, open]);
   const shown = found ? threads.filter((t) => found.some((m) => m.thread_id === t.id)) : threads;
   const paused = page?.paused ?? null;
+  const read = useReadState(page, "the threads", { error: failed, round, isEmpty: () => shown.length === 0 });
   return (
     <div className="flex w-full min-w-0 max-w-[1440px] flex-col gap-4" data-testid="messages-view">
       {paused && (
@@ -198,23 +205,33 @@ function ScopedMessages({ poolId, sessionId, members, now, composeTo }: ViewProp
               New message
             </Button>
           </div>
-          {page === null ? (
-            <div className="flex flex-col gap-2" role="status" aria-label="Loading the threads">
-              {[0, 1, 2].map((n) => (
-                <span key={n} className="h-14 rounded-lg bg-skeleton motion-safe:animate-pulse" />
-              ))}
-            </div>
-          ) : shown.length === 0 ? (
-            <p className="rounded-lg border border-dashed border-hairline px-3 py-4 text-meta text-ink-2" data-testid="messages-empty">
-              {found ? "No message has those words." : sessionId ? "No messages to or from this session yet." : "No messages yet. When agents here write to each other or to you, their threads show here."}
-            </p>
-          ) : (
+          <LoadingState
+            state={read.state}
+            slow={read.slow}
+            what="the threads"
+            skeleton={
+              <output className="flex flex-col gap-2" aria-label="Loading the threads" data-testid="threads-skeleton">
+                {[0, 1, 2].map((n) => (
+                  <span key={n} className="h-14 rounded-lg bg-skeleton motion-safe:animate-pulse" />
+                ))}
+              </output>
+            }
+            empty={
+              <p className="rounded-lg border border-dashed border-hairline px-3 py-4 text-meta text-ink-2" data-testid="messages-empty">
+                {found ? "No message has those words." : sessionId ? "No messages to or from this session yet." : "No messages yet. When agents here write to each other or to you, their threads show here."}
+              </p>
+            }
+            onRetry={() => {
+              setFailed(undefined);
+              setRound((was) => was + 1);
+            }}
+          >
             <ul className="flex flex-col gap-0.5" data-testid="thread-list">
               {shown.map((thread) => (
                 <ThreadRow key={thread.id} thread={thread} now={now} selected={!writing && thread.id === selected} onOpen={() => (setOpen(thread.id), setWriting(false))} />
               ))}
             </ul>
-          )}
+          </LoadingState>
           {next && !found && (
             <Button size="sm" variant="ghost" onClick={() => void messagesThreads(scope, next).then((older) => (setMore((was) => [...was, ...older.threads]), setNext(older.next)))} data-testid="threads-more">
               Show more threads
