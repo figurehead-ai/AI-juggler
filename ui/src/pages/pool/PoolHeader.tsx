@@ -224,10 +224,13 @@ export function PoolHeader({
         <Toggle on={panel === "messages"} onClick={() => onPanel(panel === "messages" ? null : "messages")} icon={<IconMessage width={15} height={15} aria-hidden="true" />} testId="pool-panel-messages">
           Messages
         </Toggle>
-        <span className="mx-1 h-5 w-px bg-hairline" aria-hidden="true" />
         {/* Round 3 (#3): the pool's one control for this, saying whom it
-            covers; Custom opens its list in place (Sam's round-4 walk). */}
-        <span className="relative">
+            covers; Custom opens its list in place (Sam's round-4 walk).
+            AJ-E1548 #27: while setup is open its checklist owns the rules
+            and the header shows only the state pill; it comes back once
+            setup is done. */}
+        {!setup && <span className="mx-1 h-5 w-px bg-hairline" aria-hidden="true" />}
+        {!setup && <span className="relative">
           <OwnLevelChoice
             look="menu"
             label="What sessions in this pool may do on their own"
@@ -247,7 +250,7 @@ export function PoolHeader({
             testId="pool-header-level"
           />
           {custom && <HeaderCustom pool={pool} onClose={closeCustom} />}
-        </span>
+        </span>}
       </div>
       {/* SK-1: the page's ⋯ at its title row's right end, as a session
           page has it (the 0.4.7 nightly walk: it sat after the name's

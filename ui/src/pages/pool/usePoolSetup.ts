@@ -113,6 +113,14 @@ export function drawsPlanned(pool: Pick<PoolInfo, "members">, drawn: number, bro
   return (pool.members === 0 || open === 0) && drawn === 0 && broad > 0;
 }
 
+/** AJ-E1548 #27: while setup is open its checklist owns the rules ("Who
+ * leads" is its row), so the canvas's lead card (and the room kept for
+ * it) waits until setup is done; the header's choice does the same. */
+export function leadOnceSetUp(setup: { leadCard: boolean; room: number }, phase: "setup" | "running", rules: readonly PoolRuleInfo[], watched: readonly WatchedMemberInfo[]): { leadCard: boolean; room: number } {
+  if (phase !== "setup" || !setup.leadCard) return { leadCard: setup.leadCard, room: setup.room };
+  return { leadCard: false, room: ruleColumnRoom(rules, watched) };
+}
+
 /** The member rules the diagram draws as cards: a project's own pool
  * draws no "Everyone in web" card (round 5): its header says every
  * session in web is part of it, and Everyone else sets their role. */
