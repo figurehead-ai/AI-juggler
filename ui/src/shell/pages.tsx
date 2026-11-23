@@ -60,7 +60,7 @@ const PAGES: Partial<Record<Selection["kind"], PageEntry>> = {
     if (selection.kind !== "conversation") return null;
     return (
       <div className="min-h-0 flex-1" data-testid="conversation-scroll">
-        <ConversationPage accountId={selection.accountId} id={selection.id} now={shell.now} projects={shell.projects} onSwitch={(sessionId, targetProfileId, targetLabel, targetPlaceId) => shell.setSwitchFlow({ sessionId, targetProfileId, targetLabel, targetPlaceId })} />
+        <ConversationPage accountId={selection.accountId} id={selection.id} now={shell.now} projects={shell.projects} onSwitch={(sessionId, targetProfileId, targetLabel) => shell.setSwitchFlow({ sessionId, targetProfileId, targetLabel })} />
       </div>
     );
   },
@@ -257,9 +257,9 @@ function inspectorPage(shell: Shell): JSX.Element {
         onStopped={() => void shell.refresh()}
         switchBackSuggestions={shell.switchBackCards}
         onSwitchBack={(sessionId) => shell.setSwitchBack(sessionId)}
-        onHandover={(sessionId, targetProfileId, targetLabel, targetPlaceId) => {
+        onHandover={(sessionId, targetProfileId, targetLabel) => {
           void sessionHandover; // superseded by the E205 flow
-          shell.setSwitchFlow({ sessionId, targetProfileId, targetLabel, targetPlaceId });
+          shell.setSwitchFlow({ sessionId, targetProfileId, targetLabel });
         }}
         onNew={() => shell.newSheet.show()}
       />
