@@ -6,24 +6,24 @@
  */
 export type Line = { key: string; h: number };
 
-export const VIEW = 300;
+const VIEW = 300;
 export const BAR = 28;
-export const PILL = 24;
+const PILL = 24;
 
-export function heightOf(element: Element): number {
+function heightOf(element: Element): number {
   if (!(element instanceof HTMLElement)) return 0;
   const h = element.dataset.h;
   if (h !== undefined) return Number(h);
   return parseFloat(element.style.height || "0") || 0;
 }
 
-export function firstOf(element: Element): HTMLElement {
+function firstOf(element: Element): HTMLElement {
   const first = element.firstElementChild;
   if (!(first instanceof HTMLElement)) throw new Error("no first child");
   return first;
 }
 
-export function rect(top: number, height: number, width = 240): DOMRect {
+function rect(top: number, height: number, width = 240): DOMRect {
   return { top, bottom: top + height, left: 0, right: width, width, height, x: 0, y: top, toJSON: () => null };
 }
 export const NOWHERE = rect(0, 0, 0);

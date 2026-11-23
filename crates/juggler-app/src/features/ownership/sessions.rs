@@ -208,9 +208,9 @@ pub fn contradicts<'f>(evidence: &Evidence<'f>, linked: &Path) -> Option<(&'f Pa
 /// `prefer` among the tied (its link so far, the folder named like it)
 /// is confirmed, else nothing is decided. `None` when none holds any.
 #[must_use]
-pub fn folder_of_records<'f>(
+pub fn folder_of_records<'f, S: std::hash::BuildHasher>(
     ids: &[String],
-    folders: &'f [(PathBuf, std::collections::HashSet<String>)],
+    folders: &'f [(PathBuf, std::collections::HashSet<String, S>)],
     prefer: &[&Path],
 ) -> Option<&'f Path> {
     let counts: Vec<(&Path, usize)> = folders

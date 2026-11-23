@@ -59,14 +59,14 @@ IPC `places_pairings` → `PlacePairingInfo[]`: each desktop profile known (Apps
 
 ## By requirement
 
-| Req | Result | Evidence |
-|---|---|---|
-| R1 evidence-first linking through the ownership module; a name match only as a fallback the evidence confirms or corrects; a profile added while closed still linked | PASS | `ownership/sessions.rs` (`LinkSource`, `Evidence`, `decide`, `contradicts`, `folder_of_records`); `places/link.rs` (`look`, `link_by_evidence`, `correct_by_records`). Tests: `ownership::tests::link_evidence::*` (5), `places::link_tests::add_on_a_running_profile_links_the_folder_its_sessions_write_in`, `a_profile_added_while_closed_is_linked_by_its_records`, `a_name_guess_is_corrected_by_evidence` |
-| R2 every Add path brings the folder in place and links it; the confirmation names it | PASS | `answer_offer` returns what it linked (`places_offer_answer` → `PlaceAddedInfo`). Every Add in the window goes through `usePlaceOffers().answer` (the rail, Settings › Desktop apps, first run's found apps, an App page's Find them), which shows `sayAdded`: "Added Claude app · team-a — Also uses its Claude Code folder client-a, where it is, so its sessions show here (its open sessions write there)." ⌘K has no Add of its own (its Find my apps opens first run). Tests: `app-folder.test.ts`; the Accounts made are `in_place` (link_tests) |
-| R3 sessions, live state and subsessions at once; the icon not greyed | PASS (see the usability line on the icon) | Linked on Add, its records are read for its folder in the same call (`record_index(..).listed` in link_tests); its sessions then show where every App's do. The calm grey is D-117's tone at rest, now explained (R5) |
-| R4 no evidence: the row says why and offers "Choose its folder…" | PASS | `PlaceHeader` "sessions not shown" (its title the reason), `AppFolderNote` under it with "Choose its folder…", the header menu's item; `places_choose_folder` (a picked folder only, `picked::vouch`; refused when it isn't a Claude Code folder or the App's own evidence says otherwise). Tests: `no_evidence_says_why_and_choose_its_folder_links_it`, `place-header-folder.test.tsx` |
-| R5 the rail keeps its scroll on Add and brings the added row into view; "Nothing open yet" only when Open now is empty, worded for its lens; the grey icon explained | PASS | `rail-hold.tsx` `ownChange`, `rail-add.ts` `useAddOffer`; `lib/rail-empty.ts` + `RailEmpty`; `toneTip` on the App icons of the rail's headers and Home's App tiles. Tests: `rail-hold-own.test.tsx`, `rail-add.test.tsx`, `rail-empty.test.ts`, `app-folder.test.ts`, `place-header-folder.test.tsx` |
-| R6 tests, failing on the old code | PASS | The table below |
+| Req | Result | Evidence | Commit | Date |
+|---|---|---|---|---|
+| R1 evidence-first linking through the ownership module; a name match only as a fallback the evidence confirms or corrects; a profile added while closed still linked | PASS | `ownership/sessions.rs` (`LinkSource`, `Evidence`, `decide`, `contradicts`, `folder_of_records`); `places/link.rs` (`look`, `link_by_evidence`, `correct_by_records`). Tests: `ownership::tests::link_evidence::*` (5), `places::link_tests::add_on_a_running_profile_links_the_folder_its_sessions_write_in`, `a_profile_added_while_closed_is_linked_by_its_records`, `a_name_guess_is_corrected_by_evidence` | 56856d10d | 2026-11-23 |
+| R2 every Add path brings the folder in place and links it; the confirmation names it | PASS | `answer_offer` returns what it linked (`places_offer_answer` → `PlaceAddedInfo`). Every Add in the window goes through `usePlaceOffers().answer` (the rail, Settings › Desktop apps, first run's found apps, an App page's Find them), which shows `sayAdded`: "Added Claude app · team-a — Also uses its Claude Code folder client-a, where it is, so its sessions show here (its open sessions write there)." ⌘K has no Add of its own (its Find my apps opens first run). Tests: `app-folder.test.ts`; the Accounts made are `in_place` (link_tests) | 56856d10d | 2026-11-23 |
+| R3 sessions, live state and subsessions at once; the icon not greyed | PASS (see the usability line on the icon) | Linked on Add, its records are read for its folder in the same call (`record_index(..).listed` in link_tests); its sessions then show where every App's do. The calm grey is D-117's tone at rest, now explained (R5) | 56856d10d | 2026-11-23 |
+| R4 no evidence: the row says why and offers "Choose its folder…" | PASS | `PlaceHeader` "sessions not shown" (its title the reason), `AppFolderNote` under it with "Choose its folder…", the header menu's item; `places_choose_folder` (a picked folder only, `picked::vouch`; refused when it isn't a Claude Code folder or the App's own evidence says otherwise). Tests: `no_evidence_says_why_and_choose_its_folder_links_it`, `place-header-folder.test.tsx` | 56856d10d | 2026-11-23 |
+| R5 the rail keeps its scroll on Add and brings the added row into view; "Nothing open yet" only when Open now is empty, worded for its lens; the grey icon explained | PASS | `rail-hold.tsx` `ownChange`, `rail-add.ts` `useAddOffer`; `lib/rail-empty.ts` + `RailEmpty`; `toneTip` on the App icons of the rail's headers and Home's App tiles. Tests: `rail-hold-own.test.tsx`, `rail-add.test.tsx`, `rail-empty.test.ts`, `app-folder.test.ts`, `place-header-folder.test.tsx` | 56856d10d | 2026-11-23 |
+| R6 tests, failing on the old code | PASS | The table below | 56856d10d | 2026-11-23 |
 
 ### Each test against the old rules
 
@@ -74,13 +74,13 @@ The new tests were run with `look` reduced to each old rule (a temporary edit, r
 
 | Test | HEAD before | 0.5.0 | Now |
 |---|---|---|---|
-| `add_on_a_running_profile_links_the_folder_its_sessions_write_in` (fresh data folder, running profiles, folder names unlike theirs) | pass | FAIL (took the decoy `team-a` by its name) | pass |
-| `a_profile_added_while_closed_is_linked_by_its_records` | FAIL | FAIL | pass |
-| `restarting_it_starts_it_with_its_folder` | FAIL | FAIL | pass |
-| `no_evidence_says_why_and_choose_its_folder_links_it` | pass (nothing was linked either; the words and Choose its folder… are new API) | pass (nothing linked either) | pass |
-| `a_name_guess_is_corrected_by_evidence` | FAIL | FAIL | pass |
-| `a_mismatch_between_the_link_and_the_evidence_is_said` | pass (new API) | FAIL | pass |
-| `pairings_pair_each_profile_by_evidence_and_add_nothing` | FAIL | FAIL | pass |
+| `add_on_a_running_profile_links_the_folder_its_sessions_write_in` (fresh data folder, running profiles, folder names unlike theirs) | passes | fails (took the decoy `team-a` by its name) | passes |
+| `a_profile_added_while_closed_is_linked_by_its_records` | fails | fails | passes |
+| `restarting_it_starts_it_with_its_folder` | fails | fails | passes |
+| `no_evidence_says_why_and_choose_its_folder_links_it` | passes (nothing was linked either; the words and Choose its folder… are new API) | passes (nothing linked either) | passes |
+| `a_name_guess_is_corrected_by_evidence` | fails | fails | passes |
+| `a_mismatch_between_the_link_and_the_evidence_is_said` | passes (new API) | fails | passes |
+| `pairings_pair_each_profile_by_evidence_and_add_nothing` | fails | fails | passes |
 | `rail-hold-own.test.tsx` "before (no own change)" | the old hold scrolls the top out (asserted) | same | Add keeps it |
 | `rail-empty.test.ts` "never shows under Open now" | 0.5.0's `items.length === 0` shows it | same | null |
 

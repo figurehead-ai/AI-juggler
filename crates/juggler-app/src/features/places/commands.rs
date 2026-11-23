@@ -507,7 +507,8 @@ pub async fn places_choose_folder(
     // listed: never a path the page made up.
     let folder = crate::picked::vouch(&folder, crate::picked::WORK_FOLDER, |_| false)?;
     crate::ipc::blocking(state.inner(), "choose the app's folder", move |state| {
-        let linked = super::choose_folder(state, &id, &folder)?;
+        let linked = super::link::choose_folder(state, &id, &folder)
+            .map_err(crate::error::AppError::Refused)?;
         let folder = PlaceFolderInfo::of(state, &id, &linked);
         Ok(PlaceAddedInfo { id, folder })
     })
@@ -526,12 +527,7 @@ pub async fn places_choose_folder(
 pub async fn places_pairings(
     state: tauri::State<'_, Arc<AppState>>,
 ) -> AppResult<Vec<PlacePairingInfo>> {
-    crate::ipc::blocking(
-        state.inner(),
-        "pair the apps with their folders",
-        move |state| pairings(state),
-    )
-    .await
+    crate::ipc::blocking(state.inner(), "pair the apps with their folders", pairings).await
 }
 
 /// [`places_pairings`]' body.
@@ -550,7 +546,7 @@ pub fn pairings(state: &Arc<AppState>) -> AppResult<Vec<PlacePairingInfo>> {
     Ok(places
         .into_iter()
         .map(|(id, place)| {
-            let paired = super::pairing(state, &id);
+            let paired = super::link::pairing(state, &id);
             let folder = PlaceFolderInfo::of(state, &id, &super::Linked {
                 folder: paired.as_ref().map(|(folder, _, _)| folder.clone()),
                 by: paired.as_ref().map(|(_, by, _)| *by),

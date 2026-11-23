@@ -139,6 +139,22 @@ impl Desktop for FakeDesktop {
     }
 }
 
+/// A Claude Code folder discovery found at `path` (signed in, another
+/// tool's), for a made-up Mac's `installs`.
+pub(crate) fn install(path: PathBuf) -> juggler_adapter::environment::DiscoveredInstall {
+    use juggler_adapter::environment::{DiscoveredInstall, InstallOrigin, LoginProbe};
+    DiscoveredInstall {
+        harness: juggler_core::model::HarnessId::new("claude-code"),
+        path,
+        origin: InstallOrigin::ManagerTool,
+        login: LoginProbe::LoggedIn,
+        bytes: 0,
+        last_used_secs: None,
+        managed: true,
+        notes: Vec::new(),
+    }
+}
+
 /// A state over `root` whose places see a made-up Mac: only this test's
 /// own process runs on it (its pid and start are real, so a place pinned
 /// to it is found alive), its home is `root/home`, and discovery finds

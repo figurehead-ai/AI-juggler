@@ -22,7 +22,7 @@ import type { PlaceAddedInfo } from "../types/generated/PlaceAddedInfo";
 /** AJ-E2327: Add's confirmation, wherever Add is (the rail, Settings,
  * first run, an App page's Find them): the App and the tool folder that
  * came with it, where it is; or why none did, with Choose its folder…. */
-export function sayAdded(offer: PlaceOfferInfo, added: PlaceAddedInfo): void {
+function sayAdded(offer: PlaceOfferInfo, added: PlaceAddedInfo): void {
   const note = addedNote(offer.label, added.folder);
   showToast({
     id: `place-added-${offer.id}`,

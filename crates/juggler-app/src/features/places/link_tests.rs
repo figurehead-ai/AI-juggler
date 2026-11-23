@@ -8,8 +8,6 @@
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use juggler_adapter::environment::{DiscoveredInstall, InstallOrigin, LoginProbe};
-
 use super::*;
 use crate::features::conversations::procs::fixture as proc;
 
@@ -21,19 +19,6 @@ struct Mac {
     _root: tempfile::TempDir,
     home: PathBuf,
     state: Arc<AppState>,
-}
-
-fn install(path: PathBuf) -> DiscoveredInstall {
-    DiscoveredInstall {
-        harness: juggler_core::model::HarnessId::new("claude-code"),
-        path,
-        origin: InstallOrigin::ManagerTool,
-        login: LoginProbe::LoggedIn,
-        bytes: 0,
-        last_used_secs: None,
-        managed: true,
-        notes: Vec::new(),
-    }
 }
 
 impl Mac {
@@ -52,7 +37,7 @@ impl Mac {
                 std::fs::create_dir_all(path.join("projects/-Users-you-dev")).unwrap();
                 std::fs::create_dir_all(path.join("sessions")).unwrap();
                 std::fs::write(path.join("settings.json"), "{}").unwrap();
-                install(path)
+                super::fakes::install(path)
             })
             .collect();
         let state = AppState::init(root.path().join("data")).unwrap();
@@ -317,13 +302,13 @@ fn no_evidence_says_why_and_choose_its_folder_links_it() {
     assert_eq!(row.account_id, None);
     assert_eq!(row.folder.and_then(|folder| folder.why), Some(why));
 
-    let chosen = choose_folder(&mac.state, &team, &mac.folder("client-a")).unwrap();
+    let chosen = link::choose_folder(&mac.state, &team, &mac.folder("client-a")).unwrap();
     assert_eq!(chosen.by, Some(ownership::sessions::LinkSource::Recorded));
     assert_eq!(mac.account_dir(&team), Some(mac.folder("client-a")));
     // A folder that isn't a Claude Code one is refused.
     let empty = mac.home.join("empty");
     std::fs::create_dir_all(&empty).unwrap();
-    assert!(choose_folder(&mac.state, &team, &empty).is_err());
+    assert!(link::choose_folder(&mac.state, &team, &empty).is_err());
 }
 
 /// The name is a fallback only: with no other evidence the folder named

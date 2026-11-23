@@ -235,21 +235,11 @@ fn a_session_started_in_a_closed_profile_is_that_profiles() {
 #[test]
 fn an_added_profiles_folder_is_the_one_its_sessions_write_in() {
     use crate::features::conversations::procs::fixture as proc;
-    use juggler_adapter::environment::{DiscoveredInstall, InstallOrigin, LoginProbe};
     let root = tempfile::tempdir().unwrap();
     let mk = |name: &str| {
         let path = root.path().join("ClaudeCodeProfiles").join(name);
         std::fs::create_dir_all(path.join("sessions")).unwrap();
-        DiscoveredInstall {
-            harness: juggler_core::model::HarnessId::new("claude-code"),
-            path,
-            origin: InstallOrigin::ManagerTool,
-            login: LoginProbe::LoggedIn,
-            bytes: 0,
-            last_used_secs: None,
-            managed: true,
-            notes: Vec::new(),
-        }
+        super::fakes::install(path)
     };
     let found = vec![mk("team-a"), mk("work")];
     let profile = root.path().join("ClaudeProfiles/team-a");

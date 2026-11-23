@@ -571,7 +571,7 @@ fn forget_looked(state: &Arc<AppState>, id: &str) {
 /// # Errors
 ///
 /// Why it can't be its folder, in words.
-pub(super) fn choose_folder(
+pub(crate) fn choose_folder(
     state: &Arc<AppState>,
     id: &str,
     folder: &Path,
@@ -612,6 +612,8 @@ pub(super) fn choose_folder(
     if let Ok(mut retry) = state.places.link_retry.lock() {
         retry.remove(id);
     }
+    super::read_records(state);
+    super::changed(state);
     Ok(Linked {
         folder: Some(folder.to_path_buf()),
         by: Some(LinkSource::Recorded),
@@ -646,12 +648,11 @@ pub(crate) fn folder_mismatch(state: &Arc<AppState>, id: &str) -> Option<(PathBu
 /// it's certain (proof, not a recalled or guessed folder). Nothing is
 /// brought in or linked.
 #[must_use]
-pub(crate) fn pairing(
-    state: &Arc<AppState>,
-    id: &str,
-    place: &KnownPlace,
-) -> Option<(PathBuf, LinkSource, bool)> {
-    let look = look(state, id, place)?;
+pub(crate) fn pairing(state: &Arc<AppState>, id: &str) -> Option<(PathBuf, LinkSource, bool)> {
+    let place = with_book(state, |book| book.places.get(id).cloned())
+        .ok()
+        .flatten()?;
+    let look = look(state, id, &place)?;
     let (folder, by) = ownership::sessions::decide(&look.evidence())?;
     Some((folder.to_path_buf(), by, by.is_evidence()))
 }

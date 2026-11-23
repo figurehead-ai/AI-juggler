@@ -1050,36 +1050,6 @@ pub fn answer_offer(state: &Arc<AppState>, id: &str, add: bool) -> AppResult<Lin
     Ok(linked)
 }
 
-/// AJ-E2327, "Choose its folder…": App `id` uses `folder` (the user
-/// picked it; no evidence told which). Brought in where it is and linked
-/// (`link::choose_folder`).
-///
-/// # Errors
-///
-/// [`AppError::Refused`] with why it can't be its folder.
-pub fn choose_folder(
-    state: &Arc<AppState>,
-    id: &str,
-    folder: &std::path::Path,
-) -> AppResult<Linked> {
-    let linked = link::choose_folder(state, id, folder).map_err(AppError::Refused)?;
-    read_records(state);
-    changed(state);
-    Ok(linked)
-}
-
-/// AJ-E2327: the tool folder evidence pairs with desktop place `id` (an
-/// App, an offer, or one found beside it), what told, and whether that's
-/// certain: nothing is brought in or linked (first run's "Your apps").
-#[must_use]
-pub fn pairing(
-    state: &Arc<AppState>,
-    id: &str,
-) -> Option<(std::path::PathBuf, ownership::sessions::LinkSource, bool)> {
-    let place = with_book(state, |book| book.places.get(id).cloned()).ok()??;
-    link::pairing(state, id, &place)
-}
-
 /// Forgets `id` (it's remembered again the next time it runs).
 ///
 /// # Errors
