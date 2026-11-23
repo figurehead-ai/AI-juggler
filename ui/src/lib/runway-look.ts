@@ -19,9 +19,9 @@
 import { LOW_LEFT } from "./room";
 
 /** More than this much left is healthy (green). */
-export const HEALTHY_LEFT = 50;
+const HEALTHY_LEFT = 50;
 
-export type RunwayState = "healthy" | "mid" | "low" | "out" | "unknown";
+type RunwayState = "healthy" | "mid" | "low" | "out" | "unknown";
 
 /** The state of `left` % left; `credits` carry the work on past a used-up
  * window, so that one is low, not out. */

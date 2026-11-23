@@ -97,7 +97,7 @@ function Row({ id, icon, app, profile, slot, line, long, kept = false, needs, le
    * makes it taller), so the rows under it hold still. */
   needsKnown?: boolean;
 }): JSX.Element {
-  const rowPlace = `aij.home.app-row:${place}`;
+  const rowPlace = `aij.home.open-row:${place}`;
   const box = useKeepShape<HTMLLIElement>(rowPlace, needsKnown === true, 1);
   const held = needsKnown === false ? keptShape(rowPlace) : null;
   const name = appName(app, profile);
