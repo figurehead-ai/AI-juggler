@@ -6,7 +6,7 @@
  */
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import { conversationsFollow } from "../../lib/ipc/conversations";
-import { connect, disconnect, showEarlier, stateOf, subscribe, type FeedSource } from "../../lib/conversation-store";
+import { connect, disconnect, reread, showEarlier, stateOf, subscribe, type FeedSource } from "../../lib/conversation-store";
 import type { FeedState } from "../../lib/conversation-feed-state";
 
 export type { FeedSource };
@@ -23,7 +23,7 @@ export function sessionSource(profileId: string, conversationId: string): FeedSo
   };
 }
 
-export function useConversation({ source, visible }: { source: FeedSource | null; visible: boolean }): { state: FeedState; showEarlier: () => void } {
+export function useConversation({ source, visible }: { source: FeedSource | null; visible: boolean }): { state: FeedState; showEarlier: () => void; retry: () => void } {
   const key = source?.key ?? "";
   const [pageHidden, setPageHidden] = useState(documentHidden);
   // The window hidden (another app in front, minimised): not followed.
@@ -45,5 +45,6 @@ export function useConversation({ source, visible }: { source: FeedSource | null
     () => stateOf(key),
   );
   const earlier = useCallback(() => void showEarlier(key), [key]);
-  return { state, showEarlier: earlier };
+  const retry = useCallback(() => reread(key), [key]);
+  return { state, showEarlier: earlier, retry };
 }

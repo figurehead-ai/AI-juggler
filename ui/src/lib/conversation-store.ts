@@ -132,6 +132,17 @@ export function connect(source: FeedSource): void {
   evict();
 }
 
+/** AJ-E1552: reads `key`'s conversation afresh (the Retry of a first
+ * read that failed or ran past its deadline); a late answer to the old
+ * read is dropped. */
+export function reread(key: string): void {
+  const found = entries.get(key);
+  if (!found || found.shown === 0) return;
+  unfollow(found);
+  set(key, INITIAL);
+  start(key);
+}
+
 /** A page stopped showing `key`'s conversation. */
 export function disconnect(key: string): void {
   const found = entries.get(key);
