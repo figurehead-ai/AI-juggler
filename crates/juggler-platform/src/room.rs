@@ -6,6 +6,8 @@
 //! - [`disk_space`]: `statvfs` on Unix (one call, no walk); not on Windows
 //!   yet, which says so, and the cache then keeps to its floor.
 //! - [`total_memory`]: the system's own count, read once.
+//! - [`reclaimable`] (AJ-E2325): what deleting a file or folder gives
+//!   back, from allocated blocks (a ceiling on a disk that makes clones).
 
 use std::path::Path;
 
@@ -104,6 +106,66 @@ pub fn copy_is_a_clone(from: &Path, to_dir: &Path) -> std::io::Result<bool> {
     Ok(false)
 }
 
+/// What deleting a file or folder would give back to its disk.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct Reclaim {
+    /// Bytes the disk gets back, at most (see `exact`).
+    pub bytes: u64,
+    /// `bytes` is what deleting frees. `false`: it is the most it frees,
+    /// because the disk makes clones (APFS), whose blocks a file may share
+    /// with its original until either is written, and only the blocks it
+    /// alone holds come back.
+    pub exact: bool,
+}
+
+/// AJ-E2325: what deleting `path` (a file, or a folder and everything in
+/// it) would give back to the disk, read from metadata only: each item's
+/// allocated blocks, never its apparent length; a file with another name
+/// elsewhere (a hard link) gives nothing back, since that name keeps it;
+/// links are never followed. On a disk that makes clones the answer is a
+/// ceiling ([`Reclaim::exact`] false), never a `du` total said as if it
+/// were freed.
+///
+/// # Errors
+///
+/// `path` can't be read, or this system can't tell yet.
+pub fn reclaimable(path: &Path) -> std::io::Result<Reclaim> {
+    #[cfg(unix)]
+    {
+        let bytes = allocated(path)?;
+        let clones = crate::transfer::clones_supported(path).unwrap_or(true);
+        Ok(Reclaim {
+            bytes,
+            exact: !clones,
+        })
+    }
+    #[cfg(not(unix))]
+    {
+        let _ = path;
+        Err(crate::unsupported("Measuring what deleting frees"))
+    }
+}
+
+/// The blocks `path` and everything under it alone hold, in bytes.
+#[cfg(unix)]
+fn allocated(path: &Path) -> std::io::Result<u64> {
+    use std::os::unix::fs::MetadataExt as _;
+    let meta = std::fs::symlink_metadata(path)?;
+    let own = if meta.is_file() && meta.nlink() > 1 {
+        0
+    } else {
+        meta.blocks().saturating_mul(512)
+    };
+    if !meta.is_dir() {
+        return Ok(own);
+    }
+    let mut total = own;
+    for entry in std::fs::read_dir(path)? {
+        total = total.saturating_add(allocated(&entry?.path())?);
+    }
+    Ok(total)
+}
+
 /// This computer's memory in bytes, when the system says.
 #[must_use]
 pub fn total_memory() -> Option<u64> {
@@ -124,6 +186,70 @@ mod tests {
         assert!(space.total > 0, "a disk has a size");
         assert!(space.free <= space.total, "free fits in the disk");
         assert!(disk_space(&dir.path().join("missing")).is_err());
+    }
+
+    /// AJ-E2325 (R6): a file counts its blocks, not its length; a hard
+    /// link's file and a link's target count nothing; a folder counts
+    /// what is in it.
+    #[test]
+    #[cfg(unix)]
+    fn deleting_frees_allocated_blocks_never_a_linked_files_nor_a_links_target() {
+        use std::os::unix::fs::MetadataExt as _;
+        let dir = tempfile::tempdir().unwrap();
+        let backups = dir.path().join("backups");
+        std::fs::create_dir(&backups).unwrap();
+        let file = backups.join("a.jsonl");
+        std::fs::write(&file, vec![7_u8; 200_000]).unwrap();
+        let blocks = std::fs::metadata(&file).unwrap().blocks() * 512;
+        assert!(blocks >= 200_000);
+        let alone = reclaimable(&file).unwrap();
+        assert_eq!(alone.bytes, blocks);
+
+        // A sparse file: long, but nearly no blocks.
+        let sparse = backups.join("sparse");
+        std::fs::File::create(&sparse)
+            .unwrap()
+            .set_len(50_000_000)
+            .unwrap();
+        assert!(
+            reclaimable(&sparse).unwrap().bytes < 1_000_000,
+            "blocks, not length"
+        );
+
+        // A file with a second name elsewhere: deleting this one frees nothing.
+        let shared = backups.join("shared");
+        std::fs::write(&shared, vec![1_u8; 300_000]).unwrap();
+        std::fs::hard_link(&shared, dir.path().join("other-name")).unwrap();
+        assert_eq!(reclaimable(&shared).unwrap().bytes, 0);
+
+        // A link to a big file outside: the target isn't counted.
+        let outside = dir.path().join("big");
+        std::fs::write(&outside, vec![2_u8; 2_000_000]).unwrap();
+        std::os::unix::fs::symlink(&outside, backups.join("link")).unwrap();
+
+        let folder = reclaimable(&backups).unwrap();
+        assert!(folder.bytes >= blocks, "the folder counts its file");
+        assert!(
+            folder.bytes < blocks + 1_000_000,
+            "never the link's target nor the linked file"
+        );
+        assert!(reclaimable(&dir.path().join("missing")).is_err());
+    }
+
+    /// On a disk that makes clones the answer is a ceiling, said so; a
+    /// clone of a file still there is counted at most its own blocks.
+    #[test]
+    #[cfg(unix)]
+    fn on_a_cloning_disk_the_size_is_a_ceiling() {
+        let dir = tempfile::tempdir().unwrap();
+        let file = dir.path().join("a");
+        std::fs::write(&file, vec![3_u8; 100_000]).unwrap();
+        let clones = crate::transfer::clones_supported(dir.path()).unwrap();
+        let reclaim = reclaimable(dir.path()).unwrap();
+        assert_eq!(
+            reclaim.exact, !clones,
+            "exact only where nothing shares blocks"
+        );
     }
 
     #[test]
