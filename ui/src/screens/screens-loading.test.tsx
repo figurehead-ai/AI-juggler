@@ -127,7 +127,7 @@ describe("This Mac", () => {
       await vi.advanceTimersByTimeAsync(DEADLINE_MS);
     });
     vi.useRealTimers();
-    await expectErrorRetry("this Mac's measurements", read, "this-mac-loading");
+    await expectErrorRetry("this computer's measurements", read, "this-mac-loading");
     expect(screen.queryByTestId("this-mac-loading")).toBeTruthy();
   });
 });

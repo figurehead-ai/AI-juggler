@@ -171,8 +171,8 @@ function useThisMacRead() {
   const [failed, setFailed] = useState<unknown>(undefined);
   const [round, setRound] = useState(0);
   const info = given?.machine.sampled || !own?.machine.sampled ? given : own;
-  const measured = useReadState(info?.machine.sampled ? info : null, "this Mac's measurements", { error: failed, round, isEmpty: () => false });
-  const tools = useReadState(info && (info.scanned || info.by_tool.length > 0) ? info.by_tool : null, "the AI tools running on this Mac", { error: failed, round });
+  const measured = useReadState(info?.machine.sampled ? info : null, "this computer's measurements", { error: failed, round, isEmpty: () => false });
+  const tools = useReadState(info && (info.scanned || info.by_tool.length > 0) ? info.by_tool : null, "the AI tools running on this computer", { error: failed, round });
   const retry = () => {
     setFailed(undefined);
     setRound((n) => n + 1);
@@ -193,7 +193,7 @@ export function ThisMacOverview({ nameOf, onOpenSession, onOpenCleanup }: Overvi
         <LoadingState
           state={measured.state}
           slow={measured.slow}
-          what="this Mac's measurements"
+          what="this computer's measurements"
           skeleton={
             <div data-testid="this-mac-loading">
               <RowPlaceholders shape="home" rows={4} label="Measuring this Mac" />
@@ -260,7 +260,7 @@ export function ThisMacOverview({ nameOf, onOpenSession, onOpenCleanup }: Overvi
               <LoadingState
                 state={tools.state}
                 slow={tools.slow}
-                what="the AI tools running on this Mac"
+                what="the AI tools running on this computer"
                 skeleton={
                   <div data-testid="this-mac-tools-loading">
                     <RowPlaceholders shape="rail" rows={2} label="Looking for running AI tools" />

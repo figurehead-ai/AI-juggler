@@ -153,21 +153,8 @@ fn write_kept(dir: &Path, entries: &[Entry]) {
         return;
     }
     if let Ok(bytes) = serde_json::to_vec_pretty(&ended) {
-        let _ = write_private(&path, &bytes);
+        let _ = juggler_platform::private_fs::write_private(&path, &bytes);
     }
-}
-
-/// Writes `bytes` to `path`, readable by its owner only.
-fn write_private(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
-    use std::io::Write as _;
-    let mut options = std::fs::OpenOptions::new();
-    options.write(true).create(true).truncate(true);
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::OpenOptionsExt as _;
-        options.mode(0o600);
-    }
-    options.open(path)?.write_all(bytes)
 }
 
 /// Whether `info`'s App is still there and not signed in (AJ-E1553 R3).
