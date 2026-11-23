@@ -32,6 +32,13 @@ pub use crate::claude_env::{
 /// Harness id: `claude-code`.
 pub const CLAUDE_CODE_ID: &str = "claude-code";
 
+/// AJ-E1545 R8: how Claude Code's sign-in output is read: its own page (claude.ai), with a code to paste back when the browser can't call it back.
+const SIGN_IN_PAGE: juggler_adapter::PageRule = juggler_adapter::PageRule {
+    hosts: &["claude.ai", "claude.com", "anthropic.com"],
+    device_codes: false,
+    paste_words: &["paste code", "paste the code", "paste your code"],
+};
+
 /// Versions this adapter's launch/watch behavior was verified against
 /// (research pinned 2.1.296, 2026-10-12). Other 2.1.x versions run with an
 /// unverified-drift note — never a hard failure (spec §4 rules).
@@ -331,6 +338,14 @@ impl ToolDiscovery for ClaudeCodeAdapter {
 }
 
 impl ToolSignIn for ClaudeCodeAdapter {
+    /// AJ-E1545 R8: the page and code Claude Code's sign-in shows.
+    fn sign_in_page(&self, output: &str) -> Option<juggler_adapter::SignInPage> {
+        juggler_adapter::sign_in_page::read(output, &SIGN_IN_PAGE)
+    }
+    /// AJ-E1553: its sign-in file's size and time (never its contents).
+    fn sign_in_stamp(&self, state_dir: &Path) -> Option<juggler_adapter::SignInStamp> {
+        crate::sign_in::stamp(CLAUDE_CODE_ID, state_dir)
+    }
     fn prepare_account(&self, state_dir: &Path) -> Result<EnvMap, AdapterError> {
         prepare_managed_dir(state_dir)?;
         let mut env = EnvMap::new();

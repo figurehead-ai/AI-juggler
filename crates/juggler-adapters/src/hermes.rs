@@ -45,6 +45,18 @@ use crate::claude_code::{existing, find_on_path};
 /// JavaScript engine).
 pub const HERMES_ID: &str = "hermes-agent";
 
+/// AJ-E1545 R8: how Hermes Agent's sign-in output is read: the page of the service picked (Nous Portal's, ChatGPT's, xAI's).
+const SIGN_IN_PAGE: juggler_adapter::PageRule = juggler_adapter::PageRule {
+    hosts: &[
+        "nousresearch.com",
+        "auth.openai.com",
+        "auth.x.ai",
+        "claude.ai",
+    ],
+    device_codes: true,
+    paste_words: &["paste the authorization code", "authorization code"],
+};
+
 /// No version has been run live yet (AJ-E1612): every one is unverified.
 const VERIFIED_AGAINST: &[&str] = &[];
 
@@ -451,6 +463,14 @@ impl ToolDiscovery for HermesAdapter {
 }
 
 impl ToolSignIn for HermesAdapter {
+    /// AJ-E1545 R8: the page and code Hermes Agent's sign-in shows.
+    fn sign_in_page(&self, output: &str) -> Option<juggler_adapter::SignInPage> {
+        juggler_adapter::sign_in_page::read(output, &SIGN_IN_PAGE)
+    }
+    /// AJ-E1553: its sign-in file's size and time (never its contents).
+    fn sign_in_stamp(&self, state_dir: &Path) -> Option<juggler_adapter::SignInStamp> {
+        crate::sign_in::stamp(HERMES_ID, state_dir)
+    }
     fn prepare_account(&self, state_dir: &Path) -> Result<EnvMap, AdapterError> {
         prepare_managed_dir_for(state_dir, HERMES_ID)?;
         crate::hermes_guard::ensure(state_dir)?;

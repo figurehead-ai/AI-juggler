@@ -79,6 +79,13 @@ use crate::claude_code::{existing, find_on_path};
 /// consumer app's name too).
 pub const MUSE_ID: &str = "muse-code";
 
+/// AJ-E1545 R8: how Muse Code's sign-in output is read: Meta's page and its device code.
+const SIGN_IN_PAGE: juggler_adapter::PageRule = juggler_adapter::PageRule {
+    hosts: &["meta.ai", "meta.com"],
+    device_codes: true,
+    paste_words: &[],
+};
+
 /// No version has been run live yet (AJ-E1612): every one is unverified.
 const VERIFIED_AGAINST: &[&str] = &[];
 
@@ -697,6 +704,14 @@ fn scan_probe(dir: &Path) -> LoginProbe {
 }
 
 impl ToolSignIn for MuseAdapter {
+    /// AJ-E1545 R8: the page and code Muse Code's sign-in shows.
+    fn sign_in_page(&self, output: &str) -> Option<juggler_adapter::SignInPage> {
+        juggler_adapter::sign_in_page::read(output, &SIGN_IN_PAGE)
+    }
+    /// AJ-E1553: its sign-in file's size and time (never its contents).
+    fn sign_in_stamp(&self, state_dir: &Path) -> Option<juggler_adapter::SignInStamp> {
+        crate::sign_in::stamp(MUSE_ID, state_dir)
+    }
     fn prepare_account(&self, state_dir: &Path) -> Result<EnvMap, AdapterError> {
         prepare_managed_dir_for(state_dir, MUSE_ID)?;
         Self::make_folders(state_dir)?;

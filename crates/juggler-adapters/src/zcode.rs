@@ -93,6 +93,13 @@ use crate::common::prelude::*;
 /// Provider id: `zcode`.
 pub const ZCODE_ID: &str = "zcode";
 
+/// AJ-E1545 R8: how ZCode's sign-in output is read: Z.ai's page.
+const SIGN_IN_PAGE: juggler_adapter::PageRule = juggler_adapter::PageRule {
+    hosts: &["z.ai", "bigmodel.cn"],
+    device_codes: true,
+    paste_words: &[],
+};
+
 /// No version has been run live yet (AJ-E1612): every one is unverified.
 const VERIFIED_AGAINST: &[&str] = &[];
 
@@ -552,6 +559,14 @@ impl ToolDiscovery for ZCodeAdapter {
 }
 
 impl ToolSignIn for ZCodeAdapter {
+    /// AJ-E1545 R8: the page and code ZCode's sign-in shows.
+    fn sign_in_page(&self, output: &str) -> Option<juggler_adapter::SignInPage> {
+        juggler_adapter::sign_in_page::read(output, &SIGN_IN_PAGE)
+    }
+    /// AJ-E1553: its sign-in file's size and time (never its contents).
+    fn sign_in_stamp(&self, state_dir: &Path) -> Option<juggler_adapter::SignInStamp> {
+        crate::sign_in::stamp(ZCODE_ID, state_dir)
+    }
     fn prepare_account(&self, state_dir: &Path) -> Result<EnvMap, AdapterError> {
         prepare_managed_dir_for(state_dir, ZCODE_ID)?;
         let tree = tree_of(state_dir);

@@ -36,6 +36,13 @@ use crate::claude_code::{existing, find_on_path, home_relative};
 /// Provider id: `codex`.
 pub const CODEX_ID: &str = "codex";
 
+/// AJ-E1545 R8: how Codex's sign-in output is read: OpenAI's page (auth.openai.com), with a one-time code for a device sign-in.
+const SIGN_IN_PAGE: juggler_adapter::PageRule = juggler_adapter::PageRule {
+    hosts: &["auth.openai.com"],
+    device_codes: true,
+    paste_words: &[],
+};
+
 /// Versions this adapter's launch/login behaviour was verified against
 /// (codex-cli 0.163.0, 2026-10-20 — AJ-E1301 evidence). Other versions
 /// run with a drift note, never a hard failure (spec §4 rules).
@@ -560,6 +567,14 @@ impl ToolDiscovery for CodexAdapter {
 }
 
 impl ToolSignIn for CodexAdapter {
+    /// AJ-E1545 R8: the page and code Codex's sign-in shows.
+    fn sign_in_page(&self, output: &str) -> Option<juggler_adapter::SignInPage> {
+        juggler_adapter::sign_in_page::read(output, &SIGN_IN_PAGE)
+    }
+    /// AJ-E1553: its sign-in file's size and time (never its contents).
+    fn sign_in_stamp(&self, state_dir: &Path) -> Option<juggler_adapter::SignInStamp> {
+        crate::sign_in::stamp(CODEX_ID, state_dir)
+    }
     fn prepare_account(&self, state_dir: &Path) -> Result<EnvMap, AdapterError> {
         // Codex refuses a CODEX_HOME that does not exist (verified on
         // 0.163.0) — the directory itself is the whole preparation.

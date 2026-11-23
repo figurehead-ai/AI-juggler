@@ -48,6 +48,13 @@ use crate::claude_code::{existing, find_on_path};
 /// called that too).
 pub const KIMI_CODE_ID: &str = "kimi-code";
 
+/// AJ-E1545 R8: how Kimi Code's sign-in output is read: Kimi's page (auth.kimi.com or auth.kimi.ai) and its device code.
+const SIGN_IN_PAGE: juggler_adapter::PageRule = juggler_adapter::PageRule {
+    hosts: &["kimi.com", "kimi.ai", "moonshot.cn"],
+    device_codes: true,
+    paste_words: &[],
+};
+
 /// No version has been run live yet (AJ-E1612): every one is unverified.
 const VERIFIED_AGAINST: &[&str] = &[];
 
@@ -314,6 +321,14 @@ impl ToolDiscovery for KimiCodeAdapter {
 }
 
 impl ToolSignIn for KimiCodeAdapter {
+    /// AJ-E1545 R8: the page and code Kimi Code's sign-in shows.
+    fn sign_in_page(&self, output: &str) -> Option<juggler_adapter::SignInPage> {
+        juggler_adapter::sign_in_page::read(output, &SIGN_IN_PAGE)
+    }
+    /// AJ-E1553: its sign-in file's size and time (never its contents).
+    fn sign_in_stamp(&self, state_dir: &Path) -> Option<juggler_adapter::SignInStamp> {
+        crate::sign_in::stamp(KIMI_CODE_ID, state_dir)
+    }
     fn prepare_account(&self, state_dir: &Path) -> Result<EnvMap, AdapterError> {
         prepare_managed_dir_for(state_dir, KIMI_CODE_ID)?;
         Ok(self.pinned_set_env(state_dir))

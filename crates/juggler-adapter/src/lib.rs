@@ -46,6 +46,7 @@ pub mod reports;
 pub mod runtime;
 pub mod screen_text;
 pub mod siblings;
+pub mod sign_in_page;
 pub mod spec;
 pub mod subagents;
 pub mod switching;
@@ -90,6 +91,7 @@ pub use runtime::{
     DrivenLaunch, DrivenRuntime, DrivenSession, DrivenSpec, Maturity, Release, ReleaseOutcome,
     Runtime, RuntimeEvent, TerminalView, Transport,
 };
+pub use sign_in_page::{PageRule, SignInPage, SignInStamp};
 pub use spec::{
     FloorFamilies, ReleaseFeed, SetupGroup, SignInWords, ToolFlags, ToolKind, ToolSpec, ToolTerms,
     VersionProbe,
