@@ -115,7 +115,9 @@
 //                                 to Dev's pid; the pointer doesn't move; each click behind the
 //                                 guard at that point
 //   resize WxH                    Dev's MAIN window to W×H points, by accessibility, behind
-//                                 the guard; prints SIZE; one that didn't take stops (exit 4)
+//                                 the guard; prints SIZE as the window server shows it once
+//                                 it has held still 3 s; one that didn't take, or that a
+//                                 tiling window manager put back, stops (exit 4) and says so
 //   windows                       every window of Dev's pid (accessibility's role, subrole,
 //                                 title, frame; the window server's layer), read only
 //   wait TEXT [--timeout S] [--ocr] [--gone]
@@ -1208,17 +1210,35 @@ func scrollWheel(_ pid: pid_t, lines: Int32, at given: CGPoint?) {
 /// moved the small 280x168 one, and the main window kept its size). Says
 /// the size it has after; one that didn't take stops (exit 4).
 func resizeMain(_ pid: pid_t, to size: CGSize) {
+    // AJ-E2314 S3: accessibility read the new size and the window server
+    // showed it, then 1.6 s later the window was back at 1701×1348: a
+    // tiling window manager (BetterStage, on the maintainer's Mac) put it
+    // back into its pane; asked again, it kept the new size. So the size
+    // is the window server's once it has held still, never accessibility's
+    // word at once, and a size put back is asked again (three tries, each
+    // behind the guard) before it stops and names the window manager.
+    var verdict: String?
+    for attempt in 1...3 {
+        let (result, took, settled) = sizeOnce(pid, to: size)
+        say("SIZE \(Int(settled.width))×\(Int(settled.height)) (asked \(Int(size.width))×\(Int(size.height)), accessibility said \(result.rawValue), read by the window server after \(settleSeconds) s; try \(attempt))")
+        verdict = resizeRefusal(asked: size, took: took, settled: settled, tilers: runningTilers())
+        guard let why = verdict else { return }
+        if !why.contains("put it back") { break }
+    }
+    if let why = verdict { stop(4, why) }
+}
+
+/// One try of `resizeMain`, behind the full guard: accessibility's result,
+/// the size accessibility read at once, and the window server's settled one.
+func sizeOnce(_ pid: pid_t, to size: CGSize) -> (AXError, CGSize, CGSize) {
     while true {
         let win = windowOnScreen(pid)
         if guarded(pid, at: CGPoint(x: win.bounds.midX, y: win.bounds.midY)) == .send { break }
     }
     guard let main = mainWindow(pid) else { stop(3, "Dev's main window isn't there; nothing sent") }
-    // R12 (the 0.5.0 re-walk): the size was accepted (0) and settable, and
-    // the window stayed 1701×1348 at 1727,80: the right half of the
-    // screen, a window macOS tiled (or full screen), which keeps its tile's
-    // frame over a size alone. So: out of full screen first; then as a
-    // window manager does it, size, then a position that keeps the new
-    // size on its screen (a move takes a window out of its tile), then the
+    // R12 (the 0.5.0 re-walk): out of full screen first; then as a window
+    // manager does it, size, then a position that keeps the new size on
+    // its screen (a move takes a window out of a macOS tile), then the
     // size again; up to three times.
     if (attr(main.ax, "AXFullScreen") as? Bool) == true {
         _ = AXUIElementSetAttributeValue(main.ax, "AXFullScreen" as CFString, kCFBooleanFalse)
@@ -1243,10 +1263,53 @@ func resizeMain(_ pid: pid_t, to size: CGSize) {
         now = frame(main.ax)?.size ?? .zero
         if abs(now.width - size.width) <= 2 && abs(now.height - size.height) <= 2 { break }
     }
-    say("SIZE \(Int(now.width))×\(Int(now.height)) (asked \(Int(size.width))×\(Int(size.height)), accessibility said \(result.rawValue))")
-    if abs(now.width - size.width) > 2 || abs(now.height - size.height) > 2 {
-        stop(4, "the main window didn't take that size (its minimum is 1024×680, and a full-screen or tiled window keeps its own)")
+    return (result, now, settledBounds(main.cg.id)?.size ?? now)
+}
+
+/// How long the window must keep a size before `resize` calls it taken.
+let settleSeconds = 3.0
+
+/// The window server's frame of window `id`, after it has stayed the same
+/// for `settleSeconds` (polled every 0.1 s, at most three times that).
+func settledBounds(_ id: CGWindowID) -> CGRect? {
+    let read = { () -> CGRect? in
+        guard let info = (CGWindowListCopyWindowInfo([.optionIncludingWindow], id) as? [[String: Any]])?.first,
+              let b = info[kCGWindowBounds as String] as? [String: Double] else { return nil }
+        return CGRect(x: b["X"] ?? 0, y: b["Y"] ?? 0, width: b["Width"] ?? 0, height: b["Height"] ?? 0)
     }
+    var last = read()
+    var still = Date()
+    let end = Date().addingTimeInterval(settleSeconds * 3)
+    while Date() < end && Date().timeIntervalSince(still) < settleSeconds {
+        usleep(100_000)
+        let now = read()
+        if now != last { last = now; still = Date() }
+    }
+    return last
+}
+
+/// Window managers that put a window back into their layout (bundle ids).
+let tilerBundles = ["app.betterstage.macos": "BetterStage", "com.knollsoft.Rectangle": "Rectangle",
+                    "com.knollsoft.Hookshot": "Rectangle Pro", "com.amethyst.Amethyst": "Amethyst",
+                    "bobko.aerospace": "AeroSpace", "com.crowdcafe.windowmagnet": "Magnet",
+                    "com.manytricks.Moom": "Moom", "com.MrKai77.Loop": "Loop", "com.koekeishiya.yabai": "yabai"]
+
+/// The tiling window managers running now, by name.
+func runningTilers() -> [String] {
+    Set(NSWorkspace.shared.runningApplications.compactMap { $0.bundleIdentifier.flatMap { tilerBundles[$0] } }).sorted()
+}
+
+/// Why a resize didn't take (pure: the selftest), nil when it did: the
+/// window server's settled size is the asked one (within 2 pt).
+func resizeRefusal(asked: CGSize, took: CGSize, settled: CGSize, tilers: [String]) -> String? {
+    let near = { (a: CGSize, b: CGSize) in abs(a.width - b.width) <= 2 && abs(a.height - b.height) <= 2 }
+    if near(settled, asked) { return nil }
+    let back = "\(Int(settled.width))×\(Int(settled.height))"
+    if near(took, asked) {
+        let who = tilers.isEmpty ? "something outside Dev (a window manager?)" : tilers.joined(separator: ", ")
+        return "the main window took \(Int(asked.width))×\(Int(asked.height)), then \(who) put it back to \(back): float AI Juggler Dev (ai.figurehead.juggler.dev) there, or measure that size in the browser pane"
+    }
+    return "the main window didn't take that size and stays \(back) (its minimum is 1024×680, and a full-screen window keeps its own)"
 }
 
 /// Every window of Dev's pid, read only (W-04: which one is the untitled
@@ -2294,6 +2357,11 @@ func selftest() {
     if parsePoint("400, 300") != CGPoint(x: 400, y: 300) || parsePoint("400") != nil || parsePoint("a,b") != nil { failures.append("--at X,Y") }
     if parseSize("1024x680") != CGSize(width: 1024, height: 680) || parseSize("1280×800") != CGSize(width: 1280, height: 800) || parseSize("10x10") != nil || parseSize("1024") != nil { failures.append("resize WxH") }
     if parse(["down", "4", "--at", "10,20"]).at != "10,20" { failures.append("parse --at") }
+    // AJ-E2314 S3: a size the window server shows put back is never success.
+    let asked = CGSize(width: 1024, height: 680), tiled = CGSize(width: 1701, height: 1348)
+    if resizeRefusal(asked: asked, took: asked, settled: asked, tilers: []) != nil
+        || !(resizeRefusal(asked: asked, took: asked, settled: tiled, tilers: ["BetterStage"]) ?? "").contains("BetterStage put it back to 1701×1348")
+        || !(resizeRefusal(asked: asked, took: tiled, settled: tiled, tilers: []) ?? "").contains("didn't take") { failures.append("resize verdict") }
     // Options parse.
     let o = parse(["Sign in", "--in", "lab A needs its sign-in", "--timeout", "900", "--ocr"])
     if o.positional != ["Sign in"] || o.within != ["lab A needs its sign-in"] || o.timeout != 900 || !o.ocr { failures.append("parse") }
