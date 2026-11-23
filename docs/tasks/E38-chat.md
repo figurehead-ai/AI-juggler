@@ -458,3 +458,16 @@
 4. A release-notes line: Nightly testers who ran a Dev build may see this prompt once; it is our signed helper.
 **Quality gates**: `just keep-going verify-static`; the new lint; a Dev build's helpers checked with `codesign -dv` (identifier and plist).
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E3822/manifest.md`.
+
+### AJ-E3823 One engine-setup guide for Bot: what this Mac can do, Apple's AI first, Qwen named and explained, never a bare "Download · 1.8 GB" | Status: TODO (0.5.1) | Priority P0 | Effort M | Depends: AJ-E3822, AJ-E1545, AJ-E1547
+**Found** by the maintainer on the 0.5.0 nightly (2026-11-23): Bot's "Get short written answers · Beta" card said "Download · 1.8 GB" without naming what it downloads, and Apple's own model was never offered or explained. "We always must guide the user. Assume our user doesn't know anything."
+**Root cause (checked read-only, 2026-11-23)**: (1) on the maintainer's Mac the nightly's Apple helper shares its identifier and sandbox container with the Dev builds' ad hoc one (AJ-E3822); the container was touched when Bot was opened and the "(null) differs" prompt showed, so the helper's probe got no answer. (2) `apple::Seen::apple_ai()` maps a probe that failed or never answered to `AppleAi::Unavailable` ("this Mac can't run it"), so the recommendation went straight to the Qwen download with nothing said about Apple. The router's order is already Apple first when its probe says ready; the Dev lab walk on the same Mac had Apple's model as the automatic pick.
+**Requirements**:
+1. A failed or blocked probe is its own state ("couldn't check" / "AI Juggler's helper was blocked by macOS"), never "this Mac can't run it"; it never leads to recommending a download.
+2. **One component** (no copies), used in the wizard's "Meet Bot" step, Bot's panel card and Settings › AI › Models: "Checking what this Mac can do…" first, then each engine's state in plain words. Apple's built-in AI: ready; turned off (the exact steps, and a button that opens System Settings › Apple Intelligence & Siri); still being downloaded by macOS; this Mac can't run it; or AI Juggler's helper was blocked by macOS (what to do). The downloadable one by name: "Qwen3 1.7B, a small AI from the Qwen team, 1.8 GB, runs only on this Mac", with the free disk.
+3. A side-by-side choice in plain words ("the small AI that writes Bot's answers", never a bare "model"): Apple's (no download, no disk, private, fast; needs Apple Intelligence on) and Qwen (works without Apple Intelligence, 1.8 GB, private, removable any time).
+4. The recommended badge: Apple's when ready; "Turn on Apple Intelligence (free, nothing to download)" when this Mac can run it but it is off; Qwen only when Apple's can't run here.
+5. Buttons name what they do ("Use Apple's AI", "Download Qwen3 1.7B · 1.8 GB"); a "What is this?" disclosure says what it is, where it is kept, where it comes from, that nothing asked leaves this Mac, and how to remove it.
+6. The router's order is Apple first, proven by a test; anything here that can raise a system prompt goes through AJ-E1547's gate.
+**Quality gates**: `just keep-going verify-static`; unit tests for each state and the badge; the router-order test; the a11y gate; an Opus critique in both themes; the persona walk covers each state.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E3823/manifest.md`.
