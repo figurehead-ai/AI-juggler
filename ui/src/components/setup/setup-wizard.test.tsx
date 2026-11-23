@@ -178,35 +178,48 @@ describe("Meet Bot", () => {
     ["no Apple model, the local offer", "noapple", "setup"],
     ["no engine possible", "nolist", "setup"],
     ["Bot on", "installed", "ready"],
-  ] as const)("%s: says what Bot does, and never offers an engine of its own", async (_name, state, standing) => {
-    seam("__AIJ_AI_JOBS__", MODEL_STATES[state]!.jobs);
-    const onOpenModels = vi.fn();
-    render(<MeetBotStep onOpenModels={onOpenModels} />);
+  ] as const)("%s: says what Bot does; the shared engine setup, never a download of its own", async (_name, state, standing) => {
+    const models = MODEL_STATES[state]!;
+    seam("__AIJ_AI_JOBS__", models.jobs);
+    seam("__AIJ_AI_CATALOG__", models.catalog);
+    seam("__AIJ_AI_MODELS__", models.models);
+    const onSkip = vi.fn();
+    render(<MeetBotStep onSkip={onSkip} onChosen={() => null} />);
     const step = screen.getByTestId("setup-bot");
-    expect(step.textContent).toContain("your AI assistant for everything AI Juggler sees");
     expect(step.textContent).toContain("Cites every answer");
     expect(step.textContent).toContain("Never acts");
+    expect(step.textContent).toContain("Search (⌘K)");
     expect(step.textContent).not.toMatch(/look-ups?/i);
     await waitFor(() => expect(screen.getByTestId("setup-bot-engine").dataset.standing).toBe(standing));
-    // No download is ever started from here (D-131): no Download button.
-    expect(screen.queryByRole("button", { name: /Download/ })).toBeNull();
     if (standing === "ready") {
       expect(screen.getByTestId("setup-bot-engine").textContent).toContain("Bot is ready");
+      expect(screen.queryByTestId("engine-setup")).toBeNull();
     } else {
-      fireEvent.click(screen.getByTestId("setup-bot-models"));
-      expect(onOpenModels).toHaveBeenCalledOnce();
+      const setup = await screen.findByTestId("engine-setup");
+      expect(setup.dataset.place).toBe("wizard");
+      expect(setup.textContent).toContain("your AI assistant for everything AI Juggler sees");
+      fireEvent.click(within(setup).getByTestId("setup-skip"));
+      expect(onSkip).toHaveBeenCalledOnce();
     }
+    // Nothing is downloaded without the user's own click (D-131).
+    expect(Reflect.get(Object(seamOf("__AIJ_AI_MODELS__")), "download") ?? null).toBeNull();
   });
 
-  it("the foot keeps Skip for now while Bot isn't ready", async () => {
+  it("Skip for now is the engine setup's; Next steps down beside its own primary", async () => {
     seam("__AIJ_OS_ACCESS__", [access("focus", "allowed")]);
-    seam("__AIJ_AI_JOBS__", MODEL_STATES.nolist!.jobs);
+    seam("__AIJ_AI_JOBS__", MODEL_STATES.noapple!.jobs);
+    seam("__AIJ_AI_CATALOG__", MODEL_STATES.noapple!.catalog);
+    seam("__AIJ_AI_MODELS__", MODEL_STATES.noapple!.models);
     render(<SetupWizard openLoginTerminal={() => null} onClose={() => null} />);
     await waitFor(() => expect(screen.getByTestId("setup-steps").textContent).not.toContain("Mac access"));
     fireEvent.click(screen.getByTestId("setup-skip"));
     expect(await screen.findByTestId("setup-bot")).toBeTruthy();
-    expect(screen.getByTestId("setup-skip").textContent).toBe("Skip for now");
+    const setup = await screen.findByTestId("engine-setup");
+    expect(within(setup).getByTestId("setup-skip").textContent).toContain("Skip");
     expect(screen.getByTestId("setup-next").textContent).toContain("Next: Keep running");
+    expect(screen.getByTestId("setup-next").hasAttribute("data-primary")).toBe(false);
+    fireEvent.click(within(setup).getByTestId("setup-skip"));
+    expect(await screen.findByTestId("setup-keep")).toBeTruthy();
   });
 });
 

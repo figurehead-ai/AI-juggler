@@ -203,7 +203,8 @@ export function SetupWizard({
     }
     if (at === "bot") {
       const ready = botStanding(chat) === "ready";
-      return <FlowFoot cancel={close} back={back && { label: "Back", onClick: back, testId: "setup-back" }} secondary={ready ? undefined : { label: "Skip for now", onClick: goNext, testId: "setup-skip" }} primary={nextAction} />;
+      // Skip for now is the engine setup's own, beside its choices.
+      return <FlowFoot cancel={close} back={back && { label: "Back", onClick: back, testId: "setup-back" }} primary={ready ? nextAction : undefined} secondary={ready ? undefined : nextAction && { ...nextAction, testId: "setup-next" }} />;
     }
     if (at === "tour") {
       return (
@@ -281,14 +282,7 @@ export function SetupWizard({
             />
           )}
           {at === "access" && sources && <PermissionsStep sources={sources} setSources={setSources} />}
-          {at === "bot" && (
-            <MeetBotStep
-              onOpenModels={() => {
-                leave();
-                window.dispatchEvent(new CustomEvent("aij:open-settings", { detail: { section: "ai-models" } }));
-              }}
-            />
-          )}
+          {at === "bot" && <MeetBotStep onSkip={goNext} onChosen={goNext} />}
           {at === "keep" && <KeepRunningStep onValue={onKeepValue} />}
           {at === "tour" && <TourOfferStep stops={TOUR.length} />}
         </div>
