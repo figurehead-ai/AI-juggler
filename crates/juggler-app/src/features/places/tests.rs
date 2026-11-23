@@ -794,3 +794,32 @@ fn an_app_that_stops_was_last_seen_at_the_last_look_that_saw_it() {
     *state.places.book.lock().unwrap() = None;
     assert_eq!(seen(&work), t0 + 10_000);
 }
+
+/// AJ-E2320 R4: keep alive's Restart quits only the very process it looked
+/// at, checked by its pid and start right before the signal
+/// (`ownership::signal::quit_checked`): a pid given to another program in
+/// between is never signalled, and nothing is started beside.
+#[test]
+fn a_restart_never_quits_a_pid_reused_since_it_looked() {
+    let root = tempfile::tempdir().unwrap();
+    let (state, work, _) = state_with_places(root.path());
+    running_as_me(&state, &work);
+    let reused = Recorder {
+        reused_after_look: true,
+        ..Recorder::default()
+    };
+    let error = restart(
+        &state,
+        &work,
+        &reused,
+        false,
+        RestartOf::Confirmed,
+        quick(),
+        10_000_000,
+    )
+    .unwrap_err();
+    assert!(error.contains("nothing was quit"), "{error}");
+    assert!(reused.quits.lock().unwrap().is_empty(), "never signalled");
+    assert!(reused.starts.lock().unwrap().is_empty(), "nothing beside");
+    assert!(*reused.looks.lock().unwrap() >= 2, "checked right before");
+}

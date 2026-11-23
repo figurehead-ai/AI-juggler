@@ -42,6 +42,13 @@ pub trait Starter: Send + Sync {
     fn quit(&self, pid: u32) -> Result<(), String>;
     /// Whether `pid` is still the process that started at `start`.
     fn alive(&self, pid: u32, start: Option<i64>) -> bool;
+    /// AJ-E2320: the process at `pid` now, by its pid and start to the
+    /// microsecond (the kernel's listing); `None`: none runs there.
+    fn identify(&self, pid: u32) -> Option<crate::features::ownership::ProcId> {
+        crate::features::ownership::signal::identify(&[pid])
+            .get(&pid)
+            .copied()
+    }
 }
 
 /// How a place starts: its bundle, how, the one environment variable a

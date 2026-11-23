@@ -24,6 +24,11 @@ pub(crate) struct Recorder {
     pub stays: bool,
     /// The processes asked to quit, in order (never really signalled).
     pub quits: Mutex<Vec<u32>>,
+    /// AJ-E2320: the pid is given to another program after the first
+    /// look at it (between the restart's look and its signal).
+    pub reused_after_look: bool,
+    /// How often a pid was looked up.
+    pub looks: Mutex<usize>,
 }
 
 impl start::Starter for Recorder {
@@ -51,6 +56,22 @@ impl start::Starter for Recorder {
 
     fn alive(&self, pid: u32, _: Option<i64>) -> bool {
         self.stays || !self.quits.lock().unwrap().contains(&pid)
+    }
+
+    fn identify(&self, pid: u32) -> Option<crate::features::ownership::ProcId> {
+        let real = crate::features::ownership::signal::identify(&[pid])
+            .get(&pid)
+            .copied()?;
+        let mut looks = self.looks.lock().unwrap();
+        *looks += 1;
+        Some(if self.reused_after_look && *looks > 1 {
+            crate::features::ownership::ProcId {
+                start_micros: real.start_micros + 1,
+                ..real
+            }
+        } else {
+            real
+        })
     }
 }
 
