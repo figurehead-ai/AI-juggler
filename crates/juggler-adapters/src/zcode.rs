@@ -93,7 +93,7 @@ use crate::common::prelude::*;
 /// Provider id: `zcode`.
 pub const ZCODE_ID: &str = "zcode";
 
-/// AJ-E1545 R8: how ZCode's sign-in output is read: Z.ai's page.
+/// AJ-E1545 R8: how `ZCode`'s sign-in output is read: Z.ai's page.
 const SIGN_IN_PAGE: juggler_adapter::PageRule = juggler_adapter::PageRule {
     hosts: &["z.ai", "bigmodel.cn"],
     device_codes: true,
@@ -559,7 +559,7 @@ impl ToolDiscovery for ZCodeAdapter {
 }
 
 impl ToolSignIn for ZCodeAdapter {
-    /// AJ-E1545 R8: the page and code ZCode's sign-in shows.
+    /// AJ-E1545 R8: the page and code `ZCode`'s sign-in shows.
     fn sign_in_page(&self, output: &str) -> Option<juggler_adapter::SignInPage> {
         juggler_adapter::sign_in_page::read(output, &SIGN_IN_PAGE)
     }

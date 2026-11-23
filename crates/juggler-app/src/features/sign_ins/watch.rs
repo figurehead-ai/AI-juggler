@@ -209,16 +209,17 @@ mod tests {
         assert_eq!(outcome(true, true, output), Some(Outcome::SignedIn));
         assert_eq!(outcome(true, false, output), Some(Outcome::SignedIn));
         assert_eq!(outcome(false, false, output), None);
-        let Some(Outcome::Ended(lines)) = outcome(false, true, output) else {
-            panic!("an early end must keep its lines");
-        };
         assert_eq!(
-            lines,
-            [
-                "Sign in",
-                "Open https://auth.example.com/d",
-                "Error: the code expired"
-            ]
+            outcome(false, true, output),
+            Some(Outcome::Ended(
+                [
+                    "Sign in",
+                    "Open https://auth.example.com/d",
+                    "Error: the code expired"
+                ]
+                .map(String::from)
+                .to_vec()
+            ))
         );
         assert_eq!(outcome(false, true, b""), Some(Outcome::Ended(Vec::new())));
     }

@@ -45,7 +45,7 @@ use crate::claude_code::{existing, find_on_path};
 /// JavaScript engine).
 pub const HERMES_ID: &str = "hermes-agent";
 
-/// AJ-E1545 R8: how Hermes Agent's sign-in output is read: the page of the service picked (Nous Portal's, ChatGPT's, xAI's).
+/// AJ-E1545 R8: how Hermes Agent's sign-in output is read: the page of the service picked (Nous Portal's, `ChatGPT`'s, xAI's).
 const SIGN_IN_PAGE: juggler_adapter::PageRule = juggler_adapter::PageRule {
     hosts: &[
         "nousresearch.com",

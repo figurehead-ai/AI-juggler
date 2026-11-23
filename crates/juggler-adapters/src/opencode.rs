@@ -55,7 +55,7 @@ use crate::opencode_store::DB_FILE;
 /// Provider id: `opencode`.
 pub const OPENCODE_ID: &str = "opencode";
 
-/// AJ-E1545 R8: how OpenCode's sign-in output is read: the page of the service picked in its list (ChatGPT's, GitHub's device page, OpenCode's own).
+/// AJ-E1545 R8: how OpenCode's sign-in output is read: the page of the service picked in its list (`ChatGPT`'s, GitHub's device page, OpenCode's own).
 const SIGN_IN_PAGE: juggler_adapter::PageRule = juggler_adapter::PageRule {
     hosts: &["auth.openai.com", "github.com", "opencode.ai"],
     device_codes: true,

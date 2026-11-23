@@ -36,7 +36,7 @@ use crate::claude_code::{existing, find_on_path, home_relative};
 /// Provider id: `codex`.
 pub const CODEX_ID: &str = "codex";
 
-/// AJ-E1545 R8: how Codex's sign-in output is read: OpenAI's page (auth.openai.com), with a one-time code for a device sign-in.
+/// AJ-E1545 R8: how Codex's sign-in output is read: `OpenAI`'s page (auth.openai.com), with a one-time code for a device sign-in.
 const SIGN_IN_PAGE: juggler_adapter::PageRule = juggler_adapter::PageRule {
     hosts: &["auth.openai.com"],
     device_codes: true,
