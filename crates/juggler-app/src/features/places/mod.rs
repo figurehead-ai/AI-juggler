@@ -28,6 +28,7 @@ pub mod reach;
 mod records;
 pub use records::{RecordIndex, record_index};
 pub mod start;
+pub(crate) use start::{start_held, start_place};
 mod store;
 pub mod tree;
 
@@ -1435,26 +1436,6 @@ pub fn open(
             Err(why) => outcome(why, "none"),
         }
     }))
-}
-
-/// Starts `place` (its tool's folder found here), and on success has
-/// the live view look for it every tick for a while: every door's Start,
-/// Restart and Keep alive says it runs within seconds.
-pub(crate) fn start_place(
-    state: &Arc<AppState>,
-    place: &KnownPlace,
-    hosts: &HostRegistry,
-    starter: &dyn start::Starter,
-    background: bool,
-) -> Result<(), String> {
-    start::start(
-        place,
-        hosts,
-        tool_folder(state, place).as_deref(),
-        starter,
-        background,
-    )
-    .inspect(|()| crate::features::conversations::look_for_started(state))
 }
 
 fn outcome(text: String, reached: &str) -> GoToOutcomeInfo {

@@ -155,7 +155,7 @@ fn name_of(process: &Proc) -> String {
         )
 }
 
-/// What [`now`] and [`elsewhere_now`] look at: the process table, the
+/// What [`now`] and [`quits_juggler_now`] look at: the process table, the
 /// app's instance flag and every other app and profile.
 fn looked_at(
     state: &Arc<AppState>,
@@ -210,61 +210,16 @@ pub fn quits_juggler_now(
     Some(ownership::self_rule::words(juggler, name, action))
 }
 
-/// Which of `members` (still running) belong to another app or profile
-/// now, by the stronger evidence ([`Others`]): what closing `place` can't
-/// end, so trying the move again can't help.
+/// Why `name`'s sessions that write the moving conversation (`left`)
+/// didn't finish within `secs` after it closed, so nothing was `outcome`,
+/// in words.
 #[must_use]
-pub fn elsewhere_now(state: &Arc<AppState>, place: &KnownPlace, members: &[Member]) -> Vec<Member> {
-    let Some(dir) = place.instance_dir.as_deref() else {
-        return Vec::new();
-    };
-    let (table, flag, others) = looked_at(state, place, &[]);
-    let dir = InstanceKey::of(dir);
-    let profile = Profile {
-        dir: &dir,
-        bundle: &place.bundle,
-        instance_arg: flag.as_deref(),
-        mains: &[],
-    };
-    members
-        .iter()
-        .filter(|member| {
-            table.get(&member.pid).is_some_and(|process| {
-                process.start == member.start
-                    && ownership::whose(&table, process, &profile, &others) == Whose::Another
-            })
-        })
-        .cloned()
-        .collect()
-}
-
-/// Why `name` didn't finish closing within `secs`, in words: what still
-/// runs (`left`) and, when some of it is another app's or profile's
-/// (`theirs`, AJ-E2315), that it must be closed there: trying the move
-/// again can't end it.
-#[must_use]
-pub fn not_closed(
-    name: &str,
-    secs: u64,
-    outcome: &str,
-    left: &[Member],
-    theirs: &[Member],
-) -> String {
-    let runs = |members: &[Member]| if members.len() == 1 { "runs" } else { "run" };
-    if theirs.is_empty() {
-        format!(
-            "{name} didn't finish closing within {secs} seconds: {} still {}, so nothing was {outcome}. Try again in a moment.",
-            words(left),
-            runs(left)
-        )
-    } else {
-        format!(
-            "{name} didn't finish closing: {} still {} for another app or profile that's open, so nothing was {outcome}. Close {} there first.",
-            words(theirs),
-            runs(theirs),
-            if theirs.len() == 1 { "it" } else { "them" }
-        )
-    }
+pub fn not_closed(name: &str, secs: u64, outcome: &str, left: &[Member]) -> String {
+    format!(
+        "{name} didn't finish closing within {secs} seconds: {} still {}, so nothing was {outcome}. Try again in a moment.",
+        words(left),
+        if left.len() == 1 { "runs" } else { "run" }
+    )
 }
 
 /// Every other app and profile, from what runs now and the profiles AI

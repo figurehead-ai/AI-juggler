@@ -25,6 +25,12 @@ struct Proc {
 struct Kid {
     pid: u32,
     name: &'static str,
+    /// Its arguments after its name (`--resume=main` makes it a writer of
+    /// the moving conversation).
+    args: &'static [&'static str],
+    /// AJ-E2318: it is the profile's (in its tree); else it runs outside
+    /// every profile (a terminal session).
+    in_tree: bool,
     /// The place it belongs to.
     place: String,
     alive: Arc<AtomicBool>,
@@ -32,6 +38,26 @@ struct Kid {
     /// line to the file (its last write), after the second it ends.
     /// `None`: it never ends.
     after_quit: Option<(Duration, PathBuf, &'static [u8], Duration)>,
+}
+
+/// A process of the source profile's (`in_tree`) or outside every profile,
+/// running `name` with `args`; it never ends.
+fn kid(
+    lab: &Lab,
+    pid: u32,
+    name: &'static str,
+    args: &'static [&'static str],
+    in_tree: bool,
+) -> Kid {
+    Kid {
+        pid,
+        name,
+        args,
+        in_tree,
+        place: source_id(lab),
+        alive: Arc::new(AtomicBool::new(true)),
+        after_quit: None,
+    }
 }
 
 /// Appends `line` to `path` when it is there (a writer never makes it).
@@ -52,8 +78,17 @@ struct Scripted {
     restarted_by_user: Vec<String>,
     /// Sessions of the accounts open outside the two profiles.
     elsewhere: usize,
-    /// What outlives a profile belongs to another app or profile.
-    held_elsewhere: bool,
+    /// AJ-E2318: places whose pid is given to another program between the
+    /// move's look and its signal.
+    reused_after_read: Vec<String>,
+    /// AJ-E2318: how long a main process takes to end once asked.
+    slow: Option<Duration>,
+    /// When each slow main process ends.
+    dies_at: Mutex<HashMap<u32, std::time::Instant>>,
+    /// How many profiles ran at each quit (itself included).
+    running_at_quit: Mutex<Vec<usize>>,
+    /// How often each pid was looked up.
+    looks: Mutex<HashMap<u32, usize>>,
     working: usize,
     quits: Mutex<Vec<u32>>,
     starts: Mutex<Vec<String>>,
@@ -75,6 +110,23 @@ struct Scripted {
 }
 
 impl Scripted {
+    /// Ends the slow main processes whose time came.
+    fn settle_deaths(&self) {
+        let now = std::time::Instant::now();
+        let due: Vec<u32> = self
+            .dies_at
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|(_, at)| **at <= now)
+            .map(|(pid, _)| *pid)
+            .collect();
+        let mut procs = self.procs.lock().unwrap();
+        for p in procs.values_mut().filter(|p| due.contains(&p.pid)) {
+            p.alive = false;
+        }
+    }
+
     fn place_of(&self, pid: u32) -> Option<String> {
         self.procs
             .lock()
@@ -87,6 +139,7 @@ impl Scripted {
 
 impl MoveSystem for Scripted {
     fn running(&self, _: &Arc<AppState>, id: &str) -> Option<(u32, Option<i64>)> {
+        self.settle_deaths();
         self.procs
             .lock()
             .unwrap()
@@ -95,7 +148,16 @@ impl MoveSystem for Scripted {
             .map(|p| (p.pid, p.start))
     }
     fn quit(&self, pid: u32) -> Result<(), String> {
+        self.settle_deaths();
         self.quits.lock().unwrap().push(pid);
+        let running = self
+            .procs
+            .lock()
+            .unwrap()
+            .values()
+            .filter(|p| p.alive)
+            .count();
+        self.running_at_quit.lock().unwrap().push(running);
         if let Some(id) = self.place_of(pid) {
             for kid in self.kids.iter().filter(|kid| kid.place == id) {
                 let Some((write_after, path, line, end_after)) = kid.after_quit.clone() else {
@@ -126,27 +188,78 @@ impl MoveSystem for Scripted {
                         alive: true,
                     },
                 );
+            } else if let Some(slow) = self.slow {
+                self.dies_at
+                    .lock()
+                    .unwrap()
+                    .insert(pid, std::time::Instant::now() + slow);
             } else if let Some(p) = procs.get_mut(&id) {
                 p.alive = false;
             }
         }
         Ok(())
     }
-    fn alive(&self, pid: u32, start: Option<i64>) -> bool {
-        if let Some(kid) = self.kids.iter().find(|kid| kid.pid == pid) {
-            return kid.alive.load(Ordering::SeqCst) && start == Some(i64::from(pid));
+    fn identify(&self, pids: &[u32]) -> HashMap<u32, ProcId> {
+        self.settle_deaths();
+        let micros = |secs: i64| u128::try_from(secs).unwrap() * 1_000_000;
+        let mut out = HashMap::new();
+        for pid in pids {
+            let looks = {
+                let mut looks = self.looks.lock().unwrap();
+                let n = looks.entry(*pid).or_default();
+                *n += 1;
+                *n
+            };
+            if let Some(kid) = self.kids.iter().find(|kid| kid.pid == *pid) {
+                if kid.alive.load(Ordering::SeqCst) {
+                    out.insert(
+                        *pid,
+                        ProcId {
+                            pid: *pid,
+                            start_micros: micros(i64::from(*pid)),
+                        },
+                    );
+                }
+                continue;
+            }
+            let Some(id) = self.place_of(*pid) else {
+                continue;
+            };
+            let procs = self.procs.lock().unwrap();
+            let Some(p) = procs.get(&id).filter(|p| p.alive) else {
+                continue;
+            };
+            let start = p.start.unwrap_or_default();
+            // Another program on the same pid: a later start.
+            let reused =
+                self.reused.contains(&id) || (self.reused_after_read.contains(&id) && looks > 1);
+            let start = if reused { start + 7 } else { start };
+            out.insert(
+                *pid,
+                ProcId {
+                    pid: *pid,
+                    start_micros: micros(start),
+                },
+            );
         }
-        let Some(id) = self.place_of(pid) else {
-            return false;
-        };
-        if self.reused.contains(&id) {
-            return false;
-        }
-        self.procs
-            .lock()
-            .unwrap()
-            .get(&id)
-            .is_some_and(|p| p.alive && p.start == start)
+        out
+    }
+    fn table(&self, _: &Arc<AppState>) -> Table {
+        self.kids
+            .iter()
+            .filter(|kid| kid.alive.load(Ordering::SeqCst))
+            .map(|kid| {
+                let exe = format!("/Users/you/bin/{}", kid.name);
+                let args: Vec<&str> = std::iter::once(kid.name)
+                    .chain(kid.args.iter().copied())
+                    .collect();
+                crate::features::conversations::procs::fixture(kid.pid, 1, &exe, &args)
+            })
+            .map(|(pid, mut p)| {
+                p.start = Some(i64::from(pid));
+                (pid, p)
+            })
+            .collect()
     }
     // The links sent, in order (the move sends one, to the target).
     fn send(&self, pid: u32, link: &str) -> Result<(), String> {
@@ -186,6 +299,9 @@ impl MoveSystem for Scripted {
     fn quit_wait(&self) -> Duration {
         self.wait.unwrap_or(Duration::from_millis(300))
     }
+    fn writer_wait(&self) -> Duration {
+        self.wait.unwrap_or(Duration::from_millis(300))
+    }
     fn tree(&self, _: &Arc<AppState>, place: &KnownPlace, roots: &[u32]) -> Vec<Member> {
         let id = book::place_id(&place.app_id, place.instance_dir.as_deref());
         let procs = self.procs.lock().unwrap();
@@ -200,7 +316,7 @@ impl MoveSystem for Scripted {
         let kids = self
             .kids
             .iter()
-            .filter(|kid| kid.place == id && kid.alive.load(Ordering::SeqCst))
+            .filter(|kid| kid.in_tree && kid.place == id && kid.alive.load(Ordering::SeqCst))
             .map(|kid| Member {
                 pid: kid.pid,
                 start: Some(i64::from(kid.pid)),
@@ -226,13 +342,6 @@ impl MoveSystem for Scripted {
                 action,
             )
         })
-    }
-    fn elsewhere(&self, _: &Arc<AppState>, _: &KnownPlace, left: &[Member]) -> Vec<Member> {
-        if self.held_elsewhere {
-            left.to_vec()
-        } else {
-            Vec::new()
-        }
     }
 }
 
@@ -815,16 +924,13 @@ fn a_move_waits_for_what_outlives_the_profiles_main_process() {
     let line: &'static [u8] = b"{\"type\":\"last-prompt\"}\n";
     let system = Scripted {
         kids: vec![Kid {
-            pid: 700,
-            name: "claude",
-            place: source_id(&lab),
-            alive: Arc::new(AtomicBool::new(true)),
             after_quit: Some((
                 Duration::from_millis(300),
                 history(&lab.a_code),
                 line,
                 Duration::from_millis(50),
             )),
+            ..kid(&lab, 700, "claude", &["--resume=main"], true)
         }],
         wait: Some(Duration::from_secs(5)),
         ..running_both(&lab)
@@ -857,13 +963,7 @@ fn a_profile_whose_tools_outlive_it_too_long_is_refused_calmly() {
     }
     let lab = lab();
     let system = Scripted {
-        kids: vec![Kid {
-            pid: 700,
-            name: "claude",
-            place: source_id(&lab),
-            alive: Arc::new(AtomicBool::new(true)),
-            after_quit: None,
-        }],
+        kids: vec![kid(&lab, 700, "claude", &["--resume=main"], true)],
         ..running_both(&lab)
     };
     let error = run(&lab.state, &lab.sides, &system).unwrap_err();
@@ -883,42 +983,10 @@ fn a_profile_whose_tools_outlive_it_too_long_is_refused_calmly() {
         words.contains("claude still runs, so nothing was moved"),
         "{words}"
     );
-    assert_eq!(system.starts.lock().unwrap().len(), 1, "the source again");
+    // AJ-E2318: both quit at once, so both start again.
+    assert_eq!(system.starts.lock().unwrap().len(), 2, "both again");
     assert_eq!(moves(&lab.state)[0].state, "undone");
     assert!(backups(&lab).is_empty());
-    assert!(unchanged(&lab));
-}
-
-/// AJ-E2315: what outlives the profile but another app or profile runs
-/// is refused honestly: closing it there, never "try again" (retrying
-/// can't end it).
-#[test]
-fn what_another_profile_runs_is_never_a_try_again_refusal() {
-    if !clones() {
-        return;
-    }
-    let lab = lab();
-    let system = Scripted {
-        kids: vec![Kid {
-            pid: 700,
-            name: "disclaimer",
-            place: source_id(&lab),
-            alive: Arc::new(AtomicBool::new(true)),
-            after_quit: None,
-        }],
-        held_elsewhere: true,
-        ..running_both(&lab)
-    };
-    let error = run(&lab.state, &lab.sides, &system).unwrap_err();
-    let words = error.wire().user_message;
-    assert!(!words.contains("Try again"), "{words}");
-    assert!(
-        words.contains(
-            "disclaimer still runs for another app or profile that's open, so nothing was moved. Close it there first."
-        ),
-        "{words}"
-    );
-    assert_eq!(moves(&lab.state)[0].state, "undone");
     assert!(unchanged(&lab));
 }
 
@@ -1024,3 +1092,6 @@ fn an_undone_move_lets_its_backups_go() {
     assert!(backups(&lab).is_empty());
     assert!(unchanged(&lab));
 }
+
+#[path = "moving_wait_tests.rs"]
+mod wait;

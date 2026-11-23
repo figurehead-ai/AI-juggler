@@ -44,6 +44,7 @@
 pub mod instance;
 pub mod self_rule;
 pub mod sessions;
+pub mod signal;
 
 use std::path::{Path, PathBuf};
 

@@ -8,11 +8,13 @@
 //! names is never run on its word alone).
 
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 use juggler_platform::apps::Start;
 
 use super::book::KnownPlace;
 use crate::features::conversations::places::HostRegistry;
+use crate::state::AppState;
 
 /// What starting an app needs from the system, and (0.3.8) restarting one
 /// that lost its window (a seam: the tests script it).
@@ -170,6 +172,48 @@ pub fn start(
     starter
         .start(&launch)
         .map_err(|why| format!("{} didn't start: {why}", place.name))
+}
+
+/// Starts `place` (its tool's folder found here), and on success has
+/// the live view look for it every tick for a while: every door's Start,
+/// Restart and Keep alive says it runs within seconds.
+///
+/// AJ-E2318 (the start/move race): never a profile a move holds closed,
+/// checked and started under the lock a move takes its hold by
+/// ([`super::MoveHold::take`]): a move holds it before this check (the
+/// start is refused) or after the start (the move sees it running and
+/// closes it), never between the check and the start.
+pub(crate) fn start_place(
+    state: &Arc<AppState>,
+    place: &KnownPlace,
+    hosts: &HostRegistry,
+    starter: &dyn Starter,
+    background: bool,
+) -> Result<(), String> {
+    let folder = super::tool_folder(state, place);
+    let id = super::book::place_id(&place.app_id, place.instance_dir.as_deref());
+    let launched = {
+        let moving = state
+            .places
+            .moving
+            .lock()
+            .map_err(|_| super::HELD.to_owned())?;
+        if moving.contains(&id) {
+            return Err(super::HELD.to_owned());
+        }
+        start(place, hosts, folder.as_deref(), starter, background)
+    };
+    launched.inspect(|()| crate::features::conversations::look_for_started(state))
+}
+
+/// Starts `place` for the move that holds it closed
+/// ([`super::MoveHold`]): its own restarts, as a Desktop hand-off starts
+/// a profile.
+pub(crate) fn start_held(state: &Arc<AppState>, place: &KnownPlace) -> Result<(), String> {
+    let hosts = HostRegistry::of(&state.registry);
+    let folder = super::tool_folder(state, place);
+    start(place, &hosts, folder.as_deref(), &System, false)
+        .inspect(|()| crate::features::conversations::look_for_started(state))
 }
 
 #[cfg(test)]

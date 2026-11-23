@@ -1,9 +1,10 @@
 //! The real process side of a move ([`super::MoveSystem`]); moved out of
 //! `moving.rs` for its size.
 
+use std::collections::HashMap;
 use std::sync::Arc;
 
-use super::{KnownPlace, Member, MoveProgressInfo, MoveSystem, place_name, tree};
+use super::{KnownPlace, Member, MoveProgressInfo, MoveSystem, ProcId, Table, place_name, tree};
 use crate::state::AppState;
 
 /// Hands each step of a move's progress on (to the switch screen).
@@ -33,10 +34,6 @@ impl MoveSystem for Real {
         tree::now(state, place, roots)
     }
 
-    fn elsewhere(&self, state: &Arc<AppState>, place: &KnownPlace, left: &[Member]) -> Vec<Member> {
-        tree::elsewhere_now(state, place, left)
-    }
-
     fn quits_juggler(
         &self,
         state: &Arc<AppState>,
@@ -57,20 +54,24 @@ impl MoveSystem for Real {
         crate::features::places::running_now(state, place_id)
     }
 
+    // Only through the process's identity, checked right before
+    // (`ownership::signal::quit_checked`).
     fn quit(&self, pid: u32) -> Result<(), String> {
-        use crate::features::places::start::Starter as _;
-        crate::features::places::start::System.quit(pid)
+        juggler_platform::apps::quit(pid).map_err(|error| error.to_string())
     }
 
-    fn alive(&self, pid: u32, start: Option<i64>) -> bool {
-        use crate::features::places::start::Starter as _;
-        crate::features::places::start::System.alive(pid, start)
+    fn identify(&self, pids: &[u32]) -> HashMap<u32, ProcId> {
+        crate::features::ownership::signal::identify(pids)
     }
 
-    // Started and handed links exactly as a Desktop hand-off is.
+    fn table(&self, state: &Arc<AppState>) -> Table {
+        state.places.table()
+    }
+
+    // Started as a Desktop hand-off is, by the move that holds it closed
+    // (every other start refuses a held profile).
     fn start(&self, state: &Arc<AppState>, place: &KnownPlace) -> Result<(), String> {
-        use crate::features::places::handoff::System as _;
-        crate::features::places::handoff::Real.start(state, place)
+        crate::features::places::start_held(state, place)
     }
 
     fn send(&self, pid: u32, link: &str) -> Result<(), String> {
