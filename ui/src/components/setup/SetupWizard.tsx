@@ -22,15 +22,14 @@ import { keepTabInside } from "../form";
 import { AppMark } from "../AppMark";
 import { IconChevronRight } from "../icons-controls";
 import { FirstRun } from "../../screens/FirstRun";
-import { PermissionsStep } from "./PermissionsStep";
+import { PermissionsStep, promptsValue, setupPrompts } from "./PermissionsStep";
 import { MeetBotStep, botStanding } from "./MeetBotStep";
 import { KeepRunningStep } from "./KeepRunningStep";
 import { TourOfferStep } from "./TourOfferStep";
 import { eyebrow, keepValue, nextWords, pagesOf, SETUP_STEP_WORDS, setupSteps, type SetupStepId } from "../../lib/setup-wizard";
-import { fromAccess, permissionEntries, permissionsValue } from "../../lib/setup-permissions";
+import { osPromptsList, type OsPromptInfo } from "../../lib/ipc/os-prompts";
 import { useAiJob } from "../../lib/ai-availability";
 import { startTour, TOUR } from "../../lib/tour";
-import type { OsAccessInfo } from "../../types/generated/OsAccessInfo";
 
 const AT_KEY = "aij.setup.at";
 const ORDER_INDEX: Record<SetupStepId, number> = { apps: 0, signin: 1, access: 2, bot: 3, keep: 4, tour: 5 };
@@ -70,18 +69,19 @@ export function SetupWizard({
   /** The wizard closed (finished, or Not now). */
   onClose: () => void;
 }): JSX.Element {
-  const [sources, setSources] = useState<OsAccessInfo[] | null>(null);
+  const [prompts, setPrompts] = useState<OsPromptInfo[] | null>(null);
   // Whether the permissions step shows is settled once, when it is read:
   // a grant on the step never takes the step away under the user.
   const [missing, setMissing] = useState<number | null>(null);
   useEffect(() => {
-    void permissionEntries().then(
-      (entries) => {
-        setSources(entries.map((entry) => entry.source));
-        setMissing(entries.filter((entry) => entry.status !== "allowed").length);
+    void osPromptsList().then(
+      (all) => {
+        const mine = setupPrompts(all);
+        setPrompts(mine);
+        setMissing(mine.filter((prompt) => prompt.status !== "allowed").length);
       },
       () => {
-        setSources([]);
+        setPrompts([]);
         setMissing(0);
       },
     );
@@ -151,7 +151,7 @@ export function SetupWizard({
   const valueOf = (id: SetupStepId): string | undefined => {
     if (id === "apps") return appsValue;
     if (id === "signin") return signinValue;
-    if (id === "access" && sources) return permissionsValue(sources.map(fromAccess));
+    if (id === "access" && prompts) return promptsValue(prompts);
     if (id === "bot") {
       const standing = botStanding(chat);
       return standing === "ready" ? "Ready" : steps.indexOf("bot") < furthest ? "Later" : undefined;
@@ -281,7 +281,7 @@ export function SetupWizard({
               }}
             />
           )}
-          {at === "access" && sources && <PermissionsStep sources={sources} setSources={setSources} />}
+          {at === "access" && prompts && <PermissionsStep prompts={prompts} setPrompts={setPrompts} />}
           {at === "bot" && <MeetBotStep onSkip={goNext} onChosen={goNext} />}
           {at === "keep" && <KeepRunningStep onValue={onKeepValue} />}
           {at === "tour" && <TourOfferStep stops={TOUR.length} />}

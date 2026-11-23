@@ -13,23 +13,30 @@ import { SetupWizard } from "./SetupWizard";
 import { MeetBotStep, botStanding } from "./MeetBotStep";
 import { loginOffered } from "./KeepRunningStep";
 import { eyebrow, keepValue, nextWords, pagesOf, setupSteps } from "../../lib/setup-wizard";
-import { fromAccess, permissionsValue } from "../../lib/setup-permissions";
+import { promptsValue, setupPrompts } from "./PermissionsStep";
 import { STATES as MODEL_STATES } from "../../preview/ai-models";
 import { TAKE_TOUR_EVENT } from "../../lib/tour";
-import type { OsAccessInfo } from "../../types/generated/OsAccessInfo";
+import type { OsPromptInfo } from "../../lib/ipc/os-prompts";
 import type { AiJobInfo } from "../../types/generated/AiJobInfo";
 
 const seam = (name: string, value: unknown) => Reflect.set(window, name, value);
 const seamOf = (name: string): unknown => Reflect.get(window, name);
 
-const access = (id: string, status: string, over: Partial<OsAccessInfo> = {}): OsAccessInfo => ({
+/** AJ-E1547's registry entry, as the gate lists it. */
+const prompt = (id: string, status: string, over: Partial<OsPromptInfo> = {}): OsPromptInfo => ({
   id,
-  title: id === "focus" ? "Jump to a session's own window" : "See a live preview of each session",
+  title: id === "accessibility" ? "Jump to a session's own window" : "See a live preview of each session",
   why: "Why it helps.",
-  system_name: id === "focus" ? "Accessibility and Automation" : "Screen Recording",
+  system_says: "“AI Juggler” would like to control this computer.",
+  click: "Open System Settings",
+  if_declined: "Opening a session still brings its app forward.",
+  needed: true,
   status,
-  action: status === "allowed" ? "none" : "prompt",
-  note: null,
+  primed: false,
+  change_later: "System Settings › Privacy & Security",
+  background: "waits",
+  never_shown: false,
+  dialog: { style: "alert", title: "“AI Juggler” would like to control this computer", body: "Grant access in Privacy & Security.", buttons: ["Deny", "Open System Settings"], click: "Open System Settings" },
   ...over,
 });
 
@@ -72,59 +79,47 @@ describe("the steps, as data", () => {
     expect(loginOffered(null)).toBe(false);
   });
 
-  it("each permission comes in the OS-prompt registry's shape (AJ-E1547)", () => {
-    const entry = fromAccess(access("focus", "not_asked"));
-    expect(entry).toMatchObject({ id: "focus", needed: true, picture: null });
-    expect(entry.system_says).toContain("accessibility features");
-    expect(entry.click.length).toBeGreaterThan(0);
-    expect(entry.if_declined.length).toBeGreaterThan(0);
-    expect(fromAccess(access("other", "not_asked")).system_says).toBe("macOS asks about Screen Recording.");
-    expect(permissionsValue([fromAccess(access("focus", "allowed")), fromAccess(access("preview", "not_asked"))])).toBe("1 of 2 allowed");
-    expect(permissionsValue([fromAccess(access("focus", "allowed"))])).toBe("All allowed");
+  it("offers the gate's prompts this setup needs, not the ones other steps prime (AJ-E1547)", () => {
+    const all = [prompt("accessibility", "not_asked"), prompt("notifications", "not_asked", { needed: false }), prompt("login-item", "not_asked"), prompt("helper", "not_asked")];
+    expect(setupPrompts(all).map((one) => one.id)).toEqual(["accessibility"]);
+    expect(promptsValue([prompt("accessibility", "allowed"), prompt("screen-recording", "not_asked")])).toBe("1 of 2 allowed");
+    expect(promptsValue([prompt("accessibility", "allowed")])).toBe("All allowed");
   });
 });
 
 describe("Mac access", () => {
-  it("one card per permission; Allow raises the system prompt and the grant shows live; Skip for now on each", async () => {
-    seam("__AIJ_OS_ACCESS__", [access("focus", "not_asked"), access("preview", "not_asked")]);
+  it("one card per prompt, through the gate: the dialog's picture and what to click; Allow primes it; ✓ only when the system says so; Skip for now on each", async () => {
+    seam("__AIJ_OS_PROMPTS__", [prompt("accessibility", "not_asked"), prompt("screen-recording", "not_asked")]);
     render(<SetupWizard resumeAtAccess openLoginTerminal={() => null} onClose={() => null} />);
-    const focus = await screen.findByTestId("setup-permission-focus");
-    expect(screen.getByTestId("setup-permission-preview")).toBeTruthy();
+    const card = await screen.findByTestId("setup-permission-accessibility");
+    expect(screen.getByTestId("setup-permission-screen-recording")).toBeTruthy();
     expect(screen.getByTestId("setup-title").textContent).toBe("Let AI Juggler work with your Mac");
-    // What macOS will show, what to click, what happens if declined.
-    const prompt = within(focus).getByTestId("setup-permission-focus-prompt");
-    expect(prompt.textContent).toContain("macOS will show");
-    expect(prompt.textContent).toContain("Click");
-    expect(prompt.textContent).toContain("If you say no");
-    expect(focus.textContent).toContain("macOS will ask you · optional · change it later in Settings");
+    const shown = within(card).getByTestId("setup-permission-accessibility-prompt");
+    expect(within(shown).getByTestId("os-prompt-picture")).toBeTruthy();
+    expect(shown.textContent).toContain("Click");
+    expect(shown.textContent).toContain("If you say no");
+    expect(card.textContent).toContain("change it later in System Settings › Privacy & Security");
     await act(async () => {
-      fireEvent.click(within(focus).getByTestId("setup-permission-focus-allow"));
+      fireEvent.click(within(card).getByTestId("setup-permission-accessibility-allow"));
     });
-    expect(seamOf("__AIJ_OS_ACCESS_CALLS__")).toEqual(["request:focus"]);
-    await waitFor(() => expect(screen.getByTestId("setup-permission-focus").dataset.state).toBe("allowed"));
-    expect(screen.getByTestId("setup-permission-focus-allowed").textContent).toContain("Allowed");
-    // The other one is skipped, and says how to allow it later.
-    fireEvent.click(screen.getByTestId("setup-permission-preview-skip"));
-    expect(screen.getByTestId("setup-permission-preview").dataset.state).toBe("skipped");
-    expect(screen.getByTestId("setup-permission-preview").textContent).toContain("Skipped for now");
-    // The steps beside say how far it got; Next names Meet Bot.
+    // Primed and called; the system hasn't answered yet: no ✓, and the card says where its dialog may be.
+    expect(screen.getByTestId("setup-permission-accessibility").dataset.state).not.toBe("allowed");
+    expect(screen.getByTestId("setup-permission-accessibility-asked").textContent).toContain("behind this window");
+    // The system says yes: seen when the window comes back.
+    seam("__AIJ_OS_PROMPTS__", [prompt("accessibility", "allowed"), prompt("screen-recording", "not_asked")]);
+    await act(async () => {
+      window.dispatchEvent(new Event("focus"));
+    });
+    await waitFor(() => expect(screen.getByTestId("setup-permission-accessibility").dataset.state).toBe("allowed"));
+    expect(screen.getByTestId("setup-permission-accessibility-allowed").textContent).toContain("Allowed");
+    fireEvent.click(screen.getByTestId("setup-permission-screen-recording-skip"));
+    expect(screen.getByTestId("setup-permission-screen-recording").dataset.state).toBe("skipped");
     expect(screen.getByTestId("setup-next").textContent).toContain("Next: Meet Bot");
     expect(screen.getByTestId("setup-steps").textContent).toContain("1 of 2 allowed");
   });
 
-  it("a grant given in System Settings shows when the window comes back", async () => {
-    seam("__AIJ_OS_ACCESS__", [access("focus", "not_allowed", { action: "settings" })]);
-    render(<SetupWizard resumeAtAccess openLoginTerminal={() => null} onClose={() => null} />);
-    await screen.findByTestId("setup-permission-focus");
-    seam("__AIJ_OS_ACCESS__", [access("focus", "allowed")]);
-    await act(async () => {
-      window.dispatchEvent(new Event("focus"));
-    });
-    await waitFor(() => expect(screen.getByTestId("setup-permission-focus").dataset.state).toBe("allowed"));
-  });
-
-  it("isn't a step when nothing is missing", async () => {
-    seam("__AIJ_OS_ACCESS__", [access("focus", "allowed")]);
+  it("isn't a step when nothing needed is missing", async () => {
+    seam("__AIJ_OS_PROMPTS__", [prompt("accessibility", "allowed"), prompt("notifications", "not_asked", { needed: false })]);
     render(<SetupWizard openLoginTerminal={() => null} onClose={() => null} />);
     await waitFor(() => expect(screen.getByTestId("setup-steps").textContent).not.toContain("Mac access"));
   });
@@ -132,7 +127,7 @@ describe("Mac access", () => {
 
 describe("left and resumed", () => {
   it("Not now remembers the step; opened again, it carries on there; finishing forgets it", async () => {
-    seam("__AIJ_OS_ACCESS__", [access("focus", "not_asked")]);
+    seam("__AIJ_OS_PROMPTS__", [prompt("accessibility", "not_asked")]);
     const first = render(<SetupWizard resumeAtAccess openLoginTerminal={() => null} onClose={() => null} />);
     await screen.findByTestId("setup-permissions");
     fireEvent.click(screen.getByTestId("setup-not-now"));
@@ -148,7 +143,7 @@ describe("left and resumed", () => {
 describe("Find your apps", () => {
   it("is first run's discovery in place, with Skip for now and Not now in the foot", async () => {
     const onClose = vi.fn();
-    seam("__AIJ_OS_ACCESS__", [access("focus", "not_asked")]);
+    seam("__AIJ_OS_PROMPTS__", [prompt("accessibility", "not_asked")]);
     render(<SetupWizard openLoginTerminal={() => null} onClose={onClose} />);
     expect(await screen.findByTestId("first-run")).toBeTruthy();
     expect(screen.getByTestId("first-run").dataset.embedded).toBe("true");
@@ -206,7 +201,7 @@ describe("Meet Bot", () => {
   });
 
   it("Skip for now is the engine setup's; Next steps down beside its own primary", async () => {
-    seam("__AIJ_OS_ACCESS__", [access("focus", "allowed")]);
+    seam("__AIJ_OS_PROMPTS__", [prompt("accessibility", "allowed")]);
     seam("__AIJ_AI_JOBS__", MODEL_STATES.noapple!.jobs);
     seam("__AIJ_AI_CATALOG__", MODEL_STATES.noapple!.catalog);
     seam("__AIJ_AI_MODELS__", MODEL_STATES.noapple!.models);
@@ -225,7 +220,7 @@ describe("Meet Bot", () => {
 
 describe("Keep it running and the tour", () => {
   it("offers opening at login only where it can, keeping awake on, then the tour", async () => {
-    seam("__AIJ_OS_ACCESS__", [access("focus", "allowed")]);
+    seam("__AIJ_OS_PROMPTS__", [prompt("accessibility", "allowed")]);
     seam("__AIJ_LOGIN_ITEM__", "unavailable");
     const onClose = vi.fn();
     const asked = vi.fn();
@@ -247,7 +242,7 @@ describe("Keep it running and the tour", () => {
   });
 
   it("turns opening at login on where the build can", async () => {
-    seam("__AIJ_OS_ACCESS__", [access("focus", "allowed")]);
+    seam("__AIJ_OS_PROMPTS__", [prompt("accessibility", "allowed")]);
     seam("__AIJ_LOGIN_ITEM__", "off");
     render(<SetupWizard openLoginTerminal={() => null} onClose={() => null} />);
     await waitFor(() => expect(screen.getByTestId("setup-steps").textContent).not.toContain("Mac access"));

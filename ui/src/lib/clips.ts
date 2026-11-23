@@ -31,10 +31,19 @@ export function isClip(id: string): id is ClipId {
   return (CLIP_IDS as readonly string[]).includes(id);
 }
 
-/** A permission card's clip, when one was recorded for it. */
-export function permissionClip(permissionId: string): ClipId | null {
-  const id = `perm-${permissionId}`;
-  return isClip(id) ? id : null;
+/** The clip showing what each system prompt's permission does (AJ-E1547's
+ * registry ids): bringing a window forward, or a live preview. */
+const PROMPT_CLIPS: Record<string, ClipId> = {
+  accessibility: "perm-focus",
+  "automation-system-events": "perm-focus",
+  "automation-terminal": "perm-focus",
+  "automation-iterm": "perm-focus",
+  "screen-recording": "perm-preview",
+};
+
+/** A permission card's clip, when one shows what it does. */
+export function permissionClip(promptId: string): ClipId | null {
+  return PROMPT_CLIPS[promptId] ?? null;
 }
 
 /** The clip's files for a theme. */

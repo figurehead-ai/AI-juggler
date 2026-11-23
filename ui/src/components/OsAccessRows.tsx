@@ -114,10 +114,10 @@ export function OsAccessRows({
   );
 }
 
-/** The access rows' and the setup wizard's cards' wiring: re-checked
+/** The access rows' wiring: re-checked
  * while shown and when the window is back (so a grant shows at once),
  * and each card's action — Allow, System Settings or Reopen. */
-export function useAccessActions(entries: OsAccessInfo[], setEntries: (next: OsAccessInfo[]) => void) {
+function useAccessActions(entries: OsAccessInfo[], setEntries: (next: OsAccessInfo[]) => void) {
   const [error, setError] = useState<string | null>(null);
   // Why a Reopen has to be confirmed or wait, under the row that asked.
   const [reopenBlock, setReopenBlock] = useState<ReopenBlockInfo | null>(null);
