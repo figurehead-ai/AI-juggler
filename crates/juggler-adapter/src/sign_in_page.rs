@@ -102,14 +102,13 @@ pub fn plain_lines(bytes: &[u8]) -> String {
                         osc.push(c);
                     }
                     // OSC 8: `8;params;address` — the address as text.
-                    if let Some(rest) = osc.strip_prefix("8;") {
-                        if let Some((_, address)) = rest.split_once(';') {
-                            if !address.is_empty() {
-                                out.push(' ');
-                                out.push_str(address);
-                                out.push(' ');
-                            }
-                        }
+                    if let Some((_, address)) =
+                        osc.strip_prefix("8;").and_then(|rest| rest.split_once(';'))
+                        && !address.is_empty()
+                    {
+                        out.push(' ');
+                        out.push_str(address);
+                        out.push(' ');
                     }
                 }
                 _ => {}
