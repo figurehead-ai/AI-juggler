@@ -14,7 +14,8 @@
  *   Move faded, how it clears said under it, and Check again.
  * - `MoveBody`: a needs-you Alert that the Apps restart (true whenever
  *   they do); "What happens" as a summary panel of four fact rows (icon,
- *   label, value); the project notes as a CheckRow; the conversations
+ *   label, value), and "Also moves" when the conversation's worktree or
+ *   side-session notes go with it (AJ-E2328); the project notes as a CheckRow; the conversations
  *   behind a Disclosure with their tags and the tool output left behind;
  *   and "What does this mean?" with the guide.
  * The words are the facts the backend reports, in plain words.
@@ -232,6 +233,15 @@ export function MoveBody({
             {archived > 0 && <Pill tone="neutral">{archived} archived</Pill>}
             {gone > 0 && <Pill tone="neutral">{gone} folder{gone === 1 ? "" : "s"} gone</Pill>}
           </Fact>
+          {offer.carried.length > 0 && (
+            <Fact icon={IconCarryIn} label="Also moves" testId="switch-move-carried">
+              <span className="flex min-w-0 flex-col gap-1">
+                {offer.carried.map((line) => (
+                  <span key={line}>{sentence(line)}</span>
+                ))}
+              </span>
+            </Fact>
+          )}
           <Fact icon={IconHistory} label="Original" testId="switch-move-original">
             {source} no longer lists it; {target} does, as the same conversation. Undo puts both back exactly.
           </Fact>

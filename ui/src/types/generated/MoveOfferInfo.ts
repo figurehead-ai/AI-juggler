@@ -43,4 +43,10 @@ bytes: number,
 /**
  * Desktop app profiles (true) or tool folders in a terminal (false).
  */
-app: boolean, };
+app: boolean, 
+/**
+ * AJ-E2328: what moves with it beside its messages, in words ("Its
+ * worktree fix-login (branch main): Claude app · Work owns it
+ * after the move"); empty when there is nothing.
+ */
+carried: Array<string>, };

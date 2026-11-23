@@ -47,6 +47,7 @@ const OFFER: MoveOfferInfo = {
   kept_outputs: 2,
   bytes: 1_200_000_000,
   app: true,
+  carried: [],
 };
 
 const DONE: MoveDoneInfo = {
@@ -125,6 +126,27 @@ describe("Move to account", () => {
     expect(view.getByTestId("switch-move-confirm").textContent).toBe("Move to Personal");
     expect(view.queryByTestId("switch-confirm")).toBeNull();
     expect(executed).toHaveLength(0);
+  });
+
+  it("AJ-E2328: names the worktree and notes that go with it, in plain words, and nothing when there are none", async () => {
+    window.__AIJ_MOVE_OFFER__ = {
+      ...OFFER,
+      carried: [
+        "Its worktree fix-login (branch main): Claude app · Personal owns it after the move; its files stay where they are",
+        "The side-session notes of “Refunds API” (3 files)",
+      ],
+    };
+    const view = mount();
+    await waitFor(() => expect(view.getByTestId("switch-move-carried")).toBeTruthy());
+    const text = view.getByTestId("switch-move-carried").textContent ?? "";
+    expect(text).toContain("Its worktree fix-login (branch main): Claude app · Personal owns it after the move; its files stay where they are.");
+    expect(text).toContain("The side-session notes of “Refunds API” (3 files).");
+    expect(text).not.toMatch(/lease|sighting|untracked/i);
+    cleanup();
+    window.__AIJ_MOVE_OFFER__ = OFFER;
+    const plain = mount();
+    await waitFor(() => expect(plain.getByTestId("switch-move")).toBeTruthy());
+    expect(plain.queryByTestId("switch-move-carried")).toBeNull();
   });
 
   it("keeps Copy one click away", async () => {

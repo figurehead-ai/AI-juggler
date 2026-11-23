@@ -182,6 +182,10 @@ pub struct MoveOfferInfo {
     pub bytes: u64,
     /// Desktop app profiles (true) or tool folders in a terminal (false).
     pub app: bool,
+    /// AJ-E2328: what moves with it beside its messages, in words ("Its
+    /// worktree fix-login (branch main): Claude app · Work owns it
+    /// after the move"); empty when there is nothing.
+    pub carried: Vec<String>,
 }
 
 /// One of a move's four outcomes.
@@ -643,7 +647,37 @@ fn offer_of(state: &Arc<AppState>, sides: &Sides, system: &dyn MoveSystem) -> Mo
         kept_outputs: plan.retained.len(),
         bytes: plan.members.iter().map(|m| m.bytes).sum(),
         app: sides.source_place.is_some(),
+        carried: carried_words(
+            &plan,
+            &sides.target_place.as_ref().map_or_else(
+                || sides.target_label.clone(),
+                |(_, place)| place_name(state, place),
+            ),
+        ),
     }
+}
+
+/// AJ-E2328: what `plan` carries beside the family, in words, `target`
+/// the App that has it after the move.
+fn carried_words(plan: &MovePlan, target: &str) -> Vec<String> {
+    use juggler_adapter::moving::Carried;
+    plan.carried
+        .iter()
+        .map(|carried| match carried {
+            Carried::Worktree { name, branch } => match branch {
+                Some(branch) => format!(
+                    "Its worktree {name} (branch {branch}): {target} owns it after the move; its files stay where they are"
+                ),
+                None => format!(
+                    "Its worktree {name}: {target} owns it after the move; its files stay where they are"
+                ),
+            },
+            Carried::Notes { of, files } => format!(
+                "The side-session notes of “{of}” ({files} file{})",
+                if *files == 1 { "" } else { "s" }
+            ),
+        })
+        .collect()
 }
 
 /// The profiles a move stopped: (place id, place, pid, start, it was
