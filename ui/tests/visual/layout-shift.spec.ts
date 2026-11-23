@@ -14,7 +14,7 @@
 import { expect, test, type Page } from "@playwright/test";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { allStatuses, goTo, openRailSession } from "./fixtures";
+import { allStatuses, goTo, openRailSession, railViewAs } from "./fixtures";
 
 const T0 = 1_728_800_000_000;
 /** About zero: a shift a person could notice is ~0.05 and more. */
@@ -86,6 +86,30 @@ async function boxes(row: ReturnType<Page["locator"]>, parts: string[]): Promise
   return out;
 }
 
+/** Measures `row`'s parts at rest, under the pointer and under the
+ * keyboard; none may move and nothing may shift. */
+async function holdsStill(page: Page, name: string, row: ReturnType<Page["locator"]>, parts: string[]): Promise<void> {
+  await expect(row).toBeVisible();
+  const rest = await boxes(row, parts);
+  // Under the pointer.
+  await row.hover();
+  const hovered = await boxes(row, parts);
+  const hover = await shifts(page);
+  // Under the keyboard (focus on its own way in).
+  await page.mouse.move(0, 0);
+  await row.locator("button").first().focus();
+  await page.keyboard.press("Shift+Tab");
+  await page.keyboard.press("Tab");
+  const focused = await boxes(row, parts);
+  const focus = await shifts(page);
+  const moved = parts.filter((part) => hovered[part] !== rest[part] || focused[part] !== rest[part]);
+  hovers[name] = { cls: Math.max(hover.cls, focus.cls), moved };
+  expect(moved, `${name}: moved under the pointer or focus`).toEqual([]);
+  expect(Math.max(hover.cls, focus.cls), `${name}: shifted (${hover.worst ?? focus.worst})`).toBeLessThanOrEqual(BUDGET);
+  await page.mouse.move(0, 0);
+  await page.locator("body").focus().catch(() => undefined);
+}
+
 for (const theme of ["dark", "light"] as const) {
   test(`opening Home holds still (${theme})`, async ({ page }) => {
     await seed(page, theme);
@@ -129,7 +153,7 @@ for (const theme of ["dark", "light"] as const) {
     expect(back.cls, `Home moved after it appeared: ${back.worst}`).toBeLessThanOrEqual(BUDGET);
   });
 
-  test(`a rail row and an App header hold still under the pointer and the keyboard (${theme})`, async ({ page }) => {
+  test(`a rail row, an App header and a Project lens row hold still under the pointer and the keyboard (${theme})`, async ({ page }) => {
     await seed(page, theme);
     await page.goto("/");
     const board = page.getByTestId("place-board");
@@ -139,26 +163,12 @@ for (const theme of ["dark", "light"] as const) {
       ["session-row", board.locator("[data-rail-row]").filter({ has: page.getByTestId("row-title") }).first(), ["[data-testid='row-title']", "[data-state-dot]", "[data-testid='row-end']", "[data-testid='row-slots']"]],
       ["app-header", board.getByTestId("place-header").first(), ["[data-testid='place-page']", "[data-testid='place-name-line']"]],
     ];
-    for (const [name, row, parts] of cases) {
-      await expect(row).toBeVisible();
-      const rest = await boxes(row, parts);
-      // Under the pointer.
-      await row.hover();
-      const hovered = await boxes(row, parts);
-      const hover = await shifts(page);
-      // Under the keyboard (focus on its own way in).
-      await page.mouse.move(0, 0);
-      await row.locator("button").first().focus();
-      await page.keyboard.press("Shift+Tab");
-      await page.keyboard.press("Tab");
-      const focused = await boxes(row, parts);
-      const focus = await shifts(page);
-      const moved = parts.filter((part) => hovered[part] !== rest[part] || focused[part] !== rest[part]);
-      hovers[`${name}-${theme}`] = { cls: Math.max(hover.cls, focus.cls), moved };
-      expect(moved, `${name}: moved under the pointer or focus`).toEqual([]);
-      expect(Math.max(hover.cls, focus.cls), `${name}: shifted (${hover.worst ?? focus.worst})`).toBeLessThanOrEqual(BUDGET);
-      await page.mouse.move(0, 0);
-      await page.locator("body").focus().catch(() => undefined);
-    }
+    for (const [name, row, parts] of cases) await holdsStill(page, `${name}-${theme}`, row, parts);
+    // 0.5.1, F11: the Project lens's row, its ⋯ at the row's end (AJ-E1554 R1).
+    await railViewAs(page, { group: "project" });
+    await shifts(page);
+    // Its own row (the state mark first), not a Needs you row drawn by SessionRow.
+    const projectRow = page.getByTestId("rail-list").locator("[data-rail-row]:has(> button[data-instance-id] > span[aria-hidden='true'])").first();
+    await holdsStill(page, `project-row-${theme}`, projectRow, ["[data-instance-id]", "[data-instance-id] > span[aria-hidden]", "[data-testid='row-tools']", "button[aria-label^='Session actions']"]);
   });
 }
