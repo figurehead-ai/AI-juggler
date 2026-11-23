@@ -304,11 +304,11 @@ describe("Segmented, sized by its words (the 0.3 re-render)", () => {
 });
 
 describe("Segmented, one look (D-126)", () => {
-  it("draws every control the same, filled with a hairline edge; the usage pages' copy is gone", async () => {
+  it("draws every control the same, a filled track with no edge (PAT-SURF); the usage pages' copy is gone", async () => {
     const view = render(<Segmented label="Range" value="7d" onChange={() => {}} segments={[{ value: "24h", label: "24 h" }, { value: "7d", label: "7 days" }]} />);
     const group = view.getByRole("radiogroup", { name: "Range" });
-    expect(group.className).toContain("bg-fill");
-    expect(group.className).toContain("inset-ring-hairline/75");
+    expect(group.className).toContain("bg-control");
+    expect(group.className).not.toContain("inset-ring-hairline");
     const usage = (await import("../usage/controls")) as Record<string, unknown>;
     expect(usage.Segmented).toBeUndefined();
   });

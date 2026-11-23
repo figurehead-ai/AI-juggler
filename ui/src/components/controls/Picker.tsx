@@ -54,8 +54,8 @@ const SIZES = {
 } as const;
 
 const LOOKS = {
-  /** A field: the secondary button's surface and border. */
-  field: "border border-hairline bg-surface-2 text-ink hover:border-muted/30 hover:bg-surface-3",
+  /** A field: the secondary button's fill (AJ-E1550: no stroke). */
+  field: "border border-frame bg-control text-ink hover:bg-control-hi",
   /** Inline in a line of words or a toolbar: no box until hovered. */
   quiet: "text-ink hover:bg-surface-2",
   /** A link beside what it changes ("Change folder"): accent words. */

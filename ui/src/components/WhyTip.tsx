@@ -62,7 +62,7 @@ export function useWhyTip<T extends HTMLElement>(why: string, testId: string) {
         id={tipId}
         role="tooltip"
         style={{ left: at.left, top: at.top, width: TIP_W }}
-        className="pointer-events-none fixed z-50 rounded-lg border border-hairline bg-surface px-2.5 py-1.5 text-label leading-snug text-ink shadow-card"
+        className="pointer-events-none fixed z-50 rounded-lg border border-hairline bg-overlay px-2.5 py-1.5 text-label leading-snug text-ink shadow-popover"
         data-testid={testId}
       >
         {why}

@@ -34,8 +34,9 @@ const SIZES: Record<SegmentedSize, { item: string; icon: number }> = {
   sm: { item: "h-6 gap-1 px-2 text-label", icon: 12 },
 };
 
-/** The control's frame: the fill, its hairline edge, 3 px inside. */
-const SEGMENTED_FRAME = "seg-fill gap-0.5 rounded-[10px] bg-fill p-[3px] inset-ring-1 inset-ring-hairline/75";
+/** The control's frame: a filled track (the control tone), no edge
+ * (AJ-E1550; Increase Contrast gives it one, .seg-fill), 3 px inside. */
+const SEGMENTED_FRAME = "seg-fill gap-0.5 rounded-[10px] bg-control p-[3px]";
 
 export function Segmented<T extends string>({
   label,
@@ -113,7 +114,7 @@ export function Segmented<T extends string>({
             className={
               (wrap ? "flex-none whitespace-nowrap " : "min-w-0 flex-auto ") +
               `inline-flex items-center justify-center rounded-[7px] ${look.item} outline-none focus-visible:ring-2 focus-visible:ring-accent/60 ` +
-              (on ? SELECTED : "text-ink-2 hover:bg-surface-2 hover:text-ink")
+              (on ? SELECTED : "text-ink-2 hover:bg-hover hover:text-ink")
             }
           >
             {Icon && <Icon aria-hidden="true" width={look.icon} height={look.icon} className="shrink-0" />}

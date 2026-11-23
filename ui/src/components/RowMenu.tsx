@@ -154,7 +154,7 @@ export function RowMenu({
       // 0.3: a press inside the menu is never "outside" to the popover
       // or sheet it opened from (a Picker in the Filters panel).
       onMouseDown={(event) => event.stopPropagation()}
-      className={"fixed z-50 flex max-h-[calc(100vh-8px)] flex-col gap-0.5 overflow-y-auto rounded-xl border border-hairline bg-surface p-1.5 shadow-card " + (wide ? "w-80" : "w-max min-w-64 max-w-80")}
+      className={"fixed z-50 flex max-h-[calc(100vh-8px)] flex-col gap-0.5 overflow-y-auto rounded-xl border border-hairline bg-overlay p-1.5 shadow-popover " + (wide ? "w-80" : "w-max min-w-64 max-w-80")}
     >
       {heading && <span className="truncate px-2 pb-1 pt-0.5 text-label font-semibold text-muted">{heading}</span>}
       {field}
@@ -290,7 +290,7 @@ export function MenuItem({
       aria-haspopup={submenu ? "menu" : undefined}
       aria-expanded={submenu ? submenu.open : undefined}
       className={
-        "rounded-lg px-2 py-1 text-left text-meta outline-none transition-colors hover:bg-surface-2 focus-visible:ring-1 focus-visible:ring-accent/60 disabled:cursor-default disabled:text-muted disabled:hover:bg-transparent " +
+        "rounded-lg px-2 py-1 text-left text-meta outline-none transition-colors hover:bg-hover focus-visible:ring-1 focus-visible:ring-accent/60 disabled:cursor-default disabled:text-muted disabled:hover:bg-transparent " +
         (danger ? "text-danger" : "text-ink")
       }
     >
@@ -349,7 +349,7 @@ export function MenuSubmenu({ label, line, testId, children }: { label: string; 
           role="menu"
           aria-label={label}
           style={place ?? { left: -9999, top: 0 }}
-          className="fixed z-50 flex w-max min-w-52 max-w-80 flex-col gap-0.5 rounded-xl border border-hairline bg-surface p-1.5 shadow-card"
+          className="fixed z-50 flex w-max min-w-52 max-w-80 flex-col gap-0.5 rounded-xl border border-hairline bg-overlay p-1.5 shadow-popover"
         >
           {children}
         </div>

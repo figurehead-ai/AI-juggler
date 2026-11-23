@@ -3,6 +3,7 @@
  * I-11), moved out of WorkflowRail.tsx (AJ-E2104) so the rail stays
  * within its size. The rail's own rows are RailRow and the place rows.
  */
+import { RUNWAY_FILL, runwayState } from "../lib/runway-look";
 import { useId } from "react";
 import { identityWords } from "../lib/identity";
 import { parkedWords } from "../lib/parked";
@@ -39,7 +40,7 @@ export const chipToneClasses: Record<StateChipTone, string> = {
   warning: "bg-warning-soft text-warning border-warning/25",
   danger: "bg-danger-soft text-danger border-danger/25",
   live: "bg-live-soft text-live border-live/25",
-  accent: "bg-accent-soft text-accent-hi border-accent/25",
+  accent: "bg-accent-soft text-accent-hi border-transparent",
 };
 
 /**
@@ -173,11 +174,8 @@ export function SessionRow({
               <span
                 className={
                   "absolute inset-y-0 left-0 rounded-full " +
-                  (100 - session.quota.used_percentage <= 10
-                    ? "bg-danger"
-                    : 100 - session.quota.used_percentage <= 30
-                      ? "bg-warning"
-                      : "bg-accent")
+                  // PAT-COLOR: the room's colour, as every runway bar.
+                  RUNWAY_FILL[runwayState(Math.round(100 - session.quota.used_percentage))]
                 }
                 style={{ width: `${Math.max(2, session.quota.used_percentage)}%` }}
               />
@@ -247,7 +245,7 @@ export function SessionRow({
         {session.kind === "desktop" && (
           <span
             title="desktop app session"
-            className="shrink-0 rounded-full border border-accent/25 bg-accent-soft px-1 text-label font-medium text-accent-hi"
+            className="shrink-0 rounded-full border border-transparent bg-accent-soft px-1 text-label font-medium text-accent-hi"
             data-testid="rail-app-chip"
           >
             app

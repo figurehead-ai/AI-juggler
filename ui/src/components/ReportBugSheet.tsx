@@ -26,7 +26,7 @@ import {
 /** form.tsx's `Input` surface, for the one multi-line field (design
  * review 33: a filled `bg-canvas` field read as disabled in light). */
 const FIELD_SURFACE =
-  "w-full rounded-xl border border-hairline bg-surface-2 px-3 text-sm text-ink placeholder:text-muted transition-colors focus:border-accent/50";
+  "w-full rounded-xl border border-frame bg-control px-3 text-sm text-ink placeholder:text-muted transition-colors focus:border-focus/60";
 
 /** "What AI Juggler showed" inside a sentence: "what AI Juggler showed"
  * (a leading capitalised name, "AI Juggler", stays as it is). */

@@ -208,11 +208,11 @@ export function PageShell({
               // over the new panel (the 0.4.6 RC walks A8 and K2).
               className={
                 // 0.4.6 RC walks: lit at once, never faded in (WebKit pauses
-                // a fade in a window not shown). D-117 (selection): the one
-                // selected look (a 3:1 edge, the raised fill, semibold ink);
-                // the accent is for actions and focus.
+                // a fade in a window not shown). D-117, AJ-E1550 (PAT-SURF):
+                // the one selected look (a soft fill and semibold ink, no
+                // outline); the accent is for actions and focus.
                 "rounded-lg px-2.5 py-1 text-meta outline-none focus-visible:ring-1 focus-visible:ring-accent/60 " +
-                (tab === entry.id ? SELECTED : "font-medium text-muted hover:bg-surface hover:text-ink")
+                (tab === entry.id ? SELECTED : "font-medium text-muted hover:bg-hover hover:text-ink")
               }
             >
               {entry.label}

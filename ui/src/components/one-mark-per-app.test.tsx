@@ -269,7 +269,7 @@ describe("AJ-E3206 an Account wears one colour, round, wherever it shows", () =>
       expect(avatar.dataset.color).toBeUndefined();
     }
     // Small: a ring; large: grey with its initials.
-    expect(ring!.className).toContain("border-muted");
+    expect(ring!.className).toContain("border-faint");
     expect(large!.textContent).not.toBe("");
   });
 

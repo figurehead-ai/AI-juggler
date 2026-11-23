@@ -63,7 +63,7 @@ export function AccountAvatar({
       data-color={tone === "colour" ? color : undefined}
       className={
         "inline-flex shrink-0 select-none items-center justify-center rounded-full font-semibold leading-none " +
-        (tone === "colour" ? "" : letters ? "border border-hairline bg-surface-2 text-ink-2 " : "border-[1.5px] border-muted ") +
+        (tone === "colour" ? "" : letters ? "border border-hairline bg-surface-2 text-ink-2 " : "border-[1.5px] border-faint ") +
         (live ? "avatar-live" : "")
       }
       data-letters={letters ? "true" : undefined}

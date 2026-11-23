@@ -1,13 +1,18 @@
 import { forwardRef } from "react";
 import type { ButtonHTMLAttributes, HTMLAttributes, ReactNode } from "react";
 import { SELECTED_CARD } from "./controls/selected";
+import { RUNWAY_FILL, runwayState } from "../lib/runway-look";
 
 /**
  * Base UI primitives, shadcn-style: hand-vendored, token-driven, no
  * runtime dependencies. Screen-level components compose from these.
  *
- * Iteration 2: layered depth (sheen edge, card shadow), primary buttons
- * carry a quiet accent glow, live elements breathe.
+ * AJ-E1550 (PAT-SURF): calm surfaces. Separation by tone, never bright
+ * lines: a card is its surface step (no border, shadow or sheen); buttons
+ * and tags are fills (the secondary a neutral control fill, the accent a
+ * tint), their edge transparent so sizes hold; the accent's lines are
+ * keyboard focus (styles.css) and rare true attention only. Increase
+ * Contrast brings the edges back (`--color-frame`).
  */
 
 type ButtonVariant = "primary" | "accent" | "secondary" | "ghost" | "danger" | "chosen";
@@ -15,23 +20,22 @@ type ButtonSize = "sm" | "md";
 
 /** The primary's fill (0.3.2, D-62 decision 23: one solid colour), for
  * the few primaries drawn without `Button` (the switch dialogs). */
-export const PRIMARY_FILL = "border border-accent-hi/40 bg-accent-fill text-white hover:brightness-110";
+export const PRIMARY_FILL = "border border-transparent bg-accent-fill text-white hover:brightness-110";
 
 const buttonVariants: Record<ButtonVariant, string> = {
   primary: `${PRIMARY_FILL} active:translate-y-px shadow-glow-accent`,
   // An app-wide action that's always there (the top bar's New session, as
   // the rail's): tinted, so a page's own primary is the one filled button
   // (principle 9).
-  accent: "border border-accent/30 bg-accent-soft text-accent-hi hover:border-accent/50 hover:bg-accent/15 active:translate-y-px",
-  secondary:
-    "bg-surface-2 text-ink border border-hairline hover:bg-surface-3 \
-     hover:border-muted/30 active:translate-y-px",
+  accent: "border border-frame bg-accent-soft text-accent-hi hover:bg-accent/15 active:translate-y-px",
+  // AJ-E1550: a fill (the neutral control tone), not a stroke; the ring
+  // only on keyboard focus.
+  secondary: "bg-control text-ink border border-frame hover:bg-control-hi active:translate-y-px",
   ghost: "text-muted hover:text-ink hover:bg-surface-2",
   // At /15 its red stood 4.48:1 on surface-2 and 4.2:1 on surface-3 in
   // dark (axe, the connector card's Remove anyway, 0.4.6); /10 keeps AA on
   // every surface it sits on.
-  danger:
-    "bg-danger/10 text-danger border border-danger/30 hover:bg-danger/20",
+  danger: "bg-danger/10 text-danger border border-frame hover:bg-danger/20",
   // D-117 (selection): a choice that is picked (an ask's answer, a toggle
   // among options): the one selected look, semibold (below), never the
   // primary's fill — selection is not an action, and never loud.
@@ -88,9 +92,7 @@ export const Card = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivElement>>(f
   return (
     <div
       ref={ref}
-      className={`sheen rounded-card border border-hairline bg-surface
-        shadow-card transition-all duration-150
-        hover:border-muted/25 ${className}`}
+      className={`rounded-card border border-frame bg-surface ${className}`}
       {...props}
     >
       {children}
@@ -107,12 +109,12 @@ export type ChipTone =
   | "accent";
 
 const chipTones: Record<ChipTone, string> = {
-  neutral: "bg-surface-2 text-muted border-hairline",
-  success: "bg-success-soft text-success border-success/25",
-  warning: "bg-warning-soft text-warning border-warning/25",
-  danger: "bg-danger-soft text-danger border-danger/25",
-  live: "bg-live-soft text-live border-live/25",
-  accent: "bg-accent-soft text-accent-hi border-accent/25",
+  neutral: "bg-surface-2 text-muted border-frame",
+  success: "bg-success-soft text-success border-frame",
+  warning: "bg-warning-soft text-warning border-frame",
+  danger: "bg-danger-soft text-danger border-frame",
+  live: "bg-live-soft text-live border-frame",
+  accent: "bg-accent-soft text-accent-hi border-frame",
 };
 
 export function Chip({
@@ -169,19 +171,19 @@ export function StatCard({
           : "numeral";
   const iconTone =
     tone === "live"
-      ? "text-live bg-live-soft border-live/20"
+      ? "text-live bg-live-soft"
       : tone === "success"
-        ? "text-success bg-success-soft border-success/20"
-        : "text-accent-hi bg-accent-soft border-accent/20";
+        ? "text-success bg-success-soft"
+        : "text-accent-hi bg-accent-soft";
   return (
-    <Card className="group p-4 flex flex-col gap-2 hover:-translate-y-0.5">
+    <Card className="group p-4 flex flex-col gap-2">
       <div className="flex items-center justify-between">
         <span className="text-label font-semibold text-muted">
           {label}
         </span>
         {icon && (
           <span
-            className={`flex size-7 items-center justify-center rounded-lg border ${iconTone}`}
+            className={`flex size-7 items-center justify-center rounded-lg ${iconTone}`}
           >
             {icon}
           </span>
@@ -226,8 +228,8 @@ export function QuotaBar({
     );
   }
   const left = Math.max(0, 100 - quota.used_percentage);
-  const tone =
-    left <= 10 ? "bg-danger" : left <= 30 ? "bg-warning" : "bg-accent";
+  // PAT-COLOR: the room's colour (lib/runway-look), as every runway bar.
+  const tone = RUNWAY_FILL[runwayState(Math.round(left))];
   const reset = quota.resets_at_ms !== null ? ` · resets ${formatCountdown(quota.resets_at_ms)}` : "";
   return (
     <span

@@ -242,7 +242,7 @@ for (const theme of ["dark", "light"] as const) {
         const found = areas.flatMap((sel) => [...(document.querySelector(sel)?.querySelectorAll<HTMLElement>(SEL) ?? [])]);
         const page = document.querySelector<HTMLElement>("header [data-testid='main-nav'] [aria-current='page']");
         return {
-          drawn: found.filter((element) => element.className.toString().includes("inset-ring-selected-ring") && getComputedStyle(element).backgroundColor === selected).length,
+          drawn: found.filter((element) => element.className.toString().includes("inset-ring-selected-edge") && getComputedStyle(element).backgroundColor === selected).length,
           // The current page: semibold, no fill (transparent).
           page: page ? { weight: Number(getComputedStyle(page).fontWeight), fill: getComputedStyle(page).backgroundColor } : null,
           loud: found

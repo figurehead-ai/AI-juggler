@@ -30,8 +30,8 @@ export function Field({
 export function Input({ className = "", ...props }: ComponentProps<"input">) {
   return (
     <input autoCorrect="off" autoCapitalize="off" spellCheck={false}
-      className={`h-9 rounded-xl border border-hairline bg-surface-2 px-3 text-sm text-ink
-        placeholder:text-muted transition-colors focus:border-accent/50 ${className}`}
+      className={`h-9 rounded-xl border border-frame bg-control px-3 text-sm text-ink
+        placeholder:text-muted transition-colors focus:border-focus/60 ${className}`}
       {...props}
     />
   );
@@ -150,7 +150,7 @@ export function Modal({
         aria-labelledby={titleId}
         data-testid={testId}
         size={table ? "XL" : broad ? "L" : wide ? "M-cards" : "S"}
-        className="sheen rounded-card border border-hairline bg-surface shadow-[0_24px_80px_-24px_rgba(0,0,0,0.8)]"
+        className="rounded-card border border-hairline bg-surface shadow-dialog"
         headerClassName="flex items-start justify-between gap-4 px-5 pt-5 pb-3"
         header={
           <>

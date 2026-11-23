@@ -115,7 +115,7 @@ export function CheckRow(props: RowProps): JSX.Element {
 /** A few rows in one card. */
 export function RowList({ label, children, testId }: { label?: string; children: ReactNode; testId?: string }): JSX.Element {
   return (
-    <div role={label ? "group" : undefined} aria-label={label} className="flex min-w-0 flex-col gap-0.5 rounded-card bg-surface p-1.5 inset-ring-1 inset-ring-hairline/75" data-testid={testId}>
+    <div role={label ? "group" : undefined} aria-label={label} className="flex min-w-0 flex-col gap-0.5 rounded-card bg-surface p-1.5 inset-ring-1 inset-ring-frame" data-testid={testId}>
       {children}
     </div>
   );

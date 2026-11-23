@@ -17,9 +17,11 @@ import { clocksWhole } from "../lib/time-words";
 import { openAccounts } from "../lib/accounts-filter";
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
 
+// AJ-E1550 (PAT-SURF, PAT-COLOR): the level's tint and its words in the
+// level's colour (AA), with its icon; no edge (Increase Contrast's frame).
 const TONE: Record<RoomMark["kind"], string> = {
-  out: "border-danger/30 bg-danger-soft text-danger",
-  low: "border-warning/35 bg-warning-soft text-warning",
+  out: "border-frame bg-danger-soft text-danger",
+  low: "border-frame bg-warning-soft text-warning",
 };
 
 export function RoomChip({ mark, size = "sm", compact = false, iconOnly = false, testId = "room-chip" }: { mark: RoomMark | null; size?: "sm" | "md"; compact?: boolean; iconOnly?: boolean; testId?: string }): JSX.Element | null {
