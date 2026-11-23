@@ -98,14 +98,14 @@ describe("SignInCard", () => {
   it("takes a code the page gives back and types it into the tool's sign-in", async () => {
     card(info({ tool: "claude-code", page_host: "claude.ai", pastes_code: true }));
     expect(screen.queryByTestId("sign-in-code")).toBeNull();
-    const field = screen.getByTestId("sign-in-paste") as HTMLInputElement;
-    const send = screen.getByRole("button", { name: "Send" }) as HTMLButtonElement;
-    expect(send.disabled).toBe(true);
+    const field = screen.getByTestId("sign-in-paste");
+    const send = screen.getByRole("button", { name: "Send" });
+    expect(send.hasAttribute("disabled")).toBe(true);
     fireEvent.change(field, { target: { value: "  pasted-code-42 " } });
-    expect(send.disabled).toBe(false);
+    expect(send.hasAttribute("disabled")).toBe(false);
     fireEvent.click(send);
     expect(writes).toEqual([[ID, "pasted-code-42\r"]]);
-    expect(field.value).toBe("");
+    expect(field.getAttribute("value") ?? "").toBe("");
     expect(screen.getByText(/^Sent to /)).toBeTruthy();
     expect(screen.getByText("Waiting for you to approve…")).toBeTruthy();
   });

@@ -27,14 +27,14 @@ export function useLoginTerminals(onSignedIn: () => void): {
       onTerminalExit((id) => setLocal((current) => current.map((t) => (t.id === id ? { ...t, ended: true } : t)))),
     [],
   );
-  // Once the backend lists one, its list is the truth (a dismissed one goes).
-  useEffect(() => {
-    if (signIns.length === 0) return;
-    setLocal((current) => {
-      const kept = current.filter((one) => !signIns.some((listed) => listed.id === one.id));
-      return kept.length === current.length ? current : kept;
-    });
-  }, [signIns]);
+  // Once the backend lists one, its list is the truth (a dismissed one
+  // goes): adjusted as the list changes, while rendering.
+  const [prunedFor, setPrunedFor] = useState(signIns);
+  if (prunedFor !== signIns) {
+    setPrunedFor(signIns);
+    const kept = local.filter((one) => !signIns.some((listed) => listed.id === one.id));
+    if (kept.length !== local.length) setLocal(kept);
+  }
   const loginTerminals = useMemo(() => {
     const listed: LoginTerminal[] = signIns.map((one) => ({
       id: one.id,

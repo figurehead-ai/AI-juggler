@@ -54,9 +54,10 @@ function Code({ code }: { code: string }): JSX.Element {
       <Button
         size="sm"
         variant="secondary"
-        onClick={async () => {
-          await navigator.clipboard?.writeText(code).catch(() => null);
-          setCopied(true);
+        onClick={() => {
+          void (navigator.clipboard?.writeText(code) ?? Promise.resolve())
+            .catch(() => null)
+            .then(() => setCopied(true));
         }}
       >
         {copied ? "Copied" : "Copy"}
@@ -130,10 +131,10 @@ export function SignInCard({
   if (state === "signed_in") {
     return (
       <div className="flex flex-wrap items-center gap-3" data-testid="sign-in-card" data-state="signed_in">
-        <p className="flex items-center gap-1.5 text-body font-medium text-success" role="status">
+        <output className="flex items-center gap-1.5 text-body font-medium text-success">
           <Check />
           {name} is signed in
-        </p>
+        </output>
         {onDismiss && (
           <Button size="sm" variant="secondary" onClick={onDismiss}>
             Done
@@ -147,9 +148,9 @@ export function SignInCard({
     const lines = signIn?.last_lines ?? [];
     return (
       <div className="flex flex-col gap-3" data-testid="sign-in-card" data-state="ended">
-        <p className="text-body font-medium text-ink" role="status">
+        <output className="block text-body font-medium text-ink">
           Sign-in ended before it finished
-        </p>
+        </output>
         {lines.length > 0 ? (
           <div className="flex flex-col gap-1">
             <span className="text-meta text-muted">Its last lines:</span>
@@ -211,10 +212,10 @@ export function SignInCard({
       )}
       {!code && signIn?.pastes_code && <PasteBack id={terminalId} tool={name} />}
       {!code && !signIn?.pastes_code && <p className="text-meta text-ink-2">Sign in on the page, then approve.</p>}
-      <p className="flex items-center gap-2 text-meta text-muted" role="status">
+      <output className="flex items-center gap-2 text-meta text-muted">
         <span aria-hidden="true" className="dot-live size-1.5 rounded-full bg-live" />
         Waiting for you to approve…
-      </p>
+      </output>
       {error && (
         <p className="text-meta text-danger" role="alert">
           {error}
