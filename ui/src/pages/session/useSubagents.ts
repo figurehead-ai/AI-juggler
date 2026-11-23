@@ -32,6 +32,14 @@ export function markHasSubagents(profileId: string, conversationId: string): voi
   heard.set(`${profileId}\u0000${conversationId}`, true);
 }
 
+/** AJ-E1551: what is already known, with no read, about whether this
+ * session started subagents (the rail's count, or a count heard before):
+ * a page reserves its tree's column from its first frame on this. */
+export function knownHasSubagents(profileId: string | null, conversationId: string | null): boolean {
+  const key = keyOf(profileId, conversationId);
+  return key !== null && (heard.get(key) === true || (counted.get(key)?.total ?? 0) > 0);
+}
+
 export function useHasSubagents(profileId: string | null, conversationId: string | null, live: boolean): boolean {
   const key = keyOf(profileId, conversationId);
   const [has, setHas] = useState<{ key: string | null; has: boolean }>(() => ({ key, has: key ? (heard.get(key) ?? false) : false }));

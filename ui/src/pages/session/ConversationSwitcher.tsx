@@ -15,6 +15,12 @@
  * Shown only when there's something besides the conversation; a narrow
  * page gets a picker above it instead. Read only while the page is shown,
  * again every 15 s while the session runs.
+ *
+ * AJ-E1551: nothing moves after it appears. Whether the tree shows is
+ * decided from what is already known on the first frame (the lists last
+ * read for this session, else the rail's or a heard subagent count), and
+ * while its lists are read the column is a skeleton at its final width;
+ * the conversation never slides over when they arrive.
  */
 import { useCallback, useEffect, useMemo, useState, type JSX, type ReactNode } from "react";
 import { Button } from "../../components/primitives";
@@ -29,8 +35,10 @@ import { kindWords, titleOf } from "../subagents/words";
 import { LastMessages } from "./LastMessages";
 import { fromConversation, type SessionModel } from "./model";
 import type { FeedSource } from "./useConversation";
-import { useHeardSubagentCounts } from "./useSubagents";
+import { knownHasSubagents, useHeardSubagentCounts } from "./useSubagents";
 import { SELECTED } from "../../components/controls/selected";
+import { LoadingState } from "../../components/LoadingState";
+import { useLoadDeadline } from "../../lib/loading";
 
 /** How many ended subagents the folded list shows. */
 const DONE_SHOWN = 8;
@@ -43,13 +51,30 @@ const EVERY_MS = 15_000;
 
 type Picked = { kind: "own" } | { kind: "subagent"; agent: SubagentInfo } | { kind: "started"; session: StartedSessionInfo };
 
+type Lists = { running: SubagentInfo[]; done: SubagentInfo[]; started: StartedSessionInfo[] };
+const NO_LISTS: Lists = { running: [], done: [], started: [] };
+
+/** AJ-E1551: the lists last read, by session, so a page opened again
+ * draws them (and reserves their column) from its first frame. */
+const listsSeen = new Map<string, Lists>();
+
 /** The session's subagents running now and the latest ended, and the
- * sessions it started. */
-function useSwitcherLists(model: SessionModel, visible: boolean): { running: SubagentInfo[]; done: SubagentInfo[]; started: StartedSessionInfo[]; total: number; runningTotal: number } {
+ * sessions it started; `known` once they were read (now or before). */
+function useSwitcherLists(model: SessionModel, visible: boolean, round: number): Lists & { total: number; runningTotal: number; known: boolean } {
   const counts = useHeardSubagentCounts(model.profileId, model.conversationId);
-  const [lists, setLists] = useState<{ running: SubagentInfo[]; done: SubagentInfo[]; started: StartedSessionInfo[] }>({ running: [], done: [], started: [] });
-  const total = counts?.total ?? 0;
   const conversationId = model.conversationId;
+  const key = conversationId ? `${model.profileId ?? ""}\u0000${conversationId}` : null;
+  const [read, setRead] = useState<{ key: string | null; lists: Lists | null }>(() => ({ key, lists: key ? (listsSeen.get(key) ?? null) : null }));
+  const seen = read.key === key ? read.lists : key ? (listsSeen.get(key) ?? null) : null;
+  const lists = seen ?? NO_LISTS;
+  const setLists = useCallback(
+    (found: Lists) => {
+      if (key) listsSeen.set(key, found);
+      setRead({ key, lists: found });
+    },
+    [key],
+  );
+  const total = counts?.total ?? 0;
   useEffect(() => {
     if (!visible || !conversationId) return;
     let alive = true;
@@ -73,14 +98,15 @@ function useSwitcherLists(model: SessionModel, visible: boolean): { running: Sub
       alive = false;
       if (timer !== null) window.clearInterval(timer);
     };
-  }, [visible, conversationId, model.profileId, model.tool, model.live, total]);
-  return { ...lists, total, runningTotal: counts?.running ?? lists.running.length };
+  }, [visible, conversationId, model.profileId, model.tool, model.live, total, setLists, round]);
+  return { ...lists, total, runningTotal: counts?.running ?? lists.running.length, known: seen !== null };
 }
 
 /** `ownWords`: what the session's own pane is ("Its terminal", "Its
  * conversation"), under "This session" in the list. */
 export function ConversationSwitcher({ model, visible, own, ownWords = "Its main conversation" }: { model: SessionModel; visible: boolean; own: ReactNode; ownWords?: string }): JSX.Element {
-  const { running, done, started, total, runningTotal } = useSwitcherLists(model, visible);
+  const [round, setRound] = useState(0);
+  const { running, done, started, total, runningTotal, known } = useSwitcherLists(model, visible, round);
   const [picked, setPicked] = useState<Picked>({ kind: "own" });
   const back = useCallback(() => setPicked({ kind: "own" }), []);
   useEffect(() => {
@@ -91,7 +117,11 @@ export function ConversationSwitcher({ model, visible, own, ownWords = "Its main
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [picked.kind, back]);
-  const any = running.length + done.length + started.length > 0;
+  // AJ-E1551: before its lists are read, the tree's column is reserved on
+  // what's already known (a skeleton at its final width), never added
+  // after a read pushes the conversation over.
+  const listed = running.length + done.length + started.length > 0;
+  const any = known ? listed : total > 0 || knownHasSubagents(model.profileId, model.conversationId);
   // The session's own pane stays mounted while another is shown (hidden):
   // a terminal is never rebuilt and replayed, a conversation keeps where it
   // was scrolled, and Back is instant.
@@ -109,7 +139,11 @@ export function ConversationSwitcher({ model, visible, own, ownWords = "Its main
           page's height, the grid squeezed the scrolling list to its border
           (0.3.5). Side by side, both fit the page. */}
       <div className={"grid grid-cols-1 gap-3 " + (any ? "@xl:min-h-0 @xl:flex-1 @xl:grid-cols-[12rem_minmax(0,1fr)]" : "min-h-0 flex-1")}>
-        {any ? <SwitcherList model={model} ownWords={ownWords} picked={picked} onPick={setPicked} running={running} done={done} started={started} total={total} runningTotal={runningTotal} /> : null}
+        {any ? (
+          <SwitcherLoading listed={listed} round={round} onRetry={() => setRound((n) => n + 1)}>
+            <SwitcherList model={model} ownWords={ownWords} picked={picked} onPick={setPicked} running={running} done={done} started={started} total={total} runningTotal={runningTotal} />
+          </SwitcherLoading>
+        ) : null}
         <div className={"flex min-w-0 flex-col " + (any ? "min-h-[28rem] @xl:min-h-0" : "min-h-0 flex-1")}>
           {ownPane}
           {picked.kind === "subagent" && <SubagentPane model={model} agent={picked.agent} onBack={back} />}
@@ -243,6 +277,27 @@ function SwitcherList({
   );
 }
 
+/** AJ-E1551: the tree's column while its lists are read (AJ-E1552's one
+ * loading state): the root and a few branch lines at the list's own width
+ * and place, "Still loading…" when slow, Retry past its deadline. */
+function SwitcherLoading({ listed, round, onRetry, children }: { listed: boolean; round: number; onRetry: () => void; children: ReactNode }): JSX.Element {
+  const what = "this session's subagents";
+  const { slow, timedOut } = useLoadDeadline(!listed, what, { round });
+  const skeleton = (
+    <output aria-label={`Reading ${what}`} className="flex max-h-40 min-h-0 flex-col gap-2 p-1.5 @xl:max-h-none @xl:p-0 @xl:pr-1" data-testid="switcher-skeleton">
+      <span className="h-9 rounded-lg bg-skeleton motion-safe:animate-pulse" />
+      {[0, 1, 2].map((n) => (
+        <span key={n} className="ml-[25px] h-7 rounded-md bg-skeleton motion-safe:animate-pulse" />
+      ))}
+    </output>
+  );
+  return (
+    <LoadingState state={listed ? "ready" : timedOut ? "error" : "loading"} slow={slow} what={what} skeleton={skeleton} empty={null} onRetry={onRetry}>
+      {children}
+    </LoadingState>
+  );
+}
+
 /** A branch's last line that opens more (the tab, or the next page). */
 function MoreLine({ onClick, words, testId }: { onClick: () => void; words: string; testId: string }): JSX.Element {
   return (
@@ -269,7 +324,7 @@ function Root({ picked, onClick, live, title, meta }: { picked: boolean; onClick
       }
       data-testid="switcher-own"
     >
-      <span aria-hidden="true" className={"mt-1 flex size-2.5 shrink-0 rounded-full border-2 " + (live ? "border-live bg-live/40" : "border-ink-2 bg-surface")} />
+      <span aria-hidden="true" className={"mt-1 flex size-2.5 shrink-0 rounded-full border-2 " + (live ? "border-live bg-live/40" : "border-faint bg-surface")} />
       <span className="flex min-w-0 flex-col">
         <span className="line-clamp-2 break-words text-meta font-semibold leading-[1.35] text-ink">{title}</span>
         <span className="text-label text-muted">{meta}</span>
