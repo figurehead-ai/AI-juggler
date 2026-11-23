@@ -405,3 +405,13 @@
 7. The first 0.5.1 sweep applies the policy to backups made by 0.4.9 and 0.5.0: under the 7-day default, the 21 and 22 Nov backups stay until 28 and 29 Nov; refused-attempt folders go at once.
 **Quality gates**: `just keep-going verify-static`; tests for retention by age, never during a move, never an interrupted move, the refused-attempt clean-up, the reclaimable size and the disk-pressure offer; in AJ-E2323's matrix and its PL1 walk.
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E2325/manifest.md`.
+
+### AJ-E2326 One conversation open in two places is seen and said: both live places shown, a notice with one click to stop ours, and a continued session says where it came from | Status: TODO (0.5.1) | Priority P0 | Effort M | Depends: AJ-E2315, AJ-E2317
+**Found** by the maintainer (2026-11-22, checked read-only on the installed 0.4.9). After a third refused Move to account the profile's Claude app was reopened. Three minutes later "Continue in AI Juggler" ran on the same conversation (an instance of kind terminal, no App, the profile's recipe), and that `claude --resume <id>` (its parent AI Juggler) ran on. The next morning the profile's Claude app's own Code child resumed the same conversation too. Two live writers on one conversation, and AI Juggler said nothing. The session showed under the profile's Account as "Claude Code CLI", and the desktop App's row said "nothing open" while its Code child held the conversation. It read as "the revert made a CLI app".
+**Requirements**:
+1. The guard that refuses a conversation open elsewhere holds for the whole run, not only at its start: when the tool's own app opens a conversation one of our sessions holds, both rows show "Open in two places", with one click to stop ours. The other app's process is never touched (D-28).
+2. Every live place is shown: a conversation open in a desktop app's Code child shows under that desktop App too, and "nothing open" is never said while a child of it holds a conversation (open now means running). Attribution goes through the shared ownership module (AJ-E2315).
+3. A session continued in AI Juggler says where it came from ("Continued here from Claude app · <profile>"), never reading as a new CLI App.
+4. After a refused move, the sheet's next steps point to Retry or the move, never to "Continue in AI Juggler".
+**Quality gates**: `just keep-going verify-static`; tests: a continued session, then the desktop app resumes the same id → the notice on both rows; a desktop Code child's conversation attributed to its App; the continued-from label; the refused sheet's next steps. In AJ-E2323's matrix and its PL1 walk.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E2326/manifest.md`.
