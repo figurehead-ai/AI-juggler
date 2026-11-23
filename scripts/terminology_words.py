@@ -81,7 +81,9 @@ RULES: dict[str, tuple[re.Pattern[str], re.Pattern[str] | None, str]] = {
     # model (Anthropic, OpenAI, a service's) is an "AI provider".
     "provider": (
         re.compile(W + r"[Pp]roviders?(?:['’]s?)?" + E),
-        re.compile(r"\bAI\s+providers?(?:['’]s?)?" + E),
+        # PAT-SER-7's own label: the closed "Providers' terms" disclosure
+        # (the companies' terms, a line per tool inside).
+        re.compile(r"\bAI\s+providers?(?:['’]s?)?" + E + r"|\bProviders['’] terms\b"),
         "say the tool (Claude Code, Codex); the company behind a model is an \"AI provider\"",
     ),
     "harness": (re.compile(W + r"[Hh]arness(?:es)?" + E), None, "say the tool, or the app"),
