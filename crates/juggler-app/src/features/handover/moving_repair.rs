@@ -587,8 +587,7 @@ pub(super) fn run_repair(
     // runs once more.
     let after = txn
         .verify_opened(&|_| Appended::Bookkeeping, vec![held(repairing)])
-        .map(|report| report.passed())
-        .unwrap_or(false);
+        .is_ok_and(|report| report.passed());
     let holder = places
         .iter()
         .find(|(_, p)| {
