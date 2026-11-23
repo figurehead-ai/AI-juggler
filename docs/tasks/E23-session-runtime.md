@@ -338,7 +338,7 @@
 **Quality gates**: `just keep-going verify-static`; failing-before tests; the move suite.
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E2317/manifest.md`.
 
-### AJ-E2318 Move waits only on real writers and the profiles' main processes, decides before it disrupts, and quits in parallel | Status: TODO (0.5.1) | Priority P0 | Effort M | Depends: AJ-E2315
+### AJ-E2318 Move waits only on real writers and the profiles' main processes, decides before it disrupts, and quits in parallel | Status: DONE (0.5.1) | Priority P0 | Effort M | Depends: AJ-E2315
 **Found** Review A1.1–A1.5, A1.10, A3.6, A9.2, B0.2–B0.3, B2: the whole pre-quit tree had to end (a background dev server, crashpad, another profile's wrapper blocked every retry), and ownership conflicts showed only after both apps were quit. (`docs/research/move-reliability-review.md`).
 **UI**: yes
 **Usability reasoning** (Opus, before building; re-checked on the built screen):
