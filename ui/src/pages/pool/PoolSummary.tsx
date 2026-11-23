@@ -30,7 +30,10 @@ export function shapeOfPool(pool: Pick<PoolInfo, "access" | "sealed">, rules: Po
   const broad = (rules?.members ?? []).filter((rule) => rule.kind !== "session" && !rule.member.startsWith("conversation:"));
   return {
     members: [
-      ...members.map((member) => ({ ref: `session:${member.id}`, label: member.name, role: asRole(member.role), level: null, later: false })),
+      // AJ-E2314 L3: in the diagram's order of names, "web (1)" before "web (2)".
+      ...[...members]
+        .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }))
+        .map((member) => ({ ref: `session:${member.id}`, label: member.name, role: asRole(member.role), level: null, later: false })),
       ...broad.map((rule) => ({ ref: rule.member, label: ruleLabel(rule), role: asRole(rule.role), level: rule.level, later: rule.member !== "all" })),
     ],
     leadNext: rules?.lead_next ? `app:${rules.lead_next}` : null,

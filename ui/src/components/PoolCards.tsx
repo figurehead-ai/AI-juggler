@@ -28,8 +28,9 @@ import { ShellOnly, useShellOnly } from "./ShellOnly";
 /** `renderOwn`: a row's own choices in its pool, behind its disclosure
  * (the pool page's List view: what it may do on its own there, the rc2
  * walk P5). */
-export function PoolCardRows({ list, sessions, now, renderOwn, renderRole }: { list: Paged<PoolMemberRow>; sessions: InstanceInfo[]; now: number; renderOwn?: (row: PoolMemberRow, name: string) => ReactNode; renderRole?: (row: PoolMemberRow, name: string) => ReactNode }): JSX.Element {
-  const names = sessionNames(sessions);
+export function PoolCardRows({ list, sessions, now, names: page, renderOwn, renderRole }: { list: Paged<PoolMemberRow>; sessions: InstanceInfo[]; now: number; /** A page's own names for its members (a pool's: its diagram's, AJ-E2314 L3); the rest by `sessionNames`. */ names?: ReadonlyMap<string, string>; renderOwn?: (row: PoolMemberRow, name: string) => ReactNode; renderRole?: (row: PoolMemberRow, name: string) => ReactNode }): JSX.Element {
+  const all = sessionNames(sessions);
+  const names = page ? new Map([...all, ...page]) : all;
   return (
     <PagedList
       list={list}

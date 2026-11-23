@@ -29,7 +29,7 @@ import { tidyLayout } from "./tidy-layout";
 import { nameOf } from "./actions";
 import { namedByFacts, sessionNames, tellApart } from "../../lib/session-titles";
 import { rememberCanvas, rememberedCanvas } from "./prefetch";
-import { nodeTitles, type NodeTitle } from "./node-title";
+import { nodeTitles, pageNames, type NodeTitle } from "./node-title";
 
 /** The most members drawn on one canvas (smooth at that many). */
 export const CANVAS_NODES = 60;
@@ -146,7 +146,8 @@ export function useCanvas(poolId: string, sessions: InstanceInfo[], desktop: rea
   }, [poolId, drawn]);
   const members: MemberNode[] = useMemo(() => {
     const titles = nodeTitles(drawn, Date.now(), names);
-    return drawn.map((member) => ({ ...member, title: titles.get(member.id), ...(pendingRoles.has(member.id) ? { role: pendingRoles.get(member.id)!, pending: true } : {}) }));
+    const called = pageNames(drawn, titles);
+    return drawn.map((member) => ({ ...member, name: called.get(member.id) ?? member.name, title: titles.get(member.id), ...(pendingRoles.has(member.id) ? { role: pendingRoles.get(member.id)!, pending: true } : {}) }));
   }, [drawn, pendingRoles, names]);
   const desktopKey = desktop.join("|");
   const ids = useMemo(() => [...members.map((member) => member.id), ...(desktopKey ? desktopKey.split("|") : [])], [members, desktopKey]);
