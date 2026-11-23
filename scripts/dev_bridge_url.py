@@ -5,6 +5,11 @@ Reads the bridge's 0600 token file in AI Juggler Dev's data folder (or the
 folder given as the only argument) and prints the Vite page with the port
 in the query and the token in the fragment, which the browser never sends
 to the dev server.
+
+`--query` prints the token in the query instead (`&token=`), for a browser
+that drops a URL's fragment on navigation (the walk kit's in-app pane,
+AJ-E2314 L1). The page reads either and removes the token from the address
+at once; the query form reaches only the local dev server, on this Mac.
 """
 import json
 import os
@@ -16,7 +21,9 @@ FOLDER = pathlib.Path.home() / "Library" / "Application Support" / "AI Juggler D
 
 
 def main() -> int:
-    folder = pathlib.Path(sys.argv[1]) if len(sys.argv) > 1 else FOLDER
+    args = [arg for arg in sys.argv[1:] if arg != "--query"]
+    in_query = len(args) != len(sys.argv) - 1
+    folder = pathlib.Path(args[0]) if args else FOLDER
     path = folder / "dev-bridge.json"
     try:
         info = path.stat()
@@ -33,7 +40,10 @@ def main() -> int:
     if len(token) != 64 or any(c not in "0123456789abcdef" for c in token):
         print(f"{path} holds no valid token", file=sys.stderr)
         return 1
-    print(f"{origin}/?devBridge={port}#token={token}")
+    if in_query:
+        print(f"{origin}/?devBridge={port}&token={token}")
+    else:
+        print(f"{origin}/?devBridge={port}#token={token}")
     return 0
 
 

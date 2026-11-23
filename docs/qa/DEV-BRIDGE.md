@@ -96,6 +96,8 @@ env -i HOME="$H" USER="$USER" TMPDIR="$TMPDIR" PATH="$H/bin:/usr/bin:/bin" AIJ_D
 python3 scripts/dev_bridge_url.py "$H/Library/Application Support/AI Juggler Dev"
 ```
 
+A browser that drops the address's `#…` fragment on navigation (the walk kit's in-app pane) takes `--query`, which puts the token in the query instead; the page removes it from the address at once (AJ-E2314 L1).
+
 This is how the PR that added the bridge proved it.
 
 ## What it serves
