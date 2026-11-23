@@ -188,6 +188,9 @@ pub(crate) fn desktop_app(
         )
         .unwrap();
     storage.apps().set_folder(&app, Some(id)).unwrap();
+    // D-84, AJ-E1552: an App because the user added it (a folder link
+    // alone never makes one).
+    assert!(storage.apps().add(&app).unwrap());
     app
 }
 

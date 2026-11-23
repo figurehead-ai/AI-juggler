@@ -100,6 +100,114 @@ fn a_profile_seen_running_but_never_added_is_only_offered() {
     assert!(offers_of(&state).is_empty());
 }
 
+/// AJ-E1552 (D-84): an Account's Apps (`subscriptions::with_apps`), the
+/// Apps list (`apps::users_apps`) and the desktop Apps the UI draws (the
+/// places list) read one rule, `App::is_users`. A profile seen running
+/// whose sessions' folder is linked to the Account, but never added, is
+/// on none of them (only offered); one the user added is on all three,
+/// now and after a restart alike. So an Account never names an App no
+/// list shows (the card that waited for ever on its model).
+#[test]
+fn an_accounts_apps_are_listed_apps_and_a_linked_offer_is_on_none() {
+    use crate::features::subscriptions::{ProfileRead, SubscriptionProfileInfo, group, with_apps};
+    let root = tempfile::tempdir().unwrap();
+    let (added_dir, offer_dir) = (profile_folder(), profile_folder());
+    let state = state(root.path());
+    state
+        .storage
+        .lock()
+        .unwrap()
+        .accounts()
+        .insert(&crate::test_support::account(
+            "work",
+            "claude-code",
+            "Work",
+            root.path().join("work"),
+        ))
+        .unwrap();
+    observe(
+        &state,
+        &[
+            claude_in(root.path(), added_dir.path()),
+            claude_in(root.path(), offer_dir.path()),
+        ],
+        &[],
+    );
+    let added = book::place_id("claude-app", Some(added_dir.path()));
+    let offer = book::place_id("claude-app", Some(offer_dir.path()));
+    answer_offer(&state, &added, true).unwrap();
+    // Both profiles' sessions write in the Account's folder (the link
+    // `link::link_to` makes by evidence), and both are on its sign-in.
+    with_book(&state, |book| {
+        for id in [&added, &offer] {
+            book.places.get_mut(id).unwrap().account_id = Some("work".into());
+        }
+    })
+    .unwrap();
+    let mut accounts = group(vec![ProfileRead {
+        profile: SubscriptionProfileInfo {
+            id: "work".into(),
+            label: "Work".into(),
+            folder: "~/work".into(),
+            plan: None,
+            renewal_date: None,
+            fee_usd: None,
+            unchecked: None,
+            accepted_name: None,
+        },
+        tool: "claude-code".into(),
+        probe: juggler_adapter::IdentityProbe::SignedIn {
+            subject: "u-alice".into(),
+            label: "alice@example.com".into(),
+            org: None,
+        },
+        service: None,
+    }]);
+    // The Account's id as `subscriptions::list_impl` stores it.
+    let account = "acct-alice".to_owned();
+    accounts[0].account_id = Some(account.clone());
+    {
+        let storage = state.storage.lock().unwrap();
+        for id in [&added, &offer] {
+            let row = storage.apps().get(id).unwrap().unwrap();
+            assert_eq!(row.folder_id.as_deref(), Some("work"), "{id}: linked");
+            storage.apps().set_account(id, Some(&account)).unwrap();
+        }
+    }
+    for when in ["now", "after a restart"] {
+        if when == "after a restart" {
+            *state.places.book.lock().unwrap() = None;
+        }
+        let stored = crate::features::apps::list_impl(&state).unwrap();
+        with_apps(&mut accounts, &stored);
+        let of_account = accounts[0].apps.clone().unwrap();
+        let (places, apps) = listed(&state);
+        assert!(
+            of_account.iter().all(|id| apps.contains(id)),
+            "{when}: every App the Account names is listed: {of_account:?} ⊄ {apps:?}"
+        );
+        let desktop: std::collections::BTreeSet<&String> =
+            apps.iter().filter(|id| !id.starts_with("cli:")).collect();
+        assert_eq!(
+            desktop,
+            places.iter().collect(),
+            "{when}: the Apps list and the places list are one set of desktop Apps"
+        );
+        assert!(
+            of_account.contains(&added) && apps.contains(&added) && places.contains(&added),
+            "{when}: the added profile is on all three"
+        );
+        assert!(
+            !of_account.contains(&offer) && !apps.contains(&offer) && !places.contains(&offer),
+            "{when}: a linked offer is on none"
+        );
+        assert!(
+            offers_of(&state).iter().any(|(id, _)| *id == offer),
+            "{when}: it's still offered"
+        );
+    }
+}
+
 #[test]
 fn not_now_hides_the_offer_and_adds_nothing() {
     let root = tempfile::tempdir().unwrap();

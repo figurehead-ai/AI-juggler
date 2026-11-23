@@ -71,7 +71,8 @@ UPDATE instances SET app_id = 'cli:' || (
 
 /// v47 (D-84): an App exists because the user said so. `added` marks the
 /// ones added from an offer; a desktop row linked to an imported Account
-/// (`folder_id`) or kept alive is the user's too (see [`App::is_users`]).
+/// (`folder_id`) or kept alive was the user's too (AJ-E1552 marks the
+/// linked ones `added` once, [`LINKED_ADDED_ONCE`]; see [`App::is_users`]).
 /// A profile recorded under the system's temporary folder is a test's
 /// leftover, never an App: dropped, its sessions unlinked. A desktop row
 /// moved from 0.3's places book took that book's "last seen" as its first
@@ -88,6 +89,21 @@ DELETE FROM apps WHERE kind = 'desktop' AND (
 UPDATE apps SET first_seen = (SELECT MIN(apps.first_seen, accounts.created_at)
                               FROM accounts WHERE accounts.id = apps.folder_id)
 WHERE kind = 'desktop' AND EXISTS (SELECT 1 FROM accounts WHERE accounts.id = apps.folder_id);
+";
+
+/// AJ-E1552: a folder link alone no longer makes a desktop App the
+/// user's ([`App::is_users`]: added, named or kept alive). Once per
+/// database, on the first open by a build with that rule, every desktop
+/// row the old rule counted by its link alone (linked, not hidden) is
+/// marked `added`, so no App the user already had leaves a list; from then
+/// on a link never adds one. Data only, no schema change (so 0.5.0 still
+/// opens the data, and reads those rows as the user's too); the
+/// `apps.linked_added` setting says it ran, and survives a backup.
+pub(super) const LINKED_ADDED_ONCE: &str = "
+UPDATE apps SET added = 1
+WHERE kind = 'desktop' AND added = 0 AND hidden = 0 AND folder_id IS NOT NULL
+  AND NOT EXISTS (SELECT 1 FROM app_settings WHERE key = 'apps.linked_added');
+INSERT OR IGNORE INTO app_settings (key, value) VALUES ('apps.linked_added', '1');
 ";
 
 /// v55 (AJ-E3210, D-135): each App is on its own sign-in's Account. A
@@ -500,16 +516,16 @@ fn app_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<App> {
 
 impl App {
     /// D-84: the user's App — a CLI App (its folder was added or
-    /// imported), a desktop one linked to an imported Account, kept alive,
-    /// named, or added from an offer. Any other desktop row is only an
-    /// offer: seen running, never added.
+    /// imported), or a desktop one the user added, named or keeps alive.
+    /// Any other desktop row is only an offer ("Running, not added"), even
+    /// one whose sessions' folder is linked to an Account the user has:
+    /// a link alone never adds an App (AJ-E1552). The one rule every list
+    /// of the user's Apps reads: the Apps list (`users_apps`), each
+    /// Account's Apps, and the places book's `users` (the desktop Apps the
+    /// UI draws), so an Account never names an App no list shows.
     #[must_use]
     pub fn is_users(&self) -> bool {
-        self.kind == "cli"
-            || self.added
-            || self.folder_id.is_some()
-            || self.keep_alive
-            || self.label.is_some()
+        self.kind == "cli" || self.added || self.keep_alive || self.label.is_some()
     }
 }
 
@@ -569,8 +585,10 @@ impl<'a> AppsRepo<'a> {
     }
 
     /// Writes desktop App `app` whole, as the places book holds it (its
-    /// name and whether it's hidden stay the user's). A folder that isn't
-    /// stored is left unset.
+    /// name, whether it's hidden and whether it was added stay the
+    /// user's). A new row takes `added` as given (the book's are never
+    /// added: an offer until the user's Add, D-84); an existing row keeps
+    /// its own. A folder that isn't stored is left unset.
     ///
     /// # Errors
     ///
@@ -578,9 +596,10 @@ impl<'a> AppsRepo<'a> {
     pub fn put_desktop(&self, app: &App) -> Result<(), CoreError> {
         self.conn.execute(
             "INSERT INTO apps (id, kind, tool, host_app_id, instance_dir, folder_id, keep_alive,
-                               paused_json, launch_json, sessions_json, first_seen, last_seen)
+                               paused_json, launch_json, sessions_json, first_seen, last_seen,
+                               added)
              VALUES (?1, 'desktop', ?2, ?3, ?4, (SELECT id FROM accounts WHERE id = ?5), ?6,
-                     ?7, ?8, ?9, ?10, ?11)
+                     ?7, ?8, ?9, ?10, ?11, ?12)
              ON CONFLICT (id) DO UPDATE SET
                  tool = excluded.tool, folder_id = excluded.folder_id,
                  keep_alive = excluded.keep_alive, paused_json = excluded.paused_json,
@@ -597,7 +616,8 @@ impl<'a> AppsRepo<'a> {
                 app.launch_json,
                 app.sessions_json,
                 app.first_seen,
-                app.last_seen
+                app.last_seen,
+                i64::from(app.added)
             ],
         )?;
         Ok(())

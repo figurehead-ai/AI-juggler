@@ -1051,6 +1051,7 @@ impl Storage {
         storage.migrated = storage.migrate(current)?;
         storage.conn.execute_batch(usage::DERIVED)?;
         storage.conn.execute_batch(accounts::IMPORT_NAMES)?;
+        storage.conn.execute_batch(entities::LINKED_ADDED_ONCE)?;
         storage.conn.execute_batch(usage_history::HISTORY_DERIVED)?;
         storage.conn.execute_batch(usage_history::ROLLUP_DERIVED)?;
         storage.conn.execute_batch(feed::FEED_DERIVED)?;

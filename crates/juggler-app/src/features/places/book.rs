@@ -82,8 +82,10 @@ pub struct KnownPlace {
     /// goes or finding is turned off.
     #[serde(default)]
     pub found: bool,
-    /// D-84: the user's App (added, imported, kept alive or named);
-    /// otherwise only an offer. From its row, never stored here.
+    /// D-84: the user's App (added, kept alive or named:
+    /// `App::is_users`, the rule the Apps list reads too); otherwise only
+    /// an offer, even when linked to an Account. From its row, never
+    /// stored here.
     #[serde(skip)]
     pub users: bool,
     /// D-84: an offer the user said "Not now" to.
@@ -119,9 +121,9 @@ impl KnownPlace {
         )
     }
 
-    /// D-84: the user's App (added, imported, on one of their Accounts,
-    /// named or kept alive): theirs until they remove it, so tidying never
-    /// forgets it. Only an offer (seen running, never added) is forgotten.
+    /// D-84: the user's App (added, named or kept alive): theirs until
+    /// they remove it, so tidying never forgets it. Only an offer (seen
+    /// running, never added) is forgotten.
     #[must_use]
     pub const fn kept(&self) -> bool {
         self.users || self.keep_alive

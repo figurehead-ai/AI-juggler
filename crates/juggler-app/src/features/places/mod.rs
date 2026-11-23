@@ -30,7 +30,7 @@ mod records;
 pub use records::{RecordIndex, record_index};
 pub mod start;
 pub(crate) use start::{start_held, start_place};
-mod store;
+pub(crate) mod store;
 pub mod tree;
 
 use crate::events::{AppEvent, EmitEvent as _};
@@ -1040,9 +1040,7 @@ pub fn answer_offer(state: &Arc<AppState>, id: &str, add: bool) -> AppResult<Lin
     };
     // The book reads its rows again: the place is the user's now (or
     // declined).
-    if let Ok(mut slot) = state.places.book.lock() {
-        *slot = None;
-    }
+    store::read_rows_again(state);
     if add {
         read_records(state);
     }

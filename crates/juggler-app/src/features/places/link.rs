@@ -348,12 +348,10 @@ fn link_to(
         book.places.get_mut(id).is_some_and(|place| {
             let new = place.account_id.as_deref() != Some(account.as_str());
             place.account_id = Some(account);
-            // D-84 (`App::is_users`): an App on an Account the user
-            // has is theirs, now, not only once the book is read
-            // again (the 0.4.2 RC: the Codex app, linked on its
-            // first scan, stayed out of every list until a restart).
-            place.users = true;
-            place.declined = false;
+            // D-84, AJ-E1552 (`App::is_users`): a link alone never adds
+            // an App, so `users` stays as its row says (added, named or
+            // kept alive): the book and the Apps list read one rule, now
+            // and after a restart alike.
             new
         })
     })

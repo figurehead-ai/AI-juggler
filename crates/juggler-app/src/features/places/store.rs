@@ -53,6 +53,16 @@ pub fn load(storage: &Storage, tool_of: &dyn Fn(&str) -> String) -> AppResult<Bo
     Ok(out)
 }
 
+/// D-84, AJ-E1552: the book reads the Apps' rows again on its next use,
+/// after a write that changed whether one is the user's
+/// (`App::is_users`: added, named, declined), so its `users` and the Apps
+/// list never disagree.
+pub(crate) fn read_rows_again(state: &crate::state::AppState) {
+    if let Ok(mut slot) = state.places.book.lock() {
+        *slot = None;
+    }
+}
+
 /// Writes what changed between `before` and `after`: a changed or new
 /// place's row, a gone one forgotten.
 ///
