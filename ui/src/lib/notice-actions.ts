@@ -14,6 +14,8 @@ import { useConversations } from "./conversations";
 import { errorText } from "./bridge";
 import { instanceMarkReviewed, instanceUnmarkReviewed } from "./ipc/park";
 import { resetQueueQueue } from "./ipc/alerts";
+import { watchCreate } from "./ipc/watch-view";
+import { openWatches } from "./watches-open";
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import { focusTask } from "./ipc/tasks";
 import { focusThread } from "./ipc/messages";
@@ -195,16 +197,19 @@ export function useNoticeActions(sessions: InstanceInfo[]): NoticeActions {
       // offers to open it; nothing restarts by itself.
       const account = notice.target.account_id;
       const at = notice.facts.resets_at_ms;
-      const own = sessions.filter((s) => s.account_id === account && OPEN.has(s.status));
-      const others = conversations.filter((c) => c.account_id === account && c.live && c.session_id === null);
-      if (!account || at === null || own.length + others.length === 0) {
-        showToast({ id: "remind-reset", message: "Nothing to remind you about", detail: "No session is open on it now." });
+      if (!account || at === null) {
+        showToast({ id: "remind-reset", message: "Nothing to remind you about", detail: "It has no reset time on record." });
         return;
       }
+      const own = sessions.filter((s) => s.account_id === account && OPEN.has(s.status));
+      const others = conversations.filter((c) => c.account_id === account && c.live && c.session_id === null);
       const keys = [...own.map((s) => s.id), ...others.map((c) => `${REMINDER_CONVERSATION}${c.id}`)];
-      const what = keys.length === 1 ? "to open its session" : `to open its ${keys.length} sessions`;
-      void Promise.all(keys.map((key) => resetQueueQueue(key, account, at))).then(
-        () => showToast({ id: "remind-reset", message: `Reminder set for ${whenWords(at)}`, detail: `When it has room again, a banner offers ${what}. Nothing restarts by itself.` }),
+      const what = keys.length === 0 ? "" : keys.length === 1 ? " A banner then offers to open its session." : ` A banner then offers to open its ${keys.length} sessions.`;
+      // AJ-E1548 #14: the reminder is a one-time "Room again" watch on the
+      // account, so Watches shows it with Edit and Remove.
+      const watch = watchCreate({ targets: [{ kind: "account", id: account }], matching: "each", conditions: [{ code: "runway_resets" }], lifetime: { kind: "once" }, evenInQuietHours: false });
+      void Promise.all([watch, ...keys.map((key) => resetQueueQueue(key, account, at))]).then(
+        () => showToast({ id: "remind-reset", message: `Watch made: room again at ${whenWords(at)}`, detail: `It tells you once, and shows on the Watches page to edit or remove.${what} Nothing restarts by itself.`, action: { label: "Watches", run: () => openWatches() } }),
         (cause) => showToast({ tone: "error", message: "Couldn't set the reminder", detail: errorText(cause), action: { label: "Retry", run: () => second(notice, which) } }),
       );
     }

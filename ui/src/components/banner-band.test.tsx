@@ -70,6 +70,19 @@ describe("D-87 the band over a page", () => {
 });
 
 describe("D-87 a session's page: its own notices, inline", () => {
+  it("AJ-E1548 #14: Remind me makes a one-time Room again watch on the account, and says so", async () => {
+    seams.__AIJ_NOTICES__ = { app: [quota(1, "acc-west", "West")] };
+    window.__AIJ_WATCH_VIEW__ = {};
+    page();
+    const remind = await screen.findByTestId("session-notice-remind");
+    expect(remind.textContent).toMatch(/ · a watch$/);
+    fireEvent.click(remind);
+    await waitFor(() => expect(window.__AIJ_WATCH_VIEW__?.calls?.some(([name]) => name === "watches_create")).toBe(true));
+    const [, draft] = window.__AIJ_WATCH_VIEW__!.calls!.find(([name]) => name === "watches_create")!;
+    expect(draft).toMatchObject({ targets: [{ kind: "account", id: "acc-west" }], conditions: [{ code: "runway_resets" }], lifetime: { kind: "once" } });
+    delete window.__AIJ_WATCH_VIEW__;
+  });
+
   it("its own account, in its words, with Remind and Snooze and no switch of its own; never another account's", async () => {
     seams.__AIJ_NOTICES__ = { app: [quota(1, "acc-west", "West"), quota(2, "acc-work", "Work")] };
     const opened = vi.spyOn(focus, "focusHandoverSoon").mockImplementation(() => undefined);
@@ -81,7 +94,7 @@ describe("D-87 a session's page: its own notices, inline", () => {
     // AJ-E1548 #13: the side column's Switch account… is the page's one door.
     expect(screen.queryByTestId("session-notice-hand-over")).toBeNull();
     expect(opened).not.toHaveBeenCalled();
-    expect(screen.getByTestId("session-notice-remind").textContent).toMatch(/^Remind me at .+$/);
+    expect(screen.getByTestId("session-notice-remind").textContent).toMatch(/^Remind me at .+ · a watch$/);
   });
 
   it("another account's session's page shows nothing of it", async () => {

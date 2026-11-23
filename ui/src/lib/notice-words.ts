@@ -112,9 +112,10 @@ export function noticeTone(notice: Pick<NoticeInfo, "kind" | "facts">): ReturnTy
   return notice.kind === "quota" && notice.facts.credits != null ? "info" : toneOf(notice.kind);
 }
 
-/** "Remind me at 9:40 PM": what the reminder button says. */
+/** "Remind me at 9:40 PM · a watch": what the reminder button says; it
+ * makes a one-time "Room again" watch (AJ-E1548 #14), so it says so. */
 export function remindLabel(resetsAtMs: number, now: number = Date.now()): string {
-  return `Remind me at ${whenWords(resetsAtMs, now)}`;
+  return `Remind me at ${whenWords(resetsAtMs, now)} · a watch`;
 }
 
 /** A row's look: what its mark says. */
