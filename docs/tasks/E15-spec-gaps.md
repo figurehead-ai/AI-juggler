@@ -868,3 +868,22 @@ Step 2, "Sign in": (1) a newcomer signing in expects the provider's own page, no
 6. The same card's cramped wrapping (the "…has 100% left." line squeezed between the Out chip and the button) is fixed in AJ-E1550's pass.
 **Quality gates**: `just keep-going verify-static` with the new lint; the skeleton sweep; the per-site empty and error tests.
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E1552/manifest.md`.
+
+### AJ-E1553 A sign-in finishes itself: AI Juggler sees it succeed, says so, and clears its entry; one that ends early says so and keeps its last lines | Status: TODO (0.5.1) | Priority P1 | Effort M | Depends: AJ-E1545
+**Found** by the maintainer on the 0.5.0 Nightly (2026-11-23), after finishing a tool's sign-in in the import wizard: the tool's sign-in file was written and no process of it ran (checked by name, date and size only), yet the rail still showed a "Sign-ins · Sign in · <tool>" entry; opening it showed an empty terminal (the process had ended and its scrollback was gone); and the footer asked for a manual re-check ("…then check the app again from Accounts — it flips to ready").
+**UI**: yes
+**Usability reasoning** (Opus, before building; re-checked on the built screen):
+(1) Someone signing in to a tool from the wizard or the rail; they expect AI Juggler to notice when they're done.
+(2) "✓ <tool> is signed in" the moment it is; an early end says "Sign-in ended before it finished" with the last lines and Try again.
+(3) The same detection as AJ-E1545's sign-in card ("Waiting for you to approve…" → ✓ Signed in), in one place for the wizard and the rail.
+(4) A finished or stale sign-in entry leaves the rail by itself, also after a restart.
+(5) None new (the browser was opened through AJ-E1547's gate).
+(6) An empty terminal and a "check again from Accounts" instruction read as broken.
+**Requirements**:
+1. While a sign-in runs, AI Juggler watches the adapter's "signed in?" signal (file events plus the adapter's own check; metadata or status only, never a credential's contents). On success it ends the sign-in session, shows "✓ <tool> is signed in", flips the Account and App to ready by themselves, removes the rail's entry and ticks the wizard's row.
+2. A process that ends without success leaves an outcome card ("Sign-in ended before it finished") with its last lines kept (scrollback retained) and Try again; never an empty terminal.
+3. On restart, sign-in entries whose Account is already signed in are cleared.
+4. The "check again from Accounts" words go.
+5. Through the adapters' sign-in hooks only (no per-tool code outside them).
+**Quality gates**: `just keep-going verify-static`; per-adapter tests for success detection, an early exit and stale-entry cleanup; the persona walk signs in through the wizard and sees the rail's entry leave.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E1553/manifest.md`.

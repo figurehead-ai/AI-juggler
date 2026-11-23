@@ -219,6 +219,7 @@
 | AJ-E1550 | Calm surfaces: separation by tone, never bright borders; a bright line only for focus, hover or real attention (PAT-SURF, app-wide) | E15-spec-gaps.md | P0 | L | none |
 | AJ-E1551 | Nothing moves after it appears: every column, header, rail and badge has its place from the first paint (layout shift near zero) | E15-spec-gaps.md | P1 | M | none |
 | AJ-E1552 | Nothing loads forever: one loading primitive (loading, ready, empty, error, stale), a deadline on every resource, an empty state wherever there is a skeleton | E15-spec-gaps.md | P0 | M | AJ-E2327 |
+| AJ-E1553 | A sign-in finishes itself: AI Juggler sees it succeed, says so, and clears its entry; one that ends early says so and keeps its last lines | E15-spec-gaps.md | P1 | M | AJ-E1545 |
 | AJ-E1601 | Accounts on a compatible endpoint: OpenCode Go and Kimi on Claude Code and Codex | E16-more-tools.md | P0 | S | AJ-E1521 |
 | AJ-E1602 | OpenCode CLI | E16-more-tools.md | P0 | M | AJ-E1521 |
 | AJ-E1603 | Kimi Code CLI | E16-more-tools.md | P0 | M | AJ-E1521 |
@@ -513,5 +514,5 @@
 | AJ-E3822 | Helpers never share an identifier across identities, and every one names itself: no "(null) differs from previously opened versions" prompt | E38-chat.md | P1 | S | AJ-E3802 |
 | AJ-E3823 | One engine-setup guide for Bot: what this Mac can do, Apple's AI first, Qwen named and explained, never a bare "Download · 1.8 GB" | E38-chat.md | P0 | M | AJ-E3822, AJ-E1545, AJ-E1547 |
 | AJ-E3824 | Search (⌘K) takes over everything the no-AI Bot did: record look-ups, the "go straight to" shortcuts, and Watch a session | E38-chat.md | P0 | M | AJ-E3823 |
-Total: 511 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
+Total: 512 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
 Status of every task at generation: TODO. The epic files are canonical; this catalog is an index, never edited to claim progress.
