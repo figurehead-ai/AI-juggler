@@ -313,6 +313,7 @@
 | AJ-E2324 | Move's speed: event-driven waits, an open-file write guard and half the reads | E23-session-runtime.md | P2 | M | AJ-E2322 |
 | AJ-E2325 | Move backups clean themselves up: refused attempts at once, committed moves after a chosen time, sizes that say what deleting frees | E23-session-runtime.md | P0 | M | AJ-E2321 |
 | AJ-E2326 | A refused move leaves the conversation where it was, never in a terminal here: every start path honours a move's hold, the source reopens it, and two live places are seen and said | E23-session-runtime.md | P0 | M | AJ-E2315, AJ-E2317, AJ-E2320 |
+| AJ-E2327 | Add on a running desktop profile brings in its Claude Code folder by evidence, so its sessions show at once; the rail keeps its place and never contradicts itself | E23-session-runtime.md | P0 | M | AJ-E2315 |
 | AJ-E2306 | Claude terminal sessions with hooks and the status line | E23-session-runtime.md | P0 | M | AJ-E2302 |
 | AJ-E2307 | Answers from Needs you and the session page | E23-session-runtime.md | P0 | M | AJ-E2303 |
 | AJ-E2308 | Run without a terminal: answer from AI Juggler (Beta) | E23-session-runtime.md | P1 | L | AJ-E2302, AJ-E2307 |
@@ -507,5 +508,5 @@
 | AJ-E3822 | Helpers never share an identifier across identities, and every one names itself: no "(null) differs from previously opened versions" prompt | E38-chat.md | P1 | S | AJ-E3802 |
 | AJ-E3823 | One engine-setup guide for Bot: what this Mac can do, Apple's AI first, Qwen named and explained, never a bare "Download · 1.8 GB" | E38-chat.md | P0 | M | AJ-E3822, AJ-E1545, AJ-E1547 |
 | AJ-E3824 | Search (⌘K) takes over everything the no-AI Bot did: record look-ups, the "go straight to" shortcuts, and Watch a session | E38-chat.md | P0 | M | AJ-E3823 |
-Total: 505 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
+Total: 506 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
 Status of every task at generation: TODO. The epic files are canonical; this catalog is an index, never edited to claim progress.
