@@ -425,6 +425,7 @@
 1. D1's 13 ownership fixtures (`procs::fixture`, no OS), each asserting what blocks, what is reported and the refusal class.
 2. D2's engine fault injection (crash after each phase, ENOSPC during apply and undo, two AI Juggler data folders sharing the move area) and D3's app-level integration (a second AppState's keep alive, a relaunching agent, an app asking at quit, parallel quit, startup with a held profile).
 3. A PL1 lab walk (Sonnet, verified by Opus) of: two profiles on one account; the E2315 shape; another AI Juggler with keep alive; a crash mid-move then restart.
+4. The walk also starts from an EMPTY Dev-identity data folder with real running lab profiles and tries every add path (Welcome's Find my apps, the rail's Add, Settings, ⌘K), then checks each App's sessions show (AJ-E2327).
 **Quality gates**: `just keep-going verify-static`; failing-before tests; the move suite.
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E2323/manifest.md`.
 
