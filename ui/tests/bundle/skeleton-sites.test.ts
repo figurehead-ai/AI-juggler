@@ -47,8 +47,6 @@ const LEGACY: Record<string, number> = {
   "screens/Profiles.tsx": 2,
   "screens/ThisMacScreen.tsx": 2,
   "screens/pools/PoolsScreen.tsx": 3,
-  "screens/processes/HistoryView.tsx": 1,
-  "screens/processes/ProcessesView.tsx": 1,
   "screens/projects/ProjectRow.tsx": 7,
   "screens/projects/ProjectsScreen.tsx": 1,
   "screens/settings/ai/ModelsPane.tsx": 1,

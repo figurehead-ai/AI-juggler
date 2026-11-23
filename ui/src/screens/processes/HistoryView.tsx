@@ -10,6 +10,8 @@ import { actorWords, outcomeWords } from "../../lib/process-states";
 import { processesHistory, type CleanupEventInfo } from "../../lib/ipc/processes";
 import { cleanupAuditExport } from "../../lib/ipc/cleanup";
 import { Picker } from "../../components/controls";
+import { LoadingState } from "../../components/LoadingState";
+import { logLoadFailure, useReadState } from "../../lib/loading";
 import type { Choice } from "./Toolbar";
 
 /** The filter's "every project" value. */
@@ -42,24 +44,34 @@ export function HistoryView({
   const projectId = fixedProject ?? picked;
   const [items, setItems] = useState<CleanupEventInfo[] | null>(null);
   const [next, setNext] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  // AJ-E1552: a failed read is an error with Retry; `round` reads again.
+  const [failed, setFailed] = useState<unknown>(undefined);
+  const [round, setRound] = useState(0);
   const [saved, setSaved] = useState<string | null>(null);
 
   useEffect(() => {
     let alive = true;
     setItems(null);
+    setFailed(undefined);
     void processesHistory(sessionId, projectId, { cursor: null, limit: null }).then(
       (page) => {
         if (!alive) return;
         setItems(page.items);
         setNext(page.next_cursor);
       },
-      (failure: unknown) => alive && setError(String(failure)),
+      (failure: unknown) => {
+        if (!alive) return;
+        logLoadFailure("the history", failure);
+        setFailed(failure);
+      },
     );
     return () => {
       alive = false;
     };
-  }, [sessionId, projectId]);
+    // `round` is a Retry: it reads again.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionId, projectId, round]);
+  const read = useReadState(items, "the history", { error: failed, round });
 
   const more = async () => {
     if (!next) return;
@@ -85,15 +97,24 @@ export function HistoryView({
         testId="cleanup-history-project"
       />
     ) : null;
-  if (error) return <p className="px-4 py-6 text-body text-danger">Couldn't read the history: {error}</p>;
-  if (items === null) return <div className="h-40 animate-pulse rounded-card bg-skeleton" aria-label="Loading the history" />;
-  if (items.length === 0) {
+  if (items === null || items.length === 0) {
     return (
       <div className="flex flex-col gap-3">
         {filter}
-        <p className="rounded-card border border-hairline bg-surface px-4 py-10 text-center text-body text-ink-2" data-testid="cleanup-history-empty">
-          {picked ? "Nothing of this project's was stopped in the last 7 days." : "Nothing was stopped in the last 7 days."}
-        </p>
+        <LoadingState
+          state={read.state}
+          slow={read.slow}
+          what="the history"
+          skeleton={<output className="block h-40 animate-pulse rounded-card bg-skeleton" aria-label="Loading the history" data-testid="cleanup-history-loading" />}
+          empty={
+            <p className="rounded-card border border-hairline bg-surface px-4 py-10 text-center text-body text-ink-2" data-testid="cleanup-history-empty">
+              {picked ? "Nothing of this project's was stopped in the last 7 days." : "Nothing was stopped in the last 7 days."} What you or AI Juggler stops shows up here.
+            </p>
+          }
+          onRetry={() => setRound((n) => n + 1)}
+        >
+          {null}
+        </LoadingState>
       </div>
     );
   }
