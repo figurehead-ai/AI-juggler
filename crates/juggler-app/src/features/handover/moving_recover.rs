@@ -112,7 +112,7 @@ pub(crate) fn settle(state: &Arc<AppState>, claimed: &[(String, Settle)], system
         };
         match done {
             Ok(()) => {
-                tracing::info!(target: "juggler::move", "a move left part way was settled ({how:?})")
+                tracing::info!(target: "juggler::move", "a move left part way was settled ({how:?})");
             }
             Err(why) => tell(state, move_id, &why),
         }
