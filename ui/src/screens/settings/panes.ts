@@ -13,7 +13,6 @@ export type PaneId =
   | "accounts"
   | "sessions"
   | "switching"
-  | "ai-jobs"
   | "ai-models"
   | "agent-access"
   | "notifications"
@@ -62,7 +61,7 @@ export const PANES: readonly PaneSpec[] = [
   { id: "accounts", label: "Accounts", tone: "live" },
   { id: "sessions", label: "Sessions", tone: "success" },
   { id: "switching", label: "Switching", tone: "accent" },
-  { id: "ai-jobs", label: "Jobs", tone: "accent", group: "ai" },
+  // AJ-E1548 #5: the job switches live on Models, beside their model.
   { id: "ai-models", label: "Models", tone: "accent", group: "ai" },
   // AJ-E1702, D-28: what agents may do in each pool, and your rules.
   // Always shown: every project has its default pool (D-33), whose level

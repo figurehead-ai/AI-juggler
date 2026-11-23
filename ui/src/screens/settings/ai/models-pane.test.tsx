@@ -13,7 +13,6 @@ import { forgetSharedReads } from "../../../lib/shared-read";
 import { primariesIn } from "../../../components/primitives";
 import { GEMMA, STATES, catalog, seedModels, type ModelsState } from "../../../preview/ai-models";
 import { ModelsPane } from "./ModelsPane";
-import { JobsPane } from "./JobsPane";
 
 const INTERNAL = [/\bpacks?\b/i, /harness/i, /gguf/i, /apple_builtin/i, /not_yet/, /beta_off/, /\bundefined\b/, /\bnull\b/, /NaN/];
 
@@ -43,7 +42,7 @@ describe("AJ-E3812 Settings › AI › Models", () => {
     expect(rec.textContent).toContain("Apple's on-device model");
     expect(rec.textContent).toContain("no download, no disk");
     expect(within(rec).getByTestId("models-recommended-action").textContent).toBe("Use it");
-    expect(rec.textContent).toContain("Turns on Turn reviews and Bot answers as Beta, on this model.");
+    expect(rec.textContent).toContain("Turns on Turn reviews and Written answers as Beta, on this model.");
     expect(screen.getAllByTestId("model-card").map((card) => card.dataset.model)).toEqual(["qwen3-1-7b-q8", "granite-4-1-3b-q4km", "nemotron-3-nano-4b-q4km", "gemma-4-e2b-q4-0"]);
     expect(screen.getByTestId("models-total").textContent).toBe("0 GB");
     expect(document.getElementById("settings-ai-installed")?.textContent).toContain("Nothing downloaded yet");
@@ -52,13 +51,18 @@ describe("AJ-E3812 Settings › AI › Models", () => {
     plain(pane.textContent ?? "");
   });
 
-  it("fix 1: no Attention hints on a model card; it shows only in Each job uses, needing no model", async () => {
-    await show(STATES.models!);
-    for (const card of screen.getAllByTestId("model-card")) expect(card.textContent).not.toContain("Attention hints");
-    expect(screen.getByTestId("models-recommended").textContent).not.toContain("Attention hints");
-    const attention = screen.getByTestId("models-job-attention");
-    expect(attention.textContent).toContain("No model needed");
-    expect(within(attention).queryByRole("switch")).toBeNull();
+  it("AJ-E1548 #3 #4 #7: no Attention hints anywhere; Each job uses lists only jobs a model passes, with one quiet line for the rest; the lead says what ships", async () => {
+    const pane = await show(STATES.models!);
+    expect(pane.textContent).not.toContain("Attention hints");
+    expect(screen.queryByTestId("models-job-attention")).toBeNull();
+    const { jobsToday } = await import("./models-view");
+    const today = jobsToday(window.__AIJ_AI_CATALOG__ ?? null);
+    const rows = within(screen.getByTestId("models-jobs")).getAllByRole("listitem");
+    expect(rows).toHaveLength(today.length);
+    if (today.length < 5) expect(screen.getByTestId("models-jobs-more").textContent).toBe("More jobs come as models pass our tests.");
+    expect(pane.textContent).not.toContain("Beta reviews");
+    const { PAGE } = await import("./models-words");
+    expect(PAGE.lead).toMatch(/^The AI that writes Bot's answers\./);
   });
 
   it("fix 2: each card's memory is the list's own minimum (8 GB, Gemma 16 GB), never a flat figure", async () => {
@@ -192,7 +196,7 @@ describe("AJ-E3812 Settings › AI › Models", () => {
     expect(screen.getByTestId("models-withdrawn").textContent).toBe("We no longer list this model. It keeps working until you remove it.");
     fireEvent.click(screen.getAllByTestId("models-remove")[1]!);
     const confirm = screen.getByTestId("models-remove-confirm");
-    expect(confirm.textContent).toContain("Remove Nemotron 3 Nano 4B? Frees 2.8 GB. Bot answers goes back to Automatic (Apple's on-device model). You can't download it again: we no longer list it.");
+    expect(confirm.textContent).toContain("Remove Nemotron 3 Nano 4B? Frees 2.8 GB. Written answers goes back to Automatic (Apple's on-device model). You can't download it again: we no longer list it.");
     fireEvent.click(within(confirm).getByTestId("models-remove-confirmed"));
     await waitFor(() => expect(window.__AIJ_AI_MODELS__?.installed.map((m) => m.id)).toEqual(["qwen3-1-7b-q8"]));
   });
@@ -213,13 +217,5 @@ describe("AJ-E3812 Settings › AI › Models", () => {
     cleanup();
     render(<ModelsPane />);
     expect(screen.getByTestId("models-recommended")).toBeTruthy();
-  });
-
-  it("Settings › AI › Jobs: the same rows on their own", async () => {
-    seedModels(structuredClone(STATES.installed!));
-    render(<JobsPane />);
-    const rows = await screen.findByTestId("models-jobs");
-    await waitFor(() => expect(rows.textContent).toContain("On · your pick, Nemotron 3 Nano 4B"));
-    expect(screen.getByTestId("models-honesty")).toBeTruthy();
   });
 });

@@ -38,7 +38,6 @@ const PANE_BODIES: Record<PaneId, (props: PaneProps) => JSX.Element> = {
   macs: lazyNamed(() => import("./settings/MacsPane"), "MacsPane"),
   keyboard: lazyNamed(() => import("./settings/KeyboardPane"), "KeyboardPane"),
   advanced: lazyNamed(() => import("./settings/AdvancedPane"), "AdvancedPane"),
-  "ai-jobs": lazyNamed(() => import("./settings/ai/JobsPane"), "JobsPane"),
   "ai-models": lazyNamed(() => import("./settings/ai/ModelsPane"), "ModelsPane"),
 };
 

@@ -35,7 +35,8 @@ export function chipWords(appleSilicon: boolean, chip: number | null): string {
 
 export const JOB_NAMES: Record<ModelJob, string> = {
   review: "Turn reviews",
-  chat: "Bot answers",
+  // AJ-E1548 #6: the one name Bot and Settings both use.
+  chat: "Written answers",
   attention: "Attention hints",
   feed: "Feed lines",
   digest: "Digest",
@@ -60,7 +61,8 @@ export function listWords(names: readonly string[]): string {
 export const PAGE = {
   crumb: "AI",
   title: "Models",
-  lead: `The AI that writes AI Juggler's Beta reviews and Bot answers. It runs on ${THIS_MACHINE_IN_TEXT}; nothing you write is sent anywhere.`,
+  // AJ-E1548 #7: only what ships.
+  lead: `The AI that writes Bot's answers. It runs on ${THIS_MACHINE_IN_TEXT}; nothing you write is sent anywhere.`,
   howWeTest: "How we test models",
   thisMac: THIS_MACHINE,
   free: (bytes: number) => `${gb(bytes)} free`,
@@ -260,6 +262,8 @@ export const JOBS = {
   noModelNeeded: "No model needed",
   notYet: "Not yet",
   noModel: "No model yet",
+  /** AJ-E1548 #3: one quiet line for the jobs no model passes yet. */
+  moreSoon: "More jobs come as models pass our tests.",
   descriptions: {
     review: "Writes a short review when an agent's turn ends",
     chat: "Writes Bot’s answers from AI Juggler’s records",
