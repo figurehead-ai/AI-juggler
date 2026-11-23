@@ -67,7 +67,7 @@ function Name({ pool }: { pool: PoolInfo }): JSX.Element {
           if (event.key === "Escape") (setWords(pool.name), setEditing(false), setError(null));
         }}
         onBlur={() => void save()}
-        className="h-8 w-72 max-w-full rounded-lg border border-accent bg-surface-2 px-2 text-lg font-semibold text-ink outline-none"
+        className="h-8 w-72 max-w-full rounded-lg border border-hairline bg-control px-2 text-lg font-semibold text-ink outline-none"
         data-testid="pool-name-input"
       />
       {error && (

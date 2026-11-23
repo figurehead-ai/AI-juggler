@@ -165,7 +165,7 @@ function CompareSheet({
               onClick={() => void pair()}
               className={
                 "rounded-lg border px-3 py-1.5 text-xs font-medium " +
-                (match ? "border-accent/60 text-ink" : "border-hairline text-muted")
+                (match ? "border-transparent bg-selected text-ink" : "border-hairline text-muted")
               }
               data-testid="compare-pair"
             >

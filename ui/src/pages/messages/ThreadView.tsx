@@ -87,7 +87,7 @@ function Bubble({ message, now, onDeliver, busy, held, onAnswer }: { message: Me
       <p
         className={
           "whitespace-pre-wrap break-words rounded-2xl border px-3.5 py-2.5 text-body leading-relaxed text-ink " +
-          (you ? "border-accent/25 bg-accent-soft" : asks ? "border-warning/40 bg-warning-soft" : "border-hairline bg-surface-2")
+          (you ? "border-transparent bg-accent-soft" : asks ? "border-warning/40 bg-warning-soft" : "border-hairline bg-surface-2")
         }
       >
         {message.body}

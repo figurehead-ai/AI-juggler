@@ -33,14 +33,14 @@ export function WatchDoor({ target, name }: { target: WatchTarget; name: string 
   const n = live ? watchedBy(live, target) : 0;
   if (n > 0) {
     return (
-      <button type="button" onClick={() => openWatches({ kind: "filter", target, name })} className={LOOK + "bg-accent-soft text-accent-hi inset-ring-1 inset-ring-accent/30 hover:bg-accent/15"} data-testid="watch-door" data-watched={n}>
+      <button type="button" onClick={() => openWatches({ kind: "filter", target, name })} className={LOOK + "bg-accent-soft text-accent-hi hover:bg-accent/15"} data-testid="watch-door" data-watched={n}>
         <IconEye width={14} height={14} aria-hidden="true" />
         {DOORS.watched(n)}
       </button>
     );
   }
   return (
-    <button type="button" onClick={() => openWatches({ kind: "new", target })} className={LOOK + "bg-surface-2 text-ink inset-ring-1 inset-ring-hairline hover:bg-surface-3"} data-testid="watch-door" data-watched={0}>
+    <button type="button" onClick={() => openWatches({ kind: "new", target })} className={LOOK + "bg-control text-ink hover:bg-control-hi"} data-testid="watch-door" data-watched={0}>
       <IconEye width={14} height={14} aria-hidden="true" />
       {DOORS.watch}
     </button>

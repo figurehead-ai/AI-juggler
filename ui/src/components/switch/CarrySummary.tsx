@@ -100,7 +100,7 @@ export function CarriedStep({ preflight, target, tool, setup, picked, keys }: { 
     <div className="flex flex-col gap-6" data-testid="switch-step-carried">
       <Section title="What goes along">
         {items.length > 0 && (
-          <div className="flex min-w-0 flex-col gap-0.5 rounded-card bg-accent-soft px-4 py-3 inset-ring-1 inset-ring-accent/15" data-testid="switch-carry-headline">
+          <div className="flex min-w-0 flex-col gap-0.5 rounded-card bg-accent-soft px-4 py-3" data-testid="switch-carry-headline">
             <Headline words={words} warn={warn} />
             <span className="pl-8 text-meta text-ink-2">
               {warn ? `The new session on ${target} starts without what stays behind. What isn't there yet, you can set up on the last step.` : `The new session on ${target} picks up with all of it.`}

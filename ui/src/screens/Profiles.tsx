@@ -276,7 +276,7 @@ export function ProfilesScreen({
 function EmptyAccounts({ onFind, onAdd }: { onFind: () => void; onAdd: () => void }) {
   return (
     <Card className="flex flex-col items-center justify-center gap-3 py-14" data-testid="accounts-empty">
-      <span className="flex size-11 items-center justify-center rounded-xl border border-accent/20 bg-accent-soft text-accent-hi">
+      <span className="flex size-11 items-center justify-center rounded-xl bg-accent-soft text-accent-hi">
         <IconProfiles width={22} height={22} />
       </span>
       <p className="text-section font-semibold text-ink">No accounts yet</p>

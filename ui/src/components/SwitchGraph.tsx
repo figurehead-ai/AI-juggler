@@ -305,7 +305,7 @@ export function SwitchGraph({
                         : "No native session transcript survives for this epoch"
                     }
                     onClick={() => void doResume(openEpoch.id)}
-                    className="rounded border border-accent/40 px-2 py-1 text-label text-accent-hi transition-colors hover:border-accent/60 disabled:border-hairline disabled:text-muted"
+                    className="rounded border border-transparent bg-accent-soft px-2 py-1 text-label text-accent-hi transition-colors hover:bg-accent/15 disabled:bg-transparent disabled:text-muted"
                   >
                     Resume {openEpoch.resumable && `(${keysOf("epoch-resume")[0]})`}
                   </button>

@@ -375,7 +375,7 @@ export const CanvasEdges = memo(function CanvasEdges({
                 }}
                 className={
                   "whitespace-nowrap rounded-full border bg-surface px-2 py-0.5 text-label outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60 " +
-                  (on ? "border-accent text-ink" : "border-hairline text-muted")
+                  (on ? "border-transparent bg-selected font-semibold text-ink" : "border-hairline text-muted")
                 }
               >
                 {words.count}

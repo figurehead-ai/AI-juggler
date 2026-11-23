@@ -141,7 +141,7 @@ export function IdentityMismatchDialog({ recipes = NO_RECIPES }: { recipes?: rea
               type="button"
               onClick={() => decide({ kind: "switch", recipeId: alternative.recipe_id })}
               // 0.3.2: the first way out is the dialog's primary.
-              className={"flex flex-col gap-0.5 rounded-lg border px-3 py-1.5 text-left text-xs " + (index === 0 ? PRIMARY_FILL : "border-accent/40 bg-accent-soft text-accent-hi")}
+              className={"flex flex-col gap-0.5 rounded-lg border px-3 py-1.5 text-left text-xs " + (index === 0 ? PRIMARY_FILL : "border-transparent bg-accent-soft text-accent-hi")}
               data-testid="identity-switch"
               {...(index === 0 ? { "data-primary": "" } : {})}
             >

@@ -37,7 +37,7 @@ export function RailHeader({ minimal, info, onToggle }: { minimal: boolean; info
       {!minimal && <span className="whitespace-nowrap text-section font-semibold tracking-tight">AI Juggler</span>}
       {edition && (
         <span
-          className={"shrink-0 rounded-full border border-accent/40 bg-accent-soft font-semibold text-ink " + (minimal ? "px-1 text-label leading-4" : "px-1.5 py-0.5 text-label")}
+          className={"shrink-0 rounded-full border border-transparent bg-accent-soft font-semibold text-ink " + (minimal ? "px-1 text-label leading-4" : "px-1.5 py-0.5 text-label")}
           data-testid="edition-badge"
           title={`${info!.name}: its own data, separate from AI Juggler`}
         >

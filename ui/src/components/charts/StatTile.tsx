@@ -102,7 +102,7 @@ export function StatTile({
   testId?: string;
 }): JSX.Element {
   return (
-    <div className="sheen flex min-w-0 flex-col gap-1.5 rounded-card border border-hairline bg-surface px-5 pb-3.5 pt-4 shadow-card" data-testid={testId ?? "stat-tile"}>
+    <div className="flex min-w-0 flex-col gap-1.5 rounded-card border border-frame bg-surface px-5 pb-3.5 pt-4" data-testid={testId ?? "stat-tile"}>
       <span className="flex items-center gap-1.5 text-meta text-muted">
         {icon && <span aria-hidden="true">{icon}</span>}
         {label}

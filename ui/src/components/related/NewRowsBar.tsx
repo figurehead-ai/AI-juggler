@@ -21,7 +21,7 @@ export function NewRowsBar({ waiting, onShow }: { waiting: string | null; onShow
               onShow();
               top.current?.scrollIntoView?.({ block: "nearest" });
             }}
-            className="h-fit rounded-full border border-accent/40 bg-accent-soft px-3 py-1 text-meta font-medium text-accent-hi shadow-card outline-none hover:bg-accent/15 focus-visible:ring-2 focus-visible:ring-accent/60"
+            className="h-fit rounded-full border border-transparent bg-accent-soft px-3 py-1 text-meta font-medium text-accent-hi shadow-popover outline-none hover:bg-accent/15 focus-visible:ring-2 focus-visible:ring-accent/60"
             data-testid="related-waiting"
           >
             <span aria-hidden="true">↑ </span>

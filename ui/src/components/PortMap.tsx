@@ -47,7 +47,7 @@ function PortRow({ row }: { row: PortRowInfo }) {
             notManaged
               ? "border-hairline text-muted"
               : row.class === "managed-orphan"
-                ? "border-accent/50 text-accent"
+                ? "border-transparent bg-accent-soft text-accent-hi"
                 : "border-hairline text-ink"
           }`}
           data-testid={`port-class-${row.port}`}
@@ -165,7 +165,7 @@ export function PortWarningSheet(props: {
 }) {
   return (
     <div
-      className="flex flex-col gap-3 rounded-xl border border-accent/40 bg-surface p-4 shadow-card"
+      className="flex flex-col gap-3 rounded-xl border border-hairline bg-overlay p-4 shadow-popover"
       role="alertdialog"
       aria-label="Port already held"
       data-testid="port-warning-sheet"

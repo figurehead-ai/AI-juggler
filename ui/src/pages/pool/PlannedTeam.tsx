@@ -237,7 +237,7 @@ export function PlannedTeam({
  * kind and role under it, what it does; its own actions above. */
 function PlannedCard({ card, at, lead = false, box, selected, onSelect, children }: { card: Card; at: { x: number; y: number }; lead?: boolean; box?: Ref<HTMLDivElement>; selected: boolean; onSelect: () => void; children?: ReactNode }): JSX.Element {
   const id = useId();
-  const look = selected ? SELECTED : `bg-surface shadow-card ${lead ? "inset-ring-[1.5px] inset-ring-accent/70" : "inset-ring-1 inset-ring-hairline/75"} ${card.broad ? STACK : ""}`;
+  const look = selected ? SELECTED : `bg-surface ${lead ? "inset-ring-1 inset-ring-hairline" : "inset-ring-1 inset-ring-frame"} ${card.broad ? STACK : ""}`;
   return (
     <div
       ref={box}

@@ -40,7 +40,7 @@ export function GraphNode({
       className={
         "flex shrink-0 flex-col items-center gap-1 rounded-lg border px-2.5 py-2 text-center text-label transition-colors focus:outline-none focus:ring-2 focus:ring-accent " +
         (open
-          ? "border-accent/60 bg-surface"
+          ? "border-transparent bg-selected"
           : "border-hairline hover:border-accent/40 hover:bg-surface")
       }
     >
@@ -53,7 +53,7 @@ export function GraphNode({
         <span aria-hidden="true">·</span>
         <span>{kindWords(epoch.kind)}</span>
         {shape.fork && <span className="rounded border border-warning/50 px-1 text-warning" data-testid="node-fork-chip">fork</span>}
-        {shape.merge && <span className="rounded border border-accent/50 px-1 text-accent" data-testid="node-merge-chip">merge</span>}
+        {shape.merge && <span className="rounded border border-transparent bg-accent-soft px-1 text-accent-hi" data-testid="node-merge-chip">merge</span>}
       </span>
       <span className={`text-label ${epoch.resumable ? "text-success" : "text-muted"}`}>
         {epoch.resumable ? "resumable" : "no transcript"}

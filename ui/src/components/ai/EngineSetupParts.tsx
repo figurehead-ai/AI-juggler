@@ -68,13 +68,18 @@ export function Choice({
   children: ReactNode;
   testId: string;
 }): JSX.Element {
-  const dot = { ok: "bg-success", wait: "bg-accent", warn: "bg-warning" }[stateTone];
+  // PAT-COLOR: green ready, teal working (preparing, downloading), amber
+  // needs you; the accent is for actions and selection only.
+  const dot = { ok: "bg-success", wait: "bg-live", warn: "bg-warning" }[stateTone];
   return (
     <article
       aria-labelledby={titleId}
       className={
         "relative flex min-w-0 flex-col gap-3 rounded-2xl px-4 pt-4 pb-4 " +
-        (recommended ? "bg-[color-mix(in_srgb,var(--color-accent)_7%,var(--color-surface))] shadow-card" : "bg-surface inset-ring-1 inset-ring-hairline/75")
+        // PAT-SURF: the recommended engine is told by its accent tag, never
+        // a ring or its own tint (a ring read as an alert); every card the
+        // same surface.
+        "bg-surface inset-ring-1 inset-ring-frame"
       }
       data-testid={testId}
       data-recommended={recommended ? "" : undefined}
@@ -104,7 +109,6 @@ export function Choice({
         ))}
       </ul>
       <div className="mt-auto flex flex-col gap-2.5 pt-1">{children}</div>
-      {recommended && <span aria-hidden="true" className="pointer-events-none absolute inset-0 rounded-2xl inset-ring-[1.5px] inset-ring-accent" />}
     </article>
   );
 }

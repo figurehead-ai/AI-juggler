@@ -75,12 +75,14 @@ export function whereWords(model: SessionModel, now: number): string {
 }
 
 const TONES: Record<ChipTone, string> = {
-  neutral: "border-hairline bg-surface-2 text-ink",
-  success: "border-success/30 bg-success-soft text-success",
-  warning: "border-warning/35 bg-warning-soft text-warning",
-  danger: "border-danger/30 bg-danger-soft text-danger",
-  live: "border-live/30 bg-live-soft text-live",
-  accent: "border-accent/30 bg-accent-soft text-accent-hi",
+  // AJ-E1550 (PAT-SURF): the state is its tint and word; the edge only
+  // under Increase Contrast.
+  neutral: "border-frame bg-surface-2 text-ink",
+  success: "border-frame bg-success-soft text-success",
+  warning: "border-frame bg-warning-soft text-warning",
+  danger: "border-frame bg-danger-soft text-danger",
+  live: "border-frame bg-live-soft text-live",
+  accent: "border-frame bg-accent-soft text-accent-hi",
 };
 
 /**

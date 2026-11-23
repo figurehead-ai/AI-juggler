@@ -71,7 +71,7 @@ export function ParkCard({
             <button
               type="button"
               onClick={() => void act(() => parkedResume(session.id), "Resuming the same conversation…")}
-              className="rounded border border-accent/40 bg-accent-soft px-2 py-0.5 text-accent-hi"
+              className="rounded border border-transparent bg-accent-soft px-2 py-0.5 text-accent-hi"
               data-testid="park-resume"
             >
               Resume the same conversation
@@ -87,7 +87,7 @@ export function ParkCard({
           <button
             type="button"
             onClick={() => void act(() => sessionResume(session.id), "Resuming the same conversation…")}
-            className="rounded border border-accent/40 bg-accent-soft px-2 py-0.5 text-accent-hi"
+            className="rounded border border-transparent bg-accent-soft px-2 py-0.5 text-accent-hi"
             data-testid="park-resume"
           >
             Resume the same conversation
@@ -102,7 +102,7 @@ export function ParkCard({
           <button
             type="button"
             onClick={() => void act(() => instancePark(session.id), "Parked until the reset.")}
-            className="rounded border border-accent/40 bg-accent-soft px-2 py-0.5 text-accent-hi"
+            className="rounded border border-transparent bg-accent-soft px-2 py-0.5 text-accent-hi"
             data-testid="park-go"
           >
             Park until reset

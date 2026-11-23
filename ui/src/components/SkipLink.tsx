@@ -13,7 +13,7 @@ export function SkipLink(): JSX.Element {
       type="button"
       data-testid="skip-to-page"
       onClick={focusPage}
-      className="sr-only rounded-lg border border-accent/50 bg-surface px-3 py-2 text-meta font-medium text-ink shadow-card outline-none focus:not-sr-only focus:absolute focus:left-3 focus:top-3 focus:z-[60] focus-visible:ring-2 focus-visible:ring-accent/60"
+      className="sr-only rounded-lg border border-hairline bg-overlay px-3 py-2 text-meta font-medium text-ink shadow-card outline-none focus:not-sr-only focus:absolute focus:left-3 focus:top-3 focus:z-[60] focus-visible:ring-2 focus-visible:ring-accent/60"
     >
       Skip to page
     </button>

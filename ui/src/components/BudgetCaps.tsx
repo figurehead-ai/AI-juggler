@@ -41,7 +41,7 @@ export function BudgetCaps({ accounts, projects }: { accounts: AccountInfo[]; pr
   const load = () => void budgets.refresh();
 
   return (
-    <section aria-labelledby="usage-caps" className="sheen flex flex-col gap-3 rounded-card border border-hairline bg-surface p-card shadow-card" data-testid="usage-caps">
+    <section aria-labelledby="usage-caps" className="flex flex-col gap-3 rounded-card border border-frame bg-surface p-card" data-testid="usage-caps">
       <div className="flex items-center justify-between gap-3">
         <h3 id="usage-caps" className="text-section text-ink">
           Monthly caps

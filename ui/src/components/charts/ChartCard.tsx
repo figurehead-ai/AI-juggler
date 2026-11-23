@@ -209,7 +209,7 @@ export function Section({
     <section
       aria-labelledby={id}
       aria-busy={busy || undefined}
-      className={"sheen flex min-w-0 flex-col gap-3.5 rounded-card border border-hairline bg-surface p-card shadow-card transition-opacity " + (busy ? "opacity-70 " : "") + className}
+      className={"flex min-w-0 flex-col gap-3.5 rounded-card border border-frame bg-surface p-card transition-opacity " + (busy ? "opacity-70 " : "") + className}
       data-testid={testId}
     >
       <div className="flex flex-wrap items-center gap-x-2.5 gap-y-2">

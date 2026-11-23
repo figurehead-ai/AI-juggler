@@ -148,7 +148,7 @@ export function SwitchBackFlow({
           <div className="flex flex-col gap-3" data-testid="switch-back-review">
             <DialogHeading className="text-sm font-semibold">
               Switch back to {plan.original_account}
-              <span className="ml-2 rounded border border-accent/50 px-1 text-label text-accent">
+              <span className="ml-2 rounded border border-transparent bg-accent-soft px-1 text-label text-accent-hi">
                 {plan.original_alive ? "Continues, with what changed since" : "Handover notes"}
               </span>
             </DialogHeading>

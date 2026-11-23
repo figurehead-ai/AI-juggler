@@ -157,7 +157,7 @@ function RulesRow({
   const differs = file.counts;
   return (
     <div
-      className={`flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border px-3 py-2 text-xs ${isMaster ? "border-accent/60 bg-accent-soft" : "border-hairline"}`}
+      className={`flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border px-3 py-2 text-xs ${isMaster ? "border-transparent bg-accent-soft" : "border-hairline"}`}
       data-testid={`sync-file-${file.name}`}
     >
       <label className={`flex items-center gap-2 ${file.can_be_master ? "" : "pl-5"}`}>

@@ -248,7 +248,7 @@ export function CrossSending({ target, progress, holding }: { target: RemoteSwit
       <h3 className="type-section">
         Switching to {target.account_label} on {machine}…
       </h3>
-      <div className="flex flex-col gap-2 rounded-card bg-accent-soft px-4 py-3.5 inset-ring-1 inset-ring-accent/15">
+      <div className="flex flex-col gap-2 rounded-card bg-accent-soft px-4 py-3.5">
         <p className="flex items-baseline gap-2 text-body font-semibold text-ink">
           {at === 1 ? `${machine} is setting it up and starting it…` : `Sending it to ${machine}…`}
           {counted && (

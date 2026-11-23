@@ -110,7 +110,7 @@ export function AddProviderSheet({
       tabIndex={-1}
     >
       <DialogFrame
-        className="sheen rounded-card border border-hairline bg-surface shadow-card w-full max-w-xl"
+        className="rounded-card border border-hairline bg-surface shadow-dialog w-full max-w-xl"
         headerClassName="flex items-center gap-3 px-6 py-4"
         header={
           <>

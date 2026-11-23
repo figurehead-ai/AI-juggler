@@ -123,7 +123,7 @@ export function DesktopEdges({
           aria-label={line.aria}
           aria-pressed={line.on}
           style={{ left: line.label.x, top: line.label.y }}
-          className={"pointer-events-auto absolute z-[11] max-w-[7.5rem] -translate-x-1/2 -translate-y-1/2 rounded-lg border px-2 py-0.5 text-center text-label font-medium leading-tight outline-none focus-visible:ring-2 focus-visible:ring-accent/60 " + (line.on ? "border-accent bg-accent-soft text-accent-hi" : "border-hairline bg-surface text-ink-2 hover:bg-surface-2")}
+          className={"pointer-events-auto absolute z-[11] max-w-[7.5rem] -translate-x-1/2 -translate-y-1/2 rounded-lg border px-2 py-0.5 text-center text-label font-medium leading-tight outline-none focus-visible:ring-2 focus-visible:ring-accent/60 " + (line.on ? "border-transparent bg-accent-soft text-accent-hi" : "border-hairline bg-surface text-ink-2 hover:bg-surface-2")}
           data-testid="canvas-desktop-line"
           data-edge={line.key}
         >

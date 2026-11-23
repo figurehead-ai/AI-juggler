@@ -165,7 +165,7 @@ export function NewProjectSheet({
   return (
     <DialogOverlay className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
       <DialogFrame
-        className="sheen rounded-card border border-hairline bg-surface shadow-card w-full max-w-xl"
+        className="rounded-card border border-hairline bg-surface shadow-dialog w-full max-w-xl"
         role="dialog"
         aria-modal="true"
         aria-labelledby="new-project-title"
@@ -246,7 +246,7 @@ export function NewProjectSheet({
             className={
               "flex flex-col items-center justify-center gap-1 rounded-xl border border-dashed px-3 py-2.5 text-center outline-none transition-colors focus-visible:ring-1 focus-visible:ring-accent/60 " +
               (dragging
-                ? "border-accent/60 bg-accent-soft text-accent-hi"
+                ? "border-transparent bg-accent-soft text-accent-hi"
                 : "border-hairline text-muted hover:border-accent/40 hover:text-ink")
             }
           >
@@ -280,7 +280,7 @@ export function NewProjectSheet({
               )}
               {recipes !== null && recipes.length > 0 && recommended !== null && !showAll && (
                 <>
-                  <div className="flex items-center gap-2 rounded-xl border border-accent/30 bg-accent-soft px-3 py-2.5 text-xs">
+                  <div className="flex items-center gap-2 rounded-xl border border-transparent bg-accent-soft px-3 py-2.5 text-xs">
                     <IconTerminal width={13} height={13} />
                     <span className="font-medium">{recommended.account_label}</span>
                     <Chip tone="neutral">

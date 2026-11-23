@@ -132,7 +132,7 @@ export function ServiceAccountSheet({
     >
       <div className="flex flex-col gap-4">
         <div className="flex items-center gap-3">
-          <span className="flex size-9 shrink-0 items-center justify-center rounded-xl border border-accent/20 bg-accent-soft text-accent-hi">
+          <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-accent-soft text-accent-hi">
             <LetterMark name={service.service.name} size={18} />
           </span>
           <div className="min-w-0 text-xs text-muted">

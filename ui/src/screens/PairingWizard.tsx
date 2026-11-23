@@ -180,7 +180,7 @@ export function PairingWizard({
   return (
     <DialogOverlay ref={dialogRef} className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
       <DialogFrame
-        className="sheen rounded-card border border-hairline bg-surface shadow-card w-full max-w-lg"
+        className="rounded-card border border-hairline bg-surface shadow-dialog w-full max-w-lg"
         onKeyDown={(event) => keepTabInside(dialogRef.current, event)}
         role="dialog"
         aria-modal="true"
@@ -297,7 +297,7 @@ function StepIndicator({ step }: { step: 1 | 2 | 3 | "done" | "failed" }): JSX.E
               className={
                 "flex h-4 w-4 items-center justify-center rounded-full border text-label " +
                 (state === "current"
-                  ? "border-accent bg-accent-soft text-accent-hi"
+                  ? "border-transparent bg-accent-soft text-accent-hi"
                   : state === "done"
                     ? "border-success/40 text-success"
                     : "border-hairline")

@@ -174,7 +174,7 @@ export function LimitDialog({
         tabIndex={-1}
         aria-labelledby="limit-title"
         aria-describedby="limit-what"
-        className="sheen w-full max-w-lg rounded-card border border-hairline bg-surface outline-none shadow-[0_24px_80px_-24px_rgba(0,0,0,0.8)]"
+        className="w-full max-w-lg rounded-card border border-hairline bg-surface outline-none shadow-dialog"
         data-testid="limit-dialog"
         headerClassName="flex flex-col gap-1 px-6 pt-6 pb-3"
         headerTestId="limit-header"
@@ -240,7 +240,7 @@ export function LimitDialog({
           </section>
         ) : (
           <>
-            <section className="flex flex-col gap-3 rounded-xl border border-accent/40 bg-accent-soft/40 p-4" data-testid="limit-continue">
+            <section className="flex flex-col gap-3 rounded-xl border border-transparent bg-accent-soft p-4" data-testid="limit-continue">
               {targets === null ? (
                 <p className="text-xs text-ink-2">Finding the best app for this…</p>
               ) : target ? (

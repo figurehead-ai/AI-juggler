@@ -357,7 +357,7 @@ export function KillSheet(props: {
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className="sheen w-full max-w-lg rounded-card border border-hairline bg-surface shadow-[0_24px_80px_-24px_rgba(0,0,0,0.8)]"
+        className="w-full max-w-lg rounded-card border border-hairline bg-surface shadow-dialog"
         headerClassName="flex items-start justify-between gap-4 p-4"
         header={
           <>

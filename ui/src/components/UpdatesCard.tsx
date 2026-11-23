@@ -148,7 +148,7 @@ function GoingBack({ appName }: { appName: string }): JSX.Element | null {
                   type="button"
                   disabled={busy}
                   onClick={() => void go(option)}
-                  className="rounded-lg border border-accent/60 px-3 py-1.5 text-xs font-medium text-ink"
+                  className="rounded-lg border border-transparent bg-control px-3 py-1.5 text-xs font-medium text-ink hover:bg-control-hi"
                   data-testid="going-back-go"
                 >
                   Go back and quit
@@ -364,7 +364,7 @@ export function UpdatesCard({ focus = false }: { focus?: boolean } = {}): JSX.El
                   type="button"
                   disabled={working}
                   onClick={() => void run(() => updateRestart())}
-                  className="rounded-lg border border-accent/60 px-3 py-1.5 text-xs font-medium text-ink"
+                  className="rounded-lg border border-transparent bg-control px-3 py-1.5 text-xs font-medium text-ink hover:bg-control-hi"
                   data-testid="update-restart"
                 >
                   Restart to update
@@ -375,7 +375,7 @@ export function UpdatesCard({ focus = false }: { focus?: boolean } = {}): JSX.El
                 type="button"
                 disabled={working}
                 onClick={() => void run(() => updateInstall())}
-                className="rounded-lg border border-accent/60 px-3 py-1.5 text-xs font-medium text-ink"
+                className="rounded-lg border border-transparent bg-control px-3 py-1.5 text-xs font-medium text-ink hover:bg-control-hi"
                 data-testid="update-install"
               >
                 {status.state === "failed" ? "Try again" : `Install ${status.available.version}`}
@@ -388,7 +388,7 @@ export function UpdatesCard({ focus = false }: { focus?: boolean } = {}): JSX.El
                 onClick={() => void run(() => updateCheck())}
                 className={
                   status.state === "failed" && !status.available
-                    ? "rounded-lg border border-accent/60 px-3 py-1.5 text-xs font-medium text-ink"
+                    ? "rounded-lg border border-transparent bg-control px-3 py-1.5 text-xs font-medium text-ink hover:bg-control-hi"
                     : "rounded-lg border border-hairline px-3 py-1.5 text-xs text-ink disabled:text-muted"
                 }
                 data-testid="update-check"

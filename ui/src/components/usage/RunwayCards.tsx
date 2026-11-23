@@ -83,7 +83,7 @@ export function RunwayCards({ accounts, className = "" }: { accounts: AccountInf
           const names = (chips ?? []).map((chip) => chip.name);
           const title = runwayTitle(group, subscriptions);
           return (
-            <li key={group.key} className="@container sheen flex min-w-0 flex-col gap-3.5 rounded-card border border-hairline bg-surface p-card shadow-card" data-testid="usage-account">
+            <li key={group.key} className="@container flex min-w-0 flex-col gap-3.5 rounded-card border border-frame bg-surface p-card" data-testid="usage-account">
               <div className="flex items-center gap-3">
                 <span aria-hidden="true" className="size-3 shrink-0 rounded-full" style={{ background: group.color }} />
                 <span className="flex min-w-0 flex-1 flex-col">

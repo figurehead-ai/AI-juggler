@@ -128,7 +128,7 @@ export function Checking({ target }: { target: string }): JSX.Element {
       <p className="text-body text-ink-2" data-testid="switch-preflighting">
         Checking the switch to {target}…
       </p>
-      <div aria-hidden="true" className="flex flex-col gap-3 rounded-card bg-accent-soft px-4 py-4 inset-ring-1 inset-ring-accent/15">
+      <div aria-hidden="true" className="flex flex-col gap-3 rounded-card bg-accent-soft px-4 py-4">
         {[72, 88, 64].map((width) => (
           <span key={width} className="h-3 rounded-full bg-skeleton" style={{ width: `${width}%` }} />
         ))}

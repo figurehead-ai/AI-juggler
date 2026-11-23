@@ -224,7 +224,7 @@ const VERDICT_TAGS: Record<string, { words: string; tone: string }> = {
   copy: { words: "Can copy", tone: "border-success/30 bg-success-soft text-success" },
   translate: { words: "Can set up", tone: "border-success/30 bg-success-soft text-success" },
   "needs-you": { words: "Needs a step from you", tone: "border-warning/35 bg-warning-soft text-warning" },
-  "turn-on": { words: "You turn it on", tone: "border-accent/30 bg-accent-soft text-accent-hi" },
+  "turn-on": { words: "You turn it on", tone: "border-transparent bg-accent-soft text-accent-hi" },
 };
 
 function VerdictTag({ verdict }: { verdict: string }): JSX.Element {

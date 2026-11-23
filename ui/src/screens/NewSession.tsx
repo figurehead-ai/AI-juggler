@@ -311,7 +311,7 @@ export function NewSessionModal({
       className="fixed inset-0 z-50 flex items-start justify-center bg-black/60 p-4 pt-[8vh] backdrop-blur-sm"
     >
       <DialogFrame
-        className="sheen rounded-card border border-hairline bg-surface shadow-card w-full max-w-xl"
+        className="rounded-card border border-hairline bg-surface shadow-dialog w-full max-w-xl"
         headerClassName="flex items-center gap-3 px-6 py-4"
         header={<><IconTerminal width={16} height={16} className="text-accent-hi" /><h3 className="text-sm font-semibold">New session</h3></>}
         bodyClassName={"px-6 py-5 " + (dragging ? "bg-accent-soft/40 outline-dashed outline-1 -outline-offset-8 outline-accent/60" : "")}

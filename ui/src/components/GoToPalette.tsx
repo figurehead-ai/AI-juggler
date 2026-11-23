@@ -283,7 +283,7 @@ export function GoToPalette({
         role="dialog"
         aria-modal="true"
         aria-label="Search, act or go"
-        className={"sheen max-w-[92vw] rounded-card border border-hairline bg-surface shadow-lg " + (preview ? "w-[920px]" : "w-[640px]")}
+        className={"max-w-[92vw] rounded-card border border-hairline bg-surface shadow-dialog " + (preview ? "w-[920px]" : "w-[640px]")}
         data-testid="goto-palette"
         onClick={(event: MouseEvent) => event.stopPropagation()}
         onKeyDown={onDialogKey}

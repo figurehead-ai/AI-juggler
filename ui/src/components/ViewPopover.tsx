@@ -108,7 +108,7 @@ export function ViewPopover({ options, onOpenChange }: { options: Record<OnlyKey
         }}
         className={
           "relative flex size-7 shrink-0 items-center justify-center rounded-lg border outline-none transition-colors focus-visible:ring-1 focus-visible:ring-accent/60 " +
-          (open || changed ? "border-accent/40 bg-accent-soft text-accent-hi" : "border-hairline text-muted hover:bg-surface hover:text-ink")
+          (open || changed ? "border-transparent bg-accent-soft text-accent-hi" : "border-hairline text-muted hover:bg-surface hover:text-ink")
         }
       >
         <IconView width={14} height={14} />

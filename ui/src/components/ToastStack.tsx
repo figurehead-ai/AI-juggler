@@ -98,7 +98,7 @@ function ToastWords({ message }: { message: string }): JSX.Element {
 /** Undo, with the seconds left. `below`: under the words. */
 function UndoButton({ id, left, below, testId, buttonRef, asks }: { id: string; left: number; below: boolean; testId: string | undefined; buttonRef: RefObject<HTMLButtonElement | null>; asks: boolean }): JSX.Element {
   return (
-    <button type="button" ref={buttonRef} {...(asks ? { [FOCUS_WHEN_FREE]: "" } : {})} onClick={() => void undoToast(id)} data-testid={testId ?? "toast-undo"} title={`Undo (${keysOf("undo")[0]})`} className={BUTTON + " border-accent/40 bg-accent-soft text-accent-hi hover:border-accent/60" + (below ? " mt-2 mr-2" : "")}>
+    <button type="button" ref={buttonRef} {...(asks ? { [FOCUS_WHEN_FREE]: "" } : {})} onClick={() => void undoToast(id)} data-testid={testId ?? "toast-undo"} title={`Undo (${keysOf("undo")[0]})`} className={BUTTON + " border-transparent bg-accent-soft text-accent-hi hover:bg-accent/15" + (below ? " mt-2 mr-2" : "")}>
       Undo ({left}s)
     </button>
   );

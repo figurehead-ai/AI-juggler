@@ -112,7 +112,7 @@ function StateCard({ draft, tools }: { draft: Draft; tools: TeamTools | null }):
   if (set) {
     const added = connected.length === 0 ? "" : `, and ${listWords(connected.map((app) => `${app.name}'s`))} connector ${connected.length === 1 ? "is" : "are"} added`;
     return (
-      <div className="flex items-center gap-3.5 rounded-card bg-[color-mix(in_srgb,var(--color-accent)_9%,var(--color-surface))] px-4 py-3.5 inset-ring-[1.5px] inset-ring-accent" data-testid="new-pool-review-state" data-state="set">
+      <div className="flex items-center gap-3.5 rounded-card bg-[color-mix(in_srgb,var(--color-accent)_9%,var(--color-surface))] px-4 py-3.5" data-testid="new-pool-review-state" data-state="set">
         <span aria-hidden="true" className="flex size-9 shrink-0 items-center justify-center rounded-[10px] bg-accent-fill text-white">
           <IconCheck width={18} height={18} strokeWidth={2.4} />
         </span>
