@@ -95,11 +95,23 @@ session, on This Mac, or on the notification centre.
   for an account almost out of room).
 - **Never while AI Juggler is in front:** it's already showing you.
 - **Not in your quiet hours:** **Quiet hours** hold notifications as well as
-  the hourly digest. When they end, you're told about anything still in
-  that state.
+  the digest. When they end, you're told about anything still in that
+  state.
 - **Only for the apps you choose:** an app left out under **In the
   digest and notifications** stays quiet.
 - **Not what you snoozed or muted** in the notification centre.
+
+## "While you were away" and the digest
+
+Home's feed has two summaries, and they are not the same thing:
+
+- **While you were away** is the card at the top of Home when you come
+  back: what happened since you last looked, counted by kind, with the few
+  that matter most. **Mark all seen** moves its line to now.
+- **The digest** ("AI Juggler · Digest") is a few lines on what your
+  sessions did, every 15 to 30 minutes while they work. Two sessions with
+  one name are told apart as "api (1)" and "api (2)". Turn its
+  notification on under **The digest** above.
 
 ## Watches you set
 

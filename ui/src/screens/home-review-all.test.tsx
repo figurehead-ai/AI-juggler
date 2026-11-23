@@ -101,9 +101,9 @@ describe("Mark all reviewed counts every one (F-K2-7a)", () => {
     countNow = () => new Promise((resolve) => (answer = resolve));
     home();
     // No number claimed before the backend counts them (the app holds 5).
-    expect((await reviewAll()).textContent).toBe("Mark all reviewed");
+    expect((await reviewAll()).textContent).toBe("Mark all reviewedMarks these finished sessions as looked at");
     await act(async () => answer(TO_REVIEW));
-    await waitFor(() => expect(screen.getByTestId("feed-review-all").textContent).toBe("Mark all 1000 reviewed"));
+    await waitFor(() => expect(screen.getByTestId("feed-review-all-label").textContent).toBe("Mark all 1000 reviewed"));
     // The backend's list: AI Juggler's own to review, in the 7 days up to now.
     expect(counted[0]).toMatchObject({ which: "to_review" });
     expect(Math.abs(Date.now() - 7 * 86_400_000 - counted[0]!.since_ms!)).toBeLessThan(60_000);
@@ -112,7 +112,7 @@ describe("Mark all reviewed counts every one (F-K2-7a)", () => {
   it("Mark all marks every one by the backend's list, and Undo puts that batch back", async () => {
     const onChanged = vi.fn();
     home(onChanged);
-    await waitFor(async () => expect((await reviewAll()).textContent).toBe("Mark all 1000 reviewed"));
+    await waitFor(async () => expect((await reviewAll()).textContent).toContain("Mark all 1000 reviewed"));
     await act(async () => fireEvent.click(screen.getByTestId("feed-review-all")));
     expect(marked).toHaveLength(1);
     expect(marked[0]).toMatchObject({ which: "to_review" });

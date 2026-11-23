@@ -13,6 +13,7 @@ import { Picker, Segmented, type PickerOption } from "./controls";
 import { MenuItem, RowMenu, menuPoint, type MenuAt } from "./RowMenu";
 import { cliAppName } from "../lib/app-name";
 import { filtered } from "../lib/feed-state";
+import { MARK_HINTS } from "../lib/feed-words";
 import { THIS_MACHINE } from "../lib/machine-words";
 import type { FeedFiltersInfo } from "../lib/ipc/feed";
 import type { AccountInfo } from "../types/generated/AccountInfo";
@@ -39,6 +40,16 @@ export interface Facets {
   accounts: readonly AccountInfo[];
   subscriptions: readonly SubscriptionInfo[] | null;
   pools: PoolsInfo | null;
+}
+
+function MarkHint({ children }: { children: string }): JSX.Element {
+  return <span className="block text-label font-normal text-muted">{children}</span>;
+}
+
+/** The picked one with its kind ("billing · Project"); `undefined` for Everything. */
+function facetLabel(options: readonly PickerOption[], facet: string): string | undefined {
+  const picked = options.find((option) => option.value === facet);
+  return picked?.hint ? `${picked.label} · ${picked.hint}` : undefined;
 }
 
 function facetOptions(facets: Facets): { options: PickerOption[]; suggested: string[] } {
@@ -106,6 +117,10 @@ export function HomeFeedFilters({ filters, onChange, facets, toReview, onReviewA
             groups={[{ label: "Recent projects", values: suggested }]}
             onChange={(value) => onChange(withFacet(filters, value, facets))}
             ariaLabel="Show one project, App, pool or Account"
+            // AJ-E1548 #21: closed, it says what it narrows: "Showing:
+            // Everything", or the picked one with its kind.
+            prefix="Showing:"
+            label={facetLabel(options, facet)}
             heading="Show one"
             allHeading="All"
             searchLabel="Search projects, Apps and pools"
@@ -122,10 +137,15 @@ export function HomeFeedFilters({ filters, onChange, facets, toReview, onReviewA
             <MenuItem checked={filters.include_mine} onClick={() => onChange({ ...filters, include_mine: !filters.include_mine })} testId="feed-include-mine">
               Include my actions
             </MenuItem>
-            <MenuItem onClick={onReadAll} testId="feed-read-all">Mark all read</MenuItem>
+            {/* AJ-E1548 #19: each "mark all" says what it clears. */}
+            <MenuItem onClick={onReadAll} testId="feed-read-all">
+              <span data-testid="feed-read-all-label">Mark all read</span>
+              <MarkHint>{MARK_HINTS.read}</MarkHint>
+            </MenuItem>
             {chip === "finished" && (
               <MenuItem disabled={toReview === 0} onClick={onReviewAll} testId="feed-review-all">
-                {toReview === null ? "Mark all reviewed" : toReview > 0 ? `Mark all ${toReview} reviewed` : "Nothing to review"}
+                <span data-testid="feed-review-all-label">{toReview === null ? "Mark all reviewed" : toReview > 0 ? `Mark all ${toReview} reviewed` : "Nothing to review"}</span>
+                {toReview !== 0 && <MarkHint>{MARK_HINTS.reviewed}</MarkHint>}
               </MenuItem>
             )}
           </RowMenu>

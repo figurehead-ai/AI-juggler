@@ -394,7 +394,7 @@ describe("AJ-E1021 Home as the morning triage (from AJ-E1005)", () => {
     // The Finished filter's ⋯ marks every one still to review at once.
     fireEvent.click(getByRole("radio", { name: "Finished" }));
     fireEvent.click(getByTestId("feed-more"));
-    expect((await findByTestId("feed-review-all")).textContent).toBe("Mark all 5 reviewed");
+    expect((await findByTestId("feed-review-all-label")).textContent).toBe("Mark all 5 reviewed");
   });
 
   it("is keyboard operable: J/K or arrows move, A runs the row's action, Enter opens", async () => {

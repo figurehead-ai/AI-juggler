@@ -303,14 +303,22 @@ export function digestWords(kinds: readonly string[]): string {
 /** Kinds the digest names before "n more updates". */
 const DIGEST_KINDS = 4;
 
+/** AJ-E1548 #19: what each "mark all" clears, in one line. */
+export const MARK_HINTS = {
+  read: "Clears the new dots in the feed",
+  seen: "Moves the “while you were away” line to now",
+  reviewed: "Marks these finished sessions as looked at",
+} as const;
+
 /** The empty feed (R12). */
 export const EMPTY_FEED = "Quiet so far. When your apps start, finish or ask you something, it shows here.";
 
-/** AJ-E3712 (ADR-0036 §1.3): the agent digest's header, how many agents
- * changed in its window ("5 agents"). */
+/** AJ-E3712 (ADR-0036 §1.3): the digest's header, how many sessions
+ * changed in its window ("5 sessions"; AJ-E1548 #20, CNT-2: a session is
+ * a conversation in an App, never an "agent"). */
 export function digestHeader(digest: Pick<DigestInfo, "lines">): string {
   const count = digest.lines.length;
-  return `${count} ${count === 1 ? "agent" : "agents"}`;
+  return `${count} ${count === 1 ? "session" : "sessions"}`;
 }
 
 /** A digest line's state, from the newest fact (the backend's rollup). */
@@ -369,7 +377,7 @@ function digestWork(line: DigestLineInfo): string[] {
  * folded or quiet. */
 export function digestMoreWords(more: number, quiet: number): string | null {
   const parts: string[] = [];
-  if (more > 0) parts.push(`and ${more} more ${more === 1 ? "agent" : "agents"}`);
+  if (more > 0) parts.push(`and ${more} more ${more === 1 ? "session" : "sessions"}`);
   if (quiet > 0) parts.push(`${quiet} quiet`);
   return parts.length > 0 ? parts.join(" · ") : null;
 }

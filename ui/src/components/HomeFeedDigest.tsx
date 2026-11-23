@@ -18,6 +18,7 @@ import { useState, type JSX } from "react";
 import { CliAppMark } from "./PlaceMarks";
 import { IconJuggler } from "./icons";
 import { digestHeader, digestLineWords, digestMoreWords, exactWhen } from "../lib/feed-words";
+import { tellApart } from "../lib/session-titles";
 import type { FeedItemInfo } from "../lib/ipc/feed";
 import type { DigestInfo } from "../types/generated/DigestInfo";
 import type { DigestLineInfo } from "../types/generated/DigestLineInfo";
@@ -30,13 +31,13 @@ function Mark({ line }: { line: DigestLineInfo }): JSX.Element {
   return <span aria-hidden="true" className="size-3.5 shrink-0 rounded-full bg-surface-3" />;
 }
 
-function Line({ line, onOpen }: { line: DigestLineInfo; onOpen: (sessionId: string) => void }): JSX.Element {
+function Line({ line, name, onOpen }: { line: DigestLineInfo; name: string; onOpen: (sessionId: string) => void }): JSX.Element {
   const words = digestLineWords(line);
   return (
     <li className="flex min-w-0 items-baseline gap-2 text-meta text-ink-2" data-testid="digest-line" data-level={line.level}>
       <Mark line={line} />
       <span className="min-w-0">
-        <button type="button" onClick={() => onOpen(line.session_id)} className="rounded font-semibold text-ink outline-none hover:underline focus-visible:ring-1 focus-visible:ring-accent/60">{line.name}</button>
+        <button type="button" onClick={() => onOpen(line.session_id)} className="rounded font-semibold text-ink outline-none hover:underline focus-visible:ring-1 focus-visible:ring-accent/60">{name}</button>
         <span>{words.state}</span>
         {words.said && <span>{words.said}</span>}
         {words.facts && <span className="text-muted">{words.facts}</span>}
@@ -52,6 +53,8 @@ export function HomeFeedDigest({ item, digest, when, onOpen }: { item: FeedItemI
   const shown = all ? digest.lines : digest.lines.slice(0, digest.shown);
   const more = digestMoreWords(all ? 0 : digest.lines.length - digest.shown, digest.quiet);
   const id = `feed-${item.id.replace(/[^a-zA-Z0-9_-]/g, "_")}`;
+  // AJ-E1548 #20: twins told apart as everywhere else ("api (1)", "api (2)").
+  const names = tellApart(digest.lines, (line) => line.name, (line) => [line.at_ms, line.session_id]);
   return (
     <article
       aria-labelledby={`${id}-who ${id}-what`}
@@ -71,7 +74,7 @@ export function HomeFeedDigest({ item, digest, when, onOpen }: { item: FeedItemI
         </p>
         <p id={`${id}-what`} className="text-[0.84375rem] leading-snug text-ink" data-testid="digest-header">{digestHeader(digest)}</p>
         <ul className="mt-1 flex flex-col gap-1" data-testid="digest-lines">
-          {shown.map((line) => <Line key={line.session_id} line={line} onOpen={onOpen} />)}
+          {shown.map((line) => <Line key={line.session_id} line={line} name={names.get(line) ?? line.name} onOpen={onOpen} />)}
         </ul>
         {more && (
           digest.lines.length > digest.shown && !all ? (

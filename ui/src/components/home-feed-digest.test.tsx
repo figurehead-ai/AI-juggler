@@ -68,11 +68,11 @@ describe("AJ-E3712 — the digest's words", () => {
     }
   });
 
-  it("counts agents and folds the rest with the quiet ones", () => {
-    expect(digestHeader({ lines: [line("a")] })).toBe("1 agent");
-    expect(digestHeader({ lines: [line("a"), line("b")] })).toBe("2 agents");
-    expect(digestMoreWords(3, 2)).toBe("and 3 more agents · 2 quiet");
-    expect(digestMoreWords(1, 0)).toBe("and 1 more agent");
+  it("counts sessions and folds the rest with the quiet ones", () => {
+    expect(digestHeader({ lines: [line("a")] })).toBe("1 session");
+    expect(digestHeader({ lines: [line("a"), line("b")] })).toBe("2 sessions");
+    expect(digestMoreWords(3, 2)).toBe("and 3 more sessions · 2 quiet");
+    expect(digestMoreWords(1, 0)).toBe("and 1 more session");
     expect(digestMoreWords(0, 0)).toBeNull();
   });
 });
@@ -89,14 +89,14 @@ const digest = (count: number, quiet = 0): DigestInfo => ({
 describe("AJ-E3712 — the digest item", () => {
   const item = feedItem({ id: "d:1", at_ms: 1_000, kind: "agent_digest", category: "digest" });
 
-  it.each([1, 3, 7])("with %i agents shows at most six, the rest behind one fold", (count) => {
+  it.each([1, 3, 7])("with %i sessions shows at most six, the rest behind one fold", (count) => {
     const onOpen = vi.fn();
     const { getByTestId, queryByTestId } = render(<HomeFeedDigest item={item} digest={digest(count, 2)} when="10:45 AM" onOpen={onOpen} />);
-    expect(getByTestId("digest-header").textContent).toBe(`${count} ${count === 1 ? "agent" : "agents"}`);
+    expect(getByTestId("digest-header").textContent).toBe(`${count} ${count === 1 ? "session" : "sessions"}`);
     expect(within(getByTestId("digest-lines")).getAllByTestId("digest-line")).toHaveLength(Math.min(6, count));
     if (count > 6) {
       const more = getByTestId("digest-more");
-      expect(more.textContent).toBe("and 1 more agent · 2 quiet");
+      expect(more.textContent).toBe("and 1 more session · 2 quiet");
       fireEvent.click(more);
       expect(within(getByTestId("digest-lines")).getAllByTestId("digest-line")).toHaveLength(count);
       expect(queryByTestId("digest-more")).toBeNull();
@@ -111,5 +111,12 @@ describe("AJ-E3712 — the digest item", () => {
     fireEvent.click(getByRole("button", { name: "agent1" }));
     expect(onOpen).toHaveBeenCalledWith("s-agent1");
     expect(getByTestId("feed-digest").innerHTML).not.toMatch(/amber|red|danger|warn/);
+  });
+
+  it("AJ-E1548 #20: two sessions with one name are told apart, by when each changed", () => {
+    const twins: DigestInfo = { start_ms: 0, end_ms: 1_000, lines: [line("api", { session_id: "s-b", at_ms: 900 }), line("api", { session_id: "s-a", at_ms: 400 }), line("web")], shown: 3, quiet: 0, ai: false };
+    const { getAllByRole, getByTestId } = render(<HomeFeedDigest item={item} digest={twins} when="10:45 AM" onOpen={() => {}} />);
+    expect(getByTestId("digest-header").textContent).toBe("3 sessions");
+    expect(getAllByRole("button").map((b) => b.textContent)).toEqual(["api (2)", "api (1)", "web"]);
   });
 });

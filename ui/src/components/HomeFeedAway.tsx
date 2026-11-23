@@ -14,7 +14,7 @@ import { useEffect, useMemo, useRef, useState, type JSX } from "react";
 import { overnightSummary, overnightSummarySeen } from "../lib/ipc/park";
 import { sharedRead, useSharedRead } from "../lib/shared-read";
 import { clock } from "../lib/time-words";
-import { digestWords, exactWhen, feedWhen, said, sentence } from "../lib/feed-words";
+import { MARK_HINTS, digestWords, exactWhen, feedWhen, said, sentence } from "../lib/feed-words";
 import { stateOf, type Away, type LastLook } from "../lib/feed-rollup";
 import type { FeedItemInfo } from "../lib/ipc/feed";
 
@@ -97,7 +97,7 @@ export function HomeFeedAway({ away, now, onOpen }: { away: Away; now: number; o
               {all ? "Show fewer" : `Show all ${away.all.length}`}
             </button>
           )}
-          <button type="button" disabled={seen} onClick={() => { setSeen(true); markSeen(); }} className="btn-ghost rounded-md px-2 py-0.5 text-meta font-medium outline-none focus-visible:ring-1 focus-visible:ring-accent/60 disabled:opacity-60" data-testid="feed-digest-seen">
+          <button type="button" disabled={seen} onClick={() => { setSeen(true); markSeen(); }} className="btn-ghost rounded-md px-2 py-0.5 text-meta font-medium outline-none focus-visible:ring-1 focus-visible:ring-accent/60 disabled:opacity-60" title={seen ? undefined : MARK_HINTS.seen} data-testid="feed-digest-seen">
             {seen ? "Seen" : "Mark all seen"}
           </button>
         </div>

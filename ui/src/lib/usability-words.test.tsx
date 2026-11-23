@@ -14,6 +14,9 @@ import notificationCentre from "../components/NotificationCentre.tsx?raw";
 import processesToolbar from "../screens/processes/Toolbar.tsx?raw";
 import railGroups from "../components/rail-groups.tsx?raw";
 import cloudParts from "../components/FigureheadCloudParts.tsx?raw";
+import feedFilters from "../components/HomeFeedFilters.tsx?raw";
+import feedAway from "../components/HomeFeedAway.tsx?raw";
+import { MARK_HINTS } from "./feed-words";
 
 const SOURCES: Record<string, string> = {
   "../components/NotificationSettings.tsx": notificationSettings,
@@ -21,6 +24,8 @@ const SOURCES: Record<string, string> = {
   "../screens/processes/Toolbar.tsx": processesToolbar,
   "../components/rail-groups.tsx": railGroups,
   "../components/FigureheadCloudParts.tsx": cloudParts,
+  "../components/HomeFeedFilters.tsx": feedFilters,
+  "../components/HomeFeedAway.tsx": feedAway,
 };
 const source = (path: string): string => SOURCES[path] ?? "";
 
@@ -67,5 +72,18 @@ describe("AJ-E1548 #17: one machine word in the Unlink sheet", () => {
     expect(text).not.toMatch(/this computer/i);
     expect(text).not.toMatch(/"[^"]*\bthis Mac\b[^"]*"/);
     expect(text).toContain("Unlink {THIS_MACHINE_IN_TEXT}…");
+  });
+});
+
+describe("AJ-E1548 #19 #21: the feed's marks and scope say what they do", () => {
+  it("each mark all says what it clears, and no two say the same", () => {
+    expect(new Set(Object.values(MARK_HINTS)).size).toBe(3);
+    expect(source("../components/HomeFeedFilters.tsx")).toContain("{MARK_HINTS.read}");
+    expect(source("../components/HomeFeedFilters.tsx")).toContain("{MARK_HINTS.reviewed}");
+    expect(source("../components/HomeFeedAway.tsx")).toContain("MARK_HINTS.seen");
+  });
+
+  it("the scope picker, closed, says it narrows the feed", () => {
+    expect(source("../components/HomeFeedFilters.tsx")).toContain('prefix="Showing:"');
   });
 });
