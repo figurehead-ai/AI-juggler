@@ -4,7 +4,10 @@
  * vendor's app icon, else a terminal glyph: `ToolLogo`), its name, how
  * many were found, and a select-all for the group.
  */
-import { useId, type JSX, type ReactNode } from "react";
+import { useEffect, useId, useState, type JSX, type ReactNode } from "react";
+import { placesPairings } from "../lib/ipc/places";
+import { desktopAppWord } from "../lib/app-name";
+import { toolSpec } from "../lib/tools";
 import { Checkbox } from "../components/controls";
 import { ToolLogo } from "../components/ToolLogo";
 import { providerDisplayName, toolFound } from "../lib/providers";
@@ -58,4 +61,37 @@ export function ToolGroup({
       {children}
     </fieldset>
   );
+}
+
+/** A found folder's desktop profile, by AJ-E2327's evidence. */
+export interface Paired {
+  /** "Claude app · work". */
+  title: string;
+  /** Evidence says so for sure; else the row asks "Is this right?". */
+  certain: boolean;
+}
+
+/** Each desktop profile's folder, by path: the folder's row becomes the
+ * profile's ("Claude app · work", Desktop). Read once; never paired by
+ * name (the backend's evidence only). */
+export function usePairings(on: boolean): Map<string, Paired> {
+  const [pairs, setPairs] = useState<Map<string, Paired>>(new Map());
+  useEffect(() => {
+    if (!on) return;
+    void placesPairings().then(
+      (rows) =>
+        setPairs(
+          new Map(
+            rows.flatMap((row) => {
+              const tool = row.folder.tool;
+              const app = tool ? toolSpec(tool).desktop_app : null;
+              if (!row.folder.path || !tool || !app) return [];
+              return [[row.folder.path, { title: `${desktopAppWord(app, tool)} · ${row.label}`, certain: row.certain }] as const];
+            }),
+          ),
+        ),
+      () => null,
+    );
+  }, [on]);
+  return pairs;
 }

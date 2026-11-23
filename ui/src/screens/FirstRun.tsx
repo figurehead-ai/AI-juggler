@@ -39,7 +39,7 @@ import { AccessStep } from "../components/AccessStep";
 import { Check } from "../components/StepCheck";
 import { colourAt, FreshAccountStep, freeLabel } from "./FreshAccountStep";
 import { ProvidersTerms, StepMarks, TermsLine, YOUR_APPS, type Step } from "./FirstRunSteps";
-import { ToolGroup } from "./FirstRunToolGroup";
+import { ToolGroup, usePairings } from "./FirstRunToolGroup";
 import { FirstRunFrame } from "./FirstRunFrame";
 import { funnelEvent, funnelStep, reasonCode } from "../lib/funnel";
 import { foundWords, useSetupScan } from "./firstRunScan";
@@ -240,6 +240,8 @@ function FoundStep({
   const [progress, setProgress] = useState<Record<string, ImportState>>({});
   const [busy, setBusy] = useState(false);
   const [showLooked, setShowLooked] = useState(false);
+  // AJ-E2327's evidence-first pairing: a desktop profile and the folder it uses, one row (never by name).
+  const pairs = usePairings(firstRun);
 
   // ADR-0018: only a tool whose adapter can use a folder where it is
   // offers it — and only when one of its setups is on the list.
@@ -426,6 +428,7 @@ function FoundStep({
                     colour={colourAt(installs.indexOf(found))}
                     first={index === 0}
                     plain={yourApps}
+                    paired={pairs.get(found.path)}
                     checked={!!picked[found.path]}
                     disabled={busy}
                     progress={progress[found.path]}

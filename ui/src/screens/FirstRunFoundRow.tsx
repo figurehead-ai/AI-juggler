@@ -9,6 +9,7 @@ import { useId, useState, type JSX } from "react";
 import type { DiscoveredInfo } from "../types/generated/DiscoveredInfo";
 import { Checkbox } from "../components/controls";
 import { Check } from "../components/StepCheck";
+import type { Paired } from "./FirstRunToolGroup";
 import { confidenceWord, fieldRows, mayHaveExpired, rowConfidence, sourceWords } from "./first-run-confidence";
 
 export type RowProgress = { state: "pending" | "working" | "done" | "already" | "failed"; error?: string } | undefined;
@@ -41,9 +42,9 @@ function RowState({ found, plain, progress }: { found: DiscoveredInfo; plain: bo
 
 /** Where it's seen in use: the desktop app and/or a terminal (AJ-E2327's
  * pairing will join a profile and its folder into one row). */
-function chipsOf(found: DiscoveredInfo): string[] {
+function chipsOf(found: DiscoveredInfo, desktop: boolean): string[] {
   const open = found.in_use ?? [];
-  return [open.includes("desktop") ? "Desktop" : null, open.includes("terminal") ? "Terminal" : null].filter((chip): chip is string => chip !== null);
+  return [desktop || open.includes("desktop") ? "Desktop" : null, open.includes("terminal") ? "Terminal" : null].filter((chip): chip is string => chip !== null);
 }
 
 /** Its sign-in, in plain words. */
@@ -62,6 +63,7 @@ export function FoundRow({
   colour,
   first,
   plain = false,
+  paired,
   checked,
   disabled,
   progress,
@@ -78,6 +80,8 @@ export function FoundRow({
   /** AJ-E1545's Your apps: chips and plain status words, no badges or
    * paths up front (Add app keeps its look until AJ-E1548). */
   plain?: boolean;
+  /** Its desktop profile, by AJ-E2327's evidence: one row for both. */
+  paired?: Paired;
   checked: boolean;
   disabled: boolean;
   progress: RowProgress;
@@ -97,9 +101,9 @@ export function FoundRow({
           {plain ? (
             <span className="flex min-w-0 flex-1 flex-col">
               <span className="flex min-w-0 items-center gap-2">
-                <span className="truncate text-section font-medium text-ink">{name}</span>
+                <span className="truncate text-section font-medium text-ink">{paired?.title ?? name}</span>
                 {/* AJ-E1545: where it's seen in use, as chips; no confidence badges. */}
-                {chipsOf(found).map((chip) => (
+                {chipsOf(found, paired !== undefined).map((chip) => (
                   <span key={chip} className="shrink-0 rounded-md bg-surface-3 px-1.5 text-label text-ink-2" data-testid="first-run-chip">
                     {chip}
                   </span>
@@ -107,6 +111,7 @@ export function FoundRow({
               </span>
               <span className="truncate text-meta text-muted" data-testid="first-run-status">
                 {statusWords(found)} · <span className={live ? "text-live" : ""}>{used}</span>
+                {paired && !paired.certain && <span data-testid="first-run-unsure"> · Is this its folder? Check it on its App page after</span>}
               </span>
             </span>
           ) : (
