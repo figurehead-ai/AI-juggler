@@ -5,11 +5,13 @@
  * and a sign-in that can't be read (its terminal, one plain line). The
  * terminal under "Show details" stays collapsed until asked for.
  */
-import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, renderHook, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { SignInCard } from "./SignInCard";
 import { SignInPanel } from "./SignInPanel";
-import { resetSignInsForTests } from "../lib/sign-ins-store";
+import { RailSignIns } from "./RailSignIns";
+import { refreshSignIns, resetSignInsForTests } from "../lib/sign-ins-store";
+import { useLoginTerminals } from "../shell/use-login-terminals";
 import type { SignInInfo } from "../lib/ipc/sign-ins";
 
 vi.mock("./TerminalView", () => ({
@@ -23,6 +25,7 @@ vi.mock("../lib/ipc/terminal-io", () => ({
   }),
   terminalKill: vi.fn(async () => undefined),
   terminalSpawnLogin: vi.fn(async (account: string) => ({ id: `login-next-${account}` })),
+  onTerminalExit: vi.fn(() => () => undefined),
 }));
 
 const ID = "login-1";
@@ -189,5 +192,44 @@ describe("SignInPanel", () => {
     render(<SignInPanel terminal={{ ...terminal, ended: true }} accounts={[]} openLoginTerminal={opened} />);
     fireEvent.click(await screen.findByRole("button", { name: "Try again" }));
     await waitFor(() => expect(opened).toHaveBeenCalledWith("login-next-acct:openai:alice", "Sign in · Codex", { account: "acct:openai:alice" }));
+  });
+});
+
+describe("the window's sign-ins (R1)", () => {
+  it("a sign-in that finishes leaves the rail by itself and flips the lists once; an early end stays", async () => {
+    window.__AIJ_SIGN_INS__ = [info({}), info({ id: "login-2", title: "Sign in · Grok", tool: "grok-build", state: "ended" })];
+    const signedIn = vi.fn();
+    const { result } = renderHook(() => useLoginTerminals(signedIn));
+    await waitFor(() => expect(result.current.loginTerminals).toHaveLength(2));
+    const rail = (terminals = result.current.loginTerminals) =>
+      render(<RailSignIns terminals={terminals} selectedId={null} onSelect={vi.fn()} />);
+    const before = rail();
+    expect(screen.getByText("Sign in · Codex")).toBeTruthy();
+    expect(screen.getByText("Didn't finish")).toBeTruthy();
+    before.unmount();
+
+    window.__AIJ_SIGN_INS__ = [info({ state: "signed_in" }), info({ id: "login-2", title: "Sign in · Grok", tool: "grok-build", state: "ended" })];
+    await act(() => refreshSignIns());
+    expect(signedIn).toHaveBeenCalledOnce();
+    rail();
+    expect(screen.queryByText("Sign in · Codex")).toBeNull();
+    expect(screen.getByText("Sign in · Grok")).toBeTruthy();
+    // Listed again unchanged: not flipped twice.
+    await act(() => refreshSignIns());
+    expect(signedIn).toHaveBeenCalledOnce();
+  });
+
+  it("one opened here shows at once, and goes once the backend's list drops it", async () => {
+    window.__AIJ_SIGN_INS__ = [];
+    const { result } = renderHook(() => useLoginTerminals(vi.fn()));
+    act(() => result.current.opened({ id: "login-9", title: "Sign in · Codex", ended: false, account: "acct:openai:alice" }));
+    expect(result.current.loginTerminals.map((one) => one.id)).toEqual(["login-9"]);
+    window.__AIJ_SIGN_INS__ = [info({ id: "login-9" })];
+    await act(() => refreshSignIns());
+    expect(result.current.loginTerminals.map((one) => one.id)).toEqual(["login-9"]);
+    // Dismissed: the backend's list is the truth, the local copy is gone.
+    window.__AIJ_SIGN_INS__ = [info({ id: "login-other" })];
+    await act(() => refreshSignIns());
+    expect(result.current.loginTerminals.map((one) => one.id)).toEqual(["login-other"]);
   });
 });
