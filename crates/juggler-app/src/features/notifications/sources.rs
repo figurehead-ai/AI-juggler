@@ -1171,6 +1171,36 @@ pub fn keep_alive_paused(state: &Arc<AppState>, place_id: &str, label: &str, why
     );
 }
 
+/// AJ-E2321: a move a crash left part way that AI Juggler couldn't settle
+/// by itself: its Apps stay closed until the person Finishes or Undoes it
+/// on the conversation's page (one notice per move).
+pub fn move_unfinished(state: &Arc<AppState>, move_id: &str, conversation: &str, finishable: bool) {
+    let now = crate::commands::now_millis();
+    let what = if finishable { "Finish or Undo" } else { "Undo" };
+    record_notice(
+        state,
+        &NewNotice {
+            key: format!("move-unfinished:{move_id}"),
+            // A crash's leftover: listed with crashes and restarts.
+            kind: "restarted".to_owned(),
+            title: "A move didn't finish".to_owned(),
+            detail: format!(
+                "AI Juggler stopped while moving this conversation. Its Apps stay closed until you {what} the move on its page."
+            ),
+            data: centre::data_of(
+                &NoticeTarget {
+                    conversation_id: Some(conversation.to_owned()),
+                    ..NoticeTarget::default()
+                },
+                &NoticeFacts::default(),
+            ),
+            action: Some("open".to_owned()),
+            ..NewNotice::default()
+        },
+        now,
+    );
+}
+
 fn record_notice(state: &Arc<AppState>, notice: &NewNotice, now: i64) {
     let recorded = state
         .storage

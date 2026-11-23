@@ -713,3 +713,75 @@ fn an_app_file_changed_since_its_backup_stops_the_move() {
         b"{\"schemaVersion\":2,\"app\":\"wrote\"}"
     );
 }
+
+/// AJ-E2321 (A5.1): a move a crash left backed up never changed a file:
+/// it is let go without touching any path, even one an app wrote since.
+#[test]
+fn a_backed_up_move_left_by_a_crash_is_let_go_without_touching_a_file() {
+    if !clones() {
+        return;
+    }
+    let lab = lab();
+    let mut txn = begin(&lab, "m30");
+    txn.back_up(&Stopped::checked()).unwrap();
+    std::fs::write(lab.a.join("p/s.jsonl"), b"written since\n").unwrap();
+    txn.abandon().unwrap();
+    assert_eq!(txn.manifest.phase, Phase::Undone);
+    assert_eq!(
+        std::fs::read(lab.a.join("p/s.jsonl")).unwrap(),
+        b"written since\n",
+        "the app's own write is never put aside"
+    );
+    assert!(walk(&txn.dir().join("backups")).is_empty());
+    assert!(journal(&txn).iter().any(|event| event == "abandoned"));
+    // One that changed files is Undo's, never let go.
+    let mut applied = begin(&lab, "m31");
+    applied.back_up(&Stopped::checked()).unwrap();
+    applied.apply(&Stopped::checked(), 0).unwrap();
+    assert!(applied.abandon().is_err());
+}
+
+/// AJ-E2321 (A6.4): a committed move's backups retire; Undo then has
+/// nothing to restore from, and says so.
+#[test]
+fn a_committed_moves_backups_retire_and_its_undo_goes_with_them() {
+    if !clones() {
+        return;
+    }
+    let lab = lab();
+    let stopped = Stopped::checked();
+    let mut txn = begin(&lab, "m32");
+    txn.back_up(&stopped).unwrap();
+    assert!(txn.retire().is_err(), "a live move keeps its backups");
+    txn.apply(&stopped, 0).unwrap();
+    txn.verify_cold(Vec::new()).unwrap();
+    txn.verify_opened(&|_| Appended::Turn, Vec::new()).unwrap();
+    assert_eq!(txn.manifest.phase, Phase::Committed);
+    assert!(txn.backups_kept());
+    assert!(txn.retire().unwrap());
+    assert!(!txn.backups_kept());
+    assert!(!txn.retire().unwrap(), "nothing more to let go");
+    assert!(
+        txn.journal()
+            .iter()
+            .any(|line| line["event"] == "backups_retired")
+    );
+}
+
+/// AJ-E2321 (A6.1): the room a move asks for counts Undo's: its records
+/// written again and each path's entries, above the margin.
+#[test]
+fn the_room_a_move_needs_counts_its_undo() {
+    let lab = lab();
+    let plan = plan(&lab);
+    let record = serde_json::json!({"id": 1, "moved": true})
+        .to_string()
+        .len() as u64;
+    let needed = room_needed(&plan);
+    assert!(needed >= ROOM_MARGIN + 2 * record, "{needed}");
+    let mut bigger = plan.clone();
+    bigger.steps.push(MoveStep::MakeDir {
+        path: lab.b.join("q"),
+    });
+    assert!(room_needed(&bigger) > needed, "every path's entries count");
+}

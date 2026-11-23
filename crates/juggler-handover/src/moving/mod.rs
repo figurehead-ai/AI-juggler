@@ -344,6 +344,27 @@ pub fn preflight(plan: &MovePlan, moves_dir: &Path) -> Vec<Refusal> {
         .find(|dir| dir.is_dir())
         .unwrap_or(moves_dir);
     let room = juggler_platform::room::free_space(existing).unwrap_or(0);
+    if room < room_needed(plan) {
+        out.push(Refusal::user_can_clear(
+            "the disk is nearly full; Move becomes available once there's more room",
+        ));
+    }
+    out.sort_by(|a, b| a.words.cmp(&b.words));
+    out.dedup();
+    out
+}
+
+/// Room for every folder entry a move or its Undo makes (a clone's
+/// metadata, a held name, a preserved folder).
+const ENTRY_ROOM: u64 = 64 * 1024;
+
+/// AJ-E2321 (A6.1): the room a move needs on the disk, Undo's included,
+/// so a full disk never leaves a move that can't be undone: the records it
+/// writes, written once more by Undo's restore of each, an entry's
+/// metadata for every path a step touches (twice: the move's and Undo's
+/// preserved copy), and [`ROOM_MARGIN`] for what runs beside it.
+#[must_use]
+pub fn room_needed(plan: &MovePlan) -> u64 {
     let writes: u64 = plan
         .steps
         .iter()
@@ -354,14 +375,15 @@ pub fn preflight(plan: &MovePlan, moves_dir: &Path) -> Vec<Refusal> {
             _ => 0,
         })
         .sum();
-    if room < writes + ROOM_MARGIN {
-        out.push(Refusal::user_can_clear(
-            "the disk is nearly full; Move becomes available once there's more room",
-        ));
-    }
-    out.sort_by(|a, b| a.words.cmp(&b.words));
-    out.dedup();
-    out
+    let paths: u64 = plan
+        .steps
+        .iter()
+        .map(|step| step.paths().len() as u64)
+        .sum();
+    writes
+        .saturating_mul(2)
+        .saturating_add(paths.saturating_mul(2 * ENTRY_ROOM))
+        .saturating_add(ROOM_MARGIN)
 }
 
 /// Lets go of the backups of every undone move under `moves_dir` (at
@@ -732,6 +754,72 @@ impl Transaction {
         std::fs::create_dir(&backups).map_err(io("let the move's backups go"))?;
         self.log(&serde_json::json!({"event": "backups_dropped", "bytes": bytes}))?;
         Ok(true)
+    }
+
+    /// AJ-E2321: lets a move that never changed a file go (left planned
+    /// or backed up by a crash): undone without touching a path (a file
+    /// an app changed since is the app's, never put aside), its backups
+    /// let go.
+    ///
+    /// # Errors
+    ///
+    /// The move got further (Undo restores it), or the manifest can't be
+    /// written.
+    pub fn abandon(&mut self) -> Result<(), MoveError> {
+        if self.manifest.phase > Phase::BackedUp {
+            return Err(MoveError::Refused(
+                "the move changed files already; Undo puts them back".into(),
+            ));
+        }
+        self.log(&serde_json::json!({"event": "abandoned", "phase": self.manifest.phase}))?;
+        self.set_phase(Phase::Undone)?;
+        self.drop_backups().map(|_| ())
+    }
+
+    /// AJ-E2321 (A6.4): lets a committed move's backups go (the next move
+    /// of its files committed, or it is old): its Undo goes with them.
+    /// Returns whether anything went.
+    ///
+    /// # Errors
+    ///
+    /// The move isn't committed, or they can't be removed.
+    pub fn retire(&mut self) -> Result<bool, MoveError> {
+        if self.manifest.phase != Phase::Committed {
+            return Err(MoveError::Refused(
+                "only a committed move's backups retire".into(),
+            ));
+        }
+        let backups = self.dir.join("backups");
+        if !std::fs::read_dir(&backups).is_ok_and(|mut entries| entries.next().is_some()) {
+            return Ok(false);
+        }
+        std::fs::remove_dir_all(&backups).map_err(io("let the move's backups go"))?;
+        std::fs::create_dir(&backups).map_err(io("let the move's backups go"))?;
+        self.log(&serde_json::json!({"event": "backups_retired"}))?;
+        Ok(true)
+    }
+
+    /// Whether Undo still has what it restores from: every backup the
+    /// move made is there (a retired move's are gone).
+    #[must_use]
+    pub fn backups_kept(&self) -> bool {
+        let backups = self.dir.join("backups");
+        self.manifest
+            .entries
+            .iter()
+            .filter_map(|entry| entry.backup.as_ref())
+            .all(|name| std::fs::symlink_metadata(backups.join(name)).is_ok())
+    }
+
+    /// AJ-E2321: the journal, line by line (a torn last line left out),
+    /// for the move's timeline in Copy details.
+    #[must_use]
+    pub fn journal(&self) -> Vec<serde_json::Value> {
+        std::fs::read_to_string(self.dir.join(JOURNAL))
+            .unwrap_or_default()
+            .lines()
+            .filter_map(|line| serde_json::from_str(line).ok())
+            .collect()
     }
 
     fn before(&self, path: &Path) -> Option<&State> {

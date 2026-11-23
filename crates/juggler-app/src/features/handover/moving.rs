@@ -42,11 +42,12 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
+use door::shown;
 use juggler_adapter::moving::{
     MemberSide, MovePlan, MoveRequest, NotesChoice, Refusal, RefusalKind,
 };
 use juggler_core::model::Account;
-use juggler_handover::moving::{Lock, MoveError, Phase, Recovery, Stopped, Transaction};
+use juggler_handover::moving::{Lock, MoveError, Phase, Stopped, Transaction};
 
 use crate::error::{AppError, AppResult, MoveHolder, MoveStop, StopClass};
 use crate::features::conversations::procs::Table;
@@ -237,28 +238,6 @@ pub struct MoveDoneInfo {
     pub notes: Vec<String>,
 }
 
-/// A move AI Juggler knows of, for Undo and for one left part way.
-#[derive(Clone, PartialEq, Eq, Debug, serde::Serialize, ts_rs::TS)]
-#[ts(export, export_to = "../../../ui/src/types/generated/")]
-pub struct MoveRecordInfo {
-    /// Its id.
-    pub move_id: String,
-    /// The moved conversation's id in its tool.
-    pub conversation: String,
-    /// `committed`, `undone`, or `interrupted`.
-    pub state: String,
-    /// When (epoch ms).
-    #[ts(type = "number")]
-    pub at_ms: i64,
-    /// For an interrupted one: what recovery found, in words.
-    pub detail: Option<String>,
-    /// What it keeps where it was on purpose (output folders old messages
-    /// name by their full path) and its own folder (backups, kept
-    /// branches, work kept aside by Undo), `~`-shortened: cleanup keeps
-    /// each while the move is listed.
-    pub kept: Vec<String>,
-}
-
 /// The two sides of a move, resolved.
 struct Sides {
     request: MoveRequest,
@@ -354,14 +333,19 @@ pub trait MoveSystem: Send + Sync {
     ) -> Option<PathBuf>;
 }
 
+#[path = "moving_door.rs"]
+mod door;
 #[path = "moving_pick.rs"]
 mod pick;
 #[path = "moving_quit.rs"]
 mod quit;
 #[path = "moving_real.rs"]
 mod real;
+#[path = "moving_recover.rs"]
+pub mod recover;
 #[path = "moving_repair.rs"]
 pub mod repair;
+pub use door::{MoveRecordInfo, moves};
 use pick::{links_hold, sides, start_checked};
 use quit::{Writing, stop_places};
 pub use real::{Real, Tell};
@@ -996,7 +980,10 @@ pub fn execute(
     let mut sides = sides(state, session_id, target_profile_id, target_place_id)
         .map_err(|error| typed(error, StopClass::NeedsYou))?;
     sides.request.notes = notes;
-    run_once_more(state, &sides, &Real::telling(tell))
+    let done = run_once_more(state, &sides, &Real::telling(tell))?;
+    // AJ-E2321: the move before it of these files lets its backups go.
+    recover::retire(state, juggler_core::model::Timestamp::now().millis());
+    Ok(done)
 }
 
 /// AJ-E2319: the move, typed; a transient stop that changed nothing is
@@ -1392,6 +1379,17 @@ pub(crate) fn undo_with(
     move_id: &str,
     system: &dyn MoveSystem,
 ) -> AppResult<MoveUndoneInfo> {
+    undo_as(state, move_id, system, true)
+}
+
+/// [`undo_with`]; `reopen`: the conversation opened where it was after
+/// (the user's Undo), not by startup recovery (AJ-E2321).
+pub(crate) fn undo_as(
+    state: &Arc<AppState>,
+    move_id: &str,
+    system: &dyn MoveSystem,
+    reopen: bool,
+) -> AppResult<MoveUndoneInfo> {
     if move_id.is_empty()
         || !move_id
             .chars()
@@ -1402,13 +1400,7 @@ pub(crate) fn undo_with(
     let mut txn = hold::open_move(&state.data_dir, move_id).map_err(engine)?;
     // A later move (in any state but undone) that touches the same files
     // owns them now: undoing this one would put old copies over it.
-    let later = hold::all_moves(&state.data_dir).into_iter().any(|other| {
-        other.manifest.id != txn.manifest.id
-            && other.manifest.created_ms >= txn.manifest.created_ms
-            && other.manifest.phase != Phase::Undone
-            && other.overlaps(&txn)
-    });
-    if later {
+    if door::moved_again(&hold::all_moves(&state.data_dir), &txn) {
         return Err(refused(
             "these conversations were moved again since; undo the later move first, or move them back",
         ));
@@ -1492,7 +1484,7 @@ pub(crate) fn undo_with(
     let link = writing
         .mover
         .resume_link(&txn.manifest.request.conversation);
-    if let (Some((id, place)), Some(link)) = (places.first(), link) {
+    if let (true, Some((id, place)), Some(link)) = (reopen, places.first(), link) {
         let _ = open_in(state, (id, place), &link, &txn.manifest.request, system);
     }
     // R4: no path in the words (Copy details has it).
@@ -1503,74 +1495,11 @@ pub(crate) fn undo_with(
     })
 }
 
-/// 0.4.9: at start, in the background, lets go of the backups of moves
-/// already undone (a move refused before 0.4.9 kept a backup of its whole
-/// history). A move in any other phase keeps its own.
+/// At start, before keep alive (AJ-E2321): what a crash left part way is
+/// held and settled ([`recover`]); in the background, old committed moves'
+/// backups retire and undone moves' go (0.4.9).
 pub fn sweep_at_startup(state: &Arc<AppState>) {
-    let folders = hold::journal_folders(&state.data_dir);
-    let _ = std::thread::Builder::new()
-        .name("move-backups-sweep".into())
-        .spawn(move || {
-            let went: usize = folders
-                .iter()
-                .map(|folder| juggler_handover::moving::sweep_undone(folder))
-                .sum();
-            if went > 0 {
-                tracing::info!(target: "juggler::move", "let go of {went} undone moves' backups");
-            }
-        });
-}
-
-/// Every move AI Juggler knows of, newest first, with any left part way
-/// read back from its journal.
-#[must_use]
-pub fn moves(state: &Arc<AppState>) -> Vec<MoveRecordInfo> {
-    let mut out: Vec<MoveRecordInfo> = hold::all_moves(&state.data_dir)
-        .into_iter()
-        .map(|txn| {
-            let (label, detail) = match txn.recover() {
-                Ok(Recovery::Settled(Phase::Committed)) => ("committed", None),
-                Ok(Recovery::Settled(Phase::Undone)) => ("undone", None),
-                Ok(Recovery::Settled(phase)) if phase < Phase::BackedUp => ("undone", None),
-                Ok(Recovery::Settled(_)) => (
-                    "interrupted",
-                    Some("it stopped after its changes and before its last check: Undo puts both accounts back".to_owned()),
-                ),
-                Ok(Recovery::Applying { next }) => (
-                    "interrupted",
-                    Some(format!("it stopped at step {} of {}: Undo puts both accounts back", next + 1, txn.manifest.plan.steps.len())),
-                ),
-                Ok(Recovery::Undoing) => (
-                    "interrupted",
-                    Some("Undo stopped part way: Undo again finishes it".to_owned()),
-                ),
-                Ok(Recovery::Unclear(why)) => ("interrupted", Some(why)),
-                Err(error) => ("interrupted", Some(error.to_string())),
-            };
-            MoveRecordInfo {
-                move_id: txn.manifest.id.clone(),
-                conversation: txn.manifest.request.conversation.clone(),
-                state: label.to_owned(),
-                at_ms: txn.manifest.created_ms,
-                detail: detail.or(txn.manifest.problem.clone()),
-                kept: txn.dependencies().iter().map(|path| shown(path)).collect(),
-            }
-        })
-        .collect();
-    out.reverse();
-    out
-}
-
-/// `path` with the home folder as `~`.
-fn shown(path: &std::path::Path) -> String {
-    match juggler_platform::user::home().and_then(|home| {
-        path.strip_prefix(home)
-            .ok()
-            .map(std::path::Path::to_path_buf)
-    }) {
-        Some(rest) => format!("~/{}", rest.display()),
-        None => path.display().to_string(),
-    }
+    recover::at_startup(state);
 }
 
 /// What moves keep where it was on purpose (out-of-line outputs old

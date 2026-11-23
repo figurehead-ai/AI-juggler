@@ -1,0 +1,210 @@
+//! AJ-E2321 (the review's A5.3, A5.5, B5.5): the Moves door. Every move
+//! AI Juggler knows of, read back from its journal, with what can be done
+//! to it by its id: Undo (a committed move whose backups are kept, or an
+//! interrupted one), Finish (an interrupted one that passed its checks
+//! before the apps reopened), and its timeline for Copy details. Shown on
+//! the conversation's page and in Settings › Desktop apps.
+
+use std::path::Path;
+use std::sync::Arc;
+
+use juggler_handover::moving::{Phase, Recovery, Transaction};
+
+use crate::features::places::hold;
+use crate::state::AppState;
+
+/// A move AI Juggler knows of, for its door (Undo, Finish, Copy details).
+#[derive(Clone, PartialEq, Eq, Debug, serde::Serialize, ts_rs::TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
+pub struct MoveRecordInfo {
+    /// Its id: every action names it.
+    pub move_id: String,
+    /// The moved conversation's id in its tool.
+    pub conversation: String,
+    /// The conversation's title in its app, when it has one.
+    pub title: Option<String>,
+    /// Where it moved from: the App's name, else its folder.
+    pub from: String,
+    /// Where it moved to.
+    pub to: String,
+    /// `committed`, `undone`, or `interrupted`.
+    pub state: String,
+    /// When (epoch ms).
+    #[ts(type = "number")]
+    pub at_ms: i64,
+    /// For an interrupted one: what recovery found, in words.
+    pub detail: Option<String>,
+    /// Undo is offered (its backups are there, no later move owns its
+    /// files).
+    pub can_undo: bool,
+    /// Why a committed move can't be undone any more, in words.
+    pub undo_why: Option<String>,
+    /// Finish is offered: it stopped after its checks passed, before the
+    /// apps reopened.
+    pub can_finish: bool,
+    /// Its journal, one line per event, for Copy details.
+    pub timeline: Vec<String>,
+    /// What it keeps where it was on purpose (output folders old messages
+    /// name by their full path) and its own folder (backups, kept
+    /// branches, work kept aside by Undo), `~`-shortened: cleanup keeps
+    /// each while the move is listed.
+    pub kept: Vec<String>,
+}
+
+/// What a move's journal and the disk say of it: its state's word and,
+/// for one left part way, why.
+fn state_of(txn: &Transaction) -> (&'static str, Option<String>) {
+    let steps = txn.manifest.plan.steps.len();
+    match txn.recover() {
+        Ok(Recovery::Settled(Phase::Committed)) => ("committed", None),
+        Ok(Recovery::Settled(Phase::Undone)) => ("undone", None),
+        Ok(Recovery::Settled(phase)) if phase < Phase::Applying => (
+            "interrupted",
+            Some("it stopped before it changed anything: Undo lets it go".to_owned()),
+        ),
+        Ok(Recovery::Settled(Phase::Verified)) => (
+            "interrupted",
+            Some("it stopped after its checks passed, before the apps opened again: Finish checks it once more and keeps it; Undo puts both accounts back".to_owned()),
+        ),
+        Ok(Recovery::Settled(_)) => (
+            "interrupted",
+            Some("it stopped after its changes and before its last check: Undo puts both accounts back".to_owned()),
+        ),
+        Ok(Recovery::Applying { next }) => (
+            "interrupted",
+            Some(format!(
+                "it stopped at step {} of {steps}: Undo puts both accounts back",
+                (next + 1).min(steps)
+            )),
+        ),
+        Ok(Recovery::Undoing) => (
+            "interrupted",
+            Some("Undo stopped part way: Undo again finishes it".to_owned()),
+        ),
+        Ok(Recovery::Unclear(why)) => ("interrupted", Some(why)),
+        Err(error) => ("interrupted", Some(error.to_string())),
+    }
+}
+
+/// Whether a later move (in any state but undone) touches `txn`'s files:
+/// it owns them now.
+pub(super) fn moved_again(all: &[Transaction], txn: &Transaction) -> bool {
+    all.iter().any(|other| {
+        other.manifest.id != txn.manifest.id
+            && other.manifest.created_ms >= txn.manifest.created_ms
+            && other.manifest.phase != Phase::Undone
+            && other.overlaps(txn)
+    })
+}
+
+/// The App on `side` of the move (its folder when no App AI Juggler
+/// knows of had it).
+fn side_name(state: &Arc<AppState>, txn: &Transaction, host: Option<&Path>, tool: &Path) -> String {
+    let named = txn.manifest.places.iter().find_map(|id| {
+        crate::features::places::with_book(state, |book| book.places.get(id).cloned())
+            .ok()
+            .flatten()
+            .filter(|place| host.is_some() && place.instance_dir.as_deref() == host)
+            .map(|place| crate::features::places::named(state, &place))
+    });
+    named.unwrap_or_else(|| shown(host.unwrap_or(tool)))
+}
+
+/// One journal line in words: its event, then what it names.
+fn line_words(value: &serde_json::Value) -> String {
+    let Some(fields) = value.as_object() else {
+        return value.to_string();
+    };
+    let event = fields
+        .get("event")
+        .and_then(serde_json::Value::as_str)
+        .unwrap_or("note");
+    let rest: Vec<String> = fields
+        .iter()
+        .filter(|(key, _)| key.as_str() != "event")
+        .map(|(key, value)| match value {
+            serde_json::Value::String(text) => format!("{key} {text}"),
+            serde_json::Value::Number(n) if key == "step" => {
+                format!("step {}", n.as_u64().map_or(0, |n| n + 1))
+            }
+            other => format!("{key} {other}"),
+        })
+        .collect();
+    if rest.is_empty() {
+        event.to_owned()
+    } else {
+        format!("{event}: {}", rest.join(", "))
+    }
+}
+
+/// Every move AI Juggler knows of, newest first, with any left part way
+/// read back from its journal.
+#[must_use]
+pub fn moves(state: &Arc<AppState>) -> Vec<MoveRecordInfo> {
+    let all = hold::all_moves(&state.data_dir);
+    let mut out: Vec<MoveRecordInfo> = all
+        .iter()
+        .map(|txn| {
+            let (label, detail) = state_of(txn);
+            let manifest = &txn.manifest;
+            let request = &manifest.request;
+            let undo_why = match label {
+                "committed" if moved_again(&all, txn) => {
+                    Some("moved again since: undo the later move first".to_owned())
+                }
+                "committed" if !txn.backups_kept() => Some(
+                    "its backup was let go (a later move of it finished, or it is old), so it can't be undone".to_owned(),
+                ),
+                _ => None,
+            };
+            MoveRecordInfo {
+                move_id: manifest.id.clone(),
+                conversation: request.conversation.clone(),
+                title: manifest
+                    .plan
+                    .members
+                    .iter()
+                    .find(|m| m.conversation == request.conversation)
+                    .and_then(|m| m.title.clone()),
+                from: side_name(
+                    state,
+                    txn,
+                    request.source.host_dir.as_deref(),
+                    &request.source.tool_dir,
+                ),
+                to: side_name(
+                    state,
+                    txn,
+                    request.target.host_dir.as_deref(),
+                    &request.target.tool_dir,
+                ),
+                state: label.to_owned(),
+                at_ms: manifest.created_ms,
+                detail: detail.or(manifest.problem.clone()),
+                can_undo: match label {
+                    "committed" => undo_why.is_none(),
+                    "interrupted" => true,
+                    _ => false,
+                },
+                undo_why,
+                can_finish: label == "interrupted" && manifest.phase == Phase::Verified,
+                timeline: txn.journal().iter().map(line_words).collect(),
+                kept: txn.dependencies().iter().map(|path| shown(path)).collect(),
+            }
+        })
+        .collect();
+    out.reverse();
+    out
+}
+
+/// `path` with the home folder as `~`.
+pub(super) fn shown(path: &Path) -> String {
+    match juggler_platform::user::home().and_then(|home| {
+        path.strip_prefix(home)
+            .ok()
+            .map(std::path::Path::to_path_buf)
+    }) {
+        Some(rest) => format!("~/{}", rest.display()),
+        None => path.display().to_string(),
+    }
+}
