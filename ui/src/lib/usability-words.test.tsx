@@ -8,26 +8,15 @@ import { render } from "@testing-library/react";
 import { CONDITION_LINE, NOUN } from "../components/watches/watches-words";
 import { levelWords } from "../components/MachineStatusLine";
 import { LegendLevels } from "../components/LegendLevels";
-
-import notificationSettings from "../components/NotificationSettings.tsx?raw";
-import notificationCentre from "../components/NotificationCentre.tsx?raw";
-import processesToolbar from "../screens/processes/Toolbar.tsx?raw";
-import railGroups from "../components/rail-groups.tsx?raw";
-import cloudParts from "../components/FigureheadCloudParts.tsx?raw";
-import feedFilters from "../components/HomeFeedFilters.tsx?raw";
-import feedAway from "../components/HomeFeedAway.tsx?raw";
 import { MARK_HINTS } from "./feed-words";
 
-const SOURCES: Record<string, string> = {
-  "../components/NotificationSettings.tsx": notificationSettings,
-  "../components/NotificationCentre.tsx": notificationCentre,
-  "../screens/processes/Toolbar.tsx": processesToolbar,
-  "../components/rail-groups.tsx": railGroups,
-  "../components/FigureheadCloudParts.tsx": cloudParts,
-  "../components/HomeFeedFilters.tsx": feedFilters,
-  "../components/HomeFeedAway.tsx": feedAway,
-};
-const source = (path: string): string => SOURCES[path] ?? "";
+// The screens' own words, read as text (Vite's ?raw), for the word rules.
+const SOURCES = import.meta.glob<string>("../{components,screens}/**/*.tsx", { query: "?raw", import: "default", eager: true });
+const source = (path: string): string => {
+  const text = SOURCES[path];
+  if (text === undefined) throw new Error(`no source ${path}`);
+  return text;
+}
 
 describe("AJ-E1548 #8 #10 #28: one meaning per word", () => {
   it("Finishes is a session ending on its own; a watch's turn end is said as a turn", () => {
