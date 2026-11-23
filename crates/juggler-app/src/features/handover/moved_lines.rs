@@ -11,7 +11,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use juggler_adapter::moving::MoveStep;
-use juggler_handover::moving::{Manifest, Phase, Transaction};
+use juggler_handover::moving::{Manifest, Phase};
 
 use crate::state::AppState;
 
@@ -93,7 +93,8 @@ impl Moves {
     /// the app's state is made).
     #[must_use]
     pub fn read_at(data_dir: &Path) -> Self {
-        let all = Transaction::all(&data_dir.join(juggler_handover::moving::FOLDER));
+        // AJ-E2320: the shared move area's journals and this AI Juggler's own.
+        let all = crate::features::places::hold::all_moves(data_dir);
         Self::of(all.iter().map(|txn| &txn.manifest))
     }
 

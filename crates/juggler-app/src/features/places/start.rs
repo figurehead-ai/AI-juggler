@@ -201,6 +201,10 @@ pub(crate) fn start_place(
         if moving.contains(&id) {
             return Err(super::HELD.to_owned());
         }
+        // AJ-E2320: a move of another AI Juggler (or one that crashed).
+        if let Some(why) = super::why_held_on_disk(state, &id) {
+            return Err(why.to_owned());
+        }
         start(place, hosts, folder.as_deref(), starter, background)
     };
     launched.inspect(|()| crate::features::conversations::look_for_started(state))

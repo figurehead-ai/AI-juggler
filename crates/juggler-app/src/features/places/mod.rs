@@ -19,6 +19,7 @@
 pub mod book;
 pub mod commands;
 pub mod handoff;
+pub mod hold;
 pub mod keep;
 pub(crate) mod link;
 use link::link_its_folder;
@@ -147,25 +148,39 @@ impl Places {
 
 pub use crate::features::presence::watch::{RECONCILE_EVERY_MS, reconcile, running_at_last_look};
 
-/// ADR-0031: holds `ids` closed for a move while it lives: nothing in AI
-/// Juggler starts them or writes their records meanwhile.
+/// ADR-0031: holds `ids` closed for move `move_id` while it lives:
+/// nothing in AI Juggler starts them or writes their records meanwhile.
+/// AJ-E2320: in this AI Juggler and, by a marker in the shared move area
+/// ([`hold`]), in every other on this Mac; the marker outlives a move
+/// left part way (or a crash) until the move is committed or undone.
 pub struct MoveHold {
     state: Arc<AppState>,
     ids: Vec<String>,
+    move_id: String,
 }
 
 impl MoveHold {
-    /// Holds `ids`, or none when another move holds one of them.
-    #[must_use]
-    pub fn take(state: &Arc<AppState>, ids: &[String]) -> Option<Self> {
-        let mut now = state.places.moving.lock().ok()?;
+    /// Holds `ids` for move `move_id`.
+    ///
+    /// # Errors
+    ///
+    /// Another move (of this AI Juggler or another, running or crashed)
+    /// holds one of them, in words.
+    pub fn take(state: &Arc<AppState>, ids: &[String], move_id: &str) -> Result<Self, String> {
+        let mut now = state
+            .places
+            .moving
+            .lock()
+            .map_err(|_| hold::BUSY.to_owned())?;
         if ids.iter().any(|id| now.contains(id)) {
-            return None;
+            return Err(hold::BUSY.to_owned());
         }
+        hold::take(&hold::area_at(&state.data_dir), ids, move_id)?;
         now.extend(ids.iter().cloned());
-        Some(Self {
+        Ok(Self {
             state: Arc::clone(state),
             ids: ids.to_vec(),
+            move_id: move_id.to_owned(),
         })
     }
 }
@@ -177,23 +192,57 @@ impl Drop for MoveHold {
                 now.remove(id);
             }
         }
+        if hold::settled(&self.state.data_dir, &self.move_id) {
+            hold::release(
+                &hold::area_at(&self.state.data_dir),
+                &self.ids,
+                &self.move_id,
+            );
+        }
     }
 }
 
-/// Whether a move holds `id` closed now.
+/// Why `id` is held for a move, in words; `None`: it isn't. A move of
+/// this AI Juggler running now, or of another one ([`HELD`]); a move left
+/// part way or whose AI Juggler is gone ([`HELD_UNFINISHED`]).
 #[must_use]
-pub fn held_for_move(state: &Arc<AppState>, id: &str) -> bool {
-    state.places.moving.lock().is_ok_and(|now| now.contains(id))
+pub fn why_held(state: &Arc<AppState>, id: &str) -> Option<&'static str> {
+    if state.places.moving.lock().is_ok_and(|now| now.contains(id)) {
+        return Some(HELD);
+    }
+    why_held_on_disk(state, id)
 }
 
-/// Whether any move is running now.
+/// [`why_held`] by the shared area's marker alone (called under the
+/// in-memory hold's lock).
+pub(crate) fn why_held_on_disk(state: &Arc<AppState>, id: &str) -> Option<&'static str> {
+    match hold::held(&hold::area_at(&state.data_dir), id) {
+        hold::Held::Free => None,
+        hold::Held::Moving(Some(marker)) if marker.mine() => Some(HELD_UNFINISHED),
+        hold::Held::Moving(_) => Some(HELD),
+        hold::Held::Crashed(_) => Some(HELD_UNFINISHED),
+    }
+}
+
+/// Whether a move holds `id` closed now (of any AI Juggler, running or
+/// crashed).
+#[must_use]
+pub fn held_for_move(state: &Arc<AppState>, id: &str) -> bool {
+    why_held(state, id).is_some()
+}
+
+/// Whether any move (of any AI Juggler) holds a profile now.
 #[must_use]
 pub fn any_move(state: &Arc<AppState>) -> bool {
     state.places.moving.lock().is_ok_and(|now| !now.is_empty())
+        || hold::any_held(&hold::area_at(&state.data_dir))
 }
 
 /// The words for a place a move holds.
 const HELD: &str = "a switch is moving conversations into or out of this profile; it starts again by itself when the move is done";
+
+/// The words for a place a move that didn't finish holds.
+const HELD_UNFINISHED: &str = "a switch's move into or out of this profile didn't finish, so AI Juggler keeps it closed; undo the move to open it again";
 
 impl std::fmt::Debug for Places {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -1227,8 +1276,8 @@ pub fn restart(
     })
     .map_err(|error| error.to_string())?
     .ok_or_else(|| "AI Juggler doesn't remember that app any more".to_owned())?;
-    if held_for_move(state, id) {
-        return Err(HELD.to_owned());
+    if let Some(why) = why_held(state, id) {
+        return Err(why.to_owned());
     }
     let label = named(state, &place);
     let hosts = HostRegistry::of(&state.registry);
@@ -1352,8 +1401,8 @@ pub fn open(
             })
     })?
     .ok_or_else(|| AppError::Refused(NOT_ADDED.to_owned()))?;
-    if held_for_move(state, id) {
-        return Err(AppError::Refused(HELD.to_owned()));
+    if let Some(why) = why_held(state, id) {
+        return Err(AppError::Refused(why.to_owned()));
     }
     if let Ok(mut watch) = state.places.watch.lock() {
         watch.drop_place(id);

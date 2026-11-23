@@ -52,6 +52,7 @@ use crate::error::{AppError, AppResult};
 use crate::features::conversations::procs::Table;
 use crate::features::ownership::ProcId;
 use crate::features::places::book::KnownPlace;
+use crate::features::places::hold;
 use crate::features::places::tree::{self, Member};
 use crate::state::AppState;
 
@@ -358,8 +359,15 @@ use pick::{links_hold, sides, start_checked};
 use quit::{Writing, stop_places};
 pub use real::{Real, Tell};
 
+/// AJ-E2320: new moves' journals, in the move area every AI Juggler on
+/// this Mac shares ([`hold::journals`]).
 fn moves_dir(state: &Arc<AppState>) -> PathBuf {
-    state.data_dir.join(juggler_handover::moving::FOLDER)
+    hold::journals(&hold::area_at(&state.data_dir))
+}
+
+/// AJ-E2320: the lock on `roots`, in the shared move area.
+fn lock(state: &Arc<AppState>, roots: &[PathBuf]) -> AppResult<Lock> {
+    Lock::take_in(&hold::locks(&hold::area_at(&state.data_dir)), roots).map_err(engine)
 }
 
 fn refused(why: impl Into<String>) -> AppError {
@@ -924,12 +932,13 @@ fn run(state: &Arc<AppState>, sides: &Sides, system: &dyn MoveSystem) -> AppResu
         .flatten()
         .cloned()
         .collect();
-    let _lock = Lock::take(&plan.roots).map_err(engine)?;
+    let _lock = lock(state, &plan.roots)?;
     let ids: Vec<String> = places.iter().map(|(id, _)| id.clone()).collect();
-    let _hold = crate::features::places::MoveHold::take(state, &ids)
-        .ok_or_else(|| refused("another move of these profiles is running"))?;
     let now = juggler_core::model::Timestamp::now().millis();
-    let previous = Transaction::all(&folder)
+    let move_id = new_id(now);
+    // AJ-E2320: held in every AI Juggler before anything quits.
+    let _hold = crate::features::places::MoveHold::take(state, &ids, &move_id).map_err(refused)?;
+    let previous = hold::all_moves(&state.data_dir)
         .into_iter()
         .rev()
         .find(|txn| {
@@ -939,7 +948,7 @@ fn run(state: &Arc<AppState>, sides: &Sides, system: &dyn MoveSystem) -> AppResu
         .map(|txn| txn.manifest.id.clone());
     let mut txn = Transaction::begin(
         &folder,
-        &new_id(now),
+        &move_id,
         &sides.tool,
         sides.request.clone(),
         plan,
@@ -1233,11 +1242,10 @@ pub(crate) fn undo_with(
     {
         return Err(refused("that isn't a move's id"));
     }
-    let moves = moves_dir(state);
-    let mut txn = Transaction::open(&moves.join(move_id)).map_err(engine)?;
+    let mut txn = hold::open_move(&state.data_dir, move_id).map_err(engine)?;
     // A later move (in any state but undone) that touches the same files
     // owns them now: undoing this one would put old copies over it.
-    let later = Transaction::all(&moves).into_iter().any(|other| {
+    let later = hold::all_moves(&state.data_dir).into_iter().any(|other| {
         other.manifest.id != txn.manifest.id
             && other.manifest.created_ms >= txn.manifest.created_ms
             && other.manifest.phase != Phase::Undone
@@ -1260,9 +1268,10 @@ pub(crate) fn undo_with(
             })?;
         places.push((id.clone(), known));
     }
-    let _lock = Lock::take(&txn.manifest.plan.roots).map_err(engine)?;
-    let _hold = crate::features::places::MoveHold::take(state, &txn.manifest.places)
-        .ok_or_else(|| refused("another move of these profiles is running"))?;
+    let _lock = lock(state, &txn.manifest.plan.roots)?;
+    let _hold =
+        crate::features::places::MoveHold::take(state, &txn.manifest.places, &txn.manifest.id)
+            .map_err(refused)?;
     let adapter = state
         .registry
         .get(&juggler_core::model::HarnessId::new(
@@ -1338,11 +1347,14 @@ pub(crate) fn undo_with(
 /// already undone (a move refused before 0.4.9 kept a backup of its whole
 /// history). A move in any other phase keeps its own.
 pub fn sweep_at_startup(state: &Arc<AppState>) {
-    let folder = moves_dir(state);
+    let folders = hold::journal_folders(&state.data_dir);
     let _ = std::thread::Builder::new()
         .name("move-backups-sweep".into())
         .spawn(move || {
-            let went = juggler_handover::moving::sweep_undone(&folder);
+            let went: usize = folders
+                .iter()
+                .map(|folder| juggler_handover::moving::sweep_undone(folder))
+                .sum();
             if went > 0 {
                 tracing::info!(target: "juggler::move", "let go of {went} undone moves' backups");
             }
@@ -1353,7 +1365,7 @@ pub fn sweep_at_startup(state: &Arc<AppState>) {
 /// read back from its journal.
 #[must_use]
 pub fn moves(state: &Arc<AppState>) -> Vec<MoveRecordInfo> {
-    let mut out: Vec<MoveRecordInfo> = Transaction::all(&moves_dir(state))
+    let mut out: Vec<MoveRecordInfo> = hold::all_moves(&state.data_dir)
         .into_iter()
         .map(|txn| {
             let (label, detail) = match txn.recover() {
@@ -1406,7 +1418,7 @@ fn shown(path: &std::path::Path) -> String {
 /// kept aside by Undo): cleanup must leave each.
 #[must_use]
 pub fn kept_paths(state: &Arc<AppState>) -> Vec<PathBuf> {
-    Transaction::all(&moves_dir(state))
+    hold::all_moves(&state.data_dir)
         .iter()
         .flat_map(Transaction::dependencies)
         .collect()

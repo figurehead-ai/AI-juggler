@@ -113,6 +113,10 @@ struct Scripted {
     mismatched: Mutex<HashMap<String, PathBuf>>,
     /// AJ-E2317: one such place, found so only once the apps quit.
     mismatch_on_quit: Mutex<Option<(String, PathBuf)>>,
+    /// AJ-E2320: the shared move area, and whether a profile was held in
+    /// it at each quit.
+    area: Option<PathBuf>,
+    held_at_quit: Mutex<Vec<bool>>,
 }
 
 impl Scripted {
@@ -156,6 +160,10 @@ impl MoveSystem for Scripted {
     fn quit(&self, pid: u32) -> Result<(), String> {
         self.settle_deaths();
         self.quits.lock().unwrap().push(pid);
+        if let Some(area) = &self.area {
+            let held = crate::features::places::hold::any_held(area);
+            self.held_at_quit.lock().unwrap().push(held);
+        }
         if let Some((id, uses)) = self.mismatch_on_quit.lock().unwrap().take() {
             self.mismatched.lock().unwrap().insert(id, uses);
         }
@@ -608,7 +616,13 @@ fn a_busy_profile_refuses_before_anything_is_quit_or_written() {
     assert!(error.contains("2 sessions are working"), "{error}");
     assert!(system.quits.lock().unwrap().is_empty());
     assert!(unchanged(&lab));
-    assert!(!lab.state.data_dir.join("moves").exists(), "no move begun");
+    assert!(
+        !crate::features::places::hold::journals(&crate::features::places::hold::area_at(
+            &lab.state.data_dir
+        ))
+        .exists(),
+        "no move begun"
+    );
 }
 
 #[test]
@@ -680,13 +694,42 @@ fn a_held_profile_is_left_alone_by_open_and_restart() {
     let lab = lab();
     let id = lab.sides.target_place.as_ref().unwrap().0.clone();
     let hold =
-        crate::features::places::MoveHold::take(&lab.state, std::slice::from_ref(&id)).unwrap();
+        crate::features::places::MoveHold::take(&lab.state, std::slice::from_ref(&id), "m-1")
+            .unwrap();
     assert!(crate::features::places::held_for_move(&lab.state, &id));
     assert!(
-        crate::features::places::MoveHold::take(&lab.state, std::slice::from_ref(&id)).is_none()
+        crate::features::places::MoveHold::take(&lab.state, std::slice::from_ref(&id), "m-2")
+            .is_err()
     );
     drop(hold);
     assert!(!crate::features::places::held_for_move(&lab.state, &id));
+}
+
+/// AJ-E2320 R1: both profiles are held in the area every AI Juggler
+/// shares before the first quit; the committed move lets go.
+#[test]
+fn a_move_holds_both_profiles_for_every_ai_juggler_before_the_first_quit() {
+    if !clones() {
+        return;
+    }
+    let lab = lab();
+    let area = crate::features::places::hold::area_at(&lab.state.data_dir);
+    let system = Scripted {
+        area: Some(area.clone()),
+        ..running_both(&lab)
+    };
+    run(&lab.state, &lab.sides, &system).unwrap();
+    let held = system.held_at_quit.lock().unwrap().clone();
+    assert!(!held.is_empty() && held.iter().all(|h| *h), "{held:?}");
+    assert!(
+        !crate::features::places::hold::any_held(&area),
+        "committed: let go"
+    );
+    assert_eq!(
+        crate::features::places::hold::all_moves(&lab.state.data_dir).len(),
+        1,
+        "its journal in the shared area"
+    );
 }
 
 #[test]
@@ -924,7 +967,9 @@ fn source_id(lab: &Lab) -> String {
 
 /// A move's own folder of backups.
 fn backups(lab: &Lab) -> Vec<PathBuf> {
-    let moves = lab.state.data_dir.join("moves");
+    let moves = crate::features::places::hold::journals(&crate::features::places::hold::area_at(
+        &lab.state.data_dir,
+    ));
     let mut out = Vec::new();
     for entry in std::fs::read_dir(moves).unwrap().flatten() {
         for backup in std::fs::read_dir(entry.path().join("backups"))

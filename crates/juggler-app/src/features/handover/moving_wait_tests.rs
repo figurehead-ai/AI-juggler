@@ -209,7 +209,13 @@ fn the_offer_refuses_an_outside_writer_before_any_quit() {
     assert!(system.quits.lock().unwrap().is_empty(), "nothing quit");
     assert!(system.starts.lock().unwrap().is_empty(), "nothing started");
     assert!(unchanged(&lab));
-    assert!(!lab.state.data_dir.join("moves").exists(), "no move begun");
+    assert!(
+        !crate::features::places::hold::journals(&crate::features::places::hold::area_at(
+            &lab.state.data_dir
+        ))
+        .exists(),
+        "no move begun"
+    );
 }
 
 /// Both profiles are asked to quit at once (each still running when the
@@ -263,7 +269,8 @@ fn a_start_racing_a_move_sees_its_hold() {
     let hosts = crate::features::conversations::places::HostRegistry::of(&lab.state.registry);
     let starter = crate::features::places::fakes::Recorder::default();
     let hold =
-        crate::features::places::MoveHold::take(&lab.state, std::slice::from_ref(&id)).unwrap();
+        crate::features::places::MoveHold::take(&lab.state, std::slice::from_ref(&id), "m-1")
+            .unwrap();
     let refused = crate::features::places::start_place(&lab.state, &place, &hosts, &starter, true);
     assert!(refused.is_err(), "{refused:?}");
     assert!(starter.starts.lock().unwrap().is_empty(), "nothing started");

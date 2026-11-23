@@ -189,6 +189,17 @@ impl Lock {
     ///
     /// Another move holds one of them.
     pub fn take(roots: &[PathBuf]) -> Result<Self, MoveError> {
+        Self::take_in(&std::env::temp_dir(), roots)
+    }
+
+    /// [`Self::take`] with the lock files in `dir` (AJ-E2320: the move
+    /// area every AI Juggler on this Mac shares).
+    ///
+    /// # Errors
+    ///
+    /// Another move holds one of them; `dir` can't be made.
+    pub fn take_in(dir: &Path, roots: &[PathBuf]) -> Result<Self, MoveError> {
+        std::fs::create_dir_all(dir).map_err(io("make the locks' folder"))?;
         let mut files = Vec::new();
         let mut roots: Vec<PathBuf> = roots
             .iter()
@@ -201,7 +212,7 @@ impl Lock {
                 juggler_adapter::handover::sha256_reader(root.to_string_lossy().as_bytes(), None)
                     .map_err(io("name the lock"))?
                     .0;
-            let path = std::env::temp_dir().join(format!("ai-juggler-move-{}.lock", &digest[..16]));
+            let path = dir.join(format!("ai-juggler-move-{}.lock", &digest[..16]));
             let file = std::fs::OpenOptions::new()
                 .create(true)
                 .truncate(false)
