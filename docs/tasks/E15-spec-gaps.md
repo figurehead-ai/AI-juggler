@@ -793,3 +793,21 @@ Step 1, "Your apps" (the coordinator's reasoning, 2026-11-23): (1) people think 
    Their usability reasoning: (1) each surface's user expects one door per action and one history; (2) each control says what it makes (a watch, a context change); (3) the duplicates go (#5, #9, #13, #27); (4) n/a; (5) none new; (6) a thumbs-down that did nothing, a reminder nowhere to be seen, a fetch nobody was told about.
 **Quality gates**: `just keep-going verify-static`; a test per wording rule (vocabulary, counts, hidden rows) and per behaviour change; the visual gate with Opus's critique in both themes.
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E1548/manifest.md`, one row per finding.
+
+### AJ-E1549 No white flash, ever: the window, the page and every loading boundary paint the theme's base colour from the first frame | Status: TODO (0.5.1) | Priority P1 | Effort S | Depends: none
+**Found** by the maintainer on the 0.5.0 Nightly (2026-11-23): a very short full-window white flash at random moments, among them the import wizard's sign-in step with a live terminal panel on screen. The coordinating session found no WebContent crash, reload or WebGL context loss in the system log (the wizard's state survived), so it is a paint gap, not a restart; the main window sets no background colour and nothing sets the webview's, so the native window is white behind the page.
+**UI**: yes
+**Usability reasoning** (Opus, before building; re-checked on the built screen):
+(1) Everyone, in both themes; a white flash in a dark app reads as a glitch or a crash.
+(2) Nothing to explain: the fix is that it never happens.
+(3) A calm, trustworthy app; no new surface.
+(4) Every loading state is a skeleton inside the layout, never an empty root (instant and paged).
+(5) None.
+(6) The flash itself: a sensible person thinks the app restarted or broke.
+**Requirements**:
+1. The native window's background is the theme's base colour, set in the configuration and again at run time whenever the theme changes (dark and light).
+2. `html` and `body` take their background from the tokens in `index.html`'s inline CSS, with both `prefers-color-scheme` cases, before any script runs.
+3. No Suspense fallback or screen boundary renders an empty root: each renders a skeleton inside the layout.
+4. The specific trigger is root-caused (candidates: a lazy screen's empty fallback while the page background lives on an inner element; the theme class applied after first paint; the embedded terminal's canvas being re-created; the Floor's surface reconfiguring) and fixed where it is.
+**Quality gates**: `just keep-going verify-static`; a Playwright check sampling frames while switching screens, stepping through the wizard and opening the terminal panel, in the dark theme, failing on any frame mostly near white; a unit check that `index.html` carries the background before its scripts.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E1549/manifest.md`.
