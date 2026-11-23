@@ -108,10 +108,11 @@ describe("Home, desktop first", () => {
     // App by its folder, so no App matched and it suggested Work. It sends
     // the App's own folder, as the rail's idle App does, and the sheet's
     // pick is Personal's, though Work has more room.
-    const sent = (asked.mock.calls[0]![0] as CustomEvent<{ accountId: string | null }>).detail.accountId;
+    const event: unknown = asked.mock.calls[0]![0];
+    const sent: string | null = event instanceof CustomEvent ? event.detail.accountId : null;
     expect(sent).toBe("claude-personal");
     const cli = (id: string, label: string): LaunchRecipeInfo => ({ id: `r-${id}`, name: "Main", account_id: id, account_label: label, provider: "claude-code", model: null, default_cwd: null, restart_on_crash: null });
-    const folder = (id: string) => ({ id, provider: "claude-code", label: id, plan: null, login_state: "logged_in", cleanup_opt_in: false, renewal_date: null, preview_opt_in: false, in_place: false }) as unknown as AccountInfo;
+    const folder = (id: string): AccountInfo => ({ id, provider: "claude-code", label: id, plan: null, login_state: "logged_in", cleanup_opt_in: false, renewal_date: null, preview_opt_in: false, in_place: false });
     const roomOf = (id: string) => ({ left: id === "claude-work" ? 90 : 40, resetsAtMs: null, credits: false });
     const pick = chooseApp({ recipes: [cli("claude-work", "Work"), cli("claude-personal", "Personal")], folders: [folder("claude-work"), folder("claude-personal")], roomOf, project: null, chosen: sent });
     expect(pick).toMatchObject({ recipe: { account_id: "claude-personal" }, why: "chosen" });

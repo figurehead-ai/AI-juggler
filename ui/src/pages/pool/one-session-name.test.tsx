@@ -18,6 +18,7 @@ import { instance } from "../../test/fixtures";
 import { nodeTitles, pageNames } from "./node-title";
 import { shapeOfPool } from "./PoolSummary";
 import { whoSentence } from "../../lib/pool-sentences";
+import type { PoolInfo } from "../../types/generated/PoolInfo";
 import { heldOf } from "./pool-count";
 import { drawnMembers } from "./useCanvas";
 
@@ -87,7 +88,8 @@ describe("one name for a session, on every surface (SK48-3)", () => {
     expect(called.get("w1")).toBe("web (1)");
     expect(called.get("w2")).toBe("web (2)");
     const members = drawn.map((member) => ({ ...member, name: called.get(member.id)! }));
-    const shape = shapeOfPool({ access: { level: "build" }, sealed: false } as never, null, members, () => "");
+    const pool: Pick<PoolInfo, "access" | "sealed"> = { access: { level: "work_together", actions: [], hop_limit: 5, delivery_stopped: false }, sealed: false };
+    const shape = shapeOfPool(pool, null, members, () => "");
     expect(whoSentence(shape)).toMatch(/^web \(1\), web \(2\)\./);
     // The List view's row reads the same.
     render(<PoolCardRows list={listOf([row(W1)])} sessions={[W1, W2]} names={called} now={AT + 60 * 60_000} />);
