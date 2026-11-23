@@ -9,6 +9,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 use super::*;
 use crate::features::places::book;
+use juggler_adapter::moving::MoveSide;
 
 const SLUG: &str = "-w-proj";
 
@@ -107,6 +108,11 @@ struct Scripted {
     told: Mutex<Vec<MoveProgressInfo>>,
     /// The place an AI Juggler was started from inside (the self rule).
     juggler_in: Option<String>,
+    /// AJ-E2317: places whose own sessions use another folder than the
+    /// one they're linked to (AJ-E2327's evidence), and that folder.
+    mismatched: Mutex<HashMap<String, PathBuf>>,
+    /// AJ-E2317: one such place, found so only once the apps quit.
+    mismatch_on_quit: Mutex<Option<(String, PathBuf)>>,
 }
 
 impl Scripted {
@@ -150,6 +156,9 @@ impl MoveSystem for Scripted {
     fn quit(&self, pid: u32) -> Result<(), String> {
         self.settle_deaths();
         self.quits.lock().unwrap().push(pid);
+        if let Some((id, uses)) = self.mismatch_on_quit.lock().unwrap().take() {
+            self.mismatched.lock().unwrap().insert(id, uses);
+        }
         let running = self
             .procs
             .lock()
@@ -343,6 +352,15 @@ impl MoveSystem for Scripted {
             )
         })
     }
+    fn link_mismatch(
+        &self,
+        _: &Arc<AppState>,
+        place_id: &str,
+        _: &KnownPlace,
+        _: &Path,
+    ) -> Option<PathBuf> {
+        self.mismatched.lock().unwrap().get(place_id).cloned()
+    }
 }
 
 impl Scripted {
@@ -379,6 +397,19 @@ fn place(state: &Arc<AppState>, root: &Path, name: &str) -> (String, KnownPlace,
     crate::features::places::remember_test_profile(state, root, name, None)
 }
 
+/// The two accounts' Claude Code folders (`acct-a`'s and `acct-b`'s), each
+/// signed in and holding the project's folder.
+fn code_folders(a_code: &Path, b_code: &Path) {
+    for (code, acct) in [(a_code, "acct-a"), (b_code, "acct-b")] {
+        std::fs::create_dir_all(code.join("projects").join(SLUG)).unwrap();
+        std::fs::write(
+            code.join(".claude.json"),
+            format!(r#"{{"oauthAccount":{{"accountUuid":"{acct}","organizationUuid":"org"}}}}"#),
+        )
+        .unwrap();
+    }
+}
+
 fn lab() -> Lab {
     let tmp = tempfile::tempdir().unwrap();
     let root = tmp.path().to_path_buf();
@@ -392,14 +423,7 @@ fn lab() -> Lab {
     for dir in [&a_folder, &b_folder] {
         std::fs::create_dir_all(dir).unwrap();
     }
-    for (code, acct) in [(&a_code, "acct-a"), (&b_code, "acct-b")] {
-        std::fs::create_dir_all(code.join("projects").join(SLUG)).unwrap();
-        std::fs::write(
-            code.join(".claude.json"),
-            format!(r#"{{"oauthAccount":{{"accountUuid":"{acct}","organizationUuid":"org"}}}}"#),
-        )
-        .unwrap();
-    }
+    code_folders(&a_code, &b_code);
     let work = root.join("work");
     std::fs::create_dir_all(&work).unwrap();
     for (local, cli, parent) in [
@@ -452,6 +476,7 @@ fn lab() -> Lab {
         target_label: "B".into(),
         source_live: false,
         accounts: vec!["acct-a".into(), "acct-b".into()],
+        stop: None,
     };
     Lab {
         _tmp: tmp,
@@ -720,6 +745,7 @@ fn undo_waits_for_a_later_move_of_the_same_files_and_for_quiet() {
         target_label: "A".into(),
         source_live: false,
         accounts: lab.sides.accounts.clone(),
+        stop: None,
     };
     let second = run(&lab.state, &back, &system).unwrap();
     let error = undo_with(&lab.state, &first.move_id, &system)
@@ -1093,5 +1119,7 @@ fn an_undone_move_lets_its_backups_go() {
     assert!(unchanged(&lab));
 }
 
+#[path = "moving_pick_tests.rs"]
+mod picking;
 #[path = "moving_wait_tests.rs"]
 mod wait;

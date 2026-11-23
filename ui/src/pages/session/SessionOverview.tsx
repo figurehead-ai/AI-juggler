@@ -10,6 +10,7 @@ import { SwitchAccountButton } from "../../components/SwitchAccountButton";
 import { useSwitchNotYet } from "../../lib/switch-not-yet";
 import type { JSX } from "react";
 import type { SwitchBackSuggestionData } from "../../lib/ipc/switchBack";
+import type { PickTarget } from "../../lib/ipc/switch-targets";
 import { accountDisplay, accountOfProfile, useSubscriptions } from "../../lib/subscriptions";
 import { sessionAccountWords } from "./account-words";
 import { LastMessages } from "./LastMessages";
@@ -32,7 +33,7 @@ export type OverviewProps = {
   onGoTo?: () => void;
   /** Opens the switch screen from this session (AI Juggler's or another
    * app's alike, AJ-E2108). */
-  onPick?: (recipeId: string, label: string) => void;
+  onPick?: PickTarget;
   onCarryIn?: () => void;
   /** rc21: why Continue in AI Juggler can't run (its tool won't open it
    * by its id), or null. */

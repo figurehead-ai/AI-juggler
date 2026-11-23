@@ -628,13 +628,6 @@ pub(crate) fn choose_folder(
 /// otherwise, or it isn't linked. Reads the folders and the process
 /// table: call it off the window's thread.
 #[must_use]
-#[cfg_attr(
-    not(test),
-    expect(
-        dead_code,
-        reason = "AJ-E2317's Move-time refusal is its caller, next in 0.5.1"
-    )
-)]
 pub(crate) fn folder_mismatch(state: &Arc<AppState>, id: &str) -> Option<(PathBuf, LinkSource)> {
     let place = with_book(state, |book| book.places.get(id).cloned()).ok()??;
     let linked = super::tool_folder(state, &place)?;

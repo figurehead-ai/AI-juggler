@@ -43,7 +43,7 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use juggler_adapter::moving::{
-    MemberSide, MovePlan, MoveRequest, MoveSide, NotesChoice, Refusal, RefusalKind,
+    MemberSide, MovePlan, MoveRequest, NotesChoice, Refusal, RefusalKind,
 };
 use juggler_core::model::Account;
 use juggler_handover::moving::{Lock, MoveError, Phase, Recovery, Stopped, Transaction};
@@ -265,6 +265,10 @@ struct Sides {
     /// Both accounts' ids (their sessions outside the two profiles must be
     /// quiet: they write the same folders).
     accounts: Vec<String>,
+    /// AJ-E2317: why the sides can't be told, whatever happens next (two
+    /// profiles list the conversation, the picked App isn't on the
+    /// account); nothing is planned or quit then.
+    stop: Option<Refusal>,
 }
 
 /// The process side of a move (a seam: the tests script it).
@@ -327,12 +331,26 @@ pub trait MoveSystem: Send + Sync {
     fn quits_juggler(&self, _: &Arc<AppState>, _: &KnownPlace, _: u32, _: &str) -> Option<String> {
         None
     }
+    /// AJ-E2317: the tool folder `place`'s own sessions show it uses, when
+    /// that contradicts `linked`, the folder AI Juggler has it on
+    /// (AJ-E2327's evidence, `places::link::folder_mismatch`); `None`:
+    /// nothing contradicts it.
+    fn link_mismatch(
+        &self,
+        state: &Arc<AppState>,
+        place_id: &str,
+        place: &KnownPlace,
+        linked: &Path,
+    ) -> Option<PathBuf>;
 }
 
+#[path = "moving_pick.rs"]
+mod pick;
 #[path = "moving_quit.rs"]
 mod quit;
 #[path = "moving_real.rs"]
 mod real;
+use pick::{links_hold, sides, start_checked};
 use quit::{Writing, stop_places};
 pub use real::{Real, Tell};
 
@@ -360,72 +378,6 @@ fn tool_version(state: &Arc<AppState>, account: &Account) -> Option<String> {
         .and_then(|versions| versions.get(account.harness.as_str()).cloned())
 }
 
-/// Resolves both sides of moving `session_id` to `target_profile_id`.
-fn sides(state: &Arc<AppState>, session_id: &str, target_profile_id: &str) -> AppResult<Sides> {
-    let (_profile_b, account_b) =
-        crate::commands::find_profile_with_account_arc(state, target_profile_id)?;
-    let (source, account_a) = super::source::handover_source(state, session_id)?;
-    let conversation = source
-        .transcript_ref
-        .as_ref()
-        .and_then(|reference| reference.native_id.clone())
-        .ok_or_else(|| refused("AI Juggler couldn't tell which conversation this is"))?;
-    if account_a.harness != account_b.harness {
-        return Err(refused(
-            "a move stays within one tool; Copy carries it to another",
-        ));
-    }
-    let adapter = state
-        .registry
-        .get(&account_a.harness)
-        .ok_or_else(|| AppError::UnknownHarness(account_a.harness.as_str().to_owned()))?;
-    // The conversation lives in a desktop app profile when that profile
-    // keeps a record of it; then the target's profile is the other side.
-    let source_place = crate::features::places::handoff::profile_for(state, account_a.id.as_str())
-        .filter(|(_, place)| {
-            let (Some(dir), Some(family)) = (place.instance_dir.as_deref(), adapter.host_family())
-            else {
-                return false;
-            };
-            family
-                .conversations(dir)
-                .into_iter()
-                .flatten()
-                .any(|r| r.id == conversation)
-        });
-    let target_place = source_place
-        .as_ref()
-        .and_then(|_| crate::features::places::handoff::profile_for(state, account_b.id.as_str()));
-    let side = |account: &Account, place: Option<&(String, KnownPlace)>| MoveSide {
-        tool_dir: account.state_dir.clone(),
-        host_dir: place.and_then(|(_, p)| p.instance_dir.clone()),
-        version: match place {
-            Some((_, p)) => juggler_platform::apps::bundle_version(&p.bundle),
-            None => tool_version(state, account),
-        },
-    };
-    let request = MoveRequest {
-        conversation,
-        source: side(&account_a, source_place.as_ref()),
-        target: side(&account_b, target_place.as_ref()),
-        notes: NotesChoice::KeepTarget,
-    };
-    Ok(Sides {
-        request,
-        tool: account_a.harness.as_str().to_owned(),
-        adapter,
-        source_live: crate::features::switch::execute::source_is_live(state, &source),
-        source_place,
-        target_place,
-        source_label: account_a.label.clone(),
-        target_label: account_b.label.clone(),
-        accounts: vec![
-            account_a.id.as_str().to_owned(),
-            account_b.id.as_str().to_owned(),
-        ],
-    })
-}
-
 fn place_name(state: &Arc<AppState>, place: &KnownPlace) -> String {
     crate::features::places::named(state, place)
 }
@@ -444,7 +396,8 @@ fn busy(
         .flatten()
         .cloned()
         .collect();
-    let mut out = quiet(state, &places, &sides.accounts, system, "Move", writing);
+    let both = (&places[..], &sides.request);
+    let mut out = quiet(state, both, &sides.accounts, system, "Move", writing);
     if sides.source_place.is_none() && sides.source_live && out.is_empty() {
         out.push(Refusal::user_can_clear(
             "the conversation is open in a session; Move becomes available once you end it",
@@ -462,13 +415,15 @@ fn busy(
 /// quits.
 fn quiet(
     state: &Arc<AppState>,
-    places: &[(String, KnownPlace)],
+    (places, request): (&[(String, KnownPlace)], &MoveRequest),
     accounts: &[String],
     system: &dyn MoveSystem,
     action: &str,
     writing: &Writing<'_>,
 ) -> Vec<Refusal> {
-    let mut out = Vec::new();
+    // AJ-E2317: a profile whose sessions contradict its folder link needs
+    // the user first.
+    let mut out = links_hold(state, places, request, system, action);
     let mut hosts = Vec::new();
     let mut running = Vec::new();
     for (id, place) in places {
@@ -610,7 +565,8 @@ fn note_shape(state: &Arc<AppState>, sides: &Sides, plan: &MovePlan) {
     }
 }
 
-/// The switch screen's Move offer for `session_id` to `target_profile_id`.
+/// The switch screen's Move offer for `session_id` to `target_profile_id`'s
+/// account, into the App `target_place_id` the user picked (AJ-E2317).
 /// Reads only.
 ///
 /// # Errors
@@ -620,25 +576,12 @@ pub fn offer(
     state: &Arc<AppState>,
     session_id: &str,
     target_profile_id: &str,
+    target_place_id: Option<&str>,
 ) -> AppResult<MoveOfferInfo> {
-    Ok(offer_with(
-        state,
-        session_id,
-        target_profile_id,
-        &Real::quiet(),
-    ))
-}
-
-pub(crate) fn offer_with(
-    state: &Arc<AppState>,
-    session_id: &str,
-    target_profile_id: &str,
-    system: &dyn MoveSystem,
-) -> MoveOfferInfo {
-    let Ok(sides) = sides(state, session_id, target_profile_id) else {
-        return MoveOfferInfo::default();
+    let Ok(sides) = sides(state, session_id, target_profile_id, target_place_id) else {
+        return Ok(MoveOfferInfo::default());
     };
-    offer_of(state, &sides, system)
+    Ok(offer_of(state, &sides, &Real::quiet()))
 }
 
 /// The offer for resolved `sides` (D-127: each block says whether the
@@ -646,6 +589,13 @@ pub(crate) fn offer_with(
 fn offer_of(state: &Arc<AppState>, sides: &Sides, system: &dyn MoveSystem) -> MoveOfferInfo {
     if sides.adapter.in_place_move().is_none() {
         return MoveOfferInfo::default();
+    }
+    if let Some(stop) = &sides.stop {
+        return MoveOfferInfo {
+            applies: true,
+            blocks: vec![MoveBlockInfo::from(stop.clone())],
+            ..MoveOfferInfo::default()
+        };
     }
     let plan = match plan_of(sides) {
         Ok(plan) => plan,
@@ -840,29 +790,35 @@ fn size_words(bytes: u64) -> String {
 }
 
 /// Starts again the profiles that were running (and aren't again: one the
-/// user started meanwhile is left as it is).
-fn start_again(state: &Arc<AppState>, stopped: &[StoppedPlace], system: &dyn MoveSystem) {
+/// user started meanwhile is left as it is), each on the folder `request`
+/// gives it, never one its sessions contradict (AJ-E2317).
+fn start_again(
+    state: &Arc<AppState>,
+    stopped: &[StoppedPlace],
+    request: &MoveRequest,
+    system: &dyn MoveSystem,
+) {
     for place in stopped.iter().filter(|p| p.was_running) {
         if system.running(state, &place.id).is_some() {
             continue;
         }
-        if let Err(why) = system.start(state, &place.place) {
+        if let Err(why) = start_checked(state, &place.id, &place.place, request, system) {
             tracing::warn!(target: "juggler::move", "a profile didn't start again after a move: {why}");
         }
     }
 }
 
-/// Starts `place` (when it isn't running) and sends `link` to its own
-/// process. Returns that process.
+/// Starts `place` (when it isn't running, on the folder `request` gives
+/// it) and sends `link` to its own process. Returns that process.
 fn open_in(
     state: &Arc<AppState>,
-    id: &str,
-    place: &KnownPlace,
+    (id, place): (&str, &KnownPlace),
     link: &str,
+    request: &MoveRequest,
     system: &dyn MoveSystem,
 ) -> Result<u32, String> {
     if system.running(state, id).is_none() {
-        system.start(state, place)?;
+        start_checked(state, id, place, request, system)?;
     }
     let until = Instant::now() + START_WAIT;
     let pid = loop {
@@ -894,7 +850,8 @@ fn new_id(now_ms: i64) -> String {
 }
 
 /// Moves `session_id`'s conversation and its family to
-/// `target_profile_id`'s account.
+/// `target_profile_id`'s account, into the App `target_place_id` the user
+/// picked (AJ-E2317: by its id, never the account's).
 ///
 /// # Errors
 ///
@@ -902,30 +859,13 @@ fn new_id(now_ms: i64) -> String {
 /// the move was undone (with why).
 pub fn execute(
     state: &Arc<AppState>,
-    session_id: &str,
-    target_profile_id: &str,
+    (session_id, target_profile_id, target_place_id): (&str, &str, Option<&str>),
     notes: NotesChoice,
     tell: Tell,
 ) -> AppResult<MoveDoneInfo> {
-    execute_with(
-        state,
-        session_id,
-        target_profile_id,
-        notes,
-        &Real::telling(tell),
-    )
-}
-
-pub(crate) fn execute_with(
-    state: &Arc<AppState>,
-    session_id: &str,
-    target_profile_id: &str,
-    notes: NotesChoice,
-    system: &dyn MoveSystem,
-) -> AppResult<MoveDoneInfo> {
-    let mut sides = sides(state, session_id, target_profile_id)?;
+    let mut sides = sides(state, session_id, target_profile_id, target_place_id)?;
     sides.request.notes = notes;
-    run(state, &sides, system)
+    run(state, &sides, &Real::telling(tell))
 }
 
 /// The move of resolved `sides`.
@@ -934,6 +874,9 @@ pub(crate) fn execute_with(
     reason = "the move, step by step, in one place"
 )]
 fn run(state: &Arc<AppState>, sides: &Sides, system: &dyn MoveSystem) -> AppResult<MoveDoneInfo> {
+    if let Some(stop) = &sides.stop {
+        return Err(refused(stop.words.clone()));
+    }
     let plan = plan_of(sides)?;
     let writing = writing_of(sides, &plan).ok_or_else(|| refused("no mover"))?;
     let folder = moves_dir(state);
@@ -975,7 +918,7 @@ fn run(state: &Arc<AppState>, sides: &Sides, system: &dyn MoveSystem) -> AppResu
 
     // The single-writer phase.
     let (stopped_places, kept_running) =
-        match stop_places(state, &places, system, "moved", &writing) {
+        match stop_places(state, (&places, &sides.request), system, "moved", &writing) {
             Ok(stopping) => (stopping.stopped, stopping.notes),
             Err(error) => {
                 // Planned only: its undo touches no file. The journal reads
@@ -1009,7 +952,7 @@ fn run(state: &Arc<AppState>, sides: &Sides, system: &dyn MoveSystem) -> AppResu
             Ok(_) => {
                 // Nothing is left to restore from them.
                 let _ = txn.drop_backups();
-                start_again(state, &stopped_places, system);
+                start_again(state, &stopped_places, &sides.request, system);
                 AppError::Move {
                     words: format!("{words}, so nothing was moved. Try again in a moment."),
                     detail,
@@ -1126,15 +1069,16 @@ fn run(state: &Arc<AppState>, sides: &Sides, system: &dyn MoveSystem) -> AppResu
     let source_id = sides.source_place.as_ref().map(|(id, _)| id);
     if let Some(source) = stopped_places.iter().find(|p| Some(&p.id) == source_id)
         && source.was_running
-        && let Err(why) = system.start(state, &source.place)
+        && let Err(why) = start_checked(state, &source.id, &source.place, &sides.request, system)
     {
         tracing::warn!(target: "juggler::move", "the source profile didn't start again: {why}");
     }
     let link = mover.resume_link(&plan.resume);
     let opened = match (&sides.target_place, &link) {
-        (Some((id, place)), Some(link)) => {
-            Some(open_in(state, id, place, link, system).map(|pid| (pid, place_name(state, place))))
-        }
+        (Some((id, place)), Some(link)) => Some(
+            open_in(state, (id, place), link, &sides.request, system)
+                .map(|pid| (pid, place_name(state, place))),
+        ),
         _ => None,
     };
     let target_name = sides
@@ -1292,9 +1236,10 @@ pub(crate) fn undo_with(
         ))
         .ok_or_else(|| refused("this tool's conversations travel as a copy"))?;
     let writing = writing_of_move(&adapter, &txn)?;
+    let both = (&places[..], &txn.manifest.request);
     let why_not = quiet(
         state,
-        &places,
+        both,
         &txn.manifest.accounts,
         system,
         "Undo",
@@ -1304,9 +1249,9 @@ pub(crate) fn undo_with(
         return Err(refused(juggler_handover::moving::words(&why_not)));
     }
     // R4: a refused Undo says "nothing was undone", not the Move's words.
-    let stopped_places = stop_places(state, &places, system, "undone", &writing)?.stopped;
+    let stopped_places = stop_places(state, both, system, "undone", &writing)?.stopped;
     if let Err(started) = still_down(state, &stopped_places, system) {
-        start_again(state, &stopped_places, system);
+        start_again(state, &stopped_places, &txn.manifest.request, system);
         return Err(refused(format!("{started}, so nothing was undone")));
     }
     let result = txn.undo(
@@ -1317,7 +1262,7 @@ pub(crate) fn undo_with(
         Ok(kept) => {
             // Nothing is left to restore from them (0.4.9).
             let _ = txn.drop_backups();
-            start_again(state, &stopped_places, system);
+            start_again(state, &stopped_places, &txn.manifest.request, system);
             kept
         }
         Err(error) => {
@@ -1346,7 +1291,7 @@ pub(crate) fn undo_with(
         .mover
         .resume_link(&txn.manifest.request.conversation);
     if let (Some((id, place)), Some(link)) = (places.first(), link) {
-        let _ = open_in(state, id, place, &link, system);
+        let _ = open_in(state, (id, place), &link, &txn.manifest.request, system);
     }
     // R4: no path in the words (Copy details has it).
     Ok(MoveUndoneInfo {

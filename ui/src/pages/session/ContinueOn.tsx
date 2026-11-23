@@ -24,7 +24,7 @@ import { Pill } from "../../components/Pill";
 import { WhyButton } from "../../components/WhyTip";
 import { RoomLine, StartThereLink } from "../../components/SwitchTargetRows";
 import { BadgeLine, RoomTag, SuggestedTag, TargetButton, TargetLogo } from "../../components/switch/TargetCard";
-import { switchTargets, type SwitchTargetData } from "../../lib/ipc/switch-targets";
+import { switchTargets, type PickTarget, type SwitchTargetData } from "../../lib/ipc/switch-targets";
 import type { QuotaDisplayData } from "../../lib/ipc/quota";
 import type { SwitchBackSuggestionData } from "../../lib/ipc/switchBack";
 import { switchSetupCheck, type SetupCheckInfo } from "../../lib/ipc/switchSetup";
@@ -40,8 +40,7 @@ import { ContinueDialog } from "../../components/ContinueDialog";
 import { ContinueFold } from "../../components/ContinueSummary";
 import { FoldedLines, useFold } from "./ContinueFold";
 
-/** A target App (D-62: a tool on one of its folders), as the page shows
- * it. */
+/** A target App (D-62: a tool on one of its folders), as the page shows it; AJ-E2317: `placeId`, the desktop App it is. */
 export type Target = {
   profileId: string;
   label: string;
@@ -49,6 +48,7 @@ export type Target = {
    * label when its tool isn't known. */
   name?: string;
   recipeId: string;
+  placeId?: string | null;
   blocked: string | null;
   /** 0.3.4: held back because its tool's first-run setup isn't done there
    * ("Start a session on it" does it). */
@@ -124,9 +124,8 @@ export function targetsOf(rows: Array<SwitchTargetData | RoomTarget>, ownProfile
   return rows
     .filter((row) => row.account_id !== ownProfile)
     .map((row) => {
-      // The App it's reached through (the 0.4.6 RC walk K3): a Claude app
-      // profile's folder is that profile's, its mark the app's own.
-      const app = appOf({ folder: row.account_id, tool: row.provider, label: row.account_label });
+      // The App it's reached through (K3: a profile's folder is that profile's; AJ-E2317: by its place id).
+      const app = appOf({ folder: row.account_id, tool: row.provider, label: row.account_label, placeId: row.place_id ?? null });
       return {
         room: "room" in row ? row.room : null,
         suggested: "room" in row ? row.suggested : false,
@@ -135,6 +134,7 @@ export function targetsOf(rows: Array<SwitchTargetData | RoomTarget>, ownProfile
         name: app.name,
         mark: app.mark,
         recipeId: row.recipe_id,
+        placeId: row.place_id ?? null,
         blocked: row.filtered_reason,
         setupNeeded: row.held_back === "set_up",
         firstRun: row.first_run === true,
@@ -162,7 +162,7 @@ export function ContinueOn({
   displays: QuotaDisplayData[];
   /** Opens the switch screen from `model.switchSource`: AI Juggler's
    * session, or the session another app runs, alike. */
-  onPick?: (recipeId: string, label: string) => void;
+  onPick?: PickTarget;
   /** Continues a session another app runs here, on its own profile. */
   onCarryIn?: () => void;
   /** rc21: why it can't continue here (its tool won't open it by its id). */
@@ -234,7 +234,7 @@ export function ContinueOn({
   }, [source, others.length]);
 
   useHandoverFocus(() => setDialog(true), source);
-  const pick = onPick && ((recipeId: string, label: string) => (setDialog(false), onPick(recipeId, label)));
+  const pick = onPick && ((recipeId: string, label: string, placeId: string | null) => (setDialog(false), onPick(recipeId, label, placeId)));
   // Where the original stays, for a session another app runs.
   const app = appWords(model.places[0], model.tool);
   const list = (
@@ -271,7 +271,7 @@ export function ContinueOn({
               </span>
               {room && room.kind !== "blocked" && <RoomLine name={name} room={room} testId="continue-room" chip={false} />}
               {group.targets.map((target) => (
-                <ContinueTarget key={target.profileId + target.recipeId} target={target} saidOnce={notYet} accountRoom={room} check={target.recipeId in checks ? checks[target.recipeId] : undefined} pick={pick} onStart={() => setDialog(false)} />
+                <ContinueTarget key={`${target.profileId}${target.recipeId}${target.placeId ?? ""}`} target={target} saidOnce={notYet} accountRoom={room} check={target.recipeId in checks ? checks[target.recipeId] : undefined} pick={pick} onStart={() => setDialog(false)} />
               ))}
             </li>
           );
@@ -353,7 +353,7 @@ function OutsideNote({ model, app, onCarryIn, carryInWhy }: { model: SessionMode
 /** One App to continue in, as a target card (D-142): its logo and badge,
  * its name, Suggested and how much carries as tags, and its one-line
  * check (its own sign-in, or what it lacks) under them. */
-function ContinueTarget({ target, saidOnce = null, accountRoom, check, pick, onStart }: { target: Target; saidOnce?: string | null; accountRoom: TargetRoom | null; check: SetupCheckInfo | null | undefined; pick: ((recipeId: string, label: string) => void) | undefined; onStart: () => void }): JSX.Element {
+function ContinueTarget({ target, saidOnce = null, accountRoom, check, pick, onStart }: { target: Target; saidOnce?: string | null; accountRoom: TargetRoom | null; check: SetupCheckInfo | null | undefined; pick: ((recipeId: string, label: string, placeId: string | null) => void) | undefined; onStart: () => void }): JSX.Element {
   const words = targetWords(target, saidOnce, accountRoom, check);
   const badge = target.crossTool ? target.badge : null;
   return (
@@ -361,7 +361,7 @@ function ContinueTarget({ target, saidOnce = null, accountRoom, check, pick, onS
       <TargetButton
         disabled={!pick || target.blocked !== null}
         title={target.blocked ?? `Continue in ${target.name ?? target.label}`}
-        onClick={() => pick?.(target.recipeId, target.label)}
+        onClick={() => pick?.(target.recipeId, target.label, target.placeId ?? null)}
         data-testid="continue-target"
         data-cross-tool={target.crossTool ? "true" : undefined}
         data-suggested={target.suggested ? "true" : undefined}

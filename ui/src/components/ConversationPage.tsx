@@ -71,8 +71,9 @@ function useSteadyRow(all: ConversationInfo[], accountId: string, id: string): {
 }
 
 /** Opens the switch screen from a session (its id, or the key of one
- * another app runs) to a profile's launch settings. */
-export type OpenSwitch = (source: string, targetProfileId: string, targetLabel: string) => void;
+ * another app runs) to a profile's launch settings, and (AJ-E2317) the
+ * desktop App picked, by its place id. */
+export type OpenSwitch = (source: string, targetProfileId: string, targetLabel: string, targetPlaceId?: string | null) => void;
 
 /** Its notices' snooze and reminder need no session list. */
 const NO_SESSIONS: InstanceInfo[] = [];
@@ -249,7 +250,7 @@ function ConversationView({
               visible={visible}
               outside={own === null}
               onGoTo={conversation.live && own === null && host.goToConversation ? goTo : undefined}
-              onPick={onSwitch ? (recipeId, label) => onSwitch(model.switchSource, recipeId, label) : undefined}
+              onPick={onSwitch ? (recipeId, label, placeId) => onSwitch(model.switchSource, recipeId, label, placeId) : undefined}
               onCarryIn={host.continueConversation ? carryIn : undefined}
               carryInWhy={continueWhy(conversation)}
             />

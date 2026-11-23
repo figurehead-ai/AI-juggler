@@ -21,7 +21,9 @@ import type { RemoteCommandOutcomeInfo } from "../types/generated/RemoteCommandO
 import type { RemoteMachineInfo } from "../types/generated/RemoteMachineInfo";
 
 /** A switch to run (the freeze dialog → stages → source-safe banner). */
-export type SwitchFlowRequest = { sessionId: string; targetProfileId: string; targetLabel: string };
+/** AJ-E2317: `targetPlaceId`, the desktop App picked (its place id): a
+ * move goes into it, by that id. */
+export type SwitchFlowRequest = { sessionId: string; targetProfileId: string; targetLabel: string; targetPlaceId?: string | null };
 
 export function useDialogs() {
   const newSheet = useNewSessionSheet();

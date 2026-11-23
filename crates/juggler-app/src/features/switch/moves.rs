@@ -12,7 +12,8 @@ use crate::features::handover::moving::{
 use crate::paging::{Page, PageRequest, SortKey};
 use crate::state::AppState;
 
-/// Tauri: the Move offer for the switch screen.
+/// Tauri: the Move offer for the switch screen, into the App the user
+/// picked (`target_place_id`, AJ-E2317; none: a terminal's folder).
 ///
 /// # Errors
 ///
@@ -22,14 +23,21 @@ pub async fn switch_move_offer(
     state: tauri::State<'_, Arc<AppState>>,
     session_id: String,
     target_profile_id: String,
+    target_place_id: Option<String>,
 ) -> AppResult<MoveOfferInfo> {
     crate::ipc::blocking(state.inner(), "check the move", move |state| {
-        offer(state, &session_id, &target_profile_id)
+        offer(
+            state,
+            &session_id,
+            &target_profile_id,
+            target_place_id.as_deref(),
+        )
     })
     .await
 }
 
-/// Tauri: moves the conversation (the user's click on Move).
+/// Tauri: moves the conversation (the user's click on Move) into the App
+/// the user picked (`target_place_id`, AJ-E2317: by its id end to end).
 ///
 /// # Errors
 ///
@@ -40,6 +48,7 @@ pub async fn switch_move_execute(
     state: tauri::State<'_, Arc<AppState>>,
     session_id: String,
     target_profile_id: String,
+    target_place_id: Option<String>,
     take_notes: Option<bool>,
 ) -> AppResult<MoveDoneInfo> {
     let notes = if take_notes == Some(true) {
@@ -54,7 +63,12 @@ pub async fn switch_move_execute(
             use crate::events::{AppEvent, EmitEvent as _};
             steps.emit_event(AppEvent::MoveProgress, progress.clone());
         });
-        let done = execute(state, &session_id, &target_profile_id, notes, tell)?;
+        let target = (
+            session_id.as_str(),
+            target_profile_id.as_str(),
+            target_place_id.as_deref(),
+        );
+        let done = execute(state, target, notes, tell)?;
         let _ = crate::features::sessions::read_model::emit_sessions(&app, state);
         Ok(done)
     })

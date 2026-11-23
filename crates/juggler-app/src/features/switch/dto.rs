@@ -323,6 +323,11 @@ pub struct SwitchTargetInfo {
     /// switch (Desktop), whatever the terminal's sign-in: its row shows
     /// the account's room, and "Terminal: not signed in" beside.
     pub desktop: bool,
+    /// AJ-E2317: the desktop App this row is (its place id), when it is
+    /// one: Move goes into that App, by this id, never one found again
+    /// from the account. An account with two such Apps lists one row each.
+    #[ts(optional = nullable)]
+    pub place_id: Option<String>,
     /// Top-2 contributing factors in words.
     pub top_factors: Vec<String>,
     /// All inputs for the "Why this order?" expander.

@@ -98,7 +98,7 @@ export function HandoverSection({
   session: InstanceInfo;
   switchBackSuggestions?: SwitchBackSuggestionData[];
   onSwitchBack?: (sessionId: string) => void;
-  onHandover: (sessionId: string, targetProfileId: string, targetLabel: string) => void;
+  onHandover: (sessionId: string, targetProfileId: string, targetLabel: string, targetPlaceId?: string | null) => void;
 }): JSX.Element {
   // At its limit only: past its reset it resumes where it is (AJ-E2312 1).
   const [switchOpen, setSwitchOpen] = useState(() => session.status === "quota_blocked" && session.needs_attention !== "limit_reset");
@@ -222,7 +222,7 @@ export function HandoverSection({
           Add another app to juggle between them.
         </p>
       ) : (
-        <SwitchTargetRows targets={targets} onPick={(target) => (setDialog(false), onHandover(session.id, target.recipe_id, target.account_label))} />
+        <SwitchTargetRows targets={targets} onPick={(target) => (setDialog(false), onHandover(session.id, target.recipe_id, target.account_label, target.place_id ?? null))} />
       )}
       {remoteTargets.length > 0 && (
         <>

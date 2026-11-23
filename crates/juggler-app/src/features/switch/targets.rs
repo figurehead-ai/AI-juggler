@@ -115,16 +115,46 @@ fn unless_signed_out<T: Clone>(
 }
 
 /// 0.4.1: the ranked accounts a desktop app profile signed in on them
-/// takes a switch in (Desktop), read before storage is held.
+/// takes a switch in (Desktop), each with those profiles' place ids (the
+/// one seen last first), read before storage is held. AJ-E2317: each is a
+/// row of its own, so the App picked is the one a move goes into.
 fn desktop_accounts(
     state: &Arc<AppState>,
     ranked: &[RankedRowInfo],
-) -> std::collections::HashSet<String> {
+) -> std::collections::HashMap<String, Vec<String>> {
     ranked
         .iter()
-        .filter(|row| crate::features::places::handoff::profile_for(state, &row.account).is_some())
-        .map(|row| row.account.clone())
+        .filter_map(|row| {
+            let mut places = crate::features::places::places_on(state, &row.account, |_, host| {
+                host.handoff_link.is_some() && host.handoff_record.is_some()
+            })?;
+            places.sort_by_key(|(id, place)| (std::cmp::Reverse(place.seen_ms), id.clone()));
+            let ids: Vec<String> = places.into_iter().map(|(id, _)| id).collect();
+            (!ids.is_empty()).then(|| (row.account.clone(), ids))
+        })
         .collect()
+}
+
+/// The desktop Apps (place ids) of `account` that take a switch of this
+/// tool's (none across tools).
+fn apps_of<'a>(
+    desktops: &'a std::collections::HashMap<String, Vec<String>>,
+    account: &str,
+    cross: bool,
+) -> &'a [String] {
+    desktops
+        .get(account)
+        .filter(|_| !cross)
+        .map_or(&[][..], Vec::as_slice)
+}
+
+/// AJ-E2317: an account's rows, one per desktop App (`apps`), else one.
+fn rows_of(apps: &[String]) -> Vec<Option<String>> {
+    if apps.is_empty() {
+        vec![None]
+    } else {
+        apps.iter().cloned().map(Some).collect()
+    }
 }
 
 /// Why a target is greyed: the source has no turn yet (the rc29 walk:
@@ -210,7 +240,8 @@ pub fn switch_targets_impl(
             let cross = account.harness.as_str() != context.source_provider;
             // A signed-in desktop app profile takes it: the account's room
             // is its own then, whatever the terminal says.
-            let no_room = signed_out && (cross || !desktops.contains(account.id.as_str()));
+            let apps = apps_of(&desktops, account.id.as_str(), cross);
+            let no_room = signed_out && apps.is_empty();
             let carry = carry_lists_of(&juggler_handover::fidelity::base_dispositions(
                 context.source_provider.as_str(),
                 account.harness.as_str(),
@@ -235,7 +266,8 @@ pub fn switch_targets_impl(
             if !validated && !beta {
                 continue;
             }
-            out.push(SwitchTargetInfo {
+            // AJ-E2317: one row per desktop App on the account (else one).
+            out.extend(rows_of(apps).into_iter().map(|place_id| SwitchTargetInfo {
                 recipe_id: recipe.id.to_string(),
                 provider: account.harness.to_string(),
                 account_id: account.id.to_string(),
@@ -253,13 +285,14 @@ pub fn switch_targets_impl(
                 held_back: (row.filtered_reason.is_none() && set_up).then_some(HeldBack::SetUp),
                 first_run,
                 signed_out,
-                desktop: !cross && desktops.contains(account.id.as_str()),
+                desktop: !apps.is_empty(),
+                place_id,
                 top_factors: unless_signed_out(&row.top_factors, no_room, |words| words),
                 factors: unless_signed_out(&row.factors, no_room, |(words, _)| words),
                 confidence: row.confidence.clone(),
                 tte_min: row.tte_min,
                 suggested: row.suggested && reason.is_none(),
-            });
+            }));
         }
     }
     Ok(out)

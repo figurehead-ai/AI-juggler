@@ -35,9 +35,9 @@ declare global {
 /** Whether and how this conversation can be moved to the target (reads
  * only); null where moving doesn't apply. What stands in its way says
  * whether the user can clear it (D-127; the switch screen decides). */
-export async function switchMoveOffer(sessionId: string, targetProfileId: string): Promise<MoveOfferInfo | null> {
+export async function switchMoveOffer(sessionId: string, targetProfileId: string, targetPlaceId: string | null = null): Promise<MoveOfferInfo | null> {
   if (!hasLiveBackend()) return window.__AIJ_MOVE_OFFER__ ?? null;
-  const offer = await call("switch_move_offer", { sessionId, targetProfileId });
+  const offer = await call("switch_move_offer", { sessionId, targetProfileId, targetPlaceId });
   return offer.applies ? offer : null;
 }
 
@@ -68,8 +68,9 @@ export function onMoveProgress(handler: (progress: MoveProgressInfo) => void): (
   };
 }
 
-/** Moves the conversation and its family (the user's click). */
-export async function switchMoveExecute(sessionId: string, targetProfileId: string, takeNotes: boolean): Promise<MoveDoneInfo> {
+/** Moves the conversation and its family (the user's click) into the App
+ * picked (AJ-E2317: its place id, end to end; none: a terminal's folder). */
+export async function switchMoveExecute(sessionId: string, targetProfileId: string, takeNotes: boolean, targetPlaceId: string | null = null): Promise<MoveDoneInfo> {
   if (!hasLiveBackend()) {
     for (const step of window.__AIJ_MOVE_PROGRESS__ ?? []) previewProgress?.(step);
     if (window.__AIJ_MOVE_HOLD__) return new Promise<MoveDoneInfo>(() => {});
@@ -79,7 +80,7 @@ export async function switchMoveExecute(sessionId: string, targetProfileId: stri
     if (!done) throw "No move in the preview";
     return done;
   }
-  return call("switch_move_execute", { sessionId, targetProfileId, takeNotes });
+  return call("switch_move_execute", { sessionId, targetProfileId, targetPlaceId, takeNotes });
 }
 
 /** Undoes a move (the user's click). */

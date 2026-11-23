@@ -18,9 +18,9 @@ vi.mock("../lib/ipc/switch-move", async (original) => {
   const real = await original<typeof import("../lib/ipc/switch-move")>();
   return {
     ...real,
-    switchMoveExecute: (sessionId: string, targetProfileId: string, takeNotes: boolean) => {
-      executed.push([sessionId, targetProfileId, takeNotes]);
-      return real.switchMoveExecute(sessionId, targetProfileId, takeNotes);
+    switchMoveExecute: (sessionId: string, targetProfileId: string, takeNotes: boolean, targetPlaceId: string | null = null) => {
+      executed.push([sessionId, targetProfileId, takeNotes, targetPlaceId]);
+      return real.switchMoveExecute(sessionId, targetProfileId, takeNotes, targetPlaceId);
     },
     onMoveProgress: (handler: (progress: MoveProgressInfo) => void) => {
       listeners.push(handler);
@@ -81,8 +81,8 @@ async function oneClick(): Promise<void> {
 
 beforeEach(oneClick);
 
-function mount(onClose: () => void = vi.fn()) {
-  return render(<SwitchFlow sessionId="sess-1" targetProfileId="p-1" targetLabel="Personal" onClose={onClose} onSwitched={vi.fn()} />);
+function mount(onClose: () => void = vi.fn(), targetPlaceId: string | null = null) {
+  return render(<SwitchFlow sessionId="sess-1" targetProfileId="p-1" targetLabel="Personal" targetPlaceId={targetPlaceId} onClose={onClose} onSwitched={vi.fn()} />);
 }
 
 /** 0.4.9: the maintainer's refusal, as the backend sends it now: plain
@@ -148,6 +148,16 @@ describe("Move to account", () => {
     expect(view.getByTestId("switch-original").textContent).toMatch(/^The original /);
   });
 
+  it("AJ-E2317: moves into the App picked in the switch list, by its id", async () => {
+    window.__AIJ_MOVE_OFFER__ = OFFER;
+    window.__AIJ_MOVE_DONE__ = DONE;
+    const view = mount(vi.fn(), "app:claude-app:/Users/you/Profiles/team-b");
+    await waitFor(() => expect(view.getByTestId("switch-move-confirm")).toBeTruthy());
+    fireEvent.click(view.getByTestId("switch-move-confirm"), { detail: 1 });
+    await waitFor(() => expect(view.getByTestId("switch-moved")).toBeTruthy());
+    expect(executed).toEqual([["sess-1", "p-1", false, "app:claude-app:/Users/you/Profiles/team-b"]]);
+  });
+
   it("moves on the click and keeps the four outcomes apart, a reply the user's to check", async () => {
     window.__AIJ_MOVE_OFFER__ = OFFER;
     window.__AIJ_MOVE_DONE__ = DONE;
@@ -155,7 +165,7 @@ describe("Move to account", () => {
     await waitFor(() => expect(view.getByTestId("switch-move-confirm")).toBeTruthy());
     fireEvent.click(view.getByTestId("switch-move-confirm"), { detail: 1 });
     await waitFor(() => expect(view.getByTestId("switch-moved")).toBeTruthy());
-    expect(executed).toEqual([["sess-1", "p-1", false]]);
+    expect(executed).toEqual([["sess-1", "p-1", false, null]]);
     for (const key of ["payload", "catalog", "opened"]) expect(view.getByTestId(`switch-moved-${key}`).getAttribute("data-state")).toBe("verified");
     expect(view.getByTestId("switch-moved-model").getAttribute("data-state")).toBe("pending");
     fireEvent.click(view.getByTestId("switch-moved-undo"));
@@ -231,7 +241,7 @@ describe("Move to account", () => {
     fireEvent.click(view.getByTestId("switch-move-take-notes"));
     fireEvent.click(view.getByTestId("switch-move-confirm"), { detail: 1 });
     await waitFor(() => expect(view.getByTestId("switch-moved")).toBeTruthy());
-    expect(executed).toEqual([["sess-1", "p-1", true]]);
+    expect(executed).toEqual([["sess-1", "p-1", true, null]]);
   });
 
   it("says why when the move stops, nothing half moved", async () => {

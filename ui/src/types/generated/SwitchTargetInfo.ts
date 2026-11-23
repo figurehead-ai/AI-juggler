@@ -80,6 +80,12 @@ signed_out: boolean,
  */
 desktop: boolean, 
 /**
+ * AJ-E2317: the desktop App this row is (its place id), when it is
+ * one: Move goes into that App, by this id, never one found again
+ * from the account. An account with two such Apps lists one row each.
+ */
+place_id?: string | null, 
+/**
  * Top-2 contributing factors in words.
  */
 top_factors: Array<string>, 

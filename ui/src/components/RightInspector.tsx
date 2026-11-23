@@ -161,7 +161,7 @@ export function RightInspector({
   onOpenSession: (id: string) => void;
   onLaunch: (recipe: LaunchRecipeInfo, project: ProjectInfo) => void;
   onStopped: () => void;
-  onHandover: (sessionId: string, targetProfileId: string, targetLabel: string) => void;
+  onHandover: (sessionId: string, targetProfileId: string, targetLabel: string, targetPlaceId?: string | null) => void;
   /** AJ-E207: open switch-back suggestions (the reset-trigger
    *  cards). Optional so bare test mounts stay honest (none). */
   switchBackSuggestions?: SwitchBackSuggestionData[];
@@ -353,7 +353,7 @@ type PanelProps = {
   onOpenSession: (id: string) => void;
   onLaunch: (recipe: LaunchRecipeInfo, project: ProjectInfo) => void;
   onStopped: () => void;
-  onHandover: (sessionId: string, targetProfileId: string, targetLabel: string) => void;
+  onHandover: (sessionId: string, targetProfileId: string, targetLabel: string, targetPlaceId?: string | null) => void;
   switchBackSuggestions?: SwitchBackSuggestionData[];
   onSwitchBack?: (sessionId: string) => void;
   onFocusTerminal: () => void;

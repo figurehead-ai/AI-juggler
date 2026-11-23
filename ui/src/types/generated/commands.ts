@@ -1174,9 +1174,9 @@ export interface Commands {
   /** Read features::switch::commands::switch_graph_overview */
   switch_graph_overview: { args: { projectId: string }; result: WorkGraphInfo[] };
   /** Write features::switch::moves::switch_move_execute */
-  switch_move_execute: { args: { sessionId: string; targetProfileId: string; takeNotes?: boolean | null }; result: MoveDoneInfo };
+  switch_move_execute: { args: { sessionId: string; targetProfileId: string; targetPlaceId?: string | null; takeNotes?: boolean | null }; result: MoveDoneInfo };
   /** Read features::switch::moves::switch_move_offer */
-  switch_move_offer: { args: { sessionId: string; targetProfileId: string }; result: MoveOfferInfo };
+  switch_move_offer: { args: { sessionId: string; targetProfileId: string; targetPlaceId?: string | null }; result: MoveOfferInfo };
   /** Write features::switch::moves::switch_move_undo */
   switch_move_undo: { args: { moveId: string }; result: MoveUndoneInfo };
   /** Read features::switch::moves::switch_moves */

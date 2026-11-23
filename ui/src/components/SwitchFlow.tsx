@@ -49,12 +49,15 @@ export function SwitchFlow({
   sessionId,
   targetProfileId,
   targetLabel,
+  targetPlaceId,
   onClose,
   onSwitched,
 }: {
   sessionId: string;
   targetProfileId: string;
   targetLabel: string;
+  /** AJ-E2317: the desktop App picked, by its place id: Move goes into it. */
+  targetPlaceId?: string | null;
   onClose: () => void;
   onSwitched: (sessionId: string, undo: { edgeId: string } | null) => void;
 }): JSX.Element {
@@ -77,7 +80,7 @@ export function SwitchFlow({
   const carry = useCarryChoice(sessionId, targetProfileId); // D-76: the start left out, when asked
   const room = useTargetRoom(phase.kind === "confirm" ? phase.preflight.target_account : undefined, destination === "desktop"); // its room: the one runway (F1)
   const { setup, picked, toggle: togglePicked } = setupCheck;
-  const move = useMoveFlow(sessionId, targetProfileId, attempt); // ADR-0031 (D-93): Move, or Copy
+  const move = useMoveFlow(sessionId, targetProfileId, attempt, targetPlaceId); // ADR-0031 (D-93): Move, or Copy, into the App picked (AJ-E2317)
   const dialogRef = useRef<HTMLDivElement | null>(null);
   // AJ-E804 (WCAG 2.4.3): Cancel returns focus to what opened the switch
   // (a completed one hands it to the undo toast).

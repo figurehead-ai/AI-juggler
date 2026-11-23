@@ -2,6 +2,7 @@
 //! `moving.rs` for its size.
 
 use std::collections::HashMap;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use super::{KnownPlace, Member, MoveProgressInfo, MoveSystem, ProcId, Table, place_name, tree};
@@ -32,6 +33,17 @@ impl Real {
 impl MoveSystem for Real {
     fn tree(&self, state: &Arc<AppState>, place: &KnownPlace, roots: &[u32]) -> Vec<Member> {
         tree::now(state, place, roots)
+    }
+
+    // AJ-E2317: AJ-E2327's evidence-first link check.
+    fn link_mismatch(
+        &self,
+        state: &Arc<AppState>,
+        place_id: &str,
+        _: &KnownPlace,
+        _: &Path,
+    ) -> Option<PathBuf> {
+        super::pick::link_contradiction(state, place_id)
     }
 
     fn quits_juggler(

@@ -33,7 +33,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Instant;
 
-use juggler_adapter::moving::{InPlaceMove, ProcView, Writer};
+use juggler_adapter::moving::{InPlaceMove, MoveRequest, ProcView, Writer};
 
 use super::{
     EVERY, KnownPlace, Member, MoveProgressInfo, MoveSystem, StoppedPlace, place_name, refused,
@@ -202,7 +202,7 @@ pub(super) struct Stopping {
 )]
 pub(super) fn stop_places(
     state: &Arc<AppState>,
-    places: &[(String, KnownPlace)],
+    (places, request): (&[(String, KnownPlace)], &MoveRequest),
     system: &dyn MoveSystem,
     outcome: &str,
     writing: &Writing<'_>,
@@ -283,7 +283,7 @@ pub(super) fn stop_places(
         let now = |pid| system.identify(&[pid]).get(&pid).copied();
         let asked = signal::quit_checked(c.main, &now, &|pid| system.quit(pid));
         if let Err(not) = asked {
-            start_again(state, &stopped, system);
+            start_again(state, &stopped, request, system);
             return Err(refused(match not {
                 NotAsked::NotThatProcess => format!(
                     "AI Juggler couldn't be sure which process is {}, so nothing was quit or {outcome}",
@@ -307,7 +307,7 @@ pub(super) fn stop_places(
             break;
         }
         if Instant::now() >= until {
-            start_again(state, &stopped, system);
+            start_again(state, &stopped, request, system);
             return Err(refused(format!(
                 "{} didn't quit within {} seconds, so nothing was {outcome}. It may be asking something: look at its window",
                 left[0].name,
@@ -347,7 +347,7 @@ pub(super) fn stop_places(
             continue;
         }
         if Instant::now() >= until {
-            start_again(state, &stopped, system);
+            start_again(state, &stopped, request, system);
             let left: Vec<Member> = alive.iter().map(|at| waited[*at].1.clone()).collect();
             let owner = waited[alive[0]].2.clone();
             let secs = wait.as_secs().max(1);

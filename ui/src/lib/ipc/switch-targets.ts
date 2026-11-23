@@ -43,12 +43,20 @@ export interface SwitchTargetData {
   signed_out?: boolean;
   /** 0.4.1: a desktop app profile signed in on its account takes it. */
   desktop?: boolean;
+  /** AJ-E2317: the desktop App this row is (its place id), when it is
+   * one: Move goes into that App, by this id. Two on one account are two
+   * rows. */
+  place_id?: string | null;
   top_factors: string[];
   factors: [string, number][];
   confidence: string;
   tte_min: number | null;
   suggested: boolean;
 }
+
+/** A pick in the switch list: its launch settings, its name, and
+ * (AJ-E2317) the desktop App it is, by its place id. */
+export type PickTarget = (recipeId: string, label: string, placeId?: string | null) => void;
 
 /** AJ-E209 Req.1/3: the ranked + badged destinations for one source
  * session. Read-only — ranking suggests, the user clicks. */

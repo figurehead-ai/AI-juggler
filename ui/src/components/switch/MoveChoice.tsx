@@ -45,7 +45,7 @@ type MovePhase =
  * and Undo, failed), which the switch dialog shows in place of its own.
  * Read again with every check of the switch (`attempt`).
  */
-export function useMoveFlow(sessionId: string, targetProfileId: string, attempt: number) {
+export function useMoveFlow(sessionId: string, targetProfileId: string, attempt: number, targetPlaceId: string | null = null) {
   const [offer, setOffer] = useState<MoveOfferInfo | null>(null);
   const [chosen, setHow] = useState<How | null>(null);
   const [takeNotes, setTakeNotes] = useState(false);
@@ -56,7 +56,7 @@ export function useMoveFlow(sessionId: string, targetProfileId: string, attempt:
   // Bumped to read the offer again: a check again of the switch, or
   // Check again on a Move that can't happen yet (busy work finished).
   const [nonce, setNonce] = useState(0);
-  const key = `${sessionId}|${targetProfileId}|${attempt}`;
+  const key = `${sessionId}|${targetProfileId}|${targetPlaceId ?? ""}|${attempt}`;
   if (read !== key) {
     // A new switch (or a check again): read the offer afresh.
     setRead(key);
@@ -69,7 +69,7 @@ export function useMoveFlow(sessionId: string, targetProfileId: string, attempt:
   useEffect(() => {
     let alive = true;
     if (nonce > 0)
-      void switchMoveOffer(sessionId, targetProfileId)
+      void switchMoveOffer(sessionId, targetProfileId, targetPlaceId)
         .catch(() => null)
         .then((found) => {
           if (alive) setOffer(shownOffer(found));
@@ -77,7 +77,7 @@ export function useMoveFlow(sessionId: string, targetProfileId: string, attempt:
     return () => {
       alive = false;
     };
-  }, [sessionId, targetProfileId, nonce]);
+  }, [sessionId, targetProfileId, targetPlaceId, nonce]);
   const how: How = chosen ?? defaultHow(offer);
   const started = useRef(false);
   const start = async () => {
@@ -87,7 +87,8 @@ export function useMoveFlow(sessionId: string, targetProfileId: string, attempt:
     setPhase({ kind: "moving" });
     const stop = onMoveProgress(setProgress);
     try {
-      setPhase({ kind: "moved", done: await switchMoveExecute(sessionId, targetProfileId, takeNotes) });
+      // AJ-E2317: into the App picked, by its id.
+      setPhase({ kind: "moved", done: await switchMoveExecute(sessionId, targetProfileId, takeNotes, targetPlaceId) });
     } catch (cause) {
       started.current = false;
       // A refusal left nothing to undo; only a move left part way has one.

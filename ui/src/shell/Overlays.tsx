@@ -154,7 +154,7 @@ export function ShellOverlays({ shell }: { shell: Shell }): JSX.Element {
           }}
           onContinue={(target) => {
             shell.setLimitFor(null);
-            shell.setSwitchFlow({ sessionId: limitFor, targetProfileId: target.recipe_id, targetLabel: target.account_label });
+            shell.setSwitchFlow({ sessionId: limitFor, targetProfileId: target.recipe_id, targetLabel: target.account_label, targetPlaceId: target.place_id ?? null });
           }}
         />
       )}
@@ -163,6 +163,7 @@ export function ShellOverlays({ shell }: { shell: Shell }): JSX.Element {
           sessionId={switchFlow.sessionId}
           targetProfileId={switchFlow.targetProfileId}
           targetLabel={switchFlow.targetLabel}
+          targetPlaceId={switchFlow.targetPlaceId ?? null}
           onClose={() => shell.setSwitchFlow(null)}
           onSwitched={(sessionId, undo) => {
             const done = () => {

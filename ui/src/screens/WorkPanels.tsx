@@ -68,7 +68,7 @@ export function SessionPanel({
   accounts: AccountInfo[];
   onOpenProject: (id: string) => void;
   onStopped: () => void;
-  onHandover: (sessionId: string, targetProfileId: string, targetLabel: string) => void;
+  onHandover: (sessionId: string, targetProfileId: string, targetLabel: string, targetPlaceId?: string | null) => void;
 }) {
   const isLoginTerminal = Boolean(loginTerminal);
   const title = loginTerminal?.title ?? (session ? cliAppName(session.provider, session.account_label) : "Session");
