@@ -136,4 +136,13 @@ ignore = [
     "RUSTSEC-2026-0370",
     "RUSTSEC-2026-0371",
     "RUSTSEC-2026-0372",
+    # 0.5.1 (2026-11-23): RUSTSEC-2026-0594, private cookie nonces can
+    # repeat after fork() in `cookie` < 0.18.3. Only `PrivateJar::add` and
+    # `add_original` are affected, which exist only with cookie's
+    # `private` feature; Tauri 2.12.4 pulls `cookie` 0.18.2 with its
+    # defaults only (`cargo tree -e features -i cookie` shows no
+    # `private`/`secure`), so the affected code isn't compiled in. Remove
+    # when Tauri's lock moves to cookie >= 0.18.3 (a dependency update
+    # needs the maintainer's yes: no downloads).
+    "RUSTSEC-2026-0594",
 ]
