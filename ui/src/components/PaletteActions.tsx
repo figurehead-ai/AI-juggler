@@ -111,12 +111,17 @@ const COMMAND_ICONS: Record<PaletteCommandIcon, (props: SVGProps<SVGSVGElement>)
   search: IconHistory,
 };
 
+/** An action's or a found record's icon (decoration only). */
+export function CommandIcon({ icon }: { icon: PaletteCommandIcon }): JSX.Element {
+  const Icon = COMMAND_ICONS[icon];
+  return <Icon width={14} height={14} aria-hidden="true" focusable="false" className="shrink-0 text-muted" data-icon={icon} />;
+}
+
 /** One of App's actions as a palette option: icon, label, keys. */
 export function CommandOption({ command }: { command: PaletteCommand }): JSX.Element {
-  const Icon = COMMAND_ICONS[command.icon];
   return (
     <>
-      <Icon width={14} height={14} aria-hidden="true" focusable="false" className="shrink-0 text-muted" data-icon={command.icon} />
+      <CommandIcon icon={command.icon} />
       <span className="min-w-0 shrink truncate">{command.label}</span>
       {command.keys && <kbd className="ml-auto shrink-0 font-mono text-label text-muted">{command.keys}</kbd>}
     </>

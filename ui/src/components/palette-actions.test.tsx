@@ -130,6 +130,6 @@ describe("AJ-E2106 ⌘K on a selected session", () => {
     cleanup();
     const none = open(null, appHost());
     expect(none.options().map((option) => option.getAttribute("data-testid"))).toEqual(["goto-row-s2"]);
-    expect(none.input.getAttribute("placeholder")).toBe("Search sessions, apps, projects and accounts, or type what to do…");
+    expect(none.input.getAttribute("placeholder")).toBe("Search sessions, tasks, pools, usage, apps and projects, or type what to do…");
   });
 });

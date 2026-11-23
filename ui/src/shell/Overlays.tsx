@@ -23,6 +23,8 @@ import { fleetRemoteFocus } from "../lib/ipc/fleet-remote";
 import { goToHotkeySet } from "../lib/ipc/settings";
 import { funnelEvent } from "../lib/funnel";
 import { lazyNamed } from "../lib/lazy";
+import { cliAppId } from "../lib/app-name";
+import { openWatches } from "../lib/watches-open";
 import { setCentreOpen } from "../lib/notices-store";
 import { TourHost } from "../components/tour/TourHost";
 import { AddProviderSheet, FirstRun, LimitDialog, SetupWizard, NewProjectSheet, NewSessionModal, PortWarningSheet, ShortcutSheet, SwitchBackFlow, SwitchFlow } from "../lazyParts";
@@ -93,6 +95,8 @@ export function ShellOverlays({ shell }: { shell: Shell }): JSX.Element {
           openScreen: (id) => (id === "home" ? shell.openHome() : id === "settings" ? shell.openSettings() : shell.setGlobal(id)),
           newSession: shell.newSessionHere, newProject: shell.newProject, notifications: () => setCentreOpen(true),
           shortcuts: () => shell.setShortcutsOpen(true), toggleRail: shell.toggleRail, searchHistory: (words) => (shell.setHistoryQuery(words), shell.setGlobal("history")), fleet: shell.pairedCount > 0,
+          // AJ-E3824: found records open their pages, by id; Watch a session… opens Watches' form.
+          openPool: (id) => shell.openPage({ kind: "pool", id }), openAccount: (id) => shell.openPage({ kind: "app", id: cliAppId(id) }), watchSession: () => openWatches({ kind: "new" }),
         }}
         projects={projects} accounts={accounts}
         onChanged={() => void refresh()}

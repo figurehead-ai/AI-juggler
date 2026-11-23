@@ -162,6 +162,9 @@ describe("every state of the mock-up", () => {
       expect(screen.queryByTestId("bot-search")).toBeNull();
       expect(screen.queryByTestId("bot-new-topic")).toBeNull();
       for (const s of ["needs_me", "finished_today", "runway", "running"]) expect(screen.queryByTestId(`bot-shortcut-${s}`)).toBeNull();
+      // AJ-E3824: Search (⌘K) holds the shortcuts and Watch a session… now.
+      expect(screen.queryByText("Or go straight to", { exact: false })).toBeNull();
+      expect(screen.queryByText("Watch a session…")).toBeNull();
       expect(setup.textContent).not.toMatch(/look-?ups?|look things up/i);
     });
   }

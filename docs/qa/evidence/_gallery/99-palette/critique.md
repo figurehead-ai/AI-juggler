@@ -1,4 +1,4 @@
-<!-- captures: 54ea63300899 -->
+<!-- captures: 98531d75bc99 -->
 <!-- captures: pending -->
 # 99-palette: ⌘K — search, act or go
 
@@ -40,3 +40,12 @@ Design critique (D-57) against the reference screens: the row menus (77-menus), 
 The whole family was retaken on release/0.4.1 for the 14-line re-score (AJ-E3305, `docs/qa/0.4-walks/design.md`) and opened on contact sheets, both themes, 1280 and 1024. Shared with every screen since the last shoot: the header's New session is tinted (one filled button per view), the Floor button is a split control with its own menu, This Mac's line is its dot below 1120 px, and the rail's App headers put the profile first.
 
 Unchanged in design: the exact match first ("payments-api" over Go to Privacy), the preview with Open as its one filled button.
+
+## 0.5.1: Search takes over Bot's look-ups (AJ-E3824, D-144)
+
+Retaken: empty, records (new), no matches and offline, both themes, 1280, 1024 and 1440; opened by eye in both themes at 1280.
+
+- **Empty:** Actions gains "Watch a session…" (the Watches screen's bell, as elsewhere); a Suggested group (What needs me, What finished today, Runway by account, What’s running) sits between Actions and Open now, the same 13 px option rows as every group. The field's hint names what Search finds: "Search sessions, tasks, pools, usage, apps and projects…".
+- **Records** ("What needs me", picked from Suggested): Sessions, Tasks, Pools and Usage in the palette's own row pattern: the mark (the session's app, or the screen's icon), the name, then where and how it stands in muted words ("Release · builder-2 · Blocked", "this week · 54 % used"), and "↩ Open" on the active row only. Each record shows once: a session already listed under Sessions is not repeated.
+- **No matches:** "No matches for “qqqzz”." with a second, smaller line saying where it looked; Search History stays the active row; Suggested follows.
+- **Weak:** the Suggested entries use the History clock (the "search" icon the palette already maps); a magnifier would read better, but none is in the icon set yet. With many recents and actions, Open now starts lower than before (one more group above it).

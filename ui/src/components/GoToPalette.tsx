@@ -8,6 +8,7 @@
  * each capped at 5. → previews a session, app, project or account beside
  * the list; ← goes back. See all results opens History searched for the
  * words. The rows are `palette/rows`, drawn by `palette/RowView`.
+ * AJ-E3824 (D-144): the one search; records found by `palette/use-found-records`.
  */
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent } from "react";
 import { Button } from "./primitives";
@@ -33,13 +34,14 @@ import { providerDisplayName } from "../lib/providers";
 import { useCleanupCount } from "../lib/cleanup-count";
 import { useNoticeSummary } from "../lib/notices-store";
 import { useBackendHealth } from "../lib/backend-health";
-import { keepRecents, loadRecents, rememberRecent, type Recent } from "../lib/palette-recents";
+import { dropGoneRecents, loadRecents, rememberRecent, type Recent } from "../lib/palette-recents";
 import { searchSettings } from "../screens/settings/settings-index";
 import { PANES } from "../screens/settings/panes";
 import { buildGroups, recentOf, typedAnything, type AccountRow, type PaletteRow } from "./palette/rows";
 import { RowView, rowTitle } from "./palette/RowView";
 import { canPreview, Preview, type Previewable } from "./palette/Preview";
 import { DialogFrame, DialogOverlay } from "./DialogFrame";
+import { NoMatches, openFound, useFoundRecords } from "./palette/use-found-records";
 export { paletteSelection } from "./PaletteActions";
 
 /** Builds a Tauri accelerator string from a KeyboardEvent (lib/hotkey). */
@@ -111,6 +113,7 @@ export function GoToPalette({
   const query = parseQuery(typed);
   const needle = query.text;
   const conversation = selectedConversation ? (conversations.find((c) => c.account_id === selectedConversation.accountId && c.id === selectedConversation.id) ?? null) : null;
+  const records = useFoundRecords(open, needle);
   const chosen = selected ?? paletteSelection(null, null, null, null, conversation);
   const panel = usePaletteActions(chosen, needle, onChanged);
   const commands = useMemo(() => (app ? appCommands(app) : []), [app]);
@@ -128,8 +131,9 @@ export function GoToPalette({
       buildGroups({
         typed, query, actions: panel.actions, selectedHeading: chosen?.heading ?? null, commands, app, sessions, conversations, remoteMachines, projects, apps, accounts: accountRows, recents, leftovers, unread,
         settings: needle ? searchSettings(needle, PANE_LABELS).filter((hit) => hit.pane !== "macs") : [],
+        records,
       }),
-    [typed, panel.actions, chosen?.heading, commands, app, sessions, conversations, remoteMachines, projects, apps, accountRows, recents, leftovers, unread],
+    [typed, panel.actions, chosen?.heading, commands, app, sessions, conversations, remoteMachines, projects, apps, accountRows, recents, leftovers, unread, records],
   );
   const rows = useMemo(() => groups.flatMap((group) => group.rows), [groups]);
   const current = rows[active];
@@ -166,15 +170,7 @@ export function GoToPalette({
   // The recents whose item is gone are dropped — judged only by lists
   // already read, so one still loading never loses its recents.
   useEffect(() => {
-    if (!open) return;
-    const known: Partial<Record<Recent["kind"], (id: string) => boolean>> = {};
-    if (commands.length > 0) known.command = (id) => commands.some((command) => command.id === id);
-    if (sessions.length > 0) known.session = (id) => sessions.some((session) => session.id === id);
-    if (conversations.length > 0) known.conversation = (id) => conversations.some((entry) => `${entry.account_id}::${entry.id}` === id);
-    if (apps.length > 0) known.app = (id) => apps.some((entry) => entry.id === id);
-    if (projects.length > 0) known.project = (id) => projects.some((project) => project.id === id);
-    if (subscriptions) known.account = (id) => subscriptions.some((subscription) => subscription.key === id);
-    keepRecents((recent) => known[recent.kind]?.(recent.id) ?? true);
+    if (open) dropGoneRecents({ commands, sessions, conversations, apps, projects, subscriptions });
   }, [open, commands, sessions, conversations, apps, projects, subscriptions]);
 
   // A sheet an action opened (a rename) outlives the palette.
@@ -188,6 +184,11 @@ export function GoToPalette({
       if (entry.action.reason) return; // greyed: it says why, and stays
       onClose();
       void entry.action.run();
+      return;
+    }
+    if (entry.where === "ask") {
+      setQuery(entry.ask.label);
+      inputRef.current?.focus();
       return;
     }
     const recent = recentOf(entry);
@@ -222,6 +223,10 @@ export function GoToPalette({
       case "remote":
         if (toApp && entry.desktop && canFocusRemote(entry.machine)) onFocusRemote?.(entry.machine.machine_id, entry.row.id);
         else onOpenRemote?.(entry.machine.machine_id, entry.row.id);
+        return;
+      case "pool":
+      case "record":
+        openFound(entry, toApp, { app, sessions, onOpenSession, onFocusWindow });
     }
   };
 
@@ -273,7 +278,7 @@ export function GoToPalette({
   };
 
   const typedAny = typedAnything(query);
-  const onlySearch = typedAny && rows.every((row) => row.where === "command" && row.command.id === "search-history");
+  const onlySearch = typedAny && (records !== null || !needle.trim()) && rows.every((row) => row.where === "ask" || (row.where === "command" && row.command.id === "search-history"));
   let index = -1;
 
   return (
@@ -298,7 +303,7 @@ export function GoToPalette({
                 aria-activedescendant={current ? `goto-option-${domId(current.id)}` : undefined}
                 aria-label={chosen ? `Actions for ${chosen.heading}, or search, act or go` : "Search, act or go"}
                 value={typed}
-                placeholder={capturing ? "Press the new combo (Esc cancels)…" : chosen ? `Act on ${chosen.heading}, or search…` : "Search sessions, apps, projects and accounts, or type what to do…"}
+                placeholder={capturing ? "Press the new combo (Esc cancels)…" : chosen ? `Act on ${chosen.heading}, or search…` : "Search sessions, tasks, pools, usage, apps and projects, or type what to do…"}
                 onChange={(event) => setQuery(event.target.value)}
                 onKeyDown={onInputKey}
                 className="w-full bg-transparent text-meta text-ink outline-none placeholder:text-muted"
@@ -337,11 +342,7 @@ export function GoToPalette({
         )}
         <div className="flex min-h-0">
           <ul id={LISTBOX} role="listbox" aria-label="Results" className="max-h-96 min-w-0 flex-1 overflow-y-auto p-1.5">
-            {onlySearch && (
-              <li role="presentation" className="px-2.5 py-2 text-meta text-muted" data-testid="goto-no-matches">
-                No matches for “{typed.trim()}”.
-              </li>
-            )}
+            {onlySearch && <NoMatches typed={typed.trim()} />}
             {rows.length === 0 && (
               <li role="presentation" className="px-2.5 py-3 text-meta text-muted">
                 Nothing open yet — start one with New session.

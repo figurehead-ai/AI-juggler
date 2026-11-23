@@ -47,6 +47,7 @@ fn world() -> World {
             session("s-web", "web", BotState::AsksYou),
             session("s-login", "Fix the login redirect", BotState::Stuck),
             session("s-api", "api", BotState::Working),
+            session("s-docs", "Draft the docs", BotState::Finished),
         ],
         tasks: vec![
             task(
@@ -182,5 +183,25 @@ fn the_command_reads_the_records_and_writes_nothing() {
             .unwrap()
             .turns
             .is_empty()
+    );
+}
+
+/// D-144: Search's Suggested entries (Bot's former shortcuts) each find
+/// their records here.
+#[test]
+fn each_suggested_entry_finds_its_records() {
+    let world = world();
+    assert_eq!(
+        ids(&records_in("What needs me", &world).sessions),
+        ["s-web", "s-login"]
+    );
+    assert_eq!(
+        ids(&records_in("What finished today", &world).sessions),
+        ["s-docs"]
+    );
+    assert_eq!(records_in("Runway by account", &world).usage.len(), 2);
+    assert_eq!(
+        ids(&records_in("What\u{2019}s running", &world).sessions),
+        ["s-api"]
     );
 }

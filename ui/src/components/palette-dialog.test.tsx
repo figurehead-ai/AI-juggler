@@ -84,7 +84,7 @@ describe("AJ-E2901 before typing", () => {
     rememberRecent({ kind: "session", id: "gone" });
     rememberRecent({ kind: "project", id: "p1" });
     const { view, groups } = openPalette();
-    expect(groups()).toEqual(["Recent", "Actions", "Open now"]);
+    expect(groups()).toEqual(["Recent", "Actions", "Suggested", "Open now"]);
     const recent = view.getByTestId("goto-group-recent");
     expect([...recent.querySelectorAll("[role='option']")].map((row) => row.getAttribute("data-testid"))).toEqual(["goto-row-project::p1", "goto-row-s-notes"]);
     const actions = view.getByTestId("goto-group-actions");
@@ -94,7 +94,7 @@ describe("AJ-E2901 before typing", () => {
 
   it("a first run (no recents) shows the top actions only, before what's open", () => {
     const { groups } = openPalette();
-    expect(groups()).toEqual(["Actions", "Open now"]);
+    expect(groups()).toEqual(["Actions", "Suggested", "Open now"]);
   });
 });
 
@@ -154,10 +154,11 @@ describe("AJ-E2901 typing", () => {
     expect(app.searchHistory).toHaveBeenCalledWith("billing");
   });
 
-  it("no matches: says so, with Search History for it active", () => {
+  it("no matches: says so, with Search History for it active", async () => {
     const { view, input } = openPalette();
     fireEvent.change(input(), { target: { value: "qqqzz" } });
-    expect(view.getByTestId("goto-no-matches").textContent).toBe("No matches for “qqqzz”.");
+    // AJ-E3824: said once the records have answered too.
+    expect((await view.findByTestId("goto-no-matches")).textContent).toBe("No matches for “qqqzz”.");
     expect(input().getAttribute("aria-activedescendant")).toBe("goto-option-command__search-history");
   });
 

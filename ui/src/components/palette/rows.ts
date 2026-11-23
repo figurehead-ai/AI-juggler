@@ -8,6 +8,13 @@
  * (an exact "payments-api" above a loose "Go to Privacy"; on a tie, that
  * order), then Search; each ranked by the loose match and capped at 5 ("4
  * more"). Pure: the palette hands in what it has.
+ *
+ * AJ-E3824 (D-144): Search also finds AI Juggler's records — sessions,
+ * tasks, their pools and usage — through Bot's one look-up; a record
+ * already listed (a session open now, an account by name) shows once.
+ * With nothing typed, Suggested holds the asks Bot's shortcuts were;
+ * Actions holds Watch a session…. Typed with nothing found, Suggested
+ * shows again under the words that say what was searched.
  */
 import type { AccountInfo } from "../../types/generated/AccountInfo";
 import type { InstanceInfo } from "../../types/generated/InstanceInfo";
@@ -26,6 +33,18 @@ import type { Recent } from "../../lib/palette-recents";
 import type { SearchHit } from "../../screens/settings/SettingsSearch";
 import { sessionTitle } from "../ManageWork";
 import { conversationTitle } from "../../lib/conversations";
+import { SHORTCUTS, rowPlace } from "../../lib/bot-words";
+import type { BotRowInfo } from "../../types/generated/BotRowInfo";
+import type { SearchPoolInfo, SearchRecordsInfo } from "../../lib/ipc/search";
+
+/** A Suggested entry: words Search looks up when picked (D-144). */
+export interface Suggestion {
+  key: "needs_me" | "finished_today" | "runway" | "running";
+  label: string;
+}
+
+/** Bot's former "Or go straight to", Search's Suggested now (D-144). */
+export const SUGGESTED: readonly Suggestion[] = (["needs_me", "finished_today", "runway", "running"] as const).map((key) => ({ key, label: SHORTCUTS[key].title }));
 
 /** An Account as ⌘K lists it: its name, its tool, its room in words, and
  * the folder a new session on it starts in. */
@@ -48,7 +67,13 @@ export type PaletteRow =
   | { where: "remote"; machine: RemoteMachineInfo; row: RemoteInstanceInfo; id: string; desktop: boolean }
   | { where: "app"; app: AppModel; id: string; open: boolean; ranges: Range[] }
   | { where: "account"; account: AccountRow; id: string; ranges: Range[] }
-  | { where: "setting"; hit: SearchHit; id: string };
+  | { where: "setting"; hit: SearchHit; id: string }
+  /** AJ-E3824: a found record (a session, a task, an account's usage). */
+  | { where: "record"; row: BotRowInfo; id: string }
+  /** AJ-E3824: a found task's pool. */
+  | { where: "pool"; pool: SearchPoolInfo; id: string }
+  /** AJ-E3824: a Suggested entry; picking it searches its words. */
+  | { where: "ask"; ask: Suggestion; id: string };
 
 export interface PaletteGroup {
   key: string;
@@ -76,6 +101,8 @@ export interface PaletteInputs {
   leftovers: number;
   unread: number;
   settings: SearchHit[];
+  /** AJ-E3824: the records found for what's typed (`null`: not yet). */
+  records?: SearchRecordsInfo | null;
 }
 
 export const CAP = 5;
@@ -124,6 +151,12 @@ function fieldsOf(row: PaletteRow): { title: string; other: readonly string[]; r
       return { title: row.account.name, other: [row.account.tool, row.account.subscription.plan ?? ""] };
     case "setting":
       return { title: row.hit.title, other: [row.hit.paneLabel, row.hit.words] };
+    case "record":
+      return { title: row.row.title, other: [rowPlace(row.row)] };
+    case "pool":
+      return { title: row.pool.name, other: ["pool"] };
+    case "ask":
+      return null;
   }
 }
 
@@ -197,6 +230,7 @@ function topActions(input: PaletteInputs): PaletteRow[] {
   const rows: PaletteCommand[] = [];
   const add = (command: PaletteCommand | undefined, label?: string) => command && rows.push(label ? { ...command, label } : command);
   add(byId("new-session"));
+  add(byId("watch-session"));
   add(byId("go:settings"), "Settings");
   if (input.leftovers > 0) add(byId("go:cleanup"), `Processes — ${input.leftovers} left running`);
   if (input.unread > 0) add(byId("notifications"), `Notifications — ${input.unread} unread`);
@@ -225,6 +259,27 @@ function sessionRows(input: PaletteInputs): PaletteRow[] {
   return [...rows.filter((row) => "desktop" in row && row.desktop), ...rows.filter((row) => !("desktop" in row && row.desktop))];
 }
 
+const askRow = (ask: Suggestion): PaletteRow => ({ where: "ask", ask, id: `ask::${ask.key}` });
+const recordRow = (row: BotRowInfo): PaletteRow => ({ where: "record", row, id: `record::${row.kind}::${row.id}` });
+
+/** Suggested, beside App's own actions (the shell's palette). */
+const suggested = (input: PaletteInputs): PaletteGroup[] => (input.app ? group("suggested", "Suggested", SUGGESTED.map(askRow), false) : []);
+
+/** The found records as rows, less any already listed: a session the
+ * Sessions group has, an account whose folder an Accounts row holds. */
+function recordRows(input: PaletteInputs, sessions: PaletteRow[], accounts: PaletteRow[]) {
+  const found = input.records;
+  if (!found) return { sessions: [], tasks: [], pools: [], usage: [] };
+  const listed = new Set(sessions.flatMap((row) => (row.where === "local" ? [row.row.id] : row.where === "outside" ? [row.conversation.id] : [])));
+  const folders = new Set(accounts.flatMap((row) => (row.where === "account" ? row.account.subscription.profiles.map((profile) => profile.id) : [])));
+  return {
+    sessions: found.sessions.filter((row) => !listed.has(row.id)).map(recordRow),
+    tasks: found.tasks.map(recordRow),
+    pools: found.pools.map((pool): PaletteRow => ({ where: "pool", pool, id: `pool::${pool.id}` })),
+    usage: found.usage.filter((row) => !folders.has(row.id)).map(recordRow),
+  };
+}
+
 /** Every group, in order. */
 export function buildGroups(input: PaletteInputs): PaletteGroup[] {
   const selected = group("selected", input.selectedHeading ? `Actions for ${input.selectedHeading}` : "Selected", input.actions.map((action) => ({ where: "action", action, id: `action::${action.id}` })), false);
@@ -232,7 +287,7 @@ export function buildGroups(input: PaletteInputs): PaletteGroup[] {
     // Once each: a session under Recent isn't listed again under Open now.
     const recent = recentRows(input);
     const inRecent = new Set(recent.map((row) => row.id));
-    return [...selected, ...group("recent", "Recent", recent, false), ...group("actions", "Actions", topActions(input), false), ...group("open", "Open now", sessionRows(input).filter((row) => !inRecent.has(row.id)), false)];
+    return [...selected, ...group("recent", "Recent", recent, false), ...group("actions", "Actions", topActions(input), false), ...suggested(input), ...group("open", "Open now", sessionRows(input).filter((row) => !inRecent.has(row.id)), false)];
   }
   const text = input.query.text;
   const shown = input.app ? commandsFor(input.commands, text, input.app) : [];
@@ -242,7 +297,9 @@ export function buildGroups(input: PaletteInputs): PaletteGroup[] {
   apps.sort((a, b) => Number(b.where === "app" && b.open) - Number(a.where === "app" && a.open));
   const projects = ranked(input.projects.map((project) => projectRow(project)), text);
   const accounts = ranked(input.accounts.map((account) => accountRow(account)), text);
-  const sessions = sessionRows(input);
+  const shownAccounts = text ? accounts.slice(0, CAP) : [];
+  const records = recordRows(input, sessionRows(input), shownAccounts);
+  const sessions = [...sessionRows(input), ...records.sessions];
   const settings = input.settings.map((hit): PaletteRow => ({ where: "setting", hit, id: `setting::${hit.pane}::${hit.anchor}` }));
   // Each group scored by its best row (before the cap); on a tie the
   // order here stands, so an action group leads only when it matches at
@@ -259,6 +316,11 @@ export function buildGroups(input: PaletteInputs): PaletteGroup[] {
           ...scored(group("settings", "Settings", settings).map((entry) => ({ ...entry, rows: entry.rows.slice(0, 3), more: 0 })), settings),
         ]
       : []),
+    ...scored(group("tasks", "Tasks", records.tasks), records.tasks),
+    ...scored(group("pools", "Pools", records.pools), records.pools),
+    ...scored(group("usage", "Usage", records.usage), records.usage),
   ].sort((a, b) => b.score - a.score);
-  return [...selected, ...matched.map(({ entry }) => entry), ...group("search", "Search", search.map(commandRow), false)];
+  // Nothing found (once the records have answered): the Suggested entries.
+  const nothing = input.records && matched.length === 0 ? suggested(input) : [];
+  return [...selected, ...matched.map(({ entry }) => entry), ...group("search", "Search", search.map(commandRow), false), ...nothing];
 }
