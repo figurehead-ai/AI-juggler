@@ -42,10 +42,7 @@ const LEGACY: Record<string, number> = {
   "pages/subagents/SubagentDetail.tsx": 2,
   "pages/subagents/SubagentsView.tsx": 1,
   "pages/subscription/AccountApps.tsx": 3,
-  "pages/tasks/PoolTasks.tsx": 3,
-  "pages/tasks/TaskView.tsx": 2,
   "screens/pools/PoolsScreen.tsx": 3,
-  "screens/tasks/TaskBoard.tsx": 2,
 };
 
 function sources(dir: string): string[] {

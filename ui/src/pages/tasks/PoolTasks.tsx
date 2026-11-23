@@ -14,6 +14,8 @@
 import { Fragment, useEffect, useState, type JSX } from "react";
 import { Button } from "../../components/primitives";
 import { ListSkeleton } from "../../components/ListSkeleton";
+import { LoadingState } from "../../components/LoadingState";
+import { usePagedState } from "../../lib/paged-state";
 import { errorText } from "../../lib/bridge";
 import type { InstanceInfo } from "../../types/generated/InstanceInfo";
 import type { ProjectInfo } from "../../types/generated/ProjectInfo";
@@ -73,6 +75,10 @@ export function PoolTasks({ poolId, sessions, projects, now }: { poolId: string;
     if (first) setOpen((was) => was ?? first);
   }, [first]);
 
+  // AJ-E1552: each list's skeleton only while its first page is read.
+  const listState = usePagedState(list, "the tasks");
+  const planState = usePagedState(plan, "the plan");
+  const tree = <TaskTree plan={plan.items} poolId={poolId} open={open} now={now} onOpen={setOpen} />;
   const rows = list.items;
   const read = !list.loading;
   const total = counts ? countOf(counts, "open")! + countOf(counts, "closed")! : null;
@@ -127,30 +133,35 @@ export function PoolTasks({ poolId, sessions, projects, now }: { poolId: string;
       <div className="grid min-w-0 gap-4 lg:grid-cols-[minmax(300px,420px)_minmax(0,1fr)]">
         <aside className="flex min-w-0 flex-col gap-2" aria-label="Tasks">
           {view === "plan" ? (
-            plan.loading ? (
-              <ListSkeleton label="Loading the plan" rows={3} />
-            ) : (
-              <TaskTree plan={plan.items} poolId={poolId} open={open} now={now} onOpen={setOpen} />
-            )
-          ) : !read ? (
-            <ListSkeleton label="Loading the tasks" rows={4} />
-          ) : rows.length === 0 ? (
-            <p className="rounded-lg border border-dashed border-hairline px-3 py-4 text-meta text-ink-2" data-testid="tasks-empty">
-              {query ? "No task has those words." : total ? `No ${FILTER_WORDS[filter]!.toLowerCase()} tasks.` : "No tasks yet. The pool's agents add them and take ready work with their own tools: ask one to plan the work. You follow them here, and approve or send back what's in review."}
-            </p>
+            <LoadingState state={planState.state} slow={planState.slow} what="the plan" skeleton={<ListSkeleton label="Loading the plan" rows={3} />} empty={tree} onRetry={plan.refresh}>
+              {tree}
+            </LoadingState>
           ) : (
-            <ul className="flex flex-col gap-0.5" data-testid="task-list">
-              {rows.map((task) => (
-                <TaskRow key={task.id} task={task} now={now} selected={task.id === open} onOpen={() => setOpen(task.id)} />
-              ))}
-            </ul>
+            <LoadingState
+              state={listState.state}
+              slow={listState.slow}
+              what="the tasks"
+              skeleton={<ListSkeleton label="Loading the tasks" rows={4} />}
+              empty={
+                <p className="rounded-lg border border-dashed border-hairline px-3 py-4 text-meta text-ink-2" data-testid="tasks-empty">
+                  {query ? "No task has those words." : total ? `No ${FILTER_WORDS[filter]!.toLowerCase()} tasks.` : "No tasks yet. The pool's agents add them and take ready work with their own tools: ask one to plan the work. You follow them here, and approve or send back what's in review."}
+                </p>
+              }
+              onRetry={list.refresh}
+            >
+              <ul className="flex flex-col gap-0.5" data-testid="task-list">
+                {rows.map((task) => (
+                  <TaskRow key={task.id} task={task} now={now} selected={task.id === open} onOpen={() => setOpen(task.id)} />
+                ))}
+              </ul>
+            </LoadingState>
           )}
           {view === "list" && list.hasMore && (
             <Button size="sm" variant="ghost" onClick={list.loadMore} disabled={list.loadingMore} data-testid="tasks-more">
               {list.loadingMore ? "Reading more tasks…" : "Show more tasks"}
             </Button>
           )}
-          {error && (
+          {error && rows.length > 0 && (
             <p role="alert" className="text-meta text-danger">
               {error}
             </p>
@@ -179,6 +190,7 @@ export function SessionTasks({ session, now }: { session: InstanceInfo; now: num
   const poolId = usePoolPlace(session.id)?.pool_id;
   useTasksRefresh();
   const tasks = usePagedList(`tasks-session:${session.id}`, (page) => tasksOfSession(session.id, page), { keyOf: (task) => task.id });
+  const shown = usePagedState(tasks, "its tasks");
   const open = (task: TaskInfo) => {
     focusTask(task.id);
     rememberTab("pool", "tasks");
@@ -187,15 +199,24 @@ export function SessionTasks({ session, now }: { session: InstanceInfo; now: num
   return (
     <div className="flex w-full min-w-0 max-w-[960px] flex-col gap-3" data-testid="session-tasks">
       <p className="text-meta text-ink-2">The tasks this session holds or worked, in its pool. A switch keeps them: its next session holds them too.</p>
-      {tasks.loading ? (
-        <span className="h-16 rounded-lg bg-skeleton motion-safe:animate-pulse" role="status" aria-label="Loading its tasks" />
-      ) : (
+      <LoadingState
+        state={shown.state}
+        slow={shown.slow}
+        what="its tasks"
+        skeleton={<output className="h-16 rounded-lg bg-skeleton motion-safe:animate-pulse" aria-label="Loading its tasks" data-testid="session-tasks-skeleton" />}
+        empty={
+          <p className="rounded-lg border border-dashed border-hairline px-3 py-4 text-meta text-ink-2" data-testid="session-tasks-empty">
+            It holds no task and hasn't worked one. When its agent takes a task in its pool, it shows here.
+          </p>
+        }
+        onRetry={tasks.refresh}
+      >
         <ul className="flex flex-col gap-0.5">
           {tasks.items.map((task) => (
             <TaskRow key={task.id} task={task} now={now} selected={false} onOpen={() => open(task)} />
           ))}
         </ul>
-      )}
+      </LoadingState>
       {tasks.hasMore && (
         <Button size="sm" variant="ghost" onClick={tasks.loadMore} disabled={tasks.loadingMore} className="self-start">
           {tasks.loadingMore ? "Reading more tasks…" : "Show more tasks"}
