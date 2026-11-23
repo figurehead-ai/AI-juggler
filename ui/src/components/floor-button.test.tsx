@@ -21,7 +21,8 @@ describe("the Floor's split button", () => {
     const menu = screen.getByTestId("floor-menu-button");
     expect(split.contains(open) && split.contains(menu)).toBe(true);
     expect(open.getAttribute("aria-label")).toBe("The Floor");
-    expect(open.getAttribute("title")).toMatch(/^The Floor \(/);
+    // AJ-E1548 #23: the tooltip says what it is.
+    expect(open.getAttribute("title")).toMatch(/^The Floor: your Apps as a live office \(/);
     expect(menu.getAttribute("aria-label")).toBe("More of the Floor");
     expect(menu.getAttribute("title")).toBe("The Floor's menu: open it, its list, its settings");
     // Hit areas: the whole height of the control (36 px, the bell's), 28 + 24 px wide:
