@@ -45,7 +45,6 @@ const LEGACY: Record<string, number> = {
   "pages/tasks/PoolTasks.tsx": 3,
   "pages/tasks/TaskView.tsx": 2,
   "screens/pools/PoolsScreen.tsx": 3,
-  "screens/settings/ai/ModelsPane.tsx": 1,
   "screens/tasks/TaskBoard.tsx": 2,
 };
 

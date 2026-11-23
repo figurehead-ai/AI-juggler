@@ -18,7 +18,9 @@ import { Alert } from "../../../components/Alert";
 import { useAiJobs } from "../../../lib/ai-availability";
 import { EngineSetup } from "../../../components/ai/EngineSetup";
 import { setupView, showsSetup } from "../../../components/ai/engine-setup-view";
-import { useModelsCatalog, useModelsInstalled } from "../../../lib/ai-models";
+import { useModelsCatalogRead, useModelsInstalled } from "../../../lib/ai-models";
+import { LoadingState } from "../../../components/LoadingState";
+import { useLoadDeadline, type LoadState } from "../../../lib/loading";
 import type { ModelsCatalog, ModelsInfo } from "../../../lib/ipc/models";
 import { Pane } from "../parts";
 import { IconChevronRight } from "../../../components/icons-controls";
@@ -85,16 +87,22 @@ function Head({ catalog }: { catalog: ModelsCatalog | null }): JSX.Element {
 }
 
 function Skeleton(): JSX.Element {
-  return <div aria-hidden="true" className="h-56 animate-pulse rounded-2xl bg-skeleton/60" data-testid="models-skeleton" />;
+  return <output aria-label="Loading the AI models" className="block h-56 animate-pulse rounded-2xl bg-skeleton/60" data-testid="models-skeleton" />;
 }
 
 /** The Recommended group: the pick, or why there's none; Apple's tip;
  * the honesty line when no other card carries it. */
-function RecommendedGroup({ catalog, installed, pick, act }: { catalog: ModelsCatalog | null; installed: ModelsInfo | null; pick: Recommended | null; act: ModelActions }): JSX.Element {
+function RecommendedGroup({ catalog, read, installed, pick, act }: { catalog: ModelsCatalog | null; read: { state: LoadState; retry: () => void }; installed: ModelsInfo | null; pick: Recommended | null; act: ModelActions }): JSX.Element {
+  // AJ-E1552: the skeleton only while the list loads ("Still loading…"
+  // after 3 s); the shared read's own deadline turns it into an error
+  // with Retry. The list is never empty: no pick is the NothingCard.
+  const { slow } = useLoadDeadline(read.state === "loading", "the AI models", { timeoutMs: Number.POSITIVE_INFINITY });
   if (!catalog) {
     return (
       <RecommendedSection>
-        <Skeleton />
+        <LoadingState state={read.state === "error" ? "error" : "loading"} slow={slow} what="the AI models" skeleton={<Skeleton />} empty={null} onRetry={read.retry}>
+          {null}
+        </LoadingState>
       </RecommendedSection>
     );
   }
@@ -156,7 +164,8 @@ function viewOf(catalog: ModelsCatalog | null, installed: ModelsInfo | null, job
 }
 
 export function ModelsPane({ anchor }: { anchor?: string }): JSX.Element {
-  const catalog = useModelsCatalog();
+  const catalogRead = useModelsCatalogRead();
+  const catalog = catalogRead.data ?? null;
   const installed = useModelsInstalled();
   const jobs = useAiJobs();
   const act = useModelActions(jobs);
@@ -169,7 +178,7 @@ export function ModelsPane({ anchor }: { anchor?: string }): JSX.Element {
             {act.note}
           </Alert>
         )}
-        <RecommendedGroup catalog={catalog} installed={installed} pick={view.pick} act={act} />
+        <RecommendedGroup catalog={catalog} read={catalogRead} installed={installed} pick={view.pick} act={act} />
         {catalog && (
           <OthersSection
             catalog={catalog}

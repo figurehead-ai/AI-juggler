@@ -8,14 +8,17 @@
  * never by a timer; a running download's steps arrive as they happen.
  */
 import { useEffect, useSyncExternalStore } from "react";
-import { sharedRead, useSharedRead, whenForgotten } from "./shared-read";
+import { sharedRead, useSharedRead, useSharedReadState, whenForgotten } from "./shared-read";
+import type { LoadState } from "./loading";
 import { onAiJobsChanged } from "./ipc/ai";
 import { aiModelsCatalog, aiModelsInstalled, onAiModelsChanged, onAiModelsProgress, type DownloadInfo, type ModelsCatalog, type ModelsInfo } from "./ipc/models";
 
 /** Kept until the backend says it changed (read again on each open). */
 const KEPT = 0;
 
-const CATALOG = sharedRead(aiModelsCatalog);
+// Read through its name at each read (a test stands in for it), and
+// named in a failure's log.
+const CATALOG = sharedRead(() => aiModelsCatalog(), "the AI models");
 const INSTALLED = sharedRead(aiModelsInstalled);
 
 /** The running download's last step, from its progress events. */
@@ -51,6 +54,13 @@ function listen(): void {
 export function useModelsCatalog(): ModelsCatalog | null {
   useEffect(listen, []);
   return useSharedRead(CATALOG, { maxAgeMs: KEPT }) ?? null;
+}
+
+/** AJ-E1552: the list with its state (loading until its first answer,
+ * an error once its read fails or runs past its deadline) and Retry. */
+export function useModelsCatalogRead(): { data: ModelsCatalog | undefined; state: LoadState; retry: () => void } {
+  useEffect(listen, []);
+  return useSharedReadState(CATALOG, { maxAgeMs: KEPT, isEmpty: () => false });
 }
 
 /** The models on this Mac and the download (`null` until first read),
