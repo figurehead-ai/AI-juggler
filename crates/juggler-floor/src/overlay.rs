@@ -16,8 +16,8 @@ use crate::scene::{Mark, Scene, floor_y};
 use crate::tex::Icon;
 
 mod controls;
-pub use controls::{MacAlert, mac_chip_words};
-use controls::{mac_chip, switcher, view_button};
+pub use controls::{INTRO, MacAlert, mac_chip_words};
+use controls::{intro_note, mac_chip, switcher, view_button};
 
 /// One textured rectangle: where (device pixels), what part of the UI
 /// atlas, and its tint.
@@ -64,6 +64,9 @@ pub struct Inputs<'a> {
     /// FL1 (rc31): where something was just opened in the main window
     /// (device pixels), to say so there.
     pub opened: Option<(f32, f32)>,
+    /// AJ-E1548 #23: the first-open line ([`INTRO`]) shows, until a click
+    /// on it hides it.
+    pub intro: bool,
 }
 
 /// AJ-E3517: a hover card: whose (their pick id), where it was asked for,
@@ -179,6 +182,9 @@ pub struct Placed {
     pub doors: Vec<([f32; 4], u32)>,
     /// FL1 (rc31): the "opened" note, when one shows.
     pub opened: Option<[f32; 4]>,
+    /// AJ-E1548 #23: the first-open line, while it shows (kept clear; a
+    /// click on it hides it).
+    pub intro: Option<[f32; 4]>,
     /// In the building view, each floor's outline on screen (slab to wall
     /// tops), by floor; a chip never touches another floor's.
     pub outlines: Vec<Poly>,
@@ -296,6 +302,12 @@ pub fn build_placed(scene: &Scene, i: &Inputs<'_>) -> (Vec<Quad>, Vec<Chip>, Pla
         if let Some(mac) = o.scene.pick_of_mac() {
             o.placed.doors.push((chip, mac));
         }
+    }
+    // AJ-E1548 #23: the first-open line over the hint line, kept clear
+    if i.intro {
+        let note = intro_note(&mut o, u, w, h - 16.0 * hk);
+        taken.push(note);
+        o.placed.intro = Some(note);
     }
     let controls: Vec<_> = o.q.drain(controls_from..).collect();
     let band = if i.view.focus.is_none() {

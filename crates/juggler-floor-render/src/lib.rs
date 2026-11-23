@@ -123,6 +123,8 @@ pub struct Extras<'a> {
     /// FL1 (rc31): where a click just opened something in the main
     /// window, device pixels (the Floor says so there).
     pub opened: Option<(f32, f32)>,
+    /// AJ-E1548 #23: the first-open line shows (until a click hides it).
+    pub intro: bool,
 }
 
 /// What a drawn frame says.
@@ -138,6 +140,8 @@ pub struct Shown {
     pub view: Option<[f32; 4]>,
     /// FL1 (rc31): the flags that open something, and what, for clicks.
     pub doors: Vec<([f32; 4], u32)>,
+    /// AJ-E1548 #23: the first-open line, for clicks (while it shows).
+    pub intro: Option<[f32; 4]>,
 }
 
 /// The surface refused a frame (covered, minimised, out of date): retry.
@@ -360,6 +364,7 @@ impl Renderer {
             labels: self.labels,
             card: extras.card,
             opened: extras.opened,
+            intro: extras.intro,
         };
         let (mut quads, chips, placed) = overlay::build_placed(scene, &over);
         if !self.overlay {
@@ -385,6 +390,7 @@ impl Renderer {
             card: placed.card,
             view: placed.view,
             doors: placed.doors,
+            intro: placed.intro,
         }
     }
 
@@ -496,6 +502,7 @@ impl Renderer {
             mouse: None,
             card: None,
             opened: None,
+            intro: false,
         };
         // one frame to settle the targets' sizes
         self.frame_into(scene, view, live, size, &extras, &target);

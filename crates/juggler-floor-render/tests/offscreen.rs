@@ -152,6 +152,7 @@ fn it_draws_the_office_offscreen_and_picks_a_desk() {
         mouse: None,
         card: None,
         opened: None,
+        intro: false,
     };
     let img = renderer
         .capture(

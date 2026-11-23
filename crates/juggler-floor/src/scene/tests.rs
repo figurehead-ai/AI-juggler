@@ -426,6 +426,93 @@ fn building_twenty_apps_and_a_hundred_and_fifty_sessions_is_quick() {
     );
 }
 
+/// AJ-E1548 #23: the first open says what the Floor's pieces are, in one
+/// line over the hint line (the window's left, inside it, clear of the
+/// hint, every glyph drawable), and the flags keep clear of it; without
+/// it nothing is drawn there.
+#[test]
+fn the_first_open_line_says_what_the_floor_is_and_keeps_clear() {
+    use crate::camera::View;
+    use crate::overlay::{INTRO, Inputs as Over, build_placed, unit};
+    let snap = snapshot(vec![app(
+        "cli:a",
+        "workshop",
+        vec![session("s:1", FloorState::Asks, 0)],
+    )]);
+    let scene = build(&snap);
+    let frame = scene.frame_size();
+    for (size, focus) in [
+        ((1600, 1000), Some(0)),
+        ((800, 600), Some(0)),
+        ((1600, 1000), None),
+    ] {
+        let view = View {
+            focus,
+            cam: frame.home(focus, size.0 as f32 / size.1 as f32),
+        };
+        let vp = view.cam.vp(size.0 as f32 / size.1 as f32);
+        let mut out = Vec::new();
+        let drawn = scene.frame(&Live::default(), &view.floors(&frame), &mut out);
+        let over = Over {
+            view: &view,
+            vp: &vp,
+            size,
+            scale: 2.0,
+            marks: &drawn.marks,
+            hover: 0,
+            mouse: None,
+            alert: None,
+            hint: "Drag to pan",
+            band: crate::flags::Band::Middle,
+            labels: crate::flags::Labels::Smart,
+            card: None,
+            opened: None,
+            intro: true,
+        };
+        let (with, _, placed) = build_placed(&scene, &over);
+        let r = placed.intro.expect("the first-open line");
+        let (w, h) = (size.0 as f32, size.1 as f32);
+        let hk = (unit(2.0) - 1.0).max(1.0);
+        assert!(
+            r[0] > 0.0 && r[1] > 0.0 && r[0] + r[2] < w,
+            "{r:?} in {size:?}"
+        );
+        assert!(r[1] + r[3] <= h - 16.0 * hk, "{r:?} over the hint line");
+        assert!(placed.kept_clear.contains(&r));
+        for chip in &placed.chips {
+            let apart = chip[0] >= r[0] + r[2]
+                || chip[0] + chip[2] <= r[0]
+                || chip[1] >= r[1] + r[3]
+                || chip[1] + chip[3] <= r[1];
+            assert!(apart, "a flag {chip:?} on the line {r:?}");
+        }
+        let (without, _, placed) = build_placed(
+            &scene,
+            &Over {
+                intro: false,
+                ..over
+            },
+        );
+        assert!(placed.intro.is_none());
+        assert!(with.len() > without.len());
+    }
+    // what it says: the area, the floor, a person's state, and how it goes
+    let words = INTRO.join(" ");
+    for part in [
+        "AREA IS ONE APP",
+        "FLOOR",
+        "PERSON IS A SESSION",
+        "WAVING NEEDS YOU",
+        "HIDE",
+    ] {
+        assert!(words.contains(part), "{part}");
+    }
+    assert!(
+        words.chars().all(|c| crate::tex::GLYPHS.contains(c)),
+        "{words}"
+    );
+}
+
 /// 0.4.2 (the maintainer: "we shouldn't overtake the whole screen in red
 /// … why are all of the offices flashing red"): a Mac alert is one still
 /// chip under View, amber or red by level, that opens This Mac; the rooms
@@ -463,6 +550,7 @@ fn a_mac_alert_is_one_calm_chip_never_a_change_in_the_rooms() {
         labels: crate::flags::Labels::Smart,
         card: None,
         opened: None,
+        intro: false,
     };
     let (without, _, placed) = build_placed(&scene, &calm);
     assert!(placed.banner.is_none());
@@ -572,6 +660,7 @@ fn the_overlay_has_a_chip_per_floor_and_area_chips_from_afar() {
         labels: crate::flags::Labels::Smart,
         card: None,
         opened: None,
+        intro: false,
     };
     let (quads, chips, _, view) = overlay(&scene, &inputs);
     assert!(view.is_some(), "the View button");
