@@ -43,7 +43,7 @@ import { useSignIns } from "../lib/sign-ins-store";
 import { AccessStep } from "../components/AccessStep";
 import { Check } from "../components/StepCheck";
 import { colourAt, FreshAccountStep, freeLabel } from "./FreshAccountStep";
-import { ProvidersTerms, StepMarks, TermsLine, YOUR_APPS, type Step } from "./FirstRunSteps";
+import { ProvidersTerms, StepMarks, YOUR_APPS, type Step } from "./FirstRunSteps";
 import { FoundActions, ToolGroup, usePairings } from "./FirstRunToolGroup";
 import { FirstRunFrame } from "./FirstRunFrame";
 import { funnelEvent, funnelStep, reasonCode } from "../lib/funnel";
@@ -1294,7 +1294,8 @@ export function FirstRun({
       )}
       {step === "signin" && <SigninStep queue={queue} provider={primary} openLoginTerminal={openLoginTerminal} onDone={toAccess} />}
       {step === "access" && access !== null && <AccessStep entries={access} setEntries={setAccess} onDone={finish} />}
-      {step === "found" && mode === "first-run" ? <ProvidersTerms tools={tools} /> : (step === "found" || step === "fresh" || step === "folder") && <TermsLine tools={step === "found" ? tools : [primary]} />}
+      {/* AJ-E1548 R11: closed in setup and in Add account alike. */}
+      {(step === "found" || step === "fresh" || step === "folder") && <ProvidersTerms tools={step === "found" ? tools : [primary]} />}
     </FirstRunFrame>
   );
 }

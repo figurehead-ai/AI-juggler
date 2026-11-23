@@ -166,7 +166,7 @@ describe("D-25 first run — the flow", () => {
     expect(getByTestId("first-run-bring-in").textContent).toBe("Bring in 4 apps");
     // The providers' terms are never shown open (PAT-SER-7).
     const terms = getByTestId("first-run-terms");
-    expect(within(terms).getByRole("button", { name: "The tools' terms" }).getAttribute("aria-expanded")).toBe("false");
+    expect(within(terms).getByRole("button", { name: "Providers’ terms" }).getAttribute("aria-expanded")).toBe("false");
   });
 
   it("shows where it looked, on request", async () => {

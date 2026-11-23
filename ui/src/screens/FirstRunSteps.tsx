@@ -82,13 +82,16 @@ export const YOUR_APPS = {
   lead: `We found these on your ${THIS_MACHINE_IN_TEXT.replace(/^this /, "")}. Tick the ones AI Juggler should show. Nothing is copied or changed: they keep working exactly as now.`,
 };
 
+/** The closed terms' one name everywhere (AJ-E1548 R11). */
+export const PROVIDERS_TERMS = "Providers’ terms";
+
 /** PAT-SER-7 (the maintainer, 2026-11-23): the providers' terms are never
  * shown open. One closed disclosure at the foot, opened only by the user;
  * a line per provider with its link inside. */
 export function ProvidersTerms({ tools }: { tools: string[] }): JSX.Element | null {
   if (!tools.some((id) => toolSpec(id).terms)) return null;
   return (
-    <Disclosure summary={<span className="font-medium">The tools' terms</span>} testId="first-run-terms">
+    <Disclosure summary={<span className="font-medium">{PROVIDERS_TERMS}</span>} testId="first-run-terms">
       <div className="mt-3">
         <TermsLine tools={tools} />
       </div>

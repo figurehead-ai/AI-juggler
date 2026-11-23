@@ -9,6 +9,7 @@
 import type { JSX, ReactNode } from "react";
 import { ToolMark } from "../components/ToolMark";
 import { Disclosure } from "../components/controls";
+import { PROVIDERS_TERMS } from "./FirstRunSteps";
 import { useTools } from "../lib/tools";
 import claims from "../lib/trust-claims.json";
 import { trustOpen, type TrustLink } from "../lib/ipc/trust";
@@ -83,20 +84,27 @@ export function PrivacyClaims(): JSX.Element {
         </Section>
       ))}
       {tools.length > 0 && (
+        // AJ-E1548 R11 (PAT-SER-7): never shown open; the user opens it.
         <Section id="terms" title="Your accounts and the tools' terms">
-          {tools.map((tool) => (
-            <li key={tool.id} className="flex items-start gap-2.5 border-t border-hairline/60 py-2.5 text-body first:border-t-0" data-testid="privacy-terms-row">
-              <ToolMark tool={tool.id} size={16} className="mt-0.5 shrink-0 text-muted" />
-              <span className="flex flex-col gap-0.5">
-                <span className="text-ink">{tool.terms!.accounts}</span>
-                <span className="text-meta text-muted">
-                  <OutLink to={{ kind: "terms", id: tool.id }}>{tool.terms!.name} ↗</OutLink>{" "}
-                  · checked {checkedWords(tool.terms!.checked)}
-                </span>
-                {tool.runtime?.terms_note && <span className="text-xs text-muted" data-testid="privacy-runtime-note">{tool.runtime.terms_note}</span>}
-              </span>
-            </li>
-          ))}
+          <li className="py-2.5">
+            <Disclosure summary={<span className="font-medium">{PROVIDERS_TERMS}</span>} testId="privacy-terms-disclosure">
+              <ul className="mt-2 flex flex-col">
+                {tools.map((tool) => (
+                  <li key={tool.id} className="flex items-start gap-2.5 border-t border-hairline/60 py-2.5 text-body first:border-t-0" data-testid="privacy-terms-row">
+                    <ToolMark tool={tool.id} size={16} className="mt-0.5 shrink-0 text-muted" />
+                    <span className="flex flex-col gap-0.5">
+                      <span className="text-ink">{tool.terms!.accounts}</span>
+                      <span className="text-meta text-muted">
+                        <OutLink to={{ kind: "terms", id: tool.id }}>{tool.terms!.name} ↗</OutLink>{" "}
+                        · checked {checkedWords(tool.terms!.checked)}
+                      </span>
+                      {tool.runtime?.terms_note && <span className="text-xs text-muted" data-testid="privacy-runtime-note">{tool.runtime.terms_note}</span>}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </Disclosure>
+          </li>
         </Section>
       )}
       <p className="px-1 text-meta text-ink-2">

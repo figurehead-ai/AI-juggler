@@ -63,6 +63,9 @@ for (const theme of ["dark", "light"] as const) {
     // The tools' terms, at the end.
     const terms = page.getByTestId("privacy-terms");
     await terms.scrollIntoViewIfNeeded();
+    // AJ-E1548 R11: closed until opened.
+    await expect(page.getByTestId("privacy-terms-disclosure-toggle")).toHaveAttribute("aria-expanded", "false");
+    await page.getByTestId("privacy-terms-disclosure-toggle").click();
     // One row per tool in the catalog that has terms (a new tool adds one).
     await expect(page.getByTestId("privacy-terms-row")).toHaveCount(PREVIEW_TOOLS.filter((tool) => tool.terms !== null).length);
     // The last row whole at the screen's foot (a new tool makes the list
@@ -81,6 +84,9 @@ for (const theme of ["dark", "light"] as const) {
     // AJ-E1601: with a service a found tool runs through, Add account asks which tool first.
     const chooser = page.getByRole("dialog", { name: "Add an app: which tool?" });
     await chooser.getByTestId("provider-card").filter({ hasText: "Claude Code" }).getByTestId("provider-choose").click();
+    // AJ-E1548 R11: the terms closed until opened.
+    await expect(page.getByTestId("first-run-terms-toggle")).toHaveAttribute("aria-expanded", "false");
+    await page.getByTestId("first-run-terms-toggle").click();
     const line = page.getByTestId("terms-line");
     await expect(line).toBeVisible();
     // The setups found, not the look for them.
