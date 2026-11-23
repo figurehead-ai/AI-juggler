@@ -44,6 +44,8 @@ pub enum AppEvent {
     QuitRequested,
     /// The app menu's Report a bug item.
     ReportBug,
+    /// The app menu's Help › Take the tour (AJ-E1546).
+    TakeTour,
     /// An embedded terminal's output.
     TerminalOutput,
     /// An embedded terminal exited.
@@ -105,7 +107,7 @@ pub enum AppEvent {
 
 impl AppEvent {
     /// Every event, in declaration order.
-    pub const ALL: [Self; 38] = [
+    pub const ALL: [Self; 39] = [
         Self::AppReady,
         Self::SessionsUpdated,
         Self::SessionsResources,
@@ -120,6 +122,7 @@ impl AppEvent {
         Self::UpdateStatus,
         Self::QuitRequested,
         Self::ReportBug,
+        Self::TakeTour,
         Self::TerminalOutput,
         Self::TerminalExit,
         Self::TerminalWindows,
@@ -164,6 +167,7 @@ impl AppEvent {
             Self::UpdateStatus => "update://status",
             Self::QuitRequested => "app://quit-requested",
             Self::ReportBug => "app://report-bug",
+            Self::TakeTour => "app://take-tour",
             Self::TerminalOutput => "terminal://output",
             Self::TerminalExit => "terminal://exit",
             Self::TerminalWindows => "terminal://windows",

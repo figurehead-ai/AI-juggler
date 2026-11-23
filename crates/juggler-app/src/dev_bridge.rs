@@ -104,6 +104,10 @@ pub const NOT_FORWARDED_EVENTS: &[(&str, &str)] = &[
         "a menu item of the app's own window",
     ),
     (
+        AppEvent::TakeTour.name(),
+        "a menu item of the app's own window",
+    ),
+    (
         AppEvent::PreviewState.name(),
         "the window preview, window-only",
     ),
