@@ -7,13 +7,40 @@
  * unavailable and offers no fake alternative. One dialog serves every
  * launch entry point (the bridge's `launchSession` raises it).
  */
-import { useEffect, useRef, useState, type JSX } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore, type JSX } from "react";
 import { ISOLATION_OFFER_EVENT, type IsolationDecision, type IsolationOfferRequest } from "../lib/ipc/launch";
 import { Radio } from "./controls";
 import { PRIMARY_FILL } from "./primitives";
 import { sessionsInWords } from "../lib/session-titles";
 import { SELECTED_CARD } from "./controls/selected";
 import { DialogFrame, DialogOverlay } from "./DialogFrame";
+
+/** AJ-E2314 L7 (the 0.5.0 re-walk, DW1): whether the offer is up. The
+ * New session sheet that started the launch steps out of sight while it
+ * is, so the offer is the one dialog on screen (it showed the sheet
+ * dimmed behind it, two dialogs at once), and comes back after a Cancel. */
+let offerShown = false;
+const watchers = new Set<() => void>();
+function showOffer(shown: boolean): void {
+  if (offerShown === shown) return;
+  offerShown = shown;
+  for (const watcher of watchers) watcher();
+}
+export function useIsolationOfferShown(): boolean {
+  return useSyncExternalStore(
+    (watcher) => {
+      watchers.add(watcher);
+      return () => void watchers.delete(watcher);
+    },
+    () => offerShown,
+  );
+}
+
+/** The offer is up, read in a handler set once (the sheet's Tab keeps
+ * out of the offer's way). */
+export function isolationOfferShown(): boolean {
+  return offerShown;
+}
 
 export function IsolationOfferDialog(): JSX.Element | null {
   const [request, setRequest] = useState<IsolationOfferRequest | null>(null);
@@ -32,6 +59,11 @@ export function IsolationOfferDialog(): JSX.Element | null {
     window.addEventListener(ISOLATION_OFFER_EVENT, onRequest);
     return () => window.removeEventListener(ISOLATION_OFFER_EVENT, onRequest);
   }, []);
+
+  useEffect(() => {
+    showOffer(request !== null);
+    return () => showOffer(false);
+  }, [request]);
 
   const decide = (decision: IsolationDecision) => {
     request?.resolve(decision);

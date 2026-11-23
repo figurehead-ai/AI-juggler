@@ -28,6 +28,7 @@ import { folderName, StatedChoice } from "./new-session/StatedChoice";
 import { MoreOptions } from "./new-session/MoreOptions";
 import { useAppPick } from "./new-session/useAppPick";
 import { DialogFrame, DialogOverlay } from "../components/DialogFrame";
+import { isolationOfferShown, useIsolationOfferShown } from "../components/IsolationOfferDialog";
 
 const FOCUSABLE = "button:not(:disabled), a[href], input, summary, [tabindex]:not([tabindex='-1'])";
 
@@ -103,6 +104,7 @@ export function NewSessionModal({
   // AJ-E2911: a launch that failed can be reported with what it showed.
   const [failure, setFailure] = useState<Failure | null>(null);
   const where = useWhere(); // AJ-E1515: or on a paired Mac
+  const asking = useIsolationOfferShown(); // AJ-E2314 L7: hidden and inert while its launch's busy-folder offer is up
   const sheetRef = useRef<HTMLDivElement | null>(null);
   const startRef = useRef<HTMLButtonElement | null>(null);
   const restoreFocusRef = useRef<HTMLElement | null>(null);
@@ -112,7 +114,7 @@ export function NewSessionModal({
   useEffect(() => {
     restoreFocusRef.current = document.activeElement as HTMLElement | null;
     const onKey = (event: KeyboardEvent) => {
-      if (event.key !== "Tab") return;
+      if (event.key !== "Tab" || isolationOfferShown()) return;
       const focusables = sheetRef.current?.querySelectorAll<HTMLElement>(FOCUSABLE);
       if (focusables === undefined || focusables.length === 0) return;
       const first = focusables[0]!;
@@ -305,10 +307,11 @@ export function NewSessionModal({
       aria-modal="true"
       aria-label="New session"
       data-testid="new-session-sheet"
+      inert={asking || undefined}
       // AJ-E2311 item 2: held at the top, not centred, so a line that
       // comes in a read later grows it downward and never moves the
       // choice under the pointer.
-      className="fixed inset-0 z-50 flex items-start justify-center bg-black/60 p-4 pt-[8vh] backdrop-blur-sm"
+      className={"fixed inset-0 z-50 flex items-start justify-center bg-black/60 p-4 pt-[8vh] backdrop-blur-sm" + (asking ? " invisible" : "")}
     >
       <DialogFrame
         className="rounded-card border border-hairline bg-surface shadow-dialog w-full max-w-xl"
