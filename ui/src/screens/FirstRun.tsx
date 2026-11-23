@@ -30,21 +30,22 @@
  * folder picker, then a check of what's in it (size, sign-in, a too-large
  * history offers settings only) before AI Juggler copies it.
  */
-import { ToolMark } from "../components/ToolMark";
 import { useCallback, useEffect, useMemo, useRef, useState, type JSX } from "react";
 import { Button } from "../components/primitives";
-import { inPlaceProviders, ownSignIn, providerDisplayName, sameAsWords, shortSignIn, supportsInPlace, toolFound, type InPlaceSupport } from "../lib/providers";
+import { inPlaceProviders, ownSignIn, providerDisplayName, sameAsWords, shortSignIn, supportsInPlace, type InPlaceSupport } from "../lib/providers";
 import { firstRunToolIds, primaryToolId, toolSpec } from "../lib/tools";
 import { InstallHow } from "../components/InstallHow";
 import { AccessStep } from "../components/AccessStep";
 import { Check } from "../components/StepCheck";
 import { colourAt, FreshAccountStep, freeLabel } from "./FreshAccountStep";
-import { StepMarks, TermsLine, type Step } from "./FirstRunSteps";
+import { ProvidersTerms, StepMarks, TermsLine, YOUR_APPS, type Step } from "./FirstRunSteps";
+import { ToolGroup } from "./FirstRunToolGroup";
+import { FirstRunFrame } from "./FirstRunFrame";
 import { funnelEvent, funnelStep, reasonCode } from "../lib/funnel";
 import { foundWords, useSetupScan } from "./firstRunScan";
 import { FoundRow } from "./FirstRunFoundRow";
 import { outcomeWords, plainImportError } from "./firstRunScan";
-import { cliWords, DesktopApps, folderOf, freshKey, FreshGroups, labelOf, setUpFresh, setupNames, useFresh } from "./FirstRunMore";
+import { DesktopApps, folderOf, freshKey, FreshGroups, labelOf, setUpFresh, setupNames, useFresh } from "./FirstRunMore";
 
 export { desktopNoneWords, folderOf, labelOf, setupNames } from "./FirstRunMore";
 export { outcomeWords, plainImportError } from "./firstRunScan";
@@ -177,7 +178,10 @@ function FoundStep({
   onBusy,
   inPlace,
   taken,
+  firstRun,
 }: {
+  /** First run (not Add app): AJ-E1545's Your apps. */
+  firstRun: boolean;
   report: ScanReportData | null;
   /** The names of the Apps already in AI Juggler (`null` while read). */
   taken: string[] | null;
@@ -363,7 +367,12 @@ function FoundStep({
     );
   }
 
-  const words = foundWords(scanError, installs.length, toolName, kind, placement === "in_place", provider, fresh.map(providerDisplayName));
+  // AJ-E1545 step 1, "Your apps": first run (every tool) asks in the
+  // user's words, one group per tool; Add app keeps its own (AJ-E1548).
+  const yourApps = firstRun;
+  const said = foundWords(scanError, installs.length, toolName, kind, placement === "in_place", provider, fresh.map(providerDisplayName));
+  // "Nothing is copied" only while it's true: every one used where it is.
+  const words = yourApps && scanError === null && installs.length > 0 ? { heading: YOUR_APPS.heading, lead: placement === "in_place" && copyOnlyTools.length === 0 ? YOUR_APPS.lead : said.lead } : said;
   return (
     <div className="flex flex-col gap-6" data-testid="first-run-found">
       <div className="flex flex-col gap-2">
@@ -397,22 +406,15 @@ function FoundStep({
 
       {listed && (
         <div className="overflow-hidden rounded-2xl border border-hairline bg-surface">
-          {groupsFor(tools).map((group) => {
-            const rows = installs.filter((found) => groupOf(found) === group.key);
+          {(yourApps ? tools : groupsFor(tools).map((group) => group.key)).map((tool) => {
+            const rows = installs.filter((row) => (yourApps ? row.harness === tool : groupOf(row) === tool));
             if (rows.length === 0) return null;
-            const install = installRows[group.tool];
+            const open = rows.filter((row) => !row.managed);
+            const group = yourApps ? null : groupsFor(tools).find((one) => one.key === tool);
+            const toolId = group?.tool ?? tool;
             return (
-              <fieldset key={group.key} className="border-b border-hairline last:border-b-0" data-testid={`first-run-group-${group.id}`}>
-                <legend className="sr-only">{group.title}</legend>
-                <div aria-hidden="true" className="flex items-center justify-between gap-3 bg-surface-2 px-5 py-2.5 text-xs">
-                  <span className="flex items-center gap-1.5 font-semibold text-ink">
-                    <ToolMark tool={group.tool} size={14} className="text-muted" />
-                    <span>{group.title} <span className="font-normal text-muted">· {rows.length}</span></span>
-                  </span>
-                  {group.showsInstall && install && toolFound(install) && (
-                    <span className="text-muted" data-testid={`first-run-cli-${group.id}`}>{cliWords(providerDisplayName(group.tool), install)}</span>
-                  )}
-                </div>
+              <ToolGroup key={tool} tool={toolId} title={group?.title} testId={group ? `first-run-group-${group.id}` : undefined} cliTestId={group ? (group.showsInstall ? `first-run-cli-${group.id}` : undefined) : `first-run-cli-${tool}`} count={rows.length} install={yourApps || group?.showsInstall ? installRows[toolId] : undefined} all={open.length > 0 && open.every((row) => picked[row.path])} some={open.some((row) => picked[row.path])} disabled={busy || open.length === 0}
+                onAll={(on) => setPicked((current) => ({ ...current, ...Object.fromEntries(open.map((row) => [row.path, on])) }))}>
                 {rows.map((found, index) => (
                   <FoundRow
                     key={found.path}
@@ -423,13 +425,14 @@ function FoundStep({
                     toolName={providerDisplayName(found.harness)}
                     colour={colourAt(installs.indexOf(found))}
                     first={index === 0}
+                    plain={yourApps}
                     checked={!!picked[found.path]}
                     disabled={busy}
                     progress={progress[found.path]}
                     onCheck={(checked) => setPicked((current) => ({ ...current, [found.path]: checked }))}
                   />
                 ))}
-              </fieldset>
+              </ToolGroup>
             );
           })}
           <FreshGroups fresh={fresh} names={freshNames} picked={freshPicked} onPick={(tool, on) => setFreshPicked((current) => ({ ...current, [tool]: on }))}
@@ -437,9 +440,11 @@ function FoundStep({
         </div>
       )}
 
-      {tools.length > 1 && <DesktopApps bundles={report.desktop_apps} tools={tools} />}
+      {/* Until AJ-E2327's pairing joins them into the rows: only profiles seen open, to add. */}
+      {tools.length > 1 && <DesktopApps />}
 
       {installs.length > 0 && !showOutcome && canInPlace && (
+        <Disclosure summary={<span className="font-medium">More options</span>} open={yourApps ? undefined : true} testId="first-run-more-options">
         <div role="radiogroup" aria-label="How AI Juggler uses them" className="grid gap-2 sm:grid-cols-2" data-testid="first-run-placement">
           {placements(inPlaceTools, installs.length === 1).map((option) => (
             <label
@@ -470,6 +475,7 @@ function FoundStep({
             </label>
           ))}
         </div>
+        </Disclosure>
       )}
       {installs.length > 0 && !showOutcome && canInPlace && copyOnlyTools.length > 0 && (
         <p className="-mt-3 text-xs text-ink-2" data-testid="first-run-copy-only">
@@ -545,10 +551,10 @@ function FoundStep({
       <div className="sticky bottom-0 z-10 -mx-2 flex flex-wrap items-center justify-between gap-4 border-t border-hairline bg-canvas/95 px-2 py-3 backdrop-blur" data-testid="first-run-actions">
         <div className="flex flex-wrap items-center gap-5 text-sm">
           <button type="button" className="text-accent-hi hover:underline" onClick={onAddFresh}>
-            {listed ? "Add a fresh app instead" : "Add an app"}
+            {listed ? (yourApps ? "Set up a new app instead" : "Add a fresh app instead") : "Add an app"}
           </button>
           <button type="button" className="text-muted hover:text-ink hover:underline" onClick={onImportFolder}>
-            Import from another folder…
+            {yourApps ? "Add from another folder…" : "Import from another folder…"}
           </button>
           {/* AJ-E2906: scan again at any time; ticks on setups still found stay. */}
           <button type="button" className="text-muted hover:text-ink hover:underline" onClick={onScanAgain} disabled={busy} data-testid="first-run-look-again">
@@ -1041,6 +1047,9 @@ export function FirstRun({
   provider,
   startAt = "found",
   resumeAtAccess = false,
+  embedded = false,
+  onBusy,
+  onStep,
 }: {
   /** First run is over: Home. */
   onDone: () => void;
@@ -1058,8 +1067,14 @@ export function FirstRun({
   openLoginTerminal: (id: string, title: string, options?: { select?: boolean; account?: string }) => void;
   /** Back after Reopen AI Juggler: start at the access step. */
   resumeAtAccess?: boolean;
+  /** AJ-E1545: the setup wizard's first step (its frame, Esc and access step are the wizard's). */
+  embedded?: boolean;
+  onBusy?: (busy: boolean) => void;
+  /** Its own step now (the wizard's Your apps or Sign in). */
+  onStep?: (step: Step) => void;
 }): JSX.Element {
   const [step, setStep] = useState<Step>(resumeAtAccess ? "access" : startAt);
+  useEffect(() => onStep?.(step), [step, onStep]);
   const [folder, setFolder] = useState<string | null>(null);
   const [taken, setTaken] = useState<string[] | null>(null);
   const [accounts, setAccounts] = useState<AccountInfo[]>([]);
@@ -1125,13 +1140,14 @@ export function FirstRun({
     frameRef.current?.focus();
   }, []);
   useEffect(() => {
+    if (embedded) return undefined;
     const onKey = (event: KeyboardEvent) => {
       // A popover inside that already took the Escape keeps the screen open.
       if (event.key === "Escape" && !event.defaultPrevented) leave();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [leave]);
+  }, [leave, embedded]);
 
   // D-25: adding, with nothing new on this Mac to bring in — go straight
   // to a fresh account rather than show an empty list.
@@ -1168,7 +1184,7 @@ export function FirstRun({
   // Nothing to ask for: this OS needs nothing, or it is all allowed.
   // Adding an account later never asks again: first run asked once, and
   // the step itself promises to ask again only on first use.
-  const skipAccess = mode === "add" || (access !== null && access.every((entry) => entry.status === "allowed"));
+  const skipAccess = embedded || mode === "add" || (access !== null && access.every((entry) => entry.status === "allowed"));
   // D-97 (2): first run is three steps; the optional Figurehead account
   // is offered in Settings › Advanced › Figurehead & Cloud, not here.
   const finish = useCallback(() => {
@@ -1197,96 +1213,70 @@ export function FirstRun({
   }, [finish, skipAccess, mode]);
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex flex-col overflow-y-auto bg-canvas text-ink outline-none"
-      role="dialog"
-      aria-modal="true"
-      aria-label={mode === "add" ? "Add apps" : "Set up AI Juggler"}
-      data-testid="first-run"
-      data-mode={mode}
-      ref={frameRef}
-      tabIndex={-1}
-    >
-      {/* 0.5.0 (DLG-1): the way out stays at the top while the page scrolls. */}
-      <div data-tauri-drag-region className="sticky top-0 z-20 flex h-11 shrink-0 items-center justify-end bg-canvas px-4" data-dialog-part="header">
-        {/* Always a visible way out (0.0.7 dogfood: "no way to close"):
-            first run → Home, which offers "Find my apps" to come back. */}
-        <Button
-          size="sm"
-          variant="secondary"
-          onClick={leave}
-          disabled={stopping}
-          aria-keyshortcuts="Escape"
-          data-testid="first-run-close"
-        >
-          {stopping ? "Stopping after this one…" : importing ? "Stop" : mode === "add" ? "Close" : "Not now"}
-        </Button>
-      </div>
-      <div className="flex flex-1 justify-center px-6 pb-16 pt-6">
-        <div className="flex w-full max-w-3xl flex-col gap-7">
-          <StepMarks step={step} skipAccess={skipAccess} />
-          {step === "found" && (
-            <FoundStep
-              report={report}
-              scanError={scanError}
-              onScanAgain={scan}
-              inPlace={inPlace}
-              cli={cli}
-              toolName={toolName}
-              provider={primary}
-              tools={tools}
-              installRows={installRows}
-              taken={taken}
-              onAddFresh={() => setStep("fresh")}
-              onImportFolder={() => void pickFolder()}
-              stopRef={stopRef}
-              onBusy={(busy) => {
-                setImporting(busy);
-                if (!busy) setStopping(false);
-              }}
-              onImported={(signins) => {
-                onAccountsChanged?.();
-                setQueue(signins);
-                if (signins.length > 0) {
-                  funnelEvent("login_queued");
-                  if (mode === "first-run") funnelStep("a-first-install", "signin");
-                  setStep("signin");
-                } else {
-                  toAccess();
-                }
-              }}
-            />
-          )}
-          {step === "fresh" && (
-            <FreshAccountStep
-              toolName={toolName}
-              provider={primary}
-              taken={taken}
-              accounts={accounts}
-              canGoBack={!nothingNew || mode === "first-run"}
-              onBack={() => setStep("found")}
-              onImportFolder={() => void pickFolder()}
-              onLookAgain={mode === "add" && (nothingNew || lookedAgain.current) ? lookAgain : null}
-              onCreated={added}
-            />
-          )}
-          {step === "folder" && folder !== null && (
-            <FolderStep
-              path={folder}
-              provider={primary}
-              toolName={toolName}
-              onBack={() => setStep(mode === "add" && nothingNew ? "fresh" : "found")}
-              onPickAgain={() => void pickFolder()}
-              onAddFresh={() => setStep("fresh")}
-              onImported={added}
-              onDone={onDone}
-            />
-          )}
-          {step === "signin" && <SigninStep queue={queue} provider={primary} openLoginTerminal={openLoginTerminal} onDone={toAccess} />}
-          {step === "access" && access !== null && <AccessStep entries={access} setEntries={setAccess} onDone={finish} />}
-          {(step === "found" || step === "fresh" || step === "folder") && <TermsLine tools={step === "found" ? tools : [primary]} />}
-        </div>
-      </div>
-    </div>
+    <FirstRunFrame embedded={embedded} mode={mode} importing={importing} stopping={stopping} leave={leave} frameRef={frameRef}>
+      {!embedded && <StepMarks step={step} skipAccess={skipAccess} />}
+      {step === "found" && (
+        <FoundStep
+          report={report}
+          scanError={scanError}
+          onScanAgain={scan}
+          inPlace={inPlace}
+          cli={cli}
+          toolName={toolName}
+          provider={primary}
+          tools={tools}
+          installRows={installRows}
+          taken={taken}
+          onAddFresh={() => setStep("fresh")}
+          onImportFolder={() => void pickFolder()}
+          stopRef={stopRef}
+          firstRun={mode === "first-run"}
+          onBusy={(busy) => {
+            setImporting(busy);
+            onBusy?.(busy);
+            if (!busy) setStopping(false);
+          }}
+          onImported={(signins) => {
+            onAccountsChanged?.();
+            setQueue(signins);
+            if (signins.length > 0) {
+              funnelEvent("login_queued");
+              if (mode === "first-run") funnelStep("a-first-install", "signin");
+              setStep("signin");
+            } else {
+              toAccess();
+            }
+          }}
+        />
+      )}
+      {step === "fresh" && (
+        <FreshAccountStep
+          toolName={toolName}
+          provider={primary}
+          taken={taken}
+          accounts={accounts}
+          canGoBack={!nothingNew || mode === "first-run"}
+          onBack={() => setStep("found")}
+          onImportFolder={() => void pickFolder()}
+          onLookAgain={mode === "add" && (nothingNew || lookedAgain.current) ? lookAgain : null}
+          onCreated={added}
+        />
+      )}
+      {step === "folder" && folder !== null && (
+        <FolderStep
+          path={folder}
+          provider={primary}
+          toolName={toolName}
+          onBack={() => setStep(mode === "add" && nothingNew ? "fresh" : "found")}
+          onPickAgain={() => void pickFolder()}
+          onAddFresh={() => setStep("fresh")}
+          onImported={added}
+          onDone={onDone}
+        />
+      )}
+      {step === "signin" && <SigninStep queue={queue} provider={primary} openLoginTerminal={openLoginTerminal} onDone={toAccess} />}
+      {step === "access" && access !== null && <AccessStep entries={access} setEntries={setAccess} onDone={finish} />}
+      {step === "found" && mode === "first-run" ? <ProvidersTerms tools={tools} /> : (step === "found" || step === "fresh" || step === "folder") && <TermsLine tools={step === "found" ? tools : [primary]} />}
+    </FirstRunFrame>
   );
 }

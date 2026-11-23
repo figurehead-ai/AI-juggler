@@ -20,6 +20,8 @@ export const ShortcutSheet = lazyNamed(() => import("./components/ShortcutSheet"
 export const History = lazyNamed(() => import("./screens/History"), "History");
 export const AddProviderSheet = lazyNamed(() => import("./screens/AddProviderSheet"), "AddProviderSheet");
 export const FirstRun = lazyNamed(() => import("./screens/FirstRun"), "FirstRun");
+// AJ-E1545: the setup wizard (first run's discovery is its first step).
+export const SetupWizard = lazyNamed(() => import("./components/setup/SetupWizard"), "SetupWizard");
 export const UsageScreen = lazyNamed(() => import("./screens/Usage"), "UsageScreen");
 export const LimitDialog = lazyNamed(() => import("./components/LimitDialog"), "LimitDialog");
 export const NewSessionModal = lazyNamed(() => import("./screens/NewSession"), "NewSessionModal");

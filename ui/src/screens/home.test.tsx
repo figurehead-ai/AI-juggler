@@ -315,13 +315,13 @@ describe("D-25 Home — the screen", () => {
 
   // AJ-E1524: no accounts is the welcome (welcome.test.tsx holds its own
   // tests); Find my accounts still opens first run.
-  it("no accounts: the welcome, with Find my apps first", () => {
+  it("no accounts: the welcome, with Get started first (AJ-E1545)", () => {
     const onAddAccounts = vi.fn();
     const { getByTestId, getByRole } = renderHome([], [], { onAddAccounts });
-    expect(getByRole("heading", { level: 1 }).textContent).toBe("All your AI coding accounts, in one calm place.");
+    expect(getByRole("heading", { level: 1 }).textContent).toBe("Let's get you set up");
     // In place is the default, and not only Claude Code (0.0.11 walk).
     expect(getByTestId("home-empty-accounts").textContent).toContain("used where they are");
-    fireEvent.click(getByRole("button", { name: "Find my apps" }));
+    fireEvent.click(getByRole("button", { name: "Get started" }));
     expect(onAddAccounts).toHaveBeenCalledOnce();
   });
 });

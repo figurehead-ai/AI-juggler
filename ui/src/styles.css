@@ -48,6 +48,21 @@
   --color-live: #7bbfcc;
   --color-live-soft: #7bbfcc1f;
 
+  /* AJ-E1545: the app icon's own colours (crates/juggler-app/icons/icon.png):
+     lavender top, indigo left, cyan right, the arc between them, and the
+     tile behind them. The large mark (AppMark) draws them on its tile in
+     both themes; the small mark (IconJuggler) on the page, deeper in light. */
+  --color-brand-top: #a5a3f8;
+  --color-brand-left: #7b79f0;
+  --color-brand-right: #22d3ee;
+  --color-brand-arc: #8a85f6;
+  --color-brand-arc-end: #6a9ff1;
+  --color-brand-tile-hi: #1c1f31;
+  --color-brand-tile-lo: #0b0e16;
+  --color-brand-mark-top: #a5a3f8;
+  --color-brand-mark-left: #7b79f0;
+  --color-brand-mark-right: #22d3ee;
+
   /* Semantics */
   --color-success: #79c3a0;
   --color-success-soft: #79c3a01a;
@@ -203,6 +218,10 @@ body {
   --color-accent-soft: #5b5bf016;
   --color-live: #056074; /* AJ-E804: ≥ 4.6:1 on every surface and on its own tint (was #0891b2, 3.1–3.7:1) */
   --color-live-soft: #0891b216;
+  /* AJ-E1545: the small mark on a light page, a step deeper. */
+  --color-brand-mark-top: #8885f0;
+  --color-brand-mark-left: #5b58e4;
+  --color-brand-mark-right: #0aa5c4;
 
   /* AJ-E303: darkened (from #059669) so success chips on their soft
      background clear WCAG AA in the light theme. */

@@ -217,15 +217,16 @@ export const FlowFoot = forwardRef(function FlowFoot(
     cancel?: FlowAction;
     back?: FlowAction;
     secondary?: FlowAction;
-    /** The view's one filled primary. */
-    primary: FlowAction;
+    /** The view's one filled primary; left out when the step's own
+     * content holds it (the setup wizard's Find your apps). */
+    primary?: FlowAction;
     /** A line before the actions ("The rest is prefilled…"). */
     note?: ReactNode;
   },
   primaryRef: Ref<HTMLButtonElement>,
 ): JSX.Element {
   const whyId = useId();
-  const why = primary.disabled && primary.reason ? primary.reason : null;
+  const why = primary?.disabled && primary.reason ? primary.reason : null;
   return (
     <footer className="flex min-h-[68px] shrink-0 flex-wrap items-center gap-2 border-t border-divider bg-surface px-6 py-3" data-toast-avoid data-testid="flow-foot">
       {cancel && (
@@ -251,9 +252,11 @@ export const FlowFoot = forwardRef(function FlowFoot(
           {secondary.label}
         </Button>
       )}
-      <Button ref={primaryRef} variant="primary" onClick={primary.onClick} disabled={primary.disabled} aria-describedby={why ? whyId : undefined} data-testid={primary.testId}>
-        {primary.label}
-      </Button>
+      {primary && (
+        <Button ref={primaryRef} variant="primary" onClick={primary.onClick} disabled={primary.disabled} aria-describedby={why ? whyId : undefined} data-testid={primary.testId}>
+          {primary.label}
+        </Button>
+      )}
     </footer>
   );
 });

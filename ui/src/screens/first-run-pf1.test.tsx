@@ -100,13 +100,20 @@ describe("AJ-E3306 PF1 — no conversations is never an archive candidate", () =
 });
 
 describe("AJ-E3306 PF1 — every tool found is offered", () => {
-  it("each tool with nothing set up has its own group, unticked, saying so", async () => {
+  it("each tool with nothing set up has its own group, unticked, saying so (AJ-E1545: in one closed group)", async () => {
     const view = renderIt();
     await view.findByTestId("first-run-found");
+    const closed = view.getByTestId("first-run-not-set-up");
+    expect(closed.textContent).toContain("Installed, not set up yet · 3");
+    const fold = within(closed).getByRole("button", { name: /Installed, not set up yet/ });
+    expect(fold.getAttribute("aria-expanded")).toBe("false");
+    fireEvent.click(fold);
+    expect(closed.textContent).toContain("Ticking one sets it up in a folder of its own");
     for (const [tool, name] of [["codex", "Codex"], ["opencode", "OpenCode"], ["grok-build", "Grok Build"]] as const) {
       const group = view.getByTestId(`first-run-group-fresh-${tool}`);
       const row = within(group).getByTestId("first-run-fresh-row");
-      expect(row.textContent).toContain(`${name} is installed, with nothing set up yet`);
+      expect(row.textContent).toContain(name);
+      expect(row.textContent).toContain("is installed, with nothing set up yet");
       expect(row.textContent).toContain("Sign in after");
       expect(within(row).getByRole("checkbox")).toHaveProperty("checked", false);
     }
@@ -118,6 +125,7 @@ describe("AJ-E3306 PF1 — every tool found is offered", () => {
     const spy = vi.spyOn(accounts, "createAccount");
     const view = renderIt();
     await view.findByTestId("first-run-found");
+    fireEvent.click(within(view.getByTestId("first-run-not-set-up")).getByRole("button", { name: /Installed, not set up yet/ }));
     fireEvent.click(within(view.getByTestId("first-run-group-fresh-codex")).getByRole("checkbox"));
     expect(view.getByTestId("first-run-bring-in").textContent).toBe("Bring in 3 apps");
     await act(async () => {
@@ -136,13 +144,13 @@ describe("AJ-E3306 PF1 — every tool found is offered", () => {
     );
   });
 
-  it("the desktop app with no profile seen open says where its profiles come from", async () => {
+  it("no separate Desktop apps section (AJ-E1545): with no profile seen open, nothing of it shows", async () => {
     expect(desktopNoneWords(["Claude app"])).toBe(
       "The Claude app is on this computer. Open a profile you use and it shows here to add, or add one any time in Settings › Desktop apps.",
     );
     const view = renderIt();
     await view.findByTestId("first-run-found");
-    expect(view.getByTestId("first-run-desktop-none").textContent).toContain("The Claude app is on this computer.");
+    expect(view.queryByTestId("first-run-desktop")).toBeNull();
   });
 
   it("Add apps for one tool lists no other tool", async () => {

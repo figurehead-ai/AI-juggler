@@ -130,7 +130,7 @@ const HOME_CARDS: readonly HomeCard[] = [
   { id: "next", area: "right", render: (ctx) => <HomeNext accounts={ctx.accounts} sessions={ctx.sessions} /> },
   // The optional access, once and quietly at the foot (the review of
   // 0.1.4: it took the top of Home until answered).
-  { id: "smoother", area: "foot", render: () => <SmootherCard variant="reminder" /> },
+  { id: "smoother", area: "foot", render: () => <SmootherCard /> },
   {
     id: "keys",
     area: "foot",

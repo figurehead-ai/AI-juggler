@@ -89,7 +89,8 @@ describe("AJ-E2906 the words", () => {
 });
 
 describe("AJ-E2906 the found step", () => {
-  const renderIt = () => render(<FirstRun onDone={() => null} openLoginTerminal={() => null} />);
+  // The confidence words stay in Add app (first run's Your apps shows plain status words, AJ-E1545).
+  const renderIt = () => render(<FirstRun mode="add" provider="claude-code" onDone={() => null} openLoginTerminal={() => null} />);
   const getFooter = () => document.querySelector<HTMLElement>("[data-testid='first-run-actions']")!;
   const rowOf = (step: HTMLElement, folder: string) => within(step).getAllByTestId("first-run-row").find((row) => row.textContent?.includes(folder))!;
 
@@ -116,6 +117,7 @@ describe("AJ-E2906 the found step", () => {
     const { findByTestId } = renderIt();
     const usual = rowOf(await findByTestId("first-run-found"), "~/.claude ");
     const toggle = within(usual).getByTestId("first-run-details-toggle");
+    const ticked = within(usual).getByRole<HTMLInputElement>("checkbox").checked;
     expect(toggle.getAttribute("aria-expanded")).toBe("false");
     fireEvent.click(toggle);
     expect(toggle.getAttribute("aria-expanded")).toBe("true");
@@ -127,14 +129,13 @@ describe("AJ-E2906 the found step", () => {
     ]);
     expect(within(details).getByTestId("first-run-notes").textContent).toBe("Claude Code's standard location.");
     // Details never ticks or unticks the row.
-    expect(within(usual).getByRole("checkbox")).toHaveProperty("checked", true);
+    expect(within(usual).getByRole("checkbox")).toHaveProperty("checked", ticked);
   });
 
   it("Look again is always there and keeps the ticks on setups still found; a new one comes in as the scan suggests", async () => {
     const { findByTestId, getByTestId } = renderIt();
     const step = await findByTestId("first-run-found");
-    // Untick the usual one; tick the odd one.
-    fireEvent.click(within(rowOf(step, "~/.claude ")).getByRole("checkbox"));
+    // Add app starts with none ticked (AJ-E3514 F5): tick the odd one only.
     fireEvent.click(within(rowOf(step, ".claude-x")).getByRole("checkbox"));
     const fresh = setup("/Users/you/.claude-new", "home-pattern", { purpose_confidence: "guessed", purpose_rule: "folder-name" }, { login: "logged_out", last_used_secs: undefined });
     w().__AIJ_SCAN_REPORT__ = report([USUAL, WORK, ODD, STALE, fresh]);

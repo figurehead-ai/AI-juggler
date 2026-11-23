@@ -13,6 +13,46 @@ import { confidenceWord, fieldRows, mayHaveExpired, rowConfidence, sourceWords }
 
 export type RowProgress = { state: "pending" | "working" | "done" | "already" | "failed"; error?: string } | undefined;
 
+/** The row's state at its right: the bring-in's progress, else (Add app)
+ * its sign-in. */
+function RowState({ found, plain, progress }: { found: DiscoveredInfo; plain: boolean; progress: RowProgress }): JSX.Element {
+  return (
+    <span className="flex w-32 shrink-0 items-center justify-end gap-1.5 text-xs">
+      {progress?.state === "working" ? (
+        <span className="text-muted">Bringing in…</span>
+      ) : progress?.state === "done" ? (
+        <span className="flex items-center gap-1.5 text-success"><Check />Brought in</span>
+      ) : progress?.state === "already" ? (
+        <span className="text-muted" title={progress.error}>Already in AI Juggler</span>
+      ) : progress?.state === "failed" ? (
+        <span className="text-danger">Couldn't bring in</span>
+      ) : found.managed ? (
+        <span className="text-muted">Already in AI Juggler</span>
+      ) : plain ? null : found.login === "logged_in" ? (
+        <span className="flex items-center gap-1.5 text-success"><Check />Signed in</span>
+      ) : mayHaveExpired(found) ? (
+        <span className="text-warning">May have expired</span>
+      ) : (
+        <span className="text-muted">Needs sign-in</span>
+      )}
+    </span>
+  );
+}
+
+/** Where it's seen in use: the desktop app and/or a terminal (AJ-E2327's
+ * pairing will join a profile and its folder into one row). */
+function chipsOf(found: DiscoveredInfo): string[] {
+  const open = found.in_use ?? [];
+  return [open.includes("desktop") ? "Desktop" : null, open.includes("terminal") ? "Terminal" : null].filter((chip): chip is string => chip !== null);
+}
+
+/** Its sign-in, in plain words. */
+function statusWords(found: DiscoveredInfo): string {
+  if (found.login === "logged_in") return "Signed in";
+  if (mayHaveExpired(found)) return "Its sign-in may have expired: you can sign in later";
+  return "Not signed in: you can sign in later";
+}
+
 export function FoundRow({
   found,
   name,
@@ -21,6 +61,7 @@ export function FoundRow({
   toolName,
   colour,
   first,
+  plain = false,
   checked,
   disabled,
   progress,
@@ -34,6 +75,9 @@ export function FoundRow({
   toolName: string;
   colour: string;
   first: boolean;
+  /** AJ-E1545's Your apps: chips and plain status words, no badges or
+   * paths up front (Add app keeps its look until AJ-E1548). */
+  plain?: boolean;
   checked: boolean;
   disabled: boolean;
   progress: RowProgress;
@@ -50,42 +94,42 @@ export function FoundRow({
         <label htmlFor={id} className={"flex min-w-0 flex-1 items-center gap-4 py-3 pl-5 " + (found.managed ? "" : "cursor-pointer")}>
           <Checkbox id={id} checked={checked} disabled={found.managed || disabled} onChange={(event) => onCheck(event.target.checked)} className="shrink-0" />
           <span aria-hidden="true" className="size-2.5 shrink-0 rounded-full" style={{ background: colour }} />
-          <span className="flex min-w-0 flex-1 flex-col">
-            <span className="flex min-w-0 items-baseline gap-2">
-              <span className="truncate text-section font-medium text-ink">{name}</span>
-              <span
-                className={"shrink-0 rounded-md border px-1.5 text-label " + (confidence === "guessed" ? "border-warning/40 text-warning" : "border-hairline text-ink-2")}
-                data-testid="first-run-confidence"
-              >
-                {confidenceWord(confidence)}
+          {plain ? (
+            <span className="flex min-w-0 flex-1 flex-col">
+              <span className="flex min-w-0 items-center gap-2">
+                <span className="truncate text-section font-medium text-ink">{name}</span>
+                {/* AJ-E1545: where it's seen in use, as chips; no confidence badges. */}
+                {chipsOf(found).map((chip) => (
+                  <span key={chip} className="shrink-0 rounded-md bg-surface-3 px-1.5 text-label text-ink-2" data-testid="first-run-chip">
+                    {chip}
+                  </span>
+                ))}
               </span>
-              {/* That it can be renamed is said once, in the footer (the 0.4 design review, 53). */}
+              <span className="truncate text-meta text-muted" data-testid="first-run-status">
+                {statusWords(found)} · <span className={live ? "text-live" : ""}>{used}</span>
+              </span>
             </span>
-            <span className="truncate text-label text-muted" title={`${found.path} · ${source}`}>
-              <span className="font-mono">{found.path.replace(/^\/Users\/[^/]+/, "~")}</span>
-              <span data-testid="first-run-source"> · {source}</span>
-            </span>
-          </span>
-          <span className={"shrink-0 text-xs " + (live ? "text-live" : "text-muted")}>{used}</span>
-          <span className="flex w-32 shrink-0 items-center justify-end gap-1.5 text-xs">
-            {progress?.state === "working" ? (
-              <span className="text-muted">Bringing in…</span>
-            ) : progress?.state === "done" ? (
-              <span className="flex items-center gap-1.5 text-success"><Check />Brought in</span>
-            ) : progress?.state === "already" ? (
-              <span className="text-muted" title={progress.error}>Already in AI Juggler</span>
-            ) : progress?.state === "failed" ? (
-              <span className="text-danger">Couldn't bring in</span>
-            ) : found.managed ? (
-              <span className="text-muted">Already in AI Juggler</span>
-            ) : found.login === "logged_in" ? (
-              <span className="flex items-center gap-1.5 text-success"><Check />Signed in</span>
-            ) : mayHaveExpired(found) ? (
-              <span className="text-warning">May have expired</span>
-            ) : (
-              <span className="text-muted">Needs sign-in</span>
-            )}
-          </span>
+          ) : (
+            <>
+              <span className="flex min-w-0 flex-1 flex-col">
+                <span className="flex min-w-0 items-baseline gap-2">
+                  <span className="truncate text-section font-medium text-ink">{name}</span>
+                  <span
+                    className={"shrink-0 rounded-md border px-1.5 text-label " + (confidence === "guessed" ? "border-warning/40 text-warning" : "border-hairline text-ink-2")}
+                    data-testid="first-run-confidence"
+                  >
+                    {confidenceWord(confidence)}
+                  </span>
+                </span>
+                <span className="truncate text-label text-muted" title={`${found.path} · ${source}`}>
+                  <span className="font-mono">{found.path.replace(/^\/Users\/[^/]+/, "~")}</span>
+                  <span data-testid="first-run-source"> · {source}</span>
+                </span>
+              </span>
+              <span className={"shrink-0 text-xs " + (live ? "text-live" : "text-muted")}>{used}</span>
+            </>
+          )}
+          <RowState found={found} plain={plain} progress={progress} />
         </label>
         <button
           type="button"
@@ -102,6 +146,9 @@ export function FoundRow({
       </div>
       {open && (
         <div id={detailsId} className="flex flex-col gap-2 pb-3 pl-[4.25rem] pr-5 text-label" data-testid="first-run-details">
+          {plain && <p className="text-muted" data-testid="first-run-folder">
+            Its folder: <span className="text-ink-2">{found.path.replace(/^\/Users\/[^/]+/, "~")}</span> · {source}
+          </p>}
           <dl className="grid grid-cols-[auto_auto_auto_1fr] items-baseline gap-x-3 gap-y-1">
             {fieldRows(found, { name, used }).map((row) => (
               <div key={row.field} className="contents" data-testid="first-run-field">

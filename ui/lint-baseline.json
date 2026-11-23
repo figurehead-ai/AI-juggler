@@ -527,9 +527,6 @@
  "src/components/ViewPopover.tsx": {
   "react(refs)": 1
  },
- "src/components/Welcome.tsx": {
-  "jsx-a11y(prefer-tag-over-role)": 1
- },
  "src/components/WorkflowRail.tsx": {
   "eslint(complexity)": 2,
   "eslint(max-lines)": 1,
@@ -2128,14 +2125,17 @@
  "src/screens/FirstRun.tsx": {
   "eslint(complexity)": 3,
   "eslint(max-lines)": 1,
-  "eslint(no-shadow)": 14,
+  "eslint(no-shadow)": 13,
   "jsx-a11y(label-has-associated-control)": 1,
-  "jsx-a11y(prefer-tag-over-role)": 7,
+  "jsx-a11y(prefer-tag-over-role)": 6,
   "react(set-state-in-effect)": 1,
   "react(use-memo)": 1,
   "typescript(consistent-return)": 1,
   "typescript(no-unnecessary-boolean-literal-compare)": 1,
   "typescript(no-unsafe-type-assertion)": 2
+ },
+ "src/screens/FirstRunFrame.tsx": {
+  "jsx-a11y(prefer-tag-over-role)": 1
  },
  "src/screens/FleetScreen.tsx": {
   "eslint(complexity)": 1,

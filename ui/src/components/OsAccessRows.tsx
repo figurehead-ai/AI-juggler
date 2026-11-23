@@ -30,36 +30,7 @@ export function OsAccessRows({
   /** What else a row offers beside its action (Home's "Not now"). */
   aside?: (entry: OsAccessInfo) => ReactNode;
 }): JSX.Element {
-  const [error, setError] = useState<string | null>(null);
-  // Why a Reopen has to be confirmed or wait, under the row that asked.
-  const [reopenBlock, setReopenBlock] = useState<ReopenBlockInfo | null>(null);
-  // An answer equal to the rows shown changes nothing (0.4.1, idle CPU).
-  const shown = useRef(entries);
-  useEffect(() => {
-    shown.current = entries;
-  }, [entries]);
-  useEffect(
-    () =>
-      watchAccess(
-        () =>
-          void osAccessList().then(
-            (next) => {
-              if (!same(shown.current, next)) setEntries(next);
-            },
-            () => null,
-          ),
-      ),
-    [setEntries],
-  );
-  const act = (entry: OsAccessInfo, action: AccessAction, anyway = false) => {
-    setError(null);
-    if (action === "reopen") {
-      void reopenApp(anyway).then(setReopenBlock, (cause) => setError(errorText(cause)));
-      return;
-    }
-    const step = action === "settings" ? osAccessOpenSettings(entry.id).then(() => osAccessList()) : osAccessRequest(entry.id);
-    void step.then(setEntries, (cause) => setError(errorText(cause)));
-  };
+  const { error, reopenBlock, setReopenBlock, act } = useAccessActions(entries, setEntries);
   const large = size === "large";
   const buttonSize = large ? undefined : "sm";
   return (
@@ -141,4 +112,41 @@ export function OsAccessRows({
       )}
     </>
   );
+}
+
+/** The access rows' and the setup wizard's cards' wiring: re-checked
+ * while shown and when the window is back (so a grant shows at once),
+ * and each card's action — Allow, System Settings or Reopen. */
+export function useAccessActions(entries: OsAccessInfo[], setEntries: (next: OsAccessInfo[]) => void) {
+  const [error, setError] = useState<string | null>(null);
+  // Why a Reopen has to be confirmed or wait, under the row that asked.
+  const [reopenBlock, setReopenBlock] = useState<ReopenBlockInfo | null>(null);
+  // An answer equal to the rows shown changes nothing (0.4.1, idle CPU).
+  const shown = useRef(entries);
+  useEffect(() => {
+    shown.current = entries;
+  }, [entries]);
+  useEffect(
+    () =>
+      watchAccess(
+        () =>
+          void osAccessList().then(
+            (next) => {
+              if (!same(shown.current, next)) setEntries(next);
+            },
+            () => null,
+          ),
+      ),
+    [setEntries],
+  );
+  const act = (entry: OsAccessInfo, action: AccessAction, anyway = false) => {
+    setError(null);
+    if (action === "reopen") {
+      void reopenApp(anyway).then(setReopenBlock, (cause) => setError(errorText(cause)));
+      return;
+    }
+    const step = action === "settings" ? osAccessOpenSettings(entry.id).then(() => osAccessList()) : osAccessRequest(entry.id);
+    void step.then(setEntries, (cause) => setError(errorText(cause)));
+  };
+  return { error, reopenBlock, setReopenBlock, act };
 }

@@ -311,7 +311,7 @@ export function HomeScreen({
   // AJ-E1524: a new install is welcomed — what it's for, what's on this
   // Mac, the way in.
   if (accounts.length === 0) {
-    return <Welcome onFindAccounts={onAddAccounts} onFreshAccount={onFreshAccount ?? onAddAccounts} />;
+    return <Welcome onGetStarted={onAddAccounts} onFreshAccount={onFreshAccount ?? onAddAccounts} />;
   }
 
   const allNeeds = homeNeedsOf(needsNow.rows, items, accounts, sessions, macLevel, now, known ?? []);

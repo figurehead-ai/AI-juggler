@@ -57,6 +57,7 @@ describe("D-14 — first run never asks about pack secrets", () => {
     await findByTestId("first-run-found");
     expect(container.textContent).not.toMatch(PACK_QUESTION);
     // Copies, so the sign-in step shows too (used where they are, they keep theirs).
+    { const fold = document.querySelector<HTMLButtonElement>("[data-testid=first-run-more-options] button[aria-expanded=false]"); if (fold) fireEvent.click(fold); }
     fireEvent.click(within(getByTestId("first-run-placement-copy")).getByRole("radio"));
     fireEvent.click(getByTestId("first-run-bring-in"));
     await findByTestId("first-run-signin");
@@ -90,6 +91,7 @@ describe("AJ-E309 Req.6 — funnel events carry no paths, labels, or credentials
     w().__AIJ_PICK_DIRECTORY__ = "/Users/you/old-claude";
     const run = render(<FirstRun onDone={() => null} openLoginTerminal={() => null} />);
     await run.findByTestId("first-run-found");
+    { const fold = document.querySelector<HTMLButtonElement>("[data-testid=first-run-more-options] button[aria-expanded=false]"); if (fold) fireEvent.click(fold); }
     fireEvent.click(within(run.getByTestId("first-run-placement-copy")).getByRole("radio"));
     await act(async () => {
       fireEvent.click(run.getByTestId("first-run-bring-in"));

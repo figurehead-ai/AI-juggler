@@ -17,6 +17,12 @@ vi.mock("../components/TerminalView", () => ({
   TerminalView: ({ id }: { id: string }) => <div data-testid={`terminal-${id}`} />,
 }));
 
+/** AJ-E1545: the placement waits under More options on first run. */
+function openMore(): void {
+  const fold = document.querySelector<HTMLButtonElement>("[data-testid=first-run-more-options] button[aria-expanded=false]");
+  if (fold) fireEvent.click(fold);
+}
+
 const w = () => window as unknown as Record<string, unknown>;
 const NOW = Math.floor(Date.now() / 1000);
 
@@ -139,17 +145,28 @@ describe("D-25 first run — the flow", () => {
       />,
     );
 
-  it("shows what's here, grouped, with one button that counts the picks", async () => {
-    const { findByTestId, getByTestId } = renderIt();
+  it("AJ-E1545 Your apps: asks in the user's words, one group per tool, plain status words, one button that counts the picks", async () => {
+    const { findByTestId, getByTestId, getByRole, getAllByTestId } = renderIt();
     const list = await findByTestId("first-run-found");
-    expect(list.textContent).toContain("You already have 5 Claude Code setups on this computer.");
-    expect(getByTestId("first-run-group-profiles").textContent).toContain("work-a");
-    expect(getByTestId("first-run-group-default").textContent).toContain("Default");
-    expect(getByTestId("first-run-group-other").textContent).toContain("claude-old");
+    expect(list.textContent).toContain("Which AI apps do you use?");
+    expect(list.textContent).toContain("Nothing is copied or changed: they keep working exactly as now.");
+    const group = getByTestId("first-run-group-claude-code");
+    for (const name of ["work-a", "Default", "claude-old"]) expect(group.textContent).toContain(name);
     expect(list.textContent).toContain("Already in AI Juggler");
+    // No confidence badges and no folder paths up front.
+    expect(list.querySelectorAll("[data-testid=first-run-confidence]")).toHaveLength(0);
+    expect(getAllByTestId("first-run-status").map((line) => line.textContent)).toContain("Not signed in: you can sign in later · Used 90 days ago");
     expect(getByTestId("first-run-bring-in").textContent).toBe("Bring in 3 apps");
-    fireEvent.click(within(getByTestId("first-run-group-other")).getByRole("checkbox"));
+    fireEvent.click(getByRole("checkbox", { name: /claude-old/ }));
     expect(getByTestId("first-run-bring-in").textContent).toBe("Bring in 4 apps");
+    // The group's All: every one ticked, so it unticks them all, then ticks them again.
+    fireEvent.click(getByTestId("first-run-all-claude-code"));
+    expect(getByTestId("first-run-bring-in").textContent).toBe("Bring in 0 apps");
+    fireEvent.click(getByTestId("first-run-all-claude-code"));
+    expect(getByTestId("first-run-bring-in").textContent).toBe("Bring in 4 apps");
+    // The providers' terms are never shown open (PAT-SER-7).
+    const terms = getByTestId("first-run-terms");
+    expect(within(terms).getByRole("button", { name: "The tools' terms" }).getAttribute("aria-expanded")).toBe("false");
   });
 
   it("shows where it looked, on request", async () => {
@@ -164,6 +181,7 @@ describe("D-25 first run — the flow", () => {
       openLoginTerminal: (_id, title) => opened.push(title),
     });
     await findByTestId("first-run-found");
+    openMore();
     fireEvent.click(within(getByTestId("first-run-placement-copy")).getByRole("radio"));
     await act(async () => {
       fireEvent.click(getByTestId("first-run-bring-in"));
@@ -243,11 +261,13 @@ describe("D-25 first run — the flow", () => {
     const onDone = vi.fn();
     const { findByTestId, getByTestId, queryByTestId } = renderIt({ onDone });
     const found = await findByTestId("first-run-found");
+    openMore();
     const inPlace = within(getByTestId("first-run-placement-in_place")).getByRole("radio") as HTMLInputElement;
+    openMore();
     const copy = within(getByTestId("first-run-placement-copy")).getByRole("radio") as HTMLInputElement;
     expect(inPlace.checked).toBe(true);
     expect(copy.checked).toBe(false);
-    expect(found.textContent).toContain("uses each one where it is");
+    expect(found.textContent).toContain("Nothing is copied or changed");
     fireEvent.click(copy);
     expect(found.textContent).toContain("makes its own copy of each");
     fireEvent.click(inPlace);
@@ -266,14 +286,18 @@ describe("D-25 first run — the flow", () => {
     const onDone = vi.fn();
     const { findByTestId, getByTestId, queryByTestId } = render(<FirstRun mode="add" provider="codex" onDone={onDone} openLoginTerminal={() => null} />);
     const list = await findByTestId("first-run-found");
+    openMore();
     const inPlace = within(getByTestId("first-run-placement-in_place")).getByRole("radio") as HTMLInputElement;
     expect(inPlace.checked).toBe(true);
+    openMore();
     expect(getByTestId("first-run-placement-in_place").textContent).toContain("as when you run Codex yourself");
     expect(list.textContent).not.toContain("Claude app");
     // One setup: worded for one (0.0.11 walk).
     expect(list.textContent).toContain("AI Juggler uses it where it is");
     expect(list.textContent).not.toContain("Pick the ones");
+    openMore();
     expect(getByTestId("first-run-placement-in_place").textContent).toContain("Use it where it is");
+    openMore();
     expect(getByTestId("first-run-placement-copy").textContent).toContain("Make a separate copy");
     await act(async () => {
       fireEvent.click(getByTestId("first-run-bring-in"));
@@ -298,6 +322,7 @@ describe("D-25 first run — the flow", () => {
     w().__AIJ_IMPORT_FAIL_PATHS__ = ["work-a"];
     const { findByTestId, getByTestId, queryByTestId } = renderIt();
     await findByTestId("first-run-found");
+    openMore();
     fireEvent.click(within(getByTestId("first-run-placement-copy")).getByRole("radio"));
     await act(async () => {
       fireEvent.click(getByTestId("first-run-bring-in"));
@@ -318,6 +343,7 @@ describe("D-25 first run — the flow", () => {
     w().__AIJ_IMPORT_FAIL_PATHS__ = ["work-a"];
     const { findByTestId, getByTestId, findAllByTestId } = renderIt();
     await findByTestId("first-run-found");
+    openMore();
     fireEvent.click(within(getByTestId("first-run-placement-copy")).getByRole("radio"));
     await act(async () => {
       fireEvent.click(getByTestId("first-run-bring-in"));
@@ -335,6 +361,7 @@ describe("D-25 first run — the flow", () => {
     w().__AIJ_IMPORT_FAIL_PATHS__ = ["work-a"];
     const { findByTestId, getByTestId, findAllByTestId } = renderIt();
     await findByTestId("first-run-found");
+    openMore();
     fireEvent.click(within(getByTestId("first-run-placement-copy")).getByRole("radio"));
     await act(async () => {
       fireEvent.click(getByTestId("first-run-bring-in"));
@@ -476,7 +503,7 @@ describe("D-25 first run — the flow", () => {
     expect(step.textContent).not.toContain("No Claude Code setups found yet.");
     delete w().__AIJ_SCAN_FAILS__;
     fireEvent.click(getByTestId("first-run-scan-again"));
-    await waitFor(() => expect(getByTestId("first-run-found").textContent).toContain("on this computer."));
+    await waitFor(() => expect(getByTestId("first-run-found").textContent).toContain("Which AI apps do you use?"));
     expect(getByTestId("first-run-found").textContent).not.toContain("couldn't look");
   });
 
@@ -671,6 +698,7 @@ describe("AJ-E1103 onboarding.login — how first run's sign-ins end", () => {
     const { findByTestId, getByTestId } = render(<FirstRun onDone={() => null} openLoginTerminal={() => null} />);
     await findByTestId("first-run-found");
     // Copies need a sign-in each (used where they are, they keep theirs).
+    openMore();
     fireEvent.click(within(getByTestId("first-run-placement-copy")).getByRole("radio"));
     await act(async () => {
       fireEvent.click(getByTestId("first-run-bring-in"));
@@ -731,12 +759,12 @@ describe("AJ-E1301 — Codex setups in first run", () => {
     };
     const view = render(<FirstRun mode="first-run" onDone={() => null} openLoginTerminal={() => null} />);
     const group = await view.findByTestId("first-run-group-codex");
-    expect(within(group).getByTestId("first-run-row").textContent).toContain("~/.codex");
-    const box = within(group).getByRole("checkbox") as HTMLInputElement;
+    // Its folder is a detail, not up front (AJ-E1545).
+    fireEvent.click(within(group).getByTestId("first-run-details-toggle"));
+    expect(within(group).getByTestId("first-run-folder").textContent).toContain("~/.codex");
+    const box = within(group).getAllByRole("checkbox").find((one) => !one.dataset.testid) as HTMLInputElement;
     expect(box.checked).toBe(true);
-    expect(view.getByRole("heading", { level: 1 }).textContent).toBe(
-      "You already have 6 setups on this computer.",
-    );
+    expect(view.getByRole("heading", { level: 1 }).textContent).toBe("Which AI apps do you use?");
     // The default mock has Codex not installed.
     expect((await view.findByTestId("first-run-no-codex")).textContent).toContain("npm install -g @openai/codex");
   });
@@ -756,9 +784,7 @@ describe("AJ-E1301 — Codex setups in first run", () => {
     await view.findByTestId("first-run-found");
     expect(view.queryByTestId("first-run-group-codex")).toBeNull();
     expect(view.queryByTestId("first-run-no-codex")).toBeNull();
-    expect(view.getByRole("heading", { level: 1 }).textContent).toBe(
-      "You already have 5 Claude Code setups on this computer.",
-    );
+    expect(view.getByRole("heading", { level: 1 }).textContent).toBe("Which AI apps do you use?");
   });
 
   it("Codex rows come in where they are too, by default", async () => {
@@ -774,7 +800,8 @@ describe("AJ-E1301 — Codex setups in first run", () => {
     await findByTestId("first-run-group-codex");
     // Every tool on the list can be used where it is: no copies-only note.
     expect(queryByTestId("first-run-copy-only")).toBeNull();
-    expect(getByTestId("first-run-found").textContent).toContain("AI Juggler uses each one where it is");
+    expect(getByTestId("first-run-found").textContent).toContain("Nothing is copied or changed: they keep working exactly as now.");
+    openMore();
     expect(getByTestId("first-run-placement-in_place").textContent).toContain("as wherever you use them now");
     await act(async () => {
       fireEvent.click(getByTestId("first-run-bring-in"));
@@ -793,6 +820,7 @@ describe("AJ-E1301 — Codex setups in first run", () => {
       <FirstRun mode="first-run" onDone={() => null} openLoginTerminal={() => null} />,
     );
     await findByTestId("first-run-group-codex");
+    openMore();
     fireEvent.click(getByTestId("first-run-placement-copy").querySelector("input")!);
     await act(async () => {
       fireEvent.click(getByTestId("first-run-bring-in"));
@@ -827,6 +855,7 @@ describe("AJ-E1301 — Codex setups in first run", () => {
     const { findByTestId, getByTestId } = render(<FirstRun onDone={() => null} openLoginTerminal={() => null} />);
     await findByTestId("first-run-group-codex");
     // Copies, so both tools' accounts need their sign-in.
+    openMore();
     fireEvent.click(getByTestId("first-run-placement-copy").querySelector("input")!);
     await act(async () => {
       fireEvent.click(getByTestId("first-run-bring-in"));
@@ -846,9 +875,7 @@ describe("AJ-E1301 — Codex setups in first run", () => {
     w().__AIJ_SCAN_REPORT__ = { ...SCAN, installs: [codex("/Users/you/.codex", "vendor-default")] };
     const view = render(<FirstRun mode="first-run" onDone={() => null} openLoginTerminal={() => null} />);
     await view.findByTestId("first-run-group-codex");
-    expect(view.getByRole("heading", { level: 1 }).textContent).toBe(
-      "You already have a Codex setup on this computer.",
-    );
+    expect(view.getByRole("heading", { level: 1 }).textContent).toBe("Which AI apps do you use?");
   });
 
   it("when the capabilities call fails, the choice stays and in place is preselected", async () => {
@@ -865,8 +892,10 @@ describe("AJ-E1301 — Codex setups in first run", () => {
       <FirstRun mode="first-run" onDone={() => null} openLoginTerminal={() => null} />,
     );
     await findByTestId("first-run-group-codex");
+    openMore();
     const inPlace = within(getByTestId("first-run-placement-in_place")).getByRole("radio") as HTMLInputElement;
     expect(inPlace.checked).toBe(true);
+    openMore();
     expect(getByTestId("first-run-placement-copy")).toBeTruthy();
     await act(async () => {
       fireEvent.click(getByTestId("first-run-bring-in"));
@@ -886,6 +915,7 @@ describe("AJ-E1301 — Codex setups in first run", () => {
     const spy = vi.spyOn(bridge, "accountImport");
     const view = render(<FirstRun mode="first-run" onDone={() => null} openLoginTerminal={() => null} />);
     await view.findByTestId("first-run-group-codex");
+    openMore();
     expect(view.queryByTestId("first-run-placement")).toBeNull();
     expect(view.getByTestId("first-run-found").textContent).toContain("AI Juggler makes its own copy;");
     await act(async () => {
@@ -906,10 +936,11 @@ describe("AJ-E1301 — Codex setups in first run", () => {
     const spy = vi.spyOn(bridge, "accountImport");
     const view = render(<FirstRun mode="first-run" onDone={() => null} openLoginTerminal={() => null} />);
     await view.findByTestId("first-run-group-codex");
+    openMore();
     expect(view.getByTestId("first-run-placement-in_place").textContent).toContain("as when you run Codex yourself");
     expect(view.queryByTestId("first-run-copy-only")).toBeNull();
     const text = view.getByTestId("first-run-found").textContent ?? "";
-    expect(text).toContain("AI Juggler uses it where it is");
+    expect(text).toContain("Nothing is copied or changed");
     expect(text).not.toContain("Claude app");
     expect(await view.findByTestId("first-run-no-codex")).toBeTruthy();
     expect(view.queryByTestId("first-run-no-cli")).toBeNull();
@@ -932,6 +963,7 @@ describe("AJ-E1301 — Codex setups in first run", () => {
       <FirstRun mode="first-run" onDone={() => null} openLoginTerminal={() => null} />,
     );
     await findByTestId("first-run-group-codex");
+    openMore();
     fireEvent.click(within(getByTestId("first-run-placement-copy")).getByRole("radio"));
     await act(async () => {
       fireEvent.click(getByTestId("first-run-bring-in"));

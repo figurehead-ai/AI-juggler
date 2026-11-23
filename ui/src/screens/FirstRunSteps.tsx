@@ -3,6 +3,8 @@
  * (AJ-E1518): moved out of FirstRun.tsx (its size budget).
  */
 import type { JSX } from "react";
+import { Disclosure } from "../components/controls";
+import { THIS_MACHINE_IN_TEXT } from "../lib/machine-words";
 import { ToolMark } from "../components/ToolMark";
 import { toolSpec } from "../lib/tools";
 import { trustOpen } from "../lib/ipc/trust";
@@ -71,5 +73,25 @@ export function TermsLine({ tools }: { tools: string[] }): JSX.Element | null {
         </li>
       ))}
     </ul>
+  );
+}
+
+/** AJ-E1545 step 1's words, in the user's terms (the coordinator's redesign). */
+export const YOUR_APPS = {
+  heading: "Which AI apps do you use?",
+  lead: `We found these on your ${THIS_MACHINE_IN_TEXT.replace(/^this /, "")}. Tick the ones AI Juggler should show. Nothing is copied or changed: they keep working exactly as now.`,
+};
+
+/** PAT-SER-7 (the maintainer, 2026-11-23): the providers' terms are never
+ * shown open. One closed disclosure at the foot, opened only by the user;
+ * a line per provider with its link inside. */
+export function ProvidersTerms({ tools }: { tools: string[] }): JSX.Element | null {
+  if (!tools.some((id) => toolSpec(id).terms)) return null;
+  return (
+    <Disclosure summary={<span className="font-medium">The tools' terms</span>} testId="first-run-terms">
+      <div className="mt-3">
+        <TermsLine tools={tools} />
+      </div>
+    </Disclosure>
   );
 }

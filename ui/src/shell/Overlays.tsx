@@ -24,7 +24,8 @@ import { goToHotkeySet } from "../lib/ipc/settings";
 import { funnelEvent } from "../lib/funnel";
 import { lazyNamed } from "../lib/lazy";
 import { setCentreOpen } from "../lib/notices-store";
-import { AddProviderSheet, FirstRun, LimitDialog, NewProjectSheet, NewSessionModal, PortWarningSheet, ShortcutSheet, SwitchBackFlow, SwitchFlow } from "../lazyParts";
+import { TourHost } from "../components/tour/TourHost";
+import { AddProviderSheet, FirstRun, LimitDialog, SetupWizard, NewProjectSheet, NewSessionModal, PortWarningSheet, ShortcutSheet, SwitchBackFlow, SwitchFlow } from "../lazyParts";
 import type { Shell } from "./use-shell";
 
 const GoToPalette = lazyNamed(() => import("../components/GoToPalette"), "GoToPalette", true); // AJ-E2901: out of the first bundle, fetched first after paint (⌘K is the key used soonest)
@@ -97,11 +98,12 @@ export function ShellOverlays({ shell }: { shell: Shell }): JSX.Element {
         onChanged={() => void refresh()}
       />
 
+      {/* AJ-E1545: a new install, and the Welcome's Get started, open the setup wizard. */}
       {shell.firstRun && (
-        <FirstRun
+        <SetupWizard
           resumeAtAccess={shell.firstRunAtAccess}
           openLoginTerminal={shell.openLoginTerminal}
-          onDone={() => {
+          onClose={() => {
             localStorage.setItem("aij.onboarding.dismissed", "1");
             shell.setFirstRunAtAccess(false);
             shell.setFirstRun(false);
@@ -110,6 +112,8 @@ export function ShellOverlays({ shell }: { shell: Shell }): JSX.Element {
           onAccountsChanged={shell.accountsChanged}
         />
       )}
+      {/* AJ-E1546: the tour, and after an update the once-only "New in". */}
+      <TourHost offerAllowed={accounts.length > 0 && !shell.firstRun} />
 
       {shell.chooseTool && (
         <AddProviderSheet

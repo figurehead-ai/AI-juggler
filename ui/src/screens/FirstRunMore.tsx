@@ -6,9 +6,8 @@
  * themselves).
  */
 import { useMemo, useState, type JSX } from "react";
-import { ToolMark } from "../components/ToolMark";
+import { Disclosure } from "../components/controls";
 import { OfferRow, usePlaceOffers } from "../components/PlaceOffers";
-import { desktopAppWord } from "../lib/app-name";
 import { listWords } from "../lib/account-terms";
 import { providerDisplayName, toolFound, versionNotAsked, versionUnchecked } from "../lib/providers";
 import { toolSpec } from "../lib/tools";
@@ -112,36 +111,35 @@ export function FreshGroups({
   colourFrom: number;
   busy: boolean;
   progress: (tool: string) => RowProgress;
-}): JSX.Element {
+}): JSX.Element | null {
+  if (fresh.length === 0) return null;
+  // AJ-E1545: installed but not set up is one closed group, nothing ticked;
+  // ticking one sets it up in its own folder.
   return (
-    <>
-      {fresh.map((tool, index) => {
-        const install = installRows[tool];
-        const name = providerDisplayName(tool);
-        return (
-          <fieldset key={freshKey(tool)} className="border-b border-hairline last:border-b-0" data-testid={`first-run-group-fresh-${tool}`}>
-            <legend className="sr-only">{`${name}, not set up`}</legend>
-            <div aria-hidden="true" className="flex items-center justify-between gap-3 bg-surface-2 px-5 py-2.5 text-xs">
-              <span className="flex items-center gap-1.5 font-semibold text-ink">
-                <ToolMark tool={tool} size={14} className="text-muted" />
-                <span>{name} <span className="font-normal text-muted">· not set up</span></span>
-              </span>
-              {install && toolFound(install) && <span className="text-muted">{cliWords(name, install)}</span>}
-            </div>
-            <FreshRow
-              tool={tool}
-              name={names[tool] ?? name}
-              toolName={name}
-              colour={colourAt(colourFrom + index)}
-              checked={!!picked[tool]}
-              disabled={busy}
-              progress={progress(tool)}
-              onCheck={(checked) => onPick(tool, checked)}
-            />
-          </fieldset>
-        );
-      })}
-    </>
+    <div className="border-b border-hairline px-5 py-3 last:border-b-0" data-testid="first-run-not-set-up">
+      <Disclosure summary={<span className="font-medium">Installed, not set up yet · {fresh.length}</span>}>
+        <p className="mt-2 text-meta text-muted">Ticking one sets it up in a folder of its own, and you sign in to it after. Nothing is made until you bring it in.</p>
+        {fresh.map((tool, index) => {
+          const install = installRows[tool];
+          const name = providerDisplayName(tool);
+          return (
+            <fieldset key={freshKey(tool)} className="mt-2" data-testid={`first-run-group-fresh-${tool}`}>
+              <legend className="sr-only">{`${name}, not set up`}</legend>
+              <FreshRow
+                tool={tool}
+                name={names[tool] ?? name}
+                toolName={install && toolFound(install) ? cliWords(name, install) : name}
+                colour={colourAt(colourFrom + index)}
+                checked={!!picked[tool]}
+                disabled={busy}
+                progress={progress(tool)}
+                onCheck={(checked) => onPick(tool, checked)}
+              />
+            </fieldset>
+          );
+        })}
+      </Disclosure>
+    </div>
   );
 }
 
@@ -157,28 +155,20 @@ export function desktopNoneWords(apps: string[]): string {
 /** The desktop apps here (S10, in the words every screen uses) and their
  * profiles seen open but not added, each offered (Add / Not now) as Add
  * apps offers them; nothing when neither. */
-export function DesktopApps({ bundles, tools }: { bundles: string[]; tools: string[] }): JSX.Element | null {
+export function DesktopApps(): JSX.Element | null {
   const desktop = usePlaceOffers();
-  const apps = bundles.map((bundle) => {
-    const app = bundle.replace(/\.app$/, "");
-    return desktopAppWord(app, tools.find((tool) => toolSpec(tool).desktop_app === app) ?? null);
-  });
   const offers = desktop.offers ?? [];
-  if (offers.length === 0 && apps.length === 0) return null;
+  // AJ-E1545: no "Desktop apps" section of its own; only profiles seen
+  // open and not added yet are offered, until they join the rows.
+  if (offers.length === 0) return null;
   return (
     <section className="overflow-hidden rounded-2xl border border-hairline bg-surface" aria-label="Desktop apps" data-testid="first-run-desktop">
-      <h2 className="bg-surface-2 px-5 py-2.5 text-xs font-semibold text-ink">Desktop apps</h2>
-      {offers.length > 0 ? (
-        <ul className="divide-y divide-hairline/60">
-          {offers.map((offer) => (
-            <OfferRow key={offer.id} offer={offer} onAnswer={(add) => desktop.answer(offer, add)} />
-          ))}
-        </ul>
-      ) : (
-        <p className="px-5 py-3 text-sm text-ink-2" data-testid="first-run-desktop-none">
-          {desktopNoneWords(apps)}
-        </p>
-      )}
+      <h2 className="bg-surface-2 px-5 py-2.5 text-meta font-semibold text-ink">Open now, not added yet</h2>
+      <ul className="divide-y divide-hairline/60">
+        {offers.map((offer) => (
+          <OfferRow key={offer.id} offer={offer} onAnswer={(add) => void desktop.answer(offer, add)} />
+        ))}
+      </ul>
       {desktop.note && <p className="px-5 pb-3 text-xs text-danger">{desktop.note}</p>}
     </section>
   );
