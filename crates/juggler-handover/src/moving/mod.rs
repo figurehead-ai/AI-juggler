@@ -337,7 +337,9 @@ pub fn preflight(plan: &MovePlan, moves_dir: &Path) -> Vec<Refusal> {
         .steps
         .iter()
         .map(|step| match step {
-            MoveStep::WriteRecord { value, .. } => value.to_string().len() as u64,
+            MoveStep::WriteRecord { value, .. } | MoveStep::WriteAppFile { value, .. } => {
+                value.to_string().len() as u64
+            }
             _ => 0,
         })
         .sum();
@@ -796,7 +798,7 @@ impl Transaction {
                     transfer::sync_dir(parent).map_err(io(fail("sync", parent)))?;
                 }
             }
-            MoveStep::WriteRecord { path, value } => {
+            MoveStep::WriteRecord { path, value } | MoveStep::WriteAppFile { path, value } => {
                 // What must be there now: nothing, when an earlier step put
                 // it aside; else exactly what the backup has.
                 let held_before = self.manifest.plan.steps[..index]
@@ -875,6 +877,15 @@ impl Transaction {
                         .and_then(|b| serde_json::from_slice::<serde_json::Value>(&b).ok());
                     report.check(
                         format!("{} holds the moved record", path.display()),
+                        written.as_ref() == Some(value),
+                    );
+                }
+                MoveStep::WriteAppFile { path, value } => {
+                    let written = std::fs::read(path)
+                        .ok()
+                        .and_then(|b| serde_json::from_slice::<serde_json::Value>(&b).ok());
+                    report.check(
+                        format!("{} holds what the move wrote", path.display()),
                         written.as_ref() == Some(value),
                     );
                 }
@@ -997,7 +1008,7 @@ impl Transaction {
             MoveStep::MakeDir { path } => Some(path.is_dir()),
             MoveStep::Rename { from, to, .. } => self.renamed(from, to),
             MoveStep::Hold { path, .. } => self.renamed(path, &self.holding(open)),
-            MoveStep::WriteRecord { path, value } => {
+            MoveStep::WriteRecord { path, value } | MoveStep::WriteAppFile { path, value } => {
                 let now = std::fs::read(path)
                     .ok()
                     .and_then(|b| serde_json::from_slice::<serde_json::Value>(&b).ok());

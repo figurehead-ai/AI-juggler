@@ -164,6 +164,18 @@ pub enum MoveStep {
         /// The new place (must not exist).
         to: PathBuf,
     },
+    /// AJ-E2328: rewrites another of the app's own files, whole (a
+    /// profile's worktree file: who owns each worktree, what its cleanup
+    /// has seen), every field the adapter doesn't know kept as it was. The
+    /// engine backs it up first like every touched path, so Undo restores
+    /// it byte for byte; it is applied only while the file is exactly its
+    /// backup.
+    WriteAppFile {
+        /// The file.
+        path: PathBuf,
+        /// Its whole new content.
+        value: serde_json::Value,
+    },
 }
 
 impl MoveStep {
@@ -171,9 +183,10 @@ impl MoveStep {
     #[must_use]
     pub fn paths(&self) -> Vec<&Path> {
         match self {
-            Self::MakeDir { path } | Self::Hold { path, .. } | Self::WriteRecord { path, .. } => {
-                vec![path]
-            }
+            Self::MakeDir { path }
+            | Self::Hold { path, .. }
+            | Self::WriteRecord { path, .. }
+            | Self::WriteAppFile { path, .. } => vec![path],
             Self::Rename { from, to, .. } | Self::Clone { from, to } => vec![from, to],
         }
     }
@@ -272,6 +285,33 @@ pub struct MovePlan {
     /// The gate watch lists them with the tool's version.
     #[serde(default)]
     pub shape: Vec<String>,
+    /// AJ-E2328: what the app keeps for the family outside its records and
+    /// histories that moves with it (a worktree's ownership, side-session
+    /// notes), for the preview's words.
+    #[serde(default)]
+    pub carried: Vec<Carried>,
+}
+
+/// AJ-E2328: one thing outside the records and histories that a move
+/// carries with the family.
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum Carried {
+    /// A worktree the family works in: the target app owns it after the
+    /// move (its files never move or change).
+    Worktree {
+        /// The worktree's folder name.
+        name: String,
+        /// The branch it is on (read from the worktree itself).
+        branch: Option<String>,
+    },
+    /// A conversation's side-session notes folder.
+    Notes {
+        /// The conversation's title, else its id.
+        of: String,
+        /// How many files it holds.
+        files: usize,
+    },
 }
 
 impl MovePlan {
@@ -305,6 +345,7 @@ impl MovePlan {
                 MoveStep::Hold { .. } => "hold",
                 MoveStep::WriteRecord { .. } => "write",
                 MoveStep::Clone { .. } => "clone",
+                MoveStep::WriteAppFile { .. } => "edit",
             };
             let paths: Vec<String> = step
                 .paths()

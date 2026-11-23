@@ -643,3 +643,73 @@ fn only_an_undone_moves_backups_are_let_go() {
         Some("backups_dropped")
     );
 }
+
+/// AJ-E2328: another app file (two profiles' worktree files) is written
+/// whole only while it is exactly its backup, checked after, and Undo puts
+/// both back byte for byte.
+#[test]
+fn an_app_file_edit_is_backed_up_checked_and_undone_byte_for_byte() {
+    if !clones() {
+        return;
+    }
+    let lab = lab();
+    let a_file = lab.a.join("git-worktrees.json");
+    let b_file = lab.b.join("git-worktrees.json");
+    let a_bytes =
+        b"{\"schemaVersion\":2,  \"worktrees\":{\"w\":{\"leasedBy\":\"local_x\"}},\"future\":[1]}";
+    let b_bytes = b"{\"schemaVersion\":2,\"worktrees\":{}}\n";
+    std::fs::write(&a_file, a_bytes).unwrap();
+    std::fs::write(&b_file, b_bytes).unwrap();
+    let mut plan = plan(&lab);
+    plan.steps.push(MoveStep::WriteAppFile {
+        path: a_file.clone(),
+        value: serde_json::json!({"schemaVersion": 2, "worktrees": {}, "future": [1]}),
+    });
+    plan.steps.push(MoveStep::WriteAppFile {
+        path: b_file.clone(),
+        value: serde_json::json!({"schemaVersion": 2, "worktrees": {"w": {"leasedBy": "local_x"}}}),
+    });
+    assert!(plan.shape().iter().any(|line| line.starts_with("edit ")));
+    let mut txn =
+        Transaction::begin(&lab.moves, "edit-1", "fake", request(&lab), plan, None, 1).unwrap();
+    let stopped = Stopped::checked();
+    txn.back_up(&stopped).unwrap();
+    txn.apply(&stopped, 0).unwrap();
+    let report = txn.verify_cold(Vec::new()).unwrap();
+    assert!(report.passed(), "{:?}", report.failures());
+    let now: serde_json::Value = serde_json::from_slice(&std::fs::read(&b_file).unwrap()).unwrap();
+    assert_eq!(now["worktrees"]["w"]["leasedBy"], "local_x");
+    txn.undo(&stopped, 2).unwrap();
+    assert_eq!(std::fs::read(&a_file).unwrap(), a_bytes);
+    assert_eq!(std::fs::read(&b_file).unwrap(), b_bytes);
+}
+
+/// AJ-E2328: an app file that changed after its backup stops the move
+/// there (the app wrote it meanwhile), nothing written over it.
+#[test]
+fn an_app_file_changed_since_its_backup_stops_the_move() {
+    if !clones() {
+        return;
+    }
+    let lab = lab();
+    let file = lab.b.join("git-worktrees.json");
+    std::fs::write(&file, b"{\"schemaVersion\":2}").unwrap();
+    let mut plan = plan(&lab);
+    plan.steps.insert(
+        0,
+        MoveStep::WriteAppFile {
+            path: file.clone(),
+            value: serde_json::json!({"schemaVersion": 2, "worktrees": {}}),
+        },
+    );
+    let mut txn =
+        Transaction::begin(&lab.moves, "edit-2", "fake", request(&lab), plan, None, 1).unwrap();
+    let stopped = Stopped::checked();
+    txn.back_up(&stopped).unwrap();
+    std::fs::write(&file, b"{\"schemaVersion\":2,\"app\":\"wrote\"}").unwrap();
+    assert!(txn.apply(&stopped, 0).is_err());
+    assert_eq!(
+        std::fs::read(&file).unwrap(),
+        b"{\"schemaVersion\":2,\"app\":\"wrote\"}"
+    );
+}
