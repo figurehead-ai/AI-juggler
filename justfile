@@ -218,13 +218,16 @@ evidence:
 
 # Terminology gate (AJ-E108): legacy user-facing nouns cannot creep back;
 # AJ-E1535: nor can developer words on screen (its allowlist only shrinks);
-# AJ-E2801: nor a system select, checkbox or radio outside the shared controls.
+# AJ-E2801: nor a system select, checkbox or radio outside the shared controls;
+# AJ-E1550: nor a bright line outside focus, hover or attention (PAT-SURF).
 terminology:
     ./scripts/terminology_lint.sh
     python3 scripts/plain_words_lint.py --selftest
     python3 scripts/plain_words_lint.py
     python3 scripts/native_controls_lint.py --selftest
     python3 scripts/native_controls_lint.py
+    python3 scripts/design_tokens_lint.py --selftest
+    python3 scripts/design_tokens_lint.py
     python3 scripts/text_input_lint.py --selftest
     python3 scripts/text_input_lint.py
     python3 scripts/private_data_lint.py --selftest

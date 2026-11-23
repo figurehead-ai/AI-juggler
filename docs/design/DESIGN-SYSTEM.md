@@ -28,7 +28,7 @@ It combines what is already decided (the decision log, the maintainer's recorded
 2. The two modes
 3. Foundations: colour, type, spacing, radii, elevation, icons, motion, density and layout
 4. Components
-5. Patterns (5.10: system prompts are told first; 5.11: usability reasoning; 5.12: calm surfaces)
+5. Patterns (5.10: system prompts are told first; 5.11: usability reasoning; 5.12: calm surfaces; 5.13: colour that means one thing)
 6. Content rules
 7. Accessibility
 8. Worked example: the Move or Copy dialog
@@ -173,6 +173,7 @@ All values below are the real tokens in `styles.css` (`@theme` and `:root`), unl
 - **COL-7.** Every text token clears 4.5:1 on every surface it can sit on, in both themes. `ink-2` and `muted` also clear APCA Lc 60 in dark. (AJ-E804, PRIN §7, `tests/visual/contrast.spec.ts`)
 - **COL-8.** `muted` text reaches 7:1 on every surface (the maintainer's decided scale). Dark passes (≥ 7.28:1). Light `muted` moves to `#424958` (7.29–9.03:1) in 0.5.0. (M:readability-and-visuals; D-142, `GAPS.md` B1)
 - **COL-9.** Increase Contrast (`prefers-contrast: more`) raises the divider, `border-subtle` and the hairline to faint, gives cards and filled controls their frame (`--color-frame`), what is selected its ring (`--color-selected-edge` → `selected-ring`), the section label ink-2, and ghost buttons an edge. In `styles.css`. (D-117 point 4, AJ-E1550)
+- **COL-11.** One hue, one meaning, a soft and a strong step each (PAT-COLOR, §5.13). (AJ-E1550)
 - **COL-10.** Charts keep categorical colours (that is data, not status), the same colour per Account everywhere, and each has a table fallback. (CALM §b, M:readability-and-visuals, ADR-0021)
 
 ### 3.2 Type
@@ -682,6 +683,47 @@ The common answer: three or four tone steps carry the hierarchy; lines are alpha
 - **PAT-SURF-6.** Inputs, picker fields and secondary buttons are a fill (`control`), not a bright stroke; the ring comes on focus. Tags and status pills are their tint, no edge.
 - **PAT-SURF-7.** Increase Contrast (`prefers-contrast: more`) brings the lines back: `border-subtle` and `frame` to faint, selection's ring. (COL-9)
 - **PAT-SURF-8.** `scripts/design_tokens_lint.py` (in `just verify-static`) fails a component that draws a bright line (the accent or a bright neutral as a border, ring, outline or divider) outside a focus or hover variant; its allowlist only shrinks.
+
+### 5.13 Colour that always means one thing (PAT-COLOR)
+
+The maintainer's amendment to AJ-E1550 (2026-11-23): "You keep going from one extreme to another. I want balance… Choose select colours and keep using them to always mean one same thing." Calm tones down bright colour; it never takes away colour that carries meaning. PAT-SURF calms the lines; PAT-COLOR keeps the meaning. Seen on the 0.5.0 Nightly and fixed here: greyed App icons that looked broken; Runway's "Out" as white words over an empty bar; every usage bar white.
+
+**The vocabulary: one hue, one meaning, everywhere.**
+
+| Hue | Means | Soft step (calm: a tint and words) | Strong step (attention: a bar, a fill that must be seen) |
+|---|---|---|---|
+| Red | Out, blocked, failed | `danger-soft` + `danger` words | `danger-strong` (`#db2943` dark, `#c50031` light) |
+| Amber | Needs you, running low | `warning-soft` + `warning` words | `warning-strong` (`#d37e01`, `#b46d10`) |
+| Green | Healthy, done, ready, signed in | `success-soft` + `success` words | `success-strong` (`#09af51`, `#006e30`) |
+| Teal | Working, live, activity | `live-soft` + `live` words | `live-strong` (`#059eb1`, `#028f95`) |
+| Brand violet | Primary actions, selection's accent, navigation, focus | `accent-soft` + `accent-hi` words | `accent-fill` (the one primary) |
+| Neutral greys | The text hierarchy, surfaces and lines only | | |
+| The eight identity colours (`lib/mark-hues`) | Which App or Account: only on small identity marks (dots, avatars, profile badges, chart series) | | never status |
+
+The soft and the text colours are the AA tokens of §3.1 (4.5:1 on every surface). The strong step is a fill: a runway bar, the fill of a progress mark.
+
+**Runway's bar follows its state** (`lib/runway-look.ts`, on every runway bar: Home, the Accounts and Usage cards, a session's page, the rows' quota bars):
+
+| State | Bar | Words |
+|---|---|---|
+| Healthy, more than 50 % left | `success-strong` | "58% left", neutral |
+| In between | `live-strong` at half strength | neutral |
+| Low, at or under 25 % (`LOW_LEFT`, the one rule that also counts it Low and stops suggesting it) | `warning-strong` | amber, "Low · 12% left" |
+| Out | a red bar the whole width (`danger-strong`) and the red "Out · resets Thu 9:00 AM" chip (`RoomChip`); Out still raises the header's count | red |
+| Unknown or not measured | no fill, a dashed neutral track | "Not measured yet", plain |
+
+**App icons are always in full colour.** No grayscale, no saturate, no fading at rest (the `.app-tone` filter is gone). Not running and idle are said by the status dot (the faint dot at rest, teal while working), muted words ("Not running", "Seen 2 h ago") and row order (running first).
+
+**Validated, not judged by eye.** The dataviz palette validator (`validate_palette.js`, run locally, both themes, against each theme's surface) checks the identity slots and the strong semantic set: lightness band, chroma floor, normal-vision ΔE ≥ 15 between neighbours, CVD separation, 3:1 on the surface. Both pass after AJ-E1550 (identity slots 3 and 7 replaced; the strong set new); the CVD warnings (6.3–6.8, the legal floor band) are covered because status never relies on colour alone: a word or an icon goes with every hue. The output is in `docs/qa/evidence/AJ-E1550/manifest.md`.
+
+**Rules:**
+- **PAT-COLOR-1.** Each hue above has one meaning, on every screen. A status colour is drawn only through its semantic tokens (`danger`, `warning`, `success`, `live`, `accent`, their `-soft` and `-strong`), never a raw palette colour.
+- **PAT-COLOR-2.** Calm states use the soft step; what needs attention uses the strong step. Amber is never a fill behind words (COL-5); its strong step is a bar or a mark.
+- **PAT-COLOR-3.** Identity colours only on small identity marks, never for state; each use outside the marks' own components is listed and reviewed.
+- **PAT-COLOR-4.** App icons are never desaturated or faded; state is the dot, the words and the order.
+- **PAT-COLOR-5.** Colour never alone: every status hue goes with its word or glyph (TAG-3, WCAG 1.4.1).
+- **PAT-COLOR-6.** A change to the identity slots or the semantic set re-runs the palette validator in both themes; every FAIL is fixed before it ships.
+- **PAT-COLOR-7.** `scripts/design_tokens_lint.py` fails a raw palette colour (`raw-hue`), a grayscale or saturate filter (`grayscale`), and a new identity-colour use outside the marks (`identity`); its allowlist only shrinks.
 
 ## 6. Content rules
 

@@ -179,6 +179,10 @@ jobs:
           ./scripts/terminology_lint.sh
           python3 scripts/plain_words_lint.py --selftest
           python3 scripts/plain_words_lint.py
+      - name: Calm surfaces, no bright line outside focus, hover or attention (AJ-E1550, PAT-SURF)
+        run: |
+          python3 scripts/design_tokens_lint.py --selftest
+          python3 scripts/design_tokens_lint.py
       - name: No real person's data in the public repository (D-101)
         run: |
           python3 scripts/private_data_lint.py --selftest

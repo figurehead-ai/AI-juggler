@@ -1,0 +1,45 @@
+# AJ-E1550 (PAT-SURF §5.12, PAT-COLOR §5.13): per file of shipped UI code,
+# `path kind count`. Only shrinks (scripts/design_tokens_lint.py; --print
+# gives today's counts).
+#
+# bright-line kept on purpose (true attention or a state only a line shows):
+#   MarkSheet: a colour swatch's chosen ring (a swatch can't take a fill).
+#   pool/Canvas: the drag ghost while a member is dragged.
+#   NewSession: the drop target's dashed outline while a folder is dragged over.
+#   NewPoolPreview, PoolMini: the preview's lit node (what the step edits).
+#   KeyCapture: a shortcut field while it listens for keys.
+#   WatchTargetPicker: the open picker field (its focus look).
+# identity, reviewed 2026-11-23, each a small identity mark: the Account's
+#   dot (AccountCard, SubscriptionPage, AccountPage's avatar), a chart's
+#   series colour per Account or App (usage/accounts, TopLists,
+#   sessions-by-account, AccountCard's chart), the first-run App colour
+#   swatches (FreshAccountStep).
+# The rest wait for their owners (files other 0.5.1 agents are editing;
+# each has a one-line fix in the AJ-E1550 hand-back).
+ui/src/components/HandoverSection.tsx bright-line 2
+ui/src/components/MarkSheet.tsx bright-line 1
+ui/src/components/OsPromptPicture.tsx bright-line 2
+ui/src/components/OsPromptSheet.tsx sheen 1
+ui/src/components/bot/BotComposer.tsx bright-line 1
+ui/src/components/bot/BotHead.tsx bright-line 2
+ui/src/components/bot/BotWatchCard.tsx bright-line 4
+ui/src/components/bot/BotWritten.tsx bright-line 1
+ui/src/components/rail-hold.tsx bright-line 1
+ui/src/components/switch/MoveRunning.tsx bright-line 1
+ui/src/components/usage/TopLists.tsx identity 1
+ui/src/components/usage/accounts.ts identity 2
+ui/src/components/watches/WatchTargetPicker.tsx bright-line 2
+ui/src/pages/AccountPage.tsx identity 1
+ui/src/pages/pool/Canvas.tsx bright-line 1
+ui/src/pages/project/sessions-by-account.ts identity 1
+ui/src/pages/session/ContinueOn.tsx bright-line 1
+ui/src/pages/subscription/SubscriptionPage.tsx identity 1
+ui/src/screens/FreshAccountStep.tsx identity 1
+ui/src/screens/NewSession.tsx bright-line 1
+ui/src/screens/WorkPanels.tsx bright-line 1
+ui/src/screens/WorkPanels.tsx sheen 1
+ui/src/screens/accounts/AccountCard.tsx identity 2
+ui/src/screens/pools/NewPoolPreview.tsx bright-line 2
+ui/src/screens/pools/PoolMini.tsx bright-line 1
+ui/src/screens/settings/KeyCapture.tsx bright-line 1
+ui/src/screens/settings/ai/ModelsRecommended.tsx bright-line 1

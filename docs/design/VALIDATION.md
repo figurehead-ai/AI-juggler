@@ -43,6 +43,7 @@ Paths are repo-relative. All new checks follow the repo's existing pattern for l
 | `scripts/check_baseline_notes.py` | Baseline changes carry a per-screen note | Screenshot notes rule |
 | `scripts/a11y_gate.sh` (AJ-E804) | axe AA on every gallery state, both themes; keyboard flows; 200% zoom; reduced motion; status glyphs out of names; `fits-its-room`; `header-room-words`; Models and Watches galleries; contrast table | A11Y-1/3/4/5/8, ICN-5, DEN-1, MOT-3 |
 | `ui/tests/visual/contrast.spec.ts` | Every text token ≥ 4.5:1 on every surface, count badges, selected edge ≥ 3:1 | COL-7, A11Y-2 |
+| `scripts/design_tokens_lint.py` (AJ-E1550, the first part of N3) | No bright line (accent, selected-ring, muted, ink as a border, ring, outline or divider) outside a focus or hover variant; no `.sheen`; no raw palette colour, no grayscale or saturate filter, identity colours only on marks | PAT-SURF, PAT-COLOR, CRD-3, ELV-2 |
 | `ui/tests/visual/attention-budget.spec.ts` (D-117) | Per area on Home, rail, header: warning/danger text ≤ L2/L3 items; no amber fill; ≤ 1 danger-soft block; ≤ 1 filled accent button; no infinite animation; `data-level` matches `attentionLevel()`; chevrons kept; selection never loud; feed quiet | COL-4, COL-5, BTN-1 (calm areas only), MOT-2, SEC-4, LST-5, PAT-ATT-1/2 |
 | `ui/tests/visual/idle.spec.ts` | No endless animation at rest | MOT-2 |
 | `ui/tests/visual/menus-a11y.spec.ts` (AJ-E3011) | Every menu and popover: options exposed, hits land, the rest inert, Escape restores | MNU-4 |
@@ -402,6 +403,8 @@ Legend: **A** = existing automated, **N#** = new automated (§3), **R** = Opus r
 | PAT-SW-1…5 | N21, N22; walk step "from any session page, the switch is one visible click"; R2, R9 |
 | PAT-OSP-1…6 | the registry tests and the gate's lint (AJ-E1547); `release_scope.py` (the walks' dialog log, from 0.5.1); R17 |
 | PAT-USE-1…3 | `release_scope.py` (a UI task's section, from 0.5.1); R18 |
+| PAT-SURF-1…8 | `scripts/design_tokens_lint.py` (bright lines outside focus, hover or attention; allowlist shrinks; in `just verify-static`); `attention-tokens.test.ts` and `contrast.spec.ts` (`selected-ring` ≥ 3:1, the Increase Contrast edge); attention-budget (iv, viii: selection quiet, in the selected look); R4, R7 (Opus side by side with the Claude app's Code view, both themes) |
+| PAT-COLOR-1…7 | `scripts/design_tokens_lint.py` (`raw-hue`, `grayscale`, `identity`); `lib/runway-look` and `home-runway-out.test.tsx` (the bar by state); `rail-model.test.ts` (identity slots apart from the states, 3:1 on every surface); the dataviz palette validator, both themes (manifest of AJ-E1550); R7 |
 | CNT-1 Plain words | A plain_words_lint, plain-words-on-screen.test |
 | CNT-2 One word per thing | A terminology_lint, one-vocabulary.test |
 | CNT-3 Sentence case | N13 |
