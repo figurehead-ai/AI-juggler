@@ -136,6 +136,8 @@ import type { OsPromptOutcomeInfo } from "./OsPromptOutcomeInfo";
 import type { OutsideSearchEstimateInfo } from "./OutsideSearchEstimateInfo";
 import type { OutsideSearchInfo } from "./OutsideSearchInfo";
 import type { OvernightSummaryInfo } from "./OvernightSummaryInfo";
+import type { OwnershipInfo } from "./OwnershipInfo";
+import type { OwnershipRepairedInfo } from "./OwnershipRepairedInfo";
 import type { PackOpenInfo } from "./PackOpenInfo";
 import type { PackStartedInfo } from "./PackStartedInfo";
 import type { Page } from "./Page";
@@ -1188,6 +1190,10 @@ export interface Commands {
   switch_move_undo: { args: { moveId: string }; result: MoveUndoneInfo };
   /** Read features::switch::moves::switch_moves */
   switch_moves: { args: { page?: PageRequest | null }; result: Page<MoveRecordInfo> };
+  /** Read features::switch::moves::switch_ownership */
+  switch_ownership: { args: Record<string, never>; result: OwnershipInfo };
+  /** Write features::switch::moves::switch_ownership_repair */
+  switch_ownership_repair: { args: { key: string }; result: OwnershipRepairedInfo };
   /** Read features::switch::commands::switch_preflight */
   switch_preflight: { args: { sessionId: string; targetProfileId: string }; result: PreflightInfo };
   /** Write features::switch_setup::switch_setup_apply */

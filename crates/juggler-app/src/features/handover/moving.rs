@@ -355,6 +355,8 @@ mod pick;
 mod quit;
 #[path = "moving_real.rs"]
 mod real;
+#[path = "moving_repair.rs"]
+pub mod repair;
 use pick::{links_hold, sides, start_checked};
 use quit::{Writing, stop_places};
 pub use real::{Real, Tell};

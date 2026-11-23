@@ -347,6 +347,8 @@ macro_rules! app_commands {
             Write features::switch::moves::switch_move_execute,
             Write features::switch::moves::switch_move_undo,
             Read  features::switch::moves::switch_moves,
+            Read  features::switch::moves::switch_ownership,
+            Write features::switch::moves::switch_ownership_repair,
             Write features::switch::commands::switch_door_count,
             Read  features::switch_setup::switch_setup_check,
             Read  features::switch_space::switch_space_check,

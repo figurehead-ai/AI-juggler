@@ -115,3 +115,45 @@ pub async fn switch_moves(
     })
     .await
 }
+
+/// Tauri: AJ-E2328, the ownership check for Settings › Desktop apps: each
+/// app's version and whether moves were checked on it, the conversations
+/// whose worktree another profile owns (each with what Repair quits), and
+/// the worktrees another profile's cleanup has seen. Reads only.
+///
+/// # Errors
+///
+/// None of its own (the blocking pool's).
+#[tauri::command]
+pub async fn switch_ownership(
+    state: tauri::State<'_, Arc<AppState>>,
+) -> AppResult<crate::features::handover::moving::repair::OwnershipInfo> {
+    crate::ipc::blocking(state.inner(), "check worktree ownership", move |state| {
+        Ok(crate::features::handover::moving::repair::findings(
+            state,
+            &crate::features::handover::moving::Real::quiet(),
+        ))
+    })
+    .await
+}
+
+/// Tauri: AJ-E2328, Repair (the user's click, after the sheet naming the
+/// profiles it quits): the worktree's ownership moved to the profile that
+/// holds the conversation, by the move's own path.
+///
+/// # Errors
+///
+/// As [`crate::features::handover::moving::repair::repair`].
+#[tauri::command]
+pub async fn switch_ownership_repair(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, Arc<AppState>>,
+    key: String,
+) -> AppResult<crate::features::handover::moving::repair::OwnershipRepairedInfo> {
+    crate::ipc::blocking(state.inner(), "repair worktree ownership", move |state| {
+        let done = crate::features::handover::moving::repair::repair(state, &key)?;
+        let _ = crate::features::sessions::read_model::emit_sessions(&app, state);
+        Ok(done)
+    })
+    .await
+}

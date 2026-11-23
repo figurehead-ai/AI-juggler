@@ -221,6 +221,8 @@ read_routes! {
     "switch_move_offer" => async_result features::switch::moves::switch_move_offer(state; session_id: String, target_profile_id: String, target_place_id: Option<String>);
     // The moves AI Juggler knows of (for Undo), a page at a time.
     "switch_moves" => async_result features::switch::moves::switch_moves(state; page: Option<crate::paging::PageRequest>);
+    // AJ-E2328: the worktree ownership check (reads only).
+    "switch_ownership" => async_result features::switch::moves::switch_ownership(state);
     "switch_setup_check" => async_result features::switch_setup::switch_setup_check(state; session_id: String, target_profile_id: String);
     "switch_space_check" => async_result features::switch_space::switch_space_check(state; session_id: String, target_profile_id: String);
     "switch_cut_preview" => async_result features::switch_cut::switch_cut_preview(state; session_id: String, target_profile_id: String, cut: Option<features::switch_cut::SwitchCutArgs>);
