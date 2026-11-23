@@ -70,6 +70,10 @@ export interface Paired {
   title: string;
   /** Evidence says so for sure; else the row asks "Is this right?". */
   certain: boolean;
+  /** The profile's place id (AJ-E2327's "Choose its folder…" takes it). */
+  id: string;
+  /** It's one of the user's Apps already (its folder can be chosen now). */
+  added: boolean;
 }
 
 /** Each desktop profile's folder, by path: the folder's row becomes the
@@ -87,7 +91,7 @@ export function usePairings(on: boolean): Map<string, Paired> {
               const tool = row.folder.tool;
               const app = tool ? toolSpec(tool).desktop_app : null;
               if (!row.folder.path || !tool || !app) return [];
-              return [[row.folder.path, { title: `${desktopAppWord(app, tool)} · ${row.label}`, certain: row.certain }] as const];
+              return [[row.folder.path, { title: `${desktopAppWord(app, tool)} · ${row.label}`, certain: row.certain, id: row.id, added: row.added }] as const];
             }),
           ),
         ),

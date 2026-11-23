@@ -10,6 +10,7 @@ import type { DiscoveredInfo } from "../types/generated/DiscoveredInfo";
 import { Checkbox } from "../components/controls";
 import { Check } from "../components/StepCheck";
 import type { Paired } from "./FirstRunToolGroup";
+import { chooseAppFolder } from "../lib/choose-app-folder";
 import { confidenceWord, fieldRows, mayHaveExpired, rowConfidence, sourceWords } from "./first-run-confidence";
 
 export type RowProgress = { state: "pending" | "working" | "done" | "already" | "failed"; error?: string } | undefined;
@@ -40,11 +41,53 @@ function RowState({ found, plain, progress }: { found: DiscoveredInfo; plain: bo
   );
 }
 
-/** Where it's seen in use: the desktop app and/or a terminal (AJ-E2327's
- * pairing will join a profile and its folder into one row). */
-function chipsOf(found: DiscoveredInfo, desktop: boolean): string[] {
+/** Where it's used: the desktop app and/or a terminal (AJ-E2327's pairing
+ * joins a profile and its folder into one row). Every row has one (the
+ * 0.5.1 walk's F1): a folder no desktop app is seen using is its tool's
+ * terminal folder. */
+export function chipsOf(found: DiscoveredInfo, desktop: boolean): string[] {
   const open = found.in_use ?? [];
-  return [desktop || open.includes("desktop") ? "Desktop" : null, open.includes("terminal") ? "Terminal" : null].filter((chip): chip is string => chip !== null);
+  const onDesktop = desktop || open.includes("desktop");
+  const inTerminal = open.includes("terminal") || !onDesktop;
+  return [onDesktop ? "Desktop" : null, inTerminal ? "Terminal" : null].filter((chip): chip is string => chip !== null);
+}
+
+/** An uncertain pairing asks, with the one thing to do about it (the
+ * 0.5.1 walk's F2): an App already added chooses its folder now
+ * (AJ-E2327's "Choose its folder…"); one not added yet can be unpaired
+ * ("Change": the row is the folder alone, its App's folder chosen on its
+ * page later). */
+function PairingAsk({ paired, onUnpair }: { paired: Paired; onUnpair: () => void }): JSX.Element {
+  const [done, setDone] = useState(false);
+  if (done) return <span data-testid="first-run-unsure"> · Its folder was chosen</span>;
+  return (
+    <span data-testid="first-run-unsure">
+      {" · Is this right? "}
+      {paired.added ? (
+        <button
+          type="button"
+          className="text-accent-hi hover:underline"
+          onClick={(event) => {
+            event.preventDefault();
+            void chooseAppFolder(paired.id, paired.title).then(() => setDone(true));
+          }}
+        >
+          Choose its folder…
+        </button>
+      ) : (
+        <button
+          type="button"
+          className="text-accent-hi hover:underline"
+          onClick={(event) => {
+            event.preventDefault();
+            onUnpair();
+          }}
+        >
+          Change
+        </button>
+      )}
+    </span>
+  );
 }
 
 /** Its sign-in, in plain words. */
@@ -90,6 +133,9 @@ export function FoundRow({
   const id = `first-run-${found.path}`;
   const detailsId = useId();
   const [open, setOpen] = useState(false);
+  // F2: "Change" unpairs an uncertain profile from this folder.
+  const [unpaired, setUnpaired] = useState(false);
+  const pairing = unpaired ? undefined : paired;
   const confidence = rowConfidence(found);
   const source = sourceWords(found, toolName);
   return (
@@ -101,9 +147,9 @@ export function FoundRow({
           {plain ? (
             <span className="flex min-w-0 flex-1 flex-col">
               <span className="flex min-w-0 items-center gap-2">
-                <span className="truncate text-section font-medium text-ink">{paired?.title ?? name}</span>
-                {/* AJ-E1545: where it's seen in use, as chips; no confidence badges. */}
-                {chipsOf(found, paired !== undefined).map((chip) => (
+                <span className="truncate text-section font-medium text-ink">{pairing?.title ?? name}</span>
+                {/* AJ-E1545: where it's used, as chips; no confidence badges. */}
+                {chipsOf(found, pairing !== undefined).map((chip) => (
                   <span key={chip} className="shrink-0 rounded-md bg-surface-3 px-1.5 text-label text-ink-2" data-testid="first-run-chip">
                     {chip}
                   </span>
@@ -111,7 +157,7 @@ export function FoundRow({
               </span>
               <span className="truncate text-meta text-muted" data-testid="first-run-status">
                 {statusWords(found)} · <span className={live ? "text-live" : ""}>{used}</span>
-                {paired && !paired.certain && <span data-testid="first-run-unsure"> · Is this its folder? Check it on its App page after</span>}
+                {pairing && !pairing.certain && <PairingAsk paired={pairing} onUnpair={() => setUnpaired(true)} />}
               </span>
             </span>
           ) : (

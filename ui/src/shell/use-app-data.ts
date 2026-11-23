@@ -23,6 +23,7 @@ import { keepIfSame } from "../lib/same";
 import { withDeadline } from "../lib/loading";
 import { coalesced } from "../lib/shown-window";
 import { useWithSelected } from "../lib/session-lookup";
+import { useLoginTerminals, type LoginTerminal } from "./use-login-terminals";
 import { staleSubscriptions } from "../lib/subscriptions";
 import type { AccountInfo } from "../types/generated/AccountInfo";
 import type { AppInfo } from "../types/generated/AppInfo";
@@ -34,9 +35,7 @@ import type { Selection } from "./selection";
 /** AJ-E1103: the board became interactive once, after launch. */
 let boardInteractiveCounted = false;
 
-/** A sign-in's terminal, in the Sessions list until closed; `account`:
- * the App (account id) it signs in, so its words name that App's tool. */
-export type LoginTerminal = { id: string; title: string; ended: boolean; account?: string };
+export type { LoginTerminal };
 /** How a sign-in's terminal joins: shown at once or not, and its App. */
 export type LoginTerminalOptions = { select?: boolean; account?: string };
 
@@ -76,7 +75,6 @@ export function useAppData(selection: Selection, openPage: (next: Selection) => 
   // AJ-E1503 Req.4: until the first load answers, lists show row-shaped
   // placeholders, never a false "nothing here".
   const [loaded, setLoaded] = useState(false);
-  const [loginTerminals, setLoginTerminals] = useState<LoginTerminal[]>([]);
   // AJ-E207: the suggested returns (reset-trigger cards).
   const [switchBackCards, setSwitchBackCards] = useState<SwitchBackSuggestionData[]>([]);
 
@@ -163,15 +161,11 @@ export function useAppData(selection: Selection, openPage: (next: Selection) => 
   // AJ-E402/E401: the 5 s resource and 30 s quota ticks, merged by id.
   useLiveDeltas(setSessions, setFreshness);
 
-  // Login terminals end → mark ended (kept for scrollback until closed).
-  useEffect(() => {
-    return onTerminalExit((id) => {
-      setLoginTerminals((current) =>
-        current.map((t) => (t.id === id ? { ...t, ended: true } : t)),
-      );
-      void refresh();
-    });
-  }, [refresh]);
+  // AJ-E1553: the sign-ins, from the backend (a finished one leaves the
+  // rail; its App reads ready: the lists are read again).
+  const { loginTerminals, opened } = useLoginTerminals(accountsChanged);
+  // A terminal ended: what it changed (a sign-in, a session) is read again.
+  useEffect(() => onTerminalExit(() => void refresh()), [refresh]);
 
   // Login flows (Accounts screen) hand their terminal here; it joins the
   // Sessions rail list and gets selected.
@@ -179,12 +173,10 @@ export function useAppData(selection: Selection, openPage: (next: Selection) => 
     // A sign-in may change what the accounts read says: the next view of
     // them reads it again.
     staleSubscriptions();
-    setLoginTerminals((current) =>
-      current.some((t) => t.id === id) ? current : [...current, { id, title, ended: false, account: options?.account }],
-    );
+    opened({ id, title, ended: false, account: options?.account, state: "running" });
     if (options?.select === false) return; // Add account shows it in its own step
     openPage({ kind: "login", id }); // the panel must show the terminal, not stay on Accounts
-  }, [openPage]);
+  }, [openPage, opened]);
 
   return {
     info, projects, sessions, shownProjects, railSessions, accounts, profiles, loaded, freshness,

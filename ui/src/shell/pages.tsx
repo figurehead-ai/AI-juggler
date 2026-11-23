@@ -125,6 +125,8 @@ function workAreaPage(shell: Shell, extra: Extra): JSX.Element {
         onOpenProject={shell.selectProject}
         onStopped={() => void shell.refresh()}
         onHandover={async () => {}}
+        openLoginTerminal={shell.openLoginTerminal}
+        onSignInClosed={shell.openHome}
       />
     );
   }

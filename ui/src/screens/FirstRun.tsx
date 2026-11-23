@@ -32,9 +32,14 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState, type JSX } from "react";
 import { Button } from "../components/primitives";
-import { inPlaceProviders, ownSignIn, providerDisplayName, sameAsWords, shortSignIn, supportsInPlace, type InPlaceSupport } from "../lib/providers";
+import { inPlaceProviders, providerDisplayName, sameAsWords, supportsInPlace, type InPlaceSupport } from "../lib/providers";
 import { firstRunToolIds, primaryToolId, toolSpec } from "../lib/tools";
 import { InstallHow } from "../components/InstallHow";
+import { SignInCard } from "../components/SignInCard";
+import { TerminalChip } from "../components/SignInPanel";
+import { ToolLogo } from "../components/ToolLogo";
+import { signInsDismiss } from "../lib/ipc/sign-ins";
+import { useSignIns } from "../lib/sign-ins-store";
 import { AccessStep } from "../components/AccessStep";
 import { Check } from "../components/StepCheck";
 import { colourAt, FreshAccountStep, freeLabel } from "./FreshAccountStep";
@@ -63,12 +68,10 @@ import type { OsAccessInfo } from "../types/generated/OsAccessInfo";
 import type { SourceInspectInfo } from "../types/generated/SourceInspectInfo";
 import { byteSize } from "../lib/compact";
 import { Disclosure, Radio } from "../components/controls";
-import { lazyNamed } from "../lib/lazy";
 import { SELECTED_CARD } from "../components/controls/selected";
 
-// The sign-in terminal shows in the step itself (0.4.1: it opened behind
-// this full-window flow); xterm loads only when a sign-in starts.
-const TerminalView = lazyNamed(() => import("../components/TerminalView"), "TerminalView");
+// The sign-in card shows in the step itself (0.4.1: the terminal opened
+// behind this full-window flow); xterm loads only when its terminal shows.
 
 /** AJ-E1525: first run's groups come from each tool's spec (its
  * `setup_groups`, in order), never from a table here. */
@@ -625,7 +628,9 @@ function countLogin(provider: string, outcome: "completed" | "skipped" | "expire
   statsEvent("onboarding.login", { provider, outcome });
 }
 
-/** One account's sign-in: status, Sign in, and the rest behind More. */
+/** One account's sign-in: its tool's icon, a Terminal chip, status, Sign
+ * in, and the rest behind More; once started, its sign-in card (AJ-E1545
+ * R8: the tool's page and code, the terminal under Show details). */
 function SigninRow({
   entry,
   active,
@@ -646,7 +651,9 @@ function SigninRow({
   const [more, setMore] = useState(false);
   const [command, setCommand] = useState<string | null>(null);
   const [skipped, setSkipped] = useState(false);
-  const ready = signedIn(state);
+  // AJ-E1553: the sign-in's own entry (the backend sees it finish).
+  const signIn = useSignIns().find((one) => one.id === terminal) ?? null;
+  const ready = signedIn(state) || signIn?.state === "signed_in";
   // Every 2 s while waiting (the login-queue card's rule): flips the row
   // the moment the vendor's sign-in completes; never steals focus.
   useEffect(() => {
@@ -671,8 +678,11 @@ function SigninRow({
   return (
     <li className="flex flex-col border-t border-hairline/60 first:border-t-0" data-testid="first-run-signin-row">
       <div className="flex flex-wrap items-center gap-4 px-5 py-3">
-        <span aria-hidden="true" className="size-2.5 shrink-0 rounded-full" style={{ background: entry.colour }} />
-        <span className="min-w-0 flex-1 truncate text-section font-medium text-ink">{entry.label}</span>
+        <ToolLogo tool={entry.provider} kind="cli" size={24} />
+        <span className="flex min-w-0 flex-1 items-center gap-2">
+          <span className="truncate text-section font-medium text-ink">{entry.label}</span>
+          <TerminalChip />
+        </span>
         <span className="text-xs" role="status">
           {ready ? (
             <span className="flex items-center gap-1.5 text-success">
@@ -709,8 +719,17 @@ function SigninRow({
         )}
       </div>
       {active && terminal && !ready && (
-        <div className="mx-5 mb-3 h-72 overflow-hidden rounded-lg border border-hairline" data-testid="first-run-signin-terminal">
-          <TerminalView id={terminal} title={`Sign in · ${entry.label}`} />
+        <div className="mx-5 mb-4 rounded-xl bg-surface-2 p-4" data-testid="first-run-signin-terminal">
+          <SignInCard
+            signIn={signIn}
+            terminalId={terminal}
+            tool={entry.provider}
+            title={`Sign in · ${entry.label}`}
+            onTryAgain={() => {
+              void signInsDismiss(terminal).catch(() => null);
+              onStart();
+            }}
+          />
         </div>
       )}
       {more && !ready && (
@@ -780,21 +799,11 @@ function SigninStep({
     <div className="flex flex-col gap-6" data-testid="first-run-signin">
       <div className="flex flex-col gap-2">
         <h1 className="text-stat font-semibold leading-tight tracking-tight">
-          {left.length === 0
-            ? "Everyone's signed in."
-            : left.length === 1
-              ? "One app needs a quick sign-in."
-              : `${left.length} apps need a quick sign-in.`}
+          {left.length === 0 ? "Everyone's signed in." : left.length === 1 ? "Sign in to 1 app." : `Sign in to ${left.length} apps.`}
         </h1>
+        {/* AJ-E1545 R8: each opens its own tool's page; no tool named here. */}
         <p className="max-w-2xl text-section leading-relaxed text-ink-2">
-          {(() => {
-            // One tool: its own sign-in by name. First run with every tool
-            // (AJ-E1301): each account opens its own tool's sign-in.
-            const tools = [...new Set(queue.map((entry) => entry.provider || provider))];
-            return tools.length > 1
-              ? `Each opens its own tool's sign-in — ${tools.map(shortSignIn).join(" or ")} — for that app's folder; AI Juggler never sees your password and notices when you're done.`
-              : `Each opens ${ownSignIn(tools[0] ?? provider)}, for that app's folder; AI Juggler never sees your password and notices when you're done.`;
-          })()}
+          Each opens its own sign-in page; AI Juggler never sees your password.
         </p>
       </div>
       <ul className="overflow-hidden rounded-2xl border border-hairline bg-surface">

@@ -189,7 +189,8 @@ describe("D-25 first run — the flow", () => {
     const signin = await findByTestId("first-run-signin");
     const rows = await findAllByTestId("first-run-signin-row");
     expect(rows.length).toBeGreaterThan(0);
-    expect(signin.textContent).toMatch(/apps? needs? a quick sign-in/);
+    expect(signin.textContent).toMatch(/Sign in to \d+ apps?\./);
+    expect(signin.textContent).toContain("Each opens its own sign-in page; AI Juggler never sees your password");
     const all = within(signin).queryByRole("button", { name: /Sign in to all/ });
     if (rows.length > 1) expect(all).not.toBeNull();
     await act(async () => {
@@ -826,7 +827,8 @@ describe("AJ-E1301 — Codex setups in first run", () => {
       fireEvent.click(getByTestId("first-run-bring-in"));
     });
     const signin = await findByTestId("first-run-signin");
-    expect(signin.textContent).toContain("Claude Code's or Codex's (OpenAI)");
+    // AJ-E1545 R8: each row names its own tool (icon and name); the header names none.
+    expect(signin.textContent).toContain("Each opens its own sign-in page");
   });
 
   it("adding for one tool lists only that tool's setups", async () => {

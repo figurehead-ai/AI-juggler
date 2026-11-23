@@ -5,6 +5,7 @@ import { providerDisplayName } from "../lib/providers";
 import { cliAppName } from "../lib/app-name";
 import { Button, Card, Chip, type ChipTone } from "../components/primitives";
 import { lazyNamed } from "../lib/lazy";
+import { SignInPanel } from "../components/SignInPanel";
 
 // xterm loads with the first terminal shown, not at start.
 const TerminalView = lazyNamed(() => import("../components/TerminalView"), "TerminalView", true);
@@ -60,24 +61,32 @@ export function SessionPanel({
   onOpenProject,
   onStopped,
   onHandover,
+  openLoginTerminal,
+  onSignInClosed,
 }: {
   session: InstanceInfo | null;
   project: ProjectInfo | null;
   loginTerminal?: { id: string; title: string; ended: boolean; account?: string } | null;
+  /** AJ-E1553: a sign-in's Try again joins the window and is shown. */
+  openLoginTerminal?: (id: string, title: string, options?: { account?: string }) => void;
+  /** AJ-E1553: a sign-in left the list (Done, Dismiss). */
+  onSignInClosed?: () => void;
   profiles: LaunchRecipeInfo[];
   accounts: AccountInfo[];
   onOpenProject: (id: string) => void;
   onStopped: () => void;
   onHandover: (sessionId: string, targetProfileId: string, targetLabel: string, targetPlaceId?: string | null) => void;
 }) {
-  const isLoginTerminal = Boolean(loginTerminal);
-  const title = loginTerminal?.title ?? (session ? cliAppName(session.provider, session.account_label) : "Session");
+  // AJ-E1545 R8 / AJ-E1553: a sign-in is its own page (its card, not a
+  // bare terminal); it finishes by itself.
+  if (loginTerminal) {
+    return <SignInPanel terminal={loginTerminal} accounts={accounts} openLoginTerminal={openLoginTerminal} onClosed={onSignInClosed} />;
+  }
+  const title = session ? cliAppName(session.provider, session.account_label) : "Session";
   const status = session?.status;
   const view = status ? statusTone(status) : null;
-  const terminalId = loginTerminal?.id ?? session?.id;
-  const live = session ? processRunning(session) : Boolean(loginTerminal && !loginTerminal.ended);
-  // The App this sign-in is for: its tool's own name, from its adapter.
-  const signInFor = loginTerminal?.account ? accounts.find((row) => row.id === loginTerminal.account) : undefined;
+  const terminalId = session?.id;
+  const live = session ? processRunning(session) : false;
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-4">
@@ -90,10 +99,10 @@ export function SessionPanel({
         />
         <h2 className="text-lg font-semibold tracking-tight">{title}</h2>
         {view && <Chip tone={view.tone}>{view.label}</Chip>}
-        {!isLoginTerminal && session && (
+        {session && (
           <Chip tone={session.kind === "desktop" ? "accent" : "neutral"}>{kindWords(session.kind)}</Chip>
         )}
-        {project && !isLoginTerminal && (
+        {project && (
           <button
             type="button"
             onClick={() => onOpenProject(project.id)}
@@ -131,18 +140,7 @@ export function SessionPanel({
         )}
       </Card>
 
-      {isLoginTerminal && !live && signInFor && (
-        <Card className="flex items-center gap-3 p-3" data-testid="sign-in-footer">
-          <span className="dot-live size-1.5 rounded-full bg-live" />
-          <p className="text-label leading-relaxed text-muted">
-            Complete {providerDisplayName(signInFor.provider)}'s sign-in above, then check the app again
-            from <span className="text-ink">Accounts</span> — it flips to
-            ready.
-          </p>
-        </Card>
-      )}
-
-      {!isLoginTerminal && session && (
+      {session && (
         <div className="flex flex-col gap-2">
           <p className="text-section font-semibold text-ink">
             Switch account
