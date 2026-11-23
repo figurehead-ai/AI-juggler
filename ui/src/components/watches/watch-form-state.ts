@@ -145,7 +145,9 @@ export function previewFacts(input: { state: FormState; offered: readonly Catalo
   const quiet = input.quiet ? (state.quiet ? PREVIEW.quietWakes(input.quiet.from, input.quiet.to) : PREVIEW.quietWaits(input.quiet.from, input.quiet.to)) : PREVIEW.noQuiet;
   const life = lifeOf(state);
   const at = life === "until" ? untilMs(state.untilDay, state.untilTime) : null;
+  // AJ-E2314 L4: Always said "Ends at midnight tonight." (no "Until…" time
+  // read as no time at all); only an "Until…" without one ends tonight.
   const ends =
-    life === "once" ? PREVIEW.onceEnds : life === "until_ends" ? PREVIEW.untilEnds(state.targets.length) : life === "today" || at === null ? PREVIEW.todayEnds : life === "until" ? PREVIEW.untilEndsAt(whenWords(at, input.now)) : PREVIEW.alwaysEnds;
+    life === "once" ? PREVIEW.onceEnds : life === "until_ends" ? PREVIEW.untilEnds(state.targets.length) : life === "until" && at !== null ? PREVIEW.untilEndsAt(whenWords(at, input.now)) : life === "today" || life === "until" ? PREVIEW.todayEnds : PREVIEW.alwaysEnds;
   return { echo: input.echo, was: input.was, title, line, shows, quiet, quietWakes: state.quiet, ends, endsKind: life };
 }
