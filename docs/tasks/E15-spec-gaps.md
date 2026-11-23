@@ -700,3 +700,25 @@ What the code does today (mapped 2026-10-22 on release/0.1): a same-tool switch 
 **Files to touch**: `crates/juggler-stats/`, `docs/usage-stats.md`.
 **Research basis**: Max-Depth report (north star).
 **Handover note**: —
+
+### AJ-E1545 Welcome leads into a guided setup wizard (find your apps, permissions one card each with live grant detection, keep it running, the tour), and every brand mark is the real app icon | Status: TODO (0.5.1) | Priority P0 | Effort L | Depends: AJ-E1524, AJ-E1527
+**Found** by the maintainer testing the 0.5.0 nightly (2026-11-23): the Welcome left a newcomer on their own, "Make it smoother" sat on it as a card, and the logo on it was the small three-dot IconJuggler rather than the app's real icon.
+**Requirements**:
+1. The Welcome leads with "Let's get you set up"; its primary "Get started" opens a step-by-step wizard (rich mode of the design system: sticky header and footer, a step indicator). Nobody is left on their own.
+2. Step 1, Find your apps: discovery and import, what was found shown with the apps' own icons read at run time.
+3. Step 2, "Let AI Juggler work with your Mac": each permission its own card (what it does, a short clip of the effect, "macOS will ask you; optional; change it later in Settings"); Allow opens the system prompt and the step sees the grant live (✓); Skip for now always there. Only the permissions this setup can use (D-127). "Make it smoother" leaves the Welcome: its card becomes this step.
+4. Step 3, Keep it running: the login item and keep awake, by the always-on rules, only where they apply.
+5. Step 4 offers the guided tour (AJ-E1546).
+6. Every large brand mark is one SVG of the real app icon (three balls on the arc, lavender top, indigo left, cyan right, with the glow; `crates/juggler-app/icons/icon.png`); small sizes a simplified arc and balls that stays the same mark.
+**Quality gates**: `just keep-going verify-static`; unit tests for the steps, the live grant and Skip; the a11y gate; an Opus side-by-side critique in both themes against the design system and the mock-ups before any baseline; a Sonnet newcomer-persona walk of first launch on a fresh Dev data folder.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E1545/manifest.md`.
+
+### AJ-E1546 A guided tour on the real UI, offered once, and short clips for every "What it does for you" card and "How it works" step | Status: TODO (0.5.1) | Priority P1 | Effort L | Depends: AJ-E1545
+**Found** by the maintainer testing the 0.5.0 nightly (2026-11-23): nothing showed a newcomer around, and the "What it does for you" and "How it works" words had nothing to show the effect.
+**Requirements**:
+1. The tour is offered at the end of setup and from Help › "Take the tour": coach marks anchored by element id to the real UI (Open now, Needs you, a session page, usage and runway, Continue in another app and Move, Pools, Processes, Settings). A step whose target isn't on screen (an empty state) shows its clip instead. Back, Next, Skip, a progress bar, Esc ends it.
+2. The steps live in a registry, each with a feature id and the version it came in; completion is stored per id. A completed tour is never offered again; after an update, only the new features' steps are offered, once, as a calm "New in 0.5.x · Show me".
+3. Keyboard and a focus trap, reduced motion honoured, the a11y gate.
+4. Clips: a 3–6 s loop for every "What it does for you" card and every "How it works" step; muted, inline, paused off screen, a still poster under prefers-reduced-motion; lazy-loaded, about 400 KB or less each, in both themes. Recorded from generic fixtures only (never real names), with what is already installed (Playwright's cached ffmpeg); anything that needs a download is asked first.
+**Quality gates**: `just keep-going verify-static`; unit tests for the registry, per-id completion and the "New in" offer; the a11y gate; clip size budget; an Opus side-by-side critique in both themes; the newcomer-persona walk through the tour.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E1546/manifest.md`.
