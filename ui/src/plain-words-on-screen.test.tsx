@@ -75,14 +75,15 @@ describe("nothing internal on screen (D-25)", () => {
       app: [{ id: 7, kind: "quota", needs: true, title: "West is almost out of room", detail: "7% of its 5-hour window left", project_id: null, project: null, target, facts, action: "hand-over", meter: 7, created_ms: Date.now(), unread: true, subject: "n:7", snoozed: false, snoozed_until_ms: null, muted: false, dismissed: false }],
     };
     resetNoticeStandIn();
-    const view = render(<SessionNotices accountId="acc-west" switchKey="s-1" reminderKey="s-1" parkedId="s-1" sessions={[LIVE]} />);
+    const view = render(<SessionNotices accountId="acc-west" reminderKey="s-1" parkedId="s-1" sessions={[LIVE]} />);
     const banner = await view.findByTestId("session-notice-quota");
     const text = banner.textContent ?? "";
     expect(leaks(text)).toEqual([]);
     expect(text).toContain("This session's account, West, is almost out of room");
     expect(text).toMatch(/7% of its 5-hour window left · resets at .+ · 1 session uses it/);
     // D-87: it acts on the session it sits beside, and says so.
-    expect(view.getByTestId("session-notice-hand-over").textContent).toBe("Switch account…");
+    // AJ-E1548 #13: no second Switch account… beside the side column's.
+    expect(view.queryByTestId("session-notice-hand-over")).toBeNull();
     // 0.3.2: the reminder names its time ("Queue for the reset" said nothing).
     expect(view.getByTestId("session-notice-remind").textContent).toMatch(/^Remind me at .+$/);
     delete seams.__AIJ_NOTICES__;

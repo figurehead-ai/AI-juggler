@@ -101,7 +101,7 @@ export type InspectorData = {
  * (D-103.3: its account's notice is a line under Continue there). */
 function OwnNotices({ id, sessions }: { id: string; sessions: InstanceInfo[] }) {
   const session = sessions.find((s) => s.id === id);
-  return <SessionNotices accountId={session?.account_id ?? null} quiet={session !== undefined && !statusLive(session.status)} switchKey={id} reminderKey={id} parkedId={id} sessions={sessions} />;
+  return <SessionNotices accountId={session?.account_id ?? null} quiet={session !== undefined && !statusLive(session.status)} reminderKey={id} parkedId={id} sessions={sessions} />;
 }
 
 /** The registry's page type for an inspector selection. */

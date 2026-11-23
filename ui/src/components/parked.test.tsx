@@ -68,7 +68,7 @@ describe("AJ-E1003 the reset offer, on its session's page (D-87)", () => {
     w().__AIJ_PARKED_OFFERS__ = [
       { session_id: "s1", account_label: "Claude Max 20x", text: "Claude Max 20x has reset. Resume the work you parked.", last: false },
     ];
-    const own = () => <SessionNotices accountId="acc-1" switchKey="s1" reminderKey="s1" parkedId="s1" sessions={[]} />;
+    const own = () => <SessionNotices accountId="acc-1" reminderKey="s1" parkedId="s1" sessions={[]} />;
     const { container, unmount } = render(own());
     await waitFor(() => expect(container.querySelector("[data-testid='session-notice-parked']")).not.toBeNull());
     expect(container.querySelector("[data-testid='session-notice-parked-snooze']")!.textContent).toBe("Remind me in 30 min");
@@ -90,7 +90,7 @@ describe("AJ-E1003 the reset offer, on its session's page (D-87)", () => {
     expect(calls()).toContain("resume:s1");
     second.unmount();
     // Another session's page never shows it.
-    const other = render(<SessionNotices accountId="acc-1" switchKey="s2" reminderKey="s2" parkedId="s2" sessions={[]} />);
+    const other = render(<SessionNotices accountId="acc-1" reminderKey="s2" parkedId="s2" sessions={[]} />);
     await act(async () => new Promise((done) => setTimeout(done, 20)));
     expect(other.container.querySelector("[data-testid='session-notice-parked']")).toBeNull();
   });

@@ -28,7 +28,7 @@ const quota = (id: number, account: string, name: string) => ({ id, kind: "quota
 const LIVE = { id: "s-1", account_id: "acc-west", status: "running", started_at_ms: 1, last_activity_ms: 2, git_branch: "login-flow", cwd: "/w/app" } as unknown as InstanceInfo;
 
 /** West's session's page: its own notices. */
-const page = () => render(<SessionNotices accountId="acc-west" switchKey="s-1" reminderKey="s-1" parkedId="s-1" sessions={[LIVE]} />);
+const page = () => render(<SessionNotices accountId="acc-west" reminderKey="s-1" parkedId="s-1" sessions={[LIVE]} />);
 
 beforeEach(() => {
   resetToasts();
@@ -70,7 +70,7 @@ describe("D-87 the band over a page", () => {
 });
 
 describe("D-87 a session's page: its own notices, inline", () => {
-  it("its own account, in its words, whose Continue opens its own switch; never another account's", async () => {
+  it("its own account, in its words, with Remind and Snooze and no switch of its own; never another account's", async () => {
     seams.__AIJ_NOTICES__ = { app: [quota(1, "acc-west", "West"), quota(2, "acc-work", "Work")] };
     const opened = vi.spyOn(focus, "focusHandoverSoon").mockImplementation(() => undefined);
     page();
@@ -78,15 +78,15 @@ describe("D-87 a session's page: its own notices, inline", () => {
     expect(screen.getAllByTestId("session-notice-quota")).toHaveLength(1);
     expect(own.textContent).toContain("This session's account, West, is almost out of room");
     expect(own.textContent).not.toContain("Work");
-    expect(screen.getByTestId("session-notice-hand-over").textContent).toBe("Switch account…");
-    fireEvent.click(screen.getByTestId("session-notice-hand-over"));
-    expect(opened).toHaveBeenCalledWith("s-1");
+    // AJ-E1548 #13: the side column's Switch account… is the page's one door.
+    expect(screen.queryByTestId("session-notice-hand-over")).toBeNull();
+    expect(opened).not.toHaveBeenCalled();
     expect(screen.getByTestId("session-notice-remind").textContent).toMatch(/^Remind me at .+$/);
   });
 
   it("another account's session's page shows nothing of it", async () => {
     seams.__AIJ_NOTICES__ = { app: [quota(2, "acc-work", "Work")] };
-    render(<SessionNotices accountId="acc-west" switchKey="s-1" reminderKey="s-1" parkedId="s-1" sessions={[LIVE]} />);
+    render(<SessionNotices accountId="acc-west" reminderKey="s-1" parkedId="s-1" sessions={[LIVE]} />);
     await act(async () => new Promise((done) => setTimeout(done, 20)));
     expect(screen.queryByTestId("session-notices")).toBeNull();
   });

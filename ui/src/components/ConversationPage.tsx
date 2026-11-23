@@ -210,7 +210,7 @@ function ConversationView({
         subject={`${conversation.account_id}:${conversation.id}`}
         switchKey={model.switchSource}
         // D-103.3: an ended one's page stays quiet (its account's notice is a line under Continue).
-        notice={<SessionNotices accountId={conversation.account_id} quiet={!conversation.live} switchKey={model.switchSource} reminderKey={`${REMINDER_CONVERSATION}${conversation.id}`} parkedId={null} sessions={NO_SESSIONS} />}
+        notice={<SessionNotices accountId={conversation.account_id} quiet={!conversation.live} reminderKey={`${REMINDER_CONVERSATION}${conversation.id}`} parkedId={null} sessions={NO_SESSIONS} />}
         tabs={tabs}
         header={
           <PageHeader
