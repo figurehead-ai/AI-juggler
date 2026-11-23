@@ -763,7 +763,7 @@ Step 2, "Sign in": (1) a newcomer signing in expects the provider's own page, no
 **Quality gates**: `just keep-going verify-static` with the new lint; registry tests (every entry complete, every gated path named); the gate's sheet and outcome tests; the a11y gate; an Opus critique in both themes.
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E1547/manifest.md` with the registry and the walk's dialog log.
 
-### AJ-E1548 The 0.5.0 usability audit's findings, fixed in 0.5.1: one name per thing, no rows nobody can use, every mark and limit said plainly | Status: TODO (0.5.1) | Priority P1 | Effort M | Depends: AJ-E3823
+### AJ-E1548 The 0.5.0 usability audit's findings, fixed in 0.5.1: one name per thing, no rows nobody can use, every mark and limit said plainly | Status: DONE (0.5.1) | Priority P1 | Effort M | Depends: AJ-E3823
 **Found** by the PAT-USE audit of every feature 0.5.0 shipped (`docs/qa/0.5.1-usability-audit.md`, Opus, 2026-11-23): 28 findings, none a blocker. The 21 below change words or looks only and go in under the continuous-train rule. Seven change behaviour (#2, #5, #9, #13, #14, #15, #27); the coordinator ruled on them (requirement 10), so all are built in 0.5.1.
 **UI**: yes
 **Usability reasoning** (Opus, before building; re-checked on the built screen):
