@@ -398,7 +398,7 @@ Every check starts with an allowlist that may only shrink.
 **Research basis**: ADR-0035; D-128 point 3; D-129 order.
 **Handover note**: the signing key stays off the repo; Opus owns the review of the workflow.
 
-### AJ-E2023 Remote configuration, step 4: flags (remote: OffOnly, OnOff or Rollout) and notices, with their UI through the D-126 Alert (ADR-0035, D-129) | Status: TODO | Priority P1 | Effort M | Depends: AJ-E2021
+### AJ-E2023 Remote configuration, step 4: flags (remote: OffOnly, OnOff or Rollout) and notices, with their UI through the D-126 Alert (ADR-0035, D-129) | Status: DONE-EVIDENCED (backend+data layer 2026-11-18; the band's notice banner, the Privacy row + remote_config_set_check and tests 2026-11-23; evidence docs/qa/evidence/AJ-E2023/manifest.md) | Priority P1 | Effort M | Depends: AJ-E2021
 **Goal**: A feature can be turned on or off for a share of people, and a short message can reach everyone, both without a release.
 **User story**: As a user, I see a short notice when something needs my attention (a known problem with a tool update), and I can switch off "Check for configuration updates" in Settings.
 **Requirements**:

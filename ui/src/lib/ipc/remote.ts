@@ -104,6 +104,12 @@ export async function remoteAbout(): Promise<RemoteAboutInfo> {
   return call("remote_config_about");
 }
 
+/** AJ-E2023 Req.3: Settings ▸ Privacy "Check for configuration
+ * updates" (on by default, D-129). */
+export async function remoteConfigSetCheck(enabled: boolean): Promise<void> {
+  await call("remote_config_set_check", { enabled });
+}
+
 /** Calls `on` whenever the configuration changes: the backend's word
  * while the window can be seen (read again once when it shows), and the
  * preview's own changes. Returns the stop. */
