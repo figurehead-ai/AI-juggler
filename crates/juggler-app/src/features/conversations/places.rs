@@ -12,7 +12,7 @@
 
 use std::path::{Path, PathBuf};
 
-use juggler_adapter::live::{HostApp, HostKind};
+use juggler_adapter::live::{HostApp, HostKind, LiveSession};
 
 use super::procs::{Table, ancestors};
 use crate::features::ownership;
@@ -277,6 +277,62 @@ pub fn host_of(pid: u32, table: &Table, hosts: &HostRegistry, home: &Path) -> Op
     })
 }
 
+/// E13 (the review's, an AJ-E2315 leftover): the host of `session`,
+/// running as `pid` with its pid file in tool folder `folder`. The chain
+/// rule ([`host_of`]) finds the app whose window it is in; but only a
+/// session the app's instance started itself (its parents up to the
+/// instance's main process all programs of the app's bundle, by the
+/// shared ownership module's [`ownership::sessions`] rule) is that
+/// instance's. A command line run from a shell inside the app (`claude`
+/// typed in a Code-tab session's terminal: a nested CLI, which may use
+/// any Account's folder) runs in the app's window only: Go to it brings
+/// that process forward, but it claims neither the app nor its instance,
+/// so its App and Account are its pid file folder's, never the profile's
+/// (Open now and the profile's session list counted it under the
+/// profile).
+#[must_use]
+pub fn session_host(
+    pid: u32,
+    (folder, session): (&Path, &LiveSession),
+    table: &Table,
+    hosts: &HostRegistry,
+    home: &Path,
+) -> Option<Host> {
+    let host = host_of(pid, table, hosts, home)?;
+    let (Some(app), Some(dir), Some(HostKind::Desktop)) = (
+        host.app_id.as_deref().and_then(|id| hosts.by_id(id)),
+        host.instance_dir.as_deref(),
+        host.kind,
+    ) else {
+        return Some(host);
+    };
+    let Some((bundle, _)) = table
+        .get(&host.pid)
+        .and_then(|main| main.exe.as_deref())
+        .and_then(outer_bundle)
+    else {
+        return Some(host);
+    };
+    let instance = ownership::InstanceKey::of(dir);
+    let under = ownership::sessions::Under {
+        app,
+        bundle: &bundle,
+        home,
+        instance: &instance,
+    };
+    let folders = [(folder.to_path_buf(), vec![session.clone()])];
+    if ownership::sessions::folder_of_sessions(table, &under, &folders).is_some() {
+        return Some(host);
+    }
+    Some(Host {
+        app_id: None,
+        kind: None,
+        instance_dir: None,
+        instance: None,
+        ..host
+    })
+}
+
 /// A desktop app's main process running now (0.3.3): its bundle, and the
 /// instance it runs as.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -453,6 +509,84 @@ mod tests {
                 .and_then(|app| app.folder_link.clone())
                 .as_deref(),
             Some("cursor://file/{folder}")
+        );
+    }
+
+    /// E13: a `claude` typed in a Code-tab session's terminal (a nested
+    /// command line, on another Account's folder) is in the profile's
+    /// window, but not the profile's: its App is its pid file folder's CLI
+    /// App. The Code tab's own session stays the profile's.
+    #[test]
+    fn a_nested_command_line_is_in_the_apps_window_but_never_its_profiles() {
+        let home = Path::new("/Users/you");
+        let profile = "/Users/you/Library/Application Support/ClaudeProfiles/work";
+        let table: Table = claude_on(profile, &["disclaimer"])
+            .into_iter()
+            .chain([
+                // The Code tab's own session, and a shell in it.
+                proc(
+                    12,
+                    11,
+                    &format!("{profile}/claude-code/2.1/claude"),
+                    &["claude"],
+                ),
+                proc(13, 12, "/bin/zsh", &["-zsh"]),
+                // `claude` typed there, on team-a's folder.
+                proc(14, 13, "/Users/you/.local/bin/claude", &["claude"]),
+            ])
+            .collect();
+        let session = |pid: u32| LiveSession {
+            session_id: format!("s-{pid}"),
+            pid: Some(pid),
+            started_secs: Some(i64::from(pid) * 10),
+            ..LiveSession::default()
+        };
+        let work = Path::new("/Users/you/.claude-profiles/work");
+        let team = Path::new("/Users/you/.claude-profiles/team-a");
+        let hosts = hosts();
+        let own = session_host(12, (work, &session(12)), &table, &hosts, home).unwrap();
+        assert_eq!(own.instance_dir.as_deref(), Some(Path::new(profile)));
+        assert_eq!(own.app_id.as_deref(), Some("claude-app"));
+        // The chain alone (before) took the nested one as the profile's.
+        let chained = host_of(14, &table, &hosts, home).unwrap();
+        assert_eq!(chained.instance_dir.as_deref(), Some(Path::new(profile)));
+        let nested = session_host(14, (team, &session(14)), &table, &hosts, home).unwrap();
+        assert_eq!(nested.pid, 10, "Go to it brings the app's window");
+        assert_eq!(
+            (
+                nested.app_id,
+                nested.kind,
+                nested.instance_dir,
+                nested.instance
+            ),
+            (None, None, None, None),
+            "it claims neither the app nor its profile"
+        );
+        // Its App: its pid file folder's, never the profile's.
+        let place = |host: Host, folder: &Path| super::super::scan::Place {
+            pid: 14,
+            start: Some(140),
+            host: Some(host),
+            profile: Some(folder.to_path_buf()),
+            app_session: None,
+        };
+        let tools = ["claude-app".to_owned()];
+        let owner = |host: Host| {
+            crate::features::presence::live_owner(
+                &tools,
+                Some(&place(host, team)),
+                "/Users/you/.claude-profiles/team-a",
+            )
+        };
+        let nested = session_host(14, (team, &session(14)), &table, &hosts, home).unwrap();
+        assert_eq!(
+            owner(nested),
+            juggler_core::storage::cli_app_id("/Users/you/.claude-profiles/team-a")
+        );
+        assert_ne!(
+            owner(chained),
+            juggler_core::storage::cli_app_id("/Users/you/.claude-profiles/team-a"),
+            "the chain alone counted it under the profile"
         );
     }
 
