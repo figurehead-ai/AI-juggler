@@ -33,18 +33,18 @@ describe("a board column", () => {
     // The Ready column never answers; the others are empty.
     vi.spyOn(ipc, "tasksAcross").mockImplementation((filter) => (filter.status === "ready" ? never() : Promise.resolve(none)));
     board();
-    await expectSlowSkeleton("tasks-column-ready-skeleton");
+    await expectSlowSkeleton("tasks-skeleton-ready");
   });
   it("empty", async () => {
     vi.spyOn(ipc, "tasksAcross").mockResolvedValue(none);
     board();
-    await expectEmpty("tasks-column-ready-empty", "Nothing ready to take.", "tasks-column-ready-skeleton");
+    await expectEmpty("tasks-empty-ready", "Nothing ready to take.", "tasks-skeleton-ready");
   });
   it("error with Retry", async () => {
     const read = vi.spyOn(ipc, "tasksAcross").mockImplementation((filter) => (filter.status === "ready" ? Promise.reject(new Error("down")) : Promise.resolve(none)));
     board();
-    await expectErrorRetry("the ready tasks", read, "tasks-column-ready-skeleton");
-    await screen.findByTestId("tasks-column-blocked-empty");
+    await expectErrorRetry("the ready tasks", read, "tasks-skeleton-ready");
+    await screen.findByTestId("tasks-empty-blocked");
   });
 });
 

@@ -75,7 +75,7 @@ function Column({ status, count, ...shared }: Shared & { status: string; count: 
         slow={shown.slow}
         what={`the ${STATUS_WORDS[status]!.toLowerCase()} tasks`}
         skeleton={
-          <ul className="flex flex-col gap-2" aria-label={STATUS_WORDS[status]} aria-busy="true" data-testid={`tasks-column-${status}-skeleton`}>
+          <ul className="flex flex-col gap-2" aria-label={STATUS_WORDS[status]} aria-busy="true" data-testid={`tasks-skeleton-${status}`}>
             {/* As many cards as the count says (0.3.4: two everywhere was
                 taller than most columns); an empty column, its note's height. */}
             {count === 0 ? <li aria-hidden="true" className="h-[2.875rem] rounded-lg bg-skeleton motion-safe:animate-pulse" /> : <Skeleton rows={count === null ? 2 : Math.min(count, COLUMN_PAGE)} />}
@@ -83,7 +83,7 @@ function Column({ status, count, ...shared }: Shared & { status: string; count: 
         }
         empty={
           <ul className="flex flex-col gap-2" aria-label={STATUS_WORDS[status]}>
-            <li className="rounded-lg border border-dashed border-hairline px-3 py-3 text-meta text-muted" data-testid={`tasks-column-${status}-empty`}>
+            <li className="rounded-lg border border-dashed border-hairline px-3 py-3 text-meta text-muted" data-testid={`tasks-empty-${status}`}>
               {EMPTY[status]}
             </li>
           </ul>
