@@ -889,7 +889,7 @@ Step 2, "Sign in": (1) a newcomer signing in expects the provider's own page, no
 **Quality gates**: `just keep-going verify-static`; per-adapter tests for success detection, an early exit and stale-entry cleanup; the persona walk signs in through the wizard and sees the rail's entry leave.
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E1553/manifest.md`.
 
-### AJ-E1554 The rail's rows hold still on hover, and every group says quietly what more there is, one click from it | Status: TODO (0.5.1) | Priority P1 | Effort M | Depends: AJ-E1550, AJ-E2327
+### AJ-E1554 The rail's rows hold still on hover, and every group says quietly what more there is, one click from it | Status: DONE (0.5.1) | Priority P1 | Effort M | Depends: AJ-E1550, AJ-E2327
 **Found** by the maintainer on the 0.5.0 Nightly (2026-11-23): on hover a session row's actions (grip, pin, open) cover its title and a handle mark slides under the status dot, which looks broken; and the rail, calm with only open sessions, gave no sign of what else exists (a main session with 6 subagents running and 220 in all showed nothing of them).
 **UI**: yes
 **Usability reasoning** (Opus, before building; re-checked on the built screen):
