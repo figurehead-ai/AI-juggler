@@ -28,7 +28,7 @@ pub fn page_allowed(url: &Url) -> bool {
 /// The colour a window paints before its page does, and wherever the page
 /// has nothing on screen (AJ-E1549): the dark theme's canvas,
 /// `--color-canvas` in `ui/src/styles.css` (dark is the default theme).
-/// Without one, the web view keeps WebKit's own opaque white under the
+/// Without one, the web view keeps its own opaque white under the
 /// page, and a window shown again, or seen again after the page was
 /// suspended behind another window, flashed white for a frame. The page
 /// sets its theme's own colour at run time (`ui/src/theme.ts`).
