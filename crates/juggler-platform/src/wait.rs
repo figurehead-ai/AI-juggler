@@ -289,6 +289,7 @@ mod imp {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[cfg(target_os = "macos")]
     use std::io::Write as _;
     use std::process::{Child, Command};
     use std::time::Instant;
@@ -353,7 +354,10 @@ mod tests {
 
     /// Files that hold still are calm after one window; a writer that
     /// keeps writing is busy at the cap, and one that stops is calm a
-    /// window after its last write.
+    /// window after its last write. macOS only: the file watcher is
+    /// kqueue's (the module's notes); elsewhere none is built yet (D-52:
+    /// each OS gets its own release), and the next test covers that.
+    #[cfg(target_os = "macos")]
     #[test]
     fn quiet_files_are_calm_after_one_window_and_a_writer_keeps_it_busy() {
         let tmp = tempfile::tempdir().unwrap();
@@ -387,6 +391,22 @@ mod tests {
             Quiet::Calm
         );
         assert!(t0.elapsed() < Duration::from_secs(1));
+    }
+
+    /// Where no file watcher is built (Linux, Windows): one window is
+    /// waited, never more, and the answer says nothing was watched, so the
+    /// caller's own look of sizes and times decides.
+    #[cfg(not(target_os = "macos"))]
+    #[test]
+    fn without_a_watcher_one_window_is_waited_and_nothing_is_claimed() {
+        let tmp = tempfile::tempdir().unwrap();
+        std::fs::write(tmp.path().join("s.jsonl"), b"{}\n").unwrap();
+        let window = Duration::from_millis(300);
+        let t0 = Instant::now();
+        let quiet = quiet_for(&[tmp.path().to_path_buf()], window, Duration::from_secs(5));
+        let took = t0.elapsed();
+        assert_eq!(quiet, Quiet::Unwatched);
+        assert!(took >= window && took < Duration::from_secs(1), "{took:?}");
     }
 
     /// The watch list keeps the given paths first and stays bounded.
