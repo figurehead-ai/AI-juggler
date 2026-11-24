@@ -49,6 +49,8 @@ import { useRuntimeView } from "../lib/ipc/runtime";
 import { launchSettingsName } from "../lib/account-words";
 import { memorySize } from "../lib/compact";
 import { Disclosure } from "./controls";
+import { Alert } from "./Alert";
+import { IconInfo } from "./icons-actions";
 
 /**
  * RightInspector — the page of a session, a project, an account or a
@@ -84,6 +86,12 @@ function HonestEmpty({ tab }: { tab: EmptyTab }) {
     </div>
   );
 }
+
+/** 0.5.1 F70: a desktop app that signs in to one account at a time, in
+ * plain words (Add an app says the same, 38-flows-cde). */
+const ONE_ACCOUNT_APP = "One account at a time: AI Juggler can't open a second copy of this app, so one session at a time with it.";
+/** 0.5.1 F70: why the session's own window didn't come forward. */
+const A11Y_WHY = "AI Juggler opened the app, but bringing this session's own window forward needs Accessibility permission for AI Juggler.";
 
 /** One resolved selection (the caller owns lookup). */
 export type InspectorData = {
@@ -642,15 +650,13 @@ function InstanceOverview(props: PanelProps) {
               </span>
             </div>
             {session.isolation_label !== null && (
-              <div
-                className="flex items-start gap-2.5 rounded-lg border border-warning/25 bg-warning-soft p-2.5"
-                data-testid="desktop-isolation"
-              >
-                <Chip tone="warning">isolation</Chip>
-                <p className="text-meta leading-relaxed text-ink">
-                  {session.isolation_label}
-                </p>
-              </div>
+              // 0.5.1 F70: a fact, said as one plain line in the panel's
+              // tone (no amber behind words, PAT-COLOR-2; no internal
+              // words): the tool's label only says that it applies.
+              <p className="flex items-start gap-2 text-meta text-ink-2" data-testid="desktop-isolation">
+                <IconInfo aria-hidden="true" width={16} height={16} className="mt-px shrink-0 text-faint" />
+                <span>{ONE_ACCOUNT_APP}</span>
+              </p>
             )}
             {focusOutcome !== null && (
               <p className="text-meta text-ink-2" data-testid="desktop-focus-outcome">
@@ -661,38 +667,42 @@ function InstanceOverview(props: PanelProps) {
               </p>
             )}
             {focusOutcome?.permission_missing === true && !explainerDismissed && (
-              <div
-                role="note"
+              // 0.5.1 F70: the user must act, so a needs-you Alert (an
+              // amber mark, never an amber card), in plain words, and its
+              // action a secondary: the header's Go to it stays the one
+              // filled button (BTN-1).
+              <Alert
+                level="needs-you"
                 aria-label="Accessibility permission explainer"
-                className="flex flex-col gap-2 rounded-lg border border-warning/25 bg-warning-soft p-2.5"
-                data-testid="desktop-a11y-explainer"
+                testId="desktop-a11y-explainer"
+                title="Needs Accessibility"
+                actions={
+                  <>
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      data-testid="open-a11y-settings"
+                      onClick={() => {
+                        void import("../lib/ipc/settings").then((bridge) => bridge.openAccessibilitySettings());
+                      }}
+                    >
+                      Open System Settings…
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => {
+                        localStorage.setItem("aij.a11y-explainer.dismissed", "1");
+                        setExplainerDismissed(true);
+                      }}
+                    >
+                      Don’t show again
+                    </Button>
+                  </>
+                }
               >
-                <p className="text-meta leading-relaxed text-ink">
-                  Juggler can open the app; exact-window focus needs Accessibility permission
-                </p>
-                <div className="flex items-center gap-2">
-                  <Button
-                    size="sm"
-                    variant="primary"
-                    data-testid="open-a11y-settings"
-                    onClick={() => {
-                      void import("../lib/ipc/settings").then((bridge) => bridge.openAccessibilitySettings());
-                    }}
-                  >
-                    Open System Settings…
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => {
-                      localStorage.setItem("aij.a11y-explainer.dismissed", "1");
-                      setExplainerDismissed(true);
-                    }}
-                  >
-                    Don’t show again
-                  </Button>
-                </div>
-              </div>
+                {A11Y_WHY}
+              </Alert>
             )}
             {!live && (
               <p className="text-label text-muted" data-testid="desktop-state-line">
@@ -702,7 +712,7 @@ function InstanceOverview(props: PanelProps) {
               </p>
             )}
             <p className="text-label text-muted">
-              The window is the app's own; Juggler tracks the process, never embeds it.
+              The window is the app's own: AI Juggler follows its process and never draws it here.
               Focus matches this session's recorded window — a stale title or a collision is
               reported, never guessed to a wrong window.
             </p>

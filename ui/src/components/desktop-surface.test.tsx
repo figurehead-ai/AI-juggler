@@ -146,9 +146,12 @@ describe("AJ-E413 desktop Instance surface (Req.3)", () => {
     expect(surface.textContent).toContain("No usage recorded yet");
   });
 
-  it("shows the single-account isolation claim verbatim as a warning", () => {
+  it("0.5.1 F70: says what a one-account app means in plain words, with no amber behind them", () => {
     const { container } = shell(mk());
-    expect(container.querySelector('[data-testid="desktop-isolation"]')?.textContent).toContain(LABEL);
+    const note = container.querySelector<HTMLElement>('[data-testid="desktop-isolation"]')!;
+    expect(note.textContent).toBe("One account at a time: AI Juggler can't open a second copy of this app, so one session at a time with it.");
+    expect(note.textContent).not.toContain(LABEL);
+    expect(note.outerHTML).not.toMatch(/warning/);
   });
 
   it("hides the isolation callout when the provider has no label (null, never guessed)", () => {
@@ -179,9 +182,15 @@ describe("AJ-E413 desktop Instance surface (Req.3)", () => {
       expect(node).not.toBeNull();
       return node!;
     });
+    // 0.5.1 F70: plain words, an amber mark (no amber card), and its
+    // action a secondary: the header's Go to it is the one filled button.
     expect(explainer.textContent).toContain(
-      "Juggler can open the app; exact-window focus needs Accessibility permission",
+      "AI Juggler opened the app, but bringing this session's own window forward needs Accessibility permission for AI Juggler.",
     );
+    expect(explainer.textContent).not.toMatch(/(^|[^I] )Juggler/);
+    expect(explainer.getAttribute("data-level")).toBe("needs-you");
+    expect(explainer.className).not.toMatch(/bg-warning/);
+    expect(explainer.querySelector('[data-testid="open-a11y-settings"]')?.hasAttribute("data-primary")).toBe(false);
     // Copy-exact explainer + a deep-link button; dismissal persists and
     // the next degraded attempt stays quiet.
     expect(explainer.querySelector('[data-testid="open-a11y-settings"]')).not.toBeNull();
