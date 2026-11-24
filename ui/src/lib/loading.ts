@@ -17,7 +17,7 @@
  * all of it to a screen's own read; `useLoadDeadline` gives the same
  * clock to a loading state a component derives itself.
  */
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 export type LoadState = "loading" | "ready" | "empty" | "error" | "stale";
 
@@ -120,4 +120,30 @@ export function useReadState<T>(
   const { slow, timedOut } = useLoadDeadline(waiting && !failed, what, { round, timeoutMs });
   if (!waiting) return { state: isEmpty(data) ? "empty" : "ready", slow: false };
   return { state: failed || timedOut ? "error" : "loading", slow };
+}
+
+/** A screen's own read failure and its Retry (AJ-E1552): `failed` is the
+ * last read's cause (cleared with `setFailed(undefined)` on an answer),
+ * `round` a count a read's effect depends on, so `retry` clears the
+ * failure and reads again. */
+export function useRetry(): { failed: unknown; setFailed: (cause: unknown) => void; round: number; retry: () => void } {
+  const [failed, setFailed] = useState<unknown>(undefined);
+  const [round, setRound] = useState(0);
+  const retry = useCallback(() => {
+    setFailed(undefined);
+    setRound((was) => was + 1);
+  }, []);
+  return { failed, setFailed, round, retry };
+}
+
+/** A screen's own read of `data` with its Retry: `useRetry` and
+ * `useReadState` together, for a read that knows its emptiness up front. */
+export function useRetriedRead<T>(
+  data: T | null | undefined,
+  what: string,
+  { isEmpty }: { isEmpty?: (data: T) => boolean } = {},
+): { state: LoadState; slow: boolean; setFailed: (cause: unknown) => void; round: number; retry: () => void } {
+  const { failed, setFailed, round, retry } = useRetry();
+  const { state, slow } = useReadState(data, what, { error: failed, round, isEmpty });
+  return { state, slow, setFailed, round, retry };
 }

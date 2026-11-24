@@ -21,7 +21,7 @@
 import { useEffect, useState, type JSX } from "react";
 import { Button } from "../../components/primitives";
 import { LoadingState } from "../../components/LoadingState";
-import { useReadState } from "../../lib/loading";
+import { useRetriedRead } from "../../lib/loading";
 import { Pill } from "../../components/Pill";
 import { IconStateFinished } from "../../components/icons";
 import { IconRemove, IconReplay, IconStop } from "../../components/icons-actions";
@@ -124,9 +124,7 @@ export function TaskView({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // AJ-E1552: the task's read failure, and its Retry.
-  const [failed, setFailed] = useState<unknown>(undefined);
-  const [round, setRound] = useState(0);
-  const load = useReadState(detail, "this task", { error: failed, round, isEmpty: () => false });
+  const { setFailed, round, retry, ...load } = useRetriedRead(detail, "this task", { isEmpty: () => false });
   const asks = useTaskAsks({ taskId });
   useEffect(() => {
     let alive = true;
@@ -175,10 +173,7 @@ export function TaskView({
           </output>
         }
         empty={null}
-        onRetry={() => {
-          setFailed(undefined);
-          setRound((was) => was + 1);
-        }}
+        onRetry={retry}
       >
         {null}
       </LoadingState>

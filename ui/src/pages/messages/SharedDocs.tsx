@@ -7,7 +7,7 @@
 import { useEffect, useState, type JSX } from "react";
 import { Button } from "../../components/primitives";
 import { errorText } from "../../lib/bridge";
-import { useReadState } from "../../lib/loading";
+import { useRetriedRead } from "../../lib/loading";
 import { LoadingState } from "../../components/LoadingState";
 import { ago } from "../../lib/time-words";
 import { messagesDoc, messagesDocs, onMessagesChanged, type DocContent, type DocInfo } from "../../lib/ipc/messages";
@@ -27,9 +27,7 @@ export function SharedDocs({ poolId, now }: { poolId: string; now: number }): JS
   const [open, setOpen] = useState<DocContent | null>(null);
   const [error, setError] = useState<string | null>(null);
   // AJ-E1552: the list's read failure, and its Retry.
-  const [failed, setFailed] = useState<unknown>(undefined);
-  const [round, setRound] = useState(0);
-  const list = useReadState(docs, "the shared documents", { error: failed, round });
+  const { setFailed, round, retry, ...list } = useRetriedRead(docs, "the shared documents");
   useEffect(() => {
     let alive = true;
     const read = () =>
@@ -66,10 +64,7 @@ export function SharedDocs({ poolId, now }: { poolId: string; now: number }): JS
             None yet. When an agent shares a document with this pool, it shows here, with any secrets handled as you chose for handovers.
           </p>
         }
-        onRetry={() => {
-          setFailed(undefined);
-          setRound((was) => was + 1);
-        }}
+        onRetry={retry}
       >
         <ul className="flex flex-col divide-y divide-hairline/60 rounded-xl border border-hairline">
           {(docs ?? []).map((doc) => (

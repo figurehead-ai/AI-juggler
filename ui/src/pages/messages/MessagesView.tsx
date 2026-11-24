@@ -11,7 +11,7 @@
 import { useEffect, useState, type JSX } from "react";
 import { Button } from "../../components/primitives";
 import { errorText } from "../../lib/bridge";
-import { useReadState } from "../../lib/loading";
+import { useReadState, useRetry } from "../../lib/loading";
 import { LoadingState } from "../../components/LoadingState";
 import { ago } from "../../lib/time-words";
 import {
@@ -107,8 +107,7 @@ function ScopedMessages({ poolId, sessionId, members, now, composeTo }: ViewProp
   const [found, setFound] = useState<MessageInfo[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   // AJ-E1552: the list's own read failure, and its Retry.
-  const [failed, setFailed] = useState<unknown>(undefined);
-  const [round, setRound] = useState(0);
+  const { failed, setFailed, round, retry } = useRetry();
   const scope = sessionId ? { sessionId } : { poolId };
 
   useEffect(() => {
@@ -221,10 +220,7 @@ function ScopedMessages({ poolId, sessionId, members, now, composeTo }: ViewProp
                 {found ? "No message has those words." : sessionId ? "No messages to or from this session yet." : "No messages yet. When agents here write to each other or to you, their threads show here."}
               </p>
             }
-            onRetry={() => {
-              setFailed(undefined);
-              setRound((was) => was + 1);
-            }}
+            onRetry={retry}
           >
             <ul className="flex flex-col gap-0.5" data-testid="thread-list">
               {shown.map((thread) => (

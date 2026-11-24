@@ -19,7 +19,7 @@
  * time; a reply goes at the bottom.
  */
 import { useEffect, useState, type JSX } from "react";
-import { useReadState } from "../../lib/loading";
+import { useRetriedRead } from "../../lib/loading";
 import { LoadingState } from "../../components/LoadingState";
 import { loadingPart } from "../../lib/lazy";
 import { Button } from "../../components/primitives";
@@ -132,9 +132,7 @@ export function ThreadView({ threadId, poolId, members, now }: { threadId: strin
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // AJ-E1552: the thread's own read failure, and its Retry.
-  const [failed, setFailed] = useState<unknown>(undefined);
-  const [round, setRound] = useState(0);
-  const shown = useReadState(page, "this thread", { error: failed, round, isEmpty: () => false });
+  const { setFailed, round, retry, ...shown } = useRetriedRead(page, "this thread", { isEmpty: () => false });
   // The asks that hold a message here (Needs you's list, kept current).
   const needs = useMessageNeeds();
 
@@ -211,10 +209,7 @@ export function ThreadView({ threadId, poolId, members, now }: { threadId: strin
           </output>
         }
         empty={null}
-        onRetry={() => {
-          setFailed(undefined);
-          setRound((was) => was + 1);
-        }}
+        onRetry={retry}
       >
         {null}
       </LoadingState>
