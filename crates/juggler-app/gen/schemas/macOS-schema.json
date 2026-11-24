@@ -1143,12 +1143,6 @@
           "markdownDescription": "Enables the desktop_launch command without any pre-configured scope."
         },
         {
-          "description": "Enables the dismiss_notice command without any pre-configured scope.",
-          "type": "string",
-          "const": "allow-dismiss-notice",
-          "markdownDescription": "Enables the dismiss_notice command without any pre-configured scope."
-        },
-        {
           "description": "Enables the editor_choices command without any pre-configured scope.",
           "type": "string",
           "const": "allow-editor-choices",
@@ -2703,12 +2697,6 @@
           "markdownDescription": "Enables the relations_related command without any pre-configured scope."
         },
         {
-          "description": "Enables the remote_about command without any pre-configured scope.",
-          "type": "string",
-          "const": "allow-remote-about",
-          "markdownDescription": "Enables the remote_about command without any pre-configured scope."
-        },
-        {
           "description": "Enables the remote_config_about command without any pre-configured scope.",
           "type": "string",
           "const": "allow-remote-config-about",
@@ -2725,18 +2713,6 @@
           "type": "string",
           "const": "allow-remote-config-values",
           "markdownDescription": "Enables the remote_config_values command without any pre-configured scope."
-        },
-        {
-          "description": "Enables the remote_notices command without any pre-configured scope.",
-          "type": "string",
-          "const": "allow-remote-notices",
-          "markdownDescription": "Enables the remote_notices command without any pre-configured scope."
-        },
-        {
-          "description": "Enables the remote_values command without any pre-configured scope.",
-          "type": "string",
-          "const": "allow-remote-values",
-          "markdownDescription": "Enables the remote_values command without any pre-configured scope."
         },
         {
           "description": "Enables the reset_queue_dismiss command without any pre-configured scope.",
@@ -2857,12 +2833,6 @@
           "type": "string",
           "const": "allow-scan-cancel",
           "markdownDescription": "Enables the scan_cancel command without any pre-configured scope."
-        },
-        {
-          "description": "Enables the search_records command without any pre-configured scope.",
-          "type": "string",
-          "const": "allow-search-records",
-          "markdownDescription": "Enables the search_records command without any pre-configured scope."
         },
         {
           "description": "Enables the service_accounts_add command without any pre-configured scope.",
@@ -3619,42 +3589,6 @@
           "type": "string",
           "const": "allow-vault-status",
           "markdownDescription": "Enables the vault_status command without any pre-configured scope."
-        },
-        {
-          "description": "Enables the watch_catalogue command without any pre-configured scope.",
-          "type": "string",
-          "const": "allow-watch-catalogue",
-          "markdownDescription": "Enables the watch_catalogue command without any pre-configured scope."
-        },
-        {
-          "description": "Enables the watch_create command without any pre-configured scope.",
-          "type": "string",
-          "const": "allow-watch-create",
-          "markdownDescription": "Enables the watch_create command without any pre-configured scope."
-        },
-        {
-          "description": "Enables the watch_pause command without any pre-configured scope.",
-          "type": "string",
-          "const": "allow-watch-pause",
-          "markdownDescription": "Enables the watch_pause command without any pre-configured scope."
-        },
-        {
-          "description": "Enables the watch_preview command without any pre-configured scope.",
-          "type": "string",
-          "const": "allow-watch-preview",
-          "markdownDescription": "Enables the watch_preview command without any pre-configured scope."
-        },
-        {
-          "description": "Enables the watch_remove command without any pre-configured scope.",
-          "type": "string",
-          "const": "allow-watch-remove",
-          "markdownDescription": "Enables the watch_remove command without any pre-configured scope."
-        },
-        {
-          "description": "Enables the watch_update command without any pre-configured scope.",
-          "type": "string",
-          "const": "allow-watch-update",
-          "markdownDescription": "Enables the watch_update command without any pre-configured scope."
         },
         {
           "description": "Enables the watches_catalogue command without any pre-configured scope.",
@@ -4513,12 +4447,6 @@
           "type": "string",
           "const": "deny-desktop-launch",
           "markdownDescription": "Denies the desktop_launch command without any pre-configured scope."
-        },
-        {
-          "description": "Denies the dismiss_notice command without any pre-configured scope.",
-          "type": "string",
-          "const": "deny-dismiss-notice",
-          "markdownDescription": "Denies the dismiss_notice command without any pre-configured scope."
         },
         {
           "description": "Denies the editor_choices command without any pre-configured scope.",
@@ -6075,12 +6003,6 @@
           "markdownDescription": "Denies the relations_related command without any pre-configured scope."
         },
         {
-          "description": "Denies the remote_about command without any pre-configured scope.",
-          "type": "string",
-          "const": "deny-remote-about",
-          "markdownDescription": "Denies the remote_about command without any pre-configured scope."
-        },
-        {
           "description": "Denies the remote_config_about command without any pre-configured scope.",
           "type": "string",
           "const": "deny-remote-config-about",
@@ -6097,18 +6019,6 @@
           "type": "string",
           "const": "deny-remote-config-values",
           "markdownDescription": "Denies the remote_config_values command without any pre-configured scope."
-        },
-        {
-          "description": "Denies the remote_notices command without any pre-configured scope.",
-          "type": "string",
-          "const": "deny-remote-notices",
-          "markdownDescription": "Denies the remote_notices command without any pre-configured scope."
-        },
-        {
-          "description": "Denies the remote_values command without any pre-configured scope.",
-          "type": "string",
-          "const": "deny-remote-values",
-          "markdownDescription": "Denies the remote_values command without any pre-configured scope."
         },
         {
           "description": "Denies the reset_queue_dismiss command without any pre-configured scope.",
@@ -6229,12 +6139,6 @@
           "type": "string",
           "const": "deny-scan-cancel",
           "markdownDescription": "Denies the scan_cancel command without any pre-configured scope."
-        },
-        {
-          "description": "Denies the search_records command without any pre-configured scope.",
-          "type": "string",
-          "const": "deny-search-records",
-          "markdownDescription": "Denies the search_records command without any pre-configured scope."
         },
         {
           "description": "Denies the service_accounts_add command without any pre-configured scope.",
@@ -6991,42 +6895,6 @@
           "type": "string",
           "const": "deny-vault-status",
           "markdownDescription": "Denies the vault_status command without any pre-configured scope."
-        },
-        {
-          "description": "Denies the watch_catalogue command without any pre-configured scope.",
-          "type": "string",
-          "const": "deny-watch-catalogue",
-          "markdownDescription": "Denies the watch_catalogue command without any pre-configured scope."
-        },
-        {
-          "description": "Denies the watch_create command without any pre-configured scope.",
-          "type": "string",
-          "const": "deny-watch-create",
-          "markdownDescription": "Denies the watch_create command without any pre-configured scope."
-        },
-        {
-          "description": "Denies the watch_pause command without any pre-configured scope.",
-          "type": "string",
-          "const": "deny-watch-pause",
-          "markdownDescription": "Denies the watch_pause command without any pre-configured scope."
-        },
-        {
-          "description": "Denies the watch_preview command without any pre-configured scope.",
-          "type": "string",
-          "const": "deny-watch-preview",
-          "markdownDescription": "Denies the watch_preview command without any pre-configured scope."
-        },
-        {
-          "description": "Denies the watch_remove command without any pre-configured scope.",
-          "type": "string",
-          "const": "deny-watch-remove",
-          "markdownDescription": "Denies the watch_remove command without any pre-configured scope."
-        },
-        {
-          "description": "Denies the watch_update command without any pre-configured scope.",
-          "type": "string",
-          "const": "deny-watch-update",
-          "markdownDescription": "Denies the watch_update command without any pre-configured scope."
         },
         {
           "description": "Denies the watches_catalogue command without any pre-configured scope.",
