@@ -94,6 +94,11 @@ export function NewProjectSheet({
     void launchRecipesList().then(setRecipes);
   }, []);
 
+  // DLG-7: the keyboard starts on the first choice (never on ×).
+  useEffect(() => {
+    tilesRef.current?.querySelector<HTMLButtonElement>("button[data-tile]")?.focus();
+  }, []);
+
   // A folder chosen with an App to start it: New session takes it from here.
   const ready = directory !== null && recipes !== null && recipes.length > 0;
   useEffect(() => {
@@ -178,7 +183,7 @@ export function NewProjectSheet({
         <Section title="Where it lives" help={recents.length > 0 ? "A recent folder, or another one" : undefined} testId="project-where">
           {/* Arrows move across the folders and Choose folder… alike. */}
           <div ref={tilesRef} onKeyDown={onTilesKey} className="flex flex-col gap-2.5">
-            <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2" data-testid="project-tiles">
+            <div className="flex flex-col gap-2" data-testid="project-tiles">
               {recents.map((row) => (
                 <button
                   key={row.id}

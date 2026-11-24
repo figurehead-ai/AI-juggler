@@ -945,7 +945,7 @@ test("focus — permission explainer on the degraded tier", async ({ page }) => 
   const explainer = page.getByTestId("desktop-a11y-explainer");
   await expect(explainer).toBeVisible();
   await expect(explainer).toContainText(
-    "Juggler can open the app; exact-window focus needs Accessibility permission",
+    "AI Juggler opened the app, but bringing this session's own window forward needs Accessibility permission",
   );
   await frameOn(explainer, { edge: "end", gap: 120 });
   await page.mouse.move(0, 0);

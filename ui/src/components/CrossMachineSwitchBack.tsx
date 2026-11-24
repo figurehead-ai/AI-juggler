@@ -71,7 +71,7 @@ function Update({ text, count }: { text: string; count: number }): JSX.Element {
             {group.where && <p className="text-meta font-medium text-ink-2">{group.where}</p>}
             <ul className="flex flex-col gap-1.5">
               {group.turns.map((turn, at) => (
-                <li key={at} className="grid grid-cols-[3.5rem_minmax(0,1fr)] gap-x-3 text-body" data-testid="cross-back-turn" data-who={turn.who}>
+                <li key={at} className="grid grid-cols-[3.5rem_minmax(0,1fr)] items-baseline gap-x-3 text-body" data-testid="cross-back-turn" data-who={turn.who}>
                   <span className="text-meta text-muted">{turn.who}</span>
                   <span className="text-ink [overflow-wrap:anywhere]">{turn.text}</span>
                 </li>

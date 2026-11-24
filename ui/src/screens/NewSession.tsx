@@ -66,6 +66,7 @@ export function NewSessionModal({
   onProjectsChanged,
   after = null,
   onStartAnother,
+  onStarting,
 }: {
   projects: ProjectInfo[];
   /** The config folders (each CLI App's own). */
@@ -91,6 +92,8 @@ export function NewSessionModal({
   /** Opens it again on the next project, after a start; without it,
    * nothing is offered. */
   onStartAnother?: (at: { dir: string; after: StartedBefore }) => void;
+  /** 0.5.1 F68: a start was asked for (New project's flow (b) ends here). */
+  onStarting?: () => void;
 }) {
   const [directory, setDirectory] = useState<string | null>(initialDirectory);
   // F-rc3f-1: the App the person picked, and what a folder change did.
@@ -262,6 +265,7 @@ export function NewSessionModal({
     const cwd = folder?.root ?? null;
     try {
       if (!pack.opened && !(await runtimePick.confirm(recipe.id, cwd))) return setBusy(false); // Lab 2: the folder's trust
+      onStarting?.();
       const result = pack.opened ? await pack.start(recipe.id, cwd) : await launchSession(recipe.id, cwd, runtimePick.runtime);
       if (!result) {
         setError("Preview mode — no backend connected.");

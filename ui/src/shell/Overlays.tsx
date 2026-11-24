@@ -251,6 +251,8 @@ export function ShellOverlays({ shell }: { shell: Shell }): JSX.Element {
           onStartAnother={(at) => newSheet.show(at)}
           openLoginTerminal={shell.openLoginTerminal}
           onProjectsChanged={() => void refresh()}
+          // F68: New project's flow (b) ends on New session's start.
+          onStarting={() => fromNewProject.current && funnelStep("b-new-project", "launch")}
           onClose={() => {
             fromNewProject.current = false;
             newSheet.close();
@@ -259,8 +261,6 @@ export function ShellOverlays({ shell }: { shell: Shell }): JSX.Element {
             // AJ-E309 Req.6: once per install (the backend dedupes and
             // computes seconds_since_install itself).
             funnelEvent("first_launch");
-            // F68: New project's flow (b) ends on New session's start.
-            if (fromNewProject.current) funnelStep("b-new-project", "launch");
             fromNewProject.current = false;
             newSheet.close();
             void refresh();
