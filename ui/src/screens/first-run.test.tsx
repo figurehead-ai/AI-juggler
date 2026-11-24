@@ -169,10 +169,28 @@ describe("D-25 first run — the flow", () => {
     expect(within(terms).getByRole("button", { name: "Providers’ terms" }).getAttribute("aria-expanded")).toBe("false");
   });
 
-  it("shows where it looked, on request", async () => {
-    const { findByRole, getByTestId } = renderIt();
-    fireEvent.click(await findByRole("button", { name: "Where we looked" }));
-    expect(getByTestId("first-run-looked").textContent).toContain("Desktop apps checked — Claude");
+  it("shows where it looked, closed until opened, in the page (F33)", async () => {
+    const { findByTestId, getByTestId } = renderIt();
+    const toggle = await findByTestId("first-run-looked-toggle");
+    // PAT-SER-7: closed by default, and not in the sticky foot (it opened below the fold there).
+    expect(toggle.getAttribute("aria-expanded")).toBe("false");
+    expect(toggle.closest("[data-testid=first-run-actions]")).toBeNull();
+    expect(getByTestId("first-run-looked-list").closest("[hidden]")).not.toBeNull();
+    fireEvent.click(toggle);
+    expect(toggle.getAttribute("aria-expanded")).toBe("true");
+    const list = getByTestId("first-run-looked-list");
+    expect(list.closest("[hidden]")).toBeNull();
+    expect(list.textContent).toBe("Desktop apps: Claude");
+  });
+
+  it("says plainly when a place couldn't be fully checked (F33)", async () => {
+    w().__AIJ_SCAN_REPORT__ = {
+      ...SCAN,
+      probes: [{ label: "Your shell settings", health: "partial", detail: "2 found", reason: "1 points at a folder that is gone" }],
+    };
+    const { findByTestId, getByTestId } = renderIt();
+    fireEvent.click(await findByTestId("first-run-looked-toggle"));
+    expect(getByTestId("first-run-looked-list").textContent).toBe("Your shell settings: 2 foundPartly checked: 1 points at a folder that is gone");
   });
 
   it("copies: brings them in, then lists each sign-in once, with Sign in to all", async () => {

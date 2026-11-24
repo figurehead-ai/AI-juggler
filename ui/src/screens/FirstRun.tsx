@@ -14,7 +14,7 @@
  *    Each setup comes in or doesn't on its own: the result offers Continue
  *    with the ones that came in, Try again, or — for a failed copy — Use
  *    it where it is instead; Stop keeps what finished. "Where we looked"
- *    shows every place the scan checked.
+ *    (closed until opened) lists every place the scan checked.
  * 2. **Sign in where needed.** One card per account that still needs the
  *    vendor's own sign-in (the shared login-queue card).
  * 3. **OS access.** Whatever this platform lists (D-25), each with one line
@@ -246,7 +246,6 @@ function FoundStep({
   const { fresh, freshNames, freshPicked, setFreshPicked } = useFresh(report, tools, taken, names);
   const [progress, setProgress] = useState<Record<string, ImportState>>({});
   const [busy, setBusy] = useState(false);
-  const [showLooked, setShowLooked] = useState(false);
   // AJ-E2327's evidence-first pairing: a desktop profile and the folder it uses, one row (never by name).
   const pairs = usePairings(firstRun);
 
@@ -558,6 +557,27 @@ function FoundStep({
         </div>
       )}
 
+      {/* F33 (0.5.1 PL1 C3): in the page, under the rows, closed until
+          opened (PAT-SER-7); a footer button opened a list below the fold. */}
+      {report.probes.length > 0 && !showOutcome && (
+        <Disclosure summary="Where we looked" testId="first-run-looked">
+          <ul className="mt-2 flex flex-col gap-1.5 rounded-xl bg-surface px-4 py-3 text-xs" data-testid="first-run-looked-list">
+            {report.probes.map((probe) => (
+              <li key={probe.label} className="leading-relaxed">
+                <span className="text-ink">{probe.label}</span>
+                <span className="text-muted">: {probe.detail}</span>
+                {probe.health !== "ok" && (
+                  <span className={"block " + (probe.health === "partial" ? "text-warning" : "text-danger")}>
+                    {probe.health === "partial" ? "Partly checked" : "Couldn't check"}
+                    {probe.reason ? `: ${probe.reason}` : ""}
+                  </span>
+                )}
+              </li>
+            ))}
+          </ul>
+        </Disclosure>
+      )}
+
       {/* Always in view, so Bring in is never below the fold (0.4 design review). */}
       <FoundActions slot={footSlot}>
         <div className="flex flex-wrap items-center gap-5 text-sm">
@@ -571,16 +591,6 @@ function FoundStep({
           <button type="button" className="text-muted hover:text-ink hover:underline" onClick={onScanAgain} disabled={busy} data-testid="first-run-look-again">
             Look again
           </button>
-          {report.probes.length > 0 && (
-            <button
-              type="button"
-              className="text-muted hover:text-ink hover:underline"
-              aria-expanded={showLooked}
-              onClick={() => setShowLooked((open) => !open)}
-            >
-              Where we looked
-            </button>
-          )}
         </div>
         {listed && !showOutcome && (
           <div className="flex items-center gap-3">
@@ -601,20 +611,6 @@ function FoundStep({
         )}
       </FoundActions>
 
-      {showLooked && (
-        <ul className="flex flex-col gap-1 rounded-xl border border-hairline bg-surface px-4 py-3 text-xs" data-testid="first-run-looked">
-          {report.probes.map((probe) => (
-            <li key={probe.label} className="leading-relaxed">
-              <span className="text-ink">{probe.label}</span>{" "}
-              <span className={probe.health === "ok" ? "text-muted" : probe.health === "partial" ? "text-warning" : "text-danger"}>
-                {probe.health === "ok" ? "checked" : probe.health === "partial" ? "partly checked" : "couldn't check"}
-              </span>
-              <span className="text-muted"> — {probe.detail}</span>
-              {probe.reason && <span className="block text-muted">{probe.reason}</span>}
-            </li>
-          ))}
-        </ul>
-      )}
     </div>
   );
 }
