@@ -20,6 +20,7 @@ export const CLIP_IDS = [
   "how-juggle",
   "perm-focus",
   "perm-preview",
+  "perm-notify",
 ] as const;
 
 export type ClipId = (typeof CLIP_IDS)[number];
@@ -39,6 +40,7 @@ const PROMPT_CLIPS: Record<string, ClipId> = {
   "automation-terminal": "perm-focus",
   "automation-iterm": "perm-focus",
   "screen-recording": "perm-preview",
+  notifications: "perm-notify",
 };
 
 /** A permission card's clip, when one shows what it does. */

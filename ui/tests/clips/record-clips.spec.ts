@@ -139,6 +139,47 @@ function focusScene(theme: "dark" | "light"): string {
   </div></body></html>`;
 }
 
+/** 0.5.1 AJ-E1545 R3: perm-notify shows the effect: the user works in
+ * another app; a session needs a reply; AI Juggler's notice slides in at
+ * the top right, in the words AI Juggler sends (`needs.rs`: "“<name>” needs
+ * your reply", its place · account under it); a click brings AI Juggler
+ * forward on that session. Generic names only (the fixture's). */
+function notifyScene(theme: "dark" | "light"): string {
+  const dark = theme === "dark";
+  const c = dark
+    ? { desk: "linear-gradient(135deg,#1d2330,#2a2440)", win: "#1b1f27", bar: "#232833", ink: "#e7e9ee", muted: "#9aa3b2", line: "#2e3440", note: "rgba(40,44,54,.92)" }
+    : { desk: "linear-gradient(135deg,#dfe6f2,#e9e1f3)", win: "#ffffff", bar: "#eef0f4", ink: "#1d2430", muted: "#5d6675", line: "#dde1e8", note: "rgba(246,247,250,.94)" };
+  const lights = `<span class="l"></span><span class="l"></span><span class="l"></span>`;
+  return `<!doctype html><html><head><meta charset="utf-8"><style>
+  html,body{margin:0;height:100%;overflow:hidden;font:13px -apple-system,BlinkMacSystemFont,"Helvetica Neue",sans-serif;color:${c.ink}}
+  #stage{position:absolute;inset:0;background:${c.desk}}
+  .win{position:absolute;border-radius:10px;overflow:hidden;background:${c.win};box-shadow:0 10px 30px rgba(0,0,0,${dark ? 0.55 : 0.18}),0 0 0 1px rgba(0,0,0,${dark ? 0.5 : 0.08});transition:transform .45s cubic-bezier(.2,.8,.2,1),box-shadow .45s,filter .45s}
+  .bar{height:30px;display:flex;align-items:center;gap:8px;padding:0 12px;background:${c.bar};border-bottom:1px solid ${c.line};font-size:12px;color:${c.muted}}
+  .bar b{font-weight:600;color:${c.ink};margin-left:8px}
+  .l{width:11px;height:11px;border-radius:50%;background:${dark ? "#4a5060" : "#cdd1d8"}}
+  .front .l:nth-child(1){background:#ff5f57}.front .l:nth-child(2){background:#febc2e}.front .l:nth-child(3){background:#28c840}
+  .back{filter:saturate(.85) brightness(${dark ? 0.85 : 0.97})}
+  #aij{left:40px;top:60px;width:760px;height:505px;z-index:1}
+  #aij iframe{border:0;width:1150px;height:719px;transform:scale(.661);transform-origin:0 0}
+  #term{left:300px;top:150px;width:700px;height:420px;z-index:2;background:#0b0d12}
+  #term pre{margin:0;padding:14px 16px;color:#c9d1d9;font:12px/1.6 ui-monospace,Menlo,monospace}
+  #aij.forward{z-index:4;transform:translateY(-6px) scale(1.01);box-shadow:0 18px 44px rgba(0,0,0,${dark ? 0.65 : 0.26}),0 0 0 2px #7c83ff}
+  #note{position:absolute;z-index:5;top:16px;right:16px;width:340px;display:flex;gap:10px;padding:11px 12px;border-radius:14px;background:${c.note};backdrop-filter:blur(18px);box-shadow:0 8px 28px rgba(0,0,0,${dark ? 0.5 : 0.18}),0 0 0 1px rgba(0,0,0,${dark ? 0.45 : 0.06});transform:translateX(380px);transition:transform .5s cubic-bezier(.2,.8,.2,1),opacity .35s;cursor:default}
+  #note.in{transform:translateX(0)}
+  #note.gone{opacity:0}
+  #note .icon{width:34px;height:34px;border-radius:8px;flex:none;background:linear-gradient(135deg,#7c83ff,#b57cff)}
+  #note .what{flex:1;min-width:0}
+  #note .app{font-size:11px;color:${c.muted};display:flex;justify-content:space-between}
+  #note .title{font-weight:600;margin:2px 0 1px}
+  #note .detail{color:${c.muted};font-size:12px}
+  </style></head><body><div id="stage">
+  <div class="win back" id="aij"><div class="bar">${lights}<b>AI Juggler</b></div><iframe src="/" title="AI Juggler"></iframe></div>
+  <div class="win front" id="term"><div class="bar">${lights}<b>Terminal</b> — storefront</div><pre>~/storefront $ npm run build\n  building for production…\n  ✓ 214 modules transformed\n  dist/index.html   0.46 kB\n~/storefront $ git status\n  On branch main\n  nothing to commit, working tree clean\n~/storefront $ </pre></div>
+  <div id="note" role="button" aria-label="Notice"><div class="icon"></div><div class="what"><div class="app"><span>AI JUGGLER</span><span>now</span></div>
+    <div class="title">“${FOCUS_TITLES[0]}” needs your reply</div><div class="detail">Fake Desk · Personal</div></div></div>
+  </div></body></html>`;
+}
+
 const RECIPES: Record<ClipId, Recipe> = {
   "what-bot": {
     seams: { __AIJ_BOT__: { turns: [], answers: { [QUESTION]: ANSWER } }, __AIJ_AI_JOBS__: BOT_STATES.beta!.jobs },
@@ -283,6 +324,38 @@ const RECIPES: Record<ClipId, Recipe> = {
         }, 900);
       });
       await pause(page, 2400);
+    },
+  },
+  "perm-notify": {
+    setup: async (page) => {
+      const theme = (await page.evaluate(() => localStorage.getItem("aij.theme"))) === "light" ? "light" : "dark";
+      await page.route("**/notify-scene", (route) => route.fulfill({ contentType: "text/html", body: notifyScene(theme) }));
+      await page.goto("/notify-scene");
+      await expect(page.frameLocator("#aij iframe").getByTestId("user-menu-button")).toBeVisible();
+      return page.locator("#stage");
+    },
+    play: async (page) => {
+      await pause(page, 600);
+      // What the system shows: AI Juggler's notice slides in.
+      await page.evaluate(() => document.getElementById("note")!.classList.add("in"));
+      await pause(page, 1400);
+      await page.locator("#note").hover();
+      await pause(page, 500);
+      // A click on it: AI Juggler comes forward on that session.
+      await page.evaluate(() => {
+        document.getElementById("note")!.classList.add("gone");
+        document.getElementById("term")!.classList.replace("front", "back");
+        const aij = document.getElementById("aij")!;
+        aij.classList.replace("back", "front");
+        aij.classList.add("forward");
+        setTimeout(() => {
+          aij.style.boxShadow = "";
+          aij.classList.remove("forward");
+          aij.style.zIndex = "4";
+        }, 900);
+      });
+      await page.frameLocator("#aij iframe").getByTestId("rail").locator(`button[data-instance-id="${FOCUS_SESSION}"]`).first().click();
+      await pause(page, 2000);
     },
   },
   "perm-preview": {
