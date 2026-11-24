@@ -80,6 +80,13 @@ backup_exact: boolean,
  */
 recovered: string | null, 
 /**
+ * 0.5.1 F93 (PAT-OSP): the system prompts its Undo can cause that
+ * aren't primed yet (the link that opens it where it was), by their
+ * registry ids: Undo's button asks each one's sheet before anything
+ * quits. Empty: nothing to ask.
+ */
+prompts: Array<string>, 
+/**
  * Its journal, one line per event, for Copy details.
  */
 timeline: Array<string>, 

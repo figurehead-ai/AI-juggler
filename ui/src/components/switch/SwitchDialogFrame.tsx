@@ -121,6 +121,10 @@ export function useDialogKeys(
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       const node = dialogRef.current;
+      // 0.5.1 F93: a dialog over this one (Move's system prompt sheet)
+      // has the keys while it has the focus.
+      const focused = document.activeElement;
+      if (node && focused && !node.contains(focused) && focused.closest("[data-dialog-overlay]")) return;
       if (event.key === "Escape") {
         event.preventDefault();
         onEscape();

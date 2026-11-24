@@ -51,6 +51,13 @@ bytes: number,
  */
 app: boolean, 
 /**
+ * 0.5.1 F93 (PAT-OSP): the system prompts this move can cause that
+ * aren't primed yet, by their registry ids: the Move button asks
+ * each one's sheet before anything quits (the move itself never
+ * asks). Empty: nothing to ask.
+ */
+prompts: Array<string>, 
+/**
  * AJ-E2328: what moves with it beside its messages, in words ("Its
  * worktree fix-login (branch main): Claude app · Work owns it
  * after the move"); empty when there is nothing.

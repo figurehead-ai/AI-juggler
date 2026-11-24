@@ -138,6 +138,9 @@ struct Scripted {
     /// 0.5.1 F93: how long each start takes to return (the system's
     /// `open`).
     start_takes: Option<Duration>,
+    /// 0.5.1 F93: links go through this ledger's gate in the background,
+    /// as the real send does (none: every link is sent).
+    links: Option<juggler_platform::os_prompt::MemoryLedger>,
 }
 
 /// AJ-E2322: the target app's Claude Code that resumes the conversation.
@@ -321,6 +324,15 @@ impl MoveSystem for Scripted {
     }
     // The links sent, in order (the move sends one, to the target).
     fn send(&self, pid: u32, link: &str) -> Result<(), String> {
+        if let Some(ledger) = &self.links {
+            use juggler_platform::os_prompt::{Gate, Presence};
+            prompts::sent(Gate::new(ledger).through(
+                crate::os_prompts::registry::APP_LINKS,
+                Presence::Background,
+                &|| None,
+                || Ok(()),
+            ))?;
+        }
         self.sent.lock().unwrap().push((pid, link.to_owned()));
         if self.opens {
             *self.linked.lock().unwrap() = Some(pid);
@@ -1346,6 +1358,8 @@ mod faults;
 mod open;
 #[path = "moving_pick_tests.rs"]
 mod picking;
+#[path = "moving_prompts_tests.rs"]
+mod prompting;
 #[path = "moving_recover_tests.rs"]
 mod recovering;
 #[path = "moving_reopen_tests.rs"]

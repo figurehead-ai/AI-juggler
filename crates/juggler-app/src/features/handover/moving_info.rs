@@ -114,6 +114,11 @@ pub struct MoveOfferInfo {
     pub bytes: u64,
     /// Desktop app profiles (true) or tool folders in a terminal (false).
     pub app: bool,
+    /// 0.5.1 F93 (PAT-OSP): the system prompts this move can cause that
+    /// aren't primed yet, by their registry ids: the Move button asks
+    /// each one's sheet before anything quits (the move itself never
+    /// asks). Empty: nothing to ask.
+    pub prompts: Vec<String>,
     /// AJ-E2328: what moves with it beside its messages, in words ("Its
     /// worktree fix-login (branch main): Claude app · Work owns it
     /// after the move"); empty when there is nothing.

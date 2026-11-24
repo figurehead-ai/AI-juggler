@@ -8,8 +8,7 @@ use juggler_handover::moving::{Lock, Stopped, Transaction};
 
 use super::{
     KnownPlace, MoveSystem, MoveUndoneInfo, Real, door, engine, hold, lock, pause, place_name,
-    prime_links, quiet, refused, reopen, repair, start_again, still_down, stop_places,
-    writing_of_move,
+    quiet, refused, reopen, repair, start_again, still_down, stop_places, writing_of_move,
 };
 use crate::error::AppResult;
 use crate::state::AppState;
@@ -24,8 +23,8 @@ use crate::state::AppState;
 /// A backup doesn't match (nothing changed), a profile wouldn't quit, or
 /// the restore failed (the journal says how far).
 pub fn undo(state: &Arc<AppState>, move_id: &str) -> AppResult<MoveUndoneInfo> {
-    // 0.5.1 F93: its reopen's link sheet before anything quits.
-    prime_links(state);
+    // 0.5.1 F93: nothing is asked in here: Undo's button asked the move
+    // record's `prompts` before this call (`moving_prompts`).
     undo_with(state, move_id, &Real::quiet())
 }
 

@@ -9,7 +9,7 @@
  * shown waiting only for what the user can clear, saying how.
  */
 import { useEffect, useRef, useState, type JSX, type ReactNode } from "react";
-import { onMoveProgress, switchMoveExecute, switchMoveOffer, type MoveDoneInfo, type MoveOfferInfo, type MoveProgressInfo } from "../../lib/ipc/switch-move";
+import { askFirst, onMoveProgress, switchMoveExecute, switchMoveOffer, type MoveDoneInfo, type MoveOfferInfo, type MoveProgressInfo } from "../../lib/ipc/switch-move";
 import { errorText } from "../../lib/bridge";
 import { MoveDone } from "./MoveDone";
 import { MoveFailed, Moving, leftPartWay, nextStep } from "./MoveRunning";
@@ -50,6 +50,8 @@ export function useMoveFlow(sessionId: string, targetProfileId: string, attempt:
   const [chosen, setHow] = useState<How | null>(null);
   const [takeNotes, setTakeNotes] = useState(false);
   const [phase, setPhase] = useState<MovePhase>({ kind: "idle" });
+  // 0.5.1 F93: Move's system prompts are being asked (nothing quit yet).
+  const [asking, setAsking] = useState(false);
   // 0.4.9: what the running move told last (a long backup never looks frozen).
   const [progress, setProgress] = useState<MoveProgressInfo | null>(null);
   const [read, setRead] = useState<string | null>(null);
@@ -84,6 +86,12 @@ export function useMoveFlow(sessionId: string, targetProfileId: string, attempt:
     if (started.current) return;
     started.current = true;
     setProgress(null);
+    // 0.5.1 F93 (PAT-OSP): each system prompt the move can cause, its
+    // sheet over this screen, before anything quits; answered (Not now
+    // too), the move starts and asks nothing itself.
+    setAsking(true);
+    await askFirst(offer?.prompts);
+    setAsking(false);
     setPhase({ kind: "moving" });
     const stop = onMoveProgress(setProgress);
     try {
@@ -127,7 +135,7 @@ export function useMoveFlow(sessionId: string, targetProfileId: string, attempt:
     if (phase.kind === "moving") return { body: <Moving target={target} holding={holding} progress={progress} />, footer: null };
     if (phase.kind === "moved") {
       return {
-        body: <MoveDone done={phase.done} target={target} source={source} />,
+        body: <MoveDone done={phase.done} target={target} source={source} prompts={offer?.prompts} />,
         footer: (
           <Button variant="primary" type="button" data-autofocus onClick={close} data-testid="switch-moved-close">
             Done
@@ -187,19 +195,19 @@ export function useMoveFlow(sessionId: string, targetProfileId: string, attempt:
         <MoveBody offer={offer} target={target} source={source} tool={tool} takeNotes={takeNotes} onTakeNotes={setTakeNotes} />
       </div>
     );
-  const button = (target: string) => <MoveButton target={target} onMove={() => void start()} />;
+  const button = (target: string) => <MoveButton target={target} busy={asking} onMove={() => void start()} />;
   // Enter: Move when it's chosen, else what the switch does.
   const enter = (copy: () => void) => (moving ? () => void start() : copy);
   // Ended either way: the dialog is no longer busy (it closed on nothing
   // after a refusal, 0.4.9).
   const settled = phase.kind === "failed" || phase.kind === "moved";
-  return { offer, how, moving, running: phase.kind === "moving", settled, start, frame, header, choice, screen, button, enter };
+  return { offer, how, moving, running: phase.kind === "moving" || asking, settled, start, frame, header, choice, screen, button, enter };
 }
 
 /** The last button with Move chosen. */
-function MoveButton({ target, onMove }: { target: string; onMove: () => void }): JSX.Element {
+function MoveButton({ target, busy, onMove }: { target: string; busy: boolean; onMove: () => void }): JSX.Element {
   return (
-    <Button variant="primary" key="move-now" type="button" onClick={(event) => event.detail < 2 && onMove()} data-testid="switch-move-confirm" aria-keyshortcuts="Enter">
+    <Button variant="primary" key="move-now" type="button" disabled={busy} onClick={(event) => event.detail < 2 && onMove()} data-testid="switch-move-confirm" aria-keyshortcuts="Enter">
       Move to {target}
     </Button>
   );

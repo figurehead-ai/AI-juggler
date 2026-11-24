@@ -9,6 +9,7 @@
  */
 import { call, listen } from "./transport";
 import { hasLiveBackend } from "../bridge";
+import { osPromptRequest } from "./os-prompts";
 import type { MoveBackupsInfo } from "../../types/generated/MoveBackupsInfo";
 import type { MoveDoneInfo } from "../../types/generated/MoveDoneInfo";
 import type { MoveFinishedInfo } from "../../types/generated/MoveFinishedInfo";
@@ -92,6 +93,15 @@ async function moveCall(sessionId: string, targetProfileId: string, takeNotes: b
     return done;
   }
   return call("switch_move_execute", { sessionId, targetProfileId, targetPlaceId, takeNotes });
+}
+
+/** 0.5.1 F93 (PAT-OSP): a move's (or its Undo's) system prompts, the
+ * offer's or the record's `prompts`, each asked through the one sheet in
+ * turn before anything quits: the move itself never asks. Resolves once
+ * each is answered, Not now included (the move still runs and says how to
+ * open the conversation). */
+export async function askFirst(prompts: readonly string[] | undefined): Promise<void> {
+  for (const id of prompts ?? []) await osPromptRequest(id).catch(() => undefined);
 }
 
 /** AJ-E2319: a move's stop, typed (its class, what holds the files, its

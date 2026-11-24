@@ -84,6 +84,7 @@ const OFFER: MoveOfferInfo = {
   kept_outputs: 2,
   bytes: 1_200_000_000,
   app: true,
+  prompts: [],
   carried: [],
 };
 
@@ -212,6 +213,7 @@ describe("Move's refusals, by class", () => {
         backup_bytes: null,
         backup_exact: false,
         recovered: null,
+        prompts: [],
         repair: false,
         timeline: [],
         state: "interrupted",

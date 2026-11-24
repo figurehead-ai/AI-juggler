@@ -29,6 +29,7 @@ const move = (over: Partial<MoveRecordInfo>): MoveRecordInfo => ({
   backup_bytes: null,
   backup_exact: false,
   recovered: null,
+  prompts: [],
   repair: false,
   timeline: ["phase: phase planned", "intent: step 1"],
   kept: [],

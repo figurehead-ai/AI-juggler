@@ -46,7 +46,7 @@ const OFFER: MoveOfferInfo = {
   notes_conflict: null,
   kept_outputs: 2,
   bytes: 1_200_000_000,
-  app: true,
+  app: true, prompts: [],
   carried: [],
 };
 

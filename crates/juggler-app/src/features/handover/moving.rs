@@ -223,6 +223,8 @@ pub use info::{
 mod door;
 #[path = "moving_pick.rs"]
 mod pick;
+#[path = "moving_prompts.rs"]
+mod prompts;
 #[path = "moving_quit.rs"]
 mod quit;
 #[path = "moving_real.rs"]
@@ -692,6 +694,7 @@ fn offer_of(state: &Arc<AppState>, sides: &Sides, system: &dyn MoveSystem) -> Mo
         kept_outputs: plan.retained.len(),
         bytes: plan.members.iter().map(|m| m.bytes).sum(),
         app: sides.source_place.is_some(),
+        prompts: prompts::unprimed_now(state, sides.target_place.is_some()),
         carried: carried_words(
             &plan,
             &sides.target_place.as_ref().map_or_else(
@@ -824,19 +827,6 @@ fn open_in(
     Ok(pid)
 }
 
-/// 0.5.1 F93: the sheet before the first link to an app (AJ-E1547's
-/// "Open a session in its desktop app") is asked here, before anything
-/// quits, never mid-move: in the PL1 walk it held a move with both Apps
-/// closed for as long as the sheet waited (600 s once). Declined, the move
-/// still runs and sends no link (it offers Open).
-fn prime_links(state: &Arc<AppState>) {
-    if let Some(entry) =
-        crate::os_prompts::registry::entry(crate::os_prompts::registry::APP_LINKS.id)
-    {
-        let _ = crate::os_prompts::request_impl(state, entry);
-    }
-}
-
 /// 0.5.1 F69: a Copy switch's "opened", by Move's own check (AJ-E2322):
 /// whether the app profile `place_id` (its main process `pid`) shows
 /// `conversation` open after the link: a session of it running in that
@@ -901,9 +891,8 @@ pub fn execute(
     let mut sides = sides(state, session_id, target_profile_id, target_place_id)
         .map_err(|error| typed(error, StopClass::NeedsYou))?;
     sides.request.notes = notes;
-    if sides.target_place.is_some() {
-        prime_links(state);
-    }
+    // 0.5.1 F93: nothing is asked in here: the Move screen asked the
+    // offer's `prompts` before this call ([`prompts`]).
     let done = run_once_more(state, &sides, &Real::telling(tell));
     // AJ-E2325: a refused attempt's folder goes at once.
     if done.is_err() {

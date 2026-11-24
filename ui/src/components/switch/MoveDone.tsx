@@ -6,7 +6,7 @@
 import { useState, type JSX } from "react";
 import type { MoveDoneInfo, MoveUndoneInfo } from "../../lib/ipc/switch-move";
 import type { MoveOutcomeInfo } from "../../types/generated/MoveOutcomeInfo";
-import { switchMoveUndo } from "../../lib/ipc/switch-move";
+import { askFirst, switchMoveUndo } from "../../lib/ipc/switch-move";
 import { placesOpen } from "../../lib/ipc/places";
 import { errorText } from "../../lib/bridge";
 import { IconCheck } from "../icons-controls";
@@ -87,12 +87,14 @@ export function MoveUndone({ undone, source }: { undone: MoveUndoneInfo; source:
 }
 
 /** Undo the move; once undone, `onUndone` takes the dialog to its end
- * state (MoveUndone); a refusal is said under the button. */
-export function MoveUndo({ moveId, onUndone }: { moveId: string; onUndone: (undone: MoveUndoneInfo) => void }): JSX.Element {
+ * state (MoveUndone); a refusal is said under the button. 0.5.1 F93:
+ * `prompts` (the move's) are asked first, before anything quits. */
+export function MoveUndo({ moveId, prompts, onUndone }: { moveId: string; prompts?: readonly string[]; onUndone: (undone: MoveUndoneInfo) => void }): JSX.Element {
   const [undo, setUndo] = useState<{ state: "idle" | "running" | "failed"; text?: string }>({ state: "idle" });
   const run = async () => {
     setUndo({ state: "running" });
     try {
+      await askFirst(prompts);
       onUndone(await switchMoveUndo(moveId));
     } catch (cause) {
       setUndo({ state: "failed", text: errorText(cause) });
@@ -138,7 +140,7 @@ function OpenIn({ done, target }: { done: MoveDoneInfo; target: string }): JSX.E
   );
 }
 
-export function MoveDone({ done, target, source = null }: { done: MoveDoneInfo; target: string; source?: string | null }): JSX.Element {
+export function MoveDone({ done, target, source = null, prompts }: { done: MoveDoneInfo; target: string; source?: string | null; prompts?: readonly string[] }): JSX.Element {
   const [undone, setUndone] = useState<MoveUndoneInfo | null>(null);
   if (undone) return <MoveUndone undone={undone} source={source} />;
   return (
@@ -165,7 +167,7 @@ export function MoveDone({ done, target, source = null }: { done: MoveDoneInfo; 
           ))}
         </Alert>
       )}
-      <MoveUndo moveId={done.move_id} onUndone={setUndone} />
+      <MoveUndo moveId={done.move_id} prompts={prompts} onUndone={setUndone} />
     </div>
   );
 }

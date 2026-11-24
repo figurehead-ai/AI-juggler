@@ -137,6 +137,12 @@ pub(super) fn opened_outcome(
                 "sent to {name}, but AI Juggler couldn't see it open there. Open it from {name}"
             ),
         },
+        // 0.5.1 F93: Not now to the link's sheet: moved, the App started,
+        // nothing waited on; how to open it said.
+        Some(Err(why)) if why == super::prompts::LINKS_WAIT => MoveOutcomeInfo {
+            state: "pending".into(),
+            detail: "not opened for you: AI Juggler may not send links to apps yet. Pick it in the App's sidebar, or click Open below".to_owned(),
+        },
         Some(Err(why)) => MoveOutcomeInfo {
             state: "failed".into(),
             detail: format!("moved, but not opened: {why}. Open it from there"),

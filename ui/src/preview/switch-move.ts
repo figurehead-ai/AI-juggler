@@ -23,5 +23,6 @@ export const EXAMPLE_MOVE_OFFER: MoveOfferInfo = {
   kept_outputs: 2,
   bytes: 1_200_000_000,
   app: true,
+  prompts: [],
   carried: [],
 };

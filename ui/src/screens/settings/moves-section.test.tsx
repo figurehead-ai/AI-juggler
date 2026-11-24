@@ -27,6 +27,7 @@ const one: MoveRecordInfo = {
   backup_bytes: null,
   backup_exact: false,
   recovered: null,
+  prompts: [],
   repair: false,
   timeline: [],
   kept: [],

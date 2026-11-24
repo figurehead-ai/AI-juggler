@@ -65,6 +65,11 @@ pub struct MoveRecordInfo {
     /// 0.5.1 F92: AI Juggler stopped during it and settled it at its next
     /// start: what happened, in words (and which Apps started again).
     pub recovered: Option<String>,
+    /// 0.5.1 F93 (PAT-OSP): the system prompts its Undo can cause that
+    /// aren't primed yet (the link that opens it where it was), by their
+    /// registry ids: Undo's button asks each one's sheet before anything
+    /// quits. Empty: nothing to ask.
+    pub prompts: Vec<String>,
     /// Its journal, one line per event, for Copy details.
     pub timeline: Vec<String>,
     /// What it keeps where it was on purpose (output folders old messages
@@ -150,6 +155,7 @@ pub(super) fn committed_backup(txn: &Transaction) -> bool {
 #[must_use]
 pub fn moves(state: &Arc<AppState>) -> Vec<MoveRecordInfo> {
     let all = hold::all_moves(&state.data_dir);
+    let unprimed = super::prompts::unprimed_now(state, true);
     let mut out: Vec<MoveRecordInfo> = all
         .iter()
         .map(|txn| {
@@ -219,6 +225,13 @@ pub fn moves(state: &Arc<AppState>) -> Vec<MoveRecordInfo> {
                 backup_bytes: size.map(|size| size.bytes),
                 backup_exact: size.is_some_and(|size| size.exact),
                 recovered: super::recover::recovered_words(txn),
+                // Its Undo opens it again in an App (a repair's opens
+                // nothing).
+                prompts: if repair || manifest.places.is_empty() {
+                    Vec::new()
+                } else {
+                    unprimed.clone()
+                },
                 timeline: txn
                     .journal()
                     .iter()

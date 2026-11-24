@@ -15,7 +15,7 @@ import { Modal } from "../form";
 import { Button } from "../primitives";
 import { errorText } from "../../lib/bridge";
 import { memorySize } from "../../lib/compact";
-import { switchMoveDeleteBackup, switchMoveFinish, switchMoveUndo, switchMoves, type MoveRecordInfo } from "../../lib/ipc/switch-move";
+import { askFirst, switchMoveDeleteBackup, switchMoveFinish, switchMoveUndo, switchMoves, type MoveRecordInfo } from "../../lib/ipc/switch-move";
 
 /** "Nov 22". */
 function dayOf(ms: number): string {
@@ -209,7 +209,18 @@ function MoveRow({ move, onChanged }: { move: MoveRecordInfo; onChanged: () => v
           {said.words}
         </output>
       )}
-      {asking === "undo" && <UndoSheet move={move} busy={busy} onCancel={() => setAsking(null)} onConfirm={() => act(() => switchMoveUndo(move.move_id))} />}
+      {/* 0.5.1 F93: its Undo's system prompts first, their sheet in place of this one, before anything quits. */}
+      {asking === "undo" && (
+        <UndoSheet
+          move={move}
+          busy={busy}
+          onCancel={() => setAsking(null)}
+          onConfirm={() => {
+            setAsking(null);
+            act(() => askFirst(move.prompts).then(() => switchMoveUndo(move.move_id)));
+          }}
+        />
+      )}
       {asking === "delete" && <DeleteSheet move={move} busy={busy} onCancel={() => setAsking(null)} onConfirm={() => act(() => switchMoveDeleteBackup(move.move_id).then((words) => ({ words })))} />}
     </li>
   );
