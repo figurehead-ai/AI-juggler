@@ -432,30 +432,42 @@ fn an_app_asking_at_quit_is_the_persons_and_the_other_profile_starts_again() {
 }
 
 /// D3: both profiles take a while to quit: they are asked together, so
-/// the stop takes one wait, not two (the review's 3 s each → ≤ 3.5 s;
-/// here 2 s each → under 3.6 s, where one after the other takes 4 s:
-/// room for a loaded test machine, never for a serial quit).
+/// their quits overlap (the second is asked before the first has ended),
+/// and the stop takes one wait, not two. Read from the recorded instants,
+/// never from a wall-clock bound a busy test machine breaks.
 #[test]
 fn both_profiles_quit_in_parallel() {
     if !clones() {
         return;
     }
     let lab = lab();
+    let slow = Duration::from_secs(2);
     let system = Scripted {
-        slow: Some(Duration::from_secs(2)),
+        slow: Some(slow),
         wait: Some(Duration::from_secs(6)),
         ..running_both(&lab)
     };
     let began = std::time::Instant::now();
     run(&lab.state, &lab.sides, &system).unwrap();
-    let took = began.elapsed();
+    let ended = std::time::Instant::now();
     assert_eq!(
         *system.running_at_quit.lock().unwrap(),
         [2, 2],
         "both asked while both ran"
     );
-    assert!(took >= Duration::from_secs(2), "{took:?}");
-    assert!(took < Duration::from_millis(3_600), "{took:?}");
+    // Each quit runs from its ask to its end (asked = end - slow).
+    let ends: Vec<std::time::Instant> = system.dies_at.lock().unwrap().values().copied().collect();
+    assert_eq!(ends.len(), 2, "both asked to quit");
+    let last_asked = ends.iter().map(|end| *end - slow).max().unwrap();
+    let first_ended = *ends.iter().min().unwrap();
+    assert!(
+        last_asked < first_ended,
+        "the quits overlap: the second was asked {:?} after the first ended",
+        last_asked.saturating_duration_since(first_ended)
+    );
+    // The move waited both out before going on.
+    let last_ended = *ends.iter().max().unwrap();
+    assert!(ended >= last_ended, "waited for both: {:?}", ended - began);
 }
 
 /// D3: AI Juggler starts with a profile a crashed move holds and its
