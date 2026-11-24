@@ -123,6 +123,13 @@ struct Scripted {
     linked: Mutex<Option<u32>>,
     /// How long each settle asked for.
     settles: Mutex<Vec<Duration>>,
+    /// AJ-E2324: the pids each exit wait was woken for.
+    exit_waits: Mutex<Vec<Vec<u32>>>,
+    /// AJ-E2324 R2: what the open-file guard finds at each look (the
+    /// first entry at the first look, and so on; none past the end).
+    open_writers: Mutex<Vec<Vec<(u32, String)>>>,
+    /// How many times the guard looked.
+    guard_looks: Mutex<usize>,
 }
 
 /// AJ-E2322: the target app's Claude Code that resumes the conversation.
@@ -341,6 +348,20 @@ impl MoveSystem for Scripted {
         {
             *left -= 1;
             append(path, line);
+        }
+    }
+    fn wait_exit(&self, pids: &[u32], cap: Duration) {
+        self.exit_waits.lock().unwrap().push(pids.to_vec());
+        std::thread::sleep(cap.min(Duration::from_millis(10)));
+    }
+    fn open_writers(&self, _: &[PathBuf]) -> Vec<(u32, String)> {
+        let mut looks = self.guard_looks.lock().unwrap();
+        *looks += 1;
+        let mut found = self.open_writers.lock().unwrap();
+        if found.is_empty() {
+            Vec::new()
+        } else {
+            found.remove(0)
         }
     }
     fn quit_wait(&self) -> Duration {
@@ -1248,6 +1269,8 @@ mod picking;
 mod recovering;
 #[path = "moving_shape_tests.rs"]
 mod shapes;
+#[path = "moving_speed_tests.rs"]
+mod speed;
 #[path = "moving_stop_tests.rs"]
 mod stops;
 #[path = "moving_wait_tests.rs"]

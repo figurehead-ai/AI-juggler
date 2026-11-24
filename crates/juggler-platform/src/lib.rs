@@ -49,6 +49,7 @@ pub mod code_trust;
 pub mod file_trust;
 pub mod keychain;
 pub mod local_ipc;
+pub mod open_files;
 pub mod os_prompt;
 pub mod private_fs;
 pub mod process;
@@ -59,6 +60,7 @@ pub mod system;
 pub mod thread;
 pub mod transfer;
 pub mod user;
+pub mod wait;
 
 /// The error a seam returns where this system has no implementation yet:
 /// `what` isn't available here, said plainly.

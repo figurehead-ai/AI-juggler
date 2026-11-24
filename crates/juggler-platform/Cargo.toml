@@ -86,8 +86,10 @@ path = "../juggler-login-item"
 # The effective user id (safe bindings; no `unsafe` here); 0.3.8: asking an
 # app that lost its window to quit (`apps::quit`, SIGTERM); AJ-E3013: a
 # local peer's audit token (`LOCAL_PEERTOKEN`) and files opened without
-# following links (`openat`).
-nix = { workspace = true, features = ["user", "fs", "signal", "socket"] }
+# following links (`openat`). AJ-E2324: `event`, the kernel's event
+# queue through nix's safe API (`wait`: a process's exit and a file's
+# change woken, never polled; no `unsafe` here, already in the tree).
+nix = { workspace = true, features = ["user", "fs", "signal", "socket", "event"] }
 
 [dev-dependencies]
 tempfile = { workspace = true }

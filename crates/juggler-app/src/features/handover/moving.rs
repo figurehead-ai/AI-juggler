@@ -67,11 +67,6 @@ const WRITER_WAIT: Duration = Duration::from_secs(10);
 const START_WAIT: Duration = Duration::from_secs(30);
 /// Between looks.
 const EVERY: Duration = Duration::from_millis(250);
-/// How long every file the move touches must hold still before it is
-/// backed up (an app's last lines land as it closes).
-const STILL: Duration = Duration::from_millis(1500);
-/// How many such windows a move waits at most for them.
-const STILL_LOOKS: u32 = 6;
 /// AJ-E2319: how long a transient stop waits before its one try more.
 const AGAIN: Duration = Duration::from_secs(3);
 
@@ -156,6 +151,26 @@ pub trait MoveSystem: Send + Sync {
         }
         seen()
     }
+    /// AJ-E2324: waits until one of `pids` ends, at most `cap` (the real
+    /// system is woken by the kernel; by default a look every [`EVERY`]).
+    fn wait_exit(&self, pids: &[u32], cap: Duration) {
+        let _ = pids;
+        std::thread::sleep(EVERY.min(cap));
+    }
+    /// AJ-E2324: waits until `window` passes with no change to `paths`
+    /// (the real system's file events), at most `cap`; whether it did. By
+    /// default it settles `window` and says so: the sizes and times of
+    /// last write looked at after decide ([`still::hold_still`]).
+    fn quiet_for(&self, paths: &[PathBuf], window: Duration, cap: Duration) -> bool {
+        let _ = (paths, cap);
+        self.settle(window);
+        true
+    }
+    /// AJ-E2324 R2: the programs (pid, name) that have a file at or under
+    /// `paths` open to write it.
+    fn open_writers(&self, _paths: &[PathBuf]) -> Vec<(u32, String)> {
+        Vec::new()
+    }
     /// How long a profile's app (its main process) is given to quit.
     fn quit_wait(&self) -> Duration {
         QUIT_WAIT
@@ -213,12 +228,15 @@ pub mod recover;
 pub mod repair;
 #[path = "moving_retention.rs"]
 pub mod retention;
+#[path = "moving_still.rs"]
+mod still;
 #[path = "moving_timeline.rs"]
 mod timeline;
 pub use door::{MoveRecordInfo, moves};
 use pick::{links_hold, sides, start_checked};
 use quit::{Writing, stop_places};
 pub use real::{Real, Tell};
+use still::{hold_still, size_words, still_writing};
 
 /// AJ-E2320: new moves' journals, in the move area every AI Juggler on
 /// this Mac shares ([`hold::journals`]).
@@ -668,122 +686,6 @@ fn writing_of<'a>(sides: &'a Sides, plan: &MovePlan) -> Option<Writing<'a>> {
     })
 }
 
-/// Waits for every file at or under `paths` to hold still for [`STILL`]
-/// (no size or time of last write changing), at most [`STILL_LOOKS`]
-/// windows. Returns the files still changing then.
-fn hold_still(paths: &[PathBuf], system: &dyn MoveSystem) -> Result<(), Vec<PathBuf>> {
-    use juggler_handover::moving::state::{changed, marks};
-    let mut last = marks(paths);
-    let mut moving = Vec::new();
-    for _ in 0..STILL_LOOKS {
-        system.settle(STILL);
-        let now = marks(paths);
-        moving = changed(&last, &now);
-        if moving.is_empty() {
-            return Ok(());
-        }
-        last = now;
-    }
-    Err(moving)
-}
-
-/// Who was still writing `path`, in words: the writers the tool's adapter
-/// names now (AJ-E2318, the review's E16: "claude (process 4242) was
-/// still writing this conversation"); else, the backup for writers no
-/// hook names, the profile whose folders hold it ("Claude app · Work was
-/// still writing this conversation as it closed"), else the account whose
-/// sessions write there.
-fn still_writing(
-    state: &Arc<AppState>,
-    sides: &Sides,
-    path: &Path,
-    system: &dyn MoveSystem,
-    writing: &Writing<'_>,
-) -> (String, Vec<MoveHolder>) {
-    let table = system.table(state);
-    let named: Vec<(String, String)> = quit::writers_now(&table, writing)
-        .iter()
-        .filter_map(|writer| {
-            let name = table.get(&writer.pid)?.exe.as_deref()?.file_name()?;
-            let name = name.to_string_lossy().into_owned();
-            Some((format!("{name} (process {})", writer.pid), name))
-        })
-        .collect();
-    if !named.is_empty() {
-        let words = format!(
-            "{} {} still writing this conversation",
-            named
-                .iter()
-                .map(|(said, _)| said.as_str())
-                .collect::<Vec<_>>()
-                .join(" and "),
-            if named.len() == 1 { "was" } else { "were" }
-        );
-        let holders = named
-            .into_iter()
-            .map(|(_, name)| MoveHolder {
-                name,
-                place_id: None,
-            })
-            .collect();
-        return (words, holders);
-    }
-    let both = [
-        (
-            &sides.request.source,
-            &sides.source_place,
-            &sides.source_label,
-        ),
-        (
-            &sides.request.target,
-            &sides.target_place,
-            &sides.target_label,
-        ),
-    ];
-    for (side, place, label) in both {
-        let holds = path.starts_with(&side.tool_dir)
-            || side
-                .host_dir
-                .as_deref()
-                .is_some_and(|dir| path.starts_with(dir));
-        if holds {
-            return match place {
-                Some((id, place)) => {
-                    let name = place_name(state, place);
-                    (
-                        format!("{name} was still writing this conversation as it closed"),
-                        vec![MoveHolder {
-                            name,
-                            place_id: Some(id.clone()),
-                        }],
-                    )
-                }
-                None => (
-                    format!("a session on {label} was still writing this conversation"),
-                    Vec::new(),
-                ),
-            };
-        }
-    }
-    (
-        "another app was still writing this conversation".to_owned(),
-        Vec::new(),
-    )
-}
-
-/// A size in words ("406 MB"), as the switch screen says sizes.
-fn size_words(bytes: u64) -> String {
-    #[allow(clippy::cast_precision_loss, reason = "a size in words")]
-    let bytes = bytes as f64;
-    if bytes >= 1e9 {
-        format!("{:.1} GB", bytes / 1e9)
-    } else if bytes >= 1e6 {
-        format!("{:.0} MB", bytes / 1e6)
-    } else {
-        format!("{:.0} KB", (bytes / 1e3).max(1.0))
-    }
-}
-
 /// Starts again the profiles that were running (and aren't again: one the
 /// user started meanwhile is left as it is), each on the folder `request`
 /// gives it, never one its sessions contradict (AJ-E2317).
@@ -1074,7 +976,7 @@ fn run(state: &Arc<AppState>, sides: &Sides, system: &dyn MoveSystem) -> AppResu
         let first = moving.first().cloned().unwrap_or_default();
         let detail = format!(
             "still changing after {} s: {}",
-            (STILL * STILL_LOOKS).as_secs(),
+            still::STILL_CAP.as_secs(),
             moving
                 .iter()
                 .map(|path| path.display().to_string())
@@ -1084,6 +986,10 @@ fn run(state: &Arc<AppState>, sides: &Sides, system: &dyn MoveSystem) -> AppResu
         // A writer still finishing: tried once more (AJ-E2319).
         let (words, holders) = still_writing(state, sides, &first, system, &writing);
         let stop = MoveStop::new(StopClass::Transient, words, detail).held_by(holders);
+        return Err(fail(&mut txn, stop));
+    }
+    // AJ-E2324 R2: no program has them open to write them.
+    if let Some(stop) = still::open_writers(&watched, system) {
         return Err(fail(&mut txn, stop));
     }
     let mut told = 0_u64;
@@ -1121,6 +1027,9 @@ fn run(state: &Arc<AppState>, sides: &Sides, system: &dyn MoveSystem) -> AppResu
     timeline.mark(&txn, "backing_up", serde_json::json!({}));
     if let Err(started) = still_down_held(state, &stopped_places, system) {
         return Err(fail(&mut txn, started_again(started)));
+    }
+    if let Some(stop) = still::open_writers(&watched, system) {
+        return Err(fail(&mut txn, stop));
     }
     system.tell(&MoveProgressInfo::step(
         "moving",

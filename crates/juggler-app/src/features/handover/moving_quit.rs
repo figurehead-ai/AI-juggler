@@ -25,8 +25,10 @@
 //! [`ProcId`], checked right before it ([`signal::quit_checked`]).
 //!
 //! Files that keep changing with no writer named are caught by the
-//! stillness check before the backup (`hold_still`), the backup for
-//! writers no hook names.
+//! stillness check before the backup (`hold_still`) and the open-file
+//! guard (`still::open_writers`), the backups for writers no hook names.
+//! AJ-E2324: both waits are woken by the exits ([`MoveSystem::wait_exit`],
+//! the kernel's on the real system), never polled.
 
 use std::collections::BTreeMap;
 use std::path::PathBuf;
@@ -36,8 +38,7 @@ use std::time::Instant;
 use juggler_adapter::moving::{InPlaceMove, MoveRequest, ProcView, Writer};
 
 use super::{
-    EVERY, KnownPlace, Member, MoveProgressInfo, MoveSystem, StoppedPlace, place_name, start_again,
-    tree,
+    KnownPlace, Member, MoveProgressInfo, MoveSystem, StoppedPlace, place_name, start_again, tree,
 };
 use crate::error::{AppResult, MoveHolder, MoveStop, StopClass};
 use crate::features::conversations::procs::Table;
@@ -358,7 +359,9 @@ pub(super) fn stop_places(
                 .held_by(vec![held(&left[0].id, &left[0].name)])
                 .into());
         }
-        std::thread::sleep(EVERY);
+        // AJ-E2324: woken by an exit, never polled.
+        let pids: Vec<u32> = left.iter().map(|c| c.main.pid).collect();
+        system.wait_exit(&pids, until.saturating_duration_since(Instant::now()));
     }
     // Their sessions that write the family, to theirs; one that started
     // since is waited for too.
@@ -415,7 +418,8 @@ pub(super) fn stop_places(
             .held_by(holders)
             .into());
         }
-        std::thread::sleep(EVERY);
+        let pids: Vec<u32> = alive.iter().map(|at| waited[*at].0.pid).collect();
+        system.wait_exit(&pids, until.saturating_duration_since(Instant::now()));
     }
     // AJ-E2322: the wait set, for the timeline.
     let mut wait_set: Vec<serde_json::Value> = closing

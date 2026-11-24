@@ -102,6 +102,33 @@ impl MoveSystem for Real {
         super::timeline::wait_on(&rx, cap, seen)
     }
 
+    // AJ-E2324: woken by the kernel when one ends; a second at most, so a
+    // pid given to another program since is looked at again.
+    fn wait_exit(&self, pids: &[u32], cap: std::time::Duration) {
+        let _ = juggler_platform::wait::any_exit(pids, cap.min(std::time::Duration::from_secs(1)));
+    }
+
+    fn quiet_for(
+        &self,
+        paths: &[PathBuf],
+        window: std::time::Duration,
+        cap: std::time::Duration,
+    ) -> bool {
+        juggler_platform::wait::quiet_for(paths, window, cap) != juggler_platform::wait::Quiet::Busy
+    }
+
+    // AJ-E2324 R2: a system that can't tell says so in the log; the
+    // move's other checks still hold.
+    fn open_writers(&self, paths: &[PathBuf]) -> Vec<(u32, String)> {
+        match juggler_platform::open_files::writers(paths) {
+            Ok(found) => found.into_iter().map(|w| (w.pid, w.name)).collect(),
+            Err(why) => {
+                tracing::warn!(target: "juggler::move", "the open-file check couldn't run: {why}");
+                Vec::new()
+            }
+        }
+    }
+
     fn send(&self, pid: u32, link: &str) -> Result<(), String> {
         use crate::features::places::handoff::System as _;
         crate::features::places::handoff::Real.send(pid, link)
