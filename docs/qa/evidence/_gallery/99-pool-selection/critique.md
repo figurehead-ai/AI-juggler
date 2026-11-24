@@ -1,4 +1,4 @@
-<!-- captures: 46dffc9f5a30 -->
+<!-- captures: a0fcf41bd35f -->
 # 99-pool-selection: the canvas's selection and the inspector's title (AJ-E3012)
 
 Design critique (D-57, AJ-E2814) against 97-pool-canvas (the canvas before) and the calm UI round 2 rules. The canvas with each kind selected — nothing (the pool), a session, an App, an Account, a Tool, everyone in scope, a line, the pool's own setup opened from the checklist, and the lead's place waiting for an App's next session — dark and light, 1280×800. Fixture names only.
@@ -113,3 +113,30 @@ Section titles re-rendered (6db085536): a colour token named like a type size (`
 - **selection-pool-setup-*:** the header says "Setup done" once every step is done; it never says "Setting up · 7 of 7" (b8947954c). The inspector is scrolled to "Who may message whom", as before, so a line passes under the inspector's title. Pass.
 - **selection-lead-next-*:** the selected App node's App link is a whole 24 px target (63a1f9cb3). Pass.
 - **selection-everyone-*, selection-line-*:** the members' column scrolls with the canvas, so a card's edge shows at its top and bottom. This is the column's scroll, as before. Low; kept.
+
+## 0.5.1 design critique (2026-11-24, Opus, VALIDATION §5)
+
+Opened at full size: selection-pool-setup (dark) and selection-line (light); the other states were not reopened this round (their only 0.5.1 change is the shared calm surfaces and rail), beside the D-126 canvas mock (`d126-rich-ui/canvas-*`) and the calm reference. What 0.5.1 changed here: calm surfaces (the inspector, the member cards and the zoom bar separated by tone, no bright borders), the rail's rows (F42), and AJ-E1548 #27: while setup is open the header carries "Setup done" and no rule dropdown (selection-pool-setup), and once set up the header's "On their own (everyone in this pool): Work together" is back (selection-line). The selected line keeps the accent bar at the inspector's head, "Waits on you" in amber, Allowed / Ask first / Blocked as one segmented control, and the waiting message with Deliver in the one amber-edged card (it waits for the user).
+
+| # | Line | Score | Note |
+|---|---|---|---|
+| 1 | Job | 5 | Select anything, read and change its rule beside the diagram. |
+| 2 | Prominence | 4 | The waiting message is the loudest thing on selection-line, as it should be. |
+| 3 | Default | 4 | Rules show their inherited value; a line's own rule only on purpose. |
+| 4 | Mode | 4 | Rich canvas, calm inspector. |
+| 5 | Mock-up | 4 | As the canvas mock; at 33 % the nodes truncate ("Pla…", "Check…") where the mock's fit has room. |
+| 6 | Areas | 4 | Canvas, member cards, inspector: three areas; the member cards crowd the diagram at 1280 with the inspector open. |
+| 7 | Colour | 4 | Amber only for "Waits on you" / Ask first; "Setup done" stays in the progress accent once finished (D-126's done state would be its green dot; left, 97-pool-canvas shows the same pill). |
+| 8 | Type | 4 | Inspector title, kind line, body in ink-2. |
+| 9 | Actions | 4 | Deliver is the selection's action, small inside its card. |
+| 10 | Serious | 4 | Blocked says it stops it; nothing destroyed here. |
+| 11 | Doors | 5 | "The other way: Fix the cart totals → Planner" links the reverse line. |
+| 12 | Words | 4 | "Talk · Planner → Fix the cart totals", "Claude's own messages between sessions aren't held by this." |
+| 13 | States | 4 | n/a beyond the fixtures; empty and many in 97-pool-canvas. |
+| 14 | Consistency | 4 | Segmented, chips and the scroll edge from the kit. |
+| 15 | Accessibility | 4 | List view for the keyboard (its tooltip says so). Not re-walked this round. |
+| 16 | Hand walk | 4 | The round-7 aij-test walks; not re-walked here. |
+| 17 | System prompts | 5 | None. |
+| 18 | Usability | 4 | AJ-E1548 #27: while setup is open its checklist owns the rules; the dropdown returns when done. Match. |
+
+Lowest: 4. No fix made (nothing under 4); the 33 % truncation is the canvas's fit, unchanged since 0.4.6.

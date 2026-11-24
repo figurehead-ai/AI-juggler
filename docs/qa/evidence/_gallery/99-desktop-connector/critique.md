@@ -1,4 +1,4 @@
-<!-- captures: cfcb6dc4078b -->
+<!-- captures: 0534a16654cd -->
 # 99-desktop-connector: desktop apps in a pool through AI Juggler's connector (AJ-E3013)
 
 Design critique (D-57, AJ-E2814) against 99-pool-selection (the canvas and inspector around it), 92-agent-tools (the team tools card, the same card shape) and the calm UI round 2 rules. The Checkout team pool with a Claude app profile as an App member (no connector), a Claude app session connected, another Watched, and a ChatGPT (Codex app) thread; dark and light, 1280×800. Fixtures only: nothing is written or run.
@@ -90,3 +90,33 @@ Checked by eye, dark and light:
 ## The inspector's scroll edge (2026-11-16)
 
 - guide, preview, preview-text, remove-anyway (both themes): the inspector's body is scrolled to the step, so a hairline with a soft shadow now runs under the title, kind and status pill (the app's scroll edge, as the rail's list has). The section sliding under it reads as more above, not as a clipped line. Nothing else moved. Pass.
+
+## 0.5.1 design critique (2026-11-24, Opus, VALIDATION §5)
+
+Opened at full size: new-pool (dark) and card (light) from the 0.5.1 shoot, and new-pool and new-pool-added again after the guide-link fix, beside the D-126 who mock (`d126-rich-ui/who-*`) and the calm reference. What 0.5.1 changed: calm surfaces (the inspector, member cards and the consent card separated by tone, the consent card on the raised tone with a soft shadow), the rail's rows, and the New pool steps' foot.
+
+- **card (light):** the selected member card has the canvas's accent ring (selection); the inspector reads "Claude app · Work Max", "App · Member", "None open now", the Watched line, then the consent card "Add AI Juggler's connector to Claude app · Work Max so its sessions can talk in this pool" with what it writes, an example, "How desktop apps join a pool ↗", Add and "Show me how to add it by hand". It holds.
+- **new-pool (dark), before the fix:** "Read the 2-minute guide" wrapped into two centred lines with its ↗ floating at the column's right edge (the mock has it on one line, left-aligned, at 1440). **Fixed** (7e858e860, d7f2693cd): the guide link wraps left-aligned, "Read the 2-minute / guide ↗", the arrow kept beside its last word. Re-rendered and checked by eye.
+
+| # | Line | Score | Note |
+|---|---|---|---|
+| 1 | Job | 5 | Add the connector with consent, see what it writes, remove exactly that. |
+| 2 | Prominence | 4 | The consent card is the inspector's main block when the app needs it. |
+| 3 | Default | 4 | Nothing is added without the user's Add; Preview and add first. |
+| 4 | Mode | 4 | Rich wizard and canvas, calm inspector. |
+| 5 | Mock-up | 4 | As the who mock; the selected app cards' accent ring is ~2 px with a dark gap, heavier than the mock's 1 px line (98-pool-setup's note). |
+| 6 | Areas | 4 | Steps, form, preview; canvas, cards, inspector. |
+| 7 | Colour | 4 | Amber only for Watched; accent for selection and Preview and add. |
+| 8 | Type | 4 | Card title semibold ink, body ink-2. |
+| 9 | Actions | 4 | Next names its step; Make pool now secondary; the consent card's Add the inspector's one filled button. |
+| 10 | Serious | 5 | What it writes, an example, the guide, Remove takes out exactly what it wrote; Remove anyway lists the files. |
+| 11 | Doors | 4 | The guide opens; "Show me how to add it by hand". |
+| 12 | Words | 4 | The inspector says what the connector is twice, in the Watched line's brackets and again in the card's first sentence one line below (desktop-members.test pins the bracket since Casey's PC1 walk, where it is first named); the ChatGPT row's note still says its sessions talk once the connector is in, though the Codex app can't take it yet. |
+| 13 | States | 4 | Watched, added, connected, refused (Remove anyway) all captured. |
+| 14 | Consistency | 4 | Card, chips, scroll edge from the kit. |
+| 15 | Accessibility | 4 | Folds are buttons with aria-expanded (round 7). Not re-walked this round. |
+| 16 | Hand walk | 4 | aij-test runs 1–3 (round 7); not re-walked here. |
+| 17 | System prompts | 5 | Writing into the app's own folder raises none; nothing in the background. |
+| 18 | Usability | 4 | AJ-E1548 R11: no providers' terms here. AJ-E1547: no system dialog from this flow. Match. |
+
+Lowest: 4.

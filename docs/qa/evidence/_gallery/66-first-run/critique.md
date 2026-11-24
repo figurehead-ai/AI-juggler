@@ -1,4 +1,4 @@
-<!-- captures: 71b782973696 -->
+<!-- captures: 7ef138418703 -->
 # 66-first-run: the first-run steps (bring in accounts, sign in, computer access, Figurehead account) and Home right after them
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design fixes.
@@ -22,3 +22,41 @@ figurehead-1280x800-dark is removed: first run has three steps since D-97 2 (404
 ## 0.4.2 (2026-11-12): the fixture renamed
 
 Only the captures that showed the old fixture folder name were re-shot: the copy, its menu header and its row now read "acme-max". Nothing else on these screens moved; the critique above stands.
+
+## 0.5.1 design critique (2026-11-24, Opus, VALIDATION §5)
+
+The first run is now the setup wizard (AJ-E1545): a full-window sheet with the app's mark and "Set up AI Juggler", the steps beside (Your apps, Sign in, Mac access, Meet Bot, Keep running, each with its value once set), the step's eyebrow and title, and a fixed foot. Opened at full size: found, found-copies, where-we-looked, one-failed (light), after-bring-in, after-bring-in-copies, access-one-allowed, access-resumed (light) and home-after-first-run (the Welcome, still), then after-bring-in-copies, access-one-allowed and access-resumed (both themes) after the fixes. Reference: the calm round-2 mock (one filled button per surface; the permission card's Allow quiet) and the d126 kit's wizard (the pool setup's FlowLayout, which this shares).
+
+- **found:** "Which AI apps do you use?", one row per app with its Terminal or Desktop chip and plain sign-in words, the running desktop profiles unticked (D-84), "Bring in 5 apps" matching the ticks, Where we looked and Providers' terms closed. Good; F45's foot holds one row.
+- **after-bring-in-copies (Sign in), before the fixes:** six filled violet Sign in buttons plus "Sign in to all 6, one after another" (seven primaries, flagged since 0.3.2), under a 28 px heading and a 15 px semibold lead unlike every other wizard step. **Fixed** (7e858e860): with several left each row's Sign in is secondary and "Sign in to all 6" is the one primary; the step takes the wizard's 22 px title and regular lead. Re-captured and checked: one filled button.
+- **access-one-allowed / access-resumed:** the allowed card still said "macOS will ask you · optional · change it later…" after macOS had asked. **Fixed** (7e858e860): "Change it in System Settings › Privacy & Security". Re-rendered (gate access-one-allowed) and re-captured (access-resumed both themes); checked by eye. The card that still asks keeps the dialog's picture, Click and If you say no (AJ-E1547), with Allow tinted, not filled, and Next: Meet Bot the one primary.
+- **Foot (F50, logged):** on Your apps, Skip for now sits after Bring in (BTN-3: the primary last), and the wizard offers three exits that read alike: Not now (leave, resume later), Skip for now (this step), and Sign in's in-page "Sign in later". A FlowFoot end slot and clearer names; not a small fix.
+- **Fixtures (F51, logged):** found-copies and one-failed say "Used 772–775 days ago" (their fixture is off the capture clock).
+- **access-resumed:** a resumed wizard shows the done steps without their values (Your apps, Sign in have none after a reopen); WIZ-1 wants each step's value. Weak.
+
+| # | Line | Score | Note |
+|---|---|---|---|
+| 1 | Job | 4 | Apps, sign-ins, Mac access, Bot and keep running in one place; Meet Bot and Keep running have no capture in this family. |
+| 2 | Prominence | 4 | The rows first; More options and Where we looked folded. |
+| 3 | Default | 4 | Signed-in folders ticked, desktop profiles not (D-84); "Use them where they are" Recommended. |
+| 4 | Mode | 4 | Rich wizard per D-126. |
+| 5 | Mock-up | 4 | Built on the pool wizard's kit; the permission card as the mock's (Allow quiet). |
+| 6 | Areas | 4 | Steps, page, foot; the permission card nests its dialog picture in a panel (a picture, not a box of controls). |
+| 7 | Colour | 4 | Accent on the step, the primary and "Set up a new app instead"; green only for Allowed and Brought in, red for Couldn't bring in. |
+| 8 | Type | 4 | After the fix every step's title and lead match; the embedded steps' title sits ~18 px lower under the eyebrow than Mac access's. |
+| 9 | Actions | 3 | One primary per view after the fix, but the foot order and the three exits (F50). |
+| 10 | Serious | 4 | Make separate copies says each copy needs a sign-in; Providers' terms closed (AJ-E1548 R11). |
+| 11 | Doors | 4 | Details per row; each step links where it lives later (Settings › Privacy & Security). |
+| 12 | Words | 4 | Plain; the fixture's "772 days ago" (F51). |
+| 13 | States | 4 | Found, copies, one failed, allowed, resumed; F48 kept Sign in on its step. |
+| 14 | Consistency | 4 | FlowLayout, the shared rows and chips. |
+| 15 | Accessibility | 4 | Focus on each step's title, Tab kept inside (a11y.spec, F47); not re-walked this round. |
+| 16 | Hand walk | 4 | PL1 walk and re-walk on the real app (AJ-E2323: F20–F48); not re-walked here. |
+| 17 | System prompts | 5 | Each Mac access card shows macOS' own dialog, what to click and what a no means, before Allow; after the fix the allowed card says where to change it. |
+| 18 | Usability | 4 | AJ-E1545 / E1553 / E1547 (below). |
+
+**AJ-E1545 match:** (1) "Step 1 of 5" says how long; the header's mark is the app's icon. Match. (2) Each step says what and why before its controls; each permission card shows the dialog and the button to click. Match (Meet Bot's AI names and size are not in these captures). (3) Setup in one place, each step pointing to where it lives later. Match. (4) Skip for now on every step; Not now leaves and the wizard reopens where it was left (access-resumed). Match, with F50 on how the exits read. (5) Accessibility, Screen Recording primed on their cards. Match. Step 1 (1)–(6): one row per app, Terminal/Desktop chips, plain status words, desktop rows not pre-ticked, "Bring in N" equals the ticks, terms a closed fold. Match. Step 2: the rows open each tool's own sign-in page ("AI Juggler never sees your password"); the code-and-browser card is not captured here. Partial (not visible).
+**AJ-E1553 match:** the finished and ended sign-in states are not in this family (40-login and the unit tests cover them); after-bring-in shows "Sign in · None needed" in the steps. Not visible here.
+**AJ-E1547 match:** no system dialog appears in these captures without its card first. Match.
+
+Lowest: 3 (line 9, the foot: F50).

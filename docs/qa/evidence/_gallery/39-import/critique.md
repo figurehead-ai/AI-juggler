@@ -1,4 +1,4 @@
-<!-- captures: 919d8e6dae7b -->
+<!-- captures: 5e6ae3caa354 -->
 # 39-import: bringing in a Claude Code folder, its problem states, and the sign-in step after
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design fixes.
@@ -15,3 +15,34 @@ The page reads well at both sizes: a four-step tracker, a large "Bring in this f
 - f-*-390x844-*: the step tracker wraps into three rows with stray connector lines.
 - f-signin-390x844-*: the account name is cut to "cla…" though the row has space.
 - f-oversize-*-light: the amber notice turns a pinkish beige in light, close to f-non-config's error red.
+
+## 0.5.1 design critique (2026-11-24, Opus, VALIDATION §5)
+
+The folder check now opens inside the setup wizard (Your apps › Add from another folder…): the wizard's frame, steps and foot around it. Opened at full size: f-moved (dark) and f-duplicate (390, light) from the 0.5.1 shoot, then f-moved (light) and f-duplicate (dark) after the fixes.
+
+- **Before the fixes:** "Bring in this folder?" kept the standalone flow's 28 px heading and 15 px semibold lead inside the wizard, unlike every other step; f-moved said "That folder moved or is gone. Pick it again." as plain text while "Bring it in" stayed the filled primary; f-duplicate put a Done button beside the still-filled "Bring it in" (both open since 0.3.2). **Fixed** (7e858e860): the wizard's 22 px title and regular lead; moved is said in the red problem box the other states use, duplicate in a quiet box with its Done, and Bring it in leaves in both (it can only fail again). Re-rendered (gate f-normal) and re-captured (all states, both themes); checked by eye.
+- **Weak, kept:** f-moved's card still says "Signed in" (read before the folder went); f-non-config's Keychain line beside its "no sign-in" error (0.3.2); the content has its own Back / Pick a different folder… row above the wizard's foot (two rows of ways out).
+- **390×844 (F51, logged):** below the window's minimum (1024×680); the wizard's step list leaves the page 120 px. Not a layout anyone gets; capture at 1024×680 instead.
+
+| # | Line | Score | Note |
+|---|---|---|---|
+| 1 | Job | 4 | Check a folder and bring it in, in the wizard. |
+| 2 | Prominence | 4 | Card, name, then the one action. |
+| 3 | Default | 4 | The name from the folder; settings-only when it's large. |
+| 4 | Mode | 4 | The wizard's rich frame. |
+| 5 | Mock-up | 4 | The wizard's kit; no mock of its own. |
+| 6 | Areas | 4 | Card, field, problem box, actions. |
+| 7 | Colour | 4 | Red only for moved and not-config, amber for oversize. |
+| 8 | Type | 4 | After the fix, the wizard's title and lead. |
+| 9 | Actions | 4 | One primary or none (moved, duplicate, not-config); the content's own Back row above the wizard's foot. |
+| 10 | Serious | 4 | Settings-only explained; the original folder untouched, said up front. |
+| 11 | Doors | 4 | Duplicate names the app it's in ("Work"); open it from Accounts is words, not a link. |
+| 12 | Words | 4 | Plain; the moved card's stale "Signed in". |
+| 13 | States | 4 | Normal, oversize, not-config, duplicate, moved, sign-in. |
+| 14 | Consistency | 4 | Problem boxes now share one look. |
+| 15 | Accessibility | 4 | Problems are role=alert; not re-walked this round. |
+| 16 | Hand walk | 4 | PL1 walk (Add from another folder…); not re-walked here. |
+| 17 | System prompts | 5 | The folder picker is the system's own, opened by the user's click. |
+| 18 | Usability | 4 | AJ-E1545 step 1 (5): reading the folder is primed by the user's own pick. Match. AJ-E1553: f-signin's one row keeps its filled Sign in. Match. |
+
+Lowest: 4 at 1280 (the 390 captures are n/a: below the window's minimum, F51).
