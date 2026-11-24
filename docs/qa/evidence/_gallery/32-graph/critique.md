@@ -1,4 +1,4 @@
-<!-- captures: e18918cef5d1 -->
+<!-- captures: df3086b7f193 -->
 # 32-graph: how a piece of work moved between accounts, the project overview, and the "Continue on another account" ranking
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design passes.
@@ -17,3 +17,35 @@ In dark the project and session pages read as cards on a canvas: the "How this w
 - failed-*: the red reason box opens "Switch failed: failed · target launch failed", the word doubled; at 800x600 the box is cut by the page footer.
 - targets-why-*: "80% headroom · used most here" and "35% headroom · quiet" appear twice in their cards.
 - targets-* and targets-why-*: "exhausts ≈262 min · Measured" sits right-aligned on its own line, leaving a gap under the name and chips.
+
+## 0.5.1 design critique (2026-11-24, Opus, VALIDATION §5, batch B3)
+
+Re-captured at the window's sizes: 1280×800 and, for 800×600 (below the window's minimum, F51's rule), 1024×680 (capture.spec `GRAPH_VP`; the gate state, targets at 1280 dark, unchanged). Opened at full size: failed-1280x800-dark, fork-merge-1024x680-light and fork-merge-1280x800-light after the fix. The project page's How this work travelled strip (a lane per App, a dot per day) reads well, and Continue on another account's targets keep their ranking room.
+
+- **Fixed** (51ea3254f): the strip said "No moves between apps in this range" right above Every move's list of moves. With older moves it now says "No moves in these 30 days; every move, the older ones too, is under Every move below." Re-captured; checked by eye.
+- **800×600 → 1024×680:** the fourteen 800×600 captures are gone, fourteen 1024×680 ones added; the 0.3.2 weak items at 800 (two-row top bar, cut dialog) went with that size.
+- **Weak, logged F78:** Every move predates D-142's switch frame: outlined boxes inside an outlined fold inside the card, an amber-outlined "fork" chip, labels cut ("Same conversation, an…"), a row that scrolls sideways and cuts its first or last card, and "Switch failed: failed · target launch failed" in a red outlined box.
+- **Weak, logged F76:** the project header's "1 stuck" amber pill.
+
+| # | Line | Score | Note |
+|---|---|---|---|
+| 1 | Job | 4 | See how work moved between Apps, and resume or export from any step. |
+| 2 | Prominence | 4 | The strip, then Every move folded open. |
+| 3 | Default | 4 | Ranked targets with the first suggested. |
+| 4 | Mode | 4 | Calm strip; the move list is a rich card that isn't yet on its kit (F78). |
+| 5 | Mock-up | 3 | Every move predates D-142's switch frame (F78). |
+| 6 | Areas | 3 | Box in a box in a box in Every move (F78). |
+| 7 | Colour | 3 | The amber "fork" outline and "1 stuck" pill (F76, F78). |
+| 8 | Type | 4 | Lane names ink, ticks muted. |
+| 9 | Actions | 4 | Open in Finder and New session here quiet; the dialog's one primary. |
+| 10 | Serious | 4 | A failed move says nothing was half-moved and where recovery starts. |
+| 11 | Doors | 4 | Each step's session opens; Resume and Export on its menu. |
+| 12 | Words | 3 | "Switch failed: failed · …", cut edge labels (F78); the strip's contradiction fixed. |
+| 13 | States | 4 | Empty range, no moves and older moves each said. |
+| 14 | Consistency | 3 | Every move is not the switch dialog's target card (F78). |
+| 15 | Accessibility | 4 | axe clean in the capture runs (no serious or critical); keyboard and zoom not re-walked this round. |
+| 16 | Hand walk | 4 | Not re-walked by hand here; captured from the fixtures, both themes. |
+| 17 | System prompts | 5 | Causes no system prompt. |
+| 18 | Usability | 4 | Re-read against PAT-USE: switching history is in the project where it happened, said once. Match but F78. |
+
+Lowest: 3, each line under 4 logged (F76, F78); the rest 4 or 5.

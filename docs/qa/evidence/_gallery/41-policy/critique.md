@@ -1,4 +1,4 @@
-<!-- captures: 0836f5f2cca3 -->
+<!-- captures: 3c2d171e1234 -->
 # 41-policy: a profile's launch settings, its keys and passwords choice, and deleting launch settings
 
 Design critique (D-57, AJ-E2814) against the reference screens: the row menus (77-menus), Settings' cards (98-local-cache) and the remove-account sheet. The baseline note says what changed on purpose; this says whether it is good. First critique of this family: its captures were last taken at 0.1 and were re-rendered for 0.3.1 (D-60).
@@ -52,3 +52,33 @@ The dark Accounts page (accounts-pack-secrets) separates its layers: the Work Ma
 ## 0.4.1
 
 AJ-E2907 R3 moved the refusal before the click: while a session started with launch settings runs, their bin is greyed and its title says "3 live sessions use these launch settings — stop them first." The gallery flow follows it (CI #218 timed out clicking that greyed bin): the refused capture now shows Deep work's greyed bin beside Quick fixes' live one, and the confirm is Quick fixes', the one with no live session ("Delete the launch settings “Quick fixes”?", sessions stay in History, a red-tinted Delete). The dialog reads well in both themes and at 1024. Weak: the greyed bin is faint (in light it is barely told apart from the live one beside it) and its reason is only in a tooltip, so nothing on screen says why it is off; the AJ-E2907 refusal dialog (a launch slipping in after the window's check) is no longer captured, since the preview can't stage that race. The fixture's rail ages read "757 d", as before. The other captures in this family were not re-rendered.
+
+## 0.5.1 design critique (2026-11-24, Opus, VALIDATION §5, batch B3)
+
+Re-captured (pack-secrets, delete and refused at 1280 and 1024, both themes); opened at full size: accounts-pack-secrets-1280x800-light. The Accounts page leads with the account's card (its 7-day tokens line), then the App row and its Launch settings (Deep work with an override, Quick fixes), Add an app the one filled button.
+
+- **Closed since 0.3.2:** four filled violets: Launch is a secondary on each settings row, Add an app the page's one primary; the rail's "748 d" ages are gone (the fixture is on the capture clock).
+- **Weak, kept:** the disabled "Save overrides" is a pale violet that reads as pressed; the Launch settings box keeps hairline rules between its rows (rules inside an area).
+
+| # | Line | Score | Note |
+|---|---|---|---|
+| 1 | Job | 4 | Set an App's launch settings, its keys choice, and delete one safely. |
+| 2 | Prominence | 4 | The account, its App, then its settings; delete is a small bin. |
+| 3 | Default | 4 | "Hide them (recommended)" for keys; As in Settings for crashes. |
+| 4 | Mode | 4 | Calm list; the confirm is the kit's dialog. |
+| 5 | Mock-up | 4 | AJ-E2907's delete and refusal. |
+| 6 | Areas | 4 | Account card, App row, settings box. |
+| 7 | Colour | 4 | Violet only on Add an app and the field focus. |
+| 8 | Type | 4 | Names 14 px, hints 12–13 px. |
+| 9 | Actions | 4 | One filled primary per view; the confirm's Delete last. |
+| 10 | Serious | 4 | Delete asks first and says the sessions stay in History; refused before the click while sessions run. |
+| 11 | Doors | 4 | The App row opens its page; How it's measured › its guide. |
+| 12 | Words | 4 | Plain; the env variable's own name is the user's. |
+| 13 | States | 4 | Refused state said on the bin's title before the click. |
+| 14 | Consistency | 4 | The row menus and the remove-account sheet. |
+| 15 | Accessibility | 4 | axe clean in the capture runs (no serious or critical); keyboard and zoom not re-walked this round. |
+| 16 | Hand walk | 4 | Not re-walked by hand here; captured from the fixtures, both themes. |
+| 17 | System prompts | 5 | Causes no system prompt. |
+| 18 | Usability | 4 | Re-read against PAT-USE: deleting the last settings set is said after, not before (0.3.2 weak, kept). Match otherwise. |
+
+Lowest: 4 (every line 4 or 5).

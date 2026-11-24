@@ -1,4 +1,4 @@
-<!-- captures: efdf1bf37daf -->
+<!-- captures: 2ed625ba88cf -->
 # 11-renewal: an account's page, meant to show its renewal date in each state (countdown, warning, danger, date only, unknown), the editor, and the chip on the accounts list
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design fixes.
@@ -13,3 +13,34 @@ The account captures are framed on their subject again: each scrolls to the Sett
 - account-unknown-1440x900: "Expiry: unknown" uses a different word from the other states' "Renews".
 - editor-1440x900: identical to account-warning-1440x900; no edit in progress is shown.
 - account-*, editor-*: the top of the panel is a cut list and an empty card bottom above the Settings card.
+
+## 0.5.1 design critique (2026-11-24, Opus, VALIDATION §5, batch B3)
+
+Re-captured (account states at 1440, the editor at 1440 and 1280, the Accounts row chip); opened at full size: account-warning-1440x900 and editor-1280x800. Each state shows in the account header's chip (countdown, "⚠ Renews in 6 days", "⛔ Renewal date passed", the date, none when unknown); the editor is Settings › Plan, renewal and fee: Plan, Renewal date (a date picker), Monthly fee, and "Entered by you … AI Juggler doesn't read your billing."
+
+- **Closed since 0.3.2:** two date formats and "Expiry: unknown" (the unknown state shows no chip; the date is the picker's); editor captures the Settings tab, not the warning page again.
+- **Weak, logged F76:** "⚠ Renews in 6 days" is an amber chip with a fill behind its words.
+- **Weak, kept:** the editor's Monthly fee Save is live while its field is empty.
+
+| # | Line | Score | Note |
+|---|---|---|---|
+| 1 | Job | 4 | Know when a plan renews, and set it. |
+| 2 | Prominence | 4 | The chip in the header where the account is named; the field in Settings. |
+| 3 | Default | 4 | Nothing set until the user enters it; reminders said in the row. |
+| 4 | Mode | 4 | Calm header; Settings rows. |
+| 5 | Mock-up | 4 | AJ-E411's chip and field. |
+| 6 | Areas | 4 | Header, tabs, settings rows by tone. |
+| 7 | Colour | 3 | The amber renewal chip is a fill behind words (F76); red for passed. |
+| 8 | Type | 4 | Row titles ink, hints muted. |
+| 9 | Actions | 4 | New session the page's primary; Save per row. |
+| 10 | Serious | 4 | n/a. |
+| 11 | Doors | 4 | The chip sits on the account it's about; Settings is its tab. |
+| 12 | Words | 4 | "Renews in 6 days", "When the plan renews: reminders come before it." |
+| 13 | States | 4 | Unknown shows nothing and says so in Settings. |
+| 14 | Consistency | 4 | The Settings rows of every page. |
+| 15 | Accessibility | 4 | axe clean in the capture runs (no serious or critical); keyboard and zoom not re-walked this round. |
+| 16 | Hand walk | 4 | Not re-walked by hand here; captured from the fixtures, both themes. |
+| 17 | System prompts | 5 | Causes no system prompt. |
+| 18 | Usability | 4 | Re-read against PAT-USE: entered by the user, said so, never read from billing. Match. |
+
+Lowest: 3, each line under 4 logged (F76); the rest 4 or 5.
