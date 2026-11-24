@@ -404,7 +404,7 @@
 **Quality gates**: `just keep-going verify-static`; failing-before tests; the move suite.
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E2321/manifest.md`.
 
-### AJ-E2322 Move says "opened" only when the conversation is open, and keeps a timeline of every phase | Status: TODO (0.5.1) | Priority P1 | Effort S | Depends: AJ-E2318
+### AJ-E2322 Move says "opened" only when the conversation is open, and keeps a timeline of every phase | Status: DONE (0.5.1) | Priority P1 | Effort S | Depends: AJ-E2318
 **Found** Review A3.7, A3.8, B7, B9 12 and 15: "opened" was reported as verified on the link's delivery alone, and a fixed 6 s settle gave false results on a slow start. (`docs/research/move-reliability-review.md`).
 **UI**: yes
 **Usability reasoning** (Opus, before building; re-checked on the built screen):

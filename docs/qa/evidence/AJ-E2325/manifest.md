@@ -26,7 +26,7 @@
 3. In the Moves door (Settings › Desktop apps › Moves, the conversation's page) and in the header's "N to clean up" (the Processes page says them and opens Moves). Match.
 4. No backups: no size, no Delete backup, the footer says "No backups kept", the clean-up line is hidden; interrupted moves never deleted automatically nor by the offer (tests). Match.
 5. OS prompts: none. Match.
-6. Watch-fors: a backup deleted while its Undo shows (Undo goes with it, test); a clean-up offer during a move (never, test); a size that frees less than it said: exact on APFS (D-146), "up to" only for a ceiling (tests). Left for a follow-up: an exact 0 (untouched clones) still shows the low-disk offer, saying it frees 0 B.
+6. Watch-fors: a backup deleted while its Undo shows (Undo goes with it, test); a clean-up offer during a move (never, test); a size that frees less than it said: exact on APFS (D-146), "up to" only for a ceiling (tests). An exact 0 (untouched clones) brings no low-disk offer (F12, 972b52634).
 
 ## Checks
 
