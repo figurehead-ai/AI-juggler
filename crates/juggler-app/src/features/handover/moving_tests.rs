@@ -645,6 +645,26 @@ fn place_ids(lab: &Lab) -> Vec<String> {
         .collect()
 }
 
+/// Both profiles held by move `id` for an owner that is gone (a crash
+/// left its markers; a kill drops no hold).
+fn held_by_a_gone_owner(lab: &Lab, id: &str) {
+    let area = hold::area_at(&lab.state.data_dir);
+    std::fs::create_dir_all(area.join("held")).unwrap();
+    for place in place_ids(lab) {
+        let marker = hold::Marker {
+            move_id: id.into(),
+            place: place.clone(),
+            owner_pid: 999_999,
+            owner_start_micros: 1,
+        };
+        std::fs::write(
+            area.join("held").join(hold::key(&place)),
+            serde_json::to_vec(&marker).unwrap(),
+        )
+        .unwrap();
+    }
+}
+
 /// `txn`'s cold checks (the adapter's and the engine's), which pass.
 fn verified_cold(lab: &Lab, txn: &mut Transaction, plan: &MovePlan) {
     let mover = lab.sides.adapter.in_place_move().unwrap();

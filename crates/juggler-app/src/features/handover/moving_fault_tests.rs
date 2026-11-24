@@ -125,21 +125,7 @@ fn crashed_at(lab: &Lab, at: At) {
         At::Undoing => Recovery::Undoing,
     };
     assert_eq!(read, expected, "{at:?}");
-    let area = hold::area_at(&lab.state.data_dir);
-    std::fs::create_dir_all(area.join("held")).unwrap();
-    for place in place_ids(lab) {
-        let marker = hold::Marker {
-            move_id: ID.into(),
-            place: place.clone(),
-            owner_pid: 999_999,
-            owner_start_micros: 1,
-        };
-        std::fs::write(
-            area.join("held").join(hold::key(&place)),
-            serde_json::to_vec(&marker).unwrap(),
-        )
-        .unwrap();
-    }
+    held_by_a_gone_owner(lab, ID);
 }
 
 /// The move's phase; `None`: its folder went (a move that changed

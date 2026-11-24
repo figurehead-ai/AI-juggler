@@ -33,7 +33,7 @@ fn crashed(lab: &Lab, at: Crash, held: bool) -> String {
         1_700_000_000_000,
     )
     .unwrap();
-    txn.remember_places(ids.clone(), lab.sides.accounts.clone())
+    txn.remember_places(ids, lab.sides.accounts.clone())
         .unwrap();
     txn.back_up(&Stopped::checked()).unwrap();
     if at != Crash::BackedUp {
@@ -62,21 +62,7 @@ fn crashed(lab: &Lab, at: Crash, held: bool) -> String {
         .unwrap();
     }
     if held {
-        let area = hold::area_at(&lab.state.data_dir);
-        std::fs::create_dir_all(area.join("held")).unwrap();
-        for place in &ids {
-            let marker = hold::Marker {
-                move_id: id.clone(),
-                place: place.clone(),
-                owner_pid: 999_999,
-                owner_start_micros: 1,
-            };
-            std::fs::write(
-                area.join("held").join(hold::key(place)),
-                serde_json::to_vec(&marker).unwrap(),
-            )
-            .unwrap();
-        }
+        held_by_a_gone_owner(lab, &id);
     }
     id
 }
@@ -588,21 +574,7 @@ fn crashed_mid_quit(lab: &Lab, also: Scripted) -> String {
     let txn = hold::all_moves(&lab.state.data_dir).pop().unwrap();
     let id = txn.manifest.id.clone();
     // A kill drops no hold: the markers stay, naming the gone AI Juggler.
-    let area = hold::area_at(&lab.state.data_dir);
-    std::fs::create_dir_all(area.join("held")).unwrap();
-    for place in place_ids(lab) {
-        let marker = hold::Marker {
-            move_id: id.clone(),
-            place: place.clone(),
-            owner_pid: 999_999,
-            owner_start_micros: 1,
-        };
-        std::fs::write(
-            area.join("held").join(hold::key(&place)),
-            serde_json::to_vec(&marker).unwrap(),
-        )
-        .unwrap();
-    }
+    held_by_a_gone_owner(lab, &id);
     id
 }
 

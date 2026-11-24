@@ -832,7 +832,7 @@ fn open_in(
 /// `conversation` open after the link: a session of it running in that
 /// app (the writers hook, asked of `tool_dir`), or the app adding to its
 /// history (`history`: the path and its length as the link went), waited
-/// for by file events at most [`timeline::OPEN_CAP`]. In words, the
+/// for by file events at most `timeline::OPEN_CAP`. In words, the
 /// evidence; `None`: not seen open (the switch says it was sent, and
 /// offers Open).
 pub fn seen_open_after_link(

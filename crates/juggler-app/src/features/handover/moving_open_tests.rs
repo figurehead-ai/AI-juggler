@@ -66,20 +66,46 @@ fn the_checks_after_wait_for_the_open_not_a_fixed_settle() {
         ..running_both(&lab)
     };
     run(&lab.state, &lab.sides, &slow).unwrap();
-    {
-        let looks = slow
-            .settles
-            .lock()
-            .unwrap()
-            .iter()
-            .filter(|for_| **for_ == timeline::LOOK)
-            .count();
-        assert_eq!(
-            u128::try_from(looks).unwrap(),
-            timeline::OPEN_CAP.as_millis() / timeline::LOOK.as_millis(),
-            "capped at 15 s of looks"
-        );
-    }
+    assert_capped_looks(&slow, "capped at 15 s of looks");
+}
+
+/// `system` looked (each `timeline::LOOK`) up to the open's cap, no more.
+fn assert_capped_looks(system: &Scripted, why: &str) {
+    let looks = system
+        .settles
+        .lock()
+        .unwrap()
+        .iter()
+        .filter(|for_| **for_ == timeline::LOOK)
+        .count();
+    assert_eq!(
+        u128::try_from(looks).unwrap(),
+        timeline::OPEN_CAP.as_millis() / timeline::LOOK.as_millis(),
+        "{why}"
+    );
+}
+
+/// The copy's history `main.jsonl` with one line written: its path and
+/// length.
+fn copy_history(lab: &Lab) -> (PathBuf, u64) {
+    let history = lab.b_code.join("projects").join(SLUG).join("main.jsonl");
+    std::fs::write(&history, "{\"type\":\"user\"}\n").unwrap();
+    let len = std::fs::metadata(&history).unwrap().len();
+    (history, len)
+}
+
+/// Whether the copy, linked into the target profile (pid 4242), is seen
+/// open there after the link, its history `at` before it.
+fn copy_seen_open(lab: &Lab, at: &(PathBuf, u64), system: &Scripted) -> Option<String> {
+    let (place, _) = lab.sides.target_place.as_ref().unwrap();
+    seen_open_after_link(
+        &lab.state,
+        (place, 4242),
+        lab.sides.adapter.in_place_move().unwrap(),
+        (&lab.b_code, "main"),
+        Some(at),
+        system,
+    )
 }
 
 /// R3: every phase in the journal with its ms, the closing wait's set
@@ -162,31 +188,9 @@ fn the_journal_keeps_each_phase_its_wait_set_and_what_remained() {
 fn a_copy_link_not_seen_open_says_none() {
     let lab = lab();
     let system = running_both(&lab);
-    let history = lab.b_code.join("projects").join(SLUG).join("main.jsonl");
-    std::fs::write(&history, "{\"type\":\"user\"}\n").unwrap();
-    let len = std::fs::metadata(&history).unwrap().len();
-    let (place, _) = lab.sides.target_place.as_ref().unwrap();
-    let seen = seen_open_after_link(
-        &lab.state,
-        (place, 4242),
-        lab.sides.adapter.in_place_move().unwrap(),
-        (&lab.b_code, "main"),
-        Some(&(history, len)),
-        &system,
-    );
-    assert_eq!(seen, None);
-    let looks = system
-        .settles
-        .lock()
-        .unwrap()
-        .iter()
-        .filter(|for_| **for_ == timeline::LOOK)
-        .count();
-    assert_eq!(
-        u128::try_from(looks).unwrap(),
-        timeline::OPEN_CAP.as_millis() / timeline::LOOK.as_millis(),
-        "capped, as Move's"
-    );
+    let history = copy_history(&lab);
+    assert_eq!(copy_seen_open(&lab, &history, &system), None);
+    assert_capped_looks(&system, "capped, as Move's");
 }
 
 /// 0.5.1 F69: the app adding to the copy's history after the link is the
@@ -194,24 +198,13 @@ fn a_copy_link_not_seen_open_says_none() {
 #[test]
 fn a_copy_the_app_adds_to_is_seen_open() {
     let lab = lab();
-    let history = lab.b_code.join("projects").join(SLUG).join("main.jsonl");
-    std::fs::write(&history, "{\"type\":\"user\"}\n").unwrap();
-    let len = std::fs::metadata(&history).unwrap().len();
+    let history = copy_history(&lab);
     let system = Scripted {
-        writer: Mutex::new(Some((history.clone(), b"{\"type\":\"system\"}\n", 1))),
+        writer: Mutex::new(Some((history.0.clone(), b"{\"type\":\"system\"}\n", 1))),
         ..running_both(&lab)
     };
-    let (place, _) = lab.sides.target_place.as_ref().unwrap();
-    let seen = seen_open_after_link(
-        &lab.state,
-        (place, 4242),
-        lab.sides.adapter.in_place_move().unwrap(),
-        (&lab.b_code, "main"),
-        Some(&(history, len)),
-        &system,
-    );
     assert_eq!(
-        seen.as_deref(),
+        copy_seen_open(&lab, &history, &system).as_deref(),
         Some("the app added to its history after the link")
     );
 }
