@@ -24,8 +24,8 @@ afterEach(() => {
 describe("F99 Found on this computer: each button named with its App", () => {
   it("finds Add and Not now by role and name, keeps the visible words, and acts on that row", async () => {
     seed([
-      { id: "app:claude-app:/Users/someone/ClaudeProfiles/personal", label: "Claude app · personal" },
-      { id: "app:claude-app:/Users/someone/ClaudeProfiles/work", label: "Claude app · work" },
+      { id: "app:claude-app:/Users/you/Profiles/b-lab", label: "Claude app · personal" },
+      { id: "app:claude-app:/Users/you/Profiles/c-lab", label: "Claude app · work" },
     ]);
     render(
       <ConversationsProvider>
