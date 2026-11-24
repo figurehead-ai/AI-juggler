@@ -12,6 +12,7 @@ import { cliAppName } from "../lib/app-name";
 import type { JSX } from "react";
 import type { RemoteSwitchTargetInfo } from "../types/generated/RemoteSwitchTargetInfo";
 import { launchSettingsName } from "../lib/account-words";
+import { BadgeLine, TargetButton, TargetLogo } from "./switch/TargetCard";
 
 /** Readiness in plain words (the row's second line). */
 export function readinessText(target: RemoteSwitchTargetInfo): string {
@@ -45,48 +46,42 @@ export function RemoteSwitchTargets({
         return (
           <section key={machineId} aria-label={`Destinations on ${label}`} className="flex flex-col gap-1">
             <p className="text-label font-medium text-ink">On {label}</p>
-            <ul className="flex flex-col gap-1">
+            <ul className="flex flex-col gap-2">
               {rows.map((target) => {
                 const unavailable = target.readiness === "unavailable";
                 return (
                   <li key={`${target.machine_id}:${target.recipe_id}`}>
-                    <button
-                      type="button"
+                    {/* 0.5.1 B2 critique: the same card as a target on this
+                        Mac (TargetCard: logo, the App's name, a tone step,
+                        no line), how much carries a quiet line, never an
+                        amber-ringed chip on every row. */}
+                    <TargetButton
                       disabled={unavailable}
                       onClick={() => onPick(target)}
                       data-testid="remote-switch-target"
                       data-readiness={target.readiness}
-                      className={
-                        "flex w-full flex-col gap-0.5 rounded-lg border px-2.5 py-1.5 text-left text-label " +
-                        (unavailable
-                          ? "cursor-not-allowed border-hairline text-muted"
-                          : "border-hairline hover:border-accent/40 hover:bg-surface")
+                      logo={<TargetLogo tool={target.provider} kind="cli" folderId={`${target.machine_id}:${target.recipe_id}`} label={target.account_label} size={32} />}
+                      // The App whole, as the rows on this Mac name it (the 0.4 review).
+                      name={cliAppName(target.provider, target.account_label)}
+                      sub={
+                        <>
+                          {/* WCAG 2.5.3: named by its own words; the machine for a screen reader. */}
+                          <span className="sr-only">on {label} · </span>
+                          {launchSettingsName(target.recipe_name)}
+                        </>
                       }
-                    >
-                      <span className="flex flex-wrap items-center gap-1.5">
-                        {/* WCAG 2.5.3: named by its own words. */}
-                        <span className="font-medium text-ink">
-                          <span className="sr-only">Switch to </span>
-                          {/* The App whole, as the rows on this Mac name it (the 0.4 review). */}
-                          {cliAppName(target.provider, target.account_label)}
-                          {" "}<span className="sr-only">on {label}</span>
-                        </span>
-                        <span className="text-muted">· {launchSettingsName(target.recipe_name)}</span>
-                        <span className="flex-1" />
-                        <span
-                          className="rounded border border-warning/60 px-1.5 py-px text-label text-warning"
-                          data-testid="remote-switch-badge"
-                        >
-                          {target.badge}
-                        </span>
-                      </span>
-                      <span className={target.readiness === "t2_ready" ? "text-ink" : "text-muted"}>
-                        <span aria-hidden="true">
-                          {target.readiness === "t2_ready" ? "✓ " : unavailable ? "○ " : "◐ "}
-                        </span>
-                        {readinessText(target)}
-                      </span>
-                    </button>
+                      detail={
+                        <>
+                          <span data-testid="remote-switch-badge" className="contents">
+                            <BadgeLine badge={target.badge} validated={false} />
+                          </span>
+                          <span className={target.readiness === "t2_ready" ? "text-ink" : "text-ink-2"}>
+                            <span aria-hidden="true">{target.readiness === "t2_ready" ? "✓ " : unavailable ? "○ " : "◐ "}</span>
+                            {readinessText(target)}
+                          </span>
+                        </>
+                      }
+                    />
                   </li>
                 );
               })}

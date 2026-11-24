@@ -915,6 +915,10 @@ test("focus — panel outcome after focus (Focused window, dark)", gate("14-focu
   await expect(page.getByTestId("desktop-focus-outcome")).toContainText("Focused window");
   await expect(page.getByTestId("desktop-focus-outcome")).toContainText("aij-e414-a.txt");
   await expect(page.getByTestId("desktop-a11y-explainer")).toHaveCount(0);
+  // 0.5.1 B2 critique: the outcome sat below the fold, so this capture and
+  // permission-explainer showed the same panel; frame each on its state.
+  await frameOn(page.getByTestId("desktop-focus-outcome"), { edge: "end", gap: 120 });
+  await page.mouse.move(0, 0);
   await page.screenshot({ path: resolve(GALLERY, "14-focus/panel-outcome-1280x800.png") });
 });
 
@@ -937,6 +941,8 @@ test("focus — permission explainer on the degraded tier", async ({ page }) => 
   await expect(explainer).toContainText(
     "Juggler can open the app; exact-window focus needs Accessibility permission",
   );
+  await frameOn(explainer, { edge: "end", gap: 120 });
+  await page.mouse.move(0, 0);
   await page.screenshot({ path: resolve(GALLERY, "14-focus/permission-explainer-1280x800.png") });
 });
 

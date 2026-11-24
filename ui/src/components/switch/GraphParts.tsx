@@ -10,6 +10,7 @@ import { cliAppName } from "../../lib/app-name";
 import type { EpochTask } from "../../lib/ipc/tasks";
 import type { EpochNodeData, GraphEdgeData } from "../../lib/ipc/switch-targets";
 import { providerMark } from "../indicator";
+import { SELECTED_FILL } from "../controls/selected";
 
 /** One epoch node — a button (keyboard-first; the menu opens on
  * click and reads its actions as a list). `fork`/`merge` chips come
@@ -87,7 +88,7 @@ export function GraphEdge({
         data-testid="switch-graph-failed-edge"
         aria-expanded={open}
         onClick={onToggle}
-        className="flex shrink-0 flex-col items-center gap-0.5 rounded px-2 py-1 text-label text-danger focus:outline-none focus:ring-2 focus:ring-accent"
+        className={"flex shrink-0 flex-col items-center gap-0.5 rounded px-2 py-1 text-label text-danger" + (open ? " " + SELECTED_FILL : "")}
       >
         <span aria-hidden="true" className="tracking-widest">
           ✕ ┄┄▶
@@ -106,7 +107,7 @@ export function GraphEdge({
         aria-expanded={open}
         onClick={onToggle}
         title={`What ${edge.handover.to_tool} was told`}
-        className="flex shrink-0 flex-col items-center gap-0.5 rounded px-1 text-label text-muted hover:text-ink focus:outline-none focus:ring-2 focus:ring-accent"
+        className={"flex shrink-0 flex-col items-center gap-0.5 rounded px-1 text-label hover:text-ink" + (open ? " text-ink " + SELECTED_FILL : " text-muted")}
       >
         <span aria-hidden="true" className="tracking-widest">
           {edge.switch_back ? "↺" : "→"}

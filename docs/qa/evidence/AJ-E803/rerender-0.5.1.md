@@ -353,3 +353,13 @@ Re-rendered with `scripts/visual_gate.sh --update` after F55–F64 (and F53, 143
 - usage: `usage-dark-comfortable-1280x800`, `usage-dark-compact-1280x800`, `usage-light-comfortable-1280x800`, `usage-light-compact-1280x800`: the chosen segment is a solid neutral fill, 3:1 off its track (F53) on the rail's lens switch; a few pixels elsewhere re-rastered.
 - welcome: `welcome-dark-comfortable-1280x800`, `welcome-dark-compact-1280x800`, `welcome-light-comfortable-1280x800`, `welcome-light-compact-1280x800`: the chosen segment is a solid neutral fill, 3:1 off its track (F53) on the rail's lens switch.
 - 27-ranking (removed): `ranked-1440x900-dark`: removed: no test writes it since New session's "Ranked for you" list went (9735d44c8); the orphan F62 named, its gallery captures already gone.
+
+### Batch B2's design-critique fixes (2026-11-24)
+
+Re-rendered with `scripts/visual_gate.sh --update --project=gallery -g …` (the five gate states these fixes change, nothing else), each opened old beside new.
+
+- 14-focus: `panel-outcome-1280x800`: the capture now frames the panel's focus outcome ("Focused window · window “aij-e414-a.txt”"), which sat below the fold, so the state it is named for shows (a capture fix; the product unchanged).
+- 33-beta: `matrix-default-1280x800-dark`: "What carries" is in ink, no longer amber on every row (amber only where the user must act; the Status column says Beta).
+- 38-flows-cde: `c-provider-cards-1280x800-dark`: Add an app's tool rows choose with a secondary button each (was three filled primaries in one sheet); the desktop tool's note reads "One account at a time: AI Juggler can't open a second copy of this app, so one session at a time with this tool." (was "Juggler tracks, cannot isolate").
+- 50-cross-switch: `targets-1280x800-dark`: Switch account's paired-Mac rows are the same target cards as this Mac's (the App's logo, its name, a tone step, no line; how much carries a quiet line), no amber-ringed chip on every row.
+- 91-more-tools: `add-account-chooser-1280x800-dark`: Add an app's tool rows choose with a secondary button each (the 38-flows-cde fix, the same sheet).

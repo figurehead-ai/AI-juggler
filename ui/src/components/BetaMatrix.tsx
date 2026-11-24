@@ -99,7 +99,10 @@ export function BetaMatrix(): JSX.Element {
                   {sideName(row.from_tool ?? row.from, row.from_service)} → {sideName(row.to_tool ?? row.to, row.to_service)}
                 </th>
                 <td className="py-1.5 pr-3">
-                  <span className={row.validated ? "text-success" : "text-warning"}>{row.badge}</span>
+                  {/* 0.5.1 B2 critique: what a switch carries is a fact, in ink; amber
+                      is only for what the user must act on (PAT-COLOR), and
+                      the Status column already says Beta. */}
+                  <span className="text-ink">{row.badge}</span>
                   {row.advertised !== row.researched_ceiling && (
                     <span className="block text-label text-danger">one level less — a hand check failed</span>
                   )}
