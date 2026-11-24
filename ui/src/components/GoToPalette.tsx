@@ -42,10 +42,9 @@ import { RowView, rowTitle } from "./palette/RowView";
 import { canPreview, Preview, type Previewable } from "./palette/Preview";
 import { DialogFrame, DialogOverlay } from "./DialogFrame";
 import { NoMatches, openFound, useFoundRecords } from "./palette/use-found-records";
+import { useWholeRows } from "./palette/whole-rows";
 export { paletteSelection } from "./PaletteActions";
-
-/** Builds a Tauri accelerator string from a KeyboardEvent (lib/hotkey). */
-export { toAccelerator };
+export { toAccelerator }; // builds a Tauri accelerator string from a KeyboardEvent (lib/hotkey)
 
 const PANE_LABELS = Object.fromEntries(PANES.map((pane) => [pane.id, pane.label]));
 const LISTBOX = "goto-listbox";
@@ -101,6 +100,7 @@ export function GoToPalette({
   const inputRef = useRef<HTMLInputElement | null>(null);
   const dialogRef = useRef<HTMLDivElement | null>(null);
   const invoker = useRef<HTMLElement | null>(null);
+  const listRef = useWholeRows<HTMLUListElement>(); // 0.5.1 F44: it ends on a whole row
 
   const { all: conversations } = useConversations();
   const host = useActionHost();
@@ -341,7 +341,7 @@ export function GoToPalette({
           </p>
         )}
         <div className="flex min-h-0">
-          <ul id={LISTBOX} role="listbox" aria-label="Results" className="max-h-96 min-w-0 flex-1 overflow-y-auto p-1.5">
+          <ul ref={listRef} id={LISTBOX} role="listbox" aria-label="Results" className="max-h-[min(34rem,calc(100vh-16rem))] min-w-0 flex-1 overflow-y-auto p-1.5">
             {onlySearch && <NoMatches typed={typed.trim()} />}
             {rows.length === 0 && (
               <li role="presentation" className="px-2.5 py-3 text-meta text-muted">
@@ -350,7 +350,7 @@ export function GoToPalette({
             )}
             {groups.map((group) => (
               <li key={group.key} role="presentation">
-                <div id={`goto-group-${group.key}`} aria-hidden="true" className="flex items-baseline gap-1.5 px-2.5 pb-1 pt-2 text-label font-semibold text-muted">
+                <div id={`goto-group-${group.key}`} aria-hidden="true" data-list-head className="flex items-baseline gap-1.5 px-2.5 pb-1 pt-2 text-label font-semibold text-muted">
                   {group.label}
                   {group.more > 0 && <span className="font-normal" data-testid={`goto-more-${group.key}`}>· {group.more} more</span>}
                 </div>
