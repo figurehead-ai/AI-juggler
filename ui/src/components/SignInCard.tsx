@@ -24,12 +24,19 @@ import { Input } from "./form";
 import { Check } from "./StepCheck";
 import { providerDisplayName } from "../lib/providers";
 import { lazyNamed } from "../lib/lazy";
+import { ListSkeleton } from "./ListSkeleton";
 import { errorText } from "../lib/bridge";
 import { signInsOpenPage, type SignInInfo } from "../lib/ipc/sign-ins";
 import { terminalWrite } from "../lib/ipc/terminal-io";
 
-// xterm loads only when a sign-in's terminal is shown.
-const TerminalView = lazyNamed(() => import("./TerminalView"), "TerminalView");
+// xterm loads only when a sign-in's terminal is shown; until it is here,
+// the frame holds a skeleton, never a blank box (AJ-E1549 R3: the wizard
+// has no screen around it to lend its own).
+const TerminalView = lazyNamed(() => import("./TerminalView"), "TerminalView", false, () => (
+  <div className="p-3">
+    <ListSkeleton label="Loading the terminal" rows={2} />
+  </div>
+));
 
 /** The terminal, at the size each place gives it. */
 function Terminal({ id, title, tall }: { id: string; title: string; tall: boolean }): JSX.Element {

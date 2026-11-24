@@ -796,7 +796,7 @@ Step 2, "Sign in": (1) a newcomer signing in expects the provider's own page, no
 **Quality gates**: `just keep-going verify-static`; a test per wording rule (vocabulary, counts, hidden rows) and per behaviour change; the visual gate with Opus's critique in both themes.
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E1548/manifest.md`, one row per finding.
 
-### AJ-E1549 No white flash, ever: the window, the page and every loading boundary paint the theme's base colour from the first frame | Status: IN-PROGRESS (0.5.1: built; open: R3 the wizard sign-in terminal placeholder, SignInCard.tsx:32) | Priority P1 | Effort S | Depends: none
+### AJ-E1549 No white flash, ever: the window, the page and every loading boundary paint the theme's base colour from the first frame | Status: DONE (0.5.1) | Priority P1 | Effort S | Depends: none
 **Found** by the maintainer on the 0.5.0 Nightly (2026-11-23): a very short full-window white flash at random moments, among them the import wizard's sign-in step with a live terminal panel on screen. The coordinating session found no WebContent crash, reload or WebGL context loss in the system log (the wizard's state survived), so it is a paint gap, not a restart; the main window sets no background colour and nothing sets the webview's, so the native window is white behind the page.
 **UI**: yes
 **Usability reasoning** (Opus, before building; re-checked on the built screen):
