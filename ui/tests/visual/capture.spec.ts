@@ -3211,8 +3211,9 @@ for (const theme of THEMES) {
       // 0.5.1 F78: one step under another (no sideways row): framed from
       // the step that branches, its pill in the shot, the steps after it
       // below.
-      await frameOn(page.getByTestId("node-fork-chip").first(), { edge: "start", gap: 120 });
-      await expect(page.getByTestId("node-fork-chip").first()).toBeInViewport();
+      const forks = page.getByTestId("switch-graph-node").filter({ has: page.getByTestId("node-fork-chip") }).first();
+      await frameOn(forks, { edge: "start", gap: 120 });
+      await expect(forks).toBeInViewport();
       await page.screenshot({
         path: resolve(GALLERY, `32-graph/fork-merge-${vp.name}-${theme}.png`),
       });

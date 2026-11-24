@@ -282,7 +282,7 @@ describe("AJ-E1007 replay", () => {
     expect(turns[1]!.textContent).not.toContain("compacted");
     // Read-only: nothing to type into.
     expect(document.body.querySelector("[data-testid='replay-dialog'] textarea, [data-testid='replay-dialog'] input")).toBeNull();
-    const text = document.body.querySelector("[data-testid='replay-dialog']")!.textContent!;
+    const text = document.body.querySelector("[data-testid='replay-dialog']")!.textContent;
     for (const raw of ["sha256", "9f2c1e7a", "48230", "reaped", "· reviewed", "confirmed", "F1", "user", "assistant"]) expect(text).not.toContain(raw);
     expect(text).toContain("Marked reviewed");
     expect(text).toContain("A helper process was cleaned up by AI Juggler");

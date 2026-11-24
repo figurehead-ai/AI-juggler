@@ -178,7 +178,8 @@ export function ReplayDialog({ sessionId, tool = "", onClose }: { sessionId: str
             <div className="flex min-h-0 flex-col gap-5 overflow-y-auto text-meta">
               <Facts id="replay-history" title="What happened">
                 <ol className="flex flex-col gap-1" data-testid="replay-history-list">
-                  {replay.history.map((event, index) => (
+                  {/* Two steps that read the same ("Starting", then running: both "Working") are said once. */}
+                  {replay.history.filter((event, index, all) => index === 0 || stepWords(event) !== stepWords(all[index - 1]!)).map((event, index) => (
                     <li key={index} className="flex justify-between gap-3">
                       <span className="text-ink">{stepWords(event)}</span>
                       <When ms={event.at_ms} now={now} />

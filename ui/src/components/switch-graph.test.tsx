@@ -179,9 +179,9 @@ describe("AJ-E209 SwitchGraph — the timeline", () => {
     );
     expect(nodes.every((node) => node.tagName === "BUTTON")).toBe(true);
     nodes[0]!.focus();
-    fireEvent.keyDown(container.querySelector('[role="group"]')!, { key: "ArrowDown" });
+    fireEvent.keyDown(container.querySelector('ol[aria-label^="Timeline for"]')!, { key: "ArrowDown" });
     expect(document.activeElement).toBe(nodes[1]);
-    fireEvent.keyDown(container.querySelector('[role="group"]')!, { key: "ArrowUp" });
+    fireEvent.keyDown(container.querySelector('ol[aria-label^="Timeline for"]')!, { key: "ArrowUp" });
     expect(document.activeElement).toBe(nodes[0]);
   });
 

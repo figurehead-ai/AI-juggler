@@ -170,7 +170,6 @@ export function SwitchGraph({
               ref={listRef}
               onKeyDown={onKeyDown}
               className="flex flex-col gap-1"
-              role="group"
               aria-label={`Timeline for ${work.title}`}
             >
               {work.epochs.map((epoch, index) => {
