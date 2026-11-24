@@ -341,3 +341,65 @@ pub(crate) fn claude_profile(dir: &str) -> crate::features::places::book::KnownP
         declined: false,
     }
 }
+
+/// Two Claude Code accounts, Work and Home, each with launch settings
+/// "Main" (`true` stands in for the tool: nothing real runs), Home set up
+/// as a signed-in account is (a switch checks, 0.3.2), and one
+/// conversation `native` on Work in `root/site`, not yet listed.
+pub(crate) struct WorkAndHome {
+    pub(crate) state: std::sync::Arc<crate::state::AppState>,
+    pub(crate) work: String,
+    pub(crate) work_recipe: String,
+    pub(crate) home_recipe: String,
+}
+
+/// [`WorkAndHome`] over `root` (canonical), its data in `root/app-data`.
+pub(crate) fn work_and_home(root: &std::path::Path, native: &str) -> WorkAndHome {
+    let mut registry = juggler_adapter::AdapterRegistry::new();
+    let claude = std::sync::Arc::new(juggler_adapters::ClaudeCodeAdapter::with_bin(
+        "/usr/bin/true",
+    ));
+    registry.register(claude.clone());
+    registry.register_handover(claude);
+    let state = std::sync::Arc::new(
+        crate::state::AppState::init_with_registry(root.join("app-data"), registry).unwrap(),
+    );
+    let tool = juggler_adapters::CLAUDE_CODE_ID;
+    let work = crate::features::account::create_account(&state, tool, "Work", None).unwrap();
+    let work_recipe =
+        crate::features::profile::create_profile(&state, &work.id, "Main", None, None).unwrap();
+    let home = crate::features::account::create_account(&state, tool, "Home", None).unwrap();
+    let home_recipe =
+        crate::features::profile::create_profile(&state, &home.id, "Main", None, None).unwrap();
+    let home_dir = state.accounts_dir().join(tool).join(&home.id);
+    std::fs::create_dir_all(&home_dir).unwrap();
+    std::fs::write(
+        home_dir.join(".claude.json"),
+        r#"{"hasCompletedOnboarding":true}"#,
+    )
+    .unwrap();
+    let folder = root.join("site");
+    std::fs::create_dir_all(&folder).unwrap();
+    let transcripts = state
+        .accounts_dir()
+        .join(tool)
+        .join(&work.id)
+        .join("projects")
+        .join(folder.to_string_lossy().replace(['/', '.'], "-"));
+    std::fs::create_dir_all(&transcripts).unwrap();
+    let cwd = folder.display();
+    std::fs::write(
+        transcripts.join(format!("{native}.jsonl")),
+        format!(
+            "{{\"type\":\"user\",\"uuid\":\"u1\",\"sessionId\":\"{native}\",\"cwd\":\"{cwd}\",\"message\":{{\"role\":\"user\",\"content\":\"Fix the footer\"}}}}\n\
+             {{\"type\":\"assistant\",\"uuid\":\"u2\",\"parentUuid\":\"u1\",\"sessionId\":\"{native}\",\"cwd\":\"{cwd}\",\"message\":{{\"role\":\"assistant\",\"content\":[{{\"type\":\"text\",\"text\":\"Fixed.\"}}]}}}}\n"
+        ),
+    )
+    .unwrap();
+    WorkAndHome {
+        state,
+        work: work.id,
+        work_recipe: work_recipe.id,
+        home_recipe: home_recipe.id,
+    }
+}

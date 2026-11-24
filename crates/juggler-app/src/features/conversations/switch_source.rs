@@ -97,17 +97,7 @@ pub(crate) fn as_switch_source(
     let machine = crate::commands::local_machine_id(state);
     let (profile, project) = {
         let storage = lock_storage_arc(state)?;
-        let profile = storage
-            .profiles()
-            .list_by_account(&account.id)?
-            .into_iter()
-            .next()
-            .ok_or_else(|| {
-                AppError::Refused(format!(
-                    "{} has no launch settings yet: add them first",
-                    account.label
-                ))
-            })?;
+        let profile = super::first_launch_settings(&storage, &account)?;
         let project = match &folder {
             Some(folder) => {
                 let homes = storage.projects().worktree_homes()?;
@@ -191,46 +181,13 @@ mod tests {
     /// runs) and a conversation on the first, open in the Claude app now.
     fn open_in_the_claude_app(dir: &std::path::Path) -> (Arc<AppState>, String, String) {
         let root = dir.canonicalize().unwrap();
-        let mut registry = juggler_adapter::AdapterRegistry::new();
-        let claude = Arc::new(juggler_adapters::ClaudeCodeAdapter::with_bin(
-            "/usr/bin/true",
-        ));
-        registry.register(claude.clone());
-        registry.register_handover(claude);
-        let state =
-            Arc::new(AppState::init_with_registry(root.join("app-data"), registry).unwrap());
+        let crate::test_support::WorkAndHome {
+            state,
+            work,
+            home_recipe,
+            ..
+        } = crate::test_support::work_and_home(&root, NATIVE);
         let tool = juggler_adapters::CLAUDE_CODE_ID;
-        let work = crate::features::account::create_account(&state, tool, "Work", None).unwrap();
-        crate::features::profile::create_profile(&state, &work.id, "Main", None, None).unwrap();
-        let home = crate::features::account::create_account(&state, tool, "Home", None).unwrap();
-        let home_recipe =
-            crate::features::profile::create_profile(&state, &home.id, "Main", None, None).unwrap();
-        // Home is set up, as a signed-in account is (a switch checks, 0.3.2).
-        let home_dir = state.accounts_dir().join(tool).join(&home.id);
-        std::fs::create_dir_all(&home_dir).unwrap();
-        std::fs::write(
-            home_dir.join(".claude.json"),
-            r#"{"hasCompletedOnboarding":true}"#,
-        )
-        .unwrap();
-        let folder = root.join("site");
-        std::fs::create_dir_all(&folder).unwrap();
-        let transcripts = state
-            .accounts_dir()
-            .join(tool)
-            .join(&work.id)
-            .join("projects")
-            .join(folder.to_string_lossy().replace(['/', '.'], "-"));
-        std::fs::create_dir_all(&transcripts).unwrap();
-        let cwd = folder.display();
-        std::fs::write(
-            transcripts.join(format!("{NATIVE}.jsonl")),
-            format!(
-                "{{\"type\":\"user\",\"uuid\":\"u1\",\"sessionId\":\"{NATIVE}\",\"cwd\":\"{cwd}\",\"message\":{{\"role\":\"user\",\"content\":\"Fix the footer\"}}}}\n\
-                 {{\"type\":\"assistant\",\"uuid\":\"u2\",\"parentUuid\":\"u1\",\"sessionId\":\"{NATIVE}\",\"cwd\":\"{cwd}\",\"message\":{{\"role\":\"assistant\",\"content\":[{{\"type\":\"text\",\"text\":\"Fixed.\"}}]}}}}\n"
-            ),
-        )
-        .unwrap();
         super::super::commands::list_impl(&state).unwrap();
         let app = super::super::places::Host {
             app_id: Some("claude".to_owned()),
@@ -243,10 +200,10 @@ mod tests {
             instance: None,
         };
         state.conversations.live.lock().unwrap().insert(
-            (work.id.clone(), tool.to_owned(), NATIVE.to_owned()),
+            (work.clone(), tool.to_owned(), NATIVE.to_owned()),
             super::super::scan::LiveEntry {
                 tool: tool.to_owned(),
-                account_id: Some(work.id.clone()),
+                account_id: Some(work.clone()),
                 session_id: NATIVE.to_owned(),
                 places: vec![super::super::scan::Place {
                     pid: 4243,
@@ -262,7 +219,7 @@ mod tests {
                 background: false,
             },
         );
-        (state, work.id, home_recipe.id)
+        (state, work, home_recipe)
     }
 
     /// AJ-E2108: a session open in its app is switched to another account
