@@ -80,7 +80,7 @@ describe("AJ-E2906 the words", () => {
   it("each field has its word and source; an unknown confidence never claims more than a guess", () => {
     expect(fieldRows(STALE, { name: "claude-old", used: "Used 200 days ago" })).toEqual([
       { field: "Name", value: "claude-old", confidence: "found", source: "the tool's usual folder" },
-      { field: "Sign-in", value: "May have expired", confidence: "likely", source: "its sign-in file is there but empty" },
+      { field: "Sign-in", value: "May have expired", confidence: "likely", source: "its sign-in file, there but empty" },
       { field: "Last used", value: "Used 200 days ago", confidence: "found", source: "its newest conversation" },
     ]);
     const odd = { ...ODD, inference: { ...ODD.inference, purpose_confidence: "certain" } };
@@ -128,7 +128,7 @@ describe("AJ-E2906 the found step", () => {
     const details = within(usual).getByTestId("first-run-details");
     expect(within(details).getAllByTestId("first-run-field").map((row) => row.textContent)).toEqual([
       "NameDefaultfrom the tool's usual folder",
-      "Sign-inSigned infrom its sign-in is in its folder",
+      "Sign-inSigned infrom its sign-in in its folder",
       "Last usedUsed todayfrom its newest conversation",
     ]);
     expect(within(details).getByTestId("first-run-notes").textContent).toBe("Claude Code's standard location.");

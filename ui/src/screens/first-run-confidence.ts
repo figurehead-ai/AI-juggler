@@ -53,15 +53,17 @@ const SIGN_IN_VALUE: Record<string, string> = {
   "maybe-expired": "May have expired",
   "not-signed-in": "Not signed in",
 };
+// Each reads after "from" in Details (0.5.1 critique: "from its sign-in
+// file is there but empty" was not a sentence).
 const SIGN_IN_SOURCE: Record<string, string> = {
-  "sign-in-present": "its sign-in is in its folder",
-  "system-keychain": "its sign-in is kept by the system",
-  "sign-in-empty": "its sign-in file is there but empty",
-  "no-sign-in": "no sign-in in its folder",
+  "sign-in-present": "its sign-in in its folder",
+  "system-keychain": "the system's keychain, which keeps its sign-in",
+  "sign-in-empty": "its sign-in file, there but empty",
+  "no-sign-in": "its folder, which has no sign-in",
 };
 const USED_SOURCE: Record<string, string> = {
   "newest-conversation": "its newest conversation",
-  "no-conversations": "it has no conversations yet",
+  "no-conversations": "its folder, which has no conversations yet",
 };
 
 export interface FieldRow {
