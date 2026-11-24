@@ -1,4 +1,4 @@
-<!-- captures: 6152003dea47 -->
+<!-- captures: 23e2b4a5546c -->
 # 50-cross-switch: continuing a session on another account or Mac: the target list, the switch wizard's steps, progress, conflicts and switching back
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design passes.
@@ -35,20 +35,22 @@ Re-captured after F53 and this batch's fix, every state, both themes at 1280×80
 | 1 | Job | 5 | 4 | Continue on another Mac; come back; settle a divergence. |
 | 2 | Prominence | 4 | 4 | Machines after this Mac's Apps, under their own heading. |
 | 3 | Default | 5 | 4 | Diverged waits on a choice ("Choose one" faded), its reason in the title. |
-| 4 | Mode | 5 | 3 | Switch back's preview and the diverged sheet have no icon tile or from → to strip, outlined boxes and option rows: F71. |
-| 5 | Mock-up | 4 | 3 | Not on §8's frame (F71). |
-| 6 | Areas | 4 | 3 | Boxes in a box (Here / On Laptop cards beside three outlined option rows). |
+| 4 | Mode | 5 | 4 | F71 (23d2a125f): both on the switch frame, its icon tile and the from → to strip (This Mac · Desktop Max → Laptop · Work Max). |
+| 5 | Mock-up | 4 | 4 | §8's frame: fixed header and footer, one primary last. |
+| 6 | Areas | 4 | 4 | The update on a tinted inset; Here and On Laptop as a fact panel; the choices as RadioCards; no outlined boxes. |
 | 7 | Colour | 4 | 4 | After the fix, no amber chips; the diverged title's ⚠ glyph. |
-| 8 | Type | 5 | 4 | The preview's summary is a monospace block. |
-| 9 | Actions | 5 | 4 | "Switch back to Laptop…" acts but ends in "…". |
+| 8 | Type | 5 | 4 | The update in body type, the turn labels muted. |
+| 9 | Actions | 5 | 4 | "Switch back to Laptop"; the sheet's primary names the choice ("Keep both on Laptop"), its reason line while none is chosen. |
 | 10 | Serious | 5 | 4 | Diverged says nothing was merged or run. |
 | 11 | Doors | 4 | 4 | |
-| 12 | Words | 4 | 3 | "[user]" / "[assistant]" lines, "switch pack", "10/13/2024, 1:43:20 AM" (F71). |
+| 12 | Words | 4 | 4 | The turns read "You" and "Reply"; "last active 30 min ago" (the date and time on hover); no "switch pack". |
 | 13 | States | 4 | 4 | Ready, blocked, mapping, progress, conflict, resolved. |
-| 14 | Consistency | 4 | 3 | F71. |
-| 15 | Accessibility | 4 | 4 | Keyboard sweep (a11y.spec) reaches every step; the progress heading's ring (F75). |
+| 14 | Consistency | 4 | 4 | SwitchHeader, FactPanel, RadioCards, DoneHead and the kit's Alert, as the switch. |
+| 15 | Accessibility | 4 | 4 | Keyboard sweep (a11y.spec) reaches every step; a step opens on its first control, never a heading (F75, 5192775f5): progress has Stop sending. |
 | 16 | Hand walk | 4 | 4 | Preview. |
 | 17 | System prompts | 5 | 5 | None. |
 | 18 | Usability | 4 | 4 | |
 
 Lowest: 3 (switch back and the diverged sheet: lines 4, 5, 6, 12, 14), logged as F71. Targets fixed to 4.
+
+**Fixed after the critique (F71, F75), re-captured (switch-back-preview, conflict-sheet, conflict-keep-both, resolved, progress; both themes, opened as pairs):** switch back is "Switch back to Laptop · The original on Work Max resumes there, never overwritten." with the strip, "What the original receives · One update: 4 new turns from here" as You/Reply turns on a tinted inset, Keep this session running too as a CheckRow, and Cancel · Switch back to Laptop. The sheet is "Both sides moved on · Nothing was merged and nothing ran. Choose what to keep.", a fact panel (Here: 4 new turns on Desktop Max; On Laptop: 2 new turns in the original, last active 30 min ago), What to keep as three RadioCards with icons, "Choose what to keep first." until one is chosen, Review later (focused) · Keep both on Laptop. resolved: "Back on Laptop" with the outcome, Done. Lowest now: 4 (both columns).

@@ -24,3 +24,7 @@
 ## Checks
 
 2026-11-23: `cargo test -p juggler-app --lib handover::` 137 passed; `cargo test -p juggler-handover --lib moving` 26 passed; clippy `-p juggler-handover -p juggler-app --all-targets -D warnings` clean; rustfmt clean on the changed files; vitest `move-opened`, `switch-move`, `moves-door`, `moves-backups` passed; `tsc -b`, `ui_lint.py`, `private_data_lint.py`, `terminology_lint.sh`, `plain_words_lint.py`, `platform_lint.py`, `size_budget.py`, `ipc_audit.py`, `debt_baseline.py` OK.
+
+## 0.5.1 F69 (2026-11-24)
+
+The Copy switch's done step now follows R1 as Move does: "Opened in <App>" only when the app shows the conversation open, by Move's own check (`moving::seen_open_after_link`: a session of it running in that app, or the app adding to its history after the link, woken by file events, capped at 15 s); otherwise "Sent to <App>", "AI Juggler couldn't see it open there yet", and Open in <App>. Commit 2af83d538: `a_copy_link_not_seen_open_says_none`, `a_copy_the_app_adds_to_is_seen_open` (Rust); `switch-where.test.tsx` "0.5.1 F69…" (vitest, failed before: it read "Opened in Claude app · Personal"); gallery 96-switch-setup `where-done-sent`.

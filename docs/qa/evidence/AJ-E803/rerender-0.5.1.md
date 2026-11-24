@@ -391,3 +391,10 @@ Then batch B3's critique fixes (51ea3254f), re-rendered with `scripts/visual_gat
 - 87-burn-down: `usage-1280x800-dark-comfortable`: framed from "Runway and limit history", so Claude Max 20x's name, rings and week chart show (it opened at the card's bottom); the Not signed in card beside it is as tall as what it holds (it stretched to the tall card's height, an empty panel).
 - 14-focus: `panel-outcome-1280x800`: the one-account note is a plain line with an info mark (B2's F70, 059097f12; was an amber "isolation" strip).
 - 50-cross-switch: `progress-1280x800-dark`: focus is on Stop sending, not a ring round the "Switching to Team on Mac mini…" heading (B2's F75, 24cef04a9).
+
+### Batch B2's findings F68–F75 (2026-11-24)
+
+A full run without `--update` after F68–F75 found their gate states changed; batch B3's re-render (79a98ea7c) rendered them with its own, after F75's final focus rule (5192775f5), and `scripts/visual_gate.sh --update --project=gallery` on those states here re-rendered them byte-identical. Their notes: 14-focus `panel-outcome-1280x800` (F70), 50-cross-switch `progress-1280x800-dark` (F75: focus on Stop sending, the dialog's only control while it sends) and 96-notification-centre's toasts (F73) are in B3's section above; F68's are these, each opened old beside new.
+
+- 37-flows: `b1-tiles-1280x800-dark`: New project on D-142's size-M frame (F68): the folder icon tile, "New project" and one help line in the fixed header, "Where it lives" with the recent folders one to a row as tone cards ("ai-juggler · Last used with Work Max · 1 min ago"), the keyboard on the first, Choose folder… a secondary and Cancel in the footer (was a two-column grid of outlined tiles, "Step 1 — where do you want to work?" and Close alone in the footer).
+- 37-flows: `b2-account-1280x800-dark`: choosing ai-juggler opens New session on it (F68): its stated choice "Start in ai-juggler on Claude Code CLI · Work Max", Change folder, Change app and the one primary "Start in ai-juggler ⌘↩" (was New project's Step 2: a bare "Work Max" row with a "quota unknown" chip, "Deep work", and "Start session →" mid-body).

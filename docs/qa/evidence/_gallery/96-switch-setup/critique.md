@@ -1,4 +1,4 @@
-<!-- captures: ed3fec3395d5 -->
+<!-- captures: 6faa59231964 -->
 # 96-switch-setup: what the other account is missing before you switch, and how to set it up
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design passes.
@@ -53,6 +53,8 @@ Re-captured after F53 (only where-narrow changed, at its top bar); every state o
 | 15 | Accessibility | 4 | Not re-walked by hand. |
 | 16 | Hand walk | 4 | Preview. |
 | 17 | System prompts | 5 | None. |
-| 18 | Usability | 3 | where-done-desktop says "Opened in Claude app · Personal" without the open check Move makes (AJ-E2322's answer 2): F69. |
+| 18 | Usability | 4 | F69 (2af83d538): "Opened in Claude app · Personal" only when the app shows it open, by Move's check; where-done-sent: "Sent to Claude app · Personal", "AI Juggler couldn't see it open there yet" and Open in Claude app · Personal. |
 
 Lowest: 3 (line 18), logged as F69.
+
+**Fixed after the critique (F69), re-captured:** where-done-desktop is unchanged (the preview's app shows it open); the new where-done-sent (both themes) is the same done step when the app took the copy but didn't show it open: Where "Sent to Claude app · Personal" in the plain tone (no green tick), the sentence, and Open in Claude app · Personal as a secondary. Lowest now: 4.

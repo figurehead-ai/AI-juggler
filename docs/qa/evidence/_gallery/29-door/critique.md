@@ -1,4 +1,4 @@
-<!-- captures: cd86d78b272f -->
+<!-- captures: 6a13654e6238 -->
 # 29-door: the one-click door into a switch: the switch dialog from one click, the wizard's Target and What's carried steps (3- and 5-step), and the Undo toast after switching
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design passes.
@@ -36,11 +36,13 @@ Re-captured after F53, both sizes and themes, opened as dark|light pairs beside 
 | 10 | Serious | 4 | "Why it asks first" says the pair is untested; the fixture says it carries "its subagents" and then "Doesn't carry: Subagents' work" (fixture, noted in 33-beta). |
 | 11 | Doors | 4 | The toast's Undo; nothing on the page to open the new session. |
 | 12 | Words | 4 | Plain; the fixture's contradiction above. |
-| 13 | States | 3 | undo-toast: after the switch the page reads "Session · Unavailable · Nothing to show here yet" (the preview never lists the new session; the real app shows it until the list has it): F74. |
-| 14 | Consistency | 4 | The toast's Undo is an accent-soft fill where other toast actions are outlined (F73). |
+| 13 | States | 4 | undo-toast: after the switch the page says "Starting on Personal…", "Switched from “Fix the flaky login test”. The original stays resumable." over a skeleton of the page's first card, until the list holds the new session (F74, 6cc4a9113); past 20 s it says plainly where the conversation is. |
+| 14 | Consistency | 4 | Every toast action is the kit's secondary fill now, Undo included (F73, dda75a83f). |
 | 15 | Accessibility | 4 | N1 holds; not re-walked by hand. |
 | 16 | Hand walk | 4 | Preview walk. |
 | 17 | System prompts | 5 | None new. |
 | 18 | Usability | 4 | Undo for 10 s says the original stays resumable. |
 
 Lowest: 3 (line 13), logged as F74; F73 for the toast's action look. No fix in this family.
+
+**Fixed after the critique (F73, F74), re-captured (undo-toast, both sizes and themes, opened as pairs):** the page behind the toast is the new session's arriving page, its name and where it came from, a skeleton by tone where "Unavailable" stood; Undo (10s) is a neutral fill like Start another. Lowest now: 4.

@@ -1,4 +1,4 @@
-<!-- captures: a1b43ea2d8c3 -->
+<!-- captures: 05bc1b2b0a84 -->
 # 99-new-session: New session, the usual made and said (0.4, D-62, AJ-E3207)
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at 0.4 from its captures.
@@ -64,10 +64,12 @@ Re-captured after F53 and F49 (start-another), every state, both themes, opened 
 | 11 | Doors | 4 | |
 | 12 | Words | 4 | "Always start web-shop on Work" names the Account where the App is set; a default Codex profile shows as "~/.codex". |
 | 13 | States | 4 | First time, out of room, almost out, own account, start another. |
-| 14 | Consistency | 4 | Change app's rows still show the terminal glyph, not each tool's mark; the toast's "Start another" is an outlined button (F73). |
+| 14 | Consistency | 4 | Change app's rows still show the terminal glyph, not each tool's mark; the toast's "Start another" is the kit's secondary fill, as every toast action (F73, dda75a83f). |
 | 15 | Accessibility | 4 | The toast takes the keyboard after a start (F49). |
 | 16 | Hand walk | 4 | Preview. |
 | 17 | System prompts | 5 | None. |
 | 18 | Usability | 4 | |
 
 Lowest: 4; F73 logged for the toast's action.
+
+**Fixed after the critique (F73), re-captured (start-another, both themes):** "Start another: payments-api" is a neutral fill with no stroke. Lowest: 4.

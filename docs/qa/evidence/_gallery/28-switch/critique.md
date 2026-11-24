@@ -1,4 +1,4 @@
-<!-- captures: f2aa5c4f517e -->
+<!-- captures: 6a5b92153ee2 -->
 # 28-switch: switching a conversation to another account: the "Continue on another account" list, the 3-step switch dialog's Confirm step in its variants, the running and failed states, and the notes and switch-anyway prompts
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design passes.
@@ -100,8 +100,8 @@ Re-captured (`pnpm visual:capture`, local, after F53): every state at 1280×800 
 | 11 | Doors | 4 | Failed says "resume it on Work where you left it" with no door to do it (Retry and Report only). |
 | 12 | Words | 4 | Plain; "Desktop" greyed with how to clear it; on the lab the profile names start sentences in lower case ("work no longer lists it"). |
 | 13 | States | 4 | Running, done, failed and out of room each drawn; the refusal frames (needs you, setup, bug) only in vitest, no capture. |
-| 14 | Consistency | 4 | The kit's RadioCards, Alert, FactPanel; on a keyboard open the focused section heading draws a ring (F75). |
-| 15 | Accessibility | 4 | Dialog-fit (N1) holds; headings with a ring (F75); not re-walked at 200 % or Increase Contrast. |
+| 14 | Consistency | 4 | The kit's RadioCards, Alert, FactPanel; a keyboard open starts on the chosen card, no heading ring (F75, 5192775f5). |
+| 15 | Accessibility | 4 | Dialog-fit (N1) holds; focus on the first choice (keyboard-flows checks no heading has it, F75); not re-walked at 200 % or Increase Contrast. |
 | 16 | Hand walk | 4 | Preview walk (Playwright); the move walked in the Dev app on the lab (PL1 I2–I4). |
 | 17 | System prompts | 5 | Quitting and reopening the Apps uses the Automation entry primed in setup (AJ-E1547); none new. |
 | 18 | Usability | 4 | The move tasks' answers below; one mismatch on the Copy path (F69). |
@@ -113,3 +113,5 @@ Re-captured (`pnpm visual:capture`, local, after F53): every state at 1280×800 
 - AJ-E2328 ("Also moves"): S-I2 shows "Also moves: Its worktree lab-wt-1 (branch lab/wt-1): Claude app · personal owns it after the move; its files stay where they are." in plain words, no internal terms; the gallery's fixture carries none, so no capture here shows it. Match.
 
 Lowest: 4. No fix in this family; logged F69, F72, F75.
+
+**Fixed after the critique (F72, F75), re-captured:** the new move-waits (1280×800 and 800×600, both themes) is Move waiting on a session open in a terminal: the faded Move card says "“Fix the login test” in Terminal is open outside the app; Move becomes available once you end it.", then Go to “Fix the login test” in Terminal (secondary) and Check again; Copy chosen (F72, 8f1f64835; a stop names its holders the same way). The other states re-captured identical. Lowest: 4.

@@ -1,4 +1,4 @@
-<!-- captures: c822700e4c96 -->
+<!-- captures: b9a093153f96 -->
 # 37-flows: the first-run "bring in your accounts" detour and the New project dialog's two steps
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design passes.
@@ -23,20 +23,22 @@ Re-captured after F53, 1280, 1024 and 390, both themes. b-detour is the setup wi
 | 1 | Job | 5 | 4 | |
 | 2 | Prominence | 4 | 4 | |
 | 3 | Default | 5 | 4 | The chosen folder tile ringed; the App last used. |
-| 4 | Mode | 4 | 3 | New project predates New session's stated choice: tiles, a bare App row, the primary mid-body: F68. |
-| 5 | Mock-up | 4 | 3 | F68. |
+| 4 | Mode | 4 | 4 | F68 (63a13b2ff, 56702a7d6): New project chooses only where, on D-142's frame; the App is New session's stated choice (b2-account). |
+| 5 | Mock-up | 4 | 4 | Size M frame: icon tile, title and one help line, the body the choice, Cancel in the footer. |
 | 6 | Areas | 4 | 4 | |
 | 7 | Colour | 4 | 4 | "Recommended" plain words, not the accent tag (PAT-SURF-5). |
 | 8 | Type | 4 | 4 | |
-| 9 | Actions | 5 | 3 | "Start session →" sits mid-body under Step 2, Close alone in the footer (BTN-1): F68. |
+| 9 | Actions | 5 | 4 | A folder card or Choose folder… (secondary) acts; no primary mid-body; Cancel in the footer; New session's one primary starts it. |
 | 10 | Serious | 4 | n/a | |
 | 11 | Doors | 4 | 4 | |
-| 12 | Words | 4 | 3 | The App named by its profile alone ("Work Max"), a "quota unknown" chip (unknown room says nothing elsewhere), "Deep work": F68. |
+| 12 | Words | 4 | 4 | "Last used with Work Max · 1 min ago"; no room chip here (New session says the App's room in words). |
 | 13 | States | 4 | 4 | |
-| 14 | Consistency | 4 | 3 | F68. |
+| 14 | Consistency | 4 | 4 | One way to pick an App, New session's; the folders are tone cards, as Add an app's rows. |
 | 15 | Accessibility | 4 | 4 | |
 | 16 | Hand walk | 4 | 4 | Preview. |
 | 17 | System prompts | 5 | 5 | None here (the wizard's Mac access step primes its own). |
 | 18 | Usability | 4 | 4 | |
 
 Lowest: 3 (New project, lines 4, 5, 9, 12, 14), logged as F68.
+
+**Fixed after the critique (F68), re-captured (b1-tiles, b2-account, b-detour; 1280, 1024, 390; both themes, opened as pairs):** b1-tiles is New project on the size-M frame: the folder icon tile, "New project" and "Choose its folder. New session then picks the app, as it always does.", "Where it lives" with the recent folders one to a row as tone cards ("ai-juggler · Last used with Work Max · 1 min ago"), the keyboard on the first, Choose folder… a secondary, "Or drop a folder anywhere on this window." and Cancel in the footer. b2-account is New session opened on ai-juggler: "Start in ai-juggler on Claude Code CLI · Work Max — the only account used here", its Change folder and Change app, and "Start in ai-juggler ⌘↩". b-detour: the add-an-app flow over the sheet, which then carries on to New session on the folder. Lowest now: 4 (both columns).

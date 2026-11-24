@@ -1,4 +1,4 @@
-<!-- captures: 480da1fcdccb -->
+<!-- captures: 4cf613200e3c -->
 # 14-focus: the "Go to a session" palette, and a desktop session's panel after a focus attempt and with the permission explainer
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design fixes.
@@ -28,12 +28,12 @@ What they show, scored:
 | 4 | Mode | 4 | |
 | 5 | Mock-up | 4 | |
 | 6 | Areas | 4 | |
-| 7 | Colour | 3 | The isolation note (an amber "isolation" chip on an amber-tinted card) and the explainer (an amber card) put amber behind words (PAT-COLOR-2, as F66): F70. |
+| 7 | Colour | 4 | F70 (059097f12): the one-account note is a plain line with an info mark; the explainer a needs-you Alert (an amber bar and bell, no amber behind words). |
 | 8 | Type | 4 | |
-| 9 | Actions | 3 | "Open System Settings…" is a second filled primary beside the header's "Go to it": F70. |
+| 9 | Actions | 4 | Open System Settings… is a secondary; Go to it the one filled button. |
 | 10 | Serious | 4 | |
 | 11 | Doors | 4 | Open System Settings…. |
-| 12 | Words | 3 | "Juggler tracks, cannot isolate", "Juggler can open the app; exact-window focus needs Accessibility permission", "Juggler tracks the process, never embeds it": F70. |
+| 12 | Words | 4 | "One account at a time: AI Juggler can't open a second copy of this app, so one session at a time with it.", "Needs Accessibility · AI Juggler opened the app, but bringing this session's own window forward needs Accessibility permission for AI Juggler.", "AI Juggler follows its process and never draws it here." |
 | 13 | States | 4 | Focused, window not found, permission missing. |
 | 14 | Consistency | 4 | |
 | 15 | Accessibility | 4 | The explainer is a named note. |
@@ -42,3 +42,5 @@ What they show, scored:
 | 18 | Usability | 4 | |
 
 Lowest: 3 (lines 7, 9, 12), logged as F70.
+
+**Fixed after the critique (F70), re-captured (panel-outcome, permission-explainer):** as the rows above say; the palettes unchanged. Lowest now: 4.
