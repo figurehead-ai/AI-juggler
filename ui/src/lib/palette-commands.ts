@@ -45,6 +45,9 @@ export interface AppDoings {
   openAccount?: (id: string) => void;
   /** AJ-E3824 (D-144): Watches' form, new, to pick a session. */
   watchSession?: () => void;
+  /** F19 (0.5.1): Find my apps, the setup's Your apps (every Add's list:
+   * running profiles not added, folders not brought in). */
+  findApps?: () => void;
 }
 
 const SCREEN_ICON: Record<GlobalId | "home", PaletteCommandIcon> = {
@@ -106,6 +109,7 @@ export function appCommands(app: AppDoings): PaletteCommand[] {
       run: () => app.openScreen(id),
     })),
     ...(app.watchSession ? [{ id: "watch-session", label: WATCH_A_SESSION, icon: "bell" as const, words: "watch tell me when finishes asks notify alert", run: app.watchSession }] : []),
+    ...(app.findApps ? [{ id: "find-apps", label: "Find my apps…", icon: "accounts" as const, words: "add app apps profile desktop import bring in again", run: app.findApps }] : []),
     { id: "notifications", label: "Notifications", icon: "bell", words: "needs you alerts bell", keys: keysOf("notifications"), run: app.notifications },
     { id: "shortcuts", label: "Keyboard shortcuts", icon: "keyboard", words: "keys help", keys: keysOf("help"), run: app.shortcuts },
     { id: "toggle-rail", label: "Show or hide the list", icon: "list", words: "rail sidebar icons fold", keys: keysOf("toggle-rail"), run: app.toggleRail },

@@ -97,6 +97,8 @@ export function ShellOverlays({ shell }: { shell: Shell }): JSX.Element {
           shortcuts: () => shell.setShortcutsOpen(true), toggleRail: shell.toggleRail, searchHistory: (words) => (shell.setHistoryQuery(words), shell.setGlobal("history")), fleet: shell.pairedCount > 0,
           // AJ-E3824: found records open their pages, by id; Watch a session… opens Watches' form.
           openPool: (id) => shell.openPage({ kind: "pool", id }), openAccount: (id) => shell.openPage({ kind: "app", id: cliAppId(id) }), watchSession: () => openWatches({ kind: "new" }),
+          // F19 (0.5.1): ⌘K's add is Find my apps, as Accounts' and Usage's.
+          findApps: () => shell.setFirstRun(true),
         }}
         projects={projects} accounts={accounts}
         onChanged={() => void refresh()}

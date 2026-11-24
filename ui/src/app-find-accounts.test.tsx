@@ -68,3 +68,16 @@ it("an empty data folder opens on the Welcome, and the wizard only on Get starte
   await user.click(view.getByRole("button", { name: "Get started" }));
   expect(await view.findByTestId("setup-wizard")).toBeTruthy();
 });
+
+// F19 (0.5.1 PL1 D3): Settings › Desktop apps' Find my apps… reaches the
+// shell by its event and opens the setup's Your apps.
+it("Find my apps from Settings opens the setup's Your apps", async () => {
+  const { findMyApps } = await import("./lib/found-tools");
+  const { act } = await import("@testing-library/react");
+  const view = render(<App />);
+  await view.findByTestId("home-empty-accounts");
+  expect(view.queryByTestId("setup-wizard")).toBeNull();
+  act(() => findMyApps());
+  expect(await view.findByTestId("setup-wizard")).toBeTruthy();
+  expect((await view.findByTestId("first-run")).getAttribute("data-mode")).toBe("first-run");
+});
