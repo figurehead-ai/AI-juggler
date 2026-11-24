@@ -24,7 +24,7 @@ const TONE: Record<RoomMark["kind"], string> = {
   low: "border-frame bg-warning-soft text-warning",
 };
 
-export function RoomChip({ mark, size = "sm", compact = false, iconOnly = false, testId = "room-chip" }: { mark: RoomMark | null; size?: "sm" | "md"; compact?: boolean; iconOnly?: boolean; testId?: string }): JSX.Element | null {
+export function RoomChip({ mark, size = "sm", compact = false, iconOnly = false, brief = false, testId = "room-chip" }: { mark: RoomMark | null; size?: "sm" | "md"; compact?: boolean; iconOnly?: boolean; /** Its icon and short word ("Out"): when it resets is said beside it (Home's runway line, F43). */ brief?: boolean; testId?: string }): JSX.Element | null {
   if (!mark) return null;
   const Icon = mark.kind === "out" ? IconGaugeEmpty : IconGaugeLow;
   // D-100 (the 0.4.2 review): in the rail's App header the mark is its
@@ -73,7 +73,7 @@ export function RoomChip({ mark, size = "sm", compact = false, iconOnly = false,
         </span>
       )}
       <span aria-hidden="true" className="min-w-0 break-words">
-        {compact ? mark.short : clocksWhole(mark.label)}
+        {compact || brief ? mark.short : clocksWhole(mark.label)}
       </span>
       <span className="sr-only">{mark.title}</span>
     </span>

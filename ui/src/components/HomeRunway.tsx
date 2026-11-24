@@ -148,12 +148,21 @@ export function runwayFacts(row: RunwayLine, live: number): string {
   return line.charAt(0).toUpperCase() + line.slice(1);
 }
 
+/** 0.5.1 F43: the Out chip says "Out" alone when the line under its
+ * meter already says when it resets (`runwayFacts`): the chip's own
+ * "· resets 10:00 AM tomorrow" said it twice and cut the Account's name
+ * to "w……" on Home's narrowest cards. Its tooltip and spoken name keep
+ * the whole of it. */
+export function outChipBrief(row: Pick<RunwayLine, "resets">): boolean {
+  return row.resets !== null;
+}
+
 /** A runway row's figure: its % left (or On credits), and when it's out
  * the one red Out chip with when it's back (PAT-COLOR, `lib/room-mark`),
  * whatever runs on it. Unknown room is said once, on its own line below
  * (the 0.4 design review, 82): no "—" figure here. */
 function RunwayFigure({ row, out, credits, level }: { row: RunwayLine; out: boolean; credits: boolean; level: AttentionLevel }): JSX.Element | null {
-  if (out) return <RoomChip mark={roomMarkFrom(0, row.resetsAtMs ?? null, false, undefined, row.age ?? null)} testId="home-runway-out" />;
+  if (out) return <RoomChip mark={roomMarkFrom(0, row.resetsAtMs ?? null, false, undefined, row.age ?? null)} brief={outChipBrief(row)} testId="home-runway-out" />;
   if (!credits && row.left === null) return null;
   return <span className={"shrink-0 text-body font-semibold tabular-nums " + LEVEL_TEXT[level]}>{credits ? "On credits" : `${row.left}% left`}</span>;
 }

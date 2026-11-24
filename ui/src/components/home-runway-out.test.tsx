@@ -72,3 +72,19 @@ describe("the runway's facts line (D-118's mock)", () => {
     expect(runwayFacts({ left: 0, words: "0% left in the 5-hour window", resets: "Resets at 4:13 AM" }, 0)).toBe("Resets at 4:13 AM");
   });
 });
+
+describe("0.5.1 F43: the Out chip never says its reset twice", () => {
+  it('says "Out" alone when the line under it says when it resets, the whole of it in its tooltip; its words when the line can\'t', async () => {
+    const { outChipBrief } = await import("./HomeRunway");
+    expect(outChipBrief({ resets: "5-hour window resets at 10:00 AM tomorrow" })).toBe(true);
+    expect(outChipBrief({ resets: null })).toBe(false);
+    const { RoomChip } = await import("./RoomChip");
+    const { roomMarkFrom } = await import("../lib/room-mark");
+    const now = Date.now();
+    const mark = roomMarkFrom(0, now + 3_600_000, false, now)!;
+    render(<RoomChip mark={mark} brief testId="brief" />);
+    const chip = screen.getByTestId("brief");
+    expect(chip.querySelector("[aria-hidden='true'].min-w-0")?.textContent).toBe("Out");
+    expect(chip.getAttribute("title")).toMatch(/^Out of room until /);
+  });
+});
