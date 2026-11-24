@@ -6107,6 +6107,9 @@ for (const theme of THEMES) {
       await page.keyboard.press("Meta+Shift+I");
       await expect(page.getByTestId("right-inspector")).toHaveAttribute("data-folded", "true");
       await expect(page.getByRole("tablist")).toBeHidden();
+      // F89: folded means the side column has stepped aside (the terminal gets the room).
+      await expect(page.getByTestId("session-side")).toHaveCount(0);
+      await expect(page.getByTestId("session-lead")).toBeVisible();
       await page.mouse.move(0, 0);
       await page.screenshot({ path: resolve(GALLERY, `76-keys/folded-${vp.name}-${theme}.png`) });
     });

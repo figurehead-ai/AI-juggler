@@ -97,6 +97,29 @@ for (const theme of ["dark", "light"] as const) {
     await expect(card).toContainText("1.8M tokens · ≈ $6.42 · 4 sessions");
     await expect(card).toContainText("Hasn't reported yet");
     await card.scrollIntoViewIfNeeded();
+    // F89: scrolled to the card, the top edge cut the card above it through
+    // its title: scroll back to that card's top, or at least to its first
+    // line, while this card stays whole.
+    const whole = await card.evaluate((el) => {
+      let box = el.parentElement;
+      while (box && !/(auto|scroll)/.test(getComputedStyle(box).overflowY)) box = box.parentElement;
+      if (!box) return true;
+      const edge = box.getBoundingClientRect();
+      let cut = document.elementFromPoint(el.getBoundingClientRect().left + 24, edge.top + 2) as HTMLElement | null;
+      while (cut && cut !== box && (getComputedStyle(cut).backgroundColor === "rgba(0, 0, 0, 0)" || getComputedStyle(cut).borderRadius === "0px")) cut = cut.parentElement;
+      if (cut && cut !== box) {
+        const text = document.createTreeWalker(cut, NodeFilter.SHOW_TEXT, { acceptNode: (node) => (node.textContent?.trim() ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP) }).nextNode();
+        const range = document.createRange();
+        if (text) range.selectNodeContents(text);
+        const room = edge.bottom - el.getBoundingClientRect().bottom - 4;
+        const back = [edge.top - cut.getBoundingClientRect().top + 16, text ? edge.top - range.getBoundingClientRect().top + 4 : 0]
+          .find((needed) => needed > 0 && needed <= room);
+        if (back !== undefined) box.scrollTop -= back;
+      }
+      const after = el.getBoundingClientRect();
+      return after.top >= edge.top && after.bottom <= edge.bottom;
+    });
+    expect(whole).toBe(true);
     await page.mouse.move(0, 0);
     await page.screenshot({ path: resolve(OUT, `usage-by-machine-1280x800-${theme}.png`) });
     await axe(page, `usage by machine ${theme}`);

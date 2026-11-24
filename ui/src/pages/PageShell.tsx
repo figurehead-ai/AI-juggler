@@ -11,6 +11,7 @@ import { matches } from "../lib/shortcuts";
 import { statsEvent } from "../lib/ipc/usage-stats";
 import { PAGE_LABELS, PAGE_TAB_OF, pageTabName, rememberTab, rememberedTab, rememberedTabId, type PageKind, type PageTab, type PageTabId } from "./registry";
 import { SELECTED } from "../components/controls/selected";
+import { PageFolded } from "./page-folded";
 
 const SHOW_TAB = "aij:page-tab";
 
@@ -230,12 +231,14 @@ export function PageShell({
           account's notice up, and its column with it); only a window too
           short for a usable body (200 % zoom) scrolls the page whole. */}
       <div className="flex min-h-40 flex-1 flex-col">
+        <PageFolded.Provider value={folded}>
         {tabs.map((entry) => (
           <TabPanel key={entry.id} id={entry.id} strip={strip} shown={tab === entry.id} scrollKey={subject === undefined ? null : `page:${kind}:${subject}:${entry.id}`}>
             {render(entry.id, tab === entry.id)}
             {footer?.(entry)}
           </TabPanel>
         ))}
+        </PageFolded.Provider>
       </div>
     </div>
   );
