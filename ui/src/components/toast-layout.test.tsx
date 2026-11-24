@@ -26,4 +26,18 @@ describe("a toast's layout", () => {
     expect([...words.querySelectorAll(".whitespace-nowrap")].map((kept) => kept.textContent)).toEqual(["web", "Work", "work", "started 7:04 PM:"]);
   });
 
+  it("0.5.1 F73: Undo and a toast's other action are one look, the secondary fill with no stroke", () => {
+    render(<ToastHost />);
+    act(() => void showToast({ id: "a", message: "Switched to Personal.", undo: { onUndo: () => {} } }));
+    act(() => void showToast({ id: "b", message: "Started payments-api.", action: { label: "Start another: shop", run: () => {} } }));
+    const undo = screen.getByRole("button", { name: /Undo/ });
+    const other = screen.getByTestId("toast-action");
+    const look = (el: HTMLElement) => [...el.classList].filter((c) => !/^(mt-|mr-|self-|max-w-)/.test(c)).sort().join(" ");
+    expect(look(undo)).toBe(look(other));
+    for (const button of [undo, other]) {
+      expect(button.className).toContain("bg-control");
+      expect(button.className).not.toMatch(/border-hairline|bg-accent-soft/);
+    }
+  });
+
 });

@@ -69,7 +69,10 @@ const TONE_MARK: Record<NonNullable<ToastOptions["tone"]>, { glyph: string; clas
   error: { glyph: "!", className: "bg-danger-soft text-danger" },
 };
 
-const BUTTON = "shrink-0 rounded-lg border px-3 py-1.5 text-meta font-medium";
+/** 0.5.1 F73: every toast action has one look, the kit's secondary (a
+ * neutral control fill, no stroke, PAT-SURF-6): Undo, the one other
+ * action ("Start another: …") and a failed Undo's Close alike. */
+const BUTTON = "shrink-0 rounded-lg border border-frame bg-control px-3 py-1.5 text-meta font-medium text-ink hover:bg-control-hi";
 
 /** A toast's words. Lines break between its " · " parts, never inside a
  * name ("Claude / Code", the 0.4 review); a sentence after a name (":
@@ -98,7 +101,7 @@ function ToastWords({ message }: { message: string }): JSX.Element {
 /** Undo, with the seconds left. `below`: under the words. */
 function UndoButton({ id, left, below, testId, buttonRef, asks }: { id: string; left: number; below: boolean; testId: string | undefined; buttonRef: RefObject<HTMLButtonElement | null>; asks: boolean }): JSX.Element {
   return (
-    <button type="button" ref={buttonRef} {...(asks ? { [FOCUS_WHEN_FREE]: "" } : {})} onClick={() => void undoToast(id)} data-testid={testId ?? "toast-undo"} title={`Undo (${keysOf("undo")[0]})`} className={BUTTON + " border-transparent bg-accent-soft text-accent-hi hover:bg-accent/15" + (below ? " mt-2 mr-2" : "")}>
+    <button type="button" ref={buttonRef} {...(asks ? { [FOCUS_WHEN_FREE]: "" } : {})} onClick={() => void undoToast(id)} data-testid={testId ?? "toast-undo"} title={`Undo (${keysOf("undo")[0]})`} className={BUTTON + (below ? " mt-2 mr-2" : "")}>
       Undo ({left}s)
     </button>
   );
@@ -120,7 +123,7 @@ function ToastAction({ id, action, below, buttonRef, asks }: { id: string; actio
       // A long label ("Start another: web-storefront-checkout") is cut
       // with an ellipsis; its whole is the title and the accessible name.
       title={action.label}
-      className={BUTTON + " max-w-full border-hairline text-ink hover:bg-surface-2" + (below ? " mt-2 self-start" : "")}
+      className={BUTTON + " max-w-full" + (below ? " mt-2 self-start" : "")}
     >
       <span className="block truncate">{action.label}</span>
     </button>
@@ -237,7 +240,7 @@ export function Toast({ entry }: { entry: ToastEntry }): JSX.Element {
               <p className="text-body font-medium text-danger">Undo didn’t complete</p>
               <p className="text-meta text-ink-2">{entry.failure}</p>
             </div>
-            <button type="button" onClick={() => void remove(entry.id)} className={BUTTON + " border-hairline hover:bg-surface-2"}>
+            <button type="button" onClick={() => void remove(entry.id)} className={BUTTON}>
               Close
             </button>
           </>
