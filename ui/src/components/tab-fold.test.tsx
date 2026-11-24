@@ -40,7 +40,7 @@ describe("how many tabs fit (F57)", () => {
 describe("More (F57)", () => {
   it("holds the folded tabs, each with its icon, lit when one of them is the page", () => {
     const onPick = vi.fn();
-    render(<MainNav primary={PRIMARY_NAV} global={"history" as never} page="none" pairedCount={1} onPick={onPick} shown={5} />);
+    render(<MainNav primary={PRIMARY_NAV} global="history" page="none" pairedCount={1} onPick={onPick} shown={5} />);
     const nav = screen.getByTestId("main-nav");
     expect(within(nav).getAllByRole("button").map((tab) => tab.textContent)).toEqual(["Home", "Projects", "Pools", "Tasks", "Accounts", "More"]);
     const more = screen.getByTestId("nav-more");
