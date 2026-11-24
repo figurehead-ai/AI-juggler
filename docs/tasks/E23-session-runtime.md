@@ -445,7 +445,7 @@
 **Quality gates**: `just keep-going verify-static`; failing-before tests; the move suite.
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E2324/manifest.md`.
 
-### AJ-E2325 Move backups clean themselves up: refused attempts at once, committed moves after a chosen time, sizes that say what deleting frees | Status: TODO (0.5.1) | Priority P0 | Effort M | Depends: AJ-E2321
+### AJ-E2325 Move backups clean themselves up: refused attempts at once, committed moves after a chosen time, sizes that say what deleting frees | Status: DONE (0.5.1) | Priority P0 | Effort M | Depends: AJ-E2321
 **Found** by the maintainer (2026-11-22): every successful move's backup was kept for ever. On the real Mac `moves/` held 21 GB (19 GB from one morning's move, plus four tiny folders from refused attempts).
 **UI**: yes
 **Usability reasoning** (Opus, before building; re-checked on the built screen):
