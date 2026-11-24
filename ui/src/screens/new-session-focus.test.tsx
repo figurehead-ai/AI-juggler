@@ -28,6 +28,13 @@ describe("useStartFocus (AJ-E804, 0.5.1 F49)", () => {
     expect(document.activeElement).toBe(view.getByText("Start"));
   });
 
+  it("wins over the window's modal guard, which put focus on the first control", async () => {
+    const view = render(<Sheet ready />);
+    view.getByLabelText("folder").focus();
+    await frame();
+    expect(document.activeElement).toBe(view.getByText("Start"));
+  });
+
   it("opened before its App is read: the first control, then Start once it can take it", async () => {
     const view = render(<Sheet ready={false} />);
     await frame();

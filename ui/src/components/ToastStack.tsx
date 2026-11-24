@@ -155,12 +155,13 @@ export function Toast({ entry }: { entry: ToastEntry }): JSX.Element {
   const placed = useRef(false);
   useEffect(() => {
     if (!options.focusWhenFree) return;
+    const free = (element: Element | null) => !element || element === document.body || element.tagName === "MAIN";
     // Undo, else its one action (Start another, D-96 F).
     const target = undoRef.current ?? actionRef.current;
     // Free: on nothing, or resting on the page itself (a page opened
     // puts the keyboard on `<main>`, F11), never on a control.
     const active = document.activeElement;
-    if (!active || active === document.body || active.tagName === "MAIN") {
+    if (free(active)) {
       placed.current = true;
       target?.focus();
       placed.current = false;
@@ -169,8 +170,10 @@ export function Toast({ entry }: { entry: ToastEntry }): JSX.Element {
     // dialog that closes as it shows (a 1-click switch) hands it there, not
     // back to its opener, whichever runs first (lib/inert; the keyboard
     // flows found Undo or the opener by which did). It keeps asking only
-    // while a dialog holds the focus.
-    if (!active?.closest('[aria-modal="true"]')) target?.removeAttribute(FOCUS_WHEN_FREE);
+    // while a dialog holds the focus, or while its own focus didn't take
+    // (0.5.1 F49: a dialog removed in the same render leaves the toast
+    // inert until lib/inert lets it go, which then hands focus here).
+    if (!active?.closest('[aria-modal="true"]') && (document.activeElement === target || !free(document.activeElement))) target?.removeAttribute(FOCUS_WHEN_FREE);
   }, [options.focusWhenFree]);
   // Under the words, a control never covers them (the rc31 walk: Undo
   // over "…archived — nothing deleted.")
