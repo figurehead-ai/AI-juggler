@@ -375,6 +375,13 @@ body {
 :root:not([data-input="keyboard"]) [tabindex="-1"].outline-none:focus-visible {
   outline: none;
 }
+/* 0.5.1 F75: in a dialog, a heading the dialog puts the keyboard on (a
+   step's heading, DLG-7 and WIZ-5) is read out, never operated: no ring
+   even when a key opened the dialog (a box around words that aren't a
+   control). Tab from it reaches the first control, which rings. */
+[role="dialog"] :is(h1, h2, h3, h4)[tabindex="-1"]:focus-visible {
+  outline: none;
+}
 
 /* Scrollbars: quiet, overlay-style where supported */
 * {
