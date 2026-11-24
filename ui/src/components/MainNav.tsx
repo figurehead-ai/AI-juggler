@@ -6,11 +6,15 @@
  * Pools, an account's Accounts (lib/nav's PAGE_UNDER). The cleanup pill
  * sits with the actions on the right while there's something to tidy.
  */
-import { useEffect, useState, type JSX } from "react";
+import { useEffect, useState, type JSX, type Ref, type SVGProps } from "react";
 import { PAGE_UNDER } from "../lib/nav";
 import { ariaKeysOf, keysOf, SHORTCUTS, type ShortcutId } from "../lib/shortcuts";
 import { onBindingsChanged } from "../lib/shortcut-bindings";
-import { IconBroom } from "./icons-actions";
+import { IconBroom, IconPage, IconPool } from "./icons-actions";
+import { IconFleet, IconProfiles, IconProjects, IconUsage } from "./icons";
+import { IconHistory, IconTasks } from "./icons-places";
+import { IconChevronDown } from "./icons-controls";
+import { MenuItem, MenuLine, RowMenu, menuPoint, type MenuAt } from "./RowMenu";
 import { NAV_CURRENT } from "./controls/selected";
 
 /** A tab's key from the one registry (0.3 polish: each tab's tooltip
@@ -42,12 +46,25 @@ export function navLit(id: string, global: string | null, page: string): boolean
   return global === id || (global === null && PAGE_UNDER[page] === id);
 }
 
+/** The tabs in the bar: the primary ones, and Fleet once a Mac is paired. */
+export function navItems<Id extends string>(primary: Array<{ id: Id | "home"; label: string }>, pairedCount: number): Array<{ id: Id | "home"; label: string }> {
+  return pairedCount > 0 ? [...primary, { id: "fleet" as Id, label: "Fleet" }] : primary;
+}
+
+/** A tab's icon in More's menu (N8: every menu line has one), as the
+ * palette and your menu draw the same screens. */
+const TAB_ICONS: Record<string, (props: SVGProps<SVGSVGElement>) => JSX.Element> = {
+  home: IconPage, projects: IconProjects, pools: IconPool, tasks: IconTasks, accounts: IconProfiles, usage: IconUsage, history: IconHistory, fleet: IconFleet,
+};
+
 export function MainNav<Id extends string>({
   primary,
   global,
   page,
   pairedCount,
   onPick,
+  shown,
+  navRef,
 }: {
   primary: Array<{ id: Id | "home"; label: string }>;
   /** The global screen shown, if any. */
@@ -56,16 +73,33 @@ export function MainNav<Id extends string>({
   page: string;
   pairedCount: number;
   onPick: (id: Id | "home") => void;
+  /** 0.5.1 F57: how many tabs the bar has room for; the rest are behind
+   * More (`useTabFold`). All by default. */
+  shown?: number;
+  navRef?: Ref<HTMLElement>;
 }): JSX.Element {
   // AJ-E2905: a key changed in Settings › Keyboard shows at once.
   const [, bump] = useState(0);
   useEffect(() => onBindingsChanged(() => bump((n) => n + 1)), []);
-  const items = pairedCount > 0 ? [...primary, { id: "fleet" as Id, label: "Fleet" }] : primary;
+  const [menu, setMenu] = useState<MenuAt | null>(null);
+  const items = navItems(primary, pairedCount);
+  const room = Math.min(shown ?? items.length, items.length);
+  const folded = items.slice(room);
+  const foldedLit = folded.some((item) => navLit(item.id, global, page));
   return (
-    <nav aria-label="Main" className="flex min-w-0 flex-wrap items-center gap-0.5 xl:gap-1 @max-[820px]/header:gap-0" data-testid="main-nav">
-      {items.map((item) => {
+    <nav ref={navRef} aria-label="Main" className="relative flex min-w-0 items-center gap-0.5 xl:gap-1 @max-[820px]/header:gap-0" data-testid="main-nav" data-shown={room}>
+      {items.map((item, index) => {
         const current = navLit(item.id, global, page);
         const keys = navKeys(item.id);
+        // Behind More: kept measurable (its width decides when it comes
+        // back), out of the row, unseen and out of the Tab path.
+        if (index >= room) {
+          return (
+            <span key={item.id} aria-hidden="true" className={NAV_BUTTON + "pointer-events-none invisible absolute left-0 top-0 " + lit(current)} data-nav-tab data-label={item.label}>
+              {item.label}
+            </span>
+          );
+        }
         return (
           <button
             key={item.id}
@@ -76,12 +110,40 @@ export function MainNav<Id extends string>({
             onClick={() => onPick(item.id)}
             className={NAV_BUTTON + lit(current)}
             data-testid={`nav-${item.id}`}
+            data-nav-tab
             data-label={item.label}
           >
             {item.label}
           </button>
         );
       })}
+      {folded.length > 0 && (
+        <button
+          type="button"
+          aria-haspopup="menu"
+          aria-expanded={menu !== null}
+          aria-current={foldedLit ? "page" : undefined}
+          onClick={(event) => setMenu(menuPoint(event))}
+          className={NAV_BUTTON.replace("flex-col", "flex-row gap-1") + lit(foldedLit)}
+          data-testid="nav-more"
+          data-nav-more
+        >
+          More
+          <IconChevronDown width={11} height={11} aria-hidden="true" />
+        </button>
+      )}
+      {menu && (
+        <RowMenu heading="More" ariaLabel="More pages" at={menu} onClose={() => setMenu(null)} testId="nav-more-menu">
+          {folded.map((item) => {
+            const keys = navKeys(item.id);
+            return (
+              <MenuItem key={item.id} onClick={() => { setMenu(null); onPick(item.id); }} testId={`nav-more-${item.id}`}>
+                <MenuLine icon={TAB_ICONS[item.id] ?? IconPage} label={item.label} hint={keys ?? undefined} />
+              </MenuItem>
+            );
+          })}
+        </RowMenu>
+      )}
     </nav>
   );
 }

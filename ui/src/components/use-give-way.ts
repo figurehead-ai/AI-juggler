@@ -34,7 +34,7 @@ function take(parts: readonly HTMLElement[], step: number): void {
  * measured only the room it had, so This Mac's words never gave way and
  * the cluster ran left over the page tabs ("History" under "This Mac ·
  * Plenty of room" at 1280 with the list open: the 0.5 gate triage). */
-function unshrunk(row: HTMLElement): number {
+export function unshrunk(row: HTMLElement): number {
   row.style.flex = "none";
   row.style.width = "max-content";
   row.style.maxWidth = "none";
