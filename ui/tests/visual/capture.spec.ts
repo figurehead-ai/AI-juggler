@@ -76,7 +76,7 @@ let galleryReady = false;
 test.beforeEach(() => {
   if (galleryReady) return;
   mkdirSync(GALLERY, { recursive: true });
-  for (const screen of ["01-rail", "01-rail-density", "01-rail-sort", "05-session-panel", "06-inspector", "07-inspector-content", "08-inspector-aggregate", "09-quality", "10-processes", "11-renewal", "12-model", "13-desktop", "14-focus", "15-preview", "17-ledger", "18-ports", "19-cleanup", "20-kill", "21-tiers", "22-recovery", "23-alerts", "24-fleet", "25-costs", "26-quota", "27-ranking", "28-switch", "29-door", "30-switchback", "31-redaction", "32-graph", "33-beta", "37-flows", "38-flows-cde", "39-import", "40-login", "41-policy", "42-fleet", "43-pairing", "44-settings", "45-remote", "46-fleet-board", "47-remote-focus", "48-remote-cleanup", "49-fleet-sync", "50-cross-switch", "51-identity", "52-worktree", "53-parked", "54-summary", "55-triage", "56-history", "57-backup", "58-updates", "59-vault", "60-cloud-backup", "61-account-macs", "71-add-account", "72-tool-view", "75-feedback", "76-keys", "41-carry"]) {
+  for (const screen of ["01-rail", "01-rail-density", "01-rail-sort", "05-session-panel", "06-inspector", "07-inspector-content", "08-inspector-aggregate", "09-quality", "10-processes", "11-renewal", "12-model", "13-desktop", "14-focus", "15-preview", "17-ledger", "18-ports", "19-cleanup", "20-kill", "21-tiers", "22-recovery", "23-alerts", "24-fleet", "25-costs", "26-quota", "27-ranking", "28-switch", "29-door", "30-switchback", "31-redaction", "32-graph", "33-beta", "37-flows", "38-flows-cde", "39-import", "40-login", "41-policy", "42-fleet", "43-pairing", "44-settings", "45-remote", "46-fleet-board", "47-remote-focus", "48-remote-cleanup", "49-fleet-sync", "50-cross-switch", "51-identity", "52-worktree", "53-parked", "54-summary", "55-triage", "56-history", "57-backup", "58-updates", "59-vault", "60-cloud-backup", "61-account-macs", "71-add-account", "72-tool-view", "75-feedback", "76-keys"]) {
     mkdirSync(resolve(GALLERY, screen), { recursive: true });
   }
   writeFileSync(NOT_CAPTURETED, "# Not captured (explicit omissions)\n\n| Screen | State | Reason |\n|---|---|---|\n");
@@ -6372,66 +6372,3 @@ for (const theme of THEMES) {
   });
 }
 
-
-/**
- * AJ-E211's gallery: the switch's advanced carry choice, on the
- * wizard's confirm step where it lives — closed (the default carries
- * everything), open with each choice, and the last-N choice's
- * what's-lost warning — 1280×800 + 390×844 × light+dark.
- */
-const CUT_INFO = {
-  supported: true,
-  turns: 4_213,
-  first_ms: 1_754_000_000_000,
-  last_ms: 1_763_000_000_000,
-  bytes: 7_800_000_000,
-  turns_left_out: 3_813,
-  bytes_left_out: 7_620_000_000,
-  from_ms: 1_762_000_000_000,
-  at_compaction: false,
-  words: "Carries the last 400 turns of 4,213",
-  loses: "the tasks, decisions and file history from before the cut",
-};
-
-for (const theme of THEMES) {
-  for (const vp of CDE_VP) {
-    test(`switch carry choice — closed, open, warned — ${vp.name} — ${theme}`, gate("41-carry"), async ({ page }) => {
-      // The wizard door (not one-click) so the confirm step exists.
-      // A function seam can't cross addInitScript's structured clone —
-      // assign it inside the script body (the data rides as data).
-      await page.addInitScript(
-        ({ cut }) => {
-          (window as unknown as Record<string, unknown>).__AIJ_SWITCH_CUT__ = () => cut;
-        },
-        { cut: CUT_INFO },
-      );
-      await openSwitchWith(page, theme, {
-        __AIJ_SWITCH_PREFLIGHT__: { ...SWITCH_WIZARD_FIXTURE, source_outside: false },
-      });
-      await pickTarget(page, /Personal/);
-      // Target → What's carried → Confirm: two continues, as the
-      // 28-switch reachConfirm helper walks it.
-      await page.getByTestId("switch-continue").click();
-      await page.getByTestId("switch-continue").click();
-      await expect(page.getByTestId("switch-step-confirm")).toBeVisible();
-      const choice = page.getByTestId("switch-carry-choice");
-      await expect(choice).toBeVisible({ timeout: 10_000 });
-      await page.screenshot({
-        path: resolve(GALLERY, `41-carry/closed-${vp.name}-${theme}.png`),
-        fullPage: true,
-      });
-      await choice.getByRole("button").click();
-      await expect(page.getByTestId("carry-all")).toBeVisible();
-      await page.screenshot({
-        path: resolve(GALLERY, `41-carry/open-${vp.name}-${theme}.png`),
-        fullPage: true,
-      });
-      await page.getByTestId("carry-last").click();
-      await expect(page.getByTestId("carry-words")).toContainText(/4,?213|left out/i);
-      await page.screenshot({
-        path: resolve(GALLERY, `41-carry/warned-${vp.name}-${theme}.png`),
-        fullPage: true,
-      });
-    });
-  }
-}

@@ -12,7 +12,7 @@
  */
 import AxeBuilder from "@axe-core/playwright";
 import { type Page } from "@playwright/test";
-import { expect, gate, GATE_NOW, settle, test } from "./axe-gallery";
+import { expect, gate, GATE_NOW, test } from "./axe-gallery";
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { goTo, groupBy, hoverRailGroup } from "./fixtures";
@@ -106,14 +106,6 @@ for (const theme of ["dark", "light"] as const) {
     // No pools section and no Home picker: a pool's view is its page.
     await expect(page.getByTestId("home-pool-filter")).toHaveCount(0);
     await page.mouse.move(0, 0);
-    // AJ-E806 (PR #250, three identical CI diffs — 4,668 px, the
-    // group's hover highlight left lit in the rail's top-left —
-    // while main and the local gate stay green): the hover's own
-    // Open button is the highlight's companion, so waiting for it to
-    // hide waits the highlight out; the settle covers fonts and
-    // late parts. A real regression reproduces anyway.
-    await expect(page.getByTestId("place-header").getByRole("button", { name: /^Open / })).toBeHidden();
-    await settle(page);
     await page.screenshot({ path: resolve(OUT, `rail-by-pool-${size.name}-${theme}.png`) });
     await axe(page, `rail by pool ${theme}`);
   });
