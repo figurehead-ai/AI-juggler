@@ -284,6 +284,8 @@ read_routes! {
     "places_find" => async_result features::places::commands::places_find(state; tool: String, conversation_id: String, account: Option<String>, app: Option<String>);
     "places_offers" => async_result features::places::commands::places_offers(state);
     "places_profiles" => async_result features::places::commands::places_profiles(state);
+    // AJ-E2327: first run's "Your apps" (reads only: nothing is added).
+    "places_pairings" => async_result features::places::commands::places_pairings(state);
     "conversations_get" => async_result features::conversations::commands::conversations_get(state; account_id: String, conversation_id: String);
     "conversations_started" => async_result features::conversations::commands::conversations_started(state; tool: String, conversation_id: String);
     "conversations_resume_command" => async_result features::conversations::commands::conversations_resume_command(state; account_id: String, conversation_id: String);
@@ -417,6 +419,22 @@ pub const NOT_SERVED: &[(&str, &str)] = &[
     (
         "features::ai::models::commands::ai_models_catalog",
         "asking it may start the system model's helper, as ai_jobs does (AJ-E3812); the real window walks it",
+    ),
+    (
+        "features::ai::models::commands::ai_engines_check",
+        "Check again: asks the engines again, which may start the system model's helper, and tells the app's own windows (AJ-E3823); the real window walks it",
+    ),
+    (
+        "features::sign_ins::commands::sign_ins_list",
+        "a running sign-in's one-time code; the bridge never signs in",
+    ),
+    (
+        "os_prompts::os_prompts_list",
+        "asks macOS what it says of each system prompt now (the Mac's permissions), not the app's data; the real window walks setup's step",
+    ),
+    (
+        "os_prompts::os_prompt_status",
+        "asks macOS what it says of one system prompt now, as os_prompts_list does",
     ),
     (
         "main_window::app_close_note_due",

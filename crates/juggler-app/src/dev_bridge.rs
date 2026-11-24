@@ -152,6 +152,18 @@ pub const NOT_FORWARDED_EVENTS: &[(&str, &str)] = &[
         AppEvent::NotificationsOpen.name(),
         "the menu-bar item asking the window to act",
     ),
+    (
+        AppEvent::SignInsChanged.name(),
+        "the sign-ins with a running one's one-time code; the bridge never signs in",
+    ),
+    (
+        AppEvent::OsPromptAsk.name(),
+        "the system-prompt sheet, answered only in the app's own window (os_prompt_answer is a write)",
+    ),
+    (
+        AppEvent::OsPromptOutcome.name(),
+        "what came of a system prompt the app's own window asked for",
+    ),
 ];
 
 /// The per-run bearer token: 32 random bytes, hex. Its `Debug` never
