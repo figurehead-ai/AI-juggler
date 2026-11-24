@@ -43,7 +43,7 @@ import { useOffRail } from "../lib/rail-shown";
 import { reconcileOrder, toggleFold, useRailOrder } from "../lib/rail-order-store";
 import { isSearching, parseQuery, RAIL_REVEAL_EVENT, showInRail, useRailView } from "../lib/rail-view";
 import { isSnoozed, type SnoozeState } from "../lib/railview";
-import { useBackendNeeds } from "../lib/needs-you";
+import { useRailNeeds } from "../lib/rail-sign-ins"; // 0.5.1 F27: a sign-in once in the rail
 import { useNoticeActions } from "../lib/notice-actions";
 import { RailNoticeRow } from "./RailNoticeRow";
 import { useMessageAbout } from "../lib/ipc/messages";
@@ -83,7 +83,7 @@ export function PlaceBoard({ sessions, projects, accounts, snooze, now, selected
   const order = useRailOrder();
   const parsed = useMemo(() => parseQuery(query), [query]);
   // D-49: Needs you is the backend's: its sessions, and the rest beside.
-  const needsNow = useBackendNeeds();
+  const needsNow = useRailNeeds();
   const actions = useNoticeActions(sessions);
   const about = useMessageAbout(); // D-118: an agent's message, subject first
   const pins = useMemo(() => new Set(order.pins), [order.pins]);

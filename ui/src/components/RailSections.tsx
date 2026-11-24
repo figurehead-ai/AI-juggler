@@ -12,7 +12,7 @@ import { outside, useConversations } from "../lib/conversations";
 import type { ConversationInfo } from "../lib/ipc/conversations";
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import type { RowGroup } from "../lib/railview";
-import { useBackendNeeds } from "../lib/needs-you";
+import { useRailNeeds } from "../lib/rail-sign-ins"; // 0.5.1 F27: a sign-in once in the rail
 import { useNoticeActions } from "../lib/notice-actions";
 import { RailNoticeRow } from "./RailNoticeRow";
 import { itemsOf, needsYou } from "../lib/rail-items";
@@ -150,7 +150,7 @@ function Rows({ rows, selectedId, density, now }: RowProps & { rows: Conversatio
  * the notes (L1) come last under "To review", uncounted. */
 export function NeedsYouSection({ rows, sessions, projects, onSelect, ...props }: RowProps & { rows: InstanceInfo[]; sessions: InstanceInfo[]; projects: ProjectInfo[]; onSelect: (id: string) => void }): JSX.Element | null {
   const { all } = useConversations();
-  const { needOf, rows: needs, known } = useBackendNeeds();
+  const { needOf, rows: needs, known } = useRailNeeds();
   const seen = useSeen();
   const actions = useNoticeActions(sessions);
   const about = useMessageAbout(); // D-118: an agent's message, subject first

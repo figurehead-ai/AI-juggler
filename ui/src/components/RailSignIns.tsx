@@ -6,6 +6,7 @@
  */
 import type { JSX } from "react";
 import { SELECTED_FILL } from "./controls/selected";
+import { signInShown } from "../lib/rail-sign-ins";
 
 export function RailSignIns({
   terminals,
@@ -16,7 +17,7 @@ export function RailSignIns({
   selectedId: string | null;
   onSelect: (id: string) => void;
 }): JSX.Element | null {
-  const shown = terminals.filter((t) => t.state !== "signed_in");
+  const shown = terminals.filter(signInShown);
   if (shown.length === 0) return null;
   return (
     <div className="flex flex-col gap-0.5">
