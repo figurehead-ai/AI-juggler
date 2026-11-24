@@ -39,6 +39,9 @@ from pathlib import Path
 CLAUDE_BUNDLE = "Claude.app"
 CHATGPT_MAIN = "/Applications/ChatGPT.app/Contents/MacOS/ChatGPT"
 DATA = "Library/Application Support/AI Juggler Dev"
+# PL1 A6 (0.5.1 F96): a walk from an EMPTY Dev data folder moves the seeded
+# one aside here first; the launch settings the seeder stored are read there.
+SEEDED = "dev-data.seeded"
 FLAG = re.compile(r"--user-data-dir[= ](.+?)(?= --|$)")
 # A Claude app process's folders: its instance's (the main process and its
 # helpers) and its crash reporter's database (`chrome_crashpad_handler`,
@@ -82,8 +85,11 @@ def plans(home: Path) -> list[Plan]:
         for app in seed.get("apps", [])
         if app.get("tool") == "claude-desktop" and app.get("running") is True and app.get("added") is not False
     ]
+    database = home / DATA / "juggler.sqlite"
+    if not database.exists() and (home / SEEDED / "juggler.sqlite").exists():
+        database = home / SEEDED / "juggler.sqlite"
     rows = read_only(
-        home / DATA / "juggler.sqlite",
+        database,
         "select a.launch_json, f.state_dir from apps a left join accounts f on f.id = a.folder_id "
         "where a.kind = 'desktop' and a.host_app_id = 'claude-app'",
     )
@@ -283,6 +289,14 @@ def selftest() -> int:
             "/usr/bin/open", "-n", "-g", "--env", f"CLAUDE_CONFIG_DIR={plan.folder}", "-a", "/Applications/Claude.app",
             "--args", f"--user-data-dir={plan.given}",
         ]
+        # PL1 A6 (F96): the seeded data moved aside, an EMPTY data folder in
+        # its place: the launch settings are read where it was moved.
+        (lab / DATA).rename(lab / SEEDED)
+        (lab / DATA).mkdir()
+        [aside] = plans(lab)
+        assert aside == plan, aside
+        (lab / DATA).rmdir()
+        (lab / SEEDED).rename(lab / DATA)
         # Settings that point outside the lab are refused.
         db = sqlite3.connect(lab / DATA / "juggler.sqlite")
         db.execute("update accounts set state_dir = '/Users/you/.claude' where id = 'f-work'")
