@@ -165,8 +165,12 @@ fn a_terminal_conversation_is_offered_its_folders_desktop_app_by_its_id() {
     let targets = crate::features::switch::targets::switch_targets_impl(&lab.state, &key).unwrap();
     let desktop = targets
         .iter()
-        .find(|row| row.place_id.as_deref() == Some(app.as_str()))
-        .unwrap_or_else(|| panic!("Claude app · Work is offered: {targets:?}"));
+        .find(|row| row.place_id.as_deref() == Some(app.as_str()));
+    assert!(
+        desktop.is_some(),
+        "Claude app · Work is offered: {targets:?}"
+    );
+    let desktop = desktop.unwrap();
     assert_eq!(desktop.app_id, app, "each row is its App by its own id");
     assert_eq!(desktop.recipe_id, lab.work_recipe);
     assert!(

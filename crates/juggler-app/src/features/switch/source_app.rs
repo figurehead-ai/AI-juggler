@@ -31,28 +31,25 @@ pub(crate) fn source_app_of(
     account: &Account,
 ) -> SourceApp {
     let folder = account.id.as_str();
-    let id = match parse_source_key(session_id) {
-        // Another app's conversation: the App its row is under.
-        Some((account_id, id)) => {
-            crate::features::conversations::commands::app_of_conversation(state, account_id, id)
-                .unwrap_or_else(|_| juggler_core::storage::cli_app_id(folder))
-        }
+    // Another app's conversation: the App its row is under.
+    let id = if let Some((account_id, id)) = parse_source_key(session_id) {
+        crate::features::conversations::commands::app_of_conversation(state, account_id, id)
+            .unwrap_or_else(|_| juggler_core::storage::cli_app_id(folder))
+    } else {
         // AI Juggler's own: the desktop App it launched in, else its CLI App.
-        None => {
-            let launched = state
-                .storage
-                .lock()
-                .ok()
-                .and_then(|storage| storage.apps().session_apps().ok())
-                .and_then(|apps| apps.get(session_id).cloned());
-            crate::features::places::app_of(
-                &crate::features::places::desktop_apps(state),
-                launched.as_deref(),
-                Some(folder),
-                None,
-                source.kind != InstanceKind::Desktop,
-            )
-        }
+        let launched = state
+            .storage
+            .lock()
+            .ok()
+            .and_then(|storage| storage.apps().session_apps().ok())
+            .and_then(|apps| apps.get(session_id).cloned());
+        crate::features::places::app_of(
+            &crate::features::places::desktop_apps(state),
+            launched.as_deref(),
+            Some(folder),
+            None,
+            source.kind != InstanceKind::Desktop,
+        )
     };
     let name = name_of(state, &id, account);
     SourceApp { id, name }

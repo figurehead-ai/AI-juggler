@@ -190,6 +190,24 @@ fn door_reason(
         })
 }
 
+/// AJ-E210: one pair's badge and validated state, from the validation
+/// matrix merged with any recorded live cell (a passing cell validates only
+/// real-CI rows — D-04). A profile through another service is its own side
+/// (AJ-E1601).
+fn matrix_row_of(
+    storage: &juggler_core::storage::Storage,
+    dogfood: &std::collections::BTreeMap<String, juggler_handover::validation::DogfoodCell>,
+    source_side: &str,
+    account: &juggler_core::model::Account,
+) -> Option<juggler_handover::validation::PairCell> {
+    let side = crate::features::service_accounts::switch_side_in(storage, account);
+    let cell = dogfood.get(&dogfood_key(source_side, &side));
+    juggler_handover::validation::pair_cell(source_side, &side).map(|row| match cell {
+        Some(record) => juggler_handover::validation::with_dogfood(row, record.clone()),
+        None => row,
+    })
+}
+
 /// Core implementation shared with integration tests.
 ///
 /// # Errors
@@ -260,20 +278,7 @@ pub fn switch_targets_impl(
                 context.source_provider.as_str(),
                 account.harness.as_str(),
             ));
-            // AJ-E210: the badge and validated state come from the
-            // validation matrix merged with any recorded live cells
-            // (a passing cell validates only real-CI rows — D-04). A
-            // profile through another service is its own side (AJ-E1601).
-            let side = crate::features::service_accounts::switch_side_in(&storage, &account);
-            let cell = dogfood.get(&dogfood_key(context.source_side.as_str(), &side));
-            let matrix_row = juggler_handover::validation::pair_cell(
-                context.source_side.as_str(),
-                &side,
-            )
-            .map(|row| match cell {
-                Some(record) => juggler_handover::validation::with_dogfood(row, record.clone()),
-                None => row,
-            });
+            let matrix_row = matrix_row_of(&storage, &dogfood, &context.source_side, &account);
             let validated = matrix_row
                 .as_ref()
                 .is_some_and(juggler_handover::validation::PairCell::validated);
