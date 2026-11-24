@@ -114,13 +114,19 @@ pub enum StopClass {
 
 /// What holds the conversation's files: an app or profile (with its
 /// place's id, for "Go to") or a program outside them.
-#[derive(Clone, PartialEq, Eq, Debug, serde::Serialize, ts_rs::TS)]
+#[derive(Clone, PartialEq, Eq, Debug, Default, serde::Serialize, ts_rs::TS)]
 #[ts(export, export_to = "../../../ui/src/types/generated/")]
 pub struct MoveHolder {
-    /// In words ("Claude app · Work", "claude").
+    /// In words ("Claude app · Work", "claude", "“Fix the login test” in
+    /// Terminal").
     pub name: String,
     /// The app or profile AI Juggler knows it as, for its door.
     pub place_id: Option<String>,
+    /// 0.5.1 F72: a session of these accounts open outside the apps (a
+    /// terminal's): its account, for its Go to.
+    pub account_id: Option<String>,
+    /// 0.5.1 F72: that session's id in its tool, for its Go to.
+    pub conversation: Option<String>,
 }
 
 /// A move that stopped (AJ-E2319): `words` say why in plain words, never

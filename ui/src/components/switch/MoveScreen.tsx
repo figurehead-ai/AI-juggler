@@ -35,6 +35,7 @@ import { LogoTile, ToolLogo } from "../ToolLogo";
 import { Explain } from "./Explain";
 import { Fact, FactPanel } from "./Facts";
 import { SwitchHeader } from "./SwitchHeader";
+import { HolderDoors } from "./HolderDoors";
 
 export type How = "move" | "copy";
 
@@ -172,6 +173,9 @@ export function MoveChoice({
           ))}
         </ul>
       )}
+      {/* 0.5.1 F72: what holds the files, each with its door (the
+          reason above names it), as a stop names them (AJ-E2319). */}
+      {!ready && <HolderDoors holders={offer.holders ?? []} testId="switch-how-holders" />}
       {!ready && onCheckAgain && (
         <button type="button" onClick={onCheckAgain} className="w-fit text-meta font-medium text-accent-hi underline-offset-2 hover:underline" data-testid="switch-how-again">
           Check again

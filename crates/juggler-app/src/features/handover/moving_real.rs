@@ -6,6 +6,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use super::{KnownPlace, Member, MoveProgressInfo, MoveSystem, ProcId, Table, place_name, tree};
+use crate::error::MoveHolder;
 use crate::state::AppState;
 
 /// Hands each step of a move's progress on (to the switch screen).
@@ -138,12 +139,18 @@ impl MoveSystem for Real {
         crate::features::places::working_in(state, pid)
     }
 
-    fn open_elsewhere(&self, state: &Arc<AppState>, accounts: &[String], hosts: &[u32]) -> usize {
-        state
+    // 0.5.1 F72: each by its title and where it's open, with its Go to.
+    fn open_elsewhere(
+        &self,
+        state: &Arc<AppState>,
+        accounts: &[String],
+        hosts: &[u32],
+    ) -> Vec<MoveHolder> {
+        let open: Vec<_> = state
             .conversations
             .live_model()
             .entries
-            .iter()
+            .into_iter()
             .filter(|entry| {
                 entry
                     .account_id
@@ -158,6 +165,35 @@ impl MoveSystem for Real {
                         .is_some_and(|host| hosts.contains(&host.pid))
                 })
             })
-            .count()
+            .collect();
+        if open.is_empty() {
+            return Vec::new();
+        }
+        // Read only when something is open elsewhere (rare).
+        let index = state.conversations.all().unwrap_or_default();
+        open.into_iter()
+            .map(|entry| {
+                let title = entry.app_title.clone().or_else(|| {
+                    index
+                        .iter()
+                        .find(|c| {
+                            Some(&c.account_id) == entry.account_id.as_ref()
+                                && c.summary.id == entry.session_id
+                        })
+                        .and_then(|c| c.summary.title.clone())
+                });
+                let host = entry
+                    .places
+                    .iter()
+                    .find_map(|place| place.host.as_ref())
+                    .map(|host| host.shown.clone());
+                MoveHolder {
+                    name: super::elsewhere_name(title.as_deref(), host.as_deref()),
+                    place_id: None,
+                    account_id: entry.account_id.clone(),
+                    conversation: Some(entry.session_id.clone()),
+                }
+            })
+            .collect()
     }
 }

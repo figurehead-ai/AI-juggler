@@ -28,8 +28,13 @@ macro_rules! quiet_parts {
         fn send(&self, _: u32, _: &str) -> Result<(), String> {
             Ok(())
         }
-        fn open_elsewhere(&self, _: &Arc<AppState>, _: &[String], _: &[u32]) -> usize {
-            0
+        fn open_elsewhere(
+            &self,
+            _: &Arc<AppState>,
+            _: &[String],
+            _: &[u32],
+        ) -> Vec<crate::error::MoveHolder> {
+            Vec::new()
         }
         fn settle(&self, _: Duration) {}
         fn quit_wait(&self) -> Duration {

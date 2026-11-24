@@ -6,10 +6,20 @@
  */
 export type MoveHolder = { 
 /**
- * In words ("Claude app · Work", "claude").
+ * In words ("Claude app · Work", "claude", "“Fix the login test” in
+ * Terminal").
  */
 name: string, 
 /**
  * The app or profile AI Juggler knows it as, for its door.
  */
-place_id: string | null, };
+place_id: string | null, 
+/**
+ * 0.5.1 F72: a session of these accounts open outside the apps (a
+ * terminal's): its account, for its Go to.
+ */
+account_id: string | null, 
+/**
+ * 0.5.1 F72: that session's id in its tool, for its Go to.
+ */
+conversation: string | null, };

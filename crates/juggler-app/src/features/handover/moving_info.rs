@@ -95,6 +95,9 @@ pub struct MoveOfferInfo {
     /// What stands in the way now (empty: Move can happen, the default).
     /// A `setup` one hides Move; one the user can clear shows it waiting.
     pub blocks: Vec<MoveBlockInfo>,
+    /// 0.5.1 F72: what holds the files while one the user can clear
+    /// stands in the way, each with its door (AJ-E2319's holders).
+    pub holders: Vec<crate::error::MoveHolder>,
     /// The family, the moved conversation first.
     pub members: Vec<MoveMemberInfo>,
     /// The profiles that quit and start again ("Claude app · Work").

@@ -84,6 +84,7 @@ pub(super) fn open_writers(paths: &[PathBuf], system: &dyn MoveSystem) -> Option
         .map(|(_, name)| MoveHolder {
             name,
             place_id: None,
+            ..MoveHolder::default()
         })
         .collect();
     Some(MoveStop::new(StopClass::NeedsYou, words, detail).held_by(holders))
@@ -126,6 +127,7 @@ pub(super) fn still_writing(
             .map(|(_, name)| MoveHolder {
                 name,
                 place_id: None,
+                ..MoveHolder::default()
             })
             .collect();
         return (words, holders);
@@ -157,6 +159,7 @@ pub(super) fn still_writing(
                         vec![MoveHolder {
                             name,
                             place_id: Some(id.clone()),
+                            ..MoveHolder::default()
                         }],
                     )
                 }

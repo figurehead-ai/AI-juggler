@@ -126,7 +126,12 @@ pub trait MoveSystem: Send + Sync {
     fn working(&self, state: &Arc<AppState>, pid: u32) -> usize;
     /// Sessions open on any of `accounts` that run outside the app
     /// processes `hosts` (a terminal on the same folder): another writer.
-    fn open_elsewhere(&self, state: &Arc<AppState>, accounts: &[String], hosts: &[u32]) -> usize;
+    fn open_elsewhere(
+        &self,
+        state: &Arc<AppState>,
+        accounts: &[String],
+        hosts: &[u32],
+    ) -> Vec<MoveHolder>;
     /// Waits `for_` (a test doesn't).
     fn settle(&self, for_: Duration) {
         std::thread::sleep(for_);
@@ -283,14 +288,16 @@ fn typed(error: AppError, class: StopClass) -> AppError {
 
 /// AJ-E2319: what stands in Move's way, as one stop: setup when anything
 /// the person can't clear is among it, else theirs to clear.
-fn refusals(why_not: &[Refusal]) -> AppError {
+fn refusals(why_not: &[Refusal], holders: Vec<MoveHolder>) -> AppError {
     let class = if why_not.iter().any(|r| matches!(r.kind, RefusalKind::Setup)) {
         StopClass::Setup
     } else {
         StopClass::NeedsYou
     };
     let words = juggler_handover::moving::words(why_not);
-    MoveStop::new(class, words.clone(), words).into()
+    MoveStop::new(class, words.clone(), words)
+        .held_by(holders)
+        .into()
 }
 
 /// AJ-E2319: `error` names the move it stopped.
@@ -322,25 +329,26 @@ fn place_name(state: &Arc<AppState>, place: &KnownPlace) -> String {
 /// Why the move can't happen now because something is working: a turn
 /// running in either profile, or (terminal folders) the conversation
 /// open in a session. Each the user's to clear (D-127).
+/// With what holds the files, each with its door (0.5.1 F72).
 fn busy(
     state: &Arc<AppState>,
     sides: &Sides,
     system: &dyn MoveSystem,
     writing: &Writing<'_>,
-) -> Vec<Refusal> {
+) -> (Vec<Refusal>, Vec<MoveHolder>) {
     let places: Vec<(String, KnownPlace)> = [&sides.source_place, &sides.target_place]
         .into_iter()
         .flatten()
         .cloned()
         .collect();
     let both = (&places[..], &sides.request);
-    let mut out = quiet(state, both, &sides.accounts, system, "Move", writing);
+    let (mut out, held) = quiet_held(state, both, &sides.accounts, system, "Move", writing);
     if sides.source_place.is_none() && sides.source_live && out.is_empty() {
         out.push(Refusal::user_can_clear(
             "the conversation is open in a session; Move becomes available once you end it",
         ));
     }
-    out
+    (out, held)
 }
 
 /// Why the folders of `places` and `accounts` aren't quiet enough for
@@ -352,26 +360,50 @@ fn busy(
 /// quits.
 fn quiet(
     state: &Arc<AppState>,
-    (places, request): (&[(String, KnownPlace)], &MoveRequest),
+    both: (&[(String, KnownPlace)], &MoveRequest),
     accounts: &[String],
     system: &dyn MoveSystem,
     action: &str,
     writing: &Writing<'_>,
 ) -> Vec<Refusal> {
+    quiet_held(state, both, accounts, system, action, writing).0
+}
+
+/// [`quiet`], with what holds the files (0.5.1 F72, as a stop names them,
+/// AJ-E2319): the profile a turn runs in or AI Juggler is in (its door),
+/// a program outside them, a session of these accounts open outside the
+/// apps (its Go to).
+fn quiet_held(
+    state: &Arc<AppState>,
+    (places, request): (&[(String, KnownPlace)], &MoveRequest),
+    accounts: &[String],
+    system: &dyn MoveSystem,
+    action: &str,
+    writing: &Writing<'_>,
+) -> (Vec<Refusal>, Vec<MoveHolder>) {
     // AJ-E2317: a profile whose sessions contradict its folder link needs
     // the user first.
     let mut out = links_hold(state, places, request, system, action);
+    let mut held: Vec<MoveHolder> = Vec::new();
     let mut hosts = Vec::new();
     let mut running = Vec::new();
     for (id, place) in places {
         if let Some((pid, _)) = system.running(state, id) {
             hosts.push(pid);
             running.push((place.clone(), pid));
+            let holder = || MoveHolder {
+                name: place_name(state, place),
+                place_id: Some(id.clone()),
+                ..MoveHolder::default()
+            };
             // Before anything quits: never AI Juggler (ours or another).
-            let juggler = system.quits_juggler(state, place, pid, action);
-            out.extend(juggler.map(Refusal::user_can_clear));
+            if let Some(juggler) = system.quits_juggler(state, place, pid, action) {
+                out.push(Refusal::user_can_clear(juggler));
+                held.push(holder());
+            }
             let working = system.working(state, pid);
             if working > 0 {
+                held.push(holder());
                 let one = working == 1;
                 out.push(Refusal::user_can_clear(format!(
                     "{working} session{} {} working in {}; {action} becomes available once {} {}",
@@ -384,6 +416,7 @@ fn quiet(
             }
         }
     }
+    held.dedup();
     // The named writers say it; the live view's count would say it again.
     let outside = quit::outside_now(state, system, &running, writing);
     if !outside.is_empty() {
@@ -392,19 +425,59 @@ fn quiet(
             !places.is_empty(),
             action,
         )));
-        return out;
+        held.extend(outside.iter().map(|member| MoveHolder {
+            name: member.name.clone(),
+            place_id: None,
+            ..MoveHolder::default()
+        }));
+        return (out, held);
     }
+    // 0.5.1 F72: each session by its title and where it is open, with its
+    // Go to, never only a count.
     let elsewhere = system.open_elsewhere(state, accounts, &hosts);
-    if elsewhere > 0 {
-        let one = elsewhere == 1;
-        out.push(Refusal::user_can_clear(format!(
-            "{elsewhere} session{} of these accounts {} open outside the app (in a terminal, say); {action} becomes available once you end {}",
-            if one { "" } else { "s" },
-            if one { "is" } else { "are" },
-            if one { "it" } else { "them" },
+    if !elsewhere.is_empty() {
+        out.push(Refusal::user_can_clear(elsewhere_clears(
+            &elsewhere, action,
         )));
+        held.extend(elsewhere);
     }
-    out
+    (out, held)
+}
+
+/// 0.5.1 F72: the sessions of these accounts open outside the apps, by
+/// name ("“Fix the login test” in Terminal is open outside the app; Move
+/// becomes available once you end it").
+fn elsewhere_clears(sessions: &[MoveHolder], action: &str) -> String {
+    let names: Vec<&str> = sessions.iter().map(|s| s.name.as_str()).collect();
+    let one = names.len() == 1;
+    let named = match names.as_slice() {
+        [only] => (*only).to_owned(),
+        [rest @ .., last] => format!("{} and {last}", rest.join(", ")),
+        [] => String::new(),
+    };
+    format!(
+        "{named} {} open outside the app; {action} becomes available once you end {}",
+        if one { "is" } else { "are" },
+        if one { "it" } else { "them" },
+    )
+}
+
+/// 0.5.1 F72: a session open outside the apps, in words: its title and
+/// where ("“Fix the login test” in Terminal"), as much as is known.
+pub(super) fn elsewhere_name(title: Option<&str>, host: Option<&str>) -> String {
+    let title = title.map(str::trim).filter(|t| !t.is_empty()).map(|t| {
+        if t.chars().count() > 48 {
+            format!("“{}…”", t.chars().take(47).collect::<String>().trim_end())
+        } else {
+            format!("“{t}”")
+        }
+    });
+    match (title, host) {
+        (Some(title), Some(host)) => format!("{title} in {host}"),
+        (Some(title), None) => title,
+        (None, Some(host)) => format!("a session in {host}"),
+        (None, None) => "a session in a terminal".to_owned(),
+    }
 }
 
 /// Whether every profile in `stopped` is still closed (the user may start
@@ -435,6 +508,7 @@ fn still_down_held(
                 MoveHolder {
                     name,
                     place_id: Some(place.id.clone()),
+                    ..MoveHolder::default()
                 },
             ))
         }
@@ -576,8 +650,11 @@ fn offer_of(state: &Arc<AppState>, sides: &Sides, system: &dyn MoveSystem) -> Mo
     {
         retention::note_room_short(state, juggler_core::model::Timestamp::now().millis());
     }
+    let mut holders = Vec::new();
     if let Some(writing) = writing_of(sides, &plan) {
-        blocks.extend(busy(state, sides, system, &writing));
+        let (busy, held) = busy(state, sides, system, &writing);
+        blocks.extend(busy);
+        holders = held;
     }
     let restarts = [&sides.source_place, &sides.target_place]
         .into_iter()
@@ -587,6 +664,7 @@ fn offer_of(state: &Arc<AppState>, sides: &Sides, system: &dyn MoveSystem) -> Mo
     MoveOfferInfo {
         applies: true,
         blocks: blocks.into_iter().map(MoveBlockInfo::from).collect(),
+        holders,
         members: plan
             .members
             .iter()
@@ -839,7 +917,7 @@ fn run_once_more(
 )]
 fn run(state: &Arc<AppState>, sides: &Sides, system: &dyn MoveSystem) -> AppResult<MoveDoneInfo> {
     if let Some(stop) = &sides.stop {
-        return Err(refusals(std::slice::from_ref(stop)));
+        return Err(refusals(std::slice::from_ref(stop), Vec::new()));
     }
     // AJ-E2319: a tool that can't plan this move is the setup's.
     let plan = plan_of(sides).map_err(|error| typed(error, StopClass::Setup))?;
@@ -847,9 +925,10 @@ fn run(state: &Arc<AppState>, sides: &Sides, system: &dyn MoveSystem) -> AppResu
         writing_of(sides, &plan).ok_or_else(|| typed(refused("no mover"), StopClass::Setup))?;
     let folder = moves_dir(state);
     let mut why_not = juggler_handover::moving::preflight(&plan, &folder);
-    why_not.extend(busy(state, sides, system, &writing));
+    let (busy, held) = busy(state, sides, system, &writing);
+    why_not.extend(busy);
     if !why_not.is_empty() {
-        return Err(refusals(&why_not));
+        return Err(refusals(&why_not, held));
     }
     let places: Vec<(String, KnownPlace)> = [&sides.source_place, &sides.target_place]
         .into_iter()

@@ -337,8 +337,16 @@ impl MoveSystem for Scripted {
     fn working(&self, _: &Arc<AppState>, _: u32) -> usize {
         self.working
     }
-    fn open_elsewhere(&self, _: &Arc<AppState>, _: &[String], _: &[u32]) -> usize {
-        self.elsewhere
+    // 0.5.1 F72: a terminal's session on one of the accounts, named.
+    fn open_elsewhere(&self, _: &Arc<AppState>, _: &[String], _: &[u32]) -> Vec<MoveHolder> {
+        (0..self.elsewhere)
+            .map(|n| MoveHolder {
+                name: format!("“Fix the login test {n}” in Terminal"),
+                account_id: Some("acct-a".into()),
+                conversation: Some(format!("term-{n}")),
+                ..MoveHolder::default()
+            })
+            .collect()
     }
     fn settle(&self, for_: Duration) {
         self.settles.lock().unwrap().push(for_);
@@ -888,6 +896,52 @@ fn a_terminal_session_on_either_account_refuses_the_move() {
     assert!(error.contains("open outside the app"), "{error}");
     assert!(system.quits.lock().unwrap().is_empty());
     assert!(unchanged(&lab));
+}
+
+/// 0.5.1 F72: Move waiting on a session open outside the apps names it
+/// (its title, where) and carries it as a holder with its Go to, in the
+/// offer and in the stop, never only a count.
+#[test]
+fn a_session_open_elsewhere_is_named_with_its_door() {
+    let lab = lab();
+    let system = Scripted {
+        elsewhere: 1,
+        ..running_both(&lab)
+    };
+    let offer = offer_of(&lab.state, &lab.sides, &system);
+    let block = offer
+        .blocks
+        .iter()
+        .find(|b| b.words.contains("outside the app"))
+        .unwrap();
+    assert_eq!(
+        block.words,
+        "“Fix the login test 0” in Terminal is open outside the app; Move becomes available once you end it"
+    );
+    let door = MoveHolder {
+        name: "“Fix the login test 0” in Terminal".into(),
+        account_id: Some("acct-a".into()),
+        conversation: Some("term-0".into()),
+        ..MoveHolder::default()
+    };
+    assert_eq!(offer.holders, vec![door.clone()]);
+    let AppError::Move(stop) = run(&lab.state, &lab.sides, &system).unwrap_err() else {
+        panic!("a typed stop");
+    };
+    assert_eq!(stop.holders, vec![door]);
+}
+
+/// 0.5.1 F72: in words, as much as is known of it.
+#[test]
+fn a_session_elsewhere_is_named_by_title_and_place() {
+    assert_eq!(
+        elsewhere_name(Some("Fix it"), Some("Terminal")),
+        "“Fix it” in Terminal"
+    );
+    assert_eq!(elsewhere_name(None, Some("iTerm")), "a session in iTerm");
+    assert_eq!(elsewhere_name(Some("  "), None), "a session in a terminal");
+    let long = "x".repeat(60);
+    assert!(elsewhere_name(Some(&long), None).ends_with("…”"));
 }
 
 #[test]

@@ -35,7 +35,7 @@ vi.mock("../lib/ipc/switch-move", async (original) => {
 
 const OFFER: MoveOfferInfo = {
   applies: true,
-  blocks: [],
+  blocks: [], holders: [],
   members: [
     { title: "Refunds API", archived: false, side: "moves", folder_missing: false },
     { title: "Webhook tests", archived: false, side: "moves", folder_missing: false },

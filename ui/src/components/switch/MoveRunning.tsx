@@ -16,9 +16,7 @@
  */
 import { useState, type JSX } from "react";
 import { stopOf, type MoveProgressInfo, type MoveStopInfo, type MoveUndoneInfo } from "../../lib/ipc/switch-move";
-import { placesOpen } from "../../lib/ipc/places";
-import { errorText } from "../../lib/bridge";
-import { Button } from "../primitives";
+import { HolderDoors } from "./HolderDoors";
 import { ProgressBar } from "../UpdateProgress";
 import { Alert } from "../Alert";
 import { FailedStep, failureOf } from "./FailedStep";
@@ -54,33 +52,17 @@ export function leftPartWay(cause: unknown): string | null {
   return stop && !stop.unchanged ? stop.move_id : null;
 }
 
-/** What holds the files, each app with its door when only the person can
+/** What holds the files, each with its door when only the person can
  * clear it. */
 function Holders({ stop }: { stop: MoveStopInfo }): JSX.Element | null {
-  const [said, setSaid] = useState<string | null>(null);
-  const doors = stop.class === "needs_you" ? stop.holders.filter((holder) => holder.place_id) : [];
   if (stop.holders.length === 0) return null;
-  const goTo = (id: string) =>
-    void placesOpen(id).then(
-      (outcome) => setSaid(outcome.outcome),
-      (cause) => setSaid(errorText(cause)),
-    );
   return (
     <div className="flex flex-col gap-2" data-testid="switch-move-holders">
       <p className="text-body text-ink">
         <span className="text-muted">Holding the files: </span>
         {stop.holders.map((holder) => holder.name).join(", ")}
       </p>
-      {doors.length > 0 && (
-        <div className="flex flex-wrap items-center gap-2">
-          {doors.map((holder) => (
-            <Button key={holder.place_id} size="sm" variant="secondary" type="button" onClick={() => goTo(holder.place_id!)} data-testid="switch-move-holder-door">
-              Go to {holder.name}
-            </Button>
-          ))}
-          {said && <output className="text-meta text-ink-2">{said}</output>}
-        </div>
-      )}
+      {stop.class === "needs_you" && <HolderDoors holders={stop.holders} testId="switch-move-holder-doors" />}
     </div>
   );
 }

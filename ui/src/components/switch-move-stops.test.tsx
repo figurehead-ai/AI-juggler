@@ -14,6 +14,17 @@ import { switchPreflight } from "../lib/ipc/switch-preflight";
 
 const executed = vi.hoisted(() => [] as unknown[][]);
 const opened = vi.hoisted(() => [] as string[]);
+const went = vi.hoisted(() => [] as string[][]);
+vi.mock("../lib/ipc/conversations", async (original) => {
+  const real = await original<typeof import("../lib/ipc/conversations")>();
+  return {
+    ...real,
+    conversationsGoTo: (accountId: string, conversationId: string) => {
+      went.push([accountId, conversationId]);
+      return Promise.resolve({ outcome: "Brought its Terminal window forward", reached: "thread" });
+    },
+  };
+});
 const undid = vi.hoisted(() => [] as string[]);
 vi.mock("../lib/ipc/switch-move", async (original) => {
   const real = await original<typeof import("../lib/ipc/switch-move")>();
@@ -46,6 +57,7 @@ vi.mock("../lib/ipc/places", async (original) => {
 const OFFER: MoveOfferInfo = {
   applies: true,
   blocks: [],
+  holders: [],
   members: [
     {
       title: "Refunds API",
@@ -93,6 +105,7 @@ afterEach(() => {
   cleanup();
   executed.length = 0;
   opened.length = 0;
+  went.length = 0;
   undid.length = 0;
   delete window.__AIJ_MOVE_OFFER__;
   delete window.__AIJ_MOVE_ERROR__;
@@ -107,7 +120,7 @@ function mount() {
 
 /** Each refusal class's words and buttons (R2, R4's UI table). */
 describe("Move's refusals, by class", () => {
-  const WORK = { name: "Claude app · Work", place_id: "place-work" };
+  const WORK = { name: "Claude app · Work", place_id: "place-work", account_id: null, conversation: null };
   const stopped = async (cls: "transient" | "needs_you" | "setup" | "bug", words: string, holders = [WORK]) => {
     window.__AIJ_MOVE_OFFER__ = OFFER;
     window.__AIJ_MOVE_ERROR__ = {
@@ -220,5 +233,37 @@ describe("Move's refusals, by class", () => {
     expect(undid).toEqual(["2-bb"]);
     // R5: what kept running, said after Undo as the move says it.
     expect(view.getByTestId("switch-undone-notes").textContent).toContain("Node that Claude app · Work started is still running");
+  });
+});
+
+/** 0.5.1 F72 (PL1 S-I4-refused): Move faded for something the user can
+ * clear names what holds the files and offers its door, as a stop does
+ * (AJ-E2319), never only "1 session … is open outside the app". */
+describe("Move waiting on what holds the files", () => {
+  const TERMINAL = { name: "“Fix the login test” in Terminal", place_id: null, account_id: "acct-work", conversation: "term-1" };
+  const blocked = (holders: MoveOfferInfo["holders"]): MoveOfferInfo => ({
+    ...OFFER,
+    blocks: [{ kind: "user_can_clear", words: "“Fix the login test” in Terminal is open outside the app; Move becomes available once you end it" }],
+    holders,
+  });
+
+  it("names the session and where it is open, with a Go to that goes to it", async () => {
+    window.__AIJ_MOVE_OFFER__ = blocked([TERMINAL]);
+    const view = mount();
+    await waitFor(() => expect(view.getByTestId("switch-how-move")).toBeTruthy());
+    expect(view.getByTestId("switch-how-move").textContent).toContain("“Fix the login test” in Terminal is open outside the app; Move becomes available once you end it.");
+    const door = view.getByTestId("switch-how-holders").querySelector("button")!;
+    expect(door.textContent).toBe("Go to “Fix the login test” in Terminal");
+    fireEvent.click(door);
+    await waitFor(() => expect(went).toEqual([["acct-work", "term-1"]]));
+    expect(await view.findByText("Brought its Terminal window forward")).toBeTruthy();
+  });
+
+  it("an app a turn runs in has its door too; a program known only by name has none", async () => {
+    window.__AIJ_MOVE_OFFER__ = blocked([{ name: "Claude app · Work", place_id: "place-work", account_id: null, conversation: null }, { name: "claude (process 730)", place_id: null, account_id: null, conversation: null }]);
+    const view = mount();
+    await waitFor(() => expect(view.getByTestId("switch-how-holders")).toBeTruthy());
+    const doors = [...view.getByTestId("switch-how-holders").querySelectorAll("button")].map((b) => b.textContent);
+    expect(doors).toEqual(["Go to Claude app · Work"]);
   });
 });

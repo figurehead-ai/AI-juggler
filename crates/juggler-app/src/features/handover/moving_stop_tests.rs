@@ -19,6 +19,7 @@ fn holder(lab: &Lab, side: &Option<(String, KnownPlace)>) -> MoveHolder {
     MoveHolder {
         name: place_name(&lab.state, place),
         place_id: Some(id.clone()),
+        ..MoveHolder::default()
     }
 }
 

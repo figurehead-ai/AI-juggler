@@ -270,6 +270,7 @@ pub(super) fn stop_places(
             .map(|member| MoveHolder {
                 name: member.name.clone(),
                 place_id: None,
+                ..MoveHolder::default()
             })
             .collect();
         return Err(MoveStop::new(StopClass::NeedsYou, words.clone(), words)
@@ -481,6 +482,7 @@ fn held(id: &str, name: &str) -> MoveHolder {
     MoveHolder {
         name: name.to_owned(),
         place_id: Some(id.to_owned()),
+        ..MoveHolder::default()
     }
 }
 
