@@ -123,7 +123,7 @@ export function PlaceBoard({ sessions, projects, accounts, snooze, now, selected
   const { offRail, openOffRail } = useOffRail(places);
   const offers = usePlaceOffers(); // D-100: Running, not added; an Add that failed says why
   useEffect(() => void (offers.note && showToast({ id: "place-offer", message: offers.note })), [offers.note]);
-  const built = buildLines({ items, view, query: parsed, now, toggled, frozen, accountOf, poolOf, order: orderInputs, others, known: places ?? [], offRail, offers: offers.offers ?? [], cliApps });
+  const built = buildLines({ items, view, query: parsed, now, toggled, frozen, accountOf, poolOf, order: orderInputs, others, held: needsNow.held, known: places ?? [], offRail, offers: offers.offers ?? [], cliApps });
   const stable = order.mode !== "latest";
   // New rows and places join the end of the record; gone ones are pruned.
   const groupKeys = built.groups.map((group) => group.key).join("\n");

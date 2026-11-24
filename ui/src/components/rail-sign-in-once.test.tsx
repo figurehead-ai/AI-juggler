@@ -90,13 +90,48 @@ it("the Needs you line comes back once the Sign-ins entry leaves", async () => {
   await refreshSignIns();
   standInNeeds([need("Claude Code 2", "cc-2")]);
   const view = rail([]);
-  await waitFor(() => expect(view.queryByTestId("rail-needs-you")).toBeNull());
+  await waitFor(() => expect(view.getByTestId("bell-count").textContent).toBe("1"));
+  expect(rows(view).some((row) => row.includes("Claude Code 2 needs its sign-in"))).toBe(false);
   window.__AIJ_SIGN_INS__ = [];
   await act(async () => {
     await refreshSignIns();
   });
   act(() => applySummary(standInNeeds([need("Claude Code 2", "cc-2")])));
   await waitFor(() => expect(rows(view).some((row) => row.includes("Claude Code 2 needs its sign-in"))).toBe(true));
+});
+
+/** 0.5.1 F34 (AJ-E3104): the Sign-ins entry is that need's one place in
+ * the rail, and the rail's count includes it: the rail, the bell (and
+ * Home, which reads the bell's count) say one number, while the entry
+ * shows and after it leaves. */
+const railCount = (view: ReturnType<typeof rail>) => Number(/Needs you\D*(\d+)/.exec(view.queryByTestId("rail-needs-you")?.textContent ?? "")?.[1] ?? 0);
+
+it("the rail's Needs you count includes a sign-in its Sign-ins entry shows, as the bell's does", async () => {
+  window.__AIJ_SIGN_INS__ = [signIn("cc-2", "ended")];
+  await refreshSignIns();
+  standInNeeds([need("Claude Code 2", "cc-2"), need("Codex", "codex-1")]);
+  const view = rail([{ id: "login-cc-2", title: "Sign in · Claude Code 2", ended: true, account: "cc-2", state: "ended" }]);
+  await waitFor(() => expect(view.getByTestId("bell-count").textContent).toBe("2"));
+  await waitFor(() => expect(railCount(view)).toBe(2));
+  expect(rows(view).some((row) => row.includes("Claude Code 2 needs its sign-in"))).toBe(false);
+});
+
+it("the rail and the bell agree on one sign-in shown only as its entry, and after the entry leaves", async () => {
+  window.__AIJ_SIGN_INS__ = [signIn("cc-2", "running")];
+  await refreshSignIns();
+  standInNeeds([need("Claude Code 2", "cc-2")]);
+  const view = rail([{ id: "login-cc-2", title: "Sign in · Claude Code 2", ended: false, account: "cc-2", state: "running" }]);
+  await waitFor(() => expect(view.getByTestId("bell-count").textContent).toBe("1"));
+  await waitFor(() => expect(railCount(view)).toBe(1));
+  expect(rows(view)).toEqual([]);
+  window.__AIJ_SIGN_INS__ = [];
+  await act(async () => {
+    await refreshSignIns();
+  });
+  act(() => applySummary(standInNeeds([need("Claude Code 2", "cc-2")])));
+  await waitFor(() => expect(rows(view).some((row) => row.includes("Claude Code 2 needs its sign-in"))).toBe(true));
+  expect(railCount(view)).toBe(1);
+  expect(view.getByTestId("bell-count").textContent).toBe("1");
 });
 
 it("leaves out only a sign-in need of an App the Sign-ins show (pure)", () => {

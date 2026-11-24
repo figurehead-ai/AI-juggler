@@ -140,9 +140,9 @@ export interface LineInputs {
   poolOf?: PoolOf;
   /** Open now's order (D-47): Your order when not given. */
   order?: OrderInputs;
-  /** D-49: the rest of the backend's Needs you (not a session's), so the
-   * section holds what the bell counts; left out while searching. */
+  /** D-49: the rest of the backend's Needs you (not a session's), so the section holds what the bell counts; left out while searching. */
   others?: NoticeInfo[];
+  held?: NoticeInfo[]; // 0.5.1 F34: listed as Sign-ins entries, counted in Needs you (AJ-E3104)
   /** D-64: the desktop apps remembered (the App grouping's inactive apps,
    * and where a desktop app's past sessions were last open). */
   known?: readonly KnownPlaceInfo[];
@@ -169,14 +169,14 @@ const YOURS: OrderInputs = { mode: "yours", rows: new Map(), groups: [], folded:
 /** Needs you (D-117): the count and the top hold what waits on you or
  * broke (L2, L3); the notes (done, review it; low room nothing live is
  * on) are listed last under a faint "To review", never counted. */
-function needsSection(needs: RailItem[], rest: NoticeInfo[]): Line[] {
-  if (needs.length + rest.length === 0) return [];
+function needsSection(needs: RailItem[], rest: NoticeInfo[], held: NoticeInfo[] = []): Line[] {
+  if (needs.length + rest.length + held.length === 0) return []; // F34: held are counted ones
   const loudNeeds = needs.filter((item) => counted(itemLevel(item)));
   const loudRest = rest.filter((notice) => counted(noticeLevel(notice)));
   const notes: Line[] = [...needs.filter((item) => !counted(itemLevel(item))).map((item) => ({ kind: "need" as const, item })), ...rest.filter((notice) => !counted(noticeLevel(notice))).map((notice) => ({ kind: "notice" as const, notice }))];
-  const level = highest([...loudNeeds.map(itemLevel), ...loudRest.map(noticeLevel)]);
+  const level = highest([...loudNeeds.map(itemLevel), ...loudRest.map(noticeLevel), ...held.map(noticeLevel)]);
   return [
-    { kind: "section", id: "needs", count: loudNeeds.length + loudRest.length, level, broken: [...brokenOf(loudNeeds, itemLevel, (item) => item.need), ...brokenOf(loudRest, noticeLevel, (notice) => notice.kind)] }, // said aloud: its ✕ is decoration
+    { kind: "section", id: "needs", count: loudNeeds.length + loudRest.length + held.length, level, broken: [...brokenOf(loudNeeds, itemLevel, (item) => item.need), ...brokenOf(loudRest, noticeLevel, (notice) => notice.kind)] }, // said aloud: its ✕ is decoration
     ...loudLines(loudNeeds, loudRest), // one order with Home's (needs-order, D-118)
     ...(notes.length > 0 ? [{ kind: "to-review" } as const, ...notes] : []),
   ];
@@ -188,7 +188,7 @@ export function groupNeeds(here: RailItem[]): { needsHere: number; level: Attent
   return { items: loud, needsHere: loud.length, level: highest(loud.map(itemLevel)), probably: loud.length > 0 && loud.every((item) => item.probably), broken: brokenOf(loud, itemLevel, (item) => item.need) };
 }
 
-export function buildLines({ items, view, query, now, toggled, frozen, accountOf, poolOf, order = YOURS, others = [], known = [], offRail = () => false, offers = [], cliApps = [] }: LineInputs): Lines {
+export function buildLines({ items, view, query, now, toggled, frozen, accountOf, poolOf, order = YOURS, others = [], held = [], known = [], offRail = () => false, offers = [], cliApps = [] }: LineInputs): Lines {
   const searching = isSearching(query);
   const filtering = searching || Object.keys(view.only).length > 0;
   const want = (key: "ended" | "inactive" | "background" | "quiet" | "archived") => view.show[key] || query.is.has(key);
@@ -241,7 +241,7 @@ export function buildLines({ items, view, query, now, toggled, frozen, accountOf
   const lines: Line[] = [];
   let rows = 0;
   const rest = searching ? [] : others;
-  lines.push(...needsSection(needs, rest));
+  lines.push(...needsSection(needs, rest, searching ? [] : held));
   rows += needs.length + rest.length;
   // By App, Open now counts the Apps open; otherwise the sessions.
   if (groups.length > 0) lines.push({ kind: "section", id: "open", count: apps ? groups.length : open.length });

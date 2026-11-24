@@ -5,8 +5,12 @@
  * as a Needs you line "… needs its sign-in" beside it. The bell and Home
  * keep the need; once the entry leaves (signed in, or dismissed), the
  * rail's Needs you line comes back while the App still needs it.
+ * F34 (AJ-E3104): the entry is that need's one place in the rail, and the
+ * rail's Needs you count still includes it (`held`), so the rail, the bell
+ * and Home say one number.
  */
 import { useMemo } from "react";
+import { counted, noticeLevel } from "./attention";
 import { useBackendNeeds, type BackendNeeds } from "./needs-you";
 import { useSignIns } from "./sign-ins-store";
 import type { NoticeInfo } from "./ipc/notices";
@@ -34,13 +38,23 @@ export function useSignInApps(): ReadonlySet<string> {
   return useMemo(() => signInApps(signIns), [signIns]);
 }
 
+/** The rail's Needs you: its rows, and the counted needs (L2, L3) its
+ * Sign-ins entries show in their place (listed there, counted here: F34). */
+export interface RailNeeds extends BackendNeeds {
+  held: NoticeInfo[];
+}
+
+const NONE: NoticeInfo[] = [];
+
 /** The rail's Needs you (both boards): the backend's, without a sign-in
- * need its Sign-ins already show. */
-export function useRailNeeds(): BackendNeeds {
+ * need its Sign-ins already show; those are `held`, still counted. */
+export function useRailNeeds(): RailNeeds {
   const needs = useBackendNeeds();
   const apps = useSignInApps();
   return useMemo(() => {
     const rows = withoutSignInsShown(needs.rows, apps);
-    return rows.length === needs.rows.length ? needs : { ...needs, rows };
+    if (rows.length === needs.rows.length) return { ...needs, held: NONE };
+    const kept = new Set(rows);
+    return { ...needs, rows, held: needs.rows.filter((row) => !kept.has(row) && counted(noticeLevel(row))) };
   }, [needs, apps]);
 }
