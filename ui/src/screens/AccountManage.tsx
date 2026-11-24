@@ -14,6 +14,7 @@ import type { ActionHost } from "../lib/actions";
 import { Radio } from "../components/controls";
 import { cliAppName } from "../lib/app-name";
 import { SELECTED_CARD } from "../components/controls/selected";
+import { sessionNames, shortName } from "../lib/session-titles";
 
 /** A home-relative path, for display. */
 export function shortPath(path: string): string {
@@ -72,8 +73,10 @@ export function RenameAccountModal({
           <Input value={plan} placeholder="Max" onChange={(event) => setPlan(event.target.value)} data-testid="rename-account-plan" />
         </Field>
         {error && (
-          <p className="text-xs text-danger" role="alert">
-            {error}
+          // 0.5.1 F86 (PAT-COLOR-2): the broken level's red mark, the words in ink.
+          <p className="flex items-start gap-2 text-xs text-ink" role="alert" data-testid="rename-account-error">
+            <span aria-hidden="true" className="level-mark mt-[3px]" data-level={3} />
+            <span className="min-w-0">{error}</span>
           </p>
         )}
       </form>
@@ -82,6 +85,14 @@ export function RenameAccountModal({
 }
 
 const OPEN = ["starting", "running", "waiting_user", "stuck", "quota_blocked"];
+
+/** How many open sessions the remove sheet names before "and N more". */
+const OPEN_NAMES_SHOWN = 3;
+
+/** "a", "a and b", "a, b and c". */
+function listWords(names: readonly string[]): string {
+  return names.length <= 1 ? (names[0] ?? "") : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
+}
 
 /** AJ-E1501: the remove sheet. An account used where it is: its folder
  * stays exactly as it is. A copy: keep its folder, or move it to the
@@ -101,7 +112,14 @@ export function RemoveAccountModal({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const open = sessions.filter((session) => OPEN.includes(session.status));
-  const names = [...new Set(open.map((session) => session.git_branch ?? ((session.cwd ?? "").replace(/\/+$/, "").split("/").pop() || session.account_label)))];
+  // 0.5.1 F86: each open session by its own name (the rail's one name,
+  // told apart), never folded by branch: "3 sessions" names three. Past
+  // three, "and 2 more" opens the rest in place.
+  const [allNames, setAllNames] = useState(false);
+  const named = sessionNames(open);
+  const names = open.map((session) => named.get(session.id) ?? shortName(session));
+  const shownNames = allNames || names.length <= OPEN_NAMES_SHOWN ? names : names.slice(0, OPEN_NAMES_SHOWN);
+  const moreNames = names.length - shownNames.length;
   const where = account.import_source_path ? shortPath(account.import_source_path) : null;
   return (
     <Modal title={`Remove ${cliAppName(account.provider, account.label)}?`} onClose={onClose}
@@ -143,7 +161,24 @@ export function RemoveAccountModal({
       <div className="flex flex-col gap-4 text-sm" data-testid="remove-account" data-kind={account.in_place ? "in-place" : "copy"}>
         {open.length > 0 ? (
           <p className="leading-relaxed text-ink-2" data-testid="remove-account-open">
-            {cliAppName(account.provider, account.label)} has {open.length === 1 ? "a session" : `${open.length} sessions`} open: <span className="text-ink">{names.join(", ")}</span>.
+            {cliAppName(account.provider, account.label)} has {open.length === 1 ? "a session" : `${open.length} sessions`} open:{" "}
+            <span className="text-ink" data-testid="remove-account-open-names">
+              {moreNames > 0 ? shownNames.join(", ") : listWords(shownNames)}
+            </span>
+            {moreNames > 0 && (
+              <>
+                {" and "}
+                <button
+                  type="button"
+                  onClick={() => setAllNames(true)}
+                  className="rounded text-accent-hi outline-none hover:underline focus-visible:ring-1 focus-visible:ring-accent/60"
+                  data-testid="remove-account-open-more"
+                >
+                  {moreNames} more
+                </button>
+              </>
+            )}
+            .
             Stop {open.length === 1 ? "it" : "them"} first, then remove the app.
           </p>
         ) : account.in_place ? (
