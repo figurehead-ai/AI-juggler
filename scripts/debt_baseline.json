@@ -5,17 +5,14 @@
  "crates/components/AccountSettingsSheet.tsx": {
   "jscpd:lines": 21
  },
- "crates/components/CrossMachineSwitchBack.tsx": {
-  "jscpd:lines": 89
- },
  "crates/components/DeleteInstanceDialog.tsx": {
   "jscpd:lines": 13
  },
  "crates/components/IdentityMismatchDialog.tsx": {
-  "jscpd:lines": 33
+  "jscpd:lines": 7
  },
  "crates/components/IsolationOfferDialog.tsx": {
-  "jscpd:lines": 36
+  "jscpd:lines": 7
  },
  "crates/components/LimitDialog.tsx": {
   "jscpd:lines": 7
@@ -24,10 +21,10 @@
   "jscpd:lines": 8
  },
  "crates/components/PlaceHeader.tsx": {
-  "jscpd:lines": 24
+  "jscpd:lines": 14
  },
  "crates/components/RailIdleApp.tsx": {
-  "jscpd:lines": 33
+  "jscpd:lines": 14
  },
  "crates/components/RailProjectRows.tsx": {
   "jscpd:lines": 20
@@ -42,25 +39,22 @@
   "jscpd:lines": 24
  },
  "crates/components/ReplayDialog.tsx": {
-  "jscpd:lines": 16
+  "jscpd:lines": 14
  },
  "crates/components/RestartApp.tsx": {
-  "jscpd:lines": 9
+  "jscpd:lines": 7
  },
  "crates/components/RightInspector.tsx": {
   "jscpd:lines": 19
  },
  "crates/components/SessionCard.tsx": {
-  "jscpd:lines": 20
+  "jscpd:lines": 16
  },
  "crates/components/SessionCards.tsx": {
-  "jscpd:lines": 20
+  "jscpd:lines": 16
  },
  "crates/components/StartWithSettings.tsx": {
   "jscpd:lines": 20
- },
- "crates/components/SwitchBackFlow.tsx": {
-  "jscpd:lines": 17
  },
  "crates/components/SwitchGraph.tsx": {
   "jscpd:lines": 7
@@ -82,9 +76,6 @@
  },
  "crates/components/row-details.tsx": {
   "jscpd:lines": 20
- },
- "crates/components/switch/SwitchDialogFrame.tsx": {
-  "jscpd:lines": 16
  },
  "crates/juggler-account/src/vault.rs": {
   "jscpd:lines": 23
@@ -330,22 +321,16 @@
   "jscpd:lines": 10
  },
  "crates/juggler-app/src/features/conversations/mod.rs": {
-  "jscpd:lines": 29
+  "jscpd:lines": 16
  },
  "crates/juggler-app/src/features/conversations/scan.rs": {
   "jscpd:lines": 14
- },
- "crates/juggler-app/src/features/conversations/switch_source.rs": {
-  "jscpd:lines": 13
  },
  "crates/juggler-app/src/features/floor/harness.rs": {
   "jscpd:lines": 14
  },
  "crates/juggler-app/src/features/floor/window.rs": {
   "jscpd:lines": 12
- },
- "crates/juggler-app/src/features/handover/arrival.rs": {
-  "jscpd:lines": 15
  },
  "crates/juggler-app/src/features/handover/automation.rs": {
   "jscpd:lines": 45
@@ -369,7 +354,7 @@
   "jscpd:lines": 7
  },
  "crates/juggler-app/src/features/notifications/sources.rs": {
-  "jscpd:lines": 119
+  "jscpd:lines": 52
  },
  "crates/juggler-app/src/features/outside_search/cache.rs": {
   "jscpd:lines": 8
@@ -385,12 +370,6 @@
  },
  "crates/juggler-app/src/features/places/handoff_tests.rs": {
   "jscpd:lines": 26
- },
- "crates/juggler-app/src/features/places/mod.rs": {
-  "jscpd:lines": 20
- },
- "crates/juggler-app/src/features/places/tests.rs": {
-  "jscpd:lines": 24
  },
  "crates/juggler-app/src/features/pools/access.rs": {
   "jscpd:lines": 16
@@ -713,17 +692,8 @@
  "crates/preview/fixtures.ts": {
   "jscpd:lines": 26
  },
- "crates/screens/NewProjectSheet.tsx": {
-  "jscpd:lines": 12
- },
- "crates/screens/NewSession.tsx": {
-  "jscpd:lines": 8
- },
- "crates/screens/WorkPanels.tsx": {
-  "jscpd:lines": 12
- },
  "crates/screens/accounts/AppsSection.tsx": {
-  "jscpd:lines": 15
+  "jscpd:lines": 6
  },
  "crates/screens/processes/ProcessTree.tsx": {
   "jscpd:lines": 30
@@ -807,9 +777,6 @@
  },
  "ui/src/components/charts/Heatmap.tsx": {
   "knip:exports": 2
- },
- "ui/src/components/charts/StatTile.tsx": {
-  "knip:exports": 1
  },
  "ui/src/components/charts/TimeChart.tsx": {
   "knip:types": 1
