@@ -546,19 +546,21 @@ fn d1_04_crashpad_is_reported_never_waited_on() {
     assert!(done.notes.is_empty(), "{:?}", done.notes);
 }
 
+/// Shapes 5 and 6: the profile's Code tab with this AI Juggler (`OWN`)
+/// running under `parent` from `exe`, on a disk that makes clones.
+fn code_tab_with_own(parent: u32, exe: &str) -> (Fix, Vec<(u32, Row)>) {
+    clones_on_any_disk();
+    let fix = fix();
+    let mut rows = both(&fix, fix.code_tab(110, 100, &fix.a, &[]));
+    rows.push(fixture(OWN, parent, exe, &["juggler-app"]));
+    (fix, rows)
+}
+
 /// Shape 5: This AI Juggler (the Dev build) started from the profile's Code
 /// tab: the self rule refuses before anything quits, as needs you.
 #[test]
 fn d1_05_ai_juggler_from_the_code_tab_is_refused_before_any_quit() {
-    clones_on_any_disk();
-    let fix = fix();
-    let mut rows = both(&fix, fix.code_tab(110, 100, &fix.a, &[]));
-    rows.push(fixture(
-        OWN,
-        111,
-        "/Users/you/Dev/target/debug/juggler-app",
-        &["juggler-app"],
-    ));
+    let (fix, rows) = code_tab_with_own(111, "/Users/you/Dev/target/debug/juggler-app");
     let system = Shaped::new(&fix, rows);
     offer_asks_you(&fix, &system, "AI Juggler itself was started from inside");
     let stop = stop_of(run(&fix.lab.state, &fix.lab.sides, &system));
@@ -571,15 +573,8 @@ fn d1_05_ai_juggler_from_the_code_tab_is_refused_before_any_quit() {
 /// Shape 6: Another AI Juggler started from the profile: the same, naming it.
 #[test]
 fn d1_06_another_ai_juggler_in_the_profile_is_refused_before_any_quit() {
-    clones_on_any_disk();
-    let fix = fix();
-    let mut rows = both(&fix, fix.code_tab(110, 100, &fix.a, &[]));
-    rows.push(fixture(
-        OWN,
-        1,
-        "/Applications/AI Juggler.app/Contents/MacOS/juggler-app",
-        &["juggler-app"],
-    ));
+    let (fix, mut rows) =
+        code_tab_with_own(1, "/Applications/AI Juggler.app/Contents/MacOS/juggler-app");
     rows.push(fixture(
         950,
         111,
