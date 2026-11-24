@@ -1,4 +1,4 @@
-<!-- captures: f1106f1a37be -->
+<!-- captures: 404d8aa43827 -->
 # 45-remote: a remote session or machine on Mac mini seen from Fleet: Overview live, stale and offline, Processes, and a view-only Actions tab
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design fixes.
@@ -19,3 +19,7 @@ The header reads cleanly (breadcrumb, Work Max with Working and Mac mini chips, 
 Retaken on release/0.4.1 for the Fleet gate's screenshot set (AJ-E710), both themes, every size the family has. First pass by a Sonnet agent against a written sheet; the points marked (checked) were confirmed by eye by Opus.
 
 Fleet › Mac mini › Session with Overview, Quality, Processes and Actions. Still as before: stale and offline overviews also say "measured 1 s ago"; Processes 3 sits above "Unavailable — Mac mini hasn't reported…"; `instance-actions-view-only` shows an Offline header.
+
+## 0.5.1
+
+Re-captured on 0.5.1; only the shared chrome changed in these screens. The rail's head now starts past the traffic lights, its rows hold a fixed dot column (tools on hover), cards and panels separate by tone instead of a border, a chosen item is a fill, and the top bar's bottom line is calmer. Fleet and remote session pages are unchanged.

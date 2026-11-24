@@ -1,4 +1,4 @@
-<!-- captures: 5adff2ebfac1 -->
+<!-- captures: e8b8e97ad469 -->
 # 23-alerts: alerts on the Processes page: a process using a lot of memory, an idle process, both at once, keyboard focus on an alerted row, and the stop sheet for the memory hog
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design passes.
@@ -14,3 +14,7 @@ idle-nudge-* and mixed-* still show the alerts as plain full-width rows above th
 - hog-staged-*: a "Won't stop it" sheet with "program ?" and "ports —" instead of the hog's stop sheet.
 - *-1024x700-*: identical to the 1440x900 captures; the narrower width is not captured.
 - keyboard-pass-1440x900-dark: an empty band below the focused row inside the table.
+
+## 0.5.1
+
+Re-captured on 0.5.1; only the shared chrome changed in these screens. The rail's head now starts past the traffic lights, its rows hold a fixed dot column (tools on hover), cards and panels separate by tone instead of a border, a chosen item is a fill, and the top bar's bottom line is calmer. Dialog and Processes content are unchanged.

@@ -1,4 +1,4 @@
-<!-- captures: 368cb960e562 -->
+<!-- captures: 7538735f4c9b -->
 # 48-remote-cleanup: Processes with Automatic cleanup and Your other Macs, cleaning a left-behind node on Mac mini and the refusal when its identity changed
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design passes.
@@ -19,3 +19,7 @@ The three blocks (process table, Automatic cleanup with one card per account, Yo
 Retaken on release/0.4.1 for the Fleet gate's screenshot set (AJ-E710), both themes, every size the family has. First pass by a Sonnet agent against a written sheet; the points marked (checked) were confirmed by eye by Opus.
 
 Mac mini's rows: node with "✓ Verified owned" and a red Clean…; python3 "Not owned — never touched"; the confirm "Clean node on Mac mini?" with Cancel and a red Clean on Mac mini. The sweep found the confirm let Tab out and gave focus to the page body on close; fixed in 2d6df1e07 (focus returns to Clean…). Still: the node row is cut at the foot at 1440.
+
+## 0.5.1
+
+Re-captured on 0.5.1; only the shared chrome changed in these screens. The rail's head now starts past the traffic lights, its rows hold a fixed dot column (tools on hover), cards and panels separate by tone instead of a border, a chosen item is a fill, and the top bar's bottom line is calmer. The cleanup dialog is unchanged; names read Claude Code CLI · Work Max.

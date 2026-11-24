@@ -1,4 +1,4 @@
-<!-- captures: 214e9c0d3f79 -->
+<!-- captures: 5b0cbe7170ae -->
 <!-- captures: pending -->
 # 99-floor-list: the Floor list
 
@@ -46,3 +46,7 @@ The list now carries the Floor card's words. Resting on a row (keyboard focus, o
 The whole family was retaken on release/0.4.1 for the 14-line re-score (AJ-E3305, `docs/qa/0.4-walks/design.md`) and opened on contact sheets, both themes, 1280 and 1024. Shared with every screen since the last shoot: the header's New session is tinted (one filled button per view), the Floor button is a split control with its own menu, This Mac's line is its dot below 1120 px, and the rail's App headers put the profile first.
 
 Unchanged in design: search, "Waiting on you 5", one header per floor with the room once, empty columns hidden, Show on the Floor once per App. Session names still don't open their pages (design.md, under 4, item 2).
+
+## 0.5.1
+
+Re-captured on 0.5.1; only the shared chrome changed in these screens. The rail's head now starts past the traffic lights, its rows hold a fixed dot column (tools on hover), cards and panels separate by tone instead of a border, a chosen item is a fill, and the top bar's bottom line is calmer. The Floor list is unchanged; its subtitle adds how many need you.

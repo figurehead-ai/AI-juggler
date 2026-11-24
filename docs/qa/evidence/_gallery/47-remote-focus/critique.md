@@ -1,4 +1,4 @@
-<!-- captures: d173e2bf1087 -->
+<!-- captures: 8d5577f2c458 -->
 # 47-remote-focus: a Mac mini session's Actions tab after Focus on Mac mini, with each outcome, the view-only state and the palette listing the remote session
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design fixes.
@@ -18,3 +18,7 @@ The Actions card sits a step off the canvas in both themes, with Stop on Mac min
 Retaken on release/0.4.1 for the Fleet gate's screenshot set (AJ-E710), both themes, every size the family has. First pass by a Sonnet agent against a written sheet; the points marked (checked) were confirmed by eye by Opus.
 
 Failed outcomes now show an amber "⚠ Mac mini: App not running — Relaunch?" line, not the success check the earlier notes describe (checked). "Relaunch?" is still words, not a button.
+
+## 0.5.1
+
+Re-captured on 0.5.1; only the shared chrome changed in these screens. The rail's head now starts past the traffic lights, its rows hold a fixed dot column (tools on hover), cards and panels separate by tone instead of a border, a chosen item is a fill, and the top bar's bottom line is calmer. The Actions tab is unchanged.

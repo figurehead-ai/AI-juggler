@@ -1,4 +1,4 @@
-<!-- captures: ec263eb1d035 -->
+<!-- captures: 88dce4f256f9 -->
 # 18-ports: the Processes page's Ports tab (port inventory and automatic cleanup), and the sheet warning that a port is already held
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design passes.
@@ -10,3 +10,7 @@ inventory-* are clear: four raised count cards (7 to clean up in amber, 1 didn't
 ## Weak
 
 - warning-sheet-1440x900-dark, warning-sheet-1440x900-light: the sheet covers the header navigation from "Ta…" to "History"; "Free this port" and "Launch anyway" look the same.
+
+## 0.5.1
+
+Re-captured on 0.5.1; only the shared chrome changed in these screens. The rail's head now starts past the traffic lights, its rows hold a fixed dot column (tools on hover), cards and panels separate by tone instead of a border, a chosen item is a fill, and the top bar's bottom line is calmer. The Ports tab and the Free this port popover read the same; behind the popover the session page's header gained Watch… and its body shows the conversation.

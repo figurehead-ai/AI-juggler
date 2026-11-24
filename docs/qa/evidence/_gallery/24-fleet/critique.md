@@ -1,4 +1,4 @@
-<!-- captures: 5be812c1992c -->
+<!-- captures: 2899b72703d1 -->
 # 24-fleet: the Processes page scrolled down to Automatic cleanup and Your other Macs, with a paired Mac Studio's leftover process
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design passes.
@@ -19,3 +19,7 @@ The colour steps work here: in both dark captures the process table, the Automat
 Retaken on release/0.4.1 for the Fleet gate's screenshot set (AJ-E710), both themes, every size the family has. First pass by a Sonnet agent against a written sheet; the points marked (checked) were confirmed by eye by Opus.
 
 Processes scrolled to Automatic cleanup and Your other Macs, Mac Studio's row view-only (Clean… disabled). Still as before: the 1024 files are 1440-wide (no narrow capture), the node (astro) row is cut at the table's foot and the top row clipped, and the disabled Clean… is a faint pink.
+
+## 0.5.1
+
+Re-captured on 0.5.1; only the shared chrome changed in these screens. The rail's head now starts past the traffic lights, its rows hold a fixed dot column (tools on hover), cards and panels separate by tone instead of a border, a chosen item is a fill, and the top bar's bottom line is calmer. Processes content is unchanged; accounts now read as apps in the card titles (Claude Code CLI · Work Max).
