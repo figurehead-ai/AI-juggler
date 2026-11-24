@@ -40,7 +40,7 @@ interface Item {
 /** A conversation AI Juggler's (terminal) session stands for that a
  * desktop app's own process holds too: that place, and whether AI
  * Juggler's session runs it as well (any other place on it). */
-export function heldInApp(c: ConversationInfo, sessions: ReadonlyMap<string, InstanceInfo>): { ours: InstanceInfo; app: PlaceInfo; two: boolean } | null {
+function heldInApp(c: ConversationInfo, sessions: ReadonlyMap<string, InstanceInfo>): { ours: InstanceInfo; app: PlaceInfo; two: boolean } | null {
   if (!c.live || c.session_id === null) return null;
   const ours = sessions.get(c.session_id);
   // A desktop session AI Juggler started is that app's row already.

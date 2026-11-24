@@ -224,16 +224,31 @@ mod imp {
     }
 }
 
+/// Where no file watcher is built yet (Linux's inotify, Windows' wait
+/// handles): a bounded sleep, and the caller's look decides.
+#[cfg(not(target_os = "macos"))]
+mod unwatched {
+    use std::path::PathBuf;
+    use std::time::Duration;
+
+    use super::Quiet;
+
+    pub(super) fn quiet_for(_: &[PathBuf], window: Duration, cap: Duration) -> Quiet {
+        std::thread::sleep(window.min(cap));
+        Quiet::Unwatched
+    }
+}
+
 #[cfg(all(unix, not(target_os = "macos")))]
 mod imp {
-    use std::path::PathBuf;
     use std::time::{Duration, Instant};
 
     use nix::errno::Errno;
     use nix::sys::signal::kill;
     use nix::unistd::Pid;
 
-    use super::{LOOK, Quiet};
+    use super::LOOK;
+    pub(super) use super::unwatched::quiet_for;
 
     // The bounded polling fallback (Linux's pidfd goes here): a look every
     // `LOOK` whether each pid still runs.
@@ -254,31 +269,20 @@ mod imp {
             std::thread::sleep(left.min(LOOK));
         }
     }
-
-    // inotify goes here; until then the caller's look decides.
-    pub(super) fn quiet_for(_: &[PathBuf], window: Duration, cap: Duration) -> Quiet {
-        std::thread::sleep(window.min(cap));
-        Quiet::Unwatched
-    }
 }
 
 #[cfg(not(unix))]
 mod imp {
-    use std::path::PathBuf;
     use std::time::Duration;
 
-    use super::{LOOK, Quiet};
+    use super::LOOK;
+    pub(super) use super::unwatched::quiet_for;
 
     // Windows' wait handles go here; until then a bounded sleep, and the
     // caller looks again.
     pub(super) fn any_exit(_: &[u32], cap: Duration) -> bool {
         std::thread::sleep(cap.min(LOOK));
         false
-    }
-
-    pub(super) fn quiet_for(_: &[PathBuf], window: Duration, cap: Duration) -> Quiet {
-        std::thread::sleep(window.min(cap));
-        Quiet::Unwatched
     }
 }
 

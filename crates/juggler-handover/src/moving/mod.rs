@@ -374,7 +374,7 @@ const ENTRY_ROOM: u64 = 64 * 1024;
 /// so a full disk never leaves a move that can't be undone: the records it
 /// writes, written once more by Undo's restore of each, an entry's
 /// metadata for every path a step touches (twice: the move's and Undo's
-/// preserved copy), and [`ROOM_MARGIN`] for what runs beside it.
+/// preserved copy), and `ROOM_MARGIN` for what runs beside it.
 #[must_use]
 pub fn room_needed(plan: &MovePlan) -> u64 {
     let writes: u64 = plan

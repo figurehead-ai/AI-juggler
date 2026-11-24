@@ -2,7 +2,7 @@
 //! one place for the setup wizard, the rail and the sign-in page.
 //!
 //! - A sign-in starts in its terminal (`terminal::spawn_login_terminal_impl`)
-//!   and is watched ([`watch`]): its output is read by its adapter for the
+//!   and is watched (`watch`): its output is read by its adapter for the
 //!   page and device code it shows (the friendly card), and its folder by
 //!   the adapter's "signed in?" signal (file events plus the adapter's own
 //!   check, metadata only; `juggler_adapter::sign_in_page::SignInWatch`).
@@ -62,7 +62,7 @@ pub struct SignInInfo {
     pub account_id: String,
     /// That App's tool (its words come from the tool's spec).
     pub tool: String,
-    /// "Sign in · <App>".
+    /// "Sign in · `<App>`".
     pub title: String,
     /// Where it stands.
     pub state: SignInState,

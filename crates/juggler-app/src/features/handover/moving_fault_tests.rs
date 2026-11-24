@@ -30,14 +30,6 @@ enum At {
     Undoing,
 }
 
-fn both_ids(lab: &Lab) -> Vec<String> {
-    [&lab.sides.source_place, &lab.sides.target_place]
-        .into_iter()
-        .flatten()
-        .map(|(id, _)| id.clone())
-        .collect()
-}
-
 /// Makes `step` stop when it runs (its first path briefly not as it was
 /// backed up); returns how to put it back.
 fn disturb(step: &MoveStep) -> Box<dyn FnOnce()> {
@@ -85,7 +77,7 @@ fn crashed_at(lab: &Lab, at: At) {
         crate::commands::now_millis(),
     )
     .unwrap();
-    txn.remember_places(both_ids(lab), lab.sides.accounts.clone())
+    txn.remember_places(place_ids(lab), lab.sides.accounts.clone())
         .unwrap();
     let stopped = Stopped::checked();
     if at != At::Planned {
@@ -115,11 +107,7 @@ fn crashed_at(lab: &Lab, at: At) {
         At::Applied | At::Undoing => txn.apply(&stopped, 0).unwrap(),
         At::Verified => {
             txn.apply(&stopped, 0).unwrap();
-            let mover = lab.sides.adapter.in_place_move().unwrap();
-            let cold = txn
-                .verify_cold(mover.verify(&lab.sides.request, &plan))
-                .unwrap();
-            assert!(cold.passed(), "{:?}", cold.failures());
+            verified_cold(lab, &mut txn, &plan);
         }
     }
     if at == At::Undoing {
@@ -139,7 +127,7 @@ fn crashed_at(lab: &Lab, at: At) {
     assert_eq!(read, expected, "{at:?}");
     let area = hold::area_at(&lab.state.data_dir);
     std::fs::create_dir_all(area.join("held")).unwrap();
-    for place in both_ids(lab) {
+    for place in place_ids(lab) {
         let marker = hold::Marker {
             move_id: ID.into(),
             place: place.clone(),
@@ -278,22 +266,7 @@ fn a_later_move_by_another_data_folder_blocks_undo_of_the_earlier_one() {
     let lab = lab();
     let (_tmp, other) = second_juggler(&lab);
     let first = run(&lab.state, &lab.sides, &running_both(&lab)).unwrap();
-    let back = Sides {
-        request: MoveRequest {
-            source: lab.sides.request.target.clone(),
-            target: lab.sides.request.source.clone(),
-            ..lab.sides.request.clone()
-        },
-        source_place: lab.sides.target_place.clone(),
-        target_place: lab.sides.source_place.clone(),
-        adapter: lab.sides.adapter.clone(),
-        tool: lab.sides.tool.clone(),
-        source_label: "B".into(),
-        target_label: "A".into(),
-        source_live: false,
-        accounts: lab.sides.accounts.clone(),
-        stop: None,
-    };
+    let back = moved_back(&lab);
     run(&other, &back, &running_both(&lab)).unwrap();
     assert!(
         hold::all_moves(&lab.state.data_dir).len() >= 2,
@@ -323,7 +296,7 @@ fn a_second_ai_jugglers_keep_alive_starts_nothing_a_move_holds() {
     other.places.watch.lock().unwrap().settled_at(start);
     {
         // This AI Juggler's move, before its first quit.
-        let _hold = places::MoveHold::take(&lab.state, &both_ids(&lab), "m-here").unwrap();
+        let _hold = places::MoveHold::take(&lab.state, &place_ids(&lab), "m-here").unwrap();
         assert!(places::held_for_move(&other, &id));
         keep_alive_for(&other, start, places::keep::WAIT_MS + 10_000, &starter);
         assert!(starter.starts.lock().unwrap().is_empty(), "held: no start");
@@ -369,13 +342,19 @@ fn a_second_ai_jugglers_keep_alive_starts_nothing_a_move_holds() {
     );
 }
 
-fn stop_of(error: AppError) -> crate::error::MoveStop {
+/// The move run once more under `system`, stopped as the person's to
+/// clear (no Retry): its stop.
+fn needs_you(lab: &Lab, system: &Scripted) -> crate::error::MoveStop {
+    let error = run_once_more(&lab.state, &lab.sides, system).unwrap_err();
     let words = error.to_string();
-    match error {
+    let stop = match error {
         AppError::Move(stop) => Some(*stop),
         _ => None,
     }
-    .unwrap_or_else(|| unreachable!("not a move's stop: {words}"))
+    .unwrap_or_else(|| unreachable!("not a move's stop: {words}"));
+    assert_eq!(stop.class, StopClass::NeedsYou, "{}", stop.words);
+    assert!(!stop.retryable());
+    stop
 }
 
 /// D3: something starts the profile again as soon as it quits (a launch
@@ -391,9 +370,7 @@ fn a_profile_something_restarts_is_the_persons_with_no_retry() {
         restarted_by_user: vec![source_id(&lab)],
         ..running_both(&lab)
     };
-    let stop = stop_of(run_once_more(&lab.state, &lab.sides, &system).unwrap_err());
-    assert_eq!(stop.class, StopClass::NeedsYou, "{}", stop.words);
-    assert!(!stop.retryable());
+    let stop = needs_you(&lab, &system);
     assert!(!stop.holders.is_empty(), "it names the profile");
     assert_eq!(
         system.quits.lock().unwrap().len(),
@@ -417,9 +394,7 @@ fn an_app_asking_at_quit_is_the_persons_and_the_other_profile_starts_again() {
         stubborn: vec![target.clone()],
         ..running_both(&lab)
     };
-    let stop = stop_of(run_once_more(&lab.state, &lab.sides, &system).unwrap_err());
-    assert_eq!(stop.class, StopClass::NeedsYou, "{}", stop.words);
-    assert!(!stop.retryable());
+    let stop = needs_you(&lab, &system);
     assert!(stop.unchanged);
     assert_eq!(system.quits.lock().unwrap().len(), 2, "one try");
     let starts = system.starts.lock().unwrap().clone();

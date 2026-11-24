@@ -62,8 +62,8 @@ impl Drop for MoveHold {
 }
 
 /// Why `id` is held for a move, in words; `None`: it isn't. A move of
-/// this AI Juggler running now, or of another one ([`HELD`]); a move left
-/// part way or whose AI Juggler is gone ([`HELD_UNFINISHED`]).
+/// this AI Juggler running now, or of another one (`HELD`); a move left
+/// part way or whose AI Juggler is gone (`HELD_UNFINISHED`).
 #[must_use]
 pub fn why_held(state: &Arc<AppState>, id: &str) -> Option<&'static str> {
     if state.places.moving.lock().is_ok_and(|now| now.contains(id)) {
@@ -175,16 +175,7 @@ impl ConversationHold {
     #[must_use]
     pub fn take(state: &Arc<AppState>, conversation: &str, move_id: &str) -> Self {
         if let Some(owner) = hold::me() {
-            let mark = ConversationMark {
-                marker: hold::Marker {
-                    move_id: move_id.to_owned(),
-                    place: conversation.to_owned(),
-                    owner_pid: owner.pid,
-                    owner_start_micros: u64::try_from(owner.start_micros).unwrap_or(u64::MAX),
-                },
-                until_ms: None,
-            };
-            write_mark(&conversation_mark(state, conversation), &mark);
+            mark_conversation(state, conversation, move_id, owner, None);
         }
         Self {
             state: Arc::clone(state),
@@ -223,6 +214,18 @@ pub fn settle_conversation(state: &AppState, conversation: &str, move_id: &str, 
         pid: 0,
         start_micros: 0,
     });
+    mark_conversation(state, conversation, move_id, owner, Some(until_ms));
+}
+
+/// Writes `conversation`'s mark for move `move_id`, by `owner`: held
+/// while the move runs (`until_ms` `None`), or settling until `until_ms`.
+fn mark_conversation(
+    state: &AppState,
+    conversation: &str,
+    move_id: &str,
+    owner: crate::features::ownership::ProcId,
+    until_ms: Option<i64>,
+) {
     let mark = ConversationMark {
         marker: hold::Marker {
             move_id: move_id.to_owned(),
@@ -230,15 +233,15 @@ pub fn settle_conversation(state: &AppState, conversation: &str, move_id: &str, 
             owner_pid: owner.pid,
             owner_start_micros: u64::try_from(owner.start_micros).unwrap_or(u64::MAX),
         },
-        until_ms: Some(until_ms),
+        until_ms,
     };
     write_mark(&conversation_mark(state, conversation), &mark);
 }
 
 /// AJ-E2326 R1: why `conversation` can't be started here now, in words;
-/// `None`: it can. A move of it runs ([`CONVERSATION_MOVING`]), was
-/// refused or undone moments ago ([`CONVERSATION_SETTLING`]), or was left
-/// part way ([`CONVERSATION_UNFINISHED`]). Every start path asks it (the
+/// `None`: it can. A move of it runs (`CONVERSATION_MOVING`), was
+/// refused or undone moments ago (`CONVERSATION_SETTLING`), or was left
+/// part way (`CONVERSATION_UNFINISHED`). Every start path asks it (the
 /// sessions' one start, `sessions::spawn::start_session`).
 #[must_use]
 pub fn conversation_held(state: &AppState, conversation: &str) -> Option<&'static str> {

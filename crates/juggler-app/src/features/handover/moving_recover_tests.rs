@@ -40,11 +40,7 @@ fn crashed(lab: &Lab, at: Crash, held: bool) -> String {
         txn.apply(&Stopped::checked(), 0).unwrap();
     }
     if at == Crash::Verified {
-        let mover = lab.sides.adapter.in_place_move().unwrap();
-        let cold = txn
-            .verify_cold(mover.verify(&lab.sides.request, &plan))
-            .unwrap();
-        assert!(cold.passed(), "{:?}", cold.failures());
+        verified_cold(lab, &mut txn, &plan);
     }
     if at == Crash::MidApply {
         // The crash: the manifest still says applying, the last step's

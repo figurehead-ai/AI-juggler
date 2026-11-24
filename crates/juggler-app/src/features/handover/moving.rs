@@ -134,7 +134,7 @@ pub trait MoveSystem: Send + Sync {
     /// AJ-E2322: waits until `seen` finds the conversation open, woken by
     /// a change in `folders` (the real system's file events), at most
     /// `cap`. Returns what `seen` found; `None`: not within `cap`. By
-    /// default it looks every [`timeline::LOOK`] through [`Self::settle`].
+    /// default it looks every `timeline::LOOK` through [`Self::settle`].
     fn wait_open(
         &self,
         folders: &[PathBuf],
@@ -152,7 +152,7 @@ pub trait MoveSystem: Send + Sync {
         seen()
     }
     /// AJ-E2324: waits until one of `pids` ends, at most `cap` (the real
-    /// system is woken by the kernel; by default a look every [`EVERY`]).
+    /// system is woken by the kernel; by default a look every `EVERY`).
     fn wait_exit(&self, pids: &[u32], cap: Duration) {
         let _ = pids;
         std::thread::sleep(EVERY.min(cap));
@@ -160,7 +160,7 @@ pub trait MoveSystem: Send + Sync {
     /// AJ-E2324: waits until `window` passes with no change to `paths`
     /// (the real system's file events), at most `cap`; whether it did. By
     /// default it settles `window` and says so: the sizes and times of
-    /// last write looked at after decide ([`still::hold_still`]).
+    /// last write looked at after decide (`still::hold_still`).
     fn quiet_for(&self, paths: &[PathBuf], window: Duration, cap: Duration) -> bool {
         let _ = (paths, cap);
         self.settle(window);

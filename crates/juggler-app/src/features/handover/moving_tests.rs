@@ -610,6 +610,15 @@ fn place_ids(lab: &Lab) -> Vec<String> {
         .collect()
 }
 
+/// `txn`'s cold checks (the adapter's and the engine's), which pass.
+fn verified_cold(lab: &Lab, txn: &mut Transaction, plan: &MovePlan) {
+    let mover = lab.sides.adapter.in_place_move().unwrap();
+    let cold = txn
+        .verify_cold(mover.verify(&lab.sides.request, plan))
+        .unwrap();
+    assert!(cold.passed(), "{:?}", cold.failures());
+}
+
 /// The same move the other way: back from B to A.
 fn moved_back(lab: &Lab) -> Sides {
     Sides {
