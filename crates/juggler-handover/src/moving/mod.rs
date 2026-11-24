@@ -4,9 +4,11 @@
 //! plan so that nothing can be lost:
 //!
 //! 1. **Baseline, with the writers stopped.** Every path a step touches is
-//!    read (bytes hashed, identity on disk), and everything there is
-//!    cloned into the move's folder and the clones checked against it.
-//!    Nothing changes until every backup checks.
+//!    cloned into the move's folder first, its identity, size and time of
+//!    last write the same before and after the clone (nothing wrote it
+//!    meanwhile), then the clone's bytes are hashed once: the baseline
+//!    (AJ-E2324, the review's C3). Nothing changes until every backup is
+//!    made.
 //! 2. **A journal.** Each step writes its intent before it acts and its
 //!    completion after, synced, so a crash leaves a state that
 //!    [`Transaction::recover`] reads back exactly: done, not done, or (never
@@ -15,7 +17,8 @@
 //!    a file; what a step would replace is put aside in the move's holding
 //!    place first; records are written whole and atomically.
 //! 4. **Checks before the apps start again** ([`Transaction::verify_cold`]):
-//!    every moved file is the same file with the same bytes, and the
+//!    every moved file is the same file with the same size and time of
+//!    last write (so the same bytes, without reading them again), and the
 //!    adapter's own checks of its records pass. **And after**
 //!    ([`Transaction::verify_opened`]): a history the app added to still
 //!    starts with every byte it had, and what was added is the app's
@@ -633,20 +636,22 @@ impl Transaction {
         self.save()
     }
 
-    /// Reads the baseline of every path the plan touches and clones what
-    /// is there into `backups/`, checking every clone against it. Nothing
-    /// outside the move's folder changes.
+    /// Clones what is at every path the plan touches into `backups/`
+    /// (each unchanged by identity, size and time of last write across its
+    /// clone) and reads the baseline from the clones. Nothing outside the
+    /// move's folder changes.
     ///
     /// # Errors
     ///
-    /// A path can't be read, a clone fails or doesn't match.
+    /// A path can't be read, a clone fails, or a file changed while it was
+    /// cloned.
     pub fn back_up(&mut self, stopped: &Stopped) -> Result<(), MoveError> {
         self.back_up_with(stopped, &mut |_, _| {}, &mut || {})
     }
 
     /// [`Self::back_up`] for a move someone waits on (0.4.9): `progress`
-    /// is told the bytes read so far of all it reads (each file twice: its
-    /// baseline, then its clone's check), and a file that changed while it
+    /// is told the bytes read so far of all it reads (each file once: its
+    /// clone's bytes, AJ-E2324), and a file that changed while it
     /// was read (a writer finishing as its app closed) lets that try's
     /// clones go, waits on `settle`, and is backed up once more. The
     /// journal says so each time; a second change refuses
@@ -721,9 +726,10 @@ impl Transaction {
                 }
             }
         }
-        // Each file is read twice: its baseline, then its clone's check.
+        // AJ-E2324 (the review's C3): clone first, then hash the clone
+        // once; each file is read once here.
         let all: Vec<PathBuf> = paths.iter().map(|(path, _)| path.clone()).collect();
-        let total = 2 * state::marks(&all)
+        let total = state::marks(&all)
             .values()
             .map(|(size, _)| size)
             .sum::<u64>();
@@ -733,33 +739,39 @@ impl Transaction {
             progress(done.min(total), total);
         };
         let mut entries = Vec::new();
-        for (path, made) in paths {
-            let before = state::read_with(&path, &mut tick)
-                .map_err(io(format!("read {}", path.display())))?;
-            entries.push(Entry {
-                made: made && !before.present(),
-                path,
-                before,
-                backup: None,
-            });
-        }
-        for (index, entry) in entries.iter_mut().enumerate() {
-            if !entry.before.present() {
+        for (index, (path, made)) in paths.into_iter().enumerate() {
+            // What it is on disk (identity, size, time of last write),
+            // before and after its clone: equal, nothing wrote it meanwhile.
+            let stamped = state::stamps(&path);
+            let Ok(meta) = std::fs::symlink_metadata(&path) else {
+                entries.push(Entry {
+                    made,
+                    path,
+                    before: State::Absent,
+                    backup: None,
+                });
                 continue;
-            }
-            between(&entry.path);
+            };
+            between(&path);
             let name = PathBuf::from(format!("{index:05}"));
             let to = self.dir.join("backups").join(&name);
-            match &entry.before {
-                State::File(_) => transfer::clone_file(&entry.path, &to),
-                State::Dir(_) => transfer::clone_tree(&entry.path, &to),
-                State::Absent => Ok(()),
+            if meta.is_dir() {
+                transfer::clone_tree(&path, &to)
+            } else {
+                transfer::clone_file(&path, &to)
             }
-            .map_err(io(format!("back up {}", entry.path.display())))?;
-            if !state::same_bytes_with(&to, &entry.before, &mut tick) {
-                return Err(MoveError::Changed(entry.path.clone()));
+            .map_err(io(format!("back up {}", path.display())))?;
+            if state::stamps(&path) != stamped {
+                return Err(MoveError::Changed(path));
             }
-            entry.backup = Some(name);
+            let before = state::read_clone_with(&path, &to, &mut tick)
+                .map_err(io(format!("read {}", path.display())))?;
+            entries.push(Entry {
+                made: false,
+                path,
+                before,
+                backup: Some(name),
+            });
         }
         self.manifest.entries = entries;
         self.set_phase(Phase::BackedUp)
@@ -1004,9 +1016,11 @@ impl Transaction {
                         format!("{} arrived as the same file", to.display()),
                         same_file,
                     );
+                    // AJ-E2324: by identity, size and time of last write
+                    // (a rename keeps all three), not a third read.
                     report.check(
                         format!("{} has every byte it had", to.display()),
-                        state::same_bytes(to, &before),
+                        state::unchanged(to, &before),
                     );
                     report.check(
                         format!("{} left its old place", from.display()),

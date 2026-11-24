@@ -1001,7 +1001,7 @@ fn run(state: &Arc<AppState>, sides: &Sides, system: &dyn MoveSystem) -> AppResu
             told = done;
             system.tell(&MoveProgressInfo {
                 stage: "backing_up".to_owned(),
-                words: format!("Backing up the conversation ({})…", size_words(total / 2)),
+                words: format!("Backing up the conversation ({})…", size_words(total)),
                 done,
                 total,
             });

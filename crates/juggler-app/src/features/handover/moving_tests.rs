@@ -1238,7 +1238,8 @@ fn a_long_backup_says_how_far_it_is() {
     assert!(backing.len() >= 3, "{}", backing.len());
     assert!(backing.windows(2).all(|w| w[0].done <= w[1].done));
     let last = backing.last().unwrap();
-    assert!(last.total >= 2 * big.len() as u64);
+    // AJ-E2324: every byte read once (the clone's hash).
+    assert!(last.total >= big.len() as u64 && last.total < 2 * big.len() as u64);
     assert_eq!(last.done, last.total);
     assert!(
         last.words.starts_with("Backing up the conversation ("),

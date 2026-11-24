@@ -582,7 +582,7 @@ fn a_file_still_changing_on_the_second_try_refuses_and_leaves_no_clone() {
 }
 
 /// 0.4.9: a long backup says how far it is: the bytes read rise to the
-/// total (every file read twice: its baseline and its clone's check).
+/// total (AJ-E2324: every file read once, its clone's bytes).
 #[test]
 fn a_large_backup_reports_its_progress_as_it_reads() {
     if !clones() {
@@ -602,9 +602,10 @@ fn a_large_backup_reports_its_progress_as_it_reads() {
     )
     .unwrap();
     let total = seen.last().unwrap().1;
-    assert!(total >= 2 * big.len() as u64, "{total}");
+    assert!(total >= big.len() as u64, "{total}");
+    assert!(total < 2 * big.len() as u64, "read once: {total}");
     assert!(
-        seen.len() >= 12,
+        seen.len() >= 6,
         "about one report per MiB read: {}",
         seen.len()
     );
@@ -817,4 +818,93 @@ fn the_journal_keeps_a_timeline_of_every_phase_in_ms() {
     assert!(timeline["at_ms"].as_i64().unwrap_or(0) > 0);
     assert_eq!(timeline["waited"][0]["program"], "claude");
     assert!(timeline["remained"].as_array().unwrap().is_empty());
+}
+
+/// AJ-E2324 R3 (the review's A6.2 and C3): a whole move (backup, apply,
+/// the check before the apps start and the one after) reads every byte
+/// of the moved history twice (the clone's hash and the after-open
+/// prefix), not four times.
+#[test]
+fn a_move_reads_every_byte_twice_not_four_times() {
+    if !clones() {
+        return;
+    }
+    let lab = lab();
+    let line = b"{\"type\":\"assistant\",\"pad\":\"................................\"}\n";
+    let big = line.repeat((4 << 20) / line.len() + 1);
+    std::fs::write(lab.a.join("p/s.jsonl"), &big).unwrap();
+    let mut txn = begin(&lab, "m30");
+    state::READ.with(|read| read.set(0));
+    let _stopped = applied_and_checked(&mut txn);
+    let report = txn
+        .verify_opened(&|_| Appended::Bookkeeping, Vec::new())
+        .unwrap();
+    assert!(report.passed(), "{:?}", report.failures());
+    let read = state::READ.with(std::cell::Cell::get);
+    let big = big.len() as u64;
+    assert!(read >= 2 * big, "{read}");
+    assert!(
+        read < 2 * big + (64 << 10),
+        "two reads, not four: {read} of {big}"
+    );
+}
+
+/// AJ-E2324 R3: the check before the apps start reads no byte, yet a file
+/// written after the backup (same size, a new time of last write) fails
+/// it.
+#[test]
+fn the_cold_check_by_identity_size_and_time_catches_a_write() {
+    if !clones() {
+        return;
+    }
+    let lab = lab();
+    let mut txn = begin(&lab, "m31");
+    let stopped = Stopped::checked();
+    txn.back_up(&stopped).unwrap();
+    txn.apply(&stopped, 0).unwrap();
+    // The same length, other bytes, in place (the same file).
+    let moved = lab.b.join("p/s.jsonl");
+    let len = std::fs::metadata(&moved).unwrap().len();
+    std::thread::sleep(std::time::Duration::from_millis(5));
+    let mut file = std::fs::OpenOptions::new()
+        .write(true)
+        .open(&moved)
+        .unwrap();
+    file.write_all(&vec![b'x'; usize::try_from(len).unwrap()])
+        .unwrap();
+    drop(file);
+    let report = txn.verify_cold(Vec::new()).unwrap();
+    assert!(!report.passed());
+    assert!(
+        report
+            .failures()
+            .iter()
+            .any(|f| f.ends_with("s.jsonl has every byte it had")),
+        "{:?}",
+        report.failures()
+    );
+}
+
+/// AJ-E2324 R3: a move recorded before 0.5.1 (no times of last write)
+/// is still checked, by its bytes.
+#[test]
+fn a_move_recorded_without_times_is_checked_by_its_bytes() {
+    if !clones() {
+        return;
+    }
+    let lab = lab();
+    let mut txn = begin(&lab, "m32");
+    let stopped = Stopped::checked();
+    txn.back_up(&stopped).unwrap();
+    for entry in &mut txn.manifest.entries {
+        match &mut entry.before {
+            State::File(file) => file.mtime_ns = None,
+            State::Dir(dir) => dir.files.iter_mut().for_each(|(_, f)| f.mtime_ns = None),
+            State::Absent => {}
+        }
+    }
+    txn.apply(&stopped, 0).unwrap();
+    state::READ.with(|read| read.set(0));
+    assert!(txn.verify_cold(Vec::new()).unwrap().passed());
+    assert!(state::READ.with(std::cell::Cell::get) > 0, "read its bytes");
 }

@@ -14,6 +14,11 @@ pub struct FileState {
     pub sha256: String,
     /// What it is on disk.
     pub id: FileId,
+    /// AJ-E2324: when it was last written (nanoseconds since the epoch),
+    /// for the cold check by identity, size and this, without reading its
+    /// bytes again. `None` in a move made before 0.5.1 (its check reads).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mtime_ns: Option<u64>,
 }
 
 /// A folder's state: every plain file below it.
@@ -128,7 +133,137 @@ fn file_state_with(path: &Path, tick: &mut dyn FnMut(u64)) -> std::io::Result<Fi
         size,
         sha256,
         id: juggler_platform::transfer::file_id(path)?,
+        mtime_ns: mtime_ns(&std::fs::symlink_metadata(path)?),
     })
+}
+
+/// When `meta`'s file was last written, in nanoseconds since the epoch.
+fn mtime_ns(meta: &std::fs::Metadata) -> Option<u64> {
+    let since = meta
+        .modified()
+        .ok()?
+        .duration_since(std::time::UNIX_EPOCH)
+        .ok()?;
+    u64::try_from(since.as_nanos()).ok()
+}
+
+/// AJ-E2324 (the review's C3): `source`'s state read from `clone`, its
+/// clone made while nothing wrote it (the caller compares `source`'s
+/// [`stamps`] before and after the clone): the bytes hashed are the
+/// clone's (private, never written again), the identity and time of last
+/// write are `source`'s. One read of every byte, not two.
+///
+/// # Errors
+///
+/// Either can't be read.
+pub fn read_clone_with(
+    source: &Path,
+    clone: &Path,
+    tick: &mut dyn FnMut(u64),
+) -> std::io::Result<State> {
+    let one = |rel: Option<&Path>, tick: &mut dyn FnMut(u64)| -> std::io::Result<FileState> {
+        let (from, copy) = match rel {
+            Some(rel) => (source.join(rel), clone.join(rel)),
+            None => (source.to_path_buf(), clone.to_path_buf()),
+        };
+        let reader = Counted {
+            inner: std::fs::File::open(&copy)?,
+            tick,
+        };
+        let (sha256, size) = juggler_adapter::handover::sha256_reader(reader, None)?;
+        Ok(FileState {
+            size,
+            sha256,
+            id: juggler_platform::transfer::file_id(&from)?,
+            mtime_ns: mtime_ns(&std::fs::symlink_metadata(&from)?),
+        })
+    };
+    let meta = std::fs::symlink_metadata(source)?;
+    if meta.is_file() {
+        return Ok(State::File(one(None, tick)?));
+    }
+    if meta.is_dir() {
+        let (files, dirs) = juggler_platform::transfer::tree(source)?;
+        let mut states = Vec::with_capacity(files.len());
+        for rel in files {
+            let state = one(Some(&rel), tick)?;
+            states.push((rel, state));
+        }
+        return Ok(State::Dir(DirState {
+            id: juggler_platform::transfer::file_id(source)?,
+            files: states,
+            dirs,
+        }));
+    }
+    Err(std::io::Error::new(
+        std::io::ErrorKind::InvalidInput,
+        format!("{} is a link or a special file", source.display()),
+    ))
+}
+
+/// What a write changes, read without reading a byte: every file at or
+/// under `path` (itself, when a file) by its identity, size and time of
+/// last write. Equal stamps before and after a clone: nothing wrote it
+/// meanwhile. Empty: nothing is there.
+#[must_use]
+pub fn stamps(path: &Path) -> Vec<(PathBuf, FileId, u64, Option<u64>)> {
+    let stamp = |file: &Path| {
+        let meta = std::fs::symlink_metadata(file).ok()?;
+        let id = juggler_platform::transfer::file_id(file).ok()?;
+        Some((file.to_path_buf(), id, meta.len(), mtime_ns(&meta)))
+    };
+    let Ok(meta) = std::fs::symlink_metadata(path) else {
+        return Vec::new();
+    };
+    if meta.is_dir() {
+        let Ok((files, _)) = juggler_platform::transfer::tree(path) else {
+            return Vec::new();
+        };
+        let mut out: Vec<_> = stamp(path).into_iter().collect();
+        out.extend(files.iter().filter_map(|rel| stamp(&path.join(rel))));
+        out
+    } else {
+        stamp(path).into_iter().collect()
+    }
+}
+
+/// AJ-E2324: the cold check, without reading a byte: what is at `path`
+/// now is `before`'s very files (identity), each with its size and time
+/// of last write (a rename keeps all three; any write changes one). A
+/// state recorded before 0.5.1 (no times) is checked by its bytes.
+#[must_use]
+pub fn unchanged(path: &Path, before: &State) -> bool {
+    let same = |file: &Path, was: &FileState| {
+        let Some(when) = was.mtime_ns else {
+            return None;
+        };
+        let Ok(meta) = std::fs::symlink_metadata(file) else {
+            return Some(false);
+        };
+        Some(
+            meta.is_file()
+                && meta.len() == was.size
+                && mtime_ns(&meta) == Some(when)
+                && juggler_platform::transfer::file_id(file).ok() == Some(was.id),
+        )
+    };
+    let checked = match before {
+        State::Absent => Some(std::fs::symlink_metadata(path).is_err()),
+        State::File(was) => same(path, was),
+        State::Dir(was) => {
+            let now = juggler_platform::transfer::tree(path).ok();
+            match now {
+                Some((files, _)) if files.len() == was.files.len() => was
+                    .files
+                    .iter()
+                    .map(|(rel, f)| same(&path.join(rel), f))
+                    .try_fold(true, |all, one| one.map(|ok| all && ok)),
+                Some(_) => Some(false),
+                None => Some(false),
+            }
+        }
+    };
+    checked.unwrap_or_else(|| same_bytes(path, before))
 }
 
 /// A reader that tells `tick` how many bytes each read gave.
@@ -141,8 +276,24 @@ impl<R: std::io::Read> std::io::Read for Counted<'_, R> {
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
         let read = self.inner.read(buf)?;
         (self.tick)(read as u64);
+        counted(read as u64);
         Ok(read)
     }
+}
+
+#[cfg(test)]
+thread_local! {
+    /// The bytes of moved files this test thread read (AJ-E2324: two full
+    /// reads a move, not four).
+    pub(super) static READ: std::cell::Cell<u64> = const { std::cell::Cell::new(0) };
+}
+
+/// Counts `bytes` read, in tests.
+fn counted(bytes: u64) {
+    #[cfg(test)]
+    READ.with(|read| read.set(read.get() + bytes));
+    #[cfg(not(test))]
+    let _ = bytes;
 }
 
 /// Whether what is at `path` now holds exactly `before`'s bytes (its
@@ -177,6 +328,7 @@ pub fn same_bytes_with(path: &Path, before: &State, tick: &mut dyn FnMut(u64)) -
 pub fn starts_with(path: &Path, before: &FileState) -> Option<Vec<u8>> {
     use std::io::{Read as _, Seek as _};
     let (sha, read) = juggler_adapter::handover::sha256_file(path, Some(before.size)).ok()?;
+    counted(read);
     if read != before.size || sha != before.sha256 {
         return None;
     }
