@@ -308,7 +308,14 @@ for (const theme of ["dark", "light"] as const) {
 // the wizard goes on to Meet Bot.
 const resumedPrompts = [
   { ...prompt("accessibility", "Jump to a session's own window", true), status: "allowed" },
-  { ...prompt("screen-recording", "See a live preview of each session", true), status: "asked", why: "Shows a session's window inside AI Juggler, on this Mac only; nothing is recorded or sent." },
+  {
+    ...prompt("screen-recording", "See a live preview of each session", true),
+    status: "asked",
+    why: "Shows a session's window inside AI Juggler, on this Mac only; nothing is recorded or sent.",
+    system_says: "“AI Juggler” would like to record this computer's screen and audio.",
+    if_declined: "Sessions show without a live preview of their window.",
+    dialog: { style: "alert", title: "“AI Juggler” would like to record this computer's screen and audio.", body: "Grant access to this application in Privacy & Security settings, located in System Settings.", buttons: ["Deny", "Open System Settings"], click: "Open System Settings" },
+  },
 ];
 for (const theme of ["dark", "light"] as const) {
   test(`first run — back at Mac access after a reopen — ${theme}`, async ({ page }) => {
