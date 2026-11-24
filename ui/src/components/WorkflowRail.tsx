@@ -692,6 +692,12 @@ function BoardRow({
   );
 }
 
+/** 0.5.1 F55: a title's readable minimum is 5rem (about ten letters);
+ * what shares its line gives way below it, by the words' own width: the
+ * "app" chip (2.5rem) first, then compact's age (3.75rem). */
+const CHIP_ROOM = { comfortable: "@max-[7.5rem]/row:hidden", compact: "@max-[11.5rem]/row:hidden" } as const;
+const AGE_ROOM = "@max-[8.75rem]/row:hidden";
+
 /**
  * D-25 — the rail row: a state shape, what it is (the branch, else the
  * folder), one line of state and time, and the Account's colour. Quota
@@ -771,17 +777,21 @@ export function RailRow({
       <span aria-hidden="true" className="flex w-4 shrink-0 justify-center">
         <StateMark item={item} level={look.level} dot={look.dot} />
       </span>
-      <span className="flex min-w-0 flex-1 flex-col">
+      {/* 0.5.1 F55: the row's words measure their own room (a container),
+          so a title keeps a readable minimum: in a short row the "app" chip
+          gives way first, then compact's age (the App's icon at the end
+          still says which app). */}
+      <span className="@container/row flex min-w-0 flex-1 flex-col">
         <span className="flex min-w-0 items-baseline gap-1.5">
           {showProject && session.project_id && <ProjectMark projectId={session.project_id} size={12} />}
           <span className={"min-w-0 truncate text-meta " + (selected ? "font-semibold text-ink" : "font-medium " + (ended ? "text-muted" : "text-ink-2"))}>{title}</span>
           {session.pinned && <PinMark />}
           {session.kind === "desktop" && (
-            <span title="Runs in the Claude desktop app" data-testid="rail-app-chip" className="shrink-0 rounded border border-hairline px-1 text-label font-medium text-muted">
+            <span title="Runs in the Claude desktop app" data-testid="rail-app-chip" className={"shrink-0 rounded border border-hairline px-1 text-label font-medium text-muted " + (density === "compact" ? CHIP_ROOM.compact : CHIP_ROOM.comfortable)}>
               app
             </span>
           )}
-          {density === "compact" && <span className="ml-auto shrink-0 text-label tabular-nums text-muted" data-testid={note ? "rail-snoozed" : undefined}>{note ?? when}</span>}
+          {density === "compact" && <span className={"ml-auto shrink-0 text-label tabular-nums text-muted " + AGE_ROOM} data-testid={note ? "rail-snoozed" : undefined}>{note ?? when}</span>}
         </span>
         {density === "comfortable" && (
           // One line: what doesn't fit wraps onto a second, hidden line,
@@ -790,7 +800,8 @@ export function RailRow({
             <span
               title={parked ? parked.long : attentionTooltip(session)}
               data-testid={parked ? "rail-parked" : "rail-state-word"}
-              className={"shrink-0 whitespace-nowrap " + (parked ? "text-ink" : look.level >= 2 ? "font-medium text-ink-2" : "text-muted")}
+              // F55: alone on its line it ends on "…", never mid-letter.
+              className={"min-w-0 truncate " + (parked ? "text-ink" : look.level >= 2 ? "font-medium text-ink-2" : "text-muted")}
             >
               {state}
             </span>
