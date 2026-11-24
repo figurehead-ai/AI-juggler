@@ -1,4 +1,4 @@
-<!-- captures: 6e7d970160ee -->
+<!-- captures: 4a52270133fc -->
 # 99-related-list: the one related list and the one session row (0.4, E31, AJ-E3103)
 
 Design critique (D-57, AJ-E2814). First critique of this family, written from its captures (`ui/tests/visual/related-list-gallery.spec.ts`).
@@ -58,6 +58,6 @@ An empty list's step is a secondary button now: a CLI App with no sessions had t
 
 ## 0.5.1
 
-Re-captured against 0.5.1: the App's Sessions list, its State and Project filters and the empty-search state sit on tonal surfaces with the chosen segment filled (F53). The two home-recent captures are no longer written by the spec and show the old Home (F83).
+Re-captured against 0.5.1: the App's Sessions list, its State and Project filters and the empty-search state sit on tonal surfaces with the chosen segment filled (F53). F83: the two home-recent captures, which no spec wrote any more (they showed the old Home's "Pick up where you left off"), are deleted; Home's feed is in home-feed-finished and in 68-home-feed. The home-recent notes above are history.
 
 Nothing broken (checked both themes).
