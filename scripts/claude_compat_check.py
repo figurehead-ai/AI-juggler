@@ -277,7 +277,7 @@ def main(argv: list[str]) -> int:
 
 # ---- selftest: fixture profiles only --------------------------------------
 
-SECRET = "do-not-print-7f3a"
+CANARY = "do-not-print-7f3a"
 
 
 def _fixture(root: Path, version: str) -> tuple[Path, list[Path]]:
@@ -289,7 +289,7 @@ def _fixture(root: Path, version: str) -> tuple[Path, list[Path]]:
     org = profile / "claude-code-sessions/acct/org"
     org.mkdir(parents=True)
     (org / "local_a.json").write_text(json.dumps({
-        "sessionId": "local_a", "cliSessionId": "a", "title": SECRET, "isArchived": False,
+        "sessionId": "local_a", "cliSessionId": "a", "title": CANARY, "isArchived": False,
         "cwd": "/Users/someone/w/.claude/worktrees/wt-1", "lastActivityAt": 1,
         "worktreeName": "wt-1", "worktreePath": "/Users/someone/w/.claude/worktrees/wt-1",
         "branch": "claude/wt-1", "shellFolders": ["/Users/someone/w"],
@@ -304,7 +304,7 @@ def _fixture(root: Path, version: str) -> tuple[Path, list[Path]]:
         "untrackedDirGc": {"sightings": {"/Users/someone/w/.claude/worktrees/old": 5}, "roots": {}, "cwds": {}},
     }))
     (profile / "side-session-notes/local_a").mkdir(parents=True)
-    (profile / "side-session-notes/local_a/notes.md").write_text(SECRET)
+    (profile / "side-session-notes/local_a/notes.md").write_text(CANARY)
     return app, [profile]
 
 
@@ -329,12 +329,12 @@ def selftest() -> int:
         code, report, text = _run(app, profiles)
         expect(f"a known version and shape is ok ({report})", code == 0 and report["verdict"] == "ok")
         expect("counts the record and notes", report["records"] == 1 and report["notes_folders"] == 1)
-        expect("never prints a path, a value or a title", tmp not in text and SECRET not in text and "wt-1" not in text)
+        expect("never prints a path, a value or a title", tmp not in text and CANARY not in text and "wt-1" not in text)
 
         # A new lease key and a new sweep key: drift, by exact key.
         path = profiles[0] / "git-worktrees.json"
         value = json.loads(path.read_text())
-        value["worktrees"]["wt-1"]["ownerProfile"] = SECRET
+        value["worktrees"]["wt-1"]["ownerProfile"] = CANARY
         value["untrackedDirGc"]["tombs"] = {}
         value["schemaVersion"] = 3
         path.write_text(json.dumps(value))
@@ -343,7 +343,7 @@ def selftest() -> int:
         expect("names the exact lease key", "worktree_file.worktrees.<name>.ownerProfile: unknown key" in report["drift"])
         expect("names the sweep key", "cleanup_sightings.tombs: unknown key" in report["drift"])
         expect("names the schema", "worktree_file.schemaVersion: 3, expected 2" in report["drift"])
-        expect("still prints no value", SECRET not in text and tmp not in text)
+        expect("still prints no value", CANARY not in text and tmp not in text)
 
         # A record field of another type drifts.
         app2, profiles2 = _fixture(root / "two", "5.11492.7")
@@ -366,7 +366,7 @@ def selftest() -> int:
         expect("no app: unknown version", code == 2 and report["version"] is None)
 
         # A notes entry that isn't a record's folder.
-        (profiles3[0] / "side-session-notes/stray.txt").write_text(SECRET)
+        (profiles3[0] / "side-session-notes/stray.txt").write_text(CANARY)
         _, report, _ = _run(app, profiles3)
         expect("a stray notes entry drifts", "side_session_notes.<entry>: not a folder" in report["drift"])
 

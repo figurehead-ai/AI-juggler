@@ -167,7 +167,10 @@ fn the_target_is_the_app_picked_by_its_id_when_two_share_an_account() {
     let sides = two.sides(Some("team-a"));
     let stop = sides.stop.expect("refused");
     assert_eq!(stop.kind, juggler_adapter::moving::RefusalKind::Setup);
-    assert!(stop.words.contains("isn't on acct-b"), "{}", stop.words);
+    assert!(
+        stop.words.contains("isn't on acct-b"),
+        "the refusal names the Account it isn't on"
+    );
 }
 
 /// Two profiles listing the conversation can't be told apart: refused, in
@@ -182,8 +185,7 @@ fn two_holders_are_refused_naming_both() {
     assert_eq!(stop.kind, juggler_adapter::moving::RefusalKind::Setup);
     assert!(
         stop.words.contains(" and ") && stop.words.contains("can't tell which one"),
-        "{}",
-        stop.words
+        "the refusal names both candidates and says it can't tell which one"
     );
     assert!(sides.source_place.is_none() && sides.target_place.is_none());
     let offer = offer_of(&two.state, &sides, &Scripted::default());
@@ -236,8 +238,7 @@ fn a_holder_on_another_account_needs_its_folder_set() {
     );
     assert!(
         stop.words.contains("doesn't have it on acct-a"),
-        "{}",
-        stop.words
+        "the refusal says the target doesn't have it on the source's Account"
     );
 }
 
