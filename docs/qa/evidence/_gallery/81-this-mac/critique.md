@@ -1,4 +1,4 @@
-<!-- captures: 73dc76a2880f -->
+<!-- captures: 4d346c48b588 -->
 # 81-this-mac: the This Mac page in both densities and under memory pressure
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design passes.
@@ -10,3 +10,33 @@ page-1280x800 (comfortable and compact, both themes) splits the page into Now (M
 ## Weak
 
 - page-1280x800-dark-compact, page-1280x800-light-compact: the compact rail cuts a session title to "Refa…".
+
+## 0.5.1 design critique (2026-11-24, Opus, VALIDATION §5, batch B3)
+
+Re-captured (comfortable and compact, both themes, and the other-apps pressure page); opened at full size: page-other-apps-1280x800-dark. Only the rail's lens moved since the last shoot (F53). Now (Memory with its bar, legend and What it means open) beside What's using it (grouped, sizes right-aligned).
+
+- **Fixed** (51ea3254f, with 72-this-mac): the pressure line read "Swap is growing — 3004 MB a minute"; it reads "2.9 GB a minute".
+- **Weak, kept:** "not started by AI Jugg…" cut at 1280; the compact rail cuts titles short ("Refactor the setti…"), F55's rule.
+
+| # | Line | Score | Note |
+|---|---|---|---|
+| 1 | Job | 4 | What uses this Mac's memory and processor. |
+| 2 | Prominence | 4 | The state, the Memory card, then the list. |
+| 3 | Default | 4 | What it means opens under pressure. |
+| 4 | Mode | 4 | Calm. |
+| 5 | Mock-up | 4 | AJ-E2105's page. |
+| 6 | Areas | 4 | Two columns by tone. |
+| 7 | Colour | 4 | Red for pressure, violet for AI tools. |
+| 8 | Type | 4 | Figures lead. |
+| 9 | Actions | 4 | No primary needed. |
+| 10 | Serious | 4 | "Closing the apps that use the most memory eases it" says how. |
+| 11 | Doors | 4 | Every App row opens its page. |
+| 12 | Words | 4 | Plain, after the GB fix. |
+| 13 | States | 4 | Pressure and plenty said. |
+| 14 | Consistency | 4 | As 72-this-mac. |
+| 15 | Accessibility | 4 | axe clean in the capture runs (no serious or critical); keyboard and zoom not re-walked this round. |
+| 16 | Hand walk | 4 | Not re-walked by hand here; captured from the fixtures, both themes. |
+| 17 | System prompts | 5 | Causes no system prompt. |
+| 18 | Usability | 4 | As 72-this-mac. Match. |
+
+Lowest: 4 (every line 4 or 5).

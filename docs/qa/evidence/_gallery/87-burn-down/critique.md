@@ -1,4 +1,4 @@
-<!-- captures: cdd67cbf742a -->
+<!-- captures: dd0459d1e66a -->
 # 87-burn-down: Usage, an account's week and 5-hour charts, its tokens line and When you work, in comfortable and compact density
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design passes.
@@ -12,3 +12,33 @@ The chart cards and the When you work heatmap stand off the canvas in both theme
 - usage-1280x800-dark-comfortable.png (all four): the right-hand card shows as an empty panel the full height of the chart card; with the scroll position the reader sees no title on either card.
 - usage-1280x800-dark-comfortable.png, usage-1280x800-dark-compact.png: the olive peak bars have low contrast on the dark card.
 - usage-1280x800-dark-compact.png, usage-1280x800-light-compact.png: compact rail rows cut names to "Refa…" and "feat/read-m…".
+
+## 0.5.1 design critique (2026-11-24, Opus, VALIDATION §5, batch B3)
+
+Re-captured (comfortable and compact, both themes); opened at full size: usage-1280x800-light-compact (before the fix) and usage-1280x800-dark-comfortable (after). The capture now frames Runway and limit history from its title: Claude Max 20x with its two rings, the week's peaks, the tokens line, then the 5-hour burn-down ("About 6 usual sessions left (each about 10%) · worked out", its dashed projection, "At this pace it runs out about 9:33 AM, before the reset at 10:03 AM").
+
+- **Fixed** (51ea3254f): the captures opened scrolled to the card's bottom, so no account was named (0.3.2), and the second card stood as an empty panel the height of the first; the spec scrolls to the section's start, and runway cards keep their own height (`RunwayCards` items-start). Gate usage-1280x800-dark-comfortable re-rendered.
+- **Weak, kept:** the signed-out card is titled "Not signed in" with its App under it (the name isn't known until it signs in); the olive peak bars are low-contrast on dark.
+
+| # | Line | Score | Note |
+|---|---|---|---|
+| 1 | Job | 4 | How long the room lasts at this pace. |
+| 2 | Prominence | 4 | Rings, peaks, then the burn-down. |
+| 3 | Default | 4 | "Worked out" or "show after a few sessions": the tier said. |
+| 4 | Mode | 4 | Calm chart card. |
+| 5 | Mock-up | 4 | AJ-E1512's burn-down. |
+| 6 | Areas | 4 | After the fix each card its own height. |
+| 7 | Colour | 4 | Amber only for the projection that runs out before the reset. |
+| 8 | Type | 4 | Values lead; axis muted. |
+| 9 | Actions | 4 | n/a: no action on the chart. |
+| 10 | Serious | 4 | n/a. |
+| 11 | Doors | 4 | The account's name opens its page; the App chip its. |
+| 12 | Words | 4 | Plain and honest ("Sessions left show after a few sessions on this account"). |
+| 13 | States | 4 | Unknown said once ("Not measured yet"). |
+| 14 | Consistency | 4 | 94-usage's runway cards. |
+| 15 | Accessibility | 4 | axe clean in the capture runs (no serious or critical); keyboard and zoom not re-walked this round. |
+| 16 | Hand walk | 4 | Not re-walked by hand here; captured from the fixtures, both themes. |
+| 17 | System prompts | 5 | Causes no system prompt. |
+| 18 | Usability | 4 | Re-read against PAT-USE: the estimate says how it's worked out. Match. |
+
+Lowest: 4 (every line 4 or 5).
