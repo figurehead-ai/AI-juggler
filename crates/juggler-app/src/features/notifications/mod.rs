@@ -697,28 +697,27 @@ pub fn hand_over(state: &Arc<AppState>, items: Vec<batch::Item>) {
 /// Juggler forward, as an unknown id does).
 const TEST_ID: i32 = 2_904;
 
-/// Sends one system notification now, through the same way real ones go,
-/// whatever the quiet hours and with AI Juggler in front (the user presses
-/// it there); says what to check if none appeared.
+/// Sends one system notification now, through the same way real ones go
+/// (the notifier's sink), whatever the quiet hours and with AI Juggler in
+/// front (the user presses it there); says what to check if none
+/// appeared. The system prompt's sheet comes first at the click
+/// ([`commands::notifications_send_test`], AJ-E1547), as turning a kind
+/// on does at `notifications_set`.
 ///
 /// # Errors
 ///
 /// [`crate::error::AppError::Refused`] before notifications are connected.
 pub fn send_test(state: &Arc<AppState>) -> crate::error::AppResult<String> {
-    if state.notifier.sink.get().is_none() {
-        return Err(crate::error::AppError::Refused(
+    let sink = state.notifier.sink.get().ok_or_else(|| {
+        crate::error::AppError::Refused(
             "Notifications aren't ready yet. Try again in a moment.".into(),
-        ));
-    }
-    // AJ-E1547: through the gate, so a first one is told about first.
-    let sent = crate::os_prompts::notify::through_gate(&Outgoing {
+        )
+    })?;
+    sink(&Outgoing {
         id: TEST_ID,
         title: format!("{} test", crate::edition::current().app_name()),
         body: "Notifications reach you.".to_owned(),
     });
-    if sent.value().is_none() {
-        return Ok("Nothing was sent: the system wasn't asked.".to_owned());
-    }
     Ok(format!(
         "Sent. If nothing appeared, allow {} in {}.",
         crate::edition::current().app_name(),

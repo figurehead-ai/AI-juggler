@@ -22,7 +22,7 @@ use crate::state::AppState;
 type Show = Box<dyn Fn(&Outgoing) + Send + Sync>;
 
 /// The system's own notification, ungated: reached only through
-/// [`deliver`] and [`through_gate`].
+/// [`deliver`] (the notifier's sink) and [`show_first`].
 static SHOW: OnceLock<Show> = OnceLock::new();
 
 /// The id the first notification carries (a click brings AI Juggler
@@ -53,15 +53,16 @@ pub fn may_turn_on() -> bool {
         )
 }
 
-/// Shows `outgoing` at the user's click, through the gate (the sheet
-/// first when the entry isn't primed).
+/// Whether Send test may show its notification now, at the user's click:
+/// the entry is primed, or the user said Continue on the sheet (the
+/// entry is then primed, and the test, through the notifier's own sink,
+/// is the first notification, so the system asks while they're there).
 #[must_use]
-pub fn through_gate(outgoing: &Outgoing) -> Gated<()> {
-    os_prompt::gate().through(NOTIFICATIONS, os_prompt::user(), &|| None, || {
-        if let Some(show) = SHOW.get() {
-            show(outgoing);
-        }
-    })
+pub fn may_send_test() -> bool {
+    matches!(
+        os_prompt::gate().through(NOTIFICATIONS, os_prompt::user(), &|| None, || ()),
+        Gated::Called { .. }
+    )
 }
 
 /// The first notification, shown right after the user said go, so the

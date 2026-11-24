@@ -254,7 +254,7 @@ pub const ENTRIES: &[Entry] = &[
         triggers: &[
             "crates/juggler-app/src/os_prompts/notify.rs:connect",
             "crates/juggler-app/src/features/notifications/prefs.rs:notifications_set",
-            "crates/juggler-app/src/features/notifications/mod.rs:send_test",
+            "crates/juggler-app/src/features/notifications/commands.rs:notifications_send_test",
         ],
         never_shown: false,
         needed: super::needs::always,
