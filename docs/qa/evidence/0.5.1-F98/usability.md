@@ -15,4 +15,11 @@ F-PL1-15 (a): a running desktop App (a Claude app profile, the Codex app) had no
 
 ## Re-checked against the build
 
-(Filled in with the commit.)
+Opus, against f1abaaa41 and the 99-app-page / 99-keep-alive captures (1f51d6ec3):
+
+1. Match: "Quit…" with the stop mark sits right under "Restart…" in the rail menu (`99-keep-alive/rail-menu-keep`), and as a secondary button before Restart… on the App's page (`99-app-page/app-overview`).
+2. Match: the confirm reads "Quit Claude app · work?", the counts line, then "AI Juggler quits it and waits for it to close. It stays closed until you start it again, Keep alive too." (vitest `quit-app.test.tsx`); no other term.
+3. Match: one quit for Restart, Quit and Move (`places::quit::ask_to_quit`; `places::restart` calls it); no new surface, every Restart… door has Quit… beside it.
+4. Match: shown only while the App runs (vitest: Accounts › Apps' ⋯ and the rail header have none for a closed App; `99-app-page/app-closed` shows none); a held or restarting App answers why in the toast (`places::quit` refuses through `why_held` and the restart guard).
+5. Match: a signal to the App's own process only, no Apple Events; one that doesn't close within 10 s is said in words (cargo `one_that_doesnt_quit_in_time_is_said_and_stays_paused`).
+6. Match: Keep alive pauses until the next Open (cargo `keep_alive_never_starts_an_app_quit_here_until_its_next_open`, fails with the pause removed); a quit never signalled leaves it as it was (`a_quit_that_wasnt_sent_leaves_keep_alive_as_it_was`).
