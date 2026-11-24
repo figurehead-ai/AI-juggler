@@ -25,6 +25,7 @@ import { funnelEvent } from "../lib/funnel";
 import { lazyNamed, usePartShown } from "../lib/lazy";
 import { cliAppId } from "../lib/app-name";
 import { openWatches } from "../lib/watches-open";
+import { expectArrival } from "../lib/arriving";
 import { setCentreOpen } from "../lib/notices-store";
 import { TourHost } from "../components/tour/TourHost";
 import { AddProviderSheet, FirstRun, LimitDialog, SetupWizard, NewProjectSheet, NewSessionModal, PortWarningSheet, ShortcutSheet, SwitchBackFlow, SwitchFlow } from "../lazyParts";
@@ -174,6 +175,9 @@ export function ShellOverlays({ shell }: { shell: Shell }): JSX.Element {
           targetPlaceId={switchFlow.targetPlaceId ?? null}
           onClose={() => shell.setSwitchFlow(null)}
           onSwitched={(sessionId, undo) => {
+            // 0.5.1 F74: its page says where it went until the list has it.
+            const original = sessions.find((s) => s.id === switchFlow.sessionId);
+            expectArrival(sessionId, switchFlow.targetLabel, original ? (original.label ?? original.title ?? null) : null);
             const done = () => {
               shell.setSwitchFlow(null);
               void refresh();

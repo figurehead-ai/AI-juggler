@@ -50,6 +50,8 @@ import { launchSettingsName } from "../lib/account-words";
 import { memorySize } from "../lib/compact";
 import { Disclosure } from "./controls";
 import { Alert } from "./Alert";
+import { ArrivingSession } from "./ArrivingSession";
+import { useArrival, type Arrival } from "../lib/arriving";
 import { IconInfo } from "./icons-actions";
 
 /**
@@ -110,6 +112,13 @@ export type InspectorData = {
 function OwnNotices({ id, sessions }: { id: string; sessions: InstanceInfo[] }) {
   const session = sessions.find((s) => s.id === id);
   return <SessionNotices accountId={session?.account_id ?? null} quiet={session !== undefined && !statusLive(session.status)} reminderKey={id} parkedId={id} sessions={sessions} />;
+}
+
+/** 0.5.1 F74: the arrival this page shows in its place: a session of
+ * this Mac a switch just made that the list doesn't hold yet. */
+function useArrivingPage(selection: InspectorSelection, data: InspectorData): Arrival | null {
+  const arrival = useArrival(selection.kind === "instance" ? selection.id : null);
+  return data.remote || data.instance ? null : arrival;
 }
 
 /** The registry's page type for an inspector selection. */
@@ -197,8 +206,11 @@ export function RightInspector({
   // ⌘[ is the window's Back (walk A3), which leaves a remote session for
   // where you came from, Fleet as a rule; its header's button stays.
   const sessionTabs = useSessionTabs(remote ? null : (data.instance ?? null));
+  // 0.5.1 F74: a session a switch just made, until the list holds it.
+  const arriving = useArrivingPage(selection, data);
   // D-25: with nothing selected the work area is Home (screens/Home).
   if (selection.kind === "none" || selection.kind === "login") return null;
+  if (arriving) return <ArrivingSession arrival={arriving} now={now} />;
   const kind = selection.kind;
   const page = pageKindOf(kind, remote);
   const tabs = pageTabs(page, {
