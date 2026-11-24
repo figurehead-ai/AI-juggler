@@ -5,7 +5,9 @@
  * named in words in the drawn tip on hover AND keyboard focus
  * (`TipButton`, F61's pattern), never a browser `title`. The words stay
  * its accessible name; a click opens the session, whose Where it runs
- * says the change in full.
+ * says the change in full. Its hit box is 24 px (WCAG 2.5.8, axe
+ * target-size: an 18 px button over its row read as too small); the
+ * chip drawn inside stays 18 px, so the look is unchanged.
  */
 import type { JSX } from "react";
 import { IconModelChanged } from "./icons";
@@ -34,9 +36,11 @@ export function ModelDriftMark({ drift, onOpen, className = "" }: { drift: { lau
         event.stopPropagation();
         onOpen();
       }}
-      className={"inline-flex size-[18px] shrink-0 items-center justify-center rounded-md text-muted outline-none hover:bg-surface-3 hover:text-ink-2 focus-visible:ring-1 focus-visible:ring-accent/60 " + className}
+      className={"group/drift inline-flex size-6 shrink-0 items-center justify-center text-muted outline-none hover:text-ink-2 " + className}
     >
-      <IconModelChanged aria-hidden="true" width={12} height={12} />
+      <span className="inline-flex size-[18px] items-center justify-center rounded-md group-hover/drift:bg-surface-3 group-focus-visible/drift:ring-1 group-focus-visible/drift:ring-accent/60">
+        <IconModelChanged aria-hidden="true" width={12} height={12} />
+      </span>
     </TipButton>
   );
 }

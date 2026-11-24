@@ -664,8 +664,8 @@ function BoardRow({
         {menu.button({ label: `Session actions for ${sessionTitle(row)}`, shown: true })}
         {where !== null && menu.goTo({ where, shown: true })}
       </span>
-      {/* I-03: a drifted model, a calm focusable mark beside the row (level 1, never amber; AJ-E3603 R2), its own icon and the drawn tip (F77); compact rows say it in the session view. */}
-      {drift !== null && <ModelDriftMark drift={drift} onOpen={() => onSelect(row.id)} className="absolute right-12 top-1 z-10" />}
+      {/* I-03: a drifted model, a calm focusable mark beside the row (level 1, never amber; AJ-E3603 R2), its own icon and the drawn tip (F77), its 24 px hit box centred where the 18 px chip was; compact rows say it in the session view. */}
+      {drift !== null && <ModelDriftMark drift={drift} onOpen={() => onSelect(row.id)} className="absolute right-[45px] top-px z-10" />}
       {menu.element}
     </div>
   );

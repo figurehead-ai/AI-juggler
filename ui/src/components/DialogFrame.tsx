@@ -13,7 +13,11 @@
  *   1. the header, fixed: title, close, step marks;
  *   2. the body, the only part that scrolls (vertically): a hairline and
  *      a soft shadow at its top once scrolled, its foot fading while more
- *      is below (`.scroll-edge`, `data-scrolled`, `data-more`);
+ *      is below (`.scroll-edge`, `data-scrolled`, `data-more`); while it
+ *      scrolls with no control inside (all its buttons in the footer), it
+ *      is a named, focusable region so the keyboard can scroll it (axe
+ *      scrollable-region-focusable: the switch wizard's Target step at
+ *      800×600);
  *   3. the footer, fixed: a top border that shows while the body scrolls,
  *      the reason or note line, the buttons (Cancel … the one primary).
  * - `DialogFooter`: the actions a step owns (a multi-step flow's own step
@@ -62,16 +66,21 @@ export function wrapTab(event: KeyboardEvent, node: HTMLElement, selector: strin
   to.focus();
 }
 
-/** Whether a box has more above (scrolled) and below (not at its end). */
-function useScrollEdges(ref: RefObject<HTMLElement | null>): { above: boolean; below: boolean } {
-  const [edges, setEdges] = useState({ above: false, below: false });
+/** What the keyboard can reach inside a box (axe's focusable content). */
+const REACHABLE = "a[href], button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), summary, [tabindex]:not([tabindex='-1'])";
+
+/** Whether a box has more above (scrolled) and below (not at its end), and
+ * whether it holds anything the keyboard can reach. */
+function useScrollEdges(ref: RefObject<HTMLElement | null>): { above: boolean; below: boolean; reachable: boolean } {
+  const [edges, setEdges] = useState({ above: false, below: false, reachable: true });
   useLayoutEffect(() => {
     const node = ref.current;
     if (!node) return undefined;
     const read = () => {
       const above = node.scrollTop > 1;
       const below = node.scrollHeight - node.clientHeight - node.scrollTop > 1;
-      setEdges((was) => (was.above === above && was.below === below ? was : { above, below }));
+      const reachable = node.querySelector(REACHABLE) !== null;
+      setEdges((was) => (was.above === above && was.below === below && was.reachable === reachable ? was : { above, below, reachable }));
     };
     read();
     node.addEventListener("scroll", read, { passive: true });
@@ -134,8 +143,12 @@ export function DialogFrame({
 } & Omit<HTMLAttributes<HTMLDivElement>, "className" | "children">): JSX.Element {
   const bodyRef = useRef<HTMLDivElement | null>(null);
   const [slot, setSlot] = useState<HTMLDivElement | null>(null);
-  const { above, below } = useScrollEdges(bodyRef);
+  const { above, below, reachable } = useScrollEdges(bodyRef);
   const scrolls = above || below;
+  // A body that scrolls with nothing in it to Tab to is itself a stop,
+  // named by the dialog (the LastMessages pattern); otherwise no extra stop.
+  const ownStop = scrolls && !reachable;
+  const named = (rest as { "aria-label"?: string })["aria-label"];
   return (
     <div
       {...rest}
@@ -151,7 +164,10 @@ export function DialogFrame({
       <div
         {...bodyProps}
         ref={bodyRef}
-        className={`scroll-edge group/dialog min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain ${bodyClassName}`}
+        className={`scroll-edge group/dialog min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-accent/60 ${bodyClassName}`}
+        tabIndex={ownStop ? 0 : undefined}
+        role={ownStop ? "region" : undefined}
+        aria-label={ownStop ? (named ? `${named}, details` : "Details") : undefined}
         data-dialog-part="body"
         data-scrolled={above || undefined}
         data-more={below || undefined}
