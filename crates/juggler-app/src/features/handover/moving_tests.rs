@@ -117,7 +117,17 @@ struct Scripted {
     /// it at each quit.
     area: Option<PathBuf>,
     held_at_quit: Mutex<Vec<bool>>,
+    /// AJ-E2322: the target app opens the conversation on the link (its
+    /// Claude Code resumes it, [`OPENED_PID`], until the app quits).
+    opens: bool,
+    /// The app process the link went to, while it has it open.
+    linked: Mutex<Option<u32>>,
+    /// How long each settle asked for.
+    settles: Mutex<Vec<Duration>>,
 }
+
+/// AJ-E2322: the target app's Claude Code that resumes the conversation.
+const OPENED_PID: u32 = 777;
 
 impl Scripted {
     /// Ends the slow main processes whose time came.
@@ -160,6 +170,12 @@ impl MoveSystem for Scripted {
     fn quit(&self, pid: u32) -> Result<(), String> {
         self.settle_deaths();
         self.quits.lock().unwrap().push(pid);
+        {
+            let mut linked = self.linked.lock().unwrap();
+            if *linked == Some(pid) {
+                *linked = None;
+            }
+        }
         if let Some(area) = &self.area {
             let held = crate::features::places::hold::any_held(area);
             self.held_at_quit.lock().unwrap().push(held);
@@ -276,11 +292,25 @@ impl MoveSystem for Scripted {
                 p.start = Some(i64::from(pid));
                 (pid, p)
             })
+            .chain(self.linked.lock().unwrap().map(|app| {
+                let args = ["claude", "--resume=main"];
+                let (pid, mut p) = crate::features::conversations::procs::fixture(
+                    OPENED_PID,
+                    app,
+                    "/Users/you/bin/claude",
+                    &args,
+                );
+                p.start = Some(i64::from(OPENED_PID));
+                (pid, p)
+            }))
             .collect()
     }
     // The links sent, in order (the move sends one, to the target).
     fn send(&self, pid: u32, link: &str) -> Result<(), String> {
         self.sent.lock().unwrap().push((pid, link.to_owned()));
+        if self.opens {
+            *self.linked.lock().unwrap() = Some(pid);
+        }
         Ok(())
     }
     fn start(&self, _: &Arc<AppState>, place: &KnownPlace) -> Result<(), String> {
@@ -304,7 +334,8 @@ impl MoveSystem for Scripted {
     fn open_elsewhere(&self, _: &Arc<AppState>, _: &[String], _: &[u32]) -> usize {
         self.elsewhere
     }
-    fn settle(&self, _: Duration) {
+    fn settle(&self, for_: Duration) {
+        self.settles.lock().unwrap().push(for_);
         let mut writer = self.writer.lock().unwrap();
         if let Some((path, line, left)) = writer.as_mut()
             && *left > 0
@@ -339,7 +370,14 @@ impl MoveSystem for Scripted {
                 start: Some(i64::from(kid.pid)),
                 name: kid.name.into(),
             });
-        main.chain(kids).collect()
+        let opened = (*self.linked.lock().unwrap())
+            .filter(|app| roots.contains(app))
+            .map(|_| Member {
+                pid: OPENED_PID,
+                start: Some(i64::from(OPENED_PID)),
+                name: "claude".into(),
+            });
+        main.chain(kids).chain(opened).collect()
     }
     fn tell(&self, progress: &MoveProgressInfo) {
         self.told.lock().unwrap().push(progress.clone());
@@ -498,7 +536,10 @@ fn lab() -> Lab {
 }
 
 fn running_both(lab: &Lab) -> Scripted {
-    let script = Scripted::default();
+    let script = Scripted {
+        opens: true,
+        ..Scripted::default()
+    };
     for (n, (id, _)) in [&lab.sides.source_place, &lab.sides.target_place]
         .into_iter()
         .flatten()
@@ -1129,6 +1170,7 @@ fn a_long_backup_says_how_far_it_is() {
             "backing_up",
             "moving",
             "starting",
+            "opening",
             "checking"
         ]
     );
@@ -1158,6 +1200,8 @@ fn an_undone_move_lets_its_backups_go() {
     assert!(unchanged(&lab));
 }
 
+#[path = "moving_open_tests.rs"]
+mod open;
 #[path = "moving_pick_tests.rs"]
 mod picking;
 #[path = "moving_recover_tests.rs"]

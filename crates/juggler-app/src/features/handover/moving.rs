@@ -65,9 +65,6 @@ const QUIT_WAIT: Duration = Duration::from_secs(30);
 const WRITER_WAIT: Duration = Duration::from_secs(10);
 /// How long a started profile is given to come up.
 const START_WAIT: Duration = Duration::from_secs(30);
-/// How long the target app is given to settle after the link (it adds
-/// its bookkeeping to the history when it opens it).
-const SETTLE: Duration = Duration::from_secs(6);
 /// Between looks.
 const EVERY: Duration = Duration::from_millis(250);
 /// How long every file the move touches must hold still before it is
@@ -139,6 +136,26 @@ pub trait MoveSystem: Send + Sync {
     fn settle(&self, for_: Duration) {
         std::thread::sleep(for_);
     }
+    /// AJ-E2322: waits until `seen` finds the conversation open, woken by
+    /// a change in `folders` (the real system's file events), at most
+    /// `cap`. Returns what `seen` found; `None`: not within `cap`. By
+    /// default it looks every [`timeline::LOOK`] through [`Self::settle`].
+    fn wait_open(
+        &self,
+        folders: &[PathBuf],
+        cap: Duration,
+        seen: &mut dyn FnMut() -> Option<String>,
+    ) -> Option<String> {
+        let _ = folders;
+        let looks = (cap.as_millis() / timeline::LOOK.as_millis()).max(1);
+        for _ in 0..looks {
+            if let Some(found) = seen() {
+                return Some(found);
+            }
+            self.settle(timeline::LOOK);
+        }
+        seen()
+    }
     /// How long a profile's app (its main process) is given to quit.
     fn quit_wait(&self) -> Duration {
         QUIT_WAIT
@@ -193,6 +210,8 @@ pub mod recover;
 pub mod repair;
 #[path = "moving_retention.rs"]
 pub mod retention;
+#[path = "moving_timeline.rs"]
+mod timeline;
 pub use door::{MoveRecordInfo, moves};
 use pick::{links_hold, sides, start_checked};
 use quit::{Writing, stop_places};
@@ -810,6 +829,36 @@ fn open_in(
     Ok(pid)
 }
 
+/// AJ-E2322 R1: "Opened" in words: verified only when `is_open` (the
+/// adapter's evidence); a link sent but not seen open is pending, said
+/// plainly with Open offered; one that couldn't be sent failed.
+fn opened_outcome(
+    opened: Option<Result<(u32, String), String>>,
+    is_open: bool,
+    target_label: &str,
+) -> MoveOutcomeInfo {
+    match opened {
+        Some(Ok((_, name))) if is_open => MoveOutcomeInfo {
+            state: "verified".into(),
+            detail: format!("opened in {name}"),
+        },
+        Some(Ok((_, name))) => MoveOutcomeInfo {
+            state: "pending".into(),
+            detail: format!(
+                "sent to {name}, but AI Juggler couldn't see it open there. Open it from {name}"
+            ),
+        },
+        Some(Err(why)) => MoveOutcomeInfo {
+            state: "failed".into(),
+            detail: format!("moved, but not opened: {why}. Open it from there"),
+        },
+        None => MoveOutcomeInfo {
+            state: "pending".into(),
+            detail: format!("resume it in a terminal on {target_label}"),
+        },
+    }
+}
+
 fn outcome(pass: bool, ok: &str, failed: String) -> MoveOutcomeInfo {
     MoveOutcomeInfo {
         state: if pass { "verified" } else { "failed" }.to_owned(),
@@ -932,12 +981,25 @@ fn run(state: &Arc<AppState>, sides: &Sides, system: &dyn MoveSystem) -> AppResu
     .map_err(|error| typed(engine(error), StopClass::Bug))?;
     txn.remember_places(ids, sides.accounts.clone())
         .map_err(|error| of_move(typed(engine(error), StopClass::Bug), &move_id))?;
+    let mut timeline = timeline::Timeline::start();
 
     // The single-writer phase.
     let (stopped_places, kept_running) =
         match stop_places(state, (&places, &sides.request), system, "moved", &writing) {
-            Ok(stopping) => (stopping.stopped, stopping.notes),
+            Ok(stopping) => {
+                timeline.mark(
+                    &txn,
+                    "closing",
+                    serde_json::json!({"waited": stopping.waited, "remained": stopping.remained}),
+                );
+                (stopping.stopped, stopping.notes)
+            }
             Err(error) => {
+                let remained: Vec<String> = match &error {
+                    AppError::Move(stop) => stop.holders.iter().map(|h| h.name.clone()).collect(),
+                    _ => Vec::new(),
+                };
+                timeline.mark(&txn, "closing", serde_json::json!({"remained": remained}));
                 // Planned only: its undo touches no file. The journal reads
                 // planned → undone, with nothing kept.
                 let _ = txn.undo(
@@ -1025,7 +1087,17 @@ fn run(state: &Arc<AppState>, sides: &Sides, system: &dyn MoveSystem) -> AppResu
         "still",
         "Waiting for the conversation's files to hold still…".to_owned(),
     ));
-    if let Err(moving) = hold_still(&watched, system) {
+    let still = hold_still(&watched, system);
+    let changing: Vec<String> = still
+        .as_ref()
+        .err()
+        .into_iter()
+        .flatten()
+        .filter_map(|path| path.file_name())
+        .map(|name| name.to_string_lossy().into_owned())
+        .collect();
+    timeline.mark(&txn, "still", serde_json::json!({"remained": changing}));
+    if let Err(moving) = still {
         let first = moving.first().cloned().unwrap_or_default();
         let detail = format!(
             "still changing after {} s: {}",
@@ -1073,6 +1145,7 @@ fn run(state: &Arc<AppState>, sides: &Sides, system: &dyn MoveSystem) -> AppResu
         };
         return Err(fail(&mut txn, stop));
     }
+    timeline.mark(&txn, "backing_up", serde_json::json!({}));
     if let Err(started) = still_down_held(state, &stopped_places, system) {
         return Err(fail(&mut txn, started_again(started)));
     }
@@ -1087,6 +1160,7 @@ fn run(state: &Arc<AppState>, sides: &Sides, system: &dyn MoveSystem) -> AppResu
             MoveStop::new(StopClass::Bug, words, error.to_string()),
         ));
     }
+    timeline.mark(&txn, "moving", serde_json::json!({}));
     let cold = match txn.verify_cold(mover.verify(&sides.request, &plan)) {
         Ok(report) => report,
         Err(error) => {
@@ -1105,6 +1179,7 @@ fn run(state: &Arc<AppState>, sides: &Sides, system: &dyn MoveSystem) -> AppResu
         ));
     }
 
+    timeline.mark(&txn, "checking_before", serde_json::json!({}));
     // Both profiles again, each on its own folders; the conversation
     // opened in the target by its own process.
     if !places.is_empty() {
@@ -1122,6 +1197,17 @@ fn run(state: &Arc<AppState>, sides: &Sides, system: &dyn MoveSystem) -> AppResu
         tracing::warn!(target: "juggler::move", "the source profile didn't start again: {why}");
     }
     let link = mover.resume_link(&plan.resume);
+    // AJ-E2322: the conversation's history in the target, and its length
+    // as the link goes (the app adding to it is evidence it opened).
+    let history = plan
+        .members
+        .iter()
+        .find(|m| m.conversation == sides.request.conversation)
+        .and_then(|m| m.transcript_to.clone())
+        .map(|path| {
+            let len = std::fs::metadata(&path).map_or(0, |meta| meta.len());
+            (path, len)
+        });
     let opened = match (&sides.target_place, &link) {
         (Some((id, place)), Some(link)) => Some(
             open_in(state, (id, place), link, &sides.request, system)
@@ -1133,11 +1219,37 @@ fn run(state: &Arc<AppState>, sides: &Sides, system: &dyn MoveSystem) -> AppResu
         .target_place
         .as_ref()
         .map_or_else(|| sides.target_label.clone(), |(_, p)| place_name(state, p));
+    timeline.mark(&txn, "starting", serde_json::json!({}));
+    // AJ-E2322 R1/R2: "opened" only when the adapter's check sees it open,
+    // waited for by file events, capped; never a fixed settle.
+    let seen = match (&opened, &sides.target_place) {
+        (Some(Ok((pid, _))), Some((_, place))) => {
+            system.tell(&MoveProgressInfo::step(
+                "opening",
+                format!("Opening the conversation in {target_name}…"),
+            ));
+            let target = Writing {
+                mover,
+                dirs: vec![sides.request.target.tool_dir.clone()],
+                conversations: vec![sides.request.conversation.clone()],
+            };
+            let found =
+                system.wait_open(&timeline::folders_of(&txn), timeline::OPEN_CAP, &mut || {
+                    timeline::seen_open(state, (*pid, place), &target, history.as_ref(), system)
+                });
+            timeline.mark(
+                &txn,
+                "opening",
+                serde_json::json!({"seen": found, "remained": if found.is_some() { Vec::<String>::new() } else { vec!["not seen open".to_owned()] }}),
+            );
+            found
+        }
+        _ => None,
+    };
     system.tell(&MoveProgressInfo::step(
         "checking",
         format!("Checking the conversation in {target_name}…"),
     ));
-    system.settle(SETTLE);
     // The move happened: a check that can't be written is a failed check,
     // never an error that hides the move and its Undo.
     let after = txn
@@ -1164,6 +1276,17 @@ fn run(state: &Arc<AppState>, sides: &Sides, system: &dyn MoveSystem) -> AppResu
         .filter(|c| !c.pass && !c.what.contains("starts with"))
         .map(|c| c.what.clone())
         .collect();
+    timeline.mark(
+        &txn,
+        "checking_after",
+        serde_json::json!({"committed": after.passed()}),
+    );
+    // R1: open only by the adapter's evidence: a session of it running in
+    // the target (seen while waiting), or the target app adding to its
+    // history (each line sorted by the adapter).
+    let is_open = matches!(opened, Some(Ok(_)))
+        && (seen.is_some()
+            || after.added.bookkeeping + after.added.notices + after.added.turns > 0);
     let members = plan.members.len();
     let many = |n: usize, one: &str, more: &str| format!("{n} {}", if n == 1 { one } else { more });
     let mut notes = plan.notes.clone();
@@ -1197,20 +1320,14 @@ fn run(state: &Arc<AppState>, sides: &Sides, system: &dyn MoveSystem) -> AppResu
             &format!("{target_name} lists the conversation and its family as they were nested"),
             format!("not as planned: {}", catalog_failures.join("; ")),
         ),
-        opened: match opened {
-            Some(Ok((pid, name))) => MoveOutcomeInfo {
-                state: "verified".into(),
-                detail: format!("opened in {name} (process {pid}), signed in as that account"),
-            },
-            Some(Err(why)) => MoveOutcomeInfo {
-                state: "failed".into(),
-                detail: format!("moved, but not opened: {why}. Open it from the session list"),
-            },
-            None => MoveOutcomeInfo {
-                state: "pending".into(),
-                detail: format!("resume it in a terminal on {}", sides.target_label),
-            },
-        },
+        opened: opened_outcome(opened, is_open, &sides.target_label),
+        // Offered Open where it isn't seen open, in the App it moved to.
+        open_place_id: sides
+            .target_place
+            .as_ref()
+            .filter(|_| !is_open)
+            .map(|(id, _)| id.clone()),
+        conversation: sides.request.conversation.clone(),
         model: MoveOutcomeInfo {
             state: "pending".into(),
             detail: format!(

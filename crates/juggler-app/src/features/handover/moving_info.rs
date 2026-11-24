@@ -161,4 +161,9 @@ pub struct MoveDoneInfo {
     pub model: MoveOutcomeInfo,
     /// What the user should know.
     pub notes: Vec<String>,
+    /// AJ-E2322: the App to offer Open in, when the conversation isn't
+    /// seen open there (`None`: it is, or it moved to a terminal folder).
+    pub open_place_id: Option<String>,
+    /// The moved conversation's id (what Open opens).
+    pub conversation: String,
 }

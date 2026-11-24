@@ -131,33 +131,6 @@ pub(super) fn committed_backup(txn: &Transaction) -> bool {
         && txn.manifest.entries.iter().any(|e| e.backup.is_some())
 }
 
-/// One journal line in words: its event, then what it names.
-fn line_words(value: &serde_json::Value) -> String {
-    let Some(fields) = value.as_object() else {
-        return value.to_string();
-    };
-    let event = fields
-        .get("event")
-        .and_then(serde_json::Value::as_str)
-        .unwrap_or("note");
-    let rest: Vec<String> = fields
-        .iter()
-        .filter(|(key, _)| key.as_str() != "event")
-        .map(|(key, value)| match value {
-            serde_json::Value::String(text) => format!("{key} {text}"),
-            serde_json::Value::Number(n) if key == "step" => {
-                format!("step {}", n.as_u64().map_or(0, |n| n + 1))
-            }
-            other => format!("{key} {other}"),
-        })
-        .collect();
-    if rest.is_empty() {
-        event.to_owned()
-    } else {
-        format!("{event}: {}", rest.join(", "))
-    }
-}
-
 /// Every move AI Juggler knows of, newest first, with any left part way
 /// read back from its journal.
 #[must_use]
@@ -218,7 +191,11 @@ pub fn moves(state: &Arc<AppState>) -> Vec<MoveRecordInfo> {
                     .flatten(),
                 backup_bytes: size.map(|size| size.bytes),
                 backup_exact: size.is_some_and(|size| size.exact),
-                timeline: txn.journal().iter().map(line_words).collect(),
+                timeline: txn
+                    .journal()
+                    .iter()
+                    .map(|line| super::timeline::line_words(line, manifest.created_ms))
+                    .collect(),
                 kept: txn.dependencies().iter().map(|path| shown(path)).collect(),
             }
         })

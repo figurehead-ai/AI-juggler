@@ -54,9 +54,11 @@ const DONE: MoveDoneInfo = {
   move_id: "1762600000000-0a1b2c3d",
   payload: { state: "verified", detail: "every byte of 2 conversation(s) is in Personal, checked before and after it opened" },
   catalog: { state: "verified", detail: "Claude app · Personal lists the conversation and its family as they were nested" },
-  opened: { state: "verified", detail: "opened in Claude app · Personal (process 4242), signed in as that account" },
+  opened: { state: "verified", detail: "opened in Claude app · Personal" },
   model: { state: "pending", detail: "send a message to check it answers on Personal; AI Juggler never sends one for you" },
   notes: [],
+  open_place_id: null,
+  conversation: "main",
 };
 
 afterEach(() => {

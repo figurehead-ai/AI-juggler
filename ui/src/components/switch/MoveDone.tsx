@@ -7,6 +7,7 @@ import { useState, type JSX } from "react";
 import type { MoveDoneInfo, MoveUndoneInfo } from "../../lib/ipc/switch-move";
 import type { MoveOutcomeInfo } from "../../types/generated/MoveOutcomeInfo";
 import { switchMoveUndo } from "../../lib/ipc/switch-move";
+import { placesOpen } from "../../lib/ipc/places";
 import { errorText } from "../../lib/bridge";
 import { IconCheck } from "../icons-controls";
 import { IconClock, IconWarn } from "../icons-menu";
@@ -111,6 +112,32 @@ export function MoveUndo({ moveId, onUndone }: { moveId: string; onUndone: (undo
   );
 }
 
+/** AJ-E2322: where the move can't see the conversation open in the App it
+ * moved to, Open there (the app started first when it isn't running);
+ * what Open did is said beside it. */
+function OpenIn({ done, target }: { done: MoveDoneInfo; target: string }): JSX.Element | null {
+  const [said, setSaid] = useState<string | null>(null);
+  const placeId = done.open_place_id;
+  if (!placeId) return null;
+  const open = () =>
+    void placesOpen(placeId, done.conversation).then(
+      (outcome) => setSaid(outcome.outcome),
+      (cause) => setSaid(errorText(cause)),
+    );
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <Button size="sm" variant="secondary" type="button" onClick={open} data-testid="switch-moved-open">
+        Open in {target}
+      </Button>
+      {said && (
+        <output className="text-label text-muted" data-testid="switch-moved-open-said">
+          {sentence(said)}
+        </output>
+      )}
+    </div>
+  );
+}
+
 export function MoveDone({ done, target, source = null }: { done: MoveDoneInfo; target: string; source?: string | null }): JSX.Element {
   const [undone, setUndone] = useState<MoveUndoneInfo | null>(null);
   if (undone) return <MoveUndone undone={undone} source={source} />;
@@ -130,6 +157,7 @@ export function MoveDone({ done, target, source = null }: { done: MoveDoneInfo; 
           );
         })}
       </FactPanel>
+      <OpenIn done={done} target={target} />
       {done.notes.length > 0 && (
         <Alert level="info" live={null} testId="switch-moved-notes">
           {done.notes.map((note) => (

@@ -118,6 +118,15 @@ pub struct Entry {
     pub made: bool,
 }
 
+/// Now, epoch ms (the journal's timeline).
+fn wall_ms() -> i64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |since| {
+            i64::try_from(since.as_millis()).unwrap_or(i64::MAX)
+        })
+}
+
 /// The move's record of itself, rewritten whole at every phase.
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct Manifest {
@@ -459,7 +468,9 @@ impl Transaction {
         };
         let txn = Self { dir, manifest };
         txn.save()?;
-        txn.log(&serde_json::json!({"event": "phase", "phase": Phase::Planned}))?;
+        txn.log(
+            &serde_json::json!({"event": "phase", "phase": Phase::Planned, "at_ms": wall_ms()}),
+        )?;
         Ok(txn)
     }
 
@@ -523,7 +534,35 @@ impl Transaction {
     fn set_phase(&mut self, phase: Phase) -> Result<(), MoveError> {
         self.manifest.phase = phase;
         self.save()?;
-        self.log(&serde_json::json!({"event": "phase", "phase": phase}))
+        self.log(&serde_json::json!({"event": "phase", "phase": phase, "at_ms": wall_ms()}))
+    }
+
+    /// AJ-E2322 (the review's B7): one phase of the caller's in the
+    /// journal's timeline: when it ended (epoch ms), how long it took (ms),
+    /// and `detail` (each wait's set, by program, reason and evidence, and
+    /// what remained). Never a path: Copy details carries it.
+    ///
+    /// # Errors
+    ///
+    /// The journal can't be written.
+    pub fn timeline(
+        &self,
+        phase: &str,
+        took_ms: u64,
+        detail: serde_json::Value,
+    ) -> Result<(), MoveError> {
+        let mut line = serde_json::json!({
+            "event": "timeline",
+            "phase": phase,
+            "at_ms": wall_ms(),
+            "took_ms": took_ms,
+        });
+        if let (Some(line), serde_json::Value::Object(detail)) = (line.as_object_mut(), detail) {
+            for (key, value) in detail {
+                line.entry(key).or_insert(value);
+            }
+        }
+        self.log(&line)
     }
 
     /// Remembers the caller's names for what it stops and starts again.

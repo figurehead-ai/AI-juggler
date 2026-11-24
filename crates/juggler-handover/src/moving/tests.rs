@@ -785,3 +785,33 @@ fn the_room_a_move_needs_counts_its_undo() {
     });
     assert!(room_needed(&bigger) > needed, "every path's entries count");
 }
+
+/// AJ-E2322 (the review's B7): every phase is in the journal with its
+/// time (ms), and the caller's timeline lines carry how long a phase took
+/// and its wait set, never overwriting the event's own fields.
+#[test]
+fn the_journal_keeps_a_timeline_of_every_phase_in_ms() {
+    let lab = lab();
+    let mut txn = begin(&lab, "1-timeline");
+    let stopped = Stopped::checked();
+    txn.back_up(&stopped).unwrap();
+    txn.timeline(
+        "closing",
+        1234,
+        serde_json::json!({"waited": [{"program": "claude", "pid": 42, "reason": "writes it", "evidence": "its session file"}], "remained": [], "event": "not this"}),
+    )
+    .unwrap();
+    let lines = txn.journal();
+    let phases: Vec<&serde_json::Value> = lines.iter().filter(|l| l["event"] == "phase").collect();
+    assert_eq!(phases.len(), 2, "{lines:?}");
+    assert!(
+        phases.iter().all(|l| l["at_ms"].as_i64().unwrap_or(0) > 0),
+        "{lines:?}"
+    );
+    let timeline = lines.iter().find(|l| l["event"] == "timeline").unwrap();
+    assert_eq!(timeline["phase"], "closing");
+    assert_eq!(timeline["took_ms"], 1234);
+    assert!(timeline["at_ms"].as_i64().unwrap_or(0) > 0);
+    assert_eq!(timeline["waited"][0]["program"], "claude");
+    assert!(timeline["remained"].as_array().unwrap().is_empty());
+}

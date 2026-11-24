@@ -86,6 +86,22 @@ impl MoveSystem for Real {
         crate::features::places::start_held(state, place)
     }
 
+    // AJ-E2322 R2: woken by the moved files' folders' events (a look
+    // every second in case one is lost), capped.
+    fn wait_open(
+        &self,
+        folders: &[PathBuf],
+        cap: std::time::Duration,
+        seen: &mut dyn FnMut() -> Option<String>,
+    ) -> Option<String> {
+        let (tx, rx) = std::sync::mpsc::channel();
+        let mut wake = juggler_adapters::folder_wake::FolderWake::new(move |_| {
+            let _ = tx.send(());
+        });
+        wake.watch(&folders.iter().cloned().collect());
+        super::timeline::wait_on(&rx, cap, seen)
+    }
+
     fn send(&self, pid: u32, link: &str) -> Result<(), String> {
         use crate::features::places::handoff::System as _;
         crate::features::places::handoff::Real.send(pid, link)

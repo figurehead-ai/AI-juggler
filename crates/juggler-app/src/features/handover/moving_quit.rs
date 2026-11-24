@@ -194,6 +194,10 @@ struct Closing {
 pub(super) struct Stopping {
     pub stopped: Vec<StoppedPlace>,
     pub notes: Vec<String>,
+    /// AJ-E2322: the wait set, each with its program, reason and
+    /// evidence, and what of the trees remained (the journal's timeline).
+    pub waited: Vec<serde_json::Value>,
+    pub remained: Vec<serde_json::Value>,
 }
 
 /// Quits `places` (see the module's notes) and waits for the wait set.
@@ -413,6 +417,29 @@ pub(super) fn stop_places(
         }
         std::thread::sleep(EVERY);
     }
+    // AJ-E2322: the wait set, for the timeline.
+    let mut wait_set: Vec<serde_json::Value> = closing
+        .values()
+        .map(|c| {
+            serde_json::json!({
+                "program": c.name, "pid": c.main.pid,
+                "reason": "the app", "evidence": "its main process",
+            })
+        })
+        .collect();
+    wait_set.extend(waited.iter().map(|(id, member, owner)| {
+        let evidence = writers
+            .iter()
+            .find(|w| w.pid == id.pid)
+            .map_or("found as the apps closed", |w| {
+                super::timeline::evidence_words(w.evidence)
+            });
+        serde_json::json!({
+            "program": member.name, "pid": id.pid,
+            "reason": format!("writes the conversation in {owner}"), "evidence": evidence,
+        })
+    }));
+    let mut remained = Vec::new();
     // The rest of each tree: reported, never waited on.
     let mut notes = Vec::new();
     for c in closing.values() {
@@ -427,11 +454,19 @@ pub(super) fn stop_places(
             .filter(|m| now.get(&m.pid).is_some_and(|id| id.started_in(m.start)))
             .cloned()
             .collect();
+        remained.extend(still.iter().map(|m| {
+            serde_json::json!({"program": m.name, "pid": m.pid, "reason": format!("{} started it", c.name)})
+        }));
         if let Some(note) = kept_running(&c.name, &still) {
             notes.push(note);
         }
     }
-    Ok(Stopping { stopped, notes })
+    Ok(Stopping {
+        stopped,
+        notes,
+        waited: wait_set,
+        remained,
+    })
 }
 
 /// What `name` started that keeps running after it closed, in words
