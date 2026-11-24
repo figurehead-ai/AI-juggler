@@ -128,7 +128,12 @@
 //   shot NAME (--box X,Y,W,H … | --no-real-data REASON) [--note TEXT]
 //                                 Dev's front window by its id, through
 //                                 scripts/qa/redact_capture.swift into AIJ_DRIVE_OUT/NAME.jpg
-//                                 (+ its sidecar); the raw picture is deleted
+//                                 (+ its sidecar); the raw picture is deleted. Whatever the
+//                                 flags, every line showing the Mac account's name is covered
+//                                 and the picture read again (still there: nothing kept, exit 4)
+//
+// The Mac account's name (full, each word, login; from the system's user
+// record) is replaced by ‹name› in every line the driver prints or logs.
 //
 // The run sheet's steps (docs/qa/0.5-walks/AJ-E1612.md), each a few of the
 // above; each prints every primitive it runs, so a step that stops can be
@@ -186,12 +191,62 @@ import Vision
 /// of the run; nil: none (a selftest, or it couldn't be opened).
 var logFile: FileHandle?
 
-/// The driver's own line: printed, and kept in the run's log.
-func say(_ text: String) { print(text); fflush(stdout); record(text) }
+/// The driver's own line: printed, and kept in the run's log; the Mac
+/// account's name never in it (`unnamed`).
+func say(_ text: String) { let line = unnamed(text); print(line); fflush(stdout); record(line) }
 
 /// Dev's page content (`read`, `texts`, `buttons`): printed only, never
-/// kept in the log (a terminal's picture can show a sign-in code).
-func show(_ text: String) { print(text); fflush(stdout) }
+/// kept in the log (a terminal's picture can show a sign-in code); the Mac
+/// account's name never in it (`unnamed`).
+func show(_ text: String) { print(unnamed(text)); fflush(stdout) }
+
+/// 0.5.1 F24: what to keep out of every line the driver prints, from the
+/// system's own user record (NSFullUserName and NSUserName, as `id -F` and
+/// `id -un` say; never an argument, never printed): the account's full
+/// name, each word of it (two letters and more: the first name too) and
+/// its login name. A shot's picture is covered for the same words by
+/// scripts/qa/redact_capture.swift.
+let accountName: [String] = nameNeedles(full: NSFullUserName(), login: NSUserName())
+
+/// `text` with no case, accents or full-width forms.
+func folded(_ text: String) -> String {
+    text.folding(options: [.caseInsensitive, .diacriticInsensitive, .widthInsensitive], locale: nil)
+        .trimmingCharacters(in: .whitespacesAndNewlines)
+}
+
+/// The words to keep out (pure: the selftest), longest first.
+func nameNeedles(full: String, login: String) -> [String] {
+    var out = Set<String>()
+    let whole = folded(full).split(whereSeparator: { $0.isWhitespace }).joined(separator: " ")
+    if whole.count >= 2 { out.insert(whole) }
+    for word in whole.split(whereSeparator: { !$0.isLetter }) where word.count >= 2 { out.insert(String(word)) }
+    let user = folded(login)
+    if user.count >= 3 { out.insert(user) }
+    return out.sorted { $0.count != $1.count ? $0.count > $1.count : $0 < $1 }
+}
+
+/// `text` with each of `needles` replaced by "‹name›" (pure: the
+/// selftest): ignoring case and accents; one of five letters or more (or
+/// with a space) anywhere, a shorter one only as a whole word ("Sam's",
+/// not "Sample").
+func unnamed(_ text: String, _ needles: [String] = accountName) -> String {
+    var out = text
+    for needle in needles {
+        var from = out.startIndex
+        while from < out.endIndex, let hit = out.range(of: needle, options: [.caseInsensitive, .diacriticInsensitive, .widthInsensitive], range: from..<out.endIndex) {
+            let wordOnly = needle.count < 5 && !needle.contains(" ")
+            let before = hit.lowerBound > out.startIndex ? out[out.index(before: hit.lowerBound)] : " "
+            let after = hit.upperBound < out.endIndex ? out[hit.upperBound] : " "
+            if wordOnly && (before.isLetter || before.isNumber || after.isLetter || after.isNumber) {
+                from = hit.upperBound
+                continue
+            }
+            out.replaceSubrange(hit, with: "‹name›")
+            from = out.index(hit.lowerBound, offsetBy: "‹name›".count, limitedBy: out.endIndex) ?? out.endIndex
+        }
+    }
+    return out
+}
 
 /// A line as the log keeps it (pure: the selftest): typed words only by
 /// their count (`» type (12 characters)`), stamped with the UTC time.
@@ -224,6 +279,7 @@ func runLine(_ args: [String]) -> String {
 }
 
 func stop(_ code: Int32, _ message: String) -> Never {
+    let message = unnamed(message)
     FileHandle.standardError.write("lab_drive: \(message)\n".data(using: .utf8)!)
     record("EXIT \(code) \(message)")
     exit(code)
@@ -2362,6 +2418,14 @@ func selftest() {
     if resizeRefusal(asked: asked, took: asked, settled: asked, tilers: []) != nil
         || !(resizeRefusal(asked: asked, took: asked, settled: tiled, tilers: ["BetterStage"]) ?? "").contains("BetterStage put it back to 1701×1348")
         || !(resizeRefusal(asked: asked, took: tiled, settled: tiled, tilers: []) ?? "").contains("didn't take") { failures.append("resize verdict") }
+    // 0.5.1 F24: a made-up account's name never printed (the real one is
+    // read from the system and never shown here).
+    let fake = nameNeedles(full: "Samwise Rivera-Oakes", login: "someone")
+    if unnamed("Your menu: Samwise · On this Mac", fake) != "Your menu: ‹name› · On this Mac"
+        || unnamed("/Users/someone/lab and SÁMWISE RIVERA-OAKES", fake) != "/Users/‹name›/lab and ‹name›"
+        || unnamed("Open now · 5 apps · 16 sessions", fake) != "Open now · 5 apps · 16 sessions"
+        || unnamed("Sam's menu, a Sample", nameNeedles(full: "Sam Li", login: "")) != "‹name›'s menu, a Sample"
+        || !nameNeedles(full: " ", login: "").isEmpty { failures.append("the account's name kept out of printed lines") }
     // Options parse.
     let o = parse(["Sign in", "--in", "lab A needs its sign-in", "--timeout", "900", "--ocr"])
     if o.positional != ["Sign in"] || o.within != ["lab A needs its sign-in"] || o.timeout != 900 || !o.ocr { failures.append("parse") }
