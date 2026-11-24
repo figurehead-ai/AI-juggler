@@ -96,14 +96,22 @@ describe("Keep it apart… (R4)", () => {
       "Still a team insideIts agents can still message each other and share notes and tasks.",
     ]);
     expect(screen.getByTestId("keep-apart-example").textContent).toMatch(/^Example: /);
+    // 0.5.1 F84 (progressive disclosure): one yes/no shows its lead, the
+    // drawing and the facts; what it doesn't do and what it makes wait
+    // behind "What does this mean?", with no box of their own.
+    expect(screen.getByTestId("keep-apart-not").closest("[hidden]")).not.toBeNull();
+    expect(screen.getByTestId("keep-apart-makes").closest("[hidden]")).not.toBeNull();
+    expect(screen.getByTestId("keep-apart-makes").closest("[data-testid='keep-apart-explain']")).not.toBeNull();
+    fireEvent.click(within(sheet).getByRole("button", { name: "What does this mean?" }));
+    expect(screen.getByTestId("keep-apart-not").closest("[hidden]")).toBeNull();
+    expect(screen.getByTestId("keep-apart-not").closest("[data-testid='keep-apart-explain']")).not.toBeNull();
     // What it doesn't do: no account tied to it (D-134 is later).
     expect(screen.getByTestId("keep-apart-not").textContent).toContain(`It doesn't tie ${project.name} to one account`);
     // What it makes, before it does: the wizard's name for it, and how its sessions join.
     expect(screen.getByTestId("keep-apart-makes").textContent).toBe(
       `It makes the pool “${KEPT}”. Every session in ${project.name}, now and new, is a Member and may Work together. Change any of it first with Customise…, or later on its diagram.`,
     );
-    // "What does this mean?": the word its header will show first, then the guide's section.
-    fireEvent.click(within(sheet).getByRole("button", { name: "What does this mean?" }));
+    // "What does this mean?": the word its header will show, then the guide's section.
     expect(screen.getByTestId("keep-apart-explain").textContent).toContain(sealLine({ sealed: true }));
     expect(within(sheet).getByRole("button", { name: /Learn more in the guide/ })).toBeTruthy();
     // No internal words.
