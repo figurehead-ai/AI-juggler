@@ -9,7 +9,16 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { notificationsPage, resetNoticeStandIn, standInNeeds, standInNeedsKnown, standInNeedsPage, type StandInNeed } from "./notices";
 
-const need = { key: "s:one", kind: "asks", title: "One", detail: null, project_id: null, project: null, target: { session_id: "one" }, action: null } as unknown as StandInNeed;
+const need: StandInNeed = {
+  key: "s:one",
+  kind: "asks",
+  title: "One",
+  detail: "Asks a question",
+  project_id: null,
+  project: null,
+  target: { session_id: "one", conversation_id: null, account_id: null, project_id: null, page: null, task_id: null, pool_id: null },
+  action: null,
+};
 
 describe("the preview's Needs you is known (F54)", () => {
   beforeEach(() => resetNoticeStandIn());
