@@ -284,14 +284,7 @@ pub fn status_impl(state: &Arc<AppState>, tool: &str) -> Option<ToolUpdateInfo> 
 ///
 /// Storage errors.
 pub fn set_on(state: &AppState, on: bool) -> crate::error::AppResult<()> {
-    let storage = state
-        .storage
-        .lock()
-        .map_err(|_| crate::error::AppError::StatePoisoned)?;
-    storage
-        .app_settings()
-        .set(CHECK_KEY, if on { "on" } else { "off" })?;
-    Ok(())
+    state.set_app_setting(CHECK_KEY, if on { "on" } else { "off" })
 }
 
 #[cfg(test)]

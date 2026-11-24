@@ -179,15 +179,7 @@ pub fn checking_on(state: &AppState) -> bool {
 ///
 /// Storage errors.
 pub fn set_checking(state: &AppState, on: bool) -> crate::error::AppResult<()> {
-    {
-        let storage = state
-            .storage
-            .lock()
-            .map_err(|_| crate::error::AppError::StatePoisoned)?;
-        storage
-            .app_settings()
-            .set(CHECK_KEY, if on { "on" } else { "off" })?;
-    }
+    state.set_app_setting(CHECK_KEY, if on { "on" } else { "off" })?;
     let mut now = (*snapshot::current()).clone();
     now.checking = on;
     snapshot::install(now);

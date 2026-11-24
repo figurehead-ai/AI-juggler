@@ -110,18 +110,10 @@ pub const ASK_WAIT: Duration = Duration::from_secs(600);
 
 const PRIMED_PREFIX: &str = "os_prompt_primed:";
 
-fn setting(state: &AppState, key: &str) -> Option<String> {
-    state
-        .storage
-        .lock()
-        .ok()
-        .and_then(|storage| storage.app_settings().get(key).ok().flatten())
-}
-
 /// The marks earlier versions left that say the user already went
 /// through an entry's prompt (so it isn't primed a second time).
 fn primed_before(state: &AppState, id: &str) -> bool {
-    let on = |key: &str| setting(state, key).as_deref() == Some("1");
+    let on = |key: &str| state.app_setting(key).as_deref() == Some("1");
     match id {
         "accessibility" | "automation-system-events" => on("os_access_asked:focus"),
         "screen-recording" => on("os_access_asked:preview"),
@@ -136,7 +128,10 @@ pub struct AppLedger(pub Arc<AppState>);
 
 impl Ledger for AppLedger {
     fn primed(&self, id: &str) -> bool {
-        setting(&self.0, &format!("{PRIMED_PREFIX}{id}")).as_deref() == Some("1")
+        self.0
+            .app_setting(&format!("{PRIMED_PREFIX}{id}"))
+            .as_deref()
+            == Some("1")
             || primed_before(&self.0, id)
     }
 

@@ -283,6 +283,20 @@ impl AppState {
             .and_then(|storage| storage.app_settings().get(key).ok().flatten())
     }
 
+    /// Stores an app setting's value.
+    ///
+    /// # Errors
+    ///
+    /// Storage errors.
+    pub fn set_app_setting(&self, key: &str, value: &str) -> crate::error::AppResult<()> {
+        self.storage
+            .lock()
+            .map_err(|_| crate::error::AppError::StatePoisoned)?
+            .app_settings()
+            .set(key, value)?;
+        Ok(())
+    }
+
     /// Marks `session` as stopped by a switch: its exit, when it comes,
     /// ends it "stopped by the switch" (`sessions::lifecycle::forward`).
     pub fn mark_switch_stop(&self, session: &SessionId) {

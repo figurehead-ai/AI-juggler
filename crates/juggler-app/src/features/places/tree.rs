@@ -294,11 +294,7 @@ pub fn words(members: &[Member]) -> String {
             if more == 1 { "process" } else { "processes" }
         ));
     }
-    match parts.as_slice() {
-        [] => String::new(),
-        [one] => one.clone(),
-        [rest @ .., last] => format!("{} and {last}", rest.join(", ")),
-    }
+    juggler_core::words::and_list(&parts)
 }
 
 #[cfg(test)]
