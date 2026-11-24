@@ -56,7 +56,6 @@ import { PlaceBoard } from "./PlaceBoard";
 import { RailNoMatch } from "./PlaceBoardParts";
 import { useBackendNeeds, useRailSnoozes } from "../lib/needs-you";
 import { OtherMacs } from "./RemoteBoard";
-import { modelDrift } from "./SessionCards";
 import { FOCUS_SEARCH_EVENT, parseQuery, useRailView } from "../lib/rail-view";
 import { goToWhere, itemsOf, sessionAppKey, sessionItem, sessionState } from "../lib/rail-items";
 import { groupNeeds } from "../lib/rail-lines";
@@ -76,6 +75,7 @@ import type { Freshness } from "../lib/live-deltas";
 import { ProfileBadge } from "./ProfileBadge";
 import { SELECTED_FILL } from "./controls/selected";
 import { TipButton } from "./NameTip";
+import { driftOf, ModelDriftMark } from "./ModelDriftMark";
 
 /**
  * The workflow navigator (ADR-0007): one rail, three tabs, and the live
@@ -663,6 +663,7 @@ function BoardRow({
   const menu = useItemMenu("session", row, sessionTitle(row));
   // Its ↗ while it runs in another app's window (always shown when it needs you).
   const where = goToWhere(sessionItem(row, () => null, false)), needs = row.needs_attention !== null && !isSnoozed(row, snooze, now);
+  const drift = density === "comfortable" ? driftOf(row) : null;
   return (
     <div className="group relative" data-rail-row {...menu.triggerProps}>
       {/* Its snooze is said in its own line, never over the row above
@@ -674,18 +675,8 @@ function BoardRow({
         {menu.button({ label: `Session actions for ${sessionTitle(row)}`, shown: true })}
         {where !== null && menu.goTo({ where, shown: true })}
       </span>
-      {/* I-03: a drifted model, a calm focusable note beside the row (level 1, never amber; AJ-E3603 R2); compact rows say it in the session view. */}
-      {density === "comfortable" && modelDrift(row) && (
-        <span
-          title={modelDrift(row)!}
-          aria-label={modelDrift(row)!}
-          tabIndex={0}
-          data-testid="model-drift"
-          className="absolute right-12 top-1.5 z-10 rounded-full border border-hairline px-1 text-label font-medium text-muted outline-none focus-visible:ring-1 focus-visible:ring-accent/60"
-        >
-          ⇄
-        </span>
-      )}
+      {/* I-03: a drifted model, a calm focusable mark beside the row (level 1, never amber; AJ-E3603 R2), its own icon and the drawn tip (F77); compact rows say it in the session view. */}
+      {drift !== null && <ModelDriftMark drift={drift} onOpen={() => onSelect(row.id)} className="absolute right-12 top-1 z-10" />}
       {menu.element}
     </div>
   );

@@ -30,6 +30,8 @@ import { QuotaBar, Sparkline, WARNING_CHIP } from "./primitives";
 import { RowDetails } from "./row-details";
 import { memorySize } from "../lib/compact";
 import { ProfileBadge } from "./ProfileBadge";
+import { driftOf, driftWords } from "./ModelDriftMark";
+import { IconModelChanged } from "./icons";
 import { sessionAppKey } from "../lib/rail-items";
 import { SELECTED_FILL } from "./controls/selected";
 
@@ -94,6 +96,7 @@ export function SessionRow({
   const chip = stateChip(session.status);
   const suffix = attentionSuffix(session);
   const tokens = tokenSummary(session.tokens);
+  const drift = driftOf(session);
   const samples = rememberResourceSample(session.id, session.cpu_pct, session.rss_bytes);
   const resources =
     session.cpu_pct !== null && session.rss_bytes !== null
@@ -255,15 +258,11 @@ export function SessionRow({
         <span className="min-w-0 shrink truncate text-label text-muted" title={session.model ?? "default model"}>
           {session.model ?? <span className="text-muted">default model</span>}
         </span>
-        {modelDrift(session) && (
-          <span
-            title={modelDrift(session)!}
-            aria-label={modelDrift(session)!}
-            tabIndex={0}
-            data-testid="model-drift"
-            className="shrink-0 rounded-full border border-warning/25 bg-warning-soft px-1 text-label font-medium text-warning outline-none focus-visible:ring-1 focus-visible:ring-accent/60"
-          >
-            ⇄
+        {/* Inside the row's own button: the mark and its words, no control of its own (F77). */}
+        {drift !== null && (
+          <span className="inline-flex shrink-0 text-muted" data-testid="model-drift-row">
+            <IconModelChanged aria-hidden="true" width={12} height={12} />
+            <span className="sr-only">{driftWords(drift)}</span>
           </span>
         )}
         <span className="ml-auto inline-flex shrink-0 items-center gap-1">

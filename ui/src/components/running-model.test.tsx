@@ -1,4 +1,4 @@
-import { cleanup, render } from "@testing-library/react";
+import { cleanup, fireEvent, render } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { RightInspector } from "./RightInspector";
 import { InstanceBoard, modelDrift } from "./WorkflowRail";
@@ -114,10 +114,30 @@ describe("AJ-E412 I-03 running model (Req.1/3/5)", () => {
         onSnooze={() => {}}
       />,
     );
-    const marker = container.querySelector('[data-testid="model-drift"]')!;
+    const marker = container.querySelector<HTMLElement>('[data-testid="model-drift"]')!;
     expect(marker).not.toBeNull();
-    expect(marker.getAttribute("aria-label")).toBe("Launched with opus-4.8 - now running sonnet-5");
-    expect(marker.getAttribute("tabIndex")).toBe("0"); // keyboard reachable (WCAG)
+    expect(marker.getAttribute("aria-label")).toBe("Model changed: launched with opus-4.8, now running sonnet-5");
+    expect(marker.tagName).toBe("BUTTON"); // keyboard reachable (WCAG)
+  });
+
+  it("0.5.1 F77: its own icon (never Switch account's ⇄), no outline, named by the drawn tip on hover and keyboard focus, never a title", () => {
+    const row = instance({ model: "sonnet-5", launch_model: "opus-4.8", running_model: "sonnet-5", model_source: "in-session" });
+    const opened: string[] = [];
+    const { container } = render(
+      <InstanceBoard sessions={[row]} loginTerminals={[]} selectedId={null} onSelect={(id) => opened.push(id)} density="comfortable" now={NOW} projects={[]} freshness={{}} snooze={{}} onSnooze={() => {}} />,
+    );
+    const marker = container.querySelector<HTMLElement>('[data-testid="model-drift"]')!;
+    expect(marker.textContent).not.toContain("⇄");
+    expect(marker.querySelector("svg")).not.toBeNull();
+    expect(marker.className).not.toMatch(/(^|\s)border(\s|-hairline|-warning)/);
+    expect(marker.hasAttribute("title")).toBe(false);
+    fireEvent.pointerEnter(marker);
+    expect(document.querySelector('[data-testid="model-drift-tip"]')?.textContent).toBe("Model changed: launched with opus-4.8, now running sonnet-5");
+    fireEvent.pointerLeave(marker);
+    expect(document.querySelector('[data-testid="model-drift-tip"]')).toBeNull();
+    // Its click opens the session, whose Where it runs says it in full.
+    fireEvent.click(marker);
+    expect(opened).toEqual([row.id]);
   });
 
   it("no drift marker when launch == running or launch-only", () => {

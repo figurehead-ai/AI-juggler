@@ -743,8 +743,10 @@ test("model — I-03 drift marker on the rail row", gate("12-model"), async ({ p
   await expectRail(page); // D-25: the list, or its icon column when narrow
   const marker = page.getByTestId("model-drift").first();
   await expect(marker).toBeVisible();
-  await expect(marker).toHaveAttribute("aria-label", "Launched with opus - now running sonnet-5");
+  await expect(marker).toHaveAttribute("aria-label", "Model changed: launched with opus, now running sonnet-5");
+  // 0.5.1 F77: its name is the drawn tip, on hover as on keyboard focus.
   await marker.hover();
+  await expect(page.getByTestId("model-drift-tip")).toBeVisible();
   await page.screenshot({ path: resolve(GALLERY, "12-model/rail-drift-1440x900.png") });
 });
 

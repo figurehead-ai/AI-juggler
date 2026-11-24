@@ -293,3 +293,14 @@ export function IconPin(props: SVGProps<SVGSVGElement>) {
     </svg>
   );
 }
+
+/** 0.5.1 F77: a session's model changed since it started (a chip, the
+ * model's own mark; never Switch account's ⇄). */
+export function IconModelChanged(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...base(props)}>
+      <rect x="7" y="7" width="10" height="10" rx="2" />
+      <path d="M10 3.5V7M14 3.5V7M10 17v3.5M14 17v3.5M3.5 10H7M3.5 14H7M17 10h3.5M17 14h3.5" />
+    </svg>
+  );
+}
