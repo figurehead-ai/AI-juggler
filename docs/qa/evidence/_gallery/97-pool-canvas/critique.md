@@ -1,4 +1,4 @@
-<!-- captures: 6fd8404d3d4a -->
+<!-- captures: 3bd9cf168898 -->
 # 97-pool-canvas: the Pools screen and a pool's canvas
 
 Design critique (D-57, AJ-E2814) against the reference screens: the row menus (77-menus), the rail's order menu, Usage and Processes. The baseline note says what changed on purpose; this says whether it is good.
@@ -152,3 +152,7 @@ Checked side by side with the mock-ups (`d126-rich-ui` running and canvas, calm 
   - "4 need you" sits beside the pool's title.
   - The rail and the page header are pre-calm (app-wide calm is 0.5).
 - **Known, not fixed:** at 1024 × 700 and 100 %, the bottom-left full card's More button sits under the zoom bar. The 100 % view is centred; panning reaches it.
+
+## 0.5.1
+
+Re-captured on 0.5.1; only the shared chrome changed in these screens. The rail's head now starts past the traffic lights, its rows hold a fixed dot column (tools on hover), cards and panels separate by tone instead of a border, a chosen item is a fill, and the top bar's bottom line is calmer. The diagram, the new-pool wizard and the pools list are unchanged.

@@ -1,4 +1,4 @@
-<!-- captures: 6ad27ebd205e -->
+<!-- captures: ef6da30c81b6 -->
 # 60-cloud-backup: Cloud backup in Settings: the panel, uploading, the list of backups to restore, and the restore check
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design fixes.
@@ -12,3 +12,7 @@ The Figurehead & Cloud card and its inner Cloud backup box stand off both canvas
 - list, panel, uploading (dark/light): the first line of the Diagnostics text above is sliced through at the top edge.
 - uploading-1280x800-dark/light: no progress indicator while backing up, and Back up now still looks clickable.
 - restore-preview-1280x800-dark/light: Restore, which replaces this Mac's data, is a violet-edged outline hardly stronger than Cancel.
+
+## 0.5.1
+
+Re-captured on 0.5.1; only the shared chrome changed in these screens. The rail's head now starts past the traffic lights, its rows hold a fixed dot column (tools on hover), cards and panels separate by tone instead of a border, a chosen item is a fill, and the top bar's bottom line is calmer. Cloud backup content is unchanged; counts read apps instead of accounts.

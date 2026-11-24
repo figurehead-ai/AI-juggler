@@ -1,4 +1,4 @@
-<!-- captures: 0f6596e454d2 -->
+<!-- captures: 4a2bad7dfffb -->
 # 85-diagnostics: Settings › Advanced, previewing the diagnostics zip and the line after saving it
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design passes.
@@ -12,3 +12,7 @@ In preview the zip's contents sit in a nested panel ("What the zip holds") with 
 - preview-1280x800-dark.png, preview-1280x800-light.png: "Backend response times" sits below the Save… row instead of above the actions.
 - saved-1280x800-dark.png, saved-1280x800-light.png: the saved line has no success mark and reads as another hint.
 - All four: the Size limit label is cut at the top edge.
+
+## 0.5.1
+
+Re-captured on 0.5.1; only the shared chrome changed in these screens. The rail's head now starts past the traffic lights, its rows hold a fixed dot column (tools on hover), cards and panels separate by tone instead of a border, a chosen item is a fill, and the top bar's bottom line is calmer. Diagnostics content is unchanged; the settings list gained AI and Models.

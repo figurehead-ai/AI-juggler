@@ -1,4 +1,4 @@
-<!-- captures: 1eb88ed0dd26 -->
+<!-- captures: e59f001d1915 -->
 # 89-limit-ready: "Personal hit its limit", continue now on a ready account or wait for the reset
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design passes.
@@ -11,3 +11,7 @@ The dialog is two option cards: the recommended "Continue now in Claude Code · 
 
 - limit-ready-light.png: the green "Ready to continue…" line is small and low-contrast on white.
 - limit-ready-dark.png, limit-ready-light.png: "Switching is in beta (… · Beta)" repeats beta.
+
+## 0.5.1
+
+Re-captured on 0.5.1; only the shared chrome changed in these screens. The rail's head now starts past the traffic lights, its rows hold a fixed dot column (tools on hover), cards and panels separate by tone instead of a border, a chosen item is a fill, and the top bar's bottom line is calmer. The limit dialog is unchanged; it names Claude Code CLI · Work Max.

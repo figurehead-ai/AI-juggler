@@ -1,4 +1,4 @@
-<!-- captures: 9ec1850dcc48 -->
+<!-- captures: b6e78374eb9a -->
 # 63-consent: the "Usage statistics changed" dialog asking again over Home
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design fixes.
@@ -10,3 +10,7 @@ The dialog reads well in both themes and at both sizes. The three choices are fu
 ## Weak
 
 - reask-1024x680-dark/light: text fragments of the Runway card show at the dialog's right edge; a scrim or a narrower dialog would hide them.
+
+## 0.5.1
+
+Re-captured on 0.5.1; only the shared chrome changed in these screens. The rail's head now starts past the traffic lights, its rows hold a fixed dot column (tools on hover), cards and panels separate by tone instead of a border, a chosen item is a fill, and the top bar's bottom line is calmer. The usage-statistics dialog is unchanged; Home behind it is the new feed.

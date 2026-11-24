@@ -1,4 +1,4 @@
-<!-- captures: ab40c8ac4a55 -->
+<!-- captures: 628f4650bb88 -->
 # 72-tool-view: a tool's own page (its Overview, and its Apps, Sessions, Projects and Pools tabs), and the tool's header menu
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design passes.
@@ -15,3 +15,7 @@ The overview captures land on Settings › Accounts rather than a page of the to
 
 - overview-*: the runway bars use half the card's width; the App names there have no App mark.
 - header-menu-*: not re-rendered; the open menu covers the "Add account" button.
+
+## 0.5.1
+
+Re-captured on 0.5.1; only the shared chrome changed in these screens. The rail's head now starts past the traffic lights, its rows hold a fixed dot column (tools on hover), cards and panels separate by tone instead of a border, a chosen item is a fill, and the top bar's bottom line is calmer. The tool page keeps its content; runway bars use state colours and the header counts working and open sessions.

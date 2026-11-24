@@ -1,4 +1,4 @@
-<!-- captures: 4863e5d5aea6 -->
+<!-- captures: 040d0bb51976 -->
 # 65-settings-sections: every Settings section (General, Desktop apps, Accounts, Sessions, Switching, Agent access, Notifications, Privacy, Your Macs, Advanced)
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design fixes.
@@ -12,3 +12,7 @@ The re-rendered sections share one clear structure: a bold group heading over a 
 - accounts-1280x800-dark/light: renewal dates are unstyled native date inputs; in dark their calendar icon nearly disappears.
 - macs-1280x800-dark/light: the card and its footnote repeat the same sentence.
 - cleanup, fleet, packs, renewal (dark and light): not re-rendered; they show an older Settings layout that no longer matches the other sections.
+
+## 0.5.1
+
+Re-captured on 0.5.1; only the shared chrome changed in these screens. The rail's head now starts past the traffic lights, its rows hold a fixed dot column (tools on hover), cards and panels separate by tone instead of a border, a chosen item is a fill, and the top bar's bottom line is calmer. Settings sections keep their content; accounts and profiles now read apps, and the list gained AI and Models.
