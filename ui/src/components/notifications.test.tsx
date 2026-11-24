@@ -322,7 +322,7 @@ describe("your menu", () => {
     expect(labels.slice(0, 2)).toEqual(["Cloud backup", "My Macs"]);
     expect(labels.at(-1)).toBe("Disconnect Figurehead…");
     expect(labels).not.toContain("Connect a Figurehead account (optional)");
-    expect(shortEmail("faruk@example.com")).toBe("f…@example.com");
+    expect(shortEmail("alex@example.com")).toBe("a…@example.com");
   });
 
   it("Appearance changes the theme in place; Settings opens Settings", async () => {
