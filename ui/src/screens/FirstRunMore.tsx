@@ -2,14 +2,16 @@
  * AJ-E3306 — first run's found step past the setups found (the PF1
  * persona walk on rc26): the names setups come in by, each tool installed
  * with nothing set up offered as a fresh App in its own group (pass2/03 §5
- * rule 3), and the desktop apps' profiles (D-84: offered, never added by
- * themselves), and "Where we looked" (F33).
+ * rule 3), Add an app's desktop profiles (D-84: offered, never added by
+ * themselves), "Where we looked" (F33) and the choice of how they come
+ * in (ADR-0018).
  */
 import { useMemo, useState, type JSX } from "react";
-import { Disclosure } from "../components/controls";
+import { Disclosure, Radio } from "../components/controls";
+import { SELECTED_CARD } from "../components/controls/selected";
 import { OfferRow, usePlaceOffers } from "../components/PlaceOffers";
 import { listWords } from "../lib/account-terms";
-import { providerDisplayName, toolFound, versionNotAsked, versionUnchecked } from "../lib/providers";
+import { providerDisplayName, sameAsWords, toolFound, versionNotAsked, versionUnchecked } from "../lib/providers";
 import { toolSpec } from "../lib/tools";
 import { signedIn } from "../lib/bridge";
 import { createAccount } from "../lib/ipc/accounts";
@@ -17,7 +19,7 @@ import type { ProbeRowData, ProviderInstallData, ScanReportData } from "../lib/i
 import type { DiscoveredInfo } from "../types/generated/DiscoveredInfo";
 import { colourAt, freeLabel } from "./FreshAccountStep";
 import { FreshRow, type RowProgress } from "./FirstRunFoundRow";
-import type { Signin } from "./FirstRun";
+import type { Placement, Signin } from "./FirstRun";
 
 /** A group's tool, in its header: its version, or that it couldn't be
  * read (0.0.11) or wasn't asked (the bridge), never "not installed". */
@@ -159,8 +161,9 @@ export function desktopNoneWords(apps: string[]): string {
 export function DesktopApps({ only = null }: { only?: string | null } = {}): JSX.Element | null {
   const desktop = usePlaceOffers(only);
   const offers = desktop.offers ?? [];
-  // AJ-E1545: no "Desktop apps" section of its own; only profiles seen
-  // open and not added yet are offered, until they join the rows.
+  // AJ-E1545: Add an app's (one tool) only; Your apps shows each profile
+  // as a row in its tool's group (0.5.1 F35). Only profiles seen open and
+  // not added yet are offered.
   if (offers.length === 0) return null;
   return (
     <section className="overflow-hidden rounded-2xl border border-hairline bg-surface" aria-label="Desktop apps" data-testid="first-run-desktop">
@@ -196,6 +199,63 @@ export function WhereWeLooked({ probes }: { probes: ProbeRowData[] }): JSX.Eleme
           </li>
         ))}
       </ul>
+    </Disclosure>
+  );
+}
+
+/** The two ways in; `tools` are the ones that can be used where they
+ * are (ADR-0018), which name what "the same" is the same as. */
+function placements(tools: string[], one: boolean): { id: Placement; title: string; detail: string }[] {
+  return [
+    {
+      id: "in_place",
+      title: one ? "Use it where it is" : "Use them where they are",
+      detail: `Same sign-in, settings and history ${sameAsWords(tools)}. AI Juggler adds nothing of its own to ${one ? "it" : "them"}.`,
+    },
+    {
+      id: "copy",
+      title: one ? "Make a separate copy" : "Make separate copies",
+      detail: one
+        ? "A fresh copy for AI Juggler only; your original stays as it is. The copy needs one sign-in."
+        : "A fresh copy for AI Juggler only; your originals stay as they are. Each copy needs one sign-in.",
+    },
+  ];
+}
+
+/** ADR-0018's choice, under More options (AJ-E1545: "Use them where they
+ * are" is the default, said once in the subtitle). */
+export function PlacementChoice({ tools, one, value, busy, open, onChange }: { tools: string[]; one: boolean; value: Placement; busy: boolean; open?: boolean; onChange: (placement: Placement) => void }): JSX.Element {
+  return (
+    <Disclosure summary={<span className="font-medium">More options</span>} open={open} testId="first-run-more-options">
+      <div role="radiogroup" aria-label="How AI Juggler uses them" className="grid gap-2 sm:grid-cols-2" data-testid="first-run-placement">
+        {placements(tools, one).map((option) => (
+          <label
+            key={option.id}
+            htmlFor={`first-run-placement-${option.id}-radio`}
+            className={"flex cursor-pointer gap-3 rounded-xl border px-4 py-3 " + (value === option.id ? SELECTED_CARD : "border-hairline bg-surface hover:bg-surface-2/60")}
+            data-testid={`first-run-placement-${option.id}`}
+          >
+            <Radio
+              id={`first-run-placement-${option.id}-radio`}
+              name="first-run-placement"
+              value={option.id}
+              aria-labelledby={`first-run-placement-${option.id}-title`}
+              aria-describedby={`first-run-placement-${option.id}-detail`}
+              checked={value === option.id}
+              disabled={busy}
+              onChange={() => onChange(option.id)}
+              className="mt-0.5 shrink-0"
+            />
+            <span className="flex flex-col gap-0.5">
+              <span id={`first-run-placement-${option.id}-title`} className="text-sm font-medium text-ink">
+                {option.title}
+                {option.id === "in_place" && <span className="ml-1.5 text-xs font-normal text-muted">Recommended</span>}
+              </span>
+              <span id={`first-run-placement-${option.id}-detail`} className="text-xs leading-relaxed text-muted">{option.detail}</span>
+            </span>
+          </label>
+        ))}
+      </div>
     </Disclosure>
   );
 }

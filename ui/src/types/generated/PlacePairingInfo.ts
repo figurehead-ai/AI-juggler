@@ -27,4 +27,19 @@ folder: PlaceFolderInfo,
  * Whether the pairing is proof (its running sessions, its records or
  * its app's declared folder) rather than a recalled or guessed one.
  */
-certain: boolean, };
+certain: boolean, 
+/**
+ * 0.5.1 F35: the id of the tool its app runs (`claude-code`), so
+ * "Your apps" puts its row in that tool's group, paired or not.
+ */
+tool: string | null, 
+/**
+ * 0.5.1 F35: the paired folder's full path, as the scan lists it
+ * (`folder.path` is for the words, `~` for the home folder), so its
+ * row is that folder's row exactly, never matched by name.
+ */
+path: string | null, 
+/**
+ * It runs now (the process table says).
+ */
+running: boolean, };

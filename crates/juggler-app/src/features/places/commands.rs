@@ -181,6 +181,15 @@ pub struct PlacePairingInfo {
     /// Whether the pairing is proof (its running sessions, its records or
     /// its app's declared folder) rather than a recalled or guessed one.
     pub certain: bool,
+    /// 0.5.1 F35: the id of the tool its app runs (`claude-code`), so
+    /// "Your apps" puts its row in that tool's group, paired or not.
+    pub tool: Option<String>,
+    /// 0.5.1 F35: the paired folder's full path, as the scan lists it
+    /// (`folder.path` is for the words, `~` for the home folder), so its
+    /// row is that folder's row exactly, never matched by name.
+    pub path: Option<String>,
+    /// It runs now (the process table says).
+    pub running: bool,
 }
 
 /// AJ-E3203: finding a desktop app's profiles that aren't running.
@@ -539,14 +548,30 @@ pub fn pairings(state: &Arc<AppState>) -> AppResult<Vec<PlacePairingInfo>> {
     let places: Vec<(String, KnownPlace)> = super::with_book(state, |book| {
         book.places
             .iter()
-            .filter(|(_, place)| !place.declined)
+            // An offer whose profile folder is gone is no row (as
+            // `offers` forgets it).
+            .filter(|(_, place)| {
+                !place.declined
+                    && (place.users || place.instance_dir.as_ref().is_none_or(|dir| dir.exists()))
+            })
             .map(|(id, place)| (id.clone(), place.clone()))
             .collect()
     })?;
+    let running = what_runs(state, &HostRegistry::of(&state.registry));
     Ok(places
         .into_iter()
         .map(|(id, place)| {
             let paired = super::link::pairing(state, &id);
+            let tool = state
+                .registry
+                .ids()
+                .into_iter()
+                .find(|harness| {
+                    state.registry.get(harness).is_some_and(|adapter| {
+                        adapter.host_apps().iter().any(|host| host.id == place.app_id)
+                    })
+                })
+                .map(|harness| harness.as_str().to_owned());
             let folder = PlaceFolderInfo::of(state, &id, &super::Linked {
                 folder: paired.as_ref().map(|(folder, _, _)| folder.clone()),
                 by: paired.as_ref().map(|(_, by, _)| *by),
@@ -559,6 +584,9 @@ pub fn pairings(state: &Arc<AppState>) -> AppResult<Vec<PlacePairingInfo>> {
                 added: place.users,
                 certain: paired.as_ref().is_some_and(|(_, _, certain)| *certain),
                 folder,
+                tool,
+                path: paired.map(|(folder, _, _)| folder.to_string_lossy().into_owned()),
+                running: running.contains_key(&id),
                 id,
             }
         })

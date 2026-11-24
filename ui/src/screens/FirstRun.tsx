@@ -32,22 +32,22 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState, type JSX } from "react";
 import { Button } from "../components/primitives";
-import { inPlaceProviders, providerDisplayName, sameAsWords, supportsInPlace, type InPlaceSupport } from "../lib/providers";
+import { inPlaceProviders, providerDisplayName, supportsInPlace, type InPlaceSupport } from "../lib/providers";
 import { firstRunToolIds, primaryToolId, toolSpec } from "../lib/tools";
 import { InstallHow } from "../components/InstallHow";
 import { AccessStep } from "../components/AccessStep";
 import { Check } from "../components/StepCheck";
 import { colourAt, FreshAccountStep, freeLabel } from "./FreshAccountStep";
 import { ProvidersTerms, StepMarks, YOUR_APPS, type Step } from "./FirstRunSteps";
-import { FoundActions, ToolGroup, usePairings } from "./FirstRunToolGroup";
+import { addPaired, bringInProfiles, desktopKey, FoundActions, pairRows, ToolGroup, usePairings } from "./FirstRunToolGroup";
 import { FirstRunFrame } from "./FirstRunFrame";
 import { funnelEvent, funnelStep, reasonCode } from "../lib/funnel";
 import { foundWords, useSetupScan } from "./firstRunScan";
-import { FoundRow } from "./FirstRunFoundRow";
+import { DesktopRow, FoundRow } from "./FirstRunFoundRow";
 import { SigninRow } from "./FirstRunSigninRow";
 import { outcomeWords, plainImportError } from "./firstRunScan";
 import { usePlaceOffers } from "../components/PlaceOffers";
-import { DesktopApps, folderOf, freshKey, FreshGroups, labelOf, setUpFresh, setupNames, useFresh, WhereWeLooked } from "./FirstRunMore";
+import { DesktopApps, folderOf, freshKey, FreshGroups, labelOf, PlacementChoice, setUpFresh, setupNames, useFresh, WhereWeLooked } from "./FirstRunMore";
 
 export { desktopNoneWords, folderOf, labelOf, setupNames } from "./FirstRunMore";
 export { outcomeWords, plainImportError } from "./firstRunScan";
@@ -64,8 +64,7 @@ import type { DiscoveredInfo } from "../types/generated/DiscoveredInfo";
 import type { OsAccessInfo } from "../types/generated/OsAccessInfo";
 import type { SourceInspectInfo } from "../types/generated/SourceInspectInfo";
 import { byteSize } from "../lib/compact";
-import { Disclosure, Radio } from "../components/controls";
-import { SELECTED_CARD } from "../components/controls/selected";
+import { Disclosure } from "../components/controls";
 
 // The sign-in card shows in the step itself (0.4.1: the terminal opened
 // behind this full-window flow); xterm loads only when its terminal shows.
@@ -147,25 +146,6 @@ type ImportState = {
 export type Placement = "in_place" | "copy";
 
 
-/** The two ways in; `tools` are the ones that can be used where they
- * are (ADR-0018), which name what "the same" is the same as. */
-function placements(tools: string[], one: boolean): { id: Placement; title: string; detail: string }[] {
-  return [
-    {
-      id: "in_place",
-      title: one ? "Use it where it is" : "Use them where they are",
-      detail: `Same sign-in, settings and history ${sameAsWords(tools)}. AI Juggler adds nothing of its own to ${one ? "it" : "them"}.`,
-    },
-    {
-      id: "copy",
-      title: one ? "Make a separate copy" : "Make separate copies",
-      detail: one
-        ? "A fresh copy for AI Juggler only; your original stays as it is. The copy needs one sign-in."
-        : "A fresh copy for AI Juggler only; your originals stay as they are. Each copy needs one sign-in.",
-    },
-  ];
-}
-
 function FoundStep({
   report,
   scanError,
@@ -239,15 +219,18 @@ function FoundStep({
     () => Object.fromEntries(installs.map((found) => [found.path, (tools.length > 1 || installs.length === 1) && preselected(found, now)])),
     [installs, now, tools.length],
   );
+  // AJ-E2327's evidence-first pairing: a desktop profile and the folder it
+  // uses are one row (never by name); any other profile its own row in its
+  // tool's group (0.5.1 F35). D-84: a profile is ticked by the user only.
+  const profiles = usePairings(firstRun);
+  const { pairs, alone } = useMemo(() => pairRows(profiles, installs, tools), [profiles, installs, tools]);
   const [overrides, setPicked] = useState<Record<string, boolean>>({});
-  const picked: Record<string, boolean> = { ...defaults, ...overrides };
+  const picked: Record<string, boolean> = { ...defaults, ...Object.fromEntries([...pairs].filter(([, pair]) => !pair.added).map(([path]) => [path, false])), ...overrides };
   const names = useMemo(() => setupNames(installs, taken ?? []), [installs, taken]);
   const nameOf = (row: DiscoveredInfo) => names.get(row.path) ?? labelOf(row);
   const { fresh, freshNames, freshPicked, setFreshPicked } = useFresh(report, tools, taken, names);
   const [progress, setProgress] = useState<Record<string, ImportState>>({});
   const [busy, setBusy] = useState(false);
-  // AJ-E2327's evidence-first pairing: a desktop profile and the folder it uses, one row (never by name).
-  const pairs = usePairings(firstRun);
 
   // ADR-0018: only a tool whose adapter can use a folder where it is
   // offers it — and only when one of its setups is on the list.
@@ -273,7 +256,8 @@ function FoundStep({
   };
   const chosen = installs.filter((found) => picked[found.path] && !found.managed && !isDone(found));
   const freshChosen = fresh.filter((tool) => freshPicked[tool] && progress[freshKey(tool)]?.state !== "done");
-  const runImports = async (rows: DiscoveredInfo[], how: (found: DiscoveredInfo) => Placement = placementOf, freshTools: string[] = []) => {
+  const deskChosen = alone.filter((one) => !one.added && picked[desktopKey(one.id)] && progress[desktopKey(one.id)]?.state !== "done").map((one) => one.id);
+  const runImports = async (rows: DiscoveredInfo[], how: (found: DiscoveredInfo) => Placement = placementOf, freshTools: string[] = [], profileIds: string[] = []) => {
     stopRef.current = false;
     setStopped(false);
     setBusy(true);
@@ -291,6 +275,8 @@ function FoundStep({
       setProgress((current) => ({ ...current, [found.path]: { state: "working", placement: mode } }));
       try {
         const result = await accountImport(found.harness, found.path, nameOf(found), null, found.origin, false, mode === "in_place");
+        // Its desktop profile, on the same row: added as its Add does (D-84: the user's tick).
+        await addPaired(pairs.get(found.path));
         if (result.login === "expired") countLogin(found.harness, "expired");
         if (result.login !== "logged_in") {
           signinsRef.current.set(result.account.id, {
@@ -321,6 +307,9 @@ function FoundStep({
         }
       }
     }
+    const desk = await bringInProfiles(profileIds, stopRef, (key, row) => setProgress((current) => ({ ...current, [key]: row })));
+    failed += desk.failed;
+    wasStopped ||= desk.stopped;
     // The tools with nothing set up, after the setups: each a fresh App in
     // AI Juggler's own folder, its sign-in queued.
     for (const tool of freshTools) {
@@ -349,12 +338,17 @@ function FoundStep({
   };
   const failedRows = installs.filter((found) => progress[found.path]?.state === "failed");
   const failedFresh = fresh.filter((tool) => progress[freshKey(tool)]?.state === "failed");
-  const doneCount = [...installs.map((found) => found.path), ...fresh.map(freshKey)].filter((key) => progress[key]?.state === "done").length;
+  const failedDesk = alone.filter((one) => progress[desktopKey(one.id)]?.state === "failed").map((one) => one.id);
+  const doneCount = [...installs.map((found) => found.path), ...fresh.map(freshKey), ...alone.map((one) => desktopKey(one.id))].filter((key) => progress[key]?.state === "done").length;
   const waiting = chosen.filter((found) => progress[found.path] === undefined);
   const waitingFresh = freshChosen.filter((tool) => progress[freshKey(tool)] === undefined);
+  const waitingDesk = deskChosen.filter((id) => progress[desktopKey(id)] === undefined);
+  const failedCount = failedRows.length + failedFresh.length + failedDesk.length;
+  const waitingCount = waiting.length + waitingFresh.length + waitingDesk.length;
+  const ticked = chosen.length + freshChosen.length + deskChosen.length;
   const alreadyRows = installs.filter((found) => progress[found.path]?.state === "already");
-  const showOutcome = !busy && (failedRows.length > 0 || failedFresh.length > 0 || stopped || sawAlready);
-  const listed = installs.length > 0 || fresh.length > 0;
+  const showOutcome = !busy && (failedCount > 0 || stopped || sawAlready);
+  const listed = installs.length > 0 || fresh.length > 0 || alone.length > 0;
   const continueNow = () => onImported([...signinsRef.current.values()]);
   // The result takes focus (the button the user pressed is gone).
   const continueRef = useRef<HTMLButtonElement | null>(null);
@@ -380,7 +374,7 @@ function FoundStep({
   const yourApps = firstRun;
   const said = foundWords(scanError, installs.length, toolName, kind, placement === "in_place", provider, fresh.map(providerDisplayName));
   // "Nothing is copied" only while it's true: every one used where it is.
-  const words = yourApps && scanError === null && installs.length > 0 ? { heading: YOUR_APPS.heading, lead: placement === "in_place" && copyOnlyTools.length === 0 ? YOUR_APPS.lead : said.lead } : said;
+  const words = yourApps && scanError === null && installs.length + alone.length > 0 ? { heading: YOUR_APPS.heading, lead: placement === "in_place" && copyOnlyTools.length === 0 ? YOUR_APPS.lead : said.lead } : said;
   return (
     <div className="flex flex-col gap-6" data-testid="first-run-found">
       <div className="flex flex-col gap-2">
@@ -416,13 +410,15 @@ function FoundStep({
         <div className="overflow-hidden rounded-2xl border border-hairline bg-surface">
           {(yourApps ? tools : groupsFor(tools).map((group) => group.key)).map((tool) => {
             const rows = installs.filter((row) => (yourApps ? row.harness === tool : groupOf(row) === tool));
-            if (rows.length === 0) return null;
-            const open = rows.filter((row) => !row.managed);
+            // 0.5.1 F35: its desktop profiles with no folder row are rows here too.
+            const own = alone.filter((one) => one.tool === tool);
+            if (rows.length + own.length === 0) return null;
+            const open = [...rows.filter((row) => !row.managed).map((row) => row.path), ...own.filter((one) => !one.added).map((one) => desktopKey(one.id))];
             const group = yourApps ? null : groupsFor(tools).find((one) => one.key === tool);
             const toolId = group?.tool ?? tool;
             return (
-              <ToolGroup key={tool} tool={toolId} title={group?.title} testId={group ? `first-run-group-${group.id}` : undefined} cliTestId={group ? (group.showsInstall ? `first-run-cli-${group.id}` : undefined) : `first-run-cli-${tool}`} count={rows.length} install={yourApps || group?.showsInstall ? installRows[toolId] : undefined} all={open.length > 0 && open.every((row) => picked[row.path])} some={open.some((row) => picked[row.path])} disabled={busy || open.length === 0}
-                onAll={(on) => setPicked((current) => ({ ...current, ...Object.fromEntries(open.map((row) => [row.path, on])) }))}>
+              <ToolGroup key={tool} tool={toolId} title={group?.title} testId={group ? `first-run-group-${group.id}` : undefined} cliTestId={group ? (group.showsInstall ? `first-run-cli-${group.id}` : undefined) : `first-run-cli-${tool}`} count={rows.length + own.length} install={yourApps || group?.showsInstall ? installRows[toolId] : undefined} all={open.length > 0 && open.every((key) => picked[key])} some={open.some((key) => picked[key])} disabled={busy || open.length === 0}
+                onAll={(on) => setPicked((current) => ({ ...current, ...Object.fromEntries(open.map((key) => [key, on])) }))}>
                 {rows.map((found, index) => (
                   <FoundRow
                     key={found.path}
@@ -440,6 +436,10 @@ function FoundStep({
                     onCheck={(checked) => setPicked((current) => ({ ...current, [found.path]: checked }))}
                   />
                 ))}
+                {own.map((one, index) => (
+                  <DesktopRow key={one.id} profile={one} colour={colourAt(installs.length + fresh.length + alone.indexOf(one))} first={rows.length + index === 0} checked={!!picked[desktopKey(one.id)]} disabled={busy}
+                    progress={progress[desktopKey(one.id)]} onCheck={(checked) => setPicked((current) => ({ ...current, [desktopKey(one.id)]: checked }))} />
+                ))}
               </ToolGroup>
             );
           })}
@@ -448,44 +448,10 @@ function FoundStep({
         </div>
       )}
 
-      {/* Until AJ-E2327's pairing joins them into the rows: only profiles seen open, to add.
-          F19 (0.5.1 PL1 D2): one tool's Add an app lists its own app's too. */}
-      {tools.length > 1 ? <DesktopApps /> : tools[0] && toolSpec(tools[0]).host_app ? <DesktopApps only={toolSpec(tools[0]).host_app ?? null} /> : null}
+      {/* Your apps: profiles are rows (F35). F19 (0.5.1 PL1 D2): one tool's Add an app lists its own app's. */}
+      {yourApps ? null : tools.length > 1 ? <DesktopApps /> : tools[0] && toolSpec(tools[0]).host_app ? <DesktopApps only={toolSpec(tools[0]).host_app ?? null} /> : null}
 
-      {installs.length > 0 && !showOutcome && canInPlace && (
-        <Disclosure summary={<span className="font-medium">More options</span>} open={yourApps ? undefined : true} testId="first-run-more-options">
-        <div role="radiogroup" aria-label="How AI Juggler uses them" className="grid gap-2 sm:grid-cols-2" data-testid="first-run-placement">
-          {placements(inPlaceTools, installs.length === 1).map((option) => (
-            <label
-              key={option.id}
-              className={
-                "flex cursor-pointer gap-3 rounded-xl border px-4 py-3 " +
-                (placement === option.id ? SELECTED_CARD : "border-hairline bg-surface hover:bg-surface-2/60")
-              }
-              data-testid={`first-run-placement-${option.id}`}
-            >
-              <Radio
-                name="first-run-placement"
-                value={option.id}
-                aria-labelledby={`first-run-placement-${option.id}-title`}
-                aria-describedby={`first-run-placement-${option.id}-detail`}
-                checked={placement === option.id}
-                disabled={busy}
-                onChange={() => setPlacement(option.id)}
-                className="mt-0.5 shrink-0"
-              />
-              <span className="flex flex-col gap-0.5">
-                <span id={`first-run-placement-${option.id}-title`} className="text-sm font-medium text-ink">
-                  {option.title}
-                  {option.id === "in_place" && <span className="ml-1.5 text-xs font-normal text-muted">Recommended</span>}
-                </span>
-                <span id={`first-run-placement-${option.id}-detail`} className="text-xs leading-relaxed text-muted">{option.detail}</span>
-              </span>
-            </label>
-          ))}
-        </div>
-        </Disclosure>
-      )}
+      {installs.length > 0 && !showOutcome && canInPlace && <PlacementChoice tools={inPlaceTools} one={installs.length === 1} value={placement} busy={busy} open={yourApps ? undefined : true} onChange={setPlacement} />}
       {installs.length > 0 && !showOutcome && canInPlace && copyOnlyTools.length > 0 && (
         <p className="-mt-3 text-xs text-ink-2" data-testid="first-run-copy-only">
           {copyOnlyTools.map(providerDisplayName).join(" and ")} setups always come in as copies.
@@ -502,8 +468,8 @@ function FoundStep({
             {outcomeWords({
               stopped,
               done: doneCount,
-              waiting: waiting.length + waitingFresh.length,
-              failed: failedRows.length + failedFresh.length,
+              waiting: waitingCount,
+              failed: failedCount,
               already: alreadyRows.map(nameOf),
             })}
           </p>
@@ -539,18 +505,18 @@ function FoundStep({
             </ul>
           )}
           <div className="flex flex-wrap items-center justify-end gap-3">
-            {failedRows.length + failedFresh.length > 0 && (
-              <Button onClick={() => void runImports(failedRows, placementOf, failedFresh)} data-testid="first-run-retry">
-                {failedRows.length + failedFresh.length === 1 ? "Try again" : `Try again for ${failedRows.length + failedFresh.length}`}
+            {failedCount > 0 && (
+              <Button onClick={() => void runImports(failedRows, placementOf, failedFresh, failedDesk)} data-testid="first-run-retry">
+                {failedCount === 1 ? "Try again" : `Try again for ${failedCount}`}
               </Button>
             )}
-            {stopped && waiting.length + waitingFresh.length > 0 && (
-              <Button onClick={() => void runImports(waiting, placementOf, waitingFresh)} data-testid="first-run-rest">
+            {stopped && waitingCount > 0 && (
+              <Button onClick={() => void runImports(waiting, placementOf, waitingFresh, waitingDesk)} data-testid="first-run-rest">
                 Bring in the rest
               </Button>
             )}
             <Button variant="primary" onClick={continueNow} data-testid="first-run-continue" ref={continueRef}>
-              {doneCount === 0 ? (failedRows.length + failedFresh.length > 0 || waiting.length + waitingFresh.length > 0 ? "Continue without them" : "Continue") : doneCount === 1 ? "Continue with 1 app" : `Continue with ${doneCount} apps`}
+              {doneCount === 0 ? (failedCount > 0 || waitingCount > 0 ? "Continue without them" : "Continue") : doneCount === 1 ? "Continue with 1 app" : `Continue with ${doneCount} apps`}
             </Button>
           </div>
         </div>
@@ -578,15 +544,15 @@ function FoundStep({
             <span className="hidden text-xs text-muted md:inline">Names and plans can be changed later.</span>
             <Button
               variant="primary"
-              disabled={chosen.length + freshChosen.length === 0 || busy}
-              onClick={() => void runImports(chosen, placementOf, freshChosen)}
+              disabled={ticked === 0 || busy}
+              onClick={() => void runImports(chosen, placementOf, freshChosen, deskChosen)}
               data-testid="first-run-bring-in"
             >
               {busy
                 ? "Bringing them in…"
-                : chosen.length + freshChosen.length === 1
+                : ticked === 1
                   ? "Bring in 1 app"
-                  : `Bring in ${chosen.length + freshChosen.length} apps`}
+                  : `Bring in ${ticked} apps`}
             </Button>
           </div>
         )}

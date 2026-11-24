@@ -2110,7 +2110,6 @@
   "eslint(complexity)": 3,
   "eslint(max-lines)": 1,
   "eslint(no-shadow)": 13,
-  "jsx-a11y(label-has-associated-control)": 1,
   "jsx-a11y(prefer-tag-over-role)": 5,
   "react(set-state-in-effect)": 1,
   "react(use-memo)": 1,

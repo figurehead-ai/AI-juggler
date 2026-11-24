@@ -55,6 +55,17 @@ const SCAN = {
   cancelled: false,
 };
 
+// 0.5.1 F35 (AJ-E1545 R2): two Claude app profiles open: work-a, paired
+// by evidence with its Claude Code folder (one row), and design, whose
+// folder isn't known (a row of its own). Neither is ticked for the user
+// (D-84); both are counted in Bring in N once ticked.
+const PAIRINGS = [
+  { id: "app:claude-app:work-a", label: "Claude app · work-a", added: false, certain: true, tool: "claude-code", path: `${PROFILES}/work-a`, running: true,
+    folder: { tool: "Claude Code", name: "work-a", path: "~/Library/Application Support/ClaudeCodeProfiles/work-a", by: "running", why: null } },
+  { id: "app:claude-app:design", label: "Claude app · design", added: false, certain: false, tool: "claude-code", path: null, running: true,
+    folder: { tool: "Claude Code", name: null, path: null, by: null, why: "None of its sessions is open." } },
+];
+
 /** axe: no critical or serious violation on this step (AJ-E1013 gate). */
 async function axeClean(page: Page, step: string) {
   const results = await new AxeBuilder({ page }).analyze();
@@ -67,7 +78,8 @@ test("first run on a Mac with Claude Code already set up", gate("66-first-run"),
   await page.addInitScript((scan) => {
     const w = window as unknown as Record<string, unknown>;
     w.__AIJ_FIXTURE__ = { accounts: [], profiles: [], sessions: [], projects: [] };
-    w.__AIJ_SCAN_REPORT__ = scan;
+    w.__AIJ_SCAN_REPORT__ = scan.SCAN;
+    w.__AIJ_PLACES__ = { places: [], offers: [], pairings: scan.PAIRINGS };
     // Anything typed into a field (the budget allows none).
     w.__AIJ_TYPED__ = 0;
     document.addEventListener("input", (event) => {
@@ -76,7 +88,7 @@ test("first run on a Mac with Claude Code already set up", gate("66-first-run"),
         (window as unknown as { __AIJ_TYPED__: number }).__AIJ_TYPED__ += 1;
       }
     }, true);
-  }, SCAN);
+  }, { SCAN, PAIRINGS });
   // AJ-E305's first-install budget, kept for the new first run: at most
   // five primary clicks and nothing typed, from opening to Home.
   let primaryClicks = 0;
@@ -90,7 +102,19 @@ test("first run on a Mac with Claude Code already set up", gate("66-first-run"),
   await page.screenshot({ path: `${OUT}/found-1280x800-dark.png` });
   await axeClean(page, "what's here");
   await expect(found).toContainText("You already have 6 Claude Code setups on this computer.");
-  await expect(page.getByTestId("first-run-bring-in")).toHaveText("Bring in 6 apps");
+  // F35: each profile a row in Claude Code's group, Desktop chip, no
+  // separate block; work-a's folder is its row, so 5 are ticked, not 6.
+  for (const name of ["Claude app · work-a", "Claude app · design"]) {
+    const row = found.getByTestId("first-run-row").filter({ hasText: name });
+    await expect(row.getByTestId("first-run-chip").first()).toHaveText("Desktop");
+    await expect(row.getByRole("checkbox")).not.toBeChecked();
+  }
+  await expect(found.getByTestId("first-run-row")).toHaveCount(7);
+  await expect(page.getByTestId("first-run-desktop")).toHaveCount(0);
+  await expect(page.getByTestId("first-run-bring-in")).toHaveText("Bring in 5 apps");
+  await found.getByTestId("first-run-row").filter({ hasText: "Claude app · design" }).getByRole("checkbox").check();
+  await found.getByTestId("first-run-row").filter({ hasText: "Claude app · work-a" }).getByRole("checkbox").check();
+  await expect(page.getByTestId("first-run-bring-in")).toHaveText("Bring in 7 apps");
   const looked = page.getByRole("button", { name: "Where we looked" });
   if (await looked.count()) await looked.click();
   // The page scrolls inside the window, so bring the list into view (the

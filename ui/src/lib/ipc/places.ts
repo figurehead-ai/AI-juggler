@@ -33,6 +33,9 @@ interface PreviewPlaces {
   profiles?: FindProfilesInfo & { beside?: KnownPlaceInfo[] };
   /** D-84: found running, not added. */
   offers?: PlaceOfferInfo[];
+  /** AJ-E2327: each desktop profile paired with its folder (first run's
+   * "Your apps", a gallery's fixture). */
+  pairings?: PlacePairingInfo[];
 }
 
 /** The preview's places: a spec's fixture, else the places desktop's
@@ -212,6 +215,7 @@ export async function placesOfferAnswer(id: string, add: boolean): Promise<Place
     const now = preview();
     now.offers = (now.offers ?? []).filter((offer) => offer.id !== id);
     const found = now.profiles?.beside?.find((place) => place.id === id);
+    if (now.pairings) now.pairings = now.pairings.flatMap((row) => (row.id !== id ? [row] : add ? [{ ...row, added: true }] : []));
     if (add && found) now.places.push({ ...found });
     added = { id, folder: (add ? found?.folder : null) ?? { tool: null, name: null, path: null, by: null, why: null } };
   } else {
@@ -242,6 +246,6 @@ export async function placesChooseFolder(id: string, folder: string): Promise<Pl
  * tool folder evidence says it uses, and whether that's certain; none
  * without a backend. Reads only. */
 export async function placesPairings(): Promise<PlacePairingInfo[]> {
-  if (!hasLiveBackend()) return [];
+  if (!hasLiveBackend()) return [...(preview().pairings ?? [])];
   return call("places_pairings");
 }

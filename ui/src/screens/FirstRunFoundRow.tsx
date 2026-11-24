@@ -9,7 +9,7 @@ import { useId, useState, type JSX } from "react";
 import type { DiscoveredInfo } from "../types/generated/DiscoveredInfo";
 import { Checkbox } from "../components/controls";
 import { Check } from "../components/StepCheck";
-import type { Paired } from "./FirstRunToolGroup";
+import type { DesktopProfile, Paired } from "./FirstRunToolGroup";
 import { chooseAppFolder } from "../lib/choose-app-folder";
 import { fieldRows, mayHaveExpired, rowConfidence, sourceWords } from "./first-run-confidence";
 
@@ -173,6 +173,62 @@ export function FoundRow({
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+/** AJ-E1545 R2 (0.5.1 F35): a desktop profile with no folder row of its
+ * own on the list (none found yet, or its folder is in AI Juggler
+ * already), a row in its tool's group like the rest: its tick (never
+ * ticked for the user: D-84), its name, the Desktop chip, whether it's
+ * open, and the folder its sessions use when evidence names one. */
+export function DesktopRow({
+  profile,
+  colour,
+  first,
+  checked,
+  disabled,
+  progress,
+  onCheck,
+}: {
+  profile: DesktopProfile;
+  colour: string;
+  first: boolean;
+  checked: boolean;
+  disabled: boolean;
+  progress: RowProgress;
+  onCheck: (checked: boolean) => void;
+}): JSX.Element {
+  const id = `first-run-desktop-${profile.id}`;
+  const settled = profile.added && progress === undefined;
+  return (
+    <div className={(first ? "" : "border-t border-hairline/60 ") + (settled ? "opacity-60" : "hover:bg-surface-2/60")} data-testid="first-run-row" data-desktop={profile.id}>
+      <label htmlFor={id} className={"flex min-w-0 items-center gap-4 py-3 pl-5 pr-3 " + (settled ? "" : "cursor-pointer")}>
+        <Checkbox id={id} checked={checked} disabled={settled || disabled} onChange={(event) => onCheck(event.target.checked)} className="shrink-0" />
+        <span aria-hidden="true" className="size-2.5 shrink-0 rounded-full" style={{ background: colour }} />
+        <span className="flex min-w-0 flex-1 flex-col">
+          <span className="flex min-w-0 items-center gap-2">
+            <span className="truncate text-section font-medium text-ink">{profile.title}</span>
+            <span className="shrink-0 rounded-md bg-surface-3 px-1.5 text-label text-ink-2" data-testid="first-run-chip">Desktop</span>
+          </span>
+          <span className="truncate text-meta text-muted" data-testid="first-run-status">
+            <span className={profile.running ? "text-live" : ""}>{profile.running ? "Open now" : "Not open now"}</span>
+            {profile.folderName ? ` · its sessions' folder: ${profile.folderName}` : ""}
+            {profile.folderName && !profile.certain && <PairingAsk paired={profile} />}
+          </span>
+        </span>
+        <span className="flex w-32 shrink-0 items-center justify-end gap-1.5 text-xs">
+          {progress?.state === "working" ? (
+            <span className="text-muted">Bringing in…</span>
+          ) : progress?.state === "done" ? (
+            <span className="flex items-center gap-1.5 text-success"><Check />Brought in</span>
+          ) : progress?.state === "failed" ? (
+            <span className="text-danger" title={progress.error}>Couldn't bring in</span>
+          ) : settled ? (
+            <span className="text-muted">Already in AI Juggler</span>
+          ) : null}
+        </span>
+      </label>
     </div>
   );
 }

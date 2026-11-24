@@ -391,6 +391,38 @@ fn pairings_pair_each_profile_by_evidence_and_add_nothing() {
     );
 }
 
+/// 0.5.1 F35: "Your apps" puts each profile's row in its tool's group and
+/// joins it with its folder's row by the folder's full path, as the scan
+/// lists it: the pairing says the tool's id and that path (its `folder`
+/// is for the words: the tool's name, `~` for the home folder), and a
+/// profile with no folder found still names its tool.
+#[test]
+fn pairings_name_the_tool_and_the_folder_as_the_scan_lists_it() {
+    let mac = Mac::new(&["team-a"], |home| running(home, "team-a", 100));
+    let team = mac.offer("team-a");
+    let solo = mac.offer("solo");
+    let all = commands::pairings(&mac.state).unwrap();
+    let of = |id: &str| all.iter().find(|one| one.id == id).unwrap().clone();
+    assert_eq!(of(&team).tool.as_deref(), Some("claude-code"));
+    assert_eq!(
+        of(&team).path.as_deref(),
+        Some(mac.folder("team-a").to_string_lossy().as_ref())
+    );
+    assert_eq!(of(&solo).tool.as_deref(), Some("claude-code"));
+    assert_eq!(of(&solo).path, None, "no folder found: none said");
+    assert!(of(&team).running && !of(&solo).running);
+}
+
+/// 0.5.1 F35: a profile whose folder is gone is no row (as an offer).
+#[test]
+fn pairings_leave_out_an_offer_whose_profile_folder_is_gone() {
+    let mac = Mac::new(&["team-a"], |_| Vec::new());
+    let gone = mac.offer("gone");
+    std::fs::remove_dir_all(mac.profile("gone")).unwrap();
+    let all = commands::pairings(&mac.state).unwrap();
+    assert!(all.iter().all(|one| one.id != gone));
+}
+
 /// 0.5.1 F2: in "Your apps" a profile not yet added takes "Choose its
 /// folder…" too. The pick is checked as an App's is, kept with the offer
 /// (nothing added, brought in or linked: D-84), pairs it for sure, and
