@@ -53,9 +53,40 @@ async function seed(page: Page, theme: "dark" | "light") {
   await page.setViewportSize({ width: 1280, height: 800 });
 }
 
-/** Settles (two frames and a quiet moment), then reads and resets the count. */
-async function shifts(page: Page): Promise<{ cls: number; shifts: number; worst: string | null }> {
+/** 0.5.1 F54: waits until the page has settled, never for a fixed time
+ * alone: no part still loading (`data-loading-parts`), and the shift count
+ * and every part's place unchanged across several checks (AJ-E2316's
+ * stillness wait, as the rail's captures; F47's for the Welcome). Every
+ * shift from the first paint on still counts: on a loaded machine a fixed
+ * 800 ms read the count while Home was still arriving (or reloaded before
+ * the first visit had kept its shapes), so it raced the load instead of
+ * measuring it. */
+async function settled(page: Page): Promise<void> {
   await page.waitForTimeout(800);
+  let last = "";
+  await expect
+    .poll(
+      async () => {
+        const now = await page.evaluate(() => {
+          const store = (window as unknown as { __AIJ_SHIFTS__: { shifts: number } }).__AIJ_SHIFTS__;
+          const parts = Array.from(document.querySelectorAll<HTMLElement>("[data-testid]")).map((el) => {
+            const box = el.getBoundingClientRect();
+            return `${el.dataset.testid}:${Math.round(box.top)}:${Math.round(box.left)}:${Math.round(box.height)}`;
+          });
+          return `${document.documentElement.hasAttribute("data-loading-parts")}|${store.shifts}|${parts.join(",")}`;
+        });
+        const same = now === last && now.startsWith("false|");
+        last = now;
+        return same;
+      },
+      { intervals: [200, 250, 250, 300, 400, 500], timeout: 20_000 },
+    )
+    .toBe(true);
+}
+
+/** Settles (see `settled`, then two frames), then reads and resets the count. */
+async function shifts(page: Page): Promise<{ cls: number; shifts: number; worst: string | null }> {
+  await settled(page);
   await page.evaluate(() => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))));
   return page.evaluate(() => {
     const store = (window as unknown as { __AIJ_SHIFTS__: { cls: number; shifts: number; worst: string | null; worstValue: number } }).__AIJ_SHIFTS__;
