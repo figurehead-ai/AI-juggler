@@ -1318,8 +1318,12 @@ for (const theme of ["dark", "light"] as const) {
     await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/");
-    // AJ-E1022: first run's folder step (picker → check → copy).
-    await page.getByRole("button", { name: "Import from another folder…" }).click();
+    // AJ-E1022: first run's folder step (picker → check → copy), in the
+    // setup wizard (AJ-E1545): the Welcome's Get started, then Your apps'
+    // Add from another folder… in the wizard's foot (0.5.1 F47).
+    await page.getByTestId("welcome-get-started").click();
+    await expect(page.getByTestId("setup-wizard")).toHaveAttribute("data-step", "apps");
+    await page.getByRole("button", { name: "Add from another folder…" }).click();
     const panel = page.getByTestId("first-run-folder-check");
     await expect(panel).toBeVisible();
     await panel.getByText("What's in it").click();
