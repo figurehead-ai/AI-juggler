@@ -139,12 +139,14 @@ export function HomeFeedFilters({ filters, onChange, facets, toReview, onReviewA
               Include my actions
             </MenuItem>
             {/* AJ-E1548 #19: each "mark all" says what it clears. */}
-            <MenuItem onClick={onReadAll} testId="feed-read-all">
+            {/* A mark-all is done once chosen: the menu closes (it stayed
+                open saying "Mark all 3 reviewed" over its own toast). */}
+            <MenuItem onClick={() => { onReadAll(); setMenu(null); }} testId="feed-read-all">
               <span data-testid="feed-read-all-label">Mark all read</span>
               <MarkHint>{MARK_HINTS.read}</MarkHint>
             </MenuItem>
             {chip === "finished" && (
-              <MenuItem disabled={toReview === 0} onClick={onReviewAll} testId="feed-review-all">
+              <MenuItem disabled={toReview === 0} onClick={() => { onReviewAll(); setMenu(null); }} testId="feed-review-all">
                 <span data-testid="feed-review-all-label">{toReview === null ? "Mark all reviewed" : toReview > 0 ? `Mark all ${toReview} reviewed` : "Nothing to review"}</span>
                 {toReview !== 0 && <MarkHint>{MARK_HINTS.reviewed}</MarkHint>}
               </MenuItem>

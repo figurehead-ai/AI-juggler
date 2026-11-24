@@ -110,7 +110,9 @@ const HOME_CARDS: readonly HomeCard[] = [
           className="flex items-center gap-2.5 rounded-lg border border-warning/25 bg-warning-soft px-4 py-3 text-meta text-ink"
         >
           <span aria-hidden>⚠</span>
-          Process tracking degraded — cleanup is read-only until restart.
+          {/* The Processes banner's words (0.5.1 critique: "degraded" and
+              "read-only" were ours, and "until restart" didn't say whose). */}
+          AI Juggler can't record what it starts right now, so Clean up can't stop anything until AI Juggler restarts.
         </div>
       ),
   },

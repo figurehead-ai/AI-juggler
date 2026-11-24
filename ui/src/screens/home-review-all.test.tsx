@@ -115,6 +115,9 @@ describe("Mark all reviewed counts every one (F-K2-7a)", () => {
     await waitFor(async () => expect((await reviewAll()).textContent).toContain("Mark all 1000 reviewed"));
     await act(async () => fireEvent.click(screen.getByTestId("feed-review-all")));
     expect(marked).toHaveLength(1);
+    // 0.5.1 critique: done once chosen, the menu closes (it stayed open
+    // over its own toast, still offering "Mark all 3 reviewed").
+    expect(screen.queryByTestId("feed-menu")).toBeNull();
     expect(marked[0]).toMatchObject({ which: "to_review" });
     await waitFor(() => expect(toastEntries().map((toast) => toast.options.message)).toContain("Marked 1000 reviewed."));
     await act(async () => undoToast("reviewed:all"));
