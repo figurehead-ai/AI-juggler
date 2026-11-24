@@ -122,9 +122,8 @@ export function HomeLoading() {
       slow={slow}
       what="Home"
       skeleton={
-        <div
+        <output
           ref={measure}
-          role="status"
           aria-label="Loading Home"
           aria-busy="true"
           className={"mx-auto flex w-full max-w-content flex-col gap-4 motion-safe:animate-pulse " + (stacked ? "pb-10" : "h-full min-h-0")}
@@ -150,7 +149,7 @@ export function HomeLoading() {
               </div>
             </div>
           )}
-        </div>
+        </output>
       }
       empty={null}
       // never asked for: the shell's banner has the Retry (see above)

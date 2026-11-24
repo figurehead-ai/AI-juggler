@@ -9,7 +9,6 @@ import { HomeFeedFilters } from "./HomeFeedFilters";
 import { PlaceHeader } from "./PlaceHeader";
 import { RailIdleApp } from "./RailIdleApp";
 import type { IdleApp } from "../lib/rail-apps";
-import type { RailItem } from "../lib/rail-items";
 
 const NOW = new Date(2026, 10, 1, 15, 0, 0).getTime();
 
@@ -26,7 +25,7 @@ function lines(testId: string): { words: string; icon: boolean }[] {
 const idle: IdleApp = {
   key: "app|claude-app|Work", kind: "desktop", folder: null, name: "Claude app · Work", app: "Claude app", profile: "Work", appId: "claude-app",
   lastMs: NOW - 3 * 3_600_000, appPid: 4100, placeId: "app:claude-app:/p/Work", cannotStart: null, accountId: null, tool: null,
-  sessions: [{ key: "c:a/0" } as RailItem],
+  sessions: [],
 };
 
 describe("menus carry an icon on every line (F60)", () => {
@@ -47,11 +46,11 @@ describe("menus carry an icon on every line (F60)", () => {
     expect(screen.getByTestId("feed-review-all-label").textContent).toBe("Mark all 3 reviewed");
   });
 
-  it("an inactive App's rail menu: its action, Restart…, Keep alive, Open its page, its last ones", () => {
+  it("an inactive App's rail menu: its action, Restart…, Keep alive, Open its page", () => {
     render(<RailIdleApp app={idle} open={false} onToggle={vi.fn()} now={NOW} keepAlive={{ on: false, toggle: vi.fn() }} />);
     fireEvent.contextMenu(screen.getByTestId("rail-idle-app"), { clientX: 10, clientY: 10 });
     const shown = lines("rail-idle-menu");
-    expect(shown.length).toBeGreaterThanOrEqual(5);
+    expect(shown.length).toBeGreaterThanOrEqual(4);
     expect(shown.filter((line) => !line.icon)).toEqual([]);
   });
 

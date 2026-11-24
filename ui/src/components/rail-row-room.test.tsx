@@ -18,7 +18,7 @@ function desktop(status: InstanceInfo["status"]): InstanceInfo {
     child_count: null, subtask_count: null, git_branch: "main", git_dirty_count: null, needs_attention: status === "failed" ? "failed" : null, attention: null,
     started_at_ms: NOW - 60_000, last_activity_ms: NOW - 30_000, machine_id: "this-mac", cwd: "/w/app", kind: "desktop", isolation_label: null,
     project_id: null, conversation_id: null, title: "Rename the photo exports",
-  } as InstanceInfo;
+  };
 }
 
 afterEach(cleanup);

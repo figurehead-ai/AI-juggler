@@ -49,6 +49,6 @@ describe("a task card's place line (F63)", () => {
     const who = screen.getByTestId("task-card-who");
     expect(who.textContent).toBe("Builder · Claude Code CLI · Personal");
     expect(screen.getByTestId("task-card-place").textContent).not.toContain("·Builder");
-    expect(screen.getByTestId("task-card-place").textContent!.startsWith("·")).toBe(false);
+    expect(screen.getByTestId("task-card-place").textContent.startsWith("·")).toBe(false);
   });
 });

@@ -375,15 +375,10 @@ export function menuPoint(event: MouseEvent<HTMLElement>): MenuAt {
 }
 
 /** A menu row's insides: its icon, its words, and a hint at the end (a
- * count, a time, a shortcut). Menus carry icons; this keeps them alike.
- * `note`: a muted line under the words (what it does); `tick`: a switch's
- * ✓ at the end, its room kept while off; `labelTestId`: the words' own. */
+ * count, a time, a shortcut); `note`, a muted line under the words;
+ * `tick`, a switch's ✓ (its room kept while off). Menus carry icons. */
 export function MenuLine({ icon: Icon, label, hint, danger, note, tick, labelTestId }: { icon: (props: SVGProps<SVGSVGElement>) => JSX.Element; label: string; hint?: string; danger?: boolean; note?: string; tick?: boolean; labelTestId?: string }): JSX.Element {
-  const words = (
-    <span data-label data-testid={labelTestId} className={note ? "truncate text-body" : "min-w-0 flex-1 truncate text-body"}>
-      {label}
-    </span>
-  );
+  const words = <span data-label data-testid={labelTestId} className={"truncate text-body " + (note ? "" : "min-w-0 flex-1")}>{label}</span>;
   return (
     <span className={"flex gap-2.5 " + (note ? "items-start" : "items-center")}>
       <Icon width={15} height={15} aria-hidden="true" className={"shrink-0 " + (note ? "mt-0.5 " : "") + (danger ? "text-danger" : "text-muted")} />
@@ -396,11 +391,7 @@ export function MenuLine({ icon: Icon, label, hint, danger, note, tick, labelTes
         words
       )}
       {hint && <span className="shrink-0 text-label text-muted">{hint}</span>}
-      {tick !== undefined && (
-        <span aria-hidden="true" className={"shrink-0 text-accent-hi " + (tick ? "" : "invisible")}>
-          ✓
-        </span>
-      )}
+      {tick !== undefined && <span aria-hidden="true" className={"shrink-0 text-accent-hi " + (tick ? "" : "invisible")}>✓</span>}
     </span>
   );
 }
