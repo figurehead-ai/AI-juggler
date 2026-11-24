@@ -1,4 +1,4 @@
-<!-- captures: 8ba129c0486d -->
+<!-- captures: 9fe65d593bb0 -->
 # 99-keep-alive: Open starts an app that isn't running, and Keep alive (0.3.3)
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at 0.3.3 from its captures.
@@ -34,6 +34,6 @@ Re-taken after D-64 (the rail's App grouping is about apps) and the fix for the 
 
 ## 0.5.1
 
-Re-captured against 0.5.1: Home's Your apps rows, the rail menu with its ticked Keep alive, and the Settings toggles are tonal with soft shadows; the paused app's amber line is words only. Content did not change. The search capture lists one session twice (F87).
+Re-captured against 0.5.1: Home's Your apps rows, the rail menu with its ticked Keep alive, and the Settings toggles are tonal with soft shadows; the paused app's amber line is words only. Content did not change. Then F87 (523a00bb1): session-open-in-* lists the ended session once, under Ended today; Open now's Personal App, there only for that match, is gone.
 
 Nothing broken (checked both themes).

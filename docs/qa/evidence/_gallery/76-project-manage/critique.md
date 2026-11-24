@@ -1,4 +1,4 @@
-<!-- captures: ddaa36df4b06 -->
+<!-- captures: 738a5f60e4b2 -->
 # 76-project-manage: project and session menus, forget, relocate, rename and pins
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design fixes.
@@ -21,6 +21,6 @@ New: keep-apart-1280x800 and keep-apart-made-1280x800, both themes. Before, "Kee
 
 ## 0.5.1
 
-Re-captured against 0.5.1: the project menu, Keep apart dialog and Settings > General use tonal cards and filled radios (F53). The missing-directory notice is still a red fill behind red words and the Keep apart explainer is still dense (F84).
+Re-captured against 0.5.1: the project menu, Keep apart dialog and Settings > General use tonal cards and filled radios (F53). Then F84 (c89a65a5b): relocate-* reads "Project folder is missing" in ink on a tone card with the red ✕ mark, no red fill or outline; keep-apart-* shows the lead, the drawing with its three facts and the example, then "What does this mean?" and the buttons: what it doesn't do and the pool it makes moved behind the disclosure (no info box, no closing paragraph).
 
 Nothing broken (checked both themes).
