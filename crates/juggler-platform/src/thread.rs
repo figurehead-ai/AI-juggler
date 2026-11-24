@@ -5,7 +5,8 @@
 //! D-131 (2026-11-19): a thread's disk I/O can be made low-priority too
 //! ([`background_io`]), so a model download (gigabytes written over
 //! minutes) never slows the user's own disk work. macOS has no safe
-//! binding for it, so it is this crate's one audited `unsafe` call.
+//! binding for it, so it is one of this crate's two audited `unsafe`
+//! calls (D-146 added `room`'s private size read).
 
 /// Puts the calling thread on the lowest priority. False where the system
 /// refused (the work then runs as before, only not lowered).
@@ -30,8 +31,9 @@ pub fn background_io() -> bool {
     }
 }
 
-/// D-131's carve-out: the crate's ONLY `unsafe` (a source test,
-/// `the_only_unsafe_is_background_io`, keeps it so).
+/// D-131's carve-out, one of the crate's TWO `unsafe` calls (with
+/// D-146's `room::private_size`; a source test,
+/// `the_only_unsafe_is_background_io_and_private_size`, keeps it so).
 #[cfg(target_os = "macos")]
 #[allow(
     unsafe_code,
@@ -56,8 +58,8 @@ fn background_io_macos() -> bool {
     // `int` back, no pointers, no memory handed over or kept, no callback.
     // The constants are the header's. With IOPOL_SCOPE_THREAD they change
     // or read only the calling thread's own I/O policy; a bad argument is
-    // reported as -1 (EINVAL), never undefined behaviour. Nothing else in
-    // this crate is unsafe.
+    // reported as -1 (EINVAL), never undefined behaviour. The crate's only
+    // other `unsafe` is D-146's `room::private_size`.
     unsafe {
         setiopolicy_np(IOPOL_TYPE_DISK, IOPOL_SCOPE_THREAD, IOPOL_THROTTLE) == 0
             && getiopolicy_np(IOPOL_TYPE_DISK, IOPOL_SCOPE_THREAD) == IOPOL_THROTTLE
@@ -144,11 +146,13 @@ mod tests {
         }
     }
 
-    /// D-131: this crate's only `unsafe` is `background_io_macos`: one
-    /// `unsafe extern` block and one `unsafe` block, under its one
-    /// `allow(unsafe_code)`, in this file.
+    /// D-131 and D-146: this crate's only `unsafe` is exactly two calls:
+    /// `background_io_macos` (`setiopolicy_np`: one `unsafe extern` block
+    /// and one `unsafe` block, under one `allow(unsafe_code)`, here) and
+    /// `room::private_size` (`getattrlist`: one `unsafe` block under one
+    /// `allow(unsafe_code)`). A third needs a recorded decision.
     #[test]
-    fn the_only_unsafe_is_background_io() {
+    fn the_only_unsafe_is_background_io_and_private_size() {
         fn rust_files(dir: &std::path::Path, out: &mut Vec<std::path::PathBuf>) {
             for entry in std::fs::read_dir(dir).unwrap() {
                 let path = entry.unwrap().path();
@@ -162,7 +166,7 @@ mod tests {
         let src = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src");
         let mut files = Vec::new();
         rust_files(&src, &mut files);
-        let found: Vec<(String, (usize, usize))> = files
+        let mut found: Vec<(String, (usize, usize))> = files
             .iter()
             .map(|file| {
                 let text = std::fs::read_to_string(file).unwrap();
@@ -173,9 +177,13 @@ mod tests {
             })
             .filter(|(_, counts)| *counts != (0, 0))
             .collect();
+        found.sort();
         assert_eq!(
             found,
-            [("thread.rs".to_owned(), (2, 1))],
+            [
+                ("room.rs".to_owned(), (1, 1)),
+                ("thread.rs".to_owned(), (2, 1))
+            ],
             "a new `{}` needs a recorded decision",
             ["un", "safe"].concat()
         );

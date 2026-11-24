@@ -8,11 +8,16 @@ license.workspace = true
 repository.workspace = true
 
 # The workspace lint baseline, restated with ONE change: `unsafe_code` is
-# "deny" here rather than "forbid", because D-131 (2026-11-19) approved one
-# audited carve-out in this crate: `thread::background_io`, the single
-# `setiopolicy_np` call (macOS low-priority disk I/O for model downloads),
-# with its `#[allow(unsafe_code, reason)]`, its SAFETY note and its test.
-# Nothing else here is unsafe: every other seam is built on safe bindings.
+# "deny" here rather than "forbid", because two audited carve-outs are
+# approved in this crate, each with its `#[allow(unsafe_code, reason)]`,
+# its SAFETY note and its test: D-131 (2026-11-19) `thread::background_io`,
+# the single `setiopolicy_np` call (macOS low-priority disk I/O for model
+# downloads), and D-146 (2026-11-23) `room::private_size`, the single
+# read-only `getattrlist(ATTR_CMNEXT_PRIVATESIZE)` call (what deleting a
+# move backup frees on APFS, through nix's re-export of libc's raw FFI
+# types; no new crate). `the_only_unsafe_is_background_io_and_private_size`
+# fails on a third. Nothing else here is unsafe: every other seam is built
+# on safe bindings.
 # Where a platform needs more `unsafe` (a Windows named pipe's client
 # identity, an owner-only ACL), that platform says "not available on this
 # system yet" until a vetted wrapper crate or another recorded decision.
@@ -86,7 +91,7 @@ nix = { workspace = true, features = ["user", "fs", "signal", "socket"] }
 
 [dev-dependencies]
 tempfile = { workspace = true }
-# D-131 (the review's I1): the single-`unsafe` test counts Rust tokens, not
+# D-131 (the review's I1): the `unsafe` count test counts Rust tokens, not
 # text. Already in the tree (serde_derive, tauri's macros).
 proc-macro2 = "1.0.107"
 tokio = { version = "1.53.3", default-features = false, features = ["net", "rt", "macros", "io-util", "time"] }
