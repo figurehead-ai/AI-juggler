@@ -46,7 +46,7 @@ export function FoundOnThisMac({ offers: { offers, answer, note }, held }: { off
   const shown = (offers ?? []).filter((offer) => !held.some((one) => one.id === offer.id));
   if (shown.length === 0) {
     return (
-      <PaneSection id="found" title="Add apps">
+      <PaneSection id="found" title="Add apps" footer="AI Juggler adds an app only when you say so, a removed one too.">
         <FindAppsRow />
       </PaneSection>
     );

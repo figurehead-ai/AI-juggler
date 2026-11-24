@@ -46,6 +46,7 @@ import { foundWords, useSetupScan } from "./firstRunScan";
 import { FoundRow } from "./FirstRunFoundRow";
 import { SigninRow } from "./FirstRunSigninRow";
 import { outcomeWords, plainImportError } from "./firstRunScan";
+import { usePlaceOffers } from "../components/PlaceOffers";
 import { DesktopApps, folderOf, freshKey, FreshGroups, labelOf, setUpFresh, setupNames, useFresh } from "./FirstRunMore";
 
 export { desktopNoneWords, folderOf, labelOf, setupNames } from "./FirstRunMore";
@@ -130,6 +131,10 @@ export function preselected(found: DiscoveredInfo, nowSecs: number): boolean {
 }
 
 const nowSecs = () => Math.floor(Date.now() / 1000);
+
+/** No app's offers: a tool with no desktop app (offer ids are never
+ * empty-app). */
+const NO_APP = "";
 
 
 type ImportState = {
@@ -445,8 +450,9 @@ function FoundStep({
         </div>
       )}
 
-      {/* Until AJ-E2327's pairing joins them into the rows: only profiles seen open, to add. */}
-      {tools.length > 1 && <DesktopApps />}
+      {/* Until AJ-E2327's pairing joins them into the rows: only profiles seen open, to add.
+          F19 (0.5.1 PL1 D2): one tool's Add an app lists its own app's too. */}
+      {tools.length > 1 ? <DesktopApps /> : tools[0] && toolSpec(tools[0]).host_app ? <DesktopApps only={toolSpec(tools[0]).host_app ?? null} /> : null}
 
       {installs.length > 0 && !showOutcome && canInPlace && (
         <Disclosure summary={<span className="font-medium">More options</span>} open={yourApps ? undefined : true} testId="first-run-more-options">
@@ -1039,8 +1045,13 @@ export function FirstRun({
   }, [leave, embedded]);
 
   // D-25: adding, with nothing new on this Mac to bring in — go straight
-  // to a fresh account rather than show an empty list.
-  const nothingNew = report !== null && !report.installs.some((found) => tools.includes(found.harness) && !found.managed);
+  // to a fresh account rather than show an empty list. F19 (0.5.1 PL1
+  // D2): a profile of the tool's app open and not added (one removed, say)
+  // is something new: the found step offers it, and so does Look again.
+  const hostApp = tools.length === 1 && tools[0] ? (toolSpec(tools[0]).host_app ?? null) : null;
+  const desktop = usePlaceOffers(hostApp ?? NO_APP);
+  const nothingNew =
+    report !== null && desktop.offers !== null && desktop.offers.length === 0 && !report.installs.some((found) => tools.includes(found.harness) && !found.managed);
   const autoFresh = useRef(false);
   useEffect(() => {
     if (mode === "add" && nothingNew && !autoFresh.current) {
@@ -1051,10 +1062,12 @@ export function FirstRun({
   // AJ-E2906: Look again from there scans again; what it finds new is
   // listed on the found step, as in first run.
   const lookedAgain = useRef(false);
+  const reloadOffers = desktop.reload;
   const lookAgain = useCallback(() => {
     lookedAgain.current = true;
+    void reloadOffers();
     scan();
-  }, [scan]);
+  }, [scan, reloadOffers]);
   useEffect(() => {
     if (!lookedAgain.current || report === null) return;
     lookedAgain.current = false;

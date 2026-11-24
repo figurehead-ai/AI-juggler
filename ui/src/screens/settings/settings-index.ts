@@ -29,6 +29,7 @@ export const SETTINGS_INDEX: readonly IndexEntry[] = [
   { pane: "general", anchor: "editor", title: "Open projects in", words: "editor finder vs code cursor zed open folder" },
   { pane: "general", anchor: "about", title: "About & updates", words: "version update channel stable beta nightly go back earlier version release notes check for updates" },
   { pane: "desktop-apps", anchor: "show-from", title: "Show sessions from", words: "desktop apps claude app codex app chatgpt hide app show sessions" },
+  { pane: "desktop-apps", anchor: "found", title: "Add apps", words: "add app find my apps found on this computer running not added profile again removed" },
   { pane: "desktop-apps", anchor: "keep-alive", title: "Your apps", words: "start open keep alive restart profile app relaunch crash" },
   { pane: "desktop-apps", anchor: "last-messages", title: "Last messages", words: "last message preview words read conversations" },
   { pane: "desktop-apps", anchor: "go-to", title: "Going to a session", words: "go to hotkey global key from any app keyboard shortcut bring forward" },

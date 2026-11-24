@@ -154,9 +154,10 @@ export function desktopNoneWords(apps: string[]): string {
 
 /** The desktop apps here (S10, in the words every screen uses) and their
  * profiles seen open but not added, each offered (Add / Not now) as Add
- * apps offers them; nothing when neither. */
-export function DesktopApps(): JSX.Element | null {
-  const desktop = usePlaceOffers();
+ * apps offers them; nothing when neither. `only`: one tool's app (its
+ * host app id), for one tool's Add an app (F19). */
+export function DesktopApps({ only = null }: { only?: string | null } = {}): JSX.Element | null {
+  const desktop = usePlaceOffers(only);
   const offers = desktop.offers ?? [];
   // AJ-E1545: no "Desktop apps" section of its own; only profiles seen
   // open and not added yet are offered, until they join the rows.
