@@ -147,12 +147,16 @@ fn a_disk_without_clones_refuses_the_move_before_anything_is_written() {
         None,
         1,
     );
-    match refused {
-        Err(MoveError::Refused(words)) => {
-            assert!(words.contains("can't make clone backups"), "{words}");
-        }
-        other => panic!("{:?}", other.map(|_| ())),
-    }
+    let words = refused.err().map(|error| match error {
+        MoveError::Refused(words) => words,
+        other => format!("not a refusal: {other}"),
+    });
+    assert!(
+        words
+            .as_deref()
+            .is_some_and(|words| words.contains("can't make clone backups")),
+        "{words:?}"
+    );
     assert!(lab.a.join("p/s.jsonl").is_file(), "nothing moved");
     assert!(!lab.moves.join("1-no-clones").exists(), "no move begun");
 }
