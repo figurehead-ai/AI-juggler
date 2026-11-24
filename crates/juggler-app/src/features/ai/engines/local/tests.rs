@@ -417,12 +417,7 @@ fn a_job_loads_the_model_once_then_generates_with_its_frame_shape_and_sampling()
 #[cfg(target_os = "macos")]
 fn helper_exists(dir: &Path) -> bool {
     let pid = std::fs::read_to_string(dir.join("pid")).unwrap();
-    std::process::Command::new("/bin/kill")
-        .args(["-0", pid.trim()])
-        .stderr(std::process::Stdio::null())
-        .status()
-        .unwrap()
-        .success()
+    juggler_platform::process::alive(pid.trim().parse().unwrap())
 }
 
 /// AJ-E3821 R1: Remove releases the engines before it deletes the file
