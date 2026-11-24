@@ -458,11 +458,11 @@ fn each_backup_and_the_total_say_what_deleting_frees() {
         .find(|m| m.move_id == done.move_id)
         .unwrap();
     let bytes = row.backup_bytes.expect("a kept backup has its size");
-    assert!(bytes > 0, "{row:?}");
-    // Its backups are clones: the size is a ceiling, and said so.
-    assert!(!row.backup_exact, "{row:?}");
+    // D-146: exact, also where its backups are clones (APFS measures what
+    // they alone hold: an untouched clone frees nothing).
+    assert!(row.backup_exact, "{row:?}");
     let total = retention::backups(&lab.state, created + DAY / 2);
-    assert_eq!((total.count, total.bytes, total.exact), (1, bytes, false));
+    assert_eq!((total.count, total.bytes, total.exact), (1, bytes, true));
     assert_eq!(
         (total.old_count, total.old_bytes),
         (0, 0),
@@ -470,6 +470,7 @@ fn each_backup_and_the_total_say_what_deleting_frees() {
     );
     let later = retention::backups(&lab.state, created + DAY);
     assert_eq!((later.old_count, later.old_bytes), (1, bytes));
+    assert_eq!(retention::frees_words(2_500_000_000, true), "2.3 GB");
     assert_eq!(retention::frees_words(2_500_000_000, false), "up to 2.3 GB");
     // Deleted: no size, out of the total.
     retention::delete_backup(&lab.state, &done.move_id).unwrap();
@@ -500,7 +501,11 @@ fn a_nearly_full_disk_offers_once_a_day_naming_what_it_frees_and_clears_nothing(
     );
     let made = offers(&lab);
     assert_eq!(made.len(), 1, "one offer");
-    assert!(made[0].title.contains("free up to"), "{}", made[0].title);
+    assert!(
+        made[0].title.contains("older than a day free ") && !made[0].title.contains("up to"),
+        "exact (D-146): {}",
+        made[0].title
+    );
     assert!(made[0].data.contains("\"moves\""), "{}", made[0].data);
     assert!(!backups(&lab).is_empty(), "an offer, never a clean-up");
     // Once a day.
@@ -539,7 +544,10 @@ fn clearing_old_backups_takes_only_finished_moves_a_day_old_never_during_a_move(
     assert!(!backups(&lab).is_empty());
     drop(running);
     let said = retention::clear_old(&lab.state, created + 2 * DAY).unwrap();
-    assert!(said.starts_with("Cleared 1 backup (up to "), "{said}");
+    assert!(
+        said.starts_with("Cleared 1 backup (") && !said.contains("up to"),
+        "exact (D-146): {said}"
+    );
     assert!(said.contains("can no longer be undone"), "{said}");
     assert!(backups(&lab).is_empty());
     // An interrupted move's backups are never cleared.
