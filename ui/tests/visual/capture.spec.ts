@@ -837,7 +837,7 @@ test("desktop — exited app state", async ({ page }) => {
     .filter({ hasText: /Ended/ }) // AJ-E2104 Req.3
     .click();
   await expect(page.getByTestId("desktop-surface")).toBeVisible();
-  await expect(page.getByTestId("desktop-surface")).toContainText("app exited");
+  await expect(page.getByTestId("desktop-surface")).toContainText("The app exited");
   await page.screenshot({ path: resolve(GALLERY, "13-desktop/panel-exited-1280x800.png") });
 });
 
@@ -851,7 +851,7 @@ test("desktop — crashed app state", async ({ page }) => {
     .filter({ hasText: /Stopped with an error/ }) // AJ-E2104 Req.3
     .click();
   await expect(page.getByTestId("desktop-surface")).toBeVisible();
-  await expect(page.getByTestId("desktop-surface")).toContainText("app crashed");
+  await expect(page.getByTestId("desktop-surface")).toContainText("The app crashed");
   await page.screenshot({ path: resolve(GALLERY, "13-desktop/panel-crashed-1280x800.png") });
 });
 
@@ -1096,7 +1096,7 @@ test("preview — exited instance renders no preview (status only)", async ({ pa
     .filter({ has: page.getByTestId("rail-app-chip") })
     .filter({ hasText: /Ended/ }) // AJ-E2104 Req.3
     .click();
-  await expect(page.getByTestId("desktop-surface")).toContainText("app exited");
+  await expect(page.getByTestId("desktop-surface")).toContainText("The app exited");
   await expect(page.getByTestId("desktop-preview")).toHaveCount(0);
   await page.screenshot({ path: resolve(GALLERY, "15-preview/panel-exited-1280x800.png") });
 });

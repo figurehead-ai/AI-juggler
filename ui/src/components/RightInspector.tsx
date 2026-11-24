@@ -28,6 +28,7 @@ import { IconProjects, IconTerminal } from "./icons";
 import type { AccountInfo } from "../types/generated/AccountInfo";
 import type { FocusOutcomeInfo } from "../types/generated/FocusOutcomeInfo";
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
+import { toolSpec } from "../lib/tools";
 import type { LaunchRecipeInfo } from "../types/generated/LaunchRecipeInfo";
 import type { ProjectInfo } from "../types/generated/ProjectInfo";
 import { SessionTab, useSessionTabs, type SessionTabId } from "../pages/session/session-tabs";
@@ -389,6 +390,17 @@ export type FocusBridge = (sessionId: string) => Promise<FocusOutcomeInfo>;
 const defaultFocusBridge: FocusBridge = async (sessionId) =>
   (await import("../lib/ipc/desktop")).desktopFocus(sessionId);
 
+/** 0.5.1 F81: an ended desktop session, said once: how it ended, and
+ * what the header offers (Resume where its tool can resume, else why
+ * not, and Relaunch). */
+function endedWords(session: InstanceInfo): string {
+  const how = session.status === "failed" ? "The app crashed; its exit details are on the Processes tab." : "The app exited.";
+  const tool = toolSpec(session.provider);
+  return tool.supports.resume
+    ? `${how} Resume, above, picks up the same conversation; Relaunch starts a fresh one.`
+    : `${how} ${tool.display_name} can't resume a conversation from AI Juggler, so Relaunch, above, starts a fresh one.`;
+}
+
 function InstanceOverview(props: PanelProps) {
   // AJ-E414: which focus tier the last Open/Focus attempt achieved —
   // shown verbatim, never overstated. A missing Accessibility grant
@@ -593,13 +605,17 @@ function InstanceOverview(props: PanelProps) {
             per-Provider isolation claim, and window focus as primary. */}
         {isDesktop ? (
           <Card
-            className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-4"
+            // 0.5.1 F81: ended, as tall as what it says (no empty half).
+            className={"flex min-h-0 flex-col gap-3 overflow-y-auto p-4 " + (live ? "flex-1" : "")}
             data-testid="desktop-surface"
           >
             <div className="flex flex-wrap items-center gap-2">
-              <Chip tone={statusTone(session.status).tone}>
-                {statusTone(session.status).label}
-              </Chip>
+              {/* Ended, the header says its state (F81: never twice). */}
+              {live && (
+                <Chip tone={statusTone(session.status).tone}>
+                  {statusTone(session.status).label}
+                </Chip>
+              )}
               <span title="desktop app session" className="inline-flex">
                 <Chip tone="neutral">app</Chip>
               </span>
@@ -611,24 +627,27 @@ function InstanceOverview(props: PanelProps) {
                 <SessionAppLink model={fromInstance(session)} />
                 {project ? ` · ${project.name}` : ""}
               </span>
-              <Button
-                size="sm"
-                variant="secondary"
-                data-testid="desktop-focus"
-                onClick={async () => {
-                  try {
-                    setFocusOutcome(await props.focusBridge(session.id));
-                  } catch (cause) {
-                    setFocusOutcome({
-                      outcome: `Focus failed: ${errorText(cause)}`,
-                      permission_missing: false,
-                      window_title: null,
-                    });
-                  }
-                }}
-              >
-                Open / Focus window
-              </Button>
+              {/* F81: only an app that runs has a window to bring forward. */}
+              {live && (
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  data-testid="desktop-focus"
+                  onClick={async () => {
+                    try {
+                      setFocusOutcome(await props.focusBridge(session.id));
+                    } catch (cause) {
+                      setFocusOutcome({
+                        outcome: `Focus failed: ${errorText(cause)}`,
+                        permission_missing: false,
+                        window_title: null,
+                      });
+                    }
+                  }}
+                >
+                  Open / Focus window
+                </Button>
+              )}
             </div>
             {isDesktop && live && (
               <DesktopPreview
@@ -644,23 +663,26 @@ function InstanceOverview(props: PanelProps) {
                 visible={props.visible}
               />
             )}
-            <div
-              className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-label tabular-nums text-muted"
-              data-testid="desktop-resources"
-            >
-              <span>
-                cpu {session.cpu_pct !== null ? `${Math.round(session.cpu_pct)}%` : "—"} · ram{" "}
-                {session.rss_bytes !== null ? memorySize(session.rss_bytes) : "—"} · children{" "}
-                {session.child_count ?? "—"}
-              </span>
-              <span>
-                {session.tokens
-                  ? `tokens ${(
-                      session.tokens.input + session.tokens.output
-                    ).toLocaleString()} (${session.tokens.input.toLocaleString()} in / ${session.tokens.output.toLocaleString()} out)`
-                  : "No usage recorded yet"}
-              </span>
-            </div>
+            {/* F81: its resources only while it runs. */}
+            {live && (
+              <div
+                className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-label tabular-nums text-muted"
+                data-testid="desktop-resources"
+              >
+                <span>
+                  cpu {session.cpu_pct !== null ? `${Math.round(session.cpu_pct)}%` : "—"} · ram{" "}
+                  {session.rss_bytes !== null ? memorySize(session.rss_bytes) : "—"} · children{" "}
+                  {session.child_count ?? "—"}
+                </span>
+                <span>
+                  {session.tokens
+                    ? `tokens ${(
+                        session.tokens.input + session.tokens.output
+                      ).toLocaleString()} (${session.tokens.input.toLocaleString()} in / ${session.tokens.output.toLocaleString()} out)`
+                    : "No usage recorded yet"}
+                </span>
+              </div>
+            )}
             {session.isolation_label !== null && (
               // 0.5.1 F70: a fact, said as one plain line in the panel's
               // tone (no amber behind words, PAT-COLOR-2; no internal
@@ -717,17 +739,17 @@ function InstanceOverview(props: PanelProps) {
               </Alert>
             )}
             {!live && (
-              <p className="text-label text-muted" data-testid="desktop-state-line">
-                {session.status === "failed"
-                  ? "app crashed · exit details on the Processes tab"
-                  : "app exited · Relaunch, above, starts it again"}
+              <p className="text-meta text-ink-2" data-testid="desktop-state-line">
+                {endedWords(session)}
               </p>
             )}
-            <p className="text-label text-muted">
-              The window is the app's own: AI Juggler follows its process and never draws it here.
-              Focus matches this session's recorded window — a stale title or a collision is
-              reported, never guessed to a wrong window.
-            </p>
+            {live && (
+              <p className="text-label text-muted">
+                The window is the app's own: AI Juggler follows its process and never draws it here.
+                Focus matches this session's recorded window — a stale title or a collision is
+                reported, never guessed to a wrong window.
+              </p>
+            )}
           </Card>
         ) : null}
       </div>

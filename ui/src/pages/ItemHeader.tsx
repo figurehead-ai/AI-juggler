@@ -37,6 +37,7 @@ import { fromInstance, sessionAppName } from "./session/model";
 import { Dot, MacDoor, SessionContinuesDoor, SessionPoolChip, SessionToolChip } from "./session/HeaderDoors";
 import { ProjectChips } from "./project/ProjectChips";
 import { statusTone, toolFacts } from "./item-header-facts";
+import { toolSpec } from "../lib/tools";
 
 function KindIcon({ kind }: { kind: InspectorKind }) {
   const props = { width: 16, height: 16 };
@@ -187,7 +188,10 @@ export function InspectorHeader({
     kind === "instance" && instance && ENDED.includes(instance.status)
       ? (profiles.find((recipe) => recipe.id === instance.launch_recipe_id) ?? null)
       : null;
-  const resumable = kind === "instance" && instance !== null && ENDED.includes(instance.status);
+  // 0.5.1 F81 (D-127): Resume only where its tool can resume; a tool that
+  // can't never shows a greyed Resume (nothing the user could clear): the
+  // page says why once, and Relaunch is the way on.
+  const resumable = kind === "instance" && instance !== null && ENDED.includes(instance.status) && toolSpec(instance.provider).supports.resume;
   // The hints only where both stand, and not in a folded header.
   const hinted = resumable && relaunch !== null && !folded;
   const chips = (
@@ -288,7 +292,7 @@ export function InspectorHeader({
         <Hinted hint={hinted ? "Fresh conversation" : null} testId="header-relaunch-hint">
           <Button
             size="sm"
-            variant="secondary"
+            variant={resumable ? "secondary" : "primary"}
             title="Relaunch — fresh session, same launch settings and folder."
             data-testid="header-relaunch"
             onClick={() =>

@@ -225,13 +225,42 @@ describe("AJ-E413 desktop Instance surface (Req.3)", () => {
 
   it("exited and crashed states read as app states, not terminal states", () => {
     const exited = shell(mk({ status: "finished" }));
-    expect(exited.container.textContent).toContain("app exited · Relaunch, above, starts it again");
+    expect(exited.container.textContent).toContain("The app exited.");
     expect(exited.getByTestId("header-relaunch").textContent).toBe("Relaunch");
     expect(exited.container.textContent).not.toContain("scrollback replayed");
     cleanup();
     const crashed = shell(mk({ status: "failed" }));
-    expect(crashed.container.textContent).toContain("app crashed · exit details on the Processes tab");
+    expect(crashed.container.textContent).toContain("The app crashed; its exit details are on the Processes tab.");
     expect(crashed.container.textContent).not.toContain("scrollback replayed");
+  });
+
+  it("0.5.1 F81: ended, it offers only what works and says once why it can't resume", () => {
+    for (const status of ["failed", "finished"] as const) {
+      const view = shell(mk({ status, cpu_pct: null, rss_bytes: null, child_count: 0 }));
+      const surface = view.getByTestId("desktop-surface");
+      // No Open / Focus window for an app that isn't running, no empty
+      // resources, no second copy of the header's state.
+      expect(view.queryByTestId("desktop-focus")).toBeNull();
+      expect(view.queryByTestId("desktop-resources")).toBeNull();
+      expect(surface.textContent).not.toContain("cpu —");
+      expect(surface.textContent).not.toContain("No usage recorded yet");
+      expect(surface.textContent).not.toContain("Stopped with an error");
+      // Its tool can't resume (D-127: hidden, never a greyed filled
+      // button): Relaunch is the way on, the one filled button, and the
+      // panel says why once.
+      expect(view.queryByTestId("header-resume")).toBeNull();
+      expect(view.container.textContent).not.toContain("Can't resume here");
+      expect(view.getByTestId("header-relaunch").hasAttribute("data-primary")).toBe(true);
+      expect(view.getByTestId("desktop-state-line").textContent).toContain("fake-desktop can't resume a conversation from AI Juggler");
+      expect(view.getByTestId("desktop-state-line").textContent).toContain("Relaunch");
+      cleanup();
+    }
+  });
+
+  it("0.5.1 F81: running, it keeps Open / Focus window and its resources", () => {
+    const view = shell(mk());
+    expect(view.getByTestId("desktop-focus")).toBeTruthy();
+    expect(view.getByTestId("desktop-resources")).toBeTruthy();
   });
 
   it("its page's body is the Window preview (labelled honestly, not 'Terminal'), and opens it", () => {
