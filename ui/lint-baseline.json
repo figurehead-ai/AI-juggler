@@ -372,10 +372,6 @@
  "src/components/ReplayDialog.tsx": {
   "jsx-a11y(prefer-tag-over-role)": 1
  },
- "src/components/ReplayTerminal.tsx": {
-  "import(no-unassigned-import)": 1,
-  "typescript(consistent-return)": 1
- },
  "src/components/ReportBugSheet.tsx": {
   "jsx-a11y(no-noninteractive-tabindex)": 1,
   "jsx-a11y(prefer-tag-over-role)": 1,
@@ -409,7 +405,7 @@
  },
  "src/components/SessionCards.tsx": {
   "eslint(complexity)": 1,
-  "jsx-a11y(no-noninteractive-tabindex)": 2,
+  "jsx-a11y(no-noninteractive-tabindex)": 1,
   "react(purity)": 1
  },
  "src/components/SessionRow.test.tsx": {
@@ -452,9 +448,7 @@
   "typescript(no-unnecessary-type-assertion)": 1
  },
  "src/components/SwitchGraph.tsx": {
-  "eslint(complexity)": 1,
-  "jsx-a11y(no-noninteractive-element-interactions)": 1,
-  "jsx-a11y(prefer-tag-over-role)": 1
+  "jsx-a11y(no-noninteractive-element-interactions)": 1
  },
  "src/components/SwitchSetUpsCard.tsx": {
   "jsx-a11y(prefer-tag-over-role)": 1,
@@ -525,13 +519,11 @@
   "react(refs)": 1
  },
  "src/components/WorkflowRail.tsx": {
-  "eslint(complexity)": 2,
+  "eslint(complexity)": 1,
   "eslint(max-lines)": 1,
-  "jsx-a11y(no-noninteractive-tabindex)": 1,
   "react(exhaustive-effect-dependencies)": 1,
   "react(purity)": 1,
-  "react(refs)": 1,
-  "typescript(no-unnecessary-type-conversion)": 1
+  "react(refs)": 1
  },
  "src/components/WorktreeGit.tsx": {
   "react(exhaustive-effect-dependencies)": 2,

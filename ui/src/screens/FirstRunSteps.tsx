@@ -99,3 +99,11 @@ export function ProvidersTerms({ tools }: { tools: string[] }): JSX.Element | nu
     </Disclosure>
   );
 }
+
+/** A step's heading and lead: the setup wizard's own look (as Your apps
+ * and every other wizard step), or the standalone flow's larger one. */
+export function stepWords(wizard: boolean): { heading: string; lead: string } {
+  return wizard
+    ? { heading: "type-title", lead: "max-w-2xl text-body leading-relaxed text-ink-2" }
+    : { heading: "text-stat font-semibold leading-tight tracking-tight", lead: "max-w-2xl text-section leading-relaxed text-ink-2" };
+}
