@@ -27,7 +27,7 @@ export function expectArrival(id: string, target: string, from: string | null = 
 }
 
 /** The arrival of session `id`, while one is expected. */
-export function arrivalOf(id: string | null): Arrival | null {
+function arrivalOf(id: string | null): Arrival | null {
   return id === null ? null : (arrivals.get(id) ?? null);
 }
 

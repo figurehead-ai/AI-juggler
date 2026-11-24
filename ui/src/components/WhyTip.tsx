@@ -29,17 +29,23 @@ export function keyboardFocus(target: EventTarget | null): boolean {
   }
 }
 
-/** A why-tip for one element: its ref, show/hide, the tip's id while it
- * shows, and the tip itself (portalled; `null` while hidden). */
-export function useWhyTip<T extends HTMLElement>(why: string, testId: string) {
+/** Where a tip is drawn, in the window's coordinates. */
+type Spot = { left: number; top: number };
+
+/**
+ * A tip anchored to one element (the why-tip's and the name tip's
+ * shared part): its ref, where the tip goes while it shows (`null` while
+ * hidden, from `place`, a stable function of the element's box), and
+ * show/hide. Escape, a scroll or the wheel hides it.
+ */
+export function useTipSpot<T extends HTMLElement>(place: (box: DOMRect) => Spot) {
   const ref = useRef<T | null>(null);
-  const tipId = `why-${useId().replace(/:/g, "")}`;
-  const [at, setAt] = useState<{ left: number; top: number } | null>(null);
+  const [at, setAt] = useState<Spot | null>(null);
   const show = useCallback(() => {
     const box = ref.current?.getBoundingClientRect();
     if (!box) return;
-    setAt({ left: Math.max(8, Math.min(box.left, window.innerWidth - TIP_W - 8)), top: box.bottom + 6 });
-  }, []);
+    setAt(place(box));
+  }, [place]);
   const hide = useCallback(() => setAt(null), []);
   useEffect(() => {
     if (!at) return undefined;
@@ -55,6 +61,19 @@ export function useWhyTip<T extends HTMLElement>(why: string, testId: string) {
       window.removeEventListener("wheel", hide);
     };
   }, [at, hide]);
+  return { ref, at, show, hide };
+}
+
+/** The why-tip's place: under the element, kept inside the window. */
+function below(box: DOMRect): Spot {
+  return { left: Math.max(8, Math.min(box.left, window.innerWidth - TIP_W - 8)), top: box.bottom + 6 };
+}
+
+/** A why-tip for one element: its ref, show/hide, the tip's id while it
+ * shows, and the tip itself (portalled; `null` while hidden). */
+export function useWhyTip<T extends HTMLElement>(why: string, testId: string) {
+  const { ref, at, show, hide } = useTipSpot<T>(below);
+  const tipId = `why-${useId().replace(/:/g, "")}`;
   const tip: ReactNode =
     at &&
     createPortal(

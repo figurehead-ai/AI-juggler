@@ -76,7 +76,7 @@ function useAutoPage(active: boolean, loadMore: () => void, read: number): (node
  * D-127): its filters would have nothing to filter, so they hide, and
  * "Include my actions" moves into the empty card. A filtered empty feed
  * keeps them (the way back is there); so does one still loading. */
-export function feedIsEmpty(stream: Pick<FeedStream, "list" | "waiting">, filters: FeedFiltersInfo, away: boolean): boolean {
+function feedIsEmpty(stream: Pick<FeedStream, "list" | "waiting">, filters: FeedFiltersInfo, away: boolean): boolean {
   const { list } = stream;
   return !list.loading && list.error === null && list.items.length === 0 && stream.waiting === 0 && !away && !filtered(filters);
 }

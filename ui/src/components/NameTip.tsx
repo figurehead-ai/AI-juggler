@@ -7,38 +7,22 @@
  * had no name a sighted keyboard user could see. The name stays the
  * control's accessible name (`aria-label`); the tip only shows it.
  */
-import { useCallback, useEffect, useRef, useState, type ButtonHTMLAttributes, type JSX, type ReactNode } from "react";
+import { type ButtonHTMLAttributes, type JSX, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { keyboardFocus } from "./WhyTip";
+import { keyboardFocus, useTipSpot } from "./WhyTip";
 
 /** The tip's drawing, as the why-tip's. */
 const TIP = "pointer-events-none fixed z-50 w-max max-w-64 rounded-lg border border-hairline bg-overlay px-2.5 py-1.5 text-label leading-snug text-ink shadow-popover";
 
+/** The name tip's place: to the element's right, centred on it. */
+function beside(box: DOMRect): { left: number; top: number } {
+  return { left: box.right + 8, top: box.top + box.height / 2 };
+}
+
 /** A name tip for one element, drawn to its right: its ref, show/hide,
  * and the tip (`null` while hidden). */
-export function useNameTip<T extends HTMLElement>(words: string, testId: string) {
-  const ref = useRef<T | null>(null);
-  const [at, setAt] = useState<{ left: number; top: number } | null>(null);
-  const show = useCallback(() => {
-    const box = ref.current?.getBoundingClientRect();
-    if (!box) return;
-    setAt({ left: box.right + 8, top: box.top + box.height / 2 });
-  }, []);
-  const hide = useCallback(() => setAt(null), []);
-  useEffect(() => {
-    if (!at) return undefined;
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") hide();
-    };
-    window.addEventListener("keydown", onKey);
-    window.addEventListener("scroll", hide, true);
-    window.addEventListener("wheel", hide, { passive: true });
-    return () => {
-      window.removeEventListener("keydown", onKey);
-      window.removeEventListener("scroll", hide, true);
-      window.removeEventListener("wheel", hide);
-    };
-  }, [at, hide]);
+function useNameTip<T extends HTMLElement>(words: string, testId: string) {
+  const { ref, at, show, hide } = useTipSpot<T>(beside);
   const tip: ReactNode =
     at &&
     createPortal(

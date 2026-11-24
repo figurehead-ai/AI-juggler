@@ -79,7 +79,7 @@ function offerOf(id: string): string | null {
 /** 0.5.1 F99 (the F95 class): an offer's button named with its App ("Add
  * Claude app · personal", "Not now, Claude app · personal"), its visible
  * words first, so a screen reader tells the rows' buttons apart. */
-export function offerActionName(action: "Add" | "Not now", label: string): string {
+function offerActionName(action: "Add" | "Not now", label: string): string {
   return action === "Add" ? `Add ${label}` : `Not now, ${label}`;
 }
 

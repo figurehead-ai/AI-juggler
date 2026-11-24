@@ -14,7 +14,7 @@ import { errorText } from "../../lib/bridge";
 import { Button } from "../primitives";
 
 /** Whether a holder has a door. */
-export function hasDoor(holder: MoveHolder): boolean {
+function hasDoor(holder: MoveHolder): boolean {
   return holder.place_id !== null || (holder.account_id !== null && holder.conversation !== null);
 }
 

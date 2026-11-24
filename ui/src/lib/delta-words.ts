@@ -7,12 +7,12 @@
  * one of these.
  */
 
-export interface DeltaTurn {
+interface DeltaTurn {
   who: "You" | "Reply";
   text: string;
 }
 
-export interface DeltaGroup {
+interface DeltaGroup {
   /** "On Personal", when the work went through several places. */
   where: string | null;
   turns: DeltaTurn[];
