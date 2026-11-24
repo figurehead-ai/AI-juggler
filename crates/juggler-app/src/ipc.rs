@@ -54,25 +54,18 @@ pub async fn blocking<T: Send + 'static>(
     context: &'static str,
     body: impl FnOnce(&Arc<AppState>) -> AppResult<T> + Send + 'static,
 ) -> AppResult<T> {
-    run(state, context, Wait::Machine, body).await
+    blocking_with(state, context, Wait::Machine, body).await
 }
 
-/// [`blocking`] for a call that waits for the person (0.5.1 F30: a
-/// priming sheet's 24 s wait for Not now was logged as a slow call). The
-/// call site says so; its time is never held against [`BUDGET`].
+/// [`blocking`] with what its time is measured against: a call that
+/// waits for the person says [`Wait::Person`] at the call (0.5.1 F30: a
+/// priming sheet's 24 s wait for Not now was logged as a slow call), and
+/// its time is never held against [`BUDGET`].
 ///
 /// # Errors
 ///
 /// As [`blocking`].
-pub async fn blocking_waits_for_person<T: Send + 'static>(
-    state: &Arc<AppState>,
-    context: &'static str,
-    body: impl FnOnce(&Arc<AppState>) -> AppResult<T> + Send + 'static,
-) -> AppResult<T> {
-    run(state, context, Wait::Person, body).await
-}
-
-async fn run<T: Send + 'static>(
+pub async fn blocking_with<T: Send + 'static>(
     state: &Arc<AppState>,
     context: &'static str,
     wait: Wait,

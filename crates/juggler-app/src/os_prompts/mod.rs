@@ -578,11 +578,13 @@ pub async fn os_prompt_prime(
     state: tauri::State<'_, Arc<AppState>>,
     id: String,
 ) -> AppResult<OsPromptOutcomeInfo> {
-    let outcome =
-        crate::ipc::blocking_waits_for_person(state.inner(), "os prompt prime", move |state| {
-            prime_call(state, entry_of(&id)?, Presence::Primed)
-        })
-        .await?;
+    let outcome = crate::ipc::blocking_with(
+        state.inner(),
+        "os prompt prime",
+        crate::ipc::Wait::Person,
+        move |state| prime_call(state, entry_of(&id)?, Presence::Primed),
+    )
+    .await?;
     if outcome.id == registry::HELPER.id {
         app.emit_event(AppEvent::AiJobsChanged, ());
     }
@@ -604,9 +606,12 @@ pub async fn os_prompt_request(
     state: tauri::State<'_, Arc<AppState>>,
     id: String,
 ) -> AppResult<OsPromptOutcomeInfo> {
-    crate::ipc::blocking_waits_for_person(state.inner(), "os prompt request", move |state| {
-        request_impl(state, entry_of(&id)?)
-    })
+    crate::ipc::blocking_with(
+        state.inner(),
+        "os prompt request",
+        crate::ipc::Wait::Person,
+        move |state| request_impl(state, entry_of(&id)?),
+    )
     .await
 }
 
