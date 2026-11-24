@@ -26,7 +26,7 @@ use juggler_adapter::moving::{Writer, WriterEvidence};
 use juggler_handover::moving::Transaction;
 
 use super::quit::{Writing, writers_now};
-use super::{KnownPlace, MoveSystem};
+use super::{KnownPlace, MoveOutcomeInfo, MoveSystem};
 use crate::state::AppState;
 
 /// The longest a move waits for the conversation to show open.
@@ -116,6 +116,36 @@ pub(super) fn seen_open(
     let (path, was) = history?;
     let now = std::fs::metadata(path).map(|meta| meta.len()).ok()?;
     (now > *was).then(|| "the app added to its history after the link".to_owned())
+}
+
+/// AJ-E2322 R1: "Opened" in words: verified only when `is_open` (the
+/// adapter's evidence); a link sent but not seen open is pending, said
+/// plainly with Open offered; one that couldn't be sent failed.
+pub(super) fn opened_outcome(
+    opened: Option<Result<(u32, String), String>>,
+    is_open: bool,
+    target_label: &str,
+) -> MoveOutcomeInfo {
+    match opened {
+        Some(Ok((_, name))) if is_open => MoveOutcomeInfo {
+            state: "verified".into(),
+            detail: format!("opened in {name}"),
+        },
+        Some(Ok((_, name))) => MoveOutcomeInfo {
+            state: "pending".into(),
+            detail: format!(
+                "sent to {name}, but AI Juggler couldn't see it open there. Open it from {name}"
+            ),
+        },
+        Some(Err(why)) => MoveOutcomeInfo {
+            state: "failed".into(),
+            detail: format!("moved, but not opened: {why}. Open it from there"),
+        },
+        None => MoveOutcomeInfo {
+            state: "pending".into(),
+            detail: format!("resume it in a terminal on {target_label}"),
+        },
+    }
 }
 
 /// How a writer is known, in words.

@@ -832,36 +832,6 @@ fn open_in(
     Ok(pid)
 }
 
-/// AJ-E2322 R1: "Opened" in words: verified only when `is_open` (the
-/// adapter's evidence); a link sent but not seen open is pending, said
-/// plainly with Open offered; one that couldn't be sent failed.
-fn opened_outcome(
-    opened: Option<Result<(u32, String), String>>,
-    is_open: bool,
-    target_label: &str,
-) -> MoveOutcomeInfo {
-    match opened {
-        Some(Ok((_, name))) if is_open => MoveOutcomeInfo {
-            state: "verified".into(),
-            detail: format!("opened in {name}"),
-        },
-        Some(Ok((_, name))) => MoveOutcomeInfo {
-            state: "pending".into(),
-            detail: format!(
-                "sent to {name}, but AI Juggler couldn't see it open there. Open it from {name}"
-            ),
-        },
-        Some(Err(why)) => MoveOutcomeInfo {
-            state: "failed".into(),
-            detail: format!("moved, but not opened: {why}. Open it from there"),
-        },
-        None => MoveOutcomeInfo {
-            state: "pending".into(),
-            detail: format!("resume it in a terminal on {target_label}"),
-        },
-    }
-}
-
 fn outcome(pass: bool, ok: &str, failed: String) -> MoveOutcomeInfo {
     MoveOutcomeInfo {
         state: if pass { "verified" } else { "failed" }.to_owned(),
@@ -1323,7 +1293,7 @@ fn run(state: &Arc<AppState>, sides: &Sides, system: &dyn MoveSystem) -> AppResu
             &format!("{target_name} lists the conversation and its family as they were nested"),
             format!("not as planned: {}", catalog_failures.join("; ")),
         ),
-        opened: opened_outcome(opened, is_open, &sides.target_label),
+        opened: timeline::opened_outcome(opened, is_open, &sides.target_label),
         // Offered Open where it isn't seen open, in the App it moved to.
         open_place_id: sides
             .target_place
