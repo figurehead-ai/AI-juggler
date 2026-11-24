@@ -8,26 +8,13 @@
  * view says the backups the header's "N to clean up" counts, and opens
  * the Moves section.
  */
-import { useCallback, useEffect, useState, type JSX } from "react";
+import { useState, type JSX } from "react";
 import { Modal } from "../form";
 import { Button } from "../primitives";
 import { errorText } from "../../lib/bridge";
-import { BACKUPS_CHANGED, switchMoveBackups, switchMoveClearOld, type MoveBackupsInfo, type MoveRecordInfo } from "../../lib/ipc/switch-move";
+import { switchMoveClearOld, type MoveBackupsInfo, type MoveRecordInfo } from "../../lib/ipc/switch-move";
+import { useMoveBackups } from "../../lib/move-backups";
 import { MoveRows, freesWords } from "./MovesDoor";
-
-/** The backups kept for Undo, read again whenever they change. */
-function useMoveBackups(): MoveBackupsInfo | null {
-  const [info, setInfo] = useState<MoveBackupsInfo | null>(null);
-  const read = useCallback(() => {
-    void switchMoveBackups().then(setInfo, () => setInfo(null));
-  }, []);
-  useEffect(() => {
-    read();
-    window.addEventListener(BACKUPS_CHANGED, read);
-    return () => window.removeEventListener(BACKUPS_CHANGED, read);
-  }, [read]);
-  return info;
-}
 
 /** "2 move backups" / "1 move backup". */
 function backupsWords(count: number): string {
@@ -78,7 +65,6 @@ function BackupsFoot({ info, onChanged }: { info: MoveBackupsInfo; onChanged: ()
         setBusy(false);
         setAsking(false);
         onChanged();
-        window.dispatchEvent(new CustomEvent(BACKUPS_CHANGED));
       });
   };
   return (

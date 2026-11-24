@@ -77,7 +77,11 @@ export function onMoveProgress(handler: (progress: MoveProgressInfo) => void): (
 
 /** Moves the conversation and its family (the user's click) into the App
  * picked (AJ-E2317: its place id, end to end; none: a terminal's folder). */
-export async function switchMoveExecute(sessionId: string, targetProfileId: string, takeNotes: boolean, targetPlaceId: string | null = null): Promise<MoveDoneInfo> {
+export function switchMoveExecute(sessionId: string, targetProfileId: string, takeNotes: boolean, targetPlaceId: string | null = null): Promise<MoveDoneInfo> {
+  return changingBackups(moveCall(sessionId, targetProfileId, takeNotes, targetPlaceId));
+}
+
+async function moveCall(sessionId: string, targetProfileId: string, takeNotes: boolean, targetPlaceId: string | null): Promise<MoveDoneInfo> {
   if (!hasLiveBackend()) {
     for (const step of window.__AIJ_MOVE_PROGRESS__ ?? []) previewProgress?.(step);
     if (window.__AIJ_MOVE_HOLD__) return new Promise<MoveDoneInfo>(() => {});
@@ -103,8 +107,8 @@ function isStop(value: unknown): value is MoveStopInfo {
 
 /** Undoes a move (the user's click). */
 export async function switchMoveUndo(moveId: string): Promise<MoveUndoneInfo> {
-  if (!hasLiveBackend()) return window.__AIJ_MOVE_UNDONE__ ?? { words: "Undone: the conversation is back where it was.", kept: "", notes: [] };
-  return call("switch_move_undo", { moveId });
+  if (!hasLiveBackend()) return changingBackups(Promise.resolve(window.__AIJ_MOVE_UNDONE__ ?? { words: "Undone: the conversation is back where it was.", kept: "", notes: [] }));
+  return changingBackups(call("switch_move_undo", { moveId }));
 }
 
 /** The newest moves AI Juggler knows of (the first page, newest first). */
@@ -117,20 +121,37 @@ export async function switchMoves(): Promise<MoveRecordInfo[]> {
 /** AJ-E2321: finishes an interrupted move that passed its checks (the
  * Moves door's Finish, by its id). */
 export async function switchMoveFinish(moveId: string): Promise<MoveFinishedInfo> {
-  if (!hasLiveBackend()) return window.__AIJ_MOVE_FINISHED__ ?? { words: "Finished: the conversation stays where it moved, checked once more." };
-  return call("switch_move_finish", { moveId });
+  if (!hasLiveBackend()) return changingBackups(Promise.resolve(window.__AIJ_MOVE_FINISHED__ ?? { words: "Finished: the conversation stays where it moved, checked once more." }));
+  return changingBackups(call("switch_move_finish", { moveId }));
 }
 
 /** AJ-E2325: deletes a finished move's backup (its Undo goes with it), by
  * its id, after the sheet says so. Returns the words. */
 export async function switchMoveDeleteBackup(moveId: string): Promise<string> {
-  if (!hasLiveBackend()) return window.__AIJ_MOVE_BACKUP_DELETED__ ?? "Backup deleted: this move can no longer be undone.";
-  return call("switch_move_delete_backup", { moveId });
+  if (!hasLiveBackend()) return changingBackups(Promise.resolve(window.__AIJ_MOVE_BACKUP_DELETED__ ?? "Backup deleted: this move can no longer be undone."));
+  return changingBackups(call("switch_move_delete_backup", { moveId }));
 }
 
 /** AJ-E2325: told when backups change (a delete, a clear, an undo), so
- * the header's count and the door's total read again. */
+ * the header's count and the door's total read again. 0.5.1 F93: told
+ * by every call here that makes or lets go of one, whatever it returned
+ * (a move commits one; a refused move's attempt goes). */
 export const BACKUPS_CHANGED = "aij:move-backups-changed";
+
+/** `call`, then the backups told to read again (0.5.1 F93). */
+export function changingBackups<T>(pending: Promise<T>): Promise<T> {
+  const told = () => window.dispatchEvent(new CustomEvent(BACKUPS_CHANGED));
+  return pending.then(
+    (done) => {
+      told();
+      return done;
+    },
+    (cause: unknown) => {
+      told();
+      throw cause;
+    },
+  );
+}
 
 /** AJ-E2325: no backups kept (the preview's default). */
 const NO_BACKUPS: MoveBackupsInfo = { count: 0, bytes: 0, exact: true, old_count: 0, old_bytes: 0, low_room: false };
@@ -146,6 +167,6 @@ export async function switchMoveBackups(): Promise<MoveBackupsInfo> {
  * sheet): clears backups of moves made more than a day ago. Returns the
  * words. */
 export async function switchMoveClearOld(): Promise<string> {
-  if (!hasLiveBackend()) return window.__AIJ_MOVE_OLD_CLEARED__ ?? "Cleared 1 backup (up to 1.2 GB); that move can no longer be undone.";
-  return call("switch_move_clear_old", {});
+  if (!hasLiveBackend()) return changingBackups(Promise.resolve(window.__AIJ_MOVE_OLD_CLEARED__ ?? "Cleared 1 backup (up to 1.2 GB); that move can no longer be undone."));
+  return changingBackups(call("switch_move_clear_old", {}));
 }

@@ -6,6 +6,7 @@
  */
 import { call } from "./transport";
 import { hasLiveBackend } from "../bridge";
+import { changingBackups } from "./switch-move";
 import type { OwnershipInfo } from "../../types/generated/OwnershipInfo";
 import type { OwnershipRepairedInfo } from "../../types/generated/OwnershipRepairedInfo";
 
@@ -28,6 +29,7 @@ export async function ownershipCheck(): Promise<OwnershipInfo> {
 
 /** Repairs one finding (the user's click, after the sheet). */
 export async function ownershipRepair(key: string): Promise<OwnershipRepairedInfo> {
-  if (!hasLiveBackend()) return window.__AIJ_OWNERSHIP_REPAIRED__ ?? { words: "Repaired.", notes: [] };
-  return call("switch_ownership_repair", { key });
+  if (!hasLiveBackend()) return changingBackups(Promise.resolve(window.__AIJ_OWNERSHIP_REPAIRED__ ?? { words: "Repaired.", notes: [] }));
+  // 0.5.1 F93: a repair keeps a backup for its Undo.
+  return changingBackups(call("switch_ownership_repair", { key }));
 }
