@@ -19,7 +19,7 @@ export function LoginModal({
 }) {
   return (
     <Modal
-      title={`Log in · ${cliAppName(account.provider, account.label)}`}
+      title={`Sign in · ${cliAppName(account.provider, account.label)}`}
       subtitle={`${ownSignIn(account.provider)}, opened for you — AI Juggler never sees your credentials.`}
       onClose={onClose}
     >

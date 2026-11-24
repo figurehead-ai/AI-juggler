@@ -25,12 +25,12 @@ describe("AJ-E308 loginStateCopy — the seven states", () => {
     expect(loginStateCopy("sso_pending").detail).toContain("browser/IdP window");
     expect(loginStateCopy("api_key").headline).toBe("API key account");
     expect(loginStateCopy("logged_out").headline).toBe("Waiting…");
-    expect(loginStateCopy("unknown").detail).toContain("sign in when online");
+    expect(loginStateCopy("unknown").detail).toContain("Sign in when online");
   });
 });
 
 describe("AJ-E308 LoginQueueCard", () => {
-  it("renders the aria-live status line with the vendor-frame copy and numbered steps", async () => {
+  it("renders the aria-live status line and the three numbered steps", async () => {
     const { container } = render(
       <LoginQueueCard accountId="a1" label="Work" providerName="Claude Code" initialState="logged_out" />,
     );
@@ -40,10 +40,48 @@ describe("AJ-E308 LoginQueueCard", () => {
       return found;
     });
     expect(status.getAttribute("aria-live")).toBe("polite");
-    expect(status.textContent).toContain("○ Waiting…");
-    const text = container.textContent ?? "";
-    expect(text).toContain("This is Claude Code's own sign-in. AI Juggler never sees your credentials.");
-    expect(text).toContain("1. Sign in → 2. follow the vendor prompts → 3. return");
+    expect(status.textContent).toBe("Waiting…");
+    const steps = Array.from(container.querySelectorAll("[data-testid='login-steps'] li")).map((li) => li.textContent);
+    expect(steps).toEqual([
+      "Choose Sign in: Claude Code's own sign-in opens.",
+      "Follow Claude Code's prompts.",
+      "Come back here: we detect it.",
+    ]);
+  });
+
+  // 0.5.1 F82: one status mark (no ● ○ ✓ glyphs beside the dot), the
+  // tool named instead of "vendor", "Sign in" never "Log in", and a
+  // tonal card with no outline (PAT-SURF-1).
+  it.each(["logged_out", "expired", "partial", "sso_pending", "api_key", "signed_in", "unknown"])(
+    "%s: one mark, no glyph marks, no vendor, no Log in, no outline",
+    async (state) => {
+      vi.mocked(bridgeModule.accountLoginState).mockResolvedValue(state);
+      const { container } = render(
+        <LoginQueueCard accountId="a1" label="Work" providerName="Claude Code" initialState={state} />,
+      );
+      await waitFor(() => expect(container.querySelector("[data-testid='login-status']")).not.toBeNull());
+      const card = container.querySelector("[data-testid='login-queue-card']")!;
+      expect(card.className).toContain("bg-surface-2");
+      expect(card.className).not.toMatch(/\bborder\b/);
+      expect(container.querySelectorAll("[data-testid='login-mark']")).toHaveLength(1);
+      expect(container.querySelector("[data-testid='login-status']")!.textContent).not.toMatch(/[●○✓]/);
+      // The words on the card, less the command itself (`claude login`).
+      const text = (container.textContent ?? "").replace("claude login", "");
+      expect(text).not.toMatch(/vendor/i);
+      expect(text).not.toMatch(/log ?in\b/i);
+      expect(text.split("API key account")).toHaveLength(state === "api_key" ? 2 : 1);
+    },
+  );
+
+  it("names the tool on its sign-in page button", async () => {
+    const { container } = render(
+      <LoginQueueCard accountId="a1" label="Work" providerName="Claude Code" initialState="logged_out" />,
+    );
+    await waitFor(() =>
+      expect(
+        Array.from(container.querySelectorAll("button")).some((b) => b.textContent === "Open Claude Code's sign-in page"),
+      ).toBe(true),
+    );
   });
 
   it("the 2s poll auto-detects sign-in — the status flips without any click", async () => {
@@ -53,7 +91,7 @@ describe("AJ-E308 LoginQueueCard", () => {
     );
     await waitFor(() =>
       expect(container.querySelector("[data-testid='login-status']")!.textContent).toContain(
-        "● Signed in ✓ auto-detected",
+        "Signed in",
       ),
     );
   });

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Button, Chip } from "./primitives";
+import { Button } from "./primitives";
 import { IconTerminal } from "./icons";
 import { accountLoginCommand, accountLoginState, loginOpenWeb } from "../lib/ipc/accounts";
 import { errorText, signedIn } from "../lib/bridge";
@@ -15,8 +15,11 @@ import { terminalSpawnLogin } from "../lib/ipc/terminal-io";
  * stealing focus) and re-probes immediately when the login terminal
  * exits (`terminalEnded` flips true); [Re-check] stays as the
  * fallback, never the only path. The status line is aria-live so
- * screen readers hear "● Signed in ✓ auto-detected" the moment it
- * lands.
+ * screen readers hear "Signed in" the moment it lands.
+ *
+ * 0.5.1 F82: one status mark (its colour carries the state), the steps
+ * as a short numbered list, the tool named instead of "vendor", and a
+ * tonal card (no outline, PAT-SURF-1).
  */
 
 /** Per-state headline + action copy (Req.1/4) — words, never codes. */
@@ -28,17 +31,17 @@ export function loginStateCopy(state: string | null | undefined): {
   switch (state) {
     case "signed_in":
     case "logged_in":
-      return { headline: "Signed in", detail: "Ready — launch anytime." };
+      return { headline: "Signed in", detail: "Detected here. Ready to launch anytime." };
     case "partial":
       return {
         headline: "Sign-in didn't finish",
-        detail: "The sign-in was abandoned halfway — reopen it and follow the vendor prompts.",
+        detail: "The sign-in stopped halfway. Reopen it and finish the steps.",
         reopenLabel: "Reopen sign-in",
       };
     case "expired":
       return {
         headline: "Sign-in expired",
-        detail: "The saved login expired — sign in once more and it stays fresh.",
+        detail: "The saved sign-in expired. Sign in once more and it stays fresh.",
         reopenLabel: "Sign in again",
       };
     case "sso_pending":
@@ -49,15 +52,15 @@ export function loginStateCopy(state: string | null | undefined): {
     case "api_key":
       return {
         headline: "API key account",
-        detail: "This app runs on an API key — no vendor sign-in needed.",
+        detail: "This app runs on an API key, so it needs no sign-in.",
       };
     case "unknown":
       return {
         headline: "Can't check right now",
-        detail: "The login check couldn't run — sign in when online; nothing was changed.",
+        detail: "The sign-in check couldn't run. Sign in when online; nothing was changed.",
       };
     default:
-      return { headline: "Waiting…", detail: "Complete the vendor's sign-in; we detect it here." };
+      return { headline: "Waiting…", detail: "Not signed in yet. We detect it here once you finish." };
   }
 }
 
@@ -148,25 +151,30 @@ export function LoginQueueCard({
     }
   };
 
+  // One mark before the headline; its colour carries the state: green
+  // when ready, amber when the sign-in needs redoing, a quiet dot when
+  // it can't be checked, the live breathing dot while we wait.
+  const mark = ready
+    ? "bg-success"
+    : state === "expired" || state === "partial"
+      ? "bg-warning"
+      : state === "unknown"
+        ? "bg-faint"
+        : "bg-live animate-breathe";
+
   return (
     <div
-      className="flex flex-col gap-3 rounded-xl border border-hairline px-4 py-3.5"
+      className="flex flex-col gap-3 rounded-xl bg-surface-2 px-4 py-3.5"
       data-testid="login-queue-card"
       data-state={state ?? "unknown"}
     >
       <div className="flex flex-wrap items-center gap-2">
-        <span
-          className={
-            "size-2 shrink-0 rounded-full " +
-            (ready ? "bg-success" : "bg-live animate-breathe")
-          }
-        />
+        <span aria-hidden="true" className={"size-2 shrink-0 rounded-full " + mark} data-testid="login-mark" />
         <p className="text-xs font-medium text-ink" aria-live="polite" data-testid="login-status">
-          {ready ? "● Signed in ✓ auto-detected" : `○ ${copy.headline}`}
+          {copy.headline}
         </p>
         <span className="text-label text-muted">·</span>
         <span className="text-label text-muted">{label}</span>
-        {state === "api_key" && <Chip tone="accent">API key account</Chip>}
         <span className="flex-1" />
         {onDone && ready && (
           <Button size="sm" variant="primary" onClick={onDone}>
@@ -182,13 +190,13 @@ export function LoginQueueCard({
 
       {!ready && state !== "api_key" && (
         <>
-          <p className="text-label leading-relaxed text-muted">
-            This is {providerName}'s own sign-in. AI Juggler never sees your
-            credentials. 1. Sign in → 2. follow the vendor prompts → 3. return;
-            we detect it.
-          </p>
+          <ol className="flex list-decimal flex-col gap-0.5 pl-5 text-label leading-relaxed text-ink-2" data-testid="login-steps">
+            <li>Choose {copy.reopenLabel ?? "Sign in"}: {providerName}'s own sign-in opens.</li>
+            <li>Follow {providerName}'s prompts.</li>
+            <li>Come back here: we detect it.</li>
+          </ol>
           {!compact && (
-            <div className="rounded-lg border border-hairline px-3 py-2 font-mono text-label leading-relaxed text-success">
+            <div className="rounded-lg bg-surface-3 px-3 py-2 font-mono text-label leading-relaxed text-success break-all">
               {command || "…"}
             </div>
           )}
@@ -198,7 +206,7 @@ export function LoginQueueCard({
               {copy.reopenLabel ?? "Sign in"}
             </Button>
             <Button size="sm" variant="secondary" onClick={() => void loginOpenWeb(providerName)}>
-              Open vendor page
+              Open {providerName}'s sign-in page
             </Button>
             <Button
               size="sm"

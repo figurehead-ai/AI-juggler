@@ -66,7 +66,7 @@ pub fn validate_env_overlay(
             .any(|segment| CREDENTIAL_KEY_SEGMENTS.contains(&segment))
         {
             return Err(refuse(format!(
-                "{key} looks like a credential — sign in with the vendor's own flow instead; \
+                "{key} looks like a credential — sign in with the app's own sign-in instead; \
                  AI Juggler never stores credentials"
             )));
         }
