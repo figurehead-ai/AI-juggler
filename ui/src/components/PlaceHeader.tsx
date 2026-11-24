@@ -12,14 +12,17 @@
 import { RoomChip, useRoomMark } from "./RoomChip";
 import { useRef, useState, type JSX, type MouseEvent, type ReactNode } from "react";
 import { ariaOf, placeKey } from "../lib/shortcuts";
-import { MenuItem, RowMenu, menuPoint, type MenuAt } from "./RowMenu";
+import { MenuItem, MenuLine, RowMenu, menuPoint, type MenuAt } from "./RowMenu";
 import { ProfileBadge } from "./ProfileBadge";
 import { AppIcon } from "./AppIcon";
 import { AppKindBadge } from "./AppKindBadge";
 import { useFitWhole } from "./use-fit-whole";
 import { appKindOfKey } from "../lib/app-kind";
 import { FoldButton, HeadNeeds, headNeedsWords } from "./rail-groups";
-import { IconUpRight } from "./icons-places";
+import { IconHistory, IconUpRight } from "./icons-places";
+import { IconFolderOpen, IconPage, IconPlus, IconReplay } from "./icons-actions";
+import { IconShield } from "./icons";
+import { IconChevronDown } from "./icons-controls";
 import { appTone, type AttentionLevel } from "../lib/attention";
 import { DROP, Grip, type Arrangeable } from "./RowTools";
 import type { RailPlace } from "../lib/rail-items";
@@ -248,48 +251,43 @@ export function PlaceHeader({
         <RowMenu heading={name} ariaLabel={`Actions for ${name}`} at={menu} onClose={() => setMenu(null)} testId="place-header-menu">
           {onPage && (
             <MenuItem onClick={run(onPage)} testId="place-header-menu-page">
-              Open its page
+              <MenuLine icon={IconPage} label="Open its page" />
             </MenuItem>
           )}
           {onOpen && (
             <MenuItem onClick={run(onOpen)} testId="place-header-menu-open">
-              {openWords}
+              <MenuLine icon={IconUpRight} label={openWords} />
             </MenuItem>
           )}
           {onNew && (
             <MenuItem onClick={run(onNew)} testId="place-header-menu-new">
-              New session
+              <MenuLine icon={IconPlus} label="New session" />
             </MenuItem>
           )}
           {onRecent && (
             <MenuItem onClick={run(onRecent)} testId="place-header-menu-recent">
-              Show recent
+              <MenuLine icon={IconHistory} label="Show recent" />
             </MenuItem>
           )}
           {onChooseFolder && (
             <MenuItem onClick={run(onChooseFolder)} testId="place-header-menu-folder">
-              Choose its folder…
+              <MenuLine icon={IconFolderOpen} label="Choose its folder…" />
             </MenuItem>
           )}
           {onRestart && (
             <MenuItem onClick={run(onRestart)} testId="place-header-menu-restart">
-              Restart…
+              <MenuLine icon={IconReplay} label="Restart…" />
             </MenuItem>
           )}
           {keepAlive && (
             <MenuItem onClick={run(keepAlive.toggle)} checked={keepAlive.on} multi testId="place-header-menu-keep">
               {/* Its tick drawn as the rail's order menu draws one. */}
-              <span className="flex items-center gap-2">
-                <span className="flex-1">Keep alive</span>
-                <span aria-hidden="true" className={"shrink-0 text-accent-hi " + (keepAlive.on ? "" : "invisible")}>
-                  ✓
-                </span>
-              </span>
+              <MenuLine icon={IconShield} label="Keep alive" tick={keepAlive.on} />
             </MenuItem>
           )}
           {foldable && (
             <MenuItem onClick={run(onToggle)} testId="place-header-menu-fold">
-              {folded === null ? "Fold" : "Unfold"}
+              <MenuLine icon={IconChevronDown} label={folded === null ? "Fold" : "Unfold"} />
             </MenuItem>
           )}
         </RowMenu>

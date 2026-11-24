@@ -70,8 +70,8 @@ describe("AJ-E1548 #17: one machine word in the Unlink sheet", () => {
 describe("AJ-E1548 #19 #21: the feed's marks and scope say what they do", () => {
   it("each mark all says what it clears, and no two say the same", () => {
     expect(new Set(Object.values(MARK_HINTS)).size).toBe(3);
-    expect(source("../components/HomeFeedFilters.tsx")).toContain("{MARK_HINTS.read}");
-    expect(source("../components/HomeFeedFilters.tsx")).toContain("{MARK_HINTS.reviewed}");
+    expect(source("../components/HomeFeedFilters.tsx")).toContain("MARK_HINTS.read");
+    expect(source("../components/HomeFeedFilters.tsx")).toContain("MARK_HINTS.reviewed");
     expect(source("../components/HomeFeedAway.tsx")).toContain("MARK_HINTS.seen");
   });
 

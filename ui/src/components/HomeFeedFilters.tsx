@@ -10,7 +10,10 @@
  */
 import { useState, type JSX } from "react";
 import { Picker, Segmented, type PickerOption } from "./controls";
-import { MenuItem, RowMenu, menuPoint, type MenuAt } from "./RowMenu";
+import { MenuItem, MenuLine, RowMenu, menuPoint, type MenuAt } from "./RowMenu";
+import { IconProfiles } from "./icons";
+import { IconCheck } from "./icons-controls";
+import { IconRead } from "./icons-menu";
 import { cliAppName } from "../lib/app-name";
 import { filtered } from "../lib/feed-state";
 import { MARK_HINTS } from "../lib/feed-words";
@@ -40,10 +43,6 @@ export interface Facets {
   accounts: readonly AccountInfo[];
   subscriptions: readonly SubscriptionInfo[] | null;
   pools: PoolsInfo | null;
-}
-
-function MarkHint({ children }: { children: string }): JSX.Element {
-  return <span className="block text-label font-normal text-muted">{children}</span>;
 }
 
 /** The picked one with its kind ("billing · Project"); `undefined` for Everything. */
@@ -135,20 +134,24 @@ export function HomeFeedFilters({ filters, onChange, facets, toReview, onReviewA
         </button>
         {menu && (
           <RowMenu heading="Feed" ariaLabel="Feed options" at={menu} onClose={() => setMenu(null)} testId="feed-menu">
+            {/* 0.5.1 F60 (N8): every line carries its icon, as every menu's. */}
             <MenuItem checked={filters.include_mine} onClick={() => onChange({ ...filters, include_mine: !filters.include_mine })} testId="feed-include-mine">
-              Include my actions
+              <MenuLine icon={IconProfiles} label="Include my actions" tick={filters.include_mine} />
             </MenuItem>
             {/* AJ-E1548 #19: each "mark all" says what it clears. */}
             {/* A mark-all is done once chosen: the menu closes (it stayed
                 open saying "Mark all 3 reviewed" over its own toast). */}
             <MenuItem onClick={() => { onReadAll(); setMenu(null); }} testId="feed-read-all">
-              <span data-testid="feed-read-all-label">Mark all read</span>
-              <MarkHint>{MARK_HINTS.read}</MarkHint>
+              <MenuLine icon={IconRead} label="Mark all read" labelTestId="feed-read-all-label" note={MARK_HINTS.read} />
             </MenuItem>
             {chip === "finished" && (
               <MenuItem disabled={toReview === 0} onClick={() => { onReviewAll(); setMenu(null); }} testId="feed-review-all">
-                <span data-testid="feed-review-all-label">{toReview === null ? "Mark all reviewed" : toReview > 0 ? `Mark all ${toReview} reviewed` : "Nothing to review"}</span>
-                {toReview !== 0 && <MarkHint>{MARK_HINTS.reviewed}</MarkHint>}
+                <MenuLine
+                  icon={IconCheck}
+                  label={toReview === null ? "Mark all reviewed" : toReview > 0 ? `Mark all ${toReview} reviewed` : "Nothing to review"}
+                  labelTestId="feed-review-all-label"
+                  note={toReview !== 0 ? MARK_HINTS.reviewed : undefined}
+                />
               </MenuItem>
             )}
           </RowMenu>

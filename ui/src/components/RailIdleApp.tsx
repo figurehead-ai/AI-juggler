@@ -10,15 +10,15 @@
  * Show its last 3.
  */
 import { useState, type JSX, type MouseEvent } from "react";
-import { MenuItem, RowMenu, menuPoint, type MenuAt } from "./RowMenu";
+import { MenuItem, MenuLine, RowMenu, menuPoint, type MenuAt } from "./RowMenu";
 import { ProfileBadge } from "./ProfileBadge";
 import { AppIcon } from "./AppIcon";
 import { AppKindBadge } from "./AppKindBadge";
 import { appKindWords } from "../lib/app-kind";
 import { FoldButton } from "./rail-groups";
-import { IconUpRight } from "./icons-places";
-import { IconStateRunning } from "./icons";
-import { IconPlus } from "./icons-actions";
+import { IconHistory, IconUpRight } from "./icons-places";
+import { IconShield, IconStateRunning } from "./icons";
+import { IconPage, IconPlus, IconReplay } from "./icons-actions";
 import { showToast } from "./Toast";
 import { showGoTo } from "../lib/go-to";
 import { placesOpen } from "../lib/ipc/places";
@@ -197,33 +197,30 @@ export function RailIdleApp({
       </button>
       {menu && (
         <RowMenu heading={app.name} ariaLabel={`Actions for ${app.name}`} at={menu} onClose={() => setMenu(null)} testId="rail-idle-menu">
+          {/* 0.5.1 F60 (N8): every line carries its icon, as every menu's;
+              the first is its row's own button's. */}
           <MenuItem onClick={run(act)} disabled={blocked !== null} title={blocked ?? undefined} testId="rail-idle-menu-act">
-            {words}
+            <MenuLine icon={Icon} label={words} />
           </MenuItem>
           {/* 0.4.1: a running app here restarts from its own row too. */}
           {restartable(app) && (
             <MenuItem onClick={run(() => askRestart({ placeId: app.placeId ?? "", name: app.name, open: 0, working: 0 }))} testId="rail-idle-menu-restart">
-              Restart…
+              <MenuLine icon={IconReplay} label="Restart…" />
             </MenuItem>
           )}
           {keepAlive && (
             <MenuItem onClick={run(keepAlive.toggle)} checked={keepAlive.on} multi testId="rail-idle-menu-keep">
-              <span className="flex items-center gap-2">
-                <span className="flex-1">Keep alive</span>
-                <span aria-hidden="true" className={"shrink-0 text-accent-hi " + (keepAlive.on ? "" : "invisible")}>
-                  ✓
-                </span>
-              </span>
+              <MenuLine icon={IconShield} label="Keep alive" tick={keepAlive.on} />
             </MenuItem>
           )}
           {openPage && (
             <MenuItem onClick={run(openPage)} testId="rail-idle-menu-page">
-              Open its page
+              <MenuLine icon={IconPage} label="Open its page" />
             </MenuItem>
           )}
           {has && (
             <MenuItem onClick={run(onToggle)} testId="rail-idle-menu-fold">
-              {open ? "Hide its last ones" : lastWords}
+              <MenuLine icon={IconHistory} label={open ? "Hide its last ones" : lastWords} />
             </MenuItem>
           )}
         </RowMenu>
