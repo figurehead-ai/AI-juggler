@@ -382,4 +382,3 @@ describe("AJ-E2505 R2 — focus the user moves pauses a toast; focus placed for 
     expect(screen.queryByTestId("toast")).toBeNull();
   });
 });
-
