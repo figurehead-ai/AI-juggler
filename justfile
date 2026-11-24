@@ -236,6 +236,7 @@ terminology:
     python3 scripts/hooks/private_terms.py --selftest
     python3 scripts/qa/anonymize.py --selftest
     python3 scripts/qa/presence_check.py --selftest
+    python3 -I scripts/qa/lab_seed_worktrees.py --selftest
     python3 scripts/png_metadata_lint.py --selftest
     python3 scripts/png_metadata_lint.py
     python3 scripts/docs_links_check.py
