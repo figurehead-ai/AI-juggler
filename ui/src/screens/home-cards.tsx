@@ -21,6 +21,7 @@ import { HomeRunway } from "../components/HomeRunway";
 import { ProjectMark } from "../components/ProjectMark";
 import { HomeNeedsPlace } from "../components/HomeNeedsPlace";
 import { HomeSection } from "../components/HomeSection";
+import { Banner } from "../components/Banner";
 import { Button } from "../components/primitives";
 import { SmootherCard } from "../components/SmootherCard";
 import { showToast } from "../components/Toast";
@@ -104,16 +105,17 @@ const HOME_CARDS: readonly HomeCard[] = [
     area: "top",
     render: (ctx) =>
       ctx.ledgerDegraded && (
-        <div
+        // The shared Banner (screens never hand-make their own): amber as
+        // its bar and mark, never a fill behind words (PAT-COLOR-2), in
+        // the Processes banner's words (0.5.1 critique: "degraded" and
+        // "read-only" were ours, and "until restart" didn't say whose).
+        <Banner
+          tone="warning"
           role="alert"
-          data-testid="ledger-degraded-banner"
-          className="flex items-center gap-2.5 rounded-lg border border-warning/25 bg-warning-soft px-4 py-3 text-meta text-ink"
-        >
-          <span aria-hidden>⚠</span>
-          {/* The Processes banner's words (0.5.1 critique: "degraded" and
-              "read-only" were ours, and "until restart" didn't say whose). */}
-          AI Juggler can't record what it starts right now, so Clean up can't stop anything until AI Juggler restarts.
-        </div>
+          testId="ledger-degraded-banner"
+          title="AI Juggler can't record what it starts right now"
+          detail="So Clean up can't stop anything until AI Juggler restarts."
+        />
       ),
   },
   {

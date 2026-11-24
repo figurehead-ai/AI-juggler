@@ -1116,9 +1116,8 @@ for (const theme of ["dark", "light"] as const) {
     await page.goto("/");
     const banner = page.getByTestId("ledger-degraded-banner");
     await expect(banner).toBeVisible();
-    await expect(banner).toContainText(
-      "AI Juggler can't record what it starts right now, so Clean up can't stop anything until AI Juggler restarts.",
-    );
+    await expect(banner).toContainText("AI Juggler can't record what it starts right now");
+    await expect(banner).toContainText("So Clean up can't stop anything until AI Juggler restarts.");
     await page.screenshot({
       path: resolve(GALLERY, `17-ledger/degraded-banner-1440x900-${theme}.png`),
     });
