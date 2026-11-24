@@ -308,3 +308,43 @@ describe("AJ-E706 / AJ-E708 switch-back and the conflict sheet", () => {
     await waitFor(() => expect(q("cross-back-done")!.textContent).toContain("Nothing was sent"));
   });
 });
+
+/** 0.5.1 F71 (50-cross-switch): switch back and the "both sides moved on"
+ * sheet are on the one switch frame: an icon tile and the from → to
+ * strip, the update read back as turns (never raw "[user]" lines), times
+ * in words, the choices as cards, one primary in the footer. */
+describe("0.5.1 F71 switch back on the switch frame", () => {
+  const q = (id: string) => document.body.querySelector<HTMLElement>(`[data-testid='${id}']`);
+  const turnsPlan: FleetSwitchBackPlanInfo = {
+    ...plan,
+    delta_preview:
+      "While you were away on Desktop Max — 2 new turns (12 shared before the switch).\n\n- [user] add the payment form\n- [assistant] payment form added with validation\n\nThe project's files are as they were left on Desktop Max. Pick up from here.",
+  };
+
+  it("previews the update as You and Reply turns in the switch frame, never raw role tags", () => {
+    render(<CrossMachineSwitchBack sessionId="away" plan={turnsPlan} onClose={() => {}} />);
+    expect(q("cross-back-title")!.textContent).toBe("Switch back to Laptop");
+    expect(q("cross-back-strip")!.textContent).toContain("This Mac · Desktop Max");
+    expect(q("cross-back-strip")!.textContent).toContain("Laptop · Work Max");
+    const delta = q("cross-back-delta")!;
+    expect(delta.textContent).not.toMatch(/\[user\]|\[assistant\]|switch pack/);
+    const turns = [...document.querySelectorAll("[data-testid=cross-back-turn]")].map((t) => [t.getAttribute("data-who"), t.lastElementChild?.textContent]);
+    expect(turns).toEqual([
+      ["You", "add the payment form"],
+      ["Reply", "payment form added with validation"],
+    ]);
+    expect(document.querySelectorAll("[data-primary]")).toHaveLength(1);
+    expect(q("cross-back-go")!.textContent).toBe("Switch back to Laptop");
+  });
+
+  it("the sheet says each side in a fact panel, the time in words, the choices as cards", async () => {
+    render(<CrossMachineSwitchBack sessionId="away" plan={plan} divergence={{ turns_since: 2, last_activity_ms: Date.now() - 30 * 60_000, summary: "2 new turns" }} onClose={() => {}} />);
+    expect(q("cross-back-title")!.textContent).toBe("Both sides moved on");
+    const theirs = q("conflict-theirs")!.textContent;
+    expect(theirs).toContain("2 new turns in the original, last active 30 min ago");
+    expect(theirs).not.toMatch(/\d{1,2}:\d{2}:\d{2}/);
+    expect(document.querySelectorAll("[data-testid=conflict-choices] [role=radio], [data-testid=conflict-choices] input[type=radio]")).toHaveLength(3);
+    expect(q("conflict-why")!.textContent).toBe("Choose what to keep first.");
+    expect(document.querySelectorAll("[data-primary]")).toHaveLength(1);
+  });
+});
