@@ -121,6 +121,17 @@ pub struct Entry {
     pub made: bool,
 }
 
+/// A journal line, `line` with `detail`'s fields added where it has none
+/// of its own (its event and time always stay).
+fn with_detail(mut line: serde_json::Value, detail: serde_json::Value) -> serde_json::Value {
+    if let (Some(fields), serde_json::Value::Object(detail)) = (line.as_object_mut(), detail) {
+        for (key, value) in detail {
+            fields.entry(key).or_insert(value);
+        }
+    }
+    line
+}
+
 /// Now, epoch ms (the journal's timeline).
 fn wall_ms() -> i64 {
     std::time::SystemTime::now()
@@ -554,18 +565,13 @@ impl Transaction {
         took_ms: u64,
         detail: serde_json::Value,
     ) -> Result<(), MoveError> {
-        let mut line = serde_json::json!({
+        let line = serde_json::json!({
             "event": "timeline",
             "phase": phase,
             "at_ms": wall_ms(),
             "took_ms": took_ms,
         });
-        if let (Some(line), serde_json::Value::Object(detail)) = (line.as_object_mut(), detail) {
-            for (key, value) in detail {
-                line.entry(key).or_insert(value);
-            }
-        }
-        self.log(&line)
+        self.log(&with_detail(line, detail))
     }
 
     /// 0.5.1 F92: a caller's note in the journal: `event` with `detail`'s
@@ -577,13 +583,8 @@ impl Transaction {
     ///
     /// The journal can't be written.
     pub fn note(&self, event: &str, detail: serde_json::Value) -> Result<(), MoveError> {
-        let mut line = serde_json::json!({ "event": event, "at_ms": wall_ms() });
-        if let (Some(line), serde_json::Value::Object(detail)) = (line.as_object_mut(), detail) {
-            for (key, value) in detail {
-                line.entry(key).or_insert(value);
-            }
-        }
-        self.log(&line)
+        let line = serde_json::json!({ "event": event, "at_ms": wall_ms() });
+        self.log(&with_detail(line, detail))
     }
 
     /// 0.5.1 F92: the caller's notes named `event`, oldest first.

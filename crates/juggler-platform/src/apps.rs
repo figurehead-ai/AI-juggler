@@ -113,7 +113,13 @@ pub fn open_app(
             why,
         ));
     }
-    let out = launch_command(bundle, start, env, args)
+    run_quietly(launch_command(bundle, start, env, args))
+}
+
+/// Runs `command` (`/usr/bin/open`) with nothing in and nothing out;
+/// its error words when the system refused.
+fn run_quietly(mut command: std::process::Command) -> std::io::Result<()> {
+    let out = command
         .stdin(std::process::Stdio::null())
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::piped())
@@ -192,18 +198,7 @@ pub fn open(opening: Opening<'_>) -> std::io::Result<()> {
             "nothing to open",
         ));
     }
-    let out = opening_command(opening)
-        .stdin(std::process::Stdio::null())
-        .stdout(std::process::Stdio::null())
-        .stderr(std::process::Stdio::piped())
-        .output()?;
-    if out.status.success() {
-        Ok(())
-    } else {
-        Err(std::io::Error::other(
-            String::from_utf8_lossy(&out.stderr).trim().to_owned(),
-        ))
-    }
+    run_quietly(opening_command(opening))
 }
 
 /// Sends `link` to the running process `pid` as the system's "open this
