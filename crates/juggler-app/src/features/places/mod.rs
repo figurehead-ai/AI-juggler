@@ -593,8 +593,34 @@ pub fn app_of(
         .unwrap_or_else(|| juggler_core::storage::cli_app_id(folder.unwrap_or_default()))
 }
 
-/// The name of the account `place`'s sessions ran on.
-fn account_label(state: &Arc<AppState>, place: &KnownPlace) -> Option<String> {
+/// The App `id` the person added, after `touch` (stored when it changes
+/// it), and its name: refused in words when it is gone or a move holds it
+/// (Restart's and Quit's one check before they quit anything).
+pub(crate) fn added_and_free(
+    state: &Arc<AppState>,
+    id: &str,
+    touch: impl FnOnce(&mut KnownPlace),
+) -> Result<(KnownPlace, String), String> {
+    let place = with_book(state, |book| {
+        book.places
+            .get_mut(id)
+            .filter(|place| place.users)
+            .map(|place| {
+                touch(place);
+                place.clone()
+            })
+    })
+    .map_err(|error| error.to_string())?
+    .ok_or_else(|| "AI Juggler doesn't remember that app any more".to_owned())?;
+    if let Some(why) = why_held(state, id) {
+        return Err(why.to_owned());
+    }
+    let label = named(state, &place);
+    Ok((place, label))
+}
+
+/// The account `place`'s sessions ran on.
+fn account_of(state: &Arc<AppState>, place: &KnownPlace) -> Option<juggler_core::model::Account> {
     let id = place.account_id.as_deref()?;
     state
         .storage
@@ -603,11 +629,13 @@ fn account_label(state: &Arc<AppState>, place: &KnownPlace) -> Option<String> {
         .accounts()
         .get(&juggler_core::model::AccountId::new(id.to_owned()))
         .ok()
-        .map(|account| account.label)
 }
 
-/// 0.3.5: the tool folder `place`'s sessions use: its account's folder,
-/// started with it so the profile stays on that account.
+/// The name of the account `place`'s sessions ran on.
+fn account_label(state: &Arc<AppState>, place: &KnownPlace) -> Option<String> {
+    account_of(state, place).map(|account| account.label)
+}
+
 /// ADR-0028: the instance folder of the app profile `id`, when known.
 pub(crate) fn instance_dir_of(state: &Arc<AppState>, id: &str) -> Option<std::path::PathBuf> {
     with_book(state, |book| {
@@ -619,16 +647,10 @@ pub(crate) fn instance_dir_of(state: &Arc<AppState>, id: &str) -> Option<std::pa
     .flatten()
 }
 
+/// 0.3.5: the tool folder `place`'s sessions use: its account's folder,
+/// started with it so the profile stays on that account.
 pub(crate) fn tool_folder(state: &Arc<AppState>, place: &KnownPlace) -> Option<std::path::PathBuf> {
-    let id = place.account_id.as_deref()?;
-    state
-        .storage
-        .lock()
-        .ok()?
-        .accounts()
-        .get(&juggler_core::model::AccountId::new(id.to_owned()))
-        .ok()
-        .map(|account| account.state_dir)
+    account_of(state, place).map(|account| account.state_dir)
 }
 
 /// `place` in words, its profile named by its account (as the screens
@@ -1178,23 +1200,11 @@ pub fn restart(
     wait: QuitWait,
     now: i64,
 ) -> Result<String, String> {
-    let place = with_book(state, |book| {
-        book.places
-            .get_mut(id)
-            .filter(|place| place.users)
-            .map(|place| {
-                if !background {
-                    place.paused = None;
-                }
-                place.clone()
-            })
-    })
-    .map_err(|error| error.to_string())?
-    .ok_or_else(|| "AI Juggler doesn't remember that app any more".to_owned())?;
-    if let Some(why) = why_held(state, id) {
-        return Err(why.to_owned());
-    }
-    let label = named(state, &place);
+    let (place, label) = added_and_free(state, id, |place| {
+        if !background {
+            place.paused = None;
+        }
+    })?;
     let hosts = HostRegistry::of(&state.registry);
     // Checked before anything is quit: it starts again as it ran.
     start::plan(&place, &hosts, None, background)?;

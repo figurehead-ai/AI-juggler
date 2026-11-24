@@ -20,26 +20,7 @@ fn lab(root: &Path) -> (Arc<AppState>, String, Expected) {
     let state = places::fakes::on_made_up_mac(AppState::init(root.join("data")).unwrap(), root);
     let (id, place, profile) =
         places::remember_test_profile(&state, root, "b-work", Some("acct-work"));
-    let folder = root.join("CodeProfiles/work");
-    let account = juggler_core::model::Account {
-        id: juggler_core::model::AccountId::new("acct-work"),
-        harness: juggler_core::model::HarnessId::new("claude-code"),
-        label: "Work Max".into(),
-        plan: None,
-        state_dir: folder.clone(),
-        cleanup_opt_in: false,
-        renewal_date: None,
-        preview_opt_in: false,
-        import_source_path: None,
-        import_origin: None,
-        imported_at: None,
-        in_place: false,
-    };
-    crate::commands::lock_storage_arc(&state)
-        .unwrap()
-        .accounts()
-        .insert(&account)
-        .unwrap();
+    let folder = places::tests::work_max(&state, root);
     let expected = Expected {
         bundle: place.bundle,
         args: vec![format!("--user-data-dir={}", profile.to_string_lossy())],

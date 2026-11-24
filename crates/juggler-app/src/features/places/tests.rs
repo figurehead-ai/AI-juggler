@@ -133,8 +133,7 @@ fn open_in_codex_opens_the_thread_by_its_link_and_starts_nothing_else() {
 #[test]
 fn keep_alive_starts_a_stopped_place_behind_then_pauses_after_three() {
     let root = tempfile::tempdir().unwrap();
-    let (state, work, _) = state_with_places(root.path());
-    set_keep_alive(&state, &work, true).unwrap();
+    let (state, work) = kept_alive(root.path());
     let starter = Recorder::default();
     let start = 10_000_000;
     state.places.watch.lock().unwrap().settled_at(start);
@@ -178,8 +177,7 @@ fn keep_alive_starts_a_stopped_place_behind_then_pauses_after_three() {
 #[test]
 fn nothing_starts_while_the_screen_is_locked() {
     let root = tempfile::tempdir().unwrap();
-    let (state, work, _) = state_with_places(root.path());
-    set_keep_alive(&state, &work, true).unwrap();
+    let (state, _) = kept_alive(root.path());
     let starter = Recorder::default();
     let now = 10_000_000;
     state.places.watch.lock().unwrap().settled_at(now);
@@ -192,8 +190,7 @@ fn nothing_starts_while_the_screen_is_locked() {
 #[test]
 fn a_stop_from_ai_juggler_pauses_keep_alive() {
     let root = tempfile::tempdir().unwrap();
-    let (state, work, _) = state_with_places(root.path());
-    set_keep_alive(&state, &work, true).unwrap();
+    let (state, work) = kept_alive(root.path());
     state
         .places
         .watch
@@ -287,6 +284,35 @@ fn a_profile_claims_only_its_own_folders_copy_of_a_conversation() {
         app_of(&desktop, None, Some("folder-other"), key, false),
         juggler_core::storage::cli_app_id("folder-other")
     );
+}
+
+/// [`state_with_places`] with keep alive on for Work: the state and
+/// Work's id.
+pub(super) fn kept_alive(root: &Path) -> (Arc<AppState>, String) {
+    let (state, work, _) = state_with_places(root);
+    set_keep_alive(&state, &work, true).unwrap();
+    (state, work)
+}
+
+/// [`kept_alive`], its watch settled at `start`.
+pub(super) fn kept_alive_since(root: &Path, start: i64) -> (Arc<AppState>, String) {
+    let (state, work) = kept_alive(root);
+    state.places.watch.lock().unwrap().settled_at(start);
+    (state, work)
+}
+
+/// The Account `acct-work` ("Work Max", Claude Code's) on its tool folder
+/// `root/CodeProfiles/work`, stored; that folder.
+pub(super) fn work_max(state: &Arc<AppState>, root: &Path) -> PathBuf {
+    let folder = root.join("CodeProfiles/work");
+    let account =
+        crate::test_support::account("acct-work", "claude-code", "Work Max", folder.clone());
+    crate::commands::lock_storage_arc(state)
+        .unwrap()
+        .accounts()
+        .insert(&account)
+        .unwrap();
+    folder
 }
 
 /// The place `id` runs as this test's own process (a real pid and start,
@@ -395,26 +421,7 @@ fn restart_quits_the_lost_process_then_starts_it_as_it_ran() {
 fn a_restarted_profile_keeps_its_tool_folder() {
     let root = tempfile::tempdir().unwrap();
     let (state, work, _) = state_with_places(root.path());
-    let folder = root.path().join("CodeProfiles/work");
-    let account = juggler_core::model::Account {
-        id: juggler_core::model::AccountId::new("acct-work"),
-        harness: juggler_core::model::HarnessId::new("claude-code"),
-        label: "Work Max".into(),
-        plan: None,
-        state_dir: folder.clone(),
-        cleanup_opt_in: false,
-        renewal_date: None,
-        preview_opt_in: false,
-        import_source_path: None,
-        import_origin: None,
-        imported_at: None,
-        in_place: false,
-    };
-    crate::commands::lock_storage_arc(&state)
-        .unwrap()
-        .accounts()
-        .insert(&account)
-        .unwrap();
+    let folder = work_max(&state, root.path());
     with_book(&state, |book| {
         book.places.get_mut(&work).unwrap().account_id = Some("acct-work".into());
     })
@@ -532,10 +539,8 @@ fn a_confirmed_restart_quits_and_starts_one_that_has_its_window() {
 #[test]
 fn keep_alive_restarts_a_place_that_lost_its_window_once() {
     let root = tempfile::tempdir().unwrap();
-    let (state, work, _) = state_with_places(root.path());
-    set_keep_alive(&state, &work, true).unwrap();
     let start = 10_000_000;
-    state.places.watch.lock().unwrap().settled_at(start);
+    let (state, work) = kept_alive_since(root.path(), start);
     let (me, _) = running_as_me(&state, &work);
     let starter = Recorder {
         lost: true,
@@ -559,10 +564,8 @@ fn keep_alive_leaves_a_lost_place_while_locked_or_while_a_session_works_in_it() 
     use crate::features::conversations::places::Host;
     use crate::features::conversations::scan::{LiveEntry, LiveModel, Place, State};
     let root = tempfile::tempdir().unwrap();
-    let (state, work, _) = state_with_places(root.path());
-    set_keep_alive(&state, &work, true).unwrap();
     let start = 10_000_000;
-    state.places.watch.lock().unwrap().settled_at(start);
+    let (state, work) = kept_alive_since(root.path(), start);
     let (me, at) = running_as_me(&state, &work);
     let starter = Recorder {
         lost: true,

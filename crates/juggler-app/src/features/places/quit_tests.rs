@@ -5,8 +5,8 @@
 use std::sync::Arc;
 
 use super::super::fakes::{FakeDesktop, Recorder};
-use super::super::tests::{quick, running_as_me, state_with_places};
-use super::super::{keep, open, set_keep_alive, tick_with, with_book};
+use super::super::tests::{kept_alive, kept_alive_since, quick, running_as_me, state_with_places};
+use super::super::{keep, open, tick_with, with_book};
 use super::{QUIT_HERE, quit};
 
 fn paused(state: &Arc<crate::state::AppState>, id: &str) -> Option<String> {
@@ -35,10 +35,8 @@ fn quit_closes_a_running_app_once_and_starts_nothing() {
 #[test]
 fn keep_alive_never_starts_an_app_quit_here_until_its_next_open() {
     let root = tempfile::tempdir().unwrap();
-    let (state, work, _) = state_with_places(root.path());
-    set_keep_alive(&state, &work, true).unwrap();
     let start = 10_000_000;
-    state.places.watch.lock().unwrap().settled_at(start);
+    let (state, work) = kept_alive_since(root.path(), start);
     running_as_me(&state, &work);
     let starter = Recorder::default();
     quit(&state, &work, &starter, quick()).unwrap();
@@ -73,8 +71,7 @@ fn keep_alive_never_starts_an_app_quit_here_until_its_next_open() {
 #[test]
 fn a_quit_that_wasnt_sent_leaves_keep_alive_as_it_was() {
     let root = tempfile::tempdir().unwrap();
-    let (state, work, _) = state_with_places(root.path());
-    set_keep_alive(&state, &work, true).unwrap();
+    let (state, work) = kept_alive(root.path());
     running_as_me(&state, &work);
     let starter = Recorder {
         reused_after_look: true,
@@ -91,8 +88,7 @@ fn a_quit_that_wasnt_sent_leaves_keep_alive_as_it_was() {
 #[test]
 fn one_that_doesnt_quit_in_time_is_said_and_stays_paused() {
     let root = tempfile::tempdir().unwrap();
-    let (state, work, _) = state_with_places(root.path());
-    set_keep_alive(&state, &work, true).unwrap();
+    let (state, work) = kept_alive(root.path());
     running_as_me(&state, &work);
     let starter = Recorder {
         stays: true,

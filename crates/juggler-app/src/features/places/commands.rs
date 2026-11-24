@@ -671,23 +671,29 @@ pub async fn places_restart(
             super::QuitWait::default(),
             crate::commands::now_millis(),
         );
-        Ok(match said {
-            // Followed by the window until it runs (the go sitting, finding 3).
-            Ok(words) => GoToOutcomeInfo {
-                outcome: words,
-                reached: "started".to_owned(),
-                place_id: Some(id.clone()),
-                ticket: None,
-            },
-            Err(why) => GoToOutcomeInfo {
-                outcome: why,
-                reached: "none".to_owned(),
-                place_id: None,
-                ticket: None,
-            },
-        })
+        // Followed by the window until it runs (the go sitting, finding 3).
+        Ok(outcome(said, "started", &id))
     })
     .await
+}
+
+/// Restart's or Quit's words as an outcome: `reached` and the App `id`
+/// when it went, `none` and no App when it didn't.
+fn outcome(said: Result<String, String>, reached: &str, id: &str) -> GoToOutcomeInfo {
+    match said {
+        Ok(words) => GoToOutcomeInfo {
+            outcome: words,
+            reached: reached.to_owned(),
+            place_id: Some(id.to_owned()),
+            ticket: None,
+        },
+        Err(why) => GoToOutcomeInfo {
+            outcome: why,
+            reached: "none".to_owned(),
+            place_id: None,
+            ticket: None,
+        },
+    }
 }
 
 /// 0.5.1 F98: Quit…, after its confirm: quits a running app or profile
@@ -710,20 +716,7 @@ pub async fn places_quit(
             &super::start::System,
             super::QuitWait::default(),
         );
-        Ok(match said {
-            Ok(words) => GoToOutcomeInfo {
-                outcome: words,
-                reached: "quit".to_owned(),
-                place_id: Some(id.clone()),
-                ticket: None,
-            },
-            Err(why) => GoToOutcomeInfo {
-                outcome: why,
-                reached: "none".to_owned(),
-                place_id: None,
-                ticket: None,
-            },
-        })
+        Ok(outcome(said, "quit", &id))
     })
     .await
 }

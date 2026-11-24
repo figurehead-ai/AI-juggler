@@ -3,7 +3,7 @@
 //! once and Forget asked the user to quit it first, so a Claude app
 //! profile or the Codex app couldn't be closed from here.
 //!
-//! One quit for every caller: [`ask_to_quit`] is Restart's quit too
+//! One quit for every caller: `ask_to_quit` is Restart's quit too
 //! (`places::restart`), and it signals as Move does: the very process
 //! looked at, by its pid and start, checked again right before the signal
 //! (`ownership::signal::quit_checked`, AJ-E2320), through the launcher's
@@ -17,7 +17,7 @@
 use std::sync::Arc;
 
 use super::{
-    QuitWait, Restarting, changed, named, running_now, start, wait_until, why_held, with_book,
+    QuitWait, Restarting, added_and_free, changed, running_now, start, wait_until, with_book,
 };
 use crate::features::ownership;
 use crate::state::AppState;
@@ -79,15 +79,7 @@ pub fn quit(
     starter: &dyn start::Starter,
     wait: QuitWait,
 ) -> Result<String, String> {
-    let place = with_book(state, |book| {
-        book.places.get(id).filter(|place| place.users).cloned()
-    })
-    .map_err(|error| error.to_string())?
-    .ok_or_else(|| "AI Juggler doesn't remember that app any more".to_owned())?;
-    if let Some(why) = why_held(state, id) {
-        return Err(why.to_owned());
-    }
-    let label = named(state, &place);
+    let (place, label) = added_and_free(state, id, |_| ())?;
     let Some(_guard) = Restarting::begin(state, id) else {
         return Err(format!("{label} is restarting or quitting already"));
     };
