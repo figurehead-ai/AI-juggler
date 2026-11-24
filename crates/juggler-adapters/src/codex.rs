@@ -399,15 +399,7 @@ pub fn probe_codex_identity(state_dir: &Path) -> juggler_adapter::IdentityProbe 
 /// The scan-side sign-in axis stays binary (the inference vocabulary);
 /// the account wire carries the full taxonomy (AJ-E308), as for Claude.
 fn scan_probe(path: &Path) -> LoginProbe {
-    match codex_login_state(path) {
-        LoginState::SignedIn => LoginProbe::LoggedIn,
-        LoginState::Partial
-        | LoginState::Expired
-        | LoginState::SsoPending
-        | LoginState::ApiKey
-        | LoginState::LoggedOut
-        | LoginState::Unknown => LoginProbe::LoggedOut,
-    }
+    codex_login_state(path).sign_in_probe()
 }
 
 /// The isolation overlay: the home, and the SQLite home pinned inside it
@@ -567,9 +559,8 @@ impl ToolDiscovery for CodexAdapter {
 }
 
 impl ToolSignIn for CodexAdapter {
-    /// AJ-E1545 R8: the page and code Codex's sign-in shows.
-    fn sign_in_page(&self, output: &str) -> Option<juggler_adapter::SignInPage> {
-        juggler_adapter::sign_in_page::read(output, &SIGN_IN_PAGE)
+    fn sign_in_page_rule(&self) -> Option<&'static juggler_adapter::PageRule> {
+        Some(&SIGN_IN_PAGE)
     }
     /// AJ-E1553: its sign-in file's size and time (never its contents).
     fn sign_in_stamp(&self, state_dir: &Path) -> Option<juggler_adapter::SignInStamp> {

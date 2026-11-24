@@ -40,6 +40,7 @@ pub mod renewal;
 pub mod storage;
 pub mod tasks;
 pub mod time;
+pub mod words;
 
 pub use error::CoreError;
 pub use model::{

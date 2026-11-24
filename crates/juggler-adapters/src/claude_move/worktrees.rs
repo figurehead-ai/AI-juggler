@@ -45,7 +45,7 @@ use std::collections::{BTreeSet, HashMap};
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 
-use juggler_adapter::compat::Version;
+use juggler_adapter::compat::{Version, parse_tool_version};
 use juggler_adapter::moving::{Carried, MoveCheck, MovePlan, MoveStep, Refusal, Split, Tidied};
 use serde_json::{Map, Value};
 
@@ -105,16 +105,6 @@ fn parse_manifest(text: &str) -> Option<Known> {
     })
 }
 
-/// An app's version as its bundle says it (`5.11492.5`, a two-part one
-/// read as `.0`).
-fn version_of(text: &str) -> Option<Version> {
-    let word = text.split_whitespace().next()?;
-    let word = word.strip_prefix('v').unwrap_or(word);
-    word.parse()
-        .ok()
-        .or_else(|| format!("{word}.0").parse().ok())
-}
-
 /// The Claude app versions the manifest says moves were checked on.
 #[must_use]
 pub fn checked_versions() -> Vec<String> {
@@ -125,7 +115,7 @@ pub fn checked_versions() -> Vec<String> {
 /// manifest's accepted range).
 #[must_use]
 pub fn moves_checked(version: Option<&str>) -> bool {
-    let (Some(known), Some(version)) = (known(), version.and_then(version_of)) else {
+    let (Some(known), Some(version)) = (known(), version.and_then(parse_tool_version)) else {
         return false;
     };
     known
@@ -393,15 +383,6 @@ fn profile_name(host: &Path) -> String {
         .map_or_else(|| shown(host), |n| n.to_string_lossy().into_owned())
 }
 
-/// "a", "a and b", "a, b and c".
-fn and_list(names: &[String]) -> String {
-    match names {
-        [] => String::new(),
-        [one] => one.clone(),
-        [rest @ .., last] => format!("{} and {last}", rest.join(", ")),
-    }
-}
-
 /// The note naming the other profiles that look after the folder `path`
 /// is in (they are left as they are).
 fn swept_note(others: &[PathBuf], name: &str) -> Option<String> {
@@ -412,7 +393,7 @@ fn swept_note(others: &[PathBuf], name: &str) -> Option<String> {
     Some(format!(
         "the Claude app profile{} {} also clean{} up unused folders where the worktree {name} is; AI Juggler leaves that as it is",
         if names.len() == 1 { "" } else { "s" },
-        and_list(&names),
+        juggler_core::words::and_list(&names),
         if names.len() == 1 { "s" } else { "" },
     ))
 }
@@ -674,16 +655,12 @@ fn read_record(path: &Path) -> Option<Value> {
         .and_then(|bytes| serde_json::from_slice(&bytes).ok())
 }
 
-/// AJ-E2328 req 7: the conversations among `hosts` whose worktree is owned
-/// by another profile than the one holding them, or whose owned entry
-/// names another branch than the worktree is on. Only worktrees whose
-/// folder is there count (a gone one is made again by the app). Reads
-/// only, never inside a worktree but its `.git` and `HEAD`.
+/// The worktree files of `hosts` that are there, each with its profile.
 ///
 /// # Errors
 ///
 /// A profile's worktree file is in a format the manifest doesn't name.
-pub(super) fn splits(hosts: &[PathBuf]) -> Result<Vec<Split>, String> {
+fn known_files(hosts: &[PathBuf]) -> Result<Vec<(&PathBuf, Value)>, String> {
     let mut files: Vec<(&PathBuf, Value)> = Vec::new();
     for host in hosts {
         match read(host) {
@@ -697,6 +674,20 @@ pub(super) fn splits(hosts: &[PathBuf]) -> Result<Vec<Split>, String> {
             }
         }
     }
+    Ok(files)
+}
+
+/// AJ-E2328 req 7: the conversations among `hosts` whose worktree is owned
+/// by another profile than the one holding them, or whose owned entry
+/// names another branch than the worktree is on. Only worktrees whose
+/// folder is there count (a gone one is made again by the app). Reads
+/// only, never inside a worktree but its `.git` and `HEAD`.
+///
+/// # Errors
+///
+/// A profile's worktree file is in a format the manifest doesn't name.
+pub(super) fn splits(hosts: &[PathBuf]) -> Result<Vec<Split>, String> {
+    let files = known_files(hosts)?;
     let orgs: Vec<(&PathBuf, Vec<PathBuf>)> = hosts.iter().map(|h| (h, org_folders(h))).collect();
     let mut out = Vec::new();
     for (owner, value) in &files {
@@ -787,19 +778,7 @@ pub(super) const TWO_WORKTREES: &str = "This conversation has two worktrees; bot
 ///
 /// As [`splits`].
 pub(super) fn also_tidied(hosts: &[PathBuf]) -> Result<Vec<Tidied>, String> {
-    let mut files: Vec<(&PathBuf, Value)> = Vec::new();
-    for host in hosts {
-        match read(host) {
-            Worktrees::Absent => {}
-            Worktrees::Known(value) => files.push((host, value)),
-            Worktrees::Unknown(what) => {
-                return Err(format!(
-                    "{} keeps its worktrees in a format AI Juggler doesn't know yet ({what})",
-                    profile_name(host)
-                ));
-            }
-        }
-    }
+    let files = known_files(hosts)?;
     let seen = |value: &Value, folder: &Path| {
         value
             .get("untrackedDirGc")

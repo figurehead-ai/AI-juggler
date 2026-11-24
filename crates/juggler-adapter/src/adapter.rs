@@ -298,14 +298,18 @@ pub trait ToolSignIn: ToolIdentity {
     fn login_url(&self) -> Option<LoginUrl> {
         None
     }
+    /// AJ-E1545 R8: how its sign-in's output is read: the hosts its
+    /// sign-in pages are on and the words it waits for a pasted code with
+    /// (the adapter's data; the reading is [`crate::sign_in_page::read`]).
+    /// Default: `None`, a sign-in that can't be read: it keeps its terminal.
+    fn sign_in_page_rule(&self) -> Option<&'static crate::sign_in_page::PageRule> {
+        None
+    }
     /// AJ-E1545 R8: the page its sign-in (`login_spec`'s run) shows on
     /// `output` (the terminal's [`crate::sign_in_page::plain_lines`]) and
-    /// the device code with it, read by the adapter's own rule
-    /// ([`crate::sign_in_page::read`]). Default: `None`, a sign-in that
-    /// can't be read: it keeps its terminal.
+    /// the device code with it, read by [`Self::sign_in_page_rule`].
     fn sign_in_page(&self, output: &str) -> Option<crate::sign_in_page::SignInPage> {
-        let _ = output;
-        None
+        crate::sign_in_page::read(output, self.sign_in_page_rule()?)
     }
     /// AJ-E1553: its sign-in file's size and time in `state_dir`
     /// (metadata only, never its contents), so a sign-in run where one

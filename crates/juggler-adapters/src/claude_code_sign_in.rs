@@ -24,9 +24,8 @@ const SIGN_IN_PAGE: juggler_adapter::PageRule = juggler_adapter::PageRule {
 };
 
 impl ToolSignIn for ClaudeCodeAdapter {
-    /// AJ-E1545 R8: the page and code Claude Code's sign-in shows.
-    fn sign_in_page(&self, output: &str) -> Option<juggler_adapter::SignInPage> {
-        juggler_adapter::sign_in_page::read(output, &SIGN_IN_PAGE)
+    fn sign_in_page_rule(&self) -> Option<&'static juggler_adapter::PageRule> {
+        Some(&SIGN_IN_PAGE)
     }
     /// AJ-E1553: its sign-in file's size and time (never its contents).
     fn sign_in_stamp(&self, state_dir: &Path) -> Option<juggler_adapter::SignInStamp> {
@@ -49,11 +48,7 @@ impl ToolSignIn for ClaudeCodeAdapter {
         true
     }
     fn adopt_account(&self, source: &Path) -> Result<ImportOutcome, AdapterError> {
-        let adapter = ClaudeCodeAdapter::new();
-        let probe = move |path: &Path| match adapter.login_state(path) {
-            LoginState::SignedIn => LoginProbe::LoggedIn,
-            _ => LoginProbe::LoggedOut,
-        };
+        let probe = signed_in_probe();
         claude_environment::adopt_claude_config(source, &probe)
     }
     fn inspect_source(
@@ -106,13 +101,5 @@ impl ToolSignIn for ClaudeCodeAdapter {
 /// taxonomy (AJ-E308).
 fn signed_in_probe() -> impl Fn(&Path) -> LoginProbe {
     let adapter = ClaudeCodeAdapter::new();
-    move |path: &Path| match adapter.login_state(path) {
-        LoginState::SignedIn => LoginProbe::LoggedIn,
-        LoginState::Partial
-        | LoginState::Expired
-        | LoginState::SsoPending
-        | LoginState::ApiKey
-        | LoginState::LoggedOut
-        | LoginState::Unknown => LoginProbe::LoggedOut,
-    }
+    move |path: &Path| adapter.login_state(path).sign_in_probe()
 }

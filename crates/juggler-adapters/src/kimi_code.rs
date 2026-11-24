@@ -321,9 +321,8 @@ impl ToolDiscovery for KimiCodeAdapter {
 }
 
 impl ToolSignIn for KimiCodeAdapter {
-    /// AJ-E1545 R8: the page and code Kimi Code's sign-in shows.
-    fn sign_in_page(&self, output: &str) -> Option<juggler_adapter::SignInPage> {
-        juggler_adapter::sign_in_page::read(output, &SIGN_IN_PAGE)
+    fn sign_in_page_rule(&self) -> Option<&'static juggler_adapter::PageRule> {
+        Some(&SIGN_IN_PAGE)
     }
     /// AJ-E1553: its sign-in file's size and time (never its contents).
     fn sign_in_stamp(&self, state_dir: &Path) -> Option<juggler_adapter::SignInStamp> {

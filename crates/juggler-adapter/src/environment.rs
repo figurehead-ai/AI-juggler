@@ -63,6 +63,18 @@ impl LoginState {
             }
         }
     }
+
+    /// What a scan of a sign-in folder reports of it: signed in only when
+    /// the tool's own sign-in is there (a key or a half-done sign-in is
+    /// not one); the account wire carries the full taxonomy (AJ-E308).
+    #[must_use]
+    pub fn sign_in_probe(self) -> LoginProbe {
+        if self == Self::SignedIn {
+            LoginProbe::LoggedIn
+        } else {
+            LoginProbe::LoggedOut
+        }
+    }
 }
 
 /// How a discovered install's location came to exist.
