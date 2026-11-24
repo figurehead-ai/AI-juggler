@@ -448,9 +448,9 @@ fn quiet_held(
 /// name ("“Fix the login test” in Terminal is open outside the app; Move
 /// becomes available once you end it").
 fn elsewhere_clears(sessions: &[MoveHolder], action: &str) -> String {
-    let names: Vec<&str> = sessions.iter().map(|s| s.name.as_str()).collect();
-    let one = names.len() == 1;
-    let named = match names.as_slice() {
+    let titles: Vec<&str> = sessions.iter().map(|s| s.name.as_str()).collect();
+    let one = titles.len() == 1;
+    let named = match titles.as_slice() {
         [only] => (*only).to_owned(),
         [rest @ .., last] => format!("{} and {last}", rest.join(", ")),
         [] => String::new(),

@@ -925,9 +925,11 @@ fn a_session_open_elsewhere_is_named_with_its_door() {
         ..MoveHolder::default()
     };
     assert_eq!(offer.holders, vec![door.clone()]);
-    let AppError::Move(stop) = run(&lab.state, &lab.sides, &system).unwrap_err() else {
-        panic!("a typed stop");
-    };
+    let stop = run(&lab.state, &lab.sides, &system)
+        .unwrap_err()
+        .wire()
+        .stop
+        .expect("a typed stop");
     assert_eq!(stop.holders, vec![door]);
 }
 
