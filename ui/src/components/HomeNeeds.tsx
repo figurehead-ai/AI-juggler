@@ -169,11 +169,16 @@ function sinceOf(need: HomeNeed): number {
   return need.item ? waitingSince(need.item) : (need.since ?? Number.MAX_SAFE_INTEGER);
 }
 
-/** Every entry, in the one order: Home's needs (their own order kept),
- * agents' messages and tasks, each oldest first, merged by level, then
- * the longest wait (an agent's message or task waits on you: L2). */
+/** Every entry, in the one order: Home's needs, agents' messages and
+ * tasks, merged by level, then the longest wait (an agent's message or
+ * task waits on you: L2). 0.5.1 F80: Home's own needs are ordered by that
+ * rule too (their kinds' order only among equals), so a session that
+ * stopped with an error (L3) is pinned before one that asks (L2), as the
+ * rail lists them, never folded under "+n more". */
 export function needsOrder(needs: HomeNeed[], messages: MessageNeedInfo[], tasks: TaskNeedInfo[]): Entry[] {
-  const own = needs.map((need): Entry => ({ kind: "need", key: need.key, need, level: homeNeedLevel(need), since: sinceOf(need) }));
+  const own = needs
+    .map((need): Entry => ({ kind: "need", key: need.key, need, level: homeNeedLevel(need), since: sinceOf(need) }))
+    .sort((a, b) => b.level - a.level || a.since - b.since);
   const said = messages.filter((m) => !isHeldAsk(m)).map((message): Entry => ({ kind: "message", key: `message:${message.key}`, message, level: 2, since: message.at_ms })).sort((a, b) => a.since - b.since);
   const asked = tasks.filter((t) => !isTaskAsk(t)).map((task): Entry => ({ kind: "task", key: `task:${task.id}`, task, level: 2, since: task.at_ms })).sort((a, b) => a.since - b.since);
   return mergeByWait([own, said, asked], (entry) => entry);

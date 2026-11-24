@@ -78,3 +78,32 @@ describe("0.5.1 critique (93-messages): one filled button in Needs you", () => {
     expect(filled[0]!.textContent).toContain("Open its page");
   });
 });
+
+describe("0.5.1 F80: a stopped session stays pinned in Needs you now", () => {
+  // Home's own list comes in its kinds' order (sessions that ask or look
+  // stuck, limits, then what failed); the pinned three must be the
+  // loudest, as the rail lists them: L3 "Stopped with an error" first.
+  const own = (key: string, kind: "session" | "limit" | "failed", level: 2 | 3, ago: number) => ({
+    key, kind, title: key, detail: "", severe: kind !== "session", level, since: NOW - ago,
+  });
+  const homeOwn = () => [
+    own("asks", "session", 2, 12 * MIN),
+    own("stuck", "session", 2, 3 * 60 * MIN),
+    own("limit", "limit", 2, 4 * 60 * MIN),
+    own("failed-a", "failed", 3, 10 * 60 * MIN),
+    own("failed-b", "failed", 3, 60 * MIN),
+  ];
+
+  it("orders Home's own needs by level, then the longest wait", () => {
+    expect(needsOrder(homeOwn(), [], []).map((entry) => entry.key)).toEqual(["failed-a", "failed-b", "limit", "stuck", "asks"]);
+  });
+
+  it("pins both stopped sessions; the folded ones are the quieter", () => {
+    render(<HomeNeeds needs={homeOwn()} now={NOW} handlers={{ onOpenSession: vi.fn() }} />);
+    const zone = screen.getByTestId("home-needs");
+    const pinned = [...zone.querySelectorAll<HTMLElement>("[data-home-item]")].map((card) => card.dataset.needKey);
+    expect(pinned).toEqual(["failed-a", "failed-b", "limit"]);
+    expect(zone.querySelector("[data-kind='failed'][data-first='true']")).not.toBeNull();
+    expect(screen.getByTestId("home-needs-more").textContent).toBe("+2 more need you");
+  });
+});
