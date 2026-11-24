@@ -1,4 +1,4 @@
-<!-- captures: b9af13cf39dc -->
+<!-- captures: f2ec37a155a0 -->
 <!-- captures: pending -->
 # 99-debug-mode: Debug mode
 
@@ -36,3 +36,7 @@ Design critique (D-57) against Settings › Advanced (65-settings-sections). New
 The whole family was retaken on release/0.4.1 for the 14-line re-score (AJ-E3305, `docs/qa/0.4-walks/design.md`) and opened on contact sheets, both themes, 1280 and 1024. Shared with every screen since the last shoot: the header's New session is tinted (one filled button per view), the Floor button is a split control with its own menu, This Mac's line is its dot below 1120 px, and the rail's App headers put the profile first.
 
 Unchanged in design: "Keep a detailed log" under Debug mode, the log empty with Show and Clear the log disabled.
+
+## 0.5.1
+
+Re-captured on 0.5.1; only the shared chrome changed in these screens. The rail's head now starts past the traffic lights, its rows hold a fixed dot column (tools on hover), cards and panels separate by tone instead of a border, a chosen item is a fill, and the top bar's bottom line is calmer. Content is unchanged; the settings list gained AI and Models.

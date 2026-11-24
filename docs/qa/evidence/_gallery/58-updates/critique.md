@@ -1,4 +1,4 @@
-<!-- captures: 0b2debeb5f8d -->
+<!-- captures: 34e14a364e39 -->
 # 58-updates: About & updates in Settings across every update state, and the update banners on Home
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design fixes.
@@ -15,3 +15,7 @@ The About & updates card stands off both canvases, and its release-notes box (Ne
 - restart-ready, restart-waiting (dark/light): the "Open projects in" heading is sliced at the top edge; check-failed opens on that card with its top cut off.
 - failed-1280x800-dark/light: the "⚠ Not installed" warning has no amber or red treatment and reads like an ordinary note.
 - development-1280x800-dark/light: a "Beta" badge and "beta channel" on a build described as a development build that never updates.
+
+## 0.5.1
+
+Re-captured on 0.5.1; only the shared chrome changed in these screens. The rail's head now starts past the traffic lights, its rows hold a fixed dot column (tools on hover), cards and panels separate by tone instead of a border, a chosen item is a fill, and the top bar's bottom line is calmer. About and updates are unchanged; the settings list gained AI and Models.

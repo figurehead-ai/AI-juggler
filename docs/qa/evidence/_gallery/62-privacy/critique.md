@@ -1,4 +1,4 @@
-<!-- captures: fe45ca46523a -->
+<!-- captures: 5cb71ba515db -->
 # 62-privacy: Settings › Privacy: usage statistics choices, what is collected, the exact weekly report, the dashboard link, and an upload error
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design fixes.
@@ -14,3 +14,7 @@ The privacy card stands off both canvases, the selected option tile is tinted vi
 - upload-error (all four): the failure line has no amber or red treatment and reads like an ordinary note.
 - report-json-1024x680-dark/light: the "Features used · 2026-W42" heading is cut under the top edge.
 - not-included (all four): the "What it reads" rows use a bigger type size than the card text above them.
+
+## 0.5.1
+
+Re-captured on 0.5.1; only the shared chrome changed in these screens. The rail's head now starts past the traffic lights, its rows hold a fixed dot column (tools on hover), cards and panels separate by tone instead of a border, a chosen item is a fill, and the top bar's bottom line is calmer. Privacy content is unchanged; the settings list gained AI and Models.

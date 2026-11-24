@@ -1,4 +1,4 @@
-<!-- captures: 9db27ff91016 -->
+<!-- captures: a896e800fed3 -->
 <!-- captures: pending -->
 # 99-usage-cost: cost you can act on
 
@@ -40,3 +40,7 @@ Design critique (D-57) against Usage's tiles and Top sessions (94-usage) and the
 The whole family was retaken on release/0.4.1 for the 14-line re-score (AJ-E3305, `docs/qa/0.4-walks/design.md`) and opened on contact sheets, both themes, 1280 and 1024. Shared with every screen since the last shoot: the header's New session is tinted (one filled button per view), the Floor button is a split control with its own menu, This Mac's line is its dot below 1120 px, and the rail's App headers put the profile first.
 
 "3.2M tokens a task · 65 finished · 51 other apps' not counted" reads "· not counting 51 sessions other apps ran" (9d96ccd06).
+
+## 0.5.1
+
+Re-captured on 0.5.1; only the shared chrome changed in these screens. The rail's head now starts past the traffic lights, its rows hold a fixed dot column (tools on hover), cards and panels separate by tone instead of a border, a chosen item is a fill, and the top bar's bottom line is calmer. The cost cards and tables are unchanged; names read Claude Code CLI.

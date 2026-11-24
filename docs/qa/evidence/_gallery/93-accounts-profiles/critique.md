@@ -1,4 +1,4 @@
-<!-- captures: e81c029a610a -->
+<!-- captures: fb87b1deb0f0 -->
 # 93-accounts-profiles: Accounts with one, two and six profiles
 
 Design critique (D-57, AJ-E2814) against the reference screens: the row menus (77-menus), the rail's order menu, Usage and Processes. The baseline note says what changed on purpose; this says whether it is good. Written at the 0.3 second re-render, the first time these captures were taken since 0.1 (the spec lives in session-pages-gallery.spec.ts).
@@ -49,3 +49,7 @@ The account cards stand off the page in both themes: in dark the card is a clear
 ## 0.4.1 (E21, 2026-11-07): re-shot
 
 What changed, each looked at: App rows say "Nothing open" or "n open now" and carry no folder path (design review #63); the header's ‹ › and the rail are other 0.4.1 work.
+
+## 0.5.1
+
+Re-captured on 0.5.1; only the shared chrome changed in these screens. The rail's head now starts past the traffic lights, its rows hold a fixed dot column (tools on hover), cards and panels separate by tone instead of a border, a chosen item is a fill, and the top bar's bottom line is calmer. The accounts list keeps its cards; accounts and apps got tabs, profiles read apps, and Measure its limits became How it's measured.

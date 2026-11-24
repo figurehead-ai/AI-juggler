@@ -1,4 +1,4 @@
-<!-- captures: 759ab8baf0ca -->
+<!-- captures: 1e659e9dbc9c -->
 # 91-pools: the rail's Pool grouping, Move to pool, Agent access
 
 Design critique (D-57, AJ-E2814) against the reference screens: the row menus (77-menus), the rail's order menu, Usage and Processes. The baseline note says what changed on purpose; this says whether it is good.
@@ -59,3 +59,7 @@ settings-agent-access (both widths and themes): a pool's row opens the same cont
 Section titles re-rendered (6db085536): a colour token named like a type size (`--color-section` beside `--text-section`) had Tailwind build `.text-section` as a colour only, so every section title in the captures from 56f98a514 on was about 13 px regular grey. Re-captured and checked by eye against the earlier captures:
 
 - settings-agent-access (both widths and themes): the pool headings ("Checkout redesign", "Docs") are 15 px semibold ink again; the rows under them sit a pixel off. Nothing else changed. Pass.
+
+## 0.5.1
+
+Re-captured on 0.5.1; only the shared chrome changed in these screens. The rail's head now starts past the traffic lights, its rows hold a fixed dot column (tools on hover), cards and panels separate by tone instead of a border, a chosen item is a fill, and the top bar's bottom line is calmer. The move-to-pool dialog and Agent access settings are unchanged; the settings list gained AI and Models.
