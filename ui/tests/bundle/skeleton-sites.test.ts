@@ -26,6 +26,7 @@ const BY_DESIGN: Record<string, string> = {
   "components/ScreenBoundary.tsx": "AreaSkeleton, drawn only as a lazy part's Suspense fallback (AJ-E1549)",
   "shell/screens.tsx": "the Privacy redirect's one frame (AJ-E1549)",
   "screens/projects/ProjectRow.tsx": "ProjectRowSkeleton, the row skeleton itself (drawn by ProjectsScreen through LoadingState)",
+  "components/SignInCard.tsx": "the sign-in terminal's list skeleton, drawn only as the lazy TerminalView's fallback while its code loads, so the frame is never blank (AJ-E1549 R3, F13)",
   "pages/pool/PoolPanel.tsx": "the Tasks and Messages tabs' list skeletons, drawn only as a lazy part's fallback while its code loads (AJ-E1552)",
 };
 
