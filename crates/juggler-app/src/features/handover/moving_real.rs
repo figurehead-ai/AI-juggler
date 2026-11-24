@@ -83,7 +83,7 @@ impl MoveSystem for Real {
     // Started as a Desktop hand-off is, by the move that holds it closed
     // (every other start refuses a held profile).
     fn start(&self, state: &Arc<AppState>, place: &KnownPlace) -> Result<(), String> {
-        crate::features::places::start_held(state, place)
+        crate::features::places::start_held(state, place, &crate::features::places::start::System)
     }
 
     // AJ-E2322 R2: woken by the moved files' folders' events (a look

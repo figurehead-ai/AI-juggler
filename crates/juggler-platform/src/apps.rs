@@ -12,6 +12,9 @@
 //!   when the app runs several (a Claude profile beside another), `-g`
 //!   leaves it behind the app in front (a restart nobody clicked never
 //!   takes the keyboard). Windows and Linux: not built yet, said plainly.
+//!   F65 (0.5.1): `open` runs with an empty environment
+//!   ([`crate::process::launcher`]), so the app gets the login session's
+//!   and only its own `--env`, never AI Juggler's (`HOME` included).
 //!
 //! - [`detached`] (0.3.8): an app process that outlived its display. When
 //!   macOS restarts its window server (the watchdog ended `WindowServer`
@@ -65,6 +68,21 @@ pub fn open_command(
     ("/usr/bin/open".to_owned(), out)
 }
 
+/// The command [`open_app`] runs: [`open_command`]'s, through the
+/// [`crate::process::launcher`] (nothing of AI Juggler's environment).
+#[must_use]
+pub fn launch_command(
+    bundle: &Path,
+    start: Start,
+    env: &[(String, String)],
+    args: &[String],
+) -> std::process::Command {
+    let (program, words) = open_command(bundle, start, env, args);
+    let mut command = crate::process::launcher(program);
+    command.args(words);
+    command
+}
+
 /// Starts the app at `bundle` with `args`, and returns once the system
 /// took the request (the app comes up on its own after that).
 ///
@@ -91,9 +109,7 @@ pub fn open_app(
             why,
         ));
     }
-    let (program, words) = open_command(bundle, start, env, args);
-    let out = crate::process::helper(program)
-        .args(words)
+    let out = launch_command(bundle, start, env, args)
         .stdin(std::process::Stdio::null())
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::piped())
@@ -509,6 +525,41 @@ mod tests {
                 "/Applications/Claude.app",
                 "--args",
                 "--user-data-dir=/Users/you/Profiles/work"
+            ]
+        );
+    }
+
+    /// F65: an app starts with only its own launch settings: `open` gets
+    /// none of AI Juggler's variables (it would pass them on to the app;
+    /// a lab's `HOME` gave a restarted Claude app no keychain).
+    #[test]
+    fn an_app_starts_with_none_of_our_environment() {
+        let command = launch_command(
+            &PathBuf::from("/Applications/Claude.app"),
+            Start {
+                new_instance: true,
+                background: true,
+            },
+            &[(
+                "CLAUDE_CONFIG_DIR".to_owned(),
+                "/Users/someone/CodeProfiles/work".to_owned(),
+            )],
+            &["--user-data-dir=/Users/someone/Profiles/work".to_owned()],
+        );
+        assert_eq!(command.get_program(), "/usr/bin/open");
+        let envs: Vec<_> = command.get_envs().collect();
+        assert!(envs.is_empty(), "no HOME, TMPDIR or PATH of ours: {envs:?}");
+        assert_eq!(
+            command.get_args().collect::<Vec<_>>(),
+            [
+                "-n",
+                "-g",
+                "--env",
+                "CLAUDE_CONFIG_DIR=/Users/someone/CodeProfiles/work",
+                "-a",
+                "/Applications/Claude.app",
+                "--args",
+                "--user-data-dir=/Users/someone/Profiles/work"
             ]
         );
     }

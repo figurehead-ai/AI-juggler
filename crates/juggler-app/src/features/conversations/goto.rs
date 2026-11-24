@@ -680,8 +680,9 @@ impl Desktop for MacDesktop {
         juggler_platform::apps::detached(pid, start)
     }
 
+    // F65: a link may start its app: none of AI Juggler's environment.
     fn open_link(&self, link: &str) -> bool {
-        juggler_adapter::process::helper("/usr/bin/open")
+        juggler_adapter::process::launcher("/usr/bin/open")
             .arg(link)
             .status()
             .is_ok_and(|status| status.success())

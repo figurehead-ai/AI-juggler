@@ -65,7 +65,9 @@ pub struct Launch {
     pub args: Vec<String>,
 }
 
-/// The real system.
+/// The real system: an app starts through `juggler_platform::apps::open_app`
+/// (Launch Services, with only the launch's own settings and none of AI
+/// Juggler's environment, F65).
 #[derive(Clone, Copy, Debug, Default)]
 pub struct System;
 
@@ -218,12 +220,17 @@ pub(crate) fn start_place(
 }
 
 /// Starts `place` for the move that holds it closed
-/// ([`super::MoveHold`]): its own restarts, as a Desktop hand-off starts
-/// a profile.
-pub(crate) fn start_held(state: &Arc<AppState>, place: &KnownPlace) -> Result<(), String> {
+/// ([`super::MoveHold`]): its own restarts (after a move, its undo, a
+/// repair, a crashed move's recovery), as a Desktop hand-off starts a
+/// profile: the one [`start`] every door uses (F65).
+pub(crate) fn start_held(
+    state: &Arc<AppState>,
+    place: &KnownPlace,
+    starter: &dyn Starter,
+) -> Result<(), String> {
     let hosts = HostRegistry::of(&state.registry);
     let folder = super::tool_folder(state, place);
-    start(place, &hosts, folder.as_deref(), &System, false)
+    start(place, &hosts, folder.as_deref(), starter, false)
         .inspect(|()| crate::features::conversations::look_for_started(state))
 }
 

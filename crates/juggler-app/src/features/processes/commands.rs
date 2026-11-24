@@ -505,7 +505,8 @@ pub async fn processes_reveal(
 #[tauri::command]
 pub async fn processes_activity_monitor(state: tauri::State<'_, Arc<AppState>>) -> AppResult<bool> {
     crate::ipc::blocking(state.inner(), "Activity Monitor", |_| {
-        Ok(juggler_adapter::process::helper("/usr/bin/open")
+        // F65: an app started: none of AI Juggler's environment.
+        Ok(juggler_adapter::process::launcher("/usr/bin/open")
             .args(["-b", "com.apple.ActivityMonitor"])
             .status()
             .is_ok_and(|status| status.success()))

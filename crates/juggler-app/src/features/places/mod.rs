@@ -1513,6 +1513,8 @@ mod desktop_apps_tests;
 #[cfg(test)]
 pub(crate) mod fakes;
 #[cfg(test)]
+mod launch_tests;
+#[cfg(test)]
 mod link_tests;
 #[cfg(test)]
 mod tests;
