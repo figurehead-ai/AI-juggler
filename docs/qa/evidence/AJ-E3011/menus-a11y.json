@@ -1,18 +1,18 @@
 {
   "spec": "ui/tests/visual/menus-a11y.spec.ts",
-  "menus": 76,
+  "menus": 75,
   "covered": [
     {
       "screen": "Rail, header and Home",
       "opener": "View",
       "kind": "menu",
-      "options": 11
+      "options": 10
     },
     {
       "screen": "Rail, header and Home",
       "opener": "Session actions for Review the checkout steps",
       "kind": "menu",
-      "options": 12
+      "options": 13
     },
     {
       "screen": "Rail, header and Home",
@@ -24,43 +24,37 @@
       "screen": "Rail, header and Home",
       "opener": "Session actions for Fix the cart totals",
       "kind": "menu",
-      "options": 12
+      "options": 13
     },
     {
       "screen": "Rail, header and Home",
       "opener": "Session actions for Planner",
       "kind": "menu",
-      "options": 12
+      "options": 13
     },
     {
       "screen": "Rail, header and Home",
       "opener": "Session actions for Review the checkout steps",
       "kind": "menu",
-      "options": 12
-    },
-    {
-      "screen": "Rail, header and Home",
-      "opener": "Session actions for Tax rules research",
-      "kind": "menu",
-      "options": 12
+      "options": 13
     },
     {
       "screen": "Rail, header and Home",
       "opener": "Session actions for Price API tests",
       "kind": "menu",
-      "options": 12
+      "options": 13
     },
     {
       "screen": "Rail, header and Home",
       "opener": "Session actions for Checkout copy pass",
       "kind": "menu",
-      "options": 12
+      "options": 13
     },
     {
       "screen": "Rail, header and Home",
       "opener": "Session actions for Rewrite install guide",
       "kind": "menu",
-      "options": 12
+      "options": 13
     },
     {
       "screen": "Rail, header and Home",
@@ -76,9 +70,9 @@
     },
     {
       "screen": "Rail, header and Home › Notifications: 4 things need you, 4 unread",
-      "opener": "More for “Review the checkout steps” needs your reply",
+      "opener": "More for A reply would wake Review the checkout steps",
       "kind": "menu",
-      "options": 4
+      "options": 5
     },
     {
       "screen": "Rail, header and Home › Notifications: 4 things need you, 4 unread",
@@ -88,15 +82,15 @@
     },
     {
       "screen": "Rail, header and Home › Notifications: 4 things need you, 4 unread",
-      "opener": "More for Personal needs its sign-in",
+      "opener": "More for “Review the checkout steps” needs your reply",
       "kind": "menu",
       "options": 4
     },
     {
       "screen": "Rail, header and Home › Notifications: 4 things need you, 4 unread",
-      "opener": "More for A reply would wake Review the checkout steps",
+      "opener": "More for Personal needs its sign-in",
       "kind": "menu",
-      "options": 5
+      "options": 4
     },
     {
       "screen": "Rail, header and Home",
@@ -108,7 +102,7 @@
       "screen": "Rail, header and Home",
       "opener": "Your menu: Sam",
       "kind": "menu",
-      "options": 12
+      "options": 13
     },
     {
       "screen": "Rail, header and Home",
@@ -118,9 +112,15 @@
     },
     {
       "screen": "Rail, header and Home",
-      "opener": "Actions for Spike: payment sandbox",
+      "opener": "Showing: Everything",
       "kind": "menu",
-      "options": 5
+      "options": 9
+    },
+    {
+      "screen": "Rail, header and Home",
+      "opener": "More feed options",
+      "kind": "menu",
+      "options": 2
     },
     {
       "screen": "Projects",
@@ -376,6 +376,12 @@
     },
     {
       "screen": "Pool page",
+      "opener": "Actions for Checkout team",
+      "kind": "menu",
+      "options": 2
+    },
+    {
+      "screen": "Pool page",
       "opener": "1 waiting on you about Checkout copy pass",
       "kind": "dialog",
       "options": 0
@@ -383,12 +389,6 @@
     {
       "screen": "Pool page",
       "opener": "2 waiting on you about Review the checkout steps",
-      "kind": "dialog",
-      "options": 0
-    },
-    {
-      "screen": "Pool page",
-      "opener": "1 waiting on you about Tax rules research",
       "kind": "dialog",
       "options": 0
     },
@@ -400,6 +400,12 @@
     },
     {
       "screen": "Pool page › an App",
+      "opener": "Actions for Checkout team",
+      "kind": "menu",
+      "options": 2
+    },
+    {
+      "screen": "Pool page › an App",
       "opener": "1 waiting on you about Checkout copy pass",
       "kind": "dialog",
       "options": 0
@@ -407,12 +413,6 @@
     {
       "screen": "Pool page › an App",
       "opener": "2 waiting on you about Review the checkout steps",
-      "kind": "dialog",
-      "options": 0
-    },
-    {
-      "screen": "Pool page › an App",
-      "opener": "1 waiting on you about Tax rules research",
       "kind": "dialog",
       "options": 0
     },
@@ -430,9 +430,9 @@
     },
     {
       "screen": "Pool page › its settings",
-      "opener": "What sessions in this pool may do on their own: Work togethe",
+      "opener": "Actions for Checkout team",
       "kind": "menu",
-      "options": 4
+      "options": 2
     },
     {
       "screen": "Pool page › its settings",
@@ -448,13 +448,7 @@
     },
     {
       "screen": "Pool page › its settings",
-      "opener": "1 waiting on you about Tax rules research",
-      "kind": "dialog",
-      "options": 0
-    },
-    {
-      "screen": "Pool page › its settings",
-      "opener": "New sessions in every project join as: Don't join",
+      "opener": "Everyone in every project, now and new, is: Not in the pool",
       "kind": "menu",
       "options": 4
     }
