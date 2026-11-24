@@ -363,3 +363,4 @@ Re-rendered with `scripts/visual_gate.sh --update --project=gallery -g …` (the
 - 38-flows-cde: `c-provider-cards-1280x800-dark`: Add an app's tool rows choose with a secondary button each (was three filled primaries in one sheet); the desktop tool's note reads "One account at a time: AI Juggler can't open a second copy of this app, so one session at a time with this tool." (was "Juggler tracks, cannot isolate").
 - 50-cross-switch: `targets-1280x800-dark`: Switch account's paired-Mac rows are the same target cards as this Mac's (the App's logo, its name, a tone step, no line; how much carries a quiet line), no amber-ringed chip on every row.
 - 91-more-tools: `add-account-chooser-1280x800-dark`: Add an app's tool rows choose with a secondary button each (the 38-flows-cde fix, the same sheet).
+- 94-service-accounts: `add-account-more-1280x800-dark`: Add an app's tool rows choose with a secondary button each (the 38-flows-cde fix, the same sheet with More open).
