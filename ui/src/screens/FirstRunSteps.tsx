@@ -13,11 +13,12 @@ export type Step = "found" | "fresh" | "folder" | "signin" | "access";
 
 /** First run's and Add account's steps; D-97 (2): no account step (the
  * optional Figurehead account is offered in Settings). */
-export function StepMarks({ step, skipAccess }: { step: Step; skipAccess: boolean }): JSX.Element {
-  // The fresh-account and folder steps are the first step's other doors.
-  const first = step === "fresh" ? "Name the app" : step === "folder" ? "Check the folder" : "Bring in your apps";
+export function StepMarks({ step, door = step, skipAccess }: { step: Step; door?: Step; skipAccess: boolean }): JSX.Element {
+  // The fresh-account and folder steps are the first step's other doors;
+  // the later steps keep the name of the door taken (F29).
+  const first = door === "fresh" ? "Name the app" : door === "folder" ? "Check the folder" : "Bring in your apps";
   const steps: Array<{ id: Step; label: string }> = [
-    { id: step === "fresh" || step === "folder" ? step : "found", label: first },
+    { id: door === "fresh" || door === "folder" ? door : "found", label: first },
     { id: "signin", label: "Sign in where needed" },
     ...(skipAccess ? [] : [{ id: "access" as Step, label: "Computer access" }]),
   ];

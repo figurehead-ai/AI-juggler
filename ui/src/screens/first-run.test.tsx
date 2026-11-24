@@ -11,6 +11,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { FirstRun, freeLabel, groupOf, groupsFor, labelOf, outcomeWords, plainImportError, preselected, usedWords } from "./FirstRun";
 import type { DiscoveredInfo } from "../types/generated/DiscoveredInfo";
 import { foundWords } from "./firstRunScan";
+import { refreshSignIns, resetSignInsForTests } from "../lib/sign-ins-store";
 
 // xterm needs a real browser; the step shows whatever terminal view it gets.
 vi.mock("../components/TerminalView", () => ({
@@ -630,6 +631,46 @@ describe("AJ-E1022 another folder", () => {
     onDone = vi.fn();
     w().__AIJ_PICK_DIRECTORY__ = "/Users/you/old-claude";
     w().__AIJ_SOURCE_INSPECT__ = INSPECT;
+  });
+
+  it("a new app's sign-in keeps its step's name, has one Sign in later and a Stop, and says when it didn't finish (F29)", async () => {
+    const opened: string[] = [];
+    const view = render(<FirstRun mode="add" onDone={onDone} openLoginTerminal={(id) => opened.push(id)} />);
+    await view.findByTestId("first-run-found");
+    await act(async () => {
+      fireEvent.click(view.getByRole("button", { name: "Import from another folder…" }));
+    });
+    await act(async () => {
+      fireEvent.click(await view.findByTestId("first-run-folder-bring-in"));
+    });
+    const [row] = await view.findAllByTestId("first-run-signin-row");
+    const marks = within(view.getByLabelText("First-run steps")).getAllByRole("listitem").map((item) => item.textContent?.replace(/^\d|✓/, ""));
+    expect(marks[0]).toBe("Check the folder");
+    expect(marks).not.toContain("Bring in your apps");
+    // One app: the step's own Sign in later, none in the row's ⋯ as well.
+    fireEvent.click(within(row!).getByRole("button", { name: /^More for/ }));
+    expect(view.getAllByRole("button", { name: /later/i }).map((button) => button.textContent)).toEqual(["Sign in later"]);
+    await act(async () => {
+      fireEvent.click(within(row!).getByRole("button", { name: /^Sign in/ }));
+    });
+    await waitFor(() => expect(opened).toHaveLength(1));
+    // While it runs the card has a Stop.
+    expect(await within(row!).findByTestId("sign-in-stop")).toBeTruthy();
+    // Ended: the row says so, and only the card's Try again starts it again.
+    try {
+      window.__AIJ_SIGN_INS__ = [{ id: opened[0]!, account_id: "a", tool: "claude-code", title: "Sign in", state: "ended", page_host: null, code: null, pastes_code: false, last_lines: [], started_at: 0 }];
+      await act(async () => {
+        await refreshSignIns();
+      });
+      await waitFor(() => expect(within(row!).getByText("Sign-in ended before it finished")).toBeTruthy());
+      expect(row!.textContent).toContain("Didn't finish");
+      expect(row!.textContent).not.toContain("Finish signing in below");
+      expect(within(row!).queryByRole("button", { name: /^Open again/ })).toBeNull();
+      expect(within(row!).getByRole("button", { name: "Try again" })).toBeTruthy();
+    } finally {
+      delete window.__AIJ_SIGN_INS__;
+      resetSignInsForTests();
+    }
   });
 
   it("the picker cancelled changes nothing", async () => {

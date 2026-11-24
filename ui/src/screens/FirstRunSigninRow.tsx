@@ -41,6 +41,8 @@ export function SigninRow({
   // AJ-E1553: the sign-in's own entry (the backend sees it finish).
   const signIn = useSignIns().find((one) => one.id === terminal) ?? null;
   const ready = signedIn(state) || signIn?.state === "signed_in";
+  // F29: once it ended, the row says so; the card below has Try again.
+  const ended = active && signIn?.state === "ended";
   // Every 2 s while waiting (the login-queue card's rule): flips the row
   // the moment the vendor's sign-in completes; never steals focus.
   useEffect(() => {
@@ -78,6 +80,8 @@ export function SigninRow({
             </span>
           ) : skipped ? (
             <span className="text-muted">Later</span>
+          ) : ended ? (
+            <span className="text-muted">Didn't finish</span>
           ) : active ? (
             <span className="text-live">Finish signing in below</span>
           ) : (
@@ -86,10 +90,12 @@ export function SigninRow({
         </output>
         {!ready && (
           <>
-            <Button size="sm" variant={active ? "secondary" : "primary"} onClick={onStart}>
-              {active ? "Open again" : "Sign in"}{" "}
-              <span className="sr-only">{entry.label}</span>
-            </Button>
+            {!ended && (
+              <Button size="sm" variant={active ? "secondary" : "primary"} onClick={onStart}>
+                {active ? "Open again" : "Sign in"}{" "}
+                <span className="sr-only">{entry.label}</span>
+              </Button>
+            )}
             <button
               type="button"
               className="rounded-md px-2 py-1 text-muted hover:bg-surface-2 hover:text-ink"
@@ -127,12 +133,16 @@ export function SigninRow({
               Or run it yourself: <span className="font-mono text-ink">{command}</span>
             </span>
           )}
-          <button type="button" className="self-start text-accent-hi hover:underline" onClick={() => {
-            if (!skipped) onSkip?.();
-            setSkipped(true);
-          }}>
-            Sign in later
-          </button>
+          {/* F29: one app alone has the step's own Sign in later; a row's
+              own is for one of several, worded apart from it. */}
+          {onSkip && (
+            <button type="button" className="self-start text-accent-hi hover:underline" onClick={() => {
+              if (!skipped) onSkip();
+              setSkipped(true);
+            }}>
+              Later for this app
+            </button>
+          )}
         </div>
       )}
     </li>

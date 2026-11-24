@@ -57,6 +57,24 @@ afterEach(() => {
 });
 
 describe("SignInCard", () => {
+  it("Stop signing in ends a running sign-in, on the page and in the terminal alike (F29)", async () => {
+    const { terminalKill } = await import("../lib/ipc/terminal-io");
+    for (const running of [info({ page_host: "auth.openai.com" }), info({})]) {
+      vi.mocked(terminalKill).mockClear();
+      card(running);
+      const stop = screen.getByRole("button", { name: "Stop signing in" });
+      await act(async () => {
+        fireEvent.click(stop);
+      });
+      expect(terminalKill).toHaveBeenCalledWith(ID);
+      expect(screen.getByRole("button", { name: "Stopping…" })).toHaveProperty("disabled", true);
+      cleanup();
+    }
+    // Ended or signed in: nothing to stop.
+    card(info({ state: "ended" }));
+    expect(screen.queryByTestId("sign-in-stop")).toBeNull();
+  });
+
   it("shows the page as the one primary, the code large with Copy, and waits", async () => {
     const copy = vi.fn(async () => undefined);
     Object.defineProperty(navigator, "clipboard", { value: { writeText: copy }, configurable: true });

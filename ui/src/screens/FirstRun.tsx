@@ -433,7 +433,6 @@ function FoundStep({
                     toolName={providerDisplayName(found.harness)}
                     colour={colourAt(installs.indexOf(found))}
                     first={index === 0}
-                    plain={yourApps}
                     paired={pairs.get(found.path)}
                     checked={!!picked[found.path]}
                     disabled={busy}
@@ -683,10 +682,10 @@ function SigninStep({
       <ul className="overflow-hidden rounded-2xl border border-hairline bg-surface">
         {queue.map((entry) => (
           <SigninRow
-            onSkip={() => {
+            onSkip={queue.length > 1 ? () => {
               setSkippedIds((current) => ({ ...current, [entry.accountId]: true }));
               countLogin(entry.provider || provider, "skipped");
-            }}
+            } : undefined}
             key={entry.accountId}
             entry={entry}
             active={active === entry.accountId}
@@ -965,6 +964,12 @@ export function FirstRun({
   footSlot?: HTMLElement | null;
 }): JSX.Element {
   const [step, setStep] = useState<Step>(resumeAtAccess ? "access" : startAt);
+  // F29: the first step's name follows the door taken (a new app's sign-in
+  // isn't under "Bring in your apps").
+  const [door, setDoor] = useState<Step>(startAt);
+  useEffect(() => {
+    if (step === "found" || step === "fresh" || step === "folder") setDoor(step);
+  }, [step]);
   useEffect(() => onStep?.(step), [step, onStep]);
   const [folder, setFolder] = useState<string | null>(null);
   const [taken, setTaken] = useState<string[] | null>(null);
@@ -1112,7 +1117,7 @@ export function FirstRun({
 
   return (
     <FirstRunFrame embedded={embedded} mode={mode} importing={importing} stopping={stopping} leave={leave} frameRef={frameRef}>
-      {!embedded && <StepMarks step={step} skipAccess={skipAccess} />}
+      {!embedded && <StepMarks step={step} door={door} skipAccess={skipAccess} />}
       {step === "found" && (
         <FoundStep
           report={report}

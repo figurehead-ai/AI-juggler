@@ -9,6 +9,8 @@
  *   page gives back; a calm "Waiting for you to approve…". The terminal
  *   stays under "Show details", collapsed.
  * - Nothing to read (yet, or ever): the terminal, with one plain line.
+ * - While it runs, "Stop signing in" ends it (F29: not only ctrl-c in its
+ *   terminal); it then shows as ended, with Try again.
  * - Signed in: "✓ <tool> is signed in".
  * - Ended before it finished: its last lines, Try again, and Dismiss;
  *   never an empty terminal.
@@ -27,7 +29,7 @@ import { lazyNamed } from "../lib/lazy";
 import { ListSkeleton } from "./ListSkeleton";
 import { errorText } from "../lib/bridge";
 import { signInsOpenPage, type SignInInfo } from "../lib/ipc/sign-ins";
-import { terminalWrite } from "../lib/ipc/terminal-io";
+import { terminalKill, terminalWrite } from "../lib/ipc/terminal-io";
 
 // xterm loads only when a sign-in's terminal is shown; until it is here,
 // the frame holds a skeleton, never a blank box (AJ-E1549 R3: the wizard
@@ -47,6 +49,29 @@ function Terminal({ id, title, tall }: { id: string; title: string; tall: boolea
     >
       <TerminalView id={id} title={title} />
     </div>
+  );
+}
+
+/** Ends a running sign-in (its terminal's process); the backend then
+ * lists it as ended, so the card turns to Try again. */
+function StopSignIn({ id, onError }: { id: string; onError: (message: string) => void }): JSX.Element {
+  const [stopping, setStopping] = useState(false);
+  return (
+    <Button
+      size="sm"
+      variant="ghost"
+      disabled={stopping}
+      onClick={() => {
+        setStopping(true);
+        void terminalKill(id).catch((cause) => {
+          setStopping(false);
+          onError(errorText(cause));
+        });
+      }}
+      data-testid="sign-in-stop"
+    >
+      {stopping ? "Stopping…" : "Stop signing in"}
+    </Button>
   );
 }
 
@@ -188,10 +213,18 @@ export function SignInCard({
     // its terminal, with one plain line.
     return (
       <div className="flex flex-col gap-2" data-testid="sign-in-card" data-state="terminal">
-        <p className="text-meta leading-relaxed text-ink-2">
-          {name}'s sign-in runs below: follow its steps there. AI Juggler notices when you're done.
-        </p>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="text-meta leading-relaxed text-ink-2">
+            {name}'s sign-in runs below: follow its steps there. AI Juggler notices when you're done.
+          </p>
+          <StopSignIn id={terminalId} onError={setError} />
+        </div>
         <Terminal id={terminalId} title={title} tall={tall} />
+        {error && (
+          <p className="text-meta text-danger" role="alert">
+            {error}
+          </p>
+        )}
       </div>
     );
   }
@@ -219,10 +252,13 @@ export function SignInCard({
       )}
       {!code && signIn?.pastes_code && <PasteBack id={terminalId} tool={name} />}
       {!code && !signIn?.pastes_code && <p className="text-meta text-ink-2">Sign in on the page, then approve.</p>}
-      <output className="flex items-center gap-2 text-meta text-muted">
-        <span aria-hidden="true" className="dot-live size-1.5 rounded-full bg-live" />
-        Waiting for you to approve…
-      </output>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <output className="flex items-center gap-2 text-meta text-muted">
+          <span aria-hidden="true" className="dot-live size-1.5 rounded-full bg-live" />
+          Waiting for you to approve…
+        </output>
+        <StopSignIn id={terminalId} onError={setError} />
+      </div>
       {error && (
         <p className="text-meta text-danger" role="alert">
           {error}

@@ -1,9 +1,9 @@
 /**
- * AJ-E2906 vitest — first run says how sure it is: each found setup has
- * one word (Found, Likely or Guessed: the weaker of its name and its
- * sign-in) and where it came from in words; Details lists each field
- * with its own word and source and the scan's notes; Guessed says it can
- * be renamed; a sign-in that may have expired says so; Look again is
+ * AJ-E2906 vitest — first run says where each found setup came from:
+ * the row's sign-in and use in plain words (no Found, Likely or Guessed
+ * badge since AJ-E1545 F18 and, in Add an app, F29); Details lists its
+ * folder and where it came from, each field with its source, and the
+ * scan's notes; a sign-in that may have expired says so; Look again is
  * always there and keeps the ticks on setups still found.
  */
 import { cleanup, fireEvent, render, waitFor, within } from "@testing-library/react";
@@ -89,31 +89,35 @@ describe("AJ-E2906 the words", () => {
 });
 
 describe("AJ-E2906 the found step", () => {
-  // The confidence words stay in Add app (first run's Your apps shows plain status words, AJ-E1545).
+  // Add an app (F29, the 0.5.1 PL1 walk's F-PL1-10): plain words, as Your apps (AJ-E1545).
   const renderIt = () => render(<FirstRun mode="add" provider="claude-code" onDone={() => null} openLoginTerminal={() => null} />);
   const getFooter = () => document.querySelector<HTMLElement>("[data-testid='first-run-actions']")!;
-  const rowOf = (step: HTMLElement, folder: string) => within(step).getAllByTestId("first-run-row").find((row) => row.textContent?.includes(folder))!;
+  // A row by its folder (its tick's id carries the path; the path itself is in Details).
+  const rowOf = (step: HTMLElement, folder: string) =>
+    within(step).getAllByTestId("first-run-row").find((row) => row.querySelector("input")?.id.endsWith(folder.replace("~", "").trim()))!;
 
-  it("each row says its word and where it came from; renaming is said once, in the footer; an empty sign-in may have expired", async () => {
+  it("each row says its sign-in in plain words, no Found, Likely or Guessed; renaming is said once, in the footer; an empty sign-in may have expired", async () => {
     const { findByTestId, container } = renderIt();
     const step = await findByTestId("first-run-found");
     const usual = rowOf(step, "~/.claude ");
-    expect(within(usual).getByTestId("first-run-confidence").textContent).toBe("Found");
-    expect(within(usual).getByTestId("first-run-source").textContent).toBe(" · Claude Code's usual folder");
-    expect(within(rowOf(step, ".claude-work")).getByTestId("first-run-confidence").textContent).toBe("Likely");
+    expect(within(step).queryAllByTestId("first-run-confidence")).toHaveLength(0);
+    expect(step.textContent).not.toMatch(/Found|Likely|Guessed/);
+    expect(within(usual).getByTestId("first-run-status").textContent).toContain("Signed in");
+    // Where it came from is in its Details.
+    fireEvent.click(within(usual).getByTestId("first-run-details-toggle"));
+    expect(within(usual).getByTestId("first-run-folder").textContent).toBe("Its folder: ~/.claude · Claude Code's usual folder");
     const odd = rowOf(step, ".claude-x");
-    expect(within(odd).getByTestId("first-run-confidence").textContent).toBe("Guessed");
     // The 0.4 design review, 53: not on the row as well as the footer.
     expect(odd.textContent).not.toContain("rename");
     expect(container.textContent).toContain("Names and plans can be changed later.");
     // Once, at the list's foot, for every row (R4 as amended).
     expect((container.textContent ?? "").split("Names and plans can be changed later.")).toHaveLength(2);
     expect(within(getFooter()).getByText("Names and plans can be changed later.")).toBeTruthy();
-    expect(rowOf(step, ".claude-old").textContent).toContain("May have expired");
+    expect(rowOf(step, ".claude-old").textContent).toContain("Its sign-in may have expired");
     for (const id of ["vendor-default", "home-pattern", "env-override", "other-manager", "usual-folder", "sign-in-empty"]) expect(step.textContent).not.toContain(id);
   });
 
-  it("Details lists each field with its word and source, and the scan's notes", async () => {
+  it("Details lists each field with its source, and the scan's notes", async () => {
     const { findByTestId } = renderIt();
     const usual = rowOf(await findByTestId("first-run-found"), "~/.claude ");
     const toggle = within(usual).getByTestId("first-run-details-toggle");
@@ -123,9 +127,9 @@ describe("AJ-E2906 the found step", () => {
     expect(toggle.getAttribute("aria-expanded")).toBe("true");
     const details = within(usual).getByTestId("first-run-details");
     expect(within(details).getAllByTestId("first-run-field").map((row) => row.textContent)).toEqual([
-      "NameDefaultFoundfrom the tool's usual folder",
-      "Sign-inSigned inFoundfrom its sign-in is in its folder",
-      "Last usedUsed todayFoundfrom its newest conversation",
+      "NameDefaultfrom the tool's usual folder",
+      "Sign-inSigned infrom its sign-in is in its folder",
+      "Last usedUsed todayfrom its newest conversation",
     ]);
     expect(within(details).getByTestId("first-run-notes").textContent).toBe("Claude Code's standard location.");
     // Details never ticks or unticks the row.
@@ -140,7 +144,7 @@ describe("AJ-E2906 the found step", () => {
     const fresh = setup("/Users/you/.claude-new", "home-pattern", { purpose_confidence: "guessed", purpose_rule: "folder-name" }, { login: "logged_out", last_used_secs: undefined });
     w().__AIJ_SCAN_REPORT__ = report([USUAL, WORK, ODD, STALE, fresh]);
     fireEvent.click(getByTestId("first-run-look-again"));
-    await waitFor(() => expect(getByTestId("first-run-found").textContent).toContain(".claude-new"));
+    await waitFor(() => expect(rowOf(getByTestId("first-run-found"), ".claude-new")).toBeTruthy());
     const again = getByTestId("first-run-found");
     expect(within(rowOf(again, "~/.claude ")).getByRole("checkbox")).toHaveProperty("checked", false);
     expect(within(rowOf(again, ".claude-x")).getByRole("checkbox")).toHaveProperty("checked", true);
@@ -169,7 +173,7 @@ describe("AJ-E2906 R5 — Look again in Accounts › Add account", () => {
     w().__AIJ_SCAN_REPORT__ = report([{ ...USUAL, managed: true }, WORK]);
     fireEvent.click(getByTestId("first-run-look-again"));
     const found = await findByTestId("first-run-found");
-    expect(found.textContent).toContain(".claude-work");
+    expect(found.querySelector("input[id$='.claude-work']")).not.toBeNull();
     expect(getByTestId("first-run-look-again")).toBeTruthy();
   });
 });
