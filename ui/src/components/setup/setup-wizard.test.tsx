@@ -21,6 +21,8 @@ import type { AiJobInfo } from "../../types/generated/AiJobInfo";
 
 const seam = (name: string, value: unknown) => Reflect.set(window, name, value);
 const seamOf = (name: string): unknown => Reflect.get(window, name);
+/** The wizard foot's buttons, in order. */
+const footOrder = () => Array.from(screen.getByTestId("flow-foot").querySelectorAll("button")).map((button) => button.textContent);
 
 /** AJ-E1547's registry entry, as the gate lists it. */
 const prompt = (id: string, status: string, over: Partial<OsPromptInfo> = {}): OsPromptInfo => ({
@@ -148,7 +150,7 @@ describe("left and resumed", () => {
 });
 
 describe("Find your apps", () => {
-  it("is first run's discovery in place, with Skip for now and Not now in the foot", async () => {
+  it("is first run's discovery in place, with Skip this step and Finish later in the foot", async () => {
     const onClose = vi.fn();
     seam("__AIJ_OS_PROMPTS__", [prompt("accessibility", "not_asked")]);
     render(<SetupWizard openLoginTerminal={() => null} onClose={onClose} />);
@@ -163,6 +165,7 @@ describe("Find your apps", () => {
     // Past Sign in (part of Your apps' flow) to the permissions.
     expect(await screen.findByTestId("setup-permissions")).toBeTruthy();
     expect(screen.getByTestId("setup-steps").textContent).toContain("Skipped for now");
+    expect(screen.getByTestId("setup-not-now").textContent).toBe("Finish later");
     fireEvent.click(screen.getByTestId("setup-not-now"));
     expect(onClose).toHaveBeenCalledOnce();
   });
@@ -276,6 +279,10 @@ describe("0.5.1 F48: a bring-in that needs sign-ins stays on Sign in", () => {
     seam("__AIJ_OS_PROMPTS__", [prompt("accessibility", "not_asked")]);
     render(<SetupWizard openLoginTerminal={() => {}} onClose={() => {}} />);
     await screen.findByTestId("first-run-found");
+    // 0.5.1 F50 (BTN-3): Finish later, the links, Skip this step, then
+    // Bring in, last.
+    await waitFor(() => expect(footOrder().at(-1)).toBe("Bring in 2 apps"));
+    expect(footOrder()).toEqual(["Finish later", "Set up a new app instead", "Add from another folder…", "Look again", "Skip this step", "Bring in 2 apps"]);
     const fold = document.querySelector<HTMLButtonElement>("[data-testid=first-run-more-options] button[aria-expanded=false]");
     if (fold) fireEvent.click(fold);
     fireEvent.click(within(screen.getByTestId("first-run-placement-copy")).getByRole("radio"));
@@ -289,8 +296,12 @@ describe("0.5.1 F48: a bring-in that needs sign-ins stays on Sign in", () => {
     });
     expect(screen.getByTestId("setup-wizard").dataset.step).toBe("signin");
     expect(screen.getAllByTestId("first-run-signin-row").length).toBeGreaterThan(0);
-    // Sign in later: on to Mac access.
-    fireEvent.click(screen.getByTestId("first-run-signin-next"));
+    // 0.5.1 F50: one way to skip the step, the foot's; the step's primary
+    // last in the foot, after it.
+    expect(screen.queryByTestId("first-run-signin-next")).toBeNull();
+    expect(footOrder()).toEqual(["Finish later", "Skip this step", "Sign in to all 2, one after another"]);
+    fireEvent.click(screen.getByTestId("setup-skip"));
     await waitFor(() => expect(screen.getByTestId("setup-wizard").dataset.step).toBe("access"));
+    expect(screen.getByTestId("setup-steps").textContent).toContain("Later");
   });
 });

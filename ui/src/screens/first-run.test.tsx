@@ -114,9 +114,9 @@ describe("D-25 first run — the pure rules", () => {
   // describes gets one neutral group.
   it("group titles come from each tool's spec, Claude's words only for Claude Code", () => {
     const titles = (tool: string) => groupsFor([tool]).map((group) => group.title);
-    expect(titles("claude-code")).toEqual(["Your Claude profiles", "The default setup", "Other Claude setups"]);
+    expect(titles("claude-code")).toEqual(["Your Claude profiles", "The default app", "Other Claude Code apps"]);
     expect(titles("codex")).toEqual(["Codex"]);
-    expect(titles("acme")).toEqual(["acme setups"]);
+    expect(titles("acme")).toEqual(["acme apps"]);
   });
 
   it("the result line says what came in, what didn't and what already was", () => {
@@ -445,7 +445,7 @@ describe("D-25 first run — the flow", () => {
     const { findByTestId, getByTestId } = render(
       <FirstRun mode="add" onDone={onDone} openLoginTerminal={() => null} />,
     );
-    expect((await findByTestId("first-run-found")).textContent).toContain("You already have 5 Claude Code setups");
+    expect((await findByTestId("first-run-found")).textContent).toContain("You already have 5 Claude Code apps");
     expect(getByTestId("first-run").getAttribute("aria-label")).toBe("Add apps");
     fireEvent.click(getByTestId("first-run-close"));
     expect(onDone).toHaveBeenCalledOnce();
@@ -509,7 +509,7 @@ describe("D-25 first run — the flow", () => {
   it("nothing found: a plain start, and Add an account opens the fresh step", async () => {
     w().__AIJ_SCAN_REPORT__ = { ...SCAN, installs: [], probes: [] };
     const { findByTestId, getByRole } = renderIt();
-    expect((await findByTestId("first-run-found")).textContent).toContain("No Claude Code setups found yet.");
+    expect((await findByTestId("first-run-found")).textContent).toContain("No Claude Code apps found yet.");
     fireEvent.click(getByRole("button", { name: "Add an app" }));
     expect(await findByTestId("first-run-fresh")).toBeTruthy();
   });
@@ -518,9 +518,9 @@ describe("D-25 first run — the flow", () => {
     w().__AIJ_SCAN_FAILS__ = "The scan timed out.";
     const { findByTestId, getByTestId } = renderIt();
     const step = await findByTestId("first-run-found");
-    expect(step.textContent).toContain("AI Juggler couldn't look for your setups.");
+    expect(step.textContent).toContain("AI Juggler couldn't look for your apps.");
     expect(step.textContent).toContain("The scan timed out. Try again, or add an app or import a folder yourself.");
-    expect(step.textContent).not.toContain("No Claude Code setups found yet.");
+    expect(step.textContent).not.toContain("No Claude Code apps found yet.");
     delete w().__AIJ_SCAN_FAILS__;
     fireEvent.click(getByTestId("first-run-scan-again"));
     await waitFor(() => expect(getByTestId("first-run-found").textContent).toContain("Which AI apps do you use?"));
@@ -549,7 +549,7 @@ describe("AJ-E1022 a fresh account", () => {
       <FirstRun mode="add" onDone={() => null} onAccountsChanged={changed} openLoginTerminal={(_id, title, options) => (opened.push(title), selects.push(options?.select ?? true))} />,
     );
     await findByTestId("first-run-found");
-    fireEvent.click(getByRole("button", { name: "Add a fresh app instead" }));
+    fireEvent.click(getByRole("button", { name: "Set up a new app instead" }));
     const name = (await findByTestId("first-run-fresh-name")) as HTMLInputElement;
     await waitFor(() => expect(name.value).toMatch(/^Claude Code/));
     expect(document.activeElement).toBe(name);
@@ -574,7 +574,7 @@ describe("AJ-E1022 a fresh account", () => {
   it("a sign-in that ends with an API key flips the row to signed in (rc17 walk)", async () => {
     const { findByTestId, getByRole, getByTestId, findAllByTestId } = render(<FirstRun mode="add" onDone={() => null} openLoginTerminal={() => null} />);
     await findByTestId("first-run-found");
-    fireEvent.click(getByRole("button", { name: "Add a fresh app instead" }));
+    fireEvent.click(getByRole("button", { name: "Set up a new app instead" }));
     fireEvent.change(await findByTestId("first-run-fresh-name"), { target: { value: "Keyed" } });
     await act(async () => {
       fireEvent.click(getByTestId("first-run-fresh-create"));
@@ -596,7 +596,7 @@ describe("AJ-E1022 a fresh account", () => {
   it("an empty name can't be created", async () => {
     const { findByTestId, getByRole, getByTestId } = render(<FirstRun mode="add" onDone={() => null} openLoginTerminal={() => null} />);
     await findByTestId("first-run-found");
-    fireEvent.click(getByRole("button", { name: "Add a fresh app instead" }));
+    fireEvent.click(getByRole("button", { name: "Set up a new app instead" }));
     fireEvent.change(await findByTestId("first-run-fresh-name"), { target: { value: "  " } });
     expect((getByTestId("first-run-fresh-create") as HTMLButtonElement).disabled).toBe(true);
   });
@@ -622,7 +622,7 @@ describe("AJ-E1022 another folder", () => {
     const view = render(<FirstRun mode="add" onDone={onDone} openLoginTerminal={() => null} />);
     await view.findByTestId("first-run-found");
     await act(async () => {
-      fireEvent.click(view.getByRole("button", { name: "Import from another folder…" }));
+      fireEvent.click(view.getByRole("button", { name: "Add from another folder…" }));
     });
     return view;
   };
@@ -638,7 +638,7 @@ describe("AJ-E1022 another folder", () => {
     const view = render(<FirstRun mode="add" onDone={onDone} openLoginTerminal={(id) => opened.push(id)} />);
     await view.findByTestId("first-run-found");
     await act(async () => {
-      fireEvent.click(view.getByRole("button", { name: "Import from another folder…" }));
+      fireEvent.click(view.getByRole("button", { name: "Add from another folder…" }));
     });
     await act(async () => {
       fireEvent.click(await view.findByTestId("first-run-folder-bring-in"));
@@ -706,7 +706,7 @@ describe("AJ-E1022 another folder", () => {
     const view = await openFolder();
     expect((await view.findByTestId("first-run-folder-large")).textContent).toContain("Bring in the settings only");
     expect(view.getByTestId("first-run-folder-bring-in").textContent).toBe("Bring in settings only");
-    fireEvent.click(view.getByRole("button", { name: "Add a fresh app instead" }));
+    fireEvent.click(view.getByRole("button", { name: "Set up a new app instead" }));
     expect(await view.findByTestId("first-run-fresh")).toBeTruthy();
   });
 
@@ -715,7 +715,7 @@ describe("AJ-E1022 another folder", () => {
     const view = await openFolder();
     const alert = await view.findByTestId("source-not-config");
     expect(alert.getAttribute("role")).toBe("alert");
-    expect(alert.textContent).toContain("doesn't look like a Claude Code setup");
+    expect(alert.textContent).toContain("doesn't look like a Claude Code app's folder");
     expect(view.queryByTestId("first-run-folder-bring-in")).toBeNull();
     expect(view.getByTestId("first-run-folder-again")).toBeTruthy();
   });
@@ -795,7 +795,7 @@ describe("AJ-E1103 onboarding.login — how first run's sign-ins end", () => {
       login_note: null,
     } as unknown as Awaited<ReturnType<typeof bridge.accountImport>>);
     await act(async () => {
-      fireEvent.click(getByRole("button", { name: "Import from another folder…" }));
+      fireEvent.click(getByRole("button", { name: "Add from another folder…" }));
     });
     await act(async () => {
       fireEvent.click(await findByTestId("first-run-folder-bring-in"));
@@ -834,7 +834,7 @@ describe("AJ-E1301 — Codex setups in first run", () => {
 
   it("while looking, first run names no single tool; Add account names its own (0.0.11 walk)", async () => {
     const first = render(<FirstRun mode="first-run" onDone={() => null} openLoginTerminal={() => null} />);
-    expect(first.getByTestId("first-run-scanning").textContent).toContain("Looking for your setups on this computer");
+    expect(first.getByTestId("first-run-scanning").textContent).toContain("Looking for your apps on this computer");
     await first.findByTestId("first-run-found");
     cleanup();
     const add = render(<FirstRun mode="add" provider="codex" onDone={() => null} openLoginTerminal={() => null} />);

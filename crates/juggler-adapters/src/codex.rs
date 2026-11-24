@@ -970,7 +970,7 @@ pub fn codex_spec() -> juggler_adapter::ToolSpec {
         kinds: vec![ToolKind::Cli],
         rules_files: vec!["AGENTS.md".to_owned()],
         rules_import: None,
-        scan_hint: "Your default setup and anything else that looks like one. Nothing is changed."
+        scan_hint: "Your default app and any other that looks like one. Nothing is changed."
             .to_owned(),
         // Codex homes are their own group in every list (AJ-E1301).
         setup_groups: vec![SetupGroup {

@@ -90,7 +90,7 @@ describe("AJ-E1525 a tool only its spec describes", () => {
     const add = render(<FirstRun mode="add" provider="acme" onDone={() => null} openLoginTerminal={() => null} />);
     const homes = await add.findByTestId("first-run-group-acme-homes");
     expect(within(homes).getAllByText(/Your Acme homes/).length).toBeGreaterThan(0);
-    await waitFor(() => expect(add.getByTestId("first-run-found").textContent).toContain("Acme Coder setup"));
+    await waitFor(() => expect(add.getByTestId("first-run-found").textContent).toContain("Acme Coder app"));
   });
 
   it("Add account offers it by its name", async () => {

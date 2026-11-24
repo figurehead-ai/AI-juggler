@@ -994,7 +994,7 @@ pub fn muse_spec() -> juggler_adapter::ToolSpec {
         kinds: vec![ToolKind::Cli],
         rules_files: vec!["AGENTS.md".to_owned()],
         rules_import: None,
-        scan_hint: "Looks for your own Muse Code setup. Nothing is changed.".to_owned(),
+        scan_hint: "Looks for Muse Code on this computer. Nothing is changed.".to_owned(),
         setup_groups: vec![SetupGroup {
             id: MUSE_ID.to_owned(),
             title: "Muse Code".to_owned(),

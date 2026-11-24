@@ -178,11 +178,11 @@ function Head(): JSX.Element {
   );
 }
 
-function Skip({ onSkip }: { onSkip: () => void }): JSX.Element {
+function Skip({ onSkip, step }: { onSkip: () => void; step: boolean }): JSX.Element {
   return (
     <div className="flex flex-wrap items-center gap-3">
       <Button variant="ghost" onClick={onSkip} data-testid="setup-skip">
-        {SETUP.skip}
+        {step ? SETUP.skipStep : SETUP.skip}
       </Button>
       <Consequence>{SETUP.skipLine}</Consequence>
     </div>
@@ -214,7 +214,8 @@ export function EngineSetup({ place, onSkip, onChosen }: EngineSetupProps): JSX.
         </Alert>
       )}
       {body}
-      {onSkip && <Skip onSkip={onSkip} />}
+      {/* In the setup wizard it skips the step, worded as the wizard's (0.5.1 F50). */}
+      {onSkip && <Skip onSkip={onSkip} step={place === "wizard"} />}
       {act.asking && (
         <ApprovalDialog
           model={act.asking}

@@ -137,14 +137,15 @@ export function SigninRow({
               Or run it yourself: <span className="font-mono text-ink">{command}</span>
             </span>
           )}
-          {/* F29: one app alone has the step's own Sign in later; a row's
-              own is for one of several, worded apart from it. */}
+          {/* F29: one app alone has the step's own skip; a row's own is
+              for one of several, worded apart from it (0.5.1 F50: by what
+              it does, beside the wizard's Skip this step). */}
           {onSkip && (
             <button type="button" className="self-start text-accent-hi hover:underline" onClick={() => {
               if (!skipped) onSkip();
               setSkipped(true);
             }}>
-              Later for this app
+              Sign in to this app later
             </button>
           )}
         </div>

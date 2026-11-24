@@ -3791,8 +3791,11 @@ const openConfirmSource = async (
   await expect(page.getByTestId("first-run-folder-check")).toBeVisible();
 };
 
+// 0.5.1 F51: the folder check at the window's sizes only (390×844 is
+// below its minimum, 1024×680: a layout no one gets).
+const IMPORT_VP = CDE_VP.filter((vp) => vp.width >= 1024);
 for (const theme of THEMES) {
-  for (const vp of CDE_VP) {
+  for (const vp of IMPORT_VP) {
     test(`flow f — confirm-source normal — ${vp.name} — ${theme}`, gate("39-import"), async ({ page }) => {
       await openConfirmSource(page, theme, vp, NORMAL_INSPECT);
       const panel = page.getByTestId("first-run-folder-check");
@@ -3814,7 +3817,7 @@ for (const theme of THEMES) {
       });
       await expect(page.getByTestId("first-run-folder-large")).toBeVisible();
       await expect(page.getByTestId("first-run-folder-bring-in")).toHaveText("Bring in settings only");
-      await expect(page.getByRole("button", { name: "Add a fresh app instead" })).toBeVisible();
+      await expect(page.getByRole("button", { name: "Set up a new app instead" })).toBeVisible();
       await expect(page.getByTestId("first-run-folder")).not.toContainText("ceiling");
       await page.screenshot({
         path: resolve(GALLERY, `39-import/f-oversize-${vp.name}-${theme}.png`),
@@ -3830,7 +3833,7 @@ for (const theme of THEMES) {
       });
       const reject = page.getByTestId("source-not-config");
       await expect(reject).toBeVisible();
-      await expect(reject).toContainText("doesn't look like a Claude Code setup");
+      await expect(reject).toContainText("doesn't look like a Claude Code app's folder");
       await expect(page.getByTestId("first-run-folder-bring-in")).toHaveCount(0);
       await page.screenshot({
         path: resolve(GALLERY, `39-import/f-non-config-${vp.name}-${theme}.png`),

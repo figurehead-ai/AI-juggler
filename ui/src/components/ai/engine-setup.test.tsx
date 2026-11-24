@@ -193,7 +193,7 @@ describe("AJ-E3823 the guide on screen", () => {
     };
     await show(intel, "wizard", { onSkip: () => (skipped += 1) });
     expect(screen.getByTestId("setup-no-ai").textContent).toContain("Bot’s AI needs a Mac with Apple silicon.");
-    fireEvent.click(screen.getByRole("button", { name: "Skip for now" }));
+    fireEvent.click(screen.getByRole("button", { name: "Skip this step" }));
     expect(skipped).toBe(1);
   });
 

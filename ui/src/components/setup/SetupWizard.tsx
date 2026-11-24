@@ -2,16 +2,21 @@
  * AJ-E1545 — the setup wizard the Welcome's Get started opens (and a new
  * install opens by itself): rich mode, a full-window sheet with a sticky
  * header (the app's real icon and the title), the steps beside with each
- * one's value, the step's own eyebrow and title, and a sticky foot (Not
- * now; Back; Skip for now; the one primary that names where it goes).
- * Nobody is left on their own: every step can wait, none is required.
+ * one's value, the step's own eyebrow and title, and a sticky foot (Finish
+ * later; Back; Skip this step; the one primary that names where it goes,
+ * last). Nobody is left on their own: every step can wait, none is
+ * required. 0.5.1 F50: each way out says what it does: Finish later
+ * leaves setup (it opens again where it was left), Skip this step goes
+ * on without this step, and a sign-in row's "Sign in to this app later"
+ * leaves that one app.
  *
  * 1. Find your apps: first run's discovery and import, in place (its own
- *    primary, Bring in, is the step's; the foot offers Skip for now).
+ *    primary, Bring in, is the step's, in the foot's end slot after Skip
+ *    this step; its links in the foot's middle).
  * 2. Let AI Juggler work with your Mac: one card per permission.
  * 3. Meet Bot. 4. Keep it running. 5. The tour (AJ-E1546).
  *
- * Esc and Not now close it (a bring-in under way finishes first); Tab
+ * Esc and Finish later close it (a bring-in under way finishes first); Tab
  * stays inside; a new step opens at its top with the keyboard on its
  * title.
  */
@@ -38,7 +43,7 @@ function isStep(id: string | null): id is SetupStepId {
   return id !== null && id in ORDER_INDEX;
 }
 
-/** The step the wizard was left at (Not now), if any. */
+/** The step the wizard was left at (Finish later), if any. */
 function leftAt(): SetupStepId | null {
   try {
     const at = localStorage.getItem(AT_KEY);
@@ -66,7 +71,7 @@ export function SetupWizard({
   resumeAtAccess?: boolean;
   openLoginTerminal: (id: string, title: string, options?: { select?: boolean; account?: string }) => void;
   onAccountsChanged?: () => void;
-  /** The wizard closed (finished, or Not now). */
+  /** The wizard closed (finished, or Finish later). */
   onClose: () => void;
 }): JSX.Element {
   const [prompts, setPrompts] = useState<OsPromptInfo[] | null>(null);
@@ -88,7 +93,7 @@ export function SetupWizard({
   }, []);
   const steps = setupSteps(missing);
   const pages = pagesOf(steps);
-  // Left with Not now, it opens again where it was left (PAT-USE (4)).
+  // Left with Finish later, it opens again where it was left (PAT-USE (4)).
   const [wanted, setAt] = useState<SetupStepId>(() => (resumeAtAccess ? "access" : (leftAt() ?? "apps")));
   // Opened at the permissions (after Reopen) and none is missing now: on.
   const at: SetupStepId = pages.includes(wanted) ? wanted : wanted === "access" ? "bot" : "apps";
@@ -97,8 +102,12 @@ export function SetupWizard({
   const [signinValue, setSigninValue] = useState<string | undefined>(undefined);
   const [keep, setKeep] = useState<{ login: boolean | null; awake: boolean | null }>({ login: null, awake: null });
   const [busy, setBusy] = useState(false);
-  // First run's actions (Bring in N) sit in this sticky foot.
+  // First run's links sit in this sticky foot's middle, and its primary
+  // (Bring in N, Sign in to all N) at its end, after Skip this step.
   const [footSlot, setFootSlot] = useState<HTMLElement | null>(null);
+  const [footEnd, setFootEnd] = useState<HTMLElement | null>(null);
+  // Sign in's own skip (it counts each sign-in left as skipped).
+  const skipSignin = useRef<(() => void) | null>(null);
   const chat = useAiJob("chat");
   const onKeepValue = useCallback((login: boolean | null, awake: boolean | null) => setKeep({ login, awake }), []);
 
@@ -171,7 +180,7 @@ export function SetupWizard({
     reason: busy ? "Bringing your apps in first" : id === "signin" ? "Comes after Your apps" : n > furthest ? "Not reached yet" : undefined,
   }));
 
-  const close = { label: "Not now", onClick: leave, disabled: busy, testId: "setup-not-now" };
+  const close = { label: "Finish later", onClick: leave, disabled: busy, testId: "setup-not-now" };
   const nextAction = next
     ? {
         label: (
@@ -190,16 +199,18 @@ export function SetupWizard({
         <FlowFoot
           cancel={close}
           secondary={{
-            label: "Skip for now",
+            label: "Skip this step",
             onClick: () => {
               if (at === "apps") setAppsValue((now) => now ?? "Skipped for now");
               setSigninValue((now) => now ?? (at === "signin" ? "Later" : undefined));
-              goNext();
+              if (at === "signin" && skipSignin.current) skipSignin.current();
+              else goNext();
             },
             disabled: busy,
             testId: "setup-skip",
           }}
           middle={<div ref={setFootSlot} className="@container flex min-w-0 flex-1 px-2" data-testid="setup-foot-slot" />}
+          end={<div ref={setFootEnd} className="flex items-center empty:hidden" data-testid="setup-foot-end" />}
         />
       );
     }
@@ -274,6 +285,8 @@ export function SetupWizard({
               embedded
               onStep={onFirstRunStep}
               footSlot={footSlot}
+              footEnd={footEnd}
+              skipSignin={skipSignin}
               openLoginTerminal={openLoginTerminal}
               onAccountsChanged={() => {
                 setAppsValue("Apps brought in");

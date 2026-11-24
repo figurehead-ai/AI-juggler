@@ -24,6 +24,8 @@ export const SETUP = {
   checkAgain: "Check again",
   checkingAgain: "Checking…",
   skip: "Skip for now",
+  /** In the setup wizard: the step's skip, as on its other steps. */
+  skipStep: "Skip this step",
   skipLine: "Bot stays set up for later: its icon opens this guide.",
 };
 

@@ -9,7 +9,8 @@
  * - `FlowSteps`: the steps, in groups, each with its value under its
  *   name; done ones go back, the current one is marked.
  * - `FlowFoot`: Cancel on the left; Back, a secondary, then the view's
- *   one filled primary on the right (D-126: one primary per view).
+ *   one filled primary on the right (D-126: one primary per view), or
+ *   the step's own primary in its `end` slot, last (BTN-3).
  */
 import { forwardRef, useId, useLayoutEffect, useRef, type JSX, type ReactNode, type Ref } from "react";
 import { Button } from "./primitives";
@@ -214,6 +215,7 @@ export const FlowFoot = forwardRef(function FlowFoot(
     primary,
     note,
     middle,
+    end,
   }: {
     cancel?: FlowAction;
     back?: FlowAction;
@@ -224,8 +226,12 @@ export const FlowFoot = forwardRef(function FlowFoot(
     /** A line before the actions ("The rest is prefilled…"). */
     note?: ReactNode;
     /** Between Cancel and the rest, in place of the space (the setup
-     * wizard's first run puts its own actions there). */
+     * wizard's first run puts its own links there). */
     middle?: ReactNode;
+    /** After the secondary, last: the place of a step's own primary when
+     * its content holds it (first run's Bring in N), so it still ends
+     * the row (BTN-3, 0.5.1 F50). */
+    end?: ReactNode;
   },
   primaryRef: Ref<HTMLButtonElement>,
 ): JSX.Element {
@@ -261,6 +267,7 @@ export const FlowFoot = forwardRef(function FlowFoot(
           {primary.label}
         </Button>
       )}
+      {end}
     </footer>
   );
 });

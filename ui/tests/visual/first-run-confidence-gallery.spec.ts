@@ -24,7 +24,7 @@ const SCAN = {
     row("/Users/you/.claude-x7", "env-override", { purpose: "X7", purpose_confidence: "guessed", purpose_rule: "folder-name", login: "not-signed-in", login_rule: "no-sign-in" }, { login: "logged_out", last_used_secs: NOW_S - 50 * 86_400 }),
     row("/Users/you/.claude-old", "other-manager", { purpose: "Old", purpose_confidence: "guessed", purpose_rule: "folder-name", login: "maybe-expired", login_confidence: "likely", login_rule: "sign-in-empty" }, { login: "logged_out", set_by: "cc-switch", last_used_secs: NOW_S - 200 * 86_400 }),
   ],
-  probes: [{ label: "Folders named .claude…", health: "ok", detail: "4 setups", reason: null }],
+  probes: [{ label: "Folders named .claude…", health: "ok", detail: "4 found", reason: null }],
   seeds: [],
   desktop_apps: [],
   cancelled: false,

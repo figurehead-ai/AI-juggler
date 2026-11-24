@@ -136,8 +136,14 @@ async function axeClean(page: Page, step: string) {
   expect(bad.map((v) => `${v.id}: ${v.nodes[0]?.target}`), `axe on ${step}`).toEqual([]);
 }
 
-test("first run on a Mac with Claude Code already set up", gate("66-first-run"), async ({ page }) => {
+// 0.5.1 F51: every state on the pinned clock, so the fixture's times
+// read as a real setup's ("Used today", "3 days ago"); the states after
+// the first read the real clock and said "Used 772 days ago".
+test.beforeEach(async ({ page }) => {
   await page.clock.setFixedTime(NOW_MS);
+});
+
+test("first run on a Mac with Claude Code already set up", gate("66-first-run"), async ({ page }) => {
   await page.addInitScript((scan) => {
     const w = window as unknown as Record<string, unknown>;
     w.__AIJ_FIXTURE__ = { accounts: [], profiles: [], sessions: [], projects: [] };
@@ -254,10 +260,14 @@ test("first run, choosing separate copies: each copy signs in once, then the wiz
   await expect(signin).toBeVisible();
   await page.screenshot({ path: `${OUT}/after-bring-in-copies-1280x800-dark.png` });
   await axeClean(page, "sign-in");
-  // AJ-E1545: Sign in done, the setup wizard goes on: Mac access, Meet
+  // 0.5.1 F50: the step's one primary last in the wizard's foot, after
+  // Skip this step; the page has no skip of its own.
+  await expect(page.getByTestId("setup-foot-end")).toContainText("Sign in to all 6");
+  await expect(page.getByTestId("first-run-signin-next")).toHaveCount(0);
+  // AJ-E1545: Sign in skipped, the setup wizard goes on: Mac access, Meet
   // Bot, Keep running, then Finish (0.5.1 F47: the old first run's own
   // access step is gone).
-  await page.getByTestId("first-run-signin-next").click();
+  await page.getByTestId("setup-skip").click();
   await expect(page.getByTestId("setup-wizard")).toHaveAttribute("data-step", "access");
   await expect(page.getByTestId("setup-permissions")).toBeVisible();
   for (const [next, step] of [["engine-setup", "bot"], ["setup-keep", "keep"], ["setup-tour", "tour"]] as const) {

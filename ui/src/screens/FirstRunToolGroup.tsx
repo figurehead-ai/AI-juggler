@@ -176,20 +176,48 @@ export async function bringInProfiles(ids: readonly string[], stop: { current: b
 }
 
 /** The found step's actions: in the setup wizard's sticky foot when it
- * gives one (AJ-E1545, DLG-1), else a bar that stays in view at the
- * bottom of the page (0.4 design review: Bring in never below the fold). */
-export function FoundActions({ slot, children }: { slot?: HTMLElement | null; children: ReactNode }): JSX.Element {
-  if (slot) {
-    return createPortal(
-      <div className="flex flex-1 flex-wrap items-center justify-between gap-4" data-testid="first-run-actions">
-        {children}
-      </div>,
-      slot,
+ * gives one (AJ-E1545, DLG-1), its links in the middle and its primary
+ * at the end, after the wizard's Skip this step (0.5.1 F50, BTN-3); else
+ * a bar that stays in view at the bottom of the page (0.4 design review:
+ * Bring in never below the fold), the primary last. */
+export function FoundActions({
+  slot,
+  end,
+  note,
+  primary,
+  children,
+}: {
+  slot?: HTMLElement | null;
+  end?: HTMLElement | null;
+  /** A line beside the primary (in the wizard, at the links' end). */
+  note?: ReactNode;
+  primary?: ReactNode;
+  /** The links. */
+  children: ReactNode;
+}): JSX.Element {
+  if (slot && end) {
+    return (
+      <>
+        {createPortal(
+          <div className="flex flex-1 flex-wrap items-center justify-between gap-4" data-testid="first-run-actions">
+            {children}
+            {note}
+          </div>,
+          slot,
+        )}
+        {primary && createPortal(primary, end)}
+      </>
     );
   }
   return (
     <div className="sticky bottom-0 z-10 -mx-2 flex flex-wrap items-center justify-between gap-4 border-t border-hairline bg-canvas/95 px-2 py-3 backdrop-blur" data-testid="first-run-actions">
       {children}
+      {(note || primary) && (
+        <div className="flex items-center gap-3">
+          {note}
+          {primary}
+        </div>
+      )}
     </div>
   );
 }

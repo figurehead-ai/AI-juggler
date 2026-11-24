@@ -243,12 +243,11 @@ impl ToolSpec {
             kinds: vec![ToolKind::Cli],
             rules_files: Vec::new(),
             rules_import: None,
-            scan_hint:
-                "Your default setup and anything else that looks like one. Nothing is changed."
-                    .to_owned(),
+            scan_hint: "Your default app and any other that looks like one. Nothing is changed."
+                .to_owned(),
             setup_groups: vec![SetupGroup {
                 id: "setups".to_owned(),
-                title: format!("{id} setups"),
+                title: format!("{id} apps"),
                 path_contains: None,
                 origin: None,
                 shows_install: true,

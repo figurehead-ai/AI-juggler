@@ -31,6 +31,7 @@
  * history offers settings only) before AI Juggler copies it.
  */
 import { useCallback, useEffect, useMemo, useRef, useState, type JSX } from "react";
+import { createPortal } from "react-dom";
 import { Button } from "../components/primitives";
 import { inPlaceProviders, providerDisplayName, supportsInPlace, type InPlaceSupport } from "../lib/providers";
 import { firstRunToolIds, primaryToolId, toolSpec } from "../lib/tools";
@@ -164,11 +165,14 @@ function FoundStep({
   taken,
   firstRun,
   footSlot,
+  footEnd,
 }: {
   /** First run (not Add app): AJ-E1545's Your apps. */
   firstRun: boolean;
-  /** The setup wizard's foot: the actions go there (its sticky foot). */
+  /** The setup wizard's foot: the links go there (its sticky foot). */
   footSlot?: HTMLElement | null;
+  /** The setup wizard's foot's end: Bring in goes there, last (F50). */
+  footEnd?: HTMLElement | null;
   report: ScanReportData | null;
   /** The names of the Apps already in AI Juggler (`null` while read). */
   taken: string[] | null;
@@ -362,7 +366,7 @@ function FoundStep({
     return (
       <div className="flex flex-col gap-3" role="status" data-testid="first-run-scanning">
         <h1 className="text-stat font-semibold tracking-tight">
-          {tools.length > 1 ? "Looking for your setups on this computer…" : `Looking for ${toolName} on this computer…`}
+          {tools.length > 1 ? "Looking for your apps on this computer…" : `Looking for ${toolName} on this computer…`}
         </h1>
         <p className="text-sm text-ink-2">{toolSpec(provider).scan_hint}</p>
       </div>
@@ -454,7 +458,7 @@ function FoundStep({
       {installs.length > 0 && !showOutcome && canInPlace && <PlacementChoice tools={inPlaceTools} one={installs.length === 1} value={placement} busy={busy} open={yourApps ? undefined : true} onChange={setPlacement} />}
       {installs.length > 0 && !showOutcome && canInPlace && copyOnlyTools.length > 0 && (
         <p className="-mt-3 text-xs text-ink-2" data-testid="first-run-copy-only">
-          {copyOnlyTools.map(providerDisplayName).join(" and ")} setups always come in as copies.
+          {copyOnlyTools.map(providerDisplayName).join(" and ")} apps always come in as copies.
         </p>
       )}
 
@@ -526,25 +530,19 @@ function FoundStep({
       {!showOutcome && <WhereWeLooked probes={report.probes} />}
 
       {/* Always in view, so Bring in is never below the fold (0.4 design review). */}
-      <FoundActions slot={footSlot}>
-        <div className="flex flex-wrap items-center gap-5 text-sm">
-          <button type="button" className="text-accent-hi hover:underline" onClick={onAddFresh}>
-            {listed ? (yourApps ? "Set up a new app instead" : "Add a fresh app instead") : "Add an app"}
-          </button>
-          <button type="button" className="text-muted hover:text-ink hover:underline" onClick={onImportFolder}>
-            {yourApps ? "Add from another folder…" : "Import from another folder…"}
-          </button>
-          {/* AJ-E2906: scan again at any time; ticks on setups still found stay. */}
-          <button type="button" className="text-muted hover:text-ink hover:underline" onClick={onScanAgain} disabled={busy} data-testid="first-run-look-again">
-            Look again
-          </button>
-        </div>
-        {listed && !showOutcome && (
-          <div className="flex items-center gap-3">
-            {/* 0.5.1 F45: in the setup wizard's foot (its own width, a
-                container) the note shows only where the row holds it, so the
-                foot keeps one row at 1024 px and Bring in its place. */}
-            <span className={"hidden text-xs text-muted " + (footSlot ? "@min-[50rem]:inline" : "md:inline")} data-testid="first-run-names-note">Names and plans can be changed later.</span>
+      <FoundActions
+        slot={footSlot}
+        end={footEnd}
+        note={
+          listed && !showOutcome ? (
+            // 0.5.1 F45: in the setup wizard's foot (its own width, a
+            // container) the note shows only where the row holds it, so the
+            // foot keeps one row at 1024 px and Bring in its place.
+            <span className={"hidden text-xs text-muted " + (footSlot ? "@min-[44rem]:inline" : "md:inline")} data-testid="first-run-names-note">Names and plans can be changed later.</span>
+          ) : null
+        }
+        primary={
+          listed && !showOutcome ? (
             <Button
               variant="primary"
               disabled={ticked === 0 || busy}
@@ -557,8 +555,22 @@ function FoundStep({
                   ? "Bring in 1 app"
                   : `Bring in ${ticked} apps`}
             </Button>
-          </div>
-        )}
+          ) : null
+        }
+      >
+        <div className="flex flex-wrap items-center gap-5 text-sm">
+          <button type="button" className="text-accent-hi hover:underline" onClick={onAddFresh}>
+            {/* 0.5.1 F52: Add an app in the wizard's words (AJ-E1548). */}
+            {listed ? "Set up a new app instead" : "Add an app"}
+          </button>
+          <button type="button" className="text-muted hover:text-ink hover:underline" onClick={onImportFolder}>
+            Add from another folder…
+          </button>
+          {/* AJ-E2906: scan again at any time; ticks on setups still found stay. */}
+          <button type="button" className="text-muted hover:text-ink hover:underline" onClick={onScanAgain} disabled={busy} data-testid="first-run-look-again">
+            Look again
+          </button>
+        </div>
       </FoundActions>
 
     </div>
@@ -590,9 +602,17 @@ function SigninStep({
   openLoginTerminal,
   onDone,
   wizard = false,
+  footEnd,
+  skipRef,
 }: {
   /** In the setup wizard: its step look (0.5.1 critique). */
   wizard?: boolean;
+  /** The setup wizard's foot's end: the step's primary goes there, last
+   * (0.5.1 F50). */
+  footEnd?: HTMLElement | null;
+  /** The setup wizard's Skip this step, in place of the step's own Sign
+   * in later (one way to skip, worded by what it does: 0.5.1 F50). */
+  skipRef?: { current: (() => void) | null };
   provider: string;
   queue: Signin[];
   openLoginTerminal: (id: string, title: string, options?: { select?: boolean; account?: string }) => void;
@@ -605,6 +625,18 @@ function SigninStep({
   const [runAll, setRunAll] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const left = queue.filter((entry) => !ready[entry.accountId]);
+  // Skipped, each one left counts as skipped (AJ-E1103).
+  const skipAll = () => {
+    for (const entry of left) if (!skippedIds[entry.accountId]) countLogin(entry.provider || provider, "skipped");
+    onDone();
+  };
+  useEffect(() => {
+    if (!skipRef) return undefined;
+    skipRef.current = skipAll;
+    return () => {
+      skipRef.current = null;
+    };
+  });
   const start = useCallback(
     (entry: Signin) => {
       setError(null);
@@ -663,31 +695,39 @@ function SigninStep({
           {error}
         </p>
       )}
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        {left.length > 0 ? (
-          <button type="button" className="text-sm text-muted hover:text-ink hover:underline" onClick={() => {
-              for (const entry of left) if (!skippedIds[entry.accountId]) countLogin(entry.provider || provider, "skipped");
-              onDone();
-            }} data-testid="first-run-signin-next">
-            Sign in later
-          </button>
-        ) : (
-          <span />
-        )}
-        {left.length === 0 ? (
-          <Button variant="primary" onClick={onDone}>Continue</Button>
-        ) : left.length > 1 && !runAll ? (
-          <Button
-            variant="primary"
-            onClick={() => {
-              setRunAll(true);
-              start(left[0]!);
-            }}
-          >
-            Sign in to all {left.length}, one after another
-          </Button>
-        ) : null}
-      </div>
+      {(() => {
+        const primary =
+          left.length === 0 ? (
+            <Button variant="primary" onClick={onDone} data-testid="first-run-signin-continue">
+              Continue
+            </Button>
+          ) : left.length > 1 && !runAll ? (
+            <Button
+              variant="primary"
+              onClick={() => {
+                setRunAll(true);
+                start(left[0]!);
+              }}
+              data-testid="first-run-signin-all"
+            >
+              Sign in to all {left.length}, one after another
+            </Button>
+          ) : null;
+        // In the setup wizard: its foot's Skip this step, the primary last.
+        if (skipRef && footEnd) return primary && createPortal(primary, footEnd);
+        return (
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            {left.length > 0 ? (
+              <button type="button" className="text-sm text-muted hover:text-ink hover:underline" onClick={skipAll} data-testid="first-run-signin-next">
+                Sign in later
+              </button>
+            ) : (
+              <span />
+            )}
+            {primary}
+          </div>
+        );
+      })()}
     </div>
   );
 }
@@ -829,7 +869,7 @@ function FolderStep({
       </div>
       {inspect !== null && !inspect.is_config && (
         <p className="rounded-xl border border-danger/30 bg-danger-soft px-4 py-3 text-sm text-ink" role="alert" data-testid="source-not-config">
-          This folder doesn't look like a {toolName} setup: no settings, sign-in or session history in it.
+          This folder doesn't look like a {toolName} app's folder: no settings, sign-in or session history in it.
         </p>
       )}
       {inspect !== null && inspect.is_config && inspect.already_managed && (
@@ -884,7 +924,7 @@ function FolderStep({
           </button>
           {large && (
             <button type="button" className="text-muted hover:text-ink hover:underline" onClick={onAddFresh}>
-              Add a fresh app instead
+              Set up a new app instead
             </button>
           )}
         </div>
@@ -915,6 +955,8 @@ export function FirstRun({
   onBusy,
   onStep,
   footSlot,
+  footEnd,
+  skipSignin,
 }: {
   /** First run is over: Home. */
   onDone: () => void;
@@ -937,7 +979,13 @@ export function FirstRun({
   onBusy?: (busy: boolean) => void;
   /** Its own step now (the wizard's Your apps or Sign in). */
   onStep?: (step: Step) => void;
+  /** The setup wizard's foot: the links in its middle, the primary at
+   * its end (0.5.1 F50). */
   footSlot?: HTMLElement | null;
+  footEnd?: HTMLElement | null;
+  /** The setup wizard's Skip this step on Sign in (each one left counted
+   * as skipped). */
+  skipSignin?: { current: (() => void) | null };
 }): JSX.Element {
   const [step, setStep] = useState<Step>(resumeAtAccess ? "access" : startAt);
   // F29: the first step's name follows the door taken (a new app's sign-in
@@ -1051,7 +1099,7 @@ export function FirstRun({
     if (!nothingNew) setStep("found");
   }, [report, nothingNew]);
 
-  // "Import from another folder…": the system's picker first; nothing
+  // "Add from another folder…": the system's picker first; nothing
   // changes when it is cancelled.
   const pickFolder = useCallback(async () => {
     const picked = await pickDirectory();
@@ -1111,6 +1159,7 @@ export function FirstRun({
           stopRef={stopRef}
           firstRun={mode === "first-run"}
           footSlot={footSlot}
+          footEnd={footEnd}
           onBusy={(busy) => {
             setImporting(busy);
             onBusy?.(busy);
@@ -1155,7 +1204,7 @@ export function FirstRun({
           wizard={mode === "first-run"}
         />
       )}
-      {step === "signin" && <SigninStep queue={queue} provider={primary} openLoginTerminal={openLoginTerminal} onDone={toAccess} wizard={mode === "first-run"} />}
+      {step === "signin" && <SigninStep queue={queue} provider={primary} openLoginTerminal={openLoginTerminal} onDone={toAccess} wizard={mode === "first-run"} footEnd={embedded ? footEnd : undefined} skipRef={embedded ? skipSignin : undefined} />}
       {step === "access" && access !== null && <AccessStep entries={access} setEntries={setAccess} onDone={finish} />}
       {/* AJ-E1548 R11: closed in setup and in Add account alike. */}
       {(step === "found" || step === "fresh" || step === "folder") && <ProvidersTerms tools={step === "found" ? tools : [primary]} />}
