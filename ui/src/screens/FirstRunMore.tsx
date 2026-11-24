@@ -3,7 +3,7 @@
  * persona walk on rc26): the names setups come in by, each tool installed
  * with nothing set up offered as a fresh App in its own group (pass2/03 §5
  * rule 3), and the desktop apps' profiles (D-84: offered, never added by
- * themselves).
+ * themselves), and "Where we looked" (F33).
  */
 import { useMemo, useState, type JSX } from "react";
 import { Disclosure } from "../components/controls";
@@ -13,7 +13,7 @@ import { providerDisplayName, toolFound, versionNotAsked, versionUnchecked } fro
 import { toolSpec } from "../lib/tools";
 import { signedIn } from "../lib/bridge";
 import { createAccount } from "../lib/ipc/accounts";
-import type { ProviderInstallData, ScanReportData } from "../lib/ipc/providers";
+import type { ProbeRowData, ProviderInstallData, ScanReportData } from "../lib/ipc/providers";
 import type { DiscoveredInfo } from "../types/generated/DiscoveredInfo";
 import { colourAt, freeLabel } from "./FreshAccountStep";
 import { FreshRow, type RowProgress } from "./FirstRunFoundRow";
@@ -172,5 +172,30 @@ export function DesktopApps({ only = null }: { only?: string | null } = {}): JSX
       </ul>
       {desktop.note && <p className="px-5 pb-3 text-xs text-danger">{desktop.note}</p>}
     </section>
+  );
+}
+
+/** F33 (0.5.1 PL1 C3): "Where we looked", in the page under Your apps'
+ * rows, closed until opened (PAT-SER-7): each place the scan checked, and
+ * plainly what it couldn't fully check. Nothing when the scan names none. */
+export function WhereWeLooked({ probes }: { probes: ProbeRowData[] }): JSX.Element | null {
+  if (probes.length === 0) return null;
+  return (
+    <Disclosure summary="Where we looked" testId="first-run-looked">
+      <ul className="mt-2 flex flex-col gap-1.5 rounded-xl bg-surface px-4 py-3 text-xs" data-testid="first-run-looked-list">
+        {probes.map((probe) => (
+          <li key={probe.label} className="leading-relaxed">
+            <span className="text-ink">{probe.label}</span>
+            <span className="text-muted">: {probe.detail}</span>
+            {probe.health !== "ok" && (
+              <span className={"block " + (probe.health === "partial" ? "text-warning" : "text-danger")}>
+                {probe.health === "partial" ? "Partly checked" : "Couldn't check"}
+                {probe.reason ? `: ${probe.reason}` : ""}
+              </span>
+            )}
+          </li>
+        ))}
+      </ul>
+    </Disclosure>
   );
 }

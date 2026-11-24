@@ -47,7 +47,7 @@ import { FoundRow } from "./FirstRunFoundRow";
 import { SigninRow } from "./FirstRunSigninRow";
 import { outcomeWords, plainImportError } from "./firstRunScan";
 import { usePlaceOffers } from "../components/PlaceOffers";
-import { DesktopApps, folderOf, freshKey, FreshGroups, labelOf, setUpFresh, setupNames, useFresh } from "./FirstRunMore";
+import { DesktopApps, folderOf, freshKey, FreshGroups, labelOf, setUpFresh, setupNames, useFresh, WhereWeLooked } from "./FirstRunMore";
 
 export { desktopNoneWords, folderOf, labelOf, setupNames } from "./FirstRunMore";
 export { outcomeWords, plainImportError } from "./firstRunScan";
@@ -556,26 +556,8 @@ function FoundStep({
         </div>
       )}
 
-      {/* F33 (0.5.1 PL1 C3): in the page, under the rows, closed until
-          opened (PAT-SER-7); a footer button opened a list below the fold. */}
-      {report.probes.length > 0 && !showOutcome && (
-        <Disclosure summary="Where we looked" testId="first-run-looked">
-          <ul className="mt-2 flex flex-col gap-1.5 rounded-xl bg-surface px-4 py-3 text-xs" data-testid="first-run-looked-list">
-            {report.probes.map((probe) => (
-              <li key={probe.label} className="leading-relaxed">
-                <span className="text-ink">{probe.label}</span>
-                <span className="text-muted">: {probe.detail}</span>
-                {probe.health !== "ok" && (
-                  <span className={"block " + (probe.health === "partial" ? "text-warning" : "text-danger")}>
-                    {probe.health === "partial" ? "Partly checked" : "Couldn't check"}
-                    {probe.reason ? `: ${probe.reason}` : ""}
-                  </span>
-                )}
-              </li>
-            ))}
-          </ul>
-        </Disclosure>
-      )}
+      {/* F33 (0.5.1 PL1 C3): in the page, under the rows, closed until opened. */}
+      {!showOutcome && <WhereWeLooked probes={report.probes} />}
 
       {/* Always in view, so Bring in is never below the fold (0.4 design review). */}
       <FoundActions slot={footSlot}>

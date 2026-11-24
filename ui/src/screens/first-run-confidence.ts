@@ -12,15 +12,12 @@ import type { DiscoveredInfo } from "../types/generated/DiscoveredInfo";
 
 export type Confidence = "found" | "likely" | "guessed";
 
-const WORD: Record<Confidence, string> = { found: "Found", likely: "Likely", guessed: "Guessed" };
 const RANK: Record<Confidence, number> = { found: 0, likely: 1, guessed: 2 };
 
 /** An unknown value never claims more than a guess. */
 function level(raw: string | undefined): Confidence {
   return raw === "found" || raw === "likely" ? raw : "guessed";
 }
-
-export const confidenceWord = (value: Confidence): string => WORD[value];
 
 /** The row's word: the weaker of its name and its sign-in. */
 export function rowConfidence(found: DiscoveredInfo): Confidence {

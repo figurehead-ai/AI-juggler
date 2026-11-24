@@ -33,7 +33,7 @@ export function withoutSignInsShown<T extends Pick<NoticeInfo, "kind" | "target"
 }
 
 /** The Apps the rail's Sign-ins show now. */
-export function useSignInApps(): ReadonlySet<string> {
+function useSignInApps(): ReadonlySet<string> {
   const signIns = useSignIns();
   return useMemo(() => signInApps(signIns), [signIns]);
 }
