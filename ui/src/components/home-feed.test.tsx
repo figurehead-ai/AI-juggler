@@ -230,6 +230,38 @@ describe("D-118 — the feed", () => {
   });
 });
 
+describe("0.5.1 F56 — an empty feed shows no filters (D-127)", () => {
+  it("nothing to show and nothing filtered: no chips, Showing: or ⋯; the empty card offers Include my actions", async () => {
+    seed([]);
+    feed();
+    expect(await screen.findByTestId("feed-empty")).toBeTruthy();
+    expect(screen.queryByTestId("feed-filters")).toBeNull();
+    expect(screen.queryByTestId("feed-more")).toBeNull();
+    expect(screen.getByTestId("feed-empty-mine").textContent).toContain("Your own actions aren't shown.");
+  });
+
+  it("Include my actions from the empty card shows the user's own actions, and the filters come back with them", async () => {
+    seed(many(1).map((one) => ({ ...one, mine: true, subject: "Mine" })));
+    feed();
+    fireEvent.click(await screen.findByTestId("feed-empty-include-mine"));
+    expect((await screen.findByTestId("feed-subject")).textContent).toBe("Mine");
+    expect(keptFilters().include_mine).toBe(true);
+    expect(screen.getByTestId("feed-filters")).toBeTruthy();
+    expect(screen.queryByTestId("feed-empty-mine")).toBeNull();
+  });
+
+  it("a filtered feed with nothing in it keeps its filters: the way back is there", async () => {
+    seed(many(2));
+    feed();
+    await waitFor(() => expect(screen.getAllByTestId("feed-card")).toHaveLength(2));
+    fireEvent.click(screen.getByRole("radio", { name: "Switches & limits" }));
+    expect(await screen.findByTestId("feed-empty")).toBeTruthy();
+    expect(screen.getByTestId("feed-filters")).toBeTruthy();
+    expect(screen.getByTestId("feed-filtered")).toBeTruthy();
+    expect(screen.queryByTestId("feed-empty-mine")).toBeNull();
+  });
+});
+
 describe("D-118 — the preview's stand-in", () => {
   it("names a seeded session that came without its folder, never failing the page", () => {
     // The gallery's fixtures seed sessions without a cwd: one such ending
