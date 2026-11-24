@@ -247,7 +247,7 @@ pub fn install(app: &tauri::AppHandle, state: &Arc<AppState>) {
 }
 
 fn home() -> Option<std::path::PathBuf> {
-    dirs::home_dir()
+    juggler_platform::user::home()
 }
 
 /// Whether a background read of `path` may happen now (PAT-OSP-3): not in

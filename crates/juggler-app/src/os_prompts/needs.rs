@@ -33,7 +33,7 @@ pub fn terminal_tabs(state: &Arc<AppState>) -> bool {
 #[must_use]
 pub fn iterm_tabs(state: &Arc<AppState>) -> bool {
     terminal_tabs(state)
-        && juggler_platform::apps::install_folders(dirs::home_dir().as_deref())
+        && juggler_platform::apps::install_folders(juggler_platform::user::home().as_deref())
             .iter()
             .any(|folder| juggler_platform::apps::installed_app(folder, "iTerm").is_some())
 }
@@ -76,7 +76,7 @@ fn project_roots(state: &Arc<AppState>) -> Vec<std::path::PathBuf> {
 }
 
 fn in_folder(state: &Arc<AppState>, folder: juggler_platform::os_prompt::Folder) -> bool {
-    let Some(home) = dirs::home_dir() else {
+    let Some(home) = juggler_platform::user::home() else {
         return false;
     };
     project_roots(state)
@@ -105,7 +105,7 @@ pub fn downloads(state: &Arc<AppState>) -> bool {
 /// A project lives in another app's guarded data.
 #[must_use]
 pub fn app_data(state: &Arc<AppState>) -> bool {
-    let Some(home) = dirs::home_dir() else {
+    let Some(home) = juggler_platform::user::home() else {
         return false;
     };
     project_roots(state)
