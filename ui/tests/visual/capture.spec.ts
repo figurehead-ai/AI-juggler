@@ -2045,8 +2045,11 @@ const costStates: Record<string, Record<string, unknown>> = {
   },
 };
 
+// 0.5.1 F88 (F51's rule): the cost matrix at the window's sizes only; at
+// 390 its three summary cards stacked over the first screen, a layout below
+// the window's minimum (1024×680) that no one can get. No baseline was at 390.
 for (const theme of THEMES) {
-  for (const vp of VIEWPORTS) {
+  for (const vp of WINDOW_VIEWPORTS) {
     for (const [state, fixture] of Object.entries(costStates)) {
       test(`cost matrix — ${state} — ${vp.name} — ${theme}`, gate("25-costs"), async ({ page }) => {
         await page.addInitScript(
