@@ -364,3 +364,10 @@ Re-rendered with `scripts/visual_gate.sh --update --project=gallery -g …` (the
 - 50-cross-switch: `targets-1280x800-dark`: Switch account's paired-Mac rows are the same target cards as this Mac's (the App's logo, its name, a tone step, no line; how much carries a quiet line), no amber-ringed chip on every row.
 - 91-more-tools: `add-account-chooser-1280x800-dark`: Add an app's tool rows choose with a secondary button each (the 38-flows-cde fix, the same sheet).
 - 94-service-accounts: `add-account-more-1280x800-dark`: Add an app's tool rows choose with a secondary button each (the 38-flows-cde fix, the same sheet with More open).
+
+### Batch B3: F66 and its design-critique fixes (2026-11-24)
+
+Re-rendered with `scripts/visual_gate.sh --update --project=gallery <spec:line> -g dark` (only the gate states these change; a full gate run without `--update` found exactly these, plus 94-service-accounts' add-account-more, which re-rendered identical to its baseline once B2's Add an app change was committed), each opened old beside new.
+
+- 92-session-pages: `outside-asks-1280x800-dark`: the "Claude asks you" strip under the conversation is the panel's tone with an amber dot before "Claude asks you" (F66: it was an amber-brown wash with an amber top line); its words and Go to it unchanged, the strip 1 px lower.
+- 93-messages: `pool-messages-1280x800-dark`: Builder's question to you is a grey bubble like the other agents', with an amber dot before "Builder" (F66: it was an amber-tinted bubble with an amber edge); "Builder" stays amber.
