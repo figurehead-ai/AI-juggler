@@ -226,13 +226,7 @@ fn a_named_record_answers_with_its_own_state() {
 
 fn state() -> (tempfile::TempDir, Arc<AppState>) {
     let dir = tempfile::tempdir().unwrap();
-    let state = Arc::new(
-        AppState::init_with_registry(
-            dir.path().to_path_buf(),
-            juggler_adapter::AdapterRegistry::new(),
-        )
-        .unwrap(),
-    );
+    let state = crate::test_support::bare_state(dir.path().to_path_buf());
     (dir, state)
 }
 

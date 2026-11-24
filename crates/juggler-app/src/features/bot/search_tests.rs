@@ -6,13 +6,10 @@
 
 //! AJ-E3824: Search finds each kind of record through Bot's look-up.
 
-use std::sync::Arc;
-
 use super::super::dto::{BotRowInfo, BotRowKind, BotState};
 use super::super::world::World;
 use super::super::world::tests_support::row;
 use super::{SearchPoolInfo, SearchRecordsInfo, bot_search_impl, records_in};
-use crate::state::AppState;
 
 /// 2026-11-19 12:00 UTC.
 const NOW: i64 = 1_795_521_600_000;
@@ -163,13 +160,7 @@ fn what_no_record_holds_finds_nothing() {
 #[test]
 fn the_command_reads_the_records_and_writes_nothing() {
     let dir = tempfile::tempdir().unwrap();
-    let state = Arc::new(
-        AppState::init_with_registry(
-            dir.path().to_path_buf(),
-            juggler_adapter::AdapterRegistry::new(),
-        )
-        .unwrap(),
-    );
+    let state = crate::test_support::bare_state(dir.path().to_path_buf());
     assert_eq!(
         bot_search_impl(&state, "What needs me?").unwrap(),
         SearchRecordsInfo::default()
