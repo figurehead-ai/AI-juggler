@@ -96,7 +96,9 @@ function ExactWindowRow(): JSX.Element {
   return (
     <SettingRow
       title="Bring the exact window to the front"
-      description="Needs Accessibility. Without it, Go to it brings the right app forward, and you pick the window."
+      // 0.5.1 F23: setup asks for these two on two cards; this row is On
+      // when both are, from the same reads.
+      description="Needs Accessibility, and Automation of System Events. Without them, Go to it brings the right app forward, and you pick the window."
       testId="desktop-exact-window"
       control={
         entry === null ? (

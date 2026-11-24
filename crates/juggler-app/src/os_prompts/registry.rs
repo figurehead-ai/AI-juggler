@@ -21,11 +21,14 @@ pub const ACCESSIBILITY: Prompt = Prompt {
     kind: Kind::Accessibility,
 };
 
+/// System Events' bundle id.
+pub const SYSTEM_EVENTS_BUNDLE: &str = "com.apple.systemevents";
+
 /// Automation of System Events (window focus).
 pub const SYSTEM_EVENTS: Prompt = Prompt {
     id: "automation-system-events",
     kind: Kind::Automation(Target {
-        bundle_id: "com.apple.systemevents",
+        bundle_id: SYSTEM_EVENTS_BUNDLE,
         name: "System Events",
     }),
 };

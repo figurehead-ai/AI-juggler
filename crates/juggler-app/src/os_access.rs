@@ -152,8 +152,9 @@ mod platform {
     }
 
     pub(super) fn entries(state: &Arc<AppState>) -> Vec<OsAccessInfo> {
-        let automation_ok = super::stored_automation(state).unwrap_or(false);
-        let focus_granted = accessibility_trusted() && automation_ok;
+        // 0.5.1 F23: the same reads as setup's two cards (one answer).
+        let focus_granted =
+            accessibility_trusted() && super::system_events_status(state) == Some(Status::Allowed);
         let (status, action) = super::status_of(focus_granted, super::asked(state, "focus"));
         let (preview_status, preview_action, preview_note) =
             super::preview_state(screen_recording_allowed(), super::asked(state, "preview"));
@@ -221,6 +222,41 @@ pub fn stored_automation(state: &Arc<AppState>) -> Option<bool> {
         .map(|raw| raw == "1")
 }
 
+/// Whether AI Juggler may ask System Events about an app's windows: the
+/// one read behind setup's "Find a session's window" card, Settings ›
+/// Desktop apps' exact window and Go to it (0.5.1 F23: setup said
+/// "Allowed" from the system while Settings said "Set up…" from AI
+/// Juggler's own record, empty when the grant came from elsewhere). What
+/// the system says now comes first (a never-asking Apple event); AI
+/// Juggler's own record of its ask only when the system can't say (System
+/// Events not running). `None`: neither knows.
+#[must_use]
+pub fn system_events_status(state: &Arc<AppState>) -> Option<juggler_platform::os_prompt::Status> {
+    let live = juggler_platform::os_prompt::automation_status(
+        crate::os_prompts::registry::SYSTEM_EVENTS_BUNDLE,
+    );
+    system_events_from(live, stored_automation(state))
+}
+
+/// [`system_events_status`] from the system's answer and AI Juggler's
+/// record (pure).
+#[must_use]
+pub fn system_events_from(
+    live: Option<juggler_platform::os_prompt::Status>,
+    stored: Option<bool>,
+) -> Option<juggler_platform::os_prompt::Status> {
+    use juggler_platform::os_prompt::Status;
+    live.or_else(|| {
+        stored.map(|allowed| {
+            if allowed {
+                Status::Allowed
+            } else {
+                Status::NotAllowed
+            }
+        })
+    })
+}
+
 /// Keeps what the System Events ask found.
 ///
 /// # Errors
@@ -238,7 +274,8 @@ pub fn store_automation(state: &Arc<AppState>, allowed: bool) -> AppResult<()> {
 pub fn exact_windows_allowed(state: &Arc<AppState>) -> bool {
     #[cfg(target_os = "macos")]
     {
-        stored_automation(state) == Some(true) && platform::accessibility_trusted()
+        platform::accessibility_trusted()
+            && system_events_status(state) == Some(juggler_platform::os_prompt::Status::Allowed)
     }
     #[cfg(not(target_os = "macos"))]
     {
@@ -484,6 +521,34 @@ mod tests {
         // After the reopen, the OS says yes: Allowed, nothing to do.
         assert_eq!(preview_state(true, true), ("allowed", "none", None));
         assert_eq!(preview_state(true, false), ("allowed", "none", None));
+    }
+
+    /// 0.5.1 F23: setup said System Events "Allowed" (the system's own
+    /// answer) while Settings said "Set up…" (AI Juggler's record, empty
+    /// as the grant came from elsewhere). One read: the system first.
+    #[test]
+    fn system_events_has_one_answer_the_systems_first() {
+        use juggler_platform::os_prompt::Status;
+        assert_eq!(
+            system_events_from(Some(Status::Allowed), None),
+            Some(Status::Allowed)
+        );
+        // Taken back in System Settings: the old record doesn't keep it on.
+        assert_eq!(
+            system_events_from(Some(Status::NotAllowed), Some(true)),
+            Some(Status::NotAllowed)
+        );
+        assert_eq!(
+            system_events_from(Some(Status::NotAsked), Some(true)),
+            Some(Status::NotAsked)
+        );
+        // System Events not running: AI Juggler's record of its ask.
+        assert_eq!(system_events_from(None, Some(true)), Some(Status::Allowed));
+        assert_eq!(
+            system_events_from(None, Some(false)),
+            Some(Status::NotAllowed)
+        );
+        assert_eq!(system_events_from(None, None), None);
     }
 
     #[test]

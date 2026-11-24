@@ -294,16 +294,12 @@ pub fn status_of(state: &Arc<AppState>, prompt: Prompt) -> Status {
             Status::Allowed => Status::Allowed,
             _ => said_no,
         },
+        // 0.5.1 F23: System Events through the one read Settings and Go
+        // to it use.
+        Kind::Automation(_) if prompt.id == registry::SYSTEM_EVENTS.id => {
+            crate::os_access::system_events_status(state).unwrap_or(unknown)
+        }
         Kind::Automation(target) => {
-            if prompt.id == registry::SYSTEM_EVENTS.id
-                && let Some(allowed) = crate::os_access::stored_automation(state)
-            {
-                return if allowed {
-                    Status::Allowed
-                } else {
-                    Status::NotAllowed
-                };
-            }
             os_prompt::automation_status(target.bundle_id).unwrap_or(unknown)
         }
         Kind::LoginItem => match os_prompt::login_item_status() {
