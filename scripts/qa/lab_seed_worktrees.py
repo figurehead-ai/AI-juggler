@@ -60,6 +60,7 @@ import tempfile
 import time
 import uuid
 from pathlib import Path
+from typing import IO
 
 ROOT = Path(__file__).resolve().parents[2]
 FORMATS = ROOT / "crates/juggler-adapters/src/claude_move/known_formats.json"
@@ -324,30 +325,56 @@ while [ "$SECONDS" -lt "$end" ]; do sleep 5 & wait $!; done
 """
 
 
-def hold_command(home: Path) -> list[str]:
+# The selftest's stand-in for the Claude app's `disclaimer --pgroup --`.
+FAKE_DISCLAIMER = """import os, sys
+if sys.argv[1] == "--pgroup":
+    try:
+        os.setpgid(0, 0)
+    except OSError as error:
+        sys.stderr.write(f"Failed to create process group: {error.strerror}\\n")
+        sys.exit(1)
+os.execv(sys.argv[3], sys.argv[3:])
+"""
+
+
+def hold_command(home: Path, helper: Path | None = None) -> list[str]:
     second = profile_dir(home, SECOND)
     holder = profile_dir(home, HOLDER)
     stand = second / "claude-code" / STANDIN_VERSION / "claude.app/Contents/MacOS/claude"
-    return [str(DISCLAIMER), "--pgroup", "--", str(stand), "--resume=lab-add-dir", f"--add-dir={holder / ADD_DIR}"]
+    return [str(helper or DISCLAIMER), "--pgroup", "--", str(stand), "--resume=lab-add-dir", f"--add-dir={holder / ADD_DIR}"]
 
 
-def hold(home: Path, dry: bool) -> list[str]:
-    argv = hold_command(home)
+def said(err: IO[bytes]) -> str:
+    """What a wrapper that ended wrote to stderr: its last lines, one line."""
+    err.seek(0)
+    lines = [line.strip() for line in err.read().decode(errors="replace").splitlines() if line.strip()]
+    return " / ".join(lines[-3:])[:400] or "it said nothing on stderr"
+
+
+def hold(home: Path, dry: bool, helper: Path | None = None) -> list[str]:
+    helper = helper or DISCLAIMER
+    argv = hold_command(home, helper)
     pidfile = home / ".aij-lab-add-dir.pid"
     if dry:
         return [f"run {' '.join(argv)}", f"write {pidfile}"]
-    if not DISCLAIMER.exists():
-        refuse(f"{DISCLAIMER} isn't there (the Claude app's helper): record I3/J2 BLOCKED")
+    if not helper.exists():
+        refuse(f"{helper} isn't there (the Claude app's helper): record I3/J2 BLOCKED")
     if not Path(argv[3]).exists():
         refuse("run `seed` first (no stand-in in <profile-C>)")
     if pidfile.exists():
         refuse(f"a hold runs already (pid {pidfile.read_text().strip()}); release-add-dir first")
-    child = subprocess.Popen(argv, cwd=str(home), stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
-                             stderr=subprocess.DEVNULL, env={"HOME": str(home), "PATH": "/usr/bin:/bin"},
-                             start_new_session=True)
-    time.sleep(1)
-    if child.poll() is not None:
-        refuse(f"the disclaimer wrapper ended at once (exit {child.returncode}): record I3/J2 BLOCKED with this line")
+    # F41 (F-PL1-21): never a new session. `disclaimer --pgroup` makes its
+    # own process group (as the Claude app starts it), which a session
+    # leader can't ("Failed to create process group: Operation not
+    # permitted", exit 1); the group is what release-add-dir ends. Its
+    # stderr is kept, so an early end says why.
+    with tempfile.TemporaryFile() as err:
+        child = subprocess.Popen(argv, cwd=str(home), stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                                 stderr=err, env={"HOME": str(home), "PATH": "/usr/bin:/bin"})
+        time.sleep(1)
+        if child.poll() is not None:
+            refuse(f"the disclaimer wrapper ended at once (exit {child.returncode}: {said(err)}): "
+                   "record I3/J2 BLOCKED with this line")
     pidfile.write_text(f"{child.pid}\n")
     return [f"started the wrapper (pid {child.pid}): {' '.join(argv)}"]
 
@@ -549,6 +576,37 @@ def selftest() -> None:
         argv = hold_command(home)
         assert argv[0] == str(DISCLAIMER) and argv[3].startswith(str(second)) and argv[-1] == f"--add-dir={work / ADD_DIR}"
         assert hold(home, dry=True)[0].startswith("run ")
+        # F41: a stand-in `disclaimer` that, as the real one, makes its own
+        # process group (refused to a session leader) and runs the rest.
+        fake = lab / "fake-disclaimer"
+        fake.write_text(f"#!{sys.executable} -I\n" + FAKE_DISCLAIMER)
+        fake.chmod(0o755)
+        # And the Claude app's own helper, when it's installed here.
+        for helper in [fake] + ([DISCLAIMER] if DISCLAIMER.exists() else []):
+            try:
+                started = hold(home, dry=False, helper=helper)
+            except Refused as refused:
+                raise AssertionError(f"hold-add-dir refused under {helper.name}: {refused}") from None
+            pid = int((home / ".aij-lab-add-dir.pid").read_text())
+            assert started[0].startswith(f"started the wrapper (pid {pid})"), started
+            assert os.getpgid(pid) == pid, "the wrapper isn't its own process group"
+            assert release(home) == [f"ended the hold (pid {pid})"]
+            for _ in range(50):
+                if not any(p == pid or str(second) in a for p, a in processes_with_pids()):
+                    break
+                time.sleep(0.1)
+            else:
+                raise AssertionError("release-add-dir left the hold running")
+            assert not (home / ".aij-lab-add-dir.pid").exists()
+        # One that ends at once says why (its stderr), and leaves no pid file.
+        fake.write_text("#!/bin/bash\necho 'Failed to spawn process: lab says no' >&2\nexit 1\n")
+        try:
+            hold(home, dry=False, helper=fake)
+            raise AssertionError("a wrapper that ended at once wasn't refused")
+        except Refused as refused:
+            assert "exit 1: Failed to spawn process: lab says no" in str(refused), refused
+        assert not (home / ".aij-lab-add-dir.pid").exists()
+        fake.unlink()
         # A split: the walk's move put record and lease in personal; split
         # puts the lease back in work and the record's branch off HEAD.
         personal = home / PROFILES / "personal"
