@@ -15,6 +15,7 @@ import { expect, test, type Page } from "@playwright/test";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { allStatuses, goTo, openRailSession, railViewAs } from "./fixtures";
+import { knownPlacesPreview, placesConversations } from "../../src/preview/places";
 
 const T0 = 1_728_800_000_000;
 /** About zero: a shift a person could notice is ~0.05 and more. */
@@ -170,5 +171,48 @@ for (const theme of ["dark", "light"] as const) {
     // Its own row (the state mark first), not a Needs you row drawn by SessionRow.
     const projectRow = page.getByTestId("rail-list").locator("[data-rail-row]:has(> button[data-instance-id] > span[aria-hidden='true'])").first();
     await holdsStill(page, `project-row-${theme}`, projectRow, ["[data-instance-id]", "[data-instance-id] > span[aria-hidden]", "[data-testid='row-tools']", "button[aria-label^='Session actions']"]);
+  });
+
+  // 0.5.1 F22: the logo sat under the window's traffic lights (macOS draws
+  // them over the top 28 px, to about 78 px from the left), and folded
+  // Inactive apps wrapped onto two lines with its summary cut
+  // ("5 apps · 16 sessi…"), at the rail's default width and its narrowest.
+  test(`the rail's head clears the traffic lights and folded Inactive apps holds one line (${theme})`, async ({ page }) => {
+    await seed(page, theme);
+    await page.goto("/");
+    const head = page.getByTestId("rail-header");
+    await expect(head).toBeVisible();
+    const logo = await head.getByRole("button").first().boundingBox();
+    expect(logo?.x ?? 0, "the logo starts past the traffic lights").toBeGreaterThanOrEqual(78);
+    // Apps with nothing open: the places desktop with its sessions ended.
+    await page.addInitScript(
+      ({ known, conversations }) => {
+        const w = window as unknown as Record<string, unknown>;
+        w.__AIJ_PLACES__ = known;
+        w.__AIJ_FIXTURE__ = { ...(w.__AIJ_FIXTURE__ as object), conversations };
+      },
+      { known: knownPlacesPreview(T0), conversations: placesConversations(T0).map((row) => ({ ...row, live: false, places: [], pid: null, state: null })) },
+    );
+    await page.reload();
+    const idle = page.getByTestId("place-board").locator("div:has(> [data-section='idle'])");
+    await expect(idle).toBeVisible();
+    const fold = idle.getByTestId("rail-section-fold");
+    if ((await fold.getAttribute("aria-expanded")) === "true") await fold.click();
+    const summary = idle.getByTestId("section-summary");
+    await expect(summary).toBeVisible();
+    for (const width of [264, 208]) {
+      await page.evaluate((w) => {
+        const rail = document.querySelector<HTMLElement>("[data-testid='place-board']")?.closest<HTMLElement>("[style*='width']");
+        if (rail) rail.style.width = `${w}px`;
+      }, width);
+      await page.waitForTimeout(300);
+      const line = await idle.evaluate((element) => {
+        const button = element.querySelector<HTMLElement>("[data-testid='rail-section-fold']")!;
+        const words = element.querySelector<HTMLElement>("[data-testid='section-summary']")!;
+        const height = parseFloat(getComputedStyle(button).lineHeight) || 16;
+        return { lines: Math.round(button.getBoundingClientRect().height / height), cut: words.scrollWidth > words.clientWidth + 0.5, inside: words.getBoundingClientRect().right <= button.getBoundingClientRect().right + 0.5 };
+      });
+      expect(line, `at ${width} px: one line, the summary whole`).toEqual({ lines: 1, cut: false, inside: true });
+    }
   });
 }

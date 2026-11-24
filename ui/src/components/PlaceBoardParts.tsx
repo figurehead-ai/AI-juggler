@@ -94,10 +94,14 @@ export function SectionHead({ id, count, level = 0, broken = [], open, onToggle,
           {/* On Needs you, a space after its label: the visible words read
               "Needs you 5", as its name begins (axe's label-in-name, WCAG
               2.5.3). */}
-          {label}
+          {/* 0.5.1 F22: one line; the label gives way (its full words on
+              hover), never the count or summary ("5 apps · 16 sessi…"). */}
+          <span className="min-w-0 truncate" title={label} data-testid="section-label-words">
+            {label}
+          </span>
           {needs && " "}
           {summary !== undefined && (
-            <span className="min-w-0 truncate font-normal normal-case tracking-normal tabular-nums text-muted" data-testid="section-summary">
+            <span className="shrink-0 whitespace-nowrap font-normal normal-case tracking-normal tabular-nums text-muted" data-testid="section-summary">
               {summary}
             </span>
           )}
@@ -106,7 +110,7 @@ export function SectionHead({ id, count, level = 0, broken = [], open, onToggle,
             // `.level-glyph` before the number: decoration, hidden; on
             // Needs you the button's name says the count in words (the
             // heading takes its name from it).
-            <span className={"level-count inline-flex items-center gap-1 font-semibold normal-case tracking-normal tabular-nums " + countTone} data-level={needs ? level : undefined} data-testid="section-count">
+            <span className={"level-count inline-flex shrink-0 items-center gap-1 whitespace-nowrap font-semibold normal-case tracking-normal tabular-nums " + countTone} data-level={needs ? level : undefined} data-testid="section-count">
               {needs && level >= 2 && <span aria-hidden="true" className="level-glyph" data-level={level} />}
               {count}
             </span>

@@ -194,6 +194,11 @@
   --container-content: 90rem;
   --spacing-card: 1.25rem;
   --spacing-grid: 1rem;
+  /* The title-bar inset (0.5.1 F22): macOS draws the window's traffic
+     lights over its top 28 px, from its left edge to about 78 px.
+     Content in that band starts past them (`pl-titlebar`); a full-window
+     sheet starts below it (`pt-8`). */
+  --spacing-titlebar: 5rem;
 
   /* Shape */
   --radius-card: 0.875rem;

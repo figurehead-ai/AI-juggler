@@ -13,6 +13,7 @@ import { PlaceHeader } from "./PlaceHeader";
 import { SessionRow } from "./row/SessionRow";
 import { RailSignIns } from "./RailSignIns";
 import { RailOfferRow } from "./PlaceOffers";
+import { SectionHead } from "./PlaceBoardParts";
 import { countWords, headCounts, idOf, nextOf } from "../lib/rail-counts";
 import { presetListState, takeListPreset } from "../lib/list-presets";
 import { rememberedTabId } from "../pages/registry";
@@ -168,6 +169,20 @@ describe("AJ-E1554 R5 folded Inactive apps", () => {
     expect(idleSummary(10, 48)).toBe("10 apps · 48 sessions");
     expect(idleSummary(1, 1)).toBe("1 app · 1 session");
     expect(idleSummary(2, 0)).toBe("2 apps");
+  });
+
+  it("hold one line: the label gives way, never the summary or a count (0.5.1 F22)", () => {
+    render(<SectionHead id="idle" count={5} open={false} onToggle={() => {}} summary={idleSummary(5, 16)} />);
+    const words = screen.getByTestId("section-label-words");
+    expect(words.className.split(" ")).toEqual(expect.arrayContaining(["min-w-0", "truncate"]));
+    expect(words.getAttribute("title")).toBe(words.textContent);
+    const summary = screen.getByTestId("section-summary");
+    expect(summary.textContent).toBe("5 apps · 16 sessions");
+    expect(summary.className.split(" ")).toEqual(expect.arrayContaining(["shrink-0", "whitespace-nowrap"]));
+    expect(summary.className).not.toMatch(/\btruncate\b/);
+    cleanup();
+    render(<SectionHead id="needs" count={3} level={2} open onToggle={() => {}} />);
+    expect(screen.getByTestId("section-count").className.split(" ")).toEqual(expect.arrayContaining(["shrink-0", "whitespace-nowrap"]));
   });
 });
 

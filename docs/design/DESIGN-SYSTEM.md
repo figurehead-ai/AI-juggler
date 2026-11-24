@@ -286,6 +286,7 @@ Today there is one token (`--radius-card`, 14 px) and ten radii in use (AUDIT; `
 | Rail | Collapses to icons and badges under 1100 px; densities Comfortable (two lines), Compact (one line), Minimal (icons), ⌃D cycles. | DEEP §3, D-25, `DensityChoice.tsx` |
 | Row heights | Comfortable two-line rows 44–48 px; compact rows 32 px; table rows 36 (compact) / 40 (default). | DEEP §2.2, Carbon |
 | Control heights | md 36 px (`h-9`), sm 28 px (`h-7`); never under 24 px hit area, 28 px preferred on macOS. | HIG Buttons, WCAG 2.5.8, `styles.css` |
+| Title bar | The window's traffic lights sit over its top 28 px, left 80 px: content in that band starts past them (`--spacing-titlebar`, `pl-titlebar`: the rail's head); a full-window sheet starts below it (`pt-8`). Nothing is drawn under them. | 0.5.1 F22, `RailHeader.tsx` |
 | Making screens | `FlowLayout`: steps column 240 px (280 from 1360), form to 680 px, preview 320–380 px sticky, max 1180 px, left-aligned; under 960 px the preview folds into a summary strip. | D-126, KIT, `FlowLayout.tsx` |
 | Dialogs at 1024×680 | Height cap `min(92vh, 760px)` = 625 px: header ≤ 96, footer 56–68, so the body keeps ≥ 460 px. | new (DLG-3) |
 | Tables | At most 5 columns at default width; overflow goes to the detail level. | DEEP §1.2 |

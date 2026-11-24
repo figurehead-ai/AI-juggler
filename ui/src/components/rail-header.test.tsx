@@ -27,4 +27,15 @@ describe("the rail's head", () => {
     expect(head).toContain("h-14");
     expect(head).not.toContain("pt-7");
   });
+
+  it("unfolded, starts past the traffic lights; the name gives way before the Dev mark (0.5.1 F22)", () => {
+    render(<RailHeader minimal={false} info={DEV} onToggle={() => {}} />);
+    const head = screen.getByTestId("rail-header").className.split(" ");
+    expect(head).toContain("pl-titlebar");
+    expect(head).not.toContain("px-4");
+    const name = screen.getByText("AI Juggler");
+    expect(name.className.split(" ")).toEqual(expect.arrayContaining(["min-w-0", "truncate"]));
+    expect(name.getAttribute("title")).toBe("AI Juggler");
+    expect(screen.getByTestId("edition-badge").className.split(" ")).toContain("shrink-0");
+  });
 });
