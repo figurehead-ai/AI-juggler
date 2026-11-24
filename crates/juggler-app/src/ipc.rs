@@ -19,6 +19,29 @@ pub fn over_budget(took: Duration) -> bool {
     took > BUDGET
 }
 
+/// What a command's time is measured against (0.5.1 F30).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Wait {
+    /// The machine's work only: past [`BUDGET`] is slow and logged.
+    Machine,
+    /// The call waits for the person (a priming sheet, the system's
+    /// dialog after it): their time is theirs, never a slow call.
+    Person,
+}
+
+/// The app log's line for a command that took `took`, if any: one over
+/// [`BUDGET`] that waited only on the machine.
+#[must_use]
+pub fn budget_line(context: &str, took: Duration, wait: Wait) -> Option<String> {
+    (wait == Wait::Machine && over_budget(took)).then(|| {
+        format!(
+            "{context}: took {} ms, over its {} ms budget",
+            took.as_millis(),
+            BUDGET.as_millis()
+        )
+    })
+}
+
 /// Runs `body` on the blocking pool with the app state; a task that
 /// could not finish (it panicked or was cancelled) is an `Io` error named
 /// by `context`, never a silent default.
@@ -31,6 +54,30 @@ pub async fn blocking<T: Send + 'static>(
     context: &'static str,
     body: impl FnOnce(&Arc<AppState>) -> AppResult<T> + Send + 'static,
 ) -> AppResult<T> {
+    run(state, context, Wait::Machine, body).await
+}
+
+/// [`blocking`] for a call that waits for the person (0.5.1 F30: a
+/// priming sheet's 24 s wait for Not now was logged as a slow call). The
+/// call site says so; its time is never held against [`BUDGET`].
+///
+/// # Errors
+///
+/// As [`blocking`].
+pub async fn blocking_waits_for_person<T: Send + 'static>(
+    state: &Arc<AppState>,
+    context: &'static str,
+    body: impl FnOnce(&Arc<AppState>) -> AppResult<T> + Send + 'static,
+) -> AppResult<T> {
+    run(state, context, Wait::Person, body).await
+}
+
+async fn run<T: Send + 'static>(
+    state: &Arc<AppState>,
+    context: &'static str,
+    wait: Wait,
+    body: impl FnOnce(&Arc<AppState>) -> AppResult<T> + Send + 'static,
+) -> AppResult<T> {
     let state = Arc::clone(state);
     // AJ-E2013: what a command logs carries its span (`command>…`), and a
     // command that fails says so in the app log.
@@ -39,13 +86,8 @@ pub async fn blocking<T: Send + 'static>(
         let _entered = span.enter();
         let started = Instant::now();
         let result = body(&state);
-        let took = started.elapsed();
-        if over_budget(took) {
-            tracing::warn!(
-                "{context}: took {} ms, over its {} ms budget",
-                took.as_millis(),
-                BUDGET.as_millis()
-            );
+        if let Some(line) = budget_line(context, started.elapsed(), wait) {
+            tracing::warn!("{line}");
         }
         if let Err(error) = &result {
             tracing::warn!("{context}: {error}");
@@ -90,5 +132,21 @@ mod tests {
         assert!(!over_budget(Duration::from_millis(40)));
         assert!(!over_budget(BUDGET));
         assert!(over_budget(BUDGET + Duration::from_millis(1)));
+    }
+
+    /// 0.5.1 F30: a call marked as waiting for the person is never a slow
+    /// call, however long they take; the machine's own work still is.
+    #[test]
+    fn a_wait_for_the_person_is_not_a_slow_call() {
+        let long = Duration::from_millis(24_161);
+        assert_eq!(budget_line("os prompt request", long, Wait::Person), None);
+        assert_eq!(
+            budget_line("os prompt request", long, Wait::Machine).as_deref(),
+            Some("os prompt request: took 24161 ms, over its 2000 ms budget")
+        );
+        assert_eq!(
+            budget_line("the pools", Duration::from_millis(40), Wait::Machine),
+            None
+        );
     }
 }
