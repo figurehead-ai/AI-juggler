@@ -15,7 +15,7 @@ import { type Page } from "@playwright/test";
 import { expect, gate, GATE_NOW, test } from "./axe-gallery";
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
-import { goTo, groupBy, hoverRailGroup } from "./fixtures";
+import { goTo, groupBy, hoverRailGroup, railStill } from "./fixtures";
 
 const OUT = resolve(process.cwd(), "../docs/qa/evidence/_gallery/91-pools");
 test.beforeAll(() => mkdirSync(OUT, { recursive: true }));
@@ -100,12 +100,16 @@ for (const theme of ["dark", "light"] as const) {
     // ~90 px. Hover only once it's there, or the pointer is left on another
     // line and the hover-only Open hides (#218 run 43068843764, visual 4/4).
     await expect(page.getByRole("heading", { name: /^Needs you/ })).toBeVisible();
+    // AJ-E2316: every notice drawn and the rail at rest before the hover.
+    await railStill(page);
     await groupByPool(page);
     // Its Open shows on hover (0.4); the helper hovers until it does.
     await hoverRailGroup(page, "Checkout redesign");
     // No pools section and no Home picker: a pool's view is its page.
     await expect(page.getByTestId("home-pool-filter")).toHaveCount(0);
     await page.mouse.move(0, 0);
+    // AJ-E2316: a reorder held while the pointer was in the list applies now.
+    await railStill(page);
     await page.screenshot({ path: resolve(OUT, `rail-by-pool-${size.name}-${theme}.png`) });
     await axe(page, `rail by pool ${theme}`);
   });
