@@ -181,6 +181,8 @@ export function RailIdleApp({
           <RoomChip mark={mark} iconOnly testId="rail-idle-room" />
         </span>
       )}
+      {/* 0.5.1 F26: its ring sat against its own hairline and read as a
+          tinted border; focused, the border is the focus line too. */}
       <button
         type="button"
         onClick={act}
@@ -189,7 +191,7 @@ export function RailIdleApp({
         title={blocked ?? `${words}: ${app.name}`}
         data-testid="rail-idle-action"
         data-action={words}
-        className="flex size-6 shrink-0 items-center justify-center rounded-md border border-hairline text-muted outline-none hover:border-accent/40 hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60 disabled:cursor-default disabled:opacity-50"
+        className="flex size-6 shrink-0 items-center justify-center rounded-md border border-hairline text-muted outline-none hover:border-accent/40 hover:text-ink focus-visible:border-focus focus-visible:text-ink focus-visible:ring-1 focus-visible:ring-accent/60 disabled:cursor-default disabled:opacity-50"
       >
         <Icon width={12} height={12} />
       </button>
