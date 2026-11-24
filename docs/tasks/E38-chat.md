@@ -452,7 +452,7 @@
 **Research basis**: ADR-0033 (the review's rules and verdicts), D-131 (v5-final.md), D-127.
 **Handover note**: Opus builds this. Share the guard with Bot's (AJ-E3806); do not write a second one.
 
-### AJ-E3821 Remove frees a model's disk at once: the local helper lets go of the file before it is deleted | Status: IN-PROGRESS (0.5.1) | Priority P1 | Effort S | Depends: AJ-E3803
+### AJ-E3821 Remove frees a model's disk at once: the local helper lets go of the file before it is deleted | Status: IN-PROGRESS (0.5.1: built 5296623e2; open: R1, R2 need a test and a PL1 step, none exists yet) | Priority P1 | Effort S | Depends: AJ-E3803
 **Found** in the Qwen3-1.7B download-and-remove check (2026-11-22, `docs/qa/evidence/AJ-E3712/qwen-download-check.md`): Remove said "Frees 1.8 GB" and deleted the file, but the idle `juggler-local-ai` helper still held it open, so the space came back only at the helper's idle exit, about 4–6 minutes later.
 **UI**: no
 **Requirements**:
@@ -461,7 +461,7 @@
 **Quality gates**: `just keep-going verify-static`; the local engine's release test; the E2323 PL1 walk re-checks Remove's free space at once.
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E3712/qwen-download-check.md` (re-check row).
 
-### AJ-E3822 Helpers never share an identifier across identities, and every one names itself: no "(null) differs from previously opened versions" prompt | Status: IN-PROGRESS (0.5.1: built d7f71beaf, scripts and lint verified; the Dev .app bundle and the prompt checked in the PL1 walk) | Priority P1 | Effort S | Depends: AJ-E3802
+### AJ-E3822 Helpers never share an identifier across identities, and every one names itself: no "(null) differs from previously opened versions" prompt | Status: DONE (0.5.1) | Priority P1 | Effort S | Depends: AJ-E3802
 **Found** by the maintainer on the 0.5.0 nightly (2026-11-23): opening Bot showed macOS's prompt '"(null)" differs from previously opened versions. Are you sure you want to open it?'. Nightly's `juggler-apple-ai` is `ai.figurehead.juggler.apple-ai` signed with the team's Developer ID; the Dev and lab builds ran the same identifier signed ad hoc, so macOS's app-data protection saw one identifier with two signers and asked. "(null)" because the helpers' embedded Info.plist has no CFBundleName.
 **UI**: no
 **Requirements**:
@@ -472,7 +472,7 @@
 **Quality gates**: `just keep-going verify-static`; the new lint; a Dev build's helpers checked with `codesign -dv` (identifier and plist).
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E3822/manifest.md`.
 
-### AJ-E3823 One engine-setup guide for Bot: what this Mac can do, Apple's AI first, Qwen named and explained, never a bare "Download · 1.8 GB" | Status: TODO (0.5.1) | Priority P0 | Effort M | Depends: AJ-E3822, AJ-E1545, AJ-E1547
+### AJ-E3823 One engine-setup guide for Bot: what this Mac can do, Apple's AI first, Qwen named and explained, never a bare "Download · 1.8 GB" | Status: DONE (0.5.1) | Priority P0 | Effort M | Depends: AJ-E3822, AJ-E1545, AJ-E1547
 **Found** by the maintainer on the 0.5.0 nightly (2026-11-23): Bot's "Get short written answers · Beta" card said "Download · 1.8 GB" without naming what it downloads, and Apple's own model was never offered or explained. "We always must guide the user. Assume our user doesn't know anything."
 **Root cause (checked read-only, 2026-11-23)**: (1) on the maintainer's Mac the nightly's Apple helper shares its identifier and sandbox container with the Dev builds' ad hoc one (AJ-E3822); the container was touched when Bot was opened and the "(null) differs" prompt showed, so the helper's probe got no answer. (2) `apple::Seen::apple_ai()` maps a probe that failed or never answered to `AppleAi::Unavailable` ("this Mac can't run it"), so the recommendation went straight to the Qwen download with nothing said about Apple. The router's order is already Apple first when its probe says ready; the Dev lab walk on the same Mac had Apple's model as the automatic pick.
 **UI**: yes

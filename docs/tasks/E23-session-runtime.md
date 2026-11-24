@@ -307,7 +307,7 @@
 **Quality gates**: `just keep-going verify-static`; a failing-before test per app fix; the visual gate.
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E2314/manifest.md`, one row per item.
 
-### AJ-E2315 Move to account counts only the moving profile's own processes: a wrapper is its by the program it runs, never by a flag's path; one shared ownership module every site uses | Status: IN-PROGRESS (0.5.1) | Priority P0 | Effort M | Depends: AJ-E2312
+### AJ-E2315 Move to account counts only the moving profile's own processes: a wrapper is its by the program it runs, never by a flag's path; one shared ownership module every site uses | Status: DONE (0.5.1) | Priority P0 | Effort M | Depends: AJ-E2312
 **Found** by the coordinating session, 2026-11-22, root-caused live: Move to account on 0.4.9 (Claude app, one profile to another) was refused every time, "didn't finish closing within 30 seconds: claude and disclaimer still run". Those two processes were another profile's: a Code-tab session of a different running Claude app profile, whose `disclaimer` wrapper had `--add-dir=<a folder inside the moving profile's folder>`. `places/tree.rs` `of()`'s third mark ("every program of the app's own bundle that names a path inside the profile's folder") matches any argument value inside the folder, so the other profile's wrapper and its `claude` child were counted as the moving profile's, never ended, and `rest_ended` timed out on every retry. The same code is on release/0.5.
 **UI**: no
 **Requirements**:
@@ -327,7 +327,7 @@
 2. The Pool lens capture waits on it before its hover and before its screenshot.
 **Evidence/validation proof**: the capture passes 3 runs of each theme on the host (`--repeat-each=3`); CI's visual gate.
 
-### AJ-E2317 Move picks the source by the conversation's holder and the target by the App the user picked, never by account | Status: TODO (0.5.1) | Priority P0 | Effort S | Depends: AJ-E2315
+### AJ-E2317 Move picks the source by the conversation's holder and the target by the App the user picked, never by account | Status: IN-PROGRESS (0.5.1: built; open: R3 PL1 J1) | Priority P0 | Effort S | Depends: AJ-E2315
 **Found** Review A2.2, A2.3, E5, E6: `places/handoff.rs` `profile_for(account)` takes the running or last-seen profile of an account; with two profiles on one account the move quits, writes into or opens the wrong one. (`docs/research/move-reliability-review.md`).
 **UI**: no
 **Requirements**:
@@ -486,7 +486,7 @@
 **Quality gates**: `just keep-going verify-static`; tests: a refused move → the conversation reopened in the source app and no carry-in offered; `continue_impl` refused while held (and in the settle window); the Move and Continue icons differ; a continued session, then the desktop app resumes the same id → the notice on both rows; a desktop Code child's conversation attributed to its App; the continued-from label. In AJ-E2323's matrix and its PL1 walk.
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E2326/manifest.md`.
 
-### AJ-E2327 Add on a running desktop profile brings in its Claude Code folder by evidence, so its sessions show at once; the rail keeps its place and never contradicts itself | Status: TODO (0.5.1) | Priority P0 | Effort M | Depends: AJ-E2315
+### AJ-E2327 Add on a running desktop profile brings in its Claude Code folder by evidence, so its sessions show at once; the rail keeps its place and never contradicts itself | Status: DONE (0.5.1) | Priority P0 | Effort M | Depends: AJ-E2315
 **Found** on a fresh 0.5.0 Nightly install (the maintainer, 2026-11-23; checked read-only by the coordinating session): no Accounts and no launch settings; six desktop Claude App rows, all with no folder, three added by the rail's "Running, not added" Add; all six profiles running with live Code sessions, each Code child's `CLAUDE_CONFIG_DIR` pointing at its Claude Code folder. Yet each added row showed a greyed icon and "nothing open", no session appeared anywhere, the rail read "Open now 3" and "Nothing open yet — Start one with New session…" at once, and each Add scrolled the rail so its top was cut off. A blocker: a new user's first Add shows nothing. The walks missed it because they ran on setups with Accounts already imported, never fresh install → the rail's Add with real running profiles.
 **UI**: yes
 **Usability reasoning** (Opus, before building; re-checked on the built screen):

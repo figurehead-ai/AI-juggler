@@ -211,6 +211,8 @@
 | AJ-E2311 | PASS7 | 2026-11-21 | [manifest](AJ-E2311/manifest.md) |
 | AJ-E2312 | PASS2 | 2026-11-21 | [manifest](AJ-E2312/manifest.md) |
 | AJ-E2314 | PASS8 | 2026-11-23 | [manifest](AJ-E2314/manifest.md) |
+| AJ-E2315 | (no claims yet) | 2026-11-23 | [manifest](AJ-E2315/manifest.md) |
+| AJ-E2316 | (no claims yet) | 2026-11-23 | [manifest](AJ-E2316/manifest.md) |
 | AJ-E2317 | PASS1 | 2026-11-23 | [manifest](AJ-E2317/manifest.md) |
 | AJ-E2318 | PASS4 | 2026-11-23 | [manifest](AJ-E2318/manifest.md) |
 | AJ-E2319 | PASS5 | 2026-11-23 | [manifest](AJ-E2319/manifest.md) |
@@ -347,6 +349,7 @@
 | AJ-E3813 | (no claims yet) | 2026-11-20 | [manifest](AJ-E3813/manifest.md) |
 | AJ-E3816 | (no claims yet) | 2026-11-20 | [manifest](AJ-E3816/manifest.md) |
 | AJ-E3817 | (no claims yet) | 2026-11-20 | [manifest](AJ-E3817/manifest.md) |
+| AJ-E3821 | (no claims yet) | 2026-11-23 | [manifest](AJ-E3821/manifest.md) |
 | AJ-E3822 | PASS4 | 2026-11-23 | [manifest](AJ-E3822/manifest.md) |
 | AJ-E3823 | PASS10 | 2026-11-23 | [manifest](AJ-E3823/manifest.md) |
 | AJ-E3824 | PASS8 | 2026-11-23 | [manifest](AJ-E3824/manifest.md) |
@@ -436,6 +439,7 @@
 | fixes-0.0.20 | PASS3 | 2026-10-22 | [manifest](fixes-0.0.20/manifest.md) |
 | fixes | PASS7 | 2026-10-21 | [manifest](fixes/manifest.md) |
 | l3 | (directory without manifest — add one) | — | — |
+| os-prompts | (directory without manifest — add one) | — | — |
 | presence | (directory without manifest — add one) | — | — |
 | release-0.1-real | FAIL4 PASS8 | 2026-10-23 | [manifest](release-0.1-real/manifest.md) |
 | release-0.1 | PASS14 | 2026-10-23 | [manifest](release-0.1/manifest.md) |

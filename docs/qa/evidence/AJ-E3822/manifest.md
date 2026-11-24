@@ -44,3 +44,14 @@ The same scripts with AIJ_EDITION=nightly (as the release workflow runs them) gi
 - [x] No real names or home paths (placeholders only)
 
 **Checked:** by the building session (Opus), 2026-11-23.
+
+## Close-out (0.5.1, 2026-11-23, Opus)
+
+Each test named below was found by name and run, targeted, on `release/0.5.1` (vitest by file; cargo through `scripts/heavy.sh`, `--lib` with module filters). An OPEN line says where it closes.
+
+R1: PASS — cargo `edition::tests::helpers_follow_the_edition_and_releases_keep_theirs`; `--test macos_bundle` `helpers_are_built_as_the_edition_being_released` (d7f71beaf).
+R2: PASS — each build script's `helper_plist_check` (above); `scripts/helper_identity_lint.py` checks both plists' names.
+R3: PASS — `scripts/helper_identity_lint.py --selftest` and a full run: both exit 0.
+R4: PASS — `docs/releases/0.5.1.md`, Known issues: "Nightly testers who ran a Dev build may see a one-time macOS prompt about a changed helper…". (`scripts/release_notes_check.sh 0.5.1 v0.5.0` fails today, but on another item's section, "## Clearer words and fewer doubles", not on this line.)
+
+The Dev .app's helpers on the real build (`codesign -dv`), and whether the prompt appears, are checked in the PL1 walk (Part H, K1). That walk is a quality gate, not a numbered requirement.

@@ -92,3 +92,16 @@ Every file exists as `-dark` and `-light`.
    Copy), a terminal that opens by itself (collapsed by default), an
    empty terminal after an early end (never: its lines or one sentence),
    a second primary (Copy and Send are secondary): all match.
+
+## Close-out (0.5.1, 2026-11-23, Opus)
+
+Each test named below was found by name and run, targeted, on `release/0.5.1` (vitest by file; cargo through `scripts/heavy.sh`, `--lib` with module filters). An OPEN line says where it closes.
+
+R1: PASS — vitest `components/welcome.test.tsx`, `components/setup/setup-wizard.test.tsx` ("the indicator: Your apps · Sign in · Mac access · Meet Bot · Keep running…"), `app-find-accounts.test.tsx`, `screens/home.test.tsx` (994580b18).
+R2: PASS — vitest `screens/first-run.test.tsx`, `first-run-pf1.test.tsx`, `first-run-pairing.test.tsx`, `tools-catalog.test.tsx`; cargo `places::link_tests::pairings_pair_each_profile_by_evidence_and_add_nothing`, `a_folder_chosen_before_add_is_kept_and_linked_by_add`, `proof_refuses_a_pick_before_add`, `a_declined_offer_takes_no_pick` (35e54e560, c59a5031d).
+R3: OPEN — critique round and PL1 step C9. The cards, the gate, ✓ only on the system's word, and Skip for now are tested (`setup-wizard.test.tsx` "one card per prompt, through the gate…", "isn't a step when nothing needed is missing"). Two parts are still open: "a short clip of the effect" (this manifest's critique: the permission clips are page loops, not the effect), and the live grant seen on the real Mac (PL1 C9, K1).
+R4: PASS — `setup-wizard.test.tsx` "says what Keep it running keeps on", "offers opening at login only where it can, keeping awake on, then the tour".
+R5: PASS — `welcome.test.tsx` (Bot's lead card, Beta chip); `setup-wizard.test.tsx` "Skip for now is the engine setup's; Next steps down beside its own primary"; `components/ai/engine-setup.test.tsx` (ready, local offer with size and free disk, no engine possible with Skip) (753042cb9).
+R6: PASS — `setup-wizard.test.tsx` "…keeping awake on, then the tour"; `components/tour/tour.test.tsx` "the host shows the offer only where it's allowed, and Show me starts those steps".
+R7: OPEN — critique/baseline round: no test compares the hand-drawn SVG mark with `icons/icon.png`, so it is a judgement on screenshots in both themes (PL1 C2's header mark too).
+R8: PASS — vitest `components/sign-in-card.test.tsx`; cargo juggler-adapter `sign_in_page` tests (6) and juggler-adapters `--test sign_in_finish`, one fixture per tool (`claude_code_…`, `codex_…`, `grok_build_…`, `kimi_code_…`, `opencode_…`, `zcode_…`, `muse_code_…`, `hermes_…`) (00a379508, 252f1b311).

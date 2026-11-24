@@ -92,3 +92,15 @@ The new tests were run with `look` reduced to each old rule (a temporary edit, r
 4. No folder: the row says so and offers "Choose its folder…": built (row, note, menu, and the Add toast's action); the grey is explained wherever an App's icon is drawn in the rail's headers and Home's tiles.
 5. Reading a running process's environment: not done (D-37); the pid file and the tools' folders are read instead, the same reads AI Juggler already makes, primed by AJ-E1547's gate.
 6. Watch-fors: "Open now 3" beside "Nothing open yet" can't happen (the empty state needs Open now empty); the rail doesn't jump on Add; a name guess is said as a guess and corrected by evidence; nothing is added that the user didn't click (D-84: offers only, pairings read only).
+
+## Close-out (0.5.1, 2026-11-23, Opus)
+
+Each test named below was found by name and run, targeted, on `release/0.5.1` (vitest by file; cargo through `scripts/heavy.sh`, `--lib` with module filters). An OPEN line says where it closes.
+
+R1: PASS — cargo `ownership::tests` link evidence (`a_closed_profile_is_linked_by_where_its_records_are`, `a_tie_is_confirmed_by_its_link_or_left`, `the_folder_holding_most_of_its_sessions_wins`, `the_strongest_evidence_decides`, `only_proof_contradicts_a_link`); `places::link_tests::add_on_a_running_profile_links_the_folder_its_sessions_write_in`, `a_profile_added_while_closed_is_linked_by_its_records`, `a_name_guess_is_corrected_by_evidence` (56856d10d).
+R2: PASS — `places::link_tests::add_on_a_running_profile_links_the_folder_its_sessions_write_in`, `pairings_pair_each_profile_by_evidence_and_add_nothing`; the confirmation's words: vitest `lib/app-folder.test.ts`.
+R3: PASS — `add_on_a_running_profile_links_the_folder_its_sessions_write_in` (its records listed in the same call), `restarting_it_starts_it_with_its_folder`; the icon in full colour: vitest `one-mark-per-app.test.tsx` (AJ-E1550's `.app-tone`).
+R4: PASS — `places::link_tests::no_evidence_says_why_and_choose_its_folder_links_it`; vitest `components/place-header-folder.test.tsx`.
+R5: PASS — vitest `components/rail-hold-own.test.tsx`, `components/rail-add.test.tsx` "lets its change through and brings the added App into view", `lib/rail-empty.test.ts`, `lib/app-folder.test.ts`.
+
+Every add path walked live from an empty Dev folder (the task's quality gate, not a numbered requirement): PL1 steps C3–C6 and D1–D7.

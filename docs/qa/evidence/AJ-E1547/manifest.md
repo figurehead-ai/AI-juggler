@@ -26,4 +26,23 @@
 
 ## The walk's dialog log
 
-None yet (R5). The walk writes `docs/qa/evidence/os-prompts/0.5.1.md`, one line per system dialog by the registry's id, and ends with a PASS line.
+None yet (R5). The walk writes `docs/qa/evidence/os-prompts/0.5.1.md`, one line per system dialog by the registry's id, and ends with its verdict line.
+
+## Close-out (0.5.1, 2026-11-23, Opus)
+
+Each test named below was found by name and run, targeted, on `release/0.5.1` (vitest by file; cargo through `scripts/heavy.sh`, `--lib` with module filters). An OPEN line says where it closes.
+
+R1: PASS — cargo `os_prompts::tests::every_entry_is_complete_with_a_short_stable_id`, `every_trigger_names_a_function_in_its_file`, `the_design_doc_lists_every_entry_and_its_triggers` (8ddda6b6f).
+R2: PASS — vitest `setup-wizard.test.tsx` "offers the gate's prompts this setup needs, not the ones other steps prime (AJ-E1547)", "one card per prompt, through the gate: the dialog's picture and what to click…" (dde1925b0).
+R3: PASS — cargo juggler-platform `os_prompt::tests` (`the_sheet_comes_before_the_call_and_the_outcome_after`, `not_now_never_calls_and_never_primes`, `background_work_never_prompts_until_primed`, `the_outcome_says_granted_or_declined_with_the_way_back`, …), juggler-app `background_notifications_wait_until_primed`; vitest `components/os-prompt-sheet.test.tsx`, `engine-setup.test.tsx` "not set up yet" (Bot's helper through the sheet).
+R4: PASS — `scripts/os_prompt_lint.py --selftest` and a full run: both exit 0. Its allowlist's leftover calls are AJ-E1548's (9ab911e54).
+R5: OPEN — PL1 steps K1–K4 and Z1 (`docs/qa/evidence/os-prompts/0.5.1.md`, the walk's dialog log).
+
+### Usability answers, matched against the built gate and sheet
+
+1. The app, not macOS, says what is coming: matches (the sheet comes before the call, platform test above).
+2. The dialog in macOS's words, its picture, which button, the outcome after: matches (`OsPromptPicture`, `os-prompt-sheet.test.tsx`, `the_click_words_say_the_button_and_the_switch`, the outcome test); the sheet's look: pending critique.
+3. One gate and one registry: matches (the lint, the registry tests).
+4. Nothing this setup can't use; background work never prompts: matches (`isn't a step when nothing needed is missing`, `background_work_never_prompts_until_primed`).
+5. The registry lists each prompt, its trigger and words: matches (`the_design_doc_lists_every_entry_and_its_triggers`).
+6. Watch-fors: Not now taken as a decline for good, the same sheet twice (match: `not_now_is_never_a_decline_for_good_and_continue_is_never_asked_twice`); a declined entry gets no sheet when no dialog would follow (matches); a dialog with no sheet before it: PL1 K1.

@@ -10,7 +10,7 @@ Task: `docs/tasks/E15-spec-gaps.md` AJ-E1550 (calm surfaces: separation by tone,
 
 ## Tokens (`ui/src/styles.css`)
 
-| Token | Dark | Light | Job |
+| Token (R1) | Dark | Light | Job |
 |---|---|---|---|
 | `border-subtle` (`hairline` is the same) | ink 7 % | ink 9 % | The one quiet line, only where tone can't separate (was `#2f3645` / `#d3d8e2`, 1.44:1) |
 | `frame` | transparent | transparent | A card's or filled control's frame; faint under Increase Contrast |
@@ -83,3 +83,22 @@ Captures of Home, a session's page, the switch dialog, Accounts (and its Out lin
 - vitest: the touched files' suites pass (controls, kit-controls, time-field, report-bug, one-mark-per-app, inspector-instance, attention-tokens, theme-namespaces, rail-model, marks, room-mark, home-runway-out, accounts-out-filter, conversation-switcher, ai).
 - `tsc` clean; `scripts/ui_lint.py`: no new finding in these files.
 - The palette validator, above.
+
+## Close-out (0.5.1, 2026-11-23, Opus)
+
+Each test named below was found by name and run, targeted, on `release/0.5.1` (vitest by file; cargo through `scripts/heavy.sh`, `--lib` with module filters). An OPEN line says where it closes.
+
+R1: PASS — the research and the tokens are in `docs/design/DESIGN-SYSTEM.md` §5.12 (PAT-SURF) and §5.13 (PAT-COLOR); vitest `lib/attention-tokens.test.ts`, `lib/theme-namespaces.test.ts` (a121bf237).
+R2: PASS — the shared components and every screen: vitest `controls/controls.test.tsx`, `kit-controls.test.tsx`, `time-field.test.tsx`, `lib/rail-model.test.ts`, `one-mark-per-app.test.tsx`, `pages/session/conversation-switcher.test.tsx`; `scripts/design_tokens_lint.py` (full run exit 0) (43371f885, 686ec8241, 4e804a25a, a2a0d68ac).
+R3: PASS — `scripts/design_tokens_lint.py --selftest` and a full run: both exit 0. Its allowlist keeps only lines kept on purpose (a8b428be7, a2a0d68ac).
+R4: OPEN — critique/baseline round: baselines (gallery and Happo) are re-shot once at the end of the 0.5.1 batch, after Opus's side-by-side with the Claude app in both themes.
+R5: PASS — one hue one meaning, Runway's bar by state, full-colour App icons: vitest `lib/marks.test.ts`, `lib/room-mark.test.tsx`, `home-runway-out.test.tsx`, `accounts/accounts-out-filter.test.tsx`, `one-mark-per-app.test.tsx`; the palette validator above; the lint's `identity` and `raw-hue` kinds (D-145, 4ddc8d4d3).
+
+### Usability answers, matched against the built tokens and components
+
+1. A calm surface that recedes, like the Claude app's Code view: pending critique (screenshots, both themes, R4's round).
+2. Hierarchy by tone and type, with selected and needs-you standing out: built (`selected` is a fill, attention keeps the accent); how it reads on screen: pending critique.
+3. Tone, not lines; attention kept for what deserves it: matches (the lint fails any accent or bright line outside focus, hover and attention).
+4. n/a.
+5. None: matches (no system calls).
+6. Watch-fors: lines everywhere (matches: the lint); an accent ring on "Suggested" (matches: the lint's `bright-line` kind allows the accent only in focus, hover and attention variants).
