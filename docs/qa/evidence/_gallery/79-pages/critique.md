@@ -1,4 +1,4 @@
-<!-- captures: 68ad4b0377a0 -->
+<!-- captures: fd258c346f34 -->
 # 79-pages: account, project, session and settings pages at 1024 and 1280
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design passes.
@@ -31,3 +31,9 @@ Recaptured: project-sessions and project-overview, at 1024 and 1280, in both the
 Before, the state led the second line, and the App sat in a column of its own on wide windows.
 
 **project-overview.** The tab count now reads 27 to match the list. The Open sessions card lists its rows in the order Needs you, Working, Open, with section headings when more than one is present.
+
+## 0.5.1
+
+Re-captured against 0.5.1: the project, session, account and tool pages use tonal cards with soft shadows in light and a stepped tone in dark; the chosen tab and rail segment show the F53 fill. Content did not change.
+
+Nothing broken (checked both themes).

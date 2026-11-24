@@ -1,4 +1,4 @@
-<!-- captures: ef8bc106f3d7 -->
+<!-- captures: ddaa36df4b06 -->
 # 76-project-manage: project and session menus, forget, relocate, rename and pins
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design fixes.
@@ -18,3 +18,9 @@ New: keep-apart-1280x800 and keep-apart-made-1280x800, both themes. Before, "Kee
 - session-menu-1280x800 (both themes): the row menu is wider than the rail and overhangs its right edge onto the page by a few pixels.
 - keep-apart-1280x800 (both themes): the facts' icons are small grey 24 px tiles, quieter than the kit's 32 px.
 - keep-apart-made-1280x800 (both themes): the page is scrolled to the Agents card, so the card above it is cut at the top edge ("is one.").
+
+## 0.5.1
+
+Re-captured against 0.5.1: the project menu, Keep apart dialog and Settings > General use tonal cards and filled radios (F53). The missing-directory notice is still a red fill behind red words and the Keep apart explainer is still dense (F84).
+
+Nothing broken (checked both themes).

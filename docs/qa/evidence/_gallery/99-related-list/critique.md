@@ -1,4 +1,4 @@
-<!-- captures: 665ab3f18348 -->
+<!-- captures: 6e7d970160ee -->
 # 99-related-list: the one related list and the one session row (0.4, E31, AJ-E3103)
 
 Design critique (D-57, AJ-E2814). First critique of this family, written from its captures (`ui/tests/visual/related-list-gallery.spec.ts`).
@@ -55,3 +55,9 @@ In this narrow column the App's words fold away (container query); the icon stil
 The whole family was retaken on release/0.4.1 for the 14-line re-score (AJ-E3305, `docs/qa/0.4-walks/design.md`) and opened on contact sheets, both themes, 1280 and 1024. Shared with every screen since the last shoot: the header's New session is tinted (one filled button per view), the Floor button is a split control with its own menu, This Mac's line is its dot below 1120 px, and the rail's App headers put the profile first.
 
 An empty list's step is a secondary button now: a CLI App with no sessions had two filled buttons (the header's New session here and the card's New session); the card also says "Sessions you start in this App", not "on this folder" (9d96ccd06).
+
+## 0.5.1
+
+Re-captured against 0.5.1: the App's Sessions list, its State and Project filters and the empty-search state sit on tonal surfaces with the chosen segment filled (F53). The two home-recent captures are no longer written by the spec and show the old Home (F83).
+
+Nothing broken (checked both themes).

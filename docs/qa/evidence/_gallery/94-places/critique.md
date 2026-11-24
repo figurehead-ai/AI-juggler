@@ -1,4 +1,4 @@
-<!-- captures: 876cd82cb177 -->
+<!-- captures: 2d231f05d907 -->
 # 94-places: Home and the rail with no, one, a typical and a busy set of sessions
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design passes.
@@ -30,3 +30,9 @@ The maintainer found Home's Your apps cards out of line: badges and buttons at d
 ## 0.4.1 (E21, 2026-11-07): re-shot
 
 What changed, each looked at: Home and the rail as they are now (D-62 App names, the Out/Low marks, kept-alive tiles); the View's Only has App, Account and Project here — Pool joins once you have a pool of your own (this fixture has none; `rail-only-pool.test.tsx` shows it). Weak, not this family's: the rail cuts App headers to "Work M… Claude Co…" at its width (the 0.4.1 session is fixing it).
+
+## 0.5.1
+
+Re-captured against 0.5.1: Home's cards and the rail at 1, 8 and 40 rows use tonal surfaces and soft shadows, the View menu's first row carries the only ring, and the amber marks are bars and words. Content did not change. A busy Home still shows the empty-feed card (F56).
+
+Nothing broken (checked both themes).

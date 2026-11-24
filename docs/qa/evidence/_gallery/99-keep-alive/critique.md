@@ -1,4 +1,4 @@
-<!-- captures: 506a2f011a92 -->
+<!-- captures: 8ba129c0486d -->
 # 99-keep-alive: Open starts an app that isn't running, and Keep alive (0.3.3)
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at 0.3.3 from its captures.
@@ -31,3 +31,9 @@ Re-taken after D-64 (the rail's App grouping is about apps) and the fix for the 
 
 - settings-your-apps: the word "Keep alive" repeats on every row beside its switch. It names each switch, but a column heading would be quieter.
 - home-kept: the closed tile shows no runway, though the session tiles do. Its account is known when its sessions ran on one.
+
+## 0.5.1
+
+Re-captured against 0.5.1: Home's Your apps rows, the rail menu with its ticked Keep alive, and the Settings toggles are tonal with soft shadows; the paused app's amber line is words only. Content did not change. The search capture lists one session twice (F87).
+
+Nothing broken (checked both themes).
