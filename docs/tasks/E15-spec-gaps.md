@@ -725,7 +725,7 @@ Step 2, "Sign in": (1) a newcomer signing in expects the provider's own page, no
 **Quality gates**: `just keep-going verify-static`; unit tests for the steps, the live grant and Skip; the a11y gate; an Opus side-by-side critique in both themes against the design system and the mock-ups before any baseline; a Sonnet newcomer-persona walk of first launch on a fresh Dev data folder, through "Meet Bot"'s three branches (Apple ready; the local offer, declined, no real download; no engine).
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E1545/manifest.md`.
 
-### AJ-E1546 A guided tour on the real UI, offered once, and short clips for every "What it does for you" card and "How it works" step | Status: IN-PROGRESS (0.5.1: built; open: R4 PL1 C15) | Priority P1 | Effort L | Depends: AJ-E1545
+### AJ-E1546 A guided tour on the real UI, offered once, and short clips for every "What it does for you" card and "How it works" step | Status: DONE (0.5.1) | Priority P1 | Effort L | Depends: AJ-E1545
 **Found** by the maintainer testing the 0.5.0 nightly (2026-11-23): nothing showed a newcomer around, and the "What it does for you" and "How it works" words had nothing to show the effect.
 **UI**: yes
 **Usability reasoning** (Opus, before building; re-checked on the built screen):

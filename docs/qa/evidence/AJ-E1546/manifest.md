@@ -1,7 +1,7 @@
 # Evidence manifest — AJ-E1546
 
 Task: `docs/tasks/E15-spec-gaps.md` AJ-E1546, a guided tour on the real UI,
-offered once, and short clips (P1). Status: **IN-REVIEW** (built 2026-11-23).
+offered once, and short clips (P1). Status: **DONE (0.5.1)** (built 2026-11-23; R4's tests 2026-11-24).
 
 Captures (1280×800, both themes, generic fixtures, checked by eye):
 [Bot's stop with no AI](docs/qa/evidence/AJ-E1546/tour-1-bot-no-ai-dark.png),
@@ -28,7 +28,7 @@ Each test named below was found by name and run, targeted, on `release/0.5.1` (v
 R1: PASS — vitest `components/tour/tour.test.tsx` "covers the specced stops", "anchors on its element when it's on screen, else shows the clip; Next, Back, the progress bar", "Esc ends it, Skip ends it, Done ends it…"; offered at the end of setup: `setup-wizard.test.tsx` "…then the tour"; Help › Take the tour: `components/notifications.test.tsx`, the app menu's item (275dcc086).
 R2: PASS — `tour.test.tsx` "every step has a unique id, a feature, its version…", "stores each step seen, once", "offers nothing to someone who never took it, or once everything is seen", "after an update, offers only the steps not seen, once, as New in the newest version".
 R3: PASS — vitest `components/tour/tour.test.tsx` "keeps Tab inside the card, Esc ends it, and focus goes back to what opened it (AJ-E1546 R3)": opened from a button, focus goes into the card; Tab past the last control wraps to the first, Shift+Tab before the first wraps to the last, and Shift+Tab from the focused title stays inside; Esc ends the tour and focus is back on the button that opened it. The test found two faults, fixed in the shared `components/form.tsx` (0.5.1 F17): `keepTabInside` let Shift+Tab from a focused title (tabindex -1, before the first control) leave the dialog, and `useFocusReturn` read the focus after the title had taken it, so ending the tour left focus on the page body. Every test importing `form.tsx` passes (`vitest related`, 2263). Reduce Motion: R4. The hand check stays in PL1 step C13.
-R4: OPEN — PL1 step C15. The clips' sizes and both themes are tested (`tests/bundle/clips-size.test.ts`). Muted, paused off screen and the still poster under Reduce Motion have no unit test on `components/Clip.tsx`.
+R4: PASS — the clips' sizes and both themes: `tests/bundle/clips-size.test.ts`; muted, paused off screen and the still poster under Reduce Motion: vitest `components/clip.test.tsx` (an IntersectionObserver and matchMedia mock) "is muted and inline, and loads nothing until it's on screen", "plays while on screen and pauses when it scrolls off", "is its still poster under Reduce Motion: no video, nothing plays" (0.5.1, all three passed first time: nothing to fix). perm-focus re-made to show the effect (F3). PL1 step C15 remains the walk's look at them on the real app.
 R5: PASS — `tour.test.tsx` "starts at Bot's panel, in Bot's voice, with words for no AI too (D-144)", "Ask Bot about this shows only while Bot's AI is ready; without one, Bot says how to set it up".
 
 ### Usability answers, matched against the built tour (`Tour.tsx`, `tour.test.tsx`)
