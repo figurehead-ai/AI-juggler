@@ -18,7 +18,7 @@ account_id: string,
  */
 tool: string, 
 /**
- * "Sign in · <App>".
+ * "Sign in · `<App>`".
  */
 title: string, 
 /**
