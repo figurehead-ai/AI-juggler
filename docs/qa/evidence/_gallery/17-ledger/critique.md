@@ -1,4 +1,4 @@
-<!-- captures: 7ee2447ef8f9 -->
+<!-- captures: de52a723404e -->
 # 17-ledger: Home with the notice that process tracking is degraded and cleanup is read-only
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design fixes.
@@ -42,3 +42,5 @@ Opened at full size: degraded-banner-1440x900 light (before the fix) and dark (t
 | 18 | Usability | 4 | A newcomer learns why Clean up is greyed and what fixes it. |
 
 Lowest: 4 (lines 7 and 12 were 3 before the fix).
+
+**Re-captured after F55 (2026-11-24, Opus):** both re-rendered and opened. The rail's desktop row reads "Stopped with an …" (F55: it was cut mid-letter); the lens is F53's solid fill. The banner and Home are unchanged. Lowest stays 4.

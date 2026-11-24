@@ -1,4 +1,4 @@
-<!-- captures: 2fa1ac72c7b1 -->
+<!-- captures: 8c8286dcc675 -->
 # 53-parked: a session parked until its account's quota resets, and the "has reset" banner that offers to resume it
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design passes.
@@ -66,3 +66,5 @@ Opened at full size: rail-and-offer-1280x800 dark and inspector-1280x800 light, 
 | 18 | Usability | 4 | Nothing to remember: the reset brings the offer. |
 
 Lowest: 4.
+
+**Re-captured after F55 (2026-11-24, Opus):** all four re-rendered; opened rail-and-offer-1280x800 dark and the inspector. The rail's desktop row reads "Stopped with an …" (F55); the parked row, its card and the reset offer are unchanged; the lens is F53's solid fill. Lowest stays 4.

@@ -1,4 +1,4 @@
-<!-- captures: 7d8bb5dde78e -->
+<!-- captures: 17b7e78ce1ea -->
 # 01-rail-sort: the rail's sort and grouping options (needs me, by project, quota risk), a search with no match, a snoozed row and the rail's View menu
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design fixes.
@@ -29,7 +29,7 @@ Opened at full size: view, snoozed (before and after the fix) and empty-search, 
 | 3 | Default | 4 | Ended today on by default with a ✓; Reset beside View. |
 | 4 | Mode | 4 | Calm; the menu on the overlay tone with a soft shadow. |
 | 5 | Mock-up | 4 | Matches calm-ui's rail and the row menus (77-menus). |
-| 6 | Areas | 4 | After the fix: the snooze is in its row's line. F55's cut word stays (logged). |
+| 6 | Areas | 4 | After the fix: the snooze is in its row's line; F55's cut word now ends on "…". |
 | 7 | Colour | 4 | Accent only for the focused search's line and the chosen check. |
 | 8 | Type | 4 | Menu lines 13 px, hints 12 px muted. |
 | 9 | Actions | 5 | No primary; Clear filters is a quiet button. |
@@ -44,3 +44,5 @@ Opened at full size: view, snoozed (before and after the fix) and empty-search, 
 | 18 | Usability | 4 | One place to narrow the list; nothing on prime space that's rare. |
 
 Lowest: 4 (line 6 was 3 before the fix).
+
+**Re-captured after F55 (2026-11-24, Opus):** all five re-rendered and opened (needs-me, group-by-project, snoozed, view, empty-search). The desktop row's state word reads "Stopped with an …" (F55, it was cut mid-letter); the chosen lens is F53's solid fill. Nothing else moved. Lowest stays 4.

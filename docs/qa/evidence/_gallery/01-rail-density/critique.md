@@ -1,4 +1,4 @@
-<!-- captures: 1cc9901e8a50 -->
+<!-- captures: b38604a1d573 -->
 # 01-rail-density: the session rail in its three densities (comfortable, compact, minimal icons), the minimal rail's tooltip, and a row marked stale
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design fixes.
@@ -28,7 +28,7 @@ Opened at full size: comfortable-1440x900 and compact-1024x768 (new and the 0.3.
 | 3 | Default | 4 | Comfortable by default; compact and minimal in Settings. |
 | 4 | Mode | 4 | Calm: rows by tone, the selected one a fill, no lines. |
 | 5 | Mock-up | 4 | Matches calm-ui's rail shot; the "app" chip is ours (D-100, the desktop app's session). |
-| 6 | Areas | 3 | F55: a state word cut without "…", and compact's one-letter title on the desktop row. |
+| 6 | Areas | 4 | F55 fixed: the state word ends on "…" ("Stopped with an …"), and compact's desktop row keeps a readable title ("Rename the ph…"): its chip and age give way first. |
 | 7 | Colour | 4 | Red ✕ only for the two that broke, amber for asks and limits, App and account hues once per row. |
 | 8 | Type | 4 | Titles 13 px ink-2, state and age 12 px muted; tabular ages. |
 | 9 | Actions | 5 | The rail has no primary; Home's Open its page is the one filled button. |
@@ -37,9 +37,13 @@ Opened at full size: comfortable-1440x900 and compact-1024x768 (new and the 0.3.
 | 12 | Words | 4 | Plain states (Stopped with an error, Probably stuck, Ended). |
 | 13 | States | 4 | Stale said once in its row; the fixture is real-sized (13 sessions). |
 | 14 | Consistency | 4 | The rail's row pattern everywhere (Needs you, Open now, project lens). |
-| 15 | Accessibility | 3 | F61: minimal's icons named only by `title`. Not re-walked by hand this round; keyboard names and focus as the a11y gate checks them. |
+| 15 | Accessibility | 4 | F61 fixed: the folded rail's icons name themselves in a drawn tip on hover and keyboard focus. Not re-walked by hand this round; keyboard names and focus as the a11y gate checks them. |
 | 16 | Hand walk | 4 | The PL1 walk (AJ-E2323) drove Home and the rail in Dev; not re-walked here. |
 | 17 | System prompts | 5 | None. |
-| 18 | Usability | 4 | What's running and what needs you, one glance; the minimal rail's names are the gap (F61). |
+| 18 | Usability | 4 | What's running and what needs you, one glance; the minimal rail's icons say their names on hover and focus. |
 
-Lowest: 3 (lines 6 and 15: F55, F61, logged). No fix here: both re-render most rail baselines or need a drawn tip.
+Lowest as first scored: 3 (lines 6 and 15: F55, F61, logged). No fix here: both re-render most rail baselines or need a drawn tip.
+
+**Re-captured after F55 and F61 (2026-11-24, Opus):** all eight captures re-rendered and opened. comfortable-1024x768 and -1440x900: the desktop row beside its always-shown ⋯ reads "Stopped with an …" (it was cut mid-letter, "Stopped with an erı"). compact-1024x768: that row is "Rename the ph…" with its age and "app" chip given way (it was "R.."), and the other desktop rows drop the chip before their titles go under about ten letters ("Sketch the pricing… 10 h"). minimal-tooltip-1440x900 now shows a tip: "Group and View — show the list (⌘B)" drawn beside its icon, as it shows on keyboard focus too (it showed nothing). The chosen lens is F53's solid fill in every capture.
+
+Lowest: 4 (lines 6 and 15 were 3: F55, F61 fixed).
