@@ -135,6 +135,8 @@ describe("AJ-E413 desktop Instance surface (Req.3)", () => {
     const focus = surface.querySelector('[data-testid="desktop-focus"]') as HTMLButtonElement;
     expect(focus).not.toBeNull();
     expect(focus.textContent).toContain("Open / Focus window");
+    // 0.5.1 critique: the page's one filled button is its head's Go to it.
+    expect(focus.hasAttribute("data-primary")).toBe(false);
     expect(container.querySelector('[data-testid="instance-terminal"]')).toBeNull();
     // Status, account, project, resources — measured values, verbatim.
     expect(surface.textContent).toContain("Working");

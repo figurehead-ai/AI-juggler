@@ -396,7 +396,8 @@ function InstanceOverview(props: PanelProps) {
     const reported = runtimeView?.model ?? null;
     const running = session.running_model ?? reported;
     // AJ-E413: a desktop Instance has no terminal — the desktop surface
-    // replaces the terminal card, and `Open / Focus window` is primary.
+    // replaces the terminal card, with `Open / Focus window` in it; the
+    // page's one filled button is its head's Go to it (0.5.1 critique).
     const isDesktop = session.kind === "desktop";
     const terminalId = session.id;
     // rc20: a session that waits (asks you, looks stuck, at its limit)
@@ -592,7 +593,7 @@ function InstanceOverview(props: PanelProps) {
               </span>
               <Button
                 size="sm"
-                variant="primary"
+                variant="secondary"
                 data-testid="desktop-focus"
                 onClick={async () => {
                   try {
