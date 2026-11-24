@@ -154,26 +154,13 @@ impl MoveSystem for Shaped {
         self.table.lock().unwrap().clone()
     }
     fn start(&self, _: &Arc<AppState>, place: &KnownPlace) -> Result<(), String> {
-        let id = book::place_id(&place.app_id, place.instance_dir.as_deref());
-        self.starts.lock().unwrap().push(id);
-        Ok(())
-    }
-    fn send(&self, _: u32, _: &str) -> Result<(), String> {
+        self.starts.lock().unwrap().push(fixtures::id_of(place));
         Ok(())
     }
     fn working(&self, _: &Arc<AppState>, _: u32) -> usize {
         0
     }
-    fn open_elsewhere(&self, _: &Arc<AppState>, _: &[String], _: &[u32]) -> usize {
-        0
-    }
-    fn settle(&self, _: Duration) {}
-    fn quit_wait(&self) -> Duration {
-        Duration::from_millis(200)
-    }
-    fn writer_wait(&self) -> Duration {
-        Duration::from_millis(200)
-    }
+    fixtures::quiet_parts!(Duration::from_millis(200));
     fn tree(&self, _: &Arc<AppState>, place: &KnownPlace, roots: &[u32]) -> Vec<Member> {
         self.tree_of(place, roots)
     }
@@ -452,6 +439,36 @@ fn d1_01_the_live_trace_waits_on_main_and_the_session_only() {
     assert_eq!(stop.holders[0].place_id, lab_id(&fix.lab, true));
 }
 
+/// Another app profile AI Juggler knows of (no id), on `dir`, its main
+/// process `main`.
+fn other_app(dir: PathBuf, main: u32) -> Known {
+    Known {
+        id: None,
+        dir,
+        main: Some(main),
+    }
+}
+
+/// The two profiles stop with nothing else waited on or reported.
+fn stops_both_quietly(fix: &Fix, system: &Shaped) {
+    let done = fix.stop(system).unwrap();
+    assert_eq!(system.quits(), [100, 200]);
+    assert!(done.notes.is_empty(), "{:?}", done.notes);
+}
+
+/// The offer holds Move back as the person's to clear, saying `words`.
+fn offer_asks_you(fix: &Fix, system: &Shaped, words: &str) {
+    let offer = offer_of(&fix.lab.state, &fix.lab.sides, system);
+    assert!(
+        offer
+            .blocks
+            .iter()
+            .any(|b| b.kind == MoveBlockKind::UserCanClear && b.words.contains(words)),
+        "{:?}",
+        offer.blocks
+    );
+}
+
 /// Shape 2: AJ-E2315: another profile's `disclaimer` and Claude Code carrying
 /// `--add-dir=` into this profile's folder are never this profile's: not
 /// in its tree, never waited on, never reported, never quit.
@@ -463,18 +480,12 @@ fn d1_02_another_profiles_add_dir_is_never_this_profiles() {
     let mut rows = both(&fix, [fix.main(300, &other)]);
     rows.extend(fix.code_tab(301, 300, &other, &[&add]));
     let mut system = Shaped::new(&fix, rows);
-    system.known.push(Known {
-        id: None,
-        dir: other,
-        main: Some(300),
-    });
+    system.known.push(other_app(other, 300));
     assert_eq!(pids(&system.tree_of(&source_place(&fix), &[100])), [100]);
     // Even with its main process gone (launchd's wrapper).
     system.table.lock().unwrap().get_mut(&301).unwrap().ppid = Some(1);
     assert_eq!(pids(&system.tree_of(&source_place(&fix), &[100])), [100]);
-    let done = fix.stop(&system).unwrap();
-    assert_eq!(system.quits(), [100, 200]);
-    assert!(done.notes.is_empty(), "{:?}", done.notes);
+    stops_both_quietly(&fix, &system);
 }
 
 /// Shape 3: A `nohup` dev server below the Code tab's Claude Code: reported,
@@ -548,17 +559,7 @@ fn d1_05_ai_juggler_from_the_code_tab_is_refused_before_any_quit() {
         &["juggler-app"],
     ));
     let system = Shaped::new(&fix, rows);
-    let offer = offer_of(&fix.lab.state, &fix.lab.sides, &system);
-    assert!(
-        offer
-            .blocks
-            .iter()
-            .any(|b| b.kind == MoveBlockKind::UserCanClear
-                && b.words
-                    .contains("AI Juggler itself was started from inside")),
-        "{:?}",
-        offer.blocks
-    );
+    offer_asks_you(&fix, &system, "AI Juggler itself was started from inside");
     let stop = stop_of(run(&fix.lab.state, &fix.lab.sides, &system));
     assert_eq!(stop.class, StopClass::NeedsYou);
     assert!(stop.words.contains("AI Juggler itself"), "{}", stop.words);
@@ -685,11 +686,7 @@ fn d1_08_the_holder_is_closed_never_its_running_sibling() {
     // The holder running: it is the one quit.
     rows.push(fix.main(100, &fix.a));
     let mut system = Shaped::new(&fix, rows);
-    system.known.push(Known {
-        id: None,
-        dir: sibling,
-        main: Some(300),
-    });
+    system.known.push(other_app(sibling, 300));
     fix.stop(&system).unwrap();
     assert_eq!(system.quits(), [100, 200]);
 }
@@ -702,14 +699,8 @@ fn d1_09_the_picked_target_is_closed_never_the_other_app() {
     let fix = fix();
     let first = fix.profile("Profiles/team-b");
     let mut system = Shaped::new(&fix, both(&fix, [fix.main(400, &first)]));
-    system.known.push(Known {
-        id: None,
-        dir: first,
-        main: Some(400),
-    });
-    let done = fix.stop(&system).unwrap();
-    assert_eq!(system.quits(), [100, 200]);
-    assert!(done.notes.is_empty(), "{:?}", done.notes);
+    system.known.push(other_app(first, 400));
+    stops_both_quietly(&fix, &system);
 }
 
 /// Shape 10: A pid the system gave another program between the move's look and
@@ -722,9 +713,7 @@ fn d1_10_a_reused_pid_is_never_waited_on_or_signalled() {
     let mut system = Shaped::new(&fix, rows.clone());
     system.ends = vec![110];
     system.reused = vec![111];
-    let done = fix.stop(&system).unwrap();
-    assert_eq!(system.quits(), [100, 200]);
-    assert!(done.notes.is_empty(), "{:?}", done.notes);
+    stops_both_quietly(&fix, &system);
     let mut system = Shaped::new(&fix, rows);
     system.reused = vec![100];
     let stop = stop_of(fix.stop(&system));
@@ -776,16 +765,10 @@ fn d1_12_a_headless_resume_outside_the_apps_needs_you() {
         ],
     );
     let system = Shaped::new(&fix, rows);
-    let offer = offer_of(&fix.lab.state, &fix.lab.sides, &system);
-    assert!(
-        offer
-            .blocks
-            .iter()
-            .any(|b| b.kind == MoveBlockKind::UserCanClear
-                && b.words
-                    .contains("claude (process 700) has this conversation open outside")),
-        "{:?}",
-        offer.blocks
+    offer_asks_you(
+        &fix,
+        &system,
+        "claude (process 700) has this conversation open outside",
     );
     let stop = stop_of(fix.stop(&system));
     assert_eq!(stop.class, StopClass::NeedsYou);
@@ -825,9 +808,7 @@ fn d1_13_a_process_two_profiles_claim_is_never_a_wait() {
     );
     assert!(system.quits().is_empty(), "never a wait: nothing quit");
     let system = Shaped::new(&fix, both(&fix, [claimed(&[])]));
-    let done = fix.stop(&system).unwrap();
-    assert_eq!(system.quits(), [100, 200]);
-    assert!(done.notes.is_empty(), "{:?}", done.notes);
+    stops_both_quietly(&fix, &system);
 }
 
 /// R5 (AJ-E2318 R3): the offer's checks (one process table, the pid

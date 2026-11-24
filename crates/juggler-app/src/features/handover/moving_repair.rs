@@ -27,6 +27,7 @@ use juggler_adapter::adapter::SharedAdapter;
 use juggler_adapter::moving::{
     Appended, MoveCheck, MovePlan, MoveRequest, MoveSide, NotesChoice, Split,
 };
+use juggler_core::words::and_list;
 use juggler_handover::moving::{Phase, Stopped, Transaction};
 
 use super::{
@@ -195,15 +196,6 @@ fn name_of(state: &Arc<AppState>, hosts: &Hosts, dir: &Path) -> String {
         || "another profile".to_owned(),
         |(_, p)| place_name(state, p),
     )
-}
-
-/// Names in words: "a", "a and b", "a, b and c".
-fn and_list(names: &[String]) -> String {
-    match names {
-        [] => String::new(),
-        [one] => one.clone(),
-        [rest @ .., last] => format!("{} and {last}", rest.join(", ")),
-    }
 }
 
 /// "<profile> also tidies this folder; keep <App> running in it or commit
@@ -550,15 +542,18 @@ pub(super) fn run_repair(
             }
         }
     };
+    // Still closed (one started again meanwhile stops the repair).
+    let down = |txn: &mut Transaction| -> AppResult<()> {
+        still_down(state, &stopped_places, system)
+            .map_err(|started| fail(txn, started.clone(), started))
+    };
     // The apps write their files when they quit: plan again.
     let again = plan_again(repairing).and_then(|plan| txn.replan(plan).map_err(engine));
     if let Err(error) = again {
         let words = "the worktree's files changed while the apps closed".to_owned();
         return Err(fail(&mut txn, words, error.to_string()));
     }
-    if let Err(started) = still_down(state, &stopped_places, system) {
-        return Err(fail(&mut txn, started.clone(), started));
-    }
+    down(&mut txn)?;
     let watched: Vec<PathBuf> = txn.touched().into_iter().map(Path::to_path_buf).collect();
     if let Err(moving) = hold_still(&watched, system) {
         let detail = moving
@@ -573,9 +568,7 @@ pub(super) fn run_repair(
         let words = "AI Juggler couldn't back up the app's files".to_owned();
         return Err(fail(&mut txn, words, error.to_string()));
     }
-    if let Err(started) = still_down(state, &stopped_places, system) {
-        return Err(fail(&mut txn, started.clone(), started));
-    }
+    down(&mut txn)?;
     if let Err(error) = txn.apply(&stopped, 0) {
         let words = "the worktree's ownership couldn't be moved".to_owned();
         return Err(fail(&mut txn, words, error.to_string()));

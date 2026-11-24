@@ -28,7 +28,7 @@ import { sentence } from "./MoveScreen";
 
 /** Whether a move's failure left both accounts as they were (a refusal):
  * said calmly. */
-export function nothingMoved(cause: unknown): boolean {
+function nothingMoved(cause: unknown): boolean {
   const code = cause !== null && typeof cause === "object" ? (cause as { code?: unknown }).code : null;
   return code === "refused" || code === "move_refused";
 }

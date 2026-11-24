@@ -200,14 +200,7 @@ pub struct MoveFinishedInfo {
 /// Not such a move, already finished, a check fails now (Undo is its way
 /// back), or another move holds its files.
 pub fn finish(state: &Arc<AppState>, move_id: &str) -> AppResult<MoveFinishedInfo> {
-    if move_id.is_empty()
-        || !move_id
-            .chars()
-            .all(|c| c.is_ascii_alphanumeric() || c == '-')
-    {
-        return Err(refused("that isn't a move's id"));
-    }
-    let mut txn = hold::open_move(&state.data_dir, move_id).map_err(engine)?;
+    let mut txn = super::open_by_id(state, move_id)?;
     match txn.manifest.phase {
         Phase::Verified => {}
         Phase::Committed => return Err(refused("this move is finished already")),
@@ -217,16 +210,7 @@ pub fn finish(state: &Arc<AppState>, move_id: &str) -> AppResult<MoveFinishedInf
             ));
         }
     }
-    let _lock = lock(state, &txn.manifest.plan.roots)?;
-    let _hold =
-        crate::features::places::MoveHold::take(state, &txn.manifest.places, &txn.manifest.id)
-            .map_err(refused)?;
-    let adapter = state
-        .registry
-        .get(&juggler_core::model::HarnessId::new(
-            txn.manifest.tool.as_str(),
-        ))
-        .ok_or_else(|| refused("this tool's conversations travel as a copy"))?;
+    let (_lock, _hold, adapter) = super::take_move(state, &txn)?;
     let writing = writing_of_move(&adapter, &txn)?;
     let checks = writing
         .mover

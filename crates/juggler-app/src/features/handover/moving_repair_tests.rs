@@ -9,8 +9,8 @@ use std::time::Duration;
 
 use super::*;
 use crate::features::conversations::procs::Table;
+use crate::features::handover::moving::fixtures;
 use crate::features::ownership::ProcId;
-use crate::features::places::book;
 use crate::features::places::tree::Member;
 
 /// The scripted system: each profile's main process, quit when asked.
@@ -70,31 +70,18 @@ impl MoveSystem for Fake {
     fn table(&self, _: &Arc<AppState>) -> Table {
         Table::default()
     }
+    fn working(&self, _: &Arc<AppState>, _: u32) -> usize {
+        self.working
+    }
     fn start(&self, _: &Arc<AppState>, place: &KnownPlace) -> Result<(), String> {
-        let id = book::place_id(&place.app_id, place.instance_dir.as_deref());
+        let id = fixtures::id_of(place);
         self.procs.lock().unwrap().insert(id.clone(), (900, true));
         self.starts.lock().unwrap().push(id);
         Ok(())
     }
-    fn send(&self, _: u32, _: &str) -> Result<(), String> {
-        Ok(())
-    }
-    fn working(&self, _: &Arc<AppState>, _: u32) -> usize {
-        self.working
-    }
-    fn open_elsewhere(&self, _: &Arc<AppState>, _: &[String], _: &[u32]) -> usize {
-        0
-    }
-    fn settle(&self, _: Duration) {}
-    fn quit_wait(&self) -> Duration {
-        Duration::from_millis(300)
-    }
-    fn writer_wait(&self) -> Duration {
-        Duration::from_millis(300)
-    }
+    fixtures::quiet_parts!(Duration::from_millis(300));
     fn tree(&self, _: &Arc<AppState>, place: &KnownPlace, roots: &[u32]) -> Vec<Member> {
-        let id = book::place_id(&place.app_id, place.instance_dir.as_deref());
-        let procs = self.procs.lock().unwrap();
+        let (id, procs) = (fixtures::id_of(place), self.procs.lock().unwrap());
         roots
             .iter()
             .filter(|pid| procs.get(&id).is_some_and(|(p, alive)| *alive && p == *pid))
@@ -185,9 +172,7 @@ fn record(host: &Path, wt: &Path) {
 }
 
 fn lab() -> Lab {
-    let tmp = tempfile::tempdir().unwrap();
-    let root = tmp.path().to_path_buf();
-    let state = Arc::new(AppState::init(root.join("data")).unwrap());
+    let (tmp, root, state) = fixtures::lab_state();
     let (a_id, _, a_host) =
         crate::features::places::remember_test_profile(&state, &root, "lab-a", None);
     let (b_id, _, b_host) =
@@ -312,6 +297,16 @@ fn a_conversation_with_two_worktrees_keeps_both() {
     );
 }
 
+/// The repair of `repairing` refused in words before anything quit.
+fn refused_before_any_quit(lab: &Lab, repairing: &Repairing, fake: &Fake) {
+    let err = run_repair(&lab.state, repairing, fake).err().unwrap();
+    assert!(
+        err.to_string().contains("Repair becomes available"),
+        "{err}"
+    );
+    assert!(fake.quits.lock().unwrap().is_empty(), "nothing quit");
+}
+
 #[test]
 fn a_busy_profile_refuses_the_repair_before_anything_is_quit() {
     let lab = lab();
@@ -319,12 +314,7 @@ fn a_busy_profile_refuses_the_repair_before_anything_is_quit() {
     fake.working = 1;
     let key = findings(&lab.state, &fake).findings[0].key.clone();
     let repairing = resolve(&lab.state, &key).unwrap();
-    let err = run_repair(&lab.state, &repairing, &fake).err().unwrap();
-    assert!(
-        err.to_string().contains("Repair becomes available"),
-        "{err}"
-    );
-    assert!(fake.quits.lock().unwrap().is_empty(), "nothing quit");
+    refused_before_any_quit(&lab, &repairing, &fake);
     assert_eq!(
         read(&lab.a.1.join("git-worktrees.json"))["worktrees"]["wt-7"]["leasedBy"],
         "local_main"
@@ -338,12 +328,7 @@ fn an_unchecked_app_version_refuses_the_repair_in_words() {
     let key = findings(&lab.state, &fake).findings[0].key.clone();
     let mut repairing = resolve(&lab.state, &key).unwrap();
     repairing.version = Some("5.11610.2".into());
-    let err = run_repair(&lab.state, &repairing, &fake).err().unwrap();
-    assert!(
-        err.to_string().contains("Repair becomes available"),
-        "{err}"
-    );
-    assert!(fake.quits.lock().unwrap().is_empty(), "nothing quit");
+    refused_before_any_quit(&lab, &repairing, &fake);
 }
 
 #[test]

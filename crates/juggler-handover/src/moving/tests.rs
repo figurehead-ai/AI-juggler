@@ -88,6 +88,17 @@ fn begin(lab: &Lab, id: &str) -> Transaction {
     Transaction::begin(&lab.moves, id, "fake", request(lab), plan(lab), None, 1).unwrap()
 }
 
+/// `txn` backed up, applied and its checks before the apps start passed;
+/// the writers' word, for what comes next.
+fn applied_and_checked(txn: &mut Transaction) -> Stopped {
+    let stopped = Stopped::checked();
+    txn.back_up(&stopped).unwrap();
+    txn.apply(&stopped, 0).unwrap();
+    let report = txn.verify_cold(Vec::new()).unwrap();
+    assert!(report.passed(), "{:?}", report.failures());
+    stopped
+}
+
 /// Runs steps `0..until` as `apply` would, journaling each; the last one's
 /// done line is left out when `crash` (the Mac stopped right after it).
 fn run_steps(txn: &mut Transaction, until: usize, crash: bool) {
@@ -128,11 +139,7 @@ fn a_move_applies_checks_and_commits() {
     let lab = lab();
     let id_before = juggler_platform::transfer::file_id(&lab.a.join("p/s.jsonl")).unwrap();
     let mut txn = begin(&lab, "m1");
-    let stopped = Stopped::checked();
-    txn.back_up(&stopped).unwrap();
-    txn.apply(&stopped, 0).unwrap();
-    let report = txn.verify_cold(Vec::new()).unwrap();
-    assert!(report.passed(), "{:?}", report.failures());
+    let stopped = applied_and_checked(&mut txn);
     assert_eq!(
         juggler_platform::transfer::file_id(&lab.b.join("p/s.jsonl")).unwrap(),
         id_before,
@@ -672,11 +679,7 @@ fn an_app_file_edit_is_backed_up_checked_and_undone_byte_for_byte() {
     assert!(plan.shape().iter().any(|line| line.starts_with("edit ")));
     let mut txn =
         Transaction::begin(&lab.moves, "edit-1", "fake", request(&lab), plan, None, 1).unwrap();
-    let stopped = Stopped::checked();
-    txn.back_up(&stopped).unwrap();
-    txn.apply(&stopped, 0).unwrap();
-    let report = txn.verify_cold(Vec::new()).unwrap();
-    assert!(report.passed(), "{:?}", report.failures());
+    let stopped = applied_and_checked(&mut txn);
     let now: serde_json::Value = serde_json::from_slice(&std::fs::read(&b_file).unwrap()).unwrap();
     assert_eq!(now["worktrees"]["w"]["leasedBy"], "local_x");
     txn.undo(&stopped, 2).unwrap();

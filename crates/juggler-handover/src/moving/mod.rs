@@ -1020,21 +1020,17 @@ impl Transaction {
                         transfer::file_id(&self.holding(index)).ok() == before.id(),
                     );
                 }
-                MoveStep::WriteRecord { path, value } => {
+                MoveStep::WriteRecord { path, value } | MoveStep::WriteAppFile { path, value } => {
                     let written = std::fs::read(path)
                         .ok()
                         .and_then(|b| serde_json::from_slice::<serde_json::Value>(&b).ok());
+                    let what = if matches!(step, MoveStep::WriteRecord { .. }) {
+                        "the moved record"
+                    } else {
+                        "what the move wrote"
+                    };
                     report.check(
-                        format!("{} holds the moved record", path.display()),
-                        written.as_ref() == Some(value),
-                    );
-                }
-                MoveStep::WriteAppFile { path, value } => {
-                    let written = std::fs::read(path)
-                        .ok()
-                        .and_then(|b| serde_json::from_slice::<serde_json::Value>(&b).ok());
-                    report.check(
-                        format!("{} holds what the move wrote", path.display()),
+                        format!("{} holds {what}", path.display()),
                         written.as_ref() == Some(value),
                     );
                 }

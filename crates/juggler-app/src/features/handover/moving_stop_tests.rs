@@ -87,16 +87,10 @@ fn untyped_errors_are_typed_at_the_edge() {
 /// more by themselves before the window sees them.
 #[test]
 fn files_still_changing_are_transient_named_and_tried_once_more() {
-    if !clones() {
+    let Some(lab) = cloning_lab() else {
         return;
-    }
-    let lab = lab();
-    let system = running_both(&lab);
-    *system.writer.lock().unwrap() = Some((
-        history(&lab.a_code),
-        b"{\"type\":\"cost-state\"}\n",
-        usize::MAX,
-    ));
+    };
+    let system = still_writing(&lab);
     let error = run_once_more(&lab.state, &lab.sides, &system).unwrap_err();
     let (class, retry, stop) = read(&error);
     assert_eq!((class, retry), (StopClass::Transient, true));
@@ -121,13 +115,10 @@ fn files_still_changing_are_transient_named_and_tried_once_more() {
 /// quits and reopens both apps).
 #[test]
 fn an_app_asking_something_needs_you_and_is_never_retried() {
-    if !clones() {
+    let Some(lab) = cloning_lab() else {
         return;
-    }
-    let lab = lab();
-    let target = lab.sides.target_place.as_ref().unwrap().0.clone();
-    let mut system = running_both(&lab);
-    system.stubborn = vec![target];
+    };
+    let system = stubborn_target(&lab);
     let error = run_once_more(&lab.state, &lab.sides, &system).unwrap_err();
     let (class, retry, stop) = read(&error);
     assert_eq!((class, retry), (StopClass::NeedsYou, false));
@@ -167,15 +158,10 @@ fn what_the_offer_refuses_needs_you() {
 /// door, and the move names itself.
 #[test]
 fn a_profile_started_mid_move_needs_you_and_is_named() {
-    if !clones() {
+    let Some(lab) = cloning_lab() else {
         return;
-    }
-    let lab = lab();
-    let target = lab.sides.target_place.as_ref().unwrap().0.clone();
-    let system = Scripted {
-        restarted_by_user: vec![target],
-        ..running_both(&lab)
     };
+    let system = restarted_target(&lab);
     let error = run_once_more(&lab.state, &lab.sides, &system).unwrap_err();
     let (class, retry, stop) = read(&error);
     assert_eq!((class, retry), (StopClass::NeedsYou, false));
@@ -190,11 +176,7 @@ fn a_profile_started_mid_move_needs_you_and_is_named() {
 #[test]
 fn another_move_running_is_transient() {
     let lab = lab();
-    let ids: Vec<String> = [&lab.sides.source_place, &lab.sides.target_place]
-        .into_iter()
-        .flatten()
-        .map(|(id, _)| id.clone())
-        .collect();
+    let ids = place_ids(&lab);
     let _other = crate::features::places::MoveHold::take(&lab.state, &ids, "other").unwrap();
     let system = running_both(&lab);
     let error = run(&lab.state, &lab.sides, &system).unwrap_err();

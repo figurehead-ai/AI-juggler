@@ -25,6 +25,7 @@ use std::sync::Arc;
 use juggler_adapter::live::HostApp;
 use juggler_adapter::moving::{MoveRequest, MoveSide, NotesChoice, Refusal};
 use juggler_core::model::Account;
+use juggler_core::words::and_list;
 
 use super::{MoveSystem, Sides, place_name, refused, shown, tool_version};
 use crate::error::{AppError, AppResult};
@@ -71,15 +72,6 @@ pub(super) fn holders(
         out.push((id, place));
     }
     out
-}
-
-/// Names in words: "a", "a and b", "a, b and c".
-fn and_list(names: &[String]) -> String {
-    match names {
-        [] => String::new(),
-        [one] => one.clone(),
-        [rest @ .., last] => format!("{} and {last}", rest.join(", ")),
-    }
 }
 
 /// The source profile of a conversation on `account`, of its `holders`:

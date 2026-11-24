@@ -8,7 +8,6 @@ use std::sync::Mutex;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use super::*;
-use crate::features::places::book;
 use juggler_adapter::moving::MoveSide;
 
 const SLUG: &str = "-w-proj";
@@ -314,7 +313,7 @@ impl MoveSystem for Scripted {
         Ok(())
     }
     fn start(&self, _: &Arc<AppState>, place: &KnownPlace) -> Result<(), String> {
-        let id = book::place_id(&place.app_id, place.instance_dir.as_deref());
+        let id = fixtures::id_of(place);
         let mut next = self.next_pid.lock().unwrap();
         *next += 1;
         self.procs.lock().unwrap().insert(
@@ -351,7 +350,7 @@ impl MoveSystem for Scripted {
         self.wait.unwrap_or(Duration::from_millis(300))
     }
     fn tree(&self, _: &Arc<AppState>, place: &KnownPlace, roots: &[u32]) -> Vec<Member> {
-        let id = book::place_id(&place.app_id, place.instance_dir.as_deref());
+        let id = fixtures::id_of(place);
         let procs = self.procs.lock().unwrap();
         let main = roots
             .iter()
@@ -389,7 +388,7 @@ impl MoveSystem for Scripted {
         _: u32,
         action: &str,
     ) -> Option<String> {
-        let id = book::place_id(&place.app_id, place.instance_dir.as_deref());
+        let id = fixtures::id_of(place);
         (self.juggler_in.as_ref() == Some(&id)).then(|| {
             crate::features::ownership::self_rule::words(
                 crate::features::ownership::self_rule::Juggler::Ours,
@@ -457,9 +456,7 @@ fn code_folders(a_code: &Path, b_code: &Path) {
 }
 
 fn lab() -> Lab {
-    let tmp = tempfile::tempdir().unwrap();
-    let root = tmp.path().to_path_buf();
-    let state = Arc::new(AppState::init(root.join("data")).unwrap());
+    let (tmp, root, state) = fixtures::lab_state();
     let (a_id, a_place, a_host) = place(&state, &root, "b-a");
     let (b_id, b_place, b_host) = place(&state, &root, "b-b");
     let a_code = root.join("code/a");
@@ -573,6 +570,93 @@ fn unchanged(lab: &Lab) -> bool {
         && !lab.b_folder.join("local_main.json").exists()
 }
 
+/// The lab, when this disk clones (the move needs it).
+fn cloning_lab() -> Option<Lab> {
+    clones().then(lab)
+}
+
+/// The target profile's id.
+fn target_id(lab: &Lab) -> String {
+    lab.sides.target_place.as_ref().unwrap().0.clone()
+}
+
+/// Both profiles' ids.
+fn place_ids(lab: &Lab) -> Vec<String> {
+    [&lab.sides.source_place, &lab.sides.target_place]
+        .into_iter()
+        .flatten()
+        .map(|(id, _)| id.clone())
+        .collect()
+}
+
+/// The same move the other way: back from B to A.
+fn moved_back(lab: &Lab) -> Sides {
+    Sides {
+        request: MoveRequest {
+            source: lab.sides.request.target.clone(),
+            target: lab.sides.request.source.clone(),
+            ..lab.sides.request.clone()
+        },
+        source_place: lab.sides.target_place.clone(),
+        target_place: lab.sides.source_place.clone(),
+        adapter: lab.sides.adapter.clone(),
+        tool: lab.sides.tool.clone(),
+        source_label: "B".into(),
+        target_label: "A".into(),
+        source_live: false,
+        accounts: lab.sides.accounts.clone(),
+        stop: None,
+    }
+}
+
+/// Both profiles running, and a writer no process names that never stops
+/// writing the source's history.
+fn still_writing(lab: &Lab) -> Scripted {
+    let system = running_both(lab);
+    *system.writer.lock().unwrap() = Some((
+        history(&lab.a_code),
+        b"{\"type\":\"cost-state\"}\n",
+        usize::MAX,
+    ));
+    system
+}
+
+/// Both profiles running; the target never quits when asked.
+fn stubborn_target(lab: &Lab) -> Scripted {
+    Scripted {
+        stubborn: vec![target_id(lab)],
+        ..running_both(lab)
+    }
+}
+
+/// Both profiles running; the person starts the target again as soon as
+/// it quits.
+fn restarted_target(lab: &Lab) -> Scripted {
+    Scripted {
+        restarted_by_user: vec![target_id(lab)],
+        ..running_both(lab)
+    }
+}
+
+/// The lab's move run with `system`, its history checked where it went.
+fn moved_with(lab: &Lab, system: &Scripted) -> MoveDoneInfo {
+    let done = run(&lab.state, &lab.sides, system).unwrap();
+    assert_eq!(done.payload.state, "verified", "{}", done.payload.detail);
+    done
+}
+
+/// Nothing changed and no move begun.
+fn assert_nothing_begun(lab: &Lab) {
+    assert!(unchanged(lab));
+    assert!(
+        !crate::features::places::hold::journals(&crate::features::places::hold::area_at(
+            &lab.state.data_dir
+        ))
+        .exists(),
+        "no move begun"
+    );
+}
+
 /// A move run once with both profiles running, when this disk clones.
 fn moved() -> Option<(Lab, Scripted, MoveDoneInfo)> {
     if !clones() {
@@ -656,22 +740,14 @@ fn a_busy_profile_refuses_before_anything_is_quit_or_written() {
         .to_string();
     assert!(error.contains("2 sessions are working"), "{error}");
     assert!(system.quits.lock().unwrap().is_empty());
-    assert!(unchanged(&lab));
-    assert!(
-        !crate::features::places::hold::journals(&crate::features::places::hold::area_at(
-            &lab.state.data_dir
-        ))
-        .exists(),
-        "no move begun"
-    );
+    assert_nothing_begun(&lab);
 }
 
 #[test]
 fn a_reused_pid_is_never_quit() {
-    if !clones() {
+    let Some(lab) = cloning_lab() else {
         return;
-    }
-    let lab = lab();
+    };
     let source = lab.sides.source_place.as_ref().unwrap().0.clone();
     let system = Scripted {
         reused: vec![source],
@@ -690,13 +766,10 @@ fn a_reused_pid_is_never_quit() {
 
 #[test]
 fn a_profile_that_wont_quit_stops_the_move_and_the_other_starts_again() {
-    if !clones() {
+    let Some(lab) = cloning_lab() else {
         return;
-    }
-    let lab = lab();
-    let target = lab.sides.target_place.as_ref().unwrap().0.clone();
-    let mut system = running_both(&lab);
-    system.stubborn = vec![target];
+    };
+    let system = stubborn_target(&lab);
     let error = run(&lab.state, &lab.sides, &system)
         .unwrap_err()
         .to_string();
@@ -750,10 +823,9 @@ fn a_held_profile_is_left_alone_by_open_and_restart() {
 /// shares before the first quit; the committed move lets go.
 #[test]
 fn a_move_holds_both_profiles_for_every_ai_juggler_before_the_first_quit() {
-    if !clones() {
+    let Some(lab) = cloning_lab() else {
         return;
-    }
-    let lab = lab();
+    };
     let area = crate::features::places::hold::area_at(&lab.state.data_dir);
     let system = Scripted {
         area: Some(area.clone()),
@@ -790,15 +862,10 @@ fn a_terminal_session_on_either_account_refuses_the_move() {
 
 #[test]
 fn a_profile_started_by_hand_mid_move_stops_it_before_anything_changes() {
-    if !clones() {
+    let Some(lab) = cloning_lab() else {
         return;
-    }
-    let lab = lab();
-    let target = lab.sides.target_place.as_ref().unwrap().0.clone();
-    let system = Scripted {
-        restarted_by_user: vec![target],
-        ..running_both(&lab)
     };
+    let system = restarted_target(&lab);
     let error = run(&lab.state, &lab.sides, &system)
         .unwrap_err()
         .to_string();
@@ -808,29 +875,11 @@ fn a_profile_started_by_hand_mid_move_stops_it_before_anything_changes() {
 
 #[test]
 fn undo_waits_for_a_later_move_of_the_same_files_and_for_quiet() {
-    if !clones() {
+    let Some((lab, system, first)) = moved() else {
         return;
-    }
-    let lab = lab();
-    let system = running_both(&lab);
-    let first = run(&lab.state, &lab.sides, &system).unwrap();
-    // Moved back: the later move owns the files now.
-    let back = Sides {
-        request: MoveRequest {
-            source: lab.sides.request.target.clone(),
-            target: lab.sides.request.source.clone(),
-            ..lab.sides.request.clone()
-        },
-        source_place: lab.sides.target_place.clone(),
-        target_place: lab.sides.source_place.clone(),
-        adapter: lab.sides.adapter.clone(),
-        tool: lab.sides.tool.clone(),
-        source_label: "B".into(),
-        target_label: "A".into(),
-        source_live: false,
-        accounts: lab.sides.accounts.clone(),
-        stop: None,
     };
+    // Moved back: the later move owns the files now.
+    let back = moved_back(&lab);
     let second = run(&lab.state, &back, &system).unwrap();
     let error = undo_with(&lab.state, &first.move_id, &system)
         .unwrap_err()
@@ -1029,10 +1078,9 @@ fn backups(lab: &Lab) -> Vec<PathBuf> {
 /// so that line moves with the history and nothing is left behind.
 #[test]
 fn a_move_waits_for_what_outlives_the_profiles_main_process() {
-    if !clones() {
+    let Some(lab) = cloning_lab() else {
         return;
-    }
-    let lab = lab();
+    };
     let line: &'static [u8] = b"{\"type\":\"last-prompt\"}\n";
     let system = Scripted {
         kids: vec![Kid {
@@ -1070,10 +1118,9 @@ fn a_move_waits_for_what_outlives_the_profiles_main_process() {
 /// backup is kept.
 #[test]
 fn a_profile_whose_tools_outlive_it_too_long_is_refused_calmly() {
-    if !clones() {
+    let Some(lab) = cloning_lab() else {
         return;
-    }
-    let lab = lab();
+    };
     let system = Scripted {
         kids: vec![kid(&lab, 700, "claude", &["--resume=main"], true)],
         ..running_both(&lab)
@@ -1101,16 +1148,10 @@ fn a_profile_whose_tools_outlive_it_too_long_is_refused_calmly() {
 /// undone move keeps no backup.
 #[test]
 fn files_still_changing_after_the_apps_closed_refuse_in_plain_words() {
-    if !clones() {
+    let Some(lab) = cloning_lab() else {
         return;
-    }
-    let lab = lab();
-    let system = running_both(&lab);
-    *system.writer.lock().unwrap() = Some((
-        history(&lab.a_code),
-        b"{\"type\":\"cost-state\"}\n",
-        usize::MAX,
-    ));
+    };
+    let system = still_writing(&lab);
     let error = run(&lab.state, &lab.sides, &system).unwrap_err();
     let source = place_name(&lab.state, &lab.sides.source_place.as_ref().unwrap().1);
     let wire = error.wire();
@@ -1137,15 +1178,13 @@ fn files_still_changing_after_the_apps_closed_refuse_in_plain_words() {
 /// A file that settles after one more write moves with that write.
 #[test]
 fn a_file_that_settles_after_one_more_write_moves_with_it() {
-    if !clones() {
+    let Some(lab) = cloning_lab() else {
         return;
-    }
-    let lab = lab();
+    };
     let line: &'static [u8] = b"{\"type\":\"cost-state\"}\n";
     let system = running_both(&lab);
     *system.writer.lock().unwrap() = Some((history(&lab.a_code), line, 1));
-    let done = run(&lab.state, &lab.sides, &system).unwrap();
-    assert_eq!(done.payload.state, "verified", "{}", done.payload.detail);
+    moved_with(&lab, &system);
     assert!(std::fs::read(history(&lab.b_code)).unwrap().ends_with(line));
 }
 
@@ -1153,10 +1192,9 @@ fn a_file_that_settles_after_one_more_write_moves_with_it() {
 /// backup's bytes rise to its total.
 #[test]
 fn a_long_backup_says_how_far_it_is() {
-    if !clones() {
+    let Some(lab) = cloning_lab() else {
         return;
-    }
-    let lab = lab();
+    };
     let line = b"{\"type\":\"assistant\",\"pad\":\"................................\"}\n";
     let big = line.repeat((6 << 20) / line.len() + 1);
     std::fs::write(history(&lab.a_code), &big).unwrap();

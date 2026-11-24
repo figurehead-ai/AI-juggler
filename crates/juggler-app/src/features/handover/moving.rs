@@ -190,6 +190,9 @@ pub trait MoveSystem: Send + Sync {
     ) -> Option<PathBuf>;
 }
 
+#[cfg(test)]
+#[path = "moving_fixtures.rs"]
+mod fixtures;
 #[path = "moving_info.rs"]
 mod info;
 pub use info::{
@@ -1360,6 +1363,41 @@ pub(crate) fn undo_with(
     undo_as(state, move_id, system, true)
 }
 
+/// The recorded move `move_id` (its id checked first: never a path).
+fn open_by_id(state: &Arc<AppState>, move_id: &str) -> AppResult<Transaction> {
+    if move_id.is_empty()
+        || !move_id
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '-')
+    {
+        return Err(refused("that isn't a move's id"));
+    }
+    hold::open_move(&state.data_dir, move_id).map_err(engine)
+}
+
+/// What Undo and Finish take before they touch a recorded move `txn`: the
+/// lock of its files, its hold in every AI Juggler, and its tool's adapter.
+fn take_move(
+    state: &Arc<AppState>,
+    txn: &Transaction,
+) -> AppResult<(
+    Lock,
+    crate::features::places::MoveHold,
+    juggler_adapter::adapter::SharedAdapter,
+)> {
+    let lock = lock(state, &txn.manifest.plan.roots)?;
+    let hold =
+        crate::features::places::MoveHold::take(state, &txn.manifest.places, &txn.manifest.id)
+            .map_err(refused)?;
+    let adapter = state
+        .registry
+        .get(&juggler_core::model::HarnessId::new(
+            txn.manifest.tool.as_str(),
+        ))
+        .ok_or_else(|| refused("this tool's conversations travel as a copy"))?;
+    Ok((lock, hold, adapter))
+}
+
 /// [`undo_with`]; `reopen`: the conversation opened where it was after
 /// (the user's Undo), not by startup recovery (AJ-E2321).
 pub(crate) fn undo_as(
@@ -1368,14 +1406,7 @@ pub(crate) fn undo_as(
     system: &dyn MoveSystem,
     reopen: bool,
 ) -> AppResult<MoveUndoneInfo> {
-    if move_id.is_empty()
-        || !move_id
-            .chars()
-            .all(|c| c.is_ascii_alphanumeric() || c == '-')
-    {
-        return Err(refused("that isn't a move's id"));
-    }
-    let mut txn = hold::open_move(&state.data_dir, move_id).map_err(engine)?;
+    let mut txn = open_by_id(state, move_id)?;
     // A later move (in any state but undone) that touches the same files
     // owns them now: undoing this one would put old copies over it.
     if door::moved_again(&hold::all_moves(&state.data_dir), &txn) {
@@ -1395,16 +1426,7 @@ pub(crate) fn undo_as(
             })?;
         places.push((id.clone(), known));
     }
-    let _lock = lock(state, &txn.manifest.plan.roots)?;
-    let _hold =
-        crate::features::places::MoveHold::take(state, &txn.manifest.places, &txn.manifest.id)
-            .map_err(refused)?;
-    let adapter = state
-        .registry
-        .get(&juggler_core::model::HarnessId::new(
-            txn.manifest.tool.as_str(),
-        ))
-        .ok_or_else(|| refused("this tool's conversations travel as a copy"))?;
+    let (_lock, _hold, adapter) = take_move(state, &txn)?;
     let writing = writing_of_move(&adapter, &txn)?;
     let both = (&places[..], &txn.manifest.request);
     let why_not = quiet(

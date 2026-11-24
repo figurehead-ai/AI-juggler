@@ -279,10 +279,9 @@ fn a_contradicted_link_refuses_up_front_naming_both_folders() {
 /// profile stays closed, and the move says why; the other starts.
 #[test]
 fn a_profile_is_never_restarted_on_a_folder_its_sessions_contradict() {
-    if !clones() {
+    let Some(lab) = cloning_lab() else {
         return;
-    }
-    let lab = lab();
+    };
     let elsewhere = lab._tmp.path().join("code/elsewhere");
     let target = lab.sides.target_place.as_ref().unwrap().0.clone();
     let system = Scripted {

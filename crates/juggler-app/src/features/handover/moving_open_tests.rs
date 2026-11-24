@@ -9,16 +9,14 @@ use super::*;
 /// pending, said plainly, with Open offered in that App.
 #[test]
 fn a_link_delivered_but_not_seen_open_is_pending_with_open_offered() {
-    if !clones() {
+    let Some(lab) = cloning_lab() else {
         return;
-    }
-    let lab = lab();
+    };
     let system = Scripted {
         opens: false,
         ..running_both(&lab)
     };
-    let done = run(&lab.state, &lab.sides, &system).unwrap();
-    assert_eq!(done.payload.state, "verified", "{}", done.payload.detail);
+    let done = moved_with(&lab, &system);
     assert_eq!(system.sent.lock().unwrap().len(), 1, "the link went");
     assert_eq!(done.opened.state, "pending", "{}", done.opened.detail);
     assert!(

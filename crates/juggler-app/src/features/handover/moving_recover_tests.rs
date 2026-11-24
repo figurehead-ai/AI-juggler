@@ -21,11 +21,7 @@ enum Crash {
 /// left it). Returns its id.
 fn crashed(lab: &Lab, at: Crash, held: bool) -> String {
     let plan = plan_of(&lab.sides).unwrap();
-    let ids: Vec<String> = [&lab.sides.source_place, &lab.sides.target_place]
-        .into_iter()
-        .flatten()
-        .map(|(id, _)| id.clone())
-        .collect();
+    let ids = place_ids(lab);
     let id = "1700000000000-crash".to_owned();
     let mut txn = Transaction::begin(
         &moves_dir(&lab.state),
@@ -105,10 +101,9 @@ fn held_any(lab: &Lab) -> bool {
 
 #[test]
 fn a_move_a_crash_left_mid_apply_is_undone_at_start_before_keep_alive() {
-    if !clones() {
+    let Some(lab) = cloning_lab() else {
         return;
-    }
-    let lab = lab();
+    };
     let id = crashed(&lab, Crash::MidApply, true);
     assert!(!unchanged(&lab), "the crash left it half moved");
     assert!(
@@ -130,10 +125,9 @@ fn a_move_a_crash_left_mid_apply_is_undone_at_start_before_keep_alive() {
 
 #[test]
 fn a_move_a_crash_left_after_its_checks_is_finished_at_start() {
-    if !clones() {
+    let Some(lab) = cloning_lab() else {
         return;
-    }
-    let lab = lab();
+    };
     let id = crashed(&lab, Crash::Verified, true);
     let claimed = recover::claim(&lab.state);
     assert_eq!(claimed, [(id.clone(), Settle::Finish)]);
@@ -145,10 +139,9 @@ fn a_move_a_crash_left_after_its_checks_is_finished_at_start() {
 
 #[test]
 fn a_backed_up_move_a_crash_left_is_let_go_without_quitting_anything() {
-    if !clones() {
+    let Some(lab) = cloning_lab() else {
         return;
-    }
-    let lab = lab();
+    };
     let id = crashed(&lab, Crash::BackedUp, true);
     let system = running_both(&lab);
     let claimed = recover::claim(&lab.state);
@@ -163,10 +156,9 @@ fn a_backed_up_move_a_crash_left_is_let_go_without_quitting_anything() {
 
 #[test]
 fn a_move_an_older_ai_juggler_left_part_way_is_held_for_the_persons_finish_or_undo() {
-    if !clones() {
+    let Some(lab) = cloning_lab() else {
         return;
-    }
-    let lab = lab();
+    };
     let id = crashed(&lab, Crash::MidApply, false);
     assert!(!held_any(&lab), "no marker: an older AI Juggler's");
     let claimed = recover::claim(&lab.state);
@@ -188,10 +180,9 @@ fn a_move_an_older_ai_juggler_left_part_way_is_held_for_the_persons_finish_or_un
 
 #[test]
 fn a_move_another_ai_juggler_is_running_is_left_alone() {
-    if !clones() {
+    let Some(lab) = cloning_lab() else {
         return;
-    }
-    let lab = lab();
+    };
     let id = crashed(&lab, Crash::MidApply, true);
     let roots = hold::open_move(&lab.state.data_dir, &id)
         .unwrap()
@@ -205,10 +196,9 @@ fn a_move_another_ai_juggler_is_running_is_left_alone() {
 
 #[test]
 fn the_door_finishes_an_interrupted_move_by_its_id() {
-    if !clones() {
+    let Some(lab) = cloning_lab() else {
         return;
-    }
-    let lab = lab();
+    };
     let id = crashed(&lab, Crash::Verified, true);
     let row = moves(&lab.state)
         .into_iter()
@@ -232,12 +222,9 @@ fn the_door_finishes_an_interrupted_move_by_its_id() {
 /// sweep after it, leave the first move's backups (its Undo) in place.
 #[test]
 fn a_second_move_of_the_same_family_leaves_the_first_moves_backups() {
-    if !clones() {
+    let Some((lab, system, first)) = moved() else {
         return;
-    }
-    let lab = lab();
-    let system = running_both(&lab);
-    let first = run(&lab.state, &lab.sides, &system).unwrap();
+    };
     let first_backups = || {
         backups(&lab)
             .into_iter()
@@ -246,22 +233,7 @@ fn a_second_move_of_the_same_family_leaves_the_first_moves_backups() {
     };
     let kept = first_backups();
     assert!(kept > 0, "a committed move keeps its backups for Undo");
-    let back = Sides {
-        request: MoveRequest {
-            source: lab.sides.request.target.clone(),
-            target: lab.sides.request.source.clone(),
-            ..lab.sides.request.clone()
-        },
-        source_place: lab.sides.target_place.clone(),
-        target_place: lab.sides.source_place.clone(),
-        adapter: lab.sides.adapter.clone(),
-        tool: lab.sides.tool.clone(),
-        source_label: "B".into(),
-        target_label: "A".into(),
-        source_live: false,
-        accounts: lab.sides.accounts.clone(),
-        stop: None,
-    };
+    let back = moved_back(&lab);
     run(&lab.state, &back, &system).unwrap();
     let claimed = recover::claim(&lab.state);
     assert!(claimed.is_empty(), "both moves are settled");
@@ -313,10 +285,9 @@ fn the_setting_reads_its_four_choices_seven_days_by_default() {
 
 #[test]
 fn a_refused_attempts_folder_goes_at_once_and_an_undone_moves_record_stays() {
-    if !clones() {
+    let Some(lab) = cloning_lab() else {
         return;
-    }
-    let lab = lab();
+    };
     let id = crashed(&lab, Crash::BackedUp, false);
     let mut txn = hold::open_move(&lab.state.data_dir, &id).unwrap();
     txn.undo(&Stopped::checked(), 1).unwrap();
@@ -337,10 +308,7 @@ fn a_committed_moves_backups_go_after_the_chosen_days_never_before() {
     let Some((lab, _system, done)) = moved() else {
         return;
     };
-    let created = hold::open_move(&lab.state.data_dir, &done.move_id)
-        .unwrap()
-        .manifest
-        .created_ms;
+    let created = created_of(&lab, &done.move_id);
     // The first sweep ran before the move: its own time counts.
     set(&lab, FIRST_SWEEP_KEY, &(created - 1).to_string());
     set(&lab, KEEP_KEY, "1");
@@ -358,10 +326,7 @@ fn backups_made_before_the_first_sweep_keep_seven_days_and_until_deleted_keeps_t
     let Some((lab, _system, done)) = moved() else {
         return;
     };
-    let created = hold::open_move(&lab.state.data_dir, &done.move_id)
-        .unwrap()
-        .manifest
-        .created_ms;
+    let created = created_of(&lab, &done.move_id);
     set(&lab, KEEP_KEY, "1");
     // The first sweep, two days after the move (a 0.5.0 backup).
     assert_eq!(retention::sweep(&lab.state, created + 2 * DAY).retired, 0);
@@ -378,10 +343,9 @@ fn backups_made_before_the_first_sweep_keep_seven_days_and_until_deleted_keeps_t
 
 #[test]
 fn the_sweep_never_runs_during_a_move_nor_touches_an_interrupted_one() {
-    if !clones() {
+    let Some(lab) = cloning_lab() else {
         return;
-    }
-    let lab = lab();
+    };
     let id = crashed(&lab, Crash::MidApply, true);
     let later = juggler_core::model::Timestamp::now().millis() + 400 * DAY;
     assert_eq!(retention::sweep(&lab.state, later), Swept::default());

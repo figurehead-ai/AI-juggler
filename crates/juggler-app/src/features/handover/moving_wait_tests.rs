@@ -42,10 +42,9 @@ fn run_with(lab: &Lab, kids: Vec<Kid>) -> (Scripted, AppResult<MoveDoneInfo>) {
 /// it refused every move after both apps were quit.
 #[test]
 fn a_dev_server_under_the_session_is_reported_not_waited_on() {
-    if !clones() {
+    let Some(lab) = cloning_lab() else {
         return;
-    }
-    let lab = lab();
+    };
     let (_, done) = run_with(&lab, vec![kid(&lab, 710, "node", &["server.js"], true)]);
     let done = done.unwrap();
     assert_eq!(done.payload.state, "verified", "{}", done.payload.detail);
@@ -63,10 +62,9 @@ fn a_dev_server_under_the_session_is_reported_not_waited_on() {
 /// Crashpad folder) and the app's helpers never hold a move back.
 #[test]
 fn crashpad_and_helpers_never_block() {
-    if !clones() {
+    let Some(lab) = cloning_lab() else {
         return;
-    }
-    let lab = lab();
+    };
     let (_, done) = run_with(
         &lab,
         vec![
@@ -105,10 +103,9 @@ fn crashpad_and_helpers_never_block() {
 /// none of the family, so it never blocks (before: refused on every try).
 #[test]
 fn another_profiles_wrapper_never_blocks() {
-    if !clones() {
+    let Some(lab) = cloning_lab() else {
         return;
-    }
-    let lab = lab();
+    };
     let (_, done) = run_with(
         &lab,
         vec![kid(
@@ -133,10 +130,9 @@ fn another_profiles_wrapper_never_blocks() {
 /// end, nothing moved.
 #[test]
 fn a_resume_writer_blocks() {
-    if !clones() {
+    let Some(lab) = cloning_lab() else {
         return;
-    }
-    let lab = lab();
+    };
     let (system, done) = run_with(
         &lab,
         vec![kid(&lab, 714, "claude", &["--resume", "kid"], true)],
@@ -154,10 +150,9 @@ fn a_resume_writer_blocks() {
 /// the process's: a writer, waited on.
 #[test]
 fn a_session_pid_file_blocks() {
-    if !clones() {
+    let Some(lab) = cloning_lab() else {
         return;
-    }
-    let lab = lab();
+    };
     pid_file(&lab, 720, "kid", 720);
     let (_, done) = run_with(&lab, vec![kid(&lab, 720, "claude", &[], true)]);
     let words = done.unwrap_err().wire().user_message;
@@ -172,10 +167,9 @@ fn a_session_pid_file_blocks() {
 /// start mismatch): stale, never a writer.
 #[test]
 fn a_stale_pid_file_never_blocks() {
-    if !clones() {
+    let Some(lab) = cloning_lab() else {
         return;
-    }
-    let lab = lab();
+    };
     pid_file(&lab, 721, "kid", 3000);
     let (_, done) = run_with(&lab, vec![kid(&lab, 721, "claude", &[], true)]);
     assert_eq!(done.unwrap().payload.state, "verified");
@@ -208,31 +202,22 @@ fn the_offer_refuses_an_outside_writer_before_any_quit() {
     assert!(words.contains(said), "{words}");
     assert!(system.quits.lock().unwrap().is_empty(), "nothing quit");
     assert!(system.starts.lock().unwrap().is_empty(), "nothing started");
-    assert!(unchanged(&lab));
-    assert!(
-        !crate::features::places::hold::journals(&crate::features::places::hold::area_at(
-            &lab.state.data_dir
-        ))
-        .exists(),
-        "no move begun"
-    );
+    assert_nothing_begun(&lab);
 }
 
 /// Both profiles are asked to quit at once (each still running when the
 /// other is asked), then waited on together.
 #[test]
 fn both_profiles_quit_in_parallel() {
-    if !clones() {
+    let Some(lab) = cloning_lab() else {
         return;
-    }
-    let lab = lab();
+    };
     let system = Scripted {
         slow: Some(Duration::from_millis(150)),
         wait: Some(Duration::from_secs(5)),
         ..running_both(&lab)
     };
-    let done = run(&lab.state, &lab.sides, &system).unwrap();
-    assert_eq!(done.payload.state, "verified", "{}", done.payload.detail);
+    moved_with(&lab, &system);
     assert_eq!(*system.quits.lock().unwrap(), [500, 501]);
     assert_eq!(
         *system.running_at_quit.lock().unwrap(),
