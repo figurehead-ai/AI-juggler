@@ -202,7 +202,8 @@ for (const theme of ["dark", "light"] as const) {
 
   test(`the session's row says three subagents run, and its page's line opens their tab — ${theme}`, async ({ page }) => {
     await seed(page, theme);
-    const count = page.getByRole("button", { name: "Open its subagents: +3 agents" });
+    // AJ-E1554: the row's mark is "3", its name says it whole.
+    const count = page.getByRole("button", { name: "Open its subagents: 3 subagents running" });
     await expect(count).toBeVisible();
     // The rail settled first: Needs you arriving later pushes rows down.
     await expect(page.getByTestId("rail-needs-you")).toContainText(/Needs you\s*5/);

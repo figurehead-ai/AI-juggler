@@ -129,7 +129,7 @@ for (const theme of ["dark", "light"] as const) {
   for (const width of [1280, 1024] as const) {
     test(`an App's Sessions past 8: search, filters, sections — ${width} ${theme}`, async ({ page }) => {
       await seed(page, theme);
-      await openSessions(page, "Claude Code · Work Max");
+      await openSessions(page, "Claude Code CLI · Work Max");
       // Opened as at 1280, then the window narrowed (the folded rail).
       if (width === 1024) await page.setViewportSize({ width: 1024, height: 700 });
       await expect(page.getByTestId("related-search")).toBeVisible();
@@ -145,7 +145,7 @@ for (const theme of ["dark", "light"] as const) {
 
   test(`its Project filter's menu, then Open now — ${theme}`, async ({ page }) => {
     await seed(page, theme);
-    await openSessions(page, "Claude Code · Work Max");
+    await openSessions(page, "Claude Code CLI · Work Max");
     await page.getByTestId("related-filter-project").click();
     await expect(page.getByTestId("related-filter-project-proj-ai-juggler")).toContainText("ai-juggler · 5");
     await expect(page.getByTestId("related-filter-project-(none)")).toContainText("No project · 3");
@@ -159,7 +159,7 @@ for (const theme of ["dark", "light"] as const) {
 
   test(`a search that finds nothing says so — ${theme}`, async ({ page }) => {
     await seed(page, theme);
-    await openSessions(page, "Claude Code · Work Max");
+    await openSessions(page, "Claude Code CLI · Work Max");
     await page.getByTestId("related-search").fill("kubernetes");
     await expect(page.getByTestId("related-no-match")).toBeVisible();
     await shoot(page, "no-match", theme);
@@ -171,8 +171,8 @@ for (const theme of ["dark", "light"] as const) {
 
   test(`an App with no session yet teaches — ${theme}`, async ({ page }) => {
     await seed(page, theme);
-    await openSessions(page, "Claude Code · Side project", "cli:claude-side");
-    await expect(page.getByTestId("related-empty")).toContainText("No sessions in Claude Code · Side project yet");
+    await openSessions(page, "Claude Code CLI · Side project", "cli:claude-side");
+    await expect(page.getByTestId("related-empty")).toContainText("No sessions in Claude Code CLI · Side project yet");
     await expect(page.getByTestId("related-empty").getByRole("button", { name: "New session" })).toBeVisible();
     await shoot(page, "app-empty", theme);
   });
@@ -209,7 +209,7 @@ test("budgets: a tab from memory ≤ 150 ms, 1 000 rows scroll at 60 fps", async
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.goto("/");
-  await openSessions(page, "Claude Code · Work Max");
+  await openSessions(page, "Claude Code CLI · Work Max");
   await expect(page.getByRole("tab", { name: /^Sessions/ })).toHaveText("Sessions 1011");
   // Away and back: the second open is from memory.
   await page.getByRole("tab", { name: /^Overview/ }).click();

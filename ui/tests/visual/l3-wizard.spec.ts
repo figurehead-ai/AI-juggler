@@ -304,7 +304,7 @@ for (const r of ROWS) {
     // everyone").
     if (changed) await expect(review).toContainText(new RegExp(`Member to Member: ${changed.toLowerCase()}|Everyone may message everyone|No one may message|asks you first`, "i"));
     // The name: typed, or the one Review says it gets.
-    const name = ((await review.textContent()) ?? "").match(/«([^»]+)»/)?.[1] ?? "";
+    const name = ((await review.textContent()) ?? "").match(/“([^”]+)”/)?.[1] ?? "";
     expect(name.trim().length).toBeGreaterThan(0);
     await page.getByTestId("new-pool-next").click();
     await expect(wizard).toHaveCount(0);
@@ -321,6 +321,12 @@ for (const r of ROWS) {
 
     // A custom level is the pool's own, on its canvas.
     if (r.level === "custom") {
+      // AJ-E1548 #27: while its setup is open the checklist owns the rules
+      // and the header has no choice; Hide setup brings it back.
+      if (await page.getByTestId("pool-header-setup").isVisible()) {
+        await expect(page.getByTestId("pool-header-level")).toHaveCount(0);
+        await page.getByTestId("pool-setup-hide").click();
+      }
       await page.getByTestId("pool-header-level").click();
       await page.getByRole("menu").last().getByText("Custom", { exact: true }).click();
       await expect.poll(() => calls(page)).toContainEqual(expect.stringMatching(new RegExp(`^access:${id}:custom:`)));

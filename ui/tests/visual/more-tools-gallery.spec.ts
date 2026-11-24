@@ -162,7 +162,12 @@ for (const theme of THEMES) {
     for (const tool of NEW_TOOLS) {
       const group = page.getByTestId(`first-run-group-${tool.id}`);
       await expect(group).toContainText(tool.name);
-      await expect(group).toContainText(tool.folder.replace("/Users/you", "~"));
+      // AJ-E1545: a row's folder is under its ▸ Details (closed at rest).
+      const details = group.getByTestId("first-run-details-toggle").first();
+      await details.click();
+      await expect(group.getByTestId("first-run-folder")).toContainText(tool.folder.replace("/Users/you", "~"));
+      await details.click();
+      await expect(group.getByTestId("first-run-folder")).toHaveCount(0);
     }
     await shoot(page, "first-run-found", theme);
   });

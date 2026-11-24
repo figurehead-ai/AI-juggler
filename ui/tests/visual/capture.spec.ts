@@ -164,11 +164,15 @@ for (const theme of THEMES) {
       await page.goto("/");
       // AJ-E406: the empty work area is the fleet-at-a-glance summary
       // (RightInspector, Req.4) — never a blank panel.
-      // D-25: with no accounts, Home is one plain next step.
+      // D-25: with no accounts, Home is one plain next step: the Welcome's
+      // Get started, which opens the setup wizard (AJ-E1524, AJ-E1545;
+      // 0.5.1 F20), its scan line landed.
       await expect(page.getByTestId("home-empty-accounts")).toBeVisible();
-      await expect(page.getByRole("button", { name: "Find my apps" })).toBeVisible();
-      // AJ-E1527: the optional permissions, early and never required.
-      await expect(page.getByTestId("smoother")).toBeVisible();
+      await expect(page.getByRole("button", { name: "Get started" })).toBeVisible();
+      await expect(page.getByTestId("welcome-found")).toContainText(/We found|No AI coding tools found/);
+      // AJ-E1527 → AJ-E1545: the optional permissions are the wizard's Mac
+      // access step now, never a card on the Welcome.
+      await expect(page.getByTestId("smoother")).toHaveCount(0);
       await page.screenshot({
         path: resolve(GALLERY, `01-rail/honest-empty-${vp.name}-${theme}.png`),
       });

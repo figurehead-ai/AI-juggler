@@ -305,8 +305,19 @@ test("a rail of 1 000 sessions draws only what's in view, and ↑/↓ scroll the
   await seed(page, "thousand", "dark");
   const list = page.getByTestId("rail-list");
   const search = page.getByRole("searchbox", { name: /^Search sessions/ });
-  // One App's 250 sessions, all of them shown.
-  await page.getByTestId("rail-more-quiet").first().click();
+  // One App's 250 sessions, all of them shown. Its "+n quiet" is the
+  // group's footer (AJ-E1554 R4), after its 50 working rows, so the
+  // windowed list is scrolled to it first (it isn't drawn out of view).
+  const more = page.getByTestId("rail-more-quiet").first();
+  await expect
+    .poll(async () => {
+      if ((await more.count()) > 0) return true;
+      await list.evaluate((el) => (el.scrollTop += el.clientHeight / 2));
+      return false;
+    }, { intervals: [100], timeout: 10_000 })
+    .toBe(true);
+  await more.click();
+  await list.evaluate((el) => (el.scrollTop = 0));
   const lines = page.getByTestId("place-board").locator("[data-rail-line]");
   const box = () => list.evaluate((el) => ({ top: el.scrollTop, height: el.clientHeight, content: el.scrollHeight }));
   await expect.poll(async () => (await box()).content).toBeGreaterThan(5_000);

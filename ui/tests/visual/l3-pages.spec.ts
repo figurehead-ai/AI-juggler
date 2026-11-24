@@ -247,9 +247,12 @@ for (const r of ROWS) {
       await expect(rows).toHaveCount(0);
     } else {
       await expect(rows.first()).toBeVisible();
-      // Ordered by state: the first state's section leads (headed once there are two).
+      // Ordered by state: the first state's section leads (headed once there
+      // are two, or once there's more to read than its first pages: SK48-9,
+      // a788c2c5c, so 1000+ quiet ones are headed "Earlier" too).
       const heads = list.getByTestId("page-sessions-group");
-      if (r.state_mix === "rest" || r.size === 1) await expect(heads).toHaveCount(0);
+      const paged = r.sizeWord === "1000+";
+      if ((r.state_mix === "rest" && !paged) || r.size === 1) await expect(heads).toHaveCount(0);
       else await expect(heads.first()).toHaveText(new RegExp(`^${BAND[r.state_mix]}`));
       await expect(rows.first()).toHaveAttribute("data-key", /\/t0$/);
     }
