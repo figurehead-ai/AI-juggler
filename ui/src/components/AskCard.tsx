@@ -180,15 +180,22 @@ export function AskCard({ ask, title, kindLabel, answer, onAnswered, plain = fal
     <div
       tabIndex={0}
       onKeyDown={onKey}
-      className={"flex flex-col gap-2 rounded-lg bg-warning-soft/40 p-3 outline-none focus-visible:ring-1 focus-visible:ring-accent/60" + (plain ? "" : " border border-warning/30")}
+      // 0.5.1 F59 (PAT-COLOR-2, PAT-SURF-1): a need card's look, by tone,
+      // with an amber mark; never an amber fill behind words or an outline.
+      // Inside a panel that already frames it (`plain`), one tone step up.
+      className={"flex flex-col gap-2 outline-none focus-visible:ring-1 focus-visible:ring-accent/60 " + (plain ? "rounded-lg bg-surface-2 p-3" : "rounded-xl bg-surface px-3.5 py-3")}
       data-testid="ask-card"
       data-ask={ask.id}
       aria-label={`${kindLabel ?? kindWords(ask)}: ${ask.summary}${title ? ` — ${title}` : ""}`}
     >
       <div className="flex min-w-0 flex-col gap-0.5">
-        <span className="text-label font-semibold uppercase tracking-wider text-warning">
-          {kindLabel ?? kindWords(ask)}
-          {title ? ` · ${title}` : ""}
+        <span className="flex min-w-0 items-center gap-1.5 text-label font-semibold uppercase tracking-wider text-warning" data-testid="ask-kind">
+          {/* The ask's mark: its level's amber dot (decoration, the words say it). */}
+          <span aria-hidden="true" className="level-mark shrink-0" data-level={2} data-testid="ask-mark" />
+          <span className="min-w-0">
+            {kindLabel ?? kindWords(ask)}
+            {title ? ` · ${title}` : ""}
+          </span>
         </span>
         {kindLabel ? (
           <span className="text-body text-ink">{ask.summary}</span>
