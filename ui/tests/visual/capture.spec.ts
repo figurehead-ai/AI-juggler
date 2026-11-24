@@ -5379,9 +5379,9 @@ for (const theme of THEMES) {
       // AJ-E1536: Replay and Delete are in the row's menu.
       await page.getByTestId("page-session-item").first().click({ button: "right" });
       await page.getByTestId("action-replay").click();
-      await expect(page.getByTestId("replay-process-list")).toContainText("root 48211");
-      // The transcript is drawn (xterm parses its writes asynchronously).
-      await expect(page.locator('[aria-label="Transcript, read-only"][data-ready]')).toBeAttached();
+      // 0.5.1 F79: the conversation in the session page's own turns, its facts in words.
+      await expect(page.getByTestId("replay-process-list")).toContainText("The session's own process");
+      await expect(page.getByTestId("replay-turns")).toBeVisible();
       await page.screenshot({ path: resolve(GALLERY, `56-history/replay-${vp.name}-${theme}.png`) });
       await page.getByTestId("replay-close").click();
       await page.getByTestId("history-tab-ended").click();

@@ -83,7 +83,7 @@ export function SessionHistoryTab({ session, onOpenProject }: { session: Instanc
       </div>
       {replay && (
         <Suspense fallback={null}>
-          <ReplayDialog sessionId={session.id} onClose={() => setReplay(false)} />
+          <ReplayDialog sessionId={session.id} tool={session.provider} onClose={() => setReplay(false)} />
         </Suspense>
       )}
     </Section>
