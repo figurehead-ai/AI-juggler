@@ -14,7 +14,7 @@
 import { useEffect, type JSX, type ReactNode, type RefObject } from "react";
 import { Button } from "../primitives";
 import { IconCheck, IconClose } from "../icons-controls";
-import { DialogFrame, DialogOverlay } from "../DialogFrame";
+import { DialogFrame, DialogOverlay, wrapTab } from "../DialogFrame";
 
 
 /** Where the dialog's controls are, for Tab. */
@@ -135,19 +135,7 @@ export function useDialogKeys(
         onEnter();
         return;
       }
-      if (event.key === "Tab" && node) {
-        const focusables = Array.from(node.querySelectorAll<HTMLElement>(FOCUSABLE));
-        if (focusables.length === 0) return;
-        const first = focusables[0]!;
-        const last = focusables[focusables.length - 1]!;
-        if (event.shiftKey && document.activeElement === first) {
-          event.preventDefault();
-          last.focus();
-        } else if (!event.shiftKey && document.activeElement === last) {
-          event.preventDefault();
-          first.focus();
-        }
-      }
+      if (event.key === "Tab" && node) wrapTab(event, node, FOCUSABLE);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);

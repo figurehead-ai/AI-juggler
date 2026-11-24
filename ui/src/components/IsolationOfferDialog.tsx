@@ -13,7 +13,7 @@ import { Radio } from "./controls";
 import { PRIMARY_FILL } from "./primitives";
 import { sessionsInWords } from "../lib/session-titles";
 import { SELECTED_CARD } from "./controls/selected";
-import { DialogFrame, DialogOverlay } from "./DialogFrame";
+import { DialogFrame, DialogOverlay, wrapTab } from "./DialogFrame";
 
 /** AJ-E2314 L7 (the 0.5.0 re-walk, DW1): whether the offer is up. The
  * New session sheet that started the launch steps out of sight while it
@@ -79,19 +79,7 @@ export function IsolationOfferDialog(): JSX.Element | null {
         event.preventDefault();
         decide({ kind: "cancel" });
       }
-      if (event.key === "Tab" && node) {
-        const focusables = Array.from(node.querySelectorAll<HTMLElement>("input:not(:disabled), button:not(:disabled)"));
-        if (focusables.length === 0) return;
-        const first = focusables[0]!;
-        const last = focusables[focusables.length - 1]!;
-        if (event.shiftKey && document.activeElement === first) {
-          event.preventDefault();
-          last.focus();
-        } else if (!event.shiftKey && document.activeElement === last) {
-          event.preventDefault();
-          first.focus();
-        }
-      }
+      if (event.key === "Tab" && node) wrapTab(event, node, "input:not(:disabled), button:not(:disabled)");
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);

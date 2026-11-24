@@ -19,7 +19,7 @@ import { switchBackPlan, switchBackExecute, type SwitchBackPlanData } from "../l
 import { errorText } from "../lib/bridge";
 import { Radio } from "./controls";
 import { Button } from "./primitives";
-import { DialogFooter, DialogFrame, DialogHeading, DialogOverlay } from "./DialogFrame";
+import { DialogFooter, DialogFrame, DialogHeading, DialogOverlay, wrapTab } from "./DialogFrame";
 
 type Phase =
   | { kind: "plan" }
@@ -89,21 +89,7 @@ export function SwitchBackFlow({
         event.preventDefault();
         void execute();
       }
-      if (event.key === "Tab" && node) {
-        const focusables = Array.from(
-          node.querySelectorAll<HTMLElement>("button, input"),
-        );
-        if (focusables.length === 0) return;
-        const first = focusables[0]!;
-        const last = focusables[focusables.length - 1]!;
-        if (event.shiftKey && document.activeElement === first) {
-          event.preventDefault();
-          last.focus();
-        } else if (!event.shiftKey && document.activeElement === last) {
-          event.preventDefault();
-          first.focus();
-        }
-      }
+      if (event.key === "Tab" && node) wrapTab(event, node, "button, input");
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);

@@ -13,21 +13,9 @@
  */
 import type { JSX } from "react";
 import { LoadingState } from "../components/LoadingState";
+import { Bar, Line } from "../components/Placeholder";
 import { useLoadDeadline } from "../lib/loading";
 import { COLUMNS, useHomeLayout } from "../lib/home-layout";
-
-function Bar({ className }: { className: string }): JSX.Element {
-  return <span className={`block rounded bg-skeleton ${className}`} />;
-}
-
-/** A line of `text` type's height holding a bar (as the words it stands for). */
-function Line({ text, className }: { text: string; className: string }): JSX.Element {
-  return (
-    <span className={`flex h-[1lh] items-center ${text}`}>
-      <Bar className={className} />
-    </span>
-  );
-}
 
 /** A section's head (HomeSection's `min-h-7` row, its label's width). */
 function Head({ width }: { width: string }): JSX.Element {

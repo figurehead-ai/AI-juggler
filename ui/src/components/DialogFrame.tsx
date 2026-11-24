@@ -48,6 +48,20 @@ export function DialogOverlay({ className = OVERLAY, children, ref, ...rest }: {
   return typeof document === "undefined" ? overlay : createPortal(overlay, document.body);
 }
 
+/** Tab and Shift+Tab stay inside a dialog: from its last focusable (by
+ * `selector`) to its first, and from its first back to its last. */
+export function wrapTab(event: KeyboardEvent, node: HTMLElement, selector: string): void {
+  const focusables = Array.from(node.querySelectorAll<HTMLElement>(selector));
+  if (focusables.length === 0) return;
+  const first = focusables[0]!;
+  const last = focusables[focusables.length - 1]!;
+  const at = document.activeElement;
+  const to = event.shiftKey ? (at === first ? last : null) : at === last ? first : null;
+  if (!to) return;
+  event.preventDefault();
+  to.focus();
+}
+
 /** Whether a box has more above (scrolled) and below (not at its end). */
 function useScrollEdges(ref: RefObject<HTMLElement | null>): { above: boolean; below: boolean } {
   const [edges, setEdges] = useState({ above: false, below: false });
