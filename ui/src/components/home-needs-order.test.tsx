@@ -8,6 +8,7 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { HomeNeeds, needsOrder } from "./HomeNeeds";
+import { primariesIn } from "./primitives";
 import { homeNeedsOf } from "../lib/needs-you";
 import { itemsOf } from "../lib/rail-items";
 import type { MessageNeedInfo } from "../lib/ipc/messages";
@@ -53,5 +54,27 @@ describe("Needs you now: one card each, the one waiting longest first", () => {
     // What the session asks, said honestly when its tool didn't say.
     expect(cards[0]!.querySelector("[data-testid='need-asks']")?.textContent).toBe(" — open it to see what it asks");
     expect(cards[1]!.querySelector("[data-testid='need-asks']")?.textContent).toBe(": “Use the v2 export API, or keep v1 for this release?”");
+  });
+});
+
+describe("0.5.1 critique (93-messages): one filled button in Needs you", () => {
+  const held = (key: string, ago: number): MessageNeedInfo => ({
+    ...question(ago), key, kind: "ask", ask_id: key, title: "«Reviewer» wants to message Builder", detail: "above what the pool lets agents do", preview: null,
+  });
+
+  it("an agent's held message above the cards takes it; the cards and a second held one are tinted", () => {
+    render(<HomeNeeds needs={needs()} messages={[held("ask:1", 30 * MIN), held("ask:2", 20 * MIN), question(5 * MIN)]} now={NOW} handlers={{ onOpenSession: vi.fn() }} />);
+    const zone = screen.getByTestId("home-needs");
+    const filled = primariesIn(zone);
+    expect(filled).toHaveLength(1);
+    expect(filled[0]!.closest("[data-testid='ask-card']")).toBe(zone.querySelectorAll("[data-testid='ask-card']")[0]);
+    expect(zone.querySelector("[data-first='true']")).toBeNull();
+  });
+
+  it("with no held message, the first card keeps it", () => {
+    render(<HomeNeeds needs={needs()} messages={[question(5 * MIN)]} now={NOW} handlers={{ onOpenSession: vi.fn() }} />);
+    const filled = primariesIn(screen.getByTestId("home-needs"));
+    expect(filled).toHaveLength(1);
+    expect(filled[0]!.textContent).toContain("Open its page");
   });
 });

@@ -23,7 +23,7 @@ import { needWord } from "./PlaceRows";
 import { markSeen } from "../lib/seen";
 import { focusHandoverSoon } from "../lib/handover-focus";
 import { switchSourceOf } from "../lib/ipc/conversations";
-import { AskBatch } from "./AskCard";
+import { AskBatchOf, useBatchAsks } from "./AskCard";
 import { isHeldAsk, MessageNeedCard, MessageNeeds } from "./MessageNeeds";
 import { isTaskAsk, TaskNeedCard, TaskNeeds } from "./TaskNeeds";
 import { NeedActions, NeedByLine, needCardClass } from "./NeedCard";
@@ -285,24 +285,29 @@ export function HomeNeeds({
   const entries = needsOrder(needs, messages, tasks.needs);
   const shown = more ? entries : entries.slice(0, PINNED_SHOWN);
   const held = entries.length - shown.length;
-  const asks = messages.some(isHeldAsk) || tasks.needs.some(isTaskAsk);
+  const batch = useBatchAsks();
+  const heldMessages = messages.some(isHeldAsk);
+  const asks = heldMessages || tasks.needs.some(isTaskAsk);
+  // One filled button in the zone (VALIDATION §5 line 9): the first card
+  // shown has it, whichever kind: a session's ask, an agent's, a task's,
+  // then the first need below them.
   // Nothing waits: the zone says so in one muted line (Home's own).
   if (entries.length === 0 && !children && !asks) return null;
   return (
     // No area title: the page's heading already says what needs you (the
     // 0.4 design review, 42); the name stays for screen readers.
     <section aria-label="Needs you" className="flex min-w-0 flex-col gap-2" data-testid="home-needs">
-      <AskBatch titleOf={(id) => needs.find((need) => need.item?.session?.id === id)?.title} />
+      <AskBatchOf asks={batch} titleOf={(id) => needs.find((need) => need.item?.session?.id === id)?.title} />
       {/* E18, E19: approvals from agents (their cards; keys 1–9). */}
-      <MessageNeeds needs={messages} />
-      <TaskNeeds needs={tasks.needs.filter(isTaskAsk)} projects={tasks.projects} />
+      <MessageNeeds needs={messages} lead={batch.length === 0} />
+      <TaskNeeds needs={tasks.needs.filter(isTaskAsk)} projects={tasks.projects} lead={batch.length === 0 && !heldMessages} />
       {shown.length > 0 ? (
         <ul className="flex flex-col gap-2">
           {shown.map((entry, index) =>
             entry.kind === "need" ? (
-              <NeedCardOf key={entry.key} need={entry.need} first={index === 0} now={now} bubble={bubble} keys={actionKeys.aria} run={run} />
+              <NeedCardOf key={entry.key} need={entry.need} first={index === 0 && batch.length === 0 && !asks} now={now} bubble={bubble} keys={actionKeys.aria} run={run} />
             ) : entry.kind === "message" ? (
-              <MessageNeedCard key={entry.key} need={entry.message} first={index === 0} now={now} keys={actionKeys.aria} />
+              <MessageNeedCard key={entry.key} need={entry.message} first={index === 0 && batch.length === 0 && !asks} now={now} keys={actionKeys.aria} />
             ) : (
               <TaskNeedCard key={entry.key} need={entry.task} projects={tasks.projects} now={now} />
             ),

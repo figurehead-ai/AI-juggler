@@ -45,8 +45,8 @@ function asAsk(need: TaskNeedInfo): AskInfo {
 /** An agent's held change about a task, as the same approval card as every
  * agent's ask: Allow once, Always allow in this pool (from the second
  * time), Deny. */
-export function TaskAsk({ need }: { need: TaskNeedInfo }): JSX.Element {
-  return <AskCard ask={asAsk(need)} kindLabel="An agent asks about a task" title={need.pool_name} answer={(option) => tasksAnswer(need.id, option as "once" | "always" | "deny")} />;
+export function TaskAsk({ need, lead = true }: { need: TaskNeedInfo; lead?: boolean }): JSX.Element {
+  return <AskCard lead={lead} ask={asAsk(need)} kindLabel="An agent asks about a task" title={need.pool_name} answer={(option) => tasksAnswer(need.id, option as "once" | "always" | "deny")} />;
 }
 
 /** The held changes that wait on you, kept current: a pool's, or the ones
@@ -155,14 +155,14 @@ export function isTaskAsk(need: TaskNeedInfo): boolean {
   return need.kind === "ask";
 }
 
-export function TaskNeeds({ needs, projects }: { needs: TaskNeedInfo[]; projects: ProjectInfo[] }): JSX.Element | null {
+export function TaskNeeds({ needs, projects, lead = true }: { needs: TaskNeedInfo[]; projects: ProjectInfo[]; /** Its first ask has the view's one filled button. */ lead?: boolean }): JSX.Element | null {
   if (needs.length === 0) return null;
   const asks = needs.filter(isTaskAsk);
   const rest = needs.filter((need) => !isTaskAsk(need));
   return (
     <div className="flex flex-col gap-2" data-testid="task-needs">
-      {asks.map((need) => (
-        <TaskAsk key={need.id} need={need} />
+      {asks.map((need, index) => (
+        <TaskAsk key={need.id} need={need} lead={lead && index === 0} />
       ))}
       {rest.length > 0 && <ul className="flex flex-col gap-2">{rest.map((need) => <TaskNeedCard key={need.id} need={need} projects={projects} />)}</ul>}
     </div>
