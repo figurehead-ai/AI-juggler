@@ -3779,6 +3779,8 @@ const openConfirmSource = async (
   await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme as "dark" | "light" });
   await page.setViewportSize({ width: vp.width, height: vp.height });
   await page.goto("/");
+  // F20 (0.5.1): the Welcome first; Get started opens the wizard.
+  await page.getByTestId("welcome-get-started").click();
   await expect(page.getByTestId("first-run-found")).toBeVisible();
   await page.getByRole("button", { name: "Import from another folder…" }).click();
   await expect(page.getByTestId("first-run-folder-check")).toBeVisible();

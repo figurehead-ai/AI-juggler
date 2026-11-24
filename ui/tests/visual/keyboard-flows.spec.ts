@@ -412,6 +412,9 @@ const FIRST_RUN = {
 
 test("onboarding — first run end to end by keyboard", async ({ page }) => {
   await open(page, honestEmpty, FIRST_RUN, false);
+  // F20 (0.5.1): the Welcome first; its Get started, by keyboard, opens the wizard.
+  await page.getByTestId("welcome-get-started").focus();
+  await page.keyboard.press("Enter");
   await expect(page.getByTestId("first-run-found")).toBeVisible();
   const stops: Stop[] = [];
   const press = async (selector: string, then: string) => {

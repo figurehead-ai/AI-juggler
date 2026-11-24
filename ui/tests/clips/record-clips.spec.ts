@@ -295,6 +295,8 @@ for (const theme of ["dark", "light"] as const) {
       );
       await page.goto("/");
       if (!recipe.firstRun) await expect(page.getByTestId("user-menu-button")).toBeVisible();
+      // F20 (0.5.1): a new install opens on the Welcome; Get started opens the wizard.
+      else await page.getByTestId("welcome-get-started").click();
       await page.mouse.move(VIEW.width - 4, VIEW.height - 4);
       const frame = await recipe.setup(page);
       await pause(page, 500);

@@ -52,3 +52,19 @@ it("Get started on an empty Home reopens the setup at first run, not one tool's 
   await waitFor(() => expect(view.queryByTestId("setup-wizard")).toBeNull());
   expect(view.getByTestId("home-empty-accounts")).toBeTruthy();
 });
+
+// F20 (0.5.1 PL1 C1): an empty data folder (no accounts, never dismissed)
+// opened straight on the wizard's step 1, so the Welcome was never seen.
+it("an empty data folder opens on the Welcome, and the wizard only on Get started", async () => {
+  localStorage.clear();
+  const user = userEvent.setup();
+  const view = render(<App />);
+  const welcome = await view.findByTestId("home-empty-accounts");
+  expect(welcome.textContent).toContain("Let's get you set up");
+  expect(view.getByTestId("welcome-bot")).toBeTruthy();
+  // A beat later still the Welcome: nothing opens the wizard by itself.
+  await new Promise((done) => setTimeout(done, 50));
+  expect(view.queryByTestId("setup-wizard")).toBeNull();
+  await user.click(view.getByRole("button", { name: "Get started" }));
+  expect(await view.findByTestId("setup-wizard")).toBeTruthy();
+});

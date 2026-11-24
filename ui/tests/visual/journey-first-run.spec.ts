@@ -82,6 +82,9 @@ test("first run on a Mac with Claude Code already set up", gate("66-first-run"),
   let primaryClicks = 0;
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.goto("/");
+  // F20 (0.5.1): the Welcome first; Get started opens the wizard.
+  await page.getByTestId("welcome-get-started").click();
+  primaryClicks += 1;
   const found = page.getByTestId("first-run-found");
   await expect(found).toBeVisible();
   await page.screenshot({ path: `${OUT}/found-1280x800-dark.png` });
@@ -129,6 +132,7 @@ test("first run, choosing separate copies: each copy signs in once", async ({ pa
   }, SCAN);
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.goto("/");
+  await page.getByTestId("welcome-get-started").click();
   await expect(page.getByTestId("first-run-found")).toBeVisible();
   await page.getByRole("radio", { name: "Make separate copies" }).check();
   await expect(page.getByTestId("first-run-found")).toContainText("makes its own copy of each");
@@ -160,6 +164,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.emulateMedia({ colorScheme: theme, reducedMotion: "reduce" });
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/");
+    await page.getByTestId("welcome-get-started").click();
     await page.getByRole("radio", { name: "Make separate copies" }).check();
     await page.getByTestId("first-run-bring-in").click();
     const outcome = page.getByTestId("first-run-outcome");

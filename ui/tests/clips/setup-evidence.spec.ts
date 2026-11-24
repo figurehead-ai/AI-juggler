@@ -71,6 +71,11 @@ async function open(page: Page, theme: "dark" | "light", fixture: unknown, seams
   await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.goto("/");
+  // F20 (0.5.1): a new install opens on the Welcome; Get started opens the wizard.
+  if (firstRun) {
+    await expect(page.getByTestId("home-empty-accounts")).toBeVisible();
+    await page.getByTestId("welcome-get-started").click();
+  }
 }
 
 const shot = async (page: Page, task: string, name: string) => {

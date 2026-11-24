@@ -176,6 +176,8 @@ for (const theme of ["dark", "light"] as const) {
     await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/");
+    // F20 (0.5.1): the Welcome first; Get started opens the wizard.
+    await page.getByTestId("welcome-get-started").click();
     const found = page.getByTestId("first-run-found");
     await expect(found.getByTestId("first-run-group-codex")).toBeVisible();
     await expect(found.getByTestId("first-run-no-codex")).toBeVisible();

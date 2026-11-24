@@ -121,6 +121,8 @@ async function open(
   await page.setViewportSize({ width: vp.width, height: vp.height });
   await page.goto("/");
   if (!options.firstRun) await expect(page.getByTestId("user-menu-button")).toBeVisible();
+  // F20 (0.5.1): a new install opens on the Welcome; Get started opens the wizard.
+  else await page.getByTestId("welcome-get-started").click();
   await settle(page);
 }
 
