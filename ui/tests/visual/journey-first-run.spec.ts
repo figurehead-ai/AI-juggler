@@ -1,8 +1,9 @@
 /**
  * D-25 journey: a brand-new install on a Mac that already has Claude Code
  * set up — the default `~/.claude` plus five Claude desktop profiles —
- * walked as the user meets it: what's here → bring them in → sign in →
- * computer access → Home, a screenshot per step.
+ * walked as the user meets it: the Welcome → the setup wizard's Your apps
+ * → bring them in (Sign in is done by itself) → Mac access → Meet Bot →
+ * Keep running → Finish → Home, a screenshot per step (AJ-E1545).
  */
 import AxeBuilder from "@axe-core/playwright";
 import { type Page } from "@playwright/test";
@@ -66,6 +67,27 @@ const PAIRINGS = [
     folder: { tool: "Claude Code", name: null, path: null, by: null, why: "None of its sessions is open." } },
 ];
 
+// AJ-E1545 (D-127): what the system says of the permissions this setup
+// may need: Accessibility not asked yet; Screen Recording not needed while
+// no tool can show a preview, so its card never shows.
+const prompt = (id: string, title: string, needed: boolean) => ({
+  id,
+  title,
+  why: "Brings the right terminal window to the front when you open a session.",
+  system_says: "“AI Juggler” would like to control this computer using accessibility features.",
+  click: "Open System Settings",
+  if_declined: "Opening a session still brings its app forward; you pick the window yourself.",
+  offered_again: "You can turn this on later in Settings › Desktop apps.",
+  needed,
+  status: "not_asked",
+  primed: false,
+  change_later: "System Settings › Privacy & Security",
+  background: "waits",
+  never_shown: false,
+  dialog: { style: "alert", title: "“AI Juggler” would like to control this computer using accessibility features.", body: "Grant access to this application in Privacy & Security settings, located in System Settings.", buttons: ["Deny", "Open System Settings"], click: "Open System Settings" },
+});
+const PROMPTS = [prompt("accessibility", "Jump to a session's own window", true), prompt("screen-recording", "See a live preview of each session", false)];
+
 /** axe: no critical or serious violation on this step (AJ-E1013 gate). */
 async function axeClean(page: Page, step: string) {
   const results = await new AxeBuilder({ page }).analyze();
@@ -80,6 +102,7 @@ test("first run on a Mac with Claude Code already set up", gate("66-first-run"),
     w.__AIJ_FIXTURE__ = { accounts: [], profiles: [], sessions: [], projects: [] };
     w.__AIJ_SCAN_REPORT__ = scan.SCAN;
     w.__AIJ_PLACES__ = { places: [], offers: [], pairings: scan.PAIRINGS };
+    w.__AIJ_OS_PROMPTS__ = scan.PROMPTS;
     // Anything typed into a field (the budget allows none).
     w.__AIJ_TYPED__ = 0;
     document.addEventListener("input", (event) => {
@@ -88,7 +111,7 @@ test("first run on a Mac with Claude Code already set up", gate("66-first-run"),
         (window as unknown as { __AIJ_TYPED__: number }).__AIJ_TYPED__ += 1;
       }
     }, true);
-  }, { SCAN, PAIRINGS });
+  }, { SCAN, PAIRINGS, PROMPTS });
   // AJ-E305's first-install budget, kept for the new first run: at most
   // five primary clicks and nothing typed, from opening to Home.
   let primaryClicks = 0;
@@ -101,7 +124,9 @@ test("first run on a Mac with Claude Code already set up", gate("66-first-run"),
   await expect(found).toBeVisible();
   await page.screenshot({ path: `${OUT}/found-1280x800-dark.png` });
   await axeClean(page, "what's here");
-  await expect(found).toContainText("You already have 6 Claude Code setups on this computer.");
+  // AJ-E1545 R2: the wizard's Your apps step, its own words.
+  await expect(found.getByRole("heading", { level: 1 })).toHaveText("Which AI apps do you use?");
+  await expect(found).toContainText("We found these on your Mac. Tick the ones AI Juggler should show.");
   // F35: each profile a row in Claude Code's group, Desktop chip, no
   // separate block; work-a's folder is its row, so 5 are ticked, not 6.
   for (const name of ["Claude app · work-a", "Claude app · design"]) {
@@ -123,25 +148,41 @@ test("first run on a Mac with Claude Code already set up", gate("66-first-run"),
   await page.screenshot({ path: `${OUT}/where-we-looked-1280x800-dark.png`, fullPage: true });
   await page.getByTestId("first-run-bring-in").click();
   primaryClicks += 1;
-  await page.waitForTimeout(1200);
-  await page.screenshot({ path: `${OUT}/after-bring-in-1280x800-dark.png` });
-  // ADR-0018: used where they are, signed-in setups stay signed in — no
-  // sign-in step.
-  await expect(page.getByTestId("first-run-signin")).toHaveCount(0);
-  const access = page.getByTestId("first-run-access");
+  // ADR-0018: used where they are, signed-in setups stay signed in, so the
+  // wizard's Sign in is done by itself (AJ-E1545) and Bring in lands on
+  // the Mac access step: one card per permission this setup needs.
+  const access = page.getByTestId("setup-permissions");
   await expect(access).toBeVisible();
-  await page.screenshot({ path: `${OUT}/access-1280x800-dark.png` });
+  await expect(page.getByTestId("first-run-signin")).toHaveCount(0);
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: `${OUT}/after-bring-in-1280x800-dark.png` });
   await axeClean(page, "computer access");
-  // Screen Recording isn't asked for while no tool can show a preview.
+  // Screen Recording isn't asked for while no tool can show a preview
+  // (the backend says it isn't needed; the step shows only what is).
   await expect(access).not.toContainText("Screen Recording");
-  await access.getByRole("button", { name: /Allow Jump to a session/ }).click();
+  await expect(page.getByTestId("setup-permission-screen-recording")).toHaveCount(0);
+  await page.getByTestId("setup-permission-accessibility-allow").click();
+  // The system said yes: the card reads Allowed once it is read again.
+  await page.evaluate(() => {
+    const w = window as unknown as { __AIJ_OS_PROMPTS__: Array<{ id: string; status: string }> };
+    w.__AIJ_OS_PROMPTS__ = w.__AIJ_OS_PROMPTS__.map((one) => (one.id === "accessibility" ? { ...one, status: "allowed" } : one));
+    window.dispatchEvent(new Event("focus"));
+  });
+  await expect(page.getByTestId("setup-permission-accessibility-allowed")).toBeVisible();
   await page.waitForTimeout(400);
   await page.screenshot({ path: `${OUT}/access-one-allowed-1280x800-dark.png` });
-  await page.getByTestId("first-run-start").click();
+  // Meet Bot, then Keep running, then the tour's offer: one Next each.
+  for (const next of ["engine-setup", "setup-keep", "setup-tour"]) {
+    await page.getByTestId("setup-next").click();
+    primaryClicks += 1;
+    await expect(page.getByTestId(next)).toBeVisible();
+  }
+  await page.getByTestId("setup-finish").click();
   primaryClicks += 1;
-  // D-97 (2): three steps; the optional Figurehead account is Settings'.
-  await expect(page.getByTestId("first-run")).toHaveCount(0);
-  expect(primaryClicks).toBeLessThanOrEqual(5);
+  await expect(page.getByTestId("setup-wizard")).toHaveCount(0);
+  // AJ-E1545's wizard: Get started, Bring in, one Next per step after Mac
+  // access, and Finish (AJ-E305's budget was five for the old three steps).
+  expect(primaryClicks).toBeLessThanOrEqual(6);
   expect(await page.evaluate(() => (window as unknown as { __AIJ_TYPED__: number }).__AIJ_TYPED__)).toBe(0);
   await page.waitForTimeout(600);
   await page.screenshot({ path: `${OUT}/home-after-first-run-1280x800-dark.png` });
