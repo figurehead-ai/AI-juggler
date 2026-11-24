@@ -1,4 +1,4 @@
-<!-- captures: cf690d5612f5 -->
+<!-- captures: f83d1ad2a3d7 -->
 # 75-account-manage: renaming and removing accounts on the Accounts page
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design passes.
@@ -16,3 +16,9 @@ The Accounts page (default, account-menu, renamed-accounts) separates its accoun
 ## 0.4.2 (2026-11-12): the fixture renamed
 
 Only the captures that showed the old fixture folder name were re-shot: the copy, its menu header and its row now read "acme-max". Nothing else on these screens moved; the critique above stands.
+
+## 0.5.1
+
+Re-captured against 0.5.1: the remove, rename and refused dialogs are tonal panels with soft shadows, the chosen Trash radio row has the F53 fill, and Remove is red words on a faint red tone. The rename error is still a saturated red line and the refused dialog still names one session of three (F86).
+
+Nothing broken (checked both themes).
