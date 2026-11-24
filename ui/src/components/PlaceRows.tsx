@@ -29,7 +29,7 @@
 import type { JSX } from "react";
 import { ProfileBadge } from "./ProfileBadge";
 import { appTone, itemLevel } from "../lib/attention";
-import { RowShell } from "./row/RowShell";
+import { RowShell, ShellTools } from "./row/RowShell";
 import { RowProject } from "./row/RowParts";
 
 export { PlaceHeader } from "./PlaceHeader";
@@ -84,29 +84,37 @@ export function NeedRow({ compact = false, ...props }: RowProps): JSX.Element {
   // a red ✕), the words beside it in calm ink, so five needs never make
   // five loud lines.
   const why = (
-    <span aria-hidden="true" className={"flex min-w-0 items-center gap-1.5 truncate text-label leading-4 " + (level >= 2 ? "font-medium text-ink-2" : "text-muted")} data-testid="need-word" data-level={level}>
+    <span aria-hidden="true" className={"flex min-w-0 flex-1 items-center gap-1.5 truncate text-label leading-4 " + (level >= 2 ? "font-medium text-ink-2" : "text-muted")} data-testid="need-word" data-level={level}>
       {/* The marks are decoration (the row's name says its word). */}
       {level >= 2 && <span aria-hidden="true" className="level-mark" data-level={level} data-probably={level === 2 && item.probably ? "true" : undefined} />}
       {level < 2 && item.need === "review" && <span aria-hidden="true" className="shrink-0 text-success">✓</span>}
       <span className="truncate">{word}</span>
     </span>
   );
+  // 0.5.1 F42: its tools at the end of this line (why it needs you, short),
+  // not in a box beside every line: the title and where keep the row's width.
+  const whyLine = (
+    <span className="flex min-w-0 items-center gap-1">
+      {why}
+      <ShellTools />
+    </span>
+  );
   const data = { "data-level": String(level), "data-need": item.need ?? undefined, "data-state": item.state };
   if (compact) {
     // Two lines: what, and why it needs you (where is in its name).
     return (
-      <RowShell {...props} data={data} label={`${word}, ${item.title}, ${where}`} shape="rounded-lg" className="h-[44px] items-center gap-2 pl-1" lead={dot}>
+      <RowShell {...props} data={data} label={`${word}, ${item.title}, ${where}`} shape="rounded-lg" className="h-[44px] items-center gap-1.5 pl-0.5" lead={dot} toolsInline>
         <span className="flex min-w-0 flex-1 flex-col">
           <span aria-hidden="true" className="truncate text-meta font-semibold leading-[18px] text-ink">
             {item.title}
           </span>
-          {why}
+          {whyLine}
         </span>
       </RowShell>
     );
   }
   return (
-    <RowShell {...props} data={data} label={`${word}, ${item.title}, ${where}`} shape="rounded-lg" className="h-[62px] items-start gap-2.5 pb-2.5 pl-1.5 pt-2" lead={dot}>
+    <RowShell {...props} data={data} label={`${word}, ${item.title}, ${where}`} shape="rounded-lg" className="h-[62px] items-start gap-1.5 pb-2.5 pl-0.5 pt-2" lead={dot} toolsInline>
       {/* Three lines, each its own width (the review of 0.1.4: the state
           beside the place cut both to "ai-jug… · T…"): what, why it
           needs you, where. */}
@@ -114,7 +122,7 @@ export function NeedRow({ compact = false, ...props }: RowProps): JSX.Element {
         <span aria-hidden="true" className="truncate text-meta font-semibold leading-[18px] text-ink">
           {item.title}
         </span>
-        {why}
+        {whyLine}
         <RowProject item={item} rest={placeWords(item.place).join(" · ")} />
       </span>
     </RowShell>

@@ -11,6 +11,7 @@ import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { GroupFooter, HeadCounts, RailFooter, idleSummary } from "./rail-more";
 import { PlaceHeader } from "./PlaceHeader";
 import { SessionRow } from "./row/SessionRow";
+import { NeedRow } from "./PlaceRows";
 import { RailSignIns } from "./RailSignIns";
 import { RailOfferRow } from "./PlaceOffers";
 import { SectionHead } from "./PlaceBoardParts";
@@ -220,6 +221,23 @@ describe("AJ-E1554 R1 a rail row's slots hold still under the pointer", () => {
     expect(screen.getByTestId("place-open").className).not.toMatch(swaps);
     expect(screen.getByTestId("place-open").className).toContain("group-hover/head:opacity-100");
     expect(screen.getByTestId("place-open").className).not.toMatch(/\bborder\b/);
+  });
+
+  it("0.5.1 F42: a Needs you row's tools sit at the end of its why line, so its title and where keep the row's whole width", () => {
+    for (const compact of [false, true]) {
+      render(<NeedRow item={asks} selected={false} onSelect={() => {}} now={NOW} compact={compact} />);
+      const end = screen.getByTestId("row-end");
+      const why = screen.getByTestId("need-word");
+      // The box is in the why line, beside its words, never beside every line.
+      expect(end.parentElement).toBe(why.parentElement);
+      expect(end.parentElement!.parentElement!.parentElement).toBe(screen.getByTestId("row-slots"));
+      expect(screen.getByTestId("row-slots").lastElementChild).not.toBe(end);
+      expect(end.querySelector("[aria-haspopup='menu']")).not.toBeNull();
+      // Its tools are reachable: not inside the words hidden from screen readers.
+      expect(end.closest("[aria-hidden='true']")).toBeNull();
+      for (const layer of end.children) expect(layer.className).not.toMatch(swaps);
+      cleanup();
+    }
   });
 
   it("a sign-in row and a running, not added one: fixed slots, nothing on hover, no bright line", () => {

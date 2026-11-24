@@ -13,7 +13,7 @@
  * Labels lead with the state (screen readers hear "Asks you, …" first).
  * Message text never shows here (D-37).
  */
-import type { CSSProperties, JSX, ReactNode } from "react";
+import { createContext, useContext, type CSSProperties, type JSX, type ReactNode } from "react";
 import { useActionHost, useItemMenu } from "../ItemMenu";
 import { ActionIcon } from "../ActionIcon";
 import { DROP, Grip, type Arrangeable } from "../RowTools";
@@ -69,6 +69,11 @@ export interface ShellProps {
    * at rest (its state's word), swapped for its tools on hover and focus. */
   lead?: ReactNode;
   rest?: ReactNode;
+  /** 0.5.1 F42: a row of lines (Needs you's) puts its tools in its own
+   * line's end (`ShellTools`, the line saying why), not in a box beside
+   * every line: the title and the project · App · Account line keep the
+   * row's whole width at rest and under the pointer. */
+  toolsInline?: boolean;
   /** A list of ended rows (Home's): its gutter holds the ⋯ alone. */
   slim?: boolean;
   /** Which menu it has: an ended session's in a list is its history
@@ -98,6 +103,22 @@ const SLOT = "grid shrink-0 items-center [&>*]:col-start-1 [&>*]:row-start-1";
 /** The layer at rest: gone under the pointer or the keyboard. */
 const AT_REST = "transition-opacity group-has-[:focus-visible]:opacity-0 group-hover:opacity-0 motion-reduce:transition-none";
 
+/** The row's tools, for `ShellTools` inside a row of lines (F42). */
+const ToolsContext = createContext<ReactNode>(null);
+
+/** 0.5.1 F42: where a row of lines draws its tools: a fixed box at the end
+ * of the line it sits in (as wide at rest as under the pointer, so nothing
+ * moves), the tools shown on hover and focus. The line is short (why it
+ * needs you), so the box costs the title and the place line nothing. */
+export function ShellTools(): JSX.Element {
+  const tools = useContext(ToolsContext);
+  return (
+    <span className={SLOT + " -my-1 ml-auto justify-items-end"} data-testid="row-end">
+      {tools}
+    </span>
+  );
+}
+
 export function RowShell({
   item,
   selected,
@@ -114,6 +135,7 @@ export function RowShell({
   below,
   lead,
   rest,
+  toolsInline = false,
   slim = false,
   menuKind,
   data,
@@ -138,6 +160,30 @@ export function RowShell({
   const pin = tools ? menu.actions.find((action) => action.id === "pin" && !action.reason) : undefined;
   // A page's row is named as its lists always named it.
   const menuLabel = list ? `Actions for ${item.title}` : `${item.session ? "Session" : "Conversation"} actions for ${item.title}`;
+  // Its tools (the rail's): pin, ↗ and ⋯, shown on hover and focus.
+  const toolsLayer = list ? null : (
+    <span className={"flex items-center [&>*]:pointer-events-auto " + (shown ? "" : ON_HOVER)} data-testid="row-tools">
+      {pin && (
+        <button
+          type="button"
+          aria-label={`Pin ${item.title}`}
+          aria-pressed={item.pinned}
+          title={pin.label}
+          data-testid="row-pin"
+          onClick={(event) => {
+            event.stopPropagation();
+            void pin.run();
+          }}
+          // PAT-SURF: a tool's hover is a tone, never a line.
+          className={"flex size-6 shrink-0 items-center justify-center rounded-md outline-none transition-colors hover:bg-hover hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60 " + (item.pinned ? "text-accent-hi" : "text-muted")}
+        >
+          <ActionIcon name="pin" size={13} />
+        </button>
+      )}
+      {goTo}
+      {menu.button({ label: menuLabel, shown: true })}
+    </span>
+  );
   return (
     <div
       // `tone-host`: hovered or focused, its App's mark is in full colour (D-117).
@@ -192,32 +238,14 @@ export function RowShell({
               <span className={"flex " + (grip ? (grip.dragging ? "opacity-0" : AT_REST) : "")}>{lead}</span>
               {grip && <span className={"pointer-events-auto flex " + (grip.dragging ? "" : ON_HOVER)}><Grip arrange={grip} label={item.title} /></span>}
             </span>
-            {children}
+            <ToolsContext.Provider value={toolsInline ? toolsLayer : null}>{children}</ToolsContext.Provider>
             {/* Its end: the state at rest, its tools under the pointer. */}
-            <span className={SLOT + " justify-items-end"} data-testid="row-end">
-              <span className={"flex items-center gap-2 " + (shown ? "opacity-0" : AT_REST)}>{rest}</span>
-              <span className={"flex items-center [&>*]:pointer-events-auto " + (shown ? "" : ON_HOVER)} data-testid="row-tools">
-                {pin && (
-                  <button
-                    type="button"
-                    aria-label={`Pin ${item.title}`}
-                    aria-pressed={item.pinned}
-                    title={pin.label}
-                    data-testid="row-pin"
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      void pin.run();
-                    }}
-                    // PAT-SURF: a tool's hover is a tone, never a line.
-                    className={"flex size-6 shrink-0 items-center justify-center rounded-md outline-none transition-colors hover:bg-hover hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60 " + (item.pinned ? "text-accent-hi" : "text-muted")}
-                  >
-                    <ActionIcon name="pin" size={13} />
-                  </button>
-                )}
-                {goTo}
-                {menu.button({ label: menuLabel, shown: true })}
+            {!toolsInline && (
+              <span className={SLOT + " justify-items-end"} data-testid="row-end">
+                <span className={"flex items-center gap-2 " + (shown ? "opacity-0" : AT_REST)}>{rest}</span>
+                {toolsLayer}
               </span>
-            </span>
+            )}
           </div>
           {below}
         </>

@@ -3,9 +3,9 @@
   "viewport": "1280x800",
   "results": {
     "home-open-dark": {
-      "cls": 0.0051,
-      "shifts": 1,
-      "worst": "span Claude Code CLI, Claude Code CLI · Perso"
+      "cls": 0.005,
+      "shifts": 2,
+      "worst": "span fake-desktop CLI, fake-desktop CLI · Fak"
     },
     "session-open-sess-1-dark": {
       "cls": 0,
@@ -38,9 +38,9 @@
       "worst": null
     },
     "home-open-light": {
-      "cls": 0.0051,
-      "shifts": 1,
-      "worst": "span Claude Code CLI, Claude Code CLI · Perso"
+      "cls": 0.005,
+      "shifts": 2,
+      "worst": "span fake-desktop CLI, fake-desktop CLI · Fak"
     },
     "session-open-sess-1-light": {
       "cls": 0,
