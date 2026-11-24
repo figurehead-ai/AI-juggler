@@ -541,7 +541,10 @@ function FoundStep({
         </div>
         {listed && !showOutcome && (
           <div className="flex items-center gap-3">
-            <span className="hidden text-xs text-muted md:inline">Names and plans can be changed later.</span>
+            {/* 0.5.1 F45: in the setup wizard's foot (its own width, a
+                container) the note shows only where the row holds it, so the
+                foot keeps one row at 1024 px and Bring in its place. */}
+            <span className={"hidden text-xs text-muted " + (footSlot ? "@min-[50rem]:inline" : "md:inline")} data-testid="first-run-names-note">Names and plans can be changed later.</span>
             <Button
               variant="primary"
               disabled={ticked === 0 || busy}

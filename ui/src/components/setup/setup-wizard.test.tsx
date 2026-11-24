@@ -113,6 +113,9 @@ describe("Mac access", () => {
     });
     await waitFor(() => expect(screen.getByTestId("setup-permission-accessibility").dataset.state).toBe("allowed"));
     expect(screen.getByTestId("setup-permission-accessibility-allowed").textContent).toContain("Allowed");
+    // 0.5.1 F46 (PAT-SURF): Allowed is its ✓ and word; the card keeps the quiet edge every card has.
+    expect(screen.getByTestId("setup-permission-accessibility").className).not.toMatch(/ring-success/);
+    expect(screen.getByTestId("setup-permission-accessibility").className).toBe(screen.getByTestId("setup-permission-screen-recording").className);
     fireEvent.click(screen.getByTestId("setup-permission-screen-recording-skip"));
     expect(screen.getByTestId("setup-permission-screen-recording").dataset.state).toBe("skipped");
     expect(screen.getByTestId("setup-next").textContent).toContain("Next: Meet Bot");
@@ -257,5 +260,34 @@ describe("Keep it running and the tour", () => {
     });
     await waitFor(() => expect(seamOf("__AIJ_LOGIN_ITEM__")).toBe("on"));
     expect(screen.getByTestId("setup-keep-login").getAttribute("aria-checked")).toBe("true");
+  });
+});
+
+describe("0.5.1 F48: a bring-in that needs sign-ins stays on Sign in", () => {
+  it("Your apps → Bring in (separate copies) → Sign in, and it stays there with its sign-ins (it fell back to Your apps)", async () => {
+    const install = (path: string) => ({
+      harness: "claude-code", path, origin: "manager-tool", login: "logged_in", bytes: 1000, last_used_secs: Math.floor(Date.now() / 1000) - 60, managed: false, notes: [], signals: ["manager-tool"],
+      inference: { purpose: "Main", purpose_confidence: "likely", login: "signed-in", login_confidence: "found", activity: "active", activity_confidence: "found", activity_words: "Active this week", keychain_bound: false },
+    });
+    seam("__AIJ_SCAN_REPORT__", { installs: [install("/Users/someone/.claude"), install("/Users/someone/Library/Application Support/ClaudeCodeProfiles/work")], probes: [], seeds: [], desktop_apps: [], cancelled: false });
+    seam("__AIJ_OS_PROMPTS__", [prompt("accessibility", "not_asked")]);
+    render(<SetupWizard openLoginTerminal={() => {}} onClose={() => {}} />);
+    await screen.findByTestId("first-run-found");
+    const fold = document.querySelector<HTMLButtonElement>("[data-testid=first-run-more-options] button[aria-expanded=false]");
+    if (fold) fireEvent.click(fold);
+    fireEvent.click(within(screen.getByTestId("first-run-placement-copy")).getByRole("radio"));
+    await act(async () => {
+      fireEvent.click(screen.getByTestId("first-run-bring-in"));
+    });
+    await screen.findByTestId("first-run-signin");
+    await waitFor(() => expect(screen.getByTestId("setup-wizard").dataset.step).toBe("signin"));
+    await act(async () => {
+      await new Promise((done) => setTimeout(done, 50));
+    });
+    expect(screen.getByTestId("setup-wizard").dataset.step).toBe("signin");
+    expect(screen.getAllByTestId("first-run-signin-row").length).toBeGreaterThan(0);
+    // Sign in later: on to Mac access.
+    fireEvent.click(screen.getByTestId("first-run-signin-next"));
+    await waitFor(() => expect(screen.getByTestId("setup-wizard").dataset.step).toBe("access"));
   });
 });

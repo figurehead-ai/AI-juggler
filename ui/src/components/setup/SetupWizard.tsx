@@ -199,7 +199,7 @@ export function SetupWizard({
             disabled: busy,
             testId: "setup-skip",
           }}
-          middle={<div ref={setFootSlot} className="flex min-w-0 flex-1 px-2" data-testid="setup-foot-slot" />}
+          middle={<div ref={setFootSlot} className="@container flex min-w-0 flex-1 px-2" data-testid="setup-foot-slot" />}
         />
       );
     }
@@ -254,7 +254,10 @@ export function SetupWizard({
         foot={foot}
         testId="setup-flow"
       >
-        <div key={at} ref={focusTitle} className="flex flex-col gap-6">
+        {/* A new page opens fresh, but Your apps and Sign in are first
+            run's one flow (0.5.1 F48): keyed apart, moving to Sign in
+            remounted it and dropped its sign-ins, back on Your apps. */}
+        <div key={at === "signin" ? "apps" : at} ref={focusTitle} className="flex flex-col gap-6">
           <div className="flex flex-col gap-1.5">
             <p className="section-label text-accent-hi" data-testid="setup-eyebrow">
               {eyebrow(steps, at)}

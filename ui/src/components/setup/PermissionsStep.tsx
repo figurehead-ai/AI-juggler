@@ -59,7 +59,9 @@ function PromptCard({ prompt, onAllow }: { prompt: OsPromptInfo; onAllow: () => 
   const Icon = ICONS[prompt.id] ?? (prompt.id.startsWith("automation") ? IconGoTo : IconShield);
   const clip = permissionClip(prompt.id);
   return (
-    <li className={"flex flex-col gap-4 rounded-[14px] bg-surface p-5 inset-ring-1 " + (allowed ? "inset-ring-success/40" : "inset-ring-hairline")} data-testid={`setup-permission-${prompt.id}`} data-state={allowed ? "allowed" : skipped ? "skipped" : prompt.status}>
+    // 0.5.1 F46 (PAT-SURF): every card the same quiet edge; Allowed is its
+    // ✓ and word, never a green ring.
+    <li className="flex flex-col gap-4 rounded-[14px] bg-surface p-5 inset-ring-1 inset-ring-hairline" data-testid={`setup-permission-${prompt.id}`} data-state={allowed ? "allowed" : skipped ? "skipped" : prompt.status}>
       <div className="flex flex-wrap items-start gap-3">
         <span aria-hidden="true" className={"flex size-9 shrink-0 items-center justify-center rounded-[10px] " + (allowed ? "bg-accent-soft text-accent-hi" : "bg-surface-3 text-ink-2")}>
           <Icon width={18} height={18} />
