@@ -22,6 +22,7 @@ fn every_entry_is_complete_with_a_short_stable_id() {
             ("title", entry.title),
             ("why", entry.why),
             ("if_declined", entry.if_declined),
+            ("offered_again", entry.offered_again),
             ("background", entry.background),
         ] {
             assert!(!text.trim().is_empty(), "{id}: {what} is empty");
@@ -162,4 +163,33 @@ fn not_now_without_a_window_asks_nothing() {
     let outcome = prime_call(&state, entry, juggler_platform::os_prompt::user()).unwrap();
     assert_eq!(outcome.result, "not_now");
     assert!(outcome.words.contains("ask again"), "{}", outcome.words);
+}
+
+/// 0.5.1 F28: after Not now the sheet says where (or when) it's offered
+/// again: one sentence, a Settings place or the next use that asks.
+#[test]
+fn not_now_says_where_it_is_offered_again() {
+    for entry in registry::ENTRIES.iter().filter(|entry| !entry.never_shown) {
+        let again = entry.offered_again;
+        assert!(again.ends_with('.'), "{}: one sentence", entry.prompt.id);
+        assert!(
+            again.contains("Settings ›")
+                || again.starts_with("It asks again the next time")
+                || again.starts_with("Open the app yourself"),
+            "{}: a place in Settings or the next use that asks: {again}",
+            entry.prompt.id
+        );
+    }
+    assert!(
+        registry::entry("notifications")
+            .unwrap()
+            .offered_again
+            .contains("Settings › Notifications")
+    );
+    assert!(
+        registry::entry("helper")
+            .unwrap()
+            .offered_again
+            .contains("Settings › AI › Models")
+    );
 }

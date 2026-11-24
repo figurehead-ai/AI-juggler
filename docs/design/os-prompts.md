@@ -13,6 +13,7 @@ How the gate keeps the usability answers (PAT-USE, AJ-E1547 (6)):
 
 - No sheet with no dialog after it: an entry the system already decided (allowed, or not allowed) gets no sheet; the call is made (it can't ask) and the outcome said.
 - Not now is never a decline for good: it primes nothing, and the next click asks again.
+- Not now is said, never silent (0.5.1 F28): the sheet stays with its outcome, "Nothing was asked.", the entry's "If declined" and where (or when) it's offered again (the registry's `offered_again`: a Settings place, or the next use that asks), with Done.
 - The same sheet never shows twice: an entry is primed once (setup's card or the sheet's Continue); several calls waiting on one entry share one sheet.
 - No dialog without a sheet first: every asking call is in the gate (the lint), and background work waits.
 

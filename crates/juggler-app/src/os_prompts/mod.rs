@@ -56,6 +56,8 @@ pub struct OsPromptInfo {
     pub click: String,
     /// What happens if the user declines.
     pub if_declined: String,
+    /// After Not now: where (or when) it's offered again, one sentence.
+    pub offered_again: String,
     /// This setup can use it (D-127: only these are offered).
     pub needed: bool,
     /// `allowed` | `not_allowed` | `not_asked` | `asked` (the system
@@ -349,6 +351,7 @@ pub fn info(state: &Arc<AppState>, entry: &Entry) -> OsPromptInfo {
             .as_ref()
             .map_or_else(String::new, |dialog| click_words(dialog.click, place)),
         if_declined: entry.if_declined.to_owned(),
+        offered_again: entry.offered_again.to_owned(),
         needed: !entry.never_shown && (entry.needed)(state),
         status: status_of(state, entry.prompt).as_str().to_owned(),
         primed: os_prompt::gate().primed(entry.prompt.id),

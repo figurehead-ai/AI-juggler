@@ -30,6 +30,7 @@ const prompt = (id: string, status: string, over: Partial<OsPromptInfo> = {}): O
   system_says: "“AI Juggler” would like to control this computer.",
   click: "Open System Settings",
   if_declined: "Opening a session still brings its app forward.",
+  offered_again: "You can turn this on later in Settings › Desktop apps.",
   needed: true,
   status,
   primed: false,

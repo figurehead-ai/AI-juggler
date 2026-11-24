@@ -3,7 +3,9 @@
  * now ask…", why, a picture of the dialog, which button to click and what
  * happens if the user declines; Continue and Not now. After Continue it
  * waits while the system's dialog is up, then says the outcome: allowed,
- * or not with where to change it later.
+ * or not with where to change it later. After Not now it says that too
+ * (0.5.1 F28): nothing was asked, what still works, and where it's
+ * offered again; Done (or Esc) closes it.
  *
  * Rich mode (DESIGN-SYSTEM §4.2, DLG-1): the one dialog frame, sticky
  * header and footer, the body the only part that scrolls. Not now is the
@@ -24,8 +26,20 @@ import { onOsPromptAsk, onOsPromptOutcome, osPromptAnswer, type OsPromptInfo, ty
 /** Where the sheet is: asking, waiting on the system's dialog, or done. */
 export type SheetPhase = { kind: "ask" } | { kind: "waiting" } | { kind: "done"; outcome: OsPromptOutcomeInfo };
 
+/** What Not now comes to (0.5.1 F28): nothing asked, what still works,
+ * and where (or when) it's offered again. The next click asks again. */
+export function notNowOutcome(prompt: OsPromptInfo): OsPromptOutcomeInfo {
+  return {
+    id: prompt.id,
+    result: "not_now",
+    status: prompt.status,
+    words: ["Nothing was asked.", prompt.if_declined, prompt.offered_again].filter((part) => part.trim() !== "").join(" "),
+  };
+}
+
 /** The sheet's heading for each phase. */
 export function sheetTitle(prompt: OsPromptInfo, phase: SheetPhase): string {
+  if (phase.kind === "done" && phase.outcome.result === "not_now") return `${prompt.title}: not now`;
   if (phase.kind === "done") return phase.outcome.status === "allowed" ? `${prompt.title}: allowed` : prompt.title;
   if (phase.kind === "waiting") return `Answer ${SYSTEM_NAME}'s dialog`;
   return `${SYSTEM_NAME} will now ask`;
@@ -103,7 +117,12 @@ export function OsPromptSheet({
         footer={footer}
       >
         {phase.kind === "done" ? (
-          <p className="text-sm leading-relaxed text-ink" data-testid="os-prompt-outcome" data-status={phase.outcome.status}>
+          <p
+            className="text-sm leading-relaxed text-ink"
+            data-testid="os-prompt-outcome"
+            data-status={phase.outcome.status}
+            data-result={phase.outcome.result}
+          >
             {phase.outcome.words}
           </p>
         ) : (
@@ -147,7 +166,7 @@ export function OsPromptHost(): JSX.Element | null {
   if (!open) return null;
   const answer = (go: boolean) => {
     void osPromptAnswer(open.prompt.id, go);
-    setOpen(go ? { ...open, phase: { kind: "waiting" } } : null);
+    setOpen({ ...open, phase: go ? { kind: "waiting" } : { kind: "done", outcome: notNowOutcome(open.prompt) } });
   };
   return <OsPromptSheet prompt={open.prompt} phase={open.phase} onContinue={() => answer(true)} onNotNow={() => answer(false)} onDone={() => setOpen(null)} />;
 }

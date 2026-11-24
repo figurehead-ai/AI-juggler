@@ -30,6 +30,10 @@ click: string,
  */
 if_declined: string, 
 /**
+ * After Not now: where (or when) it's offered again, one sentence.
+ */
+offered_again: string, 
+/**
  * This setup can use it (D-127: only these are offered).
  */
 needed: boolean, 

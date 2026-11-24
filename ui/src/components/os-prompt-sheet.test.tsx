@@ -2,12 +2,12 @@
  * AJ-E1547 (PAT-OSP-3): the sheet before a system prompt. The gate asks
  * (`os-prompt://ask`), the sheet says what the system will show and what
  * to click; Continue answers yes and waits, then the outcome is said;
- * Not now (or Esc) answers no and nothing else; the same entry asked
- * twice is one sheet.
+ * Not now (or Esc) answers no, asks nothing else and says so, with where
+ * it's offered again (0.5.1 F28); the same entry asked twice is one sheet.
  */
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { OsPromptHost, OsPromptSheet, sheetTitle } from "./OsPromptSheet";
+import { notNowOutcome, OsPromptHost, OsPromptSheet, sheetTitle } from "./OsPromptSheet";
 import type { OsPromptInfo, OsPromptOutcomeInfo } from "../lib/ipc/os-prompts";
 
 const handlers: { ask?: (prompt: OsPromptInfo) => void; told?: (outcome: OsPromptOutcomeInfo) => void } = {};
@@ -38,6 +38,7 @@ const accessibility: OsPromptInfo = {
   system_says: "“AI Juggler” would like to control this computer using accessibility features.",
   click: "Click Open System Settings, then turn on AI Juggler in System Settings › Privacy & Security › Accessibility.",
   if_declined: "Opening a session still brings its app forward; you pick the window yourself.",
+  offered_again: "You can turn this on later in Settings › Desktop apps.",
   needed: true,
   status: "not_asked",
   primed: false,
@@ -103,6 +104,7 @@ describe("the sheet before a system prompt", () => {
     await asked();
     fireEvent.click(screen.getByTestId("os-prompt-not-now"));
     expect(answers).toEqual([["accessibility", false]]);
+    fireEvent.click(screen.getByTestId("os-prompt-done"));
     expect(screen.queryByTestId("os-prompt-sheet")).toBeNull();
     act(() => handlers.ask?.(accessibility));
     fireEvent.keyDown(window, { key: "Escape" });
@@ -110,6 +112,31 @@ describe("the sheet before a system prompt", () => {
       ["accessibility", false],
       ["accessibility", false],
     ]);
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(screen.queryByTestId("os-prompt-sheet")).toBeNull();
+    expect(answers).toHaveLength(2);
+  });
+
+  it("after Not now says the outcome and where it's offered again (0.5.1 F28)", async () => {
+    await asked();
+    fireEvent.click(screen.getByTestId("os-prompt-not-now"));
+    expect(screen.getByRole("heading").textContent).toBe("Jump to a session's own window: not now");
+    const outcome = screen.getByTestId("os-prompt-outcome");
+    expect(outcome.dataset.result).toBe("not_now");
+    expect(outcome.textContent).toBe(
+      "Nothing was asked. Opening a session still brings its app forward; you pick the window yourself. You can turn this on later in Settings › Desktop apps.",
+    );
+    // The calm way out has focus; nothing else is offered.
+    expect(document.activeElement).toBe(screen.getByTestId("os-prompt-done"));
+    expect(screen.queryByTestId("os-prompt-continue")).toBeNull();
+    expect(answers).toEqual([["accessibility", false]]);
+  });
+
+  it("words Not now for an entry offered again on its next use", () => {
+    const terminal = { ...accessibility, id: "automation-terminal", if_declined: "Terminal comes forward; you pick the tab yourself.", offered_again: "It asks again the next time you open a session that runs in Terminal." };
+    expect(notNowOutcome(terminal).words).toBe(
+      "Nothing was asked. Terminal comes forward; you pick the tab yourself. It asks again the next time you open a session that runs in Terminal.",
+    );
   });
 
   it("puts Not now first in focus, the calm choice", async () => {
