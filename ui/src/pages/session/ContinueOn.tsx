@@ -3,12 +3,10 @@
  * accounts with their profiles beneath, of every tool, how much each has
  * left, the move's badge and a one-line check of what the profile lacks.
  * A profile on the session's own account gives no new room (one runway),
- * so it isn't offered. The click opens the switch screen and its checks
- * (AJ-E1542/1543), never a copy of them. The same for a session AI
- * Juggler runs and one another app runs: that one is read, never touched,
- * and continues on the other account, on Desktop or the CLI, while it
- * stays open in its app.
- * 0.3: Save handover… at its foot, ending with Reveal in Finder.
+ * so it isn't offered. The click opens the switch screen (AJ-E1542/1543).
+ * Another app's session is read, never touched, and continues on the
+ * other account while it stays open in its app. 0.3: Save handover… at
+ * its foot. F40: the dialog's "Now in" is its App by id (ADR-0032).
  * D-103.3: reading an ended session stays quiet. The card is folded, as
  * a terminal session's is: its account's notice one quiet line under its
  * title, and the search for room starts only when the user opens it (or
@@ -31,6 +29,7 @@ import { switchSetupCheck, type SetupCheckInfo } from "../../lib/ipc/switchSetup
 import { NOT_SIGNED_IN, rankTargets, roomless, signInWords, type RoomTarget, type TargetRoom } from "../../lib/room-targets";
 import { accountNamesApart, accountOfProfile, type SubscriptionInfo } from "../../lib/subscriptions";
 import { appWords, sessionAppName, type SessionModel } from "./model";
+import { useSessionApp } from "./AccountMenu";
 import { targetApp, useTargetApp, type FolderTarget, type TargetApp } from "../../lib/apps";
 import type { RailPlace } from "../../lib/rail-items";
 import { CardTitle } from "./CardTitle";
@@ -237,6 +236,7 @@ export function ContinueOn({
   const pick = onPick && ((recipeId: string, label: string, placeId: string | null) => (setDialog(false), onPick(recipeId, label, placeId)));
   // Where the original stays, for a session another app runs.
   const app = appWords(model.places[0], model.tool);
+  const nowIn = useSessionApp(model).name;
   const list = (
     <>
     {switchBack && onSwitchBack && (
@@ -310,7 +310,7 @@ export function ContinueOn({
           another app runs is only read for it). */}
       <SaveHandover sessionId={source} />
       {dialog && (
-        <ContinueDialog title="Switch account" detail={`Now in ${sessionAppName(model)}`} onClose={() => setDialog(false)}>
+        <ContinueDialog title="Switch account" detail={`Now in ${nowIn}`} onClose={() => setDialog(false)}>
           {list}
         </ContinueDialog>
       )}
