@@ -3835,3 +3835,11 @@ Every session and agent brief carries this rule.
 - **Tests:** an untouched clone frees 0; after an append it frees what was appended (rounded to blocks); a non-APFS volume or a failing call falls back to the "up to" ceiling and its wording, never an error and never a wrong exact number.
 - **Not changed:** the crate stays `deny(unsafe_code)`; every other seam is safe bindings. Windows and Linux use their own safe measures.
 - Sources: the coordinating session's message, 2026-11-23, quoting the maintainer's pick; AJ-E2325's builder's probe on this Mac (0 for an untouched clone, 8 KiB after an append).
+
+### D-147 A move's resume and Write after a move are proven on the maintainer's first real move; the lab closes R6(a) on what it can prove live, and never gets a keychain — SETTLED (2026-11-24)
+
+- **Ruling** (the maintainer, through the coordinating session, 2026-11-24, choosing "Ship; prove on first real move (Recommended)"): AJ-E2323 R6(a)'s resume and Write in the moved session (PL1 I7/I8) close on the live lab proof plus the unit and matrix tests. The live lab proof is the claim on the target on its real branch (I6), and 0 "was recycled", 0 worktree-write-guard and 0 reaped lines in the Claude app's log across the move and the real restart (I5).
+- **Why the lab can't do it:** a lab profile's Claude app runs with the lab HOME, which has no login keychain, so a Claude sign-in there can't store its key, and the move's restart raised macOS's "Keychain Not Found" (F39, a lab artefact). A Dev on a lab HOME sees only the lab's processes (ADR-0027), so the real `aij-test` can't be a target either.
+- **Follow-up:** the maintainer's first real Move or Repair ownership after 0.5.1 ships is the final check; the coordinating session reads its Claude-app log lines (recycled, write-guard, reaped) with the maintainer. R6(b), the source's cleanup sweep (I9), is covered by `claude_move_matrix`'s sweep case, with the same follow-up.
+- **Never:** a keychain is never created in a lab (`security create-keychain` can change the user's keychain search list); the lab sign-in request is withdrawn.
+- Sources: the coordinating session's message, 2026-11-24, quoting the maintainer's pick.
