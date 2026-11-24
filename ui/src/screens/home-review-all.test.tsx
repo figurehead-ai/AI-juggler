@@ -14,6 +14,7 @@ import type { SessionRowInfo, SessionsQuery } from "../lib/ipc/sessions";
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import type { AccountInfo } from "../types/generated/AccountInfo";
 import { account, instance } from "../test/fixtures";
+import { feedItem } from "../preview/feed";
 
 vi.mock("../lib/bridge", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../lib/bridge")>()),
@@ -69,6 +70,7 @@ beforeEach(() => {
 });
 afterEach(() => {
   cleanup();
+  Reflect.deleteProperty(window, "__AIJ_FEED__");
   forgetPaged();
   forgetReviewCount();
   resetToasts();
@@ -78,8 +80,10 @@ afterEach(() => {
   undone.length = 0;
 });
 
-/** The app holds 5 of them (its working set). */
+/** The app holds 5 of them (its working set); the feed shows one that
+ * finished (0.5.1 F56: an empty feed has no filters to reach). */
 function home(onChanged = vi.fn()) {
+  Reflect.set(window, "__AIJ_FEED__", [feedItem({ id: "l:e-0", at_ms: NOW - 300_000, kind: "finished", category: "finished", level: 1, subject: "Ended one", target: { session_id: "e-0" } })]);
   return render(
     <ConversationsProvider>
       <HomeScreen sessions={Array.from({ length: 5 }, (_, n) => ended(n))} accounts={ACCOUNTS} projects={[]} now={NOW} onOpenSession={vi.fn()} onNewSession={vi.fn()} onAddAccounts={vi.fn()} onChanged={onChanged} />
@@ -90,6 +94,7 @@ function home(onChanged = vi.fn()) {
 /** 0.5 (D-118): what to pick up is in the feed; Mark all reviewed is in
  * the Finished filter's ⋯ menu. */
 async function reviewAll(): Promise<HTMLElement> {
+  await screen.findAllByTestId("feed-card");
   fireEvent.click(await screen.findByRole("radio", { name: "Finished" }));
   fireEvent.click(screen.getByTestId("feed-more"));
   return screen.findByTestId("feed-review-all");
