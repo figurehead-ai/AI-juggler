@@ -251,6 +251,106 @@ fn a_profile_in_the_temporary_folder_is_never_remembered() {
     assert!(with_book(&state, |book| book.places.is_empty()).unwrap());
 }
 
+/// F18 (0.5.1 PL1): a run whose home is under the temporary folder (a
+/// lab's HOME, `/tmp/aij-lab…`) found none of its own running profiles:
+/// every one is under `/tmp` too, so the rule above dropped them, and the
+/// wizard, the rail's "Running, not added" and Settings had nothing to
+/// offer. A profile inside the run's own home is its user's: offered
+/// (D-84: never added by itself). One outside it still isn't remembered.
+#[test]
+fn a_profile_inside_a_temporary_home_is_offered() {
+    let root = tempfile::tempdir().unwrap();
+    let state = state(root.path());
+    let home = state.places.home();
+    let profiles = home.join("Library/Application Support/ClaudeProfiles");
+    let work = profiles.join("work");
+    let personal = profiles.join("personal");
+    let outside = root.path().join("Lab Claude profile");
+    for dir in [&work, &personal, &outside] {
+        std::fs::create_dir_all(dir).unwrap();
+    }
+    assert!(juggler_core::storage::in_temporary_folder(
+        home.to_str().unwrap()
+    ));
+    let at = |dir: &Path, pid: u32| RunningApp {
+        pid,
+        ..claude_in(root.path(), dir)
+    };
+    observe(
+        &state,
+        &[at(&work, 4242), at(&personal, 4243), at(&outside, 4244)],
+        &[],
+    );
+    let mut ids: Vec<String> = offers_of(&state).into_iter().map(|(id, _)| id).collect();
+    ids.sort();
+    let mut expected = vec![
+        book::place_id("claude-app", Some(&personal)),
+        book::place_id("claude-app", Some(&work)),
+    ];
+    expected.sort();
+    assert_eq!(ids, expected, "both lab profiles, not the one outside home");
+    let (places, apps) = listed(&state);
+    assert!(places.is_empty() && apps.is_empty(), "offered, never added");
+}
+
+/// F19 (0.5.1 PL1 D2–D6): Remove (Forget) of a running App brings it
+/// back as an offer at the next look, so every Add (the rail's "Running,
+/// not added", Settings › Desktop apps' Found on this computer, the
+/// wizard's rows, ⌘K's Find my apps) can add it again.
+#[test]
+fn a_removed_running_profile_is_offered_again() {
+    let root = tempfile::tempdir().unwrap();
+    let state = state(root.path());
+    let work = state
+        .places
+        .home()
+        .join("Library/Application Support/ClaudeProfiles/work");
+    std::fs::create_dir_all(&work).unwrap();
+    let running = [claude_in(root.path(), &work)];
+    observe(&state, &running, &[]);
+    let id = book::place_id("claude-app", Some(&work));
+    answer_offer(&state, &id, true).unwrap();
+    assert!(listed(&state).1.contains(&id), "added");
+    assert!(offers_of(&state).is_empty());
+
+    forget(&state, &id).unwrap();
+    assert!(!listed(&state).1.contains(&id), "removed");
+    observe(&state, &running, &[]);
+    let offered: Vec<String> = offers_of(&state).into_iter().map(|(id, _)| id).collect();
+    assert_eq!(offered, [id.clone()], "offered again while it runs");
+    answer_offer(&state, &id, true).unwrap();
+    assert!(listed(&state).1.contains(&id), "added again");
+}
+
+#[test]
+fn temporary_not_home_spares_only_the_runs_own_home() {
+    let lab = Path::new("/tmp/aij-lab-x");
+    let profile = Path::new("/tmp/aij-lab-x/Library/Application Support/ClaudeProfiles/work");
+    assert!(!book::temporary_not_home(profile, lab));
+    // Spelled through /private, either way round.
+    assert!(!book::temporary_not_home(
+        Path::new("/private/tmp/aij-lab-x/p"),
+        Path::new("/private/tmp/aij-lab-x")
+    ));
+    // Another lab's (`aij-lab-x1` isn't inside `aij-lab-x`), an installer's.
+    assert!(book::temporary_not_home(
+        Path::new("/tmp/aij-lab-x1/p"),
+        lab
+    ));
+    assert!(book::temporary_not_home(
+        Path::new("/private/var/folders/ab/T/installer/p"),
+        lab
+    ));
+    // The user's own home: nothing under /tmp is theirs.
+    let home = Path::new("/Users/someone");
+    assert!(book::temporary_not_home(profile, home));
+    assert!(!book::temporary_not_home(
+        Path::new("/Users/someone/Library/Application Support/Claude"),
+        home
+    ));
+    assert!(book::temporary_not_home(profile, Path::new("")));
+}
+
 #[test]
 fn a_reused_pid_is_not_the_app() {
     let exe = PathBuf::from("/Applications/Claude.app/Contents/MacOS/Claude");

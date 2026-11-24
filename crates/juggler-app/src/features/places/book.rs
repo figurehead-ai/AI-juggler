@@ -145,6 +145,27 @@ pub fn place_id(app_id: &str, instance_dir: Option<&Path>) -> String {
     )
 }
 
+/// Whether the instance folder `dir` is under the system's temporary
+/// folder and not inside `home` (this run's home): a test's or an
+/// installer's profile, never remembered (D-84). A profile inside the
+/// run's own home is its user's even there (a lab's HOME is
+/// `/tmp/aij-lab…`, ADR-0027), however either path is spelled
+/// (`/tmp` is `/private/tmp`).
+#[must_use]
+pub fn temporary_not_home(dir: &Path, home: &Path) -> bool {
+    use juggler_platform::real_path::{canonical, lexical};
+    let temporary = |path: &Path| {
+        path.to_str()
+            .is_some_and(juggler_core::storage::in_temporary_folder)
+    };
+    if !temporary(dir) && !temporary(&canonical(dir)) {
+        return false;
+    }
+    let in_home = !home.as_os_str().is_empty()
+        && (lexical(dir).starts_with(lexical(home)) || canonical(dir).starts_with(canonical(home)));
+    !in_home
+}
+
 /// `tool/id`: how a session is remembered.
 #[must_use]
 pub fn conversation_key(tool: &str, id: &str) -> String {
@@ -189,11 +210,13 @@ impl Book {
         for app in running {
             // D-84: a test's or an installer's profile under the system's
             // temporary folder is never remembered (one was, as an App).
+            // F18 (0.5.1 PL1): one inside this run's own home is the
+            // user's, though: a lab's HOME is under `/tmp`, and its running
+            // profiles were never found.
             if app
                 .instance
                 .as_deref()
-                .and_then(Path::to_str)
-                .is_some_and(juggler_core::storage::in_temporary_folder)
+                .is_some_and(|dir| temporary_not_home(dir, home))
             {
                 continue;
             }
