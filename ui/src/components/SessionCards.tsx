@@ -26,7 +26,7 @@ import {
   ageSummary,
   type StateChipTone,
 } from "./indicator";
-import { QuotaBar, Sparkline } from "./primitives";
+import { QuotaBar, Sparkline, WARNING_CHIP } from "./primitives";
 import { RowDetails } from "./row-details";
 import { memorySize } from "../lib/compact";
 import { ProfileBadge } from "./ProfileBadge";
@@ -37,7 +37,8 @@ import { SELECTED_FILL } from "./controls/selected";
 export const chipToneClasses: Record<StateChipTone, string> = {
   neutral: "bg-surface-2 text-muted border-hairline",
   success: "bg-success-soft text-success border-success/25",
-  warning: "bg-warning-soft text-warning border-warning/25",
+  // 0.5.1 F76: the kit's one warning chip (no amber behind words).
+  warning: `${WARNING_CHIP} border-hairline`,
   danger: "bg-danger-soft text-danger border-danger/25",
   live: "bg-live-soft text-live border-live/25",
   accent: "bg-accent-soft text-accent-hi border-transparent",

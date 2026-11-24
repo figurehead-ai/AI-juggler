@@ -10,6 +10,7 @@
  */
 import { memo, type JSX } from "react";
 import { ToolMark } from "../../components/ToolMark";
+import { WARNING_CHIP } from "../../components/primitives";
 import type { TurnInfo } from "../../lib/ipc/conversations";
 import { agoWords } from "../../lib/time-words";
 import { Markdown } from "./Markdown";
@@ -59,7 +60,7 @@ function TurnView({ turn, tool, speaker, layout, asks, asker, startedMs, working
         </span>
         <span className="text-body font-semibold text-ink">{speaker}</span>
         {asks && (
-          <span className="rounded-full bg-warning-soft px-2 py-0.5 text-label font-semibold text-warning" data-testid="last-turn-asks">
+          <span className={"rounded-full px-2 py-0.5 text-label font-semibold " + WARNING_CHIP} data-testid="last-turn-asks">
             asks you
           </span>
         )}

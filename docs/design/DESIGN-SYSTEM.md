@@ -696,7 +696,7 @@ The maintainer's amendment to AJ-E1550 (2026-11-23): "You keep going from one ex
 | Hue | Means | Soft step (calm: a tint and words) | Strong step (attention: a bar, a fill that must be seen) |
 |---|---|---|---|
 | Red | Out, blocked, failed | `danger-soft` + `danger` words | `danger-strong` (`#db2943` dark, `#c50031` light) |
-| Amber | Needs you, running low | `warning-soft` + `warning` words | `warning-strong` (`#d37e01`, `#b46d10`) |
+| Amber | Needs you, running low | `warning` words and their mark on the neutral tone (`surface-2`): never `warning-soft` behind words (0.5.1 F76; the kit's one warning chip, `WARNING_CHIP`) | `warning-strong` (`#d37e01`, `#b46d10`) |
 | Green | Healthy, done, ready, signed in | `success-soft` + `success` words | `success-strong` (`#09af51`, `#006e30`) |
 | Teal | Working, live, activity | `live-soft` + `live` words | `live-strong` (`#059eb1`, `#028f95`) |
 | Brand violet | Primary actions, selection's accent, navigation, focus | `accent-soft` + `accent-hi` words | `accent-fill` (the one primary) |
@@ -721,7 +721,7 @@ The soft and the text colours are the AA tokens of §3.1 (4.5:1 on every surface
 
 **Rules:**
 - **PAT-COLOR-1.** Each hue above has one meaning, on every screen. A status colour is drawn only through its semantic tokens (`danger`, `warning`, `success`, `live`, `accent`, their `-soft` and `-strong`), never a raw palette colour.
-- **PAT-COLOR-2.** Calm states use the soft step; what needs attention uses the strong step. Amber is never a fill behind words (COL-5); its strong step is a bar or a mark.
+- **PAT-COLOR-2.** Calm states use the soft step; what needs attention uses the strong step. Amber is never a fill behind words (COL-5); its strong step is a bar or a mark. A chip, pill or tag that says a warning is the neutral chip's tone with amber words and their mark (`WARNING_CHIP` in `primitives.tsx`, the one source: Chip, Pill, the session header's state, the room chip, a figure's change).
 - **PAT-COLOR-3.** Identity colours only on small identity marks, never for state; each use outside the marks' own components is listed and reviewed.
 - **PAT-COLOR-4.** App icons are never desaturated or faded; state is the dot, the words and the order.
 - **PAT-COLOR-5.** Colour never alone: every status hue goes with its word or glyph (TAG-3, WCAG 1.4.1).

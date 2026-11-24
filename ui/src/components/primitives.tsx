@@ -108,10 +108,17 @@ export type ChipTone =
   | "live"
   | "accent";
 
+/** 0.5.1 F76 (PAT-COLOR-2, COL-5): amber is never a fill behind words.
+ * A warning chip is the neutral chip's tone with its words, and the mark
+ * they carry (⚠, ▲, its dot), in amber. Every chip, pill and tag that
+ * says a warning takes its look from here: Chip, Pill, the session
+ * header's state, the room chip, a figure's change. */
+export const WARNING_CHIP = "bg-surface-2 text-warning";
+
 const chipTones: Record<ChipTone, string> = {
   neutral: "bg-surface-2 text-muted border-frame",
   success: "bg-success-soft text-success border-frame",
-  warning: "bg-warning-soft text-warning border-frame",
+  warning: `${WARNING_CHIP} border-frame`,
   danger: "bg-danger-soft text-danger border-frame",
   live: "bg-live-soft text-live border-frame",
   accent: "bg-accent-soft text-accent-hi border-frame",

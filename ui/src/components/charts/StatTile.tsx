@@ -8,6 +8,7 @@ import type { JSX, ReactNode } from "react";
 import { useLoadDeadline, type LoadState } from "../../lib/loading";
 import { LoadingState } from "../LoadingState";
 import { change, exact, short, type Unit } from "./scale";
+import { WARNING_CHIP } from "../primitives";
 
 /** A tiny trend line: an area wash, a 2 px line, the newest point marked. */
 export function Sparkline({ values, label, color = "var(--color-accent)", height = 36 }: { values: number[]; label: string; color?: string; height?: number }): JSX.Element {
@@ -37,7 +38,7 @@ export type Better = "up" | "down" | "neither";
 export function Delta({ now, before, better, period }: { now: number; before: number; better: Better; period: string }): JSX.Element {
   const { dir, words } = change(now, before);
   const good = better === "neither" || dir === "same" || dir === "new" ? null : (dir === "up") === (better === "up");
-  const tone = good === null ? "bg-surface-2 text-muted" : good ? "bg-success-soft text-success" : "bg-warning-soft text-warning";
+  const tone = good === null ? "bg-surface-2 text-muted" : good ? "bg-success-soft text-success" : WARNING_CHIP; // 0.5.1 F76: no amber behind words
   const arrow = dir === "up" ? "▲" : dir === "down" ? "▼" : "•";
   const said = dir === "same" ? `the same as ${period}` : dir === "new" ? `none ${period}` : `${dir} ${words} on ${period}`;
   return (

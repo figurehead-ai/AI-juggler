@@ -8,6 +8,7 @@
  */
 import type { JSX } from "react";
 import { IconGaugeEmpty, IconGaugeLow } from "./icons";
+import { WARNING_CHIP } from "./primitives";
 import type { RoomMark } from "../lib/room-mark";
 import { READINGS_EVERY_MS, useQuotaDisplays } from "../lib/kept-reads";
 import { useSubscriptions } from "../lib/subscriptions";
@@ -21,7 +22,8 @@ import type { InstanceInfo } from "../types/generated/InstanceInfo";
 // level's colour (AA), with its icon; no edge (Increase Contrast's frame).
 const TONE: Record<RoomMark["kind"], string> = {
   out: "border-frame bg-danger-soft text-danger",
-  low: "border-frame bg-warning-soft text-warning",
+  // 0.5.1 F76: the kit's one warning chip (no amber behind words).
+  low: `border-frame ${WARNING_CHIP}`,
 };
 
 export function RoomChip({ mark, size = "sm", compact = false, iconOnly = false, brief = false, testId = "room-chip" }: { mark: RoomMark | null; size?: "sm" | "md"; compact?: boolean; iconOnly?: boolean; /** Its icon and short word ("Out"): when it resets is said beside it (Home's runway line, F43). */ brief?: boolean; testId?: string }): JSX.Element | null {
