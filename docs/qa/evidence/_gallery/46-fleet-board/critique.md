@@ -1,4 +1,4 @@
-<!-- captures: 52afa20aee04 -->
+<!-- captures: 055840d3fe8d -->
 # 46-fleet-board: Home with other Macs in view: the remote limit banner, the View menu's Mac filter, and the access sheet and "ask each time" prompt on Fleet
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design fixes.
@@ -33,18 +33,22 @@ Opened at full size: all-machines-1440x900 dark, access-sheet-1024x768 light and
 | 3 | Default | 4 | Deny by default and on timeout; View only preselected. |
 | 4 | Mode | 4 | Calm; the sheet and prompt on the overlay tone. |
 | 5 | Mock-up | 4 | No mock; D-126's sheet and the Banner. |
-| 6 | Areas | 3 | F57: the top bar's second row at 1024 with Fleet. |
+| 6 | Areas | 4 | F57 fixed: one row at 1024 with Fleet; History and Fleet behind More (lit while Fleet is the page). |
 | 7 | Colour | 4 | Allow in the danger tint as the risky answer; amber the banner's bar. |
 | 8 | Type | 4 | Choice titles 13 px semibold, consequences 12 px ink-2. |
 | 9 | Actions | 4 | "Change on this Mac" filled and last; the prompt has no filled default (Deny focused). |
 | 10 | Serious | 4 | Each access level says what it allows; the prompt says it's denied by itself in 18 s. |
 | 11 | Doors | 4 | Open goes to the Mac's board; "change it in Fleet" says where. |
-| 12 | Words | 3 | F58: "Work Max (claude-code)", an id on screen. |
+| 12 | Words | 4 | F58 fixed: the ask names the session and its App, "Fix the flaky login test" in Claude Code CLI · Work Max. |
 | 13 | States | 4 | The countdown is said; the sheet's change is said to land within half a minute. |
 | 14 | Consistency | 4 | Choice cards as the pool setup's; the Banner shared. |
 | 15 | Accessibility | 4 | alertdialog with Deny focused. Not re-walked by hand this round; keyboard names and focus as the a11y gate checks them. |
 | 16 | Hand walk | 4 | Not walked here (needs two Macs). |
 | 17 | System prompts | 5 | None of the OS's; the prompt is ours and primed by the access setting. |
-| 18 | Usability | 4 | A paired Mac can't act unseen; the words of the ask are the gap (F58). |
+| 18 | Usability | 4 | A paired Mac can't act unseen, and the ask says which session in the words every list uses. |
 
-Lowest: 3 (lines 6 and 12: F57, F58 logged; the first is the top bar's layout across every screen, the second a backend sentence).
+Lowest as first scored: 3 (lines 6 and 12: F57, F58 logged; the first is the top bar's layout across every screen, the second a backend sentence).
+
+**Re-captured after F57 and F58 (2026-11-24, Opus):** all twenty re-rendered; opened access-sheet-1024x768 light, ask-each-time-1024x768 dark and all-machines-1440x900. At 1024 the top bar is one row (it took two): Home · Projects · Pools · Tasks · Accounts · Usage · More ▾, More lit in semibold as the Fleet page is behind it, then 7 to clean up, New session, Bot, the bell, the Floor and the avatar; the page moves up about 45 px. The prompt reads "It wants to stop “Fix the flaky login test” in Claude Code CLI · Work Max." (it said "Work Max (claude-code)"). 1440 keeps every tab, Fleet included.
+
+Lowest: 4 (lines 6 and 12 were 3: F57, F58 fixed).

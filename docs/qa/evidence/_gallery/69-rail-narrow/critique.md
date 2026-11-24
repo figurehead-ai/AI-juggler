@@ -1,4 +1,4 @@
-<!-- captures: e1d0f767dd9b -->
+<!-- captures: 52876612daec -->
 # 69-rail-narrow: the narrow window
 
 Design critique (D-57, AJ-E2814) against the reference screens: the row menus (77-menus), the rail's order menu, Usage and Processes. The baseline note says what changed on purpose; this says whether it is good.
@@ -63,7 +63,7 @@ Opened at full size: opened-860x700 (light) and folded-390x844 (dark), beside th
 | 3 | Default | 4 | The rail folds by itself under 1,100 px; ⌘B opens it. |
 | 4 | Mode | 4 | Calm. |
 | 5 | Mock-up | 4 | Matches the mock's narrow frame (feed first, Apps & runway ↓). |
-| 6 | Areas | 3 | F57: the top bar's second row at 860 (and three at 390). |
+| 6 | Areas | 4 | F57 fixed: one row at 860 (Home · Projects · Pools · More ▾); 390, below the window's 1024 minimum, takes two. |
 | 7 | Colour | 4 | As Home: amber and red words only on the needs. |
 | 8 | Type | 4 | Card titles keep 13 px; nothing under 12 px. |
 | 9 | Actions | 5 | Open its page is the one filled button. |
@@ -75,6 +75,10 @@ Opened at full size: opened-860x700 (light) and folded-390x844 (dark), beside th
 | 15 | Accessibility | 4 | Not re-walked by hand this round; keyboard names and focus as the a11y gate checks them. |
 | 16 | Hand walk | 4 | The PL1 walk (AJ-E2323) drove Home and the rail in Dev; not re-walked here. |
 | 17 | System prompts | 5 | None. |
-| 18 | Usability | 4 | A narrow window keeps the job; the top bar's cost is F57. |
+| 18 | Usability | 4 | A narrow window keeps the job; the pages behind More are one click away. |
 
-Lowest: 3 (line 6, F57 logged: the fold point should count the tabs; a top-bar layout change across every baseline).
+Lowest as first scored: 3 (line 6, F57 logged: the fold point should count the tabs; a top-bar layout change across every baseline).
+
+**Re-captured after F57 (2026-11-24, Opus):** all six re-rendered and opened. opened-860x700 and folded-860x700: the top bar is one row (it took two): Home · Projects · Pools · More ▾ beside 🧹 7, >_, Bot, the bell, the Floor and the avatar, so the page starts about 45 px higher. folded-390x844, a width the window can't take (its minimum is 1024): Home · Projects · More over the cluster, two rows where it took three.
+
+Lowest: 4 (line 6 was 3: F57 fixed).
