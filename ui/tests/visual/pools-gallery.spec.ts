@@ -12,7 +12,7 @@
  */
 import AxeBuilder from "@axe-core/playwright";
 import { type Page } from "@playwright/test";
-import { expect, gate, GATE_NOW, test } from "./axe-gallery";
+import { expect, gate, GATE_NOW, settle, test } from "./axe-gallery";
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { goTo, groupBy, hoverRailGroup } from "./fixtures";
@@ -106,6 +106,11 @@ for (const theme of ["dark", "light"] as const) {
     // No pools section and no Home picker: a pool's view is its page.
     await expect(page.getByTestId("home-pool-filter")).toHaveCount(0);
     await page.mouse.move(0, 0);
+    // AJ-E806 (PR #250, twice in CI, green locally and on main at the
+    // same base): a 1 %-pixel diff — hover transitions and late fonts
+    // land mid-frame under shard load. The gate's settle() makes the
+    // frame deterministic; a real regression reproduces anyway.
+    await settle(page);
     await page.screenshot({ path: resolve(OUT, `rail-by-pool-${size.name}-${theme}.png`) });
     await axe(page, `rail by pool ${theme}`);
   });
