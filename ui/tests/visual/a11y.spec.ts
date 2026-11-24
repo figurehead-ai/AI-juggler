@@ -1621,7 +1621,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.keyboard.press("Escape");
     await page.evaluate(() => {
       (window as unknown as Record<string, unknown>).__AIJ_FLEET_PROMPTS__ = [
-        { id: 1, peer_label: "Mac mini", action: "stop Work Max (claude-code)", expires_at_ms: Date.now() + 20_000 },
+        { id: 1, peer_label: "Mac mini", action: "stop “Fix the flaky login test” in Claude Code CLI · Work Max", expires_at_ms: Date.now() + 20_000 },
       ];
     });
     await expect(page.getByRole("alertdialog", { name: "Mac mini asks to act on this Mac" })).toBeVisible({ timeout: 8000 });

@@ -116,7 +116,7 @@ fn place_of(row: &InstanceInfo, projects: &HashMap<String, String>) -> (String, 
 /// rc15 cleanup: Needs you said "“main” stopped with an error"); untitled,
 /// its facts (D-96, D-103.8: "“billing · started 1:14 AM” needs your
 /// reply"), its Account in the notice's detail, never in its name.
-fn session_name(row: &InstanceInfo, now_ms: i64) -> String {
+pub(crate) fn session_name(row: &InstanceInfo, now_ms: i64) -> String {
     let folder = folder(Some(&row.cwd));
     let started = started_words(Some(row.started_at_ms), now_ms);
     juggler_core::naming::short_name(

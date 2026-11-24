@@ -2053,7 +2053,7 @@ pub struct FleetPromptInfo {
     pub id: u64,
     /// Which machine asks.
     pub peer_label: String,
-    /// What it asks for, in plain words ("stop Work Max (claude-code)").
+    /// What it asks for, in plain words ("stop “Fix the flaky login test” in Claude Code CLI · Work Max").
     pub action: String,
     /// When it is denied by default, epoch ms.
     #[ts(type = "number")]

@@ -4546,7 +4546,7 @@ for (const theme of THEMES) {
       await page.keyboard.press("Escape");
       await page.evaluate((t0) => {
         (window as unknown as Record<string, unknown>).__AIJ_FLEET_PROMPTS__ = [
-          { id: 1, peer_label: "Mac mini", action: "stop Work Max (claude-code)", expires_at_ms: t0 + 18_000 },
+          { id: 1, peer_label: "Mac mini", action: "stop “Fix the flaky login test” in Claude Code CLI · Work Max", expires_at_ms: t0 + 18_000 },
         ];
       }, T0);
       await expect(page.getByTestId("fleet-prompt")).toBeVisible({ timeout: 8000 });
