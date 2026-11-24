@@ -1,4 +1,4 @@
-<!-- captures: 9d417d727037 -->
+<!-- captures: 0ef41d8a3394 -->
 # 99-app-page: an App's own page (0.4, D-62, AJ-E3204)
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at 0.4 from its captures.
@@ -65,3 +65,5 @@ A CLI App's main button reads "New session here" (c61757a87); its Launch setting
 ## 0.5.1
 
 Re-captured on 0.5.1; only the shared chrome changed in these screens. The rail's head now starts past the traffic lights, its rows hold a fixed dot column (tools on hover), cards and panels separate by tone instead of a border, a chosen item is a fill, and the top bar's bottom line is calmer. The app page keeps its content; the title reads Claude Code CLI and the header gained Watch…
+
+**0.5.1 F98 (Opus, 2026-11-24):** a running desktop App's page has Quit… beside Restart…, both secondary, before Go to it (`app-overview`, `app-overview-1024`, `app-sessions`, `app-settings`, both themes): Quit… sits farthest from the one primary, so it isn't the button under the hand after Go to it. Its confirm is Restart's (same dialog, "Quit Claude app · Work Max?"). These captures also carry F53's chosen lens segment in the rail (a solid neutral fill). The closed and CLI Apps' pages show neither (nothing runs to quit). At 1024 the four header actions still fit on one line beside the name. Match with the PAT-USE answers (`docs/qa/evidence/0.5.1-F98/usability.md`).

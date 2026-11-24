@@ -1,4 +1,4 @@
-<!-- captures: 9fe65d593bb0 -->
+<!-- captures: f21cb189c46a -->
 # 99-keep-alive: Open starts an app that isn't running, and Keep alive (0.3.3)
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at 0.3.3 from its captures.
@@ -37,3 +37,5 @@ Re-taken after D-64 (the rail's App grouping is about apps) and the fix for the 
 Re-captured against 0.5.1: Home's Your apps rows, the rail menu with its ticked Keep alive, and the Settings toggles are tonal with soft shadows; the paused app's amber line is words only. Content did not change. Then F87 (523a00bb1): session-open-in-* lists the ended session once, under Ended today; Open now's Personal App, there only for that match, is gone.
 
 Nothing broken (checked both themes).
+
+**0.5.1 F98 (Opus, 2026-11-24):** `rail-menu-keep` (both themes): the running Claude app · Work Max's rail menu has Quit… (the stop mark, as Processes' Stop…) right under Restart…, before Keep alive, so the quit-only action is where Restart… is. Quitting it here pauses Keep alive for that App until its next Open ("Keep alive paused: you quit it in AI Juggler"), so the tick beside Keep alive and the quit don't fight. Nothing else moved.
