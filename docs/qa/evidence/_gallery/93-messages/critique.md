@@ -1,4 +1,4 @@
-<!-- captures: 0db26d588ecc -->
+<!-- captures: 22c059722956 -->
 # 93-messages: a pool's Messages and messages in Needs you
 
 Design critique (D-57, AJ-E2814) against the reference screens: the row menus (77-menus), the rail's order menu, Usage and Processes. The baseline note says what changed on purpose; this says whether it is good.
@@ -60,10 +60,10 @@ Opened at full size: needs-you-1280x800 light (before and after the fix), pool-p
 | 1 | Job | 4 | An agent's message that needs you is answered in place; a pool's talk is read and steered. |
 | 2 | Prominence | 4 | Approvals first, then the cards by wait. |
 | 3 | Default | 4 | Keys 1–4 on each approval; Enter the first. |
-| 4 | Mode | 4 | Calm but for F59. |
+| 4 | Mode | 4 | Calm: the ask cards are need cards by tone. |
 | 5 | Mock-up | 4 | Matches D-118's mock for the question card ("builder-1 asks you"). |
 | 6 | Areas | 4 | Approvals, then cards; the thread a column. |
-| 7 | Colour | 3 | F59: amber fill and border on the approval cards. |
+| 7 | Colour | 4 | F59 fixed: amber is the ask's dot and its kind's words, never a fill behind words or a border. |
 | 8 | Type | 4 | Kind labels 12 px caps in amber, the summary 13 px. |
 | 9 | Actions | 4 | After the fix: one filled button in Needs you (was 3). |
 | 10 | Serious | 4 | Deny is plain; Always allow says "in this pool"; a hop limit is never lifted by a rule. |
@@ -76,4 +76,8 @@ Opened at full size: needs-you-1280x800 light (before and after the fix), pool-p
 | 17 | System prompts | 5 | None. |
 | 18 | Usability | 4 | No agent talks unseen; each held message is one key away. |
 
-Lowest: 3 (line 7, F59 logged: the shared ask card's look and its baselines).
+Lowest as first scored: 3 (line 7, F59 logged: the shared ask card's look and its baselines).
+
+**Re-captured after F59 (2026-11-24, Opus):** all twenty-two re-rendered; opened needs-you-1280x800 in both themes and pool-messages-1680x1050 (unchanged but for F53's chosen segment). The two approval cards in Needs you now are need cards: the surface tone, no border, an amber dot before "AN AGENT ASKS TO SEND · CHECKOUT REDESIGN" (they were an amber wash with an amber border). Inside a panel that frames it (a pool's inspector, the driven panel) the card is one tone step up; no capture here shows that one.
+
+Lowest: 4 (line 7 was 3: F59 fixed).
