@@ -1,4 +1,4 @@
-<!-- captures: ed923cbf9126 -->
+<!-- captures: 26fb39adb30a -->
 # 99-inactive-apps: the rail grouped by App is about apps (0.3.4, D-64)
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at 0.3.4 from its captures.
@@ -38,3 +38,33 @@ Re-shot after each App and each Account got one stored colour. All eight capture
 The whole family was retaken on release/0.4.1 for the 14-line re-score (AJ-E3305, `docs/qa/0.4-walks/design.md`) and opened on contact sheets, both themes, 1280 and 1024. Shared with every screen since the last shoot: the header's New session is tinted (one filled button per view), the Floor button is a split control with its own menu, This Mac's line is its dot below 1120 px, and the rail's App headers put the profile first.
 
 Unchanged in design: Inactive apps folded under Open now with last-seen times, Home's closed tiles with Start.
+
+## 0.5.1 design critique (2026-11-24, Opus, VALIDATION §5)
+
+Opened at full size: rail-idle-menu (dark) and rail-inactive-apps (light), beside the 0.4.1 re-score. The App lens groups by App; inactive Apps sit under "Inactive apps 4" with their last use ("Claude app · Lab · Desktop · 20 min ago") and a ▷ Start (+ for a terminal App's new session); the row's menu offers Start, Keep alive ✓ and Open its page. Home's Your apps lists running ones, then "Not running" with Start, and "kept alive"/"Closed · keep alive starts it" said in the account line.
+
+- **Since 0.4.1:** calm rail and Home; the heading counts "2 need you · 7 open · 1 to review · 1 inactive session"; F22's head.
+- **Weak:** the idle App's menu lines carry no icon (Start, Keep alive, Open its page; N8): logged **F60** with the feed's ⋯. Home's empty feed shows its chips (F56).
+
+| # | Line | Score | Note |
+|---|---|---|---|
+| 1 | Job | 4 | See every App, running or not, and start one from the rail or Home. |
+| 2 | Prominence | 4 | Running first, inactive folded under its count. |
+| 3 | Default | 4 | Keep alive's state shown with ✓; Start the row's own button. |
+| 4 | Mode | 4 | Calm. |
+| 5 | Mock-up | 4 | Matches calm-ui's inactive-apps shots (rail and Home). |
+| 6 | Areas | 4 | Groups by tone; the menu on the overlay tone. |
+| 7 | Colour | 4 | App hues once per row; amber only on needs. |
+| 8 | Type | 4 | App names 13 px semibold, facts 12 px muted. |
+| 9 | Actions | 5 | Open its page ↵ on Home the one filled; Start tinted. |
+| 10 | Serious | n/a | Nothing destructive (Remove is in the App's page). |
+| 11 | Doors | 4 | Open its page from the menu; each row opens its App. |
+| 12 | Words | 4 | "Closed · keep alive starts it": says what will happen. |
+| 13 | States | 4 | Four inactive, real-sized. |
+| 14 | Consistency | 3 | F60: a menu with no icons, where every other rail menu has them. |
+| 15 | Accessibility | 4 | Not re-walked by hand this round; keyboard names and focus as the a11y gate checks them. |
+| 16 | Hand walk | 4 | The PL1 walk (AJ-E2323) drove Home and the rail in Dev; not re-walked here. |
+| 17 | System prompts | 5 | None from the rail (Start launches the user's own App). |
+| 18 | Usability | 4 | An App not running is one click from starting; nothing is added by itself. |
+
+Lowest: 3 (line 14, F60 logged: icons need meanings chosen in the icon set).

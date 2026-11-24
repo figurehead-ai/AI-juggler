@@ -1,4 +1,4 @@
-<!-- captures: ef795d0c8f68 -->
+<!-- captures: 7d8bb5dde78e -->
 # 01-rail-sort: the rail's sort and grouping options (needs me, by project, quota risk), a search with no match, a snoozed row and the rail's View menu
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design fixes.
@@ -12,3 +12,35 @@ empty-search-1440x900 handles a search with no match well: a focused field with 
 - group-by-project-1440x900, needs-me-1440x900: identical to the default Home; the active sort or grouping is not visible anywhere.
 - snoozed-1440x900: the "snoozed 12m" chip sits between two rows, not inside the row it belongs to.
 - quota-risk-1440x900: not re-rendered; shows an older header and filter layout.
+
+## 0.5.1 design critique (2026-11-24, Opus, VALIDATION §5)
+
+Opened at full size: view, snoozed (before and after the fix) and empty-search, 1440x900 dark (the family's only size and theme). The View menu (Show: Inactive, Quiet ones, Ended today ✓, Background runs, Other Macs, Archived; Only: App, Account, Project › All) is one overlay surface with an icon and a muted hint on every line, as the calm kit's menus.
+
+- **Since 0.3.2:** the sorts left with the old Filters (AJ-E2104: the rail's View groups and shows; Home's Runway reads the room left), so group-by-project and needs-me are the Project lens chosen at the top, which now says what's active (the 0.3.2 weak point, "the active grouping is not visible", is answered by the lens). empty-search says "No open or recent session matches “does-not-exist”", offers "Search all history for …" and Clear filters.
+- **Fixed** (1b87b41cc): the "snoozed 12m" badge sat over the boundary of two rows, on the title of "Draft the migration plan". Now the row says it in its own line: "Asks you · snoozed 12m" (the age yields first). Re-captured (snoozed-1440x900, local) and checked by eye; sorting.test checks the words sit in the row.
+- **Removed:** quota-risk-1440x900, the old quota sort's capture, which no test had written since AJ-E2104 (F62).
+- The desktop row's cut state word (F55) shows here too.
+
+| # | Line | Score | Note |
+|---|---|---|---|
+| 1 | Job | 4 | Narrow the rail by App, Account or Project, show what's hidden, find a session; each says its state. |
+| 2 | Prominence | 4 | Lenses on top, View behind the filter button, search first. |
+| 3 | Default | 4 | Ended today on by default with a ✓; Reset beside View. |
+| 4 | Mode | 4 | Calm; the menu on the overlay tone with a soft shadow. |
+| 5 | Mock-up | 4 | Matches calm-ui's rail and the row menus (77-menus). |
+| 6 | Areas | 4 | After the fix: the snooze is in its row's line. F55's cut word stays (logged). |
+| 7 | Colour | 4 | Accent only for the focused search's line and the chosen check. |
+| 8 | Type | 4 | Menu lines 13 px, hints 12 px muted. |
+| 9 | Actions | 5 | No primary; Clear filters is a quiet button. |
+| 10 | Serious | n/a | Nothing destructive. |
+| 11 | Doors | 4 | Search all history opens History with the words. |
+| 12 | Words | 4 | "Inactive · in an app's list, not running": each option says what it shows. |
+| 13 | States | 4 | No match said once with two ways on. |
+| 14 | Consistency | 4 | The View menu is the row menus' pattern (icons, hints). |
+| 15 | Accessibility | 4 | Not re-walked by hand this round; keyboard names and focus as the a11y gate checks them. |
+| 16 | Hand walk | 4 | The PL1 walk (AJ-E2323) drove Home and the rail in Dev; not re-walked here. |
+| 17 | System prompts | 5 | None. |
+| 18 | Usability | 4 | One place to narrow the list; nothing on prime space that's rare. |
+
+Lowest: 4 (line 6 was 3 before the fix).
