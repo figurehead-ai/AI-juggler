@@ -239,6 +239,7 @@ pub const ENTRIES: &[Entry] = &[
             "crates/juggler-app/src/features/conversations/goto.rs:send_link_to",
             "crates/juggler-app/src/features/places/handoff.rs:send",
             "crates/juggler-app/src/features/places/open_session.rs:open",
+            "crates/juggler-app/src/features/handover/moving_real.rs:send",
         ],
         never_shown: false,
         needed: super::needs::desktop_apps,
