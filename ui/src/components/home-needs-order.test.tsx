@@ -106,4 +106,16 @@ describe("0.5.1 F80: a stopped session stays pinned in Needs you now", () => {
     expect(zone.querySelector("[data-kind='failed'][data-first='true']")).not.toBeNull();
     expect(screen.getByTestId("home-needs-more").textContent).toBe("+2 more need you");
   });
+
+  it("the stopped ones sit together as one tinted block (at most one per area): they touch, square where they meet", () => {
+    render(<HomeNeeds needs={homeOwn()} now={NOW} handlers={{ onOpenSession: vi.fn() }} />);
+    const [a, b, limit] = [...screen.getByTestId("home-needs").querySelectorAll<HTMLElement>("[data-home-item]")];
+    expect(a!.className).toContain("bg-danger-soft");
+    expect(a!.className).toContain("rounded-b-none");
+    expect(a!.className).not.toContain("-mt-2");
+    expect(b!.className).toContain("bg-danger-soft");
+    expect(b!.className).toContain("-mt-2 rounded-t-none");
+    expect(b!.className).not.toContain("rounded-b-none");
+    expect(limit!.className).not.toMatch(/bg-danger-soft|-mt-2|rounded-[tb]-none/);
+  });
 });

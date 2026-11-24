@@ -194,14 +194,14 @@ function inlineWord(word: string): string {
  * you: “…”" (what it asks when its tool said; else where to see it,
  * D-96 A), then its actions. Another need (a sign-in, This Mac…): its
  * title, why, and its primary. */
-function NeedCardOf({ need, first, now, bubble, keys, run }: { need: HomeNeed; first: boolean; now?: number; bubble?: ReactNode; keys?: string; run: (need: HomeNeed, second?: boolean) => void }): JSX.Element {
+function NeedCardOf({ need, first, now, bubble, keys, run, joined = "" }: { need: HomeNeed; first: boolean; now?: number; bubble?: ReactNode; keys?: string; run: (need: HomeNeed, second?: boolean) => void; joined?: string }): JSX.Element {
   const level = homeNeedLevel(need);
   const item = need.item;
   const wait = item && now !== undefined ? needWait(item, now) : null;
   const asks = item?.need === "asks" ? askExcerpt(item.session) : null;
   const second = secondWords(need);
   return (
-    <NeedBox need={need} tag="li" className={needCardClass(level)} data={{ "aria-label": needName(need), "data-home-item": "", "data-testid": `home-need-${need.kind}`, "data-first": first ? "true" : undefined, "data-kind": need.kind, ...rowData(need) }}>
+    <NeedBox need={need} tag="li" className={needCardClass(level) + joined} data={{ "aria-label": needName(need), "data-home-item": "", "data-testid": `home-need-${need.kind}`, "data-first": first ? "true" : undefined, "data-kind": need.kind, ...rowData(need) }}>
       {(goTo) => (
         <>
           <Mark need={need} size={22} />
@@ -290,6 +290,14 @@ export function HomeNeeds({
   const entries = needsOrder(needs, messages, tasks.needs);
   const shown = more ? entries : entries.slice(0, PINNED_SHOWN);
   const held = entries.length - shown.length;
+  // What broke (L3) sits together on top (F80's order) as ONE tinted block
+  // (DESIGN-SYSTEM §3 L3: at most one tinted block per area; the attention
+  // budget's (iii)): a run of L3 cards touches, square where they meet.
+  const joined = (index: number): string => {
+    if (shown[index]?.level !== 3) return "";
+    const above = shown[index - 1]?.level === 3, below = shown[index + 1]?.level === 3;
+    return (above ? " -mt-2 rounded-t-none" : "") + (below ? " rounded-b-none" : "");
+  };
   const batch = useBatchAsks();
   const heldMessages = messages.some(isHeldAsk);
   const asks = heldMessages || tasks.needs.some(isTaskAsk);
@@ -310,7 +318,7 @@ export function HomeNeeds({
         <ul className="flex flex-col gap-2">
           {shown.map((entry, index) =>
             entry.kind === "need" ? (
-              <NeedCardOf key={entry.key} need={entry.need} first={index === 0 && batch.length === 0 && !asks} now={now} bubble={bubble} keys={actionKeys.aria} run={run} />
+              <NeedCardOf key={entry.key} need={entry.need} first={index === 0 && batch.length === 0 && !asks} now={now} bubble={bubble} keys={actionKeys.aria} run={run} joined={joined(index)} />
             ) : entry.kind === "message" ? (
               <MessageNeedCard key={entry.key} need={entry.message} first={index === 0 && batch.length === 0 && !asks} now={now} keys={actionKeys.aria} />
             ) : (

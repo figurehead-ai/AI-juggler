@@ -54,10 +54,23 @@ async function runningAnimations(page: Page): Promise<string[]> {
   );
 }
 
-/** Every top-bar menu and New are on screen — not clipped away. */
+/** Every top-bar menu and New are on screen — not clipped away. A page
+ * tab with no room is behind More (0.5.1 F57: the bar keeps one row, the
+ * tabs that don't fit fold from the last), so it's reached through More,
+ * which is on screen itself. */
 async function menusOnScreen(page: Page) {
+  const nav = page.getByTestId("main-nav");
   for (const name of ["Home", "Accounts", "History"]) {
-    await expect(page.getByRole("button", { name, exact: true }).first(), `${name} is off screen`).toBeInViewport({ ratio: 1 });
+    const tab = nav.getByRole("button", { name, exact: true });
+    if ((await tab.count()) > 0) {
+      await expect(tab.first(), `${name} is off screen`).toBeInViewport({ ratio: 1 });
+      continue;
+    }
+    await expect(page.getByTestId("nav-more"), `${name} is folded but More is off screen`).toBeInViewport({ ratio: 1 });
+    await page.getByTestId("nav-more").click();
+    await expect(page.getByTestId("nav-more-menu").getByText(name, { exact: true }), `${name} isn't behind More`).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(page.getByTestId("nav-more-menu")).toHaveCount(0);
   }
   // AJ-E2502/E2507: the bell and your menu (Settings is in it).
   await expect(page.getByTestId("notification-bell"), "the bell is off screen").toBeInViewport({ ratio: 1 });

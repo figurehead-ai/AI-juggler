@@ -8,7 +8,8 @@
  *   (i)   text painted warning or danger ≤ the area's distinct L2/L3
  *         items, plus its Needs you count;
  *   (ii)  no amber fill (a 6 px level mark is a mark, not a fill);
- *   (iii) at most one danger-soft block per area;
+ *   (iii) at most one danger-soft block per area (a row or card; a
+ *         status chip or pill is a tag, PAT-SURF-6, not a block);
  *   (iv)  at most one filled accent button per view (the top bar's New
  *         session is tinted by design, `variant="accent"`, never filled,
  *         so it is outside this count; on Home the one fill is the first
@@ -22,7 +23,10 @@
  *         selected, chosen or current (aria-checked, -current, -selected,
  *         -pressed) wears the one selected look — a neutral edge 3:1 off
  *         what is around it on a raised fill, its words semibold
- *         (`--color-selected*`, controls/selected.ts) — never an amber,
+ *         (`--color-selected*`, controls/selected.ts); a segmented
+ *         control's chosen segment wears its strong step, a solid neutral
+ *         fill 3:1 off its track (`SELECTED_STRONG`, DESIGN-SYSTEM
+ *         PAT-SURF-3, 0.5.1 F53) — never an amber,
  *         red or accent fill, so it never counts in (i)–(iv) and never
  *         spends the budget a need has. The top bar's current page is
  *         the one exception, as D-118's mock draws it: semibold words
@@ -133,6 +137,8 @@ interface Measured {
   loudText: string[];
   amberFills: string[];
   dangerBlocks: number;
+  /** Each block's first tinted element, for the failure message. */
+  blocks: string[];
   distinctLoud: number;
   needsCount: number;
 }
@@ -153,7 +159,7 @@ function measure(page: Page, selector: string): Promise<Measured> {
     const warningSoft = colour("var(--color-warning-soft)");
     const dangerSoft = colour("var(--color-danger-soft)");
     probe.remove();
-    const out = { loudText: [] as string[], amberFills: [] as string[], dangerBlocks: 0, distinctLoud: 0, needsCount: 0 };
+    const out = { loudText: [] as string[], amberFills: [] as string[], dangerBlocks: 0, blocks: [] as string[], distinctLoud: 0, needsCount: 0 };
     if (!area) return out;
     // The facts at L2/L3: rows (a session, a notice, a tile), and a fact of
     // its own inside a calm row (a live session's Account out of room).
@@ -169,7 +175,7 @@ function measure(page: Page, selector: string): Promise<Measured> {
     const count = area.querySelector("[data-testid='rail-needs-you'] [data-testid='section-count'], [data-testid='home-needs-now-section'] [data-testid='section-count']");
     out.needsCount = count ? 1 : 0;
     const seen = new Set<Element>();
-    const tinted: DOMRect[] = [];
+    const tinted: { box: DOMRect; what: string }[] = [];
     for (const element of area.querySelectorAll<HTMLElement>("*")) {
       const style = getComputedStyle(element);
       if (style.visibility === "hidden" || style.display === "none") continue;
@@ -188,13 +194,26 @@ function measure(page: Page, selector: string): Promise<Measured> {
       const fill = style.backgroundColor;
       const isMark = box.width <= 8 && box.height <= 8;
       if (!isMark && (fill === warning || fill === warningSoft)) out.amberFills.push(`${element.tagName.toLowerCase()}.${element.className.toString().slice(0, 60)}`);
-      if (fill === dangerSoft) tinted.push(box);
+      // A block is a row or card; a status chip or pill is a tag, its tint
+      // its look (DESIGN-SYSTEM PAT-SURF-6; PAT-COLOR's runway: Out is "the
+      // red Out chip", RoomChip): one line of label words, under 32 px
+      // high (its display can't tell: a flex parent blockifies it), so
+      // it is not a block. Every row or card is taller.
+      if (fill === dangerSoft && box.height >= 32) tinted.push({ box, what: `${element.tagName.toLowerCase()}[${element.dataset.testid ?? ""}] "${(element.textContent ?? "").trim().slice(0, 40)}"` });
     }
-    // L3 rows that sit together (≤ 6 px apart) read as one block.
-    tinted.sort((a, b) => a.top - b.top);
-    tinted.forEach((box, i) => {
-      if (i === 0 || box.top - tinted[i - 1]!.bottom > 6) out.dangerBlocks += 1;
-    });
+    // L3 rows that sit together (≤ 6 px apart) read as one block; a tint
+    // inside one (a severe need's mark on its card) is part of it, so a
+    // box is measured against the lowest edge seen so far, not the last
+    // box's (0.5.1: a mark's bottom split one block in two).
+    tinted.sort((a, b) => a.box.top - b.box.top);
+    let reach = -Infinity;
+    for (const { box, what } of tinted) {
+      if (box.top - reach > 6) {
+        out.dangerBlocks += 1;
+        out.blocks.push(what);
+      }
+      reach = Math.max(reach, box.bottom);
+    }
     return out;
   }, selector);
 }
@@ -210,7 +229,7 @@ for (const theme of ["dark", "light"] as const) {
         // (ii) no amber fills.
         expect(m.amberFills, `${name}: amber fills`).toEqual([]);
         // (iii) at most one L3 tint block (the L3 rows sit together on top).
-        expect(m.dangerBlocks, `${name}: danger-soft blocks`).toBeLessThanOrEqual(fixture === "typical" ? 0 : 1);
+        expect(m.dangerBlocks, `${name}: danger-soft blocks ${JSON.stringify(m.blocks)}`).toBeLessThanOrEqual(fixture === "typical" ? 0 : 1);
       }
       // (iv) one filled accent button per view, at most.
       const filled = await page.evaluate(() => {
@@ -236,13 +255,14 @@ for (const theme of ["dark", "light"] as const) {
           return getComputedStyle(probe).color;
         };
         const loud = ["warning", "warning-soft", "danger", "danger-soft", "accent", "accent-fill", "accent-soft"].map((name) => colour(`var(--color-${name})`));
-        const selected = colour("var(--color-selected)");
+        // PAT-SURF-3: SELECTED's soft fill, or a chosen segment's strong step.
+        const selected = [colour("var(--color-selected)"), colour("var(--color-selected-strong)")];
         probe.remove();
         const SEL = "[role='radio'][aria-checked='true'], [aria-current]:not([aria-current='false']), [aria-selected='true'], [aria-pressed='true']";
         const found = areas.flatMap((sel) => [...(document.querySelector(sel)?.querySelectorAll<HTMLElement>(SEL) ?? [])]);
         const page = document.querySelector<HTMLElement>("header [data-testid='main-nav'] [aria-current='page']");
         return {
-          drawn: found.filter((element) => element.className.toString().includes("inset-ring-selected-edge") && getComputedStyle(element).backgroundColor === selected).length,
+          drawn: found.filter((element) => element.className.toString().includes("inset-ring-selected-edge") && selected.includes(getComputedStyle(element).backgroundColor)).length,
           // The current page: semibold, no fill (transparent).
           page: page ? { weight: Number(getComputedStyle(page).fontWeight), fill: getComputedStyle(page).backgroundColor } : null,
           loud: found
