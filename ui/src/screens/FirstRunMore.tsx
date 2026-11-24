@@ -128,7 +128,7 @@ export function FreshGroups({
               <FreshRow
                 tool={tool}
                 name={names[tool] ?? name}
-                toolName={install && toolFound(install) ? cliWords(name, install) : name}
+                installed={install && toolFound(install) ? cliWords(name, install) : `${name} is installed`}
                 colour={colourAt(colourFrom + index)}
                 checked={!!picked[tool]}
                 disabled={busy}

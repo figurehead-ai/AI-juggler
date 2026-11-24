@@ -173,3 +173,19 @@ describe("AJ-E2906 R5 — Look again in Accounts › Add account", () => {
     expect(getByTestId("first-run-look-again")).toBeTruthy();
   });
 });
+
+describe("AJ-E1545 Your apps (F18, 0.5.1 PL1 C3)", () => {
+  it("no Found, Likely or Guessed word anywhere, a row's Details included", async () => {
+    const { findByTestId } = render(<FirstRun mode="first-run" onDone={() => null} openLoginTerminal={() => null} />);
+    const step = await findByTestId("first-run-found");
+    for (const toggle of within(step).getAllByTestId("first-run-details-toggle")) fireEvent.click(toggle);
+    const details = within(step).getAllByTestId("first-run-details");
+    expect(details.length).toBeGreaterThan(1);
+    expect(within(step).queryAllByTestId("first-run-confidence")).toHaveLength(0);
+    for (const one of details) {
+      for (const field of within(one).getAllByTestId("first-run-field")) expect(field.textContent).not.toMatch(/Found|Likely|Guessed/);
+    }
+    // Where each field came from still says it.
+    expect(details.some((one) => one.textContent?.includes("from the folder's name, which reads as Work"))).toBe(true);
+  });
+});

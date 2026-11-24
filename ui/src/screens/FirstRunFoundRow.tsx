@@ -184,12 +184,14 @@ export function FoundRow({
           {plain && <p className="text-muted" data-testid="first-run-folder">
             Its folder: <span className="text-ink-2">{found.path.replace(/^\/Users\/[^/]+/, "~")}</span> · {source}
           </p>}
-          <dl className="grid grid-cols-[auto_auto_auto_1fr] items-baseline gap-x-3 gap-y-1">
+          {/* AJ-E1545 (F18): Your apps has no Found/Likely/Guessed words,
+              in its details either; where each came from says enough. */}
+          <dl className={"grid items-baseline gap-x-3 gap-y-1 " + (plain ? "grid-cols-[auto_auto_1fr]" : "grid-cols-[auto_auto_auto_1fr]")}>
             {fieldRows(found, { name, used }).map((row) => (
               <div key={row.field} className="contents" data-testid="first-run-field">
                 <dt className="text-muted">{row.field}</dt>
                 <dd className="text-ink">{row.value}</dd>
-                <dd className={row.confidence === "guessed" ? "text-warning" : "text-ink-2"}>{confidenceWord(row.confidence)}</dd>
+                {!plain && <dd className={row.confidence === "guessed" ? "text-warning" : "text-ink-2"}>{confidenceWord(row.confidence)}</dd>}
                 <dd className="text-muted">from {row.source}</dd>
               </div>
             ))}
@@ -210,11 +212,13 @@ export function FoundRow({
 /** AJ-E3306 (pass2/03 §5 rule 3): a tool installed here with nothing set
  * up, offered as a fresh App beside the setups found: its tick (off until
  * the user ticks it; nothing is made without Bring in), the name it gets,
- * that it is installed but not set up, and that its sign-in comes after. */
+ * that it is installed but not set up, and that its sign-in comes after.
+ * `installed` says the first part whole ("OpenCode 1.19.5 installed",
+ * "Codex is installed"; F18: never "installed is installed"). */
 export function FreshRow({
   tool,
   name,
-  toolName,
+  installed,
   colour,
   checked,
   disabled,
@@ -223,7 +227,7 @@ export function FreshRow({
 }: {
   tool: string;
   name: string;
-  toolName: string;
+  installed: string;
   colour: string;
   checked: boolean;
   disabled: boolean;
@@ -238,7 +242,7 @@ export function FreshRow({
         <span aria-hidden="true" className="size-2.5 shrink-0 rounded-full" style={{ background: colour }} />
         <span className="flex min-w-0 flex-1 flex-col">
           <span className="truncate text-section font-medium text-ink">{name}</span>
-          <span className="truncate text-label text-muted">{toolName} is installed, with nothing set up yet · AI Juggler sets it up in its own folder</span>
+          <span className="truncate text-label text-muted">{installed}, with nothing set up yet · AI Juggler sets it up in its own folder</span>
         </span>
         <span className="flex w-32 shrink-0 items-center justify-end gap-1.5 text-xs">
           {progress?.state === "working" ? (

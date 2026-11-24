@@ -325,6 +325,15 @@ fn scan_finds_other_manager_tools_profile_roots() {
             .iter()
             .all(|f| f.notes.iter().any(|n| n.contains("never touched")))
     );
+    // F18 (0.5.1 PL1 C3): the folder's place names no tool; a lab's (or
+    // the user's own) folders there were said to be t3.codes'.
+    assert!(
+        manager.iter().all(|f| f
+            .notes
+            .iter()
+            .all(|n| !n.contains("t3.codes") && !n.contains("Managed by"))),
+        "{manager:?}"
+    );
     // Manager-tool entries rank after the vendor default and home patterns.
     assert_eq!(found.len(), 2, "home has no other setups: {found:?}");
 }

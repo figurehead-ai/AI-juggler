@@ -113,7 +113,9 @@ describe("AJ-E3306 PF1 — every tool found is offered", () => {
       const group = view.getByTestId(`first-run-group-fresh-${tool}`);
       const row = within(group).getByTestId("first-run-fresh-row");
       expect(row.textContent).toContain(name);
-      expect(row.textContent).toContain("is installed, with nothing set up yet");
+      expect(row.textContent).toMatch(/installed[^·]*, with nothing set up yet/);
+      // F18 (0.5.1 PL1 C3): the version line was followed by "is installed" again.
+      expect(row.textContent).not.toMatch(/installed\S* is installed/);
       expect(row.textContent).toContain("Sign in after");
       expect(within(row).getByRole("checkbox")).toHaveProperty("checked", false);
     }
@@ -158,5 +160,27 @@ describe("AJ-E3306 PF1 — every tool found is offered", () => {
     await view.findByTestId("first-run-found");
     expect(view.queryByTestId("first-run-group-fresh-codex")).toBeNull();
     expect(view.queryByTestId("first-run-desktop")).toBeNull();
+  });
+});
+
+describe("F18 (0.5.1 PL1 C3): a not-set-up tool's line says installed once", () => {
+  it("with its version: \"OpenCode 1.19.5 installed, with nothing set up yet\"", async () => {
+    const { FreshGroups } = await import("./FirstRunMore");
+    const view = render(
+      <FreshGroups
+        fresh={["opencode"]}
+        names={{}}
+        picked={{}}
+        onPick={() => null}
+        installRows={{ opencode: { provider: "opencode", display_name: "OpenCode", install_url: "", status: "installed", version: "1.19.5", notes: [] } }}
+        colourFrom={0}
+        busy={false}
+        progress={() => undefined}
+      />,
+    );
+    fireEvent.click(view.getByRole("button", { name: /Installed, not set up yet/ }));
+    const row = view.getByTestId("first-run-fresh-row");
+    expect(row.textContent).toContain("OpenCode 1.19.5 installed, with nothing set up yet");
+    expect(row.textContent).not.toContain("installed is installed");
   });
 });

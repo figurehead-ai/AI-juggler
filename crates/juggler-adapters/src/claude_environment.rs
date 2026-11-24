@@ -215,8 +215,11 @@ fn origin_notes(origin: InstallOrigin, login: LoginProbe) -> Vec<String> {
         InstallOrigin::HomePattern => {
             "A separate Claude configuration — created manually, by another tool, or by an AI assistant.".to_string()
         }
+        // F18 (0.5.1 PL1): only the folder's place is known, never which
+        // tool (if any) made it; a lab's or the user's own folders there
+        // were said to be "Managed by another tool (t3.codes)".
         InstallOrigin::ManagerTool => {
-            "Managed by another tool (t3.codes) — importing copies it; the tool and its sessions are never touched.".to_string()
+            "Kept beside other Claude Code folders in ClaudeCodeProfiles, by you or a tool that makes them. Used where it is; that tool and its sessions are never touched.".to_string()
         }
         InstallOrigin::ShellAlias => {
             "Your shell points CLAUDE_CONFIG_DIR here — a setup you may have forgotten about.".to_string()
