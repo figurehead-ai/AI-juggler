@@ -1,4 +1,4 @@
-<!-- captures: 593ed0b6fb1a -->
+<!-- captures: 0c260564e16e -->
 # 25-costs: the Prices and details dialog: what usage would cost at API list prices, per session and day, with stale pricing and unpriced models
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design fixes.
@@ -17,3 +17,7 @@ The dialog has a clear hierarchy: three summary cards (At API list prices, You p
 Re-captured against 0.5.1: the dialog sits on a tonal step with a soft shadow in light and keeps its summary cards and table unchanged; Export CSV is a tonal button, and the stale-pricing line is amber words with no fill. F88 (F51's rule): the six 390×844 captures are removed and no longer captured: 390 is below the window's minimum (1024×680), a layout no one can get, and they had no gate baseline; the Weak notes on them above are history. The family is the matrix at 1440, 1280 and 1024.
 
 Nothing broken (checked both themes).
+
+## 0.5.1 final round (2026-11-24)
+
+Re-captured once on the release HEAD after the last fixes. What changed: Behind the dialog the rail and Needs you are in their 0.5.1 style; the dialog itself is unchanged. Every state was compared with its last capture (the sweep's pixel diff, a Sonnet checker opening base, head and diff; Opus checked each suspect: none broken). Scores unchanged.

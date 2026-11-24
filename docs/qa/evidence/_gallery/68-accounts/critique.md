@@ -1,4 +1,4 @@
-<!-- captures: 5d48595be84a -->
+<!-- captures: 4ffe042c9967 -->
 # 68-accounts: Accounts, Usage, the limit decision, and an account on its credits
 
 Design critique (D-57, AJ-E2814). Written at 0.3.2 for the four new captures of the maintainer's report: a Codex account whose week is used up while its pre-bought credits carry the work on. Before 0.3.2 it was called "out of room". The family's other captures were not re-taken this round, and this critique doesn't judge them.
@@ -59,3 +59,7 @@ Weak: the link sits under the card rather than inside it, because the card is th
 Re-captured against 0.5.1: account and app cards, the switch dialogs (Suggested chip, tonal Wait for the reset card) and the Usage chart sit on tonal surfaces with soft shadows; the chosen tab and range segments show the F53 fill. Content did not change.
 
 Nothing broken (checked both themes).
+
+## 0.5.1 final round (2026-11-24)
+
+Re-captured once on the release HEAD after the last fixes. What changed: The lens switch's chosen segment is a solid fill; rail rows carry a model mark where the model changed (F77). Every state was compared with its last capture (the sweep's pixel diff, a Sonnet checker opening base, head and diff; Opus checked each suspect: none broken). Scores unchanged.

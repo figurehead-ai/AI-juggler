@@ -1,4 +1,4 @@
-<!-- captures: 75e0d280cd44 -->
+<!-- captures: 4775398284ea -->
 # 26-quota: a session's Usage tab: token counts, the account's 5-hour and weekly windows, and the live How it's going cards, in blocked, measured, no-data and stale states
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design fixes.
@@ -17,3 +17,7 @@ The colour steps read well: in dark the No token counts banner, Model card, acco
 ## 0.5.1
 
 Re-captured on 0.5.1; only the shared chrome changed in these screens. The rail's head now starts past the traffic lights, its rows hold a fixed dot column (tools on hover), cards and panels separate by tone instead of a border, a chosen item is a fill, and the top bar's bottom line is calmer. The Usage tab keeps its cards; the window bars now take the runway's state colours (red out of room, green with room) and the session header gained Watch… and Resume.
+
+## 0.5.1 final round (2026-11-24)
+
+Re-captured once on the release HEAD after the last fixes. What changed: The top bar folds what doesn't fit into More; the lens switch's chosen segment is a solid fill; rail rows carry a model mark where the model changed (F77); the Usage page's content is the same. Every state was compared with its last capture (the sweep's pixel diff, a Sonnet checker opening base, head and diff; Opus checked each suspect: none broken). Scores unchanged.

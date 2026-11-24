@@ -1,4 +1,4 @@
-<!-- captures: 628f4650bb88 -->
+<!-- captures: 016f5dbc9ebb -->
 # 72-tool-view: a tool's own page (its Overview, and its Apps, Sessions, Projects and Pools tabs), and the tool's header menu
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design passes.
@@ -19,3 +19,7 @@ The overview captures land on Settings › Accounts rather than a page of the to
 ## 0.5.1
 
 Re-captured on 0.5.1; only the shared chrome changed in these screens. The rail's head now starts past the traffic lights, its rows hold a fixed dot column (tools on hover), cards and panels separate by tone instead of a border, a chosen item is a fill, and the top bar's bottom line is calmer. The tool page keeps its content; runway bars use state colours and the header counts working and open sessions.
+
+## 0.5.1 final round (2026-11-24)
+
+Re-captured once on the release HEAD after the last fixes. What changed: The lens switch's chosen segment is a solid fill; rail rows carry a model mark where the model changed (F77). Every state was compared with its last capture (the sweep's pixel diff, a Sonnet checker opening base, head and diff; Opus checked each suspect: none broken). Scores unchanged.

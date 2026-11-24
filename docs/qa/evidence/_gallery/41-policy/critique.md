@@ -1,4 +1,4 @@
-<!-- captures: 3c2d171e1234 -->
+<!-- captures: c6547f1f1984 -->
 # 41-policy: a profile's launch settings, its keys and passwords choice, and deleting launch settings
 
 Design critique (D-57, AJ-E2814) against the reference screens: the row menus (77-menus), Settings' cards (98-local-cache) and the remove-account sheet. The baseline note says what changed on purpose; this says whether it is good. First critique of this family: its captures were last taken at 0.1 and were re-rendered for 0.3.1 (D-60).
@@ -82,3 +82,7 @@ Re-captured (pack-secrets, delete and refused at 1280 and 1024, both themes); op
 | 18 | Usability | 4 | Re-read against PAT-USE: deleting the last settings set is said after, not before (0.3.2 weak, kept). Match otherwise. |
 
 Lowest: 4 (every line 4 or 5).
+
+## 0.5.1 final round (2026-11-24)
+
+Re-captured once on the release HEAD after the last fixes. What changed: Behind the dialog the rail and Needs you are in their 0.5.1 style; the dialog itself is unchanged. Every state was compared with its last capture (the sweep's pixel diff, a Sonnet checker opening base, head and diff; Opus checked each suspect: none broken). Scores unchanged.

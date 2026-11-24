@@ -1,4 +1,4 @@
-<!-- captures: de52a723404e -->
+<!-- captures: 8bbddbc22cde -->
 # 17-ledger: Home with the notice that process tracking is degraded and cleanup is read-only
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design fixes.
@@ -44,3 +44,7 @@ Opened at full size: degraded-banner-1440x900 light (before the fix) and dark (t
 Lowest: 4 (lines 7 and 12 were 3 before the fix).
 
 **Re-captured after F55 (2026-11-24, Opus):** both re-rendered and opened. The rail's desktop row reads "Stopped with an …" (F55: it was cut mid-letter); the lens is F53's solid fill. The banner and Home are unchanged. Lowest stays 4.
+
+## 0.5.1 final round (2026-11-24)
+
+Re-captured once on the release HEAD after the last fixes. What changed: Needs you's cards are tone fills with their level's mark (a stopped one in the broken tone), the most urgent first (F53, F66, F80). Every state was compared with its last capture (the sweep's pixel diff, a Sonnet checker opening base, head and diff; Opus checked each suspect: none broken). Scores unchanged.

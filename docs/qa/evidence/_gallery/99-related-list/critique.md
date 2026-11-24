@@ -1,4 +1,4 @@
-<!-- captures: 4a52270133fc -->
+<!-- captures: 2df2b9a6ba04 -->
 # 99-related-list: the one related list and the one session row (0.4, E31, AJ-E3103)
 
 Design critique (D-57, AJ-E2814). First critique of this family, written from its captures (`ui/tests/visual/related-list-gallery.spec.ts`).
@@ -61,3 +61,7 @@ An empty list's step is a secondary button now: a CLI App with no sessions had t
 Re-captured against 0.5.1: the App's Sessions list, its State and Project filters and the empty-search state sit on tonal surfaces with the chosen segment filled (F53). F83: the two home-recent captures, which no spec wrote any more (they showed the old Home's "Pick up where you left off"), are deleted; Home's feed is in home-feed-finished and in 68-home-feed. The home-recent notes above are history.
 
 Nothing broken (checked both themes).
+
+## 0.5.1 final round (2026-11-24)
+
+Re-captured once on the release HEAD after the last fixes. What changed: The top Needs you row follows Needs you's order (F80). Every state was compared with its last capture (the sweep's pixel diff, a Sonnet checker opening base, head and diff; Opus checked each suspect: none broken). Scores unchanged.

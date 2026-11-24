@@ -1,4 +1,4 @@
-<!-- captures: 5edcf79daa72 -->
+<!-- captures: dceb834da573 -->
 # 76-keys: the keyboard shortcuts sheet and the folded rail on a session page
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design passes.
@@ -21,3 +21,7 @@ The maintainer found the right column's key caps cut off at the sheet's edge in 
 Re-captured against 0.5.1: the shortcut sheet is unchanged in layout, its keycaps are tonal chips, and the only bright line is the focus ring on Close; the rail behind shows the chosen Project segment filled. F89: ⌘⇧I now folds the session page's side column, and the folded captures show it: folded-1280x800 and folded-1024x680 (both themes) are the header line, Switch account… right-aligned under it where the column was, and the terminal across the page's full width; the tab strip is hidden. Nothing clipped; the terminal's black fills its card to the edges in both themes.
 
 Nothing broken (checked both themes).
+
+## 0.5.1 final round (2026-11-24)
+
+Re-captured once on the release HEAD after the last fixes. What changed: Behind the dialog the rail and Needs you are in their 0.5.1 style; the dialog itself is unchanged. Every state was compared with its last capture (the sweep's pixel diff, a Sonnet checker opening base, head and diff; Opus checked each suspect: none broken). Scores unchanged.

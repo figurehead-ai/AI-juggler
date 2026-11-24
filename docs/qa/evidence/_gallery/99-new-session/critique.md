@@ -1,4 +1,4 @@
-<!-- captures: 05bc1b2b0a84 -->
+<!-- captures: 28bc9374a237 -->
 # 99-new-session: New session, the usual made and said (0.4, D-62, AJ-E3207)
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at 0.4 from its captures.
@@ -73,3 +73,7 @@ Re-captured after F53 and F49 (start-another), every state, both themes, opened 
 Lowest: 4; F73 logged for the toast's action.
 
 **Fixed after the critique (F73), re-captured (start-another, both themes):** "Start another: payments-api" is a neutral fill with no stroke. Lowest: 4.
+
+## 0.5.1 final round (2026-11-24)
+
+Re-captured once on the release HEAD after the last fixes. What changed: Behind the dialog the rail and Needs you are in their 0.5.1 style; the dialog itself is unchanged. Every state was compared with its last capture (the sweep's pixel diff, a Sonnet checker opening base, head and diff; Opus checked each suspect: none broken). Scores unchanged.

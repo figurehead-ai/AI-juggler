@@ -1,4 +1,4 @@
-<!-- captures: 08f5e57764ff -->
+<!-- captures: 29c4d64754f9 -->
 # 40-login: the Sign in dialog for one account in each sign-in state
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design fixes.
@@ -18,3 +18,7 @@ Each capture is the same small dialog, "Log in · Work Max", with its promise th
 Re-captured against 0.5.1: the sign-in card is a tonal box inside the dialog, the primary Sign in/Continue keeps the accent fill and the other buttons are tonal; no bright borders remain. Layout is as before. Then F82 (2c99973d7, feab01e21): the dialog's title is "Sign in · Claude Code CLI · Work Max" (was "Log in"); the status line has one mark, its colour carrying the state (green signed in, amber expired or didn't finish, the live dot while waiting), with no ring or disc glyph beside it; the three steps are a short numbered list ("Choose Sign in: Claude Code's own sign-in opens", "Follow Claude Code's prompts", "Come back here: we detect it"); "Open Claude Code's sign-in page" replaces "Open vendor page" and no word on the card says "vendor" or "login"; the card is a tone step with no outline; api_key no longer repeats "API key account" as a chip; at 390 the command wraps inside its box (it ran past the card).
 
 Nothing broken (checked both themes).
+
+## 0.5.1 final round (2026-11-24)
+
+Re-captured once on the release HEAD after the last fixes. What changed: Behind the dialog the rail and Needs you are in their 0.5.1 style; the dialog itself is unchanged. Every state was compared with its last capture (the sweep's pixel diff, a Sonnet checker opening base, head and diff; Opus checked each suspect: none broken). Scores unchanged.

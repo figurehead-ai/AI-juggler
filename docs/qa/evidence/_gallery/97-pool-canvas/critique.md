@@ -1,4 +1,4 @@
-<!-- captures: 3bd9cf168898 -->
+<!-- captures: 67b1ae99adde -->
 # 97-pool-canvas: the Pools screen and a pool's canvas
 
 Design critique (D-57, AJ-E2814) against the reference screens: the row menus (77-menus), the rail's order menu, Usage and Processes. The baseline note says what changed on purpose; this says whether it is good.
@@ -156,3 +156,7 @@ Checked side by side with the mock-ups (`d126-rich-ui` running and canvas, calm 
 ## 0.5.1
 
 Re-captured on 0.5.1; only the shared chrome changed in these screens. The rail's head now starts past the traffic lights, its rows hold a fixed dot column (tools on hover), cards and panels separate by tone instead of a border, a chosen item is a fill, and the top bar's bottom line is calmer. The diagram, the new-pool wizard and the pools list are unchanged.
+
+## 0.5.1 final round (2026-11-24)
+
+Re-captured once on the release HEAD after the last fixes. What changed: The diagram is unchanged; the lens switch's chosen segment is a solid fill; the waiting-on-you card is a tone card. Every state was compared with its last capture (the sweep's pixel diff, a Sonnet checker opening base, head and diff; Opus checked each suspect: none broken). Scores unchanged.

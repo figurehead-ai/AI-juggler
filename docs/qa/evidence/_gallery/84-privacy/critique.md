@@ -1,4 +1,4 @@
-<!-- captures: 8a2b6615432b -->
+<!-- captures: 5ddb098e6405 -->
 # 84-privacy: Settings › Privacy, what AI Juggler reads, keeps and sends, the tools' terms, and the terms note on the import screen
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design passes.
@@ -43,3 +43,7 @@ Opened at full size: page (dark), terms (light), tests-open (dark) and add-accou
 **AJ-E1548 match:** R11 terms never open by themselves: closed in Privacy and in Add account. Match. #15 config updates with what and when, on by default, and Bot's history and watches lines ("kept on this Mac; Clear deletes them"). Config updates match on screen; the Bot and watches lines sit below what page captures, so they are checked by AJ-E1548's tests, not by eye here. (6) "a fetch nobody was told about": it's told. Match.
 
 Lowest: 4 (line 12 was 3 before the fix).
+
+## 0.5.1 final round (2026-11-24)
+
+Re-captured once on the release HEAD after the last fixes. What changed: The words say apps, not setups ("Other Claude Code apps"), per PAT-SER-7. Every state was compared with its last capture (the sweep's pixel diff, a Sonnet checker opening base, head and diff; Opus checked each suspect: none broken). Scores unchanged.

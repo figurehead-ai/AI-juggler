@@ -1,4 +1,4 @@
-<!-- captures: a257d6660307 -->
+<!-- captures: ff7afec8df84 -->
 # 28-switch: switching a conversation to another account: the "Continue on another account" list, the 3-step switch dialog's Confirm step in its variants, the running and failed states, and the notes and switch-anyway prompts
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design passes.
@@ -117,3 +117,7 @@ Lowest: 4. No fix in this family; logged F69, F72, F75.
 **Fixed after the critique (F72, F75), re-captured:** the new move-waits (1280×800 and 800×600, both themes) is Move waiting on a session open in a terminal: the faded Move card says "“Fix the login test” in Terminal is open outside the app; Move becomes available once you end it.", then Go to “Fix the login test” in Terminal (secondary) and Check again; Copy chosen (F72, 8f1f64835; a stop names its holders the same way). The other states re-captured identical. Lowest: 4.
 
 **0.5.1 F94 re-capture (Opus, 2026-11-24):** the whole family re-captured after F94 (f2dc62851, 503afb7f4: the dialog's source is the App the conversation is in, by its id; each target is its App by its own id). The gallery's fixtures name no source App and no target App ids, so the dialog reads as before: every capture is pixel for pixel the same except `targets-out-of-room` (both themes), where the rail's "Port the settings parser" row behind the dialog shows F77's model-changed mark as the small chip icon (about 12×10 px at the row's end). Nothing broken; the source naming itself is checked in vitest `components/switch-source-app.test.tsx` and cargo `switch::source_app::tests`.
+
+## 0.5.1 final round (2026-11-24)
+
+Re-captured once on the release HEAD after the last fixes. What changed: Behind the dialog the rail and Needs you are in their 0.5.1 style; the dialog itself is unchanged. Every state was compared with its last capture (the sweep's pixel diff, a Sonnet checker opening base, head and diff; Opus checked each suspect: none broken). Scores unchanged.

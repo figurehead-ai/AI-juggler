@@ -1,4 +1,4 @@
-<!-- captures: 9e98682821bd -->
+<!-- captures: 0584a7218058 -->
 # 96-notification-centre: notifications, banners, toasts and your menu
 
 Design critique (D-57, AJ-E2814) against the reference screens: the row menus (77-menus), the rail's order menu, Usage and Processes. The baseline note says what changed on purpose; this says whether it is good.
@@ -81,3 +81,7 @@ Opened at full size: centre-populated (dark), centre-row-menu (light), user-menu
 **AJ-E1548 match:** (1) one meaning per name: "Needs you" in the bell, rail and Home. Match. (2) Each "mark all" says what it clears (Mark all read). Match. (3) The bell is no second history: Latest few, then See all on Home. Match. (4) n/a here. (5) Notifications primed at Watch, not here. Match. (6) The bell's count equals the rail's (6 and 6). Match.
 
 Lowest: 4 (after the fix; line 9 was 2 before it).
+
+## 0.5.1 final round (2026-11-24)
+
+Re-captured once on the release HEAD after the last fixes. What changed: Needs you's cards are tone fills with their level's mark (a stopped one in the broken tone), the most urgent first (F53, F66, F80); the same cards in the popover. Every state was compared with its last capture (the sweep's pixel diff, a Sonnet checker opening base, head and diff; Opus checked each suspect: none broken). Scores unchanged.

@@ -1,4 +1,4 @@
-<!-- captures: 3ed37fab0ea2 -->
+<!-- captures: 2a5e1b3ba3ab -->
 # 97-handover-told: what the other tool was told
 
 Design critique (D-57, AJ-E2814) against the reference screens: the row menus (77-menus), the rail's order menu, Usage and Processes. The baseline note says what changed on purpose; this says whether it is good.
@@ -72,3 +72,7 @@ done-line, done-open and graph-edge opened, both themes. done-line and done-open
 | 18 | Usability | 4 | |
 
 Lowest: 4. graph-edge's element crop still catches the footer cut at "ed 1s ago" (a capture's frame).
+
+## 0.5.1 final round (2026-11-24)
+
+Re-captured once on the release HEAD after the last fixes. What changed: The switch graph is the session list with each edge's handover told under it (D-142's kit); its capture now scrolls the page to its end so the footer sits below the last row. Every state was compared with its last capture (the sweep's pixel diff, a Sonnet checker opening base, head and diff; Opus checked each suspect: none broken). Scores unchanged.

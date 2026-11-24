@@ -1,4 +1,4 @@
-<!-- captures: 68e52db3aede -->
+<!-- captures: 795b43d99dce -->
 <!-- captures: pending -->
 # 99-floor-settings: Settings › The Floor, and Re-create
 
@@ -44,3 +44,7 @@ Unchanged in design: Opening, The office (Apps per floor, Motion, Look), Re-crea
 ## 0.5.1
 
 Re-captured on 0.5.1; only the shared chrome changed in these screens. The rail's head now starts past the traffic lights, its rows hold a fixed dot column (tools on hover), cards and panels separate by tone instead of a border, a chosen item is a fill, and the top bar's bottom line is calmer. The Floor settings are unchanged.
+
+## 0.5.1 final round (2026-11-24)
+
+Re-captured once on the release HEAD after the last fixes. What changed: Behind the dialog the rail and Needs you are in their 0.5.1 style; the dialog itself is unchanged. Every state was compared with its last capture (the sweep's pixel diff, a Sonnet checker opening base, head and diff; Opus checked each suspect: none broken). Scores unchanged.

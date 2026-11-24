@@ -1,4 +1,4 @@
-<!-- captures: 8d94fa28dea8 -->
+<!-- captures: 6ca57bed050d -->
 # 33-beta: the "Beta · Not proven yet" mark on a switch, and the Accounts page above "Which switches between accounts are proven"
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design passes.
@@ -45,3 +45,7 @@ Re-captured after F53 and this batch's fix, both sizes and themes. The matrix ca
 | 18 | Usability | 4 | |
 
 Lowest: 4 after the fix.
+
+## 0.5.1 final round (2026-11-24)
+
+Re-captured once on the release HEAD after the last fixes. What changed: Behind the dialog the rail and Needs you are in their 0.5.1 style; the dialog itself is unchanged. Every state was compared with its last capture (the sweep's pixel diff, a Sonnet checker opening base, head and diff; Opus checked each suspect: none broken). Scores unchanged.

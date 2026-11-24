@@ -1,4 +1,4 @@
-<!-- captures: ab2828904152 -->
+<!-- captures: 253be5c69f62 -->
 # 06-inspector: the main panel for an account's sessions, a project's sessions and a session's terminal, and Home with nothing opened
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design passes.
@@ -41,3 +41,7 @@ Re-captured (eight states at 1280 and 1440); opened at full size: account-sessio
 | 18 | Usability | 4 | AJ-E2327 (6): nothing contradicts the rail (the same states and counts). Match. |
 
 Lowest: 4 (every line 4 or 5).
+
+## 0.5.1 final round (2026-11-24)
+
+Re-captured once on the release HEAD after the last fixes. What changed: Needs you's cards are tone fills with their level's mark (a stopped one in the broken tone), the most urgent first (F53, F66, F80); the lens switch's chosen segment is a solid fill; rail rows carry a model mark where the model changed (F77). Every state was compared with its last capture (the sweep's pixel diff, a Sonnet checker opening base, head and diff; Opus checked each suspect: none broken). Scores unchanged.

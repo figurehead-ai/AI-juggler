@@ -1,4 +1,4 @@
-<!-- captures: 23e2b4a5546c -->
+<!-- captures: 42a1e5c3fc82 -->
 # 50-cross-switch: continuing a session on another account or Mac: the target list, the switch wizard's steps, progress, conflicts and switching back
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design passes.
@@ -54,3 +54,7 @@ Re-captured after F53 and this batch's fix, every state, both themes at 1280×80
 Lowest: 3 (switch back and the diverged sheet: lines 4, 5, 6, 12, 14), logged as F71. Targets fixed to 4.
 
 **Fixed after the critique (F71, F75), re-captured (switch-back-preview, conflict-sheet, conflict-keep-both, resolved, progress; both themes, opened as pairs):** switch back is "Switch back to Laptop · The original on Work Max resumes there, never overwritten." with the strip, "What the original receives · One update: 4 new turns from here" as You/Reply turns on a tinted inset, Keep this session running too as a CheckRow, and Cancel · Switch back to Laptop. The sheet is "Both sides moved on · Nothing was merged and nothing ran. Choose what to keep.", a fact panel (Here: 4 new turns on Desktop Max; On Laptop: 2 new turns in the original, last active 30 min ago), What to keep as three RadioCards with icons, "Choose what to keep first." until one is chosen, Review later (focused) · Keep both on Laptop. resolved: "Back on Laptop" with the outcome, Done. Lowest now: 4 (both columns).
+
+## 0.5.1 final round (2026-11-24)
+
+Re-captured once on the release HEAD after the last fixes. What changed: Behind the dialog the rail and Needs you are in their 0.5.1 style; the dialog itself is unchanged. Every state was compared with its last capture (the sweep's pixel diff, a Sonnet checker opening base, head and diff; Opus checked each suspect: none broken). Scores unchanged.

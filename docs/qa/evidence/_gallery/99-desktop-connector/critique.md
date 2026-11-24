@@ -1,4 +1,4 @@
-<!-- captures: 0534a16654cd -->
+<!-- captures: b0c470137e81 -->
 # 99-desktop-connector: desktop apps in a pool through AI Juggler's connector (AJ-E3013)
 
 Design critique (D-57, AJ-E2814) against 99-pool-selection (the canvas and inspector around it), 92-agent-tools (the team tools card, the same card shape) and the calm UI round 2 rules. The Checkout team pool with a Claude app profile as an App member (no connector), a Claude app session connected, another Watched, and a ChatGPT (Codex app) thread; dark and light, 1280×800. Fixtures only: nothing is written or run.
@@ -120,3 +120,7 @@ Opened at full size: new-pool (dark) and card (light) from the 0.5.1 shoot, and 
 | 18 | Usability | 4 | AJ-E1548 R11: no providers' terms here. AJ-E1547: no system dialog from this flow. Match. |
 
 Lowest: 4.
+
+## 0.5.1 final round (2026-11-24)
+
+Re-captured once on the release HEAD after the last fixes. What changed: The lens switch's chosen segment is a solid fill. Every state was compared with its last capture (the sweep's pixel diff, a Sonnet checker opening base, head and diff; Opus checked each suspect: none broken). Scores unchanged.

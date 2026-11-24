@@ -1,4 +1,4 @@
-<!-- captures: 52876612daec -->
+<!-- captures: 780f68ece139 -->
 # 69-rail-narrow: the narrow window
 
 Design critique (D-57, AJ-E2814) against the reference screens: the row menus (77-menus), the rail's order menu, Usage and Processes. The baseline note says what changed on purpose; this says whether it is good.
@@ -82,3 +82,7 @@ Lowest as first scored: 3 (line 6, F57 logged: the fold point should count the t
 **Re-captured after F57 (2026-11-24, Opus):** all six re-rendered and opened. opened-860x700 and folded-860x700: the top bar is one row (it took two): Home · Projects · Pools · More ▾ beside 🧹 7, >_, Bot, the bell, the Floor and the avatar, so the page starts about 45 px higher. folded-390x844, a width the window can't take (its minimum is 1024): Home · Projects · More over the cluster, two rows where it took three.
 
 Lowest: 4 (line 6 was 3: F57 fixed).
+
+## 0.5.1 final round (2026-11-24)
+
+Re-captured once on the release HEAD after the last fixes. What changed: Needs you's cards are tone fills with their level's mark (a stopped one in the broken tone), the most urgent first (F53, F66, F80), at 390 px. Every state was compared with its last capture (the sweep's pixel diff, a Sonnet checker opening base, head and diff; Opus checked each suspect: none broken). Scores unchanged.

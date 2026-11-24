@@ -1,4 +1,4 @@
-<!-- captures: 296f63a54b47 -->
+<!-- captures: b1736a9c261e -->
 # 54-summary: Home's "Since you were away" summary of what crashed, needs you, ran, finished and ended, and a session opened from it
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design passes.
@@ -52,3 +52,7 @@ Opened at full size: home-1440x900 dark and opened-1024x680 light, beside the 0.
 | 18 | Usability | 4 | Catching up is one read. |
 
 Lowest: 4.
+
+## 0.5.1 final round (2026-11-24)
+
+Re-captured once on the release HEAD after the last fixes. What changed: Needs you's cards are tone fills with their level's mark (a stopped one in the broken tone), the most urgent first (F53, F66, F80); the lens switch's chosen segment is a solid fill. Every state was compared with its last capture (the sweep's pixel diff, a Sonnet checker opening base, head and diff; Opus checked each suspect: none broken). Scores unchanged.

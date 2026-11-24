@@ -1,4 +1,4 @@
-<!-- captures: 6a13654e6238 -->
+<!-- captures: 83db9b142e8b -->
 # 29-door: the one-click door into a switch: the switch dialog from one click, the wizard's Target and What's carried steps (3- and 5-step), and the Undo toast after switching
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design passes.
@@ -46,3 +46,7 @@ Re-captured after F53, both sizes and themes, opened as dark|light pairs beside 
 Lowest: 3 (line 13), logged as F74; F73 for the toast's action look. No fix in this family.
 
 **Fixed after the critique (F73, F74), re-captured (undo-toast, both sizes and themes, opened as pairs):** the page behind the toast is the new session's arriving page, its name and where it came from, a skeleton by tone where "Unavailable" stood; Undo (10s) is a neutral fill like Start another. Lowest now: 4.
+
+## 0.5.1 final round (2026-11-24)
+
+Re-captured once on the release HEAD after the last fixes. What changed: Behind the dialog the rail and Needs you are in their 0.5.1 style; the dialog itself is unchanged. Every state was compared with its last capture (the sweep's pixel diff, a Sonnet checker opening base, head and diff; Opus checked each suspect: none broken). Scores unchanged.

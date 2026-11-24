@@ -1,4 +1,4 @@
-<!-- captures: e28cffc79fee -->
+<!-- captures: b87052a6b187 -->
 # 83-keep-going: restarting crashed sessions and keeping the Mac awake
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design passes.
@@ -42,3 +42,7 @@ Opened at full size: this-mac-awake-1280x800 light (before the fix), and dark (l
 | 18 | Usability | 4 | Always on (D-28) said where it acts. |
 
 Lowest: 4 (line 13 was 3: the capture's subject was out of frame).
+
+## 0.5.1 final round (2026-11-24)
+
+Re-captured once on the release HEAD after the last fixes. What changed: The renewal chip is the neutral chip with amber words (F76). Every state was compared with its last capture (the sweep's pixel diff, a Sonnet checker opening base, head and diff; Opus checked each suspect: none broken). Scores unchanged.

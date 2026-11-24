@@ -1,4 +1,4 @@
-<!-- captures: c03c214cb25c -->
+<!-- captures: e267523c5aa6 -->
 # 77-menus: every row menu, the palette's action list and a submenu
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design passes.
@@ -26,3 +26,7 @@ Only the captures that showed the old fixture folder name were re-shot: the copy
 Re-captured against 0.5.1: menus are tonal panels with soft shadows, the highlighted submenu row carries the only ring, Stop this session is red words with no fill, and the disabled Archive gives its reason inline. The account menu and palette are unchanged in content.
 
 Nothing broken (checked both themes).
+
+## 0.5.1 final round (2026-11-24)
+
+Re-captured once on the release HEAD after the last fixes. What changed: Behind the dialog the rail and Needs you are in their 0.5.1 style; the dialog itself is unchanged. Every state was compared with its last capture (the sweep's pixel diff, a Sonnet checker opening base, head and diff; Opus checked each suspect: none broken). Scores unchanged.

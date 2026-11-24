@@ -1,4 +1,4 @@
-<!-- captures: 315017316c9c -->
+<!-- captures: 5933d5d787a9 -->
 # 67-home: Home in its states (welcome, no sessions, all clear, sessions that need you) with the legend, the account menu and the rail's View menu
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design passes.
@@ -90,3 +90,7 @@ Lowest as first scored: 3 (line 12, F56 logged).
 **Re-captured after F56 (2026-11-24, Opus):** the family re-rendered; opened no-sessions (1280 and 390, both themes) and a populated one. The empty feed is its card alone: "Quiet so far…", New session and Open an app, then a muted line "Your own actions aren't shown. Include my actions" (the switch the hidden ⋯ held, the one thing that can change an empty feed). The chips, Showing: and ⋯ are gone above it; with anything in the feed, or a filter on, they are as before. The chosen segment is F53's solid fill.
 
 Lowest: 4 (line 12 was 3: F56 fixed).
+
+## 0.5.1 final round (2026-11-24)
+
+Re-captured once on the release HEAD after the last fixes. What changed: Needs you's cards are tone fills with their level's mark (a stopped one in the broken tone), the most urgent first (F53, F66, F80); at 390 px the words wrap cleanly. Every state was compared with its last capture (the sweep's pixel diff, a Sonnet checker opening base, head and diff; Opus checked each suspect: none broken). Scores unchanged.

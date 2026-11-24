@@ -1,4 +1,4 @@
-<!-- captures: 900d22e828f0 -->
+<!-- captures: 89ef1e808652 -->
 # 42-fleet: the Fleet page for pairing other Macs, in its link, trust and pairing states
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design fixes.
@@ -25,3 +25,7 @@ The Fleet page with its Beta chip, the Link card, Paired machines and This Mac; 
 ## 0.5.1
 
 Re-captured on 0.5.1; only the shared chrome changed in these screens. The rail's head now starts past the traffic lights, its rows hold a fixed dot column (tools on hover), cards and panels separate by tone instead of a border, a chosen item is a fill, and the top bar's bottom line is calmer. Fleet content is unchanged.
+
+## 0.5.1 final round (2026-11-24)
+
+Re-captured once on the release HEAD after the last fixes. What changed: The top bar folds Fleet into More; the Macs' fingerprints sit under their names, and a Cloud bar offers finding your Macs through your Figurehead account. Every state was compared with its last capture (the sweep's pixel diff, a Sonnet checker opening base, head and diff; Opus checked each suspect: none broken). Scores unchanged.

@@ -1,4 +1,4 @@
-<!-- captures: 7e7e8366a63d -->
+<!-- captures: a06d0a6eb7f7 -->
 # 01-rail: the session rail beside Home, with every status, with no accounts (welcome) and with one account still to sign in, at four widths in both themes
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design passes.
@@ -50,3 +50,7 @@ Re-captured at the window's sizes (1024, 1280, 1440; F49's re-render had kept th
 Lowest: 3, each line under 4 logged (F80); the rest 4 or 5. After F80: lowest 4.
 
 **Fixed after the critique (F80, F77), re-captured (all-statuses at 1024, 1280 and 1440, both themes; opened 1280 light; honest-empty and ready-home re-rendered byte-identical):** Needs you now pins "Rename the photo exports ✕ stopped with an error" (See what happened ↵, the one primary) and "Port the settings parser ✕ stopped with an error", then "Tidy the blog's images limit reached" and "+2 more need you" (it pinned the asks, stuck and limit needs and folded both stopped ones). The rail's model-changed mark beside "Port the settings parser" is F77's chip icon, no outline. Line 2 3 → 4; lowest now 4.
+
+## 0.5.1 final round (2026-11-24)
+
+Re-captured once on the release HEAD after the last fixes. What changed: Needs you's cards are tone fills with their level's mark (a stopped one in the broken tone), the most urgent first (F53, F66, F80); the lens switch's chosen segment is a solid fill; rail rows carry a model mark where the model changed (F77). Every state was compared with its last capture (the sweep's pixel diff, a Sonnet checker opening base, head and diff; Opus checked each suspect: none broken). Scores unchanged.

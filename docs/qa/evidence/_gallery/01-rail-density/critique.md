@@ -1,4 +1,4 @@
-<!-- captures: b38604a1d573 -->
+<!-- captures: 5703e209eae1 -->
 # 01-rail-density: the session rail in its three densities (comfortable, compact, minimal icons), the minimal rail's tooltip, and a row marked stale
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design fixes.
@@ -47,3 +47,7 @@ Lowest as first scored: 3 (lines 6 and 15: F55, F61, logged). No fix here: both 
 **Re-captured after F55 and F61 (2026-11-24, Opus):** all eight captures re-rendered and opened. comfortable-1024x768 and -1440x900: the desktop row beside its always-shown ⋯ reads "Stopped with an …" (it was cut mid-letter, "Stopped with an erı"). compact-1024x768: that row is "Rename the ph…" with its age and "app" chip given way (it was "R.."), and the other desktop rows drop the chip before their titles go under about ten letters ("Sketch the pricing… 10 h"). minimal-tooltip-1440x900 now shows a tip: "Group and View — show the list (⌘B)" drawn beside its icon, as it shows on keyboard focus too (it showed nothing). The chosen lens is F53's solid fill in every capture.
 
 Lowest: 4 (lines 6 and 15 were 3: F55, F61 fixed).
+
+## 0.5.1 final round (2026-11-24)
+
+Re-captured once on the release HEAD after the last fixes. What changed: Needs you's cards are tone fills with their level's mark (a stopped one in the broken tone), the most urgent first (F53, F66, F80); the lens switch's chosen segment is a solid fill; rail rows carry a model mark where the model changed (F77). Every state was compared with its last capture (the sweep's pixel diff, a Sonnet checker opening base, head and diff; Opus checked each suspect: none broken). Scores unchanged.

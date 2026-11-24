@@ -1,4 +1,4 @@
-<!-- captures: 17b7e78ce1ea -->
+<!-- captures: 32bde83817be -->
 # 01-rail-sort: the rail's sort and grouping options (needs me, by project, quota risk), a search with no match, a snoozed row and the rail's View menu
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design fixes.
@@ -46,3 +46,7 @@ Opened at full size: view, snoozed (before and after the fix) and empty-search, 
 Lowest: 4 (line 6 was 3 before the fix).
 
 **Re-captured after F55 (2026-11-24, Opus):** all five re-rendered and opened (needs-me, group-by-project, snoozed, view, empty-search). The desktop row's state word reads "Stopped with an …" (F55, it was cut mid-letter); the chosen lens is F53's solid fill. Nothing else moved. Lowest stays 4.
+
+## 0.5.1 final round (2026-11-24)
+
+Re-captured once on the release HEAD after the last fixes. What changed: Needs you's cards are tone fills with their level's mark (a stopped one in the broken tone), the most urgent first (F53, F66, F80); the lens switch's chosen segment is a solid fill; rail rows carry a model mark where the model changed (F77). Every state was compared with its last capture (the sweep's pixel diff, a Sonnet checker opening base, head and diff; Opus checked each suspect: none broken). Scores unchanged.

@@ -1,4 +1,4 @@
-<!-- captures: a0fcf41bd35f -->
+<!-- captures: 80fd3b6bd2e1 -->
 # 99-pool-selection: the canvas's selection and the inspector's title (AJ-E3012)
 
 Design critique (D-57, AJ-E2814) against 97-pool-canvas (the canvas before) and the calm UI round 2 rules. The canvas with each kind selected — nothing (the pool), a session, an App, an Account, a Tool, everyone in scope, a line, the pool's own setup opened from the checklist, and the lead's place waiting for an App's next session — dark and light, 1280×800. Fixture names only.
@@ -140,3 +140,7 @@ Opened at full size: selection-pool-setup (dark) and selection-line (light); the
 | 18 | Usability | 4 | AJ-E1548 #27: while setup is open its checklist owns the rules; the dropdown returns when done. Match. |
 
 Lowest: 4. No fix made (nothing under 4); the 33 % truncation is the canvas's fit, unchanged since 0.4.6.
+
+## 0.5.1 final round (2026-11-24)
+
+Re-captured once on the release HEAD after the last fixes. What changed: The chosen segment of the lens switch and the view toggle is a solid fill. Every state was compared with its last capture (the sweep's pixel diff, a Sonnet checker opening base, head and diff; Opus checked each suspect: none broken). Scores unchanged.

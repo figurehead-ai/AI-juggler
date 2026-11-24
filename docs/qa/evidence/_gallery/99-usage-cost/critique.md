@@ -1,4 +1,4 @@
-<!-- captures: a896e800fed3 -->
+<!-- captures: e712ab842bf9 -->
 <!-- captures: pending -->
 # 99-usage-cost: cost you can act on
 
@@ -44,3 +44,7 @@ The whole family was retaken on release/0.4.1 for the 14-line re-score (AJ-E3305
 ## 0.5.1
 
 Re-captured on 0.5.1; only the shared chrome changed in these screens. The rail's head now starts past the traffic lights, its rows hold a fixed dot column (tools on hover), cards and panels separate by tone instead of a border, a chosen item is a fill, and the top bar's bottom line is calmer. The cost cards and tables are unchanged; names read Claude Code CLI.
+
+## 0.5.1 final round (2026-11-24)
+
+Re-captured once on the release HEAD after the last fixes. What changed: Behind the dialog the rail and Needs you are in their 0.5.1 style; the dialog itself is unchanged. Every state was compared with its last capture (the sweep's pixel diff, a Sonnet checker opening base, head and diff; Opus checked each suspect: none broken). Scores unchanged.

@@ -1,4 +1,4 @@
-<!-- captures: f2ec37a155a0 -->
+<!-- captures: 6732b18923ec -->
 <!-- captures: pending -->
 # 99-debug-mode: Debug mode
 
@@ -40,3 +40,7 @@ Unchanged in design: "Keep a detailed log" under Debug mode, the log empty with 
 ## 0.5.1
 
 Re-captured on 0.5.1; only the shared chrome changed in these screens. The rail's head now starts past the traffic lights, its rows hold a fixed dot column (tools on hover), cards and panels separate by tone instead of a border, a chosen item is a fill, and the top bar's bottom line is calmer. Content is unchanged; the settings list gained AI and Models.
+
+## 0.5.1 final round (2026-11-24)
+
+Re-captured once on the release HEAD after the last fixes. What changed: The lens switch's chosen segment is a solid fill. Every state was compared with its last capture (the sweep's pixel diff, a Sonnet checker opening base, head and diff; Opus checked each suspect: none broken). Scores unchanged.

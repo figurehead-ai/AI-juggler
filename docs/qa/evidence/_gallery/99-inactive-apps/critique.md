@@ -1,4 +1,4 @@
-<!-- captures: eec60576076d -->
+<!-- captures: 0bf685a1db61 -->
 # 99-inactive-apps: the rail grouped by App is about apps (0.3.4, D-64)
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at 0.3.4 from its captures.
@@ -72,3 +72,7 @@ Lowest as first scored: 3 (line 14, F60 logged: icons need meanings chosen in th
 **Re-captured after F60 and F56 (2026-11-24, Opus):** all eight re-rendered; opened rail-idle-menu in both themes and home-closed-apps. The idle App's menu: Start (its row's ▷), Keep alive (a shield, its ✓ at the end), Open its page (a page): each line with its icon, as the rail's other menus (they were words alone). An open App's header menu got the same. Home's empty feed is its card alone, with Include my actions in it (F56).
 
 Lowest: 4 (line 14 was 3: F60 fixed).
+
+## 0.5.1 final round (2026-11-24)
+
+Re-captured once on the release HEAD after the last fixes. What changed: The system-prompt card is restyled slightly (tone, no bright border). Every state was compared with its last capture (the sweep's pixel diff, a Sonnet checker opening base, head and diff; Opus checked each suspect: none broken). Scores unchanged.

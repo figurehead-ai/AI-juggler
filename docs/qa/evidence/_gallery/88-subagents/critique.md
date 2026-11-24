@@ -1,4 +1,4 @@
-<!-- captures: e0ad67777f4a -->
+<!-- captures: 7ea624f12987 -->
 # 88-subagents: a session's Subagents tab and a subagent's page
 
 Design critique (D-57, AJ-E2814) against the reference screens: the row menus (77-menus), the rail's order menu, Usage and Processes. The baseline note says what changed on purpose; this says whether it is good.
@@ -115,3 +115,7 @@ Weak: the list's first visible line ("feat/read-model · Probably stuck") is cut
 Re-captured against 0.5.1: the Subagents tab, the detail cards and the switcher sit on tonal surfaces and the lens segments show the F53 chosen fill. Then F85 (fc44584c6): detail-failed-* shows the reason in ink on a tone card inside Result, with the red ✕ mark before it; no red fill, outline or red words.
 
 Nothing broken (checked both themes).
+
+## 0.5.1 final round (2026-11-24)
+
+Re-captured once on the release HEAD after the last fixes. What changed: Needs you's cards are tone fills with their level's mark (a stopped one in the broken tone), the most urgent first (F53, F66, F80). Every state was compared with its last capture (the sweep's pixel diff, a Sonnet checker opening base, head and diff; Opus checked each suspect: none broken). Scores unchanged.

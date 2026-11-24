@@ -1,4 +1,4 @@
-<!-- captures: 0a5e18eb30fb -->
+<!-- captures: 1d54801203d0 -->
 # 38-flows-cde: Add an account's tool cards and the New session dialog with its room-left checks
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design passes.
@@ -41,3 +41,7 @@ Re-captured after F53 and this batch's fix, 1280×800 and 390×844, both themes.
 | 18 | Usability | 4 | 4 | |
 
 Lowest: 4 after the fix.
+
+## 0.5.1 final round (2026-11-24)
+
+Re-captured once on the release HEAD after the last fixes. What changed: Behind the dialog the rail and Needs you are in their 0.5.1 style; the dialog itself is unchanged. Every state was compared with its last capture (the sweep's pixel diff, a Sonnet checker opening base, head and diff; Opus checked each suspect: none broken). Scores unchanged.

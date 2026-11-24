@@ -1,4 +1,4 @@
-<!-- captures: 5b0cbe7170ae -->
+<!-- captures: c264f1c45f3b -->
 <!-- captures: pending -->
 # 99-floor-list: the Floor list
 
@@ -50,3 +50,7 @@ Unchanged in design: search, "Waiting on you 5", one header per floor with the r
 ## 0.5.1
 
 Re-captured on 0.5.1; only the shared chrome changed in these screens. The rail's head now starts past the traffic lights, its rows hold a fixed dot column (tools on hover), cards and panels separate by tone instead of a border, a chosen item is a fill, and the top bar's bottom line is calmer. The Floor list is unchanged; its subtitle adds how many need you.
+
+## 0.5.1 final round (2026-11-24)
+
+Re-captured once on the release HEAD after the last fixes. What changed: The lens switch's chosen segment is a solid fill. Every state was compared with its last capture (the sweep's pixel diff, a Sonnet checker opening base, head and diff; Opus checked each suspect: none broken). Scores unchanged.

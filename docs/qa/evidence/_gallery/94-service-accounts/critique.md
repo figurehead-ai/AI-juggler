@@ -1,4 +1,4 @@
-<!-- captures: f65223c837c3 -->
+<!-- captures: fb11c75be6e4 -->
 # 94-service-accounts: accounts that run through another service (OpenCode Go, Kimi), a missing key, and adding one
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design fixes.
@@ -16,3 +16,7 @@ accounts-key-missing shows the 0.3.2 Accounts page well: the "Go and Go Codex" (
 ## 0.5.1
 
 Re-captured on 0.5.1; only the shared chrome changed in these screens. The rail's head now starts past the traffic lights, its rows hold a fixed dot column (tools on hover), cards and panels separate by tone instead of a border, a chosen item is a fill, and the top bar's bottom line is calmer. The cards and dialogs keep their content; the page gained Accounts and Apps tabs and profile words read app.
+
+## 0.5.1 final round (2026-11-24)
+
+Re-captured once on the release HEAD after the last fixes. What changed: Add an app chooses with one secondary per tool (B2), not a primary each. Every state was compared with its last capture (the sweep's pixel diff, a Sonnet checker opening base, head and diff; Opus checked each suspect: none broken). Scores unchanged.

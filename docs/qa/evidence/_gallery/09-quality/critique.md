@@ -1,4 +1,4 @@
-<!-- captures: 14de154f0ab3 -->
+<!-- captures: efc0e48896b5 -->
 # 09-quality: a session's Usage tab ("How it's going"), as small charts and as a table
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design fixes.
@@ -42,3 +42,7 @@ Re-captured (populated and as-table at 1440×900); the same Usage tab as 07-insp
 | 18 | Usability | 4 | Re-read against PAT-USE's six questions (no 0.5.1 task covers it): every figure named with its source. Match. |
 
 Lowest: 4 (every line 4 or 5).
+
+## 0.5.1 final round (2026-11-24)
+
+Re-captured once on the release HEAD after the last fixes. What changed: Rail rows carry a model mark where the model changed (F77). Every state was compared with its last capture (the sweep's pixel diff, a Sonnet checker opening base, head and diff; Opus checked each suspect: none broken). Scores unchanged.

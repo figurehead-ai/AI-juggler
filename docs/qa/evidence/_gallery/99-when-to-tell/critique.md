@@ -1,4 +1,4 @@
-<!-- captures: 05182586928f -->
+<!-- captures: 2932830216e9 -->
 <!-- captures: pending -->
 # 99-when-to-tell: Notifications › When to tell me
 
@@ -41,3 +41,7 @@ Unchanged in design: When to tell me in its own card, quiet hours and the digest
 ## 0.5.1
 
 Re-captured on 0.5.1; only the shared chrome changed in these screens. The rail's head now starts past the traffic lights, its rows hold a fixed dot column (tools on hover), cards and panels separate by tone instead of a border, a chosen item is a fill, and the top bar's bottom line is calmer. The When to tell me card is unchanged; the page above it gained rows for watches and the digest.
+
+## 0.5.1 final round (2026-11-24)
+
+Re-captured once on the release HEAD after the last fixes. What changed: The lens switch's chosen segment is a solid fill. Every state was compared with its last capture (the sweep's pixel diff, a Sonnet checker opening base, head and diff; Opus checked each suspect: none broken). Scores unchanged.

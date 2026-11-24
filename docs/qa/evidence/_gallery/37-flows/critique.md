@@ -1,4 +1,4 @@
-<!-- captures: b9a093153f96 -->
+<!-- captures: 84033f2bc5fe -->
 # 37-flows: the first-run "bring in your accounts" detour and the New project dialog's two steps
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design passes.
@@ -42,3 +42,7 @@ Re-captured after F53, 1280, 1024 and 390, both themes. b-detour is the setup wi
 Lowest: 3 (New project, lines 4, 5, 9, 12, 14), logged as F68.
 
 **Fixed after the critique (F68), re-captured (b1-tiles, b2-account, b-detour; 1280, 1024, 390; both themes, opened as pairs):** b1-tiles is New project on the size-M frame: the folder icon tile, "New project" and "Choose its folder. New session then picks the app, as it always does.", "Where it lives" with the recent folders one to a row as tone cards ("ai-juggler · Last used with Work Max · 1 min ago"), the keyboard on the first, Choose folder… a secondary, "Or drop a folder anywhere on this window." and Cancel in the footer. b2-account is New session opened on ai-juggler: "Start in ai-juggler on Claude Code CLI · Work Max — the only account used here", its Change folder and Change app, and "Start in ai-juggler ⌘↩". b-detour: the add-an-app flow over the sheet, which then carries on to New session on the folder. Lowest now: 4 (both columns).
+
+## 0.5.1 final round (2026-11-24)
+
+Re-captured once on the release HEAD after the last fixes. What changed: Behind the dialog the rail and Needs you are in their 0.5.1 style; the dialog itself is unchanged. Every state was compared with its last capture (the sweep's pixel diff, a Sonnet checker opening base, head and diff; Opus checked each suspect: none broken). Scores unchanged.

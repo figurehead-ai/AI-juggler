@@ -1,4 +1,4 @@
-<!-- captures: ce8905f00f4b -->
+<!-- captures: 4cd85aca4382 -->
 # 75-feedback: loading states, the quit check, and undo toasts
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design passes.
@@ -45,3 +45,7 @@ Lowest as first scored: 3 (lines 6 and 13, F64 logged).
 **Re-captured after F64 (2026-11-24, Opus):** the family re-rendered; opened loading-home-1280x800 in both themes beside 67-home's needs-you-1280x800. The skeleton is Home's shape: a heading bar where "5 need you" lands, then the two columns at Home's widths (the left column's edge at 912, the right from 940 to 1256): a section head over a need card (mark, two lines, two buttons), the feed's chip track and four rows; on the right Your apps' head over its card of three rows and Runway's over its two meters. Cards by tone, no outlines (it was one column of three outlined bars).
 
 Lowest: 4 (lines 6 and 13 were 3: F64 fixed).
+
+## 0.5.1 final round (2026-11-24)
+
+Re-captured once on the release HEAD after the last fixes. What changed: Behind the dialog the rail and Needs you are in their 0.5.1 style; the dialog itself is unchanged. Every state was compared with its last capture (the sweep's pixel diff, a Sonnet checker opening base, head and diff; Opus checked each suspect: none broken). Scores unchanged.

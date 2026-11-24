@@ -1,4 +1,4 @@
-<!-- captures: 0ecd43ce50b1 -->
+<!-- captures: 08c737c6a86f -->
 <!-- captures: pending -->
 # 99-settings-search: Settings' search
 
@@ -42,3 +42,7 @@ Unchanged in design: no match says so under the field and dims the panes.
 ## 0.5.1
 
 Re-captured on 0.5.1; only the shared chrome changed in these screens. The rail's head now starts past the traffic lights, its rows hold a fixed dot column (tools on hover), cards and panels separate by tone instead of a border, a chosen item is a fill, and the top bar's bottom line is calmer. Search and its results are unchanged.
+
+## 0.5.1 final round (2026-11-24)
+
+Re-captured once on the release HEAD after the last fixes. What changed: The lens switch's chosen segment is a solid fill. Every state was compared with its last capture (the sweep's pixel diff, a Sonnet checker opening base, head and diff; Opus checked each suspect: none broken). Scores unchanged.

@@ -1,4 +1,4 @@
-<!-- captures: 15aa485fa856 -->
+<!-- captures: 38425c18dc75 -->
 # 21-tiers: the Processes page when automatic cleanup is paused, suspended after a crash, or about to tidy a process (5 s and 30 s), and the account's cleanup toggles off and on
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design passes.
@@ -41,3 +41,7 @@ Re-captured (six states at 1440, both themes); opened at full size: tier2-5s-144
 | 18 | Usability | 4 | Re-read against PAT-USE: nothing is stopped without being said first, with its undo. Match. |
 
 Lowest: 4 (every line 4 or 5).
+
+## 0.5.1 final round (2026-11-24)
+
+Re-captured once on the release HEAD after the last fixes. What changed: Rail rows carry a model mark where the model changed (F77). Every state was compared with its last capture (the sweep's pixel diff, a Sonnet checker opening base, head and diff; Opus checked each suspect: none broken). Scores unchanged.

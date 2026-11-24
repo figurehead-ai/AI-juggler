@@ -1,4 +1,4 @@
-<!-- captures: 65140f6533ab -->
+<!-- captures: f05288c0b3d7 -->
 # 99-account-page: an Account's own page, and the Accounts screen that leads to it (0.4, D-62, AJ-E3205)
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at 0.4 from its captures; a second section for AJ-E3202 req. 4 (plan, renewal and fee kept on the Account).
@@ -126,3 +126,7 @@ The bug: with all three questions open (plan, renewal, fee), answering the first
 ## 0.5.1
 
 Re-captured on 0.5.1; only the shared chrome changed in these screens. The rail's head now starts past the traffic lights, its rows hold a fixed dot column (tools on hover), cards and panels separate by tone instead of a border, a chosen item is a fill, and the top bar's bottom line is calmer. The account page keeps its content; apps read Claude Code CLI and Measure its limits became How it's measured.
+
+## 0.5.1 final round (2026-11-24)
+
+Re-captured once on the release HEAD after the last fixes. What changed: The lens switch's chosen segment is a solid fill; rail rows carry a model mark where the model changed (F77). Every state was compared with its last capture (the sweep's pixel diff, a Sonnet checker opening base, head and diff; Opus checked each suspect: none broken). Scores unchanged.

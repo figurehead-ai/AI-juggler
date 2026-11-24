@@ -1,4 +1,4 @@
-<!-- captures: 41b3ea4f0fce -->
+<!-- captures: 3255e0febfdd -->
 # 88-fleet-launch: Fleet, starting a session on another Mac, and Usage split by machine
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design passes.
@@ -25,3 +25,7 @@ Re-captured against 0.5.1: the Runs on chips and the chosen folder and app rows 
 F89: usage-by-machine no longer opens with the top edge through the cost tiles' titles. The capture scrolls back to their first line while the "Last 24 hours, by machine" card stays whole: "Per finished task" and "Crashed or probably stuck" read whole at the top (both themes), only the tiles' top padding sits under the edge, and the machine card ends above the window's bottom with its footnote.
 
 Nothing broken (checked both themes).
+
+## 0.5.1 final round (2026-11-24)
+
+Re-captured once on the release HEAD after the last fixes. What changed: Behind the dialog the rail and Needs you are in their 0.5.1 style; the dialog itself is unchanged. Every state was compared with its last capture (the sweep's pixel diff, a Sonnet checker opening base, head and diff; Opus checked each suspect: none broken). Scores unchanged.

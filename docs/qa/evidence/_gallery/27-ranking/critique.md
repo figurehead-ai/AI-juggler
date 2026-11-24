@@ -1,4 +1,4 @@
-<!-- captures: e395b6b6b5a5 -->
+<!-- captures: 62706e625f99 -->
 # 27-ranking: how accounts are ranked for new work: the Home queue, the bell's notifications, and the New session dialog's Ranked for you list with its Why this order? explanation
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design fixes.
@@ -49,3 +49,7 @@ Opened at full size: notification-1280x800 dark (the 0.5.1 shoot and after 7e858
 | 18 | Usability | 4 | What to look at next, and that nothing moved by itself. |
 
 Lowest: 4.
+
+## 0.5.1 final round (2026-11-24)
+
+Re-captured once on the release HEAD after the last fixes. What changed: Needs you's cards are tone fills with their level's mark (a stopped one in the broken tone), the most urgent first (F53, F66, F80). Every state was compared with its last capture (the sweep's pixel diff, a Sonnet checker opening base, head and diff; Opus checked each suspect: none broken). Scores unchanged.

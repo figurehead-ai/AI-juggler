@@ -1,4 +1,4 @@
-<!-- captures: 055840d3fe8d -->
+<!-- captures: d2918c26a58c -->
 # 46-fleet-board: Home with other Macs in view: the remote limit banner, the View menu's Mac filter, and the access sheet and "ask each time" prompt on Fleet
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design fixes.
@@ -52,3 +52,7 @@ Lowest as first scored: 3 (lines 6 and 12: F57, F58 logged; the first is the top
 **Re-captured after F57 and F58 (2026-11-24, Opus):** all twenty re-rendered; opened access-sheet-1024x768 light, ask-each-time-1024x768 dark and all-machines-1440x900. At 1024 the top bar is one row (it took two): Home · Projects · Pools · Tasks · Accounts · Usage · More ▾, More lit in semibold as the Fleet page is behind it, then 7 to clean up, New session, Bot, the bell, the Floor and the avatar; the page moves up about 45 px. The prompt reads "It wants to stop “Fix the flaky login test” in Claude Code CLI · Work Max." (it said "Work Max (claude-code)"). 1440 keeps every tab, Fleet included.
 
 Lowest: 4 (lines 6 and 12 were 3: F57, F58 fixed).
+
+## 0.5.1 final round (2026-11-24)
+
+Re-captured once on the release HEAD after the last fixes. What changed: Needs you's cards are tone fills with their level's mark (a stopped one in the broken tone), the most urgent first (F53, F66, F80). Every state was compared with its last capture (the sweep's pixel diff, a Sonnet checker opening base, head and diff; Opus checked each suspect: none broken). Scores unchanged.

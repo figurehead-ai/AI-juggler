@@ -1,4 +1,4 @@
-<!-- captures: 0819dde9a23c -->
+<!-- captures: ee66f72806a0 -->
 # 74-rail-projects: the rail grouped by project, on a first-run home
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design passes.
@@ -42,3 +42,7 @@ Opened at full size: history-1280x800 dark (and light), beside the 0.3.2 one. Th
 Lowest: 4. F56 is Home's (scored 3 in 55-triage and 67-home).
 
 **Re-captured after F56 (2026-11-24, Opus):** both re-rendered and opened. The Home behind the Project lens shows the empty feed as its card alone, with Include my actions in it; its chips, Showing: and ⋯ are gone (F56). The projects' lines are unchanged. Lowest stays 4.
+
+## 0.5.1 final round (2026-11-24)
+
+Re-captured once on the release HEAD after the last fixes. What changed: The system-prompt card's Allow is restyled (one look for a secondary action). Every state was compared with its last capture (the sweep's pixel diff, a Sonnet checker opening base, head and diff; Opus checked each suspect: none broken). Scores unchanged.

@@ -1,4 +1,4 @@
-<!-- captures: 8c8286dcc675 -->
+<!-- captures: aa2c3496442c -->
 # 53-parked: a session parked until its account's quota resets, and the "has reset" banner that offers to resume it
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design passes.
@@ -68,3 +68,7 @@ Opened at full size: rail-and-offer-1280x800 dark and inspector-1280x800 light, 
 Lowest: 4.
 
 **Re-captured after F55 (2026-11-24, Opus):** all four re-rendered; opened rail-and-offer-1280x800 dark and the inspector. The rail's desktop row reads "Stopped with an …" (F55); the parked row, its card and the reset offer are unchanged; the lens is F53's solid fill. Lowest stays 4.
+
+## 0.5.1 final round (2026-11-24)
+
+Re-captured once on the release HEAD after the last fixes. What changed: Needs you's cards are tone fills with their level's mark (a stopped one in the broken tone), the most urgent first (F53, F66, F80). Every state was compared with its last capture (the sweep's pixel diff, a Sonnet checker opening base, head and diff; Opus checked each suspect: none broken). Scores unchanged.

@@ -1,4 +1,4 @@
-<!-- captures: a23f52856661 -->
+<!-- captures: 8b97e3b9d6f7 -->
 # 89-budget-caps: monthly caps, setting one, its alerts on Home, and the caps on Usage
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design passes.
@@ -45,3 +45,7 @@ Opened at full size: usage-caps-1280x800 light, home-needs-1280x800 dark and cap
 | 18 | Usability | 4 | A newcomer sees it's an estimate and that nothing is stopped. |
 
 Lowest: 4.
+
+## 0.5.1 final round (2026-11-24)
+
+Re-captured once on the release HEAD after the last fixes. What changed: Behind the dialog the rail and Needs you are in their 0.5.1 style; the dialog itself is unchanged. Every state was compared with its last capture (the sweep's pixel diff, a Sonnet checker opening base, head and diff; Opus checked each suspect: none broken). Scores unchanged.

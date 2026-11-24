@@ -1,4 +1,4 @@
-<!-- captures: 4cf613200e3c -->
+<!-- captures: f9becb592695 -->
 # 14-focus: the "Go to a session" palette, and a desktop session's panel after a focus attempt and with the permission explainer
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design fixes.
@@ -44,3 +44,7 @@ What they show, scored:
 Lowest: 3 (lines 7, 9, 12), logged as F70.
 
 **Fixed after the critique (F70), re-captured (panel-outcome, permission-explainer):** as the rows above say; the palettes unchanged. Lowest now: 4.
+
+## 0.5.1 final round (2026-11-24)
+
+Re-captured once on the release HEAD after the last fixes. What changed: The palette's backdrop moved slightly; its content is the same. Every state was compared with its last capture (the sweep's pixel diff, a Sonnet checker opening base, head and diff; Opus checked each suspect: none broken). Scores unchanged.

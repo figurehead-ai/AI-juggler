@@ -1,4 +1,4 @@
-<!-- captures: 55d1da45e3ad -->
+<!-- captures: b2b65111460f -->
 # 66-first-run: the first-run steps (bring in accounts, sign in, computer access, Figurehead account) and Home right after them
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design fixes.
@@ -60,3 +60,7 @@ The first run is now the setup wizard (AJ-E1545): a full-window sheet with the a
 **AJ-E1547 match:** no system dialog appears in these captures without its card first. Match.
 
 Re-scored after F50–F52 (2026-11-24, Opus): every capture opened again at full size (found, found-copies, where-we-looked, after-bring-in, after-bring-in-copies, access-one-allowed, access-resumed both themes, one-failed both themes, home-after-first-run). Lowest: 4.
+
+## 0.5.1 final round (2026-11-24)
+
+Re-captured once on the release HEAD after the last fixes. What changed: The permission card's clip poster is the re-made one (a framed app window, F3). Every state was compared with its last capture (the sweep's pixel diff, a Sonnet checker opening base, head and diff; Opus checked each suspect: none broken). Scores unchanged.

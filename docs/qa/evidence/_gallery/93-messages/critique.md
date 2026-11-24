@@ -1,4 +1,4 @@
-<!-- captures: 22c059722956 -->
+<!-- captures: b575e7fe2ed4 -->
 # 93-messages: a pool's Messages and messages in Needs you
 
 Design critique (D-57, AJ-E2814) against the reference screens: the row menus (77-menus), the rail's order menu, Usage and Processes. The baseline note says what changed on purpose; this says whether it is good.
@@ -81,3 +81,7 @@ Lowest as first scored: 3 (line 7, F59 logged: the shared ask card's look and it
 **Re-captured after F59 (2026-11-24, Opus):** all twenty-two re-rendered; opened needs-you-1280x800 in both themes and pool-messages-1680x1050 (unchanged but for F53's chosen segment). The two approval cards in Needs you now are need cards: the surface tone, no border, an amber dot before "AN AGENT ASKS TO SEND · CHECKOUT REDESIGN" (they were an amber wash with an amber border). Inside a panel that frames it (a pool's inspector, the driven panel) the card is one tone step up; no capture here shows that one.
 
 Lowest: 4 (line 7 was 3: F59 fixed).
+
+## 0.5.1 final round (2026-11-24)
+
+Re-captured once on the release HEAD after the last fixes. What changed: The rail holds Needs you's late rows behind its "new above" pill (nothing moves after it appears); the Messages page is the same. Every state was compared with its last capture (the sweep's pixel diff, a Sonnet checker opening base, head and diff; Opus checked each suspect: none broken). Scores unchanged.

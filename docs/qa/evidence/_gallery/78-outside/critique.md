@@ -1,4 +1,4 @@
-<!-- captures: 3e8f8db4ff7a -->
+<!-- captures: db4ccee89cde -->
 # 78-outside: sessions started outside AI Juggler, on home, Accounts and their own pages
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design passes.
@@ -46,3 +46,7 @@ Opened at full size: home-rail-1280x800 light and conversation-page-1280x800 dar
 Lowest: 4.
 
 **Re-captured after F56 (2026-11-24, Opus):** all eight re-rendered; opened home-rail-1280x800 in both themes and the conversation page. Home's empty feed is its card alone with Include my actions in it (F56: its chips are gone). Apps that can take it over still says "Not measured" twice (kept above). Lowest stays 4.
+
+## 0.5.1 final round (2026-11-24)
+
+Re-captured once on the release HEAD after the last fixes. What changed: The system-prompt card is restyled slightly (tone, no bright border). Every state was compared with its last capture (the sweep's pixel diff, a Sonnet checker opening base, head and diff; Opus checked each suspect: none broken). Scores unchanged.

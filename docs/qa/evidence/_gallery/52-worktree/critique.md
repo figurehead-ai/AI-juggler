@@ -1,4 +1,4 @@
-<!-- captures: cf8ee7a6b254 -->
+<!-- captures: c77cb1e640cf -->
 # 52-worktree: a session in its own git worktree, the offer to make one, and removing a worktree with uncommitted files
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design passes.
@@ -16,3 +16,7 @@ In chips the Where it runs card stands off both canvases, and it carries the wor
 ## 0.5.1
 
 Re-captured on 0.5.1; only the shared chrome changed in these screens. The rail's head now starts past the traffic lights, its rows hold a fixed dot column (tools on hover), cards and panels separate by tone instead of a border, a chosen item is a fill, and the top bar's bottom line is calmer. Both worktree dialogs are unchanged; the session page behind shows the conversation.
+
+## 0.5.1 final round (2026-11-24)
+
+Re-captured once on the release HEAD after the last fixes. What changed: Behind the dialog the rail and Needs you are in their 0.5.1 style; the dialog itself is unchanged. Every state was compared with its last capture (the sweep's pixel diff, a Sonnet checker opening base, head and diff; Opus checked each suspect: none broken). Scores unchanged.

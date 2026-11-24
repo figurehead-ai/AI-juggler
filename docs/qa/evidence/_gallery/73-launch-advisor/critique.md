@@ -1,4 +1,4 @@
-<!-- captures: 65c79b3e52a7 -->
+<!-- captures: 15ebc23e7b61 -->
 # 73-launch-advisor: the New session sheet advising whether this Mac has room for one more session
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design fixes.
@@ -39,3 +39,7 @@ Re-captured after F53 (only the rail's lens behind changed). All four are New se
 | 18 | Usability | 4 | |
 
 Lowest: 4.
+
+## 0.5.1 final round (2026-11-24)
+
+Re-captured once on the release HEAD after the last fixes. What changed: Behind the dialog the rail and Needs you are in their 0.5.1 style; the dialog itself is unchanged. Every state was compared with its last capture (the sweep's pixel diff, a Sonnet checker opening base, head and diff; Opus checked each suspect: none broken). Scores unchanged.

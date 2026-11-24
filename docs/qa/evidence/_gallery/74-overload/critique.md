@@ -1,4 +1,4 @@
-<!-- captures: 7fc2dbf6f112 -->
+<!-- captures: 8ae73eeaceb2 -->
 # 74-overload: the Mac-under-strain states: the memory and CPU banner above a session, Home with the pressure item, and This Mac's advice
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design passes.
@@ -44,3 +44,7 @@ Opened at full size: banner-above-session-1280x800 dark (before the fix) and -10
 Lowest: 4 (line 9 was 3 before the fix).
 
 **Re-captured after F56 (2026-11-24, Opus):** all eight re-rendered; opened memory-pressure-other-apps-1280x800 and busy-cpu. Under the memory-pressure need, the empty feed is its card alone ("Quiet so far…", New session, Open an app, "Your own actions aren't shown. Include my actions"), without the chips, Showing: and ⋯ it had (F56). Lowest stays 4.
+
+## 0.5.1 final round (2026-11-24)
+
+Re-captured once on the release HEAD after the last fixes. What changed: The system-prompt card's Allow is restyled (one look for a secondary action). Every state was compared with its last capture (the sweep's pixel diff, a Sonnet checker opening base, head and diff; Opus checked each suspect: none broken). Scores unchanged.

@@ -1,4 +1,4 @@
-<!-- captures: 7d3d7b6475cf -->
+<!-- captures: 0f7aa50e2631 -->
 <!-- captures: pending -->
 # 99-rail-splitter: the rail's edge from the keyboard
 
@@ -66,3 +66,7 @@ Opened at full size: focused-1280x800 light and narrowest-1280x800 dark. The rai
 | 18 | Usability | 4 | Room for long names when wanted, by mouse or keys. |
 
 Lowest: 4.
+
+## 0.5.1 final round (2026-11-24)
+
+Re-captured once on the release HEAD after the last fixes. What changed: The lens switch's chosen segment is a solid fill. Every state was compared with its last capture (the sweep's pixel diff, a Sonnet checker opening base, head and diff; Opus checked each suspect: none broken). Scores unchanged.

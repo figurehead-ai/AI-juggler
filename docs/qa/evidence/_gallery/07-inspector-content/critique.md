@@ -1,4 +1,4 @@
-<!-- captures: da2cede03f6e -->
+<!-- captures: a1a5a469eac3 -->
 # 07-inspector-content: a session page's Overview and Usage tabs, its header menu, and an untitled session that has ended
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design passes.
@@ -42,3 +42,7 @@ Re-captured with the family's four states; opened at full size: instance-usage (
 | 18 | Usability | 4 | No 0.5.1 task carries PAT-USE answers for this tab; re-read against the six questions: names match what they show, every unknown is said, nothing duplicated. Match. |
 
 Lowest: 4 (every line 4 or 5).
+
+## 0.5.1 final round (2026-11-24)
+
+Re-captured once on the release HEAD after the last fixes. What changed: Rail rows carry a model mark where the model changed (F77). Every state was compared with its last capture (the sweep's pixel diff, a Sonnet checker opening base, head and diff; Opus checked each suspect: none broken). Scores unchanged.

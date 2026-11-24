@@ -1,4 +1,4 @@
-<!-- captures: 3e45bcdfcd4d -->
+<!-- captures: ee3508999c28 -->
 # 98-pool-setup: the pool setup a newcomer understands (AJ-E3011)
 
 Design critique (D-57, AJ-E2814) against the reference screens: Settings' choice lines, the switch dialog's "What does this mean?", and the calm UI round 2 mocks (levels, section labels, surface tone). Every step of New pool, empty (the first pool: the intro full, nothing chosen, the defaults filled in) and filled (a name, two Apps, an App's next session leading, a Reviewer, a pair blocked, waking, the seal), dark and light, 1280×800. Fixture names only.
@@ -164,3 +164,7 @@ Opened at full size: setup-who-filled (dark) and setup-review-filled (light) fro
 | 18 | Usability | 4 | AJ-E1548 #27 holds on the made pool (99-pool-selection). |
 
 Lowest: 4 (no line under 4 after the fix).
+
+## 0.5.1 final round (2026-11-24)
+
+Re-captured once on the release HEAD after the last fixes. What changed: Member/Reviewer's chosen segment is a solid fill. Every state was compared with its last capture (the sweep's pixel diff, a Sonnet checker opening base, head and diff; Opus checked each suspect: none broken). Scores unchanged.

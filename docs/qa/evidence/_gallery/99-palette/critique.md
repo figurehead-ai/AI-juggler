@@ -1,4 +1,4 @@
-<!-- captures: 8a7ebb106936 -->
+<!-- captures: d0d321b372c3 -->
 <!-- captures: pending -->
 # 99-palette: ⌘K — search, act or go
 
@@ -78,3 +78,7 @@ Opened at full size: empty (1280 dark), records (1280 light), no-matches (1024 l
 **AJ-E3824 match:** (1) one search for everything: the hint names sessions, tasks, pools, usage, apps and projects. Match. (2) Empty query shows the four Suggested entries and Watch a session…, plainly named. Match. (3) No second search: Bot has none (D-144). Match. (4) No results says where it looked and keeps Suggested; no setup state. Match. (5) None. Match. (6) Each record once (a session under Sessions isn't repeated). Match.
 
 Lowest: 4 (lines 2, 5, 7, 8, 12, 14, 15, 16). No fix made; nothing logged.
+
+## 0.5.1 final round (2026-11-24)
+
+Re-captured once on the release HEAD after the last fixes. What changed: Behind the dialog the rail and Needs you are in their 0.5.1 style; the dialog itself is unchanged; the lens switch's chosen segment is a solid fill. Every state was compared with its last capture (the sweep's pixel diff, a Sonnet checker opening base, head and diff; Opus checked each suspect: none broken). Scores unchanged.

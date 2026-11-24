@@ -1,4 +1,4 @@
-<!-- captures: c6d451819db9 -->
+<!-- captures: 049ba15f1e79 -->
 # 43-pairing: the Add a machine and Join a machine dialogs over Fleet, from code and fingerprint check to permissions, done and every failure
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design fixes.
@@ -23,3 +23,7 @@ Each step a dialog over Fleet, the code large, one filled button each. The keybo
 ## 0.5.1
 
 Re-captured on 0.5.1; only the shared chrome changed in these screens. The rail's head now starts past the traffic lights, its rows hold a fixed dot column (tools on hover), cards and panels separate by tone instead of a border, a chosen item is a fill, and the top bar's bottom line is calmer. The pairing dialogs read the same.
+
+## 0.5.1 final round (2026-11-24)
+
+Re-captured once on the release HEAD after the last fixes. What changed: The lens switch's chosen segment is a solid fill; rail rows carry a model mark where the model changed (F77). Every state was compared with its last capture (the sweep's pixel diff, a Sonnet checker opening base, head and diff; Opus checked each suspect: none broken). Scores unchanged.

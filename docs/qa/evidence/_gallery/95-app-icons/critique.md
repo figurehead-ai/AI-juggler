@@ -1,4 +1,4 @@
-<!-- captures: a14b81747d3a -->
+<!-- captures: 44c0f01d76aa -->
 # 95-app-icons: installed apps' own icons on Home, in the rail, in History and in the Go to session palette
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design passes.
@@ -42,3 +42,7 @@ Re-captured after F53 at 1280 and 2000. Home is the approved two-column feed (Ne
 | 18 | Usability | 4 | |
 
 Lowest: 4.
+
+## 0.5.1 final round (2026-11-24)
+
+Re-captured once on the release HEAD after the last fixes. What changed: Behind the dialog the rail and Needs you are in their 0.5.1 style; the dialog itself is unchanged. Every state was compared with its last capture (the sweep's pixel diff, a Sonnet checker opening base, head and diff; Opus checked each suspect: none broken). Scores unchanged.

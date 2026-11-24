@@ -1,4 +1,4 @@
-<!-- captures: 738a5f60e4b2 -->
+<!-- captures: fb5778952813 -->
 # 76-project-manage: project and session menus, forget, relocate, rename and pins
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design fixes.
@@ -24,3 +24,7 @@ New: keep-apart-1280x800 and keep-apart-made-1280x800, both themes. Before, "Kee
 Re-captured against 0.5.1: the project menu, Keep apart dialog and Settings > General use tonal cards and filled radios (F53). Then F84 (c89a65a5b): relocate-* reads "Project folder is missing" in ink on a tone card with the red ✕ mark, no red fill or outline; keep-apart-* shows the lead, the drawing with its three facts and the example, then "What does this mean?" and the buttons: what it doesn't do and the pool it makes moved behind the disclosure (no info box, no closing paragraph).
 
 Nothing broken (checked both themes).
+
+## 0.5.1 final round (2026-11-24)
+
+Re-captured once on the release HEAD after the last fixes. What changed: Needs you's cards are tone fills with their level's mark (a stopped one in the broken tone), the most urgent first (F53, F66, F80). Every state was compared with its last capture (the sweep's pixel diff, a Sonnet checker opening base, head and diff; Opus checked each suspect: none broken). Scores unchanged.

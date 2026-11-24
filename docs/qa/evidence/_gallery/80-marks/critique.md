@@ -1,4 +1,4 @@
-<!-- captures: da29dd3e25c5 -->
+<!-- captures: e0e74572c5d0 -->
 # 80-marks: telling sixteen projects apart
 
 Design critique (D-57, AJ-E2814) against the reference screens: the row menus (77-menus), the rail's order menu, Usage and Processes. The baseline note says what changed on purpose; this says whether it is good.
@@ -75,3 +75,7 @@ Opened at full size: sheet-emoji (dark), rail-folded (light), and the 0.3.2 note
 Lowest: 4.
 
 **Re-captured after F56 and F55 (2026-11-24, Opus):** all ten re-rendered; opened rail-folded-1280x800 dark and the sheet. The Home behind the rail shows the empty feed as its card alone (F56: no chips over "Quiet so far…"); the marks, the sheet and the history are unchanged. Lowest stays 4.
+
+## 0.5.1 final round (2026-11-24)
+
+Re-captured once on the release HEAD after the last fixes. What changed: Behind the dialog the rail and Needs you are in their 0.5.1 style; the dialog itself is unchanged. Every state was compared with its last capture (the sweep's pixel diff, a Sonnet checker opening base, head and diff; Opus checked each suspect: none broken). Scores unchanged.

@@ -1,4 +1,4 @@
-<!-- captures: 0c7a1dfff927 -->
+<!-- captures: d506f06e386c -->
 # 97-nav: the header, Projects, a project's page, Tasks
 
 Design critique (D-57, AJ-E2814) against the reference screens: the row menus (77-menus), the rail's order menu, Usage and Processes. The baseline note says what changed on purpose; this says whether it is good.
@@ -96,3 +96,7 @@ Opened at full size: header-home-1024x700 light, projects-1280x800 dark, tasks-b
 Lowest: 4.
 
 **Re-captured after F63 (2026-11-24, Opus):** the family re-rendered; opened tasks-board at 1024x700 light and 1280x800 dark. Each card's place line is one line, the "·" going with who has it or what it waits on: "storefront · Builder · Claude Code CLI · Personal", "api-gateway · Waits on: Refresh-token retries" (they ended on "storefront ·" and "api-gateway ·" over a second line). A card with no place starts with its holder. The chosen segment is F53's solid fill. Lowest stays 4.
+
+## 0.5.1 final round (2026-11-24)
+
+Re-captured once on the release HEAD after the last fixes. What changed: Needs you's cards are tone fills with their level's mark (a stopped one in the broken tone), the most urgent first (F53, F66, F80). Every state was compared with its last capture (the sweep's pixel diff, a Sonnet checker opening base, head and diff; Opus checked each suspect: none broken). Scores unchanged.
