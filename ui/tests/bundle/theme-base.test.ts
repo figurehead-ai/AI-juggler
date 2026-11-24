@@ -10,11 +10,12 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { BASE_COLOUR } from "../../src/theme";
+import { BASE_COLOUR, WINDOW_THEME_KEY } from "../../src/theme";
 
 const read = (path: string) => readFileSync(fileURLToPath(new URL(path, import.meta.url)), "utf8");
 const css = read("../../src/styles.css");
 const html = read("../../index.html");
+const windowFrame = read("../../../crates/juggler-app/src/window_frame.rs");
 const config = JSON.parse(read("../../../crates/juggler-app/tauri.conf.json")) as { app: { windows: { label: string; backgroundColor?: string }[] } };
 
 /** `--color-canvas` in the dark theme (the @theme block) and the light one. */
@@ -48,6 +49,14 @@ describe("the base colour, from the first frame", () => {
   it("the main window is made on the dark canvas (the default theme)", () => {
     const main = config.app.windows.find((window) => window.label === "main");
     expect(main?.backgroundColor?.toLowerCase()).toBe(canvas().dark);
+  });
+
+  it("the backend makes the window in the chosen theme's canvas (0.5.1 F21)", () => {
+    // The light colour it paints when Light is chosen, whatever macOS shows.
+    const light = windowFrame.match(/LIGHT_COLOUR: Color = Color\(0x([0-9a-f]{2}), 0x([0-9a-f]{2}), 0x([0-9a-f]{2}), 0xff\)/);
+    expect(light && `#${light[1]}${light[2]}${light[3]}`).toBe(canvas().light);
+    // The setting the page writes is the one it reads.
+    expect(windowFrame).toContain(`pub const THEME_KEY: &str = "${WINDOW_THEME_KEY}";`);
   });
 
   it("index.html paints html and body in the canvas before any script", () => {

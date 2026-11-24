@@ -11,6 +11,7 @@ use tauri::webview::NewWindowResponse;
 use tauri::{Manager, Runtime, Url, WebviewWindowBuilder};
 
 use crate::error::{AppError, AppResult};
+use crate::window_frame::Choice;
 
 /// Whether a web view may show `url`: only the app's own pages (the
 /// bundled assets; in a debug build, Vite's dev server too).
@@ -63,20 +64,54 @@ pub fn create_main<R: Runtime>(app: &tauri::AppHandle<R>) -> AppResult<()> {
             context: "make the window",
             message: "tauri.conf.json has no window".to_owned(),
         })?;
-    let config = main_config(config, crate::test_launch::headless());
-    // rc32: what the window keeps in its storage is this data folder's
-    let scope = app
-        .try_state::<std::sync::Arc<crate::state::AppState>>()
-        .map_or_else(
-            || "window.__AIJ_STORE_SCOPE__ = \"\";".to_owned(),
-            |state| crate::lab_scope::store_scope_script(&state.data_dir),
+    let mut config = main_config(config, crate::test_launch::headless());
+    let state = app.try_state::<std::sync::Arc<crate::state::AppState>>();
+    // 0.5.1 F21: the theme the user chose and the frame it was left at.
+    let (choice, frame) = state.as_ref().map_or((Choice::Dark, None), |state| {
+        crate::window_frame::kept(state)
+    });
+    if let Some(saved) = frame {
+        let least = (
+            config.min_width.unwrap_or(0.0),
+            config.min_height.unwrap_or(0.0),
         );
-    let made = WebviewWindowBuilder::from_config(app, &config)
-        .and_then(|b| guarded(b).initialization_script(&scope).build());
-    made.map(|_| ()).map_err(|error| AppError::Io {
+        let screens = crate::window_frame::screens(app);
+        let (width, height, at) = crate::window_frame::placed(saved, least, &screens);
+        (config.width, config.height) = (width, height);
+        if let Some((x, y)) = at {
+            (config.x, config.y, config.center) = (Some(x), Some(y), false);
+        }
+    }
+    // "As macOS shows": the window is made hidden, given the system's
+    // colour, then shown, so its first frame is that colour too.
+    let show_after = choice == Choice::System && config.visible;
+    if show_after {
+        config.visible = false;
+    }
+    // rc32: what the window keeps in its storage is this data folder's
+    let scope = state.map_or_else(
+        || "window.__AIJ_STORE_SCOPE__ = \"\";".to_owned(),
+        |state| crate::lab_scope::store_scope_script(&state.data_dir),
+    );
+    let made = WebviewWindowBuilder::from_config(app, &config).and_then(|b| {
+        guarded(b)
+            .background_color(choice.colour(tauri::Theme::Dark))
+            .initialization_script(&scope)
+            .build()
+    });
+    let window = made.map_err(|error| AppError::Io {
         context: "make the window",
         message: error.to_string(),
-    })
+    })?;
+    if choice == Choice::System {
+        let system = window.theme().unwrap_or(tauri::Theme::Dark);
+        let _ = window.set_background_color(Some(choice.colour(system)));
+        if show_after {
+            let _ = window.show();
+            let _ = window.set_focus();
+        }
+    }
+    Ok(())
 }
 
 /// The main window's settings from `tauri.conf.json`'s entry, as it's

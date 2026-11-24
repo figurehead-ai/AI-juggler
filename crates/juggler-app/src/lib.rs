@@ -86,6 +86,7 @@ pub mod usage_pipeline;
 pub mod usage_stats;
 pub mod vault;
 pub mod webview_guard;
+pub mod window_frame;
 pub mod worktree;
 
 // Never in a release build: with the feature on, it doesn't compile.
