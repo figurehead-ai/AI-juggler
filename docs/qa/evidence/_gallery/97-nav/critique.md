@@ -1,4 +1,4 @@
-<!-- captures: 7443c15672b3 -->
+<!-- captures: 0c7a1dfff927 -->
 # 97-nav: the header, Projects, a project's page, Tasks
 
 Design critique (D-57, AJ-E2814) against the reference screens: the row menus (77-menus), the rail's order menu, Usage and Processes. The baseline note says what changed on purpose; this says whether it is good.
@@ -85,7 +85,7 @@ Opened at full size: header-home-1024x700 light, projects-1280x800 dark, tasks-b
 | 9 | Actions | 5 | New project, New session here, Approve: one filled per view. |
 | 10 | Serious | n/a | Nothing destructive here. |
 | 11 | Doors | 4 | Every project, task and link opens its page; project names on cards are links. |
-| 12 | Words | 4 | F63's dangling "·" (logged). |
+| 12 | Words | 4 | F63 fixed: a task card's place line is one line, its "·" with who has it. |
 | 13 | States | 4 | "Nothing waiting", "None yet", "No open tasks" said once each. |
 | 14 | Consistency | 4 | The shared tabs, chips and filters (E28). |
 | 15 | Accessibility | 4 | Not re-walked by hand this round; keyboard names and focus as the a11y gate checks them. |
@@ -94,3 +94,5 @@ Opened at full size: header-home-1024x700 light, projects-1280x800 dark, tasks-b
 | 18 | Usability | 4 | Projects and tasks one click from anywhere. |
 
 Lowest: 4.
+
+**Re-captured after F63 (2026-11-24, Opus):** the family re-rendered; opened tasks-board at 1024x700 light and 1280x800 dark. Each card's place line is one line, the "·" going with who has it or what it waits on: "storefront · Builder · Claude Code CLI · Personal", "api-gateway · Waits on: Refresh-token retries" (they ended on "storefront ·" and "api-gateway ·" over a second line). A card with no place starts with its holder. The chosen segment is F53's solid fill. Lowest stays 4.
