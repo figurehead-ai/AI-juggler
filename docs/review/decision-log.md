@@ -3826,3 +3826,12 @@ Every session and agent brief carries this rule.
 - **Not changed:** the hollow grey dot for not-running Apps stays out; the "Not running" group's words and position say it.
 - **Recorded in** DESIGN-SYSTEM §5 PAT-COLOR's runway table (already reads so) and AJ-E1550 requirement 5.
 - Sources: the coordinating session's brief to the 0.5.1 builder, 2026-11-23.
+
+### D-146 juggler-platform's second audited `unsafe`: one read-only `getattrlist(ATTR_CMNEXT_PRIVATESIZE)` call, so a move backup says exactly what deleting it frees (amends D-131's single carve-out) — SETTLED (2026-11-23)
+
+- **Ruling** (the maintainer, through the coordinating session, 2026-11-23, choosing "Exact size now (Recommended)" over shipping the "up to" ceiling and adding it in 0.5.2): AJ-E2325 R6 ships in 0.5.1. A backup says "frees <exact size>", not a ceiling.
+- **Why it needs `unsafe`:** on APFS a clone shares blocks with its original, so the allocated size overstates what deleting frees (an untouched clone frees 0). Only `getattrlist` with `ATTR_CMNEXT_PRIVATESIZE` reports a file's private (unshared) bytes; neither `libc` nor `nix` binds it safely.
+- **Decision:** juggler-platform may hold exactly TWO audited `unsafe` calls: D-131's `thread::background_io` (`setiopolicy_np`) and this one, in `room` beside `reclaimable`. The same rules as D-131's carve-out: `#[allow(unsafe_code, reason)]` at the one site, a SAFETY note there (the buffer's size and alignment, the attribute list, every error path, read-only: it reads metadata and writes nothing), and the single-`unsafe` source test raised to exactly 2, naming both calls, so a third fails.
+- **Tests:** an untouched clone frees 0; after an append it frees what was appended (rounded to blocks); a non-APFS volume or a failing call falls back to the "up to" ceiling and its wording, never an error and never a wrong exact number.
+- **Not changed:** the crate stays `deny(unsafe_code)`; every other seam is safe bindings. Windows and Linux use their own safe measures.
+- Sources: the coordinating session's message, 2026-11-23, quoting the maintainer's pick; AJ-E2325's builder's probe on this Mac (0 for an untouched clone, 8 KiB after an append).
