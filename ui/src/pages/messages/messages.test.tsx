@@ -129,6 +129,32 @@ describe("a pool's messages", () => {
     expect(await findByText("Can you look?", { selector: "p" })).toBeTruthy();
   });
 
+  // 0.5.1 F66 (PAT-COLOR-2, PAT-SURF-1): a question to you is said by an
+  // amber mark by its sender, its words on the bubbles' tone; a paused
+  // thread's why is a tone line with a mark. Never an amber fill or outline.
+  it("a question to you has an amber mark by its sender, not an amber bubble", async () => {
+    const { findAllByTestId, findByText, getAllByTestId } = render(<MessagesView poolId="pool-team" members={members} now={NOW} />);
+    fireEvent.click((await findAllByTestId("thread-row"))[1]!);
+    const body = await findByText("Can you look?", { selector: "p" });
+    expect(body.className).toContain("bg-surface-2");
+    expect(body.className).not.toMatch(/warning/);
+    const mark = getAllByTestId("message-ask-mark");
+    expect(mark).toHaveLength(1);
+    expect(mark[0]!.className).toContain("level-mark");
+    expect(mark[0]!.getAttribute("data-level")).toBe("2");
+    expect(mark[0]!.closest("[data-testid=message-from]")!.textContent).toBe("Reviewer");
+  });
+
+  it("a paused thread's why is a tone line with an amber mark, not an amber box", async () => {
+    seams().__AIJ_MESSAGES__!.threads![0] = thread({ state: "paused", state_reason: "it reached this pool's hop limit", hop: 3, hop_cap: 2 });
+    const { findByTestId, getByTestId } = render(<MessagesView poolId="pool-team" members={members} now={NOW} />);
+    const why = await findByTestId("thread-why");
+    expect(why.className).toContain("bg-surface-2");
+    expect(why.className).not.toMatch(/warning|border/);
+    expect(getByTestId("thread-why-mark").getAttribute("data-level")).toBe("2");
+    expect(why.textContent).toContain("it reached this pool's hop limit");
+  });
+
   it("says when the pool is paused, and why, with Resume", async () => {
     seams().__AIJ_MESSAGES__!.paused = [{ pool_id: "pool-team", pool_name: "Checkout redesign", at_ms: NOW, reason: "“Alpha” and “Beta” kept answering each other (8 messages without you)" }];
     const { findByTestId } = render(<MessagesView poolId="pool-team" members={members} now={NOW} />);

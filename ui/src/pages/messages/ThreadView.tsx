@@ -81,7 +81,11 @@ function Bubble({ message, now, onDeliver, busy, held, onAnswer }: { message: Me
   return (
     <li className={"flex max-w-[min(88%,720px)] flex-col gap-1.5 " + (you ? "ml-auto items-end" : "items-start")} data-testid="message-bubble" data-from={message.from_kind}>
       <div className={"flex flex-wrap items-baseline gap-x-2 gap-y-0.5 " + (you ? "justify-end" : "")}>
-        <span className={"text-meta font-semibold " + (asks ? "text-warning" : "text-ink")}>{message.from_name}</span>
+        {/* 0.5.1 F66: an ask is said by its amber mark and name, not a fill. */}
+        <span className={"inline-flex items-center gap-1.5 text-meta font-semibold " + (asks ? "text-warning" : "text-ink")} data-testid="message-from">
+          {asks && <span aria-hidden="true" className="level-mark" data-level={2} data-testid="message-ask-mark" />}
+          {message.from_name}
+        </span>
         {message.kind !== "note" && <span className="text-label text-muted">{KIND_WORDS[message.kind] ?? message.kind}</span>}
         <span className="text-label text-muted">{when(message.at_ms, now)}</span>
         {!you && <span className="text-label text-muted">· an agent</span>}
@@ -89,8 +93,9 @@ function Bubble({ message, now, onDeliver, busy, held, onAnswer }: { message: Me
       <p
         className={
           "whitespace-pre-wrap break-words rounded-2xl border px-3.5 py-2.5 text-body leading-relaxed text-ink " +
-          (you ? "border-transparent bg-accent-soft" : asks ? "border-warning/40 bg-warning-soft" : "border-hairline bg-surface-2")
+          (you ? "border-transparent bg-accent-soft" : "border-hairline bg-surface-2")
         }
+        data-testid="message-body"
       >
         {message.body}
       </p>
@@ -256,7 +261,10 @@ export function ThreadView({ threadId, poolId, members, now }: { threadId: strin
         </div>
       </header>
       {thread.state !== "open" && thread.state_reason && (
-        <p className="rounded-lg border border-warning/30 bg-warning-soft/50 px-3 py-2 text-meta text-ink" data-testid="thread-why">
+        // 0.5.1 F66 (PAT-COLOR-2, PAT-SURF-1): tone and an amber mark,
+        // never an amber fill behind the words or an outline.
+        <p className="rounded-lg bg-surface-2 px-3 py-2 text-meta text-ink" data-testid="thread-why">
+          <span aria-hidden="true" className="level-mark mr-2 align-middle" data-level={thread.state === "stopped" ? 3 : 2} data-testid="thread-why-mark" />
           {THREAD_WORDS[thread.state]}: {thread.state_reason}. {thread.state === "paused" ? "No agent can write here or be woken by it until you resume it." : "Agents can't write here any more."}
         </p>
       )}

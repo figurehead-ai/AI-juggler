@@ -205,6 +205,21 @@ describe("AJ-E2108 / 0.3.5 the conversation", () => {
     expect(onGoTo).toHaveBeenCalledTimes(1);
   });
 
+  // 0.5.1 F66 (PAT-COLOR-2, PAT-SURF-1): the question's strip is a need
+  // card's tone with an amber mark by "asks you": no amber fill, no line.
+  it("the question waits on a need card's tone with an amber mark, never an amber fill", async () => {
+    follow(snapshot([ask, reply]));
+    render(<LastMessages model={model()} visible />);
+    const strip = await screen.findByTestId("last-messages-asks");
+    expect(strip.className).toContain("bg-surface-2");
+    expect(strip.className).not.toMatch(/warning|border/);
+    const mark = screen.getByTestId("last-messages-asks-mark");
+    expect(mark.className).toContain("level-mark");
+    expect(mark.getAttribute("data-level")).toBe("2");
+    expect(mark.getAttribute("aria-hidden")).toBe("true");
+    expect(screen.getByTestId("last-messages-asks-who").textContent).toBe("Claude asks you");
+  });
+
   it("earlier turns load before the shown ones, from where they start", async () => {
     const latest = [text("you", "latest ask"), text("assistant", "latest answer")];
     follow(snapshot(latest, { earlier: latest[0]!.offset }));

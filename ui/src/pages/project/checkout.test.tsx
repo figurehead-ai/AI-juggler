@@ -5,7 +5,7 @@
  * (both drew nothing until it came, then pushed the page down). The
  * rules sheet closing reads the rules again.
  */
-import { act, cleanup, render, waitFor } from "@testing-library/react";
+import { act, cleanup, render, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ProjectFacts } from "../ProjectPage";
 import { CheckoutCallout } from "./Callouts";
@@ -13,6 +13,8 @@ import { PROJECT_SYNC_EVENT } from "../../components/ProjectSyncSheet";
 import * as projects from "../../lib/ipc/projects";
 import * as sync from "../../lib/ipc/projectSync";
 import type { ProjectInfo } from "../../types/generated/ProjectInfo";
+import type { GitStatusInfo } from "../../types/generated/GitStatusInfo";
+import type { RulesSyncInfo } from "../../types/generated/RulesSyncInfo";
 
 afterEach(() => {
   cleanup();
@@ -61,5 +63,37 @@ describe("0.3.4 a project's checkout, kept", () => {
     rules.mockResolvedValue({ summary: "Rules in sync", in_sync: true } as never);
     await act(async () => void window.dispatchEvent(new CustomEvent(PROJECT_SYNC_EVENT, { detail: "proj-1" })));
     await waitFor(() => expect(view.getByTestId("project-rules").textContent).toBe("Rules in sync"));
+  });
+});
+
+// 0.5.1 F66 (PAT-COLOR-2, PAT-SURF-1): what needs the user in the checkout
+// is a tone tile with an amber glyph and an amber mark by its title; the
+// card gets no amber outline and no amber fill.
+describe("0.5.1 F66 the checkout's look", () => {
+  const dirty: GitStatusInfo = { branch: "trunk", changed: 2, untracked: 1, ahead: 0, behind: 0, worktree: false, created_by_juggler: false, path: "/w/alpha" };
+  const rules = (in_sync: boolean): RulesSyncInfo => ({ master: null, files: [], in_sync, summary: in_sync ? "Rules in sync" : "1 rules file differs" });
+
+  it("an uncommitted checkout: an amber mark and glyph, no amber fill or outline", async () => {
+    vi.spyOn(projects, "projectsGitStatus").mockResolvedValue(dirty);
+    vi.spyOn(sync, "projectSyncRules").mockResolvedValue(rules(false));
+    const view = render(<CheckoutCallout project={project} sharedBy={2} />);
+    const uncommitted = await view.findByTestId("project-uncommitted-callout");
+    expect(view.getByTestId("project-checkout").className).not.toMatch(/warning/);
+    const tile = within(uncommitted).getByTestId("callout-tile");
+    expect(tile.className).toContain("bg-surface-2");
+    expect(tile.className).toContain("text-warning");
+    expect(tile.className).not.toMatch(/bg-warning/);
+    expect(within(uncommitted).getByTestId("callout-mark").getAttribute("data-level")).toBe("2");
+    await waitFor(() => expect(view.getAllByTestId("callout-mark")).toHaveLength(3));
+    expect(view.container.innerHTML).not.toMatch(/bg-warning|border-warning/);
+  });
+
+  it("all committed and in sync: no amber at all", async () => {
+    vi.spyOn(projects, "projectsGitStatus").mockResolvedValue({ ...dirty, changed: 0, untracked: 0 });
+    vi.spyOn(sync, "projectSyncRules").mockResolvedValue(rules(true));
+    const view = render(<CheckoutCallout project={project} sharedBy={1} />);
+    await waitFor(() => expect(view.container.textContent).toContain("Every tool works from the same rules."));
+    expect(view.queryAllByTestId("callout-mark")).toHaveLength(0);
+    expect(view.container.innerHTML).not.toMatch(/warning/);
   });
 });

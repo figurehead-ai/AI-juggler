@@ -277,10 +277,15 @@ function Bottom({ chat, model, speaker, onGoTo }: { chat: FeedState; model: Sess
   const question = model.state.asks ? questionOf(last) : null;
   if (model.state.asks) {
     return (
-      <div className="border-t border-warning/30 bg-warning-soft px-5 py-4" data-testid="last-messages-asks">
+      // 0.5.1 F66 (PAT-COLOR-2, PAT-SURF-1): a need card's tone with an
+      // amber mark by its words; never an amber fill behind them or a line.
+      <div className="bg-surface-2 px-5 py-4" data-testid="last-messages-asks">
         <div className="mx-auto flex w-full max-w-[760px] flex-wrap items-start gap-x-4 gap-y-3">
           <div className="flex min-w-0 flex-1 basis-72 flex-col gap-1">
-            <p className="text-meta font-semibold text-warning">{speaker} asks you</p>
+            <p className="flex items-center gap-1.5 text-meta font-semibold text-warning" data-testid="last-messages-asks-who">
+              <span aria-hidden="true" className="level-mark" data-level={2} data-testid="last-messages-asks-mark" />
+              {speaker} asks you
+            </p>
             {question && (
               <p className="line-clamp-3 text-body leading-[1.5] text-ink" data-testid="last-messages-question">
                 {question}
