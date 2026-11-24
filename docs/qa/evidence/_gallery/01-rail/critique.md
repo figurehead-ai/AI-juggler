@@ -1,4 +1,4 @@
-<!-- captures: a83496ebbccb -->
+<!-- captures: 7e7e8366a63d -->
 # 01-rail: the session rail beside Home, with every status, with no accounts (welcome) and with one account still to sign in, at four widths in both themes
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design passes.
@@ -29,7 +29,7 @@ Re-captured at the window's sizes (1024, 1280, 1440; F49's re-render had kept th
 | # | Line | Score | Note |
 |---|---|---|---|
 | 1 | Job | 4 | What's open and what needs me, one click to it. |
-| 2 | Prominence | 3 | The rail leads with the two stopped sessions; Home's pins don't (F80). |
+| 2 | Prominence | 4 | F80 (747062960): Home pins the two stopped sessions first, as the rail lists them; the quieter needs fold under "+2 more need you". |
 | 3 | Default | 4 | Open its page ↵ on the first need. |
 | 4 | Mode | 4 | Calm, the round-2 mock's dials. |
 | 5 | Mock-up | 4 | Matches mock-r2's rail and Home; deviations: D-118's feed under Needs you now. |
@@ -47,4 +47,6 @@ Re-captured at the window's sizes (1024, 1280, 1440; F49's re-render had kept th
 | 17 | System prompts | 5 | Causes no system prompt. |
 | 18 | Usability | 4 | AJ-E2327 (6): "Open now 3" never beside "Nothing open yet"; the rail keeps its place. Match. |
 
-Lowest: 3, each line under 4 logged (F80); the rest 4 or 5.
+Lowest: 3, each line under 4 logged (F80); the rest 4 or 5. After F80: lowest 4.
+
+**Fixed after the critique (F80, F77), re-captured (all-statuses at 1024, 1280 and 1440, both themes; opened 1280 light; honest-empty and ready-home re-rendered byte-identical):** Needs you now pins "Rename the photo exports ✕ stopped with an error" (See what happened ↵, the one primary) and "Port the settings parser ✕ stopped with an error", then "Tidy the blog's images limit reached" and "+2 more need you" (it pinned the asks, stuck and limit needs and folded both stopped ones). The rail's model-changed mark beside "Port the settings parser" is F77's chip icon, no outline. Line 2 3 → 4; lowest now 4.

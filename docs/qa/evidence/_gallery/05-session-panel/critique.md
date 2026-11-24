@@ -1,4 +1,4 @@
-<!-- captures: 6bc5acd621fb -->
+<!-- captures: 6fd8c52aa363 -->
 # 05-session-panel: a session's page with its terminal, where it runs and its runway, at four widths in both themes
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design passes.
@@ -32,7 +32,7 @@ Re-captured (pnpm visual:capture, capture.spec's session panel) after F53, F55, 
 | 4 | Mode | 4 | Calm: tone panels, no rims, as the Code view. |
 | 5 | Mock-up | 4 | Matches §5.12's Code-view row and SPEC §9's session page; no mock of its own. |
 | 6 | Areas | 4 | Header, terminal, two side cards: by tone, more space between than inside. |
-| 7 | Colour | 3 | The amber state chip is a fill behind words (F76); otherwise accent only on Switch account… and the cursor. |
+| 7 | Colour | 4 | F76 (6311ad3cd): the state chip is the neutral chip's tone with amber words and its dot ("Probably stuck · 3 h"); accent only on Switch account… and the cursor. |
 | 8 | Type | 4 | Title 22 px, labels muted, values ink; the terminal's mono. |
 | 9 | Actions | 4 | No filled primary on a running session; Watch… and Stop secondary, Stop not default. |
 | 10 | Serious | 4 | Stop is a secondary with its own confirm sheet (77-menus). |
@@ -45,4 +45,6 @@ Re-captured (pnpm visual:capture, capture.spec's session panel) after F53, F55, 
 | 17 | System prompts | 5 | Causes no system prompt. |
 | 18 | Usability | 4 | AJ-E2327 (6): the rail keeps its place and the page's App and the rail's agree (Work Max on both). Match. |
 
-Lowest: 3, each line under 4 logged (F76); the rest 4 or 5.
+Lowest: 3, each line under 4 logged (F76); the rest 4 or 5. After F76: lowest 4.
+
+**Fixed after the critique (F76), re-captured (populated at 1024, 1280 and 1440, both themes; opened 1280 dark):** the header's "Probably stuck · 3 h" is amber words and an amber dot on the neutral chip's grey tone, no amber fill behind them (the kit's one warning chip, `WARNING_CHIP`, which every chip, pill and tag that says a warning now draws). Line 7 3 → 4; lowest now 4.

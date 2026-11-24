@@ -1,4 +1,4 @@
-<!-- captures: a1c276940d73 -->
+<!-- captures: b15d4f2ee38a -->
 # 94-usage: usage on the Accounts page, a profile's page, a project's Overview and Usage tabs, and the Usage page
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design passes.
@@ -32,7 +32,7 @@ Re-captured (the five screens at 1280, 1680 and 2000, first screen and full, bot
 | 4 | Mode | 4 | Calm dashboard, the dials of §2.2. |
 | 5 | Mock-up | 4 | The Usage dashboard's design. |
 | 6 | Areas | 4 | Bands by tone; no box in a box. |
-| 7 | Colour | 3 | Amber change chips are fills behind words (F76); series colours by account. |
+| 7 | Colour | 4 | F76 (6311ad3cd): a cost's rise ("▲ 6%" on Estimated cost) is amber words and arrow on the neutral chip's tone; series colours by account. |
 | 8 | Type | 4 | Big values lead, labels muted, tabular numbers. |
 | 9 | Actions | 4 | New session here / Set a monthly cap: one filled per view. |
 | 10 | Serious | 4 | "API-equivalent estimate — your subscription price doesn't change per token." |
@@ -45,4 +45,6 @@ Re-captured (the five screens at 1280, 1680 and 2000, first screen and full, bot
 | 17 | System prompts | 5 | Causes no system prompt. |
 | 18 | Usability | 4 | Re-read against PAT-USE: one place for usage, cost and runway, each figure named with its source. Match. |
 
-Lowest: 3, each line under 4 logged (F76); the rest 4 or 5.
+Lowest: 3, each line under 4 logged (F76); the rest 4 or 5. After F76: lowest 4.
+
+**Fixed after the critique (F76), re-captured (the five screens at 1280, 1680 and 2000, both themes, and the 200 % pair; opened usage-1280x800-dark):** the stat tiles' change chips that are bad news ("▲ 6%" on Estimated cost) are amber words on the grey change-chip tone, the same chip as "no change"; good news keeps its green tint. Line 7 3 → 4; lowest now 4.

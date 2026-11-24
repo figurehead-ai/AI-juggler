@@ -1,4 +1,4 @@
-<!-- captures: 2ed625ba88cf -->
+<!-- captures: 2bf7e774d45b -->
 # 11-renewal: an account's page, meant to show its renewal date in each state (countdown, warning, danger, date only, unknown), the editor, and the chip on the accounts list
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design fixes.
@@ -30,7 +30,7 @@ Re-captured (account states at 1440, the editor at 1440 and 1280, the Accounts r
 | 4 | Mode | 4 | Calm header; Settings rows. |
 | 5 | Mock-up | 4 | AJ-E411's chip and field. |
 | 6 | Areas | 4 | Header, tabs, settings rows by tone. |
-| 7 | Colour | 3 | The amber renewal chip is a fill behind words (F76); red for passed. |
+| 7 | Colour | 4 | F76 (6311ad3cd): "⚠ Renews in 6 days" is amber words and mark on the neutral chip's tone; red for passed. |
 | 8 | Type | 4 | Row titles ink, hints muted. |
 | 9 | Actions | 4 | New session the page's primary; Save per row. |
 | 10 | Serious | 4 | n/a. |
@@ -43,4 +43,6 @@ Re-captured (account states at 1440, the editor at 1440 and 1280, the Accounts r
 | 17 | System prompts | 5 | Causes no system prompt. |
 | 18 | Usability | 4 | Re-read against PAT-USE: entered by the user, said so, never read from billing. Match. |
 
-Lowest: 3, each line under 4 logged (F76); the rest 4 or 5.
+Lowest: 3, each line under 4 logged (F76); the rest 4 or 5. After F76: lowest 4.
+
+**Fixed after the critique (F76), re-captured (every state; opened account-warning-1440x900 beside its old capture, the chip cropped):** "⚠ Renews in 6 days" sits on the neutral chip's grey with amber words and ⚠ (it was an amber-brown fill); the Accounts row chip the same. Line 7 3 → 4; lowest now 4.

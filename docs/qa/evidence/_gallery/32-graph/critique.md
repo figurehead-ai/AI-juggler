@@ -1,4 +1,4 @@
-<!-- captures: df3086b7f193 -->
+<!-- captures: 2f02f12eece2 -->
 # 32-graph: how a piece of work moved between accounts, the project overview, and the "Continue on another account" ranking
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design passes.
@@ -32,20 +32,22 @@ Re-captured at the window's sizes: 1280×800 and, for 800×600 (below the window
 | 1 | Job | 4 | See how work moved between Apps, and resume or export from any step. |
 | 2 | Prominence | 4 | The strip, then Every move folded open. |
 | 3 | Default | 4 | Ranked targets with the first suggested. |
-| 4 | Mode | 4 | Calm strip; the move list is a rich card that isn't yet on its kit (F78). |
-| 5 | Mock-up | 3 | Every move predates D-142's switch frame (F78). |
-| 6 | Areas | 3 | Box in a box in a box in Every move (F78). |
-| 7 | Colour | 3 | The amber "fork" outline and "1 stuck" pill (F76, F78). |
+| 4 | Mode | 4 | Calm strip; Every move on the switch's kit (F78). |
+| 5 | Mock-up | 4 | F78 (f4f1d9e23): each step the switch dialog's target card, as F71 did for switching back. |
+| 6 | Areas | 4 | The fold has no box; each step is one tone card in the section's card, the moves a line between. |
+| 7 | Colour | 4 | "Branches here" a neutral pill (F78); "1 stuck" amber words on grey (F76); a failed move a red ✕ beside ink words. |
 | 8 | Type | 4 | Lane names ink, ticks muted. |
 | 9 | Actions | 4 | Open in Finder and New session here quiet; the dialog's one primary. |
 | 10 | Serious | 4 | A failed move says nothing was half-moved and where recovery starts. |
 | 11 | Doors | 4 | Each step's session opens; Resume and Export on its menu. |
-| 12 | Words | 3 | "Switch failed: failed · …", cut edge labels (F78); the strip's contradiction fixed. |
+| 12 | Words | 4 | "A switch from here didn't happen", "It didn't switch: the session on the other account closed while it started."; every move's words whole ("Same conversation, another app"). |
 | 13 | States | 4 | Empty range, no moves and older moves each said. |
-| 14 | Consistency | 3 | Every move is not the switch dialog's target card (F78). |
+| 14 | Consistency | 4 | TargetButton and TargetLogo, the kit's secondary buttons, as the switch dialog. |
 | 15 | Accessibility | 4 | axe clean in the capture runs (no serious or critical); keyboard and zoom not re-walked this round. |
 | 16 | Hand walk | 4 | Not re-walked by hand here; captured from the fixtures, both themes. |
 | 17 | System prompts | 5 | Causes no system prompt. |
-| 18 | Usability | 4 | Re-read against PAT-USE: switching history is in the project where it happened, said once. Match but F78. |
+| 18 | Usability | 4 | Re-read against PAT-USE: switching history is in the project where it happened, said once; an open step offers only what can run (D-127). Match. |
 
-Lowest: 3, each line under 4 logged (F76, F78); the rest 4 or 5.
+Lowest: 3, each line under 4 logged (F76, F78); the rest 4 or 5. After F76 and F78: lowest 4.
+
+**Fixed after the critique (F78, F76), re-captured (every state at 1280 and 1024, both themes; opened fork-merge-1024x680-light, failed-1280x800-dark and node-menu-1280x800-dark):** Every move, with resume and export is a fold by its heading alone; each work's title (with its note, "3 switches so far ≈41k tokens", muted) heads its steps one under another, each the switch's target card (the App's logo with its profile badge, "Claude Code CLI · Work Max", "Terminal · can be resumed" or "no conversation kept", a neutral "Branches here" / "Branches meet here" pill, a tone step with no outline), the moves between them a quiet line with their words whole ("↓ Same conversation, another app", "↺ Switched back · Full story, fresh start"); no row scrolls sideways at 1024. A failed move is "✕ A switch from here didn't happen · why", opening "It didn't switch: the session on the other account closed while it started.", that nothing was half-moved, and Open the session it started from (the kit's secondary); it was a red outlined box reading "Switch failed: failed · target launch failed". An open step is the selected fill with Resume ⌘R, Switch from here… and Save handover… as the kit's buttons under it (Resume and Switch from here… only where they can run). "2 earlier switches, kept in its history" replaces the "+2 switches" pill. The project header's "1 stuck" is amber words on grey (F76). Lines 5, 6, 7, 12 and 14 3 → 4; lowest now 4.

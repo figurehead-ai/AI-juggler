@@ -1,4 +1,4 @@
-<!-- captures: 7324d2bf34fc -->
+<!-- captures: ccbd329f72cd -->
 # 12-model: what a session's model is: a model change seen in the transcript, a model the tool doesn't report, and the rail with and without the change mark
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design passes.
@@ -38,10 +38,12 @@ Re-captured (four states at 1440×900); opened at full size: not-reported and ra
 | 11 | Doors | 4 | Account and Project are doors. |
 | 12 | Words | 4 | "Model: not reported by Claude Code" plain. |
 | 13 | States | 4 | Unknown said once. |
-| 14 | Consistency | 3 | The rail's drift mark reuses ⇄ (Switch account's icon) with an outline and a title-only name (F77). |
+| 14 | Consistency | 4 | F77 (b352b0ba6): the rail's drift mark is its own chip icon, quiet by tone with no outline, named in the drawn tip on hover and focus (TipButton, F61's pattern). |
 | 15 | Accessibility | 4 | axe clean in the capture runs (no serious or critical); keyboard and zoom not re-walked this round. |
 | 16 | Hand walk | 4 | Not re-walked by hand here; captured from the fixtures, both themes. |
 | 17 | System prompts | 5 | Causes no system prompt. |
-| 18 | Usability | 4 | Re-read against PAT-USE: the session page says the change in words; the rail's mark is the gap (F77). Match on the page. |
+| 18 | Usability | 4 | Re-read against PAT-USE: the session page says the change in words; the rail's mark names it in its tip ("Model changed: launched with opus, now running sonnet-5") and opens the session. Match. |
 
-Lowest: 3, each line under 4 logged (F76, F77, F80); the rest 4 or 5.
+Lowest: 3, each line under 4 logged (F76, F77, F80); the rest 4 or 5. After F76, F77 and F80: lowest 4.
+
+**Fixed after the critique (F77, F80, F76), re-captured (the four states at 1440; opened rail-drift and overview-drift):** rail-drift shows the new mark (a small chip icon beside "Port the settings parser", no pill or outline) with its drawn tip "Model changed: launched with opus, now running sonnet-5" on hover (it was ⇄ in an outlined pill with only a browser title); the Home behind it pins both "Stopped with an error" sessions first, "See what happened ↵" on the first, then "Tidy the blog's images limit reached" and "+2 more need you" (F80: it pinned the three L2 needs). Line 14 3 → 4; lowest now 4.

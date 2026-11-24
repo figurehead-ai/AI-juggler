@@ -1,4 +1,4 @@
-<!-- captures: 6f64aacc847b -->
+<!-- captures: f4cd6bac2bed -->
 # 08-inspector-aggregate: an account's overview (limits and usage), a signed-out account, and a project's overview
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design fixes.
@@ -27,7 +27,7 @@ Re-captured (three states); opened at full size: project-overview-1440x900 and a
 | 4 | Mode | 4 | Calm dashboard with charts, as Usage. |
 | 5 | Mock-up | 4 | SPEC §9 and the Usage dashboard's kit. |
 | 6 | Areas | 4 | Tiles row, chart card, two cards: clear when blurred. |
-| 7 | Colour | 3 | "1 stuck" amber pill (F76); series colours by App, change chips neutral. |
+| 7 | Colour | 4 | F76 (6311ad3cd): "1 stuck" is amber words on the neutral pill's tone; series colours by App, change chips neutral. |
 | 8 | Type | 4 | Big values lead, labels muted, tabular numbers. |
 | 9 | Actions | 4 | Sign in from Accounts the one filled button when signed out. |
 | 10 | Serious | 4 | "Nothing is deleted" said on sign-out. |
@@ -40,4 +40,6 @@ Re-captured (three states); opened at full size: project-overview-1440x900 and a
 | 17 | System prompts | 5 | Causes no system prompt. |
 | 18 | Usability | 4 | Re-read against PAT-USE (no 0.5.1 task): unavailable (signed out) is one guided line with its door. Match. |
 
-Lowest: 3, each line under 4 logged (F76); the rest 4 or 5.
+Lowest: 3, each line under 4 logged (F76); the rest 4 or 5. After F76: lowest 4.
+
+**Fixed after the critique (F76), re-captured (the three states; opened project-overview-1440x900):** the project header's "1 stuck" is amber words on the grey neutral pill, beside "1 failed" (red tint) and "2 working" (teal tint); no amber fill behind words. Line 7 3 → 4; lowest now 4.

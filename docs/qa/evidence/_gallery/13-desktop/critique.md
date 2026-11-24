@@ -1,4 +1,4 @@
-<!-- captures: 819d05ceb7c3 -->
+<!-- captures: 44b025aa4752 -->
 # 13-desktop: a desktop app's session page (running with its window preview, exited, crashed), the single-account warning, and the "app" tag in the rail
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design fixes.
@@ -28,13 +28,13 @@ Re-captured after batch B2's F70 (059097f12), which rewrote this panel's words; 
 | 3 | Default | 4 | Go to it is the default while it runs. |
 | 4 | Mode | 4 | Calm. |
 | 5 | Mock-up | 4 | AJ-E1803's panel; F70's words. |
-| 6 | Areas | 4 | Header, a facts card, the preview card; an empty lower half when ended (F81). |
+| 6 | Areas | 4 | Header, a facts card, the preview card; ended, the card as tall as what it says. |
 | 7 | Colour | 4 | Red only for the stopped state; no amber since F70. |
 | 8 | Type | 4 | Labels muted, the note in ink-2. |
-| 9 | Actions | 3 | Ended: a disabled filled Resume and an Open / Focus window for an app that isn't running (F81). |
+| 9 | Actions | 4 | F81 (fdb76c5c4): ended, the header's Relaunch is the one primary; no greyed Resume (its tool can't resume, D-127) and no Open / Focus window for an app that isn't running. |
 | 10 | Serious | 4 | n/a: nothing destructive. |
 | 11 | Doors | 4 | The App line opens its page; exit details point to the Processes tab. |
-| 12 | Words | 4 | Plain since F70; "cpu — · ram — · children 0" raw on an ended app (F81). |
+| 12 | Words | 4 | Plain since F70; ended, one line says how it ended and why it can't resume (no "cpu — · ram —"). |
 | 13 | States | 4 | Running, exited, crashed each said. |
 | 14 | Consistency | 4 | The session page's header and tabs. |
 | 15 | Accessibility | 4 | axe clean in the capture runs (no serious or critical); keyboard and zoom not re-walked this round. |
@@ -42,4 +42,6 @@ Re-captured after batch B2's F70 (059097f12), which rewrote this panel's words; 
 | 17 | System prompts | 5 | Causes no system prompt. |
 | 18 | Usability | 4 | AJ-E2327 (2): a row that can't show its work says why in words ("app crashed · exit details on the Processes tab"). Match; the ended actions are F81. |
 
-Lowest: 3, each line under 4 logged (F81); the rest 4 or 5.
+Lowest: 3, each line under 4 logged (F81); the rest 4 or 5. After F81: lowest 4.
+
+**Fixed after the critique (F81), re-captured (all six; opened panel-crashed, panel-exited and panel-running):** panel-crashed's header is Watch… and Relaunch (the one filled button), no "Resume / Can't resume here"; the Window preview card holds the app line (app · fake-desktop · fake-desktop · Fake Desk · sacrificial), the one-account note and "The app crashed; its exit details are on the Processes tab. fake-desktop can't resume a conversation from AI Juggler, so Relaunch, above, starts a fresh one.", and ends there (it repeated "Stopped with an error" as a chip, offered Open / Focus window, listed "cpu — · ram — · children 0 · No usage recorded yet" and left half the card empty). panel-exited the same with "The app exited." panel-running unchanged but for the rail. Line 9 3 → 4; lowest now 4.

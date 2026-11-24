@@ -1,4 +1,4 @@
-<!-- captures: 9a22a1b9475d -->
+<!-- captures: 14c1f5e6f72a -->
 # 56-history: History of ended and archived sessions, its search, a read-only replay, delete, and the retention dry run
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design fixes.
@@ -36,12 +36,14 @@ Re-captured (search, archived, replay, delete, dry run, retention at 1280 and 10
 | 9 | Actions | 4 | Delete needs "delete" typed; Remove 2 records last. |
 | 10 | Serious | 4 | Dry run lists what goes, what's kept and why. |
 | 11 | Doors | 4 | Every row opens its session. |
-| 12 | Words | 3 | The replay's internal words (F79). |
+| 12 | Words | 4 | F79 (8212c0185): the replay says its facts in words ("Marked reviewed", "Came from Claude Code CLI · Personal, with the full story, fresh start", "A helper process was cleaned up by AI Juggler", times as "5 h ago"). |
 | 13 | States | 4 | "1 session" for a search; empty days not drawn. |
-| 14 | Consistency | 3 | The replay is not the session page's conversation (F79). |
+| 14 | Consistency | 4 | F79: the replay draws the conversation with the session page's own turns (ADR-0024's `Turn`). |
 | 15 | Accessibility | 4 | axe clean in the capture runs (no serious or critical); keyboard and zoom not re-walked this round. |
 | 16 | Hand walk | 4 | Not re-walked by hand here; captured from the fixtures, both themes. |
 | 17 | System prompts | 5 | Causes no system prompt. |
-| 18 | Usability | 4 | Re-read against PAT-USE: retention removes only AI Juggler's records, said in the card. Match but F79. |
+| 18 | Usability | 4 | Re-read against PAT-USE: retention removes only AI Juggler's records, said in the card; a replay reads like the session it was. Match. |
 
-Lowest: 3, each line under 4 logged (F79); the rest 4 or 5.
+Lowest: 3, each line under 4 logged (F79); the rest 4 or 5. After F79: lowest 4.
+
+**Fixed after the critique (F79), re-captured (every state at 1280 and 1024, both themes; opened replay-1280x800-dark and replay-1024x680-light):** the replay is "Replay · Read-only: the conversation as it was stored · 48 KB" with Close (the kit's secondary), the conversation on a tone panel as the session page draws it ("The start of the conversation", your words in bubbles on the right, Claude's under its mark and name), and beside it What happened (Working, Ended, Marked reviewed, each "… ago"), Switches and Processes in words (it was "user" / "assistant" over monospace on black, a sha256, "root 48211 · exited · clean", "· reviewed", "confirmed · F1", an outlined Close). Lines 12 and 14 3 → 4; lowest now 4.
