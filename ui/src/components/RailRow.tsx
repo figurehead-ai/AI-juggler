@@ -3,6 +3,7 @@
  * time, its App and account). Moved out of WorkflowRail.tsx (its size
  * budget); WorkflowRail re-exports it.
  */
+import { MACHINE_WORD } from "../lib/machine-words";
 import { ProjectMark } from "./ProjectMark";
 import { AppIcon } from "./AppIcon";
 import { appOfSession } from "../lib/app-of";
@@ -113,7 +114,7 @@ export function RailRow({
         <span className="sr-only">
           {session.pinned ? ", pinned" : ""}, {state}{note ? `, ${note}` : ""}, {providerDisplayName(session.provider)} on {session.account_label}
           {low ? `, ${low}` : ""}
-          {heavyNote ? `, working your Mac hard: ${heavyNote}` : ""}
+          {heavyNote ? `, working your ${MACHINE_WORD} hard: ${heavyNote}` : ""}
         </span>
       </span>
       {density === "compact" && low && <span className="shrink-0 text-label tabular-nums text-muted">{low}</span>}
@@ -160,7 +161,7 @@ function StateLine({ session, parked, state, level, low, heavy, heavyNote, stale
           (their loud copy is the Needs you row, as in the App lens). */}
       {low && <span className="shrink-0 whitespace-nowrap">· {low}</span>}
       {heavy && (
-        <span title={`Working your Mac hard: ${heavyNote}`} data-testid="rail-heavy" className="shrink-0 whitespace-nowrap">
+        <span title={`Working your ${MACHINE_WORD} hard: ${heavyNote}`} data-testid="rail-heavy" className="shrink-0 whitespace-nowrap">
           · {heavy}
         </span>
       )}

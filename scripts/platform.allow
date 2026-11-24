@@ -31,7 +31,7 @@ crates/juggler-app/src/features/isolation/mod.rs unix-api 1
 crates/juggler-app/src/features/kill/mod.rs slash-split 3
 crates/juggler-app/src/features/notifications/mod.rs mac-words 2
 crates/juggler-app/src/features/pools/cards.rs slash-split 1
-crates/juggler-app/src/features/processes/commands.rs usr-bin 2
+crates/juggler-app/src/features/processes/commands.rs usr-bin 1
 crates/juggler-app/src/features/processes/roles.rs slash-split 1
 crates/juggler-app/src/features/service_accounts/mod.rs mac-words 2
 crates/juggler-app/src/features/staging/mod.rs unix-api 1
@@ -84,7 +84,6 @@ ui/src/components/RemoteLaunch.tsx mac-words 1
 ui/src/components/RemoteTabs.tsx mac-words 1
 ui/src/components/SessionsSettings.tsx mac-words 7
 ui/src/components/Welcome.tsx mac-words 1
-ui/src/components/WorkflowRail.tsx mac-words 2
 ui/src/components/row/SessionRow.tsx mac-words 1
 ui/src/components/this-mac-memory.tsx mac-words 3
 ui/src/components/this-mac-parts.tsx mac-words 2

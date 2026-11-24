@@ -16,6 +16,7 @@
  * raw "[user]" lines), what each side did as a `FactPanel`, the choices as
  * `RadioCards`, times in words, and one primary in the fixed footer.
  */
+import { THIS_MACHINE } from "../lib/machine-words";
 import { useRef, useState, type JSX } from "react";
 import { errorText } from "../lib/bridge";
 import { readDelta } from "../lib/delta-words";
@@ -150,7 +151,7 @@ export function CrossMachineSwitchBack({
       icon={diverged ? IconWarn : IconStateHandover}
       title={diverged ? "Both sides moved on" : `Switch back to ${machine}`}
       sub={diverged ? "Nothing was merged and nothing ran. Choose what to keep." : `The original on ${plan.original_account_label} resumes there, never overwritten.`}
-      from={{ name: `This Mac · ${plan.away_account_label}`, logo: <LogoTile icon={IconComputer} size={24} /> }}
+      from={{ name: `${THIS_MACHINE} · ${plan.away_account_label}`, logo: <LogoTile icon={IconComputer} size={24} /> }}
       to={{ name: `${machine} · ${plan.original_account_label}`, logo: <LogoTile icon={IconFleet} size={24} on /> }}
       testId="cross-back-header"
       titleTestId="cross-back-title"

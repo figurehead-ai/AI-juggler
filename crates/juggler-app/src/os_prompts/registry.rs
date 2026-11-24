@@ -368,7 +368,7 @@ pub const ENTRIES: &[Entry] = &[
     Entry {
         prompt: HELPER_CHANGED,
         title: "Start Bot's AI helper after this update",
-        why: "This update changed the name test builds give Bot's helper. A test build ran on this computer, so macOS may ask once whether to open the helper: it's AI Juggler's own, signed. It starts when you next check this computer for Bot.",
+        why: "This update changed the name test builds give Bot's helper. A test build ran on this computer, so the system may ask once whether to open the helper: it's AI Juggler's own, signed. It starts when you next check this computer for Bot.",
         if_declined: "Bot stays on its setup guide (Set up Bot) until its AI can start; nothing else changes.",
         offered_again: "You can turn this on later: check this computer in Settings › AI › Models.",
         background: "Waits: the helper doesn't start after this update until you've checked this computer once.",
