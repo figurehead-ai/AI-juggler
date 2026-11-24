@@ -245,7 +245,7 @@ pub fn conversation_held(state: &AppState, conversation: &str) -> Option<&'stati
     use juggler_handover::moving::Phase;
     let path = conversation_mark(state, conversation);
     let mark: ConversationMark = serde_json::from_slice(&std::fs::read(&path).ok()?).ok()?;
-    let stale = || {
+    let let_go = || {
         let _ = std::fs::remove_file(&path);
         None
     };
@@ -253,13 +253,13 @@ pub fn conversation_held(state: &AppState, conversation: &str) -> Option<&'stati
         return if juggler_core::model::Timestamp::now().millis() < until {
             Some(CONVERSATION_SETTLING)
         } else {
-            stale()
+            let_go()
         };
     }
     let alive = mark.marker.owner_alive();
     match hold::open_move(&state.data_dir, &mark.marker.move_id).map(|t| t.manifest.phase) {
-        Ok(Phase::Committed | Phase::Verified | Phase::Undone) => stale(),
-        Ok(Phase::Planned) | Err(_) if !alive => stale(),
+        Ok(Phase::Committed | Phase::Verified | Phase::Undone) => let_go(),
+        Ok(Phase::Planned) | Err(_) if !alive => let_go(),
         Ok(Phase::Planned) | Err(_) => Some(CONVERSATION_MOVING),
         Ok(_) if alive => Some(CONVERSATION_MOVING),
         Ok(_) => Some(CONVERSATION_UNFINISHED),
