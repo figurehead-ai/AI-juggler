@@ -65,7 +65,8 @@ function BackupsFoot({ info, onChanged }: { info: MoveBackupsInfo; onChanged: ()
   const [asking, setAsking] = useState(false);
   const [busy, setBusy] = useState(false);
   const [said, setSaid] = useState<{ words: string; failed: boolean } | null>(null);
-  const offer = info.low_room && info.old_count > 0;
+  // F12 (D-127): an offer that frees nothing (untouched clones) isn't shown.
+  const offer = info.low_room && info.old_count > 0 && info.old_bytes > 0;
   const clear = () => {
     setBusy(true);
     switchMoveClearOld()

@@ -305,7 +305,9 @@ pub fn offer_if_pressed(state: &Arc<AppState>, now_ms: i64) -> bool {
         return false;
     }
     let info = backups(state, now_ms);
-    if !info.low_room || info.old_count == 0 {
+    // F12 (D-127): an offer that frees nothing (untouched clones) isn't
+    // made.
+    if !info.low_room || info.old_count == 0 || info.old_bytes == 0 {
         return false;
     }
     let target = crate::features::notifications::centre::NoticeTarget {

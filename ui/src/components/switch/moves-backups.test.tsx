@@ -80,6 +80,13 @@ describe("move backups together", () => {
     expect((await screen.findByTestId("cleanup-backups")).textContent).toContain("2 move backups kept for Undo, frees 3.0 GB.");
   });
 
+  it("no offer when the day-old backups free nothing (F12), even on a nearly full disk", async () => {
+    window.__AIJ_MOVE_BACKUPS__ = backups({ low_room: true, exact: true, old_count: 1, old_bytes: 0 });
+    render(<MovesPanel moves={[row]} onChanged={() => {}} />);
+    await screen.findByTestId("moves-total");
+    expect(screen.queryByTestId("moves-offer")).toBeNull();
+  });
+
   it("no offer without backups a day old, even on a nearly full disk", async () => {
     window.__AIJ_MOVE_BACKUPS__ = backups({ low_room: true, old_count: 0, old_bytes: 0 });
     render(<MovesPanel moves={[row]} onChanged={() => {}} />);

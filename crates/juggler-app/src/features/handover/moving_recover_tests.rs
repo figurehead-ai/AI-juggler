@@ -488,6 +488,8 @@ fn a_nearly_full_disk_offers_once_a_day_naming_what_it_frees_and_clears_nothing(
         return;
     };
     let created = created_of(&lab, &done.move_id);
+    // F12: backups that free something (an untouched clone frees nothing).
+    diverge(&lab);
     // Room enough: no offer.
     juggler_platform::room::set_free_space_on_this_thread(Some(|_| u64::MAX / 2));
     assert!(!retention::backups(&lab.state, created + 2 * DAY).low_room);
@@ -557,4 +559,34 @@ fn clearing_old_backups_takes_only_finished_moves_a_day_old_never_during_a_move(
     assert!(said.starts_with("No backups"), "{said}");
     assert!(!backups(&other).is_empty());
     assert_eq!(phase(&other, &id), Phase::Applying);
+}
+
+/// The moved history written anew (new blocks): its backup, a clone,
+/// no longer shares them, so deleting it frees something.
+fn diverge(lab: &Lab) {
+    let history = lab.b_code.join("projects").join(SLUG).join("main.jsonl");
+    std::fs::write(&history, "{\"type\":\"user\"}\n".repeat(4096)).unwrap();
+}
+
+/// F12 (D-127): day-old backups that free nothing (untouched clones,
+/// measured exactly under D-146) bring no offer, however full the disk;
+/// once clearing them frees something, the offer shows.
+#[test]
+fn backups_that_free_nothing_bring_no_low_disk_offer() {
+    let Some((lab, _system, done)) = moved() else {
+        return;
+    };
+    let created = created_of(&lab, &done.move_id);
+    juggler_platform::room::set_free_space_on_this_thread(Some(|_| 1024));
+    let info = retention::backups(&lab.state, created + 2 * DAY);
+    assert!(info.low_room && info.old_count == 1, "{info:?}");
+    if info.old_bytes == 0 {
+        assert!(!retention::offer_if_pressed(&lab.state, created + 2 * DAY));
+        assert!(offers(&lab).is_empty(), "an offer that frees nothing");
+    }
+    diverge(&lab);
+    assert!(retention::backups(&lab.state, created + 2 * DAY).old_bytes > 0);
+    assert!(retention::offer_if_pressed(&lab.state, created + 2 * DAY));
+    assert_eq!(offers(&lab).len(), 1);
+    juggler_platform::room::set_free_space_on_this_thread(None);
 }
