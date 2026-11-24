@@ -615,6 +615,14 @@ fn clones() -> bool {
     juggler_platform::transfer::clones_supported(tmp.path()).unwrap_or(false)
 }
 
+/// For a test whose case is decided before or apart from the disk's
+/// clone check: on this thread every disk makes clones, so a disk that
+/// makes none (a CI runner's ext4) can't refuse the move first. The
+/// refusal itself: `stops::a_disk_without_clones_is_refused_as_setup`.
+fn clones_on_any_disk() {
+    juggler_platform::transfer::set_clones_on_this_thread(Some(true));
+}
+
 fn unchanged(lab: &Lab) -> bool {
     lab.a_folder.join("local_main.json").is_file()
         && lab

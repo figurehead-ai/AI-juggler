@@ -550,6 +550,7 @@ fn d1_04_crashpad_is_reported_never_waited_on() {
 /// tab: the self rule refuses before anything quits, as needs you.
 #[test]
 fn d1_05_ai_juggler_from_the_code_tab_is_refused_before_any_quit() {
+    clones_on_any_disk();
     let fix = fix();
     let mut rows = both(&fix, fix.code_tab(110, 100, &fix.a, &[]));
     rows.push(fixture(
@@ -570,6 +571,7 @@ fn d1_05_ai_juggler_from_the_code_tab_is_refused_before_any_quit() {
 /// Shape 6: Another AI Juggler started from the profile: the same, naming it.
 #[test]
 fn d1_06_another_ai_juggler_in_the_profile_is_refused_before_any_quit() {
+    clones_on_any_disk();
     let fix = fix();
     let mut rows = both(&fix, fix.code_tab(110, 100, &fix.a, &[]));
     rows.push(fixture(
@@ -827,6 +829,7 @@ fn d1_13_a_process_two_profiles_claim_is_never_a_wait() {
 /// running profiles with helpers and Code tabs, 400 pid files.
 #[test]
 fn the_offers_checks_stay_within_500_ms_on_a_large_table() {
+    clones_on_any_disk();
     let fix = fix();
     let mut rows = both(&fix, []);
     let mut known = Vec::new();

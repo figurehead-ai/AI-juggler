@@ -230,6 +230,7 @@ fn both_profiles_quit_in_parallel() {
 /// signal is never signalled: nothing quits, the move refuses.
 #[test]
 fn a_pid_reused_between_read_and_signal_is_never_signalled() {
+    clones_on_any_disk();
     let lab = lab();
     let system = Scripted {
         reused_after_read: vec![source_id(&lab)],

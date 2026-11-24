@@ -131,6 +131,32 @@ fn clones() -> bool {
     juggler_platform::transfer::clones_supported(tmp.path()).unwrap_or(false)
 }
 
+/// A disk that makes no clones refuses the move before anything is
+/// written, wherever this runs (the check stays strict; tests elsewhere
+/// set clones on their thread only to reach the case they test).
+#[test]
+fn a_disk_without_clones_refuses_the_move_before_anything_is_written() {
+    juggler_platform::transfer::set_clones_on_this_thread(Some(false));
+    let lab = lab();
+    let refused = Transaction::begin(
+        &lab.moves,
+        "1-no-clones",
+        "fake",
+        request(&lab),
+        plan(&lab),
+        None,
+        1,
+    );
+    match refused {
+        Err(MoveError::Refused(words)) => {
+            assert!(words.contains("can't make clone backups"), "{words}");
+        }
+        other => panic!("{:?}", other.map(|_| ())),
+    }
+    assert!(lab.a.join("p/s.jsonl").is_file(), "nothing moved");
+    assert!(!lab.moves.join("1-no-clones").exists(), "no move begun");
+}
+
 #[test]
 fn a_move_applies_checks_and_commits() {
     if !clones() {
@@ -795,6 +821,9 @@ fn the_room_a_move_needs_counts_its_undo() {
 /// and its wait set, never overwriting the event's own fields.
 #[test]
 fn the_journal_keeps_a_timeline_of_every_phase_in_ms() {
+    // The timeline is the case, not the disk: on one that makes no clones
+    // (a CI runner's ext4) the backup is a plain copy of the lab's files.
+    juggler_platform::transfer::set_clones_on_this_thread(Some(true));
     let lab = lab();
     let mut txn = begin(&lab, "1-timeline");
     let stopped = Stopped::checked();

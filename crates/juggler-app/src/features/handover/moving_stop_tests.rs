@@ -136,6 +136,7 @@ fn an_app_asking_something_needs_you_and_is_never_retried() {
 /// quits; a session working, likewise.
 #[test]
 fn what_the_offer_refuses_needs_you() {
+    clones_on_any_disk();
     let lab = lab();
     for system in [
         Scripted {
@@ -153,6 +154,34 @@ fn what_the_offer_refuses_needs_you() {
         assert!(stop.move_id.is_none(), "no move began");
         assert!(system.quits.lock().unwrap().is_empty());
     }
+}
+
+/// R2 setup: a disk that makes no clones (no Undo backups) refuses the
+/// move before anything quits, on any disk this runs on, and says why.
+#[test]
+fn a_disk_without_clones_is_refused_as_setup() {
+    juggler_platform::transfer::set_clones_on_this_thread(Some(false));
+    let lab = lab();
+    let system = running_both(&lab);
+    let offer = offer_of(&lab.state, &lab.sides, &system);
+    assert!(
+        offer
+            .blocks
+            .iter()
+            .any(|block| block.words.contains("clone backups")),
+        "{:?}",
+        offer.blocks
+    );
+    let error = run(&lab.state, &lab.sides, &system).unwrap_err();
+    let (class, retry, stop) = read(&error);
+    assert_eq!((class, retry), (StopClass::Setup, false), "{error}");
+    assert!(
+        error.wire().user_message.contains("clone backups"),
+        "{error}"
+    );
+    assert!(stop.move_id.is_none(), "no move began");
+    assert!(system.quits.lock().unwrap().is_empty(), "nothing quit");
+    assert!(unchanged(&lab));
 }
 
 /// R2 needs you: a profile started by hand mid-move is named with its
@@ -176,6 +205,7 @@ fn a_profile_started_mid_move_needs_you_and_is_named() {
 /// R2 transient: another move of these profiles is running.
 #[test]
 fn another_move_running_is_transient() {
+    clones_on_any_disk();
     let lab = lab();
     let ids = place_ids(&lab);
     let _other = crate::features::places::MoveHold::take(&lab.state, &ids, "other").unwrap();
