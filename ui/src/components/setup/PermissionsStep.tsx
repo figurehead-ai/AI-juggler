@@ -27,7 +27,7 @@ import { SYSTEM_NAME } from "../../lib/machine-words";
 import { osPromptPrime, osPromptsList, type OsPromptInfo } from "../../lib/ipc/os-prompts";
 
 /** Primed on their own steps. */
-const ELSEWHERE = new Set(["login-item", "helper"]);
+const ELSEWHERE = new Set(["login-item", "helper", "helper-changed"]);
 
 /** The prompts this step offers: the ones this setup needs, not primed elsewhere. */
 export function setupPrompts(all: readonly OsPromptInfo[]): OsPromptInfo[] {

@@ -114,6 +114,14 @@ pub const HELPER: Prompt = Prompt {
     kind: Kind::Differs,
 };
 
+/// The helper's first start after an upgrade from a build whose helpers
+/// had the old identifiers (AJ-E3822 renamed Dev's): macOS may ask once
+/// whether to open it, because a Dev build signed the same name before.
+pub const HELPER_CHANGED: Prompt = Prompt {
+    id: "helper-changed",
+    kind: Kind::Differs,
+};
+
 /// A keychain item's access (never shown).
 pub const KEYCHAIN: Prompt = Prompt {
     id: "keychain",
@@ -355,6 +363,20 @@ pub const ENTRIES: &[Entry] = &[
         ],
         never_shown: false,
         needed: super::needs::helper,
+    },
+    Entry {
+        prompt: HELPER_CHANGED,
+        title: "Start Bot's AI helper after this update",
+        why: "This update changed the name test builds give Bot's helper. A test build ran on this computer, so macOS may ask once whether to open the helper: it's AI Juggler's own, signed. It starts when you next check this computer for Bot.",
+        if_declined: "Bot stays on its setup guide (Set up Bot) until its AI can start; nothing else changes.",
+        offered_again: "You can turn this on later: check this computer in Settings › AI › Models.",
+        background: "Waits: the helper doesn't start after this update until you've checked this computer once.",
+        triggers: &[
+            "crates/juggler-app/src/features/ai/engines/helper.rs:launch_checked",
+            "crates/juggler-app/src/os_prompts/mod.rs:prime_call",
+        ],
+        never_shown: false,
+        needed: super::needs::helper_changed,
     },
     Entry {
         prompt: KEYCHAIN,

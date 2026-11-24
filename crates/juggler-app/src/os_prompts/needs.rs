@@ -120,3 +120,11 @@ pub fn helper(_state: &Arc<AppState>) -> bool {
     juggler_platform::ai::system_model() == juggler_platform::ai::SystemModel::MayHave
         || !crate::features::ai::models::store::shared_installed_ids().is_empty()
 }
+
+/// Bot's helper can run here and a build with the helpers' old
+/// identifiers ran on this computer (`super::helper_renamed`): macOS may
+/// ask about the helper once after this update.
+#[must_use]
+pub fn helper_changed(state: &Arc<AppState>) -> bool {
+    super::helper_renamed() && helper(state)
+}

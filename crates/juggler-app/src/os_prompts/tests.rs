@@ -193,3 +193,42 @@ fn not_now_says_where_it_is_offered_again() {
             .contains("Settings › AI › Models")
     );
 }
+
+/// 0.5.1 (AJ-E3822, PAT-OSP): after an update from a build whose helpers
+/// had the old identifiers, Bot's helper set up before doesn't start
+/// unannounced: its next start waits for the `helper-changed` sheet, once,
+/// and priming that one is enough from then on.
+#[test]
+fn a_helper_set_up_before_the_rename_waits_for_its_one_sheet() {
+    use juggler_platform::os_prompt::{Gate, Ledger, MemoryLedger};
+    let ledger = MemoryLedger::default();
+    ledger.set_primed(registry::HELPER.id);
+    let gate = Gate::new(&ledger);
+    assert!(helper_start_through(gate, false), "no rename: as before");
+    assert!(
+        !helper_start_through(gate, true),
+        "renamed: the helper waits for the user to be told"
+    );
+    assert_eq!(helper_prompt(gate, true).id, registry::HELPER_CHANGED.id);
+    ledger.set_primed(registry::HELPER_CHANGED.id);
+    assert!(helper_start_through(gate, true), "told once: it starts");
+    assert_eq!(helper_prompt(gate, true).id, registry::HELPER.id);
+}
+
+/// Only AI Juggler and Nightly, and only where a Dev build ran (Dev's
+/// data folder beside theirs), can meet the renamed helper's prompt.
+#[test]
+fn the_rename_is_seen_only_beside_a_dev_build() {
+    use crate::edition::Edition;
+    let dir = tempfile::tempdir().unwrap();
+    let ours = dir.path().join(Edition::Nightly.data_dir_name());
+    std::fs::create_dir(&ours).unwrap();
+    assert!(!helper_renamed_here(Edition::Nightly, &ours));
+    std::fs::create_dir(dir.path().join(Edition::Dev.data_dir_name())).unwrap();
+    assert!(helper_renamed_here(Edition::Nightly, &ours));
+    assert!(helper_renamed_here(Edition::Main, &ours));
+    assert!(!helper_renamed_here(
+        Edition::Dev,
+        &dir.path().join("AI Juggler Dev")
+    ));
+}

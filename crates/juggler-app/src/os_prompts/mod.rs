@@ -234,6 +234,10 @@ impl Primer for Shared {
 /// Installs the ledger and the window's sheet into the seam, once, at
 /// start (before anything can ask).
 pub fn install(app: &tauri::AppHandle, state: &Arc<AppState>) {
+    HELPER_RENAMED.store(
+        helper_renamed_here(crate::edition::current(), &state.data_dir),
+        std::sync::atomic::Ordering::Relaxed,
+    );
     let primer = Arc::new(WindowPrimer::new(app.clone(), Arc::clone(state)));
     let _ = PRIMER.set(Arc::clone(&primer));
     os_prompt::install(
@@ -257,8 +261,8 @@ pub fn may_read(path: &std::path::Path) -> bool {
 
 /// Whether `command` may start now (PAT-OSP-3): it isn't one of AI
 /// Juggler's own helpers (beside the app's executable, as the program or
-/// a program it runs), or the `helper` entry is primed (Bot's setup
-/// guide's check, or setup's Meet Bot). A first start may make the system ask ("differs
+/// a program it runs), or the helper's entry ([`helper_prompt`]) is primed
+/// (Bot's setup guide's check, or setup's Meet Bot). A first start may make the system ask ("differs
 /// from previously opened versions"), and a probe nobody clicked never
 /// may. Called by the helpers' one client right before it spawns.
 #[must_use]
@@ -266,11 +270,73 @@ pub fn helper_may_start(command: &std::process::Command) -> bool {
     let ours = std::iter::once(command.get_program())
         .chain(command.get_args())
         .any(|part| juggler_platform::code_trust::beside_app(std::path::Path::new(part)));
-    !ours
-        || matches!(
-            os_prompt::gate().through(registry::HELPER, Presence::Background, &|| None, || ()),
-            Gated::Called { .. }
-        )
+    !ours || helper_start_through(os_prompt::gate(), helper_renamed())
+}
+
+/// The gate's half of [`helper_may_start`]: a start nobody clicked passes
+/// only once the helper's entry now ([`helper_prompt`]) is primed.
+#[must_use]
+pub fn helper_start_through(gate: os_prompt::Gate<'_>, renamed: bool) -> bool {
+    matches!(
+        gate.through(
+            helper_prompt(gate, renamed),
+            Presence::Background,
+            &|| None,
+            || ()
+        ),
+        Gated::Called { .. }
+    )
+}
+
+/// Whether a build with the helpers' old identifiers ran on this computer
+/// (decided at [`install`] by [`helper_renamed_here`]).
+static HELPER_RENAMED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+/// Whether macOS may ask about Bot's helper once after this update
+/// (AJ-E3822): before 0.5.1 a Dev build signed the helpers' identifiers
+/// ad hoc under the very names AI Juggler and Nightly sign with the
+/// team's ID, so the next start under the other signer "differs from
+/// previously opened versions". Only those two editions can see it, and
+/// only where Dev's data folder sits beside theirs (a Dev build ran
+/// here; its folder's presence is read, nothing in it). Dev's helpers now
+/// carry Dev's own names, never seen before, so Dev itself never asks.
+#[must_use]
+pub fn helper_renamed_here(edition: crate::edition::Edition, data_dir: &std::path::Path) -> bool {
+    let dev = crate::edition::Edition::Dev;
+    edition != dev
+        && data_dir
+            .parent()
+            .is_some_and(|parent| parent.join(dev.data_dir_name()).is_dir())
+}
+
+/// What [`helper_renamed_here`] said at start.
+#[must_use]
+pub fn helper_renamed() -> bool {
+    HELPER_RENAMED.load(std::sync::atomic::Ordering::Relaxed)
+}
+
+/// The entry the helper's next start goes through: `helper-changed`
+/// after an update where macOS may ask about the renamed helper
+/// (`renamed`) until that entry is primed once, else `helper`. Priming
+/// `helper-changed` primes `helper` too ([`prime_call`]): one sheet, never
+/// two.
+#[must_use]
+pub fn helper_prompt(gate: os_prompt::Gate<'_>, renamed: bool) -> Prompt {
+    if renamed && !gate.primed(registry::HELPER_CHANGED.id) {
+        registry::HELPER_CHANGED
+    } else {
+        registry::HELPER
+    }
+}
+
+/// `entry`, or for one of the helper's two entries the one its next
+/// start goes through ([`helper_prompt`]).
+fn helper_entry_now(entry: &Entry) -> &Entry {
+    let id = entry.prompt.id;
+    if id != registry::HELPER.id && id != registry::HELPER_CHANGED.id {
+        return entry;
+    }
+    registry::entry(helper_prompt(os_prompt::gate(), helper_renamed()).id).unwrap_or(entry)
 }
 
 /// What the system says of `prompt` now, never asking.
@@ -354,7 +420,7 @@ pub fn info(state: &Arc<AppState>, entry: &Entry) -> OsPromptInfo {
         offered_again: entry.offered_again.to_owned(),
         needed: !entry.never_shown && (entry.needed)(state),
         status: status_of(state, entry.prompt).as_str().to_owned(),
-        primed: os_prompt::gate().primed(entry.prompt.id),
+        primed: os_prompt::gate().primed(helper_entry_now(entry).prompt.id),
         change_later: place.map(str::to_owned),
         background: entry.background.to_owned(),
         never_shown: entry.never_shown,
@@ -499,8 +565,14 @@ pub fn prime_call(
         }
         // The helper's first start: the engines are asked again at once
         // (Check again's own probe), so the system asks now if it will.
-        "helper" => {
+        // After an update that renamed it, its `helper-changed` sheet
+        // first, once; that primes `helper` too.
+        "helper" | "helper-changed" => {
+            let prompt = helper_entry_now(entry).prompt;
             let gated = gate.through(prompt, presence, &|| None, || {
+                if prompt.id == registry::HELPER_CHANGED.id {
+                    AppLedger(Arc::clone(state)).set_primed(registry::HELPER.id);
+                }
                 let _ = crate::features::ai::service::mac_checked(state);
             });
             gated_info(state, prompt, &gated)
@@ -585,7 +657,7 @@ pub async fn os_prompt_prime(
         move |state| prime_call(state, entry_of(&id)?, Presence::Primed),
     )
     .await?;
-    if outcome.id == registry::HELPER.id {
+    if outcome.id == registry::HELPER.id || outcome.id == registry::HELPER_CHANGED.id {
         app.emit_event(AppEvent::AiJobsChanged, ());
     }
     Ok(outcome)
@@ -621,6 +693,7 @@ pub async fn os_prompt_request(
 ///
 /// An entry built never to be shown.
 pub fn request_impl(state: &Arc<AppState>, entry: &Entry) -> AppResult<OsPromptOutcomeInfo> {
+    let entry = helper_entry_now(entry);
     let status = status_of(state, entry.prompt);
     if os_prompt::gate().primed(entry.prompt.id)
         || matches!(status, Status::Allowed | Status::NotAllowed)
