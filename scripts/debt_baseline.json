@@ -120,7 +120,7 @@
   "jscpd:lines": 6
  },
  "crates/juggler-adapters/src/claude_code.rs": {
-  "jscpd:lines": 151
+  "jscpd:lines": 91
  },
  "crates/juggler-adapters/src/claude_cut.rs": {
   "jscpd:lines": 71
@@ -830,12 +830,6 @@
   "knip:exports": 2
  },
  "ui/src/components/indicator.tsx": {
-  "knip:exports": 2
- },
- "ui/src/components/palette/RowView.tsx": {
-  "knip:exports": 1
- },
- "ui/src/components/palette/rows.ts": {
   "knip:exports": 2
  },
  "ui/src/components/primitives.tsx": {
