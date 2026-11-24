@@ -666,12 +666,9 @@ function BoardRow({
   const where = goToWhere(sessionItem(row, () => null, false)), needs = row.needs_attention !== null && !isSnoozed(row, snooze, now);
   return (
     <div className="group relative" data-rail-row {...menu.triggerProps}>
-      {caption && (
-        <span className="absolute -top-0.5 right-2 z-10 rounded bg-surface-3 px-1 text-label font-medium text-muted" title={caption}>
-          {caption}
-        </span>
-      )}
-      <RailRow session={row} showProject={showProject} selected={selected} onSelect={onSelect} density={density} now={now} freshness={freshness} trailing={where !== null && needs} />
+      {/* Its snooze is said in its own line, never over the row above
+          (0.5.1 critique: the badge sat on the row's title). */}
+      <RailRow session={row} showProject={showProject} selected={selected} onSelect={onSelect} density={density} now={now} freshness={freshness} trailing={where !== null && needs} note={caption} />
       {/* AJ-E1554 R1: its tools at its end, over its App's marks (never the
           title, never the dot); always up while it needs you. */}
       <span className={"absolute right-1 top-1/2 z-10 flex -translate-y-1/2 items-center rounded-md bg-surface " + (where !== null && needs ? "" : "opacity-0 transition-opacity group-hover:opacity-100 group-has-[:focus-visible]:opacity-100 motion-reduce:transition-none")} data-testid="row-tools">
@@ -711,9 +708,12 @@ export function RailRow({
   now,
   freshness = {},
   trailing = false,
+  note = null,
 }: {
   /** Room for its always-shown tools (⋯ ↗) at its end. */
   trailing?: boolean;
+  /** Its snooze ("snoozed 12m", "muted"), said in its line. */
+  note?: string | null;
   session: InstanceInfo;
   showProject?: boolean;
   selected: boolean;
@@ -781,7 +781,7 @@ export function RailRow({
               app
             </span>
           )}
-          {density === "compact" && <span className="ml-auto shrink-0 text-label tabular-nums text-muted">{when}</span>}
+          {density === "compact" && <span className="ml-auto shrink-0 text-label tabular-nums text-muted" data-testid={note ? "rail-snoozed" : undefined}>{note ?? when}</span>}
         </span>
         {density === "comfortable" && (
           // One line: what doesn't fit wraps onto a second, hidden line,
@@ -804,12 +804,17 @@ export function RailRow({
             )}
             <RailQuietNotes session={session} />
             <StaleChip caption={stale} />
+            {note && (
+              <span data-testid="rail-snoozed" className="shrink-0 whitespace-nowrap">
+                · {note}
+              </span>
+            )}
             {/* The time yields first: the notes above matter more. */}
             <span className="whitespace-nowrap">· {when}</span>
           </span>
         )}
         <span className="sr-only">
-          {session.pinned ? ", pinned" : ""}, {state}, {providerDisplayName(session.provider)} on {session.account_label}
+          {session.pinned ? ", pinned" : ""}, {state}{note ? `, ${note}` : ""}, {providerDisplayName(session.provider)} on {session.account_label}
           {low ? `, ${low}` : ""}
           {heavyNote ? `, working your Mac hard: ${heavyNote}` : ""}
         </span>
