@@ -9,7 +9,7 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { JSX } from "react";
-import { MoveRows, detailsOf, freesWords, keptWords, stateWords, useMoves } from "./MovesDoor";
+import { MoveRows, detailsOf, freesWords, keptWords, rowActionName, stateWords, useMoves } from "./MovesDoor";
 import type { MoveRecordInfo } from "../../lib/ipc/switch-move";
 
 const move = (over: Partial<MoveRecordInfo>): MoveRecordInfo => ({
@@ -193,5 +193,37 @@ describe("Moves door", () => {
     expect(screen.getByTestId("move-recovered").textContent).toBe(`${recovered}.`);
     expect(screen.queryByTestId("move-undo")).toBeNull();
     expect(stateWords(move({ state: "committed", recovered }))).toBe("Interrupted, then finished");
+  });
+
+  it("0.5.1 F95: each row's buttons are named with their move, the words on them unchanged", async () => {
+    window.__AIJ_MOVES__ = [
+      move({ move_id: "m-1", title: "Fix the parser", has_backup: true }),
+      move({ move_id: "m-2", title: "Tidy the checkout page", from: "Claude app · B", to: "Claude app · A", has_backup: true }),
+      move({ move_id: "m-3", title: "Fix the parser", state: "interrupted", can_finish: true, from: "Claude app · B", to: "Claude app · C" }),
+    ];
+    render(<MovesDoor />);
+    await screen.findAllByTestId("move-row");
+    // Each one found by its name alone: one button per name, never two rows alike.
+    for (const name of [
+      "Undo the move of “Fix the parser” from Claude app · A to Claude app · B",
+      "Delete backup of the move of “Fix the parser” from Claude app · A to Claude app · B",
+      "Copy details of the move of “Fix the parser” from Claude app · A to Claude app · B",
+      "Undo the move of “Tidy the checkout page” from Claude app · B to Claude app · A",
+      "Delete backup of the move of “Tidy the checkout page” from Claude app · B to Claude app · A",
+      "Copy details of the move of “Tidy the checkout page” from Claude app · B to Claude app · A",
+      "Finish the move of “Fix the parser” from Claude app · B to Claude app · C",
+      "Undo the move of “Fix the parser” from Claude app · B to Claude app · C",
+      "Copy details of the move of “Fix the parser” from Claude app · B to Claude app · C",
+    ]) {
+      expect(screen.getByRole("button", { name }).closest("[data-testid=move-row]")).toBeTruthy();
+    }
+    // The visible words stay as they were, and each name starts with them.
+    const undo = screen.getByRole("button", { name: "Undo the move of “Tidy the checkout page” from Claude app · B to Claude app · A" });
+    expect(undo.textContent).toBe("Undo…");
+    expect(undo.closest("[data-testid=move-row]")!.getAttribute("data-move-id")).toBe("m-2");
+    expect(screen.getByRole("button", { name: "Delete backup of the move of “Tidy the checkout page” from Claude app · B to Claude app · A" }).textContent).toBe("Delete backup…");
+    expect(screen.getByRole("button", { name: "Copy details of the move of “Tidy the checkout page” from Claude app · B to Claude app · A" }).textContent).toBe("Copy details");
+    // A repair says so; a row with no title names it plainly.
+    expect(rowActionName("Undo", move({ repair: true, title: null }))).toBe("Undo the repair of “a conversation” from Claude app · A to Claude app · B");
   });
 });

@@ -8,7 +8,9 @@
  * Undo's sheet says what it restores first. AJ-E2325: a kept backup
  * says until when and what deleting it frees (exact on APFS, D-146; "up
  * to" where the disk can't say); Delete backup… says the move can no
- * longer be undone.
+ * longer be undone. 0.5.1 F95: each row's buttons are named with their
+ * move ("Undo the move of “Fix the parser” from … to …"), the words on
+ * them unchanged, so a screen reader tells the rows apart.
  */
 import { useCallback, useEffect, useState, type JSX } from "react";
 import { Modal } from "../form";
@@ -30,6 +32,13 @@ function moveTitle(move: MoveRecordInfo): string {
 /** 0.5.1 F91: what the record is in words: a move, or a repair. */
 function whatItIs(move: MoveRecordInfo): "move" | "repair" {
   return move.repair ? "repair" : "move";
+}
+
+/** 0.5.1 F95: a row button's name, its visible words first, then its
+ * move ("Undo the move of “Fix the parser” from Claude app · A to Claude
+ * app · B"). */
+export function rowActionName(action: "Finish" | "Undo" | "Delete backup of" | "Copy details of", move: MoveRecordInfo): string {
+  return `${action} the ${whatItIs(move)} of “${move.title ?? "a conversation"}” from ${move.from} to ${move.to}`;
 }
 
 /** Its state in plain words. */
@@ -186,21 +195,21 @@ function MoveRow({ move, onChanged }: { move: MoveRecordInfo; onChanged: () => v
       )}
       <div className="flex flex-wrap items-center gap-2">
         {move.can_finish && (
-          <Button size="sm" variant="primary" disabled={busy} onClick={() => act(() => switchMoveFinish(move.move_id))} data-testid="move-finish">
+          <Button size="sm" variant="primary" disabled={busy} onClick={() => act(() => switchMoveFinish(move.move_id))} aria-label={rowActionName("Finish", move)} data-testid="move-finish">
             {busy ? "Finishing…" : "Finish"}
           </Button>
         )}
         {move.can_undo && (
-          <Button size="sm" variant="secondary" disabled={busy} onClick={() => setAsking("undo")} data-testid="move-undo">
+          <Button size="sm" variant="secondary" disabled={busy} onClick={() => setAsking("undo")} aria-label={rowActionName("Undo", move)} data-testid="move-undo">
             Undo…
           </Button>
         )}
         {move.has_backup && (
-          <Button size="sm" variant="secondary" disabled={busy} onClick={() => setAsking("delete")} data-testid="move-delete">
+          <Button size="sm" variant="secondary" disabled={busy} onClick={() => setAsking("delete")} aria-label={rowActionName("Delete backup of", move)} data-testid="move-delete">
             Delete backup…
           </Button>
         )}
-        <Button size="sm" variant="ghost" onClick={copy} data-testid="move-copy">
+        <Button size="sm" variant="ghost" onClick={copy} aria-label={rowActionName("Copy details of", move)} data-testid="move-copy">
           Copy details
         </Button>
       </div>
