@@ -22,13 +22,20 @@ pub(crate) fn make_launch_hook<'a>(
     profile_b: &'a juggler_core::model::LaunchRecipe,
     source: &'a juggler_core::model::InstanceRecord,
     new_session: &'a SessionId,
-    desktop: Option<&'a str>,
+    (desktop, linked): (Option<&'a str>, &'a std::cell::Cell<Option<u64>>),
 ) -> impl FnMut(&juggler_adapter::handover::InstallOutcome) -> Result<u32, String> + 'a {
     move |install: &juggler_adapter::handover::InstallOutcome| -> Result<u32, String> {
         let native_id = install.reference.native_id.clone().unwrap_or_default();
         // 0.3.5 Desktop: the profile takes it from its folder, where the
         // install put it; "switched" once it recorded it.
         if let Some(place) = desktop {
+            // 0.5.1 F69: its history's length as the link goes (the app
+            // adding to it is evidence it opened, AJ-E2322).
+            linked.set(
+                std::fs::metadata(&install.reference.path)
+                    .ok()
+                    .map(|m| m.len()),
+            );
             return crate::features::places::handoff::hand_off(
                 state,
                 place,

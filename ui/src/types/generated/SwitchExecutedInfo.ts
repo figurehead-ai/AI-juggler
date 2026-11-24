@@ -62,4 +62,16 @@ automation_original_waits: boolean,
  * What stays with the original (the switch went to a terminal), in
  * words.
  */
-automation_kept: Array<string>, };
+automation_kept: Array<string>, 
+/**
+ * 0.5.1 F69: in Desktop, whether the app showed the conversation
+ * open after the link, by Move's own check (AJ-E2322): a session of
+ * it running there, or the app adding to its history. False: sent,
+ * not seen open (the done step says so and offers Open).
+ */
+opened_seen: boolean, 
+/**
+ * 0.5.1 F69: the App to open it in when it wasn't seen open (its
+ * place id); none otherwise.
+ */
+open_place_id: string | null, };

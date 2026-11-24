@@ -54,6 +54,7 @@ type Seams = {
   __AIJ_SWITCH_EXECUTE_DESTINATION__?: string[];
   __AIJ_SWITCH_EXECUTE_PLACE__?: (string | null)[];
   __AIJ_SWITCH_EXECUTE_HANG__?: boolean;
+  __AIJ_SWITCH_EXECUTE_NOT_SEEN__?: boolean;
 };
 const seams = () => window as never as Seams;
 
@@ -61,6 +62,7 @@ beforeEach(() => {
   delete seams().__AIJ_SWITCH_EXECUTE_DESTINATION__;
   delete seams().__AIJ_SWITCH_EXECUTE_PLACE__;
   delete seams().__AIJ_SWITCH_EXECUTE_HANG__;
+  delete seams().__AIJ_SWITCH_EXECUTE_NOT_SEEN__;
 });
 afterEach(() => {
   cleanup();
@@ -176,6 +178,21 @@ describe("0.3.5 where it continues: Desktop or CLI", () => {
     expect(key).toMatch(/^conversation:p-1:preview-/);
     expect(undo).toBeNull();
     expect(parseSourceKey(key)).toEqual({ accountId: "p-1", id: key.split(":")[2] });
+  });
+
+  it("0.5.1 F69: a copy the app took but didn't show open says Sent, never Opened, and offers Open in that App (Move's check, AJ-E2322)", async () => {
+    seams().__AIJ_SWITCH_EXECUTE_NOT_SEEN__ = true;
+    const view = mount(ONECLICK, EXAMPLE_DESTINATIONS, vi.fn());
+    await waitFor(() => expect(view.getByTestId("switch-where")).toBeTruthy());
+    fireEvent.click(radio(view, /^Desktop/));
+    fireEvent.click(view.getByTestId("switch-confirm"));
+    await waitFor(() => expect(view.getByTestId("switch-done")).toBeTruthy());
+    const where = view.getByTestId("switch-done-where");
+    expect(where.textContent).toBe("Sent to Claude app · Personal");
+    expect(where.getAttribute("data-seen")).toBe("false");
+    expect(view.getByTestId("switch-done").textContent).not.toContain("Opened in");
+    expect(view.getByTestId("switch-done-not-seen").textContent).toContain("couldn’t see it open there");
+    expect(view.getByTestId("switch-done-open").textContent).toBe("Open in Claude app · Personal");
   });
 
   it("ends on the CLI as before: the new session, with the undo window", async () => {

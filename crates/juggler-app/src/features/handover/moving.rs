@@ -736,6 +736,41 @@ fn open_in(
     Ok(pid)
 }
 
+/// 0.5.1 F69: a Copy switch's "opened", by Move's own check (AJ-E2322):
+/// whether the app profile `place_id` (its main process `pid`) shows
+/// `conversation` open after the link: a session of it running in that
+/// app (the writers hook, asked of `tool_dir`), or the app adding to its
+/// history (`history`: the path and its length as the link went), waited
+/// for by file events at most [`timeline::OPEN_CAP`]. In words, the
+/// evidence; `None`: not seen open (the switch says it was sent, and
+/// offers Open).
+pub fn seen_open_after_link(
+    state: &Arc<AppState>,
+    (place_id, pid): (&str, u32),
+    mover: &dyn juggler_adapter::moving::InPlaceMove,
+    (tool_dir, conversation): (&Path, &str),
+    history: Option<&(PathBuf, u64)>,
+    system: &dyn MoveSystem,
+) -> Option<String> {
+    let place =
+        crate::features::places::with_book(state, |book| book.places.get(place_id).cloned())
+            .ok()
+            .flatten()?;
+    let writing = Writing {
+        mover,
+        dirs: vec![tool_dir.to_path_buf()],
+        conversations: vec![conversation.to_owned()],
+    };
+    let folders: Vec<PathBuf> = history
+        .and_then(|(path, _)| path.parent())
+        .map(Path::to_path_buf)
+        .into_iter()
+        .collect();
+    system.wait_open(&folders, timeline::OPEN_CAP, &mut || {
+        timeline::seen_open(state, (pid, &place), &writing, history, system)
+    })
+}
+
 fn outcome(pass: bool, ok: &str, failed: String) -> MoveOutcomeInfo {
     MoveOutcomeInfo {
         state: if pass { "verified" } else { "failed" }.to_owned(),

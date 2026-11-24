@@ -44,6 +44,8 @@ export async function switchExecute(
     const seams = window as unknown as {
       __AIJ_SWITCH_EXECUTE_FAIL__?: string;
       __AIJ_SWITCH_EXECUTE_HANG__?: boolean;
+      /** 0.5.1 F69: the app took the copy but didn't show it open. */
+      __AIJ_SWITCH_EXECUTE_NOT_SEEN__?: boolean;
       __AIJ_SWITCH_EXECUTE_REDACTION__?: {
         redactionChoice: string | null | undefined;
         redactionUnredact: number[];
@@ -80,6 +82,9 @@ export async function switchExecute(
       source_session_id: sessionId,
       continued_in: destination,
       conversation_key: destination === "desktop" ? `conversation:${targetProfileId}:preview-${now}` : null,
+      // 0.5.1 F69: seen open in the app, unless a test says it wasn't.
+      opened_seen: destination === "desktop" && !seams.__AIJ_SWITCH_EXECUTE_NOT_SEEN__,
+      open_place_id: destination === "desktop" && seams.__AIJ_SWITCH_EXECUTE_NOT_SEEN__ ? (targetPlaceId ?? null) : null,
     };
   }
   const trigger = pendingSwitchTrigger ?? "manual";

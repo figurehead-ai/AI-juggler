@@ -139,6 +139,14 @@ pub struct SwitchExecutedInfo {
     /// What stays with the original (the switch went to a terminal), in
     /// words.
     pub automation_kept: Vec<String>,
+    /// 0.5.1 F69: in Desktop, whether the app showed the conversation
+    /// open after the link, by Move's own check (AJ-E2322): a session of
+    /// it running there, or the app adding to its history. False: sent,
+    /// not seen open (the done step says so and offers Open).
+    pub opened_seen: bool,
+    /// 0.5.1 F69: the App to open it in when it wasn't seen open (its
+    /// place id); none otherwise.
+    pub open_place_id: Option<String>,
 }
 
 // ---------------------------------------------------------------------------

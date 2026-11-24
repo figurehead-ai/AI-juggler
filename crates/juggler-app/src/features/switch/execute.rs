@@ -263,6 +263,9 @@ pub(crate) fn switch_execute_core(
         .get(&account_b.harness)
         .ok_or_else(|| AppError::UnknownHarness(account_b.harness.to_string()))?;
     let new_session = SessionId::new(format!("sess-{}", unique_suffix()));
+    // 0.5.1 F69: the history's length as the link went to the app.
+    let linked = std::cell::Cell::new(None);
+    let mover_of = adapter.clone();
     let mut launch_hook = make_launch_hook(
         state,
         adapter,
@@ -270,7 +273,7 @@ pub(crate) fn switch_execute_core(
         &profile_b,
         &source,
         &new_session,
-        desktop.as_deref(),
+        (desktop.as_deref(), &linked),
     );
     // ADR-0028: the sessions started from it move with it.
     let family = crate::features::handover::family::find(state, &account_a, &reference);
@@ -295,6 +298,19 @@ pub(crate) fn switch_execute_core(
             return Err(error);
         }
     };
+    // 0.5.1 F69: "Opened" only when the app shows it open, by Move's own
+    // check (AJ-E2322); else the done step says it was sent, with Open.
+    let opened_seen = desktop.as_deref().is_some_and(|place| {
+        copy_seen_open(
+            state,
+            place,
+            pid,
+            &account_b,
+            mover_of.as_ref(),
+            &record.install.reference,
+            linked.get(),
+        )
+    });
     // In Desktop the session is the app's: kept by its account and id, as
     // every session another app runs is.
     let conversation_key = desktop.as_ref().map(|_| landed_key(&account_b, &record));
@@ -381,7 +397,39 @@ pub(crate) fn switch_execute_core(
         automation_copy_place: automation.copy_waits,
         automation_original_waits: automation.original_waits,
         automation_kept: automation.kept,
+        open_place_id: desktop.clone().filter(|_| !opened_seen),
+        opened_seen,
     })
+}
+
+/// 0.5.1 F69: whether the app profile `place` (its process `pid`) shows
+/// the copy (`installed`, its history as `linked` long when the link
+/// went) open, by Move's own check; a tool with no such check never says
+/// it is.
+fn copy_seen_open(
+    state: &Arc<AppState>,
+    place: &str,
+    pid: u32,
+    account: &juggler_core::model::Account,
+    adapter: &dyn juggler_adapter::HarnessAdapter,
+    installed: &juggler_core::model::TranscriptRef,
+    linked: Option<u64>,
+) -> bool {
+    let (Some(mover), Some(conversation)) =
+        (adapter.in_place_move(), installed.native_id.as_deref())
+    else {
+        return false;
+    };
+    let history = linked.map(|len| (installed.path.clone(), len));
+    crate::features::handover::moving::seen_open_after_link(
+        state,
+        (place, pid),
+        mover,
+        (&account.state_dir, conversation),
+        history.as_ref(),
+        &crate::features::handover::moving::Real::quiet(),
+    )
+    .is_some()
 }
 
 /// ADR-0028: the conversation ids the switch changed (a fork on a

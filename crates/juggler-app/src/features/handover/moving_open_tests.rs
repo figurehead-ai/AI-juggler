@@ -152,3 +152,64 @@ fn the_journal_keeps_each_phase_its_wait_set_and_what_remained() {
         record.timeline
     );
 }
+
+/// 0.5.1 F69: a Copy switch's "opened" uses this same check. A link the
+/// app took with nothing showing it open (no session of it running, its
+/// history unchanged) is not seen open, after the capped looks.
+#[test]
+fn a_copy_link_not_seen_open_says_none() {
+    let lab = lab();
+    let system = running_both(&lab);
+    let history = lab.b_code.join("projects").join(SLUG).join("main.jsonl");
+    std::fs::write(&history, "{\"type\":\"user\"}\n").unwrap();
+    let len = std::fs::metadata(&history).unwrap().len();
+    let (place, _) = lab.sides.target_place.as_ref().unwrap();
+    let seen = seen_open_after_link(
+        &lab.state,
+        (place, 4242),
+        lab.sides.adapter.in_place_move().unwrap(),
+        (&lab.b_code, "main"),
+        Some(&(history, len)),
+        &system,
+    );
+    assert_eq!(seen, None);
+    let looks = system
+        .settles
+        .lock()
+        .unwrap()
+        .iter()
+        .filter(|for_| **for_ == timeline::LOOK)
+        .count();
+    assert_eq!(
+        u128::try_from(looks).unwrap(),
+        timeline::OPEN_CAP.as_millis() / timeline::LOOK.as_millis(),
+        "capped, as Move's"
+    );
+}
+
+/// 0.5.1 F69: the app adding to the copy's history after the link is the
+/// evidence it opened it: seen open, said in words.
+#[test]
+fn a_copy_the_app_adds_to_is_seen_open() {
+    let lab = lab();
+    let history = lab.b_code.join("projects").join(SLUG).join("main.jsonl");
+    std::fs::write(&history, "{\"type\":\"user\"}\n").unwrap();
+    let len = std::fs::metadata(&history).unwrap().len();
+    let system = Scripted {
+        writer: Mutex::new(Some((history.clone(), b"{\"type\":\"system\"}\n", 1))),
+        ..running_both(&lab)
+    };
+    let (place, _) = lab.sides.target_place.as_ref().unwrap();
+    let seen = seen_open_after_link(
+        &lab.state,
+        (place, 4242),
+        lab.sides.adapter.in_place_move().unwrap(),
+        (&lab.b_code, "main"),
+        Some(&(history, len)),
+        &system,
+    );
+    assert_eq!(
+        seen.as_deref(),
+        Some("the app added to its history after the link")
+    );
+}

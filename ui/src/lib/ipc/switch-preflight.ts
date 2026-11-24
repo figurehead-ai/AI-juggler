@@ -100,6 +100,11 @@ export interface SwitchExecutedData {
   continued_in?: string;
   conversation_key?: string | null;
   /** ADR-0028: the sessions started from it that moved with it, and where they nest ("now" | "restart" | ""). */ family_moved?: number; family_nests?: string; family_place?: string | null; /** ADR-0028: the automation handed over, the copy's app to restart for it, whether the original's is off only once its app closes, and what stayed. */ automation_moved?: string[]; automation_copy_place?: string | null; automation_original_waits?: boolean; automation_kept?: string[];
+  /** 0.5.1 F69: in Desktop, whether the app showed it open after the
+   * link (Move's own check); false: sent, not seen open. */
+  opened_seen?: boolean;
+  /** 0.5.1 F69: the App to offer Open in when it wasn't seen open. */
+  open_place_id?: string | null;
 }
 
 /** AJ-E206 §5: the switch screen counts the door it shows (local

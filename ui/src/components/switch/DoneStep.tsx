@@ -6,7 +6,9 @@
  * handover; one on the same tool copied the whole session and shows
  * nothing of the kind.
  */
-import type { JSX } from "react";
+import { useState, type JSX } from "react";
+import { placesOpen } from "../../lib/ipc/places";
+import { errorText } from "../../lib/bridge";
 import type { PreflightInfoData } from "../../lib/ipc/switch-preflight";
 import type { AppliedInfo } from "../../lib/ipc/switchSetup";
 import { toolSpec } from "../../lib/tools";
@@ -48,6 +50,44 @@ function familyWords(family: FamilyMoved, app: string): string {
   return `${sessions} moved with it. Continue any of them from AI Juggler.`;
 }
 
+/** The conversation's own id in a Desktop key (`conversation:<account>:<id>`). */
+function conversationOf(key: string | null): string | null {
+  if (!key) return null;
+  const at = key.lastIndexOf(":");
+  return at < 0 ? null : key.slice(at + 1) || null;
+}
+
+/** 0.5.1 F69: sent but not seen open: said plainly, with Open in that App
+ * (the app started first when it isn't running), and what Open did. */
+function OpenThere({ app, placeId, conversation }: { app: string; placeId: string | null; conversation: string | null }): JSX.Element {
+  const [said, setSaid] = useState<string | null>(null);
+  const open = () =>
+    placeId &&
+    void placesOpen(placeId, conversation).then(
+      (outcome) => setSaid(outcome.outcome),
+      (cause) => setSaid(errorText(cause)),
+    );
+  return (
+    <>
+      <span className="text-meta text-ink-2" data-testid="switch-done-not-seen">
+        AI Juggler couldn’t see it open there yet. Open it to pick up the work.
+      </span>
+      {placeId && (
+        <span className="flex flex-wrap items-center gap-2">
+          <Button size="sm" variant="secondary" type="button" onClick={open} data-testid="switch-done-open">
+            Open in {app}
+          </Button>
+          {said && (
+            <output className="text-label text-muted" data-testid="switch-done-open-said">
+              {said}
+            </output>
+          )}
+        </span>
+      )}
+    </>
+  );
+}
+
 export function DoneStep({
   preflight,
   target,
@@ -68,19 +108,24 @@ export function DoneStep({
 }): JSX.Element {
   const desktop = continuedIn === "desktop" ? destinationsOf(preflight).desktop : null;
   const spec = toolSpec(preflight.target_tool);
-  const where = desktop
-    ? `Opened in ${desktop.name}`
-    : continuedIn === "desktop"
-      ? `Opened in the ${spec.desktop_app ?? "desktop"} app`
-      : `On the CLI: ${spec.display_name} in a terminal`;
+  const app = desktop?.name ?? `the ${spec.desktop_app ?? "desktop"} app`;
+  // 0.5.1 F69 (AJ-E2322's rule, as Move): "Opened" only when the app
+  // showed the conversation open; else it was sent, said plainly, with
+  // Open in that App.
+  const seen = executed?.opened_seen === true;
+  const where = continuedIn !== "desktop" ? `On the CLI: ${spec.display_name} in a terminal` : seen ? `Opened in ${app}` : `Sent to ${app}`;
+  const openPlace = continuedIn === "desktop" && !seen ? (executed?.open_place_id ?? desktop?.place_id ?? null) : null;
   return (
     <div className="flex flex-col gap-6" data-testid="switch-done">
       <DoneHead title={<>Switched to {target}</>} help="Send a message there to pick up the work." />
       <FactPanel label="What happened">
-        <Fact icon={continuedIn === "desktop" ? IconComputer : IconTerminal} label="Where" tone="done">
-          <span className="inline-flex min-w-0 items-center gap-2" data-testid="switch-done-where" data-where={continuedIn}>
-            <ToolLogo tool={preflight.target_tool} kind={continuedIn === "desktop" ? "desktop" : "cli"} appId={desktop?.app_id ?? undefined} size={24} />
-            {where}
+        <Fact icon={continuedIn === "desktop" ? IconComputer : IconTerminal} label="Where" tone={continuedIn === "desktop" && !seen ? "plain" : "done"}>
+          <span className="flex flex-col items-start gap-2">
+            <span className="inline-flex min-w-0 items-center gap-2" data-testid="switch-done-where" data-where={continuedIn} data-seen={continuedIn === "desktop" ? String(seen) : undefined}>
+              <ToolLogo tool={preflight.target_tool} kind={continuedIn === "desktop" ? "desktop" : "cli"} appId={desktop?.app_id ?? undefined} size={24} />
+              {where}
+            </span>
+            {continuedIn === "desktop" && !seen && <OpenThere app={app} placeId={openPlace} conversation={conversationOf(executed?.conversation_key ?? null)} />}
           </span>
         </Fact>
         <Fact icon={IconHistory} label="Original">
