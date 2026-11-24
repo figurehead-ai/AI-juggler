@@ -398,3 +398,9 @@ A full run without `--update` after F68–F75 found their gate states changed; b
 
 - 37-flows: `b1-tiles-1280x800-dark`: New project on D-142's size-M frame (F68): the folder icon tile, "New project" and one help line in the fixed header, "Where it lives" with the recent folders one to a row as tone cards ("ai-juggler · Last used with Work Max · 1 min ago"), the keyboard on the first, Choose folder… a secondary and Cancel in the footer (was a two-column grid of outlined tiles, "Step 1 — where do you want to work?" and Close alone in the footer).
 - 37-flows: `b2-account-1280x800-dark`: choosing ai-juggler opens New session on it (F68): its stated choice "Start in ai-juggler on Claude Code CLI · Work Max", Change folder, Change app and the one primary "Start in ai-juggler ⌘↩" (was New project's Step 2: a bare "Work Max" row with a "quota unknown" chip, "Deep work", and "Start session →" mid-body).
+
+### F82–F88 (2026-11-24)
+
+A full run without `--update` after F82–F88 (on a copy of HEAD feab01e21) found one gate state changed, 347/348 passed; it was re-rendered with `scripts/visual_gate.sh --update --project=gallery tests/visual/capture.spec.ts:3941 -g logged_out` and opened old beside new. F84–F87 change no gate state (their captures are gallery-only); F88's six 390×844 costs captures had no baseline.
+
+- 40-login: `card-logged_out-1280x800-dark`: the dialog's title reads "Sign in · Claude Code CLI · Work Max" (was "Log in"); the status line is one mark and "Waiting…" (the ring glyph beside the dot is gone); the steps are a numbered list of three lines (was one sentence with arrows); "Open Claude Code's sign-in page" (was "Open vendor page"); the card and the command box are tone steps with no outline; the command wraps at its spaces (F82).
