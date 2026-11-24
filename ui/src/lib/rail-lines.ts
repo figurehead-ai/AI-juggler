@@ -219,7 +219,13 @@ export function buildLines({ items, view, query, now, toggled, frozen, accountOf
     else offOpen.set(item.place.key, { key: item.place.key, short: item.place.profile ?? item.place.app, name: appName(item.place.app, item.place.profile), open: 1 });
   }
   const inactive = apps ? [] : shown.filter((item) => item.inactive && item.need === null && !item.pinned).sort((a, b) => b.lastMs - a.lastMs);
-  const idle = apps ? idleSessionsByApp(shown, byConversation, byFolder) : new Map<string, RailItem[]>();
+  // 0.5.1 F87: one session, one row. While Ended today is drawn, its
+  // sessions are there only, not again under their App's past ones (a
+  // search for "is:ended pagination" listed one under Open now's App and
+  // again under Ended today).
+  const endedKeys = want("ended") ? new Set(ended.map((item) => item.key)) : null;
+  const pastOnes = endedKeys && endedKeys.size > 0 ? shown.filter((item) => !endedKeys.has(item.key)) : shown;
+  const idle = apps ? idleSessionsByApp(pastOnes, byConversation, byFolder) : new Map<string, RailItem[]>();
   // 0.4.4: by Account, an ended pinned session is under its Account (as by App, `idleSessionsByApp`'s rule).
   const pins = groupItems(by === "account" ? shown.filter((item) => item.pinned && !openNow(item) && !item.archived && item.need === null).sort((a, b) => b.lastMs - a.lastMs) : [], by, accountOf);
   const grouped = groupItems(open, by, accountOf, poolOf); // ADR-0032: + every running App:
