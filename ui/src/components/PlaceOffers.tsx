@@ -76,15 +76,22 @@ function offerOf(id: string): string | null {
   return kind === "app" && app ? app : null;
 }
 
+/** 0.5.1 F99 (the F95 class): an offer's button named with its App ("Add
+ * Claude app · personal", "Not now, Claude app · personal"), its visible
+ * words first, so a screen reader tells the rows' buttons apart. */
+export function offerActionName(action: "Add" | "Not now", label: string): string {
+  return action === "Add" ? `Add ${label}` : `Not now, ${label}`;
+}
+
 /** One offer's row: its name, Add and Not now. */
 export function OfferRow({ offer, onAnswer }: { offer: PlaceOfferInfo; onAnswer: (add: boolean) => void }): JSX.Element {
   return (
     <li className="flex flex-wrap items-center gap-3 px-4 py-2.5" data-testid="desktop-offer">
       <span className="min-w-0 flex-1 truncate text-sm text-ink">{offer.label}</span>
-      <Button size="sm" variant="secondary" onClick={() => onAnswer(true)} data-testid="desktop-offer-add">
+      <Button size="sm" variant="secondary" onClick={() => onAnswer(true)} aria-label={offerActionName("Add", offer.label)} data-testid="desktop-offer-add">
         Add
       </Button>
-      <Button size="sm" variant="ghost" onClick={() => onAnswer(false)} data-testid="desktop-offer-not-now">
+      <Button size="sm" variant="ghost" onClick={() => onAnswer(false)} aria-label={offerActionName("Not now", offer.label)} data-testid="desktop-offer-not-now">
         Not now
       </Button>
     </li>
