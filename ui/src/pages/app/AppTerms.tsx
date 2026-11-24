@@ -13,10 +13,13 @@ import { accountName, planWords, type SubscriptionInfo } from "../../lib/subscri
 import { termNoun, termValueWords } from "../../lib/account-terms";
 import type { Term } from "../../lib/ipc/subscriptions";
 
-/** The stored Account an App is on: its folder's, else the one its row
- * names; `null` when it has none. */
+/** The stored Account an App is on: the one its row names, else its
+ * folder's; `null` when it has none. 0.5.1 F36: its own first, so a
+ * desktop App signed in apart from its folder's terminal sign-in shows
+ * its own Account (AJ-E3210), whichever comes first in the list. */
 export function accountForApp(subs: readonly SubscriptionInfo[], folderId: string | null, accountId: string | null): SubscriptionInfo | null {
-  return subs.find((sub) => sub.account_id && ((accountId !== null && sub.account_id === accountId) || (folderId !== null && sub.profiles.some((profile) => profile.id === folderId)))) ?? null;
+  const own = accountId === null ? undefined : subs.find((sub) => sub.account_id === accountId);
+  return own ?? subs.find((sub) => sub.account_id && folderId !== null && sub.profiles.some((profile) => profile.id === folderId)) ?? null;
 }
 
 export function AppTerms({ sub, now }: { sub: SubscriptionInfo; now: number }): JSX.Element {

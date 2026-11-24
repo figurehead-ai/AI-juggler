@@ -12,7 +12,7 @@ import { addAppFor } from "../../lib/found-tools";
 import { refreshKnownPlaces } from "../../lib/places";
 import { APPS_CHANGED } from "../../lib/ipc/apps";
 import { cliAppId } from "../../lib/app-name";
-import type { AppModel } from "../../lib/apps";
+import { openApp, type AppModel } from "../../lib/apps";
 import { useState, type JSX } from "react";
 import { useItemMenu } from "../../components/ItemMenu";
 import { RenameAccountSheet } from "../../pages/subscription/AccountSettings";
@@ -165,6 +165,9 @@ export function AccountCard(props: AccountCardProps): JSX.Element {
   const known = accountAppsNow(props.apps, sub, folderIds);
   const ids = new Set(known?.ids ?? []);
   const rows = profiles.filter((profile) => ids.has(cliAppId(profile.id)));
+  // 0.5.1 F36: none of its own, while a desktop App holds its folder (the
+  // folder is that App's, rc22 A3) signed in to another Account.
+  const holder = (props.apps ?? []).find((app) => app.kind === "desktop" && app.folder !== null && folderIds.has(app.folder.id) && app.accountId !== sub.account_id);
   const desktop: AccountApp[] = (known?.apps ?? [])
     .filter((app) => app.kind === "desktop")
     .map((app) => ({ app, sessions: app.place?.recent.length ?? 0, open: 0, working: 0, lastMs: app.place?.seen_ms ?? 0 }));
@@ -312,7 +315,7 @@ export function AccountCard(props: AccountCardProps): JSX.Element {
               slow={deadline.slow}
               what="this account's apps"
               skeleton={<AppRowPending />}
-              empty={<NoAppYet tool={sub.tool} />}
+              empty={<NoAppYet tool={sub.tool} holder={holder} />}
               onRetry={readAppsAgain}
             >
               {null}
@@ -324,8 +327,21 @@ export function AccountCard(props: AccountCardProps): JSX.Element {
   );
 }
 
-/** AJ-E1552: an Account no App uses yet, and the way to add one. */
-function NoAppYet({ tool }: { tool: string }): JSX.Element {
+/** AJ-E1552: an Account no App uses yet, and the way to add one. 0.5.1
+ * F36: when its folder is a desktop App's, which signs in on its own (in
+ * its app, AJ-E3210), that's why, and the way to that App (not another
+ * Add). */
+function NoAppYet({ tool, holder }: { tool: string; holder?: AppModel }): JSX.Element {
+  if (holder) {
+    return (
+      <p className="px-2 text-meta text-ink-2" data-testid="account-apps-empty" data-held={holder.id}>
+        Its folder is used by {holder.name}, which signs in on its own ·{" "}
+        <button type="button" className="rounded text-accent underline-offset-2 outline-none hover:underline focus-visible:ring-1 focus-visible:ring-accent/60" onClick={() => openApp(holder.id)} data-testid="account-apps-holder">
+          Open it
+        </button>
+      </p>
+    );
+  }
   return (
     <p className="px-2 text-meta text-ink-2" data-testid="account-apps-empty">
       No app uses this account yet ·{" "}

@@ -141,10 +141,12 @@ export function ProfilesScreen({
   // 0.4.2: an out Account's best action: New session on the one with room.
   const target = outTarget(advice.best);
   // Every profile under its account; one the grouping missed (just added)
-  // stands alone until the next read.
+  // stands alone until the next read. 0.5.1 F36: an Account only a
+  // desktop App's own sign-in names (no folder of its own) has its card
+  // too, with that App.
   const grouped = subscriptions
     .map((sub) => ({ sub: withLiveLabels(sub, accounts), rows: sub.profiles.map((p) => accounts.find((a) => a.id === p.id)).filter((a): a is AccountInfo => a !== undefined) }))
-    .filter((group) => group.rows.length > 0);
+    .filter((group) => group.rows.length > 0 || (group.sub.apps?.length ?? 0) > 0);
   const missed = accounts.filter((a) => !subscriptions.some((sub) => sub.profiles.some((p) => p.id === a.id)));
   for (const a of missed) {
     grouped.push({
