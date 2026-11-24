@@ -86,6 +86,12 @@ desktop: boolean,
  */
 place_id?: string | null, 
 /**
+ * F94: the App this row is, by its own App id (a desktop App's place
+ * id, else its folder's CLI App, `cli:<folder>`): the source's own App
+ * is never a row, another App on its folder can be.
+ */
+app_id: string, 
+/**
  * Top-2 contributing factors in words.
  */
 top_factors: Array<string>, 

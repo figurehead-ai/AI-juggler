@@ -36,6 +36,11 @@ export interface PreflightInfoData {
   source_outside?: boolean;
   /** The app it's open in now ("Claude", "Terminal"), when known. */
   source_app?: string | null;
+  /** F94 (the AJ-E2317 class): the App it is in, by its App id (`app:…` a
+   * desktop App, `cli:…` a folder's CLI App), as its row is, and that App's
+   * name: the header's source side. */
+  source_app_id?: string;
+  source_app_name?: string;
   experimental_copy: string;
   /** AJ-E206 §8 door verdict: "one-click" | "wizard". */
   door: "one-click" | "wizard";

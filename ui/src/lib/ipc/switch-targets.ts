@@ -47,6 +47,9 @@ export interface SwitchTargetData {
    * one: Move goes into that App, by this id. Two on one account are two
    * rows. */
   place_id?: string | null;
+  /** F94: the App this row is, by its own App id (its place id, else
+   * `cli:<folder>`): the source's own App is never a row. */
+  app_id?: string;
   top_factors: string[];
   factors: [string, number][];
   confidence: string;

@@ -140,6 +140,7 @@ pub(crate) fn preflight_with(
         messages,
     );
     let named = stays_behind::of(state, &reference, &account_a, &account_b);
+    let from = super::source_app::source_app_of(state, session_id, &source, &account_a);
     Ok(PreflightInfo {
         mechanism: report.mechanism.as_wire().to_owned(),
         fidelity: report.pair.label.as_str().to_owned(),
@@ -155,6 +156,8 @@ pub(crate) fn preflight_with(
         source_keeps_running: stays.keeps_running,
         source_outside: stays.outside,
         source_app: stays.app,
+        source_app_id: from.id,
+        source_app_name: from.name,
         experimental_copy: move_copy(
             report.mechanism,
             validated,

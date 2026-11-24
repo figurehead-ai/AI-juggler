@@ -86,17 +86,20 @@ function CopyHeader({ preflight, target, destination, marks }: { preflight: Pref
   const tool = preflight?.target_tool ?? null;
   const to = desktop?.name ?? (tool ? cliAppName(tool, target) : target);
   const source = preflight?.source_account ?? "this account";
-  // Both sides as Apps with their logos (DESIGN-SYSTEM §8): the source is
-  // its tool's desktop app when that is where it is open, else its CLI App.
+  // Both sides as Apps with their logos (DESIGN-SYSTEM §8). F94 (the
+  // AJ-E2317 class): the source is the App it is in, by its id, as its row
+  // is (a desktop App's Code tab conversation is that App's, open or not);
+  // a check that names none goes by where it is open, else its CLI App.
   const sourceTool = preflight?.source_tool || null;
-  const sourceDesktop = Boolean(sourceTool && preflight?.source_outside && preflight.source_app && preflight.source_app === toolSpec(sourceTool).desktop_app);
-  const fromName = sourceTool ? sessionAppName({ kind: sourceDesktop ? "desktop" : "cli", provider: sourceTool, account_label: source }) : source;
+  const sourceId = preflight?.source_app_id ?? null;
+  const sourceDesktop = sourceId ? sourceId.startsWith("app:") : Boolean(sourceTool && preflight?.source_outside && preflight.source_app && preflight.source_app === toolSpec(sourceTool).desktop_app);
+  const fromName = preflight?.source_app_name || (sourceTool ? sessionAppName({ kind: sourceDesktop ? "desktop" : "cli", provider: sourceTool, account_label: source }) : source);
   return (
     <SwitchHeader
       icon={IconStateHandover}
       title={`Switch to ${target}`}
       sub={`${preflight?.source_title ?? "This conversation"} · now on ${fromName}`}
-      from={{ name: fromName, logo: sourceTool ? <ToolLogo tool={sourceTool} kind={sourceDesktop ? "desktop" : "cli"} size={24} /> : <LogoTile icon={IconProfiles} size={24} /> }}
+      from={{ name: fromName, logo: sourceTool ? <ToolLogo tool={sourceTool} kind={sourceDesktop ? "desktop" : "cli"} appId={sourceDesktop ? sourceId?.split(":")[1] : undefined} size={24} /> : <LogoTile icon={IconProfiles} size={24} /> }}
       to={{ name: to, logo: tool ? <ToolLogo tool={tool} kind={destination === "desktop" ? "desktop" : "cli"} appId={desktop?.app_id} size={24} /> : <LogoTile icon={IconProfiles} size={24} on /> }}
       marks={marks}
       testId="switch-copy-header"

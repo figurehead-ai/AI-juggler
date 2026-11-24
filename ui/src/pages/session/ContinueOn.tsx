@@ -2,8 +2,8 @@
  * AJ-E2108 — Continue in another app (D-62), on a session's page: the
  * accounts with their profiles beneath, of every tool, how much each has
  * left, the move's badge and a one-line check of what the profile lacks.
- * A profile on the session's own account gives no new room (one runway),
- * so it isn't offered. The click opens the switch screen (AJ-E1542/1543).
+ * A profile on the session's own account gives no new room (one runway);
+ * only another App on its own folder is offered (F94, by its App id). The click opens the switch screen (AJ-E1542/1543).
  * Another app's session is read, never touched, and continues on the
  * other account while it stays open in its app. 0.3: Save handover… at
  * its foot. F40: the dialog's "Now in" is its App by id (ADR-0032).
@@ -103,7 +103,7 @@ export function byAccount(targets: Target[], accounts: SubscriptionInfo[], sourc
   const groups = new Map<string, { account: SubscriptionInfo | undefined; targets: Target[] }>();
   for (const target of targets) {
     const account = accountOfProfile(accounts, target.profileId);
-    const key = account?.key ?? `profile:${target.profileId}`;
+    const key = target.profileId === sourceProfile ? `own:${sourceProfile}` : (account?.key ?? `profile:${target.profileId}`);
     const group = groups.get(key) ?? { account, targets: [] };
     group.targets.push(target);
     groups.set(key, group);
@@ -116,12 +116,12 @@ export function byAccount(targets: Target[], accounts: SubscriptionInfo[], sourc
   return { others, sameAccount: same };
 }
 
-/** The backend's rows as the page's targets: never its own profile, which
- * is where it is already. Ranked rows (`rankTargets`) keep their order,
+/** The backend's rows as the page's targets: never the App it is in (F94: `sourceApp`, by its id; its own folder in a terminal is
+ * Continue in AI Juggler), but its own folder's other desktop App is one. Ranked rows (`rankTargets`) keep their order,
  * room and suggestion. */
-export function targetsOf(rows: Array<SwitchTargetData | RoomTarget>, ownProfile: string, appOf: (target: FolderTarget) => TargetApp = (target) => targetApp(target, { stored: [], places: [], listed: false })): Target[] {
+export function targetsOf(rows: Array<SwitchTargetData | RoomTarget>, ownProfile: string, appOf: (target: FolderTarget) => TargetApp = (target) => targetApp(target, { stored: [], places: [], listed: false }), sourceApp: string | null = null): Target[] {
   return rows
-    .filter((row) => row.account_id !== ownProfile)
+    .filter((row) => (row.place_id ? row.place_id !== sourceApp : row.account_id !== ownProfile))
     .map((row) => {
       // The App it's reached through (K3: a profile's folder is that profile's; AJ-E2317: by its place id).
       const app = appOf({ folder: row.account_id, tool: row.provider, label: row.account_label, placeId: row.place_id ?? null });
@@ -209,8 +209,8 @@ export function ContinueOn({
   // Each named by the App it's reached through (the 0.4.6 RC walk K3).
   const appOf = useTargetApp();
   const targets = useMemo(
-    () => targetsOf(rankTargets(rows ?? [], accounts, displays, model.profileId), model.profileId, appOf),
-    [rows, accounts, displays, model.profileId, appOf],
+    () => targetsOf(rankTargets(rows ?? [], accounts, displays, model.profileId), model.profileId, appOf, model.owner ?? null),
+    [rows, accounts, displays, model.profileId, appOf, model.owner],
   );
   const { others, sameAccount } = byAccount(targets, accounts, model.profileId);
   const notYet = rows?.find((row) => row.not_yet)?.not_yet ?? null;
