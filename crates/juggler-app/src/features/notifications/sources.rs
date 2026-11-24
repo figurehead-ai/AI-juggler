@@ -761,6 +761,21 @@ fn switch_backs(
     out
 }
 
+/// A notice's data for the Account `account_id` named `label` (its Open
+/// goes there).
+fn account_data(account_id: &str, label: &str) -> String {
+    centre::data_of(
+        &NoticeTarget {
+            account_id: Some(account_id.to_owned()),
+            ..NoticeTarget::default()
+        },
+        &NoticeFacts {
+            account: Some(label.to_owned()),
+            ..NoticeFacts::default()
+        },
+    )
+}
+
 /// A plan renewing soon (the digest's line), as a notice: `account_id`
 /// is the folder it was read for (its Open goes there), `label` what it
 /// is called (D-62: the renewal is the Account's, so its name; a folder
@@ -771,16 +786,7 @@ pub fn renewal_notice(account_id: &str, label: &str, text: &str) -> NewNotice {
         key: format!("renewal:{account_id}:{text}"),
         kind: "renewal".to_owned(),
         title: format!("{label}: {text}"),
-        data: centre::data_of(
-            &NoticeTarget {
-                account_id: Some(account_id.to_owned()),
-                ..NoticeTarget::default()
-            },
-            &NoticeFacts {
-                account: Some(label.to_owned()),
-                ..NoticeFacts::default()
-            },
-        ),
+        data: account_data(account_id, label),
         action: Some("open".to_owned()),
         ..NewNotice::default()
     }
@@ -919,16 +925,7 @@ pub fn import_notice(
             if things == 1 { "thing" } else { "things" }
         ),
         detail: lines.join("\n"),
-        data: centre::data_of(
-            &NoticeTarget {
-                account_id: Some(account_id.to_owned()),
-                ..NoticeTarget::default()
-            },
-            &NoticeFacts {
-                account: Some(label.to_owned()),
-                ..NoticeFacts::default()
-            },
-        ),
+        data: account_data(account_id, label),
         action: Some("open".to_owned()),
         ..NewNotice::default()
     })
@@ -1090,14 +1087,7 @@ pub fn finished(state: &Arc<AppState>, session_id: &str) {
         action: Some("open".to_owned()),
         ..NewNotice::default()
     };
-    let recorded = state
-        .storage
-        .lock()
-        .ok()
-        .and_then(|storage| centre::record(&storage, &notice, now).ok().flatten());
-    if recorded.is_some() {
-        super::changed(state);
-    }
+    record_notice(state, &notice, now);
 }
 
 /// 0.3.3: an app or profile kept alive stopped and was started again
@@ -1231,7 +1221,7 @@ pub fn move_app_not_started(state: &Arc<AppState>, place_id: &str, label: &str, 
     );
 }
 
-fn record_notice(state: &Arc<AppState>, notice: &NewNotice, now: i64) {
+pub(crate) fn record_notice(state: &Arc<AppState>, notice: &NewNotice, now: i64) {
     let recorded = state
         .storage
         .lock()
@@ -1422,14 +1412,7 @@ pub fn update(state: &Arc<AppState>, status: &crate::updates::UpdateStatusInfo) 
         return;
     };
     let now = crate::commands::now_millis();
-    let recorded = state
-        .storage
-        .lock()
-        .ok()
-        .and_then(|storage| centre::record(&storage, &notice, now).ok().flatten());
-    if recorded.is_some() {
-        super::changed(state);
-    }
+    record_notice(state, &notice, now);
 }
 
 #[cfg(test)]
