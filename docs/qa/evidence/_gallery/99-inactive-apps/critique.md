@@ -1,4 +1,4 @@
-<!-- captures: 26fb39adb30a -->
+<!-- captures: eec60576076d -->
 # 99-inactive-apps: the rail grouped by App is about apps (0.3.4, D-64)
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at 0.3.4 from its captures.
@@ -61,10 +61,14 @@ Opened at full size: rail-idle-menu (dark) and rail-inactive-apps (light), besid
 | 11 | Doors | 4 | Open its page from the menu; each row opens its App. |
 | 12 | Words | 4 | "Closed · keep alive starts it": says what will happen. |
 | 13 | States | 4 | Four inactive, real-sized. |
-| 14 | Consistency | 3 | F60: a menu with no icons, where every other rail menu has them. |
+| 14 | Consistency | 4 | F60 fixed: the idle App's menu has the rail menus' icons. |
 | 15 | Accessibility | 4 | Not re-walked by hand this round; keyboard names and focus as the a11y gate checks them. |
 | 16 | Hand walk | 4 | The PL1 walk (AJ-E2323) drove Home and the rail in Dev; not re-walked here. |
 | 17 | System prompts | 5 | None from the rail (Start launches the user's own App). |
 | 18 | Usability | 4 | An App not running is one click from starting; nothing is added by itself. |
 
-Lowest: 3 (line 14, F60 logged: icons need meanings chosen in the icon set).
+Lowest as first scored: 3 (line 14, F60 logged: icons need meanings chosen in the icon set).
+
+**Re-captured after F60 and F56 (2026-11-24, Opus):** all eight re-rendered; opened rail-idle-menu in both themes and home-closed-apps. The idle App's menu: Start (its row's ▷), Keep alive (a shield, its ✓ at the end), Open its page (a page): each line with its icon, as the rail's other menus (they were words alone). An open App's header menu got the same. Home's empty feed is its card alone, with Include my actions in it (F56).
+
+Lowest: 4 (line 14 was 3: F60 fixed).

@@ -1,4 +1,4 @@
-<!-- captures: 9a6d7eadae67 -->
+<!-- captures: da29dd3e25c5 -->
 # 80-marks: telling sixteen projects apart
 
 Design critique (D-57, AJ-E2814) against the reference screens: the row menus (77-menus), the rail's order menu, Usage and Processes. The baseline note says what changed on purpose; this says whether it is good.
@@ -73,3 +73,5 @@ Opened at full size: sheet-emoji (dark), rail-folded (light), and the 0.3.2 note
 | 18 | Usability | 4 | Many projects stay apart at a glance. |
 
 Lowest: 4.
+
+**Re-captured after F56 and F55 (2026-11-24, Opus):** all ten re-rendered; opened rail-folded-1280x800 dark and the sheet. The Home behind the rail shows the empty feed as its card alone (F56: no chips over "Quiet so far…"); the marks, the sheet and the history are unchanged. Lowest stays 4.

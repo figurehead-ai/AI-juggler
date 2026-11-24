@@ -1,4 +1,4 @@
-<!-- captures: c63a4b1c812f -->
+<!-- captures: b889fbc0d5c6 -->
 # 68-home-feed: Home's two columns and its activity feed (D-118): pinned needs, the narrated stream with rollups and the away digest, Your apps and Runway by account, at 1024, 1280, 1440 and stacked, each section folded, empty and flooded
 
 Design critique (D-57, AJ-E2814), against the approved home-feed design (2026-11-14) and its mock (`AIJuggler-design-refs/calm-ui/home-feed/`).
@@ -29,7 +29,7 @@ First critique of this family. Captured fresh (`pnpm visual:capture` of `home-fe
 | 9 | Actions | 5 | One filled button in each state (Open its page, or New session when nothing waits). |
 | 10 | Serious | n/a | Nothing destructive; Mark all has Undo. |
 | 11 | Doors | 4 | Every card opens its thing; ↗ to its App; rollups open in place. |
-| 12 | Words | 3 | F56 on the empty state; elsewhere the sentences are templates over stored data, the agent's own words quoted. |
+| 12 | Words | 4 | F56 fixed: the empty state has no filters to filter nothing; elsewhere the sentences are templates over stored data, the agent's own words quoted. |
 | 13 | States | 4 | Paged (three pages, then Load more), the away digest once, empty said once; flood real-sized (40 sessions). |
 | 14 | Consistency | 4 | The feed's cards and chips; Home's other cards. |
 | 15 | Accessibility | 4 | role=feed of articles; axe clean on every capture (the spec). Not re-walked by hand this round; keyboard names and focus as the a11y gate checks them. |
@@ -37,4 +37,8 @@ First critique of this family. Captured fresh (`pnpm visual:capture` of `home-fe
 | 17 | System prompts | 4 | The permission card primes Accessibility and Automation; the feed causes no prompt. |
 | 18 | Usability | 4 | "Like an agent tweeting about our system" (the maintainer): what happened across apps, work, projects and pools, chronological and never ranked. |
 
-Lowest: 3 (line 12, F56 logged).
+Lowest as first scored: 3 (line 12, F56 logged).
+
+**Re-captured after F56 (2026-11-24, Opus):** the family re-rendered; opened empty-1280 (both themes) and a populated one. The empty feed is its card alone: "Quiet so far…", New session and Open an app, then a muted line "Your own actions aren't shown. Include my actions" (the switch the hidden ⋯ held, the one thing that can change an empty feed). The chips, Showing: and ⋯ are gone above it; with anything in the feed, or a filter on, they are as before. The chosen segment is F53's solid fill.
+
+Lowest: 4 (line 12 was 3: F56 fixed).

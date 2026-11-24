@@ -1,4 +1,4 @@
-<!-- captures: 4e8d07c01ffa -->
+<!-- captures: 3e8f8db4ff7a -->
 # 78-outside: sessions started outside AI Juggler, on home, Accounts and their own pages
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design passes.
@@ -44,3 +44,5 @@ Opened at full size: home-rail-1280x800 light and conversation-page-1280x800 dar
 | 18 | Usability | 4 | An outside session is followed without surprise; its limit is said. |
 
 Lowest: 4.
+
+**Re-captured after F56 (2026-11-24, Opus):** all eight re-rendered; opened home-rail-1280x800 in both themes and the conversation page. Home's empty feed is its card alone with Include my actions in it (F56: its chips are gone). Apps that can take it over still says "Not measured" twice (kept above). Lowest stays 4.

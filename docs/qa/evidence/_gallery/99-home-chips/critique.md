@@ -1,4 +1,4 @@
-<!-- captures: 210b1facad9e -->
+<!-- captures: e8a863d3edeb -->
 <!-- captures: pending -->
 # 99-home-chips: Home's chips
 
@@ -60,10 +60,14 @@ Opened at full size: narrowed-1280x800 light and marked-all-1440x900 dark (befor
 | 11 | Doors | 4 | Each chip narrows in place; × clears. |
 | 12 | Words | 4 | "Marks these finished sessions as looked at": says what it does. |
 | 13 | States | 4 | After the fix: the menu closes once done. |
-| 14 | Consistency | 3 | F60: the feed's menu lines have no icons. |
+| 14 | Consistency | 4 | F60 fixed: the feed's ⋯ lines carry icons as every menu's (feed-menu). |
 | 15 | Accessibility | 4 | Chips are a radio group. Not re-walked by hand this round; keyboard names and focus as the a11y gate checks them. |
 | 16 | Hand walk | 4 | The PL1 walk (AJ-E2323) drove Home and the rail in Dev; not re-walked here. |
 | 17 | System prompts | 5 | None. |
 | 18 | Usability | 4 | No chip changes the rail (the spec checks). |
 
-Lowest: 3 (line 14, F60 logged).
+Lowest as first scored: 3 (line 14, F60 logged).
+
+**Re-captured after F60 (2026-11-24, Opus):** the family re-rendered, with a new capture, feed-menu-1440x900-dark: the feed's ⋯ open under Finished. Each line has its icon in the menus' column: Include my actions (people), Mark all read (the read tick) over "Clears the new dots in the feed", Mark all 3 reviewed (a check) over "Marks these finished sessions as looked at". marked-all now shows the toast with the menu closed (it closes once chosen).
+
+Lowest: 4 (line 14 was 3: F60 fixed).

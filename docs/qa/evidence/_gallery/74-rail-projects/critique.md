@@ -1,4 +1,4 @@
-<!-- captures: cdb18a5ce095 -->
+<!-- captures: 0819dde9a23c -->
 # 74-rail-projects: the rail grouped by project, on a first-run home
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design passes.
@@ -31,7 +31,7 @@ Opened at full size: history-1280x800 dark (and light), beside the 0.3.2 one. Th
 | 9 | Actions | 5 | Sign in ↵ the one filled button. |
 | 10 | Serious | n/a | Nothing destructive. |
 | 11 | Doors | 4 | Each project opens its page; Show all 6 opens the rest. |
-| 12 | Words | 4 | Plain; F56's empty feed chips noted (Home's family). |
+| 12 | Words | 4 | Plain; the empty feed has no chips since F56. |
 | 13 | States | 4 | First run: the feed's empty state with New session and Open an app. |
 | 14 | Consistency | 4 | The rail's row pattern. |
 | 15 | Accessibility | 4 | Not re-walked by hand this round; keyboard names and focus as the a11y gate checks them. |
@@ -40,3 +40,5 @@ Opened at full size: history-1280x800 dark (and light), beside the 0.3.2 one. Th
 | 18 | Usability | 4 | A newcomer sees their projects and the one thing to do (sign in). |
 
 Lowest: 4. F56 is Home's (scored 3 in 55-triage and 67-home).
+
+**Re-captured after F56 (2026-11-24, Opus):** both re-rendered and opened. The Home behind the Project lens shows the empty feed as its card alone, with Include my actions in it; its chips, Showing: and ⋯ are gone (F56). The projects' lines are unchanged. Lowest stays 4.

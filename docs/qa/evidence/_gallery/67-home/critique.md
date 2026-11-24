@@ -1,4 +1,4 @@
-<!-- captures: afeba65270bf -->
+<!-- captures: 315017316c9c -->
 # 67-home: Home in its states (welcome, no sessions, all clear, sessions that need you) with the legend, the account menu and the rail's View menu
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design passes.
@@ -77,7 +77,7 @@ Opened at full size: welcome-1440x900 light, no-sessions-1280x800 dark, apps-out
 | 9 | Actions | 5 | One filled button per state (Open its page, Get started, New session when quiet). |
 | 10 | Serious | n/a | Nothing destructive on Home. |
 | 11 | Doors | 4 | Every card, App and account opens its page; How it's measured › explains. |
-| 12 | Words | 3 | F56: the empty feed's filters with nothing to filter. |
+| 12 | Words | 4 | F56 fixed: the empty feed's card stands alone, with Include my actions in it. |
 | 13 | States | 4 | Welcome, no sessions, all clear, needs: each said once; skeleton aside (F64, 75-feedback). |
 | 14 | Consistency | 4 | Home's cards are the kit's; the menus carry icons. |
 | 15 | Accessibility | 4 | Not re-walked by hand this round; keyboard names and focus as the a11y gate checks them. |
@@ -85,4 +85,8 @@ Opened at full size: welcome-1440x900 light, no-sessions-1280x800 dark, apps-out
 | 17 | System prompts | 4 | The permission card primes Accessibility and Automation (PAT-OSP); Welcome asks nothing of the OS. |
 | 18 | Usability | 4 | A newcomer starts from Get started; a busy user sees the one thing to do first. |
 
-Lowest: 3 (line 12, F56 logged).
+Lowest as first scored: 3 (line 12, F56 logged).
+
+**Re-captured after F56 (2026-11-24, Opus):** the family re-rendered; opened no-sessions (1280 and 390, both themes) and a populated one. The empty feed is its card alone: "Quiet so far…", New session and Open an app, then a muted line "Your own actions aren't shown. Include my actions" (the switch the hidden ⋯ held, the one thing that can change an empty feed). The chips, Showing: and ⋯ are gone above it; with anything in the feed, or a filter on, they are as before. The chosen segment is F53's solid fill.
+
+Lowest: 4 (line 12 was 3: F56 fixed).

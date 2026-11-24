@@ -1,4 +1,4 @@
-<!-- captures: 4421de98e86c -->
+<!-- captures: 7fc2dbf6f112 -->
 # 74-overload: the Mac-under-strain states: the memory and CPU banner above a session, Home with the pressure item, and This Mac's advice
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design passes.
@@ -18,7 +18,7 @@ Opened at full size: banner-above-session-1280x800 dark (before the fix) and -10
 
 - **memory-pressure:** "Your Mac is under memory pressure" as an L3 card (red square), "macOS reports memory pressure. Other apps are using most of the memory: next-server 6.0 GB, Docker about 3.7 GB, fseventsd 1.4 GB. To make room, quit next-server or another app…" with See what's using it ↵; the rail's Needs you says it once with "See what's using it". The 0.3.2 weak point (names split at hyphens, the line cut) is gone; the detail ends on "…" after two lines with its whole text on hover.
 - **banner-above-session:** no overload banner over a session's page (D-87), as the test asserts. **Before the fix** the page had two filled buttons: the head's "Go to it ↗ ↵" and the desktop surface's "Open / Focus window" (the 0.3.2 weak point, still there). **Fixed** (e5f9f70f0): Open / Focus window is tinted; Go to it is the page's one filled button. Re-captured (all four) and checked by eye; the gate's 13-desktop, 14-focus and 15-preview re-rendered for it.
-- The empty feed's chips (F56, Home's) show behind memory-pressure-other-apps.
+- The empty feed's chips (F56, Home's) showed behind memory-pressure-other-apps; fixed, see below.
 
 | # | Line | Score | Note |
 |---|---|---|---|
@@ -42,3 +42,5 @@ Opened at full size: banner-above-session-1280x800 dark (before the fix) and -10
 | 18 | Usability | 4 | What to quit, in a sentence. |
 
 Lowest: 4 (line 9 was 3 before the fix).
+
+**Re-captured after F56 (2026-11-24, Opus):** all eight re-rendered; opened memory-pressure-other-apps-1280x800 and busy-cpu. Under the memory-pressure need, the empty feed is its card alone ("Quiet so far…", New session, Open an app, "Your own actions aren't shown. Include my actions"), without the chips, Showing: and ⋯ it had (F56). Lowest stays 4.

@@ -1,4 +1,4 @@
-<!-- captures: 7189e872f29a -->
+<!-- captures: 84ab5abe7f0d -->
 # 55-triage: Home as a triage view: what needs you, what is parked, runway per account and what to pick up, plus the empty first-run Home
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design fixes.
@@ -36,12 +36,16 @@ Opened at full size: home-empty-1440x900 light and home-finished-1024x680-compac
 | 9 | Actions | 4 | One filled; three New session doors in three places (the global ones quiet). |
 | 10 | Serious | n/a | Nothing destructive. |
 | 11 | Doors | 4 | Open an app, Start, How it's measured each open their thing. |
-| 12 | Words | 3 | F56: an empty feed's filters with nothing to filter. |
+| 12 | Words | 4 | F56 fixed: an empty feed shows no filters; its card offers Include my actions. |
 | 13 | States | 4 | One empty state for the feed; Runway says "Not measured yet" once per account. |
 | 14 | Consistency | 4 | Home's cards. |
 | 15 | Accessibility | 4 | Not re-walked by hand this round; keyboard names and focus as the a11y gate checks them. |
 | 16 | Hand walk | 4 | The PL1 walk (AJ-E2323) drove Home and the rail in Dev; not re-walked here. |
 | 17 | System prompts | 4 | The permission card primes Accessibility and Automation before any prompt (PAT-OSP). |
-| 18 | Usability | 4 | A newcomer sees how to start; the chips are noise until there's activity (F56). |
+| 18 | Usability | 4 | A newcomer sees how to start, with no filters before there's anything to filter. |
 
-Lowest: 3 (line 12, F56 logged).
+Lowest as first scored: 3 (line 12, F56 logged).
+
+**Re-captured after F56 (2026-11-24, Opus):** the family re-rendered; opened home-empty (1024 and 1440, both themes) and a populated one. The empty feed is its card alone: "Quiet so far…", New session and Open an app, then a muted line "Your own actions aren't shown. Include my actions" (the switch the hidden ⋯ held, the one thing that can change an empty feed). The chips, Showing: and ⋯ are gone above it; with anything in the feed, or a filter on, they are as before. The chosen segment is F53's solid fill.
+
+Lowest: 4 (line 12 was 3: F56 fixed).
