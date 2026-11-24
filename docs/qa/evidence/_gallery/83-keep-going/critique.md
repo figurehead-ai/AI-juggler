@@ -1,4 +1,4 @@
-<!-- captures: 3de5ee075533 -->
+<!-- captures: e28cffc79fee -->
 # 83-keep-going: restarting crashed sessions and keeping the Mac awake
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design passes.
@@ -10,3 +10,35 @@ settings-keep-going groups the options under "Keep work going" on Settings › S
 ## Weak
 
 - this-mac-awake-1280x800 (both themes): the "Kept awake while 1 AI Juggler…" line is cut by the bottom of the window.
+
+## 0.5.1 design critique (2026-11-24, Opus, VALIDATION §5)
+
+Opened at full size: this-mac-awake-1280x800 light (before the fix), and dark (local and the gate's, after it), settings-keep-going (the gate's, both renders), launch-setting-restart-1280x800 dark.
+
+- **Before the fix:** this-mac-awake didn't show its line: "Kept awake while 1 AI Juggler session works" sat below the fold at 1280x800 (the 0.3.2 note said cut; in 0.5.1 it was out of the frame).
+- **Fixed** (c148ecc70, 4060fca74): the capture scrolls the page's own scroller to the line; the AI Juggler card shows "AI Juggler itself: 204 MB · with its crash watchdog" and "● Kept awake while 1 AI Juggler session works Change". (The first try used scrollIntoView, which also moved the window's shell; the second scrolls only the page.) Re-rendered (gate this-mac-awake-1280x800-dark; local, both themes) and checked by eye.
+- **settings-keep-going:** Settings › Sessions › Keep work going: Restart sessions that crash ✓, Keep the Mac awake while sessions work ✓ (On battery too, off by default), Reopen AI Juggler if it quits unexpectedly ✓, Open AI Juggler at login; each with its consequence.
+- **launch-setting-restart:** a launch setting's "If a session crashes: Restart it", in Accounts.
+
+| # | Line | Score | Note |
+|---|---|---|---|
+| 1 | Job | 4 | Work keeps going: crashed sessions restart, the Mac stays awake while work runs, and This Mac says so. |
+| 2 | Prominence | 4 | The awake line on This Mac; the settings in Sessions. |
+| 3 | Default | 4 | On by default with each consequence; battery off. |
+| 4 | Mode | 4 | Calm. |
+| 5 | Mock-up | 4 | No mock; Settings' rows. |
+| 6 | Areas | 4 | This Mac's cards; Settings' sections. |
+| 7 | Colour | 4 | Live dot for awake; accent only on checks. |
+| 8 | Type | 4 | Row titles 13 px, consequences 12 px ink-2. |
+| 9 | Actions | 5 | No primary in Settings; Change is a link. |
+| 10 | Serious | 4 | "Never after a user's stop or a failed sign-in." Battery drain said. |
+| 11 | Doors | 4 | Change opens Settings at the row. |
+| 12 | Words | 4 | Plain. |
+| 13 | States | 4 | After the fix: the capture shows its line. |
+| 14 | Consistency | 4 | Settings' checkbox rows. |
+| 15 | Accessibility | 4 | Not re-walked by hand this round; keyboard names and focus as the a11y gate checks them. |
+| 16 | Hand walk | 4 | The PL1 walk (AJ-E2323) drove Home and the rail in Dev; not re-walked here. |
+| 17 | System prompts | 4 | Login items named where macOS lists them; no prompt. |
+| 18 | Usability | 4 | Always on (D-28) said where it acts. |
+
+Lowest: 4 (line 13 was 3: the capture's subject was out of frame).

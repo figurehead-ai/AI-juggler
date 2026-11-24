@@ -1,4 +1,4 @@
-<!-- captures: 9be71a6a11ca -->
+<!-- captures: e395b6b6b5a5 -->
 # 27-ranking: how accounts are ranked for new work: the Home queue, the bell's notifications, and the New session dialog's Ranked for you list with its Why this order? explanation
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design fixes.
@@ -17,3 +17,35 @@ In notification the bell popover is a clear raised panel in both themes, but eve
 - queue-*.png: two solid primaries stacked (the banner's "Open feat/read-model" and Personal's "Open its page"), and the banner button shows a focus ring on arrival.
 - queue-*.png: Needs you labels the same action "Continue on another account…" on Personal and "Continue elsewhere" on the Personal row below it.
 - queue-1280x800-*.png: Pick up where you left off titles are cut ("Keep the old shortcuts wor…", "ai-juggler · feat/read-model · …"); Fake Desk's runway shows a bare "—" on the right.
+
+## 0.5.1 design critique (2026-11-24, Opus, VALIDATION §5)
+
+Opened at full size: notification-1280x800 dark (the 0.5.1 shoot and after 7e858e860), queue-1280x800 light, and the eight ranked/why captures. Home is D-118's two columns in every capture: Needs you now as one card per need (the first card's primary the one filled button), the feed with its chips and Showing:, then Your apps and Runway by account on the right.
+
+- **notification:** the bell's centre over Home: Needs you · 6, each with its icon, title, where, "waiting 2 h", and its actions. Since 7e858e860 only the first item's Open is filled; the others are tinted (the 0.3.2 weak point, five equal violet buttons, is gone); "Continue elsewhere" and "Switch account…" both still appear (one is a limit's hand-over, the other a quota warning's). The footer "Today: Claude Max 20x resets at 3:48 AM · Notification settings" sits clear of the last item.
+- **queue:** a session's own page with its due reminder: "This session's account has room again: it can carry on / The reminder you set. Nothing restarted by itself." and a close; nothing resumes by itself (D-87).
+- **Removed** (F62): ranked-* and why-*, eight captures of New session's old "Ranked for you" list and "Which account?" card behind a 0.3 Home, gone from the product since 9735d44c8 and written by no test since; they misled. The ranked list lives on in the switch dialog (SwitchTargetRows), which its own family shows.
+- Re-captured: notification and queue, both sizes and themes (local, after F53).
+
+| # | Line | Score | Note |
+|---|---|---|---|
+| 1 | Job | 4 | What needs you and what's due, in the bell and on the session's page. |
+| 2 | Prominence | 4 | Needs you first in the centre, Earlier below; the reminder at the session's head. |
+| 3 | Default | 4 | The first item's Open is the default (↵). |
+| 4 | Mode | 4 | Calm: the centre on the overlay tone, the reminder a notice by tone. |
+| 5 | Mock-up | 4 | Matches the notification centre's own family (96). |
+| 6 | Areas | 4 | Items by rule and tone; the footer separate. |
+| 7 | Colour | 4 | Amber and red only as item marks. |
+| 8 | Type | 4 | Titles 13 px semibold, where and when 12 px muted. |
+| 9 | Actions | 4 | One filled button (since 7e858e860); the rest tinted. |
+| 10 | Serious | n/a | Nothing destructive; Snooze and ⋯ are reversible. |
+| 11 | Doors | 4 | Each item opens its thing; Watches › and Notification settings link out. |
+| 12 | Words | 4 | "Continue elsewhere" and "Switch account…" name two different hand-overs, a little alike. |
+| 13 | States | 4 | Read state and "Mark all read"; the reminder says nothing restarted. |
+| 14 | Consistency | 4 | The notice and row patterns. |
+| 15 | Accessibility | 4 | Not re-walked by hand this round; keyboard names and focus as the a11y gate checks them. |
+| 16 | Hand walk | 4 | The PL1 walk (AJ-E2323) drove Home and the rail in Dev; not re-walked here. |
+| 17 | System prompts | 5 | None (notifications to the system are opt-in, 84-notifications). |
+| 18 | Usability | 4 | What to look at next, and that nothing moved by itself. |
+
+Lowest: 4.
