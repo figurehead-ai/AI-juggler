@@ -242,9 +242,11 @@ pub struct MoveBackupsInfo {
 }
 
 /// Whether the disk AI Juggler's data is on is under the low-disk line
-/// (the local cache's), or a move was refused for room within a day.
+/// (the local cache's), or a move was refused for room within a day. The
+/// disk is read through the cache's reader and the platform's free-space
+/// seam, both of which a test replaces.
 fn low_room(state: &Arc<AppState>, now_ms: i64) -> bool {
-    let disk_low = juggler_platform::room::disk_space(&state.data_dir).is_ok_and(|disk| {
+    let disk_low = state.cache.disk_space().is_some_and(|disk| {
         let free = juggler_platform::room::free_space(&state.data_dir).unwrap_or(disk.free);
         free < crate::features::cache::budget::low_disk_line(disk)
     });
