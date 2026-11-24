@@ -10,7 +10,7 @@
 
 use super::Live;
 use super::Target;
-use super::tests::{app, build, session, snapshot};
+use super::tests::{build, calm_inputs, one_session};
 use crate::state::FloorState;
 
 /// AJ-E1548 #23: the first open says what the Floor's pieces are, in one
@@ -21,12 +21,7 @@ use crate::state::FloorState;
 fn the_first_open_line_says_what_the_floor_is_and_keeps_clear() {
     use crate::camera::View;
     use crate::overlay::{INTRO, Inputs as Over, build_placed, unit};
-    let snap = snapshot(vec![app(
-        "cli:a",
-        "workshop",
-        vec![session("s:1", FloorState::Asks, 0)],
-    )]);
-    let scene = build(&snap);
+    let scene = build(&one_session(FloorState::Asks));
     let frame = scene.frame_size();
     for (size, focus) in [
         ((1600, 1000), Some(0)),
@@ -41,20 +36,8 @@ fn the_first_open_line_says_what_the_floor_is_and_keeps_clear() {
         let mut out = Vec::new();
         let drawn = scene.frame(&Live::default(), &view.floors(&frame), &mut out);
         let over = Over {
-            view: &view,
-            vp: &vp,
-            size,
-            scale: 2.0,
-            marks: &drawn.marks,
-            hover: 0,
-            mouse: None,
-            alert: None,
-            hint: "Drag to pan",
-            band: crate::flags::Band::Middle,
-            labels: crate::flags::Labels::Smart,
-            card: None,
-            opened: None,
             intro: true,
+            ..calm_inputs(&view, &vp, size, &drawn.marks)
         };
         let (with, _, placed) = build_placed(&scene, &over);
         let r = placed.intro.expect("the first-open line");
@@ -109,12 +92,7 @@ fn a_mac_alert_is_one_calm_chip_never_a_change_in_the_rooms() {
     use crate::camera::View;
     use crate::flags::Need;
     use crate::overlay::{Inputs as Over, MacAlert, build_placed, mac_chip_words};
-    let snap = snapshot(vec![app(
-        "cli:a",
-        "workshop",
-        vec![session("s:1", FloorState::Working, 0)],
-    )]);
-    let scene = build(&snap);
+    let scene = build(&one_session(FloorState::Working));
     let frame = scene.frame_size();
     let view = View {
         focus: Some(0),
@@ -123,22 +101,7 @@ fn a_mac_alert_is_one_calm_chip_never_a_change_in_the_rooms() {
     let vp = view.cam.vp(1.6);
     let mut out = Vec::new();
     let drawn = scene.frame(&Live::default(), &view.floors(&frame), &mut out);
-    let calm = Over {
-        view: &view,
-        vp: &vp,
-        size: (1600, 1000),
-        scale: 2.0,
-        marks: &drawn.marks,
-        hover: 0,
-        mouse: None,
-        alert: None,
-        hint: "Drag to pan",
-        band: crate::flags::Band::Middle,
-        labels: crate::flags::Labels::Smart,
-        card: None,
-        opened: None,
-        intro: false,
-    };
+    let calm = calm_inputs(&view, &vp, (1600, 1000), &drawn.marks);
     let (without, _, placed) = build_placed(&scene, &calm);
     assert!(placed.banner.is_none());
     for critical in [false, true] {

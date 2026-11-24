@@ -118,6 +118,41 @@ pub(super) fn build(snap: &FloorSnapshot) -> Scene {
     build_seeded(snap, 7)
 }
 
+/// One app ("cli:a", a workshop) with one session in `state`.
+pub(super) fn one_session(state: FloorState) -> FloorSnapshot {
+    snapshot(vec![app(
+        "cli:a",
+        "workshop",
+        vec![session("s:1", state, 0)],
+    )])
+}
+
+/// The overlay's inputs over `view` at `size`, calm: no alert, hover,
+/// card or first-open line, flags at middle distance.
+pub(super) fn calm_inputs<'a>(
+    view: &'a crate::camera::View,
+    vp: &'a crate::math::M4,
+    size: (u32, u32),
+    marks: &'a [super::Mark],
+) -> crate::overlay::Inputs<'a> {
+    crate::overlay::Inputs {
+        view,
+        vp,
+        size,
+        scale: 2.0,
+        marks,
+        hover: 0,
+        mouse: None,
+        alert: None,
+        hint: "Drag to pan",
+        band: crate::flags::Band::Middle,
+        labels: crate::flags::Labels::Smart,
+        card: None,
+        opened: None,
+        intro: false,
+    }
+}
+
 fn build_seeded(snap: &FloorSnapshot, seed: u32) -> Scene {
     let (office, seats) = office_seeded(snap, seed);
     Scene::build(plain(snap, &office, &seats)).expect("it fits")
@@ -430,12 +465,7 @@ fn building_twenty_apps_and_a_hundred_and_fifty_sessions_is_quick() {
 fn the_overlay_has_a_chip_per_floor_and_area_chips_from_afar() {
     use crate::camera::View;
     use crate::overlay::{Inputs as Over, build as overlay};
-    let snap = snapshot(vec![app(
-        "cli:a",
-        "workshop",
-        vec![session("s:1", FloorState::Asks, 0)],
-    )]);
-    let scene = build(&snap);
+    let scene = build(&one_session(FloorState::Asks));
     let frame = scene.frame_size();
     let building = View {
         focus: None,
@@ -445,23 +475,12 @@ fn the_overlay_has_a_chip_per_floor_and_area_chips_from_afar() {
     let mut out = Vec::new();
     let drawn = scene.frame(&Live::default(), &building.floors(&frame), &mut out);
     let inputs = Over {
-        view: &building,
-        vp: &vp,
-        size: (1600, 1000),
-        scale: 2.0,
-        marks: &drawn.marks,
-        hover: 0,
-        mouse: None,
         alert: Some(crate::overlay::MacAlert {
             kind: "cpu",
             critical: false,
         }),
-        hint: "Drag to pan",
         band: crate::flags::Band::Far,
-        labels: crate::flags::Labels::Smart,
-        card: None,
-        opened: None,
-        intro: false,
+        ..calm_inputs(&building, &vp, (1600, 1000), &drawn.marks)
     };
     let (quads, chips, _, view) = overlay(&scene, &inputs);
     assert!(view.is_some(), "the View button");
