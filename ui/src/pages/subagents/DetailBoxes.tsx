@@ -76,8 +76,11 @@ export function ResultBox({ detail }: { detail: SubagentDetailInfo }): JSX.Eleme
   return (
     <Box title="Result" testId="subagent-result-box">
       {detail.failure && (
-        <p className="rounded-lg border border-danger/30 bg-danger-soft px-3 py-2 text-body text-danger" data-testid="subagent-failure">
-          {detail.failure}
+        // 0.5.1 F85 (PAT-COLOR-2, PAT-SURF-1, as F59/F66): a tone card with
+        // the broken level's red mark; the words in ink, no red fill or outline.
+        <p className="flex items-start gap-2.5 rounded-lg bg-surface-2 px-3 py-2 text-body text-ink" data-testid="subagent-failure">
+          <span aria-hidden="true" className="level-mark mt-[7px]" data-level={3} data-testid="subagent-failure-mark" />
+          <span className="min-w-0">{detail.failure}</span>
         </p>
       )}
       {detail.result ? (

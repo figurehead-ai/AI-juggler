@@ -22,6 +22,7 @@ import { pick } from "../../test/pick";
 import { seedTurn } from "../../preview/conversation-feed";
 import { resetConversationStore } from "../../lib/conversation-store";
 import { NOW, TREE, agent, listed, model } from "./subagents.test-kit";
+import { ResultBox } from "../subagents/DetailBoxes";
 
 afterEach(() => {
   resetConversationStore();
@@ -273,5 +274,23 @@ describe("AJ-E1520 the session's line to its Subagents tab", () => {
     expect(line.tagName).toBe("SPAN");
     expect(line.textContent).toContain("3 subagents · 1 running");
     expect(within(line).getByRole("button", { name: "Open its subagents: 3 subagents · 1 running" })).toBeTruthy();
+  });
+});
+
+// 0.5.1 F85 (PAT-COLOR-2, PAT-SURF-1, as F59/F66): a failed subagent's
+// reason is a tone card with a red mark and its words in ink: no red fill
+// behind the words, no red outline.
+describe("a failed subagent's Result (F85)", () => {
+  it("is a tone card with a red mark, words in ink, no fill or outline of red", () => {
+    const detail = { agent: agent("n1", { status: "failed" }), failure: "The diff it was asked to review no longer exists.", result: null, messages_off: false, tool: "Claude Code" } as unknown as SubagentDetailInfo;
+    render(<ResultBox detail={detail} />);
+    const card = screen.getByTestId("subagent-failure");
+    expect(card.textContent).toBe("The diff it was asked to review no longer exists.");
+    expect(card.className).toContain("bg-surface-2");
+    expect(card.className).toContain("text-ink");
+    expect(card.className).not.toMatch(/danger|border/);
+    const mark = screen.getByTestId("subagent-failure-mark");
+    expect(mark.getAttribute("data-level")).toBe("3");
+    expect(mark.getAttribute("aria-hidden")).toBe("true");
   });
 });
