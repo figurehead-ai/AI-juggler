@@ -104,3 +104,8 @@ R4: PASS — `places::link_tests::no_evidence_says_why_and_choose_its_folder_lin
 R5: PASS — vitest `components/rail-hold-own.test.tsx`, `components/rail-add.test.tsx` "lets its change through and brings the added App into view", `lib/rail-empty.test.ts`, `lib/app-folder.test.ts`.
 
 Every add path walked live from an empty Dev folder (the task's quality gate, not a numbered requirement): PL1 steps C3–C6 and D1–D7.
+
+## 0.5.1 PL1 F18/F19 (2026-11-23, Opus)
+
+F18: the lab's running profiles were never offered: `Book::observe` dropped any profile under the temporary folder, and a lab's HOME is `/tmp/aij-lab…`. A profile inside the run's own home is kept (`places::book::temporary_not_home`); tests `places::d84_tests::a_profile_inside_a_temporary_home_is_offered` (fails before), `temporary_not_home_spares_only_the_runs_own_home` (6aa61ed48).
+F19: every add path after Remove: `a_removed_running_profile_is_offered_again` (the rail's Running, not added, Settings' Found, the wizard; 6aa61ed48); Settings › Desktop apps › Add apps › Find my apps… (`keep-alive.test.tsx` "F19 …"), ⌘K Find my apps… (`palette-commands.test.tsx` "F19 …"), the shell's event (`app-find-accounts.test.tsx`) (585871f39); one tool's Add an app and its Look again list its app's offers (`first-run-add-again.test.tsx`, fails before; 3ade82664).
