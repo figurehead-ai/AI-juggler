@@ -16,3 +16,21 @@
 ## Checks
 
 2026-11-23: `cargo test -p juggler-platform --lib wait:: open_files:: thread::` 10 passed (+1 measurement); `cargo test -p juggler-handover --lib moving` 29 passed (+1 measurement); `cargo test -p juggler-app --lib features::handover::moving` 121 passed (once, under load, the fault suite's timing test `both_profiles_quit_in_parallel` read 2.1 s against its 1.9 s bound; alone it passes in 1.45–1.55 s); `cargo test -p juggler-adapters --test claude_move_matrix` 29 passed; clippy `-p juggler-platform -p juggler-handover -p juggler-app --all-targets -D warnings` clean; rustfmt clean on the changed files; `size_budget.py` OK; `Cargo.lock` unchanged.
+
+## 0.5.1 F93: the real moves' time, split (2026-11-24)
+
+PL1's real moves took 25–68 s (Dev's log: `command move: took 25205`, `28329`, `39518` ms; `undo the move: took 68579` ms; the first move 604068 ms). The lab's journals (`<lab>/Library/Application Support/AI Juggler Shared/moves/journals/`, read only) split each move:
+
+| Move | closing (the Claude apps' quit) | still | backing up | moving | checks before | AI Juggler's own, planned → checked | starting (start + link) | checks after |
+|---|---|---|---|---|---|---|---|---|
+| I5 (…252090) | 954 ms | 377 | 751 | 788 | 884 | 3.79 s | 600 118 ms | 18 ms |
+| I11 (…735032) | 355 | 327 | 551 | 569 | 15 | 1.83 s | 37 612 ms | 21 ms |
+| I15 (…025140) | 364 | 324 | 438 | 506 | 14 | 1.66 s | 26 599 ms | 18 ms |
+| J2 (…102646) | 359 | 327 | 469 | 531 | 15 | 1.71 s | 23 422 ms | 18 ms |
+
+The Claude app's quit is about 0.36 s. AI Juggler's own share (the quiet window, the backup with the open-file guard before it, the apply with the guard again, the cold checks) is 1.66–1.83 s, 3.79 s for the first (a cold start of the guard's listing): **R4 holds for AI Juggler's own share** (p50 1.7 s ≤ 10 s; p95 under 4 s ≤ 20 s). Of it, the open-file guard's two `lsof` listings are about 0.45 s each, the largest part; within budget, left as R2 built it.
+
+The 23–600 s are not the Claude app's start. They are one wait of ours: the link to the target app goes through AJ-E1547's gate, and the lab never primed its "Open a session in its desktop app" entry (no `os_prompt_primed:automation-app-links` in the lab's settings), so every move's link raised Dev's priming sheet mid-move, with both Apps closed and the move held, and waited for the person: the first move waited the sheet's full 600 s (`ASK_WAIT`; the Keychain dialog held the front), the later ones until the walker's Not now (I10's capture `S-I10-priming-after-undo-dark.jpg`; no move's journal has an `opening` line, so no link was sent). Fixed (b6782a3c7): `execute` and `undo` ask that sheet before anything quits; the move's own sends never ask (background presence: declined, it sends nothing and offers Open); the source App starts beside the target instead of before it; and the timeline splits `starting` (the target app's start, until it runs) from `linking` (the link), so the next walk reads the Claude app's start alone. Test: `speed::both_apps_start_at_once_and_the_link_is_timed_apart` (failing before: one phase, the starts in a row).
+
+**Scope note for R4:** its targets measure AI Juggler's own waits, from the plan to the checks before reopening. The Claude app's own start, the link's delivery and any answer the person gives a system sheet are outside it, and are reported in their own timeline phases (`starting`, `linking`, `opening`). R4 is not loosened.
+

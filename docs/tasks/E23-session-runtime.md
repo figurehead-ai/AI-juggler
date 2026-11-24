@@ -400,7 +400,7 @@
 1. Startup recovery, before keep alive's first tick: Planned/Holding/Quiet/BackedUp roll back; Applying rolls back by the journal; Verified/Reopened finish forward; unclear keeps the hold and says "Finish or Undo" (bell and the conversation's page).
 2. A Moves door (the conversation's page and Settings › Desktop apps): each move with Undo (committed) or Finish/Undo (interrupted), by id; the timeline in Copy details.
 3. Preflight counts the room Undo needs; committed moves' backups are dropped after the next move of the family commits, or after N days.
-4. Rolling forward an interrupted Applying move comes later; the release notes say so.
+4. An interrupted move under its hold is finished from where it stopped (each remaining step only when its file is still as the backup has it, then its checks); one that can't be proven safe is undone; the Moves door's Finish does the same (0.5.1, by the standing rule that nothing found before a version ships moves to the next).
 **Quality gates**: `just keep-going verify-static`; failing-before tests; the move suite.
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E2321/manifest.md`.
 

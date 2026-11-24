@@ -42,3 +42,9 @@ The adapter's check run once against this Mac's Claude app profiles, printing co
 ## Left
 
 - The live walk in AJ-E2323's PL1 (a refused then successful move of a session in its own worktree, the lease following it) belongs to that walk.
+
+## 0.5.1 F90, F91 (2026-11-24)
+
+- **F90** (PL1 I13, F-PL1-22): the Repair sheet said "neither App is open" while both ran (the check's snapshot from when Settings opened). Each finding now names both Apps by place id, and the sheet reads which run when it opens and keeps it current while open, from the remembered places the rail shows (`useKnownPlaces`, refreshed on open, `places-changed` while open); Repair waits for that first read ("Looking at which Apps are open…"). The repair itself always read them at its start. Tests: vitest `moving-section.test.tsx` "the sheet names the Apps running when it opens…" (failing before), Rust `the_check_names_a_split_conversation_the_profiles_repair_quits_and_the_app_version` (both Apps by id). Commit b6782a3c7.
+- **F91** (F-PL1-23): a repair's Moves row read "A conversation" and "Moved". The repair notes itself in its journal with the conversation's title; the row reads "“Tidy the checkout page” · Claude app · work → Claude app · personal", "Repaired ownership" ("Repair undone" after Undo). A repair can be undone (its backup is kept), so Undo… stays, with the repair's own sheet ("Its worktree belongs to <App> again…", the worktree's files never touched); its Undo gives the worktree back, opens no conversation, and says "Repair undone: the worktree <name> belongs to <App> again. Its files weren't touched."; Delete backup says "You can no longer undo this repair"; an earlier move whose files the repair touched reads "its worktree's ownership was repaired since: undo the repair first". Tests: Rust `a_repairs_row_names_the_conversation_and_its_undo_gives_the_worktree_back`, vitest `moves-door.test.tsx` (the repair's row and sheets). Commit b6782a3c7.
+
