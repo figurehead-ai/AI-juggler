@@ -6,6 +6,14 @@
 //! skipped where an image can't be made.
 
 #![cfg(target_os = "macos")]
+// Test crates are pragmatic by policy (QUALITY.md §2); a skip says why.
+#![allow(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::panic,
+    clippy::print_stderr,
+    clippy::pedantic
+)]
 
 use std::io::Write as _;
 use std::path::{Path, PathBuf};

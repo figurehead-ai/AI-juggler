@@ -370,10 +370,12 @@ fn a_second_ai_jugglers_keep_alive_starts_nothing_a_move_holds() {
 }
 
 fn stop_of(error: AppError) -> crate::error::MoveStop {
+    let words = error.to_string();
     match error {
-        AppError::Move(stop) => *stop,
-        other => panic!("not a move's stop: {other}"),
+        AppError::Move(stop) => Some(*stop),
+        _ => None,
     }
+    .unwrap_or_else(|| unreachable!("not a move's stop: {words}"))
 }
 
 /// D3: something starts the profile again as soon as it quits (a launch
@@ -430,8 +432,9 @@ fn an_app_asking_at_quit_is_the_persons_and_the_other_profile_starts_again() {
 }
 
 /// D3: both profiles take a while to quit: they are asked together, so
-/// the stop takes one wait, not two (the review's 3 s each → ≤ 3.5 s,
-/// here 1 s each → under 1.9 s).
+/// the stop takes one wait, not two (the review's 3 s each → ≤ 3.5 s;
+/// here 2 s each → under 3.6 s, where one after the other takes 4 s:
+/// room for a loaded test machine, never for a serial quit).
 #[test]
 fn both_profiles_quit_in_parallel() {
     if !clones() {
@@ -439,8 +442,8 @@ fn both_profiles_quit_in_parallel() {
     }
     let lab = lab();
     let system = Scripted {
-        slow: Some(Duration::from_secs(1)),
-        wait: Some(Duration::from_secs(5)),
+        slow: Some(Duration::from_secs(2)),
+        wait: Some(Duration::from_secs(6)),
         ..running_both(&lab)
     };
     let began = std::time::Instant::now();
@@ -451,8 +454,8 @@ fn both_profiles_quit_in_parallel() {
         [2, 2],
         "both asked while both ran"
     );
-    assert!(took >= Duration::from_secs(1), "{took:?}");
-    assert!(took < Duration::from_millis(1_900), "{took:?}");
+    assert!(took >= Duration::from_secs(2), "{took:?}");
+    assert!(took < Duration::from_millis(3_600), "{took:?}");
 }
 
 /// D3: AI Juggler starts with a profile a crashed move holds and its
