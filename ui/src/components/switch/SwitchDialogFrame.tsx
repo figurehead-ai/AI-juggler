@@ -93,7 +93,8 @@ export function ContinueButton({ onClick, ready, testId, next }: { onClick: () =
 
 /**
  * The keyboard: the phase's default first (`data-autofocus`), else the
- * step's heading, else the first control in header, body, footer order; Tab wraps inside; Esc
+ * step's first choice or control in its body (0.5.1 F75: never a
+ * heading), else the first control in header, body, footer order; Tab wraps inside; Esc
  * calls `onEscape` (the flow decides whether it closes); ⏎ calls `onEnter`
  * when given (not on a button, which ⏎ already presses). Runs again when
  * `phase` changes.
@@ -106,15 +107,16 @@ export function useDialogKeys(
 ): void {
   useEffect(() => {
     const node = dialogRef.current;
-    // deep/11 §9: a step change puts the keyboard on the step's heading
-    // (the walk of fix-walk-a: it landed on ×, so ⏎ closed the switch).
-    const heading = node?.querySelector<HTMLElement>("[data-testid=switch-body] h3");
-    if (heading && !heading.hasAttribute("tabindex")) {
-      // Read out, not operated: no ring (the scroll box would cut it).
-      heading.tabIndex = -1;
-      heading.classList.add("outline-none");
-    }
-    (node?.querySelector<HTMLElement>("[data-autofocus]") ?? heading ?? node?.querySelector<HTMLElement>("input:checked, button, input"))?.focus();
+    // 0.5.1 F75: a step opens with the keyboard on its first choice (the
+    // chosen one), else its first control in the body, never on a heading
+    // (opened from the keyboard, a ring round words that aren't a
+    // control) nor on × (the walk of fix-walk-a: ⏎ closed the switch).
+    const body = node?.querySelector<HTMLElement>("[data-testid=switch-body]");
+    const first = body?.querySelector<HTMLElement>("input:checked:not(:disabled)") ?? body?.querySelector<HTMLElement>(`${FOCUSABLE.replace(", summary", "")}, [tabindex="0"]`);
+    // A step with nothing to choose: its primary (⏎ goes on), else Back
+    // or Cancel; × only last.
+    const foot = node?.querySelector<HTMLElement>("[data-testid=switch-footer] [data-primary]:not(:disabled)") ?? node?.querySelector<HTMLElement>("[data-testid=switch-footer] button:not(:disabled)");
+    (node?.querySelector<HTMLElement>("[data-autofocus]") ?? first ?? foot ?? node?.querySelector<HTMLElement>("input:checked, button, input"))?.focus({ preventScroll: true });
   }, [dialogRef, phase]);
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {

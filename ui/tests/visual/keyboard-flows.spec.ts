@@ -303,6 +303,9 @@ test("switch, 1-click — popover, confirm, undo window", async ({ page }) => {
   stops.push(await focused(page));
   const inPopover = () => page.evaluate(() => !!document.querySelector("[data-testid='switch-flow']")?.contains(document.activeElement));
   expect(await inPopover(), "opening the switch moves focus into it").toBe(true);
+  // 0.5.1 F75: opened from the keyboard, the dialog starts on its first
+  // choice, never on a heading (a ring round words that aren't a control).
+  expect(await page.evaluate(() => /^H[1-6]$/.test(document.activeElement?.tagName ?? "")), "focus on a control, not a heading").toBe(false);
   await tabToEl(page, stops, "[data-testid='switch-confirm']", { max: 20 });
   await page.keyboard.press("Enter");
   await expect(page.getByTestId("switch-undo-toast")).toBeVisible();
