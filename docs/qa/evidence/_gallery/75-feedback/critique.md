@@ -1,4 +1,4 @@
-<!-- captures: b1816696547f -->
+<!-- captures: ce8905f00f4b -->
 # 75-feedback: loading states, the quit check, and undo toasts
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design passes.
@@ -26,18 +26,22 @@ Opened at full size: stop-held-1280x800 light, quit-sheet-1280x800 dark and load
 | 3 | Default | 4 | Cancel focused on the quit sheet (the safe answer). |
 | 4 | Mode | 4 | Calm. |
 | 5 | Mock-up | 4 | No mock; the toast and sheet kit. |
-| 6 | Areas | 3 | F64: Home's skeleton is one column of outlined bars, not Home's two columns. |
+| 6 | Areas | 4 | F64 fixed: Home's skeleton is Home's two columns, by tone. |
 | 7 | Colour | 4 | Accent only on Undo's line and the sheet's primary. |
 | 8 | Type | 4 | Toast title 13 px semibold, detail 12 px. |
 | 9 | Actions | 4 | Quit anyway filled and last; Cancel the focused default. |
 | 10 | Serious | 4 | The sheet says what ends and what keeps running; Stop has Undo, not a confirm. |
 | 11 | Doors | 4 | The toast names the session; the sheet's Stop them first does it. |
 | 12 | Words | 4 | Plain and counted. |
-| 13 | States | 3 | F64: the skeleton isn't Home's shape, so the page moves when it lands. |
+| 13 | States | 4 | F64 fixed: the heading, Needs you now's card, the feed, Your apps and Runway stand where they land. |
 | 14 | Consistency | 4 | Toasts and sheets from the kit. |
 | 15 | Accessibility | 4 | Not re-walked by hand this round; keyboard names and focus as the a11y gate checks them. |
 | 16 | Hand walk | 4 | The PL1 walk (AJ-E2323) drove Home and the rail in Dev; not re-walked here. |
 | 17 | System prompts | 5 | None. |
 | 18 | Usability | 4 | Nothing happens unseen or without a way back. |
 
-Lowest: 3 (lines 6 and 13, F64 logged).
+Lowest as first scored: 3 (lines 6 and 13, F64 logged).
+
+**Re-captured after F64 (2026-11-24, Opus):** the family re-rendered; opened loading-home-1280x800 in both themes beside 67-home's needs-you-1280x800. The skeleton is Home's shape: a heading bar where "5 need you" lands, then the two columns at Home's widths (the left column's edge at 912, the right from 940 to 1256): a section head over a need card (mark, two lines, two buttons), the feed's chip track and four rows; on the right Your apps' head over its card of three rows and Runway's over its two meters. Cards by tone, no outlines (it was one column of three outlined bars).
+
+Lowest: 4 (lines 6 and 13 were 3: F64 fixed).
