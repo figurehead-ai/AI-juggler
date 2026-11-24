@@ -28,3 +28,9 @@
 ## 0.5.1 F69 (2026-11-24)
 
 The Copy switch's done step now follows R1 as Move does: "Opened in <App>" only when the app shows the conversation open, by Move's own check (`moving::seen_open_after_link`: a session of it running in that app, or the app adding to its history after the link, woken by file events, capped at 15 s); otherwise "Sent to <App>", "AI Juggler couldn't see it open there yet", and Open in <App>. Commit 2af83d538: `a_copy_link_not_seen_open_says_none`, `a_copy_the_app_adds_to_is_seen_open` (Rust); `switch-where.test.tsx` "0.5.1 F69…" (vitest, failed before: it read "Opened in Claude app · Personal"); gallery 96-switch-setup `where-done-sent`.
+
+## Re-checked after the late fixes (2026-11-24, Opus)
+
+- R1 ("opened" only when seen open): 613cb968b: the link's prompt is answered before anything quits; declined, the move still runs, sends no link and its outcome is `pending` (`moving_timeline.rs` `opened_outcome`): "Not opened for you: AI Juggler may not send links to apps yet. Pick it in the App's sidebar, or click Open below.", never "opened"; cargo `prompting::a_declined_prompt_still_moves_and_says_how_to_open_it_without_waiting`, vitest `move-prompts.test.tsx`; live, PL1 I5 on a60ed66ef read exactly that. Still PASS.
+- R3 (the timeline): b6782a3c7 splits `starting` (the target app's start) from `linking` (the link): cargo `speed::both_apps_start_at_once_and_the_link_is_timed_apart` Still PASS.
+- Re-run at HEAD 2026-11-24: cargo `-p juggler-app --lib features::handover::moving` 142 passed, `--test move_never_asks` 2 passed; vitest `moves-door`, `move-prompts`, `moves-backups`, `move-backups`, `moving-section` passed.

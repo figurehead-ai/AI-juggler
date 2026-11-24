@@ -701,7 +701,7 @@ What the code does today (mapped 2026-10-22 on release/0.1): a same-tool switch 
 **Research basis**: Max-Depth report (north star).
 **Handover note**: —
 
-### AJ-E1545 Welcome leads into a guided setup wizard (find your apps, permissions one card each with live grant detection, keep it running, the tour), and every brand mark is the real app icon | Status: IN-PROGRESS (0.5.1: built; open: R3 PL1 C9 (the clip of the effect re-made, F3), R7 critique/baseline round) | Priority P0 | Effort L | Depends: AJ-E1524, AJ-E1527
+### AJ-E1545 Welcome leads into a guided setup wizard (find your apps, permissions one card each with live grant detection, keep it running, the tour), and every brand mark is the real app icon | Status: IN-PROGRESS (0.5.1: built; open: R3 only, the Notifications card has no clip of its effect) | Priority P0 | Effort L | Depends: AJ-E1524, AJ-E1527
 **Found** by the maintainer testing the 0.5.0 nightly (2026-11-23): the Welcome left a newcomer on their own, "Make it smoother" sat on it as a card, and the logo on it was the small three-dot IconJuggler rather than the app's real icon.
 **UI**: yes
 **Usability reasoning** (Opus, before building; re-checked on the built screen):
@@ -744,7 +744,7 @@ Step 2, "Sign in": (1) a newcomer signing in expects the provider's own page, no
 **Quality gates**: `just keep-going verify-static`; unit tests for the registry, per-id completion and the "New in" offer; the a11y gate; clip size budget; an Opus side-by-side critique in both themes; the newcomer-persona walk through the tour, covering Bot's three branches (Apple ready; the local offer, declined, no real download; no engine).
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E1546/manifest.md`.
 
-### AJ-E1547 No system prompt the user wasn't told about first: one registry of every OS prompt, priming in setup, one just-in-time gate every trigger goes through | Status: IN-PROGRESS (0.5.1: built; open: R5 PL1 K1-K4 and Z1) | Priority P0 | Effort L | Depends: AJ-E1545, AJ-E3822
+### AJ-E1547 No system prompt the user wasn't told about first: one registry of every OS prompt, priming in setup, one just-in-time gate every trigger goes through | Status: DONE (0.5.1) | Priority P0 | Effort L | Depends: AJ-E1545, AJ-E3822
 **The maintainer's rule (2026-11-23)**: AI Juggler never raises a system prompt the user wasn't told about first ("users will think it's a bug or their Mac is crashing").
 **UI**: yes
 **Usability reasoning** (Opus, before building; re-checked on the built screen):
@@ -814,7 +814,7 @@ Step 2, "Sign in": (1) a newcomer signing in expects the provider's own page, no
 **Quality gates**: `just keep-going verify-static`; a Playwright check sampling frames while switching screens, stepping through the wizard and opening the terminal panel, in the dark theme, failing on any frame mostly near white; a unit check that `index.html` carries the background before its scripts.
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E1549/manifest.md`.
 
-### AJ-E1550 Calm surfaces: separation by tone, never bright borders; a bright line only for focus, hover or real attention (PAT-SURF, app-wide) | Status: IN-PROGRESS (0.5.1: built; open: R4 critique/baseline round) | Priority P0 | Effort L | Depends: none
+### AJ-E1550 Calm surfaces: separation by tone, never bright borders; a bright line only for focus, hover or real attention (PAT-SURF, app-wide) | Status: IN-PROGRESS (0.5.1: built; open: R4's Happo diffs, checked by eye on the release PR) | Priority P0 | Effort L | Depends: none
 **Found** by the maintainer on the 0.5.0 Nightly (2026-11-23): "what is with all of these highlighted borders… it looks ugly… does that look like peace and calm?", with the Claude app's Code view as the reference (no visible borders, panels told apart by tone, the selected row a soft fill). Their rule: "Only time you can ever use a bright border is on highlight or mouse over or to really really bring attention to the user." Seen: the selected tab and the App/Project/Account segmented control outlined; "This session" boxed; every card outlined (Conversation, Where it runs, Runway, Apps that can take it over); "Switch account…" bordered; the "Suggested" target card ringed in accent; the rail's selected row outlined.
 **UI**: yes
 **Usability reasoning** (Opus, before building; re-checked on the built screen):

@@ -327,7 +327,7 @@
 2. The Pool lens capture waits on it before its hover and before its screenshot.
 **Evidence/validation proof**: the capture passes 3 runs of each theme on the host (`--repeat-each=3`); CI's visual gate.
 
-### AJ-E2317 Move picks the source by the conversation's holder and the target by the App the user picked, never by account | Status: IN-PROGRESS (0.5.1: built; open: R3 PL1 J1) | Priority P0 | Effort S | Depends: AJ-E2315
+### AJ-E2317 Move picks the source by the conversation's holder and the target by the App the user picked, never by account | Status: DONE (0.5.1) | Priority P0 | Effort S | Depends: AJ-E2315
 **Found** Review A2.2, A2.3, E5, E6: `places/handoff.rs` `profile_for(account)` takes the running or last-seen profile of an account; with two profiles on one account the move quits, writes into or opens the wrong one. (`docs/research/move-reliability-review.md`).
 **UI**: no
 **Requirements**:
@@ -421,7 +421,7 @@
 **Quality gates**: `just keep-going verify-static`; failing-before tests; the move suite.
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E2322/manifest.md`.
 
-### AJ-E2323 The switch's verification matrix: every ownership shape as a fixture in CI, and the real cases walked in lab PL1 | Status: TODO (0.5.1) | Priority P0 | Effort M | Depends: AJ-E2315
+### AJ-E2323 The switch's verification matrix: every ownership shape as a fixture in CI, and the real cases walked in lab PL1 | Status: DONE (0.5.1) | Priority P0 | Effort M | Depends: AJ-E2315
 **Found** Review D1–D4: the fixtures and walks that prove E2315 and E2317–E2322. (`docs/research/move-reliability-review.md`).
 **UI**: no
 **Requirements**:

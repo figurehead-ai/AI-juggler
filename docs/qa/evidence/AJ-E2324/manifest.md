@@ -34,3 +34,7 @@ The 23–600 s are not the Claude app's start. They are one wait of ours: the li
 
 **Scope note for R4:** its targets measure AI Juggler's own waits, from the plan to the checks before reopening. The Claude app's own start, the link's delivery and any answer the person gives a system sheet are outside it, and are reported in their own timeline phases (`starting`, `linking`, `opening`). R4 is not loosened.
 
+## Re-checked after the late fixes (2026-11-24, Opus)
+
+- R4: the F93 section above stands (b6782a3c7, 613cb968b); f186028a9 adds the guard that keeps a move from waiting on a sheet inside the call again (`crates/juggler-app/tests/move_never_asks.rs`: a move's execute or undo path, every `handover/moving*.rs` but `moving_prompts.rs`, must not call the gate's asking side). Live on a60ed66ef (PL1 I5): AI Juggler's own share about 1.07 s of a 1.53 s move, a second 1.03 s of 1.76 s. Still PASS.
+- Re-run at HEAD 2026-11-24: cargo `-p juggler-app --lib features::handover::moving` 142 passed, `--test move_never_asks` 2 passed; vitest `moves-door`, `move-prompts`, `moves-backups`, `move-backups`, `moving-section` passed.

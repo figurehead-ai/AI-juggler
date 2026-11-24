@@ -40,3 +40,8 @@
 
 PL1 J5 (F-PL1-25): the header's "N to clean up" said 1, then nothing, then 4 while Moves said 2 and 4. Two reads: the header read the backups once at start and again only after a click on a Moves row (`BACKUPS_CHANGED`), while Moves read its own. Now one shared read (`lib/move-backups`) serves the header, Moves' head and footer and the clean-up line; every IPC call that makes or lets go of a backup (a move, Undo, Finish, a repair, Delete backup, Clear older) tells it to read again, whatever it returned. Test: vitest `move-backups.test.tsx` (a move, then a repair: the header and Moves say the same; failing before: 1 against 2). Commit 823fa4104.
 
+## Re-checked after the late fixes (2026-11-24, Opus)
+
+- R3 (the Moves door): F95 (1049cdee5): each row's Undo…, Delete backup…, Finish and Copy details carries an accessible name with its move (the visible words unchanged), so a screen reader and the walk's driver tell the rows apart (F-PL1-26); vitest `moves-door.test.tsx`. 613cb968b: Undo asks its prompt first (`move-prompts.test.tsx`). Still PASS.
+- R5: the F93 section above (823fa4104). Still PASS.
+- Re-run at HEAD 2026-11-24: cargo `-p juggler-app --lib features::handover::moving` 142 passed, `--test move_never_asks` 2 passed; vitest `moves-door`, `move-prompts`, `moves-backups`, `move-backups`, `moving-section` passed.
