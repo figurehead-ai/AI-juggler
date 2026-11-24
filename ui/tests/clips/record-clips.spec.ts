@@ -93,6 +93,52 @@ async function hoverRows(page: Page, rows: Locator, count: number, rest: number)
 
 const main = (page: Page) => page.locator("main").first();
 
+/** 0.5.1 F3 (AJ-E1546): perm-focus shows the effect itself: AI Juggler's
+ * real window (the app, in a frame, on the gallery's fixtures) in front of
+ * a session's own app window and a terminal; Go to it on that session, and
+ * its own window comes to the front. Generic names only (the fixture's
+ * "Fake Desk" app and its sessions). */
+const FOCUS_SESSION = "sess-desktop-1";
+const FOCUS_TITLES = ["Sketch the pricing page", "Summarise the support inbox", "Rename the photo exports"];
+
+function focusScene(theme: "dark" | "light"): string {
+  const dark = theme === "dark";
+  const c = dark
+    ? { desk: "linear-gradient(135deg,#1d2330,#2a2440)", win: "#1b1f27", bar: "#232833", ink: "#e7e9ee", muted: "#9aa3b2", line: "#2e3440", side: "#171a21", pick: "#2b3346", bubble: "#262c38", mine: "#36406a" }
+    : { desk: "linear-gradient(135deg,#dfe6f2,#e9e1f3)", win: "#ffffff", bar: "#eef0f4", ink: "#1d2430", muted: "#5d6675", line: "#dde1e8", side: "#f5f6f8", pick: "#e3e8f5", bubble: "#eef0f4", mine: "#dfe4fb" };
+  const lights = `<span class="l"></span><span class="l"></span><span class="l"></span>`;
+  const rows = FOCUS_TITLES.map((title, at) => `<div class="row${at === 0 ? " pick" : ""}">${title}</div>`).join("");
+  return `<!doctype html><html><head><meta charset="utf-8"><style>
+  html,body{margin:0;height:100%;overflow:hidden;font:13px -apple-system,BlinkMacSystemFont,"Helvetica Neue",sans-serif;color:${c.ink}}
+  #stage{position:absolute;inset:0;background:${c.desk}}
+  .win{position:absolute;border-radius:10px;overflow:hidden;background:${c.win};box-shadow:0 10px 30px rgba(0,0,0,${dark ? 0.55 : 0.18}),0 0 0 1px rgba(0,0,0,${dark ? 0.5 : 0.08});transition:transform .45s cubic-bezier(.2,.8,.2,1),box-shadow .45s,filter .45s}
+  .bar{height:30px;display:flex;align-items:center;gap:8px;padding:0 12px;background:${c.bar};border-bottom:1px solid ${c.line};font-size:12px;color:${c.muted}}
+  .bar b{font-weight:600;color:${c.ink};margin-left:8px}
+  .l{width:11px;height:11px;border-radius:50%;background:${dark ? "#4a5060" : "#cdd1d8"}}
+  .front .l:nth-child(1){background:#ff5f57}.front .l:nth-child(2){background:#febc2e}.front .l:nth-child(3){background:#28c840}
+  .back{filter:saturate(.85) brightness(${dark ? 0.85 : 0.97})}
+  #aij{left:40px;top:60px;width:760px;height:505px;z-index:3}
+  #aij iframe{border:0;width:1150px;height:719px;transform:scale(.661);transform-origin:0 0}
+  #desk{left:470px;top:170px;width:690px;height:450px;z-index:2;display:flex;flex-direction:column}
+  #desk .body{flex:1;display:flex;min-height:0}
+  #desk .side{width:210px;background:${c.side};border-right:1px solid ${c.line};padding:12px 8px}
+  #desk .row{padding:8px 10px;border-radius:7px;color:${c.muted};margin-bottom:2px}
+  #desk .row.pick{background:${c.pick};color:${c.ink};font-weight:600}
+  #desk .chat{flex:1;padding:18px 22px;display:flex;flex-direction:column;gap:12px}
+  #desk h3{margin:0 0 4px;font-size:15px}
+  .msg{max-width:78%;padding:10px 12px;border-radius:12px;background:${c.bubble};line-height:1.4}
+  .msg.me{align-self:flex-end;background:${c.mine}}
+  #term{left:620px;top:40px;width:520px;height:250px;z-index:1;background:#0b0d12}
+  #term pre{margin:0;padding:12px 14px;color:#c9d1d9;font:12px/1.5 ui-monospace,Menlo,monospace}
+  #desk.forward{z-index:4;transform:translateY(-6px) scale(1.01);box-shadow:0 18px 44px rgba(0,0,0,${dark ? 0.65 : 0.26}),0 0 0 2px #7c83ff}
+  </style></head><body><div id="stage">
+  <div class="win back" id="term"><div class="bar">${lights}<b>Terminal</b> — storefront</div><pre>~/storefront $ npm test\n  ✓ cart totals (12 ms)\n  ✓ checkout flow (48 ms)\n~/storefront $ </pre></div>
+  <div class="win back" id="desk"><div class="bar">${lights}<b>Fake Desk</b> — ${FOCUS_TITLES[0]}</div><div class="body"><div class="side">${rows}</div>
+    <div class="chat"><h3>${FOCUS_TITLES[0]}</h3><div class="msg me">Three plans, monthly or yearly, with the middle one marked.</div><div class="msg">Here's a first layout: the plans side by side, yearly prices under the switch, and a short FAQ below.</div></div></div></div>
+  <div class="win front" id="aij"><div class="bar">${lights}<b>AI Juggler</b></div><iframe src="/" title="AI Juggler"></iframe></div>
+  </div></body></html>`;
+}
+
 const RECIPES: Record<ClipId, Recipe> = {
   "what-bot": {
     seams: { __AIJ_BOT__: { turns: [], answers: { [QUESTION]: ANSWER } }, __AIJ_AI_JOBS__: BOT_STATES.beta!.jobs },
@@ -207,15 +253,36 @@ const RECIPES: Record<ClipId, Recipe> = {
     },
   },
   "perm-focus": {
-    setup: async (page) => main(page),
+    setup: async (page) => {
+      const theme = (await page.evaluate(() => localStorage.getItem("aij.theme"))) === "light" ? "light" : "dark";
+      await page.route("**/focus-scene", (route) => route.fulfill({ contentType: "text/html", body: focusScene(theme) }));
+      await page.goto("/focus-scene");
+      const app = page.frameLocator("#aij iframe");
+      await expect(app.getByTestId("user-menu-button")).toBeVisible();
+      const row = app.getByTestId("rail").locator(`button[data-instance-id="${FOCUS_SESSION}"]`).first();
+      await row.click();
+      await expect(app.getByRole("button", { name: "Go to it" }).first()).toBeVisible();
+      return page.locator("#stage");
+    },
     play: async (page) => {
-      await page.getByTestId("rail").locator("button[data-instance-id]").first().click().catch(() => undefined);
-      await pause(page, 900);
-      const go = main(page).getByRole("button", { name: /Go to it|Open/ }).first();
-      await go.hover().catch(() => undefined);
-      await pause(page, 800);
-      await go.click().catch(() => undefined);
-      await pause(page, 2000);
+      const go = page.frameLocator("#aij iframe").getByRole("button", { name: "Go to it" }).first();
+      await pause(page, 700);
+      await go.hover();
+      await pause(page, 700);
+      await go.click();
+      // What the system does on Go to it: the session's own window comes forward.
+      await page.evaluate(() => {
+        document.getElementById("aij")!.classList.replace("front", "back");
+        const desk = document.getElementById("desk")!;
+        desk.classList.replace("back", "front");
+        desk.classList.add("forward");
+        setTimeout(() => {
+          desk.style.boxShadow = "";
+          desk.classList.remove("forward");
+          desk.style.zIndex = "4";
+        }, 900);
+      });
+      await pause(page, 2400);
     },
   },
   "perm-preview": {

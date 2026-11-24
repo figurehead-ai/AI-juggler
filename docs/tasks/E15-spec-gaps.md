@@ -701,7 +701,7 @@ What the code does today (mapped 2026-10-22 on release/0.1): a same-tool switch 
 **Research basis**: Max-Depth report (north star).
 **Handover note**: —
 
-### AJ-E1545 Welcome leads into a guided setup wizard (find your apps, permissions one card each with live grant detection, keep it running, the tour), and every brand mark is the real app icon | Status: IN-PROGRESS (0.5.1: built; open: R3 PL1 C9 and the critique round (the permission clips), R7 critique/baseline round) | Priority P0 | Effort L | Depends: AJ-E1524, AJ-E1527
+### AJ-E1545 Welcome leads into a guided setup wizard (find your apps, permissions one card each with live grant detection, keep it running, the tour), and every brand mark is the real app icon | Status: IN-PROGRESS (0.5.1: built; open: R3 PL1 C9 (the clip of the effect re-made, F3), R7 critique/baseline round) | Priority P0 | Effort L | Depends: AJ-E1524, AJ-E1527
 **Found** by the maintainer testing the 0.5.0 nightly (2026-11-23): the Welcome left a newcomer on their own, "Make it smoother" sat on it as a card, and the logo on it was the small three-dot IconJuggler rather than the app's real icon.
 **UI**: yes
 **Usability reasoning** (Opus, before building; re-checked on the built screen):
