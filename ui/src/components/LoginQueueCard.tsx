@@ -196,7 +196,7 @@ export function LoginQueueCard({
             <li>Come back here: we detect it.</li>
           </ol>
           {!compact && (
-            <div className="rounded-lg bg-surface-3 px-3 py-2 font-mono text-label leading-relaxed text-success break-all">
+            <div className="rounded-lg bg-surface-3 px-3 py-2 font-mono text-label leading-relaxed text-success [overflow-wrap:anywhere]">
               {command || "…"}
             </div>
           )}
