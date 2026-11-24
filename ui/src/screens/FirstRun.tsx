@@ -879,8 +879,8 @@ function FolderStep({
       )}
       {usable && large && (
         <p className="rounded-xl border border-warning/40 bg-warning-soft px-4 py-3 text-sm text-ink" role="status" data-testid="first-run-folder-large">
-          Its session history is large ({byteSize(inspect.total_bytes)}). Bring in the settings only, or add a fresh
-          app instead.
+          Its session history is large ({byteSize(inspect.total_bytes)}). Bring in the settings only, or set up a
+          new app instead.
         </p>
       )}
       {usable && (
