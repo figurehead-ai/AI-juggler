@@ -92,7 +92,36 @@ export function lazyNamed<M, K extends keyof M>(loader: () => Promise<M>, name: 
     );
   }
   Loaded.displayName = `Lazy(${String(name)})`;
+  parts.set(Loaded, { load, ready: () => ready !== null });
   return Loaded as unknown as M[K];
+}
+
+/** Each lazy part's own loader, by the component `lazyNamed` returned. */
+const parts = new WeakMap<object, { load: () => Promise<unknown>; ready: () => boolean }>();
+
+/** Whether to show `part`: `wanted`, and its code here (loaded when it isn't).
+ * A sheet opened by a click shows once its code has come (at once when it
+ * was prefetched) rather than through Suspense, whose reveal React holds
+ * up to 300 ms after the code is here (0.5.1 F49: New session clicked
+ * before its prefetch finished, under load). A part that fails to load is
+ * shown anyway, so its boundary says so. */
+export function usePartShown(part: unknown, wanted: boolean): boolean {
+  const entry = typeof part === "function" || (typeof part === "object" && part !== null) ? parts.get(part) : undefined;
+  const [failed, setFailed] = useState(false);
+  const [, setArrived] = useState(0);
+  const ready = !entry || entry.ready() || failed;
+  useEffect(() => {
+    if (!wanted || ready || !entry) return undefined;
+    let live = true;
+    entry.load().then(
+      () => live && setArrived((n) => n + 1),
+      () => live && setFailed(true),
+    );
+    return () => {
+      live = false;
+    };
+  }, [wanted, ready, entry]);
+  return wanted && ready;
 }
 
 /** Reads a main screen's first data in the same idle queue, after the

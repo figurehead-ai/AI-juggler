@@ -22,7 +22,7 @@ import { desktopFocus } from "../lib/ipc/desktop";
 import { fleetRemoteFocus } from "../lib/ipc/fleet-remote";
 import { goToHotkeySet } from "../lib/ipc/settings";
 import { funnelEvent } from "../lib/funnel";
-import { lazyNamed } from "../lib/lazy";
+import { lazyNamed, usePartShown } from "../lib/lazy";
 import { cliAppId } from "../lib/app-name";
 import { openWatches } from "../lib/watches-open";
 import { setCentreOpen } from "../lib/notices-store";
@@ -34,6 +34,8 @@ const GoToPalette = lazyNamed(() => import("../components/GoToPalette"), "GoToPa
 
 export function ShellOverlays({ shell }: { shell: Shell }): JSX.Element {
   const { portWarning, recovery, sessions, projects, accounts, refresh, selectSession, inspectRemote, switchFlow, limitFor, newSheet, selection } = shell;
+  // F49: New session shows once its code is here, never behind Suspense's 300 ms reveal.
+  const newSheetShown = usePartShown(NewSessionModal, newSheet.open);
   // D-112: the toast the first close that hid the window owes.
   useEffect(() => watchCloseNote(), []);
   return (
@@ -219,7 +221,7 @@ export function ShellOverlays({ shell }: { shell: Shell }): JSX.Element {
       <QuitSheet />
       <PoolSheetHost sessions={shell.railSessions} projects={projects} />
       <ReportBugHost />
-      {newSheet.open && (
+      {newSheetShown && (
         <NewSessionModal
           // Start another opens it afresh on the next project (D-96 F);
           // another App's Start, on that App (AJ-E2314 L6).

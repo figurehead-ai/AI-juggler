@@ -115,6 +115,30 @@ describe("lazyNamed and prefetchLazy", () => {
 
 // The gate's selection-line state: the pool line's conversation was its
 // skeleton in some renders and drawn in others; its first read is counted.
+describe("usePartShown (0.5.1 F49)", () => {
+  it("loads a part when it's wanted and shows it once its code is here, never through Suspense", async () => {
+    vi.resetModules();
+    const { lazyNamed, usePartShown } = await import("./lazy");
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    const loader = vi.fn(() => gate.then(() => ({ Sheet: () => <p data-testid="sheet">sheet</p> })));
+    const Sheet = lazyNamed(loader, "Sheet");
+    function Host({ open }: { open: boolean }) {
+      const shown = usePartShown(Sheet, open);
+      return <div data-testid="host">{shown && <Sheet />}</div>;
+    }
+    const view = render(<Host open={false} />);
+    expect(loader).not.toHaveBeenCalled();
+    view.rerender(<Host open />);
+    expect(loader).toHaveBeenCalledTimes(1);
+    expect(view.queryByTestId("sheet")).toBeNull();
+    release();
+    expect(await view.findByTestId("sheet")).toBeTruthy();
+    view.rerender(<Host open={false} />);
+    expect(view.queryByTestId("sheet")).toBeNull();
+  });
+});
+
 describe("loadingPart", () => {
   it("marks <html> while a part's first data loads, and clears it after, failed or not", async () => {
     const { loadingPart } = await import("./lazy");
