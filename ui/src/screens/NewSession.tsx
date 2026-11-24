@@ -1,3 +1,4 @@
+import { useStartFocus } from "./new-session-focus";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ariaOf, keysOf } from "../lib/shortcuts";
 import { useEscapeCloses } from "../lib/use-escape-closes";
@@ -132,14 +133,7 @@ export function NewSessionModal({
       }
     };
     window.addEventListener("keydown", onKey);
-    // AJ-E804: opening the sheet moves focus into it (WCAG 2.4.3): onto
-    // Start when it can, so Return starts the usual.
-    const frame = requestAnimationFrame(() => {
-      if (sheetRef.current?.contains(document.activeElement)) return;
-      (startRef.current && !startRef.current.disabled ? startRef.current : sheetRef.current?.querySelector<HTMLElement>(FOCUSABLE))?.focus();
-    });
     return () => {
-      cancelAnimationFrame(frame);
       window.removeEventListener("keydown", onKey);
       restoreFocusRef.current?.focus?.();
     };
@@ -183,6 +177,7 @@ export function NewSessionModal({
   // No folder known: the App's own, from its launch settings.
   const folder: FolderChoice | null = asked ?? (recipe?.default_cwd ? { root: recipe.default_cwd, project: projects.find((row) => row.root === recipe.default_cwd) ?? null, why: "app-folder" } : null);
   const ready = recipe !== null && signedIn(accounts.find((row) => row.id === recipe.account_id)?.login_state ?? "logged_in");
+  useStartFocus(sheetRef, startRef, ready, FOCUSABLE); // AJ-E804: focus into the sheet, onto Start
   // AJ-E2304: this session's runtime, kept for its App (AJ-E2312 item 5).
   const runtimePick = useRuntimePick(recipe);
   const sessionNames = useMemo(() => new Map(sessions.map((row) => [row.id, sessionTitle(row)])), [sessions]);
