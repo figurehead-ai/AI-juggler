@@ -285,7 +285,7 @@ describe("AJ-E1007 replay", () => {
     const text = document.body.querySelector("[data-testid='replay-dialog']")!.textContent;
     for (const raw of ["sha256", "9f2c1e7a", "48230", "reaped", "· reviewed", "confirmed", "F1", "user", "assistant"]) expect(text).not.toContain(raw);
     expect(text).toContain("Marked reviewed");
-    expect(text).toContain("A helper process was cleaned up by AI Juggler");
+    expect(text).toContain("A process the session started was cleaned up by AI Juggler");
     expect(text).toContain("Came from Codex CLI · Personal, with the full story, fresh start");
     // Close is the kit's secondary, no outline.
     const close = document.body.querySelector<HTMLElement>("[data-testid='replay-close']")!;

@@ -73,7 +73,7 @@ function switchWords(step: ReplayInfo["lineage"][number]): string {
 
 /** A process it ran, in words ("The session's own process ended cleanly"). */
 function processWords(process: ReplayInfo["processes"][number]): string {
-  const who = process.role === "root" ? "The session's own process" : process.role === "helper" ? "A helper process" : "A process";
+  const who = process.role === "root" ? "The session's own process" : process.role === "helper" ? "A process the session started" : "A process";
   if (process.state === "running") return `${who} is running`;
   const how: Record<string, string> = { clean: "ended cleanly", reaped: "was cleaned up by AI Juggler", stopped: "was stopped", crashed: "crashed", killed: "was ended by the system" };
   return `${who} ${(process.exit_kind && how[process.exit_kind]) ?? "ended"}`;
