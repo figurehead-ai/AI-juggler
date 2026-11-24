@@ -24,6 +24,7 @@ import { IconChevronRight } from "../icons-controls";
 import { Pill, type PillTone } from "../Pill";
 import { ProfileBadge } from "../ProfileBadge";
 import { ToolLogo } from "../ToolLogo";
+import { SELECTED_CARD } from "../controls/selected";
 
 /** The App's logo, 40 px, and its profile's badge beside it. */
 export function TargetLogo({ tool, kind, place, folderId, label, size = 40 }: { tool: string | null; kind: "cli" | "desktop"; place?: RailPlace | null; folderId: string; label: string; size?: 24 | 32 | 40 }): JSX.Element {
@@ -116,8 +117,10 @@ export const TargetButton = forwardRef<
     detail?: ReactNode;
     /** The Suggested one (its tag says so; kept for its callers' data). */
     suggested?: boolean;
+    /** Chosen or open (Every move's open step): the kit's selected fill. */
+    chosen?: boolean;
   } & Omit<ButtonHTMLAttributes<HTMLButtonElement>, "children">
->(function TargetButton({ logo, name, sub, tags, detail, suggested = false, className = "", ...rest }, ref) {
+>(function TargetButton({ logo, name, sub, tags, detail, suggested = false, chosen = false, className = "", ...rest }, ref) {
   return (
     <button
       ref={ref}
@@ -127,7 +130,7 @@ export const TargetButton = forwardRef<
       className={
         "group/target relative flex w-full min-w-0 items-start gap-3.5 rounded-card px-4 py-3 text-left outline-none transition-[background-color,box-shadow] " +
         "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:cursor-not-allowed disabled:opacity-60 " +
-        "bg-surface-2 inset-ring-1 inset-ring-frame hover:bg-surface-3 " +
+        (chosen ? SELECTED_CARD + " " : "bg-surface-2 inset-ring-1 inset-ring-frame hover:bg-surface-3 ") +
         className
       }
     >

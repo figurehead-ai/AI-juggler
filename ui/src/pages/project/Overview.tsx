@@ -185,7 +185,9 @@ function Travelled({ project, data, cut, onOpenSession }: { project: ProjectInfo
         </p>
       )}
       {moved && (
-        <Disclosure open tone="heading" className="rounded-lg border border-hairline px-3 py-2" summary="Every move, with resume and export">
+        // 0.5.1 F78: a fold by its heading alone, never a box round the
+        // steps (each step is its own tone card: no box in a box).
+        <Disclosure open tone="heading" className="pt-1" summary="Every move, with resume and export">
           <div className="pt-3">
             <SwitchGraph projectId={project.id} onOpenSession={onOpenSession} />
           </div>

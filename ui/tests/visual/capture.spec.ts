@@ -3189,7 +3189,7 @@ for (const theme of THEMES) {
       await openProjectOverview(page); // AJ-E1533: the graph is on Overview
       await expect(page.getByTestId("switch-graph")).toBeVisible();
       await expect(page.getByTestId("switch-graph-hop-note")).toContainText("3 switches");
-      await expect(page.getByTestId("switch-graph-collapse")).toContainText("+2 switches");
+      await expect(page.getByTestId("switch-graph-collapse")).toContainText("2 earlier switches");
       // The chain sits below the overview's stats: framed on it.
       await frameOn(page.getByTestId("switch-graph"));
       await page.screenshot({
@@ -3208,25 +3208,11 @@ for (const theme of THEMES) {
       await expect(page.getByTestId("switch-graph")).toBeVisible();
       await expect(page.getByTestId("node-fork-chip").first()).toBeVisible();
       await expect(page.getByTestId("node-merge-chip").first()).toBeVisible();
-      // The chain sits below the overview's stats: framed on it, its fork
-      // and merge marks in the shot.
-      await frameOn(page.getByTestId("switch-graph"));
-      // The chain scrolls sideways: centred on the stretch from the fork
-      // to the merge, so both marks are in the shot; where the strip is
-      // narrower than that stretch (800 px), it starts at the fork.
-      const both = await page.getByTestId("switch-graph").evaluate((graph) => {
-        const fork = graph.querySelector("[data-testid='node-fork-chip']")!.getBoundingClientRect();
-        const merge = graph.querySelector("[data-testid='node-merge-chip']")!.getBoundingClientRect();
-        let strip = graph.querySelector("[data-testid='node-fork-chip']")!.parentElement;
-        while (strip && !(/(auto|scroll)/.test(getComputedStyle(strip).overflowX) && strip.scrollWidth > strip.clientWidth)) strip = strip.parentElement;
-        if (!strip) return true;
-        const box = strip.getBoundingClientRect();
-        const fits = merge.right - fork.left + 8 <= box.width;
-        strip.scrollLeft += fits ? (fork.left + merge.right) / 2 - (box.left + box.right) / 2 : fork.left - box.left - 150;
-        return fits;
-      });
+      // 0.5.1 F78: one step under another (no sideways row): framed from
+      // the step that branches, its pill in the shot, the steps after it
+      // below.
+      await frameOn(page.getByTestId("node-fork-chip").first(), { edge: "start", gap: 120 });
       await expect(page.getByTestId("node-fork-chip").first()).toBeInViewport();
-      if (both) await expect(page.getByTestId("node-merge-chip").first()).toBeInViewport();
       await page.screenshot({
         path: resolve(GALLERY, `32-graph/fork-merge-${vp.name}-${theme}.png`),
       });
@@ -3243,6 +3229,7 @@ for (const theme of THEMES) {
       await expect(page.getByTestId("switch-graph-failed-edge")).toBeVisible();
       await page.getByTestId("switch-graph-failed-edge").click();
       await expect(page.getByTestId("switch-graph-failed-detail")).toContainText("closed while it started");
+      await frameOn(page.getByTestId("switch-graph-failed-detail"), { edge: "end", gap: 80 });
       await page.screenshot({
         path: resolve(GALLERY, `32-graph/failed-${vp.name}-${theme}.png`),
       });
@@ -3262,6 +3249,7 @@ for (const theme of THEMES) {
       await expect(page.getByTestId("epoch-resume-button")).toBeEnabled();
       await page.getByTestId("epoch-export-button").click();
       await expect(page.getByTestId("pack-export-toast")).toBeVisible();
+      await frameOn(page.getByTestId("switch-graph-node-menu"), { gap: 160 });
       await page.screenshot({
         path: resolve(GALLERY, `32-graph/node-menu-${vp.name}-${theme}.png`),
       });

@@ -161,7 +161,7 @@ describe("AJ-E209 SwitchGraph — the timeline", () => {
       "Switched back · Full story, fresh start",
     ]);
     expect(container.querySelector('[data-testid="switch-graph-collapse"]')!.textContent).toBe(
-      "+2 switches",
+      "2 earlier switches, kept in its history",
     );
     expect(container.querySelector('[data-testid="switch-graph-hop-note"]')!.textContent).toBe(
       "3 switches so far ≈41k tokens",
@@ -199,10 +199,11 @@ describe("AJ-E209 SwitchGraph — the timeline", () => {
     );
     // Open the resumable middle node (B on Personal) and resume via ⌘R.
     fireEvent.click(nodes[1]!);
-    const menu = container.querySelector('[data-testid="switch-graph-node-menu"]')!;
-    expect(menu.textContent).toContain("Personal");
+    const menu = container.querySelector<HTMLElement>('[data-testid="switch-graph-node-menu"]')!;
+    expect(menu.dataset.step).toContain("Personal");
     const resume = container.querySelector('[data-testid="epoch-resume-button"]')!;
-    expect(resume.textContent).toContain("Resume (⌘R)");
+    expect(resume.textContent).toContain("Resume");
+    expect(resume.getAttribute("aria-keyshortcuts")).toBeTruthy();
     fireEvent.keyDown(window, { key: "r", metaKey: true });
     await waitFor(() => expect(w().__AIJ_EPOCH_RESUME_CALLS__).toEqual(["ep-b"]));
     // The new instance opens (suggest-chosen: the user's click started it).
@@ -239,10 +240,10 @@ describe("AJ-E209 SwitchGraph — the timeline", () => {
     fireEvent.click(container.querySelector('[data-testid="switch-graph-failed-edge"]')!);
     const detail = container.querySelector('[data-testid="switch-graph-failed-detail"]')!;
     expect(detail.textContent).toContain("the session on the other account closed while it started");
-    expect(detail.textContent).toContain("the source stayed resumable");
+    expect(detail.textContent).toContain("the session it started from stayed resumable");
     fireEvent.click(
       Array.from(detail.querySelectorAll<HTMLButtonElement>("button")).find((button) =>
-        button.textContent!.includes("Open the source epoch"),
+        button.textContent!.includes("Open the session it started from"),
       )!,
     );
     expect(opened).toEqual(["sess-src"]);
@@ -287,6 +288,52 @@ describe("AJ-E209 SwitchGraph — the timeline", () => {
     expect(detail.querySelector('[data-testid="handover-line"]')!.textContent).toBe("Hidden from Codex: 1 API key");
     expect(detail.querySelector('[data-testid="handover-open"]')!.textContent).toBe("Open the handover");
     expect(edge.getAttribute("aria-expanded")).toBe("true");
+  });
+
+  it("0.5.1 F78: each step is the switch's target card, one under another, the moves' words whole, a failed one in plain words", async () => {
+    w().__AIJ_SWITCH_GRAPH__ = [
+      {
+        title: "Payments fix",
+        epochs: [
+          { id: "ep-src", provider: "claude-code", account_label: "Work Max", kind: "terminal", resumable: true, session_id: "sess-src" },
+          { id: "ep-b", provider: "codex", account_label: "Personal", kind: "terminal", resumable: false, session_id: null },
+          { id: "ep-c", provider: "codex", account_label: "Lab", kind: "terminal", resumable: true, session_id: "sess-c" },
+        ],
+        edges: [
+          { from: "ep-src", to: "ep-b", label: "Full story, fresh start", switch_back: false },
+          { from: "ep-src", to: "ep-c", label: "Same conversation, another app (a check failed)", switch_back: false },
+          { from: "ep-src", to: null, label: "failed · target launch failed", failed_reason: "the session on the other account closed while it started", switch_back: false },
+        ],
+        collapsed: 0,
+      },
+    ];
+    const { container } = render(<SwitchGraph projectId="p1" onOpenSession={() => {}} />);
+    await waitFor(() => expect(container.querySelectorAll('[data-testid="switch-graph-node"]').length).toBe(3));
+    const nodes = [...container.querySelectorAll<HTMLElement>('[data-testid="switch-graph-node"]')];
+    // The switch dialog's target card: the App's logo and name, no outline.
+    expect(nodes[0]!.querySelector('[data-testid="target-logo"]')).not.toBeNull();
+    expect(nodes[0]!.querySelector('[data-testid="target-name"]')!.textContent).toBe("Claude Code CLI · Work Max");
+    for (const node of nodes) expect(node.className).not.toMatch(/(^|\s)border(\s|-hairline)/);
+    // Branching said in a neutral pill, never an amber outline.
+    const fork = container.querySelector('[data-testid="node-fork-chip"]')!;
+    expect(fork.textContent).toBe("Branches here");
+    expect(fork.innerHTML).not.toMatch(/warning/);
+    // One under another: no row that scrolls sideways; words whole.
+    expect(container.querySelector(".overflow-x-auto")).toBeNull();
+    const words = [...container.querySelectorAll('[data-testid="switch-graph-edge"]')].map((edge) => edge.getAttribute("aria-label"));
+    expect(words).toContain("Same conversation, another app (a check failed)");
+    for (const edge of container.querySelectorAll('[data-testid="switch-graph-edge"] span')) expect(edge.className).not.toMatch(/truncate/);
+    // A step whose conversation wasn't kept offers no Resume (D-127).
+    fireEvent.click(nodes[1]!);
+    expect(container.querySelector('[data-testid="epoch-resume-button"]')).toBeNull();
+    expect(container.querySelector('[data-testid="epoch-switch-from-button"]')).toBeNull();
+    expect(container.querySelector('[data-testid="epoch-export-button"]')).not.toBeNull();
+    // A failed move: a red mark and plain words, no red box or "failed ·".
+    fireEvent.click(container.querySelector('[data-testid="switch-graph-failed-edge"]')!);
+    const detail = container.querySelector<HTMLElement>('[data-testid="switch-graph-failed-detail"]')!;
+    expect(detail.textContent).toContain("It didn't switch: the session on the other account closed while it started.");
+    expect(detail.textContent).not.toMatch(/failed ·|Switch failed|epoch/);
+    expect(detail.className).not.toMatch(/danger|border/);
   });
 
   it("renders the honest empty state when no switches exist", async () => {
