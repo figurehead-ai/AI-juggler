@@ -297,7 +297,11 @@ def seed(home: Path, dry: bool, table: list[str] | None = None) -> list[str]:
     w.mkdir(inside, "the folder inside <profile-B> that <profile-C>'s session was given")
     code = guard(home / CODE / SECOND, home)
     w.write(code / "settings.json", b"{}\n", "its Claude Code folder's settings")
-    w.write(code / ".claude.json", dumps({"oauthAccount": {"accountUuid": f"lab-account-{slug(SECOND_ACCOUNT)}",
+    # F37: its organisation too, as real Claude Code writes it, named as
+    # <profile-C>'s records folder is (`org_dir`), so the two agree.
+    records = org_dir(second, SECOND_ACCOUNT)
+    w.write(code / ".claude.json", dumps({"oauthAccount": {"accountUuid": records.parent.name,
+                                                           "organizationUuid": records.name,
                                                            "emailAddress": f"{slug(SECOND_ACCOUNT)}@example.invalid"}}),
             "the lab's made-up Personal identity (as the seeder's lab sign-in)")
     w.write(code / ".credentials.json", b'{"lab": "not a sign-in"}', "a placeholder: presence only, signs nothing in")
@@ -572,7 +576,10 @@ def selftest() -> None:
         update = other["sessionPermissionUpdates"][0]
         assert set(spec["session_record"]["permission_update"]["keys"]) <= set(update)
         assert update["directories"] == [str(work / ADD_DIR)]
-        assert json.loads((home / CODE / SECOND / ".claude.json").read_text())["oauthAccount"]["accountUuid"] == "lab-account-personal"
+        signed = json.loads((home / CODE / SECOND / ".claude.json").read_text())["oauthAccount"]
+        assert (signed["accountUuid"], signed["organizationUuid"]) == ("lab-account-personal", "lab-org-personal"), signed
+        # F37: the sign-in names the records folder <profile-C>'s session is in.
+        assert (second / SESSIONS / signed["accountUuid"] / signed["organizationUuid"]).is_dir()
         argv = hold_command(home)
         assert argv[0] == str(DISCLAIMER) and argv[3].startswith(str(second)) and argv[-1] == f"--add-dir={work / ADD_DIR}"
         assert hold(home, dry=True)[0].startswith("run ")

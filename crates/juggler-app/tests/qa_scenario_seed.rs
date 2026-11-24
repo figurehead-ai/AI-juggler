@@ -433,20 +433,33 @@ fn seed_codex_app(
     Some((account.id, recipe.id.to_string(), app_id))
 }
 
+/// Scenario Account `name`'s made-up Claude ids: its account and its
+/// organisation, as a Claude app profile's records folder names them
+/// (`claude-code-sessions/<account>/<org>`) and its terminal sign-in
+/// records them (`oauthAccount`), so the two agree as on a real Mac (F37).
+fn lab_claude_ids(name: &str) -> (String, String) {
+    let slug = slug(name);
+    (format!("lab-account-{slug}"), format!("lab-org-{slug}"))
+}
+
 /// A lab sign-in for a Claude Code folder on scenario Account `name`:
 /// made-up ids in `.claude.json`'s `oauthAccount` (what AI Juggler reads
-/// to know the Account; folders on one name share it, so they group) and
-/// a `.credentials.json` that only exists (AI Juggler checks presence and
+/// to know the Account; folders on one name share it, so they group), its
+/// organisation as real Claude Code writes it (F37: without one a lab
+/// profile paired with its folder by name only), and a
+/// `.credentials.json` that only exists (AI Juggler checks presence and
 /// size, never opens it). Nothing in it signs anything in.
 fn lab_sign_in(dir: &std::path::Path, name: &str) {
     let slug = slug(name);
+    let (account, org) = lab_claude_ids(name);
     let state = juggler_adapters::claude_code::claude_state_file(dir);
     let mut value: Value = std::fs::read(&state)
         .ok()
         .and_then(|raw| serde_json::from_slice(&raw).ok())
         .unwrap_or_else(|| serde_json::json!({}));
     value["oauthAccount"] = serde_json::json!({
-        "accountUuid": format!("lab-account-{slug}"),
+        "accountUuid": account,
+        "organizationUuid": org,
         "emailAddress": format!("{slug}@example.invalid"),
     });
     std::fs::write(&state, serde_json::to_vec_pretty(&value).unwrap()).unwrap();
@@ -875,10 +888,10 @@ fn seed_lab(
             // PL1: its Code tab's past sessions (the app's records in the
             // profile, their transcripts in its Claude Code folder), and
             // scripts' runs in that folder.
-            let who = slug(app["account"].as_str().unwrap_or(id));
+            let (who, org) = lab_claude_ids(app["account"].as_str().unwrap_or(id));
             let records = juggler_adapters::claude_live::app_root(&dir)
-                .join(format!("lab-account-{who}"))
-                .join(format!("lab-org-{who}"));
+                .join(who)
+                .join(org);
             // A signed-in profile has its records folder even with no Code
             // session yet, as one opened on its account has: Move's target
             // reads its account there (the 0.5.0 re-walk, R12: PL1's
@@ -2575,6 +2588,25 @@ fn every_app_of_a_scenario_is_signed_in_to_its_account() {
         juggler_adapters::codex::probe_codex_identity(&dir_of(&state, &codex.id)),
         juggler_adapter::IdentityProbe::SignedIn { ref subject, .. } if subject == "lab-account-personal"
     ));
+    // F37: a Claude folder's lab sign-in carries the organisation its
+    // Claude app profile's records folder is named by, as real Claude Code
+    // writes it, so the profile and its folder are one Account.
+    let claude =
+        juggler_app::features::account::create_account(&state, "claude-code", "y", None).unwrap();
+    lab_sign_in(&dir_of(&state, &claude.id), "Work Max");
+    let (account, org) = lab_claude_ids("Work Max");
+    assert_eq!(
+        (account.as_str(), org.as_str()),
+        ("lab-account-work-max", "lab-org-work-max")
+    );
+    match juggler_adapters::claude_code::probe_claude_identity(&dir_of(&state, &claude.id)) {
+        juggler_adapter::IdentityProbe::SignedIn {
+            subject,
+            org: found,
+            ..
+        } => assert_eq!((subject, found), (account, Some(org))),
+        other => panic!("the lab sign-in reads {other:?}"),
+    }
 }
 
 /// The P5 rc32 walk: Careful's Account member was the scenario's name

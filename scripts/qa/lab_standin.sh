@@ -32,8 +32,11 @@
 # the browser: the stand-in then writes the folder's signed-in signal as
 # the adapter checks it (a non-empty `.credentials.json`, a placeholder
 # that signs nothing in, and the lab's made-up `oauthAccount` in
-# `.claude.json`), says "Login successful" and goes on to its prompt. The
-# approval file is used once. Nothing real is signed in, read or sent.
+# `.claude.json`: `lab-account-<slug>` in `lab-org-<slug>`, the names a lab
+# Claude app profile's records folder on that Account has, as real Claude
+# Code records its organisation, F37), says "Login successful" and goes on
+# to its prompt. The approval file is used once. Nothing real is signed in,
+# read or sent.
 #
 # A turn that never ends (AJ-E2312, K3's "may be stuck"): `--lab-open-turn`
 # runs SessionStart, then UserPromptSubmit and a tool call that never
@@ -170,6 +173,8 @@ if [ "${1:-}" = "--selftest" ]; then
   for _ in $(seq 50); do [ -s "$tmp/home/new/.credentials.json" ] && grep -q 'Login successful' "$tmp/out6" && break; sleep 0.1; done
   [ -s "$tmp/home/new/.credentials.json" ] || fail "the approval didn't sign the folder in"
   grep -q '"accountUuid": "lab-account-lab-new"' "$tmp/home/new/.claude.json" || fail "no lab oauthAccount"
+  # F37: its organisation, named as the lab's records folders are.
+  grep -q '"organizationUuid": "lab-org-lab-new"' "$tmp/home/new/.claude.json" || fail "no lab organizationUuid"
   [ ! -e "$tmp/home/.aij-lab-bin/approve-sign-in" ] || fail "the approval was kept"
   kill "$pid6"
   # Never outside a lab: a real HOME, or a folder outside its HOME.
@@ -309,7 +314,8 @@ try:
     state = json.load(open(path))
 except (OSError, ValueError):
     state = {}
-state["oauthAccount"] = {"accountUuid": "lab-account-" + slug, "emailAddress": slug + "@example.invalid"}
+state["oauthAccount"] = {"accountUuid": "lab-account-" + slug, "organizationUuid": "lab-org-" + slug,
+                         "emailAddress": slug + "@example.invalid"}
 json.dump(state, open(path, "w"), indent=2)' "$folder" "$who"
   printf '{"lab": "not a sign-in"}' > "$folder/.credentials.json"
   printf '\n\n Login successful. Press Enter to continue\n'
