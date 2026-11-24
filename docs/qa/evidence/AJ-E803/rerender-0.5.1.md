@@ -371,3 +371,23 @@ Re-rendered with `scripts/visual_gate.sh --update --project=gallery <spec:line> 
 
 - 92-session-pages: `outside-asks-1280x800-dark`: the "Claude asks you" strip under the conversation is the panel's tone with an amber dot before "Claude asks you" (F66: it was an amber-brown wash with an amber top line); its words and Go to it unchanged, the strip 1 px lower.
 - 93-messages: `pool-messages-1280x800-dark`: Builder's question to you is a grey bubble like the other agents', with an amber dot before "Builder" (F66: it was an amber-tinted bubble with an amber edge); "Builder" stays amber.
+
+Then batch B3's critique fixes (51ea3254f), re-rendered with `scripts/visual_gate.sh --update` on the 26 gate states a full run without `--update` found changed (and only those), each opened old beside new. Three of them carry fixes batch B2 committed meanwhile (F70, F73, F75), said where they are.
+
+- home-scrolled: `home-scrolled-dark-comfortable-1024x680`, `home-scrolled-dark-comfortable-1280x800`, `home-scrolled-dark-compact-1024x680`, `home-scrolled-dark-compact-1280x800`, `home-scrolled-light-comfortable-1024x680`, `home-scrolled-light-comfortable-1280x800`, `home-scrolled-light-compact-1024x680`, `home-scrolled-light-compact-1280x800`: Home's "Jump to a session's own window" card is its tone with no outline (PAT-SURF-1; it had a hairline rim); nothing else moved.
+- rail-order-menu: `rail-order-menu-dark-comfortable-1280x800`, `rail-order-menu-light-comfortable-1280x800`: the same Jump card under the open order menu, no outline.
+- 68-home-feed: `all-clear-1024-dark`: the Jump card, no outline.
+- 74-overload: `memory-pressure-1280x800-dark`: the Jump card, no outline.
+- 74-rail-projects: `history-1280x800-dark`: the Jump card, no outline.
+- 78-outside: `home-rail-1280x800-dark`: the Jump card, no outline.
+- 80-marks: `rail-folded-1280x800-dark`: the Jump card, no outline.
+- 96-notification-centre: `centre-empty-1280x800-dark`, `centre-empty-1280x800-light`: the Jump card on Home behind the centre, no outline. `toast-error-1280x800-dark`, `toast-error-1280x800-light`, `toast-undo-1280x800-dark`, `toast-undo-1280x800-light`: the same card behind, and the toast's action is the kit's secondary fill (B2's F73, dda75a83f).
+- 09-quality: `populated-1440x900`: the Usage tab's top line reads "No token totals from its app yet" and says How it's going below is read from the session itself (was "No token counts for it yet" over a tokens-a-minute card).
+- 26-quota: `usage-measured-1440x900-dark`: the same Usage tab line.
+- 23-alerts: `keyboard-pass-1440x900-dark`: the "node (vite) … holds 3.1 GiB" alert line on Processes is its tone with no outline.
+- 53-parked: `inspector-1280x800-dark`: the parked note in Where it runs is a step of tone, no outline.
+- 56-history: `retention-1280x800-dark`: the retention rows are a step of tone with no outline, Review cleanup… the kit's secondary (disabled under Keep forever). `dry-run-1280x800-dark`: the same rows dimmed behind the dry run.
+- 57-backup: `progress-1280x800-dark`: the retention rows above the backup card, as 56-history.
+- 87-burn-down: `usage-1280x800-dark-comfortable`: framed from "Runway and limit history", so Claude Max 20x's name, rings and week chart show (it opened at the card's bottom); the Not signed in card beside it is as tall as what it holds (it stretched to the tall card's height, an empty panel).
+- 14-focus: `panel-outcome-1280x800`: the one-account note is a plain line with an info mark (B2's F70, 059097f12; was an amber "isolation" strip).
+- 50-cross-switch: `progress-1280x800-dark`: focus is on Stop sending, not a ring round the "Switching to Team on Mac mini…" heading (B2's F75, 24cef04a9).

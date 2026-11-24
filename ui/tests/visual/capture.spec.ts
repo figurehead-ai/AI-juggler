@@ -793,7 +793,8 @@ test("desktop — Instance panel (running app, isolation label, no terminal)", g
   await expect(page.getByTestId("desktop-surface")).toBeVisible();
   await expect(page.getByTestId("desktop-surface")).toContainText("Working");
   await expect(page.getByTestId("desktop-focus")).toBeVisible();
-  await expect(page.getByTestId("desktop-isolation")).toContainText("Single-account app");
+  // 0.5.1 F70: the one-account note in plain words.
+  await expect(page.getByTestId("desktop-isolation")).toContainText("One account at a time");
   await page.screenshot({ path: resolve(GALLERY, "13-desktop/panel-running-1280x800.png") });
 });
 
@@ -819,7 +820,8 @@ test("desktop — panel at 1024x680 light", async ({ page }) => {
     .filter({ hasText: /working/i }) // AJ-E2104 Req.3: the rail says Working
     .click();
   await expect(page.getByTestId("desktop-surface")).toBeVisible();
-  await expect(page.getByTestId("desktop-isolation")).toContainText("Single-account app");
+  // 0.5.1 F70: the one-account note in plain words.
+  await expect(page.getByTestId("desktop-isolation")).toContainText("One account at a time");
   await page.screenshot({ path: resolve(GALLERY, "13-desktop/panel-running-1024x680-light.png") });
 });
 
@@ -862,9 +864,7 @@ test("desktop — single-account warning state", async ({ page }) => {
     .click();
   const warning = page.getByTestId("desktop-isolation");
   await expect(warning).toBeVisible();
-  await expect(warning).toContainText(
-    "Single-account app — Juggler tracks, cannot isolate",
-  );
+  await expect(warning).toContainText("One account at a time: AI Juggler can't open a second copy of this app"); // 0.5.1 F70
   await page.screenshot({ path: resolve(GALLERY, "13-desktop/panel-single-account-warning-1280x800.png") });
 });
 
