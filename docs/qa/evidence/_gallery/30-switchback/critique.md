@@ -1,4 +1,4 @@
-<!-- captures: deff39d12846 -->
+<!-- captures: fc38b4a49325 -->
 # 30-switchback: switching back to the original account after a reset: the switch card, the review dialog with conflicts, the both-live warning, handover notes, and a return that could not complete
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design passes.
@@ -16,3 +16,7 @@ The Switch back to Work Max dialog orders its content well (a mode chip, a short
 - sf8-forked-*.png: "Work" instead of Work Max; only Close, no way to resolve the conflict from here.
 - card-800x600-*.png: the switch card the capture is named for is not in view.
 - card-1280x800-dark.png, card-1280x800-light.png: a stray grey "…" sits under the clock icon of the selected rail row (feat/read-model, Working · 1 h).
+
+## 0.5.1
+
+Re-captured on 0.5.1; only the shared chrome changed in these screens. The rail's head now starts past the traffic lights, its rows hold a fixed dot column (tools on hover), cards and panels separate by tone instead of a border, a chosen item is a fill, and the top bar's bottom line is calmer. The switch-back dialog keeps its structure; the account is named Claude Max 20x in its first line.

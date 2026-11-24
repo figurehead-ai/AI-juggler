@@ -1,4 +1,4 @@
-<!-- captures: 6d5850eba213 -->
+<!-- captures: 015b54cd2931 -->
 # 51-identity: a session's identity chip on its page, and the wrong-account dialog that stops a launch
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design passes.
@@ -11,3 +11,7 @@ In rail-and-chip the darker dark canvas and the grey light canvas lift the termi
 
 - rail-and-chip (all four): the rail rows for sessions not signed in drop their sign-in state entirely ("Stopped with an error", "Probably stuck", "Ended"), so the rail no longer shows which sessions have an unchecked identity.
 - rail-and-chip (all four): the selected rail row shows a small "···" under its status icon with no visible meaning.
+
+## 0.5.1
+
+Re-captured on 0.5.1; only the shared chrome changed in these screens. The rail's head now starts past the traffic lights, its rows hold a fixed dot column (tools on hover), cards and panels separate by tone instead of a border, a chosen item is a fill, and the top bar's bottom line is calmer. The wrong-account dialog keeps its layout; its wording says app (Wrong account for Claude Code CLI · Work Max).

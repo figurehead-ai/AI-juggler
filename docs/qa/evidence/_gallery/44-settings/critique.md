@@ -1,4 +1,4 @@
-<!-- captures: 86ae824c4319 -->
+<!-- captures: 16ef50beaed2 -->
 # 44-settings: Settings › Advanced, the Figurehead & Cloud card from signed out to pairing code, linking, connected and unlink
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design fixes.
@@ -12,3 +12,7 @@ The cards stand off the page in both themes (white on the grey canvas in light, 
 - consent, paid-locked-offline, signed-out, unlinked (all sizes, both themes): the capture stops at the Cleanup section and never reaches the Figurehead & Cloud card, so the named state isn't visible.
 - connected-light, unlink-confirm-light: the off switch for "Sync usage stats to my dashboard" is nearly invisible on the white card.
 - connected, unlink-confirm: the page is scrolled so the section heading is gone and the card starts cut under the top bar.
+
+## 0.5.1
+
+Re-captured on 0.5.1; only the shared chrome changed in these screens. The rail's head now starts past the traffic lights, its rows hold a fixed dot column (tools on hover), cards and panels separate by tone instead of a border, a chosen item is a fill, and the top bar's bottom line is calmer. Cloud and Advanced settings are unchanged; the settings list gained AI and Models.

@@ -1,4 +1,4 @@
-<!-- captures: 28fe867cff5a -->
+<!-- captures: 4022b206b432 -->
 # 15-preview: a desktop session's live window preview: live, paused, screen-recording permission denied, and app exited
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design fixes.
@@ -12,3 +12,7 @@ panel-live-* label the mirror with a teal "Live preview" chip, "frame age 0s" an
 - panel-denied-1280x800: no button to open the setting or re-enable the preview; "frame age 0s" shown with no frame.
 - panel-paused-1280x800: the paused state is a small grey line over a frame that looks live.
 - panel-live-*, panel-denied, panel-paused: two solid violet buttons; panel-exited offers "Open / Focus window" for an exited app.
+
+## 0.5.1
+
+Re-captured on 0.5.1; only the shared chrome changed in these screens. The rail's head now starts past the traffic lights, its rows hold a fixed dot column (tools on hover), cards and panels separate by tone instead of a border, a chosen item is a fill, and the top bar's bottom line is calmer. Window preview content is unchanged; the header gained Watch…

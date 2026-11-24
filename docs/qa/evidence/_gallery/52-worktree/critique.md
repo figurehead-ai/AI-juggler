@@ -1,4 +1,4 @@
-<!-- captures: 63c103649cb6 -->
+<!-- captures: cf8ee7a6b254 -->
 # 52-worktree: a session in its own git worktree, the offer to make one, and removing a worktree with uncommitted files
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design passes.
@@ -12,3 +12,7 @@ In chips the Where it runs card stands off both canvases, and it carries the wor
 - chips-1280x800-dark/light: the Runway card's heading is cut in half by the right column's bottom edge just above "More below".
 - chips-1280x800-dark/light: the selected rail row shows a small "···" under its status icon with no visible meaning.
 - dirty-removal (all four): "Discard and remove" is a neutral grey outline; nothing marks it as destructive once it is enabled.
+
+## 0.5.1
+
+Re-captured on 0.5.1; only the shared chrome changed in these screens. The rail's head now starts past the traffic lights, its rows hold a fixed dot column (tools on hover), cards and panels separate by tone instead of a border, a chosen item is a fill, and the top bar's bottom line is calmer. Both worktree dialogs are unchanged; the session page behind shows the conversation.
