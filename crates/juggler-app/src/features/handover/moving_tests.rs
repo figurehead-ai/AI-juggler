@@ -1238,6 +1238,8 @@ fn an_undone_move_lets_its_backups_go() {
     assert!(unchanged(&lab));
 }
 
+#[path = "moving_fault_tests.rs"]
+mod faults;
 #[path = "moving_open_tests.rs"]
 mod open;
 #[path = "moving_pick_tests.rs"]
