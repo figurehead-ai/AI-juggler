@@ -317,7 +317,11 @@ fn a_removed_running_profile_is_offered_again() {
     assert!(!listed(&state).1.contains(&id), "removed");
     observe(&state, &running, &[]);
     let offered: Vec<String> = offers_of(&state).into_iter().map(|(id, _)| id).collect();
-    assert_eq!(offered, [id.clone()], "offered again while it runs");
+    assert_eq!(
+        offered,
+        std::slice::from_ref(&id),
+        "offered again while it runs"
+    );
     answer_offer(&state, &id, true).unwrap();
     assert!(listed(&state).1.contains(&id), "added again");
 }
