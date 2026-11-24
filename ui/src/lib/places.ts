@@ -8,6 +8,7 @@ import { sharedRead, useSharedRead, whenForgotten, type SharedRead } from "./sha
 import { onPlacesChanged, placesFind, placesList, type KnownPlaceInfo } from "./ipc/places";
 import { learnPlaces } from "./marks";
 import { agoWords } from "./time-words";
+import { appName, desktopAppWord, desktopProfile } from "./app-name";
 
 /** The places remembered, one read for every screen that shows them
  * (walk A4: seven hooks each read them, ~20 reads a window's first
@@ -72,6 +73,12 @@ export function useLastPlace(tool: string, conversationId: string, ended: boolea
     };
   }, [tool, conversationId, ended, account, app]);
   return place;
+}
+
+/** AJ-E2326 R6: where a session AI Juggler continued came from, as the
+ * rail names that App: "Continued here from Claude app · b-work". */
+export function continuedFromWords(place: Pick<KnownPlaceInfo, "app" | "instance" | "profile">, tool: string): string {
+  return `Continued here from ${appName(desktopAppWord(place.app, tool), desktopProfile(place.instance, place.profile))}`;
 }
 
 /** The remembered place a running app is: the same process (a profile's

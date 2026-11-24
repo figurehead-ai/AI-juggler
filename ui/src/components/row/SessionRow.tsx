@@ -39,6 +39,7 @@ import type { AppRef } from "../../lib/app-of";
 import { RowShell } from "./RowShell";
 import { needWait } from "../../lib/waiting";
 import { PlaceLine, RowSubagents, appWords } from "./RowParts";
+import { TwoPlacesNote, twoPlacesWords } from "./TwoPlacesNote";
 
 export type RowDensity = "cozy" | "compact" | "list";
 
@@ -131,7 +132,9 @@ export function SessionRow(props: SessionRowProps): JSX.Element {
   const appShown = !within.app;
   const projectShown = !within.project;
   const line = [projectShown ? item.project : null, density === "list" && appShown ? appWords(item) : null, when].filter(Boolean).join(" · ");
-  const also = item.alsoIn.length > 0 ? `also open in ${item.alsoIn.join(" and ")}` : null;
+  // AJ-E2326 R4: live in AI Juggler's session and another app: said under it, with Stop ours.
+  const two = item.twoPlaces ?? null;
+  const also = two ? twoPlacesWords(two) : item.alsoIn.length > 0 ? `also open in ${item.alsoIn.join(" and ")}` : null;
   // AJ-E1554 R3: said on every row that runs some (the View's switch no longer hides it).
   const helpers = item.subagents > 0 ? `${item.subagents} ${item.subagents === 1 ? "subagent" : "subagents"} running` : null;
   // AJ-E1502: a pinned row says so, as the Project lens's row does.
@@ -154,7 +157,7 @@ export function SessionRow(props: SessionRowProps): JSX.Element {
       {heavy}
     </span>
   ) : null;
-  const shell = { item, selected: props.selected ?? false, onSelect: props.onSelect, label, arrange: props.arrange, tools: props.tools, below: props.below, slim: props.slim, menuKind: props.menuKind, data: { "data-level": String(state.level), "data-need": item.need ?? undefined, "data-state": item.state, ...props.data }, buttonData: props.buttonData, depth: props.depth };
+  const shell = { item, selected: props.selected ?? false, onSelect: props.onSelect, label, arrange: props.arrange, tools: props.tools, below: props.below ?? (two ? <TwoPlacesNote two={two} title={title} /> : undefined), slim: props.slim, menuKind: props.menuKind, data: { "data-level": String(state.level), "data-need": item.need ?? undefined, "data-state": item.state, ...props.data }, buttonData: props.buttonData, depth: props.depth };
 
   if (density === "list") {
     return (

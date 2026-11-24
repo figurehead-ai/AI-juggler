@@ -72,7 +72,7 @@ RULES: dict[str, tuple[re.Pattern[str], re.Pattern[str] | None, str]] = {
         re.compile(
             r"\bin\s+(?:one(?:\s+calm)?|its\s+own|the\s+same|the\s+right)\s+place\b"
             r"|\bin\s+place\b|\bno\s+place\s+for\b|\btakes?\s+place\b|\bkeeps?\s+its\s+place\b"
-            r"|\b(?:a\s+few|several|many)\s+places\b",
+            r"|\b(?:two|a\s+few|several|many)\s+places\b",  # AJ-E2326: "Open in two places"
             re.I,
         ),
         "say app (\"apps in their usual order\")",
