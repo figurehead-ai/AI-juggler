@@ -239,11 +239,18 @@ pub mod retention;
 mod still;
 #[path = "moving_timeline.rs"]
 mod timeline;
+#[path = "moving_undo.rs"]
+mod undoing;
 pub use door::{MoveRecordInfo, moves};
 use pick::{links_hold, sides, start_checked};
 use quit::{Writing, stop_places};
 pub use real::{Real, Tell};
 use still::{hold_still, size_words, still_writing};
+pub use undoing::undo;
+pub(crate) use undoing::undo_as;
+#[cfg(test)]
+pub(crate) use undoing::undo_with;
+use undoing::{open_by_id, take_move};
 
 /// AJ-E2320: new moves' journals, in the move area every AI Juggler on
 /// this Mac shares ([`hold::journals`]).
@@ -792,7 +799,7 @@ fn open_in(
     (id, place): (&str, &KnownPlace),
     link: &str,
     request: &MoveRequest,
-    system: &dyn MoveSystem,
+    (system, up): (&dyn MoveSystem, &mut dyn FnMut()),
 ) -> Result<u32, String> {
     if system.running(state, id).is_none() {
         start_checked(state, id, place, request, system)?;
@@ -808,10 +815,26 @@ fn open_in(
                 place_name(state, place)
             ));
         }
-        std::thread::sleep(EVERY);
+        system.settle(EVERY);
     };
+    // 0.5.1 F93: the app's own start ends here (the timeline's
+    // "starting"); the link's send is timed apart.
+    up();
     system.send(pid, link)?;
     Ok(pid)
+}
+
+/// 0.5.1 F93: the sheet before the first link to an app (AJ-E1547's
+/// "Open a session in its desktop app") is asked here, before anything
+/// quits, never mid-move: in the PL1 walk it held a move with both Apps
+/// closed for as long as the sheet waited (600 s once). Declined, the move
+/// still runs and sends no link (it offers Open).
+fn prime_links(state: &Arc<AppState>) {
+    if let Some(entry) =
+        crate::os_prompts::registry::entry(crate::os_prompts::registry::APP_LINKS.id)
+    {
+        let _ = crate::os_prompts::request_impl(state, entry);
+    }
 }
 
 /// 0.5.1 F69: a Copy switch's "opened", by Move's own check (AJ-E2322):
@@ -878,6 +901,9 @@ pub fn execute(
     let mut sides = sides(state, session_id, target_profile_id, target_place_id)
         .map_err(|error| typed(error, StopClass::NeedsYou))?;
     sides.request.notes = notes;
+    if sides.target_place.is_some() {
+        prime_links(state);
+    }
     let done = run_once_more(state, &sides, &Real::telling(tell));
     // AJ-E2325: a refused attempt's folder goes at once.
     if done.is_err() {
@@ -996,38 +1022,43 @@ fn run(state: &Arc<AppState>, sides: &Sides, system: &dyn MoveSystem) -> AppResu
         .and_then(|(id, _)| system.running(state, id));
 
     // The single-writer phase.
-    let (stopped_places, kept_running) =
-        match stop_places(state, (&places, &sides.request), system, "moved", &writing) {
-            Ok(stopping) => {
-                timeline.mark(
-                    &txn,
-                    "closing",
-                    serde_json::json!({"waited": stopping.waited, "remained": stopping.remained}),
-                );
-                (stopping.stopped, stopping.notes)
-            }
-            Err(error) => {
-                let remained: Vec<String> = match &error {
-                    AppError::Move(stop) => stop.holders.iter().map(|h| h.name.clone()).collect(),
-                    _ => Vec::new(),
-                };
-                timeline.mark(&txn, "closing", serde_json::json!({"remained": remained}));
-                // Planned only: its undo touches no file. The journal reads
-                // planned → undone, with nothing kept.
-                let _ = txn.undo(
-                    &Stopped::checked(),
-                    juggler_core::model::Timestamp::now().millis(),
-                );
-                let _ = txn.drop_backups();
-                // Quit, then started again by the refusal: open it there.
-                let source_now = sides
-                    .source_place
-                    .as_ref()
-                    .and_then(|(id, _)| system.running(state, id));
-                reopen_source(&txn, source_was.is_some() && source_now != source_was);
-                return Err(of_move(error, &move_id));
-            }
-        };
+    let (stopped_places, kept_running) = match stop_places(
+        state,
+        (&places, &sides.request),
+        system,
+        ("moved", Some(&txn)),
+        &writing,
+    ) {
+        Ok(stopping) => {
+            timeline.mark(
+                &txn,
+                "closing",
+                serde_json::json!({"waited": stopping.waited, "remained": stopping.remained}),
+            );
+            (stopping.stopped, stopping.notes)
+        }
+        Err(error) => {
+            let remained: Vec<String> = match &error {
+                AppError::Move(stop) => stop.holders.iter().map(|h| h.name.clone()).collect(),
+                _ => Vec::new(),
+            };
+            timeline.mark(&txn, "closing", serde_json::json!({"remained": remained}));
+            // Planned only: its undo touches no file. The journal reads
+            // planned → undone, with nothing kept.
+            let _ = txn.undo(
+                &Stopped::checked(),
+                juggler_core::model::Timestamp::now().millis(),
+            );
+            let _ = txn.drop_backups();
+            // Quit, then started again by the refusal: open it there.
+            let source_now = sides
+                .source_place
+                .as_ref()
+                .and_then(|(id, _)| system.running(state, id));
+            reopen_source(&txn, source_was.is_some() && source_now != source_was);
+            return Err(of_move(error, &move_id));
+        }
+    };
     let stopped = Stopped::checked();
     // `stop`'s words say why in plain words (no path), its detail is the
     // program's own, for Copy details; its class and holders say what
@@ -1220,12 +1251,9 @@ fn run(state: &Arc<AppState>, sides: &Sides, system: &dyn MoveSystem) -> AppResu
         ));
     }
     let source_id = sides.source_place.as_ref().map(|(id, _)| id);
-    if let Some(source) = stopped_places.iter().find(|p| Some(&p.id) == source_id)
-        && source.was_running
-        && let Err(why) = start_checked(state, &source.id, &source.place, &sides.request, system)
-    {
-        tracing::warn!(target: "juggler::move", "the source profile didn't start again: {why}");
-    }
+    let source_again = stopped_places
+        .iter()
+        .find(|p| Some(&p.id) == source_id && p.was_running);
     let link = mover.resume_link(&plan.resume);
     // AJ-E2322: the conversation's history in the target, and its length
     // as the link goes (the app adding to it is evidence it opened).
@@ -1238,18 +1266,53 @@ fn run(state: &Arc<AppState>, sides: &Sides, system: &dyn MoveSystem) -> AppResu
             let len = std::fs::metadata(&path).map_or(0, |meta| meta.len());
             (path, len)
         });
-    let opened = match (&sides.target_place, &link) {
-        (Some((id, place)), Some(link)) => Some(
-            open_in(state, (id, place), link, &sides.request, system)
-                .map(|pid| (pid, place_name(state, place))),
-        ),
-        _ => None,
-    };
+    // 0.5.1 F93: both Apps start at once: the source's start (nothing
+    // waits on it) no longer holds up the target's, which the link needs.
+    let mut up = false;
+    let opened = std::thread::scope(|scope| {
+        if let Some(source) = source_again {
+            let request = &sides.request;
+            scope.spawn(move || {
+                if let Err(why) = start_checked(state, &source.id, &source.place, request, system)
+                {
+                    tracing::warn!(target: "juggler::move", "the source profile didn't start again: {why}");
+                }
+            });
+        }
+        match (&sides.target_place, &link) {
+            (Some((id, place)), Some(link)) => {
+                let mut seen_up = || {
+                    timeline.mark(&txn, "starting", serde_json::json!({}));
+                    up = true;
+                };
+                Some(
+                    open_in(
+                        state,
+                        (id, place),
+                        link,
+                        &sides.request,
+                        (system, &mut seen_up),
+                    )
+                    .map(|pid| (pid, place_name(state, place))),
+                )
+            }
+            _ => None,
+        }
+    });
     let target_name = sides
         .target_place
         .as_ref()
         .map_or_else(|| sides.target_label.clone(), |(_, p)| place_name(state, p));
-    timeline.mark(&txn, "starting", serde_json::json!({}));
+    // 0.5.1 F93: the app's start and the link apart in the timeline.
+    if up {
+        timeline.mark(
+            &txn,
+            "linking",
+            serde_json::json!({ "sent": matches!(opened, Some(Ok(_))) }),
+        );
+    } else {
+        timeline.mark(&txn, "starting", serde_json::json!({}));
+    }
     // AJ-E2322 R1/R2: "opened" only when the adapter's check sees it open,
     // waited for by file events, capped; never a fixed settle.
     let seen = match (&opened, &sides.target_place) {
@@ -1366,175 +1429,6 @@ fn run(state: &Arc<AppState>, sides: &Sides, system: &dyn MoveSystem) -> AppResu
             ),
         },
         notes,
-    })
-}
-
-/// Undoes move `move_id`: both profiles quit, the engine's Undo (backups
-/// checked first, the work done since kept aside), both started again, the
-/// conversation opened where it was. Returns where the work done since
-/// was kept.
-///
-/// # Errors
-///
-/// A backup doesn't match (nothing changed), a profile wouldn't quit, or
-/// the restore failed (the journal says how far).
-pub fn undo(state: &Arc<AppState>, move_id: &str) -> AppResult<MoveUndoneInfo> {
-    undo_with(state, move_id, &Real::quiet())
-}
-
-pub(crate) fn undo_with(
-    state: &Arc<AppState>,
-    move_id: &str,
-    system: &dyn MoveSystem,
-) -> AppResult<MoveUndoneInfo> {
-    undo_as(state, move_id, system, true)
-}
-
-/// The recorded move `move_id` (its id checked first: never a path).
-fn open_by_id(state: &Arc<AppState>, move_id: &str) -> AppResult<Transaction> {
-    if move_id.is_empty()
-        || !move_id
-            .chars()
-            .all(|c| c.is_ascii_alphanumeric() || c == '-')
-    {
-        return Err(refused("that isn't a move's id"));
-    }
-    hold::open_move(&state.data_dir, move_id).map_err(engine)
-}
-
-/// What Undo and Finish take before they touch a recorded move `txn`: the
-/// lock of its files, its hold in every AI Juggler, and its tool's adapter.
-fn take_move(
-    state: &Arc<AppState>,
-    txn: &Transaction,
-) -> AppResult<(
-    Lock,
-    crate::features::places::MoveHold,
-    juggler_adapter::adapter::SharedAdapter,
-)> {
-    let lock = lock(state, &txn.manifest.plan.roots)?;
-    let hold =
-        crate::features::places::MoveHold::take(state, &txn.manifest.places, &txn.manifest.id)
-            .map_err(refused)?;
-    let adapter = state
-        .registry
-        .get(&juggler_core::model::HarnessId::new(
-            txn.manifest.tool.as_str(),
-        ))
-        .ok_or_else(|| refused("this tool's conversations travel as a copy"))?;
-    Ok((lock, hold, adapter))
-}
-
-/// [`undo_with`]; `reopen`: the conversation opened where it was after
-/// (the user's Undo), not by startup recovery (AJ-E2321).
-pub(crate) fn undo_as(
-    state: &Arc<AppState>,
-    move_id: &str,
-    system: &dyn MoveSystem,
-    reopen: bool,
-) -> AppResult<MoveUndoneInfo> {
-    let mut txn = open_by_id(state, move_id)?;
-    // A later move (in any state but undone) that touches the same files
-    // owns them now: undoing this one would put old copies over it.
-    if door::moved_again(&hold::all_moves(&state.data_dir), &txn) {
-        return Err(refused(
-            "these conversations were moved again since; undo the later move first, or move them back",
-        ));
-    }
-    // Every profile it stopped must still be one AI Juggler knows, to stop
-    // it again: one it can't name might be running and writing.
-    let mut places: Vec<(String, KnownPlace)> = Vec::new();
-    for id in &txn.manifest.places {
-        let known = crate::features::places::with_book(state, |book| book.places.get(id).cloned())
-            .ok()
-            .flatten()
-            .ok_or_else(|| {
-                refused("an app profile of this move isn't one AI Juggler knows any more; add it again (Settings › Desktop apps), then Undo")
-            })?;
-        places.push((id.clone(), known));
-    }
-    let (_lock, _hold, adapter) = take_move(state, &txn)?;
-    let _held = crate::features::places::ConversationHold::take(
-        state,
-        &txn.manifest.request.conversation,
-        move_id,
-    );
-    let writing = writing_of_move(&adapter, &txn)?;
-    let both = (&places[..], &txn.manifest.request);
-    let why_not = quiet(
-        state,
-        both,
-        &txn.manifest.accounts,
-        system,
-        "Undo",
-        &writing,
-    );
-    if !why_not.is_empty() {
-        return Err(refused(juggler_handover::moving::words(&why_not)));
-    }
-    // R4: a refused Undo says "nothing was undone", not the Move's words.
-    // AJ-E2319 R5: what kept running is told, as the move tells it.
-    let stopping = stop_places(state, both, system, "undone", &writing)?;
-    let (stopped_places, kept_running) = (stopping.stopped, stopping.notes);
-    if let Err(started) = still_down(state, &stopped_places, system) {
-        start_again(state, &stopped_places, &txn.manifest.request, system);
-        return Err(refused(format!("{started}, so nothing was undone")));
-    }
-    let result = txn.undo(
-        &Stopped::checked(),
-        juggler_core::model::Timestamp::now().millis(),
-    );
-    let kept = match result {
-        Ok(kept) => {
-            // Nothing is left to restore from them (0.4.9).
-            let _ = txn.drop_backups();
-            start_again(state, &stopped_places, &txn.manifest.request, system);
-            kept
-        }
-        Err(error) => {
-            // Left closed: Undo again finishes it on a quiet folder.
-            pause(state, &stopped_places);
-            return Err(refused(format!(
-                "{error}. Both profiles stay closed; Undo the move again to finish"
-            )));
-        }
-    };
-    // Keep alive, paused by a move left part way, watches again.
-    let _ = crate::features::places::with_book(state, |book| {
-        for place in &stopped_places {
-            if let Some(known) = book.places.get_mut(&place.id)
-                && known
-                    .paused
-                    .as_deref()
-                    .is_some_and(|why| why.starts_with("a move stopped"))
-            {
-                known.paused = None;
-            }
-        }
-    });
-    // Opened where it was, and seen open there (AJ-E2326 R2).
-    let mut words = "Undone: the conversation is back where it was. Anything done since the move is kept aside; Copy details says where.".to_owned();
-    if let (true, Some((id, place))) = (reopen, places.first()) {
-        let seen = reopen::reopen_where_it_was(
-            state,
-            (id, place),
-            &txn.manifest.request,
-            writing.mover,
-            system,
-        );
-        let _ = txn.timeline("reopened", 0, serde_json::json!({ "seen": seen }));
-        if seen.is_none() {
-            let name = place_name(state, place);
-            words = format!(
-                "Undone: the conversation is back where it was, but AI Juggler couldn't see it open in {name}. Open it from {name}. Anything done since the move is kept aside; Copy details says where."
-            );
-        }
-    }
-    // R4: no path in the words (Copy details has it).
-    Ok(MoveUndoneInfo {
-        words,
-        kept: kept.display().to_string(),
-        notes: kept_running,
     })
 }
 

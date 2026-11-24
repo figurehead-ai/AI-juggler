@@ -130,9 +130,22 @@ impl MoveSystem for Real {
         }
     }
 
+    // 0.5.1 F93: never a sheet mid-move (both Apps closed, the move
+    // held): `execute` and `undo` asked it before anything quit; declined,
+    // the link isn't sent and the move offers Open.
     fn send(&self, pid: u32, link: &str) -> Result<(), String> {
-        use crate::features::places::handoff::System as _;
-        crate::features::places::handoff::Real.send(pid, link)
+        use juggler_platform::os_prompt::{self, Gated, Presence};
+        match os_prompt::send_link(
+            crate::os_prompts::registry::APP_LINKS,
+            Presence::Background,
+            pid,
+            link,
+        ) {
+            Gated::Called { value, .. } => value.map_err(|error| error.to_string()),
+            Gated::NotNow | Gated::Waiting => {
+                Err("not sent: AI Juggler may not send links to apps yet".to_owned())
+            }
+        }
     }
 
     fn working(&self, state: &Arc<AppState>, pid: u32) -> usize {

@@ -108,6 +108,8 @@ fn the_journal_keeps_each_phase_its_wait_set_and_what_remained() {
             "moving",
             "checking_before",
             "starting",
+            // 0.5.1 F93: the link to the started app, timed apart.
+            "linking",
             "opening",
             "checking_after"
         ]

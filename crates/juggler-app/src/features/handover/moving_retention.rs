@@ -106,10 +106,13 @@ pub fn kept_until_of(state: &Arc<AppState>, txn: &Transaction) -> Option<i64> {
 
 /// A refused attempt: undone before it changed a file, nothing kept
 /// aside (its preserved folder, when Undo made one, holds no file).
+/// 0.5.1 F92: never one AI Juggler stopped during, settled at its next
+/// start: its row says what happened.
 fn refused_attempt(txn: &Transaction) -> bool {
     txn.manifest.phase == Phase::Undone
         && !txn.ever_applied()
         && !holds_a_file(&txn.dir().join("preserved"))
+        && txn.notes(super::recover::RECOVERED).is_empty()
 }
 
 /// Whether `dir` holds anything but empty folders.

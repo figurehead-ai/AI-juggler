@@ -31,7 +31,7 @@ pub(super) fn reopen_where_it_was(
     system: &dyn MoveSystem,
 ) -> Option<String> {
     let link = mover.resume_link(&request.conversation)?;
-    let pid = match open_in(state, (id, place), &link, request, system) {
+    let pid = match open_in(state, (id, place), &link, request, (system, &mut || {})) {
         Ok(pid) => pid,
         Err(why) => {
             tracing::warn!(target: "juggler::move", "the conversation wasn't opened again where it was: {why}");

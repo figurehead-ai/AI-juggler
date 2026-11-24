@@ -85,8 +85,22 @@ pub struct OwnershipFindingInfo {
     pub holder: String,
     /// The Apps Repair quits and starts again (those running now).
     pub quits: Vec<String>,
+    /// 0.5.1 F90: both Apps it involves, by place id, so the sheet reads
+    /// which run when it opens and while it is open (the live source the
+    /// rail uses), never this check's snapshot.
+    pub apps: Vec<RepairAppInfo>,
     /// What else to know (two worktrees, another profile's cleanup).
     pub notes: Vec<String>,
+}
+
+/// 0.5.1 F90: an App a repair involves (it quits it first when it runs).
+#[derive(Clone, PartialEq, Eq, Debug, serde::Serialize, ts_rs::TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
+pub struct RepairAppInfo {
+    /// Its place id (the places list's `id`).
+    pub place_id: String,
+    /// Its name ("Claude app · work").
+    pub name: String,
 }
 
 /// A worktree another profile's cleanup has seen.
@@ -286,10 +300,18 @@ pub fn findings(state: &Arc<AppState>, system: &dyn MoveSystem) -> OwnershipInfo
                             &split.holder,
                         ));
                     }
-                    let quits = involved(&hosts, &split)
+                    let both = involved(&hosts, &split);
+                    let quits = both
                         .iter()
                         .filter(|(id, _)| system.running(state, id).is_some())
                         .map(|(_, p)| place_name(state, p))
+                        .collect();
+                    let apps = both
+                        .iter()
+                        .map(|(id, p)| RepairAppInfo {
+                            place_id: id.clone(),
+                            name: place_name(state, p),
+                        })
                         .collect();
                     info.findings.push(OwnershipFindingInfo {
                         key: split.key.clone(),
@@ -301,6 +323,7 @@ pub fn findings(state: &Arc<AppState>, system: &dyn MoveSystem) -> OwnershipInfo
                         worktree: split.worktree.clone(),
                         holder: name_of(state, &hosts, &split.holder),
                         quits,
+                        apps,
                         notes,
                     });
                 }
@@ -317,6 +340,22 @@ pub fn findings(state: &Arc<AppState>, system: &dyn MoveSystem) -> OwnershipInfo
         }
     }
     info
+}
+
+/// 0.5.1 F91: the journal's event that makes a move record a repair of
+/// a worktree's ownership (with the conversation's title).
+pub(crate) const REPAIR: &str = "repair";
+
+/// 0.5.1 F91: `txn` is a repair of a worktree's ownership (not a move).
+pub(crate) fn is_repair(txn: &Transaction) -> bool {
+    !txn.notes(REPAIR).is_empty()
+}
+
+/// 0.5.1 F91: a repair's conversation, as the check titled it.
+pub(crate) fn repair_title(txn: &Transaction) -> Option<String> {
+    txn.notes(REPAIR)
+        .pop()
+        .and_then(|line| line["title"].as_str().map(str::to_owned))
 }
 
 /// The repair's note when a conversation has two worktrees.
@@ -480,11 +519,18 @@ pub(super) fn run_repair(
     .map_err(engine)?;
     txn.remember_places(ids, repairing.accounts.clone())
         .map_err(engine)?;
+    // 0.5.1 F91: its row in Moves says it was a repair, of which
+    // conversation (the check's title for it).
+    txn.note(
+        REPAIR,
+        serde_json::json!({ "title": repairing.split.title, "worktree": repairing.split.worktree }),
+    )
+    .map_err(engine)?;
     let stopped_places = match stop_places(
         state,
         (places, &repairing.request),
         system,
-        "repaired",
+        ("repaired", Some(&txn)),
         &writing,
     ) {
         Ok(stopping) => stopping.stopped,

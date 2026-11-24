@@ -29,6 +29,7 @@ import { HOUR_MS, tomorrowMorning, type Second } from "./notice-words";
 import { whenWords } from "./time-words";
 import { waitingSince } from "./waiting";
 import { openOnTab, type PageTabId } from "../pages/registry";
+import { placesOpen } from "./ipc/places";
 
 /** Sessions still open (a reminder is for these). */
 const OPEN = new Set(["running", "waiting_user", "stuck", "starting", "quota_blocked"]);
@@ -158,6 +159,17 @@ export function useNoticeActions(sessions: InstanceInfo[]): NoticeActions {
         return openScreenOn("cleanup", CLEAN_UP_VIEW);
       case "usage":
         return openScreen("usage");
+      // 0.5.1 F92: an App a crashed move had quit: started (the one
+      // launcher every Start uses), what happened told.
+      case "start-app": {
+        const place = notice.target.place_id;
+        if (!place) return open(notice);
+        void placesOpen(place).then(
+          (done) => showToast({ id: `start:${place}`, message: done.outcome }),
+          (cause) => showToast({ tone: "error", message: "Couldn't start it", detail: errorText(cause) }),
+        );
+        return;
+      }
       default:
         return open(notice);
     }

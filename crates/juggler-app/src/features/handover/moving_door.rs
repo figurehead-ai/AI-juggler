@@ -27,6 +27,9 @@ pub struct MoveRecordInfo {
     pub conversation: String,
     /// The conversation's title in its app, when it has one.
     pub title: Option<String>,
+    /// 0.5.1 F91: a repair of its worktree's ownership (Settings ›
+    /// Desktop apps › Moving conversations), not a move.
+    pub repair: bool,
     /// Where it moved from: the App's name, else its folder.
     pub from: String,
     /// Where it moved to.
@@ -59,6 +62,9 @@ pub struct MoveRecordInfo {
     pub backup_bytes: Option<u64>,
     /// `backup_bytes` is exactly what deleting frees.
     pub backup_exact: bool,
+    /// 0.5.1 F92: AI Juggler stopped during it and settled it at its next
+    /// start: what happened, in words (and which Apps started again).
+    pub recovered: Option<String>,
     /// Its journal, one line per event, for Copy details.
     pub timeline: Vec<String>,
     /// What it keeps where it was on purpose (output folders old messages
@@ -85,12 +91,12 @@ fn state_of(txn: &Transaction) -> (&'static str, Option<String>) {
         ),
         Ok(Recovery::Settled(_)) => (
             "interrupted",
-            Some("it stopped after its changes and before its last check: Undo puts both accounts back".to_owned()),
+            Some("it stopped after its changes and before its last check: Finish checks it and keeps it; Undo puts both accounts back".to_owned()),
         ),
         Ok(Recovery::Applying { next }) => (
             "interrupted",
             Some(format!(
-                "it stopped at step {} of {steps}: Undo puts both accounts back",
+                "it stopped at step {} of {steps}: Finish goes on from there; Undo puts both accounts back",
                 (next + 1).min(steps)
             )),
         ),
@@ -106,7 +112,12 @@ fn state_of(txn: &Transaction) -> (&'static str, Option<String>) {
 /// Whether a later move (in any state but undone) touches `txn`'s files:
 /// it owns them now.
 pub(super) fn moved_again(all: &[Transaction], txn: &Transaction) -> bool {
-    all.iter().any(|other| {
+    later(all, txn).is_some()
+}
+
+/// The first later move (or repair) that owns `txn`'s files now.
+fn later<'a>(all: &'a [Transaction], txn: &Transaction) -> Option<&'a Transaction> {
+    all.iter().find(|other| {
         other.manifest.id != txn.manifest.id
             && other.manifest.created_ms >= txn.manifest.created_ms
             && other.manifest.phase != Phase::Undone
@@ -148,7 +159,12 @@ pub fn moves(state: &Arc<AppState>) -> Vec<MoveRecordInfo> {
                 .flatten();
             let manifest = &txn.manifest;
             let request = &manifest.request;
+            let repair = super::repair::is_repair(txn);
             let undo_why = match label {
+                // 0.5.1 F91: a later repair of the same files says so.
+                "committed" if later(&all, txn).is_some_and(super::repair::is_repair) => Some(
+                    "its worktree's ownership was repaired since: undo the repair first".to_owned(),
+                ),
                 "committed" if moved_again(&all, txn) => {
                     Some("moved again since: undo the later move first".to_owned())
                 }
@@ -165,7 +181,9 @@ pub fn moves(state: &Arc<AppState>) -> Vec<MoveRecordInfo> {
                     .members
                     .iter()
                     .find(|m| m.conversation == request.conversation)
-                    .and_then(|m| m.title.clone()),
+                    .and_then(|m| m.title.clone())
+                    .or_else(|| super::repair::repair_title(txn)),
+                repair,
                 from: side_name(
                     state,
                     txn,
@@ -187,13 +205,20 @@ pub fn moves(state: &Arc<AppState>) -> Vec<MoveRecordInfo> {
                     _ => false,
                 },
                 undo_why,
-                can_finish: label == "interrupted" && manifest.phase == Phase::Verified,
+                // AJ-E2321 R4: also one that stopped in or after its changes.
+                can_finish: label == "interrupted"
+                    && matches!(
+                        txn.recover(),
+                        Ok(Recovery::Applying { .. }
+                            | Recovery::Settled(Phase::Applied | Phase::Verified))
+                    ),
                 has_backup: committed_backup(txn),
                 kept_until_ms: committed_backup(txn)
                     .then(|| super::retention::kept_until_of(state, txn))
                     .flatten(),
                 backup_bytes: size.map(|size| size.bytes),
                 backup_exact: size.is_some_and(|size| size.exact),
+                recovered: super::recover::recovered_words(txn),
                 timeline: txn
                     .journal()
                     .iter()

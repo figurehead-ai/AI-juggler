@@ -95,8 +95,10 @@ fn held_any(lab: &Lab) -> bool {
         .any(|(id, _)| crate::features::places::held_for_move(&lab.state, id))
 }
 
+/// AJ-E2321 R4: before, a move a crash left mid-apply was undone at start;
+/// now it is finished from where it stopped (held until then).
 #[test]
-fn a_move_a_crash_left_mid_apply_is_undone_at_start_before_keep_alive() {
+fn a_move_a_crash_left_mid_apply_is_finished_at_start_before_keep_alive() {
     let Some(lab) = cloning_lab() else {
         return;
     };
@@ -107,11 +109,23 @@ fn a_move_a_crash_left_mid_apply_is_undone_at_start_before_keep_alive() {
         "keep alive leaves both closed until recovery"
     );
     let claimed = recover::claim(&lab.state);
-    assert_eq!(claimed, [(id.clone(), Settle::RollBack)]);
+    assert_eq!(claimed, [(id.clone(), Settle::Forward)]);
     let system = Scripted::default();
     recover::settle(&lab.state, &claimed, &system);
-    assert_eq!(phase(&lab, &id), Phase::Undone);
-    assert!(unchanged(&lab), "back where it was");
+    assert_eq!(phase(&lab, &id), Phase::Committed, "finished forward");
+    assert!(lab.b_folder.join("local_main.json").is_file(), "moved");
+    assert!(!lab.a_folder.join("local_main.json").exists());
+    let row = moves(&lab.state)
+        .into_iter()
+        .find(|m| m.move_id == id)
+        .unwrap();
+    assert!(
+        row.recovered
+            .as_deref()
+            .unwrap_or_default()
+            .contains("finished from where it stopped"),
+        "{row:?}"
+    );
     assert!(!held_any(&lab), "keep alive watches both again");
     assert!(
         system.sent.lock().unwrap().is_empty(),
@@ -166,9 +180,9 @@ fn a_move_an_older_ai_juggler_left_part_way_is_held_for_the_persons_finish_or_un
     let door = moves(&lab.state);
     let row = door.iter().find(|m| m.move_id == id).unwrap();
     assert_eq!(row.state, "interrupted");
-    assert!(row.can_undo && !row.can_finish, "{row:?}");
+    // AJ-E2321 R4: Finish (from where it stopped) or Undo, the person's.
+    assert!(row.can_undo && row.can_finish, "{row:?}");
     assert!(row.timeline.iter().any(|line| line.starts_with("intent")));
-    assert!(recover::finish(&lab.state, &id).is_err());
     undo_with(&lab.state, &id, &Scripted::default()).unwrap();
     assert!(unchanged(&lab));
     assert!(!held_any(&lab));
@@ -549,4 +563,121 @@ fn backups_that_free_nothing_bring_no_low_disk_offer() {
     assert!(retention::offer_if_pressed(&lab.state, created + 2 * DAY));
     assert_eq!(offers(&lab).len(), 1);
     juggler_platform::room::set_free_space_on_this_thread(None);
+}
+
+/// 0.5.1 F92 (PL1 J4): AI Juggler killed while the Apps a move asked to
+/// quit were closing (1.2 s in). Returns the move's id; its Apps are
+/// closed and its markers name an owner that is gone, as the kill left
+/// them.
+fn crashed_mid_quit(lab: &Lab, also: Scripted) -> String {
+    // The Apps take a moment to close, so the move waits on them.
+    let system = Scripted {
+        crash_in_quit_wait: true,
+        slow: Some(Duration::from_millis(200)),
+        ..also
+    };
+    let killed = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        run(&lab.state, &lab.sides, &system)
+    }));
+    assert!(killed.is_err(), "the kill came mid-quit");
+    assert_eq!(
+        system.quits.lock().unwrap().len(),
+        2,
+        "both Apps were asked"
+    );
+    let txn = hold::all_moves(&lab.state.data_dir).pop().unwrap();
+    let id = txn.manifest.id.clone();
+    // A kill drops no hold: the markers stay, naming the gone AI Juggler.
+    let area = hold::area_at(&lab.state.data_dir);
+    std::fs::create_dir_all(area.join("held")).unwrap();
+    for place in place_ids(lab) {
+        let marker = hold::Marker {
+            move_id: id.clone(),
+            place: place.clone(),
+            owner_pid: 999_999,
+            owner_start_micros: 1,
+        };
+        std::fs::write(
+            area.join("held").join(hold::key(&place)),
+            serde_json::to_vec(&marker).unwrap(),
+        )
+        .unwrap();
+    }
+    id
+}
+
+/// 0.5.1 F92 (PL1 J4, F-PL1-24): a crash mid-quit, then AI Juggler's
+/// start: the move is let go (nothing changed), both Apps it had quit
+/// start again through the one launcher, and its row stays in the Moves
+/// door saying what happened. Before: both stayed quit, no row.
+#[test]
+fn a_crash_mid_quit_starts_both_apps_again_and_keeps_its_row() {
+    let Some(lab) = cloning_lab() else {
+        return;
+    };
+    let id = crashed_mid_quit(&lab, running_both(&lab));
+    assert!(unchanged(&lab), "nothing was moved");
+    let claimed = recover::claim(&lab.state);
+    assert_eq!(claimed, [(id.clone(), Settle::LetGo)]);
+    // Nothing runs: the kill left both quit.
+    let system = Scripted::default();
+    recover::startup_settle(&lab.state, &claimed, &system);
+    let mut starts = system.starts.lock().unwrap().clone();
+    starts.sort();
+    let mut both = place_ids(&lab);
+    both.sort();
+    assert_eq!(starts, both, "both Apps it quit started again");
+    assert!(unchanged(&lab));
+    assert!(!held_any(&lab), "keep alive watches both again");
+    assert!(system.sent.lock().unwrap().is_empty(), "opens nothing");
+    // Its row stays (never swept as a refused attempt), with what happened.
+    let door = moves(&lab.state);
+    let row = door
+        .iter()
+        .find(|m| m.move_id == id)
+        .expect("its row stays");
+    let words = row.recovered.as_deref().unwrap_or_default();
+    assert!(words.contains("nothing was moved"), "{words}");
+    assert!(words.contains("started again"), "{words}");
+    assert!(!row.can_undo, "nothing to undo");
+    // A second start finds nothing to settle and starts nothing more.
+    assert!(recover::claim(&lab.state).is_empty());
+}
+
+/// 0.5.1 F92: an App the crashed move had quit that won't start is told
+/// by the bell with Start (by its place id), and its row says so; the
+/// other starts again.
+#[test]
+fn an_app_a_crashed_move_quit_that_wont_start_is_told_with_start() {
+    let Some(lab) = cloning_lab() else {
+        return;
+    };
+    let id = crashed_mid_quit(&lab, running_both(&lab));
+    let claimed = recover::claim(&lab.state);
+    let target = target_id(&lab);
+    let system = Scripted {
+        wont_start: vec![target.clone()],
+        ..Scripted::default()
+    };
+    recover::startup_settle(&lab.state, &claimed, &system);
+    assert_eq!(*system.starts.lock().unwrap(), [source_id(&lab)]);
+    let told: Vec<_> = {
+        let storage = lab.state.storage.lock().unwrap();
+        storage
+            .notices()
+            .earlier(None, 50)
+            .unwrap()
+            .into_iter()
+            .filter(|n| n.kind == "app-not-started")
+            .collect()
+    };
+    assert_eq!(told.len(), 1, "{told:?}");
+    assert_eq!(told[0].action.as_deref(), Some("start-app"));
+    assert!(told[0].data.contains(&target), "{}", told[0].data);
+    let row = moves(&lab.state)
+        .into_iter()
+        .find(|m| m.move_id == id)
+        .unwrap();
+    let words = row.recovered.unwrap_or_default();
+    assert!(words.contains("couldn't be started"), "{words}");
 }

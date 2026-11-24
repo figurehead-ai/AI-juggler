@@ -124,3 +124,51 @@ fn a_move_nobody_else_writes_is_guarded_twice_and_goes_on() {
     assert_eq!(done.payload.state, "verified", "{}", done.payload.detail);
     assert_eq!(*system.guard_looks.lock().unwrap(), 2);
 }
+
+/// The move's timeline: each phase's name and how long it took (ms).
+fn phases(lab: &Lab, move_id: &str) -> Vec<(String, u64)> {
+    hold::open_move(&lab.state.data_dir, move_id)
+        .unwrap()
+        .journal()
+        .iter()
+        .filter(|line| line["event"] == "timeline")
+        .map(|line| {
+            (
+                line["phase"].as_str().unwrap_or_default().to_owned(),
+                line["took_ms"].as_u64().unwrap_or_default(),
+            )
+        })
+        .collect()
+}
+
+/// 0.5.1 F93 (PL1: moves of 25-68 s, all in "starting"): the timeline
+/// tells the target app's start apart from the link sent to it, and the
+/// source's start (nothing waits on it) no longer holds the target's up:
+/// both start at once. Before: one "starting" phase, the starts one after
+/// the other.
+#[test]
+fn both_apps_start_at_once_and_the_link_is_timed_apart() {
+    let Some(lab) = cloning_lab() else {
+        return;
+    };
+    let takes = Duration::from_millis(400);
+    let system = Scripted {
+        start_takes: Some(takes),
+        ..running_both(&lab)
+    };
+    let done = moved_with(&lab, &system);
+    assert_eq!(system.starts.lock().unwrap().len(), 2, "both started again");
+    let phases = phases(&lab, &done.move_id);
+    let names: Vec<&str> = phases.iter().map(|(name, _)| name.as_str()).collect();
+    let starting = names
+        .iter()
+        .position(|n| *n == "starting")
+        .expect("starting");
+    assert_eq!(names.get(starting + 1), Some(&"linking"), "{names:?}");
+    let took = phases[starting].1;
+    // One start's time, not two (the source's ran beside the target's).
+    assert!(
+        took < 2 * u64::try_from(takes.as_millis()).unwrap() - 100,
+        "{took} ms for the starts: {phases:?}"
+    );
+}

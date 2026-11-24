@@ -36,6 +36,7 @@ use std::sync::Arc;
 use std::time::Instant;
 
 use juggler_adapter::moving::{InPlaceMove, MoveRequest, ProcView, Writer};
+use juggler_handover::moving::Transaction;
 
 use super::{
     KnownPlace, Member, MoveProgressInfo, MoveSystem, StoppedPlace, place_name, start_again, tree,
@@ -203,6 +204,9 @@ pub(super) struct Stopping {
 
 /// Quits `places` (see the module's notes) and waits for the wait set.
 /// On a refusal nothing was changed, and what it quit starts again.
+/// 0.5.1 F92: `txn`'s journal says which Apps it quits before the first
+/// is asked, so a crash mid-quit leaves startup recovery what to start
+/// again.
 #[allow(
     clippy::too_many_lines,
     reason = "decide, quit, wait, report: one sequence, read top to bottom"
@@ -211,7 +215,7 @@ pub(super) fn stop_places(
     state: &Arc<AppState>,
     (places, request): (&[(String, KnownPlace)], &MoveRequest),
     system: &dyn MoveSystem,
-    outcome: &str,
+    (outcome, txn): (&str, Option<&Transaction>),
     writing: &Writing<'_>,
 ) -> AppResult<Stopping> {
     // Decide: each running profile by its exact process, its tree, and
@@ -311,6 +315,17 @@ pub(super) fn stop_places(
             was_running: closing.contains_key(&at),
         })
         .collect();
+    // 0.5.1 F92: journaled before the first quit (nothing quit if it
+    // can't be: a crash would leave Apps closed that no one starts).
+    if let Some(txn) = txn
+        && !closing.is_empty()
+        && let Err(error) = note_quitting(txn, &closing)
+    {
+        let words = format!(
+            "AI Juggler couldn't note which Apps it closes, so nothing was quit or {outcome}"
+        );
+        return Err(MoveStop::new(StopClass::Bug, words, error.to_string()).into());
+    }
     for c in closing.values() {
         let now = |pid| system.identify(&[pid]).get(&pid).copied();
         let asked = signal::quit_checked(c.main, &now, &|pid| system.quit(pid));
@@ -472,6 +487,44 @@ pub(super) fn stop_places(
         waited: wait_set,
         remained,
     })
+}
+
+/// The journal's note of the Apps about to quit: their places by their
+/// place in the move's record (never a path), and their names.
+fn note_quitting(
+    txn: &Transaction,
+    closing: &BTreeMap<usize, Closing>,
+) -> Result<(), juggler_handover::moving::MoveError> {
+    let quits: Vec<usize> = closing
+        .values()
+        .filter_map(|c| txn.manifest.places.iter().position(|id| *id == c.id))
+        .collect();
+    let apps: Vec<&str> = closing.values().map(|c| c.name.as_str()).collect();
+    txn.note(
+        QUITTING,
+        serde_json::json!({ "quits": quits, "apps": apps }),
+    )
+}
+
+/// 0.5.1 F92: the journal's event for the Apps a move (or its Undo, or a
+/// repair) is about to quit.
+pub(super) const QUITTING: &str = "quitting";
+
+/// 0.5.1 F92: the place ids `txn` asked to quit, as its journal says
+/// (each once, in the record's order).
+pub(super) fn quit_by(txn: &Transaction) -> Vec<String> {
+    let mut at: Vec<usize> = txn
+        .notes(QUITTING)
+        .iter()
+        .filter_map(|line| line["quits"].as_array().cloned())
+        .flatten()
+        .filter_map(|n| n.as_u64().and_then(|n| usize::try_from(n).ok()))
+        .collect();
+    at.sort_unstable();
+    at.dedup();
+    at.into_iter()
+        .filter_map(|n| txn.manifest.places.get(n).cloned())
+        .collect()
 }
 
 /// What `name` started that keeps running after it closed, in words

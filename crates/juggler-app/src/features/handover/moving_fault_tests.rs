@@ -158,9 +158,10 @@ fn backups_left(lab: &Lab) -> usize {
 }
 
 /// D2: a crash after each phase and after each step's intent (and each
-/// step's act), then AI Juggler's start: nothing changed → let go; files
-/// changed under its hold → undone by the journal; past its checks →
-/// finished. Every hold goes, nothing is opened, the backups as AJ-E2321
+/// step's act), then AI Juggler's start: nothing changed → let go; in or
+/// after its changes under its hold → finished from where it stopped
+/// (AJ-E2321 R4; before: undone by the journal); past its checks →
+/// finished; an Undo cut short → undone. Every hold goes, nothing is opened, the backups as AJ-E2321
 /// and AJ-E2325 say (an undone move's go, a finished move's stay).
 #[test]
 fn a_crash_after_each_phase_and_each_step_is_settled_at_start() {
@@ -176,20 +177,26 @@ fn a_crash_after_each_phase_and_each_step_is_settled_at_start() {
     for at in cases {
         let lab = lab();
         crashed_at(&lab, at);
+        // AJ-E2321 R4: in or after its changes, under its hold: forward.
         let expected = match at {
             At::Planned | At::BackedUp => Settle::LetGo,
             At::Verified => Settle::Finish,
-            _ => Settle::RollBack,
+            At::Undoing => Settle::RollBack,
+            _ => Settle::Forward,
         };
         let claimed = recover::claim(&lab.state);
         assert_eq!(claimed, [(ID.to_owned(), expected.clone())], "{at:?}");
         let system = Scripted::default();
         recover::startup_settle(&lab.state, &claimed, &system);
-        if expected == Settle::Finish {
+        if matches!(expected, Settle::Finish | Settle::Forward) {
             assert_eq!(
                 phase_of(&lab),
                 Some(Phase::Committed),
                 "{at:?}: rolled forward"
+            );
+            assert!(
+                !lab.a_folder.join("local_main.json").exists(),
+                "{at:?}: moved, not copied"
             );
             assert!(lab.b_folder.join("local_main.json").is_file());
             assert!(backups_left(&lab) > 0, "{at:?}: kept for Undo");
@@ -466,7 +473,7 @@ fn a_start_with_a_held_profile_waits_for_recovery_before_keep_alive() {
     crashed_at(&lab, At::Acted(steps - 1));
     // The start: claimed before keep alive's first tick.
     let claimed = recover::claim(&lab.state);
-    assert_eq!(claimed, [(ID.to_owned(), Settle::RollBack)]);
+    assert_eq!(claimed, [(ID.to_owned(), Settle::Forward)]);
     let starter = Recorder::default();
     let start = 10_000_000;
     lab.state.places.watch.lock().unwrap().settled_at(start);
@@ -476,10 +483,69 @@ fn a_start_with_a_held_profile_waits_for_recovery_before_keep_alive() {
     assert!(door.iter().any(|m| m.move_id == ID), "{door:?}");
     // Recovery done: keep alive has it again.
     recover::startup_settle(&lab.state, &claimed, &Scripted::default());
-    assert!(unchanged(&lab));
+    assert_eq!(phase_of(&lab), Some(Phase::Committed), "finished forward");
     keep_alive_for(&lab.state, now, places::keep::WAIT_MS + 10_000, &starter);
     assert!(
         !starter.starts.lock().unwrap().is_empty(),
         "free again after recovery"
     );
+}
+
+/// AJ-E2321 R4: a move stopped mid-apply whose remaining steps can't be
+/// proven safe (a file one of them moves changed since the backup) is
+/// never finished on a guess: it is undone, as before R4.
+#[test]
+fn a_move_whose_remaining_steps_arent_safe_is_undone_not_finished() {
+    if !clones() {
+        return;
+    }
+    let lab = lab();
+    crashed_at(&lab, At::Intent(0));
+    let steps = plan_of(&lab.sides).unwrap().steps;
+    let last = steps
+        .iter()
+        .rposition(|step| matches!(step, MoveStep::Rename { .. }))
+        .unwrap();
+    // The file the last move of a file takes is changed since the backup.
+    let _left_changed = disturb(&steps[last]);
+    let claimed = recover::claim(&lab.state);
+    assert_eq!(claimed, [(ID.to_owned(), Settle::Forward)]);
+    recover::startup_settle(&lab.state, &claimed, &Scripted::default());
+    assert_ne!(
+        phase_of(&lab),
+        Some(Phase::Committed),
+        "never forward on a guess"
+    );
+    assert_eq!(phase_of(&lab), Some(Phase::Undone), "undone, as before");
+}
+
+/// AJ-E2321 R4: a move an older AI Juggler left mid-apply (held for the
+/// person) offers Finish on its door, and Finish goes on from where it
+/// stopped, checked, and keeps it.
+#[test]
+fn the_doors_finish_goes_on_from_where_a_move_stopped() {
+    if !clones() {
+        return;
+    }
+    let lab = lab();
+    crashed_at(&lab, At::Acted(0));
+    let row = moves(&lab.state)
+        .into_iter()
+        .find(|m| m.move_id == ID)
+        .unwrap();
+    assert!(row.can_finish && row.can_undo, "{row:?}");
+    assert!(
+        row.detail
+            .as_deref()
+            .unwrap_or_default()
+            .contains("Finish goes on from there")
+    );
+    let done = recover::finish(&lab.state, ID).unwrap();
+    assert!(
+        done.words.contains("from where it stopped"),
+        "{}",
+        done.words
+    );
+    assert_eq!(phase_of(&lab), Some(Phase::Committed));
+    assert!(lab.b_folder.join("local_main.json").is_file());
 }

@@ -568,6 +568,33 @@ impl Transaction {
         self.log(&line)
     }
 
+    /// 0.5.1 F92: a caller's note in the journal: `event` with `detail`'s
+    /// fields (which Apps it is about to quit, what a repair was for, what
+    /// startup recovery did). Appended and synced like every line, so it
+    /// survives the crash it is written for. Never a path.
+    ///
+    /// # Errors
+    ///
+    /// The journal can't be written.
+    pub fn note(&self, event: &str, detail: serde_json::Value) -> Result<(), MoveError> {
+        let mut line = serde_json::json!({ "event": event, "at_ms": wall_ms() });
+        if let (Some(line), serde_json::Value::Object(detail)) = (line.as_object_mut(), detail) {
+            for (key, value) in detail {
+                line.entry(key).or_insert(value);
+            }
+        }
+        self.log(&line)
+    }
+
+    /// 0.5.1 F92: the caller's notes named `event`, oldest first.
+    #[must_use]
+    pub fn notes(&self, event: &str) -> Vec<serde_json::Value> {
+        self.journal()
+            .into_iter()
+            .filter(|line| line["event"] == event)
+            .collect()
+    }
+
     /// Remembers the caller's names for what it stops and starts again.
     ///
     /// # Errors

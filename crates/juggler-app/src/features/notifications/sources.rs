@@ -1201,6 +1201,36 @@ pub fn move_unfinished(state: &Arc<AppState>, move_id: &str, conversation: &str,
     );
 }
 
+/// 0.5.1 F92: an App a move had quit (AI Juggler stopped part way
+/// through it) that startup recovery couldn't start again: what happened
+/// and why, with Start (one notice per App and start).
+pub fn move_app_not_started(state: &Arc<AppState>, place_id: &str, label: &str, why: &str) {
+    let now = crate::commands::now_millis();
+    record_notice(
+        state,
+        &NewNotice {
+            key: format!("move-app-not-started:{place_id}:{now}"),
+            kind: "app-not-started".to_owned(),
+            title: format!("{label} is still closed"),
+            detail: format!(
+                "AI Juggler stopped during a move that had closed it, and couldn't start it again: {}.",
+                why.trim_end_matches('.')
+            ),
+            data: centre::data_of(
+                &NoticeTarget {
+                    place_id: Some(place_id.to_owned()),
+                    page: Some("desktop_apps".to_owned()),
+                    ..NoticeTarget::default()
+                },
+                &NoticeFacts::default(),
+            ),
+            action: Some("start-app".to_owned()),
+            ..NewNotice::default()
+        },
+        now,
+    );
+}
+
 fn record_notice(state: &Arc<AppState>, notice: &NewNotice, now: i64) {
     let recorded = state
         .storage

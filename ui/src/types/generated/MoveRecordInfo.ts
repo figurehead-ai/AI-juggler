@@ -17,6 +17,11 @@ conversation: string,
  */
 title: string | null, 
 /**
+ * 0.5.1 F91: a repair of its worktree's ownership (Settings ›
+ * Desktop apps › Moving conversations), not a move.
+ */
+repair: boolean, 
+/**
  * Where it moved from: the App's name, else its folder.
  */
 from: string, 
@@ -69,6 +74,11 @@ backup_bytes: number | null,
  * `backup_bytes` is exactly what deleting frees.
  */
 backup_exact: boolean, 
+/**
+ * 0.5.1 F92: AI Juggler stopped during it and settled it at its next
+ * start: what happened, in words (and which Apps started again).
+ */
+recovered: string | null, 
 /**
  * Its journal, one line per event, for Copy details.
  */

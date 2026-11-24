@@ -327,7 +327,7 @@ impl Fix {
             &self.lab.state,
             (&places, &self.lab.sides.request),
             system,
-            "moved",
+            ("moved", None),
             &self.writing(),
         )
     }

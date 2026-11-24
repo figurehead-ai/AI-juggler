@@ -25,6 +25,8 @@ const row: MoveRecordInfo = {
   kept_until_ms: null,
   backup_bytes: 8_178_892,
   backup_exact: false,
+  recovered: null,
+  repair: false,
   timeline: [],
   kept: [],
 };

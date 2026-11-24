@@ -75,7 +75,9 @@ impl MoveSystem for Fake {
     }
     fn start(&self, _: &Arc<AppState>, place: &KnownPlace) -> Result<(), String> {
         let id = fixtures::id_of(place);
-        self.procs.lock().unwrap().insert(id.clone(), (900, true));
+        // Each start its own process (an Undo quits both by theirs).
+        let pid = 900 + u32::try_from(self.starts.lock().unwrap().len()).unwrap();
+        self.procs.lock().unwrap().insert(id.clone(), (pid, true));
         self.starts.lock().unwrap().push(id);
         Ok(())
     }
@@ -234,6 +236,14 @@ fn the_check_names_a_split_conversation_the_profiles_repair_quits_and_the_app_ve
         one.words
     );
     assert_eq!(one.quits.len(), 2, "both profiles run: {:?}", one.quits);
+    // 0.5.1 F90: both Apps it involves by their place id, for the sheet's
+    // own live read of which run.
+    let mut apps: Vec<&str> = one.apps.iter().map(|a| a.place_id.as_str()).collect();
+    apps.sort_unstable();
+    let mut ids = vec![lab.a.0.as_str(), lab.b.0.as_str()];
+    ids.sort_unstable();
+    assert_eq!(apps, ids, "{:?}", one.apps);
+    assert!(one.apps.iter().all(|a| !a.name.is_empty()));
     // No internal terms on screen.
     for words in std::iter::once(&one.words).chain(&one.notes) {
         for term in ["lease", "sighting", "untracked"] {
@@ -367,4 +377,42 @@ fn repair_quits_only_the_two_profiles_moves_the_ownership_and_never_touches_the_
         findings(&lab.state, &fake).findings.is_empty(),
         "re-detected: nothing left"
     );
+}
+
+/// 0.5.1 F91 (PL1 I13, F-PL1-23): a repair's row in Moves names the
+/// conversation and says it was a repair (never "A conversation" and
+/// "Moved"); its Undo gives the worktree back to the App it belonged to,
+/// opens nothing, and says so.
+#[test]
+fn a_repairs_row_names_the_conversation_and_its_undo_gives_the_worktree_back() {
+    if !clones() {
+        return;
+    }
+    let lab = lab();
+    let fake = both_running(&lab);
+    let key = findings(&lab.state, &fake).findings[0].key.clone();
+    let repairing = resolve(&lab.state, &key).unwrap();
+    run_repair(&lab.state, &repairing, &fake).unwrap();
+    let door = crate::features::handover::moving::moves(&lab.state);
+    assert_eq!(door.len(), 1, "{door:?}");
+    let row = &door[0];
+    assert!(row.repair, "{row:?}");
+    assert_eq!(row.title.as_deref(), Some("Fix the parser"));
+    assert_eq!(row.state, "committed");
+    assert!(row.can_undo, "a repair can be undone: {row:?}");
+    let undone =
+        crate::features::handover::moving::undo_with(&lab.state, &row.move_id, &fake).unwrap();
+    assert!(
+        undone
+            .words
+            .starts_with("Repair undone: the worktree wt-7 belongs to"),
+        "{}",
+        undone.words
+    );
+    let a = read(&lab.a.1.join("git-worktrees.json"));
+    assert_eq!(
+        a["worktrees"]["wt-7"]["leasedBy"], "local_main",
+        "back as it was"
+    );
+    assert_eq!(findings(&lab.state, &fake).findings.len(), 1, "split again");
 }

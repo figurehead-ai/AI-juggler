@@ -28,6 +28,8 @@ const move = (over: Partial<MoveRecordInfo>): MoveRecordInfo => ({
   kept_until_ms: null,
   backup_bytes: null,
   backup_exact: false,
+  recovered: null,
+  repair: false,
   timeline: ["phase: phase planned", "intent: step 1"],
   kept: [],
   ...over,
@@ -160,5 +162,35 @@ describe("Moves door", () => {
     fireEvent.click(screen.getByTestId("move-delete"));
     fireEvent.click(await screen.findByTestId("move-delete-confirm"));
     expect((await screen.findByTestId("move-said")).textContent).toContain("can no longer be undone");
+  });
+
+  it("0.5.1 F91: a repair's row names the conversation and says Repaired ownership; its Undo sheet is the repair's", async () => {
+    window.__AIJ_MOVES__ = [move({ repair: true, title: "Tidy the checkout page", from: "Claude app · work", to: "Claude app · personal", has_backup: true, kept_until_ms: new Date(2026, 10, 30).getTime() })];
+    render(<MovesDoor />);
+    const row = await screen.findByTestId("move-row");
+    expect(row.textContent).toContain("“Tidy the checkout page” · Claude app · work → Claude app · personal");
+    expect(screen.getByTestId("move-row-state").textContent).toContain("Repaired ownership");
+    expect(row.textContent).not.toContain("A conversation");
+    expect(row.textContent).not.toContain("Moved");
+    fireEvent.click(screen.getByTestId("move-undo"));
+    const sheet = await screen.findByTestId("move-undo-sheet");
+    expect(sheet.textContent).toContain("Undo the repair of “Tidy the checkout page”?");
+    expect(sheet.textContent).toContain("Its worktree belongs to Claude app · work again");
+    expect(sheet.textContent).toContain("The worktree's files");
+    expect(sheet.textContent).not.toContain("since the move");
+    fireEvent.click(screen.getByText("Cancel"));
+    fireEvent.click(screen.getByTestId("move-delete"));
+    expect((await screen.findByTestId("move-delete-sheet")).textContent).toContain("You can no longer undo this repair.");
+    expect(detailsOf(move({ repair: true })).startsWith("Repair ")).toBe(true);
+  });
+
+  it("0.5.1 F92: a move AI Juggler stopped during says so, and which Apps started again", async () => {
+    const recovered = "AI Juggler stopped during this move, before it changed anything, so nothing was moved. Claude app · A and Claude app · B were started again";
+    window.__AIJ_MOVES__ = [move({ state: "undone", can_undo: false, recovered })];
+    render(<MovesDoor />);
+    expect((await screen.findByTestId("move-row-state")).textContent).toContain("Interrupted: nothing moved");
+    expect(screen.getByTestId("move-recovered").textContent).toBe(`${recovered}.`);
+    expect(screen.queryByTestId("move-undo")).toBeNull();
+    expect(stateWords(move({ state: "committed", recovered }))).toBe("Interrupted, then finished");
   });
 });

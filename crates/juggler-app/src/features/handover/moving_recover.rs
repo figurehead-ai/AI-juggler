@@ -13,19 +13,35 @@
 //!   left with its apps free since): held, with a bell and its door on the
 //!   conversation's page ("Finish or Undo"), never settled silently.
 //!
-//! Rolling an interrupted apply forward comes later (the release notes say
-//! so): Undo is its way back now.
+//! AJ-E2321 R4 (0.5.1): a move stopped part way through its changes, or
+//! after them and before its checks, under its hold, is finished forward
+//! from where it stopped: the journal says which steps are done (the disk
+//! settles an open one), each remaining step is applied only when its file
+//! is still as the backup has it, then the checks before and after run as
+//! a move's do. One whose remaining steps can't be proven safe is undone,
+//! as before. The Moves door's Finish does the same for one a person
+//! settles.
+//!
+//! 0.5.1 F92: a move settled here (let go, undone or finished) starts
+//! again, through the one launcher (`places::start`, F65), every App it
+//! had quit (its journal says which, written before the first quit); one
+//! that won't start is told by the bell, with Start. Its row stays in the
+//! Moves door with what happened (never swept as a refused attempt).
 //!
 //! Also here: Finish by the move's id (the Moves door). A committed move's
 //! backups are never retired here: their retention is AJ-E2325's policy
 //! alone (the coordinator's ruling, 2026-11-23), and a move left part way
 //! keeps its own until the person settles it.
 
+use std::fmt::Write as _;
 use std::sync::Arc;
 
-use juggler_handover::moving::{Phase, Recovery, Transaction};
+use juggler_handover::moving::{Phase, Recovery, Stopped, Transaction};
 
-use super::{MoveSystem, Real, engine, lock, refused, undo_as, writing_of_move};
+use super::{
+    MoveSystem, Real, engine, lock, place_name, quit::quit_by, refused, start_checked, undo_as,
+    writing_of_move,
+};
 use crate::error::AppResult;
 use crate::features::places::hold::{self, Held};
 use crate::state::AppState;
@@ -39,6 +55,9 @@ pub enum Settle {
     RollBack,
     /// It passed its checks: check once more and keep it.
     Finish,
+    /// R4: it stopped in or after its changes, under its hold: finish it
+    /// from where it stopped (else Undo).
+    Forward,
     /// A person decides on its door, and why.
     Ask(String),
 }
@@ -51,9 +70,12 @@ pub fn settle_of(txn: &Transaction, held: bool) -> Option<Settle> {
         Ok(Recovery::Settled(Phase::Committed | Phase::Undone)) => None,
         Ok(Recovery::Settled(Phase::Planned | Phase::BackedUp)) => Some(Settle::LetGo),
         Ok(Recovery::Settled(Phase::Verified)) => Some(Settle::Finish),
-        Ok(Recovery::Settled(_) | Recovery::Applying { .. } | Recovery::Undoing) if held => {
-            Some(Settle::RollBack)
+        Ok(Recovery::Settled(Phase::Applying | Phase::Applied) | Recovery::Applying { .. })
+            if held =>
+        {
+            Some(Settle::Forward)
         }
+        Ok(Recovery::Settled(_) | Recovery::Undoing) if held => Some(Settle::RollBack),
         // An app may have written since: Undo would put that aside, so the
         // person says.
         Ok(Recovery::Settled(_) | Recovery::Applying { .. } | Recovery::Undoing) => Some(
@@ -97,23 +119,132 @@ pub(crate) fn claim(state: &Arc<AppState>) -> Vec<(String, Settle)> {
 /// held and is told (the bell, and its door on the conversation's page).
 pub(crate) fn settle(state: &Arc<AppState>, claimed: &[(String, Settle)], system: &dyn MoveSystem) {
     for (move_id, how) in claimed {
+        let undo = || {
+            undo_as(state, move_id, system, false)
+                .map(|_| Settle::RollBack)
+                .map_err(|error| error.to_string())
+        };
         let done = match how {
-            Settle::LetGo => let_go(state, move_id),
-            Settle::RollBack => undo_as(state, move_id, system, false)
-                .map(|_| ())
-                .map_err(|error| error.to_string()),
+            Settle::LetGo => let_go(state, move_id).map(|()| Settle::LetGo),
+            Settle::RollBack => undo(),
             Settle::Finish => finish(state, move_id)
-                .map(|_| ())
+                .map(|_| Settle::Finish)
                 .map_err(|e| e.to_string()),
+            // R4: forward when every remaining step is safe, else back.
+            Settle::Forward => finish(state, move_id)
+                .map(|_| Settle::Forward)
+                .or_else(|why| {
+                    tracing::info!(target: "juggler::move", "a move left part way couldn't be finished, so it's undone: {why}");
+                    undo()
+                }),
             Settle::Ask(why) => Err(why.clone()),
         };
         match done {
-            Ok(()) => {
-                tracing::info!(target: "juggler::move", "a move left part way was settled ({how:?})");
+            Ok(settled) => {
+                tracing::info!(target: "juggler::move", "a move left part way was settled ({settled:?})");
+                start_what_it_quit(state, move_id, &settled, system);
             }
             Err(why) => tell(state, move_id, &why),
         }
     }
+}
+
+/// 0.5.1 F92: the journal's event for what startup recovery did.
+pub(crate) const RECOVERED: &str = "recovered";
+
+/// What `how` did, as the journal names it.
+fn settled_word(how: &Settle) -> &'static str {
+    match how {
+        Settle::LetGo => "let_go",
+        Settle::RollBack => "rolled_back",
+        Settle::Finish => "finished",
+        Settle::Forward => "rolled_forward",
+        Settle::Ask(_) => "asked",
+    }
+}
+
+/// 0.5.1 F92: after `move_id` was settled (`how`), every App it had quit
+/// and that isn't running now is started again, each on the folder the
+/// move gives it (never one its sessions contradict); one that won't
+/// start is told by the bell with Start. The journal says what happened
+/// (the Moves door's row).
+fn start_what_it_quit(state: &Arc<AppState>, move_id: &str, how: &Settle, system: &dyn MoveSystem) {
+    let Ok(txn) = hold::open_move(&state.data_dir, move_id) else {
+        return;
+    };
+    let mut started = Vec::new();
+    let mut not_started = Vec::new();
+    for id in quit_by(&txn) {
+        if system.running(state, &id).is_some() {
+            continue;
+        }
+        let place = crate::features::places::with_book(state, |book| book.places.get(&id).cloned())
+            .ok()
+            .flatten();
+        let Some(place) = place else {
+            // An App AI Juggler doesn't know any more: nothing to start.
+            continue;
+        };
+        let name = place_name(state, &place);
+        match start_checked(state, &id, &place, &txn.manifest.request, system) {
+            Ok(()) => started.push(name),
+            Err(why) => {
+                tracing::warn!(target: "juggler::move", "an App a move had quit didn't start again: {why}");
+                crate::features::notifications::sources::move_app_not_started(
+                    state, &id, &name, &why,
+                );
+                not_started.push(name);
+            }
+        }
+    }
+    let detail = serde_json::json!({
+        "settled": settled_word(how),
+        "started": started,
+        "not_started": not_started,
+    });
+    if let Err(error) = txn.note(RECOVERED, detail) {
+        tracing::warn!(target: "juggler::move", "recovery's line wasn't written: {error}");
+    }
+}
+
+/// 0.5.1 F92: what startup recovery did with `txn`, in words for its row
+/// in the Moves door; `None`: it wasn't recovered.
+pub(crate) fn recovered_words(txn: &Transaction) -> Option<String> {
+    let line = txn.notes(RECOVERED).pop()?;
+    let names = |key: &str| -> Vec<String> {
+        line[key]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .filter_map(|n| n.as_str().map(str::to_owned))
+            .collect()
+    };
+    let mut words = match line["settled"].as_str() {
+        Some("finished") => "AI Juggler stopped during this move, after its checks passed; it was finished when AI Juggler started again".to_owned(),
+        Some("rolled_forward") => "AI Juggler stopped during this move; it was finished from where it stopped when AI Juggler started again, and checked".to_owned(),
+        Some("rolled_back") => "AI Juggler stopped during this move; it was undone when AI Juggler started again, so nothing was moved".to_owned(),
+        _ => "AI Juggler stopped during this move, before it changed anything, so nothing was moved".to_owned(),
+    };
+    let started = names("started");
+    if !started.is_empty() {
+        let _ = write!(
+            words,
+            ". {} {} started again",
+            juggler_core::words::and_list(&started),
+            if started.len() == 1 { "was" } else { "were" }
+        );
+    }
+    let left = names("not_started");
+    if !left.is_empty() {
+        let one = left.len() == 1;
+        let _ = write!(
+            words,
+            ". {} couldn't be started: start {} from the bell or Settings › Desktop apps",
+            juggler_core::words::and_list(&left),
+            if one { "it" } else { "them" }
+        );
+    }
+    Some(words)
 }
 
 /// At start: claims what a crash left (before keep alive), then settles
@@ -173,7 +304,11 @@ fn tell(state: &Arc<AppState>, move_id: &str, why: &str) {
     let Ok(txn) = hold::open_move(&state.data_dir, move_id) else {
         return;
     };
-    let finishable = txn.manifest.phase == Phase::Verified;
+    // AJ-E2321 R4: one stopped in or after its changes finishes too.
+    let finishable = matches!(
+        txn.recover(),
+        Ok(Recovery::Applying { .. } | Recovery::Settled(Phase::Applied | Phase::Verified))
+    );
     crate::features::notifications::sources::move_unfinished(
         state,
         move_id,
@@ -190,31 +325,65 @@ pub struct MoveFinishedInfo {
     pub words: String,
 }
 
+/// R4: what an interrupted move has left to do.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Left {
+    /// Its steps from this one, then its checks.
+    StepsFrom(usize),
+    /// Every step done: its checks before the apps open.
+    Checks,
+    /// Its checks passed: only the check once more.
+    Opening,
+}
+
 /// Finishes move `move_id` (the Moves door's Finish, or recovery): one
 /// that stopped after its checks passed and before the apps reopened is
-/// checked once more and committed; its hold goes. Nothing is quit or
-/// written but the move's own record.
+/// checked once more and committed; R4: one that stopped in or after its
+/// changes is finished from where it stopped (each remaining step only
+/// when its file is still as the backup has it), checked before and
+/// after, and committed. Its hold goes. Nothing is quit or written but
+/// the move's own steps and record.
 ///
 /// # Errors
 ///
-/// Not such a move, already finished, a check fails now (Undo is its way
-/// back), or another move holds its files.
+/// Not such a move, already finished, a step or check fails now (Undo is
+/// its way back), or another move holds its files.
 pub fn finish(state: &Arc<AppState>, move_id: &str) -> AppResult<MoveFinishedInfo> {
     let mut txn = super::open_by_id(state, move_id)?;
-    match txn.manifest.phase {
-        Phase::Verified => {}
-        Phase::Committed => return Err(refused("this move is finished already")),
+    let left = match (txn.manifest.phase, txn.recover()) {
+        (Phase::Committed, _) => return Err(refused("this move is finished already")),
+        (Phase::Verified, _) => Left::Opening,
+        (_, Ok(Recovery::Applying { next })) => Left::StepsFrom(next),
+        (_, Ok(Recovery::Settled(Phase::Applied))) => Left::Checks,
         _ => {
             return Err(refused(
-                "only a move that passed its checks can be finished; Undo puts both accounts back",
+                "only a move that stopped in or after its changes can be finished; Undo puts both accounts back",
             ));
         }
-    }
+    };
     let (_lock, _hold, adapter) = super::take_move(state, &txn)?;
     let writing = writing_of_move(&adapter, &txn)?;
-    let checks = writing
-        .mover
-        .verify(&txn.manifest.request, &txn.manifest.plan);
+    let request = txn.manifest.request.clone();
+    let plan = txn.manifest.plan.clone();
+    if left != Left::Opening {
+        if let Left::StepsFrom(from) = left {
+            txn.apply(&Stopped::checked(), from).map_err(|error| {
+                refused(format!(
+                    "a step can't be finished ({error}); Undo puts both accounts back"
+                ))
+            })?;
+        }
+        let cold = txn
+            .verify_cold(writing.mover.verify(&request, &plan))
+            .map_err(engine)?;
+        if !cold.passed() {
+            return Err(refused(format!(
+                "a check failed, so it wasn't finished ({}); Undo puts both accounts back",
+                cold.failures().join("; ")
+            )));
+        }
+    }
+    let checks = writing.mover.verify(&request, &plan);
     let report = txn
         .verify_opened(&|line| writing.mover.appended(line), checks)
         .map_err(engine)?;
@@ -225,6 +394,10 @@ pub fn finish(state: &Arc<AppState>, move_id: &str) -> AppResult<MoveFinishedInf
         )));
     }
     Ok(MoveFinishedInfo {
-        words: "Finished: the conversation stays where it moved, checked once more.".to_owned(),
+        words: if left == Left::Opening {
+            "Finished: the conversation stays where it moved, checked once more.".to_owned()
+        } else {
+            "Finished: the move went on from where it stopped, and the conversation is where it moved, checked.".to_owned()
+        },
     })
 }

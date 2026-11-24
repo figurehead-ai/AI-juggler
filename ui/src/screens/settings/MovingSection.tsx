@@ -13,6 +13,7 @@ import { Button, Chip } from "../../components/primitives";
 import { AppIcon } from "../../components/AppIcon";
 import { errorText } from "../../lib/bridge";
 import { ownershipCheck, ownershipRepair, type OwnershipInfo } from "../../lib/ipc/ownership";
+import { refreshKnownPlaces, useKnownPlaces } from "../../lib/places";
 import type { OwnershipFindingInfo } from "../../types/generated/OwnershipFindingInfo";
 import { PaneSection, RowNote, SettingRow } from "./parts";
 
@@ -27,8 +28,37 @@ function andList(names: string[]): string {
   return `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
 }
 
+/** What Repair quits and starts again, in words: the running Apps of
+ * `names`; none: nothing. */
+export function quitsWords(names: string[]): string {
+  if (names.length === 0) return "Nothing: neither App is open now.";
+  const one = names.length === 1;
+  return `${andList(names)}: AI Juggler quits ${one ? "it" : "them"} first and starts ${one ? "it" : "them"} again after.`;
+}
+
+/** 0.5.1 F90: which of the repair's Apps run, read when the sheet opens
+ * and kept current while it is open: the remembered places, the live
+ * source the rail shows (an App started or quit is heard at once). Before,
+ * the sheet said the check's snapshot from when Settings opened ("neither
+ * App is open" while both ran). `null` until the first read since it
+ * opened. */
+function useRunningNow(finding: OwnershipFindingInfo): string[] | null {
+  const known = useKnownPlaces();
+  const [read, setRead] = useState(false);
+  useEffect(() => {
+    let live = true;
+    void refreshKnownPlaces().finally(() => live && setRead(true));
+    return () => {
+      live = false;
+    };
+  }, []);
+  if (!read || !known) return null;
+  return finding.apps.filter((app) => known.some((place) => place.id === app.place_id && place.app_pid !== null)).map((app) => app.name);
+}
+
 function RepairSheet({ finding, busy, onCancel, onConfirm }: { finding: OwnershipFindingInfo; busy: boolean; onCancel: () => void; onConfirm: () => void }): JSX.Element {
-  const quits = finding.quits.length > 0 ? `${andList(finding.quits)}: AI Juggler quits ${finding.quits.length === 1 ? "it" : "them"} first and starts ${finding.quits.length === 1 ? "it" : "them"} again after.` : "Nothing: neither App is open now.";
+  const running = useRunningNow(finding);
+  const quits = running === null ? "Looking at which Apps are open…" : quitsWords(running);
   return (
     <Modal
       title={`Repair “${finding.title}”?`}
@@ -40,7 +70,7 @@ function RepairSheet({ finding, busy, onCancel, onConfirm }: { finding: Ownershi
           <Button size="sm" variant="secondary" onClick={onCancel} data-autofocus>
             Cancel
           </Button>
-          <Button size="sm" variant="primary" disabled={busy} onClick={onConfirm} data-testid="ownership-repair-confirm">
+          <Button size="sm" variant="primary" disabled={busy || running === null} onClick={onConfirm} data-testid="ownership-repair-confirm">
             {busy ? "Repairing…" : "Repair"}
           </Button>
         </>

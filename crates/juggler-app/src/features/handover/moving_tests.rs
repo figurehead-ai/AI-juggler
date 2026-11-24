@@ -130,6 +130,14 @@ struct Scripted {
     open_writers: Mutex<Vec<Vec<(u32, String)>>>,
     /// How many times the guard looked.
     guard_looks: Mutex<usize>,
+    /// 0.5.1 F92: AI Juggler is killed while it waits for the apps it
+    /// asked to quit (PL1 J4: 1.2 s into a move).
+    crash_in_quit_wait: bool,
+    /// 0.5.1 F92: places that won't start.
+    wont_start: Vec<String>,
+    /// 0.5.1 F93: how long each start takes to return (the system's
+    /// `open`).
+    start_takes: Option<Duration>,
 }
 
 /// AJ-E2322: the target app's Claude Code that resumes the conversation.
@@ -321,6 +329,12 @@ impl MoveSystem for Scripted {
     }
     fn start(&self, _: &Arc<AppState>, place: &KnownPlace) -> Result<(), String> {
         let id = fixtures::id_of(place);
+        if self.wont_start.contains(&id) {
+            return Err("its app isn't where it was".to_owned());
+        }
+        if let Some(takes) = self.start_takes {
+            std::thread::sleep(takes);
+        }
         let mut next = self.next_pid.lock().unwrap();
         *next += 1;
         self.procs.lock().unwrap().insert(
@@ -359,6 +373,7 @@ impl MoveSystem for Scripted {
         }
     }
     fn wait_exit(&self, pids: &[u32], cap: Duration) {
+        assert!(!self.crash_in_quit_wait, "AI Juggler killed mid-quit");
         self.exit_waits.lock().unwrap().push(pids.to_vec());
         std::thread::sleep(cap.min(Duration::from_millis(10)));
     }

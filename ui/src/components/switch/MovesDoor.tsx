@@ -15,7 +15,7 @@ import { Modal } from "../form";
 import { Button } from "../primitives";
 import { errorText } from "../../lib/bridge";
 import { memorySize } from "../../lib/compact";
-import { BACKUPS_CHANGED, switchMoveDeleteBackup, switchMoveFinish, switchMoveUndo, switchMoves, type MoveRecordInfo } from "../../lib/ipc/switch-move";
+import { switchMoveDeleteBackup, switchMoveFinish, switchMoveUndo, switchMoves, type MoveRecordInfo } from "../../lib/ipc/switch-move";
 
 /** "Nov 22". */
 function dayOf(ms: number): string {
@@ -27,9 +27,18 @@ function moveTitle(move: MoveRecordInfo): string {
   return `“${move.title ?? "A conversation"}” · ${move.from} → ${move.to}`;
 }
 
+/** 0.5.1 F91: what the record is in words: a move, or a repair. */
+function whatItIs(move: MoveRecordInfo): "move" | "repair" {
+  return move.repair ? "repair" : "move";
+}
+
 /** Its state in plain words. */
 export function stateWords(move: MoveRecordInfo): string {
   if (move.state === "interrupted") return move.can_finish ? "Interrupted: finish or undo" : "Interrupted: undo puts it back";
+  // 0.5.1 F92: AI Juggler stopped during it; its next start settled it.
+  if (move.recovered) return move.state === "committed" ? "Interrupted, then finished" : "Interrupted: nothing moved";
+  // 0.5.1 F91: a repair isn't a move: it says what it did.
+  if (move.repair) return move.state === "undone" ? "Repair undone" : "Repaired ownership";
   if (move.state === "undone") return "Undone";
   return "Moved";
 }
@@ -37,9 +46,10 @@ export function stateWords(move: MoveRecordInfo): string {
 /** What Copy details puts on the clipboard: the move, then its timeline. */
 export function detailsOf(move: MoveRecordInfo): string {
   return [
-    `Move ${move.move_id}: ${moveTitle(move)}`,
+    `${move.repair ? "Repair" : "Move"} ${move.move_id}: ${moveTitle(move)}`,
     `${new Date(move.at_ms).toISOString()} · ${stateWords(move)}`,
     ...(move.detail ? [move.detail] : []),
+    ...(move.recovered ? [move.recovered] : []),
     "Timeline:",
     ...move.timeline.map((line, n) => `${n + 1}. ${line}`),
     ...(move.kept.length > 0 ? ["Kept:", ...move.kept] : []),
@@ -63,8 +73,8 @@ export function useMoves(conversation: string | null = null): [MoveRecordInfo[] 
 function UndoSheet({ move, busy, onCancel, onConfirm }: { move: MoveRecordInfo; busy: boolean; onCancel: () => void; onConfirm: () => void }): JSX.Element {
   return (
     <Modal
-      title={`Undo the move of “${move.title ?? "this conversation"}”?`}
-      subtitle={`It goes back to ${move.from}, as it was on ${dayOf(move.at_ms)}.`}
+      title={`Undo the ${whatItIs(move)} of “${move.title ?? "this conversation"}”?`}
+      subtitle={move.repair ? `Its worktree belongs to ${move.from} again, as it did before ${dayOf(move.at_ms)}.` : `It goes back to ${move.from}, as it was on ${dayOf(move.at_ms)}.`}
       onClose={onCancel}
       testId="move-undo-sheet"
       footer={
@@ -79,10 +89,17 @@ function UndoSheet({ move, busy, onCancel, onConfirm }: { move: MoveRecordInfo; 
       }
     >
       <dl className="flex flex-col gap-3 text-body" data-modal-body>
-        <div className="flex flex-col gap-0.5">
-          <dt className="text-meta font-semibold text-ink">Kept aside, never deleted</dt>
-          <dd className="text-ink-2">Anything done in it since the move; Copy details says where.</dd>
-        </div>
+        {move.repair ? (
+          <div className="flex flex-col gap-0.5">
+            <dt className="text-meta font-semibold text-ink">Never touched</dt>
+            <dd className="text-ink-2">The worktree's files: only which App it belongs to changes back.</dd>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-0.5">
+            <dt className="text-meta font-semibold text-ink">Kept aside, never deleted</dt>
+            <dd className="text-ink-2">Anything done in it since the move; Copy details says where.</dd>
+          </div>
+        )}
         <div className="flex flex-col gap-0.5">
           <dt className="text-meta font-semibold text-ink">Quits and starts again</dt>
           <dd className="text-ink-2">{`${move.from} and ${move.to}, if they're open.`}</dd>
@@ -109,7 +126,7 @@ function DeleteSheet({ move, busy, onCancel, onConfirm }: { move: MoveRecordInfo
   return (
     <Modal
       title={`Delete the backup of “${move.title ?? "this conversation"}”?`}
-      subtitle="You can no longer undo this move."
+      subtitle={`You can no longer undo this ${whatItIs(move)}.`}
       onClose={onCancel}
       testId="move-delete-sheet"
       footer={
@@ -124,7 +141,7 @@ function DeleteSheet({ move, busy, onCancel, onConfirm }: { move: MoveRecordInfo
       }
     >
       <p className="text-body text-ink-2" data-modal-body>
-        The conversation stays in {move.to}; only the copy Undo restores from goes.
+        {move.repair ? `The worktree stays with ${move.to}; only the copy Undo restores from goes.` : `The conversation stays in ${move.to}; only the copy Undo restores from goes.`}
       </p>
     </Modal>
   );
@@ -146,7 +163,6 @@ function MoveRow({ move, onChanged }: { move: MoveRecordInfo; onChanged: () => v
         setBusy(false);
         setAsking(null);
         onChanged();
-        window.dispatchEvent(new CustomEvent(BACKUPS_CHANGED));
       });
   };
   const copy = () => void navigator.clipboard?.writeText(detailsOf(move)).catch(() => {});
@@ -157,6 +173,11 @@ function MoveRow({ move, onChanged }: { move: MoveRecordInfo; onChanged: () => v
         {`${dayOf(move.at_ms)} · ${stateWords(move)}`}
       </span>
       {move.state === "interrupted" && move.detail && <span className="text-meta text-ink-2">{`${move.detail}.`}</span>}
+      {move.recovered && (
+        <span className="text-meta text-ink-2" data-testid="move-recovered">
+          {`${move.recovered}.`}
+        </span>
+      )}
       {move.undo_why && <span className="text-meta text-muted">{`Can't be undone: ${move.undo_why}.`}</span>}
       {keptWords(move) && (
         <span className="text-meta text-ink-2" data-testid="move-kept-until">
