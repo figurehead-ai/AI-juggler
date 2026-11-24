@@ -1,4 +1,4 @@
-<!-- captures: 2b173c32a071 -->
+<!-- captures: 7443c15672b3 -->
 # 97-nav: the header, Projects, a project's page, Tasks
 
 Design critique (D-57, AJ-E2814) against the reference screens: the row menus (77-menus), the rail's order menu, Usage and Processes. The baseline note says what changed on purpose; this says whether it is good.
@@ -61,3 +61,36 @@ Design critique (D-57, AJ-E2814) against the reference screens: the row menus (7
 ## 0.3.2
 
 Across the family the darker canvas puts every card a clear step above the page: the Pools cards, Projects' list, a project's four Overview figures and its Activity chart, the Tasks board's cards and the open review panel all read as surfaces, and in light the grey canvas separates the white cards from the page. New session, New pool, New project and the review panel's Approve are one solid violet, so each screen has one obvious primary while New session here, Switch account… and Send back… stay quiet outlines. In dark the lighter accent shows on those buttons, the logo mark, the search field's focus ring (projects-search-empty), the review card's violet frame and "Waits on your review" line, and the ✓ in the Holder menu; the light captures change only by a pixel in the This Mac line. The top bar stays one row: at 1280 with "This Mac · Plenty of room" and "7 to clean up" whole, at 1024 with the list open (header-home, projects) the cleanup pill shortens to a broom and "7", and with the list folded (session-pool-chip) "7 to clean up" fits whole; at 1024 the This Mac line is left out either way. The Holder menu (tasks-holder-menu) is now only as wide as its longest line, so it covers less of the In review column. session-pool-chip-1280x800 is fixed: it now waits for its terminal and shows the "Work Max · session" prompt in both themes, like the 1024 capture, and its rail's feat/read-model row shows "Working" whole with no hover buttons over it. The ink levels work too: the plan's EPIC and STORY labels and the board's breadcrumbs ("Checkout v2 › Totals") sit dimmer than the titles. The second pass changed two things here: in every capture the rail's "Probably asks you" feat/read-model row keeps its time whole ("ai-j… · 3 h ago" where it read "ai-jugg… · 3 …"), with a slightly wide gap after the "…"; and session-pool-chip (both widths, both themes) has the terminal's black filling its card to the edge, without the lighter frame in dark or the white one in light, so the "Work Max · session" prompt sits inside a black margin. What remains: project-pool still sets its times in the monospace face ("2 h ago"), says "1 asks you", and lists four identical "Untitled session · Personal" rows; on the board the Blocked card's "api-gateway ·" ends in a dangling separator.
+
+## 0.5.1 design critique (2026-11-24, Opus, VALIDATION §5)
+
+Opened at full size: header-home-1024x700 light, projects-1280x800 dark, tasks-board-1280x800 light and project-overview-1280x800 dark, beside the 0.3.2 notes.
+
+- **header:** the top bar's current page in bold with no box; at 1024 its words fold to icons (🧹 7, >_) so it stays one row; Home's "Apps & runway ↓" in the head.
+- **projects:** "5 projects, the most recently worked first", columns Project · Needs you · Sessions · Tasks · Tokens this week; needs as soft chips ("1 failed", "1 stuck", "1 asks you", "1 at its limit"), "Nothing waiting" muted; New project filled; search by name or folder.
+- **project-overview:** storefront's four stat cards (Open sessions 2 · Tasks 3 · New tokens this week 22M ▼53% · Apps used 1) and Activity, new tokens per day by App, Tool or Model.
+- **tasks-board:** Ready · In progress · In review · Blocked, Approve filled on the one in review.
+- **Weak:** a task card's place line ends on a dangling "·" when its holder or Waits on wraps ("storefront ·", "api-gateway ·"): logged **F63**. docs-site reads "None yet" sessions beside 25M tokens this week (the fixture's, not the product's).
+
+| # | Line | Score | Note |
+|---|---|---|---|
+| 1 | Job | 4 | Where everything is: the header, Projects, a project's page, Tasks. |
+| 2 | Prominence | 4 | Needs you and recent first on Projects; Ready first on Tasks. |
+| 3 | Default | 4 | Board by default; Project: All, Pool: All, Holder: Anyone shown with their values. |
+| 4 | Mode | 4 | Calm; the project page's stat cards and chart are its rich part. |
+| 5 | Mock-up | 4 | Matches the E28 header and Projects specs. |
+| 6 | Areas | 4 | Columns and cards by tone. |
+| 7 | Colour | 4 | Needs chips in the soft step; the chart's App colours. |
+| 8 | Type | 4 | Stat values 28 px, labels 12 px muted; tabular numbers. |
+| 9 | Actions | 5 | New project, New session here, Approve: one filled per view. |
+| 10 | Serious | n/a | Nothing destructive here. |
+| 11 | Doors | 4 | Every project, task and link opens its page; project names on cards are links. |
+| 12 | Words | 4 | F63's dangling "·" (logged). |
+| 13 | States | 4 | "Nothing waiting", "None yet", "No open tasks" said once each. |
+| 14 | Consistency | 4 | The shared tabs, chips and filters (E28). |
+| 15 | Accessibility | 4 | Not re-walked by hand this round; keyboard names and focus as the a11y gate checks them. |
+| 16 | Hand walk | 4 | The PL1 walk (AJ-E2323) drove Home and the rail in Dev; not re-walked here. |
+| 17 | System prompts | 5 | None. |
+| 18 | Usability | 4 | Projects and tasks one click from anywhere. |
+
+Lowest: 4.

@@ -1,4 +1,4 @@
-<!-- captures: d2a9d8802359 -->
+<!-- captures: b1816696547f -->
 # 75-feedback: loading states, the quit check, and undo toasts
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design passes.
@@ -10,3 +10,34 @@ loading-accounts and loading-home now read as loading in both themes. In light, 
 ## Weak
 
 - stop-held-1280x800: the toast sits over the "Continue on another account" card.
+
+## 0.5.1 design critique (2026-11-24, Opus, VALIDATION §5)
+
+Opened at full size: stop-held-1280x800 light, quit-sheet-1280x800 dark and loading-home-1280x800 dark, beside the 0.3.2 ones.
+
+- **stop-held:** the toast "Stopping Fix the flaky login test. ai-juggler · Claude Code CLI · Work Max. Undo keeps it running." with Undo (5s) and its draining line, Stop greyed as "Stopping…" in the head; it still sits over the Apps that can take it over card at 1280 (the 0.3.2 weak point; toasts live there).
+- **quit-sheet:** "Quit AI Juggler? 3 sessions are running. 2 end when AI Juggler quits; 1 keeps running." Cancel focused, Stop them first, Quit anyway filled.
+- **loading-home:** the rail's and Home's placeholders. **Weak:** Home's skeleton is one column of three outlined bars (RowPlaceholders' home shape), where Home lands in two columns of borderless cards: the first frame doesn't hold Home's shape (AJ-E1552, D-103.6) and the outlines go against PAT-SURF-1. Logged **F64**; its fix re-renders the regression's loading-home-* baselines.
+
+| # | Line | Score | Note |
+|---|---|---|---|
+| 1 | Job | 4 | Every action answers at once: a toast with Undo, a placeholder while loading, a check before quitting work. |
+| 2 | Prominence | 4 | The toast at the corner; the sheet centred. |
+| 3 | Default | 4 | Cancel focused on the quit sheet (the safe answer). |
+| 4 | Mode | 4 | Calm. |
+| 5 | Mock-up | 4 | No mock; the toast and sheet kit. |
+| 6 | Areas | 3 | F64: Home's skeleton is one column of outlined bars, not Home's two columns. |
+| 7 | Colour | 4 | Accent only on Undo's line and the sheet's primary. |
+| 8 | Type | 4 | Toast title 13 px semibold, detail 12 px. |
+| 9 | Actions | 4 | Quit anyway filled and last; Cancel the focused default. |
+| 10 | Serious | 4 | The sheet says what ends and what keeps running; Stop has Undo, not a confirm. |
+| 11 | Doors | 4 | The toast names the session; the sheet's Stop them first does it. |
+| 12 | Words | 4 | Plain and counted. |
+| 13 | States | 3 | F64: the skeleton isn't Home's shape, so the page moves when it lands. |
+| 14 | Consistency | 4 | Toasts and sheets from the kit. |
+| 15 | Accessibility | 4 | Not re-walked by hand this round; keyboard names and focus as the a11y gate checks them. |
+| 16 | Hand walk | 4 | The PL1 walk (AJ-E2323) drove Home and the rail in Dev; not re-walked here. |
+| 17 | System prompts | 5 | None. |
+| 18 | Usability | 4 | Nothing happens unseen or without a way back. |
+
+Lowest: 3 (lines 6 and 13, F64 logged).

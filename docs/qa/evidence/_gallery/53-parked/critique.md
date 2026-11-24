@@ -1,4 +1,4 @@
-<!-- captures: 927e18948c64 -->
+<!-- captures: 2fa1ac72c7b1 -->
 # 53-parked: a session parked until its account's quota resets, and the "has reset" banner that offers to resume it
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design passes.
@@ -35,3 +35,34 @@ inspector-1280x800-dark rendered in the pinned container from HEAD and looked at
 - The selected rail row reads "Personal · started 1:13 AM" (W).
 
 Weak: unchanged from before. The Runway card's second line is still sliced at the column's bottom, and the list's first visible line is cut at the lenses' edge.
+
+## 0.5.1 design critique (2026-11-24, Opus, VALIDATION §5)
+
+Opened at full size: rail-and-offer-1280x800 dark and inspector-1280x800 light, beside the 0.4.1 baseline pass. Home is D-118's two columns in every capture: Needs you now as one card per need (the first card's primary the one filled button), the feed with its chips and Showing:, then Your apps and Runway by account on the right.
+
+- **rail-and-offer:** Home's "Parked until a reset" between Needs you and the feed: "⏸ storefront · p…@example.com · resets in 2h 13m · Open".
+- **inspector:** the parked session's page: the "Parked 2h 13m" chip, the reset banner "p…@example.com has reset. Resume the work you parked — the same conversation, on the same Account." with Resume filled and "Remind me in 30 min" quiet; the terminal Live with its caret; Stop in the head (the process runs).
+- **Since 0.4.1:** both 0.4.1 weak points are gone: the Runway card's second line is no longer sliced (Home's right column), and the rail's head holds its lenses. **Weak:** "Parked until the quota resets in 2h 13m (at 4:26 AM)." is a bordered box inside the Where it runs card (box in a box; CRD-2), and the rail's list starts with its first group head half under the lenses (a scrolled list's edge).
+
+| # | Line | Score | Note |
+|---|---|---|---|
+| 1 | Job | 4 | A session parked for its limit, found on Home and resumed in one click when room is back. |
+| 2 | Prominence | 4 | Parked sits under Needs you, above the feed. |
+| 3 | Default | 4 | Resume is the default; Remind me later beside it. |
+| 4 | Mode | 4 | Calm. |
+| 5 | Mock-up | 4 | No mock of its own; Home's cards and the Banner. |
+| 6 | Areas | 4 | The inspector's parked note is a box in a card (weak). |
+| 7 | Colour | 4 | No amber on a parked row (a fact, not a need). |
+| 8 | Type | 4 | As Home. |
+| 9 | Actions | 5 | Resume filled; Stop and Remind me tinted. |
+| 10 | Serious | 4 | Stop beside a live parked session; Resume says it's the same conversation and Account. |
+| 11 | Doors | 4 | Open goes to the session; its row in the rail says "Parked 2h 13m · 0% left". |
+| 12 | Words | 4 | "resets in 2h 13m" and "at 4:26 AM": both, once each. |
+| 13 | States | 4 | The reset said as soon as it comes. |
+| 14 | Consistency | 4 | The Banner and Home's cards. |
+| 15 | Accessibility | 4 | Not re-walked by hand this round; keyboard names and focus as the a11y gate checks them. |
+| 16 | Hand walk | 4 | The PL1 walk (AJ-E2323) drove Home and the rail in Dev; not re-walked here. |
+| 17 | System prompts | 5 | None. |
+| 18 | Usability | 4 | Nothing to remember: the reset brings the offer. |
+
+Lowest: 4.
