@@ -6,6 +6,7 @@
 | 0.5.0-final-walk | (directory without manifest — add one) | — | — |
 | 0.5.0-rewalk-2 | (directory without manifest — add one) | — | — |
 | 0.5.0-rewalk | (directory without manifest — add one) | — | — |
+| 0.5.1-F98 | (directory without manifest — add one) | — | — |
 | AJ-0.4.2-presence | PASS2 | 2026-11-11 | [manifest](AJ-0.4.2-presence/manifest.md) |
 | AJ-E1001 | PASS7 | 2026-10-18 | [manifest](AJ-E1001/manifest.md) |
 | AJ-E1002 | PASS8 | 2026-10-18 | [manifest](AJ-E1002/manifest.md) |
