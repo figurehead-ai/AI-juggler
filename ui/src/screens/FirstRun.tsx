@@ -576,12 +576,23 @@ function countLogin(provider: string, outcome: "completed" | "skipped" | "expire
   statsEvent("onboarding.login", { provider, outcome });
 }
 
+/** A step's heading and lead: the setup wizard's own look (as Your apps
+ * and every other wizard step), or the standalone flow's larger one. */
+function stepWords(wizard: boolean): { heading: string; lead: string } {
+  return wizard
+    ? { heading: "type-title", lead: "max-w-2xl text-body leading-relaxed text-ink-2" }
+    : { heading: "text-stat font-semibold leading-tight tracking-tight", lead: "max-w-2xl text-section leading-relaxed text-ink-2" };
+}
+
 function SigninStep({
   queue,
   provider,
   openLoginTerminal,
   onDone,
+  wizard = false,
 }: {
+  /** In the setup wizard: its step look (0.5.1 critique). */
+  wizard?: boolean;
   provider: string;
   queue: Signin[];
   openLoginTerminal: (id: string, title: string, options?: { select?: boolean; account?: string }) => void;
@@ -622,11 +633,11 @@ function SigninStep({
   return (
     <div className="flex flex-col gap-6" data-testid="first-run-signin">
       <div className="flex flex-col gap-2">
-        <h1 className="text-stat font-semibold leading-tight tracking-tight">
+        <h1 className={stepWords(wizard).heading}>
           {left.length === 0 ? "Everyone's signed in." : left.length === 1 ? "Sign in to 1 app." : `Sign in to ${left.length} apps.`}
         </h1>
         {/* AJ-E1545 R8: each opens its own tool's page; no tool named here. */}
-        <p className="max-w-2xl text-section leading-relaxed text-ink-2">
+        <p className={stepWords(wizard).lead}>
           Each opens its own sign-in page; AI Juggler never sees your password.
         </p>
       </div>
@@ -639,6 +650,7 @@ function SigninStep({
             } : undefined}
             key={entry.accountId}
             entry={entry}
+            lead={left.length <= 1}
             active={active === entry.accountId}
             terminal={terminals[entry.accountId] ?? null}
             onStart={() => start(entry)}
@@ -702,7 +714,10 @@ function FolderStep({
   onAddFresh,
   onImported,
   onDone,
+  wizard = false,
 }: {
+  /** In the setup wizard: its step look (0.5.1 critique). */
+  wizard?: boolean;
   path: string;
   provider: string;
   toolName: string;
@@ -755,8 +770,8 @@ function FolderStep({
   return (
     <div className="flex flex-col gap-6" data-testid="first-run-folder">
       <div className="flex flex-col gap-2">
-        <h1 className="text-stat font-semibold leading-tight tracking-tight">Bring in this folder?</h1>
-        <p className="max-w-2xl text-section leading-relaxed text-ink-2">
+        <h1 className={stepWords(wizard).heading}>Bring in this folder?</h1>
+        <p className={stepWords(wizard).lead}>
           AI Juggler makes its own copy; the folder itself isn't changed, and you can keep using it as before.
         </p>
       </div>
@@ -839,8 +854,18 @@ function FolderStep({
           />
         </label>
       )}
+      {/* 0.5.1 critique (39-import f-moved, f-duplicate): a folder that
+          moved, or is in already, is said in the problem box the other
+          states use, and Bring it in leaves (it can only fail again). */}
       {problem && (
-        <div className="flex flex-wrap items-center gap-3 text-sm" role="alert" data-testid={`first-run-folder-${problem.kind}`}>
+        <div
+          className={
+            "flex flex-wrap items-center gap-3 text-sm " +
+            (problem.kind === "moved" ? "rounded-xl border border-danger/30 bg-danger-soft px-4 py-3" : problem.kind === "duplicate" ? "rounded-xl border border-hairline px-4 py-3" : "")
+          }
+          role="alert"
+          data-testid={`first-run-folder-${problem.kind}`}
+        >
           <span className={problem.kind === "other" ? "text-danger" : "text-ink"}>{problem.text}</span>
           {problem.kind === "duplicate" && (
             <Button size="sm" variant="secondary" onClick={onDone}>
@@ -863,7 +888,7 @@ function FolderStep({
             </button>
           )}
         </div>
-        {usable && (
+        {usable && problem?.kind !== "moved" && problem?.kind !== "duplicate" && (
           <Button
             variant="primary"
             disabled={busy || label.trim().length === 0}
@@ -1127,9 +1152,10 @@ export function FirstRun({
           onAddFresh={() => setStep("fresh")}
           onImported={added}
           onDone={onDone}
+          wizard={mode === "first-run"}
         />
       )}
-      {step === "signin" && <SigninStep queue={queue} provider={primary} openLoginTerminal={openLoginTerminal} onDone={toAccess} />}
+      {step === "signin" && <SigninStep queue={queue} provider={primary} openLoginTerminal={openLoginTerminal} onDone={toAccess} wizard={mode === "first-run"} />}
       {step === "access" && access !== null && <AccessStep entries={access} setEntries={setAccess} onDone={finish} />}
       {/* AJ-E1548 R11: closed in setup and in Add account alike. */}
       {(step === "found" || step === "fresh" || step === "folder") && <ProvidersTerms tools={step === "found" ? tools : [primary]} />}

@@ -113,9 +113,13 @@ function PromptCard({ prompt, onAllow }: { prompt: OsPromptInfo; onAllow: () => 
         </div>
       )}
       <p className="text-meta text-muted">
+        {/* 0.5.1 critique: once allowed, macOS has asked; the line says
+            only where to change it. */}
         {skipped && !allowed
           ? "Skipped for now. Allow it here or later in Settings."
-          : `${SYSTEM_NAME} will ask you · optional · change it later${prompt.change_later ? ` in ${prompt.change_later}` : " in Settings"}`}
+          : allowed
+            ? `Change it in ${prompt.change_later ?? "Settings"}`
+            : `${SYSTEM_NAME} will ask you · optional · change it later${prompt.change_later ? ` in ${prompt.change_later}` : " in Settings"}`}
       </p>
     </li>
   );

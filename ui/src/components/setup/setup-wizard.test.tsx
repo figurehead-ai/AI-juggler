@@ -116,6 +116,9 @@ describe("Mac access", () => {
     // 0.5.1 F46 (PAT-SURF): Allowed is its ✓ and word; the card keeps the quiet edge every card has.
     expect(screen.getByTestId("setup-permission-accessibility").className).not.toMatch(/ring-success/);
     expect(screen.getByTestId("setup-permission-accessibility").className).toBe(screen.getByTestId("setup-permission-screen-recording").className);
+    // 0.5.1 critique: allowed, macOS has asked; the line says only where to change it.
+    expect(screen.getByTestId("setup-permission-accessibility").textContent).not.toContain("will ask you");
+    expect(screen.getByTestId("setup-permission-accessibility").textContent).toContain("Change it in System Settings › Privacy & Security");
     fireEvent.click(screen.getByTestId("setup-permission-screen-recording-skip"));
     expect(screen.getByTestId("setup-permission-screen-recording").dataset.state).toBe("skipped");
     expect(screen.getByTestId("setup-next").textContent).toContain("Next: Meet Bot");

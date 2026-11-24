@@ -194,8 +194,8 @@ export function NotificationCentre({ summary, sessions, anchor, onClose }: { sum
                 onRetry={needs.refresh}
               >
                 <ul data-testid="notices-needs">
-                  {[...awake, ...(showSnoozed ? snoozed : [])].map((notice) => (
-                    <NoticeRow key={notice.id} notice={notice} actions={actions} now={now} onEditWatch={editWatch} />
+                  {[...awake, ...(showSnoozed ? snoozed : [])].map((notice, index) => (
+                    <NoticeRow key={notice.id} notice={notice} actions={actions} now={now} onEditWatch={editWatch} lead={index === 0} />
                   ))}
                 </ul>
               </LoadingState>

@@ -86,7 +86,7 @@ export function PrivacyPane({ anchor }: { anchor?: string }): JSX.Element {
           }
         />
       </PaneSection>
-      <PaneSection id="config" title="Configuration updates" footer="Off, AI Juggler uses the settings it shipped with.">
+      <PaneSection id="config" title="Configuration updates" footer="When it's off, AI Juggler uses the settings it shipped with.">
         <ConfigCheckRow />
       </PaneSection>
       <PaneSection

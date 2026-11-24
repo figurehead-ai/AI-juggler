@@ -135,6 +135,9 @@ describe("AJ-E2503 R2 — a row's parts", () => {
     expect(row("asks").textContent).toContain("docs-site · Claude app");
     expect(within(row("review")).getByTestId("notice-primary").textContent).toBe("Review — “Fix billing” finished");
     expect(within(row("signin")).getByTestId("notice-primary").textContent).toBe("Sign in… — Work needs its sign-in");
+    // 0.5.1 critique (BTN-1): one filled button in the centre, the first need's.
+    expect(screen.getByTestId("notification-centre").querySelectorAll("[data-primary]")).toHaveLength(1);
+    expect(screen.getAllByTestId("notice-need")[0]!.querySelector("[data-primary]")).not.toBeNull();
   });
 
   it("snoozed needs fold under “Snoozed: n”", async () => {

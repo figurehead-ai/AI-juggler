@@ -25,8 +25,12 @@ export function SigninRow({
   onStart,
   onReady,
   onSkip,
+  lead = true,
 }: {
   onSkip?: () => void;
+  /** The step's one primary (BTN-1): the row's Sign in is filled only
+   * when it is the only one left; with several, "Sign in to all" is. */
+  lead?: boolean;
   entry: Signin;
   active: boolean;
   /** The sign-in's terminal, once it started: shown under the row. */
@@ -91,7 +95,7 @@ export function SigninRow({
         {!ready && (
           <>
             {!ended && (
-              <Button size="sm" variant={active ? "secondary" : "primary"} onClick={onStart}>
+              <Button size="sm" variant={active || !lead ? "secondary" : "primary"} onClick={onStart}>
                 {active ? "Open again" : "Sign in"}{" "}
                 <span className="sr-only">{entry.label}</span>
               </Button>

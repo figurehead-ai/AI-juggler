@@ -728,6 +728,8 @@ describe("AJ-E1022 another folder", () => {
     });
     const dup = await view.findByTestId("first-run-folder-duplicate");
     expect(dup.textContent).toContain("Already imported as “Work”");
+    // 0.5.1 critique: Bring it in can only fail again, so it leaves.
+    expect(view.queryByTestId("first-run-folder-bring-in")).toBeNull();
     fireEvent.click(within(dup).getByRole("button", { name: "Done" }));
     expect(onDone).toHaveBeenCalledOnce();
   });
@@ -739,6 +741,7 @@ describe("AJ-E1022 another folder", () => {
       fireEvent.click(await view.findByTestId("first-run-folder-bring-in"));
     });
     expect((await view.findByTestId("first-run-folder-moved")).textContent).toContain("That folder moved or is gone.");
+    expect(view.queryByTestId("first-run-folder-bring-in")).toBeNull();
     w().__AIJ_PICK_DIRECTORY__ = "/Users/you/other-claude";
     delete w().__AIJ_IMPORT_ERROR__;
     await act(async () => {

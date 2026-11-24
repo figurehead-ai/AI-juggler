@@ -23,11 +23,14 @@ export function GuideLink({ guide, children, testId }: { guide: string; children
     <button
       type="button"
       onClick={() => void trustOpen({ kind: "guide", id: guide })}
-      className="inline-flex items-center gap-0.5 rounded font-medium text-accent-hi outline-none hover:underline focus-visible:ring-2 focus-visible:ring-accent/60"
+      // 0.5.1 critique: a link that wraps (the steps' foot at 1280) reads
+      // left to right with its ↗ after the last word, never centred with
+      // the mark floating at the edge.
+      className="inline-block rounded text-left font-medium text-accent-hi outline-none hover:underline focus-visible:ring-2 focus-visible:ring-accent/60"
       data-testid={testId}
     >
       {children}
-      <IconUpRight aria-hidden="true" width={13} height={13} />
+      <IconUpRight aria-hidden="true" width={13} height={13} className="ml-0.5 inline-block align-[-0.125em]" />
     </button>
   );
 }
