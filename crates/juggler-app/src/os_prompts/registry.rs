@@ -347,7 +347,7 @@ pub const ENTRIES: &[Entry] = &[
         title: "Start Bot's AI helper",
         why: "Bot's answers are written by AI on this computer, through a small helper inside AI Juggler. It starts the first time you check or choose Apple's AI (or a downloaded one) in Bot's setup guide.",
         if_declined: "Bot stays on its setup guide (Set up Bot) until its AI can start; nothing else changes.",
-        offered_again: "You can turn this on later in Settings › AI › Models (Check this Mac).",
+        offered_again: "You can turn this on later: check this computer in Settings › AI › Models.",
         background: "Waits: no helper starts until you've checked or chosen Bot's AI once.",
         triggers: &[
             "crates/juggler-app/src/features/ai/engines/helper.rs:launch_checked",

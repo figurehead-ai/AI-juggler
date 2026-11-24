@@ -33,7 +33,10 @@ const PROBE_LABELS: [(&str, &str); 10] = [
         "s5-shell-aliases",
         "Your shell settings (shortcuts that start a tool with its own folder)",
     ),
-    ("s6-installed-clis", "The AI tools installed on this Mac"),
+    (
+        "s6-installed-clis",
+        "The AI tools installed on this computer",
+    ),
     ("s7-login-metadata", "Which ones are signed in"),
     ("s8-usage-recency", "When each was last used"),
     ("s9-projects", "Recent projects"),
@@ -525,12 +528,12 @@ fn manager_detail(managers: &[juggler_adapter::environment::ManagerHint], manage
         .iter()
         .find(|hint| hint.manager == manager)
         .map_or_else(
-            || "not on this Mac".to_owned(),
+            || "not on this computer".to_owned(),
             |hint| {
                 if hint.present {
                     hint.detail.clone()
                 } else {
-                    "not on this Mac".to_owned()
+                    "not on this computer".to_owned()
                 }
             },
         )
