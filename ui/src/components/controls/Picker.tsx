@@ -163,7 +163,9 @@ export function Picker<T extends string>({
         type="button"
         aria-haspopup="menu"
         aria-expanded={at !== null}
-        aria-label={ariaLabel ? `${ariaLabel}: ${shown}` : undefined}
+        // A prefixed button reads its name as it shows ("Showing: Ada ·
+        // Project"), so the name contains the visible words (WCAG 2.5.3).
+        aria-label={ariaLabel ? `${ariaLabel}: ${prefix && typeof label === "string" ? label : shown}` : undefined}
         aria-describedby={[describedBy, why].filter(Boolean).join(" ") || undefined}
         title={why ? reason : undefined}
         data-testid={testId}

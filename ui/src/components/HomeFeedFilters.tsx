@@ -116,9 +116,10 @@ export function HomeFeedFilters({ filters, onChange, facets, toReview, onReviewA
             options={options}
             groups={[{ label: "Recent projects", values: suggested }]}
             onChange={(value) => onChange(withFacet(filters, value, facets))}
-            ariaLabel="Show one project, App, pool or Account"
             // AJ-E1548 #21: closed, it says what it narrows: "Showing:
-            // Everything", or the picked one with its kind.
+            // Everything", or the picked one with its kind; its name reads
+            // the same (axe: label-content-name-mismatch).
+            ariaLabel="Showing"
             prefix="Showing:"
             label={facetLabel(options, facet)}
             heading="Show one"
