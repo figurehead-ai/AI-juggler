@@ -65,15 +65,13 @@ pub async fn app_setting_set(
 /// # Errors
 ///
 /// Returns the typed [`AppError`] message when the pane cannot open.
-pub async fn open_accessibility_settings(app: tauri::AppHandle) -> AppResult<()> {
-    use tauri_plugin_opener::OpenerExt;
-    app.opener()
-        .open_url(
-            "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility",
-            None::<&str>,
-        )
-        .map_err(|e| AppError::Io {
-            context: "open Accessibility settings",
-            message: e.to_string(),
-        })
+pub async fn open_accessibility_settings() -> AppResult<()> {
+    // F67: through the launcher (none of our environment).
+    juggler_adapter::apps::open(juggler_adapter::apps::Opening::Link(
+        "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility",
+    ))
+    .map_err(|e| AppError::Io {
+        context: "open Accessibility settings",
+        message: e.to_string(),
+    })
 }

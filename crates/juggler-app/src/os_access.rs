@@ -394,7 +394,6 @@ pub async fn os_access_request(
 /// this platform doesn't list.
 #[tauri::command]
 pub async fn os_access_open_settings(
-    app: tauri::AppHandle,
     state: tauri::State<'_, Arc<AppState>>,
     id: String,
 ) -> AppResult<()> {
@@ -410,16 +409,15 @@ pub async fn os_access_open_settings(
         }
         #[cfg(target_os = "macos")]
         {
-            use tauri_plugin_opener::OpenerExt;
-            app.opener()
-                .open_url(platform::settings_url(&id), None::<&str>)
-                .map_err(|e| AppError::Io {
-                    context: "open the system settings",
-                    message: e.to_string(),
-                })?;
+            // F67: through the launcher (none of our environment).
+            juggler_adapter::apps::open(juggler_adapter::apps::Opening::Link(
+                platform::settings_url(&id),
+            ))
+            .map_err(|e| AppError::Io {
+                context: "open the system settings",
+                message: e.to_string(),
+            })?;
         }
-        #[cfg(not(target_os = "macos"))]
-        let _ = app;
         Ok(())
     })
     .await
@@ -462,17 +460,17 @@ impl SystemPage {
 /// # Errors
 ///
 /// The page can't be opened.
-pub fn open_system_page(app: &tauri::AppHandle, page: SystemPage) -> AppResult<()> {
-    use tauri_plugin_opener::OpenerExt as _;
+pub fn open_system_page(page: SystemPage) -> AppResult<()> {
     let Some(url) = page.url() else {
         return Ok(());
     };
-    app.opener()
-        .open_url(url, None::<&str>)
-        .map_err(|e| AppError::Io {
+    // F67: through the launcher (none of our environment).
+    juggler_adapter::apps::open(juggler_adapter::apps::Opening::Link(url)).map_err(|e| {
+        AppError::Io {
             context: "open the system settings",
             message: e.to_string(),
-        })
+        }
+    })
 }
 
 #[cfg(test)]

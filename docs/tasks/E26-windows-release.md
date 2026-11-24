@@ -342,7 +342,7 @@
 **Requirements**:
 1. The host model SHALL become `HostId { MacBundle, WinExe { exe, aumid }, LinuxDesktop }` with `InstalledApps` and `RunningApp` (audit §3 C7); `hosts.json` SHALL gain Windows entries (Windows Terminal, PowerShell, VS Code, Cursor, JetBrains, the Claude and ChatGPT apps).
 2. `Desktop` SHALL report capabilities (`can_focus_window`, `can_open_link`, `can_find_tty`); a Windows implementation SHALL bring an app forward within the foreground rules (`AllowSetForegroundWindow` from the click), and otherwise say "Windows didn't bring it forward: click it in the taskbar" (audit 8.1–8.2).
-3. Open and reveal SHALL go through `tauri-plugin-opener` (File Explorer); "Open Activity Monitor" SHALL become "Open Task Manager" (audit 8.5).
+3. Open and reveal SHALL go through the one seam `juggler_platform::apps::open` (0.5.1 F67: the macOS opener plugin was removed because it passed AI Juggler's environment on), its Windows side File Explorer and the shell's open, started with none of AI Juggler's environment; "Open Activity Monitor" SHALL become "Open Task Manager" (audit 8.5).
 4. The installed-editors list SHALL read the Start Menu's shortcuts and the App Paths registry, not `/Applications` (audit 7.3, `crates/juggler-app/src/manage.rs:944`).
 5. Held-session detection without `lsof` (audit 7.5) SHALL say "unknown" on Windows unless the `OpenFiles` seam (AJ-E2710) has a Windows answer.
 6. The Codex link `codex://threads/{id}` SHALL be opened only if the lab found the scheme registered (Q5).

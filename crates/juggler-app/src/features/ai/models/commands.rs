@@ -236,8 +236,8 @@ fn catalog_now(state: &Arc<AppState>, fresh: bool) -> ModelsCatalog {
 ///
 /// The page can't be opened.
 #[tauri::command]
-pub async fn ai_open_system_page(app: tauri::AppHandle, page: SystemPage) -> AppResult<()> {
-    crate::os_access::open_system_page(&app, page)
+pub async fn ai_open_system_page(page: SystemPage) -> AppResult<()> {
+    crate::os_access::open_system_page(page)
 }
 
 /// The user's Download click on `model_id`: starts it, or says why not

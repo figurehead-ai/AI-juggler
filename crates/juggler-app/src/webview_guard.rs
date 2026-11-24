@@ -161,18 +161,19 @@ pub fn refusal(url: &str, opened: Opened) -> Option<&'static str> {
     (!web).then_some("Only web addresses open in the browser.")
 }
 
-/// Opens `url` in the browser, after [`refusal`] lets it through.
+/// Opens `url` in the browser, after [`refusal`] lets it through (F67:
+/// by `juggler_adapter::apps::open`, so the browser gets none of AI
+/// Juggler's environment; `_app` stays for the callers).
 ///
 /// # Errors
 ///
 /// [`AppError::Validation`] for an address that may not be opened;
 /// [`AppError::Io`] when the system can't open the browser.
 pub fn open_web<R: Runtime>(
-    app: &tauri::AppHandle<R>,
+    _app: &tauri::AppHandle<R>,
     url: impl AsRef<str>,
     opened: Opened,
 ) -> AppResult<()> {
-    use tauri_plugin_opener::OpenerExt as _;
     let url = url.as_ref();
     if let Some(message) = refusal(url, opened) {
         return Err(AppError::Validation {
@@ -180,12 +181,12 @@ pub fn open_web<R: Runtime>(
             message: message.to_owned(),
         });
     }
-    app.opener()
-        .open_url(url, None::<&str>)
-        .map_err(|error| AppError::Io {
+    juggler_adapter::apps::open(juggler_adapter::apps::Opening::Link(url)).map_err(|error| {
+        AppError::Io {
             context: "open the browser",
             message: error.to_string(),
-        })
+        }
+    })
 }
 
 #[cfg(test)]

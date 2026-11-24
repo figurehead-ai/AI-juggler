@@ -991,7 +991,6 @@ pub fn run() {
         }))
     };
     let mut app = builder
-        .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         // AJ-E1510: system notifications; the webview gets no permission
         // for them (the backend shows them, and only when asked).

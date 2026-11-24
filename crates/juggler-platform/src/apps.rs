@@ -16,6 +16,10 @@
 //!   ([`crate::process::launcher`]), so the app gets the login session's
 //!   and only its own `--env`, never AI Juggler's (`HOME` included).
 //!
+//! - [`open`] (F67, 0.5.1): a link, a file or a folder handed to the app
+//!   that opens it (a browser, the editor, Finder, System Settings), by
+//!   the same launcher: the one way out of AI Juggler to other apps.
+//!
 //! - [`detached`] (0.3.8): an app process that outlived its display. When
 //!   macOS restarts its window server (the watchdog ended `WindowServer`
 //!   on 2026-11-04 and the login session started again), an app can keep
@@ -110,6 +114,85 @@ pub fn open_app(
         ));
     }
     let out = launch_command(bundle, start, env, args)
+        .stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::piped())
+        .output()?;
+    if out.status.success() {
+        Ok(())
+    } else {
+        Err(std::io::Error::other(
+            String::from_utf8_lossy(&out.stderr).trim().to_owned(),
+        ))
+    }
+}
+
+/// Something handed to the system to open in another app (F67): a link,
+/// a file or folder, or one shown in Finder.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Opening<'a> {
+    /// A web address or a system page (`x-apple.systempreferences:…`), in
+    /// the app that handles it.
+    Link(&'a str),
+    /// A file or folder in `app` (an app's name or bundle), else in the
+    /// app the system picks for it.
+    Path {
+        /// What opens.
+        path: &'a Path,
+        /// The app it opens in.
+        app: Option<&'a str>,
+    },
+    /// A file or folder shown selected in Finder.
+    Reveal(&'a Path),
+}
+
+/// The command [`open`] runs for `opening`: `/usr/bin/open` through the
+/// [`crate::process::launcher`], so the app that opens it (a browser, the
+/// editor, System Settings) gets the login session's environment, never
+/// AI Juggler's, as with [`launch_command`].
+#[must_use]
+pub fn opening_command(opening: Opening<'_>) -> std::process::Command {
+    let mut command = crate::process::launcher("/usr/bin/open");
+    match opening {
+        Opening::Link(link) => {
+            command.arg(link);
+        }
+        Opening::Path { path, app } => {
+            if let Some(app) = app {
+                command.arg("-a").arg(app);
+            }
+            command.arg(path);
+        }
+        Opening::Reveal(path) => {
+            command.arg("-R").arg(path);
+        }
+    }
+    command
+}
+
+/// Opens `opening` in another app (F67: the one way links, files and
+/// Finder are handed out, through the launcher like [`open_app`]).
+///
+/// # Errors
+///
+/// The system couldn't open it (its message), or this isn't built on
+/// this system yet.
+pub fn open(opening: Opening<'_>) -> std::io::Result<()> {
+    if !cfg!(target_os = "macos") {
+        return Err(crate::unsupported("opening links and files"));
+    }
+    let word = match opening {
+        Opening::Link(link) => link.to_owned(),
+        Opening::Path { path, .. } | Opening::Reveal(path) => path.to_string_lossy().into_owned(),
+    };
+    // Never read by `open` as one of its options.
+    if word.is_empty() || word.starts_with('-') {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidInput,
+            "nothing to open",
+        ));
+    }
+    let out = opening_command(opening)
         .stdin(std::process::Stdio::null())
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::piped())
@@ -562,6 +645,68 @@ mod tests {
                 "--user-data-dir=/Users/someone/Profiles/work"
             ]
         );
+    }
+
+    /// F67: a link, a file in the editor, a folder in Finder and a system
+    /// page open through the launcher too: none of AI Juggler's variables
+    /// reach the browser, the editor or System Settings.
+    #[test]
+    fn links_files_and_finder_open_with_none_of_our_environment() {
+        let file = PathBuf::from("/Users/someone/code/app/main.rs");
+        for (opening, words) in [
+            (
+                Opening::Link("https://example.com/a"),
+                vec!["https://example.com/a"],
+            ),
+            (
+                Opening::Link("x-apple.systempreferences:com.apple.settings.Storage"),
+                vec!["x-apple.systempreferences:com.apple.settings.Storage"],
+            ),
+            (
+                Opening::Path {
+                    path: &file,
+                    app: Some("Visual Studio Code"),
+                },
+                vec![
+                    "-a",
+                    "Visual Studio Code",
+                    "/Users/someone/code/app/main.rs",
+                ],
+            ),
+            (
+                Opening::Path {
+                    path: &file,
+                    app: None,
+                },
+                vec!["/Users/someone/code/app/main.rs"],
+            ),
+            (
+                Opening::Reveal(&file),
+                vec!["-R", "/Users/someone/code/app/main.rs"],
+            ),
+        ] {
+            let command = opening_command(opening);
+            assert_eq!(command.get_program(), "/usr/bin/open");
+            let envs: Vec<_> = command.get_envs().collect();
+            assert!(envs.is_empty(), "{opening:?}: nothing of ours: {envs:?}");
+            assert_eq!(command.get_args().collect::<Vec<_>>(), words);
+        }
+    }
+
+    /// F67: nothing `open` would read as one of its own options.
+    #[test]
+    fn an_opening_that_looks_like_an_option_is_refused() {
+        if !cfg!(target_os = "macos") {
+            return;
+        }
+        for opening in [
+            Opening::Link("-a"),
+            Opening::Link(""),
+            Opening::Reveal(Path::new("-R")),
+        ] {
+            let error = open(opening).unwrap_err();
+            assert_eq!(error.kind(), std::io::ErrorKind::InvalidInput);
+        }
     }
 
     #[test]

@@ -138,6 +138,52 @@ fn regex_lite_bare() -> impl Fn(&str) -> Option<String> {
     }
 }
 
+/// F67: links, files and folders leave AI Juggler for another app (the
+/// browser, the editor, Finder, System Settings) only through
+/// `juggler_adapter::apps::open`, the launcher that passes on none of
+/// AI Juggler's environment (F65). No opener plugin (it ran `open` with
+/// all of it), and no `open` run as a helper (that keeps `HOME`).
+#[test]
+fn every_way_out_goes_through_the_launcher() {
+    let crates = Path::new(env!("CARGO_MANIFEST_DIR")).join("..");
+    let mut files = Vec::new();
+    for krate in std::fs::read_dir(&crates).unwrap().flatten() {
+        let src = krate.path().join("src");
+        if src.is_dir() {
+            sources(&src, &mut files);
+        }
+        let manifest = krate.path().join("Cargo.toml");
+        if let Ok(text) = std::fs::read_to_string(&manifest) {
+            assert!(
+                !text.contains("tauri-plugin-opener"),
+                "{}: the opener plugin opens with AI Juggler's environment",
+                manifest.display()
+            );
+        }
+    }
+    assert!(files.len() > 50, "the scan found the sources");
+    let mut found = Vec::new();
+    for file in files {
+        let name = file.to_string_lossy().replace('\\', "/");
+        let code = product(&std::fs::read_to_string(&file).unwrap());
+        for (number, line) in code.lines().enumerate() {
+            let at = format!("{name}:{}", number + 1);
+            if line.contains("tauri_plugin_opener") || line.contains(".opener()") {
+                found.push(format!("{at}: {}", line.trim()));
+            }
+            let open = line.contains("\"/usr/bin/open\"") || line.contains("system_tools::OPEN");
+            if open && line.contains("helper(") {
+                found.push(format!("{at}: {}", line.trim()));
+            }
+        }
+    }
+    assert!(
+        found.is_empty(),
+        "open these with juggler_adapter::apps::open:\n{}",
+        found.join("\n")
+    );
+}
+
 /// On Linux, sysinfo lists every thread as a process unless told not to
 /// (`ProcessRefreshKind::nothing()` keeps tasks): a dev server's serving
 /// thread read as a second orphan (#116's CI). Every process refresh in
