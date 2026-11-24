@@ -98,6 +98,11 @@ describe.each(["dark", "light"] as const)("the calm-attention tokens (%s)", (the
       expect(ratio(token(theme, "selected-ring"), token(theme, around)), `selected-ring vs ${around}`).toBeGreaterThanOrEqual(3);
     }
     expect(ratio(token(theme, "selected-ink"), token(theme, "selected"))).toBeGreaterThanOrEqual(4.5);
+    // A chosen card's own lines (its count, its hint) sit on the fill too
+    // (0.5.1: faint was 4.42:1 on light's fill, axe's color-contrast).
+    for (const name of ["ink-2", "muted", "faint"] as const) {
+      expect(ratio(token(theme, name), token(theme, "selected")), `${name} on selected`).toBeGreaterThanOrEqual(4.5);
+    }
     expect(token(theme, "selected-ring")).not.toBe(token(theme, "accent"));
   });
 });

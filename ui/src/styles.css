@@ -274,7 +274,7 @@ body {
   --color-ink: #0e1219;
   --color-ink-2: #2c3341;
   --color-muted: #424958; /* D-142 (GAPS B1): 7:1 on every surface (was #4f5767) */
-  --color-faint: #5f6777;
+  --color-faint: #5d6575; /* 0.5.1: 4.55:1 on a chosen card's selected fill too (was #5f6777, 4.42:1) */
 
   --color-accent: #4747d1; /* AJ-E804: ≥ 4.5:1 on every surface */
   --color-accent-hi: #4646e0;

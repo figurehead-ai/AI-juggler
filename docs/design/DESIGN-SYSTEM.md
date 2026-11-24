@@ -139,7 +139,7 @@ All values below are the real tokens in `styles.css` (`@theme` and `:root`), unl
 | `--color-ink-2` | `#d2d8e1` | `#2c3341` | Body sentences, a row's second line. | — |
 | `--color-section-label` | `#c3cad5` | `#3d4553` | Group labels in small capitals (Needs you, Your apps). | Body text. |
 | `--color-muted` | `#b0b8c5` | `#424958` (D-142; was `#4f5767`) | Labels, column heads, captions, meta, help (two lines at most). | Body sentences. |
-| `--color-faint` | `#8e97a6` | `#5f6777` | Placeholders, disabled words, tertiary times. | Anything the user must read to act. |
+| `--color-faint` | `#8e97a6` | `#5d6575` | Placeholders, disabled words, tertiary times. | Anything the user must read to act. |
 
 **Accent:**
 
