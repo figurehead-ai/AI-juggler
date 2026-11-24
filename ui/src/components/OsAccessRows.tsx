@@ -41,11 +41,9 @@ export function OsAccessRows({
           return (
             <li
               key={entry.id}
-              className={
-                "flex flex-wrap items-center gap-4 border " +
-                (large ? "rounded-2xl bg-surface p-5 " : "rounded-xl bg-surface-2 px-4 py-3 ") +
-                (card.state === "allowed" ? "border-success/40" : "border-hairline")
-              }
+              // 0.5.1 B3 (PAT-SURF-1): a card by its tone, no outline; Allowed
+              // is said by its green check and word, not a green edge.
+              className={"flex flex-wrap items-center gap-4 " + (large ? "rounded-2xl bg-surface p-5" : "rounded-xl bg-surface-2 px-4 py-3")}
               data-testid={`${testIdPrefix}-${entry.id}`}
             >
               <div className="flex min-w-0 flex-1 flex-col gap-1">

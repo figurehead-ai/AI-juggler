@@ -8,7 +8,7 @@
  * only that dry run can be applied.
  */
 import { useCallback, useEffect, useState, type JSX } from "react";
-import { Card } from "./primitives";
+import { Button, Card } from "./primitives";
 import { accountStorage, retentionApply, retentionPreview, retentionSet } from "../lib/ipc/session-history";
 import { errorText } from "../lib/bridge";
 import type { AccountStorageInfo } from "../types/generated/AccountStorageInfo";
@@ -56,7 +56,8 @@ export function StorageRetentionCard(): JSX.Element {
         {rows?.map((row) => (
           <li
             key={row.account_id}
-            className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-hairline px-3 py-2 text-label"
+            // 0.5.1 B3 (PAT-SURF-1): a row is a step of tone in its card, no outline.
+            className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg bg-surface-2 px-3 py-2 text-label"
             data-testid="storage-row"
           >
             <span className="min-w-0 flex-1 truncate font-medium text-ink">{folderAppName(row.account_id, row.label)}</span>
@@ -82,19 +83,20 @@ export function StorageRetentionCard(): JSX.Element {
                 options={CHOICES}
               />
             </div>
-            <button
-              type="button"
+            {/* The kit's secondary (a fill, no stroke), as every other row action. */}
+            <Button
+              size="sm"
+              variant="secondary"
               disabled={row.retention_days === null}
               onClick={() =>
                 void retentionPreview(row.account_id)
                   .then(setPreview)
                   .catch((cause) => setError(errorText(cause)))
               }
-              className="rounded-lg border border-hairline px-2 py-0.5 text-label text-ink disabled:text-muted"
               data-testid="storage-review"
             >
               Review cleanup…
-            </button>
+            </Button>
           </li>
         ))}
       </ul>

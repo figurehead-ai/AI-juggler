@@ -175,7 +175,13 @@ function Travelled({ project, data, cut, onOpenSession }: { project: ProjectInfo
       )}
       {data && moves.length === 0 && lanes.length > 0 && (
         <p className="text-label text-muted" data-testid="travelled-none">
-          {lanes.length === 1 ? `No moves yet: all work here ran on ${only}.` : `No moves between apps in this range: ${lanes.length} apps worked here side by side.`} A move to another app, with its history and tasks, shows as an arrow.
+          {/* 0.5.1 B3 (32-graph): never "no moves" right above Every move's
+              list of them; those are older than this range. */}
+          {moved
+            ? `No moves in these 30 days; every move, the older ones too, is under Every move below.`
+            : lanes.length === 1
+              ? `No moves yet: all work here ran on ${only}. A move to another app, with its history and tasks, shows as an arrow.`
+              : `No moves between apps in this range: ${lanes.length} apps worked here side by side. A move to another app, with its history and tasks, shows as an arrow.`}
         </p>
       )}
       {moved && (

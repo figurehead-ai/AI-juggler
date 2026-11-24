@@ -75,7 +75,9 @@ export function RunwayCards({ accounts, className = "" }: { accounts: AccountInf
         <IconGauge className="text-muted" />
         Runway and limit history
       </h3>
-      <ul className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,320px),1fr))] gap-grid">
+      {/* 0.5.1 B3 (87-burn-down, 94-usage): each card as tall as what it
+          holds; a short one beside a long one left an empty panel. */}
+      <ul className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,320px),1fr))] items-start gap-grid">
         {groups.map((group) => {
           const sub = subscriptions?.find((entry) => entry.key === group.key);
           const display = sub ? accountDisplay(sub, displays) : displays.find((entry) => entry.account === group.profiles[0]);

@@ -89,8 +89,13 @@ test.beforeEach(() => {
   galleryReady = true;
 });
 
+// 0.5.1 batch B3 (F51's rule): the rail and the session page are captured
+// at the window's sizes only; 390×844 is below its minimum (1024×680,
+// tauri.conf.json), a layout no one can get. 1024 keeps the folded rail.
+const WINDOW_VIEWPORTS = VIEWPORTS.filter((vp) => vp.width >= 1024);
+
 for (const theme of THEMES) {
-  for (const vp of VIEWPORTS) {
+  for (const vp of WINDOW_VIEWPORTS) {
     test(`rail — all statuses — ${vp.name} — ${theme}`, gate("01-rail"), async ({ page }) => {
       await page.addInitScript(
         ({ fixture, t0, theme }) => {
@@ -866,7 +871,8 @@ test("desktop — single-account warning state", async ({ page }) => {
 test("desktop — rail app chip", async ({ page }) => {
   await seedInspectorPage(page, { width: 1280, height: 800 });
   await expectRail(page); // D-25: the list, or its icon column when narrow
-  await expect(page.getByTestId("rail-app-chip").first()).toBeVisible();
+  // F55: a row too narrow for it folds the chip away; one row shows it.
+  await expect(page.getByTestId("rail-app-chip").filter({ visible: true }).first()).toBeVisible();
   await page.screenshot({ path: resolve(GALLERY, "13-desktop/rail-app-chip-1280x800.png") });
 });
 
@@ -2271,6 +2277,13 @@ const SWITCH_VP = [
   { name: "800x600", width: 800, height: 600 },
 ] as const;
 
+// 0.5.1 batch B3 (F51's rule): how work travelled is captured at the
+// window's sizes; 800×600 is below its minimum (1024×680).
+const GRAPH_VP = [
+  { name: "1280x800", width: 1280, height: 800 },
+  { name: "1024x680", width: 1024, height: 680 },
+] as const;
+
 const preflightSeams: Record<string, unknown> = {
   "live-default": undefined, // the bridge default: live source, no warnings
 };
@@ -3098,7 +3111,7 @@ const openGraphProject = async (
 };
 
 for (const theme of THEMES) {
-  for (const vp of SWITCH_VP) {
+  for (const vp of GRAPH_VP) {
     test(`graph — ranked targets with explanations — ${vp.name} — ${theme}`, gate("32-graph"), async ({ page }) => {
       await page.addInitScript(
         ({ fixture, targets, room, t0, theme: themeName }) => {
