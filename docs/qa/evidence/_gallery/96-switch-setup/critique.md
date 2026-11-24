@@ -1,4 +1,4 @@
-<!-- captures: 8f618de3f179 -->
+<!-- captures: ed3fec3395d5 -->
 # 96-switch-setup: what the other account is missing before you switch, and how to set it up
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design passes.
@@ -29,3 +29,30 @@ The maintainer's report: the last step said "Continue here in AI Juggler", there
 
 - The fidelity badge says "Continues exactly" and "Not proven yet" side by side, which can read as a contradiction. It is the register's honest pair, so it stays until the pair is validated.
 - In the preview the Desktop card's mark is a generic app tile. The real app reads the Claude app's own icon at run time.
+
+## 0.5.1 design critique (2026-11-24, Opus, VALIDATION §5, batch B2)
+
+Re-captured after F53 (only where-narrow changed, at its top bar); every state opened as a dark|light pair. where-desktop is the Confirm step: Continue in as two cards (Desktop · Same as the original, chosen; CLI), "AI Juggler starts it as it switches.", What happens as four fact rows (Copies with "Continues exactly · Beta", Carries opening to "4 go along · 1 recreated · 1 to set up", Original, Disk space), then "Set up first". can-set-up, turn-on and unused are the set-up rows with a verdict tag each ("Can copy", "Needs a step from you", "You turn it on"), their how behind Show me how.
+
+| # | Line | Score | Note |
+|---|---|---|---|
+| 1 | Job | 5 | What the other App lacks and how to set it up, before switching. |
+| 2 | Prominence | 4 | Set up first comes after What happens; at 1280 it starts at the fold. |
+| 3 | Default | 5 | What can be copied is ticked; Desktop chosen when the original ran there. |
+| 4 | Mode | 5 | Rich. |
+| 5 | Mock-up | 4 | As the kit. |
+| 6 | Areas | 4 | |
+| 7 | Colour | 4 | Verdict tags by status; "Needs a step from you" amber where the user must act. |
+| 8 | Type | 5 | |
+| 9 | Actions | 4 | "Switch to Desktop" names the kind, not the destination (design.md, item 4). |
+| 10 | Serious | 5 | A secret is never copied, said in place. |
+| 11 | Doors | 4 | Open claude.ai settings; Open its page after. |
+| 12 | Words | 4 | "The original stays open in Claude" where the App is "Claude app · Work". |
+| 13 | States | 4 | Nothing missing, can set up, turn on, unused, no desktop, done, narrow. |
+| 14 | Consistency | 5 | |
+| 15 | Accessibility | 4 | Not re-walked by hand. |
+| 16 | Hand walk | 4 | Preview. |
+| 17 | System prompts | 5 | None. |
+| 18 | Usability | 3 | where-done-desktop says "Opened in Claude app · Personal" without the open check Move makes (AJ-E2322's answer 2): F69. |
+
+Lowest: 3 (line 18), logged as F69.
