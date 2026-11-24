@@ -2,11 +2,14 @@
  * AJ-E2321: Settings › Desktop apps › Moves: every move AI Juggler knows
  * of, with Undo and Finish by its id (the Moves door's rows). AJ-E2325:
  * how long a finished move's backup (its Undo) is kept, 7 days by
- * default. No moves: no section.
+ * default; the moves in rich mode (sticky header and footer: the backups'
+ * total and, when the disk is nearly full, the offer to clear the older
+ * ones). No moves: no section.
  */
 import { useEffect, useState, type JSX } from "react";
 import { Segmented } from "../../components/controls";
-import { MoveRows, useMoves } from "../../components/switch/MovesDoor";
+import { useMoves } from "../../components/switch/MovesDoor";
+import { MovesPanel } from "../../components/switch/MovesBackups";
 import { appSettingGet, appSettingSet } from "../../lib/ipc/settings";
 import { PaneSection, SettingRow } from "./parts";
 
@@ -48,9 +51,9 @@ export function MovesSection(): JSX.Element | null {
   return (
     <PaneSection id="moves" title="Moves" footer="Each conversation moved to another App. Undo puts one back; Finish completes one AI Juggler stopped part way.">
       <KeepRow onChange={reload} />
-      <div className="px-4">
-        <MoveRows moves={moves} onChanged={reload} />
-      </div>
+      <li className="list-none">
+        <MovesPanel moves={moves} onChanged={reload} />
+      </li>
     </PaneSection>
   );
 }

@@ -104,6 +104,8 @@ export function useNoticeActions(sessions: InstanceInfo[]): NoticeActions {
     if (target.page === "diagnostics") return void window.dispatchEvent(new CustomEvent("aij:open-settings", { detail: { section: "diagnostics" } }));
     // 0.3.3: keep alive's notices open its switches.
     if (target.page === "desktop_apps") return void window.dispatchEvent(new CustomEvent("aij:open-settings", { detail: { section: "keep-alive" } }));
+    // AJ-E2325: the low-disk offer opens the moves and their backups.
+    if (target.page === "moves") return void window.dispatchEvent(new CustomEvent("aij:open-settings", { detail: { section: "moves" } }));
     if (target.page === "processes") return openScreenOn("cleanup", CLEAN_UP_VIEW);
     if (target.page && SCREENS[target.page]) return openScreen(SCREENS[target.page]!);
     // D-62 (AJ-E3205): a notice about an account's limits or renewal

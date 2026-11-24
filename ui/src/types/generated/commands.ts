@@ -120,6 +120,7 @@ import type { MessageInfo } from "./MessageInfo";
 import type { MessageNeedInfo } from "./MessageNeedInfo";
 import type { ModelsCatalog } from "./ModelsCatalog";
 import type { ModelsInfo } from "./ModelsInfo";
+import type { MoveBackupsInfo } from "./MoveBackupsInfo";
 import type { MoveDoneInfo } from "./MoveDoneInfo";
 import type { MoveFinishedInfo } from "./MoveFinishedInfo";
 import type { MoveOfferInfo } from "./MoveOfferInfo";
@@ -1188,6 +1189,10 @@ export interface Commands {
   switch_execute: { args: { sessionId: string; targetProfileId: string; freezeChoice: string; redactionChoice?: string | null; redactionUnredact?: number[] | null; trigger?: string | null; approved?: string[] | null; destination?: string | null; targetPlaceId?: string | null; cut?: SwitchCutArgs | null }; result: SwitchExecutedInfo };
   /** Read features::switch::commands::switch_graph_overview */
   switch_graph_overview: { args: { projectId: string }; result: WorkGraphInfo[] };
+  /** Read features::switch::moves::switch_move_backups */
+  switch_move_backups: { args: Record<string, never>; result: MoveBackupsInfo };
+  /** Write features::switch::moves::switch_move_clear_old */
+  switch_move_clear_old: { args: Record<string, never>; result: string };
   /** Write features::switch::moves::switch_move_delete_backup */
   switch_move_delete_backup: { args: { moveId: string }; result: string };
   /** Write features::switch::moves::switch_move_execute */

@@ -14,6 +14,7 @@ use crate::features::places::hold;
 use crate::state::AppState;
 
 /// A move AI Juggler knows of, for its door (Undo, Finish, Copy details).
+#[allow(clippy::struct_excessive_bools)] // wire DTO: each flag is its own fact the door shows
 #[derive(Clone, PartialEq, Eq, Debug, serde::Serialize, ts_rs::TS)]
 #[ts(export, export_to = "../../../ui/src/types/generated/")]
 pub struct MoveRecordInfo {
@@ -49,6 +50,12 @@ pub struct MoveRecordInfo {
     /// backup: until the person deletes it.
     #[ts(type = "number | null")]
     pub kept_until_ms: Option<i64>,
+    /// AJ-E2325: what deleting its backup gives back to the disk, in
+    /// bytes (at most, when `backup_exact` is false: clones share blocks).
+    #[ts(type = "number | null")]
+    pub backup_bytes: Option<u64>,
+    /// `backup_bytes` is exactly what deleting frees.
+    pub backup_exact: bool,
     /// Its journal, one line per event, for Copy details.
     pub timeline: Vec<String>,
     /// What it keeps where it was on purpose (output folders old messages
@@ -118,7 +125,7 @@ fn side_name(state: &Arc<AppState>, txn: &Transaction, host: Option<&Path>, tool
 }
 
 /// Whether `txn` is committed with its backups there.
-fn committed_backup(txn: &Transaction) -> bool {
+pub(super) fn committed_backup(txn: &Transaction) -> bool {
     txn.manifest.phase == Phase::Committed
         && txn.backups_kept()
         && txn.manifest.entries.iter().any(|e| e.backup.is_some())
@@ -160,6 +167,9 @@ pub fn moves(state: &Arc<AppState>) -> Vec<MoveRecordInfo> {
         .iter()
         .map(|txn| {
             let (label, detail) = state_of(txn);
+            let size = committed_backup(txn)
+                .then(|| super::retention::backup_size(txn))
+                .flatten();
             let manifest = &txn.manifest;
             let request = &manifest.request;
             let undo_why = match label {
@@ -206,6 +216,8 @@ pub fn moves(state: &Arc<AppState>) -> Vec<MoveRecordInfo> {
                 kept_until_ms: committed_backup(txn)
                     .then(|| super::retention::kept_until_of(state, txn))
                     .flatten(),
+                backup_bytes: size.map(|size| size.bytes),
+                backup_exact: size.is_some_and(|size| size.exact),
                 timeline: txn.journal().iter().map(line_words).collect(),
                 kept: txn.dependencies().iter().map(|path| shown(path)).collect(),
             }

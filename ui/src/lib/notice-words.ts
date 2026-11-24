@@ -77,6 +77,8 @@ const PRIMARY: Record<string, string> = {
   pool: "Open",
   // 0.3.3: an app kept alive was started again, or keep alive paused.
   "keep-alive": "Keep alive settings",
+  // AJ-E2325: the low-disk offer: the backups, where Clear is.
+  "move-backups": "Review backups",
 };
 
 /** The primary's name where it's shown: a hand-over with nothing open on

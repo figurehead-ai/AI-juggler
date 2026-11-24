@@ -196,6 +196,8 @@ describe("Move's refusals, by class", () => {
         can_finish: false,
         has_backup: false,
         kept_until_ms: null,
+        backup_bytes: null,
+        backup_exact: false,
         timeline: [],
         state: "interrupted",
         at_ms: 1,

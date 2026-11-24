@@ -522,7 +522,18 @@ fn offer_of(state: &Arc<AppState>, sides: &Sides, system: &dyn MoveSystem) -> Mo
         }
     };
     note_shape(state, sides, &plan);
-    let mut blocks = juggler_handover::moving::preflight(&plan, &moves_dir(state));
+    let folder = moves_dir(state);
+    let mut blocks = juggler_handover::moving::preflight(&plan, &folder);
+    // AJ-E2325: a backup that won't fit brings the offer to clear old ones.
+    let disk = folder
+        .ancestors()
+        .find(|dir| dir.is_dir())
+        .unwrap_or(&folder);
+    if juggler_platform::room::free_space(disk)
+        .is_ok_and(|free| free < juggler_handover::moving::room_needed(&plan))
+    {
+        retention::note_room_short(state, juggler_core::model::Timestamp::now().millis());
+    }
     if let Some(writing) = writing_of(sides, &plan) {
         blocks.extend(busy(state, sides, system, &writing));
     }

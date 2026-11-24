@@ -131,6 +131,44 @@ pub async fn switch_move_delete_backup(
     .await
 }
 
+/// Tauri: AJ-E2325, the backups kept for Undo together: the Moves door's
+/// total, the header's "N to clean up", and whether room is short (the
+/// offer to clear the older ones). Reads only.
+///
+/// # Errors
+///
+/// None of its own (the blocking pool's).
+#[tauri::command]
+pub async fn switch_move_backups(
+    state: tauri::State<'_, Arc<AppState>>,
+) -> AppResult<crate::features::handover::moving::retention::MoveBackupsInfo> {
+    crate::ipc::blocking(state.inner(), "count move backups", move |state| {
+        Ok(crate::features::handover::moving::retention::backups(
+            state,
+            crate::commands::now_millis(),
+        ))
+    })
+    .await
+}
+
+/// Tauri: AJ-E2325, the low-disk offer accepted: clears the backups of
+/// moves made more than a day ago (after its sheet says those moves can no
+/// longer be undone). Returns the words.
+///
+/// # Errors
+///
+/// As [`crate::features::handover::moving::retention::clear_old`].
+#[tauri::command]
+pub async fn switch_move_clear_old(state: tauri::State<'_, Arc<AppState>>) -> AppResult<String> {
+    crate::ipc::blocking(state.inner(), "clear old move backups", move |state| {
+        crate::features::handover::moving::retention::clear_old(
+            state,
+            crate::commands::now_millis(),
+        )
+    })
+    .await
+}
+
 /// Tauri: the moves AI Juggler knows of (Undo, and one left part way),
 /// newest first, a page at a time.
 ///

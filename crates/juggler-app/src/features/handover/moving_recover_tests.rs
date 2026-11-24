@@ -429,3 +429,124 @@ fn delete_backup_by_its_id_ends_undo_and_never_takes_an_interrupted_ones() {
     assert!(retention::delete_backup(&other.state, &id).is_err());
     assert!(retention::delete_backup(&other.state, "../x").is_err());
 }
+
+// AJ-E2325 R3–R6: sizes, the total, the low-disk offer and its clear.
+
+fn created_of(lab: &Lab, id: &str) -> i64 {
+    hold::open_move(&lab.state.data_dir, id)
+        .unwrap()
+        .manifest
+        .created_ms
+}
+
+fn offers(lab: &Lab) -> Vec<juggler_core::storage::Notice> {
+    let storage = lab.state.storage.lock().unwrap();
+    let all = storage.notices().earlier(None, 50).unwrap();
+    all.into_iter()
+        .filter(|n| n.kind == "move-backups")
+        .collect()
+}
+
+#[test]
+fn each_backup_and_the_total_say_what_deleting_frees() {
+    let Some((lab, _system, done)) = moved() else {
+        return;
+    };
+    let created = created_of(&lab, &done.move_id);
+    let row = moves(&lab.state)
+        .into_iter()
+        .find(|m| m.move_id == done.move_id)
+        .unwrap();
+    let bytes = row.backup_bytes.expect("a kept backup has its size");
+    assert!(bytes > 0, "{row:?}");
+    // Its backups are clones: the size is a ceiling, and said so.
+    assert!(!row.backup_exact, "{row:?}");
+    let total = retention::backups(&lab.state, created + DAY / 2);
+    assert_eq!((total.count, total.bytes, total.exact), (1, bytes, false));
+    assert_eq!(
+        (total.old_count, total.old_bytes),
+        (0, 0),
+        "not a day old yet"
+    );
+    let later = retention::backups(&lab.state, created + DAY);
+    assert_eq!((later.old_count, later.old_bytes), (1, bytes));
+    assert_eq!(retention::frees_words(2_500_000_000, false), "up to 2.3 GB");
+    // Deleted: no size, out of the total.
+    retention::delete_backup(&lab.state, &done.move_id).unwrap();
+    let row = moves(&lab.state)
+        .into_iter()
+        .find(|m| m.move_id == done.move_id)
+        .unwrap();
+    assert_eq!(row.backup_bytes, None);
+    assert_eq!(retention::backups(&lab.state, created + DAY).count, 0);
+}
+
+#[test]
+fn a_nearly_full_disk_offers_once_a_day_naming_what_it_frees_and_clears_nothing() {
+    let Some((lab, _system, done)) = moved() else {
+        return;
+    };
+    let created = created_of(&lab, &done.move_id);
+    // Room enough: no offer.
+    juggler_platform::room::set_free_space_on_this_thread(Some(|_| u64::MAX / 2));
+    assert!(!retention::backups(&lab.state, created + 2 * DAY).low_room);
+    assert!(!retention::offer_if_pressed(&lab.state, created + 2 * DAY));
+    // Nearly full: the sweep offers (its keep time not up, nothing goes).
+    juggler_platform::room::set_free_space_on_this_thread(Some(|_| 1024));
+    assert!(retention::backups(&lab.state, created + 2 * DAY).low_room);
+    assert_eq!(
+        retention::sweep(&lab.state, created + 2 * DAY),
+        Swept::default()
+    );
+    let made = offers(&lab);
+    assert_eq!(made.len(), 1, "one offer");
+    assert!(made[0].title.contains("free up to"), "{}", made[0].title);
+    assert!(made[0].data.contains("\"moves\""), "{}", made[0].data);
+    assert!(!backups(&lab).is_empty(), "an offer, never a clean-up");
+    // Once a day.
+    assert!(!retention::offer_if_pressed(
+        &lab.state,
+        created + 2 * DAY + 1
+    ));
+    // Never during a move.
+    let ids = vec![source_id(&lab)];
+    let running = crate::features::places::MoveHold::take(&lab.state, &ids, "running").unwrap();
+    assert!(!retention::offer_if_pressed(&lab.state, created + 3 * DAY));
+    drop(running);
+    // A move refused for room offers too, with room on the disk again.
+    juggler_platform::room::set_free_space_on_this_thread(Some(|_| u64::MAX / 2));
+    retention::note_room_short(&lab.state, created + 4 * DAY);
+    assert_eq!(offers(&lab).len(), 2);
+    assert!(
+        !retention::backups(&lab.state, created + 6 * DAY).low_room,
+        "for a day"
+    );
+    juggler_platform::room::set_free_space_on_this_thread(None);
+}
+
+#[test]
+fn clearing_old_backups_takes_only_finished_moves_a_day_old_never_during_a_move() {
+    let Some((lab, _system, done)) = moved() else {
+        return;
+    };
+    let created = created_of(&lab, &done.move_id);
+    let said = retention::clear_old(&lab.state, created + DAY / 2).unwrap();
+    assert!(said.starts_with("No backups"), "{said}");
+    assert!(!backups(&lab).is_empty());
+    let ids = vec![source_id(&lab)];
+    let running = crate::features::places::MoveHold::take(&lab.state, &ids, "running").unwrap();
+    assert!(retention::clear_old(&lab.state, created + 2 * DAY).is_err());
+    assert!(!backups(&lab).is_empty());
+    drop(running);
+    let said = retention::clear_old(&lab.state, created + 2 * DAY).unwrap();
+    assert!(said.starts_with("Cleared 1 backup (up to "), "{said}");
+    assert!(said.contains("can no longer be undone"), "{said}");
+    assert!(backups(&lab).is_empty());
+    // An interrupted move's backups are never cleared.
+    let other = super::lab();
+    let id = crashed(&other, Crash::MidApply, true);
+    let said = retention::clear_old(&other.state, 1_700_000_000_000 + 400 * DAY).unwrap();
+    assert!(said.starts_with("No backups"), "{said}");
+    assert!(!backups(&other).is_empty());
+    assert_eq!(phase(&other, &id), Phase::Applying);
+}

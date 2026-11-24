@@ -9,6 +9,7 @@
  */
 import { call, listen } from "./transport";
 import { hasLiveBackend } from "../bridge";
+import type { MoveBackupsInfo } from "../../types/generated/MoveBackupsInfo";
 import type { MoveDoneInfo } from "../../types/generated/MoveDoneInfo";
 import type { MoveFinishedInfo } from "../../types/generated/MoveFinishedInfo";
 import type { MoveOfferInfo } from "../../types/generated/MoveOfferInfo";
@@ -17,7 +18,7 @@ import type { MoveRecordInfo } from "../../types/generated/MoveRecordInfo";
 import type { MoveStopInfo } from "../../types/generated/MoveStopInfo";
 import type { MoveUndoneInfo } from "../../types/generated/MoveUndoneInfo";
 
-export type { MoveDoneInfo, MoveFinishedInfo, MoveOfferInfo, MoveProgressInfo, MoveRecordInfo, MoveStopInfo, MoveUndoneInfo };
+export type { MoveBackupsInfo, MoveDoneInfo, MoveFinishedInfo, MoveOfferInfo, MoveProgressInfo, MoveRecordInfo, MoveStopInfo, MoveUndoneInfo };
 
 /** 0.4.9: how a running move goes (`move://progress`). */
 const MOVE_PROGRESS = "move://progress";
@@ -33,6 +34,8 @@ declare global {
     __AIJ_MOVES__?: MoveRecordInfo[];
     __AIJ_MOVE_FINISHED__?: MoveFinishedInfo;
     __AIJ_MOVE_BACKUP_DELETED__?: string;
+    __AIJ_MOVE_BACKUPS__?: MoveBackupsInfo;
+    __AIJ_MOVE_OLD_CLEARED__?: string;
   }
 }
 
@@ -123,4 +126,26 @@ export async function switchMoveFinish(moveId: string): Promise<MoveFinishedInfo
 export async function switchMoveDeleteBackup(moveId: string): Promise<string> {
   if (!hasLiveBackend()) return window.__AIJ_MOVE_BACKUP_DELETED__ ?? "Backup deleted: this move can no longer be undone.";
   return call("switch_move_delete_backup", { moveId });
+}
+
+/** AJ-E2325: told when backups change (a delete, a clear, an undo), so
+ * the header's count and the door's total read again. */
+export const BACKUPS_CHANGED = "aij:move-backups-changed";
+
+/** AJ-E2325: no backups kept (the preview's default). */
+const NO_BACKUPS: MoveBackupsInfo = { count: 0, bytes: 0, exact: true, old_count: 0, old_bytes: 0, low_room: false };
+
+/** AJ-E2325: the backups kept for Undo together: the door's total, the
+ * header's count, and whether room is short (the offer). Reads only. */
+export async function switchMoveBackups(): Promise<MoveBackupsInfo> {
+  if (!hasLiveBackend()) return window.__AIJ_MOVE_BACKUPS__ ?? NO_BACKUPS;
+  return call("switch_move_backups", {});
+}
+
+/** AJ-E2325: the low-disk offer accepted (the person's click, after its
+ * sheet): clears backups of moves made more than a day ago. Returns the
+ * words. */
+export async function switchMoveClearOld(): Promise<string> {
+  if (!hasLiveBackend()) return window.__AIJ_MOVE_OLD_CLEARED__ ?? "Cleared 1 backup (up to 1.2 GB); that move can no longer be undone.";
+  return call("switch_move_clear_old", {});
 }

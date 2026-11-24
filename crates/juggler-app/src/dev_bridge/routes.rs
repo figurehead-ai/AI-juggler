@@ -219,6 +219,8 @@ read_routes! {
     // D-93 (ADR-0031): the Move offer a switch shows (whether Move applies,
     // why not, the family, the restarts); it reads, it moves nothing.
     "switch_move_offer" => async_result features::switch::moves::switch_move_offer(state; session_id: String, target_profile_id: String, target_place_id: Option<String>);
+    // AJ-E2325: the backups kept for Undo, together (reads only).
+    "switch_move_backups" => async_result features::switch::moves::switch_move_backups(state);
     // The moves AI Juggler knows of (for Undo), a page at a time.
     "switch_moves" => async_result features::switch::moves::switch_moves(state; page: Option<crate::paging::PageRequest>);
     // AJ-E2328: the worktree ownership check (reads only).

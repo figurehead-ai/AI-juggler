@@ -61,6 +61,15 @@ has_backup: boolean,
  */
 kept_until_ms: number | null, 
 /**
+ * AJ-E2325: what deleting its backup gives back to the disk, in
+ * bytes (at most, when `backup_exact` is false: clones share blocks).
+ */
+backup_bytes: number | null, 
+/**
+ * `backup_bytes` is exactly what deleting frees.
+ */
+backup_exact: boolean, 
+/**
  * Its journal, one line per event, for Copy details.
  */
 timeline: Array<string>, 

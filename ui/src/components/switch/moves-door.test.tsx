@@ -9,7 +9,7 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { JSX } from "react";
-import { MoveRows, detailsOf, keptWords, stateWords, useMoves } from "./MovesDoor";
+import { MoveRows, detailsOf, freesWords, keptWords, stateWords, useMoves } from "./MovesDoor";
 import type { MoveRecordInfo } from "../../lib/ipc/switch-move";
 
 const move = (over: Partial<MoveRecordInfo>): MoveRecordInfo => ({
@@ -26,6 +26,8 @@ const move = (over: Partial<MoveRecordInfo>): MoveRecordInfo => ({
   can_finish: false,
   has_backup: false,
   kept_until_ms: null,
+  backup_bytes: null,
+  backup_exact: false,
   timeline: ["phase: phase planned", "intent: step 1"],
   kept: [],
   ...over,
@@ -129,6 +131,14 @@ describe("Moves door", () => {
     expect(keptWords(move({}))).toBeNull();
     expect(keptWords(move({ has_backup: true, kept_until_ms: null }))).toBe("Backup kept until you delete it");
     expect(keptWords(move({ has_backup: true, kept_until_ms: new Date(2026, 10, 30).getTime() }))).toBe("Backup kept until Nov 30");
+  });
+
+  it("AJ-E2325: a kept backup says what deleting it frees, a ceiling where clones share blocks", async () => {
+    expect(freesWords(8_178_892, false)).toBe("frees up to 8 MB");
+    expect(freesWords(3 * 1024 ** 3, true)).toBe("frees 3.0 GB");
+    window.__AIJ_MOVES__ = [move({ has_backup: true, kept_until_ms: new Date(2026, 10, 30).getTime(), backup_bytes: 8_178_892, backup_exact: false })];
+    render(<MovesDoor />);
+    expect((await screen.findByTestId("move-kept-until")).textContent).toBe("Backup kept until Nov 30 · frees up to 8 MB");
   });
 
   it("AJ-E2325: Delete backup says Undo goes with it, Keep cancels, and it deletes only on its confirm", async () => {

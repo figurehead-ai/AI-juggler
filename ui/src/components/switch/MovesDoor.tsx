@@ -5,13 +5,16 @@
  * way), Finish (one that passed its checks before the apps reopened), and
  * Copy details (its timeline). No moves: nothing shown; one left part way
  * is never hidden (each surface shows the rows only when there are any).
- * Undo's sheet says what it restores first.
+ * Undo's sheet says what it restores first. AJ-E2325: a kept backup
+ * says until when and what deleting it frees ("up to" where clones share
+ * blocks); Delete backup… says the move can no longer be undone.
  */
 import { useCallback, useEffect, useState, type JSX } from "react";
 import { Modal } from "../form";
 import { Button } from "../primitives";
 import { errorText } from "../../lib/bridge";
-import { switchMoveDeleteBackup, switchMoveFinish, switchMoveUndo, switchMoves, type MoveRecordInfo } from "../../lib/ipc/switch-move";
+import { memorySize } from "../../lib/compact";
+import { BACKUPS_CHANGED, switchMoveDeleteBackup, switchMoveFinish, switchMoveUndo, switchMoves, type MoveRecordInfo } from "../../lib/ipc/switch-move";
 
 /** "Nov 22". */
 function dayOf(ms: number): string {
@@ -19,7 +22,7 @@ function dayOf(ms: number): string {
 }
 
 /** "“Fix the parser” · Claude app · A → Claude app · B". */
-export function moveTitle(move: MoveRecordInfo): string {
+function moveTitle(move: MoveRecordInfo): string {
   return `“${move.title ?? "A conversation"}” · ${move.from} → ${move.to}`;
 }
 
@@ -88,6 +91,12 @@ function UndoSheet({ move, busy, onCancel, onConfirm }: { move: MoveRecordInfo; 
   );
 }
 
+/** "frees 7.8 MB", or "frees up to 7.8 MB" where clones may share blocks
+ * (what deleting gives back is at most that). */
+export function freesWords(bytes: number, exact: boolean): string {
+  return `frees ${exact ? "" : "up to "}${memorySize(bytes)}`;
+}
+
 /** "Backup kept until Nov 30" / "Backup kept until you delete it". */
 export function keptWords(move: MoveRecordInfo): string | null {
   if (!move.has_backup) return null;
@@ -135,6 +144,7 @@ function MoveRow({ move, onChanged }: { move: MoveRecordInfo; onChanged: () => v
         setBusy(false);
         setAsking(null);
         onChanged();
+        window.dispatchEvent(new CustomEvent(BACKUPS_CHANGED));
       });
   };
   const copy = () => void navigator.clipboard?.writeText(detailsOf(move)).catch(() => {});
@@ -148,7 +158,7 @@ function MoveRow({ move, onChanged }: { move: MoveRecordInfo; onChanged: () => v
       {move.undo_why && <span className="text-meta text-muted">{`Can't be undone: ${move.undo_why}.`}</span>}
       {keptWords(move) && (
         <span className="text-meta text-ink-2" data-testid="move-kept-until">
-          {keptWords(move)}
+          {move.backup_bytes === null ? keptWords(move) : `${keptWords(move)} · ${freesWords(move.backup_bytes, move.backup_exact)}`}
         </span>
       )}
       <div className="flex flex-wrap items-center gap-2">

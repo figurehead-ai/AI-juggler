@@ -24,6 +24,8 @@ const one: MoveRecordInfo = {
   can_finish: false,
   has_backup: true,
   kept_until_ms: null,
+  backup_bytes: null,
+  backup_exact: false,
   timeline: [],
   kept: [],
 };
