@@ -18,7 +18,7 @@ import { appKindWords } from "../lib/app-kind";
 import { FoldButton } from "./rail-groups";
 import { IconHistory, IconUpRight } from "./icons-places";
 import { IconShield, IconStateRunning } from "./icons";
-import { IconPage, IconPlus, IconReplay } from "./icons-actions";
+import { IconPage, IconPlus, IconReplay, IconStop } from "./icons-actions";
 import { showToast } from "./Toast";
 import { showGoTo } from "../lib/go-to";
 import { placesOpen } from "../lib/ipc/places";
@@ -26,7 +26,7 @@ import { openApp } from "../lib/apps";
 import { agoWords } from "../lib/time-words";
 import { cliAppId } from "../lib/app-name";
 import { RECENT_INLINE, type IdleApp } from "../lib/rail-apps";
-import { askRestart } from "./RestartApp";
+import { askQuit, askRestart } from "./RestartApp";
 import { hasLiveBackend } from "../lib/bridge";
 import { useRelationCounts } from "../lib/relation-counts";
 import { RoomChip, useRoomMark } from "./RoomChip";
@@ -206,6 +206,12 @@ export function RailIdleApp({
           {restartable(app) && (
             <MenuItem onClick={run(() => askRestart({ placeId: app.placeId ?? "", name: app.name, open: 0, working: 0 }))} testId="rail-idle-menu-restart">
               <MenuLine icon={IconReplay} label="Restart…" />
+            </MenuItem>
+          )}
+          {/* 0.5.1 F98: closed and left closed. */}
+          {restartable(app) && (
+            <MenuItem onClick={run(() => askQuit({ placeId: app.placeId ?? "", name: app.name, open: 0, working: 0, keepAlive: keepAlive?.on }))} testId="rail-idle-menu-quit">
+              <MenuLine icon={IconStop} label="Quit…" />
             </MenuItem>
           )}
           {keepAlive && (

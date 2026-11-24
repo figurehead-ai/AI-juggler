@@ -680,6 +680,8 @@ macro_rules! app_commands {
             // 0.3.8: quits and starts again one that lost its window when
             // macOS restarted its display (asked first, in the toast).
             Write features::places::commands::places_restart,
+            // 0.5.1 F98: Quit…, a running App closed and left closed.
+            Write features::places::commands::places_quit,
             Write features::places::commands::places_keep_alive,
             Write features::places::commands::places_forget,
             // AJ-E3203: the user's yes to reading the folder names beside

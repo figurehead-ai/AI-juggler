@@ -128,6 +128,20 @@ export async function placesRestart(id: string, confirmed = false): Promise<GoTo
   return call("places_restart", { id, confirmed });
 }
 
+/** 0.5.1 F98: Quit…, confirmed: quits a running app or profile and
+ * leaves it closed (Keep alive waits for its next Open). */
+export async function placesQuit(id: string): Promise<GoToOutcomeInfo> {
+  if (!hasLiveBackend()) {
+    const place = preview().places.find((row) => row.id === id);
+    if (!place) return { outcome: "AI Juggler doesn't remember that app any more", reached: "none" };
+    place.app_pid = null;
+    if (place.keep_alive) place.paused = "you quit it in AI Juggler";
+    changedHere();
+    return { outcome: `Quit ${place.label}`, reached: "quit" };
+  }
+  return call("places_quit", { id });
+}
+
 /** Keep alive on or off. */
 export async function placesKeepAlive(id: string, on: boolean): Promise<void> {
   if (!hasLiveBackend()) {

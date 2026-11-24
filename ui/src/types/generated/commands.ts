@@ -885,6 +885,8 @@ export interface Commands {
   places_profiles: { args: Record<string, never>; result: FindProfilesInfo };
   /** Write features::places::commands::places_profiles_set */
   places_profiles_set: { args: { on: boolean }; result: FindProfilesInfo };
+  /** Write features::places::commands::places_quit */
+  places_quit: { args: { id: string }; result: GoToOutcomeInfo };
   /** Write features::places::commands::places_restart */
   places_restart: { args: { id: string; confirmed?: boolean | null }; result: GoToOutcomeInfo };
   /** Read features::pools::commands::pools_canvas */

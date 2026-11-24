@@ -11,7 +11,7 @@ use super::*;
 
 /// A state whose book holds a Claude profile and the Codex app, both
 /// installed under `root` and not running.
-fn state_with_places(root: &Path) -> (Arc<AppState>, String, String) {
+pub(super) fn state_with_places(root: &Path) -> (Arc<AppState>, String, String) {
     let state = super::fakes::on_made_up_mac(AppState::init(root.join("data")).unwrap(), root);
     let claude = root.join("Claude.app");
     let codex = root.join("ChatGPT.app");
@@ -292,7 +292,7 @@ fn a_profile_claims_only_its_own_folders_copy_of_a_conversation() {
 /// The place `id` runs as this test's own process (a real pid and start,
 /// so it's found alive; nothing is ever signalled: the recorder only
 /// notes the quit).
-fn running_as_me(state: &Arc<AppState>, id: &str) -> (u32, Option<i64>) {
+pub(super) fn running_as_me(state: &Arc<AppState>, id: &str) -> (u32, Option<i64>) {
     let me = std::process::id();
     let start = crate::features::conversations::procs::some(&[me])
         .get(&me)
@@ -306,7 +306,7 @@ fn running_as_me(state: &Arc<AppState>, id: &str) -> (u32, Option<i64>) {
     (me, start)
 }
 
-fn quick() -> QuitWait {
+pub(super) fn quick() -> QuitWait {
     QuitWait {
         limit: Duration::from_millis(100),
         every: Duration::from_millis(5),

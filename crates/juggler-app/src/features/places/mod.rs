@@ -36,6 +36,7 @@ use link::link_its_folder;
 pub(crate) use link::{LinkNote, Linked, link_note};
 pub mod open_session;
 pub mod profiles;
+pub mod quit;
 pub mod reach;
 mod records;
 pub use records::{RecordIndex, record_index};
@@ -1212,29 +1213,11 @@ pub fn restart(
                     "{label} has its window, so it wasn't restarted. Open brings it forward"
                 ));
             }
-            // AJ-E2320: only the very process looked at (its pid and
-            // start), checked again right before the signal
-            // (`ownership::signal::quit_checked`), as Move quits.
-            let changed = || {
-                format!(
-                    "{label} isn't the process it was a moment ago, so nothing was quit. Try again"
-                )
-            };
-            let looked = starter
-                .identify(pid)
-                .filter(|looked| looked.started_in(start))
-                .ok_or_else(changed)?;
-            mark_restarting(state, id, now);
-            ownership::signal::quit_checked(looked, &|pid| starter.identify(pid), &|pid| {
-                starter.quit(pid)
-            })
-            .map_err(|why| match why {
-                ownership::signal::NotAsked::NotThatProcess => changed(),
-                ownership::signal::NotAsked::Refused(why) => {
-                    format!("Couldn't quit {label}: {why}")
-                }
-            })?;
-            if !wait_until(wait, || !starter.alive(pid, start)) {
+            // AJ-E2320: only the very process looked at, as Move quits
+            // (F98: the one quit, Quit…'s too).
+            if !quit::ask_to_quit(starter, &label, pid, start, wait, || {
+                mark_restarting(state, id, now);
+            })? {
                 return Err(format!(
                     "{label} didn't quit within {} seconds, so it wasn't started again. Quit it in Activity Monitor, then start it here",
                     wait.limit.as_secs()

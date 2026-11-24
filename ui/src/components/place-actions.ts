@@ -6,7 +6,7 @@
 import { placesKeepAlive } from "../lib/ipc/places";
 import type { RailGroup } from "../lib/rail-places";
 import type { KnownPlaceInfo } from "../types/generated/KnownPlaceInfo";
-import { askRestart, restartCounts } from "./RestartApp";
+import { askQuit, askRestart, restartCounts } from "./RestartApp";
 import { showToast } from "./Toast";
 
 /** Keep alive on or off for `known`, said if it fails. */
@@ -18,12 +18,15 @@ export function keepAliveOf(known: KnownPlaceInfo | null): { on: boolean; toggle
   };
 }
 
-/** A rail header's app actions: its Keep alive, and Restart… while it runs
- * (what it stops: the group's live sessions). */
-export function headerActions(known: KnownPlaceInfo | null, group: RailGroup): { keepAlive: ReturnType<typeof keepAliveOf>; onRestart?: () => void } {
+/** A rail header's app actions: its Keep alive, and Restart… and (F98)
+ * Quit… while it runs (what they stop: the group's live sessions). */
+export function headerActions(known: KnownPlaceInfo | null, group: RailGroup): { keepAlive: ReturnType<typeof keepAliveOf>; onRestart?: () => void; onQuit?: () => void } {
   const name = group.place?.profile ? `${group.label} · ${group.place.profile}` : group.label;
+  if (!known || known.app_pid === null) return { keepAlive: keepAliveOf(known) };
+  const ask = { placeId: known.id, name, ...restartCounts(group.items.filter((item) => item.live)) };
   return {
     keepAlive: keepAliveOf(known),
-    onRestart: known && known.app_pid !== null ? () => askRestart({ placeId: known.id, name, ...restartCounts(group.items.filter((item) => item.live)) }) : undefined,
+    onRestart: () => askRestart(ask),
+    onQuit: () => askQuit({ ...ask, keepAlive: known.keep_alive }),
   };
 }

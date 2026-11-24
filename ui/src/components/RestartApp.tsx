@@ -5,10 +5,14 @@
  * the same profile (0.3.8's restart path). Every entry point (the rail's
  * App menu, the App's page, the Accounts screen's Apps) asks through
  * `askRestart`; one host shows the dialog.
+ *
+ * 0.5.1 F98: Quit…, beside Restart… wherever it is, asks through
+ * `askQuit` in the same dialog: the app is quit the same way and left
+ * closed (Keep alive waits for its next Open).
  */
 import { useEffect, useRef, useState, type JSX } from "react";
 import { Button } from "./primitives";
-import { restartPlace } from "../lib/go-to";
+import { quitPlace, restartPlace } from "../lib/go-to";
 import { DialogFrame, DialogOverlay } from "./DialogFrame";
 
 const ASK = "aij:restart-app";
@@ -23,6 +27,10 @@ export type RestartAsk = {
   open?: number;
   /** Of those, the ones working now (a turn under way). */
   working?: number;
+  /** F98: quit it and leave it closed, not start it again. */
+  quit?: boolean;
+  /** F98: its Keep alive is on (the confirm says it won't start it). */
+  keepAlive?: boolean;
 };
 
 /** A restart's counts from an App's items: open, and working of those
@@ -34,6 +42,19 @@ export function restartCounts(items: readonly { state: string; need: unknown }[]
 /** Asks to restart `ask`'s app: the host shows the confirm. */
 export function askRestart(ask: RestartAsk): void {
   window.dispatchEvent(new CustomEvent<RestartAsk>(ASK, { detail: ask }));
+}
+
+/** F98: asks to quit `ask`'s app and leave it closed: the same host's
+ * confirm, in Quit's words. */
+export function askQuit(ask: Omit<RestartAsk, "quit">): void {
+  askRestart({ ...ask, quit: true });
+}
+
+/** What happens after the confirm, in words: started again on the same
+ * profile, or (F98) left closed, Keep alive too. */
+export function afterWords(ask: Pick<RestartAsk, "quit" | "keepAlive">): string {
+  if (!ask.quit) return "AI Juggler quits it, waits for it to close, and starts it again on the same profile.";
+  return `AI Juggler quits it and waits for it to close. It stays closed until you start it again${ask.keepAlive ? ", Keep alive too" : ""}.`;
 }
 
 /** What a restart stops, in words: "working" only for a session with a
@@ -85,7 +106,7 @@ export function RestartAppDialog({ ask, onClose }: { ask: RestartAsk; onClose: (
         footerClassName="px-5 pt-3 pb-5"
         header={
           <h3 id="restart-title" className="text-body font-semibold text-ink">
-            Restart {ask.name}?
+            {ask.quit ? "Quit" : "Restart"} {ask.name}?
           </h3>
         }
         footer={
@@ -99,16 +120,17 @@ export function RestartAppDialog({ ask, onClose }: { ask: RestartAsk; onClose: (
               data-testid="restart-confirm"
               onClick={() => {
                 onClose();
-                restartPlace(ask.placeId, true);
+                if (ask.quit) quitPlace(ask.placeId, ask.name);
+                else restartPlace(ask.placeId, true);
               }}
             >
-              Restart
+              {ask.quit ? "Quit" : "Restart"}
             </Button>
           </div>
         }
       >
         <p id="restart-body" className="text-meta text-ink-2" data-testid="restart-body">
-          {restartWords(ask.open, ask.working)} AI Juggler quits it, waits for it to close, and starts it again on the same profile.
+          {restartWords(ask.open, ask.working)} {afterWords(ask)}
         </p>
       </DialogFrame>
     </DialogOverlay>

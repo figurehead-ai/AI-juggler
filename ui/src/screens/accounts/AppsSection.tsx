@@ -4,8 +4,8 @@
  * Apps and Accounts so both can be easily get to"). A row is an App: its
  * icon and mark, its whole name, the Account it runs on, what's open in
  * it, and its one action (Start a closed desktop App, Go to a running
- * one, New session on a CLI App); its ⋯ menu holds its page, Keep alive
- * and Restart… (D-71). Running ones first, then the rest, then the
+ * one, New session on a CLI App); its ⋯ menu holds its page, Keep alive,
+ * Restart… (D-71) and Quit… (0.5.1 F98). Running ones first, then the rest, then the
  * profiles found but never opened.
  */
 import { useMemo, useState, type JSX, type MouseEvent } from "react";
@@ -13,7 +13,7 @@ import { AppIcon } from "../../components/AppIcon";
 import { ProfileBadge } from "../../components/ProfileBadge";
 import { Button } from "../../components/primitives";
 import { MenuItem, RowMenu, menuPoint, type MenuAt } from "../../components/RowMenu";
-import { askRestart } from "../../components/RestartApp";
+import { askQuit, askRestart } from "../../components/RestartApp";
 import { keepAliveOf } from "../../components/place-actions";
 import { showToast } from "../../components/Toast";
 import { macApps, type AccountApp } from "../../lib/account-items";
@@ -168,6 +168,11 @@ function AppRow({ row, account, now }: { row: AccountApp; account: string | null
           {running(app) && app.place && (
             <MenuItem onClick={() => (setMenu(null), askRestart({ placeId: app.place!.id, name: app.name, open: row.open, working: row.working }))} testId="accounts-app-restart">
               Restart…
+            </MenuItem>
+          )}
+          {running(app) && app.place && (
+            <MenuItem onClick={() => (setMenu(null), askQuit({ placeId: app.place!.id, name: app.name, open: row.open, working: row.working, keepAlive: app.place!.keep_alive }))} testId="accounts-app-quit">
+              Quit…
             </MenuItem>
           )}
           {keepAlive && (

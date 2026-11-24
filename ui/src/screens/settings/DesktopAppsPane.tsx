@@ -24,7 +24,7 @@ import { IconMore } from "../../components/icons-canvas";
 import { IconRemove } from "../../components/icons-actions";
 import { showToast } from "../../components/Toast";
 import { showGoTo } from "../../lib/go-to";
-import { askRestart } from "../../components/RestartApp";
+import { askQuit, askRestart } from "../../components/RestartApp";
 import { placesForget, placesKeepAlive, placesOpen, type KnownPlaceInfo } from "../../lib/ipc/places";
 import { usePlaceOffers } from "../../components/PlaceOffers";
 import { FoundOnThisMac, ForgottenRow, type Forgotten, type Offers } from "./DesktopAppsOffers";
@@ -251,6 +251,11 @@ export function PlaceRow({ place, name: named, linked = true, onForgot }: { plac
                   {running && (
                     <MenuItem onClick={() => (setMenuAt(null), askRestart({ placeId: place.id, name }))} testId="desktop-place-restart">
                       Restart…
+                    </MenuItem>
+                  )}
+                  {running && (
+                    <MenuItem onClick={() => (setMenuAt(null), askQuit({ placeId: place.id, name, keepAlive: place.keep_alive }))} testId="desktop-place-quit">
+                      Quit…
                     </MenuItem>
                   )}
                   <MenuItem

@@ -9,7 +9,7 @@
 import { showToast } from "../components/Toast";
 import { errorText } from "./bridge";
 import { listen } from "./ipc/transport";
-import { placesList, placesRestart } from "./ipc/places";
+import { placesList, placesQuit, placesRestart } from "./ipc/places";
 import { refreshKnownPlaces } from "./places";
 import { appName, desktopProfile } from "./app-name";
 import { knownAppWord } from "./rail-apps";
@@ -116,6 +116,17 @@ export function restartPlace(placeId: string, confirmed = false): void {
       showToast({ id: "go-to", message: outcome.outcome, tone: outcome.reached === "none" ? "warning" : "neutral" });
     },
     (cause) => showToast({ id: "go-to", message: `Couldn't restart it: ${errorText(cause)}`, tone: "error" }),
+  );
+}
+
+/** 0.5.1 F98: Quit…'s confirmed quit: "Quitting …", then what it did
+ * ("Quit Claude app · Work", or why not). It isn't started again. */
+export function quitPlace(placeId: string, name: string): void {
+  waiting = null;
+  showToast({ id: "go-to", message: `Quitting ${name}…` });
+  placesQuit(placeId).then(
+    (outcome) => showToast({ id: "go-to", message: outcome.outcome, tone: outcome.reached === "none" ? "warning" : "neutral" }),
+    (cause) => showToast({ id: "go-to", message: `Couldn't quit it: ${errorText(cause)}`, tone: "error" }),
   );
 }
 

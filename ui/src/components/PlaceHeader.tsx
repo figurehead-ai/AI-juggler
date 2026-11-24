@@ -20,7 +20,7 @@ import { useFitWhole } from "./use-fit-whole";
 import { appKindOfKey } from "../lib/app-kind";
 import { FoldButton, HeadNeeds, headNeedsWords } from "./rail-groups";
 import { IconHistory, IconUpRight } from "./icons-places";
-import { IconFolderOpen, IconPage, IconPlus, IconReplay } from "./icons-actions";
+import { IconFolderOpen, IconPage, IconPlus, IconReplay, IconStop } from "./icons-actions";
 import { IconShield } from "./icons";
 import { IconChevronDown } from "./icons-controls";
 import { appTone, type AttentionLevel } from "../lib/attention";
@@ -52,6 +52,7 @@ export function PlaceHeader({
   onNew,
   onRecent,
   onRestart,
+  onQuit,
   roomOf,
   roomApp = null,
   onWarm,
@@ -119,6 +120,8 @@ export function PlaceHeader({
   onRecent?: () => void;
   /** D-71: a running desktop app: Restart…, after its confirm. */
   onRestart?: () => void;
+  /** 0.5.1 F98: a running desktop app: Quit…, after its confirm. */
+  onQuit?: () => void;
 }): JSX.Element {
   const name = [label, place?.profile].filter(Boolean).join(" · ");
   // ADR-0032: an App that runs with nothing open in it says so, folded or
@@ -277,6 +280,11 @@ export function PlaceHeader({
           {onRestart && (
             <MenuItem onClick={run(onRestart)} testId="place-header-menu-restart">
               <MenuLine icon={IconReplay} label="Restart…" />
+            </MenuItem>
+          )}
+          {onQuit && (
+            <MenuItem onClick={run(onQuit)} testId="place-header-menu-quit">
+              <MenuLine icon={IconStop} label="Quit…" />
             </MenuItem>
           )}
           {keepAlive && (

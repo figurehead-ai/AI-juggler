@@ -690,6 +690,44 @@ pub async fn places_restart(
     .await
 }
 
+/// 0.5.1 F98: Quit…, after its confirm: quits a running app or profile
+/// and leaves it closed (keep alive pauses for it until its next Open),
+/// through the one quit Restart and Move use. Waits for it to quit (at
+/// most 10 s), so it runs off the window's thread.
+///
+/// # Errors
+///
+/// None of its own: what went wrong is the outcome's words (`none`).
+#[tauri::command]
+pub async fn places_quit(
+    state: tauri::State<'_, Arc<AppState>>,
+    id: String,
+) -> AppResult<GoToOutcomeInfo> {
+    crate::ipc::blocking(state.inner(), "quitting the app", move |state| {
+        let said = super::quit::quit(
+            state,
+            &id,
+            &super::start::System,
+            super::QuitWait::default(),
+        );
+        Ok(match said {
+            Ok(words) => GoToOutcomeInfo {
+                outcome: words,
+                reached: "quit".to_owned(),
+                place_id: Some(id.clone()),
+                ticket: None,
+            },
+            Err(why) => GoToOutcomeInfo {
+                outcome: why,
+                reached: "none".to_owned(),
+                place_id: None,
+                ticket: None,
+            },
+        })
+    })
+    .await
+}
+
 /// Keep alive on or off for a place.
 ///
 /// # Errors

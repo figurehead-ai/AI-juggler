@@ -206,7 +206,7 @@ pub struct GoToOutcomeInfo {
     /// The step reached: `thread`, `tab`, `folder`, `app`, `started`,
     /// `pending` (still on it after 1.5 s), `lost` (0.3.8: it runs but
     /// lost its window when the system restarted the display; the toast offers
-    /// Restart) or `none`.
+    /// Restart), `quit` (0.5.1 F98: Quit… closed it) or `none`.
     pub reached: String,
     /// 0.3.8: with `lost`, the remembered app or profile to restart
     /// (`places_restart`); with `started`, the one being started, which
