@@ -133,6 +133,12 @@ hooks:
 # D-20 / D-24: the release scripts' self-tests (versions, what ships,
 # nightly notes, channel requirements, usage stats collected). A release
 # only runs them for real once a night.
+# AJ-E2323 R2: the move's full-disk faults on a real (temporary) 400 MB disk
+# image; opt-in, so routine test runs on a shared Mac stay light. Run once
+# per release candidate.
+move-faults:
+    cargo test --offline -p juggler-handover --test move_faults -- --ignored --test-threads=1
+
 release-selftest:
     python3 scripts/gate_passed.py --selftest
     python3 scripts/keep_going.py --selftest

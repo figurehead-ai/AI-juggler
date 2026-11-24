@@ -206,6 +206,7 @@ fn baseline(lab: &Lab) -> bool {
 /// to the same place, and once room frees it goes on from there and its
 /// checks pass.
 #[test]
+#[ignore = "heavy: makes a real 400 MB disk image; run with `just move-faults` (the release's move gate)"]
 fn a_disk_that_fills_mid_apply_leaves_the_move_recoverable_and_it_finishes_once_room_frees() {
     let Some(mut disk) = Disk::new() else {
         return;
@@ -250,6 +251,7 @@ fn a_disk_that_fills_mid_apply_leaves_the_move_recoverable_and_it_finishes_once_
 /// D2: the disk is full when Undo runs: nothing is half undone, the move
 /// reads back as it was, and once room frees Undo puts the baseline back.
 #[test]
+#[ignore = "heavy: makes a real 400 MB disk image; run with `just move-faults` (the release's move gate)"]
 fn a_full_disk_during_undo_changes_nothing_and_undo_finishes_once_room_frees() {
     let Some(mut disk) = Disk::new() else {
         return;
@@ -280,6 +282,7 @@ fn a_full_disk_during_undo_changes_nothing_and_undo_finishes_once_room_frees() {
 /// as a crash or a full disk leaves it) is safe to run again once room
 /// frees.
 #[test]
+#[ignore = "heavy: makes a real 400 MB disk image; run with `just move-faults` (the release's move gate)"]
 fn an_undo_cut_short_by_a_full_disk_runs_again_once_room_frees() {
     let Some(mut disk) = Disk::new() else {
         return;

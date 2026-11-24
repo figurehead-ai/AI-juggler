@@ -21,3 +21,5 @@
 
 - R2: `cargo test -p juggler-app --lib -- handover::moving`: 121 passed; `cargo test -p juggler-handover --test move_faults`: 3 passed (no image left attached). `cargo clippy --no-deps -p juggler-handover -p juggler-app --all-targets -- -D warnings`: clean on R2's files (`juggler-platform` and `moving_speed_tests.rs` were mid-edit by AJ-E2324 at the time).
 - `cargo test -p juggler-app --lib -- handover::moving`: 90 passed. `cargo clippy -p juggler-app --all-targets -- -D warnings`: clean. `rustfmt` on the new file.
+
+**Note (2026-11-23):** the three full-disk tests (`juggler-handover/tests/move_faults.rs`) make a real 400 MB disk image each, so they are opt-in (`#[ignore]` with its reason) and run by `just move-faults`, once per release candidate; run at this commit: 3 passed in 19.6 s, no image left attached.
