@@ -256,6 +256,22 @@ pub(crate) fn record_edge_succeeded(
     let graph = storage.switch_graph();
     // D-76: a compacted source or a left-out start lowers what it reached.
     graph.set_fidelity_reached(&ctx.edge, &record.fidelity_label)?;
+    // D-76 (AJ-E211 Req.6): the handover's note records the cut —
+    // what was left out, when, how much — as a manifest row of kind
+    // "note" so the edge's artefacts tell the whole story.
+    if let Some(cut) = &record.cut {
+        graph.append_manifest(
+            &ctx.edge,
+            &[juggler_handover::manifest::ManifestRow {
+                rel_path: "conversation.md".to_owned(),
+                sha256: "-".to_owned(),
+                bytes: 0,
+                kind: "note".to_owned(),
+                disposition: cut.note(),
+            }
+            .entry()],
+        )?;
+    }
     graph.append_manifest(
         &ctx.edge,
         &record

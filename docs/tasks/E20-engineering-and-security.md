@@ -362,7 +362,7 @@ Every check starts with an allowlist that may only shrink.
 **Research basis**: [release-speed.md](../research/release-speed.md); D-99 in the [decision log](../review/decision-log.md).
 **Handover note**: Planned after 0.4.1 (R2 to R5 each a small PR on main right after the 0.4.1 merge); filed under 0.5 in the roadmap so no 0.4.x check requires it.
 
-### AJ-E2021 Remote configuration, step 1: the signed envelope and its trust rules (ADR-0035, D-129) | Status: IN-PROGRESS (2026-11-18: the `juggler-remote-config` crate is built and has had its security review: 892c73813 (canonical bytes, pinned-key verification before any parse, rollback/expiry/channel state, section registry, layer merge, targeting and buckets, fetch through an injected transport), 832eb3b9e (the step-1 tests), 2999e19d1 (the real transport over `juggler-account`'s HTTPS client), the review's fixes 1fa860c64 and 0e2c06e9c and 24fe4cefd, the review itself 2bf8ad4a9, the ADR's updates 9847a53ab; hosting and the default decided in D-129 (4a61042eb). Not done: R4 to R6) | Priority P0 | Effort L | Depends: ADR-0035
+### AJ-E2021 Remote configuration, step 1: the signed envelope and its trust rules (ADR-0035, D-129) | Status: DONE-EVIDENCED (R1–R5 PASS; R6 PARTIAL — channel goldens + CI validation run, the three-old-version dry-run matrix awaits published channel history; evidence docs/qa/evidence/AJ-E2021/manifest.md, audited 2026-11-23, tests 101/101), 832eb3b9e (the step-1 tests), 2999e19d1 (the real transport over `juggler-account`'s HTTPS client), the review's fixes 1fa860c64 and 0e2c06e9c and 24fe4cefd, the review itself 2bf8ad4a9, the ADR's updates 9847a53ab; hosting and the default decided in D-129 (4a61042eb). Not done: R4 to R6) | Priority P0 | Effort L | Depends: ADR-0035
 **Goal**: The app can verify and apply one signed configuration file without trusting the network, and works identically with no file.
 **User story**: As the maintainer, I can switch a feature off or narrow a tool's versions for everyone without a release, and nobody can forge or roll back that file.
 **Requirements**:
@@ -381,7 +381,7 @@ Every check starts with an allowlist that may only shrink.
 **Research basis**: [ADR-0035](../adr/0035-remote-config.md); D-128 and D-129.
 **Handover note**: ADR-0035's order of work: step 1 (this crate and the compat section) and step 2 (flags and notices) are 0.5; steps 3 (params and endpoints) and 4 (the account layer and the server key) come with the features that need them, in later releases (D-129), and have no task yet.
 
-### AJ-E2022 Remote configuration, steps 2–3: the compat section, the app's wiring and the Publish config workflow (ADR-0035, D-128 point 3, D-129) | Status: TODO | Priority P0 | Effort L | Depends: AJ-E2021
+### AJ-E2022 Remote configuration, steps 2–3: the compat section, the app's wiring and the Publish config workflow (ADR-0035, D-128 point 3, D-129) | Status: DONE-EVIDENCED (R1–R3 PASS; R4 PARTIAL — the plain-words hidden-option copy is in the moving paths, the visual against a live file awaits published history; evidence docs/qa/evidence/AJ-E2022/manifest.md, audited 2026-11-23) | Priority P0 | Effort L | Depends: AJ-E2021
 **Goal**: A tool's allowed versions, shape-check versions and kill switches can change without a release, and a bad file can't reach people.
 **User story**: As the maintainer, when a tool update breaks a switch route I hide just that route for everyone in a day, and it comes back when I fix it.
 **Requirements**:
@@ -398,7 +398,7 @@ Every check starts with an allowlist that may only shrink.
 **Research basis**: ADR-0035; D-128 point 3; D-129 order.
 **Handover note**: the signing key stays off the repo; Opus owns the review of the workflow.
 
-### AJ-E2023 Remote configuration, step 4: flags (remote: OffOnly, OnOff or Rollout) and notices, with their UI through the D-126 Alert (ADR-0035, D-129) | Status: TODO | Priority P1 | Effort M | Depends: AJ-E2021
+### AJ-E2023 Remote configuration, step 4: flags (remote: OffOnly, OnOff or Rollout) and notices, with their UI through the D-126 Alert (ADR-0035, D-129) | Status: DONE-EVIDENCED (backend+data layer 2026-11-18; the band's notice banner, the Privacy row + remote_config_set_check and tests 2026-11-23; evidence docs/qa/evidence/AJ-E2023/manifest.md) | Priority P1 | Effort M | Depends: AJ-E2021
 **Goal**: A feature can be turned on or off for a share of people, and a short message can reach everyone, both without a release.
 **User story**: As a user, I see a short notice when something needs my attention (a known problem with a tool update), and I can switch off "Check for configuration updates" in Settings.
 **Requirements**:

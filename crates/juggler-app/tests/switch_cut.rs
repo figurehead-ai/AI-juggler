@@ -177,3 +177,74 @@ fn the_last_three_turns_switch_and_the_rest_stays_behind() {
         "{manifest:?}"
     );
 }
+
+// D-76 (AJ-E211 Req.6): the executed cut rides the edge as a note.
+#[test]
+fn the_cut_lands_on_the_edge_as_a_note() {
+    let work = tempfile::tempdir().unwrap();
+    let state = app_state(work.path());
+    let project = work.path().join("notes");
+    std::fs::create_dir_all(&project).unwrap();
+    let cwd = project.to_string_lossy().into_owned();
+    let a = set_up::set_up(
+        &state,
+        juggler_app::features::account::create_account(&state, CLAUDE_CODE_ID, "Default", None)
+            .unwrap(),
+    );
+    let b = set_up::set_up(
+        &state,
+        juggler_app::features::account::create_account(&state, CLAUDE_CODE_ID, "Personal", None)
+            .unwrap(),
+    );
+    let profile_a =
+        juggler_app::features::profile::create_profile(&state, &a.id, "Main", None, None).unwrap();
+    let profile_b =
+        juggler_app::features::profile::create_profile(&state, &b.id, "Main", None, None).unwrap();
+    let launched =
+        juggler_app::features::launch::launch_profile(&state, &profile_a.id, Some(cwd.clone()))
+            .unwrap();
+    let main = seed(&config_dir_of(&state, &a.id), &cwd);
+    {
+        let storage = state.storage.lock().unwrap();
+        let mut record = storage
+            .sessions()
+            .get(&juggler_core::model::SessionId::new(
+                launched.session_id.clone(),
+            ))
+            .unwrap();
+        record.transcript_ref = Some(juggler_core::model::TranscriptRef {
+            path: main.clone(),
+            native_id: Some(SESSION.to_owned()),
+        });
+        storage.sessions().update(&record).unwrap();
+    }
+    juggler_app::features::switch::execute::switch_execute_cut(
+        &state,
+        &launched.session_id,
+        &profile_b.id,
+        "stop-now",
+        Cut::KeepLast(3),
+    )
+    .unwrap_or_else(|error| panic!("the switch failed: {:?}", error.wire()));
+
+    // The edge's manifest carries the cut as a note row: plain words,
+    // the choice, how much left out.
+    let storage = state.storage.lock().unwrap();
+    let graph = storage.switch_graph();
+    let edges = graph
+        .edges_for_session(launched.session_id.as_str())
+        .unwrap();
+    let mut notes = Vec::new();
+    for (edge, _) in edges {
+        for entry in graph.manifest_for(&edge.id).unwrap() {
+            if entry.kind == "note" {
+                notes.push(entry.disposition);
+            }
+        }
+    }
+    assert!(!notes.is_empty(), "the cut note rides the edge");
+    let note = &notes[0];
+    assert!(note.starts_with("Start left out"), "{note}");
+    assert!(note.contains("last 3 turns"), "{note}");
+    assert!(note.contains("left out"), "{note}");
+}
