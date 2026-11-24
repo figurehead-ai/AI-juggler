@@ -624,6 +624,83 @@ pub struct SwitchRecord {
     /// family, such as a Claude app's side sessions), each installed and
     /// verified like the conversation, in the order given.
     pub family: Vec<InstallOutcome>,
+    /// D-76 (AJ-E211 Req.6): the cut that ran, when one did — the
+    /// choice, what it left out (turns and bytes) and the carried
+    /// size — recorded on the edge as the handover's note. `None`:
+    /// everything travelled.
+    pub cut: Option<CutRecord>,
+}
+
+/// What a switch's cut left out, for the edge's notes (D-76).
+#[derive(Clone, PartialEq, Debug)]
+pub struct CutRecord {
+    /// The choice, in words ("before 2026-11-01" / "last 400 turns").
+    pub choice: String,
+    /// The turns left out (None: the tool counts none).
+    pub turns_left_out: Option<usize>,
+    /// The bytes left out (the preview's).
+    pub bytes_left_out: Option<u64>,
+    /// The bytes carried (the whole conversation's, minus the left-out).
+    pub bytes_carried: Option<u64>,
+    /// When the first kept line was written (the cut's effective date).
+    pub from_ms: Option<i64>,
+    /// It landed on the tool's own compaction (its summary of before).
+    pub at_compaction: bool,
+}
+
+impl CutRecord {
+    /// The edge's one-line note: what was left out, in plain words.
+    #[must_use]
+    pub fn note(&self) -> String {
+        let turns = self
+            .turns_left_out
+            .map_or_else(|| "some turns".to_owned(), |n| format!("{n} turns"));
+        let size = self.bytes_left_out.map_or(String::new(), |b| {
+            format!(
+                " — {} of {} left out",
+                Self::human_bytes(b),
+                Self::human_bytes(self.bytes_carried.unwrap_or(b))
+            )
+        });
+        let when = self
+            .from_ms
+            .map_or_else(String::new, |ms| format!(" from {}", Self::date_of(ms)));
+        let compaction = if self.at_compaction {
+            " at the tool's own compaction"
+        } else {
+            ""
+        };
+        format!(
+            "Start left out{when}{compaction}: {turns}, {}{size}",
+            self.choice
+        )
+    }
+
+    /// `1677644160` → `2026-03-01` (UTC; D-94's one
+    /// `civil_from_days`, not a second copy of the algorithm).
+    fn date_of(ms: i64) -> String {
+        let date = juggler_core::renewal::civil_from_days(ms.div_euclid(86_400_000));
+        format!("{:04}-{:02}-{:02}", date.year, date.month, date.day)
+    }
+
+    /// `human_bytes` local: whole units, no decimals past one.
+    fn human_bytes(bytes: u64) -> String {
+        // Integer tenths, no float casts: one decimal, rounded down.
+        const K: u64 = 1_024;
+        let unit = |div: u64, name: &str| {
+            let tenths = bytes / (div / 10);
+            format!("{}.{} {name}", tenths / 10, tenths % 10)
+        };
+        if bytes >= K * K * K {
+            unit(K * K * K, "GB")
+        } else if bytes >= K * K {
+            unit(K * K, "MB")
+        } else if bytes >= K {
+            unit(K, "KB")
+        } else {
+            format!("{bytes} B")
+        }
+    }
 }
 
 /// The launch hook: the app spawns under its supervisor AFTER the
@@ -867,6 +944,20 @@ fn execute_steps(
             cut.unwrap_or(juggler_adapter::handover::Cut::KeepLast(usize::MAX)),
         )
         .ok();
+    // D-76: the cut's facts for the edge's note (only when one ran).
+    let cut_record = cut.zip(counted).map(|(choice, preview)| CutRecord {
+        choice: match choice {
+            juggler_adapter::handover::Cut::Before(ms) => {
+                format!("turns before {}", CutRecord::date_of(ms))
+            }
+            juggler_adapter::handover::Cut::KeepLast(n) => format!("last {n} turns"),
+        },
+        turns_left_out: (preview.turns_left_out > 0).then_some(preview.turns_left_out),
+        bytes_left_out: (preview.bytes_left_out > 0).then_some(preview.bytes_left_out),
+        bytes_carried: Some(preview.bytes.saturating_sub(preview.bytes_left_out)),
+        from_ms: preview.from_ms,
+        at_compaction: preview.at_compaction,
+    });
     let count = |n: Option<usize>| n.map_or_else(|| "-".to_owned(), |n| n.to_string());
     tracing::info!(
         target: "aij::flow",
@@ -987,6 +1078,7 @@ fn execute_steps(
             .into_iter()
             .map(|(_, install, _, _)| install)
             .collect(),
+        cut: cut_record,
     };
     Ok((record, pid))
 }
