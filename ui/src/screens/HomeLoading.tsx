@@ -99,7 +99,7 @@ function Right(): JSX.Element {
           {[0, 1].map((index) => (
             <span key={index} className="flex flex-col gap-1.5 py-2">
               <span className="flex items-center justify-between gap-3">
-                <Line text="text-sm" className="h-3 w-2/5" />
+                <Line text="text-sm" className={`h-3 ${index === 0 ? "w-28" : "w-36"}`} />
                 <Line text="text-body" className="h-3 w-14" />
               </span>
               <Bar className="h-1 w-full rounded-full" />

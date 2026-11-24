@@ -339,9 +339,25 @@ export async function goTo(page: import("@playwright/test").Page, name: string):
   // absent and fell to your menu (the 0.4.1 gate's timeouts).
   await main.getByRole("button", { name: "Home", exact: true }).waitFor();
   const direct = main.getByRole("button", { name, exact: true });
-  if ((await direct.count()) > 0) {
-    await direct.first().click();
-    return;
+  // 0.5.1 F57: in a narrow bar the last tabs are behind More (its menu
+  // says each by name), and the bar folds as its counts land: a tab seen
+  // a moment ago may have gone behind More, so each way is tried in turn.
+  const more = main.getByTestId("nav-more");
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    if ((await direct.count()) > 0) {
+      const clicked = await direct.first().click({ timeout: 3000 }).then(() => true, () => false);
+      if (clicked) return;
+    }
+    if ((await more.count()) > 0) {
+      await more.click();
+      const line = page.getByTestId("nav-more-menu").getByRole("menuitem").filter({ has: page.locator("[data-label]", { hasText: new RegExp(`^${name}$`) }) });
+      if ((await line.count()) > 0) {
+        await line.first().click();
+        return;
+      }
+      await page.keyboard.press("Escape");
+    }
+    if ((await direct.count()) === 0 && (await more.count()) === 0) break;
   }
   // AJ-E2507: Settings and the old More (This Mac, Processes, Privacy)
   // are in your menu, behind the avatar. D-49: Fleet ("My Macs") is in it
