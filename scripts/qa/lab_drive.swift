@@ -109,7 +109,14 @@
 //   focus-terminal [--in TEXT]    puts the cursor in AI Juggler's terminal (its input)
 //   type TEXT                     types TEXT where the cursor is (keys posted to Dev's pid)
 //   key NAME [--repeat N]         return, down, up, left, right, pagedown, pageup, home, end,
-//                                 escape, tab, space, ctrl-c
+//                                 escape, tab, space, ctrl-c, or a chord: cmd+k, cmd+shift+p,
+//                                 shift+tab (modifiers cmd, shift, alt, ctrl; a letter needs
+//                                 one; cmd+q, cmd+h, cmd+m, cmd+w are refused: by hand)
+//   hover TITLE [--row NAME | --region NAME] [--in TEXT …] | hover --at X,Y
+//                                 moves the pointer onto the one element titled TITLE (picked
+//                                 as press picks) or to the screen point X,Y in Dev's main
+//                                 window, behind the guard there; nothing is clicked; the
+//                                 pointer stays (for a `shot`) and the line says where it was
 //   scroll down|up [N] [--at X,Y] the wheel, N clicks (default 3) of a line, at the screen
 //                                 point X,Y (default: the middle of Dev's main window), posted
 //                                 to Dev's pid; the pointer doesn't move; each click behind the
@@ -1120,7 +1127,7 @@ let keyCodes: [String: CGKeyCode] = ["return": 36, "enter": 36, "tab": 48, "spac
                                      "pagedown": 121, "pageup": 116, "home": 115, "end": 119]
 
 /// The keys `key` takes, for its usage line.
-let keyNames = "return, down, up, left, right, pagedown, pageup, home, end, escape, tab, space, ctrl-c"
+let keyNames = "return, down, up, left, right, pagedown, pageup, home, end, escape, tab, space, ctrl-c, or a chord: cmd+k, cmd+shift+p, shift+tab"
 
 func keyPoint(_ pid: pid_t) -> CGPoint {
     let win = windowOnScreen(pid)
@@ -1183,10 +1190,56 @@ func typeText(_ pid: pid_t, _ s: String) {
     for ch in s { post(pid, code: 0, unicode: String(ch)) }
 }
 
+// 0.5.1 F25: a chord (⌘K and the like), each one as one key behind the
+// same guard as every other key.
+
+/// Letters, digits and marks by their US-layout key codes (for chords;
+/// plain words go through `type`).
+let charCodes: [Character: CGKeyCode] = [
+    "a": 0, "s": 1, "d": 2, "f": 3, "h": 4, "g": 5, "z": 6, "x": 7, "c": 8, "v": 9, "b": 11, "q": 12, "w": 13,
+    "e": 14, "r": 15, "y": 16, "t": 17, "1": 18, "2": 19, "3": 20, "4": 21, "6": 22, "5": 23, "=": 24, "9": 25,
+    "7": 26, "-": 27, "8": 28, "0": 29, "]": 30, "o": 31, "u": 32, "[": 33, "i": 34, "p": 35, "l": 37, "j": 38,
+    "'": 39, "k": 40, ";": 41, "\\": 42, ",": 43, "/": 44, "n": 45, "m": 46, ".": 47, "`": 50]
+
+let modifierFlags: [String: CGEventFlags] = ["cmd": .maskCommand, "command": .maskCommand, "⌘": .maskCommand,
+                                             "shift": .maskShift, "⇧": .maskShift,
+                                             "alt": .maskAlternate, "option": .maskAlternate, "opt": .maskAlternate, "⌥": .maskAlternate,
+                                             "ctrl": .maskControl, "control": .maskControl, "⌃": .maskControl]
+
+/// Chords that would take Dev's window away mid-walk (quit, hide,
+/// minimise, close): refused; do them by hand.
+let refusedChords: Set<String> = ["cmd+q", "cmd+h", "cmd+m", "cmd+w"]
+
+/// A key or chord as `key` takes it (pure: the selftest): "return",
+/// "ctrl-c", "cmd+k", "cmd+shift+p", "shift+tab". A letter, digit or mark
+/// needs at least one modifier (words go through `type`). nil: unknown, or
+/// refused (`refusedChords`).
+func parseChord(_ raw: String) -> (code: CGKeyCode, flags: CGEventFlags)? {
+    let name = raw.lowercased()
+    if name == "ctrl-c" { return (8, .maskControl) }
+    if let code = keyCodes[name] { return (code, []) }
+    let parts = name.split(separator: "+", omittingEmptySubsequences: false).map(String.init)
+    guard parts.count >= 2, let last = parts.last, !last.isEmpty else { return nil }
+    var flags: CGEventFlags = []
+    var seen: [String] = []
+    for m in parts.dropLast() {
+        guard let f = modifierFlags[m], !flags.contains(f) else { return nil }
+        flags.insert(f)
+        seen.append(f == .maskCommand ? "cmd" : f == .maskShift ? "shift" : f == .maskAlternate ? "alt" : "ctrl")
+    }
+    let code: CGKeyCode
+    if last.count == 1, let c = charCodes[Character(last)] { code = c } else if let k = keyCodes[last] { code = k } else { return nil }
+    // One spelling per chord for the refusal list: modifiers then the key.
+    if seen == ["cmd"], refusedChords.contains("cmd+\(last)") { return nil }
+    return (code, flags)
+}
+
 func pressKey(_ pid: pid_t, _ name: String) {
-    if name == "ctrl-c" { post(pid, code: 8, flags: .maskControl); return }
-    guard let code = keyCodes[name] else { stop(2, "unknown key \(name) (\(keyNames))") }
-    post(pid, code: code)
+    guard let chord = parseChord(name) else {
+        if refusedChords.contains(name.lowercased()) { stop(2, "\(name) would take Dev's window away (quit, hide, minimise or close): do it by hand") }
+        stop(2, "unknown key \(name) (\(keyNames))")
+    }
+    post(pid, code: chord.code, flags: chord.flags)
 }
 
 // MARK: - the wheel and the window's size (the 0.5.0 final walk, F11)
@@ -1258,6 +1311,45 @@ func scrollWheel(_ pid: pid_t, lines: Int32, at given: CGPoint?) {
         saveLedger()
         usleep(useconds_t(keyGap * 1_000_000))
     }
+}
+
+// 0.5.1 F25: hover. The pointer moves to a point inside Dev's main window
+// (the full guard at that point first, as a press or a wheel click has)
+// and stays there, so a `shot` shows the hover state; nothing is clicked.
+// It prints where the pointer was, so `hover --at X,Y` can put it back.
+
+/// The roles `hover TITLE` may name: what can be pressed, plus headings
+/// and plain words (a rail row's title).
+let hoverRoles: Set<String> = pressRoles.union(["AXStaticText", "AXHeading", "AXGroup"])
+
+func hoverAt(_ pid: pid_t, _ given: CGPoint?, element: AXUIElement? = nil) {
+    var point = CGPoint.zero
+    while true {
+        let win = windowOnScreen(pid)
+        point = element.map { pointFor(pid, $0) } ?? given ?? CGPoint(x: win.bounds.midX, y: win.bounds.midY)
+        guard win.bounds.contains(point) else { stop(4, "the point \(Int(point.x)),\(Int(point.y)) isn't inside Dev's main window; nothing sent") }
+        if guarded(pid, at: point) == .send { break }
+    }
+    let source = CGEventSource(stateID: .hidSystemState)
+    let was = CGEvent(source: nil)?.location ?? point
+    guard let there = CGEvent(mouseEventSource: source, mouseType: .mouseMoved, mouseCursorPosition: point, mouseButton: .left) else { stop(3, "no pointer event") }
+    ledger.noteOwn(Date().timeIntervalSince1970)
+    there.post(tap: .cghidEventTap)
+    ledger.noteOwn(Date().timeIntervalSince1970)
+    saveLedger()
+    usleep(300_000)
+    say("  the pointer is at \(Int(point.x)),\(Int(point.y)) (it was at \(Int(was.x)),\(Int(was.y)): `hover --at \(Int(was.x)),\(Int(was.y))` puts it back)")
+}
+
+func hover(_ pid: pid_t, _ title: String, within: [String], row: String?, region: String?) {
+    if row != nil && region != nil { stop(2, "hover takes --row or --region, not both") }
+    let nodes = tree(pid)
+    let candidates = controls(nodes, titled: title, roles: hoverRoles)
+    let (chosen, why) = row.map { pickInRow(nodes, candidates, title: title, row: $0) }
+        ?? region.map { pickInRegion(nodes, candidates, title: title, region: $0) }
+        ?? pick(nodes, candidates, within: within)
+    guard let i = chosen else { stop(4, "nothing single titled exactly \"\(title)\": \(why). Nothing sent. (`texts` lists the words.)") }
+    hoverAt(pid, nil, element: nodes[i].element)
 }
 
 /// Dev's MAIN window to `size` (points), by accessibility and its pid,
@@ -2407,7 +2499,20 @@ func selftest() {
     if !shows(["OpenCode CLI · lab A needs its sign-in"], "lab A needs its sign-in") { failures.append("shows") }
     if shows(["Sign"], "Sign in") { failures.append("shows matched a prefix of the needle") }
     // Keys: the names the sheet uses exist.
-    for k in ["return", "down", "up", "left", "right", "pagedown", "pageup", "home", "end", "escape", "tab", "space"] where keyCodes[k] == nil { failures.append("key \(k)") }
+    for k in ["return", "down", "up", "left", "right", "pagedown", "pageup", "home", "end", "escape", "tab", "space"] where keyCodes[k] == nil || parseChord(k) == nil { failures.append("key \(k)") }
+    // 0.5.1 F25: chords, each one key behind the guard; quit, hide,
+    // minimise and close refused; a bare letter is `type`'s.
+    func chord(_ raw: String) -> String? { parseChord(raw).map { "\($0.code) \($0.flags.rawValue)" } }
+    let cmd = CGEventFlags.maskCommand.rawValue, shift = CGEventFlags.maskShift.rawValue, ctrl = CGEventFlags.maskControl.rawValue
+    if chord("cmd+k") != "40 \(cmd)" || chord("CMD+K") != "40 \(cmd)" || chord("⌘+k") != "40 \(cmd)" { failures.append("key cmd+k") }
+    if chord("cmd+shift+p") != "35 \(cmd | shift)" || chord("shift+tab") != "48 \(shift)" || chord("cmd+return") != "36 \(cmd)" { failures.append("key chords with two modifiers or a named key") }
+    if chord("ctrl-c") != "8 \(ctrl)" || chord("ctrl+c") != "8 \(ctrl)" || chord("return") != "36 0" { failures.append("key ctrl-c and plain keys as before") }
+    if chord("k") != nil || chord("cmd+") != nil || chord("hyper+k") != nil || chord("cmd+cmd+k") != nil || chord("cmd+kk") != nil { failures.append("key: a bare letter or a malformed chord refused") }
+    for refused in ["cmd+q", "cmd+h", "cmd+m", "cmd+w", "Cmd+Q"] where chord(refused) != nil { failures.append("key \(refused) refused") }
+    if chord("cmd+shift+w") == nil { failures.append("key: only the plain quit/hide/minimise/close chords are refused") }
+    // Hover: the roles it may name include a row's plain words.
+    if !hoverRoles.isSuperset(of: pressRoles) || !hoverRoles.contains("AXStaticText") { failures.append("hover's roles") }
+    if parse(["--at", "10,20"]).at != "10,20" || !parse(["--at", "10,20"]).positional.isEmpty { failures.append("parse hover --at") }
     // The wheel, a point and a size (F11).
     if wheelLines("down", nil) != -3 || wheelLines("up", "5") != 5 || wheelLines("left", "1") != nil || wheelLines("down", "0") != nil || wheelLines("down", "51") != nil { failures.append("scroll's lines") }
     if parsePoint("400, 300") != CGPoint(x: 400, y: 300) || parsePoint("400") != nil || parsePoint("a,b") != nil { failures.append("--at X,Y") }
@@ -2476,6 +2581,17 @@ case "key":
     need(1, "key NAME [--repeat N]")
     say("» key \(o.positional[0])" + (o.repeatCount > 1 ? " ×\(o.repeatCount)" : ""))
     for _ in 0..<o.repeatCount { pressKey(pid, o.positional[0]) }
+case "hover":
+    if let raw = o.at, o.positional.isEmpty {
+        guard let point = parsePoint(raw) else { stop(2, "hover --at X,Y (screen points)") }
+        say("» hover --at \(raw)")
+        hoverAt(pid, point)
+    } else {
+        need(1, "hover TITLE [--row NAME | --region NAME] [--in TEXT] | hover --at X,Y")
+        say("» hover \"\(o.positional[0])\"" + (o.row.map { " --row \"\($0)\"" } ?? "") + (o.region.map { " --region \"\($0)\"" } ?? "")
+            + o.within.map { " --in \"\($0)\"" }.joined())
+        hover(pid, o.positional[0], within: o.within, row: o.row, region: o.region)
+    }
 case "scroll":
     need(1, "scroll down|up [N] [--at X,Y]")
     guard let lines = wheelLines(o.positional[0], o.positional.count > 1 ? o.positional[1] : nil) else { stop(2, "scroll down|up [N, 1 to 50] [--at X,Y]") }
