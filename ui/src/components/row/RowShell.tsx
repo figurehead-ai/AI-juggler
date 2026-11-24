@@ -22,10 +22,10 @@ import { markSeen } from "../../lib/seen";
 import { togglePin } from "../../lib/rail-order-store";
 import { SELECTED_FILL } from "../controls/selected";
 
-/** Its primary (a click, ↩): its page here, whichever app runs it. */
-export function usePrimary(item: RailItem, onSelect: (id: string) => void): () => void {
+/** Opens a row's page here (a session's, or a conversation's another app runs). */
+export function useOpenItem(onSelect: (id: string) => void): (item: RailItem) => void {
   const host = useActionHost();
-  return () => {
+  return (item) => {
     const c = item.conversation;
     if (item.session) onSelect(item.session.id);
     else if (c) {
@@ -33,6 +33,12 @@ export function usePrimary(item: RailItem, onSelect: (id: string) => void): () =
       host.openConversation?.(c);
     }
   };
+}
+
+/** Its primary (a click, ↩): its page here, whichever app runs it. */
+export function usePrimary(item: RailItem, onSelect: (id: string) => void): () => void {
+  const open = useOpenItem(onSelect);
+  return () => open(item);
 }
 
 /** Where its tools sit: over the row's end in the rail, in a gutter of
@@ -88,7 +94,7 @@ const ON_HOVER = "opacity-0 transition-opacity group-has-[:focus-visible]:opacit
  * title never moves, nothing covers it, the dot never moves (the 0.5.0
  * Nightly's "actions over the title, a handle under the dot").
  */
-export const SLOT = "grid shrink-0 items-center [&>*]:col-start-1 [&>*]:row-start-1";
+const SLOT = "grid shrink-0 items-center [&>*]:col-start-1 [&>*]:row-start-1";
 /** The layer at rest: gone under the pointer or the keyboard. */
 const AT_REST = "transition-opacity group-has-[:focus-visible]:opacity-0 group-hover:opacity-0 motion-reduce:transition-none";
 

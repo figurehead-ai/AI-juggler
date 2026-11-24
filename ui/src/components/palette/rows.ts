@@ -38,13 +38,13 @@ import type { BotRowInfo } from "../../types/generated/BotRowInfo";
 import type { SearchPoolInfo, SearchRecordsInfo } from "../../lib/ipc/search";
 
 /** A Suggested entry: words Search looks up when picked (D-144). */
-export interface Suggestion {
+interface Suggestion {
   key: "needs_me" | "finished_today" | "runway" | "running";
   label: string;
 }
 
 /** Bot's former "Or go straight to", Search's Suggested now (D-144). */
-export const SUGGESTED: readonly Suggestion[] = (["needs_me", "finished_today", "runway", "running"] as const).map((key) => ({ key, label: SHORTCUTS[key].title }));
+const SUGGESTED: readonly Suggestion[] = (["needs_me", "finished_today", "runway", "running"] as const).map((key) => ({ key, label: SHORTCUTS[key].title }));
 
 /** An Account as ⌘K lists it: its name, its tool, its room in words, and
  * the folder a new session on it starts in. */
@@ -114,7 +114,7 @@ export function typedAnything(query: RailQuery): boolean {
 }
 
 /** Whether an App runs now (a desktop app's process, or a session of a CLI one). */
-export function appOpen(app: AppModel, sessions: InstanceInfo[]): boolean {
+function appOpen(app: AppModel, sessions: InstanceInfo[]): boolean {
   if (app.place) return app.place.app_pid !== null;
   return app.folder !== null && sessions.some((session) => session.account_id === app.folder!.id && isLive(session.status));
 }
@@ -172,7 +172,7 @@ function scoreOf(row: PaletteRow, text: string): number {
 }
 
 /** The recent ones still here, as rows. */
-export function recentRows(input: PaletteInputs): PaletteRow[] {
+function recentRows(input: PaletteInputs): PaletteRow[] {
   return input.recents.flatMap((recent): PaletteRow[] => {
     switch (recent.kind) {
       case "session": {

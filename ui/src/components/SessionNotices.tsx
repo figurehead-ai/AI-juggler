@@ -141,7 +141,7 @@ export function SessionNotices({
  * under 720 px tall the notice takes one paragraph instead of three lines:
  * its title and detail run on, the meter goes (the detail says the same
  * "5% … left"), and its padding tightens, so the column gets that height. */
-export const SHORT_WINDOW_FIT =
+const SHORT_WINDOW_FIT =
   "[@media(max-height:719px)]:py-2 [@media(max-height:719px)]:[&>div>p]:inline [@media(max-height:719px)]:[&>div>p]:mr-1.5 [@media(max-height:719px)]:[&>div>p>span]:inline [@media(max-height:719px)]:[&>div>p+div]:inline [@media(max-height:719px)]:[&_[role=meter]]:hidden";
 
 function without(set: ReadonlySet<string>, key: string): ReadonlySet<string> {

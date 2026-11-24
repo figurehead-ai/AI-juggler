@@ -14,9 +14,8 @@
 import type { JSX } from "react";
 import { HeadNeeds } from "./rail-groups";
 import { IconGitBranch } from "./icons";
-import { useActionHost } from "./ItemMenu";
 import { openSubagents } from "./row/RowParts";
-import { markSeen } from "../lib/seen";
+import { useOpenItem } from "./row/RowShell";
 import { STATE_TONE, type RailItem } from "../lib/rail-items";
 import { countWords, headCounts, nextOf, type HeadCount } from "../lib/rail-counts";
 import { presetListState } from "../lib/list-presets";
@@ -26,19 +25,6 @@ import type { AttentionLevel } from "../lib/attention";
 
 const COUNT =
   "flex h-6 shrink-0 items-center gap-1 rounded-md px-1 text-label tabular-nums text-muted outline-none transition-colors hover:bg-hover hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60";
-
-/** Opens a rail item's page here (a session's, or a conversation's another app runs). */
-export function useOpenItem(onSelect: (id: string) => void): (item: RailItem) => void {
-  const host = useActionHost();
-  return (item) => {
-    const c = item.conversation;
-    if (item.session) onSelect(item.session.id);
-    else if (c) {
-      markSeen(c.account_id, c.id);
-      host.openConversation?.(c);
-    }
-  };
-}
 
 /** An App header's counts (R2). */
 export function HeadCounts({ items, needItems = [], level, probably, selectedId, onSelect }: { items: readonly RailItem[]; needItems?: readonly RailItem[]; level: AttentionLevel; probably: boolean; selectedId: string | null; onSelect: (id: string) => void }): JSX.Element | null {

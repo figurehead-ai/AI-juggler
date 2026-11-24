@@ -27,7 +27,7 @@ import { IconGear } from "../icons-menu";
 import type { PaletteRow } from "./rows";
 
 /** `text` with `ranges` bold. */
-export function Highlighted({ text, ranges }: { text: string; ranges: readonly Range[] }): JSX.Element {
+function Highlighted({ text, ranges }: { text: string; ranges: readonly Range[] }): JSX.Element {
   if (ranges.length === 0) return <>{text}</>;
   return (
     <>
@@ -89,7 +89,7 @@ export function rowTitle(entry: PaletteRow): string {
 
 /** AJ-E3824: a found record's line — where it is, then how it stands
  * ("Claude Code · shop · Asks you", "Release · Blocked", "54 % used"). */
-export function recordLine(row: BotRowInfo): string {
+function recordLine(row: BotRowInfo): string {
   const state = row.state ? STATE_WORDS[row.state] : row.used_percent !== null ? `${row.used_percent} % used` : null;
   return [...rowPlace(row).split(" · ").slice(1), state].filter(Boolean).join(" · ");
 }

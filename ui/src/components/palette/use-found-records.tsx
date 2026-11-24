@@ -12,7 +12,7 @@ import type { InstanceInfo } from "../../types/generated/InstanceInfo";
 import type { PaletteRow } from "./rows";
 
 /** How long typing rests before the records are looked up. */
-export const RECORDS_WAIT_MS = 150;
+const RECORDS_WAIT_MS = 150;
 
 export function useFoundRecords(open: boolean, typed: string): SearchRecordsInfo | null {
   const asked = typed.trim();

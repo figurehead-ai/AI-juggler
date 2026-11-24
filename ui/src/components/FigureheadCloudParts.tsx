@@ -128,7 +128,7 @@ function FeatureRow({
 }
 
 /** The features a person can use today (D-127: an unshipped one is hidden). */
-export function shownFeatures(features: readonly CloudFeatureInfo[]): CloudFeatureInfo[] {
+function shownFeatures(features: readonly CloudFeatureInfo[]): CloudFeatureInfo[] {
   return features.filter((feature) => !FEATURE_COPY[feature.key]?.unshipped);
 }
 
