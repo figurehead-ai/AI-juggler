@@ -89,7 +89,9 @@ fn models(dir: &Path, min_memory_gb: u64, bytes: &[u8]) -> (PathBuf, Vec<Install
 /// - `ok`: a text answer; `garbage`: not JSON; `big`: a line over the
 ///   bound; `crash`: exits; `wrong_id`: another id's answer;
 /// - `cancel`: waits for the next line (the cancel), then says `stopped`;
-/// - `hang`: never answers.
+/// - `hang`: never answers; `slow`: answers `ok`'s text after a second.
+///
+/// It writes its process id to `dir/pid`.
 ///
 /// The engine starts a helper only on macOS (through `taskpolicy` and
 /// `sandbox-exec`: [`Local::command`] is `None` elsewhere), so the tests
@@ -102,6 +104,7 @@ fn fake(dir: &Path, mode: &str, hello: &str) -> PathBuf {
     let script = format!(
         r#"#!/bin/sh
 echo "$@" > '{args}'
+echo $$ > '{pid}'
 env > '{env}'
 echo '{hello}'
 while read -r line; do
@@ -120,11 +123,13 @@ while read -r line; do
         wrong_id) echo '{{"kind":"text","id":999999,"text":"x","finish":"stop","tokens":1}}';;
         cancel) read -r next; printf '%s\n' "$next" >> '{log}'; echo '{{"kind":"error","id":'$id',"error":"stopped"}}';;
         hang) sleep 30;;
+        slow) sleep 1; echo '{{"kind":"text","id":'$id',"text":"fine","finish":"length","tokens":2}}';;
       esac;;
   esac
 done
 "#,
         args = dir.join("args.log").display(),
+        pid = dir.join("pid").display(),
         env = dir.join("env.log").display(),
         log = log.display(),
     );
@@ -406,6 +411,64 @@ fn a_job_loads_the_model_once_then_generates_with_its_frame_shape_and_sampling()
 
     engine.release();
     assert!(!card(&engine).running);
+}
+
+/// The fake helper's process, while it exists (a reaped one is gone).
+#[cfg(target_os = "macos")]
+fn helper_exists(dir: &Path) -> bool {
+    let pid = std::fs::read_to_string(dir.join("pid")).unwrap();
+    std::process::Command::new("/bin/kill")
+        .args(["-0", pid.trim()])
+        .stderr(std::process::Stdio::null())
+        .status()
+        .unwrap()
+        .success()
+}
+
+/// AJ-E3821 R1: Remove releases the engines before it deletes the file
+/// (`ai_model_remove`, order checked in `models::commands`): the loaded
+/// helper is killed and reaped by the time `release` returns, so nothing
+/// holds the file and its space is free when it is deleted.
+#[cfg(target_os = "macos")]
+#[test]
+fn release_kills_and_reaps_the_loaded_helper_before_it_returns() {
+    let dir = tempfile::tempdir().unwrap();
+    let engine = engine(dir.path(), "ok", 16);
+    engine.respond(MODEL, &request(), &soon()).unwrap();
+    assert!(card(&engine).running && helper_exists(dir.path()));
+    engine.release();
+    assert!(!helper_exists(dir.path()), "the helper is gone, reaped");
+    assert!(!card(&engine).running);
+    let file = dir
+        .path()
+        .join("ai-models")
+        .join(format!("{}.gguf", sha(BYTES)));
+    std::fs::remove_file(&file).unwrap();
+    assert!(!file.exists());
+}
+
+/// AJ-E3821 R2: a job running when Remove releases the engine ends with
+/// its usual answer (release waits for it), never a crash: the helper
+/// goes after, and the engine stays healthy.
+#[cfg(target_os = "macos")]
+#[test]
+fn a_job_running_at_release_ends_as_usual_then_the_helper_goes() {
+    let dir = tempfile::tempdir().unwrap();
+    let engine = engine(dir.path(), "slow", 16);
+    std::thread::scope(|scope| {
+        let job = scope.spawn(|| engine.respond(MODEL, &request(), &soon()));
+        let asked = Instant::now();
+        while !ops(dir.path()).contains(&"generate".to_owned()) {
+            assert!(asked.elapsed() < Duration::from_secs(10), "the job started");
+            std::thread::sleep(Duration::from_millis(20));
+        }
+        engine.release();
+        assert!(job.is_finished(), "release waited for the job");
+        let draft = job.join().unwrap().unwrap();
+        assert_eq!(draft.text, "fine");
+    });
+    assert!(!helper_exists(dir.path()), "the helper is gone, reaped");
+    assert_eq!(card(&engine).ready, Readiness::Ready, "no crash counted");
 }
 
 #[cfg(target_os = "macos")]

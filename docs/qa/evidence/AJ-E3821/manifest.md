@@ -2,12 +2,14 @@
 
 **Task:** `docs/tasks/E38-chat.md`, AJ-E3821: Remove lets the engines go of the model before deleting it, so the disk is free when Remove says so (found in `docs/qa/evidence/AJ-E3712/qwen-download-check.md`, step 4).
 
-**Branch:** `release/0.5.1`. Fix: 5296623e2 (`ai_model_remove` calls `service::release_engines()` before the store's remove; each engine's `release` drops its running helper). Closed out 2026-11-23 (Opus).
+**Status:** DONE (0.5.1)
+
+**Branch:** `release/0.5.1`. Fix: 5296623e2 (`ai_model_remove` calls `service::release_engines()` before the store's remove; each engine's `release` drops its running helper). Closed out 2026-11-23 (Opus); the tests below added for 0.5.1 F16.
 
 ## By requirement
 
-R1: OPEN — no test covers it and no PL1 step re-checks it yet. Only part of it is tested: an engine lets go of its helper on `release` (`engines::local::tests::a_job_loads_the_model_once_then_generates_with_its_frame_shape_and_sampling` ends with `release()` and the card no longer running). No test covers Remove calling it before the delete, or the disk being free when Remove returns. The proof the task names is a live re-check of Remove's free space (AJ-E3712's re-check row, "the E2323 PL1 walk"), but `docs/qa/0.5-walks/0.5.1-PL1.md` has no step for it yet: Part H needs one.
-R2: OPEN — no test: a job running on the model while Remove releases its engine should end with the engine's usual stop, never a crash report. This needs a fake-helper test in `engines/local/tests.rs`, or the same PL1 step with a Bot answer running.
+R1: PASS — Remove releases the engines before the store deletes the file: cargo `features::ai::models::commands::tests::remove_releases_the_engines_before_it_deletes_the_file` (in `ai_model_remove`, `release_engines()` comes before `.remove(&model_id)`). The release lets the file go at once: cargo `features::ai::engines::local::tests::release_kills_and_reaps_the_loaded_helper_before_it_returns` (a fake helper loaded by a job; when `release` returns its process is gone, reaped, and the file is deleted). Live re-check: PL1 step H6 (`docs/qa/0.5-walks/0.5.1-PL1.md`), run when the lab holds a model.
+R2: PASS — cargo `features::ai::engines::local::tests::a_job_running_at_release_ends_as_usual_then_the_helper_goes`: a job generating when `release` is called ends with its usual answer (release waits for it), the helper goes after, and the engine stays Ready (no crash counted). Live: PL1 step H6's second run (Remove with a Bot answer running).
 
 ## Redaction checklist
 

@@ -383,3 +383,23 @@ pub async fn ai_model_decline_extra(
     })
     .await
 }
+
+#[cfg(test)]
+mod tests {
+    /// AJ-E3821 R1: Remove lets the engines go of the model before the
+    /// store deletes its file (the engine side: `engines::local::tests::
+    /// release_kills_and_reaps_the_loaded_helper_before_it_returns`).
+    #[test]
+    fn remove_releases_the_engines_before_it_deletes_the_file() {
+        let source = include_str!("commands.rs");
+        let body = &source[source.find("pub async fn ai_model_remove(").unwrap()..];
+        let body = &body[..body.find("\n}\n").unwrap()];
+        let release = body
+            .find("release_engines()")
+            .expect("Remove releases the engines");
+        let delete = body
+            .find(".remove(&model_id)")
+            .expect("Remove deletes the file");
+        assert!(release < delete, "the engines let go first");
+    }
+}

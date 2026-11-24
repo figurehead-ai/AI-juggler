@@ -452,7 +452,7 @@
 **Research basis**: ADR-0033 (the review's rules and verdicts), D-131 (v5-final.md), D-127.
 **Handover note**: Opus builds this. Share the guard with Bot's (AJ-E3806); do not write a second one.
 
-### AJ-E3821 Remove frees a model's disk at once: the local helper lets go of the file before it is deleted | Status: IN-PROGRESS (0.5.1: built 5296623e2; open: R1, R2 need a test and a PL1 step, none exists yet) | Priority P1 | Effort S | Depends: AJ-E3803
+### AJ-E3821 Remove frees a model's disk at once: the local helper lets go of the file before it is deleted | Status: DONE (0.5.1) | Priority P1 | Effort S | Depends: AJ-E3803
 **Found** in the Qwen3-1.7B download-and-remove check (2026-11-22, `docs/qa/evidence/AJ-E3712/qwen-download-check.md`): Remove said "Frees 1.8 GB" and deleted the file, but the idle `juggler-local-ai` helper still held it open, so the space came back only at the helper's idle exit, about 4–6 minutes later.
 **UI**: no
 **Requirements**:
