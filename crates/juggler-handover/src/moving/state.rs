@@ -234,9 +234,7 @@ pub fn stamps(path: &Path) -> Vec<(PathBuf, FileId, u64, Option<u64>)> {
 #[must_use]
 pub fn unchanged(path: &Path, before: &State) -> bool {
     let same = |file: &Path, was: &FileState| {
-        let Some(when) = was.mtime_ns else {
-            return None;
-        };
+        let when = was.mtime_ns?;
         let Ok(meta) = std::fs::symlink_metadata(file) else {
             return Some(false);
         };
@@ -258,8 +256,7 @@ pub fn unchanged(path: &Path, before: &State) -> bool {
                     .iter()
                     .map(|(rel, f)| same(&path.join(rel), f))
                     .try_fold(true, |all, one| one.map(|ok| all && ok)),
-                Some(_) => Some(false),
-                None => Some(false),
+                _ => Some(false),
             }
         }
     };

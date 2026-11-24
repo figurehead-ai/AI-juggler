@@ -91,7 +91,7 @@ mod imp {
         let uid = nix::unistd::getuid().as_raw().to_string();
         // -n -P: no name lookups; -w: no warnings; -a -u: this user only;
         // -d 0-999999: numbered files only (not the program's own code).
-        let out = std::process::Command::new("/usr/sbin/lsof")
+        let out = crate::process::helper("/usr/sbin/lsof")
             .args([
                 "-n", "-P", "-w", "-a", "-u", &uid, "-d", "0-999999", "-F", "pcan",
             ])

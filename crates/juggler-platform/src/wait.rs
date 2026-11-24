@@ -92,7 +92,7 @@ fn watch_list(paths: &[PathBuf]) -> Vec<PathBuf> {
             }
         }
     }
-    files.sort_by(|a, b| b.0.cmp(&a.0));
+    files.sort_by_key(|f| std::cmp::Reverse(f.0));
     for (_, file) in files {
         if out.len() >= WATCH_MAX {
             break;

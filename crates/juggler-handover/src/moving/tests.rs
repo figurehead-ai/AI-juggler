@@ -908,3 +908,134 @@ fn a_move_recorded_without_times_is_checked_by_its_bytes() {
     assert!(txn.verify_cold(Vec::new()).unwrap().passed());
     assert!(state::READ.with(std::cell::Cell::get) > 0, "read its bytes");
 }
+
+/// AJ-E2324 R4, measured (run alone: `cargo test -p juggler-handover --lib
+/// -- --ignored --nocapture fixture_move_timings`): a 400 MB fixture move
+/// with real processes for the two apps (each ends when asked) and the
+/// Code tab's Claude Code (it writes its last line 0.5 s after and ends),
+/// through the real waits (`juggler_platform::wait`) and the engine:
+/// quit and wait, the files' quiet window, backup, apply and the cold
+/// check. The apps' own start and the open check come after (AJ-E2322's
+/// event-driven wait); the walk measures them on real apps.
+#[test]
+#[ignore = "a measurement: 400 MB on disk, run alone"]
+fn fixture_move_timings() {
+    use juggler_platform::wait;
+    use std::process::{Child, Command};
+    use std::time::{Duration, Instant};
+    if !clones() {
+        return;
+    }
+    let lab = lab();
+    let history = lab.a.join("p/s.jsonl");
+    let line = b"{\"type\":\"assistant\",\"pad\":\"................................\"}\n";
+    std::fs::write(&history, line.repeat((400 << 20) / line.len())).unwrap();
+    let app = || {
+        Command::new("/bin/sh")
+            .args(["-c", "trap 'exit 0' TERM; /bin/sleep 60 & wait"])
+            .spawn()
+            .unwrap()
+    };
+    let mut runs = Vec::new();
+    let mut waits_cpu = Vec::new();
+    for run in 0..10 {
+        let (from, to) = if run % 2 == 0 {
+            (&lab.a, &lab.b)
+        } else {
+            (&lab.b, &lab.a)
+        };
+        let mut apps: Vec<Child> = vec![app(), app()];
+        let mut writer = Command::new("/bin/sh")
+            .arg("-c")
+            .arg(format!(
+                "trap '' TERM; /bin/sleep 0.5; printf '{{}}\\n' >> '{}'",
+                from.join("p/s.jsonl").display()
+            ))
+            .spawn()
+            .unwrap();
+        std::thread::sleep(Duration::from_millis(200));
+        let began = Instant::now();
+        let cpu = cpu_time::ProcessTime::now();
+        for app in &apps {
+            let _ = Command::new("/bin/kill")
+                .args(["-TERM", &app.id().to_string()])
+                .status();
+        }
+        // The apps, then the writer: each woken by its exit.
+        let wait_all = |set: &mut Vec<&mut Child>| {
+            while !set.is_empty() {
+                let pids: Vec<u32> = set.iter().map(|c| c.id()).collect();
+                let _ = wait::any_exit(&pids, Duration::from_secs(1));
+                set.retain_mut(|c| c.try_wait().unwrap().is_none());
+            }
+        };
+        wait_all(&mut apps.iter_mut().collect());
+        wait_all(&mut vec![&mut writer]);
+        let quiet = wait::quiet_for(
+            &[from.join("p")],
+            Duration::from_millis(300),
+            Duration::from_secs(9),
+        );
+        let wait_cpu = cpu.elapsed();
+        let waited = began.elapsed();
+        assert_eq!(quiet, wait::Quiet::Calm);
+        // The engine.
+        let request = MoveRequest {
+            source: MoveSide {
+                tool_dir: from.clone(),
+                host_dir: None,
+                version: None,
+            },
+            target: MoveSide {
+                tool_dir: to.clone(),
+                host_dir: None,
+                version: None,
+            },
+            ..request(&lab)
+        };
+        let plan = MovePlan {
+            roots: vec![from.clone(), to.clone()],
+            steps: vec![MoveStep::Rename {
+                from: from.join("p/s.jsonl"),
+                to: to.join("p/s.jsonl"),
+                history: true,
+            }],
+            ..plan(&lab)
+        };
+        let mut txn = Transaction::begin(
+            &lab.moves,
+            &format!("t{run}"),
+            "fake",
+            request,
+            plan,
+            None,
+            1,
+        )
+        .unwrap();
+        let stopped = Stopped::checked();
+        let t = Instant::now();
+        txn.back_up(&stopped).unwrap();
+        let backed = t.elapsed();
+        let t = Instant::now();
+        txn.apply(&stopped, 0).unwrap();
+        assert!(txn.verify_cold(Vec::new()).unwrap().passed());
+        let applied = t.elapsed();
+        let total = began.elapsed();
+        eprintln!(
+            "run {run}: waits {waited:?} (CPU {wait_cpu:?}), backup {backed:?}, apply+cold {applied:?}, total {total:?}"
+        );
+        runs.push(total);
+        waits_cpu.push(wait_cpu);
+        let _ = txn.retire();
+        let _ = std::fs::remove_dir_all(txn.dir());
+    }
+    runs.sort();
+    waits_cpu.sort();
+    eprintln!(
+        "p50 {:?}, p95 {:?}, waits' CPU max {:?}",
+        runs[runs.len() / 2],
+        runs[runs.len() * 95 / 100],
+        waits_cpu.last().unwrap()
+    );
+    assert!(*waits_cpu.last().unwrap() <= Duration::from_millis(50));
+}

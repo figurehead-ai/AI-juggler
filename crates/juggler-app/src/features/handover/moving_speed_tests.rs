@@ -8,9 +8,10 @@ use super::*;
 
 fn stop_of(error: &AppError) -> MoveStop {
     match error {
-        AppError::Move(stop) => (**stop).clone(),
-        other => panic!("not a move's stop: {other}"),
+        AppError::Move(stop) => Some((**stop).clone()),
+        _ => None,
     }
+    .expect("a move's stop")
 }
 
 /// R1: the files hold still for one 300 ms window (woken by their
