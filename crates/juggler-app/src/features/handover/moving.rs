@@ -224,6 +224,8 @@ mod quit;
 mod real;
 #[path = "moving_recover.rs"]
 pub mod recover;
+#[path = "moving_reopen.rs"]
+mod reopen;
 #[path = "moving_repair.rs"]
 pub mod repair;
 #[path = "moving_retention.rs"]
@@ -836,6 +838,12 @@ fn run(state: &Arc<AppState>, sides: &Sides, system: &dyn MoveSystem) -> AppResu
             };
             typed(refused(words), class)
         })?;
+    // AJ-E2326 R1: no start path continues the conversation meanwhile.
+    let _held = crate::features::places::ConversationHold::take(
+        state,
+        &sides.request.conversation,
+        &move_id,
+    );
     let previous = hold::all_moves(&state.data_dir)
         .into_iter()
         .rev()
@@ -857,6 +865,21 @@ fn run(state: &Arc<AppState>, sides: &Sides, system: &dyn MoveSystem) -> AppResu
     txn.remember_places(ids, sides.accounts.clone())
         .map_err(|error| of_move(typed(engine(error), StopClass::Bug), &move_id))?;
     let mut timeline = timeline::Timeline::start();
+    // AJ-E2326 R2: the conversation open again where it was, checked, once
+    // the move is refused after its app was quit (it was open there).
+    let reopen_source = |txn: &Transaction, ran: bool| {
+        if let (true, Some((id, place)), Some(mover)) =
+            (ran, &sides.source_place, sides.adapter.in_place_move())
+        {
+            let seen =
+                reopen::reopen_where_it_was(state, (id, place), &sides.request, mover, system);
+            let _ = txn.timeline("reopened", 0, serde_json::json!({ "seen": seen }));
+        }
+    };
+    let source_was = sides
+        .source_place
+        .as_ref()
+        .and_then(|(id, _)| system.running(state, id));
 
     // The single-writer phase.
     let (stopped_places, kept_running) =
@@ -882,6 +905,12 @@ fn run(state: &Arc<AppState>, sides: &Sides, system: &dyn MoveSystem) -> AppResu
                     juggler_core::model::Timestamp::now().millis(),
                 );
                 let _ = txn.drop_backups();
+                // Quit, then started again by the refusal: open it there.
+                let source_now = sides
+                    .source_place
+                    .as_ref()
+                    .and_then(|(id, _)| system.running(state, id));
+                reopen_source(&txn, source_was.is_some() && source_now != source_was);
                 return Err(of_move(error, &move_id));
             }
         };
@@ -912,6 +941,11 @@ fn run(state: &Arc<AppState>, sides: &Sides, system: &dyn MoveSystem) -> AppResu
                 // Nothing is left to restore from them.
                 let _ = txn.drop_backups();
                 start_again(state, &stopped_places, &sides.request, system);
+                let source = sides.source_place.as_ref().map(|(id, _)| id);
+                let ran = stopped_places
+                    .iter()
+                    .any(|p| Some(&p.id) == source && p.was_running);
+                reopen_source(txn, ran);
                 // Only a stop that can clear by itself says try again.
                 stop.words = if stop.class == StopClass::Transient {
                     format!("{words}, so nothing was moved. Try again in a moment.")
@@ -1306,6 +1340,11 @@ pub(crate) fn undo_as(
         places.push((id.clone(), known));
     }
     let (_lock, _hold, adapter) = take_move(state, &txn)?;
+    let _held = crate::features::places::ConversationHold::take(
+        state,
+        &txn.manifest.request.conversation,
+        move_id,
+    );
     let writing = writing_of_move(&adapter, &txn)?;
     let both = (&places[..], &txn.manifest.request);
     let why_not = quiet(
@@ -1359,16 +1398,27 @@ pub(crate) fn undo_as(
             }
         }
     });
-    // Opened where it was.
-    let link = writing
-        .mover
-        .resume_link(&txn.manifest.request.conversation);
-    if let (true, Some((id, place)), Some(link)) = (reopen, places.first(), link) {
-        let _ = open_in(state, (id, place), &link, &txn.manifest.request, system);
+    // Opened where it was, and seen open there (AJ-E2326 R2).
+    let mut words = "Undone: the conversation is back where it was. Anything done since the move is kept aside; Copy details says where.".to_owned();
+    if let (true, Some((id, place))) = (reopen, places.first()) {
+        let seen = reopen::reopen_where_it_was(
+            state,
+            (id, place),
+            &txn.manifest.request,
+            writing.mover,
+            system,
+        );
+        let _ = txn.timeline("reopened", 0, serde_json::json!({ "seen": seen }));
+        if seen.is_none() {
+            let name = place_name(state, place);
+            words = format!(
+                "Undone: the conversation is back where it was, but AI Juggler couldn't see it open in {name}. Open it from {name}. Anything done since the move is kept aside; Copy details says where."
+            );
+        }
     }
     // R4: no path in the words (Copy details has it).
     Ok(MoveUndoneInfo {
-        words: "Undone: the conversation is back where it was. Anything done since the move is kept aside; Copy details says where.".to_owned(),
+        words,
         kept: kept.display().to_string(),
         notes: kept_running,
     })

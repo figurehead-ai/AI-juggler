@@ -1268,6 +1268,8 @@ mod open;
 mod picking;
 #[path = "moving_recover_tests.rs"]
 mod recovering;
+#[path = "moving_reopen_tests.rs"]
+mod reopening;
 #[path = "moving_shape_tests.rs"]
 mod shapes;
 #[path = "moving_speed_tests.rs"]

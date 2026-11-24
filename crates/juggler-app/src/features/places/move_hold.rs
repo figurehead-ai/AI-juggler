@@ -113,3 +113,155 @@ pub(crate) const HELD: &str = "a switch is moving conversations into or out of t
 
 /// The words for a place a move that didn't finish holds.
 pub(crate) const HELD_UNFINISHED: &str = "a switch's move into or out of this profile didn't finish, so AI Juggler keeps it closed; undo the move to open it again";
+
+/// AJ-E2326 R1: how long a conversation stays held once its move was
+/// refused or undone: the move opens it again where it was meanwhile, and
+/// a start here would make a second writer on it.
+pub const SETTLE_MS: i64 = 30_000;
+
+/// Words: a move of the conversation runs.
+pub(crate) const CONVERSATION_MOVING: &str = "this conversation is being moved to another account; it opens where it lands when the move is done";
+/// Words: its move was just refused or undone, and it is opening again
+/// where it was.
+pub(crate) const CONVERSATION_SETTLING: &str =
+    "this conversation's move just stopped and it is opening again where it was; continue it there";
+/// Words: a move of it didn't finish.
+pub(crate) const CONVERSATION_UNFINISHED: &str =
+    "a move of this conversation didn't finish; undo the move (Moves) to open it again";
+
+/// A conversation's mark in the shared move area: the move (with its
+/// owner) and, once it was refused or undone, until when it settles.
+#[derive(serde::Serialize, serde::Deserialize)]
+struct ConversationMark {
+    #[serde(flatten)]
+    marker: hold::Marker,
+    #[serde(default)]
+    until_ms: Option<i64>,
+}
+
+fn conversation_mark(state: &AppState, conversation: &str) -> std::path::PathBuf {
+    hold::area_at(&state.data_dir)
+        .join("conversations")
+        .join(hold::key(conversation))
+}
+
+fn write_mark(path: &std::path::Path, mark: &ConversationMark) {
+    let Some(dir) = path.parent() else {
+        return;
+    };
+    let next = path.with_extension("next");
+    let written = std::fs::create_dir_all(dir)
+        .and_then(|()| std::fs::write(&next, serde_json::to_vec(mark).unwrap_or_default()))
+        .and_then(|()| std::fs::rename(&next, path));
+    if let Err(why) = written {
+        tracing::warn!(target: "juggler::move", "couldn't mark the conversation held: {why}");
+    }
+}
+
+/// AJ-E2326 R1: a move's hold on its conversation, for every AI Juggler
+/// on this Mac (a mark in the shared move area beside the profiles'
+/// markers): no start path continues it here while the move runs, nor for
+/// [`SETTLE_MS`] after it was refused or undone. A move that succeeded
+/// lets it go; one left part way keeps it ([`conversation_held`]).
+pub struct ConversationHold {
+    state: Arc<AppState>,
+    conversation: String,
+    move_id: String,
+}
+
+impl ConversationHold {
+    /// Holds `conversation` for move `move_id` (best effort: the
+    /// profiles' hold is the move's own safety).
+    #[must_use]
+    pub fn take(state: &Arc<AppState>, conversation: &str, move_id: &str) -> Self {
+        if let Some(owner) = hold::me() {
+            let mark = ConversationMark {
+                marker: hold::Marker {
+                    move_id: move_id.to_owned(),
+                    place: conversation.to_owned(),
+                    owner_pid: owner.pid,
+                    owner_start_micros: u64::try_from(owner.start_micros).unwrap_or(u64::MAX),
+                },
+                until_ms: None,
+            };
+            write_mark(&conversation_mark(state, conversation), &mark);
+        }
+        Self {
+            state: Arc::clone(state),
+            conversation: conversation.to_owned(),
+            move_id: move_id.to_owned(),
+        }
+    }
+}
+
+impl Drop for ConversationHold {
+    fn drop(&mut self) {
+        use juggler_handover::moving::Phase;
+        let path = conversation_mark(&self.state, &self.conversation);
+        let phase = hold::open_move(&self.state.data_dir, &self.move_id).map(|t| t.manifest.phase);
+        match phase {
+            Ok(Phase::Undone) => settle_conversation(
+                &self.state,
+                &self.conversation,
+                &self.move_id,
+                juggler_core::model::Timestamp::now().millis() + SETTLE_MS,
+            ),
+            // Part way: held until it is undone (by the person, or the
+            // recovery at the next start).
+            Ok(Phase::BackedUp | Phase::Applying | Phase::Applied | Phase::Undoing) => {}
+            _ => {
+                let _ = std::fs::remove_file(path);
+            }
+        }
+    }
+}
+
+/// Marks `conversation` settling until `until_ms` after move `move_id`
+/// was refused or undone.
+pub fn settle_conversation(state: &AppState, conversation: &str, move_id: &str, until_ms: i64) {
+    let owner = hold::me().unwrap_or(crate::features::ownership::ProcId {
+        pid: 0,
+        start_micros: 0,
+    });
+    let mark = ConversationMark {
+        marker: hold::Marker {
+            move_id: move_id.to_owned(),
+            place: conversation.to_owned(),
+            owner_pid: owner.pid,
+            owner_start_micros: u64::try_from(owner.start_micros).unwrap_or(u64::MAX),
+        },
+        until_ms: Some(until_ms),
+    };
+    write_mark(&conversation_mark(state, conversation), &mark);
+}
+
+/// AJ-E2326 R1: why `conversation` can't be started here now, in words;
+/// `None`: it can. A move of it runs ([`CONVERSATION_MOVING`]), was
+/// refused or undone moments ago ([`CONVERSATION_SETTLING`]), or was left
+/// part way ([`CONVERSATION_UNFINISHED`]). Every start path asks it (the
+/// sessions' one start, `sessions::spawn::start_session`).
+#[must_use]
+pub fn conversation_held(state: &AppState, conversation: &str) -> Option<&'static str> {
+    use juggler_handover::moving::Phase;
+    let path = conversation_mark(state, conversation);
+    let mark: ConversationMark = serde_json::from_slice(&std::fs::read(&path).ok()?).ok()?;
+    let stale = || {
+        let _ = std::fs::remove_file(&path);
+        None
+    };
+    if let Some(until) = mark.until_ms {
+        return if juggler_core::model::Timestamp::now().millis() < until {
+            Some(CONVERSATION_SETTLING)
+        } else {
+            stale()
+        };
+    }
+    let alive = mark.marker.owner_alive();
+    match hold::open_move(&state.data_dir, &mark.marker.move_id).map(|t| t.manifest.phase) {
+        Ok(Phase::Committed | Phase::Verified | Phase::Undone) => stale(),
+        Ok(Phase::Planned) | Err(_) if !alive => stale(),
+        Ok(Phase::Planned) | Err(_) => Some(CONVERSATION_MOVING),
+        Ok(_) if alive => Some(CONVERSATION_MOVING),
+        Ok(_) => Some(CONVERSATION_UNFINISHED),
+    }
+}

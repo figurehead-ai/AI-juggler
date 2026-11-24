@@ -23,8 +23,13 @@ pub mod hold;
 mod move_hold;
 #[cfg(test)]
 pub(crate) use move_hold::HELD_UNFINISHED;
+#[cfg(test)]
+pub(crate) use move_hold::{CONVERSATION_MOVING, CONVERSATION_SETTLING};
+pub use move_hold::{
+    ConversationHold, MoveHold, SETTLE_MS, any_move, conversation_held, held_for_move, moving_here,
+    settle_conversation, why_held,
+};
 pub(crate) use move_hold::{HELD, why_held_on_disk};
-pub use move_hold::{MoveHold, any_move, held_for_move, moving_here, why_held};
 pub mod keep;
 pub(crate) mod link;
 use link::link_its_folder;
