@@ -10,24 +10,23 @@ import { DesktopAppsPane } from "./DesktopAppsPane";
 import { ConversationsProvider } from "../../lib/conversations";
 import { resetToasts } from "../../components/Toast";
 
-type Seams = { __AIJ_PLACES__?: { places: unknown[]; offers?: { id: string; label: string }[] } };
-const seams = () => window as unknown as Seams;
+/** The preview's places seam (the same one keep-alive.test sets). */
+function seed(offers: { id: string; label: string }[]): void {
+  Object.defineProperty(window, "__AIJ_PLACES__", { value: { places: [], offers }, configurable: true, writable: true });
+}
 
 afterEach(() => {
   cleanup();
   resetToasts();
-  delete seams().__AIJ_PLACES__;
+  Reflect.deleteProperty(window, "__AIJ_PLACES__");
 });
 
 describe("F99 Found on this computer: each button named with its App", () => {
   it("finds Add and Not now by role and name, keeps the visible words, and acts on that row", async () => {
-    seams().__AIJ_PLACES__ = {
-      places: [],
-      offers: [
-        { id: "app:claude-app:/Users/someone/ClaudeProfiles/personal", label: "Claude app · personal" },
-        { id: "app:claude-app:/Users/someone/ClaudeProfiles/work", label: "Claude app · work" },
-      ],
-    };
+    seed([
+      { id: "app:claude-app:/Users/someone/ClaudeProfiles/personal", label: "Claude app · personal" },
+      { id: "app:claude-app:/Users/someone/ClaudeProfiles/work", label: "Claude app · work" },
+    ]);
     render(
       <ConversationsProvider>
         <DesktopAppsPane />
