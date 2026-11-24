@@ -479,6 +479,7 @@ macro_rules! app_commands {
             Write features::cache::commands::cache_clear,
             Read  features::remote_config::commands::remote_config_values,
             Read  features::remote_config::commands::remote_config_about,
+            Write features::remote_config::commands::remote_config_set_check,
             Read  features::notices::commands::notices_list,
             Write features::notices::commands::notices_dismiss,
             Read  features::ai::commands::ai_jobs,

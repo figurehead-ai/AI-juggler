@@ -6,15 +6,28 @@
  * then every line of what it reads, changes and sends, each naming the
  * tests that check it (0.1.5: the Privacy page's lines, in one place).
  */
-import type { JSX } from "react";
+import { useEffect, useState, type JSX } from "react";
 import { Button } from "../../components/primitives";
 import { PrivacyCard } from "../../components/PrivacyCard";
 import { PrivacyClaims } from "../PrivacyScreen";
-import { Pane, PaneSection, SettingRow } from "./parts";
+import { remoteAbout, remoteConfigSetCheck } from "../../lib/ipc/remote";
+import { Pane, PaneSection, SettingRow, SwitchRow } from "./parts";
 
 const openSection = (section: string) => window.dispatchEvent(new CustomEvent("aij:open-settings", { detail: { section } }));
 
 export function PrivacyPane({ anchor }: { anchor?: string }): JSX.Element {
+  // AJ-E2023 Req.3: "Check for configuration updates" — on by default
+  // (D-129); `checking` rides the About answer.
+  const [checking, setChecking] = useState<boolean | null>(null);
+  useEffect(() => {
+    let alive = true;
+    void remoteAbout().then((about: { checking: boolean }) => {
+      if (alive) setChecking(about.checking);
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
   return (
     <Pane id="privacy" title="Privacy" anchor={anchor}>
       <PaneSection
@@ -22,6 +35,17 @@ export function PrivacyPane({ anchor }: { anchor?: string }): JSX.Element {
         title="What AI Juggler reads"
         footer="All of it on this computer. Every line below names the tests that check it."
       >
+        <SwitchRow
+          title="Check for configuration updates"
+          description="A small signed file from figurehead.ai, at most once a day, says which features and tool versions are safe to offer everyone. Nothing about you is sent — no account, no list of your tools, nothing identifying."
+          checked={checking ?? true}
+          disabled={checking === null}
+          onChange={(on) => {
+            setChecking(on);
+            void remoteConfigSetCheck(on).catch(() => setChecking(!on));
+          }}
+          testId="privacy-remote-config-check"
+        />
         <SettingRow
           title="To know what's open"
           description="Each tool's own session files, and the names of running programs and the apps that started them. Never a program's environment, where the Claude app keeps a sign-in token."

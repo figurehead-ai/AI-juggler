@@ -25,6 +25,8 @@ import { alertsTick } from "../lib/ipc/alerts";
 import { fleetRemote } from "../lib/ipc/fleet-remote";
 import { statsEvent } from "../lib/ipc/usage-stats";
 import { updateRestart, updateStatus, onUpdateStatus } from "../lib/ipc/updates";
+import { useNotices } from "../lib/remote-notices";
+import type { RemoteNoticeInfo } from "../types/generated/RemoteNoticeInfo";
 import type { RemoteMachineInfo } from "../types/generated/RemoteMachineInfo";
 import type { UpdateStatusInfo } from "../types/generated/UpdateStatusInfo";
 import { Banner } from "./Banner";
@@ -133,9 +135,38 @@ export function NotificationRegion({
       .slice(0, 3),
   );
   const { update, ready } = updates;
+  // AJ-E2023 Req.2: the remote configuration's notices — whole-app
+  // words from the signed file (D-117: calm, one line, dismissible).
+  const { notices, dismiss: dismissNotice } = useNotices();
+  const noticeTone = (level: RemoteNoticeInfo["level"]): "neutral" | "warning" | "danger" =>
+    level === "broken" ? "danger" : level === "needs_you" ? "warning" : "neutral";
   // The band's banners, the most pressing first: what stops work, then
   // what's due, then news.
   const items: Array<{ key: string; node: JSX.Element }> = [];
+  for (const notice of notices ?? [])
+    items.push({
+      key: `remote-notice-${notice.id}`,
+      node: (
+        <Banner
+          key={`remote-notice-${notice.id}`}
+          tone={noticeTone(notice.level)}
+          title={notice.title}
+          detail={notice.body}
+          actions={
+            notice.link
+              ? [
+                  {
+                    label: notice.link_label ?? "Read more",
+                    onClick: () => void Promise.resolve(window.open(notice.link ?? "about:blank", "_blank", "noopener,noreferrer")),
+                  },
+                ]
+              : []
+          }
+          onDismiss={notice.dismissable ? () => void dismissNotice(notice.id) : undefined}
+          testId="remote-notice"
+        />
+      ),
+    });
   for (const { machine, alert, key } of remoteAlerts)
     items.push({
       key,

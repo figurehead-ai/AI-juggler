@@ -1,6 +1,19 @@
 
 # cargo-vet audits file
 
+[[audits.cookie]]
+who = "zcode-primary for AI Juggler"
+criteria = "safe-to-deploy"
+delta = "0.18.2 -> 0.18.3"
+notes = """
+Security fix for RUSTSEC-2026-0594: private-cookie nonces now come from the
+OS (rand::rngs::OsRng) instead of thread_rng, which can repeat in processes
+that fork. Full diff audited from the crates.io sources: the only src/
+change is that one line in secure/private.rs; the rest is the changelog
+entry and the version bump. AI Juggler consumes cookie transitively
+(wry/tauri) and does not fork after seeding.
+"""
+
 [[audits.form_urlencoded]]
 who = "claude-opus for AI Juggler"
 criteria = "safe-to-deploy"

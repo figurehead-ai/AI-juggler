@@ -1037,6 +1037,8 @@ export interface Commands {
   relations_related: { args: { entity: EntityRef; of: EntityKind }; result: RelatedIdsInfo };
   /** Read features::remote_config::commands::remote_config_about */
   remote_config_about: { args: Record<string, never>; result: RemoteAboutInfo };
+  /** Write features::remote_config::commands::remote_config_set_check */
+  remote_config_set_check: { args: { enabled: boolean }; result: void };
   /** Read features::remote_config::commands::remote_config_values */
   remote_config_values: { args: { section: RemoteSection }; result: RemoteValuesInfo };
   /** Write features::reset_queue::commands::reset_queue_dismiss */
