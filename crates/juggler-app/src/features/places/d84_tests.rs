@@ -180,12 +180,12 @@ fn an_accounts_apps_are_listed_apps_and_a_linked_offer_is_on_none() {
         }
         let stored = crate::features::apps::list_impl(&state).unwrap();
         with_apps(&mut accounts, &stored);
-        let of_account = accounts[0].apps.clone().unwrap();
+        let named_apps = accounts[0].apps.clone().unwrap();
         let (places, apps) = listed(&state);
         assert!(
-            of_account.iter().all(|id| apps.contains(id)),
+            named_apps.iter().all(|id| apps.contains(id)),
             "{when}: every App the Account names is listed ({} of them, {} listed)",
-            of_account.len(),
+            named_apps.len(),
             apps.len()
         );
         let desktop: std::collections::BTreeSet<&String> =
@@ -196,11 +196,11 @@ fn an_accounts_apps_are_listed_apps_and_a_linked_offer_is_on_none() {
             "{when}: the Apps list and the places list are one set of desktop Apps"
         );
         assert!(
-            of_account.contains(&added) && apps.contains(&added) && places.contains(&added),
+            named_apps.contains(&added) && apps.contains(&added) && places.contains(&added),
             "{when}: the added profile is on all three"
         );
         assert!(
-            !of_account.contains(&offer) && !apps.contains(&offer) && !places.contains(&offer),
+            !named_apps.contains(&offer) && !apps.contains(&offer) && !places.contains(&offer),
             "{when}: a linked offer is on none"
         );
         assert!(
