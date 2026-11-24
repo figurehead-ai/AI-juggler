@@ -8,7 +8,7 @@
 //! - [`total_memory`]: the system's own count, read once.
 //! - [`reclaimable`] (AJ-E2325): what deleting a file or folder gives
 //!   back. On APFS each file's private (unshared) bytes, read by D-146's
-//!   one audited `getattrlist` call ([`private_size`]); elsewhere, or where
+//!   one audited `getattrlist` call (`private_size`); elsewhere, or where
 //!   that call can't answer, allocated blocks (a ceiling on a disk that
 //!   makes clones, said so).
 
@@ -32,9 +32,15 @@ pub struct DiskSpace {
 #[cfg(unix)]
 pub fn disk_space(path: &Path) -> std::io::Result<DiskSpace> {
     let stat = nix::sys::statvfs::statvfs(path).map_err(std::io::Error::from)?;
-    #[allow(clippy::useless_conversion)]
+    #[allow(
+        clippy::useless_conversion,
+        reason = "statvfs field widths differ by target (u32 block counts on macOS, u64 on Linux): useless on some only"
+    )]
     let block = u64::from(stat.fragment_size());
-    #[allow(clippy::useless_conversion)]
+    #[allow(
+        clippy::useless_conversion,
+        reason = "statvfs field widths differ by target (u32 block counts on macOS, u64 on Linux): useless on some only"
+    )]
     let (available, blocks) = (u64::from(stat.blocks_available()), u64::from(stat.blocks()));
     Ok(DiskSpace {
         free: available.saturating_mul(block),
@@ -410,7 +416,10 @@ mod tests {
             .unwrap();
         file.write_all(&vec![6_u8; 40_000]).unwrap();
         file.sync_all().unwrap();
-        #[allow(clippy::useless_conversion)]
+        #[allow(
+            clippy::useless_conversion,
+            reason = "statvfs field widths differ by target (u32 block counts on macOS, u64 on Linux): useless on some only"
+        )]
         let block = u64::from(
             nix::sys::statvfs::statvfs(dir.path())
                 .unwrap()

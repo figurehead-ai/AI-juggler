@@ -12,7 +12,8 @@
     clippy::expect_used,
     clippy::panic,
     clippy::print_stderr,
-    clippy::pedantic
+    clippy::pedantic,
+    reason = "test crates are pragmatic by policy (QUALITY.md §2)"
 )]
 
 use std::io::Write as _;

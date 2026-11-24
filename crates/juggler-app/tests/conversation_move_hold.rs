@@ -8,7 +8,8 @@
     clippy::unwrap_used,
     clippy::expect_used,
     clippy::panic,
-    clippy::pedantic
+    clippy::pedantic,
+    reason = "test crates are pragmatic by policy (QUALITY.md §2)"
 )]
 
 use std::path::Path;

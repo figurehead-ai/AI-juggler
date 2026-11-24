@@ -390,7 +390,6 @@
 1 crates/juggler-link/tests/pairing.rs
 1 crates/juggler-link/tests/proto_contract.rs
 1 crates/juggler-link/tests/transport.rs
-2 crates/juggler-platform/src/room.rs
 1 crates/juggler-scap-init/src/lib.rs
 1 crates/juggler-stats/src/cycle.rs
 1 crates/juggler-stats/src/cycle_tests.rs

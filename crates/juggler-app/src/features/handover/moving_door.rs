@@ -14,7 +14,10 @@ use crate::features::places::hold;
 use crate::state::AppState;
 
 /// A move AI Juggler knows of, for its door (Undo, Finish, Copy details).
-#[allow(clippy::struct_excessive_bools)] // wire DTO: each flag is its own fact the door shows
+#[allow(
+    clippy::struct_excessive_bools,
+    reason = "wire DTO: each flag is its own fact the door shows"
+)]
 #[derive(Clone, PartialEq, Eq, Debug, serde::Serialize, ts_rs::TS)]
 #[ts(export, export_to = "../../../ui/src/types/generated/")]
 pub struct MoveRecordInfo {
