@@ -1,4 +1,4 @@
-<!-- captures: d2eae6531c7e -->
+<!-- captures: c03c214cb25c -->
 # 77-menus: every row menu, the palette's action list and a submenu
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design passes.
@@ -20,3 +20,9 @@ What changed, each looked at: every menu reads "Continue in another app…" (was
 ## 0.4.2 (2026-11-12): the fixture renamed
 
 Only the captures that showed the old fixture folder name were re-shot: the copy, its menu header and its row now read "acme-max". Nothing else on these screens moved; the critique above stands.
+
+## 0.5.1
+
+Re-captured against 0.5.1: menus are tonal panels with soft shadows, the highlighted submenu row carries the only ring, Stop this session is red words with no fill, and the disabled Archive gives its reason inline. The account menu and palette are unchanged in content.
+
+Nothing broken (checked both themes).

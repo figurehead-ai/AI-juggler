@@ -1,4 +1,4 @@
-<!-- captures: 0bc9582632c5 -->
+<!-- captures: fa94d6b965aa -->
 # 40-login: the Log in dialog for one account in each sign-in state
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design fixes.
@@ -12,3 +12,9 @@ Each capture is the same small dialog, "Log in · Work Max", with its promise th
 - card-expired-390x844-*, card-logged_out-390x844-*, card-partial-390x844-*, card-sso_pending-390x844-*: the command's first line overflows the code box and the card.
 - All captures: the status line shows a dot and a ring/disc glyph side by side; expired, didn't-finish, waiting and SSO-pending share one cyan dot.
 - card-api_key-*: "API key account" appears twice, as the status and as a chip.
+
+## 0.5.1
+
+Re-captured against 0.5.1: the sign-in card is a tonal box inside the dialog, the primary Sign in/Continue keeps the accent fill and the other buttons are tonal; no bright borders remain. Layout is as before; the status line still shows two marks (dot and ring) and the three steps still run as one sentence (F82).
+
+Nothing broken (checked both themes).

@@ -1,4 +1,4 @@
-<!-- captures: 41479337fada -->
+<!-- captures: 3d6a2990656a -->
 # 25-costs: the Prices and details dialog: what usage would cost at API list prices, per session and day, with stale pricing and unpriced models
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design fixes.
@@ -11,3 +11,9 @@ The dialog has a clear hierarchy: three summary cards (At API list prices, You p
 
 - unpriced-model-390x844-dark.png, unpriced-model-390x844-light.png: "Total, all sessions…" is cut, so the note that two models are not counted is lost on the total row.
 - priced-390x844-*.png, unpriced-model-390x844-*.png: session names are cut to a few words, and Day and Model are dropped, so two rows can't be told apart by day.
+
+## 0.5.1
+
+Re-captured against 0.5.1: the dialog sits on a tonal step with a soft shadow in light and keeps its summary cards and table unchanged; Export CSV is a tonal button, and the stale-pricing line is amber words with no fill. The 390 captures still stack the three summary cards with wide gaps (F88).
+
+Nothing broken (checked both themes).

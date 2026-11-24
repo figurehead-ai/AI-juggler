@@ -1,4 +1,4 @@
-<!-- captures: db318d8eac3f -->
+<!-- captures: b3b8ad3c6530 -->
 # 84-notifications: Settings › Notifications, which alerts reach macOS, quiet hours and the digest's accounts
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design passes.
@@ -11,3 +11,9 @@ The alerts card stands a clear step off the page in both themes (a lighter card 
 
 - settings-chosen-1280x800, settings-off-1280x800 (both themes): the capture cuts the digest list's "Claude Code · Personal" row in half at the bottom edge, so the end of the page is never shown.
 - settings-chosen-1280x800, settings-off-1280x800 (both themes): the page's heading is scrolled out of view; the card starts at the top edge with nothing naming it.
+
+## 0.5.1
+
+Re-captured against 0.5.1: checked boxes read as accent fills against empty ones and the section is one tonal card with no outline. The copy and order of the choices did not change.
+
+Nothing broken (checked both themes).
