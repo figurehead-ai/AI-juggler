@@ -102,3 +102,9 @@ R5: PASS — one hue one meaning, Runway's bar by state, full-colour App icons: 
 4. n/a.
 5. None: matches (no system calls).
 6. Watch-fors: lines everywhere (matches: the lint); an accent ring on "Suggested" (matches: the lint's `bright-line` kind allows the accent only in focus, hover and attention variants).
+
+## 0.5.1 F53: a chosen segment, 3:1 off its track
+
+The soft `selected` fill measured 1.02:1 off light's segmented track (the control tint over the canvas), so only the semibold word told the choice (WCAG 1.4.11 asks 3:1 for a component's state). A segment now wears the strong step, `SELECTED_STRONG`: `--color-selected-strong` (dark `#8e97a6`, light `#5f6777`, the ring's tone as a fill) with semibold `--color-selected-strong-ink` (dark `#0b0e14`, light `#ffffff`). Off the track (control over each surface): 3.93–5.54:1 dark, 4.06–5.03:1 light; the words 6.56:1 and 5.69:1. Rows, tabs and chips keep the soft `selected`. Gated by `attention-tokens.test.ts` ("a chosen segment's fill is 3:1 off its track on every surface") and `contrast.spec.ts` as drawn (3:1, was "any fill").
+
+Palette validator (PAT-COLOR-6), re-run 2026-11-24, both themes: identity slots light (#ffffff) and dark (#151a23) ALL PASS (CVD worst 8.4 protan, normal ΔE 21.4); strong set + accent fill light and dark ALL PASS with the same two CVD floor-band warnings as above (6.8 protan, 6.4 deutan; words and glyphs go with every hue). The new token is a neutral, outside the validator's categorical scope; its contrast is gated by the two tests above.

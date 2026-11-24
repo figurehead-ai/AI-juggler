@@ -23,13 +23,12 @@ const SURFACES = ["canvas", "canvas-hi", "surface", "surface-2", "surface-3"] as
  * raised fill — at 3:1 or more (WCAG 1.4.11), never colour alone (its words
  * are semibold too; the vitest checks that). */
 const AROUND_SELECTED = [...SURFACES, "fill", "selected"] as const;
-/** AJ-E1550: a chosen segment's fill against the track its unselected
- * siblings sit on, as drawn. The design's "clear step" is marked ✗ in the
- * table under this; the test fails only where no fill is drawn at all
- * (its semibold words are the second cue, WCAG 1.4.1). 0.5.1 F50: light's
- * rail measures 1.02:1 (the track's tint over the canvas meets the fill),
- * a design call recorded in the findings list, not hidden here. */
-const SELECTED_STEP = 1.1;
+/** AJ-E1550, 0.5.1 F53: a chosen segment's fill against the track its
+ * unselected siblings sit on, as drawn: the control's state, so 3:1 (WCAG
+ * 1.4.11), with its semibold words as the second cue (WCAG 1.4.1). F49
+ * accepted any fill; light's soft fill measured 1.02:1, so the segment now
+ * wears the strong step (`selected-strong`, SELECTED_STRONG). */
+const SELECTED_STEP = 3;
 const OUT = resolve(process.cwd(), "../docs/qa/evidence/AJ-E804");
 
 function channel(c: number): number {
@@ -86,7 +85,7 @@ for (const theme of ["dark", "light"] as const) {
         probe.remove();
         return out;
       },
-      [...TEXT, ...SURFACES, ...BADGES.flat(), "fill", "selected", "selected-ink", "selected-ring"],
+      [...TEXT, ...SURFACES, ...BADGES.flat(), "fill", "selected", "selected-ink", "selected-ring", "selected-strong", "selected-strong-ink"],
     );
     // D-117 (selection): the selected edge against everything unselected
     // around it, and the selected words on the selected fill.
@@ -100,10 +99,15 @@ for (const theme of ["dark", "light"] as const) {
       if (r < 4.5) failures.push(`${theme} selected-ink on selected: ${r.toFixed(2)}:1`);
       rows.push(`| ${theme} | \`selected-ink\` on \`selected\` | ${r.toFixed(2)}${r < 4.5 ? " ✗" : ""} | | | | |`);
     }
-    // And as drawn. AJ-E1550 (PAT-SURF; selected.ts): a chosen segment is
-    // a soft fill and semibold ink, never an outline: at rest it carries no
-    // edge, and its fill is a visible step off the track its unselected
-    // siblings sit on; under Increase Contrast its edge comes back as the
+    {
+      const r = ratio(colours["selected-strong-ink"]!, colours["selected-strong"]!);
+      if (r < 4.5) failures.push(`${theme} selected-strong-ink on selected-strong: ${r.toFixed(2)}:1`);
+      rows.push(`| ${theme} | \`selected-strong-ink\` on \`selected-strong\` (a chosen segment's words) | ${r.toFixed(2)}${r < 4.5 ? " ✗" : ""} | | | | |`);
+    }
+    // And as drawn. AJ-E1550 (PAT-SURF; selected.ts), 0.5.1 F53: a chosen
+    // segment is a fill and semibold ink, never an outline: at rest it
+    // carries no edge, and its fill stands 3:1 off the track its unselected
+    // siblings sit on (WCAG 1.4.11); under Increase Contrast its edge comes back as the
     // selected ring, 3:1 off that track (WCAG 1.4.11). Unselected segments
     // never carry an edge.
     const drawnSegments = () =>
@@ -150,7 +154,8 @@ for (const theme of ["dark", "light"] as const) {
       expect(control.edge, `${theme} ${control.name}: the chosen segment has no edge at rest (a fill, AJ-E1550)`).toBeNull();
       const r = ratio(control.fill!, control.around);
       rows.push(`| ${theme} | ${control.name}: chosen fill vs unselected (as drawn) | ${r.toFixed(2)}${r < SELECTED_STEP ? " ✗" : ""} | | | | |`);
-      expect(r, `${theme} ${control.name}: the chosen segment draws a fill of its own`).toBeGreaterThan(1);
+      if (r < SELECTED_STEP) failures.push(`${theme} ${control.name}: chosen fill vs unselected ${r.toFixed(2)}:1 (non-text, 3:1)`);
+      expect(r, `${theme} ${control.name}: the chosen segment's fill stands 3:1 off its track (WCAG 1.4.11)`).toBeGreaterThanOrEqual(SELECTED_STEP);
       expect(control.weight, `${theme} ${control.name}: the chosen word semibold`).toBeGreaterThanOrEqual(600);
       expect(control.offEdged, `${theme} ${control.name}: unselected segments carry no edge`).toBe(0);
     }

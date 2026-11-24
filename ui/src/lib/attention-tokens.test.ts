@@ -105,6 +105,20 @@ describe.each(["dark", "light"] as const)("the calm-attention tokens (%s)", (the
     }
     expect(token(theme, "selected-ring")).not.toBe(token(theme, "accent"));
   });
+
+  // 0.5.1 F53 (WCAG 1.4.11): a chosen segment's fill is its state, so it
+  // stands 3:1 off the track its unselected siblings sit on (the control
+  // tint over every surface), and its words are AA on it; never the accent.
+  // The soft selected fill was 1.02:1 off light's track.
+  it("a chosen segment's fill is 3:1 off its track on every surface, its words AA", () => {
+    for (const surface of SURFACES) {
+      const track = over(token(theme, "control"), token(theme, surface));
+      expect(ratio(token(theme, "selected-strong"), track), `selected-strong vs the track over ${surface}`).toBeGreaterThanOrEqual(3);
+    }
+    expect(ratio(token(theme, "selected-strong-ink"), token(theme, "selected-strong"))).toBeGreaterThanOrEqual(4.5);
+    expect(token(theme, "selected-strong")).not.toBe(token(theme, "accent"));
+    expect(token(theme, "selected-strong")).not.toBe(token(theme, "accent-fill"));
+  });
 });
 
 describe("the dark alarm ladder (APCA)", () => {

@@ -10,7 +10,7 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { useEffect, useRef, useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { Checkbox, ChoiceOption, Disclosure, Picker, Radio, Segmented } from ".";
-import { SELECTED } from "./selected";
+import { SELECTED_STRONG } from "./selected";
 import { Modal } from "../form";
 import { anchoredEdge, anchoredSpan, menuEdge, menuPoint, type MenuAt } from "../RowMenu";
 
@@ -289,16 +289,28 @@ describe("Segmented, sized by its words (the 0.3 re-render)", () => {
     }
   });
 
-  // D-126 (one look): the chosen one is 0.5's SELECTED, a 3:1 neutral
-  // edge with the raised fill and semibold ink, never a grey alone (0.4
-  // design review, 32) and never the accent (actions and focus).
-  it("marks the chosen one with SELECTED's edge and fill, never the accent nor a grey alone", () => {
+  // D-126 (one look): the chosen one is SELECTED_STRONG (0.5.1 F53): a
+  // solid neutral fill 3:1 off the track (WCAG 1.4.11) with semibold ink,
+  // never a grey step alone (light's soft fill was 1.02:1) and never the
+  // accent (actions and focus). A chosen segment's count reads in its ink.
+  it("marks the chosen one with the strong selected fill, never the accent nor a soft grey alone", () => {
     const view = render(
-      <Segmented label="Group sessions by" value="project" onChange={() => {}} segments={[{ value: "place", label: "App" }, { value: "project", label: "Project" }]} />,
+      <Segmented
+        label="Group sessions by"
+        value="project"
+        onChange={() => {}}
+        segments={[
+          { value: "place", label: "App", count: 2 },
+          { value: "project", label: "Project", count: 3 },
+        ]}
+      />,
     );
     const [app, project] = view.getAllByRole("radio");
-    for (const part of SELECTED.split(" ")) expect(project!.className).toContain(part);
+    for (const part of SELECTED_STRONG.split(" ")) expect(project!.className).toContain(part);
+    expect(project!.className.split(" ")).not.toContain("bg-selected");
     expect(project!.className).not.toContain("bg-accent-soft");
+    expect(project!.querySelector(".tabular-nums")!.className).not.toContain("text-muted");
+    expect(app!.querySelector(".tabular-nums")!.className).toContain("text-muted");
     expect(app!.className).not.toContain("bg-selected");
   });
 });

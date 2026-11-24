@@ -149,6 +149,14 @@
      Increase Contrast, where it becomes selected-ring (≥ 3:1, WCAG 1.4.11;
      the ring's own measures above stay gated). */
   --color-selected-edge: transparent;
+  /* 0.5.1 F53 (WCAG 1.4.11): a chosen segment, the strong step of
+     selected. A segmented control's options sit side by side on one track,
+     so the chosen one is its state and must stand 3:1 off that track: the
+     soft fill measured 1.02:1 in light. A solid neutral fill (the ring's
+     tone), never the accent: 3.93–5.54:1 off the track (control over each
+     surface), its words 6.56:1 on it. */
+  --color-selected-strong: #8e97a6;
+  --color-selected-strong-ink: #0b0e14;
   /* Accent lines have two jobs only: keyboard focus (:focus-visible) and
      a rare true-attention state (a Needs-you item pointed at, a
      destructive confirm). Never selection, never "Suggested" (a tag). */
@@ -317,6 +325,10 @@ body {
   --color-selected: #dfe3ea; /* AJ-E1550: 1.29:1 on surface, 1.11:1 on canvas; muted 7.0:1 on it */
   --color-selected-ink: #0e1219;
   --color-selected-ring: #5f6777;
+  /* 0.5.1 F53: a chosen segment, 4.06–5.03:1 off its track (was 1.02:1);
+     white words 5.69:1 on it. */
+  --color-selected-strong: #5f6777;
+  --color-selected-strong-ink: #ffffff;
 }
 
 /*

@@ -69,7 +69,7 @@ Tokens, the type scale, icons and their meanings, radii, buttons, the one filled
 |---|---|---|---|
 | Status colour | Only L2 and L3 are loud. Each need is loud once per area. | The same. Status colour still means status. | D-117 |
 | Accent | The one primary button, links, keyboard focus. | Plus selection (the chosen card's accent ring), progress (the current step), and previews. | D-126 §1, `controls/selected.ts` |
-| Selection look | Neutral: `SELECTED` / `SELECTED_FILL` (a soft `--color-selected` fill and semibold ink, no outline; the `selected-ring` edge only under Increase Contrast, PAT-SURF). | Choice cards: `CHOSEN_CARD` (accent ring, the rich mode's highlight of a pick). Segments, tabs and rows keep `SELECTED`. | D-117 point 2, AJ-E1550, `controls/selected.ts` |
+| Selection look | Neutral: `SELECTED` / `SELECTED_FILL` (a soft `--color-selected` fill and semibold ink, no outline; the `selected-ring` edge only under Increase Contrast, PAT-SURF). | Choice cards: `CHOSEN_CARD` (accent ring, the rich mode's highlight of a pick). Tabs and rows keep `SELECTED`; a segmented control's chosen segment `SELECTED_STRONG` (3:1 off its track, 0.5.1 F53). | D-117 point 2, AJ-E1550, `controls/selected.ts` |
 | App icons | Muted at rest (`.app-tone`), full colour at L2/L3, when selected, hovered or focused. 6 px App dot on rows. | Full colour, 32–40 px on choices (`ToolLogo`). | D-117, KIT |
 | Icons | App icons stay. Other row icons show on hover, focus or selection. Section labels have no icons. | An icon or logo on every choice, row and section that holds choices. | CALM §b, D-126 §1 |
 | Containers | Surface tone separates. No card borders, no row dividers. | Surface tone for areas. Choice cards and inputs keep a quiet `border-subtle` edge (they are controls). A tinted summary panel for consequences, no ring around it. | CALM §c2, KIT, PAT-SURF |
@@ -129,6 +129,7 @@ All values below are the real tokens in `styles.css` (`@theme` and `:root`), unl
 | `--color-control` / `-control-hi` | ink 8 % / 12 % | ink 6 % / 10 % | A secondary button's, an input's, a picker field's and a segmented track's fill, and its hover (PAT-SURF). |
 | `--color-hover` | ink 5 % | ink 5 % | The hover fill step of a row, tab, segment or menu line. |
 | `--color-selected` | `#292f3c` | `#dfe3ea` | What is selected, chosen or current: a fill a clear step off what is around it (1.26–1.44:1), never an outline (AJ-E1550; was `#242935` / `#e6e9ef` with a ring). |
+| `--color-selected-strong` / `-ink` | `#8e97a6` / `#0b0e14` | `#5f6777` / `#ffffff` | A chosen segment (`SELECTED_STRONG`): its fill is the control's state, so it stands 3:1 off the track (3.93–5.54:1 dark, 4.06–5.03:1 light; WCAG 1.4.11), its words AA (6.56:1, 5.69:1). Neutral, never the accent (0.5.1 F53: the soft fill was 1.02:1 off light's track). |
 | `--color-skeleton` | `#242935` | `#ced3dd` | Loading placeholders. |
 
 **Text (four levels plus the section label):**
@@ -534,7 +535,7 @@ Each component lists its anatomy, when to use it, do's and don'ts, accessibility
 
 ### 4.16 Smaller pieces
 
-- **Segmented** (`controls/Segmented.tsx`): 2–4 short options; one look app-wide, a `control`-filled track with no edge, the chosen segment `SELECTED` (a fill and semibold ink). (KIT, D-117, PAT-SURF)
+- **Segmented** (`controls/Segmented.tsx`): 2–4 short options; one look app-wide, a `control`-filled track with no edge, the chosen segment `SELECTED_STRONG` (a solid neutral fill 3:1 off the track and semibold words in its ink, WCAG 1.4.11; 0.5.1 F53). (KIT, D-117, PAT-SURF)
 - **Disclosure** (`controls/Disclosure.tsx`): a button with a chevron, never `<details>`; its closed label summarises what is inside. (D-57, AJ-E3011)
 - **WhyTip / WhyButton** (`WhyTip.tsx`): a greyed control stays focusable, says `aria-disabled`, and shows its reason on hover and focus. (rc19/rc21 walks)
 - **ToolLogo** (`ToolLogo.tsx`): the app's own icon read at run time; a neutral letter tile only when no icon exists and the owner allows none. (D-38, KIT)
@@ -671,6 +672,7 @@ The common answer: three or four tone steps carry the hierarchy; lines are alpha
 | Hover | `hover` | ink 5 % | ink 5 % |
 | Filled controls | `control` / `control-hi` | ink 8 % / 12 % | ink 6 % / 10 % |
 | Selected | `selected` + semibold `selected-ink`; edge `selected-edge` | `#292f3c`, transparent | `#dfe3ea`, transparent |
+| A chosen segment | `selected-strong` + semibold `selected-strong-ink` (3:1 off the track) | `#8e97a6` | `#5f6777` |
 | Focus | `focus` (the accent), `:focus-visible` | `#8787f6` | `#4747d1` |
 | True attention | `attention` (the accent) | `#8787f6` | `#4747d1` |
 | Increase Contrast | `border-subtle`, `hairline`, `frame`, `divider` → `faint`; `selected-edge` → `selected-ring` | | |
@@ -678,7 +680,7 @@ The common answer: three or four tone steps carry the hierarchy; lines are alpha
 **Rules:**
 - **PAT-SURF-1.** No outline on cards, sections or areas. Separation is by the surface steps above; `border-subtle` only where tone can't separate (a rule inside an area, an input's or a floating layer's rim). (AJ-E1550)
 - **PAT-SURF-2.** Shadows only on floating layers (menus, popovers, tips, toasts, dialogs), and very soft. No sheen, no glow except the one primary. (ELV-2)
-- **PAT-SURF-3.** Selected (tabs, segmented controls, rail rows, the subagent tree, chips) is `SELECTED` / `SELECTED_FILL`: a soft fill and stronger words, never an outline. A rich-mode choice card keeps `CHOSEN_CARD`'s accent ring, the highlight of what the user picked (D-126).
+- **PAT-SURF-3.** Selected (tabs, segmented controls, rail rows, the subagent tree, chips) is `SELECTED` / `SELECTED_FILL`: a soft fill and stronger words, never an outline. A segmented control's chosen segment is the control's state, so it wears the strong step, `SELECTED_STRONG` (a solid neutral fill 3:1 off its track, WCAG 1.4.11; 0.5.1 F53). A rich-mode choice card keeps `CHOSEN_CARD`'s accent ring, the highlight of what the user picked (D-126).
 - **PAT-SURF-4.** Hover is a fill step (`hover`, or one surface step), never a brighter border.
 - **PAT-SURF-5.** An accent border or ring only for `:focus-visible` (`focus`) and a rare true-attention state (`attention`: a Needs-you item the user was sent to, a destructive confirm). "Suggested" and "Recommended" are a small accent tag, never a ring.
 - **PAT-SURF-6.** Inputs, picker fields and secondary buttons are a fill (`control`), not a bright stroke; the ring comes on focus. Tags and status pills are their tint, no edge.

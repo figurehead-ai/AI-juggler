@@ -6,15 +6,15 @@
  *
  * D-126: the one look, everywhere (the usage pages kept a second copy,
  * `usage/controls`, with its own look): filled, a hairline edge, the
- * chosen one in 0.5's SELECTED (a 3:1 neutral edge, the raised fill,
- * semibold ink; D-117), never the accent, which stays for actions and
- * focus. Two sizes: `md` (28 px, 13 px words) and `sm` (24 px, 12 px)
+ * chosen one in SELECTED_STRONG (0.5.1 F53: a solid neutral fill 3:1 off
+ * the track, semibold words in its own ink; WCAG 1.4.11), never the accent,
+ * which stays for actions and focus. Two sizes: `md` (28 px, 13 px words) and `sm` (24 px, 12 px)
  * where room is tight (the rail). A segment may carry an icon before its
  * word (Member, Reviewer).
  */
 import { useRef, type JSX, type KeyboardEvent } from "react";
 import type { ControlIcon } from "./ChoiceLine";
-import { SELECTED } from "./selected";
+import { SELECTED_STRONG } from "./selected";
 
 export interface Segment<T extends string> {
   value: T;
@@ -114,12 +114,12 @@ export function Segmented<T extends string>({
             className={
               (wrap ? "flex-none whitespace-nowrap " : "min-w-0 flex-auto ") +
               `inline-flex items-center justify-center rounded-[7px] ${look.item} outline-none focus-visible:ring-2 focus-visible:ring-accent/60 ` +
-              (on ? SELECTED : "text-ink-2 hover:bg-hover hover:text-ink")
+              (on ? SELECTED_STRONG : "text-ink-2 hover:bg-hover hover:text-ink")
             }
           >
             {Icon && <Icon aria-hidden="true" width={look.icon} height={look.icon} className="shrink-0" />}
             <span className={wrap ? "" : "min-w-0 truncate"}>{segment.label}</span>
-            {segment.count !== undefined && <span className="ml-1 font-normal tabular-nums text-muted">{segment.count}</span>}
+            {segment.count !== undefined && <span className={"ml-1 font-normal tabular-nums" + (on ? "" : " text-muted")}>{segment.count}</span>}
           </button>
         );
       })}

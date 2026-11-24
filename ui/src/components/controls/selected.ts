@@ -27,6 +27,14 @@ export const NAV_CURRENT = "font-semibold text-ink";
 /** A chosen option with its own words: a segment, tab, chip or pill. */
 export const SELECTED = "bg-selected font-semibold text-selected-ink inset-ring-[1.5px] inset-ring-selected-edge";
 
+/** 0.5.1 F53 (WCAG 1.4.11): a chosen segment in a segmented control. Its
+ * siblings sit on the same track, so the choice is the control's state and
+ * stands 3:1 off that track: the strong step of selected, a solid neutral
+ * fill (`--color-selected-strong`) with semibold words in its own ink
+ * (AA), no outline at rest; the Increase Contrast edge as SELECTED's.
+ * Rows, tabs and chips keep the soft SELECTED. */
+export const SELECTED_STRONG = "bg-selected-strong font-semibold text-selected-strong-ink inset-ring-[1.5px] inset-ring-selected-edge";
+
 /** A selected row whose words style themselves (the rail's rows set their
  * title semibold ink when selected): the fill (and the Increase Contrast
  * edge) only. */
