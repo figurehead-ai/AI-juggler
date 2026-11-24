@@ -59,6 +59,16 @@
 // minimised and restored (a window restored from the Dock opens on the
 // Space in use), raised again. Each prints its own line: UNHID /
 // UNMINIMISED / ACTIVATED / MOVED <UTC time> step=<command> idle=<s>s.
+// A HIDDEN TAB (0.5.1 F38, F-PL1-18): a window manager's tab group can take
+// Dev's main window in as a tab behind another app's window; it is then
+// neither minimised nor hidden, just not on screen, with that other window
+// at its frame, and activating Dev doesn't show it ("the system refused").
+// The guard says so ("Dev's window is a hidden tab behind …"), and bringing
+// Dev forward first asks Dev itself to show its window, as a second launch
+// does (`lab_scenario.sh open`): the line "raise" on Dev's own hand-over
+// socket (found among Dev's open files, ours and in a folder of ours), and
+// Dev answers once its window is forward (TAB_SHOWN …). Then it is
+// activated as above, and the guard is checked again before anything is sent.
 // Then the guard is checked again: Dev still not frontmost, or its main
 // window still off screen, stops the step at once (exit 3, a STOPPED line
 // saying what was tried; nothing sent), never a wait that can't end. After it, any new input at the Mac (the idle time falls back
@@ -298,7 +308,7 @@ func squash(_ text: String) -> String {
 
 // MARK: - the guard (pure: tested by --selftest)
 
-struct Win {
+struct Win: Equatable {
     let owner: pid_t
     let ownerName: String
     let title: String
@@ -314,6 +324,9 @@ enum Verdict: Equatable {
     case offWindow
     /// Dev has no window on screen at all (minimised, hidden, another Space).
     case offScreen
+    /// Dev's main window is a hidden tab in a window manager's tab group,
+    /// behind the window named (F38).
+    case hiddenTab(String)
 }
 
 /// The guard's decision. `windows` is CGWindowList's on-screen list (front
@@ -336,6 +349,20 @@ func describe(_ verdict: Verdict) -> String {
     case .covered(let what): return "another window is on top at the point: \(what)"
     case .offWindow: return "no Dev window is on screen at the point"
     case .offScreen: return "Dev's window is off screen (minimised/hidden/other Space)"
+    case .hiddenTab(let what): return "Dev's window is a hidden tab behind \(what) (a window manager's tab group)"
+    }
+}
+
+/// Whether Dev's main window is a hidden tab (pure: the selftest, F38): it
+/// is off screen though neither minimised nor hidden, and another app's
+/// window is on screen over (nearly) all of its frame, as a tab group shows
+/// one of its windows at a time; that window, else nil.
+func hiddenTabCover(main: CGRect, onScreen: Bool, minimised: Bool, hidden: Bool, dev: pid_t, windows: [Win]) -> Win? {
+    guard !onScreen, !minimised, !hidden, main.width > 50, main.height > 50 else { return nil }
+    return windows.first { w in
+        guard w.owner != dev, w.layer == 0, w.alpha > 0.01 else { return false }
+        let both = w.bounds.intersection(main)
+        return !both.isNull && both.width * both.height >= 0.9 * main.width * main.height
     }
 }
 
@@ -383,7 +410,7 @@ func decide(_ p: Probe, may: Bool, activatedAt: Double?, now: Double, opportunis
     // Only another app in front, or Dev's window off screen: a window over
     // Dev's isn't moved.
     switch p.verdict {
-    case .notFrontmost, .offScreen: break
+    case .notFrontmost, .offScreen, .hiddenTab: break
     default: return .wait(why)
     }
     if !p.onConsole { return .wait("\(why); this login isn't the one on screen") }
@@ -418,6 +445,8 @@ enum GateEnd: Equatable {
 enum Raise: String {
     case unhid = "UNHID"
     case unminimised = "UNMINIMISED"
+    /// Dev asked to show its window, a hidden tab (F38).
+    case tabShown = "TAB_SHOWN"
     case activated = "ACTIVATED"
     case moved = "MOVED"
 }
@@ -508,7 +537,7 @@ func gate(step: String, may: Bool, opportunistic: Bool = false, activatedAt: ino
                 after = mac.probe()
             }
             switch after.verdict {
-            case .notFrontmost, .offScreen:
+            case .notFrontmost, .offScreen, .hiddenTab:
                 let tried = parts.map { $0.what.rawValue + ($0.ok ? "" : " (refused)") }.joined(separator: ", ")
                 let why = "\(describe(after.verdict)) after bringing it forward (\(tried))"
                 mac.log("STOPPED \(utc(mac.now())) step=\(step): \(why). Nothing was sent. "
@@ -792,6 +821,11 @@ struct Forward {
     var unhide: () -> Bool
     var minimised: () -> Bool
     var unminimise: () -> Bool
+    /// The main window is a hidden tab (F38).
+    var inHiddenTab: () -> Bool
+    /// Dev asked, on its own hand-over socket, to show its window (as a
+    /// second launch asks): whether it answered that it did.
+    var showTab: () -> Bool
     /// The main window made main and raised, Dev made frontmost.
     var activate: () -> Bool
     /// The main window is on screen (the Space in use).
@@ -808,6 +842,10 @@ func bringForwardSteps(_ f: Forward) -> [Raised] {
     var done: [Raised] = []
     if f.hidden() { done.append(Raised(what: .unhid, ok: f.unhide())) }
     if f.minimised() { done.append(Raised(what: .unminimised, ok: f.unminimise())) }
+    if f.inHiddenTab() {
+        done.append(Raised(what: .tabShown, ok: f.showTab()))
+        f.settle(0.4)
+    }
     done.append(Raised(what: .activated, ok: f.activate()))
     f.settle(0.6)
     guard !f.onThisSpace() else { return done }
@@ -830,6 +868,81 @@ func within(_ seconds: Double, _ until: () -> Bool) -> Bool {
     return until()
 }
 
+/// Dev's hand-over socket (pure: the selftest): among the unix sockets
+/// `lsof -F n` lists for Dev, the one `…/aij-<hash>/ho.sock`
+/// (crates/juggler-app/src/handover.rs), else nil.
+func handoverSocket(lsof: String) -> String? {
+    lsof.split(separator: "\n").lazy
+        .filter { $0.hasPrefix("n/") }
+        .map { String($0.dropFirst()) }
+        .first { path in
+            let parts = path.split(separator: "/")
+            return parts.count >= 2 && parts[parts.count - 1] == "ho.sock" && parts[parts.count - 2].hasPrefix("aij-")
+        }
+}
+
+/// Owned by this user, and (for a folder) not writable by anyone else.
+func ours(_ path: String, folder: Bool) -> Bool {
+    var st = stat()
+    guard lstat(path, &st) == 0, st.st_uid == getuid() else { return false }
+    let kind = st.st_mode & S_IFMT
+    if folder { return kind == S_IFDIR && st.st_mode & 0o022 == 0 }
+    return kind == S_IFSOCK
+}
+
+/// Asks Dev, by its own hand-over socket, to bring its window forward, as a
+/// second launch does (F38): "raise", and Dev answers "ok" once it has. Only
+/// a socket Dev holds open, of ours, in a folder of ours, is asked.
+func askDevToShow(_ pid: pid_t) -> Bool {
+    let lsof = Process()
+    lsof.executableURL = URL(fileURLWithPath: "/usr/sbin/lsof")
+    lsof.arguments = ["-a", "-p", String(pid), "-U", "-F", "n"]
+    let out = Pipe()
+    lsof.standardOutput = out
+    lsof.standardError = FileHandle.nullDevice
+    guard (try? lsof.run()) != nil else { return false }
+    let listed = String(data: out.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
+    lsof.waitUntilExit()
+    guard let path = handoverSocket(lsof: listed),
+          ours((path as NSString).deletingLastPathComponent, folder: true), ours(path, folder: false) else { return false }
+    let fd = socket(AF_UNIX, SOCK_STREAM, 0)
+    guard fd >= 0 else { return false }
+    defer { close(fd) }
+    var address = sockaddr_un()
+    address.sun_family = sa_family_t(AF_UNIX)
+    let bytes = Array(path.utf8)
+    guard bytes.count < MemoryLayout.size(ofValue: address.sun_path) else { return false }
+    withUnsafeMutableBytes(of: &address.sun_path) { raw in
+        raw.copyBytes(from: bytes)
+        raw[bytes.count] = 0
+    }
+    let connected = withUnsafePointer(to: &address) {
+        $0.withMemoryRebound(to: sockaddr.self, capacity: 1) { connect(fd, $0, socklen_t(MemoryLayout<sockaddr_un>.size)) }
+    }
+    guard connected == 0 else { return false }
+    var wait = timeval(tv_sec: 3, tv_usec: 0)
+    setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &wait, socklen_t(MemoryLayout<timeval>.size))
+    let ask = Array("raise\n".utf8)
+    guard write(fd, ask, ask.count) == ask.count else { return false }
+    var reply = [UInt8](repeating: 0, count: 3)
+    var got = 0
+    while got < 3 {
+        let n = reply.withUnsafeMutableBytes { read(fd, $0.baseAddress! + got, 3 - got) }
+        guard n > 0 else { return false }
+        got += n
+    }
+    return reply == Array("ok\n".utf8)
+}
+
+/// Dev's main window's hidden-tab cover (F38), read now; nil: not a hidden tab.
+func devHiddenTab(_ pid: pid_t) -> Win? {
+    guard let main = mainWindow(pid) else { return nil }
+    return hiddenTabCover(main: main.cg.bounds, onScreen: main.cg.onScreen,
+                          minimised: (attr(main.ax, kAXMinimizedAttribute) as? Bool) == true,
+                          hidden: NSRunningApplication(processIdentifier: pid)?.isHidden ?? false,
+                          dev: pid, windows: onScreenWindows())
+}
+
 /// Brings Dev (by pid, its own main window) forward; nothing is clicked or typed.
 func bringForward(_ pid: pid_t) -> [Raised] {
     let running = NSRunningApplication(processIdentifier: pid)
@@ -843,6 +956,8 @@ func bringForward(_ pid: pid_t) -> [Raised] {
             guard let window = minimisedWindow(app) else { return true }
             return AXUIElementSetAttributeValue(window, kAXMinimizedAttribute as CFString, kCFBooleanFalse) == .success
         },
+        inHiddenTab: { devHiddenTab(pid) != nil },
+        showTab: { askDevToShow(pid) && within(1.5) { devWindow(pid) != nil } },
         activate: {
             if let main = mainWindow(pid)?.ax {
                 AXUIElementSetAttributeValue(main, kAXMainAttribute as CFString, kCFBooleanTrue)
@@ -895,12 +1010,12 @@ func guarded(_ pid: pid_t, at point: CGPoint?) -> Go {
         probe: {
             let front = NSWorkspace.shared.frontmostApplication
             // No window on screen while accessibility reads the page:
-            // minimised, hidden, or on another Space.
+            // minimised, hidden, on another Space, or a hidden tab (F38).
             let win = devWindow(pid)
             let verdict = win.map { win in
                 judge(dev: pid, frontmost: front?.processIdentifier, frontmostName: front?.localizedName ?? "",
                       windows: onScreenWindows(), point: point ?? CGPoint(x: win.bounds.midX, y: win.bounds.midY))
-            } ?? .offScreen
+            } ?? devHiddenTab(pid).map { .hiddenTab($0.title.isEmpty ? $0.ownerName : "\($0.ownerName) (\($0.title))") } ?? .offScreen
             let s = session()
             return Probe(verdict: verdict, idle: personIdle(), locked: s.locked, saver: screenSaverRuns(), onConsole: s.onConsole)
         },
@@ -1870,6 +1985,12 @@ func activationSelftest() -> [String] {
         var otherWindowHere = false
         /// Moving the main window here fails too.
         var cantMove = false
+        /// Dev's main window is a hidden tab in a window manager's tab
+        /// group (F38): activating Dev doesn't show it.
+        var tabbed = false
+        /// Dev doesn't answer on its hand-over socket.
+        var refuseTab = false
+        var tabAsks = 0
         var activateCalls = 0
         var moves = 0
         var ledger = InputLedger()
@@ -1888,6 +2009,7 @@ func activationSelftest() -> [String] {
             },
             probe: {
                 let verdict: Verdict = w.hidden || w.minimised || w.elsewhere ? .offScreen
+                    : w.tabbed ? .hiddenTab("Claude (Sign in)")
                     : !w.front ? .notFrontmost("Aside") : w.covered ? .covered("Notification Center, layer 23") : .clear
                 let person = max(w.inputAt, w.pointerAt)
                 let any = w.t - max(person, w.ownAt)
@@ -1903,6 +2025,14 @@ func activationSelftest() -> [String] {
                     unhide: { if !w.refuse { w.hidden = false }; return !w.refuse },
                     minimised: { w.minimised },
                     unminimise: { if !w.refuse { w.minimised = false }; return !w.refuse },
+                    inHiddenTab: { w.tabbed },
+                    showTab: {
+                        // Dev shows its own window (its tab comes forward) and comes to the front.
+                        w.tabAsks += 1
+                        guard !w.refuseTab else { return false }
+                        w.tabbed = false; w.front = true
+                        return true
+                    },
                     activate: {
                         w.activateCalls += 1
                         guard !w.refuse else { return false }
@@ -1911,7 +2041,7 @@ func activationSelftest() -> [String] {
                         if !w.otherWindowHere { w.elsewhere = false }
                         return true
                     },
-                    onThisSpace: { !w.hidden && !w.minimised && !w.elsewhere },
+                    onThisSpace: { !w.hidden && !w.minimised && !w.elsewhere && !w.tabbed },
                     moveHere: {
                         w.moves += 1
                         guard !w.refuse && !w.cantMove else { return false }
@@ -2069,6 +2199,38 @@ func activationSelftest() -> [String] {
         if w.t - start > 10 || w.activations != 1 || count(w, "HEARTBEAT") != 0 { failures.append("another Space, can't move: took \(w.t - start) s, \(w.activations) tries") }
         guard let line = w.lines.first(where: { $0.hasPrefix("STOPPED ") }) else { failures.append("another Space, can't move: no STOPPED line"); continue }
         if !(line.contains("step=press") && line.contains("Nothing was sent") && line.contains("yourself")) { failures.append("another Space, can't move: its line \(line)") }
+    }
+    // F38 (F-PL1-18): Dev's window a hidden tab behind another app's (the
+    // window manager's tab group), another app in front. The guard says so;
+    // Dev is asked to show its window (TAB_SHOWN) before ACTIVATED, nothing
+    // is sent until the guard is clear again (frontmost and on top), and
+    // nothing is moved.
+    do {
+        let w = World(); w.inputAt = 0; w.tabbed = true
+        var at: Double?
+        let end = gate(step: "press", may: true, activatedAt: &at, mac: mac(w), limit: 60)
+        let raised = w.lines.compactMap { line in ["TAB_SHOWN", "ACTIVATED", "MOVED"].first { line.hasPrefix($0 + " ") } }
+        if end != .send || raised != ["TAB_SHOWN", "ACTIVATED"] || w.tabAsks != 1 || w.moves != 0 || w.tabbed || !w.front {
+            failures.append("hidden tab: shown, then activated (\(end), \(raised), asks \(w.tabAsks), moves \(w.moves))")
+        }
+    }
+    // …without --may-activate: never asked, the guard waits and stops, saying it's a hidden tab.
+    do {
+        let w = World(); w.inputAt = 0; w.tabbed = true
+        var at: Double?
+        let end = gate(step: "key", may: false, activatedAt: &at, mac: mac(w), limit: 60)
+        let words = "Dev's window is a hidden tab behind Claude (Sign in) (a window manager's tab group)"
+        if end != .guardStopped(words) || w.tabAsks != 0 { failures.append("hidden tab without the switch: \(end), asks \(w.tabAsks)") }
+    }
+    // …and when Dev doesn't answer: STOPPED at once, saying so; nothing sent.
+    do {
+        let w = World(); w.inputAt = 0; w.tabbed = true; w.refuseTab = true
+        var at: Double?
+        let end = gate(step: "key", may: true, activatedAt: &at, mac: mac(w), limit: 600)
+        guard case .guardStopped(let why) = end, why.hasPrefix("Dev's window is a hidden tab"), why.contains("TAB_SHOWN (refused)") else {
+            failures.append("hidden tab, no answer: \(end)"); return failures
+        }
+        if w.tabAsks != 1 || w.activations != 1 { failures.append("hidden tab, no answer: \(w.tabAsks) asks, \(w.activations) tries") }
     }
     // OPPORTUNISTIC. Input mid-step (the person at the Mac from 1001.5 to
     // 1010): PAUSED, nothing sent while paused, Dev not moved; after 20 s
@@ -2323,6 +2485,26 @@ func selftest() {
            .covered("AI Juggler Dev (AI Juggler · Home), layer 0"), "a twin by name")
     expect(judge(dev: dev, frontmost: 4243, frontmostName: "AI Juggler Dev", windows: [devWin], point: inside),
            .notFrontmost("AI Juggler Dev"), "a twin in front")
+    // F38: a hidden tab is Dev's main window off screen, neither minimised
+    // nor hidden, with another app's window over its frame.
+    let tabFrame = devWin.bounds
+    let tabFront = Win(owner: 77, ownerName: "Claude", title: "Sign in", layer: 0, alpha: 1, bounds: tabFrame.insetBy(dx: -1, dy: 0))
+    if hiddenTabCover(main: tabFrame, onScreen: false, minimised: false, hidden: false, dev: dev, windows: [banner, tabFront]) != tabFront {
+        failures.append("hidden tab: not seen")
+    }
+    for (onScreen, minimised, hidden, what) in [(true, false, false, "on screen"), (false, true, false, "minimised"), (false, false, true, "hidden")]
+        where hiddenTabCover(main: tabFrame, onScreen: onScreen, minimised: minimised, hidden: hidden, dev: dev, windows: [tabFront]) != nil {
+        failures.append("hidden tab: seen when \(what)")
+    }
+    if hiddenTabCover(main: tabFrame, onScreen: false, minimised: false, hidden: false, dev: dev, windows: [other, banner, ghost]) != nil {
+        failures.append("hidden tab: seen with no window over its frame (another Space)")
+    }
+    if hiddenTabCover(main: tabFrame, onScreen: false, minimised: false, hidden: false, dev: dev, windows: [devWin]) != nil {
+        failures.append("hidden tab: Dev's own window counted as the cover")
+    }
+    let listed = "p4242\nf12\nn->0x1234\nf13\nn/var/folders/xy/T/aij-00ff00ff00ff00ff/ho.sock\nf14\nn/tmp/other.sock\n"
+    if handoverSocket(lsof: listed) != "/var/folders/xy/T/aij-00ff00ff00ff00ff/ho.sock" { failures.append("hand-over socket: not found") }
+    if handoverSocket(lsof: "n/tmp/ho.sock\nn/tmp/aij-1/other.sock\n") != nil { failures.append("hand-over socket: a stranger's taken") }
     // Exact titles in a region: Home's two "lab A needs its sign-in" rows,
     // OpenCode's and Kimi Code's, each with a Sign in (a made-up tree).
     let dummy = AXUIElementCreateApplication(0)
