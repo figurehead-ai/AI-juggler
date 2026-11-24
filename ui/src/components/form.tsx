@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, type ComponentProps, type KeyboardEvent, type ReactNode, type RefObject } from "react";
+import { useEffect, useId, useRef, useState, type ComponentProps, type KeyboardEvent, type ReactNode, type RefObject } from "react";
 import { DialogFrame, DialogOverlay } from "./DialogFrame";
 
 /**
@@ -47,10 +47,14 @@ export function keepTabInside(container: HTMLElement | null, event: Pick<Keyboar
   const first = focusable[0]!;
   const last = focusable[focusable.length - 1]!;
   const at = document.activeElement;
-  if (event.shiftKey && (at === first || at === container || !container?.contains(at))) {
+  // A focused title (tabindex -1, before the first control: the tour's,
+  // AJ-E1546 R3) or text after the last control is not in the list, but
+  // the browser's Tab from it would leave the dialog all the same.
+  const beyond = (edge: HTMLElement, side: number) => at instanceof HTMLElement && !focusable.includes(at) && Boolean(edge.compareDocumentPosition(at) & side);
+  if (event.shiftKey && (at === first || at === container || !container?.contains(at) || beyond(first, Node.DOCUMENT_POSITION_PRECEDING))) {
     event.preventDefault();
     last.focus();
-  } else if (!event.shiftKey && document.activeElement === last) {
+  } else if (!event.shiftKey && (at === last || beyond(last, Node.DOCUMENT_POSITION_FOLLOWING))) {
     event.preventDefault();
     first.focus();
   }
@@ -59,12 +63,15 @@ export function keepTabInside(container: HTMLElement | null, event: Pick<Keyboar
 /** Focus goes back to what had it when this mounted (if it is still
  * there) once this unmounts: a dialog returns focus to what opened it. */
 export function useFocusReturn(): void {
-  useEffect(() => {
-    const before = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    return () => {
+  // Read while it first renders: by its effects, a child focused in the
+  // commit (the tour's title, AJ-E1546 R3) already holds focus.
+  const [before] = useState(() => (document.activeElement instanceof HTMLElement ? document.activeElement : null));
+  useEffect(
+    () => () => {
       if (before && document.contains(before)) before.focus();
-    };
-  }, []);
+    },
+    [before],
+  );
 }
 
 /** A dialog that isn't the shared Modal (AJ-E710): focus goes into it when

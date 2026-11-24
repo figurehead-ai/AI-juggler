@@ -7,6 +7,7 @@
  * without an AI, D-144).
  */
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { useState, type JSX } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Tour, placeCard } from "./Tour";
 import { TourHost } from "./TourHost";
@@ -139,6 +140,44 @@ describe("the coach marks", () => {
     expect(screen.getByTestId("tour-next").textContent).toBe("Done");
     fireEvent.click(screen.getByTestId("tour-next"));
     expect(onEnd).toHaveBeenCalledTimes(3);
+  });
+
+  it("keeps Tab inside the card, Esc ends it, and focus goes back to what opened it (AJ-E1546 R3)", async () => {
+    function Opener(): JSX.Element {
+      const [open, setOpen] = useState(false);
+      return (
+        <>
+          <button type="button" onClick={() => setOpen(true)}>
+            Take the tour
+          </button>
+          <button type="button">Elsewhere</button>
+          {open && <Tour steps={steps} onEnd={() => setOpen(false)} />}
+        </>
+      );
+    }
+    render(<Opener />);
+    const opener = screen.getByRole("button", { name: "Take the tour" });
+    opener.focus();
+    fireEvent.click(opener);
+    const card = await screen.findByTestId("tour-card");
+    await waitFor(() => expect(card.contains(document.activeElement)).toBe(true));
+    const inside = Array.from(card.querySelectorAll<HTMLElement>("button:not(:disabled)"));
+    expect(inside.length).toBeGreaterThan(1);
+    const first = inside[0]!;
+    const last = inside[inside.length - 1]!;
+    // Tab past the last control wraps to the first; Shift+Tab before the
+    // first wraps to the last; from the title, Shift+Tab stays inside too.
+    last.focus();
+    fireEvent.keyDown(last, { key: "Tab" });
+    expect(document.activeElement).toBe(first);
+    fireEvent.keyDown(first, { key: "Tab", shiftKey: true });
+    expect(document.activeElement).toBe(last);
+    card.querySelector<HTMLElement>("h2")!.focus();
+    fireEvent.keyDown(document.activeElement!, { key: "Tab", shiftKey: true });
+    expect(document.activeElement).toBe(last);
+    fireEvent.keyDown(document.activeElement!, { key: "Escape" });
+    await waitFor(() => expect(screen.queryByTestId("tour")).toBeNull());
+    expect(document.activeElement).toBe(opener);
   });
 
   it("Ask Bot about this shows only while Bot's AI is ready; without one, Bot says how to set it up", async () => {
