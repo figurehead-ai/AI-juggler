@@ -19,6 +19,9 @@ export const StepEyebrow = createContext<string | undefined>(undefined);
 
 /** A guide link in a line ("What a lead does ↗"). */
 export function GuideLink({ guide, children, testId }: { guide: string; children: string; testId?: string }): JSX.Element {
+  const cut = children.lastIndexOf(" ") + 1;
+  const head = children.slice(0, cut);
+  const last = children.slice(cut);
   return (
     <button
       type="button"
@@ -29,8 +32,12 @@ export function GuideLink({ guide, children, testId }: { guide: string; children
       className="inline-block rounded text-left font-medium text-accent-hi outline-none hover:underline focus-visible:ring-2 focus-visible:ring-accent/60"
       data-testid={testId}
     >
-      {children}
-      <IconUpRight aria-hidden="true" width={13} height={13} className="ml-0.5 inline-block align-[-0.125em]" />
+      {head}
+      {/* The last word keeps ↗ beside it (macOS' font wrapped ↗ alone). */}
+      <span className="whitespace-nowrap">
+        {last}
+        <IconUpRight aria-hidden="true" width={13} height={13} className="ml-0.5 inline-block align-[-0.125em]" />
+      </span>
     </button>
   );
 }
