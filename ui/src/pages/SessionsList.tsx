@@ -19,6 +19,7 @@ import { onConversationsChanged } from "../lib/ipc/conversations";
 import { bandOf, sectionsOf } from "../components/related/order";
 import { useHeld } from "../components/related/useHeld";
 import { NewRowsBar } from "../components/related/NewRowsBar";
+import { usePreviewFollow } from "../components/related/preview-follow";
 import { useActionHost } from "../components/ItemMenu";
 import { ListRow } from "./SessionRow";
 import { ago, agoWords, sessionWhen } from "../lib/time-words";
@@ -296,6 +297,8 @@ export function PagedSessions({
   });
   const rows = useMemo(() => read.items.flatMap((info) => rowOfInfo(info, Date.now(), onOpenSession, host) ?? []), [read.items, onOpenSession, host]);
   useFollow(ordered, listKey);
+  // The preview reads its rows after a change event: its list follows them.
+  usePreviewFollow(ordered && !live, listKey, live ? "" : local().map(rowKey).join("\n"));
   // The sections' "now": when the list was opened (a row never changes
   // section just because time passed while it was read).
   const [opened] = useState(() => Date.now());
