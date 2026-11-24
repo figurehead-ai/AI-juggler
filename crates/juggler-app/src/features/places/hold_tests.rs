@@ -39,7 +39,9 @@ fn plant(state: &Arc<AppState>, id: &str, owner: ProcId, move_id: &str) {
     std::fs::write(path, serde_json::to_vec(&marker).unwrap()).unwrap();
 }
 
-/// A live process that isn't this one: the test runner's parent.
+/// A live process that isn't this one: the test runner's parent (Unix
+/// only: std names a parent pid there).
+#[cfg(unix)]
 fn another_live() -> ProcId {
     let pid = std::os::unix::process::parent_id();
     *signal::identify(&[pid]).get(&pid).expect("the parent runs")
@@ -161,6 +163,7 @@ fn the_folder_locks_are_in_the_shared_area() {
 
 /// R2: another AI Juggler's move holds the profile: keep alive, Open,
 /// Restart, a start and the automation watch here all leave it alone.
+#[cfg(unix)]
 #[test]
 fn another_ai_jugglers_hold_is_honoured_by_every_start_path() {
     let (_tmp, state, id) = lab();

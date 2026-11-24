@@ -223,7 +223,9 @@ fn a_crash_after_each_phase_and_each_step_is_settled_at_start() {
 }
 
 /// A second AI Juggler data folder whose move area is `lab`'s (as every AI
-/// Juggler on a Mac shares one), on a made-up Mac.
+/// Juggler on a Mac shares one), on a made-up Mac. Unix only: the shared
+/// area is a symbolic link (Windows builds check, never run, these tests).
+#[cfg(unix)]
 fn second_juggler(lab: &Lab) -> (tempfile::TempDir, Arc<AppState>) {
     let tmp = tempfile::tempdir().unwrap();
     let data = tmp.path().join("data");
@@ -251,6 +253,7 @@ fn keep_alive_for(state: &Arc<AppState>, from: i64, ms: i64, starter: &Recorder)
 
 /// D2: two AI Juggler data folders sharing one move area: the second's
 /// move of the same files (back again) blocks Undo of the first's.
+#[cfg(unix)]
 #[test]
 fn a_later_move_by_another_data_folder_blocks_undo_of_the_earlier_one() {
     if !clones() {
@@ -276,6 +279,7 @@ fn a_later_move_by_another_data_folder_blocks_undo_of_the_earlier_one() {
 /// move area) wants the source back while a move holds it: it starts
 /// nothing until the hold goes, by this AI Juggler's move or another
 /// one's.
+#[cfg(unix)]
 #[test]
 fn a_second_ai_jugglers_keep_alive_starts_nothing_a_move_holds() {
     let lab = lab();

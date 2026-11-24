@@ -597,12 +597,16 @@ fn d1_06_another_ai_juggler_in_the_profile_is_refused_before_any_quit() {
 }
 
 /// Shape 7: Instance spellings of a helper launchd took (only its flag tells):
-/// a trailing slash, a link to the folder and another letter case are
-/// this profile's (reported, never waited on); the two-word form
+/// a trailing slash, a link to the folder and, on a disk that ignores
+/// letter case (APFS's default), another letter case are this profile's
+/// (reported, never waited on); on a disk that keeps case (Linux's ext4)
+/// that spelling is another folder, never this profile's; the two-word form
 /// (`--user-data-dir X`), a second `--user-data-dir` or one after `--` is
 /// refused by the strict parse and tells nothing (the lock's holder
 /// decides a main process: `ownership::tests::
 /// an_untrusted_instance_flag_is_decided_by_the_lock_its_process_holds`).
+/// Unix only: the link is a symbolic one.
+#[cfg(unix)]
 #[test]
 fn d1_07_instance_spellings_decide_alike_and_strictly() {
     let fix = fix();
@@ -610,6 +614,9 @@ fn d1_07_instance_spellings_decide_alike_and_strictly() {
     std::os::unix::fs::symlink(&fix.a, &link).unwrap();
     let a = fix.a.display().to_string();
     let upper = a.replace("/Profiles/", "/PROFILES/");
+    // The disk decides letter case (`real_path::canonical`): the other
+    // case is this folder only where the disk finds it as this folder.
+    let ignores_case = Path::new(&upper).is_dir();
     let b = fix.b.display().to_string();
     let spelled = |pid: u32, name: &str, args: &[&str]| {
         let exe = fix
@@ -644,20 +651,23 @@ fn d1_07_instance_spellings_decide_alike_and_strictly() {
         ],
     );
     let system = Shaped::new(&fix, rows);
-    assert_eq!(
-        pids(&system.tree_of(&source_place(&fix), &[100])),
-        [100, 120, 122, 123]
-    );
+    let (ours, theirs): (&[u32], &[&str]) = if ignores_case {
+        (&[100, 120, 122, 123], &["slash", "linked", "cased"])
+    } else {
+        (&[100, 120, 122], &["slash", "linked"])
+    };
+    assert_eq!(pids(&system.tree_of(&source_place(&fix), &[100])), ours);
     let done = fix.stop(&system).unwrap();
     assert_eq!(system.quits(), [100, 200], "none waited on");
     let note = done.notes.join(" | ");
-    for name in ["slash", "linked", "cased"] {
+    for name in theirs {
         assert!(note.contains(name), "{name}: {note}");
     }
     assert!(
         !note.contains("twoword") && !note.contains("twice") && !note.contains("afterdashes"),
         "{note}"
     );
+    assert_eq!(note.contains("cased"), ignores_case, "{note}");
 }
 
 /// Shape 8: Two profiles on one account, the conversation in the one not
