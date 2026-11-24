@@ -282,7 +282,35 @@ describe("AJ-E1520 the session's line to its Subagents tab", () => {
 // behind the words, no red outline.
 describe("a failed subagent's Result (F85)", () => {
   it("is a tone card with a red mark, words in ink, no fill or outline of red", () => {
-    const detail = { agent: agent("n1", { status: "failed" }), failure: "The diff it was asked to review no longer exists.", result: null, messages_off: false, tool: "Claude Code" } as unknown as SubagentDetailInfo;
+    const detail: SubagentDetailInfo = {
+      state: "shown",
+      reason: null,
+      agent: agent("n1", { status: "failed" }),
+      chain: [],
+      prompt: null,
+      result: null,
+      failure: "The diff it was asked to review no longer exists.",
+      messages_off: false,
+      asked: null,
+      tools: { total: 0, reads: 0, searches: 0, commands: 0, edits: 0, other: 0 },
+      lines: { added: 0, removed: 0 },
+      files: [],
+      files_total: 0,
+      children: [],
+      children_total: 0,
+      tokens: { input: 0, output: 0, cache_read: 0, cache_write: 0, reasoning: 0 },
+      counted: "in_session",
+      cost_usd: null,
+      share_pct: null,
+      processes: [],
+      process_session: null,
+      commands: 0,
+      stop_hint: null,
+      worktree: null,
+      branch: null,
+      stopped_by_user: null,
+      tool: "Claude Code",
+    };
     render(<ResultBox detail={detail} />);
     const card = screen.getByTestId("subagent-failure");
     expect(card.textContent).toBe("The diff it was asked to review no longer exists.");

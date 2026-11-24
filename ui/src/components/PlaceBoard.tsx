@@ -31,7 +31,8 @@ import { conversationsBringForward } from "../lib/ipc/conversations";
 import { useKnownPlaces } from "../lib/places";
 import { itemsOf, openNow } from "../lib/rail-items";
 import { useClosedSections } from "./rail-groups";
-import { buildLines, foldSections, lineHeights, lineKey, offsetOf, shownOrder, VIRTUALISE_AT, windowOf, type Line } from "../lib/rail-lines";
+import { buildLines, foldSections, lineHeights, lineKey, shownOrder, VIRTUALISE_AT, type Line } from "../lib/rail-lines";
+import { offsetOf, windowOf } from "../lib/rail-window";
 import { headerActions, keepAliveOf } from "./place-actions";
 import { appPageOfGroup, groupApp, recentOfGroup, groupClosed, openAppSessions, openGroupApp } from "./rail-group-app";
 import { openApp, useApps, useCliApps } from "../lib/apps";
@@ -127,8 +128,7 @@ export function PlaceBoard({ sessions, projects, accounts, snooze, now, selected
   const stable = order.mode !== "latest";
   // New rows and places join the end of the record; gone ones are pruned.
   const groupKeys = built.groups.map((group) => group.key).join("\n");
-  // D-62: a place kept by 0.3's key (app and profile) is the App it became.
-  // (As words, so the record is brought up to date only when they change.)
+  // D-62: a place kept by 0.3's key (app and profile) is the App it became (as words, so the record updates only when they change).
   const renamed = lens === "place" ? [...renamedPlaces(built.groups)].map(([old, now]) => `${old}\t${now}`).join("\n") : "";
   useEffect(() => {
     const pairs = renamed === "" ? [] : renamed.split("\n").map((line) => line.split("\t") as [string, string]);
