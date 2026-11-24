@@ -255,9 +255,9 @@ test("rail minimal — hover tooltip open", gate("01-rail-density"), async ({ pa
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto("/");
-  const first = page.locator("aside button[title]").first();
-  await first.hover();
-  await page.waitForTimeout(150);
+  // 0.5.1 F61: the icons' names are drawn tips (hover and keyboard focus).
+  await page.getByTestId("rail-folded-show-list").hover();
+  await expect(page.getByTestId("rail-folded-show-list-tip")).toBeVisible();
   await page.screenshot({ path: resolve(GALLERY, "01-rail-density/minimal-tooltip-1440x900.png") });
 });
 

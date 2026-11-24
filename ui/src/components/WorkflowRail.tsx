@@ -75,6 +75,7 @@ export type { Freshness } from "../lib/live-deltas";
 import type { Freshness } from "../lib/live-deltas";
 import { ProfileBadge } from "./ProfileBadge";
 import { SELECTED_FILL } from "./controls/selected";
+import { TipButton } from "./NameTip";
 
 /**
  * The workflow navigator (ADR-0007): one rail, three tabs, and the live
@@ -190,38 +191,36 @@ export function WorkflowRail({
           the foot has no rule, and its buttons are ghost buttons (the
           header's New session keeps the accent). */}
       <div className={"flex gap-1.5 p-2 " + (minimal ? "flex-col" : "")}>
-        <button
-          type="button"
+        {/* 0.5.1 F61: an icon's name drawn on hover and keyboard focus. */}
+        <TipButton
           onClick={onNewSession}
-          title={minimal ? "New session" : undefined}
+          tip={minimal ? "New session" : null}
           aria-label={minimal ? "New session" : undefined}
           data-testid="rail-new-session"
           className="btn-ghost flex min-w-0 flex-1 items-center justify-center gap-2 overflow-hidden rounded-lg px-3 py-[7px] text-meta font-medium outline-none transition-colors focus-visible:ring-1 focus-visible:ring-accent/60"
         >
           <IconTerminal width={14} height={14} />
           {!minimal && <span className="truncate">New session</span>}
-        </button>
+        </TipButton>
         {/* AJ-E2104: History, one click from the list's foot. */}
-        <button
-          type="button"
+        <TipButton
           onClick={() => window.dispatchEvent(new CustomEvent("aij:open-screen", { detail: { id: "history" } }))}
           aria-label="History"
-          title="History"
+          tip="History"
           data-testid="rail-history"
           className="btn-ghost flex shrink-0 items-center justify-center rounded-lg px-2.5 py-[7px] text-muted outline-none transition-colors hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60"
         >
           <IconHistory width={14} height={14} />
-        </button>
-        <button
-          type="button"
+        </TipButton>
+        <TipButton
           onClick={onNewProject}
           aria-label="New project"
-          title="New project"
+          tip="New project"
           data-testid="rail-new-project"
           className="btn-ghost flex shrink-0 items-center justify-center rounded-lg px-2.5 py-[7px] text-muted outline-none transition-colors hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60"
         >
           <IconProjects width={14} height={14} />
-        </button>
+        </TipButton>
       </div>
 
       {footer(minimal)}

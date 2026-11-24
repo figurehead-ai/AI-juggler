@@ -6,6 +6,7 @@
  * `onOpen` it opens the This Mac page (AJ-E1528).
  */
 import { IconComputer } from "./icons-actions";
+import { TipButton } from "./NameTip";
 import { useContext, type JSX } from "react";
 import { ThisMacContext, machineStatus } from "../lib/machine";
 import { PRESSURE_SHORT, underPressure } from "../lib/machine-memory";
@@ -41,6 +42,22 @@ function roomHelp(info: React.ContextType<typeof ThisMacContext> | null, words: 
   return room ? `${words}. ${room}` : undefined;
 }
 
+/** The folded rail's dot: its words in a drawn tip when it opens This
+ * Mac (0.5.1 F61: on hover and keyboard focus, never a title alone). */
+function FoldedDot({ words, dot, breath, onOpen }: { words: string; dot: string; breath: string; onOpen?: () => void }): JSX.Element {
+  return (
+    <div className="flex justify-center py-2" title={onOpen ? undefined : words} data-testid="machine-status-dot" data-level={breath}>
+      {onOpen ? (
+        <TipButton onClick={onOpen} aria-label={words} tip={words} data-testid="machine-status-dot-open" className="flex size-6 items-center justify-center rounded-md outline-none hover:bg-surface/60 focus-visible:ring-1 focus-visible:ring-accent/60">
+          <span key={breath} aria-hidden="true" className={`dot-live size-1.5 rounded-full ${dot}`} />
+        </TipButton>
+      ) : (
+        <span key={breath} className={`dot-live size-1.5 rounded-full ${dot}`} aria-label={words} role="img" />
+      )}
+    </div>
+  );
+}
+
 export function MachineStatusLine({ minimal, onOpen, short = false }: { minimal: boolean; onOpen?: () => void; short?: boolean }): JSX.Element {
   const info = useContext(ThisMacContext);
   const status = machineStatus(info);
@@ -65,19 +82,7 @@ export function MachineStatusLine({ minimal, onOpen, short = false }: { minimal:
   // The level, by which the dot breathes when it changes, then rests
   // (styles.css).
   const breath = status?.level ?? "unsampled";
-  if (minimal) {
-    return (
-      <div className="flex justify-center py-2" title={words} data-testid="machine-status-dot" data-level={breath}>
-        {onOpen ? (
-          <button type="button" onClick={onOpen} aria-label={words} className="flex size-6 items-center justify-center rounded-md outline-none hover:bg-surface/60 focus-visible:ring-1 focus-visible:ring-accent/60">
-            <span key={breath} aria-hidden="true" className={`dot-live size-1.5 rounded-full ${dot}`} />
-          </button>
-        ) : (
-          <span key={breath} className={`dot-live size-1.5 rounded-full ${dot}`} aria-label={words} role="img" />
-        )}
-      </div>
-    );
-  }
+  if (minimal) return <FoldedDot words={words} dot={dot} breath={breath} onOpen={onOpen} />;
   // The top bar's line is snug (its words fit at 1280 with the list open).
   const gap = short ? "gap-1.5" : "gap-2";
   const line = (

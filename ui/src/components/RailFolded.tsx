@@ -52,6 +52,7 @@ import { isSnoozed, type SnoozeState } from "../lib/railview";
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import type { ProjectInfo } from "../types/generated/ProjectInfo";
 import { SELECTED_FILL } from "./controls/selected";
+import { TipButton } from "./NameTip";
 
 /** "4 things need you", as the bell says it. */
 export function needsYouWords(count: number): string {
@@ -118,34 +119,33 @@ export function FoldedRail({
   return (
     <div ref={root} className="flex flex-col items-center gap-1 pt-1" data-testid="rail-folded">
       {onShowList && (
-        <button
-          type="button"
+        <TipButton
           data-rail-nav
           data-testid="rail-folded-show-list"
           onClick={onShowList}
           aria-label="Group and View: show the list"
           aria-keyshortcuts={keys.aria}
-          title={`Group and View — show the list (${keys.words})`}
+          // F61: its name drawn on hover and keyboard focus, never a title.
+          tip={`Group and View — show the list (${keys.words})`}
           className="mb-1 flex size-8 items-center justify-center rounded-lg border border-hairline bg-surface/70 text-muted outline-none transition-colors hover:bg-surface hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60"
         >
           <IconView width={14} height={14} />
-        </button>
+        </TipButton>
       )}
       {count > 0 && (
-        <button
-          type="button"
+        <TipButton
           data-rail-nav
           data-testid="rail-folded-needs-you"
           onClick={() => host.openHome?.()}
           aria-label={`Needs you: ${needsYouWords(count)}${broken.length > 0 ? `, ${brokenParts(broken)}` : ""}. Open Home`}
-          title={`${needsYouWords(count)} — open Home`}
+          tip={`${needsYouWords(count)} — open Home`}
           data-level={level}
           className={"mb-1 flex min-h-6 items-center gap-1 rounded-md px-1.5 py-0.5 text-label font-semibold tabular-nums outline-none transition-colors hover:bg-surface focus-visible:ring-1 focus-visible:ring-accent/60 " + (level >= 2 ? levelTone(level).text : "text-muted")}
         >
           {/* The level's glyph (⚠ at L2, ✕ at L3): decoration. */}
           {level >= 2 && <span aria-hidden="true" className="level-glyph" data-level={level} />}
           <span aria-hidden="true">{count}</span>
-        </button>
+        </TipButton>
       )}
       {open.map((item) => (
         <FoldedRow key={item.key} item={item} selected={selectedId === (item.session?.id ?? item.conversation?.id)} onSelect={onSelect} />
