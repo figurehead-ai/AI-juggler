@@ -70,6 +70,16 @@ describe("move backups together", () => {
     expect(changed).toHaveBeenCalled();
   });
 
+  it("D-146: exact sizes (APFS measured) say \"frees <size>\" in the total, the offer and the clean-up line", async () => {
+    window.__AIJ_MOVE_BACKUPS__ = backups({ exact: true, low_room: true });
+    const { unmount } = render(<MovesPanel moves={[row]} onChanged={() => {}} />);
+    expect((await screen.findByTestId("moves-total")).textContent).toBe("2 move backups kept for Undo: frees 3.0 GB in all");
+    expect(screen.getByTestId("moves-offer").textContent).toContain("Backups older than a day: frees 2.0 GB.");
+    unmount();
+    render(<BackupsCleanupRow />);
+    expect((await screen.findByTestId("cleanup-backups")).textContent).toContain("2 move backups kept for Undo, frees 3.0 GB.");
+  });
+
   it("no offer without backups a day old, even on a nearly full disk", async () => {
     window.__AIJ_MOVE_BACKUPS__ = backups({ low_room: true, old_count: 0, old_bytes: 0 });
     render(<MovesPanel moves={[row]} onChanged={() => {}} />);

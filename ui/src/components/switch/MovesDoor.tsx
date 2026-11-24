@@ -6,8 +6,9 @@
  * Copy details (its timeline). No moves: nothing shown; one left part way
  * is never hidden (each surface shows the rows only when there are any).
  * Undo's sheet says what it restores first. AJ-E2325: a kept backup
- * says until when and what deleting it frees ("up to" where clones share
- * blocks); Delete backup… says the move can no longer be undone.
+ * says until when and what deleting it frees (exact on APFS, D-146; "up
+ * to" where the disk can't say); Delete backup… says the move can no
+ * longer be undone.
  */
 import { useCallback, useEffect, useState, type JSX } from "react";
 import { Modal } from "../form";
@@ -91,8 +92,9 @@ function UndoSheet({ move, busy, onCancel, onConfirm }: { move: MoveRecordInfo; 
   );
 }
 
-/** "frees 7.8 MB", or "frees up to 7.8 MB" where clones may share blocks
- * (what deleting gives back is at most that). */
+/** "frees 7.8 MB" (exact: APFS measured what the backup alone holds,
+ * D-146), or "frees up to 7.8 MB" where clones may share blocks the disk
+ * can't measure (what deleting gives back is at most that). */
 export function freesWords(bytes: number, exact: boolean): string {
   return `frees ${exact ? "" : "up to "}${memorySize(bytes)}`;
 }

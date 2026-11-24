@@ -141,6 +141,13 @@ describe("Moves door", () => {
     expect((await screen.findByTestId("move-kept-until")).textContent).toBe("Backup kept until Nov 30 · frees up to 8 MB");
   });
 
+  it("D-146: a backup measured exactly (APFS) says what deleting it frees, no \"up to\"", async () => {
+    window.__AIJ_MOVES__ = [move({ has_backup: true, kept_until_ms: new Date(2026, 10, 30).getTime(), backup_bytes: 8192, backup_exact: true })];
+    render(<MovesDoor />);
+    expect((await screen.findByTestId("move-kept-until")).textContent).toBe(`Backup kept until Nov 30 · ${freesWords(8192, true)}`);
+    expect(screen.getByTestId("move-kept-until").textContent).not.toContain("up to");
+  });
+
   it("AJ-E2325: Delete backup says Undo goes with it, Keep cancels, and it deletes only on its confirm", async () => {
     window.__AIJ_MOVES__ = [move({ has_backup: true, kept_until_ms: new Date(2026, 10, 30).getTime() })];
     render(<MovesDoor />);
