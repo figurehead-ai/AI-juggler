@@ -226,13 +226,13 @@ def rail(pid: int) -> tuple[list[str], list[str], str, dict[str, int], list[pres
         role, label, value = (line.split("\t") + ["", ""])[:3]
         lines.append((role, label, value))
         words = label or value
-        if m := re.match(r"^Open now (\d+)", words):
+        if m := re.match(r"^Open now (\d+)", words, re.I):
             counts["open"] = int(m.group(1))
-        if re.match(r"^Open now\b", words):
+        if re.match(r"^Open now\b", words, re.I):
             at = "open"
-        elif re.match(r"^Inactive apps\b", words):
+        elif re.match(r"^Inactive apps\b", words, re.I):
             at = "idle"
-        elif re.match(r"^(Also:|Ended today|History)\b", words):
+        elif re.match(r"^(Also:|Ended today|History)\b", words, re.I):
             at = None
         elif at == "idle" and not re.match(r"^(?:Fold|Unfold) ", words):
             inactive_words += " " + words

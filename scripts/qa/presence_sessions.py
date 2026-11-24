@@ -114,13 +114,13 @@ def parse_rail(lines: list[tuple[str, str, str]]) -> list[RailApp]:
 
     for role, label, value in lines:
         words = label or value
-        if re.match(r"^Open now \d+", words):
+        if re.match(r"^Open now \d+", words, re.I):
             section, cur = "open", None
             continue
-        if re.match(r"^Inactive apps \d+", words):
+        if re.match(r"^Inactive apps \d+", words, re.I):
             section, cur = "idle", None
             continue
-        if re.match(r"^(Running, not added|Also:|Ended today|History)\b", words):
+        if re.match(r"^(Running, not added|Also:|Ended today|History)\b", words, re.I):
             section, cur = None, None
             continue
         if section is None or role != "AXButton":
@@ -686,6 +686,10 @@ def selftest() -> None:
     assert [(a.name, a.foldable, a.rows, a.show_all, a.out) for a in got] == [
         ("Claude app · East", True, 3, 9, True), ("Claude app · West", False, 0, None, False), ("Claude app · Gone", False, 0, None, True)
     ], got
+    # 0.5.1: the section heads are drawn in capitals, and WebKit names them so
+    # ("OPEN NOW 2", "INACTIVE APPS 1"): the same rail, read the same.
+    caps = [(r, w.upper() if w.startswith(("Open now", "Inactive apps")) else w, v) for r, w, v in new]
+    assert [(a.name, a.section) for a in parse_rail(caps)] == [(a.name, a.section) for a in got], parse_rail(caps)
     # An installed 0.4.3 says "Show all 9" (D-103.2 renamed it in 0.4.4).
     assert parse_rail([*new[:7], ("AXButton", "Show all 9", ""), *new[8:]])[0].show_all == 9
     east = KnownApp("Claude app · East", "desktop", "codex", "f-east", None, None)
