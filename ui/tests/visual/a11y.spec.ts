@@ -1128,12 +1128,12 @@ for (const theme of ["dark", "light"] as const) {
     await page.keyboard.press("ArrowLeft");
     await expect(page.getByRole("button", { name: /Work in ai-juggler/ })).toBeFocused();
     await page.keyboard.press("Enter");
-    await expect(page.getByTestId("project-account")).toBeVisible();
-    // Tab reaches Start session →; Enter launches (preview mode's
-    // honest error proves the activation arrived).
-    await page.getByTestId("start-session").focus();
-    await expect(page.getByTestId("start-session")).toBeFocused();
-    await page.keyboard.press("Enter");
+    // 0.5.1 F68: New session opens on that folder; its start, from the
+    // keyboard, launches (preview mode's honest error proves it arrived).
+    await expect(page.getByTestId("new-session-sheet")).toBeVisible();
+    await page.getByTestId("launch-now").focus();
+    await expect(page.getByTestId("launch-now")).toBeFocused();
+    await page.keyboard.press("Meta+Enter");
     await expect(page.getByText("Preview mode — no backend connected.")).toBeVisible();
   });
 }
@@ -1827,7 +1827,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.getByTestId("cross-back-go").click();
     await expect(page.getByTestId("conflict-later")).toBeFocused();
     expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
-    await page.getByTestId("conflict-keep_mine").focus();
+    await page.getByTestId("conflict-keep_mine").locator("input").focus();
     await page.keyboard.press("Space");
     await expect(page.getByTestId("conflict-apply")).toBeEnabled();
   });

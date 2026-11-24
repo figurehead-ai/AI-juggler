@@ -2402,6 +2402,36 @@ for (const theme of THEMES) {
       await page.screenshot({ path: resolve(GALLERY, `28-switch/move-end-${vp.name}-${theme}.png`) });
     });
 
+    // 0.5.1 F72: Move waiting on what the user can clear names it (a
+    // session open in a terminal) and offers its door, as a stop does.
+    test(`switch — Move waits on a session open in a terminal (F72) — ${vp.name} — ${theme}`, async ({ page }) => {
+      const offer = {
+        ...EXAMPLE_MOVE_OFFER,
+        blocks: [{ kind: "user_can_clear", words: "“Fix the login test” in Terminal is open outside the app; Move becomes available once you end it" }],
+        holders: [{ name: "“Fix the login test” in Terminal", place_id: null, account_id: "acct-work", conversation: "term-1" }],
+      };
+      await page.addInitScript(
+        ({ fixture, t0, theme: themeName, offer: o }) => {
+          const w = window as unknown as Record<string, unknown>;
+          w.__AIJ_FIXTURE__ = fixture;
+          w.__AIJ_SWITCH_PREFLIGHT__ = fixture.doorFixture;
+          w.__AIJ_MOVE_OFFER__ = o;
+          localStorage.setItem("aij.theme", themeName);
+          localStorage.setItem("aij.onboarding.dismissed", "1");
+          sessionStorage.setItem("aij.ready.skipped", "1");
+          Date.now = () => t0;
+        },
+        { fixture: { ...allStatuses, doorFixture: { ...SWITCH_WIZARD_FIXTURE, door: "one-click", wizard_steps: [], wizard_reasons: [] } }, t0: T0, theme, offer },
+      );
+      await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
+      await page.setViewportSize({ width: vp.width, height: vp.height });
+      await page.goto("/");
+      await openDialog(page);
+      await expect(page.getByTestId("switch-how-holders")).toContainText("Go to “Fix the login test” in Terminal");
+      await page.mouse.move(0, 0);
+      await page.screenshot({ path: resolve(GALLERY, `28-switch/move-waits-${vp.name}-${theme}.png`) });
+    });
+
     test(`switch — freeze stop-now + warnings on Confirm — ${vp.name} — ${theme}`, async ({ page }) => {
       await page.addInitScript(
         ({ fixture, t0, theme: themeName }) => {
@@ -3453,10 +3483,12 @@ for (const theme of THEMES) {
         fullPage: true,
       });
       await page
-        .getByRole("button", { name: /Work in ai-juggler.*last used with Work Max/ })
+        .getByRole("button", { name: /Work in ai-juggler.*Last used with Work Max/ })
         .click();
-      // Step 2: the preselected account.
-      await expect(page.getByTestId("project-account")).toContainText("Work Max");
+      // Step 2 (0.5.1 F68): New session on that folder, its App chosen
+      // with its why, as New session always says it.
+      await expect(page.getByTestId("new-session-sheet")).toBeVisible();
+      await expect(page.getByTestId("new-session-sentence")).toContainText("ai-juggler");
       await page.screenshot({
         path: resolve(GALLERY, `37-flows/b2-account-${vp.name}-${theme}.png`),
         fullPage: true,
@@ -4892,7 +4924,7 @@ for (const theme of THEMES) {
         away_account_label: "Desktop Max",
         new_turns: 4,
         delta_preview:
-          "While you were away on Desktop Max — 4 new turns (12 shared before the switch).\n\n- [user] add the payment form\n- [assistant] payment form added with validation\n- [user] wire it to checkout\n- [assistant] checkout now posts the payment\n\nFull detail: the attached switch pack (not replayed).",
+          "While you were away on Desktop Max — 4 new turns (12 shared before the switch).\n\n- [user] add the payment form\n- [assistant] payment form added with validation\n- [user] wire it to checkout\n- [assistant] checkout now posts the payment\n\nThe project's files are as they were left on Desktop Max. Pick up from here.",
         blockers: [],
       },
       __AIJ_FLEET_SWITCH_BACK_OUTCOMES__: [

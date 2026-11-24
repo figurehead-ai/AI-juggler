@@ -1,33 +1,39 @@
 import { useFolderDrop } from "../lib/use-folder-drop";
 import { useEscapeCloses } from "../lib/use-escape-closes";
-import { useEffect, useMemo, useRef, useState } from "react";
-import { Button, Chip } from "../components/primitives";
-import { IconProjects, IconTerminal } from "../components/icons";
+import { useEffect, useMemo, useRef, useState, type JSX } from "react";
+import { Button } from "../components/primitives";
+import { IconProjects } from "../components/icons";
+import { IconClose } from "../components/icons-controls";
+import { IconFolderOpen } from "../components/icons-actions";
+import { Alert } from "../components/Alert";
+import { Section } from "../components/Section";
+import { LogoTile } from "../components/ToolLogo";
 import { funnelStep } from "../lib/funnel";
-import { ExpertSetup } from "../components/ExpertSetup";
 import { FirstRun } from "./FirstRun";
-import { launchRecipesList, launchSession } from "../lib/ipc/launch";
+import { launchRecipesList } from "../lib/ipc/launch";
 import { pickDirectory } from "../lib/ipc/project-folders";
+import { agoWords } from "../lib/time-words";
 import type { LaunchRecipeInfo } from "../types/generated/LaunchRecipeInfo";
 import type { ProjectInfo } from "../types/generated/ProjectInfo";
 import type { AccountInfo } from "../types/generated/AccountInfo";
 import type { QuotaDisplayData } from "../lib/ipc/quota";
-import { errorText, signedIn } from "../lib/bridge";
-import { launchSettingsName, launchTitle } from "../lib/account-words";
 import { pickLaunch } from "../lib/launch-pick";
-import { SELECTED_CARD } from "../components/controls/selected";
 import { DialogFrame, DialogOverlay } from "../components/DialogFrame";
+import { SELECTED_FILL } from "../components/controls/selected";
 
 /**
- * AJ-E305 flow (b): a new project in ≤ 3 clicks and zero typed
- * paths. Step 1 — where (recent dirs as tiles, a native folder
- * picker, or a drop). Step 2 — who: the RECOMMENDED account
- * preselected (`lib/launch-pick`: a pick of yours, else the most
- * room), one [Change] away from the full list.
+ * AJ-E305 flow (b): a new project in ≤ 3 clicks and zero typed paths.
  *
- * No Account for the Provider detours INLINE into the add-account
- * flow (d) and returns to the pending launch on completion — the
- * directory never has to be re-picked.
+ * 0.5.1 F68: on D-142's dialog frame (size M: an icon tile, the title and
+ * one help line in the fixed header, the body the choice, Cancel in the
+ * footer), and it chooses only what is its own: where. A recent folder,
+ * the folder picker or a folder dropped on it opens New session on that
+ * folder, which chooses the App as it always does (its stated choice with
+ * its why, ⌘↩ or Start): one way to pick an App, never a second, older
+ * one here (the critique: a bare App row, "quota unknown", the primary
+ * mid-body). With no App yet, the add-an-app detour opens over this sheet
+ * and, once an App is there, carries on to New session on the same
+ * folder (Req.7).
  */
 
 /** The preselect rule (Req.6, AJ-E1501): `lib/launch-pick`, the one
@@ -42,34 +48,35 @@ export function pickRecipe(
   return pickLaunch(recipes, project, quotas, accounts)?.recipe ?? null;
 }
 
+/** A recent folder's line: the App last used there and when. */
+function lastUsed(row: ProjectInfo, now: number): string {
+  const app = row.accounts_used[row.accounts_used.length - 1];
+  const when = row.last_activity_ms ? agoWords(row.last_activity_ms, now) : "";
+  if (app) return when ? `Last used with ${app} · ${when}` : `Last used with ${app}`;
+  return when ? `Worked in ${when}` : "Not worked in yet";
+}
+
 export function NewProjectSheet({
   projects,
-  accounts,
   initialDirectory,
   onClose,
-  onLaunched,
+  onFolder,
   openLoginTerminal,
   onAccountsChanged,
-  onManageLaunchSettings,
 }: {
   projects: ProjectInfo[];
   accounts: AccountInfo[];
   initialDirectory: string | null;
   onClose: () => void;
-  onLaunched: (sessionId: string, title: string) => void;
+  /** F68: the folder chosen: New session opens on it. */
+  onFolder: (directory: string) => void;
   openLoginTerminal: (id: string, title: string, options?: { select?: boolean; account?: string }) => void;
   onAccountsChanged: () => void;
-  /** AJ-E309 Req.5: the Expert hatch's [Manage Launch settings →]. */
-  onManageLaunchSettings?: () => void;
-}) {
+}): JSX.Element {
   const [directory, setDirectory] = useState<string | null>(initialDirectory);
   const [recipes, setRecipes] = useState<LaunchRecipeInfo[] | null>(null);
-  const [quotas, setQuotas] = useState<QuotaDisplayData[]>([]);
-  const [showAll, setShowAll] = useState(false);
   const [detour, setDetour] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const { dragging, zone } = useFolderDrop(setDirectory); // wf03: a dropped folder
+  const [now] = useState(() => Date.now());
   // Esc closes it wherever focus is, even right after ⌘⇧N (as New session, #198).
   // While the add-app detour is open its own Escape leaves it and returns
   // here, the folder still chosen (Req.7): this sheet's listener, added
@@ -84,66 +91,24 @@ export function NewProjectSheet({
   };
   useEffect(() => {
     funnelStep("b-new-project", "open");
-    reload();
-    void import("../lib/ipc/quota").then((bridge) =>
-      bridge.quotaDisplayAll().then(setQuotas),
-    );
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    void launchRecipesList().then(setRecipes);
   }, []);
 
-  const project = useMemo(
-    () => projects.find((row) => row.root === directory) ?? null,
-    [projects, directory],
-  );
-  const loginByAccount = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const account of accounts) map.set(account.id, account.login_state);
-    return map;
-  }, [accounts]);
-  const quotaByAccount = useMemo(() => {
-    const map = new Map<string, QuotaDisplayData>();
-    // AJ-E3210: a folder's own display first; another Account's on it never stands in.
-    for (const entry of quotas) if (!map.has(entry.account)) map.set(entry.account, entry);
-    return map;
-  }, [quotas]);
-
-  const recommended = useMemo(
-    () => (recipes !== null ? pickRecipe(recipes, project, quotas, accounts) : null),
-    [recipes, project, quotas, accounts],
-  );
+  // A folder chosen with an App to start it: New session takes it from here.
+  const ready = directory !== null && recipes !== null && recipes.length > 0;
+  useEffect(() => {
+    if (ready && directory !== null) onFolder(directory);
+  }, [ready, directory, onFolder]);
 
   const chooseDirectory = (dir: string) => {
     funnelStep("b-new-project", "pick-dir");
     setDirectory(dir);
-    setShowAll(false);
   };
+  const { dragging, zone } = useFolderDrop(chooseDirectory); // wf03: a dropped folder
 
-  const start = async (recipe: LaunchRecipeInfo) => {
-    setBusy(true);
-    setError(null);
-    try {
-      funnelStep("b-new-project", "launch");
-      const result = await launchSession(recipe.id, directory);
-      if (!result) {
-        setError("Preview mode — no backend connected.");
-        setBusy(false);
-        return;
-      }
-      onLaunched(result.session_id, launchTitle(recipe));
-    } catch (cause) {
-      setError(errorText(cause));
-      setBusy(false);
-    }
-  };
-
-  // Tiles are arrow-key navigable (Req: WCAG 2.1 visible focus) —
-  // arrows move focus within the tile row, Enter/Space activate (the
-  // browser's native button behaviour).
+  // Arrow keys move focus within the folders; Enter and Space choose.
   const onTilesKey = (event: React.KeyboardEvent) => {
-    const tiles = Array.from(
-      tilesRef.current?.querySelectorAll<HTMLButtonElement>("button[data-tile]") ?? [],
-    );
-    if (tiles.length === 0) return;
+    const tiles = Array.from(tilesRef.current?.querySelectorAll<HTMLButtonElement>("button[data-tile]") ?? []);
     const index = tiles.findIndex((tile) => tile === document.activeElement);
     if (index === -1) return;
     const forward = event.key === "ArrowRight" || event.key === "ArrowDown";
@@ -154,230 +119,106 @@ export function NewProjectSheet({
     tiles[next]?.focus();
   };
 
-  const recents = useMemo(
-    () =>
-      [...projects]
-        .sort((a, b) => (b.last_activity_ms ?? 0) - (a.last_activity_ms ?? 0))
-        .slice(0, 6),
-    [projects],
-  );
+  const recents = useMemo(() => [...projects].sort((a, b) => (b.last_activity_ms ?? 0) - (a.last_activity_ms ?? 0)).slice(0, 6), [projects]);
+  const name = directory?.split("/").pop() ?? null;
+  const noApp = directory !== null && recipes !== null && recipes.length === 0;
 
   return (
     <DialogOverlay className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
       <DialogFrame
-        className="rounded-card border border-hairline bg-surface shadow-dialog w-full max-w-xl"
+        size="M"
+        className="rounded-card border border-hairline bg-surface shadow-dialog"
         role="dialog"
         aria-modal="true"
         aria-labelledby="new-project-title"
-        headerClassName="flex items-center gap-3 px-6 py-4"
+        headerClassName="flex items-start gap-3 px-6 pt-5 pb-4"
         header={
           <>
-          <IconProjects width={16} height={16} className="text-accent-hi" />
-          <h3 id="new-project-title" className="text-sm font-semibold">New project</h3>
-          <div className="ml-auto flex items-center gap-2">
-            {directory && (
-              <Chip tone="accent">
-                <span className="max-w-64 truncate font-mono text-label">
-                  {directory.split("/").pop()}
-                </span>
-              </Chip>
-            )}
-          </div>
+            <LogoTile icon={IconProjects} size={40} on />
+            <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+              <h2 id="new-project-title" className="type-section">
+                New project
+              </h2>
+              <p className="type-help">Choose its folder. New session then picks the app, as it always does.</p>
+            </div>
+            <Button variant="ghost" size="sm" type="button" onClick={onClose} aria-label="Close" title="Close (Esc)" className="-mr-2 -mt-1 size-7 shrink-0 px-0 text-ink-2">
+              <IconClose aria-hidden="true" width={24} height={24} strokeWidth={2} className="shrink-0" />
+            </Button>
           </>
         }
-        bodyClassName="px-6 py-5"
+        bodyClassName={"flex flex-col gap-5 px-6 pt-1 pb-6 " + (dragging ? "bg-accent-soft/40" : "")}
         bodyTestId="new-project-drop"
         bodyProps={zone}
-        footerClassName="flex items-center justify-between px-6 py-4"
+        footerClassName="flex flex-wrap items-center justify-end gap-2 border-t border-hairline px-6 py-3"
         footer={
           <>
-          <span className="text-label text-muted">{directory ? `Starting in ${directory.split("/").pop()}` : "Pick a folder to continue"}</span>
-          <Button size="sm" variant="secondary" onClick={onClose}>
-            Close
-          </Button>
+            <span className="mr-auto text-meta text-ink-2" data-testid="new-project-where">
+              {name ? `Starting in ${name}` : "Or drop a folder anywhere on this window."}
+            </span>
+            <Button variant="ghost" type="button" onClick={onClose} aria-keyshortcuts="Escape">
+              Cancel
+            </Button>
           </>
         }
       >
-        {/* Step 1 — where */}
-        <p className="text-section font-semibold text-ink">
-          Step 1 — where do you want to work?
-        </p>
-        <div
-          ref={tilesRef}
-          onKeyDown={onTilesKey}
-          className="mt-2 grid grid-cols-2 gap-2"
-          data-testid="project-tiles"
-        >
-          {recents.map((row) => (
-            <button
-              key={row.id}
-              type="button"
-              data-tile
-              onClick={() => chooseDirectory(row.root)}
-              className={
-                "flex min-w-0 flex-col gap-1 rounded-xl border px-3 py-2.5 text-left outline-none transition-colors focus-visible:ring-1 focus-visible:ring-accent/60 " +
-                (directory === row.root
-                  ? SELECTED_CARD
-                  : "border-hairline hover:border-hairline/80 hover:bg-surface")
-              }
-            >
-              <span className="flex items-center gap-1.5">
-                <IconProjects width={12} height={12} />
-                {/* WCAG 2.5.3: the name is the tile's own words. */}
-                <span className="truncate text-xs font-medium">
-                  <span className="sr-only">Work in </span>
-                  {row.name}
-                </span>
-              </span>
-              <span className="truncate text-label text-muted">
-                {row.accounts_used.length > 0
-                  ? `last used with ${row.accounts_used[row.accounts_used.length - 1]}`
-                  : row.root}
-              </span>
-            </button>
-          ))}
-          <button
-            type="button"
-            data-tile
-            onClick={async () => {
-              const picked = await pickDirectory();
-              if (picked) chooseDirectory(picked);
-            }}
-            className={
-              "flex flex-col items-center justify-center gap-1 rounded-xl border border-dashed px-3 py-2.5 text-center outline-none transition-colors focus-visible:ring-1 focus-visible:ring-accent/60 " +
-              (dragging
-                ? "border-transparent bg-accent-soft text-accent-hi"
-                : "border-hairline text-muted hover:border-accent/40 hover:text-ink")
+        {noApp && !detour && (
+          <Alert
+            level="needs-you"
+            title="No app set up yet"
+            testId="no-account-detour"
+            actions={
+              <Button size="sm" variant="primary" type="button" onClick={() => setDetour(true)}>
+                Add an app
+              </Button>
             }
           >
-            <IconProjects width={14} height={14} />
-            <span className="text-xs font-medium">Choose folder…</span>
-            <span className="text-label text-muted">or drop it anywhere</span>
-          </button>
-        </div>
-
-        {/* Step 2 — who (appears once a directory is chosen) */}
-        {directory !== null && (
-          <>
-            <p className="mt-5 text-section font-semibold text-ink">
-              Step 2 — which app?
-            </p>
-            <div className="mt-2 flex flex-col gap-1.5" data-testid="project-account">
-              {recipes === null && <p className="py-3 text-xs text-ink-2">Loading…</p>}
-              {recipes !== null && recipes.length === 0 && !detour && (
-                <div
-                  className="flex flex-col items-start gap-2 rounded-xl border border-hairline px-4 py-3"
-                  data-testid="no-account-detour"
-                >
-                  <p className="text-xs text-ink-2">
-                    No app set up yet — add one and your project launch picks up right
-                    where it left off.
-                  </p>
-                  <Button size="sm" variant="primary" onClick={() => setDetour(true)}>
-                    Add an app
-                  </Button>
-                </div>
-              )}
-              {recipes !== null && recipes.length > 0 && recommended !== null && !showAll && (
-                <>
-                  <div className="flex items-center gap-2 rounded-xl border border-transparent bg-accent-soft px-3 py-2.5 text-xs">
-                    <IconTerminal width={13} height={13} />
-                    <span className="font-medium">{recommended.account_label}</span>
-                    <Chip tone="neutral">
-                      {quotaByAccount.get(recommended.account_id)?.forecast.badge ?? "quota unknown"}
-                    </Chip>
-                    <span className="text-muted">{recommended.name}</span>
-                    <span className="ml-auto text-label text-muted">
-                      {project?.default_account_id === recommended.account_id
-                        ? "this project's default"
-                        : accounts.find((account) => account.is_default)?.id === recommended.account_id
-                          ? "your default"
-                          : project !== null && project.accounts_used.includes(recommended.account_label)
-                            ? "last used here"
-                            : "recommended"}
-                    </span>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    <Button
-                      size="sm"
-                      variant="primary"
-                      disabled={busy || !signedIn(loginByAccount.get(recommended.account_id))}
-                      onClick={() => void start(recommended)}
-                      data-testid="start-session"
-                    >
-                      Start session →
-                    </Button>
-                    <Button size="sm" variant="secondary" onClick={() => setShowAll(true)}>
-                      Change
-                    </Button>
-                  </div>
-                  {!signedIn(loginByAccount.get(recommended.account_id)) && (
-                    <p className="text-label text-muted">
-                      This app needs sign-in — pick another or sign in first.
-                    </p>
-                  )}
-                </>
-              )}
-              {recipes !== null && showAll && (
-                <div className="flex flex-col gap-1.5" data-testid="project-account-list">
-                  {recipes.map((recipe) => {
-                    const ready = signedIn(loginByAccount.get(recipe.account_id));
-                    return (
-                      <button
-                        key={recipe.id}
-                        type="button"
-                        disabled={busy || !ready}
-                        onClick={() => void start(recipe)}
-                        className={
-                          "flex items-center gap-2 rounded-xl border px-3 py-2.5 text-left text-xs outline-none transition-colors focus-visible:ring-1 focus-visible:ring-accent/60 " +
-                          (ready
-                            ? "border-hairline hover:border-accent/40 hover:bg-surface"
-                            : "border-hairline/50 opacity-50")
-                        }
-                      >
-                        <IconTerminal width={13} height={13} />
-                        <span className="font-medium">{recipe.account_label}</span>
-                        <Chip tone="neutral">
-                          {quotaByAccount.get(recipe.account_id)?.forecast.badge ?? "quota unknown"}
-                        </Chip>
-                        <span className="text-muted">·</span>
-                        <span className="text-muted">{launchSettingsName(recipe.name)}</span>
-                        {!ready && <Chip tone="neutral">needs sign-in</Chip>}
-                      </button>
-                    );
-                  })}
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    onClick={() => setShowAll(false)}
-                    className="self-start"
-                  >
-                    Back to recommendation
-                  </Button>
-                </div>
-              )}
-            </div>
-            {/* AJ-E309 Req.5: the expert hatch for the recommended
-                account (folder, shell line, env overrides). */}
-            {recommended !== null && (
-              <div className="mt-3">
-                <ExpertSetup
-                  provider={recommended.provider}
-                  accounts={[{ id: recommended.account_id, label: recommended.account_label }]}
-                  surface="new-project"
-                  onManageLaunchSettings={onManageLaunchSettings}
-                />
-              </div>
-            )}
-          </>
+            Add one, and {name} opens in New session with it, the folder kept.
+          </Alert>
         )}
-
-        {error && <p className="mt-3 text-xs text-danger">{error}</p>}
+        <Section title="Where it lives" help={recents.length > 0 ? "A recent folder, or another one" : undefined} testId="project-where">
+          {/* Arrows move across the folders and Choose folder… alike. */}
+          <div ref={tilesRef} onKeyDown={onTilesKey} className="flex flex-col gap-2.5">
+            <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2" data-testid="project-tiles">
+              {recents.map((row) => (
+                <button
+                  key={row.id}
+                  type="button"
+                  data-tile
+                  aria-current={directory === row.root ? "true" : undefined}
+                  onClick={() => chooseDirectory(row.root)}
+                  className={"flex min-w-0 items-center gap-3 rounded-card px-3 py-2.5 text-left transition-colors " + (directory === row.root ? SELECTED_FILL : "bg-surface-2 hover:bg-surface-3")}
+                >
+                  <LogoTile icon={IconProjects} size={32} />
+                  <span className="flex min-w-0 flex-col">
+                    {/* WCAG 2.5.3: the name is the tile's own words. */}
+                    <span className="truncate text-body font-semibold text-ink">
+                      <span className="sr-only">Work in </span>
+                      {row.name}
+                    </span>
+                    <span className="truncate text-meta text-muted">{lastUsed(row, now)}</span>
+                  </span>
+                </button>
+              ))}
+            </div>
+            <Button
+              variant="secondary"
+              type="button"
+              data-tile
+              className="self-start"
+              onClick={async () => {
+                const picked = await pickDirectory();
+                if (picked) chooseDirectory(picked);
+              }}
+            >
+              <IconFolderOpen aria-hidden="true" width={16} height={16} />
+              Choose folder…
+            </Button>
+          </div>
+        </Section>
       </DialogFrame>
 
-      {/* The inline flow (d) detour — completing it returns to the
-          pending project launch (Req.7): same directory, refreshed
-          accounts. */}
+      {/* The inline flow (d) detour: once an app is there, New session
+          opens on the folder chosen (Req.7). */}
       {detour && (
         <FirstRun
           mode="add"
@@ -385,9 +226,6 @@ export function NewProjectSheet({
           onAccountsChanged={() => {
             onAccountsChanged();
             reload();
-            void import("../lib/ipc/quota").then((bridge) =>
-              bridge.quotaDisplayAll().then(setQuotas),
-            );
           }}
           openLoginTerminal={openLoginTerminal}
         />

@@ -4,7 +4,7 @@
  * account, the limit and switch flows, the New session and New project
  * sheets, and the toast a close that hid the window owes (D-112).
  */
-import { useEffect, type JSX } from "react";
+import { useCallback, useEffect, useRef, type JSX } from "react";
 import { CrashReportPrompt } from "../components/CrashReports";
 import { FleetPromptDialog } from "../components/FleetPromptDialog";
 import { IdentityMismatchDialog } from "../components/IdentityMismatchDialog";
@@ -21,7 +21,7 @@ import { watchCloseNote } from "../lib/close-note";
 import { desktopFocus } from "../lib/ipc/desktop";
 import { fleetRemoteFocus } from "../lib/ipc/fleet-remote";
 import { goToHotkeySet } from "../lib/ipc/settings";
-import { funnelEvent } from "../lib/funnel";
+import { funnelEvent, funnelStep } from "../lib/funnel";
 import { lazyNamed, usePartShown } from "../lib/lazy";
 import { cliAppId } from "../lib/app-name";
 import { openWatches } from "../lib/watches-open";
@@ -39,6 +39,18 @@ export function ShellOverlays({ shell }: { shell: Shell }): JSX.Element {
   const newSheetShown = usePartShown(NewSessionModal, newSheet.open);
   // D-112: the toast the first close that hid the window owes.
   useEffect(() => watchCloseNote(), []);
+  // F68: New project hands its folder to New session (flow (b)'s start).
+  const fromNewProject = useRef(false);
+  const { setNewProjectDir } = shell;
+  const showNewSheet = newSheet.show;
+  const openOnFolder = useCallback(
+    (dir: string) => {
+      fromNewProject.current = true;
+      setNewProjectDir(null);
+      showNewSheet({ dir });
+    },
+    [setNewProjectDir, showNewSheet],
+  );
   return (
     <>
       {portWarning && (
@@ -239,11 +251,17 @@ export function ShellOverlays({ shell }: { shell: Shell }): JSX.Element {
           onStartAnother={(at) => newSheet.show(at)}
           openLoginTerminal={shell.openLoginTerminal}
           onProjectsChanged={() => void refresh()}
-          onClose={newSheet.close}
+          onClose={() => {
+            fromNewProject.current = false;
+            newSheet.close();
+          }}
           onLaunched={(sessionId) => {
             // AJ-E309 Req.6: once per install (the backend dedupes and
             // computes seconds_since_install itself).
             funnelEvent("first_launch");
+            // F68: New project's flow (b) ends on New session's start.
+            if (fromNewProject.current) funnelStep("b-new-project", "launch");
+            fromNewProject.current = false;
             newSheet.close();
             void refresh();
             selectSession(sessionId);
@@ -255,26 +273,18 @@ export function ShellOverlays({ shell }: { shell: Shell }): JSX.Element {
         />
       )}
 
-      {/* AJ-E305 flow (b): New project — 2 steps, ≤ 3 clicks, no
-          typed paths; an empty preset means "no directory yet". */}
+      {/* AJ-E305 flow (b): New project, ≤ 3 clicks, no typed paths; an
+          empty preset means "no directory yet". F68: it chooses where,
+          then New session opens on that folder and chooses the App. */}
       {shell.newProjectDir !== null && (
         <NewProjectSheet
           projects={shell.shownProjects}
           accounts={accounts}
           initialDirectory={shell.newProjectDir === "" ? null : shell.newProjectDir}
           onClose={() => shell.setNewProjectDir(null)}
-          onLaunched={(sessionId) => {
-            funnelEvent("first_launch");
-            shell.setNewProjectDir(null);
-            void refresh();
-            selectSession(sessionId);
-          }}
+          onFolder={openOnFolder}
           openLoginTerminal={shell.openLoginTerminal}
           onAccountsChanged={shell.accountsChanged}
-          onManageLaunchSettings={() => {
-            shell.setNewProjectDir(null);
-            shell.setGlobal("accounts");
-          }}
         />
       )}
     </>

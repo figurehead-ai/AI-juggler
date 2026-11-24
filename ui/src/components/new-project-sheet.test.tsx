@@ -1,14 +1,14 @@
 /**
  * AJ-E305 vitest — flow (b): the New project sheet. The preselect
  * rule (last-used → most headroom → first recipe) is pinned as a
- * PURE function; the component test walks the 2-click path (tile →
- * Start session) and the no-account inline detour.
+ * PURE function; the component test walks the folder step (a tile opens
+ * New session on it, 0.5.1 F68) and the no-account inline detour.
  */
 import { cleanup, fireEvent, render, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { NewProjectSheet, pickRecipe } from "../screens/NewProjectSheet";
 import { pickLaunch } from "../lib/launch-pick";
-import * as bridgeModule from "../lib/ipc/quota";
+import type * as bridgeModule from "../lib/ipc/quota";
 import * as bridgeModuleLaunch from "../lib/ipc/launch";
 import type { LaunchRecipeInfo } from "../types/generated/LaunchRecipeInfo";
 import type { ProjectInfo } from "../types/generated/ProjectInfo";
@@ -101,51 +101,38 @@ describe("AJ-E305 NewProjectSheet — flow (b) in ≤3 clicks", () => {
   ];
 
   const mountSheet = (extra: { recipes?: LaunchRecipeInfo[]; onClose?: () => void } = {}) => {
-    const launchSpy = vi
-      .spyOn(bridgeModuleLaunch, "launchSession")
-      .mockResolvedValue({ session_id: "s1" } as never);
-    vi.spyOn(bridgeModuleLaunch, "launchRecipesList").mockResolvedValue(
-      extra.recipes ?? [recipe("a", "Work")],
-    );
-    vi.spyOn(bridgeModule, "quotaDisplayAll").mockResolvedValue([]);
-    const launched = vi.fn();
+    vi.spyOn(bridgeModuleLaunch, "launchRecipesList").mockResolvedValue(extra.recipes ?? [recipe("a", "Work")]);
+    const onFolder = vi.fn();
     const mounted = render(
       <NewProjectSheet
         projects={[project("/Users/you/dev-api", ["Work"])]}
         accounts={accounts}
         initialDirectory={null}
         onClose={extra.onClose ?? (() => {})}
-        onLaunched={launched}
+        onFolder={onFolder}
         openLoginTerminal={() => {}}
         onAccountsChanged={() => {}}
       />,
     );
-    return { ...mounted, launchSpy, launched };
+    return { ...mounted, onFolder };
   };
 
-  it("tile click → recommended account preselected → Start session launches it (2 clicks, 0 typed)", async () => {
-    const { launchSpy, launched } = mountSheet();
+  it("0.5.1 F68: on D-142's frame, it chooses only where; a tile opens New session on that folder (New session chooses the App)", async () => {
+    const { onFolder } = mountSheet();
+    expect(document.body.querySelector("#new-project-title")?.textContent).toBe("New project");
+    expect(document.body.querySelector("[data-testid='logo-tile']")).not.toBeNull();
+    // No App row, no "quota unknown", no primary mid-body: the App is New session's.
+    expect(document.body.textContent).not.toMatch(/quota unknown|Start session/);
+    expect(document.body.querySelectorAll("[data-primary]")).toHaveLength(0);
     const tiles = await waitFor(() => {
       const found = document.body.querySelectorAll("[data-testid='project-tiles'] button[data-tile]");
       expect(found.length).toBeGreaterThan(0);
       return found;
     });
-    // Click 1: the recent-dir tile.
+    expect(tiles[0]!.textContent).toContain("Last used with Work");
+    // Click 1: the recent folder; New session takes it from here.
     fireEvent.click(tiles[0]!);
-    await waitFor(() =>
-      expect(document.body.querySelector("[data-testid='project-account']")).not.toBeNull(),
-    );
-    expect(document.body.querySelector("[data-testid='project-account']")!.textContent).toContain(
-      "Work",
-    );
-    expect(document.body.querySelector("[data-testid='project-account']")!.textContent).toContain(
-      "last used here",
-    );
-    // Click 2: Start session → with the recommended recipe + the dir.
-    fireEvent.click(document.body.querySelector("[data-testid='start-session']")!);
-    await waitFor(() => expect(launchSpy).toHaveBeenCalled());
-    expect(launchSpy).toHaveBeenCalledWith("a", "/Users/you/dev-api");
-    expect(launched).toHaveBeenCalledWith("s1", "Work · Default");
+    await waitFor(() => expect(onFolder).toHaveBeenCalledWith("/Users/you/dev-api"));
   });
 
   it("no Account → inline flow (d) detour, and the pending directory survives it (Req.7)", async () => {
@@ -194,37 +181,5 @@ describe("AJ-E305 NewProjectSheet — flow (b) in ≤3 clicks", () => {
     // With the detour gone, Escape closes the sheet as before.
     fireEvent.keyDown(window, { key: "Escape" });
     expect(onClose).toHaveBeenCalledTimes(1);
-  });
-
-  it("an unsigned-in recommendation disables Start and says why (honest before commit)", async () => {
-    const signedOut = [
-      { id: "acc-a", provider: "claude-code", label: "Work", plan: null, login_state: "logged_out", cleanup_opt_in: false, renewal_date: null, preview_opt_in: false, in_place: false },
-    ];
-    const launchSpy = vi
-      .spyOn(bridgeModuleLaunch, "launchSession")
-      .mockResolvedValue({ session_id: "s1" } as never);
-    vi.spyOn(bridgeModuleLaunch, "launchRecipesList").mockResolvedValue([recipe("a", "Work")]);
-    vi.spyOn(bridgeModule, "quotaDisplayAll").mockResolvedValue([]);
-    render(
-      <NewProjectSheet
-        projects={[project("/Users/you/dev-api", ["Work"])]}
-        accounts={signedOut}
-        initialDirectory="/Users/you/dev-api"
-        onClose={() => {}}
-        onLaunched={() => {}}
-        openLoginTerminal={() => {}}
-        onAccountsChanged={() => {}}
-      />,
-    );
-    const start = await waitFor(() => {
-      const button = document.body.querySelector(
-        "[data-testid='start-session']",
-      ) as HTMLButtonElement;
-      expect(button).not.toBeNull();
-      return button!;
-    });
-    expect(start.disabled).toBe(true);
-    expect(document.body.textContent).toContain("needs sign-in");
-    launchSpy.mockRestore();
   });
 });
