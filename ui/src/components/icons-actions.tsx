@@ -36,6 +36,17 @@ export function IconCarryIn(props: SVGProps<SVGSVGElement>) {
   );
 }
 
+/** AJ-E2326 R3: Move, out of one account into another: never Continue in
+ * AI Juggler's carry-in arrow. */
+export function IconMove(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...base(props)}>
+      <rect x="3" y="5" width="8" height="14" rx="2" />
+      <path d="M14 12h7M18 9l3 3-3 3" />
+    </svg>
+  );
+}
+
 export function IconRename(props: SVGProps<SVGSVGElement>) {
   return (
     <svg {...base(props)}>

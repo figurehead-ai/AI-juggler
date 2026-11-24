@@ -24,6 +24,7 @@ export function OpenInPlace({
   accountId,
   conversationId,
   size = "md",
+  variant = "secondary",
   testId,
 }: {
   /** Where it was last open (`useLastPlace`); nothing without one. */
@@ -31,6 +32,8 @@ export function OpenInPlace({
   accountId: string | null;
   conversationId: string | null;
   size?: "sm" | "md";
+  /** AJ-E2326 R3: the page's primary when its last place was a desktop app. */
+  variant?: "primary" | "secondary";
   testId: string;
 }): JSX.Element | null {
   if (!place || !accountId || !conversationId) return null;
@@ -44,7 +47,7 @@ export function OpenInPlace({
   return (
     // The app's name only: the profile is the chip under the title, and a
     // long label cut the title short.
-    <Button size={size} variant="secondary" onClick={open} disabled={place.cannot_start !== null} title={place.cannot_start ?? `Open in ${place.label}`} aria-label={`Open in ${place.label}`} data-testid={testId}>
+    <Button size={size} variant={variant} onClick={open} disabled={place.cannot_start !== null} title={place.cannot_start ?? `Open in ${place.label}`} aria-label={`Open in ${place.label}`} data-testid={testId}>
       Open in {place.app}
     </Button>
   );

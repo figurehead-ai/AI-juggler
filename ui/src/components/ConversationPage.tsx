@@ -36,7 +36,7 @@ import { fromConversation, type SessionModel } from "../pages/session/model";
 import { useHasSubagents } from "../pages/session/useSubagents";
 import { ConversationSubagents } from "./SessionNotes";
 import { useLastPlace } from "../lib/places";
-import { continueWhy, resumeRefusalWords } from "../lib/resume-refusal";
+import { CONTINUE_IN_TERMINAL, continueWhy, heldByMove, resumeRefusalWords } from "../lib/resume-refusal";
 import { OpenOriginal } from "./OpenOriginal";
 import { OpenInPlace } from "./OpenInPlace";
 import { WhyButton } from "./WhyTip";
@@ -235,12 +235,14 @@ function ConversationView({
                   (openSession(switchFirst ? "secondary" : "primary") ?? (host.goToConversation && <GoToButton onGo={goTo} why={null} />))
                 ) : (
                   <>
-                    <WhyButton size="md" variant={switchFirst ? "secondary" : "primary"} why={refused} onClick={carryIn} data-testid="conversation-continue">
+                    {/* AJ-E2326 R3: last open in a desktop app, it opens there
+                        first; Continue in AI Juggler says it starts a terminal. */}
+                    {lastPlace && <OpenInPlace place={lastPlace} variant={switchFirst ? "secondary" : "primary"} accountId={conversation.account_id} conversationId={conversation.id} testId="conversation-open-in" />}
+                    <WhyButton size="md" variant={switchFirst || lastPlace ? "secondary" : "primary"} why={refused} onClick={carryIn} title={lastPlace ? CONTINUE_IN_TERMINAL : undefined} data-testid="conversation-continue">
                       Continue in AI Juggler
                     </WhyButton>
                     {openSession("secondary")}
                     <OpenOriginal refusal={conversation.resume_refusal} onOpen={host.openConversationById} size="md" />
-                    <OpenInPlace place={lastPlace} accountId={conversation.account_id} conversationId={conversation.id} testId="conversation-open-in" />
                     <WhyButton size="md" variant="secondary" why={refused} onClick={() => void host.copyConversationResume?.(latest.current)} data-testid="conversation-copy-resume">
                       Copy resume command
                     </WhyButton>
@@ -270,7 +272,7 @@ function ConversationView({
               outside={own === null}
               onGoTo={conversation.live && own === null && host.goToConversation ? goTo : undefined}
               onPick={onSwitch ? (recipeId, label, placeId) => onSwitch(model.switchSource, recipeId, label, placeId) : undefined}
-              onCarryIn={host.continueConversation ? carryIn : undefined}
+              onCarryIn={host.continueConversation && !heldByMove(conversation) ? carryIn : undefined}
               carryInWhy={continueWhy(conversation)}
             />
           )

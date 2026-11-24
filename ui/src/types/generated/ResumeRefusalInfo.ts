@@ -16,4 +16,10 @@ original?: OriginalConversationInfo | null,
 /**
  * How to find that one, when AI Juggler doesn't know it.
  */
-find?: string | null, };
+find?: string | null, 
+/**
+ * AJ-E2326 R3: a move holds it (running, or refused or undone a
+ * moment ago and opening again where it was): Continue in AI Juggler
+ * isn't offered at all then, the move's own next steps are.
+ */
+moving?: boolean, };

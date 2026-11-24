@@ -27,6 +27,12 @@ pub struct ResumeRefusalInfo {
     /// How to find that one, when AI Juggler doesn't know it.
     #[ts(optional = nullable)]
     pub find: Option<String>,
+    /// AJ-E2326 R3: a move holds it (running, or refused or undone a
+    /// moment ago and opening again where it was): Continue in AI Juggler
+    /// isn't offered at all then, the move's own next steps are.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub moving: Option<bool>,
 }
 
 /// The conversation a copy was made from.
@@ -196,6 +202,15 @@ pub fn refusal_info(
     tool: &str,
     conversation_id: &str,
 ) -> Option<ResumeRefusalInfo> {
+    // AJ-E2326 R1/R3: a move's hold first (every start refuses it).
+    if let Some(why) = crate::features::places::conversation_held(state, conversation_id) {
+        return Some(ResumeRefusalInfo {
+            why: why.to_owned(),
+            original: None,
+            find: None,
+            moving: Some(true),
+        });
+    }
     let adapter = state.registry.get(&HarnessId::new(tool))?;
     let why = adapter.resume_refusal(conversation_id)?;
     let original = original_of(state, conversation_id);
@@ -204,6 +219,7 @@ pub fn refusal_info(
         why,
         original,
         find,
+        moving: None,
     })
 }
 

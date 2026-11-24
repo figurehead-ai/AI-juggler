@@ -25,7 +25,7 @@ import type { MoveOfferInfo } from "../../lib/ipc/switch-move";
 import { GUIDE } from "../../lib/switch-words";
 import { Alert } from "../Alert";
 import { CheckRow, Disclosure, RadioCard, RadioCards, RowList } from "../controls";
-import { IconCarryIn, IconCopy, IconGoTo, IconPage, IconReplay } from "../icons-actions";
+import { IconCopy, IconGoTo, IconMove, IconPage, IconReplay } from "../icons-actions";
 import { IconMessage } from "../icons-canvas";
 import { IconCheck } from "../icons-controls";
 import { IconHistory } from "../icons-places";
@@ -92,7 +92,7 @@ export function MoveHeader({
   const kind = offer.app ? "desktop" : "cli";
   return (
     <SwitchHeader
-      icon={IconCarryIn}
+      icon={IconMove}
       title={`Continue on ${to}`}
       sub={`${title ?? "This conversation"} · now on ${from}`}
       from={{ name: from, logo: <ToolLogo tool={tool} kind={kind} size={24} /> }}
@@ -129,7 +129,7 @@ export function MoveChoice({
       <RadioCards label="How it continues" value={value} onChange={(how) => onChange(how === "move" ? "move" : "copy")} columns={2} testId="switch-how-cards">
         <RadioCard align="start"
           value="move"
-          logo={<LogoTile icon={IconCarryIn} size={32} on={value === "move"} />}
+          logo={<LogoTile icon={IconMove} size={32} on={value === "move"} />}
           title={
             <span className="inline-flex flex-wrap items-center gap-x-2 gap-y-1">
               Move
@@ -234,7 +234,7 @@ export function MoveBody({
             {gone > 0 && <Pill tone="neutral">{gone} folder{gone === 1 ? "" : "s"} gone</Pill>}
           </Fact>
           {offer.carried.length > 0 && (
-            <Fact icon={IconCarryIn} label="Also moves" testId="switch-move-carried">
+            <Fact icon={IconMove} label="Also moves" testId="switch-move-carried">
               <span className="flex min-w-0 flex-col gap-1">
                 {offer.carried.map((line) => (
                   <span key={line}>{sentence(line)}</span>
@@ -282,7 +282,7 @@ export function MoveBody({
                 {member.side === "relinked" ? (
                   <IconCheck aria-hidden="true" width={16} height={16} className="shrink-0 text-success" />
                 ) : (
-                  <IconCarryIn aria-hidden="true" width={16} height={16} className="shrink-0 text-accent-hi" />
+                  <IconMove aria-hidden="true" width={16} height={16} className="shrink-0 text-accent-hi" />
                 )}
                 <ToolLogo tool={tool} kind={offer.app ? "desktop" : "cli"} size={24} />
                 <span className="min-w-0 flex-1 truncate text-body text-ink" title={member.title}>
