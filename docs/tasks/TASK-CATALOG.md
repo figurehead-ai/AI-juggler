@@ -221,6 +221,10 @@
 | AJ-E1552 | Nothing loads forever: one loading primitive (loading, ready, empty, error, stale), a deadline on every resource, an empty state wherever there is a skeleton | E15-spec-gaps.md | P0 | M | AJ-E2327 |
 | AJ-E1553 | A sign-in finishes itself: AI Juggler sees it succeed, says so, and clears its entry; one that ends early says so and keeps its last lines | E15-spec-gaps.md | P1 | M | AJ-E1545 |
 | AJ-E1554 | The rail's rows hold still on hover, and every group says quietly what more there is, one click from it | E15-spec-gaps.md | P1 | M | AJ-E1550, AJ-E2327 |
+| AJ-E1555 | Prime only a system prompt that can appear, and every priming sheet says something real | E15-spec-gaps.md | P0 | M | AJ-E1547 |
+| AJ-E1556 | No tooltip or tip is clipped, and nothing overlaps one | E15-spec-gaps.md | P1 | S | — |
+| AJ-E1557 | The rail is calm: no bullet before a session, a state mark only when there is one, and a subagents icon that reads as helpers | E15-spec-gaps.md | P1 | S | AJ-E1554 |
+| AJ-E1558 | Settings, edit and selection pages in rich mode and colour (D-126, PAT-COLOR), audited, fixed and enforced | E15-spec-gaps.md | P0 | L | AJ-E1550 |
 | AJ-E1601 | Accounts on a compatible endpoint: OpenCode Go and Kimi on Claude Code and Codex | E16-more-tools.md | P0 | S | AJ-E1521 |
 | AJ-E1602 | OpenCode CLI | E16-more-tools.md | P0 | M | AJ-E1521 |
 | AJ-E1603 | Kimi Code CLI | E16-more-tools.md | P0 | M | AJ-E1521 |
@@ -516,5 +520,12 @@
 | AJ-E3822 | Helpers never share an identifier across identities, and every one names itself: no "(null) differs from previously opened versions" prompt | E38-chat.md | P1 | S | AJ-E3802 |
 | AJ-E3823 | One engine-setup guide for Bot: what this Mac can do, Apple's AI first, Qwen named and explained, never a bare "Download · 1.8 GB" | E38-chat.md | P0 | M | AJ-E3822, AJ-E1545, AJ-E1547 |
 | AJ-E3824 | Search (⌘K) takes over everything the no-AI Bot did: record look-ups, the "go straight to" shortcuts, and Watch a session | E38-chat.md | P0 | M | AJ-E3823 |
-Total: 514 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
+| AJ-E3825 | Bot is a conversation through the real model: every question reaches it, the engine is started and checked, its name is shown, a failure is said with its fix | E38-chat.md | P0 | L | AJ-E3806, AJ-E3823 |
+| AJ-E3826 | Settings › AI › Models says what Bot uses and whether it runs, in plain words | E38-chat.md | P1 | M | AJ-E3825 |
+| AJ-E3827 | Research note: getting turn reviews, feed lines, the digest and watches to pass on Apple's model | E38-chat.md | P1 | M | AJ-E3826 |
+| AJ-E3829 | Bot's real-model check on the reference Mac, in the release gate for any AI change | E38-chat.md | P0 | M | AJ-E3825 |
+| AJ-E3830 | Bot fills the Watches form: a one-target draft with an enum for what can't be watched, two small calls, sampled retries | E38-chat.md | P1 | M | AJ-E3709, AJ-E3825 |
+| AJ-E3831 | Feed line ("pick, don't write") and digest (map and reduce): one harness round each, on only if preferred | E38-chat.md | P1 | M | AJ-E3709 |
+| AJ-E3832 | The world model: a bi-temporal graph in AI Juggler's SQLite (ADR-0038, D-150), the foundation every later version extends | E38-chat.md | P0 | XL | AJ-E3825, ADR-0037 |
+Total: 525 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
 Status of every task at generation: TODO. The epic files are canonical; this catalog is an index, never edited to claim progress.

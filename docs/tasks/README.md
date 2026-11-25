@@ -37,7 +37,7 @@
 | [E12-optional-account.md](E12-optional-account.md) | Optional Figurehead account (two paths) | AJ-E1201-E1207 |
 | [E13-codex-adapter.md](E13-codex-adapter.md) | Codex, the second Provider | AJ-E1301-E1306 |
 | [E14-machine-health.md](E14-machine-health.md) | Machine health and resource monitoring | AJ-E1401-E1410 |
-| [E15-spec-gaps.md](E15-spec-gaps.md) | Spec gaps: what the specs promised and no task covered | AJ-E1501-E1554 |
+| [E15-spec-gaps.md](E15-spec-gaps.md) | Spec gaps: what the specs promised and no task covered | AJ-E1501-E1558 |
 | [E16-more-tools.md](E16-more-tools.md) | More tools: OpenCode, Kimi, Grok, ZCode, Kiro, Hermes, Muse, Cursor, desktop apps | AJ-E1601-E1615 |
 | [E17-agent-pools.md](E17-agent-pools.md) | Agent pools and the agent bridge | AJ-E1701-E1705 |
 | [E18-agent-messaging.md](E18-agent-messaging.md) | Messaging between agents | AJ-E1801-E1805 |
@@ -60,7 +60,7 @@
 | [E35-the-floor.md](E35-the-floor.md) | The Floor: the whole company as a live office in its own native window (0.4, D-67, D-68; 0.4.1 findings AJ-E3515-E3521, D-90) | AJ-E3501-E3521 |
 | [E36-calm-attention.md](E36-calm-attention.md) | Calm attention: only what needs you is loud, on every screen (0.5, D-117) | AJ-E3601-E3619 |
 | [E37-home-activity-feed.md](E37-home-activity-feed.md) | Home as an activity feed: what happened, what needs you, your apps and runway (0.5, D-118) | AJ-E3701-E3712 |
-| [E38-chat.md](E38-chat.md) | AI jobs through one router, and Chat (read-only) (0.5, D-121) | AJ-E3801-E3824 |
+| [E38-chat.md](E38-chat.md) | AI jobs through one router, and Chat (read-only) (0.5, D-121) | AJ-E3801-E3832 |
 | [CRITIC-CHECKS.md](CRITIC-CHECKS.md) | Cross-epic audit of this system | — |
 
 ## Task format (every task, no exceptions)
