@@ -23,7 +23,8 @@ import { agoWords } from "../lib/time-words";
 import { projectSyncApply, projectSyncDiff, projectSyncRules, type RulesDiffInfo, type RulesFileInfo, type RulesSyncInfo } from "../lib/ipc/projectSync";
 import { ServersSection } from "./ProjectSyncServers";
 import { DoneLine, SYNC_HEADING, type Done } from "./SyncDoneLine";
-import { Radio } from "./controls";
+import { Radio, RowChip } from "./controls";
+import { IconLines } from "./bot/bot-icons";
 import { SELECTED_CARD } from "./controls/selected";
 import { IconConnect } from "./icons-menu";
 
@@ -75,7 +76,7 @@ function RulesSection({ project }: { project: ProjectInfo }) {
   }, [load, picked]);
 
   if (!rules) {
-    return error ? <p className="text-xs text-danger" role="alert">{error}</p> : <p className="text-xs text-ink-2">Reading the rules files…</p>;
+    return error ? <p className="text-label text-danger" role="alert">{error}</p> : <p className="text-meta text-ink-2">Reading the rules files…</p>;
   }
   const master = rules.files.find((file) => file.name === rules.master) ?? null;
   return (
@@ -91,7 +92,7 @@ function RulesSection({ project }: { project: ProjectInfo }) {
         )}
       </div>
       {rules.files.length === 0 ? (
-        <p className="text-xs text-ink-2">None of your tools reads a rules file in a project.</p>
+        <p className="text-meta text-ink-2">None of your tools reads a rules file in a project.</p>
       ) : (
         <fieldset className="flex flex-col gap-1.5">
           <legend className="sr-only">The master copy</legend>
@@ -108,7 +109,7 @@ function RulesSection({ project }: { project: ProjectInfo }) {
         </fieldset>
       )}
       {rules.files.length > 0 && !master && (
-        <p className="text-xs text-ink-2">None of these files is here with rules of its own yet, so there's nothing to compare.</p>
+        <p className="text-meta text-ink-2">None of these files is here with rules of its own yet, so there's nothing to compare.</p>
       )}
       {master &&
         rules.files
@@ -133,7 +134,7 @@ function RulesSection({ project }: { project: ProjectInfo }) {
         />
       )}
       {error && (
-        <p className="text-xs text-danger" role="alert">
+        <p className="text-label text-danger" role="alert">
           {error}
         </p>
       )}
@@ -158,9 +159,11 @@ function RulesRow({
   const differs = file.counts;
   return (
     <div
-      className={`flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border px-3 py-2 text-xs ${isMaster ? "border-transparent bg-accent-soft" : "border-hairline"}`}
+      // AJ-E1558 (D-126, PAT-SURF): its chip, the master a fill; tone, no outline.
+      className={`flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg px-3 py-2 text-meta ${isMaster ? "bg-accent-soft" : "bg-surface-2"}`}
       data-testid={`sync-file-${file.name}`}
     >
+      <RowChip icon={IconLines} on={isMaster} />
       <label className={`flex items-center gap-2 ${file.can_be_master ? "" : "pl-5"}`}>
         {file.can_be_master && <Radio name="rules-master" checked={isMaster} onChange={onPick} aria-label={`Use ${file.name} as the master`} />}
         <span className="font-mono text-label text-ink">{file.name}</span>
@@ -169,14 +172,9 @@ function RulesRow({
       <span className={differs ? "text-warning" : "text-muted"}>{file.words}</span>
       {file.modified_ms !== null && <span className="text-muted">changed {agoWords(file.modified_ms, Date.now())}</span>}
       {canApply(file) && (
-        <button
-          type="button"
-          onClick={onToggle}
-          aria-expanded={isOpen}
-          className="ml-auto rounded border border-hairline px-1.5 py-0.5 text-label hover:bg-surface-2"
-        >
+        <Button size="sm" variant="ghost" onClick={onToggle} aria-expanded={isOpen} className="ml-auto">
           {isOpen ? "Hide changes" : "Show changes"}
-        </button>
+        </Button>
       )}
     </div>
   );
@@ -222,8 +220,8 @@ function ApplyPanel({
     }
   };
   return (
-    <div className="flex flex-col gap-2 rounded-lg border border-hairline p-3" data-testid="sync-apply">
-      <p className="text-xs text-ink">
+    <div className="flex flex-col gap-2 rounded-lg bg-surface-2 p-3" data-testid="sync-apply">
+      <p className="text-meta text-ink">
         Applying <span className="font-mono">{master.name}</span> to <span className="font-mono">{file.name}</span>
         {diff && diff.added + diff.removed > 0 && (
           <span className="text-muted">
@@ -242,9 +240,9 @@ function ApplyPanel({
           </HowButton>
         </div>
       )}
-      {diff ? <DiffView diff={diff} /> : <p className="text-xs text-ink-2">Comparing…</p>}
+      {diff ? <DiffView diff={diff} /> : <p className="text-meta text-ink-2">Comparing…</p>}
       {error && (
-        <p className="text-xs text-danger" role="alert">
+        <p className="text-label text-danger" role="alert">
           {error}
         </p>
       )}
@@ -272,7 +270,7 @@ function HowButton({ pressed, onClick, children }: { pressed: boolean; onClick: 
 
 /** Each change with the lines around it, numbered as the file is now. */
 export function DiffView({ diff }: { diff: RulesDiffInfo }) {
-  if (diff.groups.length === 0) return <p className="text-xs text-ink-2">Nothing changes.</p>;
+  if (diff.groups.length === 0) return <p className="text-meta text-ink-2">Nothing changes.</p>;
   return (
     <div className="overflow-x-auto rounded border border-hairline bg-canvas font-mono text-label leading-relaxed" data-testid="sync-diff">
       {diff.groups.map((group, index) => (

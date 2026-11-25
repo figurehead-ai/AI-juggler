@@ -33,6 +33,8 @@ import { useFindProfiles } from "../../lib/find-profiles";
 import { appName, desktopProfile } from "../../lib/app-name";
 import { knownAppWord } from "../../lib/rail-apps";
 import { Pane, PaneSection, RowNote, SettingRow, Switch, SwitchRow } from "./parts";
+import { RowChip } from "../../components/controls";
+import { IconAppWindow } from "./pane-icons"; // AJ-E1558: the empty row's chip
 import { GoToKeyControl, GoToKeyError, useGoToKey } from "./KeyCapture";
 import { PathText } from "../../components/PathText";
 import { MovingSection } from "./MovingSection";
@@ -333,9 +335,7 @@ function YourApps({ offers, held, onForgot, onSettle }: { offers: Offers; held: 
         footer="Start opens an app that isn't running, in its own profile. Keep alive starts it again whenever it stops (a crash, ⌘Q or Force Quit), behind the app you're in, at most 3 times in 10 minutes. Never while the screen is locked, never on another account; a stop in AI Juggler pauses it until you open it."
       >
         {rows.length === 0 ? (
-          <li className="px-4 py-3 text-xs text-muted" data-testid="desktop-places-empty">
-            Apps you add show here: an app you import, or one found on this computer that you add.
-          </li>
+          <li className="flex items-center gap-3 px-3 py-[9px] text-meta text-muted" data-testid="desktop-places-empty"><RowChip icon={IconAppWindow} />Apps you add show here: an app you import, or one found on this computer that you add.</li>
         ) : (
           rows
         )}
