@@ -102,9 +102,9 @@ for (const theme of ["dark", "light"] as const) {
     await agentAccess(page);
     const card = page.getByTestId("settings-agent-tools");
     await card.scrollIntoViewIfNeeded();
-    await expect(card.getByTestId("pref-agent-tools").getByRole("checkbox")).toBeChecked();
+    await expect(card.getByTestId("pref-agent-tools").getByRole("switch")).toBeChecked();
     await card.getByTestId("agent-tools-where-toggle").click();
-    const first = card.getByRole("group", { name: "Projects" }).getByRole("checkbox").first();
+    const first = card.getByRole("group", { name: "Projects" }).getByRole("switch").first();
     await expect(first).toBeChecked();
     await first.uncheck();
     await expect(card.getByTestId("agent-tools-where-toggle")).toContainText("1 off");
@@ -120,7 +120,7 @@ test("keyboard: the question answers, the fold opens", async ({ page }) => {
   const yes = page.getByTestId("settings-agent-tools").getByRole("button", { name: "Yes, let them" });
   await yes.focus();
   await page.keyboard.press("Enter");
-  const all = page.getByTestId("pref-agent-tools").getByRole("checkbox");
+  const all = page.getByTestId("pref-agent-tools").getByRole("switch");
   await expect(all).toBeChecked();
   const fold = page.getByTestId("agent-tools-where-toggle");
   await fold.focus();
