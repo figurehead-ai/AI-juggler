@@ -475,6 +475,7 @@ Each component lists its anatomy, when to use it, do's and don'ts, accessibility
 - **LST-5.** Selected rows wear `SELECTED_FILL` and semibold ink; focus is the accent ring, never the same look as selection. (D-117 point 2, `selected.ts`)
 - **LST-6.** Each row's accessible name is its full sentence ("payments-api, main, 2 running, active 12 min ago"); state is in text. (DEEP §4.2)
 - **LST-7.** Every visible name of an Account, App, Project, Session, Pool, Task or Mac opens its page. (PRIN §12)
+- **LST-8.** A rail row leads with a state mark only for a state worth a glance: working (the static live dot), needs you (its level's mark), done to review (✓) and an error (L3's mark). An idle or ended row leads with nothing; its gutter stays, empty, so every title starts in the same place and none moves when a mark appears. The state's word still ends the row and leads its name. A count of a session's subagents is `IconHelpers` (a small cluster of agents) and the number, never the git branch (ICN-1). (AJ-E1557, the 0.5.1 Nightly: "a dot before every row reads as bullets"; `hasStateMark` in `lib/attention.ts`)
 
 ### 4.11 Card
 

@@ -264,6 +264,22 @@ export function IconSubtasks(props: SVGProps<SVGSVGElement>) {
   );
 }
 
+/** AJ-E1557: a session's helpers (its subagents): a small cluster of
+ * agents, one in front of two. Not the git branch (the 0.5.1 Nightly read
+ * the branch as one) and not Profiles' pair. Drawn to read at 12 px. */
+export function IconHelpers(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...base(props)}>
+      <circle cx="12" cy="8" r="3" />
+      <path d="M6.5 20a5.5 5.5 0 0 1 11 0" />
+      <circle cx="5.25" cy="9.75" r="2.1" />
+      <path d="M1.75 18a3.6 3.6 0 0 1 3.9-3.6" />
+      <circle cx="18.75" cy="9.75" r="2.1" />
+      <path d="M22.25 18a3.6 3.6 0 0 0-3.9-3.6" />
+    </svg>
+  );
+}
+
 /** I-10: needs attention — alert. */
 /** AJ-E1524: the welcome's trust line (a shield with a tick). */
 export function IconShield(props: SVGProps<SVGSVGElement>) {

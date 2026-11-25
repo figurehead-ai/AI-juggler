@@ -75,7 +75,9 @@ function board() {
 /** The rows under the projects: each one's word, and that its name says it. */
 function projectRows(container: HTMLElement): Array<{ id: string; word: string; named: boolean }> {
   return [...container.querySelectorAll<HTMLButtonElement>("button[data-instance-id]")]
-    .filter((row) => row.querySelector("[data-state-dot]") !== null)
+    // Its own rows, by their state's word (AJ-E1557: an idle, ended or
+    // parked row leads with no mark, so the mark no longer finds them all).
+    .filter((row) => row.querySelector('[data-testid="rail-state-word"], [data-testid="rail-parked"]') !== null)
     .map((row) => {
       const word = (row.querySelector('[data-testid="rail-state-word"], [data-testid="rail-parked"]')?.textContent ?? "").trim();
       const named = word !== "" && within(container).queryAllByRole("button", { name: new RegExp(escape(word)) }).includes(row);

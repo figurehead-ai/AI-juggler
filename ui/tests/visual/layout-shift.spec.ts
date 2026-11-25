@@ -192,7 +192,7 @@ for (const theme of ["dark", "light"] as const) {
     await expect(board).toBeVisible();
     await shifts(page);
     const cases: Array<[string, ReturnType<Page["locator"]>, string[]]> = [
-      ["session-row", board.locator("[data-rail-row]").filter({ has: page.getByTestId("row-title") }).first(), ["[data-testid='row-title']", "[data-state-dot]", "[data-testid='row-end']", "[data-testid='row-slots']"]],
+      ["session-row", board.locator("[data-rail-row]").filter({ has: page.getByTestId("row-title") }).first(), ["[data-testid='row-title']", "[data-testid='row-gutter']", "[data-testid='row-end']", "[data-testid='row-slots']"]],
       ["app-header", board.getByTestId("place-header").first(), ["[data-testid='place-page']", "[data-testid='place-name-line']"]],
       // 0.5.1 F42: a Needs you row's tools at its why line's end; its title, why and where stay put.
       ["needs-row", page.getByTestId("rail").locator("[data-rail-row]").filter({ has: page.getByTestId("need-word") }).first(), ["[data-testid='place-mark']", "[data-testid='need-word']", "[data-testid='row-end']", "[data-testid='row-slots']", "[data-testid='row-slots'] span.truncate.font-semibold"]],

@@ -132,6 +132,15 @@ export function itemLevel(item: { need: string | null; state: string }): Attenti
   return attentionLevel({ need: item.need, state: item.state });
 }
 
+/** AJ-E1557: whether a rail row leads with a state mark. Only a state
+ * worth a glance has one: working, needs you, done to review and an error.
+ * An idle or ended row leads with nothing (the 0.5.1 Nightly: a faint dot
+ * before every row read as bullets); its gutter stays, empty, so every
+ * title starts in the same place and none moves when a mark appears. */
+export function hasStateMark(item: { need: string | null; state: string }, level: AttentionLevel = itemLevel(item)): boolean {
+  return level >= 2 || item.need === "review" || (item.state !== "idle" && item.state !== "ended");
+}
+
 /** The shared count (the rail's Needs you, the bell, Home's title, the
  * badge and the menu-bar item): L2 and L3 only. "To review" (L1) stays
  * listed, last, and uncounted. */

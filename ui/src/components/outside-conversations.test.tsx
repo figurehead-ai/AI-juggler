@@ -103,8 +103,9 @@ describe("AJ-E1529 the rail's share of outside conversations", () => {
     // The App at a glance (colour is the Apps'): its dot beside the tool's mark.
     expect(row.querySelector("[data-testid='profile-badge']")?.getAttribute("title")).toBe("Work Max");
     expect(row.querySelector("[data-testid='app-icon']")).toBeTruthy();
-    // D-117: its state's mark is the App lens's (a calm dot), its icon muted at rest.
-    expect(row.querySelector("[data-state-dot]")).toBeTruthy();
+    // D-117: its icon muted at rest. AJ-E1557: an idle row leads with no
+    // state mark (a dot before every row read as bullets).
+    expect(row.querySelector("[data-state-dot]")).toBeNull();
     expect(row.querySelector("[data-testid='app-icon']")?.className).toContain("app-tone");
     fireEvent.click(row);
     expect(open).toHaveBeenCalledWith(expect.objectContaining({ id: "c" }));

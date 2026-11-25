@@ -3,7 +3,7 @@
  * part one click from exactly what it counts:
  *
  * - its header's counts (R2): working, needs you (amber, its level's
- *   mark), done to review, subagents running (a branch); non-zero only,
+ *   mark), done to review, subagents running (helpers); non-zero only,
  *   tabular, each named in its tooltip; a click opens the next of exactly
  *   those, by id (R6);
  * - its footer (R4): "+12 more · 3 recent": the open ones not drawn (its
@@ -13,7 +13,7 @@
  */
 import type { JSX } from "react";
 import { HeadNeeds } from "./rail-groups";
-import { IconGitBranch } from "./icons";
+import { IconHelpers } from "./icons";
 import { openSubagents } from "./row/RowParts";
 import { useOpenItem } from "./row/RowShell";
 import { STATE_TONE, type RailItem } from "../lib/rail-items";
@@ -50,7 +50,7 @@ export function HeadCounts({ items, needItems = [], level, probably, selectedId,
               <>
                 {count.kind === "working" && <span aria-hidden="true" className={"size-1.5 rounded-full " + STATE_TONE.working.dot} />}
                 {count.kind === "review" && <span aria-hidden="true" className="leading-none text-success">✓</span>}
-                {count.kind === "subagents" && <IconGitBranch width={11} height={11} aria-hidden="true" />}
+                {count.kind === "subagents" && <IconHelpers width={12} height={12} aria-hidden="true" />}
                 {count.n}
               </>
             )}

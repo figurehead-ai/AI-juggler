@@ -47,7 +47,7 @@ import { useRailOrder } from "../lib/rail-order-store";
 import { arrangeGroups, rankOf, sortRows } from "../lib/rail-order";
 import { groupItems } from "../lib/rail-places";
 import { STATE_TONE, itemsOf, needWord, openNow, type RailItem } from "../lib/rail-items";
-import { appTone, brokenOf, brokenParts, counted, highest, itemLevel, levelTone, noticeLevel } from "../lib/attention";
+import { appTone, brokenOf, brokenParts, counted, hasStateMark, highest, itemLevel, levelTone, noticeLevel } from "../lib/attention";
 import { isSnoozed, type SnoozeState } from "../lib/railview";
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import type { ProjectInfo } from "../types/generated/ProjectInfo";
@@ -209,15 +209,15 @@ function FoldedRow({ item, selected, onSelect }: { item: RailItem; selected: boo
       {/* AJ-E3603 R5: one quiet mark per need. A need's is its level's
           small mark at the corner (an amber dot, a ring for a guess, a red
           ✕) on a calm backing, never a filled badge, and it is the icon's
-          only mark; a calm session keeps its state's dot (a static calm
-          dot while working, faint when idle). Decoration: its name leads
-          with the word. */}
+          only mark; a working session keeps its state's dot (static,
+          calm), and an idle or ended one has none (AJ-E1557). Decoration:
+          its name leads with the word. */}
       {needs ? (
         <span aria-hidden="true" data-testid="rail-folded-needs" data-level={level} className="absolute right-0 top-0 flex size-3 items-center justify-center rounded-full bg-canvas">
           <span className="level-mark" data-level={level} data-probably={level === 2 && item.probably ? "true" : undefined} />
         </span>
       ) : (
-        <span aria-hidden="true" data-state-dot={item.state} className={"absolute bottom-0.5 left-0.5 size-1.5 rounded-full ring-2 ring-canvas " + tone.dot} />
+        hasStateMark(item, level) && <span aria-hidden="true" data-state-dot={item.state} className={"absolute bottom-0.5 left-0.5 size-1.5 rounded-full ring-2 ring-canvas " + tone.dot} />
       )}
       {/* Hover and focus: the words, never a bare icon. */}
       <span aria-hidden="true" className="pointer-events-none absolute left-full top-0 z-30 ml-2 hidden w-56 rounded-lg border border-hairline bg-surface p-2.5 text-left shadow-card group-hover:block group-focus-visible:block">
