@@ -65,7 +65,7 @@ export function useTipSpot<T extends HTMLElement>(place: (box: DOMRect) => Spot)
 }
 
 /** The why-tip's place: under the element, kept inside the window. */
-export function below(box: DOMRect): Spot {
+function below(box: DOMRect): Spot {
   return { left: Math.max(8, Math.min(box.left, window.innerWidth - TIP_W - 8)), top: box.bottom + 6 };
 }
 

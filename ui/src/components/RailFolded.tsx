@@ -194,22 +194,22 @@ function FoldedRow({ item, selected, onSelect }: { item: RailItem; selected: boo
       <span className="mt-0.5 block leading-relaxed text-muted">{more}</span>
     </>
   );
-  const tip = useTip<HTMLButtonElement>(words, "rail-folded-tip", besideTop, "presentation");
+  const { ref, show, hide, tip } = useTip<HTMLButtonElement>(words, "rail-folded-tip", besideTop, "presentation");
   return (
     <>
       <button
         type="button"
-        ref={tip.ref}
+        ref={ref}
         data-rail-item={item.key}
         data-instance-id={item.session?.id}
         data-conversation-id={item.conversation?.id}
         aria-current={selected ? "true" : undefined}
         data-rail-selected={selected ? "true" : undefined}
         aria-describedby={describedId}
-        onPointerEnter={tip.show}
-        onPointerLeave={tip.hide}
-        onFocus={(event) => keyboardFocus(event.currentTarget) && tip.show()}
-        onBlur={tip.hide}
+        onPointerEnter={show}
+        onPointerLeave={hide}
+        onFocus={(event) => keyboardFocus(event.currentTarget) && show()}
+        onBlur={hide}
         onClick={primary}
         className={
           "tone-host group relative flex size-9 shrink-0 items-center justify-center rounded-lg outline-none transition-colors focus-visible:ring-1 focus-visible:ring-accent/60 " +
@@ -231,7 +231,7 @@ function FoldedRow({ item, selected, onSelect }: { item: RailItem; selected: boo
             small mark at the corner (an amber dot, a ring for a guess, a red
             ✕) on a calm backing, never a filled badge, and it is the icon's
             only mark; a working session keeps its state's dot (static,
-            calm), and an idle or ended one has none (AJ-E1557). Decoration:
+            calm), and an idle or ended one has none (no bullets). Decoration:
             its name leads with the word. */}
         {needs ? (
           <span aria-hidden="true" data-testid="rail-folded-needs" data-level={level} className="absolute right-0 top-0 flex size-3 items-center justify-center rounded-full bg-canvas">
@@ -241,7 +241,7 @@ function FoldedRow({ item, selected, onSelect }: { item: RailItem; selected: boo
           hasStateMark(item, level) && <span aria-hidden="true" data-state-dot={item.state} className={"absolute bottom-0.5 left-0.5 size-1.5 rounded-full ring-2 ring-canvas " + tone.dot} />
         )}
       </button>
-      {tip.tip}
+      {tip}
     </>
   );
 }

@@ -11,7 +11,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { BotHead } from "./bot/BotHead";
 import { WORDS } from "../lib/bot-words";
 import { TIP_LOOK, keepInWindow } from "./WhyTip";
-import type { AiJobInfo } from "../lib/ipc/ai";
+import { STATES } from "../preview/bot";
 
 afterEach(cleanup);
 
@@ -26,7 +26,8 @@ function cuts(element: HTMLElement): string[] {
 }
 
 describe("AJ-E1556 R1 Bot's New topic tip is whole, with nothing over it", () => {
-  const job = { job: "chat", state: "ready", beta: false, beta_on: false } as unknown as AiJobInfo;
+  // Bot's preview: its chat job ready (written answers on, the head's compact New topic).
+  const job = STATES.empty!.jobs.find((one) => one.job === "chat") ?? null;
 
   it("shows on hover and focus, drawn over the page, its words whole and wrapping", () => {
     render(<BotHead job={job} onClear={() => undefined} onMemories={() => undefined} />);
@@ -65,15 +66,15 @@ describe("AJ-E1556 R2 the one tip's look and place", () => {
   it("is kept inside the window, 8 px in from each edge", () => {
     const tip = document.createElement("span");
     document.body.append(tip);
-    const box = (left: number, top: number) => ({ left, top, right: left + 256, bottom: top + 60, width: 256, height: 60, x: left, y: top, toJSON: () => ({}) });
+    const box = (left: number, top: number) => new DOMRect(left, top, 256, 60);
     const { innerWidth: w, innerHeight: h } = window;
-    tip.getBoundingClientRect = () => box(w - 100, h - 20) as DOMRect;
+    tip.getBoundingClientRect = () => box(w - 100, h - 20);
     keepInWindow(tip);
     expect(tip.style.translate).toBe(`${-(256 - 100 + 8)}px ${-(60 - 20 + 8)}px`);
-    tip.getBoundingClientRect = () => box(-30, 4) as DOMRect;
+    tip.getBoundingClientRect = () => box(-30, 4);
     keepInWindow(tip);
     expect(tip.style.translate).toBe("38px 4px");
-    tip.getBoundingClientRect = () => box(40, 40) as DOMRect;
+    tip.getBoundingClientRect = () => box(40, 40);
     keepInWindow(tip);
     expect(tip.style.translate).toBe("");
     tip.remove();
