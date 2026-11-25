@@ -14,6 +14,7 @@ import { budgetRemove, budgetSave, dollars, percentOf, type BudgetInfo } from ".
 import { budgets, useBudgets } from "../lib/kept-reads";
 import { Checkbox, Picker, Radio } from "./controls";
 import { cliAppName } from "../lib/app-name";
+import { IconCoin } from "./icons-settings";
 
 /** What a cap counts, in words: an account's name, or its projects'. */
 export function scopeWords(cap: BudgetInfo, accounts: AccountInfo[], projects: ProjectInfo[]): string {
@@ -132,7 +133,7 @@ export function BudgetSheet({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   return (
-    <Modal title={cap ? `Edit ${cap.name}` : "Set a monthly cap"} subtitle="You'll hear at 80 % and 100 %. Nothing is stopped." onClose={onClose}
+    <Modal icon={IconCoin} title={cap ? `Edit ${cap.name}` : "Set a monthly cap"} subtitle="You'll hear at 80 % and 100 %. Nothing is stopped." onClose={onClose}
       footer={
         <>
             <Button size="sm" variant="ghost" onClick={onClose}>

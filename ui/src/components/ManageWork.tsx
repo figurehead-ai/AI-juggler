@@ -13,6 +13,8 @@ import { instanceArchive, instanceUnarchive } from "../lib/ipc/session-history";
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import type { ProjectInfo } from "../types/generated/ProjectInfo";
 import { editorChoices, projectForget, projectOpen, projectRelocate, projectRename, projectSetPinned, sessionRename, sessionSetPinned } from "../lib/ipc/manage";
+import { IconRemove } from "./icons-actions";
+import { IconRename } from "./icons-actions";
 
 /**
  * AJ-E1502: naming and tidying sessions and projects, in one place so
@@ -85,7 +87,7 @@ export function RenameSheet({
   // After the Modal's own effect has focused it (a child's effect runs first).
   useEffect(() => field.current?.select(), []);
   return (
-    <Modal title={title} onClose={onClose}
+    <Modal icon={IconRename} title={title} onClose={onClose}
       footer={
         <>
             <Button size="sm" variant="ghost" onClick={onClose}>
@@ -241,7 +243,7 @@ function ForgetSheet({ project, onClose, onDone }: { project: ProjectInfo; onClo
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   return (
-    <Modal title={`Forget ${project.name}?`} onClose={onClose}
+    <Modal icon={IconRemove} title={`Forget ${project.name}?`} onClose={onClose}
       footer={
         <>
             <Button size="sm" variant="ghost" onClick={onClose}>

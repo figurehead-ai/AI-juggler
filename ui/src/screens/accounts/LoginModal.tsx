@@ -7,6 +7,7 @@ import { LoginQueueCard } from "../../components/LoginQueueCard";
 import { cliAppName } from "../../lib/app-name";
 import { ownSignIn, providerDisplayName } from "../../lib/providers";
 import type { AccountInfo } from "../../types/generated/AccountInfo";
+import { IconConnect } from "../../components/icons-menu";
 
 export function LoginModal({
   account,
@@ -18,7 +19,7 @@ export function LoginModal({
   onClose: () => void;
 }) {
   return (
-    <Modal
+    <Modal icon={IconConnect}
       title={`Sign in · ${cliAppName(account.provider, account.label)}`}
       subtitle={`${ownSignIn(account.provider)}, opened for you — AI Juggler never sees your credentials.`}
       onClose={onClose}

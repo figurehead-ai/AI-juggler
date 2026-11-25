@@ -22,6 +22,7 @@ import { toolSpec } from "../../lib/tools";
 import { serviceAccountAdd, servicesList, type ServiceInfo } from "../../lib/ipc/services";
 import { freeLabel } from "../FreshAccountStep";
 import { Checkbox, Picker } from "../../components/controls";
+import { IconConnect } from "../../components/icons-menu";
 
 /** A tool's row: on or off, its model and its name (`null`: the default). */
 type Pick = { on: boolean; model: string | null; label: string | null };
@@ -84,7 +85,7 @@ export function ServiceAccountSheet({
 
   if (!service) {
     return (
-      <Modal title="Through another service" onClose={onClose} testId="service-account-sheet">
+      <Modal icon={IconConnect} title="Through another service" onClose={onClose} testId="service-account-sheet">
         <p className="text-xs text-ink-2" role="status">Loading…</p>
       </Modal>
     );
@@ -113,7 +114,7 @@ export function ServiceAccountSheet({
   };
 
   return (
-    <Modal
+    <Modal icon={IconConnect}
       title={`Add ${service.service.name}`}
       subtitle={`Through another service: ${service.service.name} answers for the tools you pick, at the address it publishes.`}
       onClose={onClose}

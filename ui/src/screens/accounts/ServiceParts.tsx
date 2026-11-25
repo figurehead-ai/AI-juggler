@@ -12,6 +12,7 @@ import type { QuotaDisplayData } from "../../lib/ipc/quota";
 import { tokenWords } from "../../lib/quotaWindow";
 import { serviceAccountSetKey, type AccountServiceInfo } from "../../lib/ipc/services";
 import type { SubscriptionInfo } from "../../lib/subscriptions";
+import { IconKey } from "../../components/icons-actions";
 
 /** "Estimate" or "Unknown": how honest the account's usage can be. */
 export function UsageChip({ usage }: { usage: string }): JSX.Element {
@@ -71,7 +72,7 @@ export function ReplaceKeyModal({ profileId, service, onClose, onDone }: { profi
     }
   };
   return (
-    <Modal title={`New key · ${service.name}`} subtitle="Every app on this account starts with it from now on." onClose={onClose} testId="service-key-modal"
+    <Modal icon={IconKey} title={`New key · ${service.name}`} subtitle="Every app on this account starts with it from now on." onClose={onClose} testId="service-key-modal"
       footer={
         <>
             <Button size="sm" variant="secondary" onClick={onClose}>

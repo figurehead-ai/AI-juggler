@@ -105,8 +105,8 @@ export function RolePicker({
       disabled={disabled}
       options={ROLE_CARDS.map((card) =>
         card.id === "lead" && app
-          ? { value: card.id, label: NEXT_LEAD_OPTION.label, hint: NEXT_LEAD_OPTION.hint }
-          : { value: card.id, label: card.label, hint: card.line, disabled: !may.has(card.id), reason: may.has(card.id) ? undefined : (leadHint(member) ?? undefined) },
+          ? { value: card.id, label: NEXT_LEAD_OPTION.label, hint: NEXT_LEAD_OPTION.hint, icon: ROLE_ICONS[card.id] }
+          : { value: card.id, label: card.label, hint: card.line, icon: ROLE_ICONS[card.id], disabled: !may.has(card.id), reason: may.has(card.id) ? undefined : (leadHint(member) ?? undefined) },
       )}
       onChange={onChange}
       testId={testId}

@@ -20,8 +20,8 @@ import { setShowLastMessages, showLastMessages } from "../../lib/last-messages";
 import { accessCard, watchAccess } from "../../lib/osAccess";
 import { AppIcon } from "../../components/AppIcon";
 import { MenuItem, RowMenu } from "../../components/RowMenu";
-import { IconMore } from "../../components/icons-canvas";
-import { IconRemove } from "../../components/icons-actions";
+import { IconMessage, IconMore } from "../../components/icons-canvas";
+import { IconLocate, IconRemove } from "../../components/icons-actions";
 import { showToast } from "../../components/Toast";
 import { showGoTo } from "../../lib/go-to";
 import { askQuit, askRestart } from "../../components/RestartApp";
@@ -37,6 +37,9 @@ import { GoToKeyControl, GoToKeyError, useGoToKey } from "./KeyCapture";
 import { PathText } from "../../components/PathText";
 import { MovingSection } from "./MovingSection";
 import { MovesSection } from "./MovesSection";
+import { IconKeyboard } from "../../components/icons-menu";
+import { IconTerminal } from "../../components/icons";
+import { IconWindow } from "../../components/icons-places";
 
 /** AJ-E2102: Go to it may select a session's tab in Terminal or iTerm;
  * off until turned on here. */
@@ -94,7 +97,7 @@ function ExactWindowRow(): JSX.Element {
     void step.then((list) => setEntry(list.find((item) => item.id === "focus") ?? null), (cause) => setError(errorText(cause)));
   };
   return (
-    <SettingRow
+    <SettingRow icon={IconWindow}
       title="Bring the exact window to the front"
       // 0.5.1 F23: setup asks for these two on two cards; this row is On
       // when both are, from the same reads.
@@ -129,7 +132,7 @@ function TerminalTabsRow(): JSX.Element | null {
   }, []);
   if (on === null) return null;
   return (
-    <SwitchRow
+    <SwitchRow icon={IconTerminal}
       title="Select the right terminal tab"
       description="Needs Automation: macOS asks once per terminal whether AI Juggler may control it. Off, the terminal comes forward and you pick the tab."
       checked={on}
@@ -154,7 +157,7 @@ function TerminalTabsRow(): JSX.Element | null {
 function HotkeyRow(): JSX.Element {
   const hotkey = useGoToKey();
   return (
-    <SettingRow
+    <SettingRow icon={IconKeyboard}
       title="Open AI Juggler from anywhere"
       description={
         hotkey.binding
@@ -296,7 +299,7 @@ function FindProfilesRow(): JSX.Element | null {
   if (info === null || (info.folders.length === 0 && info.answer !== "on")) return null;
   const where = info.folders.map((folder) => folder.folder).join(", ");
   return (
-    <SwitchRow
+    <SwitchRow icon={IconLocate}
       title="Find profiles that aren't running"
       description={
         <>
@@ -355,7 +358,7 @@ function LastMessages(): JSX.Element {
       footer="Read from the session's transcript on this computer when you open it, and never sent. Only its subagents' prompts and results are kept, in the local cache."
     >
       {on !== null && (
-        <SwitchRow
+        <SwitchRow icon={IconMessage}
           title="Show a session's last messages"
           description="Its page shows the last few turns, with secrets taken out. Never in the rail, the menu bar or notifications. Claude app chats show their title only."
           checked={on}

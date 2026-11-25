@@ -12,7 +12,7 @@
  */
 import { UpdateProgress } from "./UpdateProgress";
 import { useEffect, useRef, useState, type JSX } from "react";
-import { Card } from "./primitives";
+import { Button, Card } from "./primitives";
 import { ReleaseNotes } from "./ReleaseNotes";
 import { CardTitle } from "./CardTitle";
 import { ChannelChip, shownChannel } from "./ChannelChip";
@@ -20,17 +20,22 @@ import { errorText } from "../lib/bridge";
 import { goingBackOptions, goingBackOpenReleases, goingBackPrepare, onUpdateStatus, updateCheck, updateInstall, updateRestart, updateSetChannel, updateSetCheckOnLaunch, updateStatus, type UpdateChannel } from "../lib/ipc/updates";
 import type { GoingBackInfo } from "../types/generated/GoingBackInfo";
 import type { UpdateStatusInfo } from "../types/generated/UpdateStatusInfo";
-import { Checkbox, Disclosure, Radio } from "./controls";
+import { ChoiceOption, Disclosure, type ControlIcon } from "./controls";
+import { IconShield } from "./icons";
+import { IconUpdate } from "./icons-menu";
+import { IconFlask } from "./icons-settings";
+import { SettingSwitch } from "./SettingSwitch";
 
 /** D-20: the channels AI Juggler chooses between; each says what it
  * means for you. Nightly builds are their own app, AI Juggler Nightly
  * (D-23), so they are never offered here. The backend's `channels`
  * decides which of these this edition shows. */
-const CHANNELS: { id: UpdateChannel; title: string; consequence: string }[] = [
-  { id: "stable", title: "Stable", consequence: "Well-tested releases. Recommended for everyday work." },
+const CHANNELS: { id: UpdateChannel; title: string; consequence: string; icon: ControlIcon }[] = [
+  { id: "stable", title: "Stable", consequence: "Well-tested releases. Recommended for everyday work.", icon: IconShield },
   {
     id: "beta",
     title: "Beta",
+    icon: IconFlask,
     consequence: "Newer features a little earlier. Tested, but less than Stable.",
   },
 ];
@@ -112,7 +117,7 @@ function GoingBack({ appName }: { appName: string }): JSX.Element | null {
           chosen?.schema === option.schema ? (
             <div
               key={option.schema}
-              className="flex flex-col gap-2 rounded-lg border border-hairline p-3"
+              className="flex flex-col gap-2 rounded-lg bg-surface-2 p-3"
               data-testid="going-back-confirm"
             >
               <p ref={question} tabIndex={-1} className="font-medium text-ink outline-none">
@@ -144,28 +149,24 @@ function GoingBack({ appName }: { appName: string }): JSX.Element | null {
                 </p>
               )}
               <div className="flex flex-wrap gap-2">
-                <button
-                  type="button"
+                <Button size="sm" variant="secondary"
                   disabled={busy}
                   onClick={() => void go(option)}
-                  className="rounded-lg border border-transparent bg-control px-3 py-1.5 text-xs font-medium text-ink hover:bg-control-hi"
                   data-testid="going-back-go"
                 >
                   Go back and quit
-                </button>
-                <button
-                  type="button"
+                </Button>
+                <Button size="sm" variant="ghost"
                   disabled={busy}
                   onClick={() => {
                     returnTo.current = option.schema;
                     setChosen(null);
                     setError(null);
                   }}
-                  className="rounded-lg border border-hairline px-3 py-1.5 text-xs text-ink"
                   data-testid="going-back-cancel"
                 >
                   Cancel
-                </button>
+                </Button>
               </div>
             </div>
           ) : (
@@ -174,14 +175,12 @@ function GoingBack({ appName }: { appName: string }): JSX.Element | null {
                 A copy of your data from before the update on {when(option.kept_at_ms)} is kept: {name(option)} can
                 open it.
               </span>
-              <button
-                type="button"
+              <Button size="sm" variant="ghost"
                 onClick={() => setChosen(option)}
-                className="rounded-lg border border-hairline px-3 py-1.5 text-xs text-ink"
                 data-testid={`going-back-${option.schema}`}
               >
                 Prepare to go back to {name(option)}
-              </button>
+              </Button>
             </div>
           ),
         )}
@@ -249,22 +248,20 @@ export function UpdatesCard({ focus = false }: { focus?: boolean } = {}): JSX.El
             <fieldset className="flex flex-col gap-1.5" data-testid="update-channel" disabled={working}>
               <legend className="mb-1 text-label font-medium text-ink">Update channel</legend>
               {CHANNELS.filter((option) => status.channels.includes(option.id)).map((option) => (
-                <label key={option.id} className="flex items-start gap-2 text-label">
-                  <Radio
-                    name="update-channel"
-                    value={option.id}
-                    checked={status.channel === option.id}
-                    onChange={() => void run(() => updateSetChannel(option.id))}
-                    aria-describedby={`update-channel-${option.id}`}
-                    data-testid={`update-channel-${option.id}`}
-                  />
-                  <span className="flex flex-col">
-                    <span className="font-medium text-ink">{option.title}</span>
-                    <span id={`update-channel-${option.id}`} className="text-muted">
-                      {option.consequence}
-                    </span>
-                  </span>
-                </label>
+                // AJ-E1558 (D-126): each channel a choice line with its icon,
+                // the chosen one a fill, not the radio's dot alone.
+                <ChoiceOption
+                  key={option.id}
+                  type="radio"
+                  name="update-channel"
+                  value={option.id}
+                  icon={option.icon}
+                  label={option.title}
+                  hint={option.consequence}
+                  checked={status.channel === option.id}
+                  onChange={() => void run(() => updateSetChannel(option.id))}
+                  data-testid={`update-channel-${option.id}`}
+                />
               ))}
               <p className="text-label text-muted">
                 Moving to a steadier channel never goes back to an older version: you get that channel's next release
@@ -272,18 +269,15 @@ export function UpdatesCard({ focus = false }: { focus?: boolean } = {}): JSX.El
               </p>
             </fieldset>
           )}
-          <label className="flex items-center gap-2 text-label text-ink">
-            <Checkbox
-              checked={status.check_on_launch}
-              onChange={(event) => void run(() => updateSetCheckOnLaunch(event.target.checked))}
-              data-testid="update-check-on-launch"
-            />
-            Check for updates when {status.app_name} starts
-          </label>
-          <p className="text-label text-muted">
-            A check only looks. Nothing is downloaded or installed until you choose Install, and {status.app_name} never restarts
-            by itself.
-          </p>
+          <SettingSwitch
+            id="update-check-on-launch"
+            icon={IconUpdate}
+            label={`Check for updates when ${status.app_name} starts`}
+            hint={`A check only looks. Nothing is downloaded or installed until you choose Install, and ${status.app_name} never restarts by itself.`}
+            checked={status.check_on_launch}
+            testId="update-check-on-launch"
+            onChange={(on) => void run(() => updateSetCheckOnLaunch(on))}
+          />
           <div aria-live="polite" className="flex flex-col gap-2 text-label" data-testid="update-state">
             {status.state === "checking" && <p className="text-ink">Checking…</p>}
             {status.state === "up_to_date" && (
@@ -293,7 +287,7 @@ export function UpdatesCard({ focus = false }: { focus?: boolean } = {}): JSX.El
               </p>
             )}
             {status.available && ["available", "failed", "backing_up", "downloading"].includes(status.state) && (
-              <div className="flex flex-col gap-1.5 rounded-lg border border-hairline p-3" data-testid="update-available">
+              <div className="flex flex-col gap-1.5 rounded-lg bg-surface-2 p-3" data-testid="update-available">
                 <p className="flex flex-wrap items-center gap-2 font-medium text-ink">
                   <span>
                     {status.app_name} {status.available.version} is available
@@ -360,41 +354,31 @@ export function UpdatesCard({ focus = false }: { focus?: boolean } = {}): JSX.El
           <div className="flex flex-wrap gap-2">
             {status.state === "installed" ? (
               status.restart_wait ? null : (
-                <button
-                  type="button"
+                <Button size="sm" variant="secondary"
                   disabled={working}
                   onClick={() => void run(() => updateRestart())}
-                  className="rounded-lg border border-transparent bg-control px-3 py-1.5 text-xs font-medium text-ink hover:bg-control-hi"
                   data-testid="update-restart"
                 >
                   Restart to update
-                </button>
+                </Button>
               )
             ) : status.available && ["available", "failed"].includes(status.state) ? (
-              <button
-                type="button"
+              <Button size="sm" variant="secondary"
                 disabled={working}
                 onClick={() => void run(() => updateInstall())}
-                className="rounded-lg border border-transparent bg-control px-3 py-1.5 text-xs font-medium text-ink hover:bg-control-hi"
                 data-testid="update-install"
               >
                 {status.state === "failed" ? "Try again" : `Install ${status.available.version}`}
-              </button>
+              </Button>
             ) : null}
             {status.state === "installed" ? null : (
-              <button
-                type="button"
+              <Button size="sm" variant={status.state === "failed" && !status.available ? "secondary" : "ghost"}
                 disabled={working}
                 onClick={() => void run(() => updateCheck())}
-                className={
-                  status.state === "failed" && !status.available
-                    ? "rounded-lg border border-transparent bg-control px-3 py-1.5 text-xs font-medium text-ink hover:bg-control-hi"
-                    : "rounded-lg border border-hairline px-3 py-1.5 text-xs text-ink disabled:text-muted"
-                }
                 data-testid="update-check"
               >
                 {status.state === "failed" && !status.available ? "Try again" : "Check now"}
-              </button>
+              </Button>
             )}
           </div>
         </>

@@ -23,8 +23,14 @@ import { notificationsGet, notificationsSendTest, notificationsSet, type SystemN
 import { Button } from "./primitives";
 import { CardTitle } from "./CardTitle";
 import { saveOptimistic } from "../lib/optimistic";
-import { Checkbox, Disclosure, Picker } from "./controls";
+import { CheckRow, Disclosure, PickRow, Picker, type ControlIcon } from "./controls";
+import { IconGaugeLow, IconProfiles, IconStateQuota, IconStateStuck, IconUsage } from "./icons";
+import { IconBroom, IconComputer, IconSnooze } from "./icons-actions";
+import { IconAsk, IconDone } from "./icons-menu";
+import { IconRestart } from "./icons-settings";
+import { IconEye } from "./watches/watch-icons";
 import { THIS_MACHINE } from "../lib/machine-words";
+import { IconSparkle } from "./bot/bot-icons";
 
 const HOURS = Array.from({ length: 24 }, (_, hour) => hour);
 /** AJ-E2904: the choices, as the backend accepts them. */
@@ -35,6 +41,21 @@ const hourLabel = (hour: number) => `${String(hour).padStart(2, "0")}:00`;
 
 /** Each kind, as the switch says it, what it means, and the end of
  * "You'll get a notification when …". */
+/** AJ-E1558 (D-126): each kind's icon, its row's chip. */
+const KIND_ICONS: Record<keyof SystemNotificationsInfo, ControlIcon> = {
+  waiting: IconAsk,
+  stuck: IconStateStuck,
+  limit: IconStateQuota,
+  finished: IconDone,
+  left_behind: IconBroom,
+  quota: IconGaugeLow,
+  crash: IconRestart,
+  reset: IconUsage,
+  this_mac: IconComputer,
+  watch: IconEye,
+  digest: IconSparkle,
+};
+
 const KINDS: { id: keyof SystemNotificationsInfo; label: string; hint: string; when: string }[] = [
   { id: "waiting", label: "A session waits for you", hint: "It asked a question or wants your approval.", when: "a session waits for you" },
   { id: "stuck", label: "A session looks stuck", hint: "No output for a while, with its work unfinished.", when: "a session looks stuck" },
@@ -84,11 +105,11 @@ function SystemNotifications({ onStatus }: { onStatus: (status: string | null, e
     });
   };
   return (
-    <fieldset className="flex flex-col gap-2 text-xs" data-testid="system-notifications">
+    <fieldset className="flex flex-col gap-0.5" data-testid="system-notifications">
       <legend className={`mb-2 ${HEADING}`}>Notify me outside AI Juggler</legend>
       {KINDS.map((kind) => (
         <Fragment key={kind.id}>
-          <SettingSwitch id={`notify-${kind.id}`} label={kind.label} hint={kind.hint} checked={kinds[kind.id]} onChange={(on) => save(kind.id, on)} />
+          <SettingSwitch icon={KIND_ICONS[kind.id]} id={`notify-${kind.id}`} label={kind.label} hint={kind.hint} checked={kinds[kind.id]} onChange={(on) => save(kind.id, on)} />
           {/* AJ-E3816: the watches themselves live on their own page. */}
           {kind.id === "watch" && <ManageWatches />}
         </Fragment>
@@ -116,7 +137,7 @@ function ManageWatches(): JSX.Element {
     };
   }, []);
   return (
-    <button type="button" onClick={() => openWatches()} className="-mt-1 ml-0.5 inline-flex w-fit items-center gap-1 rounded text-meta font-medium text-accent-hi outline-none hover:underline focus-visible:ring-2 focus-visible:ring-accent/60" data-testid="settings-manage-watches">
+    <button type="button" onClick={() => openWatches()} className="-mt-1 mb-1 ml-[54px] inline-flex w-fit items-center gap-1 rounded text-meta font-medium text-accent-hi outline-none hover:underline focus-visible:ring-2 focus-visible:ring-accent/60" data-testid="settings-manage-watches">
       {n ? DOORS.manage(n) : DOORS.manage(0).replace(/ · 0$/, "")}
       <span aria-hidden="true">›</span>
     </button>
@@ -134,9 +155,9 @@ function AgentDigest({ onStatus }: { onStatus: (status: string | null, error: st
   }, []);
   if (on === null) return null;
   return (
-    <fieldset className="flex flex-col gap-1.5 text-xs" data-testid="agent-digest">
+    <fieldset className="flex flex-col gap-1.5" data-testid="agent-digest">
       <legend className={`mb-2 ${HEADING}`}>Agent digest</legend>
-      <SettingSwitch
+      <SettingSwitch icon={IconSparkle}
         id="agent-digest-on"
         label="Write a digest of what your agents did"
         hint="On Home, every 15 to 30 minutes while agents work: a line per agent, what needs you first. Made on this computer from what AI Juggler records; nothing leaves it."
@@ -174,10 +195,10 @@ function WhenToTell({
   };
   const level = (pct: number) => ({ value: String(pct), label: `${pct} %` });
   return (
-    <fieldset className="flex flex-col gap-2 text-xs" data-testid="when-to-tell">
+    <fieldset className="flex flex-col gap-1" data-testid="when-to-tell">
       <legend className={`mb-2 ${HEADING}`}>When to tell me</legend>
-      <label className="flex flex-wrap items-center gap-2">
-        <span className="text-ink-2">Tell me when a session waits longer than</span>
+      <PickRow icon={IconAsk} on>
+        <span>Tell me when a session waits longer than</span>
         <Picker choice
           size="sm"
           ariaLabel="Tell me when a session waits longer than"
@@ -192,10 +213,10 @@ function WhenToTell({
           testId="wait-after"
           options={WAITS.map((minutes) => ({ value: String(minutes), label: waitLabel(minutes) }))}
         />
-      </label>
-      <span className="text-label text-muted">Needs you and the bell show a wait at once either way.</span>
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="text-ink-2">Warn when an account has used</span>
+        <span className="w-full text-label text-muted">Needs you and the bell show a wait at once either way.</span>
+      </PickRow>
+      <PickRow icon={IconGaugeLow} on>
+        <span>Warn when an account has used</span>
         <Picker choice
           size="sm"
           ariaLabel="First warning at"
@@ -207,7 +228,7 @@ function WhenToTell({
           testId="quota-first"
           options={LEVELS.filter((pct) => pct < prefs.quota_last_pct).map(level)}
         />
-        <span className="text-ink-2">and again at</span>
+        <span>and again at</span>
         <Picker choice
           size="sm"
           ariaLabel="Last warning at"
@@ -219,9 +240,9 @@ function WhenToTell({
           testId="quota-last"
           options={LEVELS.filter((pct) => pct > prefs.quota_first_pct).map(level)}
         />
-      </div>
-      <span className="text-label text-muted">Once each per 5-hour or weekly window. An estimate says "about".</span>
-      <div className="flex flex-wrap items-center gap-2">
+        <span className="w-full text-label text-muted">Once each per 5-hour or weekly window. An estimate says "about".</span>
+      </PickRow>
+      <div className="flex flex-wrap items-center gap-2 px-3 pt-1">
         <Button size="sm" variant="secondary" onClick={sendTest} data-testid="notify-send-test">
           Send test
         </Button>
@@ -258,7 +279,7 @@ export function NotificationSettingsCard({ accounts }: { accounts: AccountInfo[]
     <div className="flex flex-col gap-3" data-testid="settings-notifications">
       <div className="px-1">
         <CardTitle>Notifications</CardTitle>
-        <p className="mt-0.5 text-xs leading-relaxed text-ink-2">
+        <p className="mt-0.5 text-meta text-ink-2">
           In AI Juggler, alerts you can act on, such as an account about to run out or a session waiting to resume,
           show once each time; everything else waits for an hourly digest. Outside it, the system shows only what you
           choose below.
@@ -284,8 +305,9 @@ export function NotificationSettingsCard({ accounts }: { accounts: AccountInfo[]
             }
           >
             <div className="mt-3 flex flex-col gap-4 border-t border-hairline pt-4">
-              <fieldset className="flex flex-wrap items-center gap-2 text-xs" data-testid="quiet-hours">
+              <fieldset className="flex flex-col" data-testid="quiet-hours">
                 <legend className={`mb-2 w-full ${HEADING}`}>Quiet hours</legend>
+                <PickRow icon={IconSnooze} on={!quietOff}>
                 <div className="flex items-center gap-1.5">
                   <span className="text-muted">From</span>
                   <Picker choice
@@ -319,8 +341,9 @@ export function NotificationSettingsCard({ accounts }: { accounts: AccountInfo[]
                     ? "No quiet hours: the digest comes every hour, notifications any time."
                     : "The digest and notifications wait until the quiet hours end; nothing is dropped. The same hour twice means no quiet hours."}
                 </span>
+                </PickRow>
               </fieldset>
-              <fieldset className="flex flex-col gap-1.5 text-xs" data-testid="digest-accounts">
+              <fieldset className="flex flex-col gap-0.5" data-testid="digest-accounts">
                 <legend className={`mb-2 ${HEADING}`}>In the digest and notifications</legend>
                 {accounts.length === 0 ? (
                   <NoAccounts />
@@ -328,25 +351,24 @@ export function NotificationSettingsCard({ accounts }: { accounts: AccountInfo[]
                   accounts.map((account) => {
                     const muted = prefs.digest_muted_accounts.includes(account.id);
                     return (
-                      <label key={account.id} className="flex items-center gap-2" data-testid="digest-account">
-                        <Checkbox
+                      <div key={account.id} data-testid="digest-account">
+                        <CheckRow
+                          icon={IconProfiles}
+                          title={accountName(account)}
                           checked={!muted}
-                          onChange={(event) =>
+                          onChange={(on) =>
                             save(
                               {
                                 ...prefs,
-                                digest_muted_accounts: event.target.checked
-                                  ? prefs.digest_muted_accounts.filter((id) => id !== account.id)
-                                  : [...prefs.digest_muted_accounts, account.id],
+                                digest_muted_accounts: on ? prefs.digest_muted_accounts.filter((id) => id !== account.id) : [...prefs.digest_muted_accounts, account.id],
                               },
-                              event.target.checked
+                              on
                                 ? `${accountName(account)} is back in the digest and notifications.`
                                 : `${accountName(account)} is left out of the digest and notifications.`,
                             )
                           }
                         />
-                        <span>{accountName(account)}</span>
-                      </label>
+                      </div>
                     );
                   })
                 )}

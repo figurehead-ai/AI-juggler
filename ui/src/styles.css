@@ -824,6 +824,40 @@ input[type="checkbox"] {
   background-color: var(--color-faint);
 }
 
+/* AJ-E1558 (TGL-1, the kit's ToggleRow switch): a checkbox drawn as a
+   switch, for a setting that takes effect at once. The track is the
+   surface's third step with a quiet rim; on, the accent's fill with a
+   white knob (the knob a radial gradient: WebKit draws no ::before on an
+   input). */
+.aj-switch {
+  appearance: none;
+  -webkit-appearance: none;
+  flex-shrink: 0;
+  width: 34px;
+  height: 20px;
+  border-radius: 9999px;
+  background-color: var(--color-surface-3);
+  box-shadow: inset 0 0 0 1px var(--color-hairline);
+  background-image: radial-gradient(circle, var(--color-faint) 0 6.5px, transparent 7px);
+  background-size: 20px 20px;
+  background-repeat: no-repeat;
+  background-position: left center;
+  transition: background-color 150ms, background-position 150ms;
+}
+.aj-switch:checked {
+  background-color: var(--color-accent-fill);
+  box-shadow: none;
+  background-image: radial-gradient(circle, #fff 0 6.5px, transparent 7px);
+  background-position: right center;
+}
+.aj-switch:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+.aj-switch:disabled {
+  opacity: 0.45;
+}
+
 /* Everything you can click shows the hand (0.0.7 dogfood: the reset
    gives buttons the arrow). Disabled controls keep the arrow. */
 @layer base {

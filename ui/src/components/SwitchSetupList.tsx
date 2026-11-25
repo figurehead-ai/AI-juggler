@@ -23,7 +23,13 @@ import { SecretSteps } from "./switch/SecretSteps";
 import { IN_HANDOVER, NOTES_KIND, NotesRow } from "./switch/NotesRow";
 import { ConnectorOfferRow } from "./switch/ConnectorOfferRow";
 import { CONNECTOR_OFFER } from "../lib/ipc/switchSetup";
-import { Checkbox, Disclosure } from "./controls";
+import { Checkbox, Disclosure, RowChip, type ControlIcon } from "./controls";
+import { WARNING_CHIP } from "./primitives";
+import { IconHelpers, IconShield, IconTerminal } from "./icons";
+import { IconPlus, IconSliders } from "./icons-actions";
+import { IconConnect } from "./icons-menu";
+import { IconCode } from "./icons-places";
+import { IconLines, IconSparkle } from "./bot/bot-icons";
 
 const KIND_WORDS: Record<string, string> = {
   "mcp-server": "MCP server",
@@ -35,6 +41,20 @@ const KIND_WORDS: Record<string, string> = {
   plugin: "Plugin",
   permissions: "Permissions",
   "status-line": "Status line",
+};
+
+/** AJ-E1558 (D-126): each kind's icon, the row's chip (the accent's soft
+ * step once ticked). */
+const KIND_ICONS: Record<string, ControlIcon> = {
+  "mcp-server": IconConnect,
+  skill: IconSparkle,
+  command: IconTerminal,
+  subagent: IconHelpers,
+  rules: IconLines,
+  "main-rules": IconLines,
+  plugin: IconPlus,
+  permissions: IconShield,
+  "status-line": IconCode,
 };
 
 /** A backend note as the end of a sentence: with its full stop. */
@@ -163,18 +183,9 @@ function SetupRow({
   const from = origin(offer, check);
   const checkAgain = onCheckAgain && (() => onCheckAgain(offer.id));
   return (
-    <li className="flex items-start gap-2" data-testid="switch-setup-row" data-verdict={offer.verdict}>
-      {settable ? (
-        <Checkbox
-          id={id}
-          className="mt-1"
-          checked={picked.has(offer.id)}
-          onChange={() => onToggle(offer.id)}
-        />
-      ) : (
-        <span aria-hidden="true" className="mt-1 inline-block w-[13px] shrink-0" />
-      )}
-      <div className="flex min-w-0 flex-col gap-1">
+    <li className="flex items-start gap-3" data-testid="switch-setup-row" data-verdict={offer.verdict}>
+      <RowChip icon={KIND_ICONS[offer.kind] ?? IconSliders} on={settable && picked.has(offer.id)} />
+      <div className="flex min-w-0 flex-1 flex-col gap-1">
         <label htmlFor={settable ? id : undefined} className="flex flex-wrap items-center gap-x-2 gap-y-1 text-body text-ink">
           {/* One of a kind (an account's permissions, its status line): its
               kind is its name, said once. */}
@@ -187,7 +198,7 @@ function SetupRow({
           )}
           <VerdictTag verdict={offer.verdict} />
           {offer.used === true && (
-            <span className="rounded-full border border-hairline px-1.5 py-px text-label text-muted">Used here</span>
+            <span className="rounded-full bg-surface-3 px-1.5 py-px text-label text-muted">Used here</span>
           )}
         </label>
         {offer.verdict === "turn-on" && offer.get_it && (
@@ -213,6 +224,7 @@ function SetupRow({
           }
         />
       </div>
+      {settable && <Checkbox id={id} className="mt-1.5 shrink-0" checked={picked.has(offer.id)} onChange={() => onToggle(offer.id)} />}
     </li>
   );
 }
@@ -220,16 +232,19 @@ function SetupRow({
 /** What can happen to it, in a word or two, tinted (0.3.5): AI Juggler
  * can set it up (when ticked), it needs a step from you, you turn it on,
  * or it can't go along. */
+// AJ-E1558 (PAT-COLOR-2, PAT-SURF-6): each its tint, no edge; a warning
+// is the neutral chip's tone with amber words (WARNING_CHIP), never an
+// amber fill.
 const VERDICT_TAGS: Record<string, { words: string; tone: string }> = {
-  copy: { words: "Can copy", tone: "border-success/30 bg-success-soft text-success" },
-  translate: { words: "Can set up", tone: "border-success/30 bg-success-soft text-success" },
-  "needs-you": { words: "Needs a step from you", tone: "border-warning/35 bg-warning-soft text-warning" },
-  "turn-on": { words: "You turn it on", tone: "border-transparent bg-accent-soft text-accent-hi" },
+  copy: { words: "Can copy", tone: "bg-success-soft text-success" },
+  translate: { words: "Can set up", tone: "bg-success-soft text-success" },
+  "needs-you": { words: "Needs a step from you", tone: WARNING_CHIP },
+  "turn-on": { words: "You turn it on", tone: "bg-accent-soft text-accent-hi" },
 };
 
 function VerdictTag({ verdict }: { verdict: string }): JSX.Element {
-  const tag = VERDICT_TAGS[verdict] ?? { words: "Can't go along", tone: "border-warning/35 bg-warning-soft text-warning" };
-  return <span className={"rounded-full border px-1.5 py-px text-label font-medium " + tag.tone} data-testid="switch-setup-tag">{tag.words}</span>;
+  const tag = VERDICT_TAGS[verdict] ?? { words: "Can't go along", tone: WARNING_CHIP };
+  return <span className={"rounded-full px-1.5 py-px text-label font-medium " + tag.tone} data-testid="switch-setup-tag">{tag.words}</span>;
 }
 
 export function SwitchSetupList({

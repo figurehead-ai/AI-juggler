@@ -20,6 +20,7 @@ import type { LaunchRecipeInfo } from "../../types/generated/LaunchRecipeInfo";
 import type { MachineAdviceInfo } from "../../lib/machine";
 import { useSuggested } from "../../lib/suggested";
 import { modelName } from "../../components/charts/colors";
+import { IconPlay } from "../../components/icons-controls";
 
 /** How it runs, as the fold's label says it: only when it differs from
  * the launch settings (inside, How it runs already says "As its launch
@@ -81,9 +82,10 @@ export function MoreOptions({
         </span>
       }
     >
-      <div className="mt-3 flex flex-col gap-3 border-l border-hairline pl-4">
+      <div className="mt-3 flex flex-col gap-3 pl-4">
         {settings.length > 1 && recipe && (
-          <div className="flex items-center gap-2 text-xs text-muted" data-testid="new-session-settings">
+          <div className="flex items-center gap-2 text-meta text-muted" data-testid="new-session-settings">
+            <IconPlay aria-hidden="true" width={16} height={16} className="shrink-0 text-accent-hi" />
             <span aria-hidden="true">Launch settings</span>
             <Picker
               ariaLabel="Launch settings"
@@ -91,7 +93,7 @@ export function MoreOptions({
               size="sm"
               value={recipe.id}
               onChange={onSettings}
-              options={settings.map((row) => ({ value: row.id, label: row.name, hint: row.model ? modelName(row.model) : undefined }))}
+              options={settings.map((row) => ({ value: row.id, label: row.name, hint: row.model ? modelName(row.model) : undefined, icon: IconPlay }))}
             />
           </div>
         )}

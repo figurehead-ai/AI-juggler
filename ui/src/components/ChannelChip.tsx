@@ -23,7 +23,9 @@ export function shownChannel(status: Pick<UpdateStatusInfo, "edition" | "channel
 export function ChannelChip({ channel, testId }: { channel: string; testId?: string }): JSX.Element {
   return (
     <span
-      className="rounded-full border border-warning/40 bg-warning-soft px-2 py-0.5 text-label font-medium text-ink"
+      // AJ-E1558 (PAT-COLOR-2, TAG): a channel is an attribute, a neutral
+      // tag; amber is never a fill behind words.
+      className="rounded-full bg-surface-3 px-2 py-0.5 text-label font-medium text-ink-2"
       data-testid={testId}
     >
       {channelLabel(channel)}

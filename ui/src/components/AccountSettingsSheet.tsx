@@ -15,7 +15,9 @@ import { errorText } from "../lib/bridge";
 import type { AccountInfo } from "../types/generated/AccountInfo";
 import { accountSettingsApply, accountSettingsCheck } from "../lib/ipc/accountSettings";
 import type { AppliedInfo, SetupCheckInfo } from "../lib/ipc/switchSetup";
-import { Picker } from "./controls";
+import { PickRow, Picker } from "./controls";
+import { IconProfiles } from "./icons";
+import { IconCopy } from "./icons-actions";
 import { useSuggested } from "../lib/suggested";
 
 export function AccountSettingsSheet({
@@ -84,7 +86,7 @@ export function AccountSettingsSheet({
   const name = sources?.find((row) => row.id === source)?.label ?? "";
 
   return (
-    <Modal title={`Copy settings into ${account.label}`} onClose={() => onClose(copied)} wide testId="account-settings"
+    <Modal title={`Copy settings into ${account.label}`} icon={IconCopy} onClose={() => onClose(copied)} wide testId="account-settings"
       footer={
         <>
             {results ? (
@@ -114,13 +116,13 @@ export function AccountSettingsSheet({
         </>
       }
     >
-      <div className="flex max-h-[70vh] flex-col gap-4 overflow-y-auto pr-1 text-sm">
+      <div className="flex max-h-[70vh] flex-col gap-4 overflow-y-auto pr-1 text-body">
         {sources !== null && sources.length === 0 && (
           <p className="text-ink-2">There's no other app of this tool to copy from.</p>
         )}
         {sources !== null && sources.length > 0 && !results && (
           <>
-            <div className="flex flex-wrap items-center gap-2">
+            <PickRow icon={IconProfiles} on className="-mx-3">
               <span>From</span>
               {sources.length > 1 ? (
                 <Picker
@@ -134,10 +136,10 @@ export function AccountSettingsSheet({
               ) : (
                 <span className="font-medium text-ink">{name}</span>
               )}
-            </div>
-            {check === null && !error && <p className="text-xs text-ink-2">Reading what {name} has…</p>}
+            </PickRow>
+            {check === null && !error && <p className="text-meta text-ink-2">Reading what {name} has…</p>}
             {check && check.offers.length === 0 && (
-              <p className="text-xs text-ink-2">
+              <p className="text-meta text-ink-2">
                 {account.label} already has everything {name} has to copy: its MCP servers, permissions and status line.
               </p>
             )}
@@ -150,7 +152,7 @@ export function AccountSettingsSheet({
         )}
         {results && <SwitchSetupResults target={account.label} results={results} />}
         {error && (
-          <p className="text-xs text-danger" role="alert">
+          <p className="text-label text-danger" role="alert">
             {error}
           </p>
         )}

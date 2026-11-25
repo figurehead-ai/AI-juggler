@@ -18,6 +18,8 @@ import { Button } from "../primitives";
 import { errorText } from "../../lib/bridge";
 import { memorySize } from "../../lib/compact";
 import { askFirst, switchMoveDeleteBackup, switchMoveFinish, switchMoveUndo, switchMoves, type MoveRecordInfo } from "../../lib/ipc/switch-move";
+import { IconTrash } from "../icons-actions";
+import { IconUndo } from "../bot/bot-icons";
 
 /** "Nov 22". */
 function dayOf(ms: number): string {
@@ -81,7 +83,7 @@ export function useMoves(conversation: string | null = null): [MoveRecordInfo[] 
 
 function UndoSheet({ move, busy, onCancel, onConfirm }: { move: MoveRecordInfo; busy: boolean; onCancel: () => void; onConfirm: () => void }): JSX.Element {
   return (
-    <Modal
+    <Modal icon={IconUndo}
       title={`Undo the ${whatItIs(move)} of “${move.title ?? "this conversation"}”?`}
       subtitle={move.repair ? `Its worktree belongs to ${move.from} again, as it did before ${dayOf(move.at_ms)}.` : `It goes back to ${move.from}, as it was on ${dayOf(move.at_ms)}.`}
       onClose={onCancel}
@@ -133,7 +135,7 @@ export function keptWords(move: MoveRecordInfo): string | null {
 
 function DeleteSheet({ move, busy, onCancel, onConfirm }: { move: MoveRecordInfo; busy: boolean; onCancel: () => void; onConfirm: () => void }): JSX.Element {
   return (
-    <Modal
+    <Modal icon={IconTrash}
       title={`Delete the backup of “${move.title ?? "this conversation"}”?`}
       subtitle={`You can no longer undo this ${whatItIs(move)}.`}
       onClose={onCancel}

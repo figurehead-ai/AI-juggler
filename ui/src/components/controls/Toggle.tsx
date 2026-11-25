@@ -67,3 +67,17 @@ export const Radio = forwardRef<HTMLInputElement, ToggleProps>(function Radio({ 
     </>
   );
 });
+
+/** AJ-E1558 (TGL-1): a setting that takes effect at once, drawn as a
+ * switch: the native checkbox stays the control (its label, `checked`
+ * and test id as a Checkbox's) and says `role="switch"`; styles.css's
+ * `.aj-switch` draws the track and knob, the accent's fill while on. */
+export const SwitchBox = forwardRef<HTMLInputElement, ToggleProps>(function SwitchBox({ className = "", reason, ...props }, ref) {
+  const why = useReason({ ...props, reason });
+  return (
+    <>
+      <input ref={ref} type="checkbox" role="switch" aria-checked={props.checked} {...props} title={why.title} aria-describedby={why.describedBy} className={`aj-switch ${className}`} />
+      {why.note}
+    </>
+  );
+});

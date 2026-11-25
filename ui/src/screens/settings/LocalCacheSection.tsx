@@ -16,6 +16,8 @@ import { byteSize } from "../../lib/compact";
 import { errorText } from "../../lib/bridge";
 import { CACHE_LIMITS_MB, cacheClear, cacheSetLimit, cacheSetOn, cacheStatus, type CacheInfo, type CacheRowInfo } from "../../lib/ipc/cache";
 import { PaneSection, SettingRow, SwitchRow } from "./parts";
+import { IconGauge } from "../../components/bot/bot-icons";
+import { IconStorage } from "../../components/icons-settings";
 
 const MB = 1_000_000;
 
@@ -93,10 +95,10 @@ export function LocalCacheSection(): JSX.Element {
         footer="On this computer only, readable by you only, and never sent. Everything in it can be rebuilt from your tools' files."
       >
         {info === null ? (
-          <SettingRow title="Keep a cache on this computer" description={error ?? "Reading its size…"} testId="cache-loading" />
+          <SettingRow icon={IconStorage} title="Keep a cache on this computer" description={error ?? "Reading its size…"} testId="cache-loading" />
         ) : (
           <>
-            <SwitchRow
+            <SwitchRow icon={IconStorage}
               title="Keep a cache on this computer"
               description={cacheSummary(info)}
               checked={info.on}
@@ -105,7 +107,7 @@ export function LocalCacheSection(): JSX.Element {
               noteTone={(error ?? note) ? "info" : "warning"}
               onChange={(on) => apply(cacheSetOn(on), (next) => (next.on ? null : "Turned off. Its files were removed."))}
             />
-            <SettingRow
+            <SettingRow icon={IconGauge}
               title="Size limit"
               description={limitWords(info)}
               testId="cache-limit-row"
@@ -123,7 +125,7 @@ export function LocalCacheSection(): JSX.Element {
                 />
               }
             />
-            <SettingRow
+            <SettingRow icon={IconBroom}
               title="Clear cache"
               description={
                 info.used_bytes > 0 ? `Frees ${cacheSize(info.used_bytes)} now. It fills again as you use AI Juggler.` : "Nothing to clear: the cache is empty."
@@ -206,7 +208,7 @@ function CacheRow({ row }: { row: CacheRowInfo }): JSX.Element {
 function ClearSheet({ info, onClose, onClear }: { info: CacheInfo; onClose: () => void; onClear: () => void }): JSX.Element {
   const kept = info.caches.filter((row) => row.bytes > 0);
   return (
-    <Modal
+    <Modal icon={IconBroom}
       title="Clear the cache?"
       subtitle={`Frees ${cacheSize(info.used_bytes)} on this computer. Nothing of yours is lost.`}
       onClose={onClose}

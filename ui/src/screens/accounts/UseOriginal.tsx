@@ -11,6 +11,7 @@ import { accountUseOriginal } from "../../lib/ipc/accounts";
 import { errorText } from "../../lib/bridge";
 import type { AccountInfo } from "../../types/generated/AccountInfo";
 import { shortPath } from "../AccountManage";
+import { IconFolderOpen } from "../../components/icons-actions";
 
 /** Where a profile lives, in a few words — "uses ~/x where it is" or "a
  * copy of ~/x"; nothing for one made fresh here. */
@@ -37,7 +38,7 @@ export function UseOriginalModal({
   const [error, setError] = useState<string | null>(null);
   const where = shortPath(source);
   return (
-    <Modal title="Use the original folder?" onClose={onClose}
+    <Modal icon={IconFolderOpen} title="Use the original folder?" onClose={onClose}
       footer={
         <>
             <Button onClick={onClose}>Not now</Button>

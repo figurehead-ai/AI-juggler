@@ -9,7 +9,8 @@ import { useEffect, useId, useState, type JSX, type ReactNode } from "react";
 import { Card } from "./primitives";
 import { DensityChoice } from "./DensityChoice";
 import { RailOrderChoice } from "./RailOrderChoice";
-import { ChoiceOption } from "./controls";
+import { ChoiceOption, type ControlIcon } from "./controls";
+import { IconThemeDark, IconThemeLight, IconThemeSystem } from "./icons-settings";
 import { THEME_EVENT, setTheme, storedTheme, type ThemeChoice } from "../theme";
 import { CardTitle } from "./CardTitle";
 
@@ -43,10 +44,10 @@ export function AppearanceCard(): JSX.Element {
     window.addEventListener(THEME_EVENT, sync);
     return () => window.removeEventListener(THEME_EVENT, sync);
   }, []);
-  const options: Array<{ id: ThemeChoice; label: string }> = [
-    { id: "system", label: "System" },
-    { id: "light", label: "Light" },
-    { id: "dark", label: "Dark" },
+  const options: Array<{ id: ThemeChoice; label: string; icon: ControlIcon }> = [
+    { id: "system", label: "System", icon: IconThemeSystem },
+    { id: "light", label: "Light", icon: IconThemeLight },
+    { id: "dark", label: "Dark", icon: IconThemeDark },
   ];
   return (
     <Card className="flex flex-col gap-5 p-5" data-testid="settings-appearance">
@@ -58,6 +59,7 @@ export function AppearanceCard(): JSX.Element {
             type="radio"
             look="card"
             name="appearance"
+            icon={option.icon}
             label={option.label}
             checked={choice === option.id}
             onChange={() => {

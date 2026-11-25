@@ -22,7 +22,10 @@ import type { FleetPeerInfo } from "../types/generated/FleetPeerInfo";
 import { CardTitle } from "./CardTitle";
 import { AccountRenewalRow } from "../screens/settings/AccountRenewalRow";
 import { accountNamesApart, useSubscriptions } from "../lib/subscriptions";
-import { Checkbox, DateField, Picker } from "./controls";
+import { DateField, Picker, RowChip } from "./controls";
+import { IconBell, IconBroom, IconComputer } from "./icons-actions";
+import { IconCalendar, IconPause } from "./icons-controls";
+import { SettingSwitch } from "./SettingSwitch";
 
 /** A folder row's App by name, as the Apps list names it (useFolderAppName):
  * a folder only a Claude app profile holds reads "Claude app · …" (the
@@ -33,7 +36,7 @@ export function useAccountName(): (account: AccountInfo) => string {
 }
 
 export function NoAccounts(): JSX.Element {
-  return <p className="text-xs text-ink-2">No apps yet. Add one on the Accounts screen.</p>;
+  return <p className="text-meta text-ink-2">No apps yet. Add one on the Accounts screen.</p>;
 }
 
 export function Status({ status, error }: { status: string | null; error: string | null }): JSX.Element | null {
@@ -82,15 +85,17 @@ export function CleanupSettingsCard({ accounts }: { accounts: AccountInfo[] }): 
     <Card className="flex flex-col gap-3 p-5" data-testid="settings-cleanup">
       <div>
         <CardTitle>Cleanup</CardTitle>
-        <p className="mt-0.5 text-xs leading-relaxed text-ink-2">
+        <p className="mt-0.5 text-meta text-ink-2">
           AI Juggler tracks every process it starts. When one is left behind, it tells you; it only tidies up by
           itself for an app you've turned that on for, and only dev servers and watchers it verified as that
           app's. Shells, MCP servers and databases are never stopped automatically, and every stop is
           recorded. Tidying after a crash waits 5 minutes and asks first, with Undo.
         </p>
       </div>
-      <div className="flex flex-wrap items-center gap-2 text-xs">
-        <span className="font-medium text-ink">Default for new apps</span>
+      {/* AJ-E1558 (D-126): each choice a row with its icon chip. */}
+      <div className="flex flex-wrap items-center gap-3 px-3">
+        <RowChip icon={IconBroom} on={defaultOn === true} />
+        <span className="text-body font-medium text-ink">Default for new apps</span>
         <Picker choice
           size="sm"
           ariaLabel="Default for new apps"
@@ -113,37 +118,33 @@ export function CleanupSettingsCard({ accounts }: { accounts: AccountInfo[] }): 
           }}
           testId="cleanup-default"
           options={[
-            { value: "notify", label: "Notify only" },
-            { value: "tidy", label: "Tidy left-behind dev servers" },
+            { value: "notify", label: "Notify only", icon: IconBell },
+            { value: "tidy", label: "Tidy left-behind dev servers", icon: IconBroom },
           ]}
         />
       </div>
       {/* AJ-E508 Req.4: the global kill-switch, here and in Cleanup's ⋯. */}
-      <label className="flex items-start gap-2 text-xs">
-        <Checkbox
-          checked={paused === true}
-          disabled={paused === null}
-          onChange={(event) => {
-            const next = event.target.checked;
-            setError(null);
-            void cleanupPauseSet(next).then(
-              (now) => {
-                setPaused(now.paused);
-                setStatus(now.paused ? "Automatic cleanup is paused." : "Automatic cleanup is on again for the apps that have it.");
-              },
-              (cause) => setError(errorText(cause)),
-            );
-          }}
-          className="mt-0.5"
-          data-testid="settings-cleanup-pause"
-        />
-        <span className="flex flex-col gap-0.5">
-          <span className="font-medium text-ink">Pause automatic cleanup</span>
-          <span className="text-muted">For every app, until you turn this off. Nothing is stopped by itself while paused.</span>
-        </span>
-      </label>
+      <SettingSwitch
+        id="cleanup-pause"
+        icon={IconPause}
+        label="Pause automatic cleanup"
+        hint="For every app, until you turn this off. Nothing is stopped by itself while paused."
+        checked={paused === true}
+        disabled={paused === null}
+        testId="settings-cleanup-pause"
+        onChange={(next) => {
+          setError(null);
+          void cleanupPauseSet(next).then(
+            (now) => {
+              setPaused(now.paused);
+              setStatus(now.paused ? "Automatic cleanup is paused." : "Automatic cleanup is on again for the apps that have it.");
+            },
+            (cause) => setError(errorText(cause)),
+          );
+        }}
+      />
       {pausedError && (
-        <p className="flex flex-wrap items-center gap-2 text-xs text-danger" role="alert" data-testid="settings-cleanup-pause-error">
+        <p className="flex flex-wrap items-center gap-2 text-label text-danger" role="alert" data-testid="settings-cleanup-pause-error">
           Couldn't read whether automatic cleanup is paused: {pausedError}
           <Button size="sm" variant="secondary" onClick={loadPaused}>
             Try again
@@ -151,13 +152,13 @@ export function CleanupSettingsCard({ accounts }: { accounts: AccountInfo[] }): 
         </p>
       )}
       <Status status={status} error={error} />
-      <div className="flex flex-col divide-y divide-hairline" data-testid="cleanup-accounts">
+      <div className="flex flex-col gap-2" data-testid="cleanup-accounts">
         {accounts.length === 0 ? (
           <NoAccounts />
         ) : (
           accounts.map((account) => (
-            <div key={account.id} className="flex flex-col gap-1.5 py-2.5 text-xs" data-testid="cleanup-account">
-              <span className="font-medium text-ink">{accountName(account)}</span>
+            <div key={account.id} className="flex flex-col gap-0.5 rounded-[10px] bg-surface-2 p-1.5" data-testid="cleanup-account">
+              <span className="px-3 pt-1 text-meta font-semibold text-ink">{accountName(account)}</span>
               <TierToggles accountId={account.id} initial={account.cleanup_opt_in} explain={false} />
             </div>
           ))
@@ -187,8 +188,9 @@ function RenewalRow({ account }: { account: AccountInfo }): JSX.Element {
     );
   };
   return (
-    <div className="flex flex-wrap items-center gap-2 py-2.5 text-xs" data-testid="settings-renewal">
-      <label htmlFor={id} className="min-w-44 font-medium text-ink">
+    <div className="flex flex-wrap items-center gap-3 px-3 py-2" data-testid="settings-renewal">
+      <RowChip icon={IconCalendar} on={date !== ""} />
+      <label htmlFor={id} className="min-w-44 text-body font-medium text-ink">
         {accountName(account)}
       </label>
       {/* A8: saved whole, on commit; unset reads "Not set", never today. */}
@@ -242,13 +244,14 @@ export function RenewalSettingsCard({ accounts }: { accounts: AccountInfo[] }): 
     <Card className="flex flex-col gap-3 p-5" data-testid="settings-renewal-card">
       <div>
         <CardTitle>Accounts &amp; renewal dates</CardTitle>
-        <p className="mt-0.5 text-xs leading-relaxed text-ink-2">
+        <p className="mt-0.5 text-meta text-ink-2">
           When each subscription renews, if you want reminders. AI Juggler never reads your billing and never guesses
           a date: an account without one simply gets no renewal reminders.
         </p>
       </div>
-      <div className="flex flex-wrap items-center gap-2 text-xs">
-        <span className="font-medium text-ink">Remind me</span>
+      <div className="flex flex-wrap items-center gap-3 px-3">
+        <RowChip icon={IconBell} on={warnDays !== null} />
+        <span className="text-body font-medium text-ink">Remind me</span>
         <Picker choice
           size="sm"
           ariaLabel="Remind me"
@@ -269,10 +272,10 @@ export function RenewalSettingsCard({ accounts }: { accounts: AccountInfo[] }): 
           testId="renewal-warn-days"
           options={options.map((days) => ({ value: String(days), label: `${days} ${days === 1 ? "day" : "days"}` }))}
         />
-        <span className="text-muted">before a renewal</span>
+        <span className="text-meta text-muted">before a renewal</span>
       </div>
       <Status status={status} error={null} />
-      <div className="flex flex-col divide-y divide-hairline">
+      <div className="flex flex-col gap-0.5">
         {accounts.length === 0 ? (
           <NoAccounts />
         ) : (
@@ -308,19 +311,20 @@ export function FleetPermissionsCard(): JSX.Element {
     <Card className="flex flex-col gap-3 p-5" data-testid="settings-fleet">
       <div>
         <CardTitle>Fleet permissions</CardTitle>
-        <p className="mt-0.5 text-xs leading-relaxed text-ink-2">
+        <p className="mt-0.5 text-meta text-ink-2">
           What each of your paired Macs may do on this one. Only this Mac can change it, and no Mac can ever read
           another's credentials.
         </p>
       </div>
       {peers !== null && peers.length === 0 && (
-        <p className="text-xs text-ink-2">No paired Macs. Pair one on the Fleet screen.</p>
+        <p className="text-meta text-ink-2">No paired Macs. Pair one on the Fleet screen.</p>
       )}
       {peers !== null && peers.length > 0 && (
-        <ul className="flex flex-col divide-y divide-hairline">
+        <ul className="flex flex-col gap-0.5">
           {peers.map((peer) => (
-            <li key={peer.machine_id} className="flex flex-wrap items-center gap-3 py-2.5" data-testid="settings-fleet-peer">
-              <span className="min-w-0 flex-1 text-sm font-medium">{peer.label}</span>
+            <li key={peer.machine_id} className="flex flex-wrap items-center gap-3 rounded-[10px] px-3 py-2" data-testid="settings-fleet-peer">
+              <RowChip icon={IconComputer} on={peer.permission === "control"} />
+              <span className="min-w-0 flex-1 text-body font-medium text-ink">{peer.label}</span>
               <Chip tone="neutral">
                 {peer.permission === "control" && peer.ask_each_time ? "View + control · asks each time" : peer.permission_label}
               </Chip>

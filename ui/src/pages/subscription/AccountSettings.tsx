@@ -16,6 +16,9 @@ import { subscriptionsRename, subscriptionsSetTerm, type Term, type TermChoiceIn
 import { accountName, planWords, type SubscriptionInfo } from "../../lib/subscriptions";
 import { isTerm, termNoun } from "../../lib/account-terms";
 import { TermChoice, type Answered } from "./TermChoice";
+import { IconCalendar } from "../../components/icons-controls";
+import { IconCoin } from "../../components/icons-settings";
+import { IconRename, IconStar } from "../../components/icons-actions";
 
 const FIELD = "rounded-lg border border-hairline bg-surface px-2 py-1 text-meta text-ink outline-none focus-visible:ring-1 focus-visible:ring-accent/60";
 
@@ -27,7 +30,7 @@ export function AccountSettings({ sub, now, onChanged }: { sub: SubscriptionInfo
   return (
     <div className="flex w-full max-w-content flex-col gap-grid" data-testid="account-settings-tab">
       <PaneSection id="account-name" title="Name">
-        <SettingRow
+        <SettingRow icon={IconRename}
           title={name}
           description={sub.name ? "Your name for this account." : "The name AI Juggler gives it: its team, else its plan, else its email."}
           testId="account-name-row"
@@ -162,7 +165,7 @@ function AccountTerms({
           }}
         />
       ))}
-      <SettingRow
+      <SettingRow icon={IconStar}
         title="Plan"
         titleId={`${id}-plan`}
         description={pending("plan", "Like Max or Pro: in its name until you give it one.")}
@@ -178,7 +181,7 @@ function AccountTerms({
       >
         {note("plan")}
       </SettingRow>
-      <SettingRow
+      <SettingRow icon={IconCalendar}
         title="Renewal date"
         titleId={`${id}-renewal`}
         description={pending("renewal", "When the plan renews: reminders come before it.")}
@@ -190,7 +193,7 @@ function AccountTerms({
       >
         {note("renewal")}
       </SettingRow>
-      <SettingRow
+      <SettingRow icon={IconCoin}
         title="Monthly fee"
         titleId={`${id}-fee`}
         description={pending("fee", "What you pay a month, in dollars: cost per session uses it.")}

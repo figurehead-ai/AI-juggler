@@ -24,7 +24,8 @@ import { WatchTargetPicker } from "./WatchTargetPicker";
 import { draftFrom, defaultParam, lifeOf, paramSteps, previewFacts, untilMs, type FormState, type LifeKind } from "./watch-form-state";
 import { MAX_CONDITIONS, splitConditions, targetKey, untilEndsOffered, type TargetOption } from "./watches-view";
 import { CONDITION_LINE, FORM, LIFE, PARAM } from "./watches-words";
-import { CONDITION_ICONS, IconBin, IconCheckCircle, IconChevronD, IconChevronL, IconChevronR, IconEye, IconMoon } from "./watch-icons";
+import { CONDITION_ICONS, IconBin, IconCheckCircle, IconChevronD, IconChevronL, IconChevronR, IconEye, IconMoon, LIFETIME_ICONS } from "./watch-icons";
+import { IconCalendar } from "../icons-controls";
 import { pastWhen, whenWords } from "../../lib/time-words";
 
 export interface WatchFormProps {
@@ -217,12 +218,13 @@ function ConditionCards({ state, catalogue, onFlip, onParam, labelledBy }: { sta
 /** Section 3: the lifetime, its dates for Until…, and what it does. */
 function UntilChoice({ state, set, offered, book, now }: { state: FormState; set: (change: Partial<FormState>) => void; offered: CatalogueEntry[]; book: Map<string, TargetOption>; now: number }): JSX.Element {
   const life = lifeOf(state);
+  // AJ-E1558 (D-126): each lifetime with its icon, as the watch list shows it.
   const segments: Segment<LifeKind>[] = [
-    { value: "once", label: LIFE.once },
-    ...(untilEndsOffered(state.targets) ? [{ value: "until_ends" as const, label: state.targets.length > 1 ? LIFE.untilTheyEnd : LIFE.untilEnds }] : []),
-    { value: "today", label: LIFE.today },
-    { value: "until", label: LIFE.until },
-    { value: "always", label: LIFE.always },
+    { value: "once", label: LIFE.once, icon: LIFETIME_ICONS.once },
+    ...(untilEndsOffered(state.targets) ? [{ value: "until_ends" as const, label: state.targets.length > 1 ? LIFE.untilTheyEnd : LIFE.untilEnds, icon: LIFETIME_ICONS.until_ends }] : []),
+    { value: "today", label: LIFE.today, icon: LIFETIME_ICONS.until },
+    { value: "until", label: LIFE.until, icon: IconCalendar },
+    { value: "always", label: LIFE.always, icon: LIFETIME_ICONS.always },
   ];
   const at = untilMs(state.untilDay, state.untilTime);
   const past = life === "until" && at !== null && at <= now;

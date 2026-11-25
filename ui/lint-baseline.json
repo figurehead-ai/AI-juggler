@@ -249,7 +249,6 @@
   "jsx-a11y(prefer-tag-over-role)": 1
  },
  "src/components/NotificationSettings.tsx": {
-  "jsx-a11y(label-has-associated-control)": 1,
   "jsx-a11y(prefer-tag-over-role)": 1
  },
  "src/components/OfflineBanner.tsx": {
@@ -304,7 +303,6 @@
  },
  "src/components/PrivacyCard.tsx": {
   "eslint(complexity)": 1,
-  "jsx-a11y(label-has-associated-control)": 1,
   "jsx-a11y(no-noninteractive-tabindex)": 1,
   "jsx-a11y(prefer-tag-over-role)": 2,
   "react(set-state-in-effect)": 1
@@ -420,7 +418,6 @@
   "jsx-a11y(prefer-tag-over-role)": 1
  },
  "src/components/SettingsSections.tsx": {
-  "jsx-a11y(label-has-associated-control)": 1,
   "jsx-a11y(prefer-tag-over-role)": 1,
   "react(set-state-in-effect)": 1
  },
@@ -488,9 +485,6 @@
   "typescript(consistent-return)": 1,
   "typescript(no-meaningless-void-operator)": 2
  },
- "src/components/ToolUpdateLine.tsx": {
-  "jsx-a11y(label-has-associated-control)": 1
- },
  "src/components/UninstallCard.tsx": {
   "jsx-a11y(prefer-tag-over-role)": 1
  },
@@ -499,8 +493,6 @@
  },
  "src/components/UpdatesCard.tsx": {
   "eslint(complexity)": 1,
-  "eslint(max-lines)": 1,
-  "jsx-a11y(label-has-associated-control)": 1,
   "jsx-a11y(no-noninteractive-tabindex)": 1,
   "jsx-a11y(prefer-tag-over-role)": 1
  },
@@ -617,9 +609,6 @@
  "src/components/cloud-backup.test.tsx": {
   "eslint(no-shadow)": 1,
   "typescript(no-unsafe-type-assertion)": 3
- },
- "src/components/controls/ChoiceLine.tsx": {
-  "jsx-a11y(label-has-associated-control)": 1
  },
  "src/components/controls/Picker.tsx": {
   "eslint(complexity)": 1
@@ -1699,7 +1688,6 @@
   "typescript(no-unsafe-type-assertion)": 1
  },
  "src/pages/account/Settings.tsx": {
-  "jsx-a11y(label-has-associated-control)": 3,
   "jsx-a11y(prefer-tag-over-role)": 1,
   "react(set-state-in-effect)": 1
  },

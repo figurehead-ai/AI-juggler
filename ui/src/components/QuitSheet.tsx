@@ -20,6 +20,7 @@ import { appQuit, appQuitAck, appQuitCancel, onQuitRequested } from "../lib/ipc/
 import { errorText } from "../lib/bridge";
 import type { QuitPlanInfo } from "../types/generated/QuitPlanInfo";
 import { sessionAppName } from "../lib/app-name";
+import { IconLeave } from "./icons-menu";
 
 /** "1 session is running." / "3 sessions are running." */
 export function runningWords(plan: QuitPlanInfo): string {
@@ -114,7 +115,7 @@ export function QuitSheet(): JSX.Element | null {
     }
   };
   return (
-    <Modal title="Quit AI Juggler?" onClose={cancel} testId="quit-sheet"
+    <Modal icon={IconLeave} title="Quit AI Juggler?" onClose={cancel} testId="quit-sheet"
       footer={
         <>
             {/* 0.4.5 (D-113): Cancel is the default. The Dock's Quit and a

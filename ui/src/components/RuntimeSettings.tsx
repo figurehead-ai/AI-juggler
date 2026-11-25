@@ -16,6 +16,7 @@ import { errorText } from "../lib/bridge";
 import { runtimeBeta, runtimeChoices, runtimeChoose, type RuntimeChoicesInfo } from "../lib/ipc/runtime";
 import { launchTitle } from "../lib/account-words";
 import { Picker } from "./controls";
+import { IconBackground } from "./icons-controls";
 
 export const BETA_HINT =
   "Lets you start a Claude Code session with no terminal, its questions and approvals answered here. It runs your own Claude Code with your own sign-in; the terminal stays the default, and Open in terminal hands the conversation back when a turn ends.";
@@ -62,7 +63,7 @@ export function RuntimeSettings(): JSX.Element | null {
           />
         </div>
       ))}
-      <Switch
+      <Switch icon={IconBackground}
         id="runtime_beta"
         label="Run without a terminal (Beta)"
         hint={BETA_HINT}

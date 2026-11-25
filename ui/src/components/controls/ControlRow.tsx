@@ -7,7 +7,7 @@
  * it; Space and Enter do too. The chip takes the accent while it is on.
  * `RowList` holds a few of them in one card.
  */
-import { useId, type JSX, type KeyboardEvent, type ReactNode } from "react";
+import { isValidElement, useId, type JSX, type KeyboardEvent, type ReactElement, type ReactNode } from "react";
 import type { ControlIcon } from "./ChoiceLine";
 import { Checkbox } from "./Toggle";
 
@@ -25,19 +25,41 @@ interface RowProps {
   testId?: string;
 }
 
+/** AJ-E1558 (D-126): a row's 30 px icon chip, the one look on every
+ * making row (ToggleRow, CheckRow, Settings' rows): a neutral tile at
+ * rest, the accent's soft step while the row is on or chosen. */
+export function RowChip({ icon: Icon, on = false }: { icon: ControlIcon; on?: boolean }): JSX.Element {
+  return (
+    <span aria-hidden="true" data-on={on || undefined} className={"flex size-[30px] shrink-0 items-center justify-center rounded-lg transition-colors " + (on ? "bg-accent-soft text-accent-hi" : "bg-surface-3 text-ink-2")}>
+      <Icon width={16} height={16} />
+    </span>
+  );
+}
+
+/** A row's icon: one from the set (drawn in the chip), or an App's or
+ * tool's own logo (drawn as it is, D-38). */
+export type RowIcon = ControlIcon | ReactElement;
+
+/** A row's lead: the chip for an icon, a logo in the chip's place. */
+export function RowLead({ icon, on = false }: { icon: RowIcon; on?: boolean }): JSX.Element {
+  if (isValidElement(icon))
+    return (
+      <span aria-hidden="true" className="flex size-[30px] shrink-0 items-center justify-center">
+        {icon}
+      </span>
+    );
+  return <RowChip icon={icon} on={on} />;
+}
+
 /** The chip, the words and the control, the row its label. */
-function Row({ id, icon: Icon, title, help, checked, disabled, titleId, helpId, children }: Omit<RowProps, "onChange" | "testId"> & { id: string; titleId: string; helpId: string; children: ReactNode }): JSX.Element {
+function Row({ id, icon, title, help, checked, disabled, titleId, helpId, children }: Omit<RowProps, "onChange" | "testId"> & { id: string; titleId: string; helpId: string; children: ReactNode }): JSX.Element {
   return (
     <label
       htmlFor={id}
       className={"flex min-w-0 items-center gap-3 rounded-[10px] px-3 py-[9px] " + (disabled ? "opacity-60" : "cursor-pointer hover:bg-surface-2")}
       data-checked={checked}
     >
-      {Icon && (
-        <span aria-hidden="true" className={"flex size-[30px] shrink-0 items-center justify-center rounded-lg transition-colors " + (checked ? "bg-accent-soft text-accent-hi" : "bg-surface-3 text-ink-2")}>
-          <Icon width={16} height={16} />
-        </span>
-      )}
+      {icon && <RowChip icon={icon} on={checked} />}
       <span className="flex min-w-0 flex-1 flex-col">
         <span id={titleId} className="text-body font-medium text-ink">
           {title}
@@ -109,6 +131,19 @@ export function CheckRow(props: RowProps): JSX.Element {
         data-testid={testId}
       />
     </Row>
+  );
+}
+
+/** AJ-E1558 (D-126): a row whose choice is a picker or a few words with
+ * pickers in them ("Remind me 7 days before a renewal"): the row's icon
+ * chip (the accent's soft step while what it sets is on), then the words
+ * and controls, wrapping as one line. */
+export function PickRow({ icon, on = false, children, testId, className = "" }: { icon: RowIcon; on?: boolean; children: ReactNode; testId?: string; className?: string }): JSX.Element {
+  return (
+    <div className={"flex min-w-0 items-center gap-3 rounded-[10px] px-3 py-2 " + className} data-testid={testId}>
+      <RowLead icon={icon} on={on} />
+      <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2 text-body text-ink-2">{children}</div>
+    </div>
   );
 }
 

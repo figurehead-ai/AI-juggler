@@ -16,6 +16,7 @@ import { errorText } from "../../lib/bridge";
 import { poolDelete, poolRename, type PoolInfo } from "../../lib/ipc/pools";
 import type { ActionHost } from "../../lib/action-host";
 import { setPools, warmPool } from "../../lib/pools";
+import { IconTrash } from "../../components/icons-actions";
 
 export function PoolCard({ pool, local, asks, onOpen, children }: { pool: PoolInfo; local: ActionHost; asks: number; onOpen: () => void; children: ReactNode }): JSX.Element {
   const menu = useItemMenu("pool", pool, pool.name, local);
@@ -75,7 +76,7 @@ export function DeletePool({ pool, members, onClose, onDeleted }: { pool: PoolIn
   };
   const who = members === 0 ? "It has no members." : members === 1 ? "Its one session goes back to its project's own pool." : `Its ${members} sessions go back to their projects' own pools.`;
   return (
-    <Modal title={`Delete “${pool.name}”?`} onClose={onClose} testId="pool-delete-sheet"
+    <Modal icon={IconTrash} title={`Delete “${pool.name}”?`} onClose={onClose} testId="pool-delete-sheet"
       footer={
         <>
             <Button variant="ghost" onClick={onClose}>

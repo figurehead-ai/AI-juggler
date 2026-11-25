@@ -8,7 +8,9 @@
  */
 import { useEffect, useState, type JSX } from "react";
 import { Card } from "./primitives";
-import { Disclosure } from "./controls";
+import { Disclosure, type RowIcon } from "./controls";
+import { IconJuggler } from "./icons";
+import { IconAwake, IconBattery, IconPower, IconRestart } from "./icons-settings";
 import { SettingSwitch as Switch } from "./SettingSwitch";
 import { Status } from "./SettingsSections";
 import { errorText } from "../lib/bridge";
@@ -33,6 +35,7 @@ function PrefSwitch({
   ...rest
 }: {
   id: BooleanPref;
+  icon: RowIcon;
   label: string;
   hint: string;
   prefs: SessionPrefsInfo;
@@ -62,7 +65,7 @@ function LoginItemSwitch(): JSX.Element | null {
         ? "Waiting for your approval in System Settings › General › Login Items."
         : "When you log in. It's listed in System Settings › General › Login Items.";
   return (
-    <Switch
+    <Switch icon={IconPower}
       id="open_at_login"
       label="Open AI Juggler at login"
       hint={hint}
@@ -93,6 +96,7 @@ function KeepGoing({ prefs, save }: { prefs: SessionPrefsInfo; save: (next: Sess
       </p>
       <PrefSwitch
         id="restart_on_crash"
+        icon={IconRestart}
         label="Restart sessions that crash"
         hint="Started again on the same launch settings, its conversation resumed, at most 3 times in 10 minutes. Never after a usage limit, a stop you made or a failed sign-in. A launch setting can choose for itself."
         prefs={prefs}
@@ -100,6 +104,7 @@ function KeepGoing({ prefs, save }: { prefs: SessionPrefsInfo; save: (next: Sess
       />
       <PrefSwitch
         id="keep_awake_on_power"
+        icon={IconAwake}
         label="Keep the Mac awake while sessions work"
         hint="Only while a session is working, not while it waits for you. The screen can still sleep, and closing the lid still sleeps the Mac."
         prefs={prefs}
@@ -107,6 +112,7 @@ function KeepGoing({ prefs, save }: { prefs: SessionPrefsInfo; save: (next: Sess
       />
       <PrefSwitch
         id="keep_awake_on_battery"
+        icon={IconBattery}
         label="On battery too"
         hint="Off by default: an awake Mac drains its battery."
         prefs={prefs}
@@ -116,6 +122,7 @@ function KeepGoing({ prefs, save }: { prefs: SessionPrefsInfo; save: (next: Sess
       />
       <PrefSwitch
         id="reopen_after_crash"
+        icon={IconJuggler}
         label="Reopen AI Juggler if it quits unexpectedly"
         hint="After a crash, never after you quit it. The sessions it was running show as they are, and come back where restarting is on."
         prefs={prefs}

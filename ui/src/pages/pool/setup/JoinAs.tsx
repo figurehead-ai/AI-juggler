@@ -14,11 +14,14 @@ import type { JSX } from "react";
 import { Picker } from "../../../components/controls";
 import type { PoolRole } from "../../../lib/ipc/pools";
 import { ROLE_CARDS } from "../../../lib/pool-words";
+import { ROLE_ICONS } from "../../../components/MemberLogo";
+import { IconRemove } from "../../../components/icons-actions";
+import type { ControlIcon } from "../../../components/controls";
 
 /** The join control's choices: a role, or nobody else joins. */
-const JOIN: readonly { value: PoolRole | "none"; label: string; hint: string }[] = [
-  ...ROLE_CARDS.filter((card) => card.id !== "lead").map((card) => ({ value: card.id, label: card.label, hint: card.line })),
-  { value: "none", label: "Not in the pool", hint: "Only who's in. Other sessions in these projects stay out." },
+const JOIN: readonly { value: PoolRole | "none"; label: string; hint: string; icon: ControlIcon }[] = [
+  ...ROLE_CARDS.filter((card) => card.id !== "lead").map((card) => ({ value: card.id, label: card.label, hint: card.line, icon: ROLE_ICONS[card.id] })),
+  { value: "none", label: "Not in the pool", hint: "Only who's in. Other sessions in these projects stay out.", icon: IconRemove },
 ];
 
 export function JoinAs({

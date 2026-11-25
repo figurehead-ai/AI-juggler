@@ -14,6 +14,11 @@ import { floorAppHiddenSet, floorRecreate, floorResetView, floorSettings, floorS
 import { floorSnapshot, type FloorApp } from "../../lib/ipc/floor";
 import { Pane, PaneSection, SettingRow, SwitchRow } from "./parts";
 import { RecreateSheet } from "./RecreateSheet";
+import { IconAppearance, IconClock } from "../../components/icons-menu";
+import { IconBoard, IconFloor } from "../../components/icons-places";
+import { IconFit, IconTidy } from "../../components/icons-canvas";
+import { IconPin } from "../../components/icons";
+import { IconPlay } from "../../components/icons-controls";
 
 type Motion = "system" | "full" | "calm" | "off";
 /** What each look costs, measured on the release build (D-80). */
@@ -48,7 +53,7 @@ export function FloorPane({ anchor }: { anchor?: string }): JSX.Element {
     <Pane id="the-floor" title="The Floor" anchor={anchor}>
       <p className="-mt-3 max-w-[70ch] text-meta text-ink-2">Your company as an office: every App an area, every session a person at a desk. It opens in its own window.</p>
       <PaneSection id="floor-opening" title="Opening" footer="When the Floor's window opens, and whether it stays above your other windows.">
-        <SwitchRow
+        <SwitchRow icon={IconFloor}
           title="Open the Floor when AI Juggler starts"
           description="Otherwise nothing of the Floor runs until you open it."
           checked={settings?.open_at_start ?? false}
@@ -56,7 +61,7 @@ export function FloorPane({ anchor }: { anchor?: string }): JSX.Element {
           onChange={(on) => set("floor.open_at_start", on ? "on" : "off")}
           testId="floor-open-at-start"
         />
-        <SwitchRow
+        <SwitchRow icon={IconPin}
           title="Keep it on top"
           description="Above other windows, on any display."
           checked={settings?.on_top ?? false}
@@ -66,7 +71,7 @@ export function FloorPane({ anchor }: { anchor?: string }): JSX.Element {
         />
       </PaneSection>
       <PaneSection id="floor-office" title="The office" footer="How the office is laid out and drawn; nothing here changes your apps or sessions.">
-        <SettingRow
+        <SettingRow icon={IconBoard}
           title="Apps per floor"
           description="Fewer Apps a floor, more floors. Areas keep their order: one that comes later moves on, one that comes earlier never moves."
           testId="floor-per-floor"
@@ -84,19 +89,19 @@ export function FloorPane({ anchor }: { anchor?: string }): JSX.Element {
             </span>
           }
         />
-        <SettingRow
+        <SettingRow icon={IconPlay}
           title="Motion"
           description="Full: people type and walk (8 frames a second, about 2% of one core). Calm: half as often, no one walks. Off: nothing moves; it draws only when something changes."
           testId="floor-motion"
           control={<Segmented label="Motion" value={(settings?.motion ?? "system") as Motion} segments={MOTIONS} onChange={(value) => set("floor.motion", value)} testId="floor-motion-choice" />}
         />
-        <SettingRow
+        <SettingRow icon={IconAppearance}
           title="Look"
           description={DETAIL_WORDS}
           testId="floor-detail"
           control={<Segmented label="Look" value={(settings?.detail ?? "pixel") as Detail} segments={DETAILS} onChange={(value) => set("floor.detail", value)} testId="floor-detail-choice" />}
         />
-        <SwitchRow
+        <SwitchRow icon={IconClock}
           title="Unused Apps gather dust"
           description="An App unused for a week gathers dust and boxes; after a month its lights go off. Off: it only dims."
           checked={settings?.decay ?? true}
@@ -104,7 +109,7 @@ export function FloorPane({ anchor }: { anchor?: string }): JSX.Element {
           onChange={(on) => set("floor.decay", on ? "on" : "off")}
           testId="floor-decay"
         />
-        <SettingRow
+        <SettingRow icon={IconFit}
           title="Reset the view"
           description="The camera back to the first floor, as when the Floor opens."
           testId="floor-reset-view"
@@ -114,7 +119,7 @@ export function FloorPane({ anchor }: { anchor?: string }): JSX.Element {
             </Button>
           }
         />
-        <SettingRow
+        <SettingRow icon={IconTidy}
           title="Re-create the office"
           description="A new look and layout for every area, in the same order."
           testId="floor-recreate"

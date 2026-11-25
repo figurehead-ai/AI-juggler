@@ -25,6 +25,7 @@ import { ServersSection } from "./ProjectSyncServers";
 import { DoneLine, SYNC_HEADING, type Done } from "./SyncDoneLine";
 import { Radio } from "./controls";
 import { SELECTED_CARD } from "./controls/selected";
+import { IconConnect } from "./icons-menu";
 
 /** A file the master can be applied to that differs from it, or isn't
  * there. */
@@ -42,7 +43,7 @@ export const PROJECT_SYNC_EVENT = "aij:project-sync";
 export function ProjectSyncSheet({ project, onClose }: { project: ProjectInfo; onClose: () => void }): JSX.Element {
   useEffect(() => () => void window.dispatchEvent(new CustomEvent(PROJECT_SYNC_EVENT, { detail: project.id })), [project.id]);
   return (
-    <Modal title="Rules and MCP servers" subtitle={project.name} onClose={onClose} wide testId="project-sync">
+    <Modal icon={IconConnect} title="Rules and MCP servers" subtitle={project.name} onClose={onClose} wide testId="project-sync">
       <div className="flex max-h-[70vh] flex-col gap-5 overflow-y-auto pr-1">
         <RulesSection project={project} />
         <ServersSection project={project} />

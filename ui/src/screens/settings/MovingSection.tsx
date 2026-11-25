@@ -16,6 +16,8 @@ import { ownershipCheck, ownershipRepair, type OwnershipInfo } from "../../lib/i
 import { refreshKnownPlaces, useKnownPlaces } from "../../lib/places";
 import type { OwnershipFindingInfo } from "../../types/generated/OwnershipFindingInfo";
 import { PaneSection, RowNote, SettingRow } from "./parts";
+import { IconDone } from "../../components/icons-menu";
+import { IconGitBranch } from "../../components/icons";
 
 /** "Claude app 5.11492.5 · moves checked". */
 export function checkedWords(app: string, version: string | null, checked: boolean): string {
@@ -60,7 +62,7 @@ function RepairSheet({ finding, busy, onCancel, onConfirm }: { finding: Ownershi
   const running = useRunningNow(finding);
   const quits = running === null ? "Looking at which Apps are open…" : quitsWords(running);
   return (
-    <Modal
+    <Modal icon={IconGitBranch}
       title={`Repair “${finding.title}”?`}
       subtitle={`Its worktree ${finding.worktree} will belong to ${finding.holder}, which holds the conversation.`}
       onClose={onCancel}
@@ -143,12 +145,12 @@ export function MovingSection(): JSX.Element | null {
         />
       ))}
       {info.unreadable && (
-        <SettingRow title="Worktrees couldn't be checked" testId="moving-unreadable">
+        <SettingRow icon={IconGitBranch} title="Worktrees couldn't be checked" testId="moving-unreadable">
           <RowNote tone="warning">{info.unreadable}</RowNote>
         </SettingRow>
       )}
       {info.findings.map((finding) => (
-        <SettingRow
+        <SettingRow icon={IconGitBranch}
           key={finding.key}
           title={finding.title}
           description={finding.words}
@@ -166,12 +168,12 @@ export function MovingSection(): JSX.Element | null {
         </SettingRow>
       ))}
       {done && (
-        <SettingRow title="Repaired" testId="moving-repaired">
+        <SettingRow icon={IconDone} title="Repaired" testId="moving-repaired">
           <RowNote>{done.words}</RowNote>
         </SettingRow>
       )}
       {info.tidied.map((one) => (
-        <SettingRow key={`${one.worktree}-${one.words}`} title={`Worktree ${one.worktree}`} testId="moving-tidied">
+        <SettingRow icon={IconGitBranch} key={`${one.worktree}-${one.words}`} title={`Worktree ${one.worktree}`} testId="moving-tidied">
           <RowNote>{`${one.words}.`}</RowNote>
         </SettingRow>
       ))}
