@@ -583,7 +583,7 @@
 3. One harness round each on fresh blind sets (a Sonnet eval round, Opus verifying); each is switched on only if preferred over the plain text in the blind checks; otherwise it stays plain and Settings › AI › Models says why in one line.
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E3831/manifest.md`.
 
-### AJ-E3832 The world model: a bi-temporal graph in AI Juggler's SQLite (ADR-0038, D-150), the foundation every later version extends | Status: TODO (0.5.2) | Priority P0 | Effort XL | Depends: AJ-E3825, ADR-0037
+### AJ-E3832 The world model: a bi-temporal graph in AI Juggler's SQLite (ADR-0038, D-150), the foundation every later version extends | Status: ON HOLD (D-150 proposed, pending the maintainer's discussion) | Priority P0 | Effort XL | Depends: AJ-E3825, ADR-0037
 **Found**: the maintainer (2026-11-25, through the coordinating session) wants the world-model memory built in 0.5.2 as the base later versions extend, with no porting later (D-150). Research: `docs/research/2026-11-25-graph-memory-research.md`.
 **UI**: yes (Bot's memory indicator and its breakdown, AJ-E3825 R9; Settings › AI › Memory: what's remembered, why, forget)
 **Usability reasoning** (to be written first for Settings › AI › Memory and the indicator, PAT-USE): what someone wants to know about what Bot remembers, why it remembers it, and how to make it forget, in plain words.
