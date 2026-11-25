@@ -19,6 +19,7 @@ import { aiBetaSet, type AiJobInfo } from "../../lib/ipc/ai";
 import { botCount } from "../../lib/ipc/bot";
 import { useMemories } from "../../lib/bot-memory";
 import { useMenuCloses } from "../../lib/use-menu-closes";
+import { belowEnd, useTip } from "../WhyTip";
 
 const ICON_BUTTON = "grid size-[30px] place-items-center rounded-lg text-muted outline-none hover:bg-surface-2 hover:text-ink focus-visible:ring-2 focus-visible:ring-accent/60";
 
@@ -138,19 +139,25 @@ export function BotFindBar(): JSX.Element | null {
   );
 }
 
+/** AJ-E1556: its tip is the app's one tip (`useTip`): drawn over the
+ * page, under the button's right end, its words whole and wrapping (the
+ * head's nowrap cut it to "Nothing is do…", and a count was drawn over it). */
 function TopicButton({ compact }: { compact: boolean }): JSX.Element {
-  const [tip, setTip] = useState(false);
+  const words = (
+    <>
+      <b className="block font-semibold">{WORDS.newTopic}</b>
+      <span className="block text-ink-2">{WORDS.newTopicTip}</span>
+    </>
+  );
+  const { ref, show, hide, shown, tipId, tip } = useTip<HTMLButtonElement>(words, "bot-topic-tip", belowEnd);
   return (
-    <span className="relative" onMouseEnter={() => setTip(true)} onMouseLeave={() => setTip(false)}>
-      <button type="button" className="mr-0.5 inline-flex h-7 items-center gap-1.5 rounded-lg px-2 text-meta font-medium text-ink-2 outline-none hover:bg-surface-2 focus-visible:ring-2 focus-visible:ring-accent/60" aria-describedby="bot-topic-tip" onFocus={() => setTip(true)} onBlur={() => setTip(false)} onClick={() => void newTopic()} data-testid="bot-new-topic">
+    <>
+      <button ref={ref} type="button" className="mr-0.5 inline-flex h-7 items-center gap-1.5 rounded-lg px-2 text-meta font-medium text-ink-2 outline-none hover:bg-surface-2 focus-visible:ring-2 focus-visible:ring-accent/60" aria-describedby={shown ? tipId : undefined} onPointerEnter={show} onPointerLeave={hide} onFocus={show} onBlur={hide} onClick={() => void newTopic()} data-testid="bot-new-topic">
         <IconPlus width={13} height={13} aria-hidden="true" />
         <span className={compact ? "sr-only" : "whitespace-nowrap"}>{WORDS.newTopic}</span>
       </button>
-      <span id="bot-topic-tip" role="tooltip" className={"absolute top-[calc(100%+6px)] right-0 z-30 w-[250px] flex-col gap-0.5 rounded-[9px] bg-ink px-2.5 py-2 text-meta text-canvas shadow-[0_18px_48px_-12px_rgba(0,0,0,.45)] [[data-theme=dark]_&]:bg-surface-3 [[data-theme=dark]_&]:text-ink " + (tip ? "flex" : "hidden")} data-testid="bot-topic-tip">
-        <b className="font-semibold">{WORDS.newTopic}</b>
-        <span className="opacity-80">{WORDS.newTopicTip}</span>
-      </span>
-    </span>
+      {tip}
+    </>
   );
 }
 

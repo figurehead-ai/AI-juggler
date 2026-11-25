@@ -65,30 +65,74 @@ export function useTipSpot<T extends HTMLElement>(place: (box: DOMRect) => Spot)
 }
 
 /** The why-tip's place: under the element, kept inside the window. */
-function below(box: DOMRect): Spot {
+export function below(box: DOMRect): Spot {
   return { left: Math.max(8, Math.min(box.left, window.innerWidth - TIP_W - 8)), top: box.bottom + 6 };
+}
+
+/** Under the element, its right edge at the element's (a control at a
+ * panel's right end), kept inside the window. */
+export function belowEnd(box: DOMRect): Spot {
+  return { left: Math.max(8, Math.min(box.right - TIP_W, window.innerWidth - TIP_W - 8)), top: box.bottom + 6 };
+}
+
+/**
+ * AJ-E1556: every tip's one look. Drawn over the page (portalled, the
+ * popover layer: nothing in a panel, a count or a sticky head is drawn
+ * over it, no column clips it), its words wrapping to its width, a long
+ * word broken rather than cut, never ellipsised (the 0.5.1 Nightly: Bot's
+ * New topic tip read "Nothing is do…" with a "23" over it).
+ */
+export const TIP_LOOK =
+  "pointer-events-none fixed z-50 whitespace-normal wrap-break-word rounded-lg border border-hairline bg-overlay px-2.5 py-1.5 text-left text-label leading-snug text-ink shadow-popover";
+
+/** AJ-E1556: a drawn tip kept inside the window (8 px in from each edge),
+ * moved after it is laid out, once its real size is known. */
+export function keepInWindow(tip: HTMLElement | null): void {
+  if (!tip) return;
+  tip.style.translate = "";
+  const box = tip.getBoundingClientRect();
+  const edge = 8;
+  const dx = box.right > window.innerWidth - edge ? window.innerWidth - edge - box.right : box.left < edge ? edge - box.left : 0;
+  const dy = box.bottom > window.innerHeight - edge ? window.innerHeight - edge - box.bottom : box.top < edge ? edge - box.top : 0;
+  if (dx !== 0 || dy !== 0) tip.style.translate = `${Math.round(dx)}px ${Math.round(dy)}px`;
+}
+
+/** A tip's drawing, at `at` (`centred`: its middle there, beside what it
+ * names): the one look, kept inside the window. */
+export function TipLayer({ at, id, testId, width, centred = false, role = "tooltip", children }: { at: Spot; id?: string; testId: string; width?: number; centred?: boolean; role?: "tooltip" | "presentation"; children: ReactNode }): ReactNode {
+  return createPortal(
+    <span id={id} ref={keepInWindow} role={role} aria-hidden={role === "presentation" ? "true" : undefined} style={{ left: at.left, top: at.top, width, transform: centred ? "translateY(-50%)" : undefined }} className={TIP_LOOK + (width ? "" : " w-max max-w-64")} data-testid={testId} data-tip="">
+      {children}
+    </span>,
+    document.body,
+  );
+}
+
+/** To the element's right, its top at the element's (an icon in the
+ * folded rail), kept inside the window once drawn. */
+export function besideTop(box: DOMRect): Spot {
+  return { left: box.right + 8, top: box.top };
+}
+
+/** A tip for one element (under it, unless `place` says otherwise): its
+ * ref, show/hide, the tip's id while it shows, and the tip itself
+ * (portalled; `null` while hidden). `role` "presentation": a picture of
+ * words the element's name already says (hidden from screen readers). */
+export function useTip<T extends HTMLElement>(content: ReactNode, testId: string, place: (box: DOMRect) => Spot = below, role: "tooltip" | "presentation" = "tooltip") {
+  const { ref, at, show, hide } = useTipSpot<T>(place);
+  const tipId = `tip-${useId().replace(/:/g, "")}`;
+  const tip: ReactNode = at && (
+    <TipLayer at={at} id={tipId} testId={testId} width={TIP_W} role={role}>
+      {content}
+    </TipLayer>
+  );
+  return { ref, show, hide, shown: at !== null, tipId, tip };
 }
 
 /** A why-tip for one element: its ref, show/hide, the tip's id while it
  * shows, and the tip itself (portalled; `null` while hidden). */
 export function useWhyTip<T extends HTMLElement>(why: string, testId: string) {
-  const { ref, at, show, hide } = useTipSpot<T>(below);
-  const tipId = `why-${useId().replace(/:/g, "")}`;
-  const tip: ReactNode =
-    at &&
-    createPortal(
-      <span
-        id={tipId}
-        role="tooltip"
-        style={{ left: at.left, top: at.top, width: TIP_W }}
-        className="pointer-events-none fixed z-50 rounded-lg border border-hairline bg-overlay px-2.5 py-1.5 text-label leading-snug text-ink shadow-popover"
-        data-testid={testId}
-      >
-        {why}
-      </span>,
-      document.body,
-    );
-  return { ref, show, hide, shown: at !== null, tipId, tip };
+  return useTip<T>(why, testId);
 }
 
 type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {

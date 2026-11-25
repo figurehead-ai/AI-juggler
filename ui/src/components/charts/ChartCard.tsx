@@ -82,13 +82,15 @@ export function Tooltip({ tip, width }: { tip: Tip | null; width: number }): JSX
       className="pointer-events-none absolute z-20 w-[220px] rounded-xl border border-hairline bg-surface-3/95 px-3 py-2.5 text-meta shadow-card backdrop-blur"
       style={{ left, top: Math.max(0, tip.y) }}
       data-testid="chart-tooltip"
+      data-tip=""
     >
       <p className="mb-1.5 text-label text-muted">{tip.title}</p>
       <ul className="flex flex-col gap-1">
         {tip.rows.map((row) => (
           <li key={row.label} className="grid grid-cols-[12px_minmax(0,1fr)_auto] items-center gap-2">
             <span aria-hidden="true" className="h-0.5 w-3 rounded-full" style={{ background: row.color ?? "transparent" }} />
-            <span className="truncate text-muted">{row.label}</span>
+            {/* AJ-E1556: a tip is read whole: a long name wraps, never cut. */}
+            <span className="min-w-0 wrap-break-word text-muted">{row.label}</span>
             <span className="font-semibold tabular-nums text-ink">{row.value}</span>
           </li>
         ))}
