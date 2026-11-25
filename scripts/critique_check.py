@@ -13,6 +13,11 @@ or a worktree, whatever the files' times say.
   was written for, on a line `<!-- captures: <fingerprint> -->`. When the
   captures change, the critique is out of date: look at the screens again,
   update the critique, then `--stamp <family>`.
+- AJ-E1558 (VALIDATION §5, line 19): a create, edit, settings or
+  picker family (`RICH`) is scored on "Rich-mode colour" in every
+  critique section from 0.5.2 on, and a score under 4 blocks: the
+  latest section's line must read 4 or 5 (any family that scores the
+  line is held to it).
 - A family without a critique is listed in `scripts/critique.allow`
   (`family fingerprint`), which only shrinks: the families from before
   AJ-E2814, pinned as they were. Once one's screens change, it needs its
@@ -43,6 +48,19 @@ GALLERY = "docs/qa/evidence/_gallery"
 CRITIQUE = "critique.md"
 ALLOW = "scripts/critique.allow"
 STAMP = re.compile(r"<!--\s*captures:\s*([0-9a-f]{12}|none)\s*-->")
+# AJ-E1558: the checklist's line 19, as a critique's table row scores it.
+RICH_LINE = re.compile(r"^\|\s*19\s*\|\s*Rich-mode colour\s*\|\s*([1-5])\b", re.M)
+SECTION = re.compile(r"^## (.*)$", re.M)
+VERSION = re.compile(r"\b0\.(\d+)\.(\d+)\b")
+# The families whose screens are making or editing ones (D-126 rich mode,
+# DESIGN-SYSTEM §2.3): Settings, the edit and create sheets, the pickers.
+RICH = frozenset(
+    {
+        "44-settings", "62-privacy", "64-crash", "65-settings-sections", "83-account-settings", "84-notifications",
+        "89-budget-caps", "82-project-sync", "97-controls", "98-local-cache", "99-debug-mode", "99-floor-settings",
+        "99-keep-alive", "99-new-session", "99-settings-keyboard", "99-settings-search", "98-pool-setup",
+    }
+)
 
 
 def tracked(root: Path) -> dict[str, list[str]]:
@@ -95,6 +113,35 @@ def critiques(root: Path) -> dict[str, str | None]:
     return out
 
 
+def latest_section(text: str) -> tuple[str, str]:
+    """The last `## ` section of a critique: its heading and its text."""
+    heads = list(SECTION.finditer(text))
+    if not heads:
+        return "", text
+    last = heads[-1]
+    return last.group(1), text[last.end() :]
+
+
+def from_052(heading: str) -> bool:
+    """A section written for 0.5.2 or later (its heading names the version)."""
+    found = VERSION.search(heading)
+    return bool(found) and (int(found.group(1)), int(found.group(2))) >= (5, 2)
+
+
+def rich_problems(family: str, text: str) -> list[str]:
+    """AJ-E1558: line 19 scored, and never under 4, on the latest section."""
+    heading, body = latest_section(text)
+    scores = [int(score) for score in RICH_LINE.findall(body)]
+    out = [
+        f"{family}: its latest critique scores Rich-mode colour {score}: a 3 blocks (VALIDATION §5, line 19) — fix the screen, then score it again"
+        for score in scores
+        if score < 4
+    ]
+    if family in RICH and from_052(heading) and not scores:
+        out.append(f"{family}: its latest critique ({heading.strip()}) has no Rich-mode colour line — a create, edit or settings surface scores line 19 (VALIDATION §5)")
+    return out
+
+
 def check(root: Path) -> list[str]:
     captures = tracked(root)
     stamped = critiques(root)
@@ -119,6 +166,8 @@ def check(root: Path) -> list[str]:
                 problems.append(f"{family}: its screens changed — write its {CRITIQUE} (D-57) and drop it from {ALLOW}")
         else:
             problems.append(f"{family}: no {CRITIQUE} beside its captures (D-57, AJ-E2814)")
+        if family in stamped:
+            problems += rich_problems(family, (root / GALLERY / family / CRITIQUE).read_text(encoding="utf-8"))
     return problems
 
 
@@ -239,6 +288,14 @@ def selftest() -> int:
         (root / ALLOW).write_text("", encoding="utf-8")
         expect("all critiqued passes", check(root) == [])
         expect("no captures fingerprint is 'none'", fingerprint([]) == "none")
+    table = "| # | Line | Score | Note |\n|---|---|---|---|\n| 19 | Rich-mode colour | {} | n |\n"
+    expect("a rich line under 4 blocks", any("a 3 blocks" in p for p in rich_problems("65-settings-sections", "## 0.5.2 (x)\n" + table.format(3))))
+    expect("a rich line at 4 passes", rich_problems("65-settings-sections", "## 0.5.2 (x)\n" + table.format(4)) == [])
+    expect("only the latest section counts", rich_problems("65-settings-sections", "## 0.5.2 a\n" + table.format(2) + "## 0.5.3 b\n" + table.format(5)) == [])
+    expect("a rich family's 0.5.2 section must score it", any("no Rich-mode colour line" in p for p in rich_problems("65-settings-sections", "## 0.5.2 (x)\nno table")))
+    expect("an older section isn't asked for it", rich_problems("65-settings-sections", "## 0.5.1 (x)\nno table") == [])
+    expect("a calm family isn't asked for it", rich_problems("01-rail", "## 0.5.2 (x)\nno table") == [])
+    expect("any family that scores it is held to it", any("a 3 blocks" in p for p in rich_problems("01-rail", "## 0.5.2\n" + table.format(3))))
     page = to_html("<!-- captures: none -->\n# A <b>\n\n| a | b |\n|---|---|\n| `x` | <i> |\n- one\ntext")
     expect("the stamp is left out of the page", "captures" not in page)
     expect("words are escaped", "<b>" not in page and "<i>" not in page and "&lt;b&gt;" in page)

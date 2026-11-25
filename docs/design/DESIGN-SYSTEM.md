@@ -729,6 +729,7 @@ The soft and the text colours are the AA tokens of §3.1 (4.5:1 on every surface
 - **PAT-COLOR-5.** Colour never alone: every status hue goes with its word or glyph (TAG-3, WCAG 1.4.1).
 - **PAT-COLOR-6.** A change to the identity slots or the semantic set re-runs the palette validator in both themes; every FAIL is fixed before it ships.
 - **PAT-COLOR-7.** `scripts/design_tokens_lint.py` fails a raw palette colour (`raw-hue`), a grayscale or saturate filter (`grayscale`), and a new identity-colour use outside the marks (`identity`); its allowlist only shrinks.
+- **PAT-COLOR-8.** Making and editing surfaces are never monochrome (AJ-E1558, the 0.5.1 Nightly's "monochrome hell"): every Settings section, edit or create sheet and picker leads each row and option with its icon (the kit's 30 px `RowChip`, `RowLead` for an App's logo), on and chosen take the accent's soft step, a chosen card, line or menu value is a fill (`SELECTED_CARD`, `SELECTED_FILL`), and a sheet's header carries its icon tile (`Modal icon`). `scripts/rich_mode_lint.py` (verify-static) fails a component that builds a choice from neutral tokens alone; its allowlist only shrinks. The critique checklist scores it as line 19, and a 3 blocks (VALIDATION §5).
 
 ## 6. Content rules
 
