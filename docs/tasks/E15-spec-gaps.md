@@ -938,3 +938,14 @@ Step 2, "Sign in": (1) a newcomer signing in expects the provider's own page, no
 1. No leading dot on idle and ended rows; a state mark only for working, needs you, done to review, error; alignment held.
 2. The subagents icon is a helpers/agents glyph, legible at 12 px in both themes.
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E1557/manifest.md`.
+
+### AJ-E1558 Settings, edit and selection pages in rich mode and colour (D-126, PAT-COLOR), audited, fixed and enforced | Status: TODO (0.5.2) | Priority P0 | Effort L | Depends: AJ-E1550
+**Found** by the maintainer on the 0.5.1 Nightly (2026-11-25): Settings, the edit and create sheets and the pickers are "monochrome hell" again, against D-126's rich mode and PAT-COLOR; the design system existed but these surfaces weren't held to it.
+**UI**: yes
+**Usability reasoning** (Opus, before building): (1) someone setting things up scans for the section and the option they need; colour and icons are how they find it and see what's chosen; (2) each section and option carries its icon, semantic colour in soft steps marks meaning (on, Beta, warning, off), tags and chips say state, the selected choice is unmistakable; (3) it replaces the neutral-only rows, reusing the d126 kit; (4) a page with one option still reads as rich (icon, tone), never a bare list; (5) none; (6) watch for colour without meaning, bright borders (PAT-SURF), contrast failures, a selected state shown only by a ring.
+**Requirements**:
+1. An Opus audit of every Settings section, edit/create sheet and picker against DESIGN-SYSTEM (rich mode, icons, PAT-COLOR soft semantic steps, tags/chips, a clear selected state), findings listed.
+2. Every finding fixed in 0.5.2.
+3. Enforcement: the critique checklist gets a hard "rich-mode colour" line for create/edit/settings, scored, a 3 blocks; a lint or test flags a settings/edit surface built only from neutral tokens (no icon, no semantic or accent token).
+4. An Opus side-by-side critique in both themes before any baseline.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E1558/manifest.md`.

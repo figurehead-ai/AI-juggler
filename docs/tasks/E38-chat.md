@@ -529,6 +529,8 @@
 4. The engine is really started and its hello checked when Bot opens with an AI chosen; Settings › AI › Models' "In use" means started and answering, not merely available.
 5. The panel header shows the model in use ("Apple on-device · Beta").
 6. Every engine failure (off, not downloaded, helper didn't start, timed out, refused) is a plain line with its fix; logged to the app log by kind; no silent fallback.
+7. D-144 fully (the maintainer, 2026-11-25): Bot is the model every time; the deterministic look-up is only a tool the model calls for grounding; nothing non-LLM answers in Bot's voice; every non-LLM look-up surface is ⌘K Search only; a test fails if a Bot reply is produced without an engine call while AI is ready.
+8. The header shows the model and its live state ("Apple on-device · Running"); each answer has a calm details line (model, tokens in/out, time to first token or duration, records used when grounded); the topic shows its running totals (tokens, context used vs the model's window) from the engine's own counts, an estimate labelled as one.
 **Quality gates**: `just keep-going verify-static`; unit and integration tests for the routing (rows / none / general / scope / which model / each failure); AJ-E3829's real-model check; the a11y gate; an Opus critique in both themes.
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E3825/manifest.md`.
 
@@ -538,7 +540,7 @@
 **Usability reasoning** (Opus, before building):
 (1) Someone checking why Bot answers as it does wants one line: which AI, and is it working. (2) The top line: "Bot's AI: Apple's on-device model · In use" and a status line ("Running · answered 2 min ago" / "Not running: <why> · <fix>"). (3) It replaces the scattered state words; Recommended moves out of the way once something is set up. (4) Nothing set up: Recommended for this Mac leads, one primary. (5) Checking the engine may start the helper: through AJ-E1547's gate. (6) Watch for: "In use" while nothing runs (0.5.1's bug); two places saying different things.
 **Requirements**:
-1. The page opens with what Bot uses and its live status, read from the started engine (AJ-E3825 R4).
+1. The page opens with a "Bot's AI" selector card: the current choice highlighted (a soft accent fill, PAT-SURF), its live state (running / idle / failed) and today's totals, read from the started engine (AJ-E3825 R4, R8).
 2. "Recommended for this Mac" only when no model is set up.
 3. Each AI job's row shows its real state in plain words: on, Beta (with its switch), or off and why in one line (D-149); never a bare "not yet".
 **Quality gates**: `just keep-going verify-static`; vitest; the a11y gate; an Opus critique in both themes.
