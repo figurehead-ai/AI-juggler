@@ -184,9 +184,7 @@ fn an_accounts_apps_are_listed_apps_and_a_linked_offer_is_on_none() {
         let (places, apps) = listed(&state);
         assert!(
             named_apps.iter().all(|id| apps.contains(id)),
-            "{when}: every App the Account names is listed ({} of them, {} listed)",
-            named_apps.len(),
-            apps.len()
+            "every App the Account names is listed"
         );
         let desktop: std::collections::BTreeSet<&String> =
             apps.iter().filter(|id| !id.starts_with("cli:")).collect();
